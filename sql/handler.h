@@ -813,7 +813,8 @@ extern ulong total_ha, total_ha_2pc;
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
-enum db_type ha_checktype(enum db_type database_type);
+enum db_type ha_checktype(THD *thd, enum db_type database_type,
+                          bool no_substitute, bool report_error);
 
 /* basic stuff */
 int ha_init(void);
@@ -830,13 +831,12 @@ int ha_delete_table(THD *thd, enum db_type db_type, const char *path,
                     const char *alias, bool generate_warning);
 
 /* discovery */
-int ha_create_table_from_engine(THD* thd, const char *db, const char *name,
-				bool create_if_found);
+int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 int ha_discover(THD* thd, const char* dbname, const char* name,
                 const void** frmblob, uint* frmlen);
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir,List<char>* files);
-int ha_table_exists(THD* thd, const char* db, const char* name);
+int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 
 /* key cache */
 int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);

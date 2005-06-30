@@ -1,12 +1,12 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
+AC_PREREQ(2.58)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.0.8-beta)
+AM_INIT_AUTOMAKE(mysql, 5.0.9-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -17,7 +17,7 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=8
+NDB_VERSION_BUILD=9
 NDB_VERSION_STATUS="beta"
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -195,23 +195,8 @@ then
 else
 CC_VERSION=""
 fi
-case $SYSTEM_TYPE in
-  *netware*)
-CXX_VERSION=`$CXX -version | grep -i version`
-    ;;
-  *)
-CXX_VERSION=`$CXX --version | sed 1q`
-    ;;
-esac
-if test $? -eq "0"
-then
-  AC_MSG_CHECKING("C++ compiler version");
-  AC_MSG_RESULT("$CXX $CXX_VERSION")
-else
-CXX_VERSION=""
-fi
-AC_SUBST(CXX_VERSION)
 AC_SUBST(CC_VERSION)
+MYSQL_CHECK_CXX_VERSION
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -357,7 +342,7 @@ AC_SUBST(CXXFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
-export CC CXX CFLAGS LD LDFLAGS AR
+export CC CXX CFLAGS LD LDFLAGS AR ARFLAGS
 
 if test "$GCC" = "yes"
 then
@@ -365,7 +350,11 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+  AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
+    [1], [Defined by configure. Use explicit template instantiation.])
 fi
+
+MYSQL_PROG_AR
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
@@ -2273,7 +2262,7 @@ AC_ARG_WITH([mysqlmanager],
   [if test "x${withval}" != "xno"; then
     tools_dirs="$tools_dirs server-tools"
    fi],
-  [if test "x${with_server}" == "xyes"; then
+  [if test "x${with_server}" = "xyes"; then
      tools_dirs="$tools_dirs server-tools"
    fi]
 )

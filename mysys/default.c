@@ -914,7 +914,7 @@ static void init_default_directories()
   /* Only add shared system directory if different from default. */
   if (GetSystemWindowsDirectory(shared_system_dir,sizeof(shared_system_dir)) &&
       strcmp(system_dir, shared_system_dir))
-    *ptr++= &shared_system_dir;
+    *ptr++= (char *)&shared_system_dir;
 #endif
 
 #elif defined(__NETWARE__)

@@ -57,10 +57,11 @@ ulint	log_fsp_current_free_limit		= 0;
 /* Global log system variable */
 log_t*	log_sys	= NULL;
 
+#ifdef UNIV_DEBUG
 ibool	log_do_write = TRUE;
 
 ibool	log_debug_writes = FALSE;
-
+#endif /* UNIV_DEBUG */
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
@@ -974,22 +975,24 @@ log_group_check_flush_completion(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (!log_sys->one_flushed && group->n_pending_writes == 0) {
+#ifdef UNIV_DEBUG
 		if (log_debug_writes) {
 			fprintf(stderr,
 				"Log flushed first to group %lu\n", (ulong) group->id);
 		}
-	
+#endif /* UNIV_DEBUG */
 		log_sys->written_to_some_lsn = log_sys->write_lsn;
 		log_sys->one_flushed = TRUE;
 
 		return(LOG_UNLOCK_NONE_FLUSHED_LOCK);
 	}
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes && (group->n_pending_writes == 0)) {
 
 		fprintf(stderr, "Log flushed to group %lu\n", (ulong) group->id);
 	}
-
+#endif /* UNIV_DEBUG */
 	return(0);
 }
 
@@ -1066,12 +1069,13 @@ log_io_complete(
 		        fil_flush(group->space_id);
 		}
 
+#ifdef UNIV_DEBUG
 		if (log_debug_writes) {
 			fprintf(stderr,
 				"Checkpoint info written to group %lu\n",
 				group->id);
 		}
-
+#endif /* UNIV_DEBUG */
 		log_io_complete_checkpoint();
 
 		return;
@@ -1133,12 +1137,13 @@ log_group_file_header_flush(
 
 	dest_offset = nth_file * group->file_size;
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
 			"Writing log file header to group %lu file %lu\n",
 			(ulong) group->id, (ulong) nth_file);
 	}
-
+#endif /* UNIV_DEBUG */
 	if (log_do_write) {
 		log_sys->n_log_ios++;	
 		
@@ -1226,7 +1231,8 @@ loop:
 	} else {
 		write_len = len;
 	}
-	
+
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 
 		fprintf(stderr,
@@ -1250,7 +1256,7 @@ loop:
 					+ i * OS_FILE_LOG_BLOCK_SIZE));
 		}
 	}
-
+#endif /* UNIV_DEBUG */
 	/* Calculate the checksums for each log block and write them to
 	the trailer fields of the log blocks */
 
@@ -1384,6 +1390,7 @@ loop:
 		return;
 	}
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
 			"Writing log from %lu %lu up to lsn %lu %lu\n",
@@ -1392,7 +1399,7 @@ loop:
 			(ulong) ut_dulint_get_high(log_sys->lsn),
 			(ulong)	ut_dulint_get_low(log_sys->lsn));
 	}
-
+#endif /* UNIV_DEBUG */
 	log_sys->n_pending_writes++;
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
@@ -1961,12 +1968,14 @@ log_checkpoint(
 
 	log_sys->next_checkpoint_lsn = oldest_lsn;
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr, "Making checkpoint no %lu at lsn %lu %lu\n",
 			(ulong) ut_dulint_get_low(log_sys->next_checkpoint_no),
 			(ulong) ut_dulint_get_high(oldest_lsn),
 			(ulong) ut_dulint_get_low(oldest_lsn));
 	}
+#endif /* UNIV_DEBUG */
 
 	log_groups_write_checkpoint_info();
 
@@ -2029,8 +2038,6 @@ log_checkpoint_margin(void)
 	ulint	checkpoint_age;
 	ulint	advance;
 	dulint	oldest_lsn;
-	dulint	new_oldest;
-	ibool	do_preflush;
 	ibool	sync;
 	ibool	checkpoint_sync;
 	ibool	do_checkpoint;
@@ -2038,7 +2045,6 @@ log_checkpoint_margin(void)
 loop:
 	sync = FALSE;
 	checkpoint_sync = FALSE;
-	do_preflush = FALSE;
 	do_checkpoint = FALSE;
 
 	mutex_enter(&(log->mutex));
@@ -2058,21 +2064,13 @@ loop:
 		/* A flush is urgent: we have to do a synchronous preflush */
 
 		sync = TRUE;
-	
 		advance = 2 * (age - log->max_modified_age_sync);
-
-		new_oldest = ut_dulint_add(oldest_lsn, advance);
-
-		do_preflush = TRUE;
-
 	} else if (age > log->max_modified_age_async) {
 
 		/* A flush is not urgent: we do an asynchronous preflush */
 		advance = age - log->max_modified_age_async;
-
-		new_oldest = ut_dulint_add(oldest_lsn, advance);
-
-		do_preflush = TRUE;
+	} else {
+		advance = 0;
 	}
 
 	checkpoint_age = ut_dulint_minus(log->lsn, log->last_checkpoint_lsn);
@@ -2096,7 +2094,9 @@ loop:
 	
 	mutex_exit(&(log->mutex));
 
-	if (do_preflush) {
+	if (advance) {
+		dulint	new_oldest = ut_dulint_add(oldest_lsn, advance);
+
 		success = log_preflush_pool_modified_pages(new_oldest, sync);
 
 		/* If the flush succeeded, this thread has done its part
@@ -2347,9 +2347,11 @@ loop:
 			exit(1);
 		}
 
+#ifdef UNIV_DEBUG
 		if (log_debug_writes) {
 			fprintf(stderr, "Created archive file %s\n", name);
 		}
+#endif /* UNIV_DEBUG */
 
 		ret = os_file_close(file_handle);
 	
@@ -2375,7 +2377,8 @@ loop:
 
 		len = group->file_size - (next_offset % group->file_size);
 	}
-	
+
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
 		"Archiving starting at lsn %lu %lu, len %lu to group %lu\n",
@@ -2383,6 +2386,7 @@ loop:
 					(ulong) ut_dulint_get_low(start_lsn),
 					(ulong) len, (ulong) group->id);
 	}
+#endif /* UNIV_DEBUG */
 
 	log_sys->n_pending_archive_ios++;
 
@@ -2473,11 +2477,13 @@ log_archive_write_complete_groups(void)
 		trunc_files = n_files - 1;
 	}
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes && trunc_files) {
 		fprintf(stderr,
 			"Complete file(s) archived to group %lu\n",
 							  (ulong) group->id);
 	}
+#endif /* UNIV_DEBUG */
 
 	/* Calculate the archive file space start lsn */
 	start_lsn = ut_dulint_subtract(log_sys->next_archived_lsn,
@@ -2500,9 +2506,11 @@ log_archive_write_complete_groups(void)
 	fil_space_truncate_start(group->archive_space_id,
 					trunc_files * group->file_size);
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fputs("Archiving writes completed\n", stderr);
 	}
+#endif /* UNIV_DEBUG */
 }
 
 /**********************************************************
@@ -2519,9 +2527,11 @@ log_archive_check_completion_low(void)
 	if (log_sys->n_pending_archive_ios == 0
 			&& log_sys->archiving_phase == LOG_ARCHIVE_READ) {
 
+#ifdef UNIV_DEBUG
 		if (log_debug_writes) {
 			fputs("Archiving read completed\n", stderr);
 		}
+#endif /* UNIV_DEBUG */
 
 	    	/* Archive buffer has now been read in: start archive writes */
 
@@ -2665,6 +2675,7 @@ loop:
 
 	log_sys->next_archived_lsn = limit_lsn;
 
+#ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
 			"Archiving from lsn %lu %lu to lsn %lu %lu\n",
@@ -2673,6 +2684,7 @@ loop:
 			(ulong) ut_dulint_get_high(limit_lsn),
 			(ulong) ut_dulint_get_low(limit_lsn));
 	}
+#endif /* UNIV_DEBUG */
 
 	/* Read the log segment to the archive buffer */
 	
@@ -2775,12 +2787,14 @@ log_archive_close_groups(
 			group->archived_file_no += 2;
 		}
 
+#ifdef UNIV_DEBUG
 		if (log_debug_writes) {
 			fprintf(stderr,
 			"Incrementing arch file no to %lu in log group %lu\n",
 				(ulong) group->archived_file_no + 2,
 			        (ulong) group->id);
 		}
+#endif /* UNIV_DEBUG */
 	}
 }
 

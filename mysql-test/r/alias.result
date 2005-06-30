@@ -27,7 +27,7 @@ hdl_name varchar(30) default NULL,
 prov_hdl_nr int(11) NOT NULL default '0',
 auto_wirknetz varchar(50) default NULL,
 auto_billing varchar(50) default NULL,
-touch timestamp(14) NOT NULL,
+touch timestamp NOT NULL,
 kategorie varchar(50) default NULL,
 kundentyp varchar(20) NOT NULL default '',
 sammel_rech_msisdn varchar(30) NOT NULL default '',
@@ -58,6 +58,8 @@ INSERT INTO t1 VALUES (3359362,406,3359362,'Mustermann Musterfrau',7001,'2000-05
 SELECT ELT(FIELD(kundentyp,'PP','PPA','PG','PGA','FK','FKA','FP','FPA','K','KA','V','VA',''), 'Privat (Private Nutzung)','Privat (Private Nutzung) Sitz im Ausland','Privat (geschaeftliche Nutzung)','Privat (geschaeftliche Nutzung) Sitz im Ausland','Firma (Kapitalgesellschaft)','Firma (Kapitalgesellschaft) Sitz im Ausland','Firma (Personengesellschaft)','Firma (Personengesellschaft) Sitz im Ausland','oeff. rechtl. Koerperschaft','oeff. rechtl. Koerperschaft Sitz im Ausland','Eingetragener Verein','Eingetragener Verein Sitz im Ausland','Typ unbekannt') AS Kundentyp ,kategorie FROM t1 WHERE hdl_nr < 2000000 AND kategorie IN ('Prepaid','Mobilfunk') AND st_klasse = 'Workflow' GROUP BY kundentyp ORDER BY kategorie;
 Kundentyp	kategorie
 Privat (Private Nutzung)	Mobilfunk
+Warnings:
+Warning	1052	Column 'kundentyp' in group statement is ambiguous
 drop table t1;
 CREATE TABLE t1 (
 AUFNR varchar(12) NOT NULL default '',

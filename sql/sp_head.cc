@@ -310,16 +310,16 @@ sp_head::operator delete(void *ptr, size_t size)
 
 
 sp_head::sp_head()
-  :Item_arena((bool)FALSE), m_returns_cs(NULL), m_has_return(FALSE),
+  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+   m_returns_cs(NULL), m_has_return(FALSE),
    m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
-  extern byte 
+  extern byte
     *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
-  state= INITIALIZED_FOR_SP;
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
@@ -509,7 +509,7 @@ sp_head::destroy()
     delete i;
   delete_dynamic(&m_instr);
   m_pcont->destroy();
-  free_items(free_list);
+  free_items();
 
   /*
     If we have non-empty LEX stack then we just came out of parser with
@@ -574,7 +574,7 @@ sp_head::execute(THD *thd)
   sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
-  Item_arena *old_arena;
+  Query_arena *old_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
   LEX *old_lex;
@@ -596,7 +596,6 @@ sp_head::execute(THD *thd)
     ctx->clear_handler();
   thd->query_error= 0;
   old_arena= thd->current_arena;
-  thd->current_arena= this;
 
   /*
     We have to save/restore this info when we are changing call level to
@@ -636,9 +635,18 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     thd->set_time();		// Make current_time() et al work
+    /*
+      We have to set thd->current_arena before executing the instruction
+      to store in the instruction free_list all new items, created
+      during the first execution (for example expanding of '*' or the
+      items made during other permanent subquery transformations).
+    */
+    thd->current_arena= i;
     ret= i->execute(thd, &ip);
     if (i->free_list)
       cleanup_items(i->free_list);
+    i->state= Query_arena::EXECUTED;
+
     // Check if an exception has occurred and a handler has been found
     // Note: We havo to check even if ret==0, since warnings (and some
     //       errors don't return a non-zero value.
@@ -680,8 +688,8 @@ sp_head::execute(THD *thd)
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
 
-  cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
+  state= EXECUTED;
 
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
@@ -713,8 +721,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   sp_rcontext *nctx = NULL;
   uint i;
   int ret;
-  MEM_ROOT *old_mem_root, call_mem_root;
-  Item *old_free_list, *call_free_list;
+  MEM_ROOT call_mem_root;
+  Query_arena call_arena(&call_mem_root, INITIALIZED_FOR_SP), backup_arena;
 
   if (argcount != params)
   {
@@ -726,14 +734,11 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   }
 
   init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
-  old_mem_root= thd->mem_root;
-  thd->mem_root= &call_mem_root;
-  old_free_list= thd->free_list; // Keep the old list
-  thd->free_list= NULL;	// Start a new one
+
 
   // QQ Should have some error checking here? (types, etc...)
   nctx= new sp_rcontext(csize, hmax, cmax);
-  nctx->callers_mem_root= old_mem_root;
+  nctx->callers_mem_root= thd->mem_root;
   for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
@@ -759,15 +764,16 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     }
   }
   thd->spcont= nctx;
+  thd->set_n_backup_item_arena(&call_arena, &backup_arena);
+  /* mem_root was moved to backup_arena */
+  DBUG_ASSERT(nctx->callers_mem_root == backup_arena.mem_root);
 
   ret= execute(thd);
 
   // Partially restore context now.
   // We still need the call mem root and free list for processing
   // of the result.
-  call_free_list= thd->free_list;
-  thd->free_list= old_free_list;
-  thd->mem_root= old_mem_root;
+  thd->restore_backup_item_arena(&call_arena, &backup_arena);
 
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
   {
@@ -787,8 +793,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   thd->spcont= octx;
 
   // Now get rid of the rest of the callee context
-  cleanup_items(call_free_list);
-  free_items(call_free_list);
+  call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
 
   DBUG_RETURN(ret);
@@ -820,8 +825,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
-  MEM_ROOT *old_mem_root, call_mem_root;
-  Item *old_free_list, *call_free_list;
+  MEM_ROOT call_mem_root;
+  Query_arena call_arena(&call_mem_root, INITIALIZED_FOR_SP), backup_arena;
 
   if (args->elements != params)
   {
@@ -831,10 +836,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
 
   init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
-  old_mem_root= thd->mem_root;
-  thd->mem_root= &call_mem_root;
-  old_free_list= thd->free_list; // Keep the old list
-  thd->free_list= NULL;	// Start a new one
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
@@ -899,14 +900,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
 
   if (! ret)
+  {
+    thd->set_n_backup_item_arena(&call_arena, &backup_arena);
     ret= execute(thd);
-
-  // Partially restore context now.
-  // We still need the call mem root and free list for processing
-  // of out parameters.
-  call_free_list= thd->free_list;
-  thd->free_list= old_free_list;
-  thd->mem_root= old_mem_root;
+    thd->restore_backup_item_arena(&call_arena, &backup_arena);
+  }
 
   if (!ret && csize > 0)
   {
@@ -981,8 +979,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   thd->spcont= octx;
 
   // Now get rid of the rest of the callee context
-  cleanup_items(call_free_list);
-  free_items(call_free_list);
+  call_arena.free_items();
   thd->lex->unit.cleanup();
   free_root(&call_mem_root, MYF(0));
 
@@ -1276,6 +1273,13 @@ void sp_head::add_instr(sp_instr *instr)
 {
   instr->free_list= m_thd->free_list;
   m_thd->free_list= 0;
+  /*
+    Memory root of every instruction is designated for permanent
+    transformations (optimizations) made on the parsed tree during
+    the first execution. It points to the memory root of the
+    entire stored procedure, as their life span is equal.
+  */
+  instr->mem_root= &main_mem_root;
   insert_dynamic(&m_instr, (gptr)&instr);
 }
 
@@ -1470,13 +1474,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     they want to store some value in local variable, pass return value and
     etc... So their life time should be longer than one instruction.
 
-    Probably we can call destructors for most of them then we are leaving
-    routine. But this won't help much as they are allocated in main query
-    MEM_ROOT anyway. So they all go to global thd->free_list.
-
-    May be we can use some other MEM_ROOT for this purprose ???
-
-    What else should we do for cleanup ?
     cleanup_items() is called in sp_head::execute()
   */
   return res;
@@ -2312,7 +2309,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
                                        TABLE_LIST ***query_tables_last_ptr)
 {
   uint i;
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   bool result= FALSE;
   DBUG_ENTER("sp_head::add_used_tables_to_table_list");
 

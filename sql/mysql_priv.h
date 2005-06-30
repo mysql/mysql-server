@@ -325,6 +325,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
+#define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -559,8 +560,6 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
-#define prepare_execute(A) ((A)->command == COM_EXECUTE)
-
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
@@ -599,6 +598,7 @@ bool mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 
 bool table_cache_init(void);
@@ -667,6 +667,7 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
+			bool table_cant_handle_bit_fields,
                         uint convert_blob_length);
 void sp_prepare_create_field(THD *thd, create_field *sql_field);
 int prepare_create_field(create_field *sql_field, 
@@ -841,7 +842,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
 void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_free(THD *thd, char *packet);
+void mysql_stmt_close(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
@@ -894,8 +895,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
-		   List_iterator<Item> *it, bool any_privileges,
-                   bool allocate_view_names);
+		   List_iterator<Item> *it, bool any_privileges);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
 		  TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
@@ -1116,6 +1116,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
+extern my_bool opt_log_slow_admin_statements;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_routine_creators;
 extern uint opt_crash_binlog_innodb;
@@ -1230,7 +1231,7 @@ int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int closefrm(TABLE *table);
-db_type get_table_type(const char *name);
+db_type get_table_type(THD *thd, const char *name);
 int read_string(File file, gptr *to, uint length);
 void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
@@ -1287,7 +1288,7 @@ ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
 void append_unescaped(String *res, const char *pos, uint length);
-int create_frm(char *name,uint reclength,uchar *fileinfo,
+int create_frm(THD *thd, char *name,uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);

@@ -31,6 +31,9 @@ How to make the InnoDB parser and lexer C files:
 7. Add '#include "univ.i"' before #include <stdio.h> in lexyy.c
    (Needed for AIX)
 
+8. Add a type cast to int to the assignment below the comment
+   'need more input.'  (Removes a warning on Win64)
+
 These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
 Linux.
 *******************************************************/

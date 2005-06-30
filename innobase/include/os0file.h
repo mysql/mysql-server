@@ -17,6 +17,8 @@ Created 10/21/1995 Heikki Tuuri
 #include <time.h>
 #endif
 
+typedef	struct fil_node_struct	fil_node_t;
+
 extern ibool	os_do_not_call_flush_at_each_write;
 extern ibool	os_has_said_disk_full;
 extern ibool	os_aio_print_debug;
@@ -371,7 +373,7 @@ os_file_get_size_as_iblonglong(
 				/* out: size in bytes, -1 if error */
 	os_file_t	file);	/* in: handle to a file */
 /***************************************************************************
-Sets a file size. This function can be used to extend or truncate a file. */
+Write the specified number of zeros to a newly created file. */
 
 ibool
 os_file_set_size(
@@ -563,7 +565,7 @@ os_aio(
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
 	ulint		n,	/* in: number of bytes to read or write */	
-	void*		message1,/* in: messages for the aio handler (these
+	fil_node_t*	message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
 				are ignored */
@@ -621,7 +623,7 @@ os_aio_windows_handle(
 				ignored */
 	ulint	pos,		/* this parameter is used only in sync aio:
 				wait for the aio slot at this position */  
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -641,7 +643,7 @@ os_aio_posix_handle(
 /*================*/
 				/* out: TRUE if the aio operation succeeded */
 	ulint	array_no,	/* in: array number 0 - 3 */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -661,7 +663,7 @@ os_aio_simulated_handle(
 				i/o thread, segment 1 the log i/o thread,
 				then follow the non-ibuf read threads, and as
 				the last are the non-ibuf write threads */
-	void**	message1,	/* out: the messages passed with the aio
+	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
 				parameters are valid and can be used to
@@ -688,6 +690,8 @@ Refreshes the statistics used to print per-second averages. */
 void
 os_aio_refresh_stats(void);
 /*======================*/
+
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
@@ -695,6 +699,7 @@ no pending io operations. */
 ibool
 os_aio_all_slots_free(void);
 /*=======================*/
+#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 This function returns information about the specified file */

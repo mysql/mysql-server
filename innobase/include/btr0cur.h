@@ -284,7 +284,6 @@ void
 btr_cur_del_unmark_for_ibuf(
 /*========================*/
 	rec_t*		rec,	/* in: record to delete unmark */
-	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Tries to compress a page of the tree on the leaf level. It is assumed
@@ -389,7 +388,6 @@ btr_cur_parse_del_mark_set_sec_rec(
 				/* out: end of log record or NULL */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
-	dict_index_t*	index,	/* in: index corresponding to page */
 	page_t*		page);	/* in: page or NULL */
 /***********************************************************************
 Estimates the number of rows in a given index range. */

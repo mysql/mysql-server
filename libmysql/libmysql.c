@@ -1736,7 +1736,7 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 
 /******************* Declarations ***********************************/
 
-/* Default number of rows fetched per one COM_FETCH command. */
+/* Default number of rows fetched per one COM_STMT_FETCH command. */
 
 #define DEFAULT_PREFETCH_ROWS (ulong) 1
 
@@ -1887,7 +1887,7 @@ void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
 }
 
 /*
-  Read and unpack server reply to COM_PREPARE command (sent from
+  Read and unpack server reply to COM_STMT_PREPARE command (sent from
   mysql_stmt_prepare).
 
   SYNOPSIS
@@ -2082,7 +2082,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
       mysql_use_result it won't be freed in mysql_stmt_free_result and
       we should get 'Commands out of sync' here.
     */
-    if (simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1))
+    if (simple_command(mysql, COM_STMT_CLOSE, buff, 4, 1))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                       mysql->net.sqlstate);
@@ -2091,7 +2091,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     stmt->state= MYSQL_STMT_INIT_DONE;
   }
 
-  if (simple_command(mysql, COM_PREPARE, query, length, 1))
+  if (simple_command(mysql, COM_STMT_PREPARE, query, length, 1))
   {
     set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                     mysql->net.sqlstate);
@@ -2175,7 +2175,7 @@ static unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
 
 /*
   Update result set columns metadata if it was sent again in
-  reply to COM_EXECUTE.
+  reply to COM_STMT_EXECUTE.
 */
 
 static void update_stmt_fields(MYSQL_STMT *stmt)
@@ -2490,7 +2490,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
 
 
 /*
-  Auxilary function to send COM_EXECUTE packet to server and read reply.
+  Auxilary function to send COM_STMT_EXECUTE packet to server and read reply.
   Used from cli_stmt_execute, which is in turn used by mysql_stmt_execute.
 */
 
@@ -2507,7 +2507,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
   buff[4]= (char) stmt->flags;
   int4store(buff+5, 1);                         /* iteration count */
-  if (cli_advanced_command(mysql, COM_EXECUTE, buff, sizeof(buff),
+  if (cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
                            packet, length, 1) ||
       (*mysql->methods->read_query_result)(mysql))
   {
@@ -2720,7 +2720,7 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
     /* Send row request to the server */
     int4store(buff, stmt->stmt_id);
     int4store(buff + 4, stmt->prefetch_rows); /* number of rows to fetch */
-    if (cli_advanced_command(mysql, COM_FETCH, buff, sizeof(buff),
+    if (cli_advanced_command(mysql, COM_STMT_FETCH, buff, sizeof(buff),
                              NullS, 0, 1))
     {
       set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
@@ -2910,7 +2910,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
         - if data dictionary changed between prepare and execute, for
           example a table used in the query was altered.
         Note, that now (4.1.3) we always send metadata in reply to
-        COM_EXECUTE (even if it is not necessary), so either this or
+        COM_STMT_EXECUTE (even if it is not necessary), so either this or
         previous branch always works.
         TODO: send metadata only when it's really necessary and add a warning
         'Metadata changed' when it's sent twice.
@@ -3380,8 +3380,9 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
       Note that we don't get any ok packet from the server in this case
       This is intentional to save bandwidth.
     */
-    if ((*mysql->methods->advanced_command)(mysql, COM_LONG_DATA, buff,
-					    sizeof(buff), data, length, 1))
+    if ((*mysql->methods->advanced_command)(mysql, COM_STMT_SEND_LONG_DATA,
+                                            buff, sizeof(buff), data,
+                                            length, 1))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error,
 		      mysql->net.last_errno, mysql->net.sqlstate);
@@ -4930,7 +4931,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
         */
         char buff[MYSQL_STMT_HEADER]; /* packet header: 4 bytes for stmt id */
         int4store(buff, stmt->stmt_id);
-        if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT, buff,
+        if ((*mysql->methods->advanced_command)(mysql, COM_STMT_RESET, buff,
                                                 sizeof(buff), 0, 0, 0))
         {
           set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
@@ -5004,7 +5005,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
         mysql->status= MYSQL_STATUS_READY;
       }
       int4store(buff, stmt->stmt_id);
-      if ((rc= simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1)))
+      if ((rc= simple_command(mysql, COM_STMT_CLOSE, buff, 4, 1)))
       {
         set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                         mysql->net.sqlstate);

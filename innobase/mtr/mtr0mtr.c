@@ -48,16 +48,11 @@ mtr_memo_slot_release(
 	object = slot->object;
 	type = slot->type;
 
-	if (object != NULL) {
+	if (UNIV_LIKELY(object != NULL)) {
 		if (type <= MTR_MEMO_BUF_FIX) {
 			buf_page_release((buf_block_t*)object, type, mtr);
 		} else if (type == MTR_MEMO_S_LOCK) {
 			rw_lock_s_unlock((rw_lock_t*)object);
-#ifndef UNIV_DEBUG
-		} else {
-			rw_lock_x_unlock((rw_lock_t*)object);
-		}
-#endif
 #ifdef UNIV_DEBUG
 		} else if (type == MTR_MEMO_X_LOCK) {
 			rw_lock_x_unlock((rw_lock_t*)object);
@@ -65,8 +60,11 @@ mtr_memo_slot_release(
 			ut_ad(type == MTR_MEMO_MODIFY);
 			ut_ad(mtr_memo_contains(mtr, object,
 						MTR_MEMO_PAGE_X_FIX));
-		}
+#else
+		} else {
+			rw_lock_x_unlock((rw_lock_t*)object);
 #endif
+		}
 	}
 
 	slot->object = NULL;

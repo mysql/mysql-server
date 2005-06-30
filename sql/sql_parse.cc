@@ -71,7 +71,6 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
-static void log_slow_query(THD *thd);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1508,10 +1507,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thd->command=command;
   /*
-    Commands which will always take a long time should be marked with
-    this so that they will not get logged to the slow query log
+    Commands which always take a long time are logged into
+    the slow log only if opt_log_slow_admin_statements is set.
   */
-  thd->slow_command=FALSE;
+  thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1551,7 +1550,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint tbl_len= *(uchar*) (packet + db_len + 1);
 
     statistic_increment(thd->status_var.com_other, &LOCK_status);
-    thd->slow_command= TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     db= thd->alloc(db_len + tbl_len + 2);
     tbl_name= strmake(db, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
@@ -1635,32 +1634,32 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     break;
   }
-  case COM_EXECUTE:
+  case COM_STMT_EXECUTE:
   {
     mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
-  case COM_FETCH:
+  case COM_STMT_FETCH:
   {
     mysql_stmt_fetch(thd, packet, packet_length);
     break;
   }
-  case COM_LONG_DATA:
+  case COM_STMT_SEND_LONG_DATA:
   {
     mysql_stmt_get_longdata(thd, packet, packet_length);
     break;
   }
-  case COM_PREPARE:
+  case COM_STMT_PREPARE:
   {
     mysql_stmt_prepare(thd, packet, packet_length, 0);
     break;
   }
-  case COM_CLOSE_STMT:
+  case COM_STMT_CLOSE:
   {
-    mysql_stmt_free(thd, packet);
+    mysql_stmt_close(thd, packet);
     break;
   }
-  case COM_RESET_STMT:
+  case COM_STMT_RESET:
   {
     mysql_stmt_reset(thd, packet);
     break;
@@ -1689,7 +1688,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
       ulong length= (ulong)(packet_end-packet);
 
-      log_slow_query(thd);
+      log_slow_statement(thd);
 
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -1858,7 +1857,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       uint32 slave_server_id;
 
       statistic_increment(thd->status_var.com_other,&LOCK_status);
-      thd->slow_command = TRUE;
+      thd->enable_slow_log= opt_log_slow_admin_statements;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
 
@@ -2043,7 +2042,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (thd->net.report_error)
     net_send_error(thd);
 
-  log_slow_query(thd);
+  log_slow_statement(thd);
 
   thd->proc_info="cleaning up";
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
@@ -2059,13 +2058,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 }
 
 
-static void log_slow_query(THD *thd)
+void log_slow_statement(THD *thd)
 {
   time_t start_of_query=thd->start_time;
   thd->end_time();				// Set start time
 
-  /* If not reading from backup and if the query took too long */
-  if (!thd->slow_command && !thd->user_time) // do not log 'slow_command' queries
+  /*
+    Do not log administrative statements unless the appropriate option is
+    set; do not log into slow log if reading from backup.
+  */
+  if (thd->enable_slow_log && !thd->user_time)
   {
     thd->proc_info="logging slow query";
 
@@ -2197,7 +2199,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
 /*
   Read query from packet and store in thd->query
-  Used in COM_QUERY and COM_PREPARE
+  Used in COM_QUERY and COM_STMT_PREPARE
 
   DESCRIPTION
     Sets the following THD variables:
@@ -2499,7 +2501,7 @@ mysql_execute_command(THD *thd)
                           lex->prepared_stmt_name.str,
                           query_len, query_str));
     }
-    thd->command= COM_PREPARE;
+    thd->command= COM_STMT_PREPARE;
     if (!(res= mysql_stmt_prepare(thd, query_str, query_len + 1,
                                   &lex->prepared_stmt_name)))
       send_ok(thd, 0L, 0L, "Statement prepared");
@@ -2520,6 +2522,8 @@ mysql_execute_command(THD *thd)
     DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
                         lex->prepared_stmt_name.length,
                         lex->prepared_stmt_name.str));
+    /* We account deallocate in the same manner as mysql_stmt_close */
+    statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
     if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
     {
       thd->stmt_map.erase(stmt);
@@ -2637,7 +2641,7 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd, SELECT_ACL, all_tables, 0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_backup_table(thd, first_table);
 
     break;
@@ -2649,7 +2653,7 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd, INSERT_ACL, all_tables, 0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_restore_table(thd, first_table);
     break;
   }
@@ -2764,6 +2768,20 @@ mysql_execute_command(THD *thd)
 
   case SQLCOM_CREATE_TABLE:
   {
+    /* If CREATE TABLE of non-temporary table, do implicit commit */
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      if (end_active_trans(thd))
+      {
+	res= -1;
+	break;
+      }
+    }
+    else 
+    {
+      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+    }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     bool link_to_local;
     // Skip first table, which is the table we are creating
@@ -2906,7 +2924,7 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_one_table_access(thd, INDEX_ACL, all_tables))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     if (end_active_trans(thd))
       goto error;
     else
@@ -2995,7 +3013,7 @@ end_with_restore_list:
 	goto error;
       else
       {
-        thd->slow_command=TRUE;
+        thd->enable_slow_log= opt_log_slow_admin_statements;
 	res= mysql_alter_table(thd, select_lex->db, lex->name,
 			       &lex->create_info,
 			       first_table, lex->create_list,
@@ -3094,7 +3112,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res= mysql_repair_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -3114,7 +3132,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
     break;
   }
@@ -3124,7 +3142,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_analyze_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -3145,7 +3163,7 @@ end_with_restore_list:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
-    thd->slow_command=TRUE;
+    thd->enable_slow_log= opt_log_slow_admin_statements;
     res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
       mysql_recreate_table(thd, first_table, 1) :
       mysql_optimize_table(thd, first_table, &lex->check_opt);
@@ -3254,10 +3272,14 @@ end_with_restore_list:
 
     if (first_table->view && !first_table->contain_auto_increment)
       thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
-
     break;
   }
   case SQLCOM_TRUNCATE:
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_one_table_access(thd, DELETE_ACL, all_tables))
       goto error;
@@ -3351,6 +3373,9 @@ end_with_restore_list:
       */
       if (thd->slave_thread)
 	lex->drop_if_exists= 1;
+
+      /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
     }
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
@@ -3489,6 +3514,11 @@ end_with_restore_list:
     break;
   case SQLCOM_CREATE_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     char *alias;
     if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
@@ -3519,6 +3549,11 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_DB:
   {
+    if (end_active_trans(thd))
+    {
+      res= -1;
+      break;
+    }
     if (check_db_name(lex->name))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
@@ -5456,6 +5491,21 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   {
     my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name);
     DBUG_RETURN(1);
+  }
+
+  if (type == FIELD_TYPE_TIMESTAMP && length)
+  {
+    /* Display widths are no longer supported for TIMSTAMP as of MySQL 4.1.
+       In other words, for declarations such as TIMESTAMP(2), TIMESTAMP(4),
+       and so on, the display width is ignored.
+    */
+    char buf[32];
+    my_snprintf(buf, sizeof(buf),
+                "TIMESTAMP(%s)", length, system_charset_info);
+    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER(ER_WARN_DEPRECATED_SYNTAX),
+                        buf, "TIMESTAMP");
   }
 
   if (!(new_field= new_create_field(thd, field_name, type, length, decimals,

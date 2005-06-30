@@ -100,31 +100,6 @@ require "lib/mtr_misc.pl";
 
 $Devel::Trace::TRACE= 1;
 
-my @skip_if_embedded_server=
-  (
-   "alter_table",
-   "bdb-deadlock",
-   "connect",
-   "flush_block_commit",
-   "grant2",
-   "grant_cache",
-   "grant",
-   "init_connect",
-   "innodb-deadlock",
-   "innodb-lock",
-   "mix_innodb_myisam_binlog",
-   "mysqlbinlog2",
-   "mysqlbinlog",
-   "mysqldump",
-   "mysql_protocols",
-   "ps_1general",
-   "rename",
-   "show_check",
-   "system_mysql_db_fix",
-   "user_var",
-   "variables",
- );
-
 # Used by gcov
 our @mysqld_src_dirs=
   (
@@ -196,6 +171,7 @@ our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
 our $exe_mysqld;
 our $exe_mysqldump;              # Called from test case
+our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
 our $exe_slave_mysqld;
@@ -204,7 +180,7 @@ our $opt_bench= 0;
 our $opt_small_bench= 0;
 our $opt_big_test= 0;            # Send --big-test to mysqltest
 
-our $opt_extra_mysqld_opt;       # FIXME not handled
+our @opt_extra_mysqld_opt;
 
 our $opt_compress;
 our $opt_current_test;
@@ -241,6 +217,7 @@ our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
 
 our $opt_no_manager;            # Does nothing now, we never use manager
+our $opt_manager_port;          # Does nothing now, we never use manager
 
 our $opt_old_master;
 
@@ -287,6 +264,7 @@ our $opt_warnings;
 
 our $opt_udiff;
 
+our $opt_skip_ndbcluster;
 our $opt_with_ndbcluster;
 our $opt_with_openssl;
 
@@ -325,7 +303,7 @@ sub mysqld_arguments ($$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
-sub run_mysqltest ($$);
+sub run_mysqltest ($);
 sub usage ($);
 
 ######################################################################
@@ -468,9 +446,9 @@ sub command_line_setup () {
   # These are defaults for things that are set on the command line
 
   $opt_suite=        "main";    # Special default suite
-  my $opt_master_myport=   9306;
-  my $opt_slave_myport=    9308;
-  $opt_ndbcluster_port= 9350;
+  my $opt_master_myport= 9306;
+  my $opt_slave_myport=  9308;
+  $opt_ndbcluster_port=  9350;
 
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -481,11 +459,12 @@ sub command_line_setup () {
              'ps-protocol'              => \$opt_ps_protocol,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
-             'no-manager'               => \$opt_no_manager,
+             'no-manager'               => \$opt_no_manager, # Currently not used
 
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster'          => \$opt_with_ndbcluster,
+             'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
@@ -495,12 +474,13 @@ sub command_line_setup () {
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
              'ndbcluster_port=i'        => \$opt_ndbcluster_port,
+             'manager-port=i'           => \$opt_manager_port, # Currently not used
 
              # Test case authoring
              'record'                   => \$opt_record,
 
              # ???
-             'mysqld=s'                 => \$opt_extra_mysqld_opt,
+             'mysqld=s'                 => \@opt_extra_mysqld_opt,
 
              # Run test on running server
              'extern'                   => \$opt_extern,
@@ -684,6 +664,11 @@ sub command_line_setup () {
     $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
   }
 
+  if ( $opt_skip_ndbcluster )
+  {
+    $opt_with_ndbcluster= 0;
+  }
+
   # FIXME
 
   #if ( $opt_valgrind or $opt_valgrind_all )
@@ -785,137 +770,84 @@ sub executable_setup () {
 
   if ( $opt_source_dist )
   {
+    if ( $glob_win32 )
+    {
+      $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
+                                           "$glob_basedir/bin");
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt");
+      $path_language=      mtr_path_exists("$glob_basedir/share/english/");
+      $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
+    }
+    else
+    {
+      $path_client_bindir= mtr_path_exists("$glob_basedir/client");
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/sql/mysqld");
+      $path_language=      mtr_path_exists("$glob_basedir/sql/share/english/");
+      $path_charsetsdir=   mtr_path_exists("$glob_basedir/sql/share/charsets");
+    }
+
     if ( $glob_use_embedded_server )
     {
-      if ( -f "$glob_basedir/libmysqld/examples/mysqltest" )
-      {
-        $exe_mysqltest=  "$glob_basedir/libmysqld/examples/mysqltest";
-      }
-      else
-      {
-        mtr_error("Can't find embedded server 'mysqltest'");
-      }
+      my $path_examples= "$glob_basedir/libmysqld/examples";
+      $exe_mysqltest=    mtr_exe_exists("$path_examples/mysqltest");
       $exe_mysql_client_test=
-        "$glob_basedir/libmysqld/examples/mysql_client_test_embedded";
+        mtr_exe_exists("$path_examples/mysql_client_test_embedded");
     }
     else
     {
-      if ( -f "$glob_basedir/client/.libs/lt-mysqltest" )
-      {
-        $exe_mysqltest=  "$glob_basedir/client/.libs/lt-mysqltest";
-      }
-      elsif ( -f "$glob_basedir/client/.libs/mysqltest" )
-      {
-        $exe_mysqltest=  "$glob_basedir/client/.libs/mysqltest";
-      }
-      else
-      {
-        $exe_mysqltest=  "$glob_basedir/client/mysqltest";
-      }
+      $exe_mysqltest=  mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
-        "$glob_basedir/tests/mysql_client_test";
+        mtr_exe_exists("$glob_basedir/tests/mysql_client_test");
     }
-    if ( -f "$glob_basedir/client/.libs/mysqldump" )
-    {
-      $exe_mysqldump=  "$glob_basedir/client/.libs/mysqldump";
-    }
-    else
-    {
-      $exe_mysqldump=  "$glob_basedir/client/mysqldump";
-    }
-    if ( -f "$glob_basedir/client/.libs/mysqlbinlog" )
-    {
-      $exe_mysqlbinlog=  "$glob_basedir/client/.libs/mysqlbinlog";
-    }
-    else
-    {
-      $exe_mysqlbinlog=   "$glob_basedir/client/mysqlbinlog";
-    }
-
-    $path_client_bindir=  "$glob_basedir/client";
-    $exe_mysqld=          "$glob_basedir/sql/mysqld";
-    $exe_mysqladmin=      "$path_client_bindir/mysqladmin";
-    $exe_mysql=           "$path_client_bindir/mysql";
-    $exe_mysql_fix_system_tables= "$glob_basedir/scripts/mysql_fix_privilege_tables";
-    $path_language=       "$glob_basedir/sql/share/english/";
-    $path_charsetsdir=    "$glob_basedir/sql/share/charsets";
-
-    $path_ndb_tools_dir=  "$glob_basedir/ndb/tools";
-    $exe_ndb_mgm=         "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
+    $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
+    $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
+    $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
+    $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+    $exe_mysql_fix_system_tables=
+      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
+    $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
+    $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
   }
   else
   {
-    my $path_tests_bindir=  "$glob_basedir/tests";
+    $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
+    $exe_mysqltest=      mtr_exe_exists("$path_client_bindir/mysqltest");
+    $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
+    $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
+    $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
+    $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+    $exe_mysql_fix_system_tables=
+      mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables");
 
-    $path_client_bindir=    "$glob_basedir/bin";
-    $exe_mysqltest=         "$path_client_bindir/mysqltest";
-    $exe_mysqldump=         "$path_client_bindir/mysqldump";
-    $exe_mysqlbinlog=       "$path_client_bindir/mysqlbinlog";
-    $exe_mysqladmin=        "$path_client_bindir/mysqladmin";
-    $exe_mysql=             "$path_client_bindir/mysql";
-    $exe_mysql_fix_system_tables= "$path_client_bindir/scripts/mysql_fix_privilege_tables";
-
-    if ( -d "$glob_basedir/share/mysql/english" )
-    {
-      $path_language    ="$glob_basedir/share/mysql/english/";
-      $path_charsetsdir ="$glob_basedir/share/mysql/charsets";
-    }
-    else
-    {
-      $path_language    ="$glob_basedir/share/english/";
-      $path_charsetsdir ="$glob_basedir/share/charsets";
-    }
-
-    if ( -x "$glob_basedir/libexec/mysqld" )
-    {
-      $exe_mysqld= "$glob_basedir/libexec/mysqld";
-    }
-    else
-    {
-      $exe_mysqld= "$glob_basedir/bin/mysqld";
-    }
+    $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
+                                         "$glob_basedir/share/english/");
+    $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/mysql/charsets",
+                                         "$glob_basedir/share/charsets");
+    $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
+                                         "$glob_basedir/bin/mysqld");
 
     if ( $glob_use_embedded_server )
     {
-      if ( -f "$path_client_bindir/mysqltest_embedded" )
-      {
-        # FIXME valgrind?
-        $exe_mysqltest="$path_client_bindir/mysqltest_embedded";
-      }
-      else
-      {
-        mtr_error("Cannot find embedded server 'mysqltest_embedded'");
-      }
-      if ( -d "$path_tests_bindir/mysql_client_test_embedded" )
-      {
-        $exe_mysql_client_test=
-          "$path_tests_bindir/mysql_client_test_embedded";
-      }
-      else
-      {
-        $exe_mysql_client_test=
-          "$path_client_bindir/mysql_client_test_embedded";
-      }
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest_embedded");
+      $exe_mysql_client_test=
+        mtr_exe_exists("$glob_basedir/tests/mysql_client_test_embedded",
+                       "$path_client_bindir/mysql_client_test_embedded");
     }
     else
     {
-      $exe_mysqltest="$path_client_bindir/mysqltest";
-      $exe_mysql_client_test="$path_client_bindir/mysql_client_test";
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+      $exe_mysql_client_test=
+        mtr_exe_exists("$path_client_bindir/mysql_client_test");
     }
 
     $path_ndb_tools_dir=  "$glob_basedir/bin";
     $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
   }
 
-  if ( ! $exe_master_mysqld )
-  {
-    $exe_master_mysqld=  $exe_mysqld;
-  }
-
-  if ( ! $exe_slave_mysqld )
-  {
-    $exe_slave_mysqld=  $exe_mysqld;
-  }
+  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
+  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
   $path_ndb_backup_dir=
     "$opt_vardir/ndbcluster-$opt_ndbcluster_port";
@@ -934,15 +866,19 @@ sub executable_setup () {
 sub environment_setup () {
 
   # --------------------------------------------------------------------------
-  # Set LD_LIBRARY_PATH if we are using shared libraries
+  # We might not use a standard installation directory, like /usr/lib.
+  # Set LD_LIBRARY_PATH to make sure we find our installed libraries.
   # --------------------------------------------------------------------------
 
-  $ENV{'LD_LIBRARY_PATH'}=
-    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-  $ENV{'DYLD_LIBRARY_PATH'}=
-    "$glob_basedir/lib:$glob_basedir/libmysql/.libs" .
-      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  unless ( $opt_source_dist )
+  {
+    $ENV{'LD_LIBRARY_PATH'}=
+      "$glob_basedir/lib" .
+        ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+    $ENV{'DYLD_LIBRARY_PATH'}=
+      "$glob_basedir/lib" .
+        ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  }
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -953,13 +889,25 @@ sub environment_setup () {
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
+  $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
   $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
+
+  if ( $glob_cygwin_perl )
+  {
+    foreach my $key ('MYSQL_TEST_WINDIR','MASTER_MYSOCK')
+    {
+      $ENV{$key}= `cygpath -w $ENV{$key}`;
+      $ENV{$key} =~ s,\\,\\\\,g;
+      chomp($ENV{$key});
+    }
+  }
 }
 
 
@@ -1020,11 +968,6 @@ sub kill_and_cleanup () {
   kill_running_server ();
 
   mtr_report("Removing Stale Files");
-
-  if ( -l $opt_vardir and ! unlink($opt_vardir) )
-  {
-    mtr_error("Can't remove soft link \"$opt_vardir\"");
-  }
 
   rmtree("$opt_vardir/log");
   rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
@@ -1399,10 +1342,11 @@ sub run_testcase ($) {
 
   if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
   {
-    if ( $tinfo->{'master_restart'} or $master->[0]->{'uses_special_flags'} )
+    if ( $tinfo->{'master_restart'} or
+         $master->[0]->{'running_master_is_special'} )
     {
       stop_masters();
-      $master->[0]->{'uses_special_flags'}= 0; # Forget about why we stopped
+      $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
     }
 
     # ----------------------------------------------------------------------
@@ -1480,9 +1424,9 @@ sub run_testcase ($) {
         }
       }
 
-      if ( @{$tinfo->{'master_opt'}} )
+      if ( $tinfo->{'master_restart'} )
       {
-        $master->[0]->{'uses_special_flags'}= 1;
+        $master->[0]->{'running_master_is_special'}= 1;
       }
     }
 
@@ -1529,7 +1473,7 @@ sub run_testcase ($) {
     }
     unlink($path_timefile);
 
-    my $res= run_mysqltest($tinfo, $tinfo->{'master_opt'});
+    my $res= run_mysqltest($tinfo);
 
     if ( $res == 0 )
     {
@@ -1610,11 +1554,12 @@ sub do_before_start_master ($$) {
     }
   }
 
+  # FIXME only remove the ones that are tied to this master
   # Remove old master.info and relay-log.info files
-  unlink("$opt_vardir/master-data/master.info");
-  unlink("$opt_vardir/master-data/relay-log.info");
-  unlink("$opt_vardir/master1-data/master.info");
-  unlink("$opt_vardir/master1-data/relay-log.info");
+  unlink("$master->[0]->{'path_myddir'}/master.info");
+  unlink("$master->[0]->{'path_myddir'}/relay-log.info");
+  unlink("$master->[1]->{'path_myddir'}/master.info");
+  unlink("$master->[1]->{'path_myddir'}/relay-log.info");
 
   # Run master initialization shell script if one exists
   if ( $init_script )
@@ -1708,24 +1653,37 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $type eq 'master' )
   {
-    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin", $prefix, $opt_vardir);
+    my $id= $idx > 0 ? $idx + 101 : 1;
+
+    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
+                $opt_vardir, $sidx);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $master->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
                 $master->[$idx]->{'path_myport'});
-    mtr_add_arg($args, "%s--server-id=1", $prefix);
+    mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:50M", $prefix);
+    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
+
+    if ( $idx > 0 )
+    {
+      mtr_add_arg($args, "%s--skip-innodb", $prefix);
+    }
+
+    if ( $opt_skip_ndbcluster )
+    {
+      mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
+    }
   }
 
   if ( $type eq 'slave' )
   {
     my $slave_server_id=  2 + $idx;
-    my $slave_rpl_rank= $idx > 0 ? 2 : $slave_server_id;
+    my $slave_rpl_rank= $slave_server_id;
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
@@ -1803,6 +1761,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
 
   if ( $opt_with_openssl )
   {
@@ -1850,7 +1809,7 @@ sub mysqld_arguments ($$$$$) {
     }
   }
 
-  foreach my $arg ( @$extra_opt )
+  foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
   {
     mtr_add_arg($args, "%s%s", $prefix, $arg);
   }
@@ -1860,19 +1819,11 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--rpl-recovery-rank=1", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=master", $prefix);
   }
-  else
+  elsif ( $type eq 'master' )
   {
     mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
-
-    if ( $type eq 'master' )
-    {
-      mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
-    }
-    if ( $type eq 'slave' )
-    {
-      mtr_add_arg($args, "%s--log=%s", $prefix, $slave->[0]->{'path_mylog'});
-    }
+    mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
   }
 
   return $args;
@@ -2032,9 +1983,8 @@ sub stop_slaves () {
 }
 
 
-sub run_mysqltest ($$) {
+sub run_mysqltest ($) {
   my $tinfo=       shift;
-  my $master_opts= shift;
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
@@ -2044,8 +1994,16 @@ sub run_mysqltest ($$) {
       " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
   }
 
+  my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
+                         "--socket=$master->[0]->{'path_mysock'} --password=";
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlshow .=
+      " --debug=d:t:A,$opt_vardir/log/mysqlshow.trace";
+  }
+
   my $cmdline_mysqlbinlog=
-    "$exe_mysqlbinlog --no-defaults --local-load=$opt_tmpdir";
+    "$exe_mysqlbinlog --no-defaults --local-load=$opt_tmpdir --character-sets-dir=$path_charsetsdir";
 
   if ( $opt_debug )
   {
@@ -2063,6 +2021,14 @@ sub run_mysqltest ($$) {
     "--port=$master->[0]->{'path_myport'} " .
     "--socket=$master->[0]->{'path_mysock'}";
 
+  if ( $glob_use_embedded_server )
+  {
+    $cmdline_mysql_client_test.=
+      " -A --language=$path_language" .
+      " -A --datadir=$slave->[0]->{'path_myddir'}" .
+      " -A --character-sets-dir=$path_charsetsdir";
+  }
+
   my $cmdline_mysql_fix_system_tables=
     "$exe_mysql_fix_system_tables --no-defaults --host=localhost --user=root --password= " .
     "--basedir=$glob_basedir --bindir=$path_client_bindir --verbose " .
@@ -2076,6 +2042,7 @@ sub run_mysqltest ($$) {
 
   $ENV{'MYSQL'}=                    $cmdline_mysql;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
+  $ENV{'MYSQL_SHOW'}=               $cmdline_mysqlshow;
   $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
   $ENV{'MYSQL_CLIENT_TEST'}=        $cmdline_mysql_client_test;
@@ -2178,8 +2145,7 @@ sub run_mysqltest ($$) {
 #
 ##############################################################################
 
-sub usage ($)
-{
+sub usage ($) {
   print STDERR <<HERE;
 
 mysql-test-run [ OPTIONS ] [ TESTCASE ]
@@ -2208,7 +2174,8 @@ Options that specify ports
 
   master_port=PORT      Specify the port number used by the first master
   slave_port=PORT       Specify the port number used by the first slave
-  ndbcluster_port=i     Specify the port number used by cluster FIXME
+  ndbcluster_port=PORT  Specify the port number used by cluster
+  manager-port=PORT     Specify the port number used by manager (currently not used)
 
 Options for test case authoring
 

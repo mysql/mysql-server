@@ -30,7 +30,7 @@ CREATE TABLE t1 (
   prov_hdl_nr int(11) NOT NULL default '0',
   auto_wirknetz varchar(50) default NULL,
   auto_billing varchar(50) default NULL,
-  touch timestamp(14) NOT NULL,
+  touch timestamp NOT NULL,
   kategorie varchar(50) default NULL,
   kundentyp varchar(20) NOT NULL default '',
   sammel_rech_msisdn varchar(30) NOT NULL default '',
@@ -61,8 +61,9 @@ INSERT INTO t1 VALUES (3359361,406,3359361,'Mustermann Musterfrau',7001,'2000-05
 INSERT INTO t1 VALUES (3359362,406,3359362,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1509984,2145874,'+','','P',1909154,'MobilComSuper92000D1(Akquise)',NULL,NULL,'MS9ND1',327,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 
 # This died because we used the field Kundentyp twice
-
+--disable_ps_protocol
 SELECT ELT(FIELD(kundentyp,'PP','PPA','PG','PGA','FK','FKA','FP','FPA','K','KA','V','VA',''), 'Privat (Private Nutzung)','Privat (Private Nutzung) Sitz im Ausland','Privat (geschaeftliche Nutzung)','Privat (geschaeftliche Nutzung) Sitz im Ausland','Firma (Kapitalgesellschaft)','Firma (Kapitalgesellschaft) Sitz im Ausland','Firma (Personengesellschaft)','Firma (Personengesellschaft) Sitz im Ausland','oeff. rechtl. Koerperschaft','oeff. rechtl. Koerperschaft Sitz im Ausland','Eingetragener Verein','Eingetragener Verein Sitz im Ausland','Typ unbekannt') AS Kundentyp ,kategorie FROM t1 WHERE hdl_nr < 2000000 AND kategorie IN ('Prepaid','Mobilfunk') AND st_klasse = 'Workflow' GROUP BY kundentyp ORDER BY kategorie;
+--enable_ps_protocol
 
 drop table t1;
 

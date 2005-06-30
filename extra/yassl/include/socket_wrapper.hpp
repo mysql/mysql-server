@@ -31,7 +31,7 @@
 
 #include <assert.h>
 
-#ifdef WIN32
+#ifdef _WIN32
     #include <winsock2.h>
 #else 
     #include <sys/time.h>
@@ -47,7 +47,7 @@ namespace yaSSL {
 
 typedef unsigned int uint;
 
-#ifdef WIN32
+#ifdef _WIN32
     typedef SOCKET socket_t;
 #else
     typedef int socket_t;

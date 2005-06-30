@@ -161,7 +161,7 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
   }
 
   THD *thd= current_thd;
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   bool res= FALSE;
   /*
     In case we're in statement prepare, create conversion item
@@ -879,11 +879,11 @@ longlong Item_func_numhybrid::val_int()
     return (longlong)real_op();
   case STRING_RESULT:
   {
-    char *end_not_used;
     int err_not_used;
     String *res= str_op(&str_value);
+    char *end= (char*) res->ptr() + res->length();
     CHARSET_INFO *cs= str_value.charset();
-    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end_not_used,
+    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end,
                                            &err_not_used) : 0);
   }
   default:
@@ -1022,7 +1022,8 @@ longlong Item_func_unsigned::val_int()
 String *Item_decimal_typecast::val_str(String *str)
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
-  my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, &tmp_buf);
+  if (null_value)
+    return NULL;
   my_decimal2string(E_DEC_FATAL_ERROR, &tmp_buf, 0, 0, 0, str);
   return str;
 }
@@ -1032,6 +1033,8 @@ double Item_decimal_typecast::val_real()
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   double res;
+  if (null_value)
+    return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, tmp, &res);
   return res;
 }
@@ -1041,6 +1044,8 @@ longlong Item_decimal_typecast::val_int()
 {
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   longlong res;
+  if (null_value)
+    return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, tmp, unsigned_flag, &res);
   return res;
 }
@@ -1049,8 +1054,18 @@ longlong Item_decimal_typecast::val_int()
 my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
+  if ((null_value= args[0]->null_value))
+    return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
   return dec;
+}
+
+
+void Item_decimal_typecast::print(String *str)
+{
+  str->append("cast(", 5);
+  args[0]->print(str);
+  str->append(" as decimal)", 12);
 }
 
 
@@ -4104,7 +4119,7 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
     return 1;					// Same item is same.
   /* Check if other type is also a get_user_var() object */
   if (item->type() != FUNC_ITEM ||
-      ((Item_func*) item)->func_name() != func_name())
+      ((Item_func*) item)->functype() != functype())
     return 0;
   Item_func_get_user_var *other=(Item_func_get_user_var*) item;
   return (name.length == other->name.length &&
@@ -4605,7 +4620,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
   if (!(item=var->item(thd, var_type, &null_lex_string)))
     return 0;						// Impossible
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  item->set_name(item_name, 0, system_charset_info);	// Will use original name
+  item->set_name(item_name, 0, system_charset_info);  // Will use original name
   return item;
 }
 
@@ -4792,42 +4807,36 @@ Item_func_sp::execute(Item **itp)
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
   ulong old_client_capabilites;
-  int res;
+  int res= -1;
   bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
+  my_bool nsok;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
 
-  if (! m_sp)
+  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
   {
-    if (!(m_sp= sp_find_function(thd, m_name, TRUE)))
-    {
-      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-      DBUG_RETURN(-1);
-    }
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    goto error;
   }
 
   old_client_capabilites= thd->client_capabilities;
   thd->client_capabilities &= ~CLIENT_MULTI_RESULTS;
 
 #ifndef EMBEDDED_LIBRARY
-  my_bool nsok= thd->net.no_send_ok;
+  nsok= thd->net.no_send_ok;
   thd->net.no_send_ok= TRUE;
 #endif
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-      DBUG_RETURN(-1);
+    goto error_check;
   sp_change_security_context(thd, m_sp, &save_ctx);
   if (save_ctx.changed && 
       check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-  {
-    sp_restore_security_context(thd, m_sp, &save_ctx);
-    thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
-    DBUG_RETURN(-1);
-  }
+    goto error_check;
 #endif
   /*
     Like for SPs, we don't binlog the substatements. If the statement which
@@ -4835,6 +4844,7 @@ Item_func_sp::execute(Item **itp)
     it's not (e.g. SELECT myfunc()) it won't be binlogged (documented known
     problem).
   */
+
   tmp_disable_binlog(thd); /* don't binlog the substatements */
   thd->transaction.in_sub_stmt= TRUE;
 
@@ -4849,16 +4859,21 @@ Item_func_sp::execute(Item **itp)
                  ER_FAILED_ROUTINE_BREAK_BINLOG,
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
+error_check_ctx:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, m_sp, &save_ctx);
 #endif
 
+  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
+
+error_check:
 #ifndef EMBEDDED_LIBRARY
   thd->net.no_send_ok= nsok;
 #endif
 
   thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
 
+error:
   DBUG_RETURN(res);
 }
 

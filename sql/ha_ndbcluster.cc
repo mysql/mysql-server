@@ -511,8 +511,13 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
                       err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
-    m_dupkey= table->s->primary_key;
-  
+  {
+    if (m_rows_to_insert == 1)
+      m_dupkey= table->s->primary_key;
+    else
+      // We are batching inserts, offending key is not available
+      m_dupkey= (uint) -1;
+  }
   DBUG_RETURN(res);
 }
 
@@ -540,13 +545,12 @@ bool ha_ndbcluster::get_error_message(int error,
 }
 
 
+#ifndef DBUG_OFF
 /*
   Check if type is supported by NDB.
-  TODO Use this once in open(), not in every operation
-
 */
 
-static inline bool ndb_supported_type(enum_field_types type)
+static bool ndb_supported_type(enum_field_types type)
 {
   switch (type) {
   case MYSQL_TYPE_TINY:        
@@ -581,6 +585,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   }
   return FALSE;
 }
+#endif /* !DBUG_OFF */
 
 
 /*
@@ -610,15 +615,10 @@ int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
                        pack_len));
   DBUG_DUMP("key", (char*)field_ptr, pack_len);
   
-  if (ndb_supported_type(field->type()))
-  {
-    if (! (field->flags & BLOB_FLAG))
-      // Common implementation for most field types
-      DBUG_RETURN(ndb_op->equal(fieldnr, (char*) field_ptr, pack_len) != 0);
-  }
-  // Unhandled field types
-  DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-  DBUG_RETURN(2);
+  DBUG_ASSERT(ndb_supported_type(field->type()));
+  DBUG_ASSERT(! (field->flags & BLOB_FLAG));
+  // Common implementation for most field types
+  DBUG_RETURN(ndb_op->equal(fieldnr, (char*) field_ptr, pack_len) != 0);
 }
 
 
@@ -637,7 +637,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
                        pack_len, field->is_null()?"Y":"N"));
   DBUG_DUMP("value", (char*) field_ptr, pack_len);
 
-  if (ndb_supported_type(field->type()))
+  DBUG_ASSERT(ndb_supported_type(field->type()));
   {
     // ndb currently does not support size 0
     uint32 empty_field;
@@ -715,9 +715,6 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
     }
     DBUG_RETURN(1);
   }
-  // Unhandled field types
-  DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-  DBUG_RETURN(2);
 }
 
 
@@ -812,9 +809,8 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 
   if (field != NULL)
   {
-    DBUG_ASSERT(buf);
-    if (ndb_supported_type(field->type()))
-    {
+      DBUG_ASSERT(buf);
+      DBUG_ASSERT(ndb_supported_type(field->type()));
       DBUG_ASSERT(field->ptr != NULL);
       if (! (field->flags & BLOB_FLAG))
       { 
@@ -845,10 +841,6 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
         DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
       DBUG_RETURN(1);
-    }
-    // Unhandled field types
-    DBUG_PRINT("error", ("Field type %d not supported", field->type()));
-    DBUG_RETURN(2);
   }
 
   // Used for hidden key only
@@ -3132,6 +3124,13 @@ double ha_ndbcluster::scan_time()
   DBUG_RETURN(res);
 }
 
+/*
+  Convert MySQL table locks into locks supported by Ndb Cluster.
+  Note that MySQL Cluster does currently not support distributed
+  table locks, so to be safe one should set cluster in Single
+  User Mode, before relying on table locks when updating tables
+  from several MySQL servers
+*/
 
 THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
                                           THR_LOCK_DATA **to,
@@ -3147,7 +3146,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
     /* Since NDB does not currently have table locks
        this is treated as a ordinary lock */
 
-    if ((lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
          lock_type <= TL_WRITE) && !thd->in_lock_tables)      
       lock_type= TL_WRITE_ALLOW_WRITE;
     
@@ -4446,7 +4445,7 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   {    
     const NdbError err= dict->getNdbError();
     if (err.code == 709)
-      DBUG_RETURN(1);
+      DBUG_RETURN(-1);
     ERR_RETURN(err);
   }
   DBUG_PRINT("info", ("Found table %s", tab->getName()));
@@ -4454,13 +4453,15 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   len= tab->getFrmLength();  
   if (len == 0 || tab->getFrmData() == NULL)
   {
-    DBUG_PRINT("No frm data found",
-               ("Table is probably created via NdbApi")); 
-    DBUG_RETURN(2);
+    DBUG_PRINT("error", ("No frm data found."));
+    DBUG_RETURN(1);
   }
   
   if (unpackfrm(&data, &len, tab->getFrmData()))
-    DBUG_RETURN(3);
+  {
+    DBUG_PRINT("error", ("Could not unpack table"));
+    DBUG_RETURN(1);
+  }
 
   *frmlen= len;
   *frmblob= data;
@@ -4473,11 +4474,11 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
 
  */
 
-int ndbcluster_table_exists(THD* thd, const char *db, const char *name)
+int ndbcluster_table_exists_in_engine(THD* thd, const char *db, const char *name)
 {
   const NDBTAB* tab;
   Ndb* ndb;
-  DBUG_ENTER("ndbcluster_table_exists");
+  DBUG_ENTER("ndbcluster_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 
   if (!(ndb= check_ndb_in_thd(thd)))
@@ -4656,7 +4657,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
-    if (ndbcluster_table_exists(thd, db, file_name) == 0)    
+    if (ndbcluster_table_exists_in_engine(thd, db, file_name) == 0)    
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name));     
       it.remove();
@@ -4710,7 +4711,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   while ((file_name=it2++))
   {  
     DBUG_PRINT("info", ("Table %s need discovery", file_name));
-    if (ha_create_table_from_engine(thd, db, file_name, TRUE) == 0)
+    if (ha_create_table_from_engine(thd, db, file_name) == 0)
       files->push_back(thd->strdup(file_name)); 
   }
 
@@ -6399,6 +6400,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                   case(REAL_RESULT):
                     context->expect_only(Item::REAL_ITEM);
                     context->expect(Item::DECIMAL_ITEM);
+                    context->expect(Item::INT_ITEM);
                     break;
                   case(INT_RESULT):
                     context->expect_only(Item::INT_ITEM);
@@ -6407,6 +6409,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                   case(DECIMAL_RESULT):
                     context->expect_only(Item::DECIMAL_ITEM);
                     context->expect(Item::REAL_ITEM);
+                    context->expect(Item::INT_ITEM);
                     break;
                   default:
                     break;
@@ -6809,6 +6812,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
               context->expect_only_field_result(INT_RESULT);
+              context->expect_field_result(REAL_RESULT);
+              context->expect_field_result(DECIMAL_RESULT);
             }
             else
             {

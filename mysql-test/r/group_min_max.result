@@ -1954,6 +1954,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	Using where; Using index
+explain select a1 from t1 where a2 = 'b' group by a1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	5	Using where; Using index for group-by
+select a1 from t1 where a2 = 'b' group by a1;
+a1
+a
+b
+c
+d
+explain select distinct a1 from t1 where a2 = 'b';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	5	Using where; Using index for group-by
+select distinct a1 from t1 where a2 = 'b';
+a1
+a
+b
+c
+d
 drop table t1;
 drop table t2;
 drop table t3;

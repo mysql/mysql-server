@@ -631,6 +631,13 @@ typedef struct system_status_var
   ulong filesort_range_count;
   ulong filesort_rows;
   ulong filesort_scan_count;
+  /* Ppepared statements and binary protocol */
+  ulong com_stmt_prepare;
+  ulong com_stmt_execute;
+  ulong com_stmt_send_long_data;
+  ulong com_stmt_fetch;
+  ulong com_stmt_reset;
+  ulong com_stmt_close;
 
   double last_query_cost;
 } STATUS_VAR;
@@ -640,13 +647,13 @@ typedef struct system_status_var
   variable in system_status_var
 */
 
-#define last_system_status_var filesort_scan_count
+#define last_system_status_var com_stmt_close
 
 
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
-class Item_arena
+class Query_arena
 {
 public:
   /*
@@ -654,17 +661,19 @@ public:
     itself to the list on creation (see Item::Item() for details))
   */
   Item *free_list;
-  MEM_ROOT main_mem_root;
   MEM_ROOT *mem_root;                   // Pointer to current memroot
 #ifndef DBUG_OFF
-  bool backup_arena;
+  bool is_backup_arena; /* True if this arena is used for backup. */
+#define INIT_ARENA_DBUG_INFO is_backup_arena= 0
+#else 
+#define INIT_ARENA_DBUG_INFO  
 #endif
-  enum enum_state 
+  enum enum_state
   {
     INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
     CONVENTIONAL_EXECUTION= 3, EXECUTED= 4, ERROR= -1
   };
-  
+
   enum_state state;
 
   /* We build without RTTI, so dynamic_cast can't be used. */
@@ -673,25 +682,22 @@ public:
     STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
   };
 
+  Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg) :
+    free_list(0), mem_root(mem_root_arg), state(state_arg)
+  { INIT_ARENA_DBUG_INFO; }
   /*
-    This constructor is used only when Item_arena is created as
-    backup storage for another instance of Item_arena.
+    This constructor is used only when Query_arena is created as
+    backup storage for another instance of Query_arena.
   */
-  Item_arena() {};
-  /*
-    Create arena for already constructed THD using its variables as
-    parameters for memory root initialization.
-  */
-  Item_arena(THD *thd);
-  /*
-    Create arena and optionally init memory root with minimal values.
-    Particularly used if Item_arena is part of Statement.
-  */
-  Item_arena(bool init_mem_root);
+  Query_arena() { INIT_ARENA_DBUG_INFO; }
+
+#undef INIT_ARENA_DBUG_INFO
   virtual Type type() const;
-  virtual ~Item_arena() {};
+  virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == INITIALIZED; }
+  inline bool is_first_sp_execute() const
+  { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
@@ -699,6 +705,7 @@ public:
   { return state == PREPARED || state == EXECUTED; }
   inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
+
   inline gptr alloc(unsigned int size) { return alloc_root(mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
@@ -721,9 +728,11 @@ public:
     return ptr;
   }
 
-  void set_n_backup_item_arena(Item_arena *set, Item_arena *backup);
-  void restore_backup_item_arena(Item_arena *set, Item_arena *backup);
-  void set_item_arena(Item_arena *set);
+  void set_n_backup_item_arena(Query_arena *set, Query_arena *backup);
+  void restore_backup_item_arena(Query_arena *set, Query_arena *backup);
+  void set_item_arena(Query_arena *set);
+
+  void free_items();
 };
 
 
@@ -743,12 +752,13 @@ class Cursor;
   be used explicitly.
 */
 
-class Statement: public Item_arena
+class Statement: public Query_arena
 {
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
 public:
-  /* FIXME: must be private */
+  /* FIXME: these must be protected */
+  MEM_ROOT main_mem_root;
   LEX     main_lex;
 
   /*
@@ -806,13 +816,11 @@ public:
 
 public:
 
-  /*
-    This constructor is called when statement is a subobject of THD:
-    some variables are initialized in THD::init due to locking problems
-  */
-  Statement();
+  /* This constructor is called for backup statements */
+  Statement() { clear_alloc_root(&main_mem_root); }
 
-  Statement(THD *thd);
+  Statement(enum enum_state state_arg, ulong id_arg,
+            ulong alloc_block_size, ulong prealloc_size);
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
@@ -955,11 +963,6 @@ public:
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
   /*
-    keeps THD state while it is used for active statement
-    Note: we perform special cleanup for it in THD destructor.
-  */
-  Statement stmt_backup;
-  /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
   */
@@ -1039,7 +1042,7 @@ public:
 #endif
   struct st_my_thread_var *mysys_var;
   /*
-    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
+    Type of current query: COM_STMT_PREPARE, COM_QUERY, etc. Set from
     first byte of the packet in do_command()
   */
   enum enum_server_command command;
@@ -1107,9 +1110,9 @@ public:
   Item_change_list change_list;
 
   /*
-    Current prepared Item_arena if there one, or 0
+    Current prepared Query_arena if there one, or 0
   */
-  Item_arena *current_arena;
+  Query_arena *current_arena;
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -1186,7 +1189,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
-  bool       slow_command;
+  bool       enable_slow_log;   /* enable slow log for current statement */
   bool	     no_trans_update, abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
@@ -1331,13 +1334,9 @@ public:
     return 0;
 #endif
   }
-  inline bool only_prepare()
-  {
-    return command == COM_PREPARE;
-  }
   inline bool fill_derived_tables()
   {
-    return !only_prepare() && !lex->only_view_structure();
+    return !current_arena->is_stmt_prepare() && !lex->only_view_structure();
   }
   inline gptr trans_alloc(unsigned int size)
   {
@@ -1370,20 +1369,20 @@ public:
   inline void fatal_error()
   {
     is_fatal_error= 1;
-    net.report_error= 1; 
+    net.report_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
-  inline Item_arena *change_arena_if_needed(Item_arena *backup)
+  inline Query_arena *change_arena_if_needed(Query_arena *backup)
   {
     /*
       use new arena if we are in a prepared statements and we have not
       already changed to use this arena.
     */
     if (!current_arena->is_conventional() &&
-        mem_root != &current_arena->main_mem_root)
+        mem_root != current_arena->mem_root)
     {
       set_n_backup_item_arena(current_arena, backup);
       return current_arena;
@@ -1428,10 +1427,10 @@ public:
 };
 
 #define tmp_disable_binlog(A)       \
-  ulong save_options= (A)->options; \
-  (A)->options&= ~OPTION_BIN_LOG;
+  {ulong tmp_disable_binlog__save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG
 
-#define reenable_binlog(A)          (A)->options= save_options;
+#define reenable_binlog(A)   (A)->options= tmp_disable_binlog__save_options;}
 
 /* Flags for the THD::system_thread (bitmap) variable */
 #define SYSTEM_THREAD_DELAYED_INSERT 1

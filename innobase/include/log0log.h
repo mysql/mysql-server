@@ -17,8 +17,12 @@ Created 12/9/1995 Heikki Tuuri
 typedef struct log_struct	log_t;
 typedef struct log_group_struct	log_group_t;
 
+#ifdef UNIV_DEBUG
 extern	ibool	log_do_write;
 extern 	ibool	log_debug_writes;
+#else /* UNIV_DEBUG */
+# define log_do_write TRUE
+#endif /* UNIV_DEBUG */
 
 /* Wait modes for log_write_up_to */
 #define LOG_NO_WAIT		91

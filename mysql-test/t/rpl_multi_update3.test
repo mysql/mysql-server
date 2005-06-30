@@ -1,0 +1,159 @@
+source include/master-slave.inc;
+
+##############################################################################
+#
+# Let's verify that multi-update with a subselect does not cause the slave to crash
+# (BUG#10442)
+#
+--disable_query_log
+SELECT '-------- Test for BUG#9361 --------' as "";
+--enable_query_log
+
+CREATE TABLE t1 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (NULL, 0);
+INSERT INTO t1 SELECT NULL, 0 FROM t1;
+
+INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
+
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+UPDATE t2, (SELECT a FROM t1) AS t SET t2.b = t.a+5 ;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+sync_slave_with_master;
+connection slave;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+connection master;
+drop table t1,t2;
+
+##############################################################################
+#
+#  Test for BUG#9361: 
+#  Subselects should work inside multi-updates
+#
+--disable_query_log
+SELECT '-------- Test 1 for BUG#9361 --------' as "";
+--enable_query_log
+
+connection master;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+CREATE TABLE t1 (
+  a1  char(30),
+  a2  int,
+  a3  int,
+  a4  char(30),
+  a5  char(30)
+);
+
+CREATE TABLE t2 (
+  b1  int,
+  b2  char(30)
+);
+
+# Insert one row per table
+INSERT INTO t1 VALUES ('Yes', 1, NULL, 'foo', 'bar');
+INSERT INTO t2 VALUES (1, 'baz');
+
+# This should update the row in t1
+UPDATE t1 a, t2 
+  SET    a.a1 = 'No' 
+  WHERE  a.a2 = 
+    (SELECT  b1 
+     FROM    t2 
+     WHERE   b2 = 'baz') 
+  AND a.a3 IS NULL 
+  AND a.a4 = 'foo' 
+  AND a.a5 = 'bar';
+
+sync_slave_with_master;
+connection slave;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+DROP TABLE t1, t2;
+
+##############################################################################
+#
+# Second test for BUG#9361
+#
+
+--disable_query_log
+SELECT '-------- Test 2 for BUG#9361 --------' as "";
+--enable_query_log
+
+connection master;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+CREATE TABLE t1 (
+  i   INT,
+  j   INT,
+  x   INT,
+  y   INT,
+  z   INT
+);
+
+CREATE TABLE t2 (
+  i   INT,
+  k   INT,
+  x   INT,
+  y   INT,
+  z   INT
+);
+
+CREATE TABLE t3 (
+  j   INT,
+  k   INT,
+  x   INT,
+  y   INT,
+  z   INT
+);
+
+INSERT INTO t1 VALUES ( 1, 2,13,14,15);
+INSERT INTO t2 VALUES ( 1, 3,23,24,25);
+INSERT INTO t3 VALUES ( 2, 3, 1,34,35), ( 2, 3, 1,34,36);
+
+UPDATE      t1 AS a  
+INNER JOIN  t2 AS b 
+              ON a.i = b.i
+INNER JOIN  t3 AS c 
+              ON a.j = c.j  AND  b.k = c.k
+SET         a.x = b.x, 
+            a.y = b.y, 
+            a.z = (
+              SELECT  sum(z) 
+              FROM    t3
+              WHERE   y = 34 
+            ) 
+WHERE       b.x = 23;
+
+sync_slave_with_master;
+connection slave;
+
+SELECT * FROM t1;
+
+connection master;
+DROP TABLE t1, t2, t3;

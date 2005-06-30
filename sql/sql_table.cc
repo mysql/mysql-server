@@ -39,6 +39,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
+static bool check_engine(THD *thd, const char *table_name,
+                         enum db_type *new_engine);                             
 
 
 /*
@@ -254,21 +256,23 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       build_table_path(path, sizeof(path), db, alias, reg_ext);
     }
     if (drop_temporary ||
-        (access(path,F_OK) &&
-         ha_create_table_from_engine(thd,db,alias,TRUE)) ||
+       (access(path,F_OK) &&
+         ha_create_table_from_engine(thd,db,alias)) ||
         (!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
     {
+      // Table was not found on disk and table can't be created from engine
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
 			    table->table_name);
       else
-	error= 1;
+        error= 1;
+
     }
     else
     {
       char *end;
-      db_type table_type= get_table_type(path);
+      db_type table_type= get_table_type(thd, path);
       *(end=fn_ext(path))=0;			// Remove extension for delete
       error= ha_delete_table(thd, table_type, path, table->table_name,
                              !dont_log_query);
@@ -1490,7 +1494,6 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   KEY		*key_info_buffer;
   handler	*file;
   bool		error= TRUE;
-  enum db_type	new_db_type;
   DBUG_ENTER("mysql_create_table");
 
   /* Check for duplicate fields and check type of table to create */
@@ -1500,16 +1503,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if ((new_db_type= ha_checktype(create_info->db_type)) !=
-      create_info->db_type)
-  {
-    create_info->db_type= new_db_type;
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_WARN_USING_OTHER_HANDLER,
-			ER(ER_WARN_USING_OTHER_HANDLER),
-			ha_get_storage_engine(new_db_type),
-			table_name);
-  }
+  if (check_engine(thd, table_name, &create_info->db_type))
+    DBUG_RETURN(TRUE);
   db_options= create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
@@ -1611,15 +1606,14 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
-    if (!ha_create_table_from_engine(thd, db, table_name,
-				     create_if_not_exists))
+    if (ha_table_exists_in_engine(thd, db, table_name))
     {
-      DBUG_PRINT("info", ("Table already existed in handler"));
+      DBUG_PRINT("info", ("Table with same name already existed in handler"));
 
       if (create_if_not_exists)
       {
-       create_info->table_existed= 1;   // Mark that table existed
-       error= FALSE;
+        create_info->table_existed= 1;   // Mark that table existed
+        error= FALSE;
       }
       else
        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
@@ -1740,7 +1734,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       field=item->tmp_table_field(&tmp_table);
     else
       field=create_tmp_field(thd, &tmp_table, item, item->type(),
-                             (Item ***) 0, &tmp_field,0,0,0);
+                             (Item ***) 0, &tmp_field, 0, 0, 0, 0);
     if (!field ||
 	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
 					   ((Item_field *)item)->field :
@@ -3125,16 +3119,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   old_db_type= table->s->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)
     create_info->db_type= old_db_type;
-  if ((new_db_type= ha_checktype(create_info->db_type)) !=
-      create_info->db_type)
-  {
-    create_info->db_type= new_db_type;
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_WARN_USING_OTHER_HANDLER,
-			ER(ER_WARN_USING_OTHER_HANDLER),
-			ha_get_storage_engine(new_db_type),
-			new_name);
-  }
+  if (check_engine(thd, new_name, &create_info->db_type))
+    DBUG_RETURN(TRUE);
+  new_db_type= create_info->db_type;
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type= table->s->row_type;
 
@@ -4131,4 +4118,25 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   if (table)
     table->table=0;
   DBUG_RETURN(TRUE);
+}
+
+static bool check_engine(THD *thd, const char *table_name,
+                         enum db_type *new_engine)
+{
+  enum db_type req_engine= *new_engine;
+  bool no_substitution= 
+        test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+  if ((*new_engine= 
+       ha_checktype(thd, req_engine, no_substitution, 1)) == DB_TYPE_UNKNOWN)
+    return TRUE;
+
+  if (req_engine != *new_engine)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_WARN_USING_OTHER_HANDLER,
+                       ER(ER_WARN_USING_OTHER_HANDLER),
+                       ha_get_storage_engine(*new_engine),
+                       table_name);
+  }
+  return FALSE;
 }
