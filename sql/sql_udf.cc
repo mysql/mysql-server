@@ -405,7 +405,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
     This is done to ensure that only approved dll from the system
     directories are used (to make this even remotely secure).
   */
-  if (strchr(udf->dl, '/') || IF_WIN(strchr(dl_name, '\\'),0))
+  if (strchr(udf->dl, '/') || IF_WIN(strchr(udf->dl, '\\'),0))
   {
     send_error(&thd->net, ER_UDF_NO_PATHS,ER(ER_UDF_NO_PATHS));
     DBUG_RETURN(1);
