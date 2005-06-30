@@ -3347,6 +3347,9 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_YEAR:
     return new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
 			  name, table);
+  case MYSQL_TYPE_BIT:
+    return new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
+                                 Field::NONE, name, table);
   default:
     /* This case should never be chosen */
     DBUG_ASSERT(0);

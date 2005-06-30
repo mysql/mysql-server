@@ -7957,7 +7957,9 @@ Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Item ***copy_func, Field **from_field,
-                        bool group, bool modify_item, uint convert_blob_length)
+                        bool group, bool modify_item,
+                        bool table_cant_handle_bit_fields,
+                        uint convert_blob_length)
 {
   switch (type) {
   case Item::SUM_FUNC_ITEM:
@@ -7972,6 +7974,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
+    if (table_cant_handle_bit_fields && field->field->type() == FIELD_TYPE_BIT)
+      return create_tmp_field_from_item(thd, item, table, copy_func,
+                                        modify_item, convert_blob_length);
     return create_tmp_field_from_field(thd, (*from_field= field->field),
                                        item->name, table,
                                        modify_item ? (Item_field*) item : NULL,
@@ -8192,6 +8197,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  Field *new_field=
             create_tmp_field(thd, table, arg, arg->type(), &copy_func,
                              tmp_from_field, group != 0,not_all_columns,
+                             group || distinct,
                              param->convert_blob_length);
 	  if (!new_field)
 	    goto err;					// Should be OOM
@@ -8239,7 +8245,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         create_tmp_field_for_schema(thd, item, table) :
         create_tmp_field(thd, table, item, type, &copy_func,
                          tmp_from_field, group != 0,
-                         not_all_columns || group !=0,
+                         not_all_columns || group != 0, 0,
                          param->convert_blob_length);
 
       if (!new_field)
@@ -8377,6 +8383,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     else
       field->move_field((char*) pos,(uchar*) 0,0);
+    if (field->type() == FIELD_TYPE_BIT)
+    {
+      /* We have to reserve place for extra bits among null bits */
+      ((Field_bit*) field)->set_bit_ptr(null_flags + null_count / 8,
+                                        null_count & 7);
+      null_count+= (field->field_length & 7);
+    }
     field->reset();
     if (from_field[i])
     {						/* Not a table Item */

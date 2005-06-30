@@ -667,6 +667,7 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
+			bool table_cant_handle_bit_fields,
                         uint convert_blob_length);
 void sp_prepare_create_field(THD *thd, create_field *sql_field);
 int prepare_create_field(create_field *sql_field, 
