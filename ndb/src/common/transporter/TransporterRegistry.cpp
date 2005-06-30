@@ -1284,10 +1284,16 @@ TransporterRegistry::start_clients_thread()
 		if (server_port)
 		  t->set_s_port(server_port);
 	      }
-	      else
+	      else if(ndb_mgm_is_connected(m_mgm_handle))
 	      {
 		ndbout_c("Failed to get dynamic port to connect to: %d", res);
 		ndb_mgm_disconnect(m_mgm_handle);
+	      }
+	      else
+	      {
+		ndbout_c("Management server closed connection early. "
+			 "It is probably being shut down (or has crashed). "
+			 "We will retry the connection.");
 	      }
 	    }
 	    /** else
