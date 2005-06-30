@@ -1252,7 +1252,54 @@ static uint get_table_structure(char *table, char *db)
       if (strcmp(field->name, "View") == 0)
       {
         if (verbose)
-          fprintf(stderr, "-- It's a view, skipped\n");
+          fprintf(stderr, "-- It's a view, create dummy table for view\n");
+
+        mysql_free_result(tableRes);
+
+        /* Create a dummy table for the view. ie. a table  which has the
+           same columns as the view should have. This table is dropped
+           just before the view is created. The table is used to handle the
+           case where a view references another view, which hasn't yet been
+           created(during the load of the dump). BUG#10927 */
+
+        /* Create temp table by selecting from the view */
+        my_snprintf(query_buff, sizeof(query_buff),
+                    "CREATE  TEMPORARY TABLE %s SELECT * FROM %s WHERE 0",
+                    result_table, result_table);
+        if (mysql_query_with_error_report(sock, 0, query_buff))
+        {
+          safe_exit(EX_MYSQLERR);
+          DBUG_RETURN(0);
+        }
+
+        /* Get CREATE statement for the temp table */
+        my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE TABLE %s",
+                    result_table);
+        if (mysql_query_with_error_report(sock, 0, query_buff))
+        {
+          safe_exit(EX_MYSQLERR);
+          DBUG_RETURN(0);
+        }
+        tableRes= mysql_store_result(sock);
+        row= mysql_fetch_row(tableRes);
+
+        if (opt_drop)
+          fprintf(sql_file, "DROP VIEW IF EXISTS %s;\n",opt_quoted_table);
+
+        /* Print CREATE statement but remove TEMPORARY */
+        fprintf(sql_file, "CREATE %s;\n", row[1]+17);
+        check_io(sql_file);
+
+        mysql_free_result(tableRes);
+
+        /* Drop the temp table */
+        my_snprintf(buff, sizeof(buff),
+                    "DROP TEMPORARY TABLE %s", result_table);
+        if (mysql_query_with_error_report(sock, 0, buff))
+        {
+          safe_exit(EX_MYSQLERR);
+          DBUG_RETURN(0);
+        }
         was_views= 1;
         DBUG_RETURN(0);
       }
@@ -2855,6 +2902,7 @@ static my_bool get_view_structure(char *table, char* db)
   }
   if (opt_drop)
   {
+    fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", opt_quoted_table);
     fprintf(sql_file, "DROP VIEW IF EXISTS %s;\n", opt_quoted_table);
     check_io(sql_file);
   }
