@@ -2726,7 +2726,6 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
       set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
       return 1;
     }
-    stmt->server_status= mysql->server_status;
     if (cli_read_binary_rows(stmt))
       return 1;
     stmt->server_status= mysql->server_status;
