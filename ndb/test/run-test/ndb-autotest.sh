@@ -84,7 +84,7 @@ fi
 for i in $vars
 do
   t=`echo echo \\$$i`
-  if [ -z `eval $t` ]
+  if [ -z "`eval $t`" ]
   then
       echo "Invalid config: $conf, variable $i is not set"
       exit
@@ -301,8 +301,8 @@ choose_conf(){
 	echo "$test_dir/conf-$1.txt"
     else
 	echo "Unable to find conf file looked for" 1>&2
-	echo "$testdir/conf-$1-$HOST.txt and" 1>&2
-	echo "$testdir/conf-$1.txt" 1>&2
+	echo "$test_dir/conf-$1-$HOST.txt and" 1>&2
+	echo "$test_dir/conf-$1.txt" 1>&2
 	exit
     fi
 }
