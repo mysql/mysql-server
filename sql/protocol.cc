@@ -28,6 +28,7 @@
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
+static void write_eof_packet(THD *thd, NET *net);
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
@@ -362,41 +363,50 @@ static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
 */    
 
 void
-send_eof(THD *thd, bool no_flush)
+send_eof(THD *thd)
 {
   NET *net= &thd->net;
   DBUG_ENTER("send_eof");
   if (net->vio != 0 && !net->no_send_eof)
   {
-    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
-    {
-      uchar buff[5];
-      /* Don't send warn count during SP execution, as the warn_list
-         is cleared between substatements, and mysqltest gets confused */
-      uint tmp= (thd->spcont ? 0 : min(thd->total_warn_count, 65535));
-      buff[0]=254;
-      int2store(buff+1, tmp);
-      /*
-	The following test should never be true, but it's better to do it
-	because if 'is_fatal_error' is set the server is not going to execute
-	other queries (see the if test in dispatch_command / COM_QUERY)
-      */
-      if (thd->is_fatal_error)
-	thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
-      int2store(buff+3, thd->server_status);
-      VOID(my_net_write(net,(char*) buff,5));
-      VOID(net_flush(net));
-    }
-    else
-    {
-      VOID(my_net_write(net,eof_buff,1));
-      if (!no_flush)
-	VOID(net_flush(net));
-    }
+    write_eof_packet(thd, net);
+    VOID(net_flush(net));
     thd->net.no_send_error= 1;
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Format EOF packet according to the current protocol and
+  write it to the network output buffer.
+*/
+
+static void write_eof_packet(THD *thd, NET *net)
+{
+  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    uchar buff[5];
+    /*
+      Don't send warn count during SP execution, as the warn_list
+      is cleared between substatements, and mysqltest gets confused
+    */
+    uint tmp= (thd->spcont ? 0 : min(thd->total_warn_count, 65535));
+    buff[0]= 254;
+    int2store(buff+1, tmp);
+    /*
+      The following test should never be true, but it's better to do it
+      because if 'is_fatal_error' is set the server is not going to execute
+      other queries (see the if test in dispatch_command / COM_QUERY)
+    */
+    if (thd->is_fatal_error)
+      thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+    int2store(buff+3, thd->server_status);
+    VOID(my_net_write(net, (char*) buff, 5));
+  }
+  else
+    VOID(my_net_write(net, eof_buff, 1));
 }
 
 /*
@@ -640,7 +650,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   }
 
   if (flags & SEND_EOF)
-    my_net_write(&thd->net, eof_buff, 1);
+    write_eof_packet(thd, &thd->net);
   DBUG_RETURN(prepare_for_send(list));
 
 err:
