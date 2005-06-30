@@ -148,7 +148,7 @@ static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
   memcpy(st->attrend,str,len);
   st->attrend+=len;
   st->attrend[0]='\0';
-  return st->enter ? st->enter(st,st->attr,st->attrend-st->attr) : MY_XML_OK;
+  return st->enter ?  st->enter(st,st->attr,st->attrend-st->attr) : MY_XML_OK;
 }
 
 
@@ -170,7 +170,7 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
   
   /* Find previous '.' or beginning */
   for( e=p->attrend; (e>p->attr) && (e[0]!='.') ; e--);
-  glen = (e[0]=='.') ? (p->attrend-e-1) : p->attrend-e;
+  glen = (uint) ((e[0]=='.') ? (p->attrend-e-1) : p->attrend-e);
   
   if (str && (slen != glen))
   {
@@ -180,7 +180,7 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
     return MY_XML_ERROR;
   }
   
-  rc = p->leave_xml ? p->leave_xml(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
+  rc = p->leave_xml ?  p->leave_xml(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
   
   *e='\0';
   p->attrend=e;
@@ -221,7 +221,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
           sprintf(p->errstr,"1: %s unexpected (ident wanted)",lex2str(lex));
           return MY_XML_ERROR;
         }
-        if(MY_XML_OK!=my_xml_leave(p,a.beg,a.end-a.beg))
+        if(MY_XML_OK!=my_xml_leave(p,a.beg,(uint) (a.end-a.beg)))
           return MY_XML_ERROR;
         lex=my_xml_scan(p,&a);
         goto gt;
@@ -240,7 +240,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
       
       if (MY_XML_IDENT==lex)
       {
-        if(MY_XML_OK!=my_xml_enter(p,a.beg,a.end-a.beg))
+        if(MY_XML_OK!=my_xml_enter(p,a.beg,(uint) (a.end-a.beg)))
           return MY_XML_ERROR;
       }
       else
@@ -258,9 +258,9 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
           lex=my_xml_scan(p,&b);
           if ( (lex==MY_XML_IDENT) || (lex==MY_XML_STRING) )
           {
-            if((MY_XML_OK!=my_xml_enter(p,a.beg,a.end-a.beg))  ||
-               (MY_XML_OK!=my_xml_value(p,b.beg,b.end-b.beg))  ||
-               (MY_XML_OK!=my_xml_leave(p,a.beg,a.end-a.beg)))
+            if((MY_XML_OK!=my_xml_enter(p,a.beg,(uint) (a.end-a.beg)))  ||
+               (MY_XML_OK!=my_xml_value(p,b.beg,(uint) (b.end-b.beg)))  ||
+               (MY_XML_OK!=my_xml_leave(p,a.beg,(uint) (a.end-a.beg))))
               return MY_XML_ERROR;
           }
           else
@@ -272,8 +272,8 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
         }
         else if ( (MY_XML_STRING==lex) || (MY_XML_IDENT==lex) )
         {
-          if((MY_XML_OK!=my_xml_enter(p,a.beg,a.end-a.beg)) ||
-             (MY_XML_OK!=my_xml_leave(p,a.beg,a.end-a.beg)))
+          if((MY_XML_OK!=my_xml_enter(p,a.beg,(uint) (a.end-a.beg))) ||
+             (MY_XML_OK!=my_xml_leave(p,a.beg,(uint) (a.end-a.beg))))
            return MY_XML_ERROR;
         }
         else
@@ -321,7 +321,7 @@ gt:
       my_xml_norm_text(&a);
       if (a.beg!=a.end)
       {
-        my_xml_value(p,a.beg,a.end-a.beg);
+        my_xml_value(p,a.beg,(uint) (a.end-a.beg));
       }
     }
   }
@@ -384,7 +384,7 @@ uint my_xml_error_pos(MY_XML_PARSER *p)
     if (s[0]=='\n')
       beg=s;
   }
-  return p->cur-beg;
+  return (uint) (p->cur-beg);
 }
 
 uint my_xml_error_lineno(MY_XML_PARSER *p)

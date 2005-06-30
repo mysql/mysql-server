@@ -93,18 +93,20 @@ int check_if_legal_filename(const char *path)
   path+= dirname_length(path);                  /* To start of filename */
   if (!(end= strchr(path, FN_EXTCHAR)))
     end= strend(path);
-  if (path == end || (uint) (path - end) > MAX_RESERVED_NAME_LENGTH)
+  if (path == end || (uint) (end - path) > MAX_RESERVED_NAME_LENGTH)
     DBUG_RETURN(0);                             /* Simplify inner loop */
 
   for (reserved_name= reserved_names; *reserved_name; reserved_name++)
   {
     const char *name= path;
-    while (name != end)
+    const char *current_reserved_name= *reserved_name;
+    
+    while (name != end && *current_reserved_name)
     {
-      if (my_toupper(&my_charset_latin1, *path) !=
-          my_toupper(&my_charset_latin1, *name))
+      if (*current_reserved_name != my_toupper(&my_charset_latin1, *name))
         break;
-      if (name++ == end)
+      current_reserved_name++;
+      if (++name == end)
         DBUG_RETURN(1);                         /* Found wrong path */
     }
   }

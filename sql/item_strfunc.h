@@ -322,7 +322,7 @@ public:
   Item_func_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
-  const char *func_name() const { return "ecrypt"; }
+  const char *func_name() const { return "encrypt"; }
 };
 
 #include "sql_crypt.h"
@@ -573,6 +573,7 @@ public:
     max_length=args[0]->max_length;
   }
   void print(String *str);
+  const char *func_name() const { return "cast_as_binary"; }
 };
 
 
@@ -648,6 +649,7 @@ public:
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "collate"; }
+  enum Functype func_type() const { return COLLATE_FUNC; }
   void print(String *str);
   Item_field *filed_for_view_update()
   {

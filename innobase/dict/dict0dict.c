@@ -1453,7 +1453,7 @@ dict_index_add_to_cache(
 
 	/* Increment the ord_part counts in columns which are ordering */
 
-	if (index->type & DICT_UNIVERSAL) {
+	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		n_ord = new_index->n_fields;
 	} else {
 		n_ord = dict_index_get_n_unique(new_index);
@@ -1482,7 +1482,7 @@ dict_index_add_to_cache(
 		new_index->tree = tree;
 	}
 
-	if (!(new_index->type & DICT_UNIVERSAL)) {
+	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
 		new_index->stat_n_diff_key_vals =
 			mem_heap_alloc(new_index->heap,
@@ -1683,7 +1683,7 @@ dict_index_copy_types(
 	dtype_t*	type;
 	ulint		i;
 
-	if (index->type & DICT_UNIVERSAL) {
+	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		dtuple_set_types_binary(tuple, n_fields);
 
 		return;
@@ -1779,7 +1779,7 @@ dict_index_build_internal_clust(
 		dict_index_copy(new_index, index, 0, index->n_fields);
 	}
 
-	if (index->type & DICT_UNIVERSAL) {
+	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		/* No fixed number of fields determines an entry uniquely */
 
 		new_index->n_uniq = ULINT_MAX;
@@ -3682,7 +3682,7 @@ dict_tree_find_index_low(
 	table = index->table;
 	
 	if ((index->type & DICT_CLUSTERED)
-				&& (table->type != DICT_TABLE_ORDINARY)) {
+			&& UNIV_UNLIKELY(table->type != DICT_TABLE_ORDINARY)) {
 
 		/* Get the mix id of the record */
 		ut_a(!table->comp);
@@ -3838,7 +3838,7 @@ dict_tree_build_node_ptr(
 
 	ind = dict_tree_find_index_low(tree, rec);
 	
-	if (tree->type & DICT_UNIVERSAL) {
+	if (UNIV_UNLIKELY(tree->type & DICT_UNIVERSAL)) {
 		/* In a universal index tree, we take the whole record as
 		the node pointer if the reord is on the leaf level,
 		on non-leaf levels we remove the last field, which
@@ -3903,9 +3903,10 @@ dict_tree_copy_rec_order_prefix(
 	dict_index_t*	index;
 	ulint		n;
 
+	UNIV_PREFETCH_R(rec);
 	index = dict_tree_find_index_low(tree, rec);
 
-	if (tree->type & DICT_UNIVERSAL) {
+	if (UNIV_UNLIKELY(tree->type & DICT_UNIVERSAL)) {
 		ut_a(!index->table->comp);
 		n = rec_get_n_fields_old(rec);
 	} else {
@@ -3957,7 +3958,7 @@ dict_index_calc_min_rec_len(
 	ulint	sum	= 0;
 	ulint	i;
 
-	if (index->table->comp) {
+	if (UNIV_LIKELY(index->table->comp)) {
 		ulint nullable = 0;
 		sum = REC_N_NEW_EXTRA_BYTES;
 		for (i = 0; i < dict_index_get_n_fields(index); i++) {
@@ -4277,9 +4278,11 @@ dict_index_print_low(
 
 	putc('\n', stderr);
 
-/*	btr_print_size(tree); */
+#ifdef UNIV_BTR_PRINT
+	btr_print_size(tree);
 
-/*	btr_print_tree(tree, 7); */
+	btr_print_tree(tree, 7);
+#endif /* UNIV_BTR_PRINT */
 }
 
 /**************************************************************************

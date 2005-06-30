@@ -223,13 +223,14 @@ in the free list to the frames.
 
 buf_pool_t*	buf_pool = NULL; /* The buffer buf_pool of the database */
 
+#ifdef UNIV_DEBUG
 ulint		buf_dbg_counter	= 0; /* This is used to insert validation
 					operations in excution in the
 					debug version */
 ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					the program prints info whenever
 					read-ahead or flush occurs */
-
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
@@ -1286,8 +1287,9 @@ buf_page_optimistic_get_func(
 
 	/* If AWE is used, block may have a different frame now, e.g., NULL */
 	
-	if (block->state != BUF_BLOCK_FILE_PAGE || block->frame != guess) {
-
+	if (UNIV_UNLIKELY(block->state != BUF_BLOCK_FILE_PAGE)
+			|| UNIV_UNLIKELY(block->frame != guess)) {
+	exit_func:
 		mutex_exit(&(buf_pool->mutex));
 
 		return(FALSE);
@@ -1320,19 +1322,17 @@ buf_page_optimistic_get_func(
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
-	if (!success) {
+	if (UNIV_UNLIKELY(!success)) {
 		mutex_enter(&(buf_pool->mutex));
 		
 		block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&(block->debug_latch));
-#endif			
-		mutex_exit(&(buf_pool->mutex));
-
-		return(FALSE);
+#endif
+		goto exit_func;
 	}
 
-	if (!UT_DULINT_EQ(modify_clock, block->modify_clock)) {
+	if (UNIV_UNLIKELY(!UT_DULINT_EQ(modify_clock, block->modify_clock))) {
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(block->frame, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -1347,10 +1347,8 @@ buf_page_optimistic_get_func(
 		block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&(block->debug_latch));
-#endif			
-		mutex_exit(&(buf_pool->mutex));
-		
-		return(FALSE);
+#endif
+		goto exit_func;
 	}
 
 	mtr_memo_push(mtr, block, fix_type);
@@ -1368,7 +1366,7 @@ buf_page_optimistic_get_func(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->file_page_was_freed == FALSE);
 #endif
-	if (!accessed) {
+	if (UNIV_UNLIKELY(!accessed)) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -1742,10 +1740,12 @@ buf_page_create(
 
 	/* If we get here, the page was not in buf_pool: init it there */
 
+#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Creating space %lu page %lu to buffer\n",
 			(ulong) space, (ulong) offset);
 	}
+#endif /* UNIV_DEBUG */
 
 	block = free_block;
 	
@@ -1896,9 +1896,11 @@ buf_page_io_complete(
 
 		rw_lock_x_unlock_gen(&(block->lock), BUF_IO_READ);
 
+#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fputs("Has read ", stderr);
 		}
+#endif /* UNIV_DEBUG */
 	} else {
 		ut_ad(io_type == BUF_IO_WRITE);
 
@@ -1911,17 +1913,21 @@ buf_page_io_complete(
 
 		buf_pool->n_pages_written++;
 
+#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fputs("Has written ", stderr);
 		}
+#endif /* UNIV_DEBUG */
 	}
 	
 	mutex_exit(&(buf_pool->mutex));
 
+#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "page space %lu page no %lu\n",
 			(ulong) block->space, (ulong) block->offset);
 	}
+#endif /* UNIV_DEBUG */
 }
 
 /*************************************************************************
@@ -1950,6 +1956,7 @@ buf_pool_invalidate(void)
 	mutex_exit(&(buf_pool->mutex));
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer buf_pool data structure. */
 
@@ -2094,10 +2101,6 @@ buf_print(void)
 	
 	n_found = 0;
 
-	for (i = 0 ; i < size; i++) {
-		counts[i] = 0;
-	}
-
 	for (i = 0; i < size; i++) {
 		frame = buf_pool_get_nth_block(buf_pool, i)->frame;
 
@@ -2149,6 +2152,7 @@ buf_print(void)
 
 	ut_a(buf_validate());
 }	
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */

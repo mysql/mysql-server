@@ -1444,6 +1444,7 @@ testperf()
   if (! testcase('p'))
     return 0;
   DBG("=== perf test ===");
+  g_bh1 = g_bh2 = 0;
   g_ndb = new Ndb(g_ncc, "TEST_DB");
   CHK(g_ndb->init() == 0);
   CHK(g_ndb->waitUntilReady() == 0);

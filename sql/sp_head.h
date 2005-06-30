@@ -74,11 +74,12 @@ sp_name *
 sp_name_current_db_new(THD *thd, LEX_STRING name);
 
 
-class sp_head :private Item_arena
+class sp_head :private Query_arena
 {
   sp_head(const sp_head &);	/* Prevent use of these */
   void operator=(sp_head &);
 
+  MEM_ROOT main_mem_root;
 public:
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
@@ -273,7 +274,7 @@ private:
 // "Instructions"...
 //
 
-class sp_instr : public Sql_alloc
+class sp_instr :public Query_arena, public Sql_alloc
 {
   sp_instr(const sp_instr &);	/* Prevent use of these */
   void operator=(sp_instr &);
@@ -281,17 +282,16 @@ class sp_instr : public Sql_alloc
 public:
 
   uint marked;
-  Item *free_list;              // My Items
   uint m_ip;			// My index
   sp_pcontext *m_ctx;		// My parse context
 
   // Should give each a name or type code for debugging purposes?
   sp_instr(uint ip, sp_pcontext *ctx)
-    :Sql_alloc(), marked(0), free_list(0), m_ip(ip), m_ctx(ctx)
+    :Query_arena(0, INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
   {}
 
   virtual ~sp_instr()
-  { free_items(free_list); }
+  { free_items(); }
 
   // Execute this instrution. '*nextp' will be set to the index of the next
   // instruction to execute. (For most instruction this will be the
@@ -377,6 +377,10 @@ public:
     return (uint)m_lex->sql_command;
   }
 
+  void disable_query_cache()
+  {
+    m_lex->safe_to_cache_query= 0;
+  }
 private:
 
   LEX *m_lex;

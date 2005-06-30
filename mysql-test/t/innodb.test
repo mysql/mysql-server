@@ -596,7 +596,6 @@ show tables from mysqltest;
 set autocommit=0;
 create table t1 (a int not null) engine= innodb;
 insert into t1 values(1),(2);
---error 1192
 truncate table t1;
 commit;
 truncate table t1;
@@ -661,9 +660,9 @@ CREATE TABLE t1 (
   cname char(15) NOT NULL default '',
   carrier_id smallint(6) NOT NULL default '0',
   privacy tinyint(4) NOT NULL default '0',
-  last_mod_date timestamp(14) NOT NULL,
+  last_mod_date timestamp NOT NULL,
   last_mod_id smallint(6) NOT NULL default '0',
-  last_app_date timestamp(14) NOT NULL,
+  last_app_date timestamp NOT NULL,
   last_app_id smallint(6) default '-1',
   version smallint(6) NOT NULL default '0',
   assigned_scps int(11) default '0',
@@ -680,9 +679,9 @@ CREATE TABLE t2 (
   cname char(15) NOT NULL default '',
   carrier_id smallint(6) NOT NULL default '0',
   privacy tinyint(4) NOT NULL default '0',
-  last_mod_date timestamp(14) NOT NULL,
+  last_mod_date timestamp NOT NULL,
   last_mod_id smallint(6) NOT NULL default '0',
-  last_app_date timestamp(14) NOT NULL,
+  last_app_date timestamp NOT NULL,
   last_app_id smallint(6) default '-1',
   version smallint(6) NOT NULL default '0',
   assigned_scps int(11) default '0',

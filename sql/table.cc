@@ -163,7 +163,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (share->frm_version == FRM_VER_TRUE_VARCHAR -1 && head[33] == 5)
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
-  share->db_type= ha_checktype((enum db_type) (uint) *(head+3));
+  share->db_type= ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0);
   share->db_create_options= db_create_options=uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
   share->mysql_version= uint4korr(head+51);
@@ -1341,8 +1341,8 @@ void append_unescaped(String *res, const char *pos, uint length)
 
 	/* Create a .frm file */
 
-File create_frm(register my_string name, uint reclength, uchar *fileinfo,
-		HA_CREATE_INFO *create_info, uint keys)
+File create_frm(THD *thd, register my_string name, uint reclength,
+		uchar *fileinfo, HA_CREATE_INFO *create_info, uint keys)
 {
   register File file;
   ulong length;
@@ -1375,7 +1375,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     fileinfo[1]= 1;
     fileinfo[2]= FRM_VER+3+ test(create_info->varchar);
 
-    fileinfo[3]= (uchar) ha_checktype(create_info->db_type);
+    fileinfo[3]= (uchar) ha_checktype(thd,create_info->db_type,0,0);
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
@@ -1637,7 +1637,7 @@ bool check_column_name(const char *name)
 ** Get type of table from .frm file
 */
 
-db_type get_table_type(const char *name)
+db_type get_table_type(THD *thd, const char *name)
 {
   File	 file;
   uchar head[4];
@@ -1653,7 +1653,7 @@ db_type get_table_type(const char *name)
       (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
        (head[2] < FRM_VER+3 || head[2] > FRM_VER+4)))
     DBUG_RETURN(DB_TYPE_UNKNOWN);
-  DBUG_RETURN(ha_checktype((enum db_type) (uint) *(head+3)));
+  DBUG_RETURN(ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0));
 }
 
 
@@ -1926,7 +1926,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
       (check_opt_type == VIEW_CHECK_CASCADED &&
        ancestor->check_option))
   {
-    Item_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->current_arena, backup;
     TABLE_LIST *tbl= this;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
@@ -2016,7 +2016,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
   /* full text function moving to current select */
   if (view->select_lex.ftfunc_list->elements)
   {
-    Item_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->current_arena, backup;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
     else
@@ -2236,7 +2236,7 @@ const char *Field_iterator_view::name()
 ** Instansiate templates
 *****************************************************************************/
 
-#ifdef __GNUC__
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class List<String>;
 template class List_iterator<String>;
 #endif

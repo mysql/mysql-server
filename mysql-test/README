@@ -2,8 +2,17 @@ This directory contains a test suite for mysql daemon. To run
 the currently existing test cases, simply execute ./mysql-test-run in
 this directory. It will fire up the newly built mysqld and test it.
 
-If you want to run the test with a running MySQL server use the --external
-option to mysql-test-run.
+If you want to run a test with a running MySQL server use the --extern
+option to mysql-test-run. Please note that in this mode the test suite
+expects user to specify test names to run. Otherwise it falls back to the
+normal "non-extern" behaviour. The reason is that some tests
+could not run with external server. Here is the sample command
+to test "alias" and "analyze" tests on external server:
+
+mysql-test-run --extern alias analyze
+
+To match your setup you might also need to provide --socket, --user and
+other relevant options.
 
 Note that you do not have to have to do make install, and you could
 actually have a co-existing MySQL installation - the tests will not

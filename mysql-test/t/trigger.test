@@ -494,3 +494,17 @@ replace into t1 (i, k) values (2, 11);
 select * from t1;
 # Also drops all triggers
 drop table t1, t2;
+
+# Test for bug #5893 "Triggers with dropped functions cause crashes"
+# Appropriate error should be reported instead of crash.
+--disable_warnings
+drop function if exists bug5893;
+--enable_warnings
+create table t1 (col1 int, col2 int); 
+insert into t1 values (1, 2);
+create function bug5893 () returns int return 5;
+create trigger t1_bu before update on t1 for each row set new.col1= bug5893();
+drop function bug5893; 
+--error 1305
+update t1 set col2 = 4;
+drop table t1;

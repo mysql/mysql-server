@@ -462,6 +462,12 @@ static int check_foreign_data_source(FEDERATED_SHARE *share)
   }
   else
   {
+    /*
+      Since we do not support transactions at this version, we can let the client
+      API silently reconnect. For future versions, we will need more logic to deal
+      with transactions
+    */
+    mysql->reconnect= 1;
     /* 
       Note: I am not using INORMATION_SCHEMA because this needs to work with < 5.0
       if we can connect, then make sure the table exists 
@@ -988,6 +994,12 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
     my_error(ER_CONNECT_TO_MASTER, MYF(0), mysql_error(mysql));
     DBUG_RETURN(ER_CONNECT_TO_MASTER);
   }
+  /*
+    Since we do not support transactions at this version, we can let the client
+    API silently reconnect. For future versions, we will need more logic to deal
+    with transactions
+  */
+  mysql->reconnect= 1;
   DBUG_RETURN(0);
 }
 

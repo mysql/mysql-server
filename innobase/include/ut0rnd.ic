@@ -207,12 +207,12 @@ ut_fold_binary(
 	const byte*	str,	/* in: string of bytes */
 	ulint		len)	/* in: length */
 {
-	ulint	i;
-	ulint	fold = 0;
+	const byte*	str_end	= str + len;
+	ulint		fold = 0;
 
 	ut_ad(str);
 
-	for (i = 0; i < len; i++) {
+	while (str < str_end) {
 		fold = ut_fold_ulint_pair(fold, (ulint)(*str));
 
 		str++;

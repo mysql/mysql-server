@@ -99,7 +99,6 @@ ulint	fil_n_pending_tablespace_flushes	= 0;
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
 /* File node of a tablespace or the log data space */
-typedef	struct fil_node_struct	fil_node_t;
 struct fil_node_struct {
 	fil_space_t*	space;	/* backpointer to the space where this node
 				belongs */
@@ -3411,9 +3410,9 @@ fil_extend_space_to_desired_size(
 	fil_space_t*	space;
 	byte*		buf2;
 	byte*		buf;
+	ulint		buf_size;
 	ulint		start_page_no;
 	ulint		file_start_page_no;
-	ulint		n_pages;
 	ulint		offset_high;
 	ulint		offset_low;
 	ibool		success		= TRUE;
@@ -3438,22 +3437,20 @@ fil_extend_space_to_desired_size(
 
 	fil_node_prepare_for_io(node, system, space);
 
-	/* Extend 1 MB at a time */
-
-	buf2 = mem_alloc(1024 * 1024 + UNIV_PAGE_SIZE);
-	buf = ut_align(buf2, UNIV_PAGE_SIZE);
-
-	memset(buf, '\0', 1024 * 1024);
-
 	start_page_no = space->size;
 	file_start_page_no = space->size - node->size;
 
-	while (start_page_no < size_after_extend) {	
-		n_pages = size_after_extend - start_page_no;
+	/* Extend at most 64 pages at a time */
+	buf_size = ut_min(64, size_after_extend - start_page_no)
+				* UNIV_PAGE_SIZE;
+	buf2 = mem_alloc(buf_size + UNIV_PAGE_SIZE);
+	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
-		if (n_pages > (1024 * 1024) / UNIV_PAGE_SIZE) {
-			n_pages = (1024 * 1024) / UNIV_PAGE_SIZE;
-		}
+	memset(buf, 0, buf_size);
+
+	while (start_page_no < size_after_extend) {
+		ulint	n_pages = ut_min(buf_size / UNIV_PAGE_SIZE,
+				size_after_extend - start_page_no);
 
 		offset_high = (start_page_no - file_start_page_no)
 				/ (4096 * ((1024 * 1024) / UNIV_PAGE_SIZE));
@@ -4035,7 +4032,7 @@ fil_aio_wait(
 	if (os_aio_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
-		ret = os_aio_windows_handle(segment, 0, (void**) &fil_node,
+		ret = os_aio_windows_handle(segment, 0, &fil_node,
 					    &message, &type);
 #elif defined(POSIX_ASYNC_IO)
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
@@ -4046,7 +4043,7 @@ fil_aio_wait(
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
-		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
+		ret = os_aio_simulated_handle(segment, &fil_node,
 	                                               &message, &type);
 	}
 	
