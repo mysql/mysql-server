@@ -1997,10 +1997,10 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
       Query_arena *old_arena= thd->current_arena;
 
       /*
-	Get the Query_arena from the cpush instruction, which contains
-	the free_list of the query, so new items (if any) are stored in
-	the right free_list, and we can cleanup after each open.
-       */
+        Get the Query_arena from the cpush instruction, which contains
+        the free_list of the query, so new items (if any) are stored in
+        the right free_list, and we can cleanup after each open.
+      */
       thd->current_arena= c->get_instr();
       res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
       /* Cleanup the query's items */
@@ -2011,7 +2011,7 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
         Work around the fact that errors in selects are not returned properly
         (but instead converted into a warning), so if a condition handler
         caught, we have lost the result code.
-       */
+      */
       if (!res)
       {
         uint dummy1, dummy2;
