@@ -148,9 +148,9 @@ sp_rcontext::restore_variables(uint fp)
 }
 
 void
-sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper)
+sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
 {
-  m_cstack[m_ccount++]= new sp_cursor(lex_keeper);
+  m_cstack[m_ccount++]= new sp_cursor(lex_keeper, i);
 }
 
 void
@@ -169,8 +169,9 @@ sp_rcontext::pop_cursors(uint count)
  *
  */
 
-sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper)
-  :m_lex_keeper(lex_keeper), m_prot(NULL), m_isopen(0), m_current_row(NULL)
+sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
+  :m_lex_keeper(lex_keeper), m_prot(NULL), m_isopen(0), m_current_row(NULL),
+   m_i(i)
 {
   /*
     currsor can't be stored in QC, so we should prevent opening QC for

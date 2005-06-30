@@ -3912,6 +3912,42 @@ drop procedure bug10136|
 drop table t3|
 
 #
+# BUG#11529: crash server after use stored procedure
+#
+--disable_warnings
+drop procedure if exists bug11529|
+--enable_warnings
+create procedure bug11529()
+begin
+  declare c cursor for select id, data from t1 where data in (10,13);
+
+  open c;
+  begin
+    declare vid char(16);
+    declare vdata int;
+    declare exit handler for not found begin end;
+
+    while true do
+      fetch c into vid, vdata;
+    end while;
+  end;
+  close c;
+end|
+
+insert into t1 values
+  ('Name1', 10),
+  ('Name2', 11),
+  ('Name3', 12),
+  ('Name4', 13),
+  ('Name5', 14)|
+
+call bug11529()|
+call bug11529()|
+delete from t1|
+drop procedure bug11529|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
@@ -3921,7 +3957,7 @@ drop table t3|
 
 
 # Add bugs above this line. Use existing tables t1 and t2 when
-# practical, or create table t3, t3 etc temporarily (and drop them).
+# practical, or create table t3, t4 etc temporarily (and drop them).
 delimiter ;|
 drop table t1,t2;
 
