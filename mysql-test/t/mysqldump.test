@@ -5,7 +5,7 @@
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
 drop database if exists mysqldump_test_db;
 drop database if exists db1;
-drop view if exists v1, v2, v3;
+drop view if exists v1, v2;
 --enable_warnings
 
 # XML output
@@ -161,7 +161,7 @@ drop database mysqldump_test_db;
 # if it is explicitely set.
 
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 'Ã„Ã–ÃœÃŸ');
+INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
 --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments test t1
 #
 # Bug#8063: make test mysqldump [ fail ]
@@ -564,39 +564,6 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
-
-
-#
-# Bug #10927 mysqldump: Can't reload dump with view that consist of other view
-#
-
-create table t1(a int, b int, c varchar(30));
-
-insert into t1 values(1, 2, "one"), (2, 4, "two"), (3, 6, "three");
-
-create view v3 as
-select * from t1;
-
-create  view v1 as
-select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
-
-create  view v2 as
-select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
-
---exec $MYSQL_DUMP test > var/tmp/bug10927.sql
-drop view v1, v2, v3;
-drop table t1;
---exec $MYSQL test < var/tmp/bug10927.sql
-
-# Without dropping the original tables in between
---exec $MYSQL_DUMP test > var/tmp/bug10927.sql
---exec $MYSQL test < var/tmp/bug10927.sql
-show full tables;
-show create view v1;
-select * from v1;
-
-drop view v1, v2, v3;
-drop table t1;
 
 #
 # Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
