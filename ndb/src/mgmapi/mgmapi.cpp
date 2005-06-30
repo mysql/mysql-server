@@ -323,16 +323,22 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
-    /**
-     * Print some info about why the parser returns NULL
-     */
-    ndbout << "Error in mgm protocol parser. "
-	   << "cmd: '" << cmd
-	   << "' status=" << (Uint32)ctx.m_status
-	   << ", curr=" << ctx.m_currentToken
+    if(!ndb_mgm_is_connected(handle)) {
+      return NULL;
+    }
+    else
+    {
+      /**
+       * Print some info about why the parser returns NULL
+       */
+      ndbout << "Error in mgm protocol parser. "
+	     << "cmd: '" << cmd
+	     << "' status=" << (Uint32)ctx.m_status
+	     << ", curr=" << ctx.m_currentToken
 	   << endl;
-    DBUG_PRINT("info",("parser.parse returned NULL"));
-  } 
+      DBUG_PRINT("info",("parser.parse returned NULL"));
+    }
+  }
 #ifdef MGMAPI_LOG
   else {
     /** 
@@ -350,8 +356,24 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 extern "C"
 int ndb_mgm_is_connected(NdbMgmHandle handle)
 {
+  struct pollfd pfd[1];
+  int r;
+
   if(!handle)
     return 0;
+
+  if(handle->connected)
+  {
+    pfd[0].fd= handle->socket;
+    pfd[0].events= POLLHUP | POLLIN | POLLOUT | POLLNVAL;
+    pfd[0].revents= 0;
+    r= poll(pfd,1,0);
+    if(pfd[0].revents & POLLHUP)
+    {
+      handle->connected= 0;
+      NDB_CLOSE_SOCKET(handle->socket);
+    }
+  }
   return handle->connected;
 }
 
