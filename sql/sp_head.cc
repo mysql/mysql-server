@@ -1935,7 +1935,7 @@ int
 sp_instr_cpush::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_cpush::execute");
-  thd->spcont->push_cursor(&m_lex_keeper);
+  thd->spcont->push_cursor(&m_lex_keeper, this);
   *nextp= m_ip+1;
   DBUG_RETURN(0);
 }
@@ -1994,7 +1994,19 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
     }
     else
     {
+      Query_arena *old_arena= thd->current_arena;
+
+      /*
+	Get the Query_arena from the cpush instruction, which contains
+	the free_list of the query, so new items (if any) are stored in
+	the right free_list, and we can cleanup after each open.
+       */
+      thd->current_arena= c->get_instr();
       res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      /* Cleanup the query's items */
+      if (thd->current_arena->free_list)
+	cleanup_items(thd->current_arena->free_list);
+      thd->current_arena= old_arena;
       /*
         Work around the fact that errors in selects are not returned properly
         (but instead converted into a warning), so if a condition handler
