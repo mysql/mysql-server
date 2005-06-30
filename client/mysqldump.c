@@ -1224,7 +1224,7 @@ static uint get_table_structure(char *table, char *db)
 
         /* Create temp table by selecting from the view */
         my_snprintf(query_buff, sizeof(query_buff),
-                    "create  temporary table %s select * from %s where 1=0",
+                    "CREATE  TEMPORARY TABLE %s SELECT * FROM %s WHERE 0",
                     result_table, result_table);
         if (mysql_query_with_error_report(sock, 0, query_buff))
         {
@@ -1233,7 +1233,7 @@ static uint get_table_structure(char *table, char *db)
         }
 
         /* Get CREATE statement for the temp table */
-        my_snprintf(query_buff, sizeof(query_buff), "show create table %s",
+        my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE TABLE %s",
                     result_table);
         if (mysql_query_with_error_report(sock, 0, query_buff))
         {
