@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
 drop database if exists mysqldump_test_db;
 drop database if exists db1;
-drop view if exists v1, v2;
+drop view if exists v1, v2, v3;
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
 <?xml version="1.0"?>
@@ -378,6 +378,11 @@ CREATE TABLE `t1` (
 LOCK TABLES `t1` WRITE;
 UNLOCK TABLES;
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+DROP TABLE IF EXISTS `v1`;
+DROP VIEW IF EXISTS `v1`;
+CREATE TABLE `v1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 DROP TABLE IF EXISTS `v1`;
 DROP VIEW IF EXISTS `v1`;
 CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`;
@@ -1458,6 +1463,11 @@ UNLOCK TABLES;
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v2`;
 DROP VIEW IF EXISTS `v2`;
+CREATE TABLE `v2` (
+  `a` varchar(30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS `v2`;
+DROP VIEW IF EXISTS `v2`;
 CREATE ALGORITHM=UNDEFINED VIEW `db1`.`v2` AS select `db1`.`t2`.`a` AS `a` from `db1`.`t2` where (`db1`.`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1637,3 +1647,29 @@ insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thir
 </database>
 </mysqldump>
 drop table t1, t2;
+create table t1(a int, b int, c varchar(30));
+insert into t1 values(1, 2, "one"), (2, 4, "two"), (3, 6, "three");
+create view v3 as
+select * from t1;
+create  view v1 as
+select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
+create  view v2 as
+select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
+drop view v1, v2, v3;
+drop table t1;
+show full tables;
+Tables_in_test	Table_type
+t1	BASE TABLE
+v1	VIEW
+v2	VIEW
+v3	VIEW
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`v3`.`a` AS `a`,`test`.`v3`.`b` AS `b`,`test`.`v3`.`c` AS `c` from `test`.`v3` where (`test`.`v3`.`b` in (1,2,3,4,5,6,7))
+select * from v1;
+a	b	c
+1	2	one
+2	4	two
+3	6	three
+drop view v1, v2, v3;
+drop table t1;
