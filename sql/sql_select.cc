@@ -8222,12 +8222,10 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   for (store_key **copy=ref->key_copy ; *copy ; copy++)
   {
-    int res;
-    if ((res= (*copy)->copy()))
+    if ((*copy)->copy() & 1)
     {
       thd->count_cuted_fields= save_count_cuted_fields;
-      if ((res= res & 1))
-        return res;                               // Something went wrong
+      return 1;                                 // Something went wrong
     }
   }
   thd->count_cuted_fields= save_count_cuted_fields;
@@ -8818,7 +8816,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   DBUG_RETURN(0);
 
  err:
-  delete [] param->copy_field;			// This is never 0
+  if (copy)
+    delete [] param->copy_field;
   param->copy_field=0;
 err2:
   DBUG_RETURN(TRUE);
