@@ -3150,7 +3150,9 @@ row_search_for_mysql(
 	is set. Then we are able to remove the record locks set here on an
 	individual row. */
 
-	if (srv_locks_unsafe_for_binlog) {
+	if (srv_locks_unsafe_for_binlog
+	    && prebuilt->select_lock_type != LOCK_NONE) {
+
 		trx_reset_new_rec_lock_info(trx);
 	}
 
@@ -3793,7 +3795,9 @@ no_gap_lock:
 		not a consistent read which might see an earlier version
 		of a non-clustered index record */
 
-		if (srv_locks_unsafe_for_binlog) {
+		if (srv_locks_unsafe_for_binlog
+	    	    && prebuilt->select_lock_type != LOCK_NONE) {
+
 			/* No need to keep a lock on a delete-marked record
 			if we do not want to use next-key locking. */
 
@@ -3845,7 +3849,9 @@ requires_clust_rec:
 
 			/* The record is delete marked: we can skip it */
 
-			if (srv_locks_unsafe_for_binlog) {
+			if (srv_locks_unsafe_for_binlog
+	    		    && prebuilt->select_lock_type != LOCK_NONE) {
+
 				/* No need to keep a lock on a delete-marked
 				record if we do not want to use next-key
 				locking. */
@@ -4013,6 +4019,8 @@ lock_wait_or_error:
 	thr->lock_state = QUE_THR_LOCK_ROW;
 
 	if (row_mysql_handle_errors(&err, trx, thr, NULL)) {
+		/* It was a lock wait, and it ended */
+
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		mtr_start(&mtr);
 
