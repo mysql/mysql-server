@@ -1517,7 +1517,7 @@ row_unlock_for_mysql(
 									&mtr);
 		}
 
-		rec = btr_pcur_get_rec(pcur);
+		rec = btr_pcur_get_rec(clust_pcur);
 
 		mutex_enter(&kernel_mutex);
 
