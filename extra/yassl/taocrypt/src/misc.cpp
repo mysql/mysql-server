@@ -22,34 +22,43 @@
 /* based on Wei Dai's misc.cpp from CryptoPP */
 
 
+#include "runtime.hpp"
 #include "misc.hpp"
 #include <new>        // for NewHandler
 
 
 void* operator new(size_t sz, TaoCrypt::new_t)
 {
+#ifdef YASSL_PURE_C
     void* ptr = malloc(sz ? sz : 1);
     if (!ptr) abort();
 
     return ptr;
+#else
+    return ::operator new(sz);
+#endif
 }
 
-void* operator new[](size_t sz, TaoCrypt::new_t)
-{
-    void* ptr = malloc(sz ? sz : 1);
-    if (!ptr) abort();
-
-    return ptr;
-}
 
 void operator delete(void* ptr, TaoCrypt::new_t)
 {
+#ifdef YASSL_PURE_C
     if (ptr) free(ptr);
+#else
+    ::operator delete(ptr);
+#endif
 }
 
-void operator delete[](void* ptr, TaoCrypt::new_t)
+
+void* operator new[](size_t sz, TaoCrypt::new_t nt)
 {
-    if (ptr) free(ptr);
+    return ::operator new(sz, nt);
+}
+
+
+void operator delete[](void* ptr, TaoCrypt::new_t nt)
+{
+    ::operator delete(ptr, nt);
 }
 
 

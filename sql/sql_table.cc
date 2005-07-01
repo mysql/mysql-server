@@ -3400,7 +3400,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
             !Field::type_can_have_key_part(cfield->sql_type) ||
-            cfield->field->field_length == key_part_length ||
+            (cfield->field->field_length == key_part_length &&
+             !f_is_blob(key_part->key_type)) ||
 	    (cfield->length && (cfield->length < key_part_length /
                                 key_part->field->charset()->mbmaxlen)))
 	  key_part_length= 0;			// Use whole field

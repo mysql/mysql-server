@@ -2113,6 +2113,7 @@ sp_proc_stmt:
 	  }
 	| LABEL_SYM IDENT
 	  {
+#ifdef SP_GOTO
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
@@ -2130,9 +2131,14 @@ sp_proc_stmt:
 	      lab->ctx= ctx;
               sp->backpatch(lab);
 	    }
+#else
+	    yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+#endif
 	  }
 	| GOTO_SYM IDENT
 	  {
+#ifdef SP_GOTO
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
@@ -2185,6 +2191,10 @@ sp_proc_stmt:
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
 	      sp->add_instr(i);
 	    }
+#else
+	    yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+#endif
 	  }
 	| OPEN_SYM ident
 	  {
@@ -7437,7 +7447,6 @@ keyword:
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
 	| RELAY_THREAD		{}
-	| LABEL_SYM             {}
 	| LANGUAGE_SYM          {}
 	| LAST_SYM		{}
 	| LEAVES                {}
@@ -7743,13 +7752,13 @@ sys_option_value:
               it= new Item_null();
             }
 
-            if (!(trg_fld= new Item_trigger_field(&lex->current_select->context,
+            if (!(trg_fld= new Item_trigger_field(&lex->current_select->
+                                                  context,
                                                   Item_trigger_field::NEW_ROW,
                                                   $2.base_name.str)) ||
-                !(i= new sp_instr_set_trigger_field(
-                           &lex->current_select->context,
-                           lex->sphead->instructions(), lex->spcont,
-                           trg_fld, it)))
+                !(i= new sp_instr_set_trigger_field(lex->sphead->
+                                                    instructions(),
+                                                    lex->spcont, trg_fld, it)))
               YYABORT;
 
             /*
