@@ -470,11 +470,10 @@ class sp_instr_set_trigger_field : public sp_instr
 
 public:
 
-  sp_instr_set_trigger_field(Name_resolution_context *context_arg,
-                             uint ip, sp_pcontext *ctx,
+  sp_instr_set_trigger_field(uint ip, sp_pcontext *ctx,
                              Item_trigger_field *trg_fld, Item *val)
     : sp_instr(ip, ctx),
-      trigger_field(context_arg, trg_fld),
+      trigger_field(trg_fld),
       value(val)
   {}
 
