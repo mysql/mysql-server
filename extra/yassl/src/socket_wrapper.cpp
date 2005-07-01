@@ -26,6 +26,7 @@
  */
 
 
+#include "runtime.hpp"
 #include "socket_wrapper.hpp"
 
 #ifndef _WIN32
