@@ -259,6 +259,9 @@ private:
   */
   HASH m_sptabs;
 
+  /* Used for tracking of routine invocations and preventing recursion. */
+  bool m_is_invoked;
+
   int
   execute(THD *thd);
 
