@@ -415,12 +415,12 @@ class Item_func_make_set :public Item_str_func
 public:
   Item_func_make_set(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
   String *val_str(String *str);
-  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
+  bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
-    return ((!item->fixed && item->fix_fields(thd, tlist, &item)) ||
+    return ((!item->fixed && item->fix_fields(thd, &item)) ||
 	    item->check_cols(1) ||
-	    Item_func::fix_fields(thd, tlist, ref));
+	    Item_func::fix_fields(thd, ref));
   }
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   void fix_length_and_dec();

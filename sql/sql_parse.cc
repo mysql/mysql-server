@@ -2289,6 +2289,10 @@ mysql_execute_command(THD *thd)
   lex->first_lists_tables_same();
   /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
+  /* set context for commands which do not use setup_tables */
+  select_lex->
+    context.resolve_in_table_list_only((TABLE_LIST*)select_lex->
+                                       table_list.first);
 
   /*
     Reset warning count for each query that uses tables
@@ -2572,7 +2576,7 @@ mysql_execute_command(THD *thd)
       goto error;
     /* PURGE MASTER LOGS BEFORE 'data' */
     it= (Item *)lex->value_list.head();
-    if ((!it->fixed &&it->fix_fields(lex->thd, 0, &it)) ||
+    if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
         it->check_cols(1))
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
@@ -2881,9 +2885,7 @@ mysql_execute_command(THD *thd)
             CREATE from SELECT give its SELECT_LEX for SELECT,
             and item_list belong to SELECT
           */
-          select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
           res= handle_select(thd, lex, result, 0);
-          select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
           delete result;
         }
 	/* reset for PS */
@@ -3222,6 +3224,8 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
+    /* Skip first table, which is the table we are inserting in */
+    select_lex->context.table_list= first_table->next_local;
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
@@ -3252,18 +3256,17 @@ end_with_restore_list:
       select_lex->table_list.first= (byte*)first_table->next_local;
 
       res= mysql_insert_select_prepare(thd);
+      lex->select_lex.context.table_list= first_table->next_local;
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
-                                             &lex->update_list, &lex->value_list,
+                                             &lex->update_list,
+                                             &lex->value_list,
                                              lex->duplicates, lex->ignore)))
       {
-        /*
-          insert/replace from SELECT give its SELECT_LEX for SELECT,
-          and item_list belong to SELECT
-        */
-	select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
+        /* Skip first table, which is the table we are inserting in */
+        select_lex->context.table_list= first_table->next_local;
+
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
-	select_lex->resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
       /* revert changes for SP */
@@ -3863,7 +3866,7 @@ end_with_restore_list:
   {
     Item *it= (Item *)lex->value_list.head();
 
-    if ((!it->fixed && it->fix_fields(lex->thd, 0, &it)) || it->check_cols(1))
+    if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
     {
       my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
 		 MYF(0));
@@ -5230,16 +5233,27 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->link_prev= 0;
     unit->return_to= lex->current_select;
     select_lex->include_down(unit);
-    /* TODO: assign resolve_mode for fake subquery after merging with new tree */
+    /*
+      By default we assume that it is usual subselect and we have outer name
+      resolution context, if no we will assign it to 0 later
+    */
+    select_lex->context.outer_context= &select_lex->outer_select()->context;
   }
   else
   {
+    Name_resolution_context *outer_context;
     if (lex->current_select->order_list.first && !lex->current_select->braces)
     {
       my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
       DBUG_RETURN(1);
     }
     select_lex->include_neighbour(lex->current_select);
+    /*
+      we are not sure that we have one level of SELECTs above, so we take
+      outer_context address from first select of unit
+    */
+    outer_context=
+      select_lex->master_unit()->first_select()->context.outer_context;
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     SELECT_LEX *fake= unit->fake_select_lex;
     if (!fake)
@@ -5256,13 +5270,23 @@ mysql_new_select(LEX *lex, bool move_down)
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
       fake->select_limit= 0;
+
+      fake->context.outer_context= outer_context;
+      /* allow item list resolving in fake select for ORDER BY */
+      fake->context.resolve_in_select_list= TRUE;
+      fake->context.select_lex= fake;
     }
+    select_lex->context.outer_context= outer_context;
   }
 
   select_lex->master_unit()->global_parameters= select_lex;
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
-  select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
+  /*
+    in subquery is SELECT query and we allow resolution of names in SELECT
+    list
+  */
+  select_lex->context.resolve_in_select_list= TRUE;
   DBUG_RETURN(0);
 }
 

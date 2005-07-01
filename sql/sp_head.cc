@@ -117,7 +117,7 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
   DBUG_ENTER("sp_prepare_func_item");
   it_addr= it->this_item_addr(thd, it_addr);
 
-  if (!it->fixed && (*it_addr)->fix_fields(thd, 0, it_addr))
+  if (!it->fixed && (*it_addr)->fix_fields(thd, it_addr))
   {
     DBUG_PRINT("info", ("fix_fields() failed"));
     DBUG_RETURN(NULL);
@@ -962,7 +962,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	      we do not check suv->fixed, because it can't be fixed after
 	      creation
 	    */
-	    suv->fix_fields(thd, NULL, &item);
+	    suv->fix_fields(thd, &item);
 	    suv->fix_length_and_dec();
 	    suv->check();
 	    suv->update();
@@ -1579,8 +1579,8 @@ sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
   /* QQ: Still unsure what should we return in case of error 1 or -1 ? */
-  if (!value->fixed && value->fix_fields(thd, 0, &value) ||
-      trigger_field->fix_fields(thd, 0, 0) ||
+  if (!value->fixed && value->fix_fields(thd, &value) ||
+      trigger_field->fix_fields(thd, 0) ||
       (value->save_in_field(trigger_field->field, 0) < 0))
     res= -1;
   *nextp= m_ip + 1;

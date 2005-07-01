@@ -561,7 +561,7 @@ class Item_func_convert_tz :public Item_date_func
   double val_real() { return (double) val_int(); }
   String *val_str(String *str);
   const char *func_name() const { return "convert_tz"; }
-  bool fix_fields(THD *, struct st_table_list *, Item **);
+  bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
   void cleanup();

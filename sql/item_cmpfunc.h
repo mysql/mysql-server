@@ -108,8 +108,8 @@ public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0), save_cache(0)
   {}
-  bool fix_fields(THD *, struct st_table_list *, Item **);
-  bool fix_left(THD *thd, struct st_table_list *tables, Item **ref);
+  bool fix_fields(THD *, Item **);
+  bool fix_left(THD *thd, Item **ref);
   bool is_null();
   /*
     Item_in_optimizer item is special boolean function. On value request 
@@ -502,11 +502,11 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return cached_result_type; }
-  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
+  bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
     args[0]->top_level_item();
-    return Item_func::fix_fields(thd, tlist, ref);
+    return Item_func::fix_fields(thd, ref);
   }
   void fix_length_and_dec();
   uint decimal_precision() const;
@@ -961,7 +961,7 @@ public:
   optimize_type select_optimize() const;
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "like"; }
-  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
 };
 
 #ifdef USE_REGEX
@@ -980,7 +980,7 @@ public:
     regex_compiled(0),regex_is_const(0) {}
   void cleanup();
   longlong val_int();
-  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
   const char *func_name() const { return "regexp"; }
   void print(String *str) { print_op(str); }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
@@ -1024,7 +1024,7 @@ public:
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
   bool add(Item *item) { return list.push_back(item); }
   void add_at_head(List<Item> *nlist) { list.prepand(nlist); }
-  bool fix_fields(THD *, struct st_table_list *, Item **ref);
+  bool fix_fields(THD *, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
@@ -1033,7 +1033,7 @@ public:
   void print(String *str);
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-			 COND **conds);
+                         COND **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, byte *arg);
@@ -1141,7 +1141,7 @@ public:
   void sort(Item_field_cmpfunc cmp, void *arg);
   friend class Item_equal_iterator;
   void fix_length_and_dec();
-  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
   void update_used_tables();
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);

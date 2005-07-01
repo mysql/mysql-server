@@ -594,6 +594,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       goto err;			/* purecov: inspected */
     }
 
+    reg_field->field_index= i;
     reg_field->comment=comment;
     if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
@@ -1713,8 +1714,6 @@ void st_table_list::set_ancestor()
       }
       if (tbl->multitable_view)
         multitable_view= TRUE;
-      if (tbl->table)
-        tbl->table->grant= grant;
     } while ((tbl= tbl->next_local));
 
     if (!multitable_view)
@@ -1727,68 +1726,18 @@ void st_table_list::set_ancestor()
 
 
 /*
-  Save old want_privilege and clear want_privilege
-
-  SYNOPSIS
-    save_and_clear_want_privilege()
-*/
-
-void st_table_list::save_and_clear_want_privilege()
-{
-  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
-  {
-    if (tbl->table)
-    {
-      privilege_backup= tbl->table->grant.want_privilege;
-      tbl->table->grant.want_privilege= 0;
-    }
-    else
-    {
-      tbl->save_and_clear_want_privilege();
-    }
-  }
-}
-
-
-/*
-  restore want_privilege saved by save_and_clear_want_privilege
-
-  SYNOPSIS
-    restore_want_privilege()
-*/
-
-void st_table_list::restore_want_privilege()
-{
-  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
-  {
-    if (tbl->table)
-      tbl->table->grant.want_privilege= privilege_backup;
-    else
-    {
-      tbl->restore_want_privilege();
-    }
-  }
-}
-
-
-/*
   setup fields of placeholder of merged VIEW
 
   SYNOPSIS
     st_table_list::setup_ancestor()
     thd		    - thread handler
-    conds           - condition of this JOIN
-    check_opt_type  - WHITH CHECK OPTION type (VIEW_CHECK_NONE,
-                      VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
+
   NOTES
     ancestor is list of tables and views used by view (underlying tables/views)
 
   DESCRIPTION
     It is:
-    - preparing translation table for view columns (fix_fields() for every
-    call and creation for first call)
-    - preparing WHERE, ON and CHECK OPTION condition (fix_fields() for every
-    call and merging for first call).
+    - preparing translation table for view columns
     If there are underlying view(s) procedure first will be called for them.
 
   RETURN
@@ -1796,163 +1745,114 @@ void st_table_list::restore_want_privilege()
     TRUE  - error
 */
 
-bool st_table_list::setup_ancestor(THD *thd, Item **conds,
-				   uint8 check_opt_type)
+bool st_table_list::setup_ancestor(THD *thd)
 {
-  Field_translator *transl;
-  SELECT_LEX *select= &view->select_lex;
-  SELECT_LEX *current_select_save= thd->lex->current_select;
-  byte *main_table_list_save= select_lex->table_list.first;
-  Item *item;
-  TABLE_LIST *tbl;
-  List_iterator_fast<Item> it(select->item_list);
-  uint i= 0;
-  enum sub_select_type linkage_save=
-    select_lex->master_unit()->first_select()->linkage;
-  bool save_set_query_id= thd->set_query_id;
-  bool save_wrapper= select_lex->no_wrap_view_item;
-  bool save_allow_sum_func= thd->allow_sum_func;
-  bool res= FALSE;
   DBUG_ENTER("st_table_list::setup_ancestor");
-
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (char *)&res))
-    return TRUE;
-
-  for (tbl= ancestor; tbl; tbl= tbl->next_local)
+  if (!field_translation)
   {
-    if (tbl->ancestor &&
-        tbl->setup_ancestor(thd, conds,
-                            (check_opt_type == VIEW_CHECK_CASCADED ?
-                             VIEW_CHECK_CASCADED :
-                             VIEW_CHECK_NONE)))
-      DBUG_RETURN(TRUE);
-  }
+    Field_translator *transl;
+    SELECT_LEX *select= &view->select_lex;
+    Item *item;
+    TABLE_LIST *tbl;
+    List_iterator_fast<Item> it(select->item_list);
+    uint field_count= 0;
 
-  /*
-    We have to ensure that inside the view we are not referring to any
-    table outside of the view.  We do it by changing the pointers used
-    by fix_fields to look up tables so that only tables and views in
-    view are seen.  We also set linkage to DERIVED_TABLE_TYPE as a barrier
-    so that we stop resolving fields as this level.
-  */
-  thd->lex->current_select= select_lex;
-  select_lex->table_list.first= (byte *)ancestor;
-  select_lex->master_unit()->first_select()->linkage= DERIVED_TABLE_TYPE;
-
-  if (field_translation)
-  {
-    DBUG_PRINT("info", ("there are already translation table"));
-
-    select_lex->no_wrap_view_item= 1;
-
-    thd->set_query_id= 1;
-    /* this view was prepared already on previous PS/SP execution */
-    Field_translator *end= field_translation + select->item_list.elements;
-    /* real rights will be checked in VIEW field */
-    save_and_clear_want_privilege();
-    /* aggregate function are allowed */
-    thd->allow_sum_func= 1;
-    for (transl= field_translation; transl < end; transl++)
+    if (check_stack_overrun(thd, STACK_MIN_SIZE, (char *)&field_count))
     {
-      if (!transl->item->fixed &&
-          transl->item->fix_fields(thd, ancestor, &transl->item))
-        goto err;
+      DBUG_RETURN(TRUE);
     }
+
     for (tbl= ancestor; tbl; tbl= tbl->next_local)
     {
-      if (tbl->on_expr && !tbl->on_expr->fixed &&
-	  tbl->on_expr->fix_fields(thd, ancestor, &tbl->on_expr))
-	goto err;
-    }
-    if (where && !where->fixed && where->fix_fields(thd, ancestor, &where))
-      goto err;
-    if (check_option && !check_option->fixed &&
-        check_option->fix_fields(thd, ancestor, &check_option))
-      goto err;
-    restore_want_privilege();
-
-    /* WHERE/ON resolved => we can rename fields */
-    for (transl= field_translation; transl < end; transl++)
-    {
-      transl->item->rename((char *)transl->name);
-    }
-    goto ok;
-  }
-
-  /* Create view fields translation table */
-
-  if (!(transl=
-	(Field_translator*)(thd->current_arena->
-                            alloc(select->item_list.elements *
-                                  sizeof(Field_translator)))))
-  {
-    res= TRUE;
-    goto ok;                                    // Restore thd
-  }
-
-  select_lex->no_wrap_view_item= 1;
-
-  /*
-    Resolve all view items against ancestor table.
-
-    TODO: do it only for real used fields "on demand" to mark really
-    used fields correctly.
-  */
-  thd->set_query_id= 1;
-  /* real rights will be checked in VIEW field */
-  save_and_clear_want_privilege();
-  /* aggregate function are allowed */
-  thd->allow_sum_func= 1;
-  while ((item= it++))
-  {
-    /* save original name of view column */
-    char *name= item->name;
-    transl[i].item= item;
-    if (!item->fixed && item->fix_fields(thd, ancestor, &transl[i].item))
-      goto err;
-    /* set new item get in fix fields and original column name */
-    transl[i++].name= name;
-  }
-  field_translation= transl;
-  /* TODO: sort this list? Use hash for big number of fields */
-
-  for (tbl= ancestor; tbl; tbl= tbl->next_local)
-  {
-    if (tbl->on_expr && !tbl->on_expr->fixed &&
-	tbl->on_expr->fix_fields(thd, ancestor, &tbl->on_expr))
-      goto err;
-  }
-  if (where ||
-      (check_opt_type == VIEW_CHECK_CASCADED &&
-       ancestor->check_option))
-  {
-    Query_arena *arena= thd->current_arena, backup;
-    TABLE_LIST *tbl= this;
-    if (arena->is_conventional())
-      arena= 0;                                   // For easier test
-
-    if (where && !where->fixed && where->fix_fields(thd, ancestor, &where))
-      goto err;
-
-    if (arena)
-      thd->set_n_backup_item_arena(arena, &backup);
-
-    if (check_opt_type)
-    {
-      if (where)
-	check_option= where->copy_andor_structure(thd);
-      if (check_opt_type == VIEW_CHECK_CASCADED)
+      if (tbl->ancestor &&
+          tbl->setup_ancestor(thd))
       {
-        check_option= and_conds(check_option, ancestor->check_option);
+        DBUG_RETURN(TRUE);
       }
+    }
+
+    /* Create view fields translation table */
+
+    if (!(transl=
+          (Field_translator*)(thd->current_arena->
+                              alloc(select->item_list.elements *
+                                    sizeof(Field_translator)))))
+    {
+      DBUG_RETURN(TRUE);
+    }
+
+    while ((item= it++))
+    {
+      transl[field_count].name= item->name;
+      transl[field_count++].item= item;
+    }
+    field_translation= transl;
+    field_translation_end= transl + field_count;
+    /* TODO: use hash for big number of fields */
+
+    /* full text function moving to current select */
+    if (view->select_lex.ftfunc_list->elements)
+    {
+      Item_func_match *ifm;
+      SELECT_LEX *current_select= thd->lex->current_select;
+      List_iterator_fast<Item_func_match>
+        li(*(view->select_lex.ftfunc_list));
+      while ((ifm= li++))
+        current_select->ftfunc_list->push_front(ifm);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Prepare where expression of view
+
+  SYNOPSIS
+    st_table_list::prep_where()
+    thd             - thread handler
+    conds           - condition of this JOIN
+    no_where_clause - do not build WHERE or ON outer qwery do not need it
+                      (it is INSERT), we do not need conds if this flag is set
+
+  NOTE: have to be called befor CHECK OPTION preparation, because it makes
+  fix_fields for view WHERE clause
+
+  RETURN
+    FALSE - OK
+    TRUE  - error
+*/
+
+bool st_table_list::prep_where(THD *thd, Item **conds,
+                               bool no_where_clause)
+{
+  DBUG_ENTER("st_table_list::prep_where");
+
+  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->view && tbl->prep_where(thd, conds, no_where_clause))
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+
+  if (where)
+  {
+    if (!where->fixed && where->fix_fields(thd, &where))
+    {
+      DBUG_RETURN(TRUE);
     }
 
     /*
       check that it is not VIEW in which we insert with INSERT SELECT
       (in this case we can't add view WHERE condition to main SELECT_LEX)
     */
-    if (where && !no_where_clause)
+    if (!no_where_clause && !where_processed)
     {
+      TABLE_LIST *tbl= this;
+      Query_arena *arena= thd->current_arena, backup;
+      arena= thd->change_arena_if_needed(&backup);    // For easier test
+
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
       {
@@ -1969,72 +1869,107 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds,
         }
       }
       if (tbl == 0)
+        *conds= and_conds(*conds, where);
+      if (arena)
+        thd->restore_backup_item_arena(arena, &backup);
+      where_processed= TRUE;
+    }
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Prepare check option expression of table
+
+  SYNOPSIS
+    st_table_list::prep_check_option()
+    thd             - thread handler
+    check_opt_type  - WITH CHECK OPTION type (VIEW_CHECK_NONE,
+                      VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
+                      we use this parameter instead of direct check of
+                      effective_with_check to change type of underlying
+                      views to VIEW_CHECK_CASCADED if outer view have
+                      such option and prevent processing of underlying
+                      view check options if outer view have just
+                      VIEW_CHECK_LOCAL option.
+
+  NOTE
+    This method build check options for every call
+    (usual execution or every SP/PS call)
+    This method have to be called after WHERE preparation
+    (st_table_list::prep_where)
+
+  RETURN
+    FALSE - OK
+    TRUE  - error
+*/
+
+bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
+{
+  DBUG_ENTER("st_table_list::prep_check_option");
+
+  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  {
+    /* see comment of check_opt_type parameter */
+    if (tbl->view &&
+        tbl->prep_check_option(thd,
+                               ((check_opt_type == VIEW_CHECK_CASCADED) ?
+                                VIEW_CHECK_CASCADED :
+                                VIEW_CHECK_NONE)))
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+
+  if (check_opt_type)
+  {
+    Item *item= 0;
+    if (where)
+    {
+      DBUG_ASSERT(where->fixed);
+      item= where->copy_andor_structure(thd);
+    }
+    if (check_opt_type == VIEW_CHECK_CASCADED)
+    {
+      for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
       {
-        if (outer_join)
-        {
-          /*
-            Store WHERE condition to ON expression for outer join, because
-            we can't use WHERE to correctly execute left joins on VIEWs and
-            this expression will not be moved to WHERE condition (i.e. will
-            be clean correctly for PS/SP)
-          */
-          on_expr= and_conds(on_expr, where);
-        }
-        else
-        {
-          /*
-            It is conds of JOIN, but it will be stored in
-            st_select_lex::prep_where for next reexecution
-          */
-          *conds= and_conds(*conds, where);
-        }
+        if (tbl->check_option)
+          item= and_conds(item, tbl->check_option);
       }
     }
-
-    if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
+    if (item)
+      thd->change_item_tree(&check_option, item);
   }
-  restore_want_privilege();
 
-  /*
-    fix_fields do not need tables, because new are only AND operation and we
-    just need recollect statistics
-  */
-  if (check_option && !check_option->fixed &&
-      check_option->fix_fields(thd, 0, &check_option))
-    goto err;
-
-  /* WHERE/ON resolved => we can rename fields */
+  if (check_option)
   {
-    Field_translator *end= field_translation + select->item_list.elements;
-    for (transl= field_translation; transl < end; transl++)
+    const char *save_where= thd->where;
+    thd->where= "check option";
+    if (!check_option->fixed &&
+        check_option->fix_fields(thd, &check_option) ||
+        check_option->check_cols(1))
     {
-      transl->item->rename((char *)transl->name);
+      DBUG_RETURN(TRUE);
     }
+    thd->where= save_where;
   }
+  DBUG_RETURN(FALSE);
+}
 
-  /* full text function moving to current select */
-  if (view->select_lex.ftfunc_list->elements)
-  {
-    Query_arena *arena= thd->current_arena, backup;
-    if (arena->is_conventional())
-      arena= 0;                                   // For easier test
-    else
-      thd->set_n_backup_item_arena(arena, &backup);
 
-    Item_func_match *ifm;
-    List_iterator_fast<Item_func_match>
-      li(*(view->select_lex.ftfunc_list));
-    while ((ifm= li++))
-      current_select_save->ftfunc_list->push_front(ifm);
-    if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
-  }
+/*
+  Hide errors which show view underlying table information
 
-  goto ok;
+  SYNOPSIS
+    st_table_list::hide_view_error()
+    thd     thread handler
 
-err:
-  res= TRUE;
+*/
+
+void st_table_list::hide_view_error(THD *thd)
+{
   /* Hide "Unknown column" or "Unknown function" error */
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
       thd->net.last_errno == ER_SP_DOES_NOT_EXIST)
@@ -2042,15 +1977,12 @@ err:
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
   }
-
-ok:
-  select_lex->no_wrap_view_item= save_wrapper;
-  thd->lex->current_select= current_select_save;
-  select_lex->table_list.first= main_table_list_save;
-  select_lex->master_unit()->first_select()->linkage= linkage_save;
-  thd->set_query_id= save_set_query_id;
-  thd->allow_sum_func= save_allow_sum_func;
-  DBUG_RETURN(res);
+  else if (thd->net.last_errno == ER_NO_DEFAULT_FOR_FIELD)
+  {
+    thd->clear_error();
+    // TODO: make correct error message
+    my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), view_db.str, view_name.str);
+  }
 }
 
 
@@ -2094,9 +2026,9 @@ void st_table_list::cleanup_items()
   if (!field_translation)
     return;
 
-  Field_translator *end= (field_translation +
-                          view->select_lex.item_list.elements);
-  for (Field_translator *transl= field_translation; transl < end; transl++)
+  for (Field_translator *transl= field_translation;
+       transl < field_translation_end;
+       transl++)
     transl->item->walk(&Item::cleanup_processor, 0);
 }
 
@@ -2209,8 +2141,9 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
 
 void Field_iterator_view::set(TABLE_LIST *table)
 {
+  view= table;
   ptr= table->field_translation;
-  array_end= ptr + table->view->select_lex.item_list.elements;
+  array_end= table->field_translation_end;
 }
 
 
@@ -2220,15 +2153,60 @@ const char *Field_iterator_table::name()
 }
 
 
-Item *Field_iterator_table::item(THD *thd)
+Item *Field_iterator_table::create_item(THD *thd)
 {
-  return new Item_field(thd, *ptr);
+  return new Item_field(thd, &thd->lex->current_select->context, *ptr);
 }
 
 
 const char *Field_iterator_view::name()
 {
   return ptr->name;
+}
+
+
+Item *Field_iterator_view::create_item(THD *thd)
+{
+  return create_view_field(thd, view, &ptr->item, ptr->name);
+}
+
+Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
+                        const char *name)
+{
+  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  Item *field= *field_ref;
+  DBUG_ENTER("create_view_field");
+
+  if (view->schema_table_reformed)
+  {
+    /*
+      In case of SHOW command (schema_table_reformed set) all items are
+      fixed
+    */
+    DBUG_ASSERT(field && field->fixed);
+    DBUG_RETURN(field);
+  }
+
+  DBUG_ASSERT(field);
+  thd->lex->current_select->no_wrap_view_item= TRUE;
+  if (!field->fixed)
+  {
+    if (field->fix_fields(thd, field_ref))
+    {
+      thd->lex->current_select->no_wrap_view_item= save_wrapper;
+      DBUG_RETURN(0);
+    }
+    field= *field_ref;
+  }
+  thd->lex->current_select->no_wrap_view_item= save_wrapper;
+  if (thd->lex->current_select->no_wrap_view_item)
+  {
+    DBUG_RETURN(field);
+  }
+  Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
+                                       field_ref, view->view_name.str,
+                                       name);
+  DBUG_RETURN(item);
 }
 
 
