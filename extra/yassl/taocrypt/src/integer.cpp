@@ -35,8 +35,9 @@
 #endif
 
 
-#if defined(_MSC_VER) && defined(_WIN64) && \
-    !defined(__INTEL_COMPILER) // 64 bit X overflow intrinsic
+// 64bit multiply overflow intrinsic
+#if defined(_MSC_VER) && defined(_WIN64) && !defined(__INTEL_COMPILER) && \
+   !defined(TAOCRYPT_NATIVE_DWORD_AVAILABLE)
     #ifdef __ia64__
         #define myUMULH __UMULH
     #elif  __x86_64__
@@ -3956,6 +3957,7 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
     // isn't operator overloading great?
     return p * (u * (xq-xp) % q) + xp;
 }
+
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 #ifndef TAOCRYPT_NATIVE_DWORD_AVAILABLE
