@@ -60,7 +60,12 @@
 #include <sys/stat.h>
 #include <violite.h>
 #include <regex.h>                        /* Our own version of lib */
+#ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
+#endif
+#ifndef WEXITSTATUS
+# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+#endif
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
