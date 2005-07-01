@@ -84,7 +84,7 @@ show create procedure foo|
 --error 1305
 show create function foo|
 
-# LEAVE/ITERATE/GOTO with no match
+# LEAVE/ITERATE with no match
 --error 1308
 create procedure foo()
 foo: loop
@@ -99,47 +99,6 @@ end loop|
 create procedure foo()
 foo: begin
   iterate foo;
-end|
---error 1308
-create procedure foo()
-begin
-  goto foo;
-end|
---error 1308
-create procedure foo()
-begin
-  begin
-    label foo;
-  end;
-  goto foo;
-end|
---error 1308
-create procedure foo()
-begin
-  goto foo;
-  begin
-    label foo;
-  end;
-end|
---error 1308
-create procedure foo()
-begin
-  begin
-    goto foo;
-  end;
-  begin
-    label foo;
-  end;
-end|
---error 1308
-create procedure foo()
-begin
-  begin
-    label foo;
-  end;
-  begin
-    goto foo;
-  end;
 end|
 
 # Redefining label
@@ -396,18 +355,6 @@ begin
   declare x int;
   declare continue handler for sqlstate '42S99' set x = 1;
   declare c cursor for select * from t1;
-end|
-
---error 1358
-create procedure p()
-begin
-  declare continue handler for sqlexception
-    begin
-      goto L1;
-    end;
-
-  select field from t1;
-  label L1;
 end|
 
 # Check in and inout arguments.
