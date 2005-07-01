@@ -114,6 +114,10 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     bool is_union= first_select->next_select() && 
       first_select->next_select()->linkage == UNION_TYPE;
 
+    /* prevent name resolving out of derived table */
+    for (SELECT_LEX *sl= first_select; sl; sl= sl->next_select())
+      sl->context.outer_context= 0;
+
     if (!(derived_result= new select_union(0)))
       DBUG_RETURN(1); // out of memory
 

@@ -45,6 +45,8 @@ extern my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_is_set_all(const MY_BITMAP *map);
 extern my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
+extern my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
+extern my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_bits_set(const MY_BITMAP *map);

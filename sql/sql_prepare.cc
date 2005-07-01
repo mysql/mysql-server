@@ -963,7 +963,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
         my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, 0, table_list, *values, 0, 0, 0))
+      if (setup_fields(thd, 0, *values, 0, 0, 0))
         goto error;
     }
   }
@@ -1039,9 +1039,9 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->grant.want_privilege= want_privilege;
   table_list->table->grant.want_privilege= want_privilege;
 #endif
-  thd->lex->select_lex.no_wrap_view_item= 1;
-  res= setup_fields(thd, 0, table_list, select->item_list, 1, 0, 0);
-  thd->lex->select_lex.no_wrap_view_item= 0;
+  thd->lex->select_lex.no_wrap_view_item= TRUE;
+  res= setup_fields(thd, 0, select->item_list, 1, 0, 0);
+  thd->lex->select_lex.no_wrap_view_item= FALSE;
   if (res)
     goto error;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1050,7 +1050,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->table->grant.want_privilege=
     (SELECT_ACL & ~table_list->table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, table_list, stmt->lex->value_list, 0, 0, 0))
+  if (setup_fields(thd, 0, stmt->lex->value_list, 0, 0, 0))
     goto error;
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
@@ -1118,6 +1118,8 @@ static bool mysql_test_select(Prepared_statement *stmt,
   LEX *lex= stmt->lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_test_select");
+
+  lex->select_lex.context.resolve_in_select_list= TRUE;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
@@ -1207,7 +1209,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
 
   if (open_and_lock_tables(thd, tables))
     DBUG_RETURN(TRUE);
-  DBUG_RETURN(setup_fields(thd, 0, 0, *values, 0, 0, 0));
+  DBUG_RETURN(setup_fields(thd, 0, *values, 0, 0, 0));
 }
 
 
@@ -1276,6 +1278,8 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   DBUG_ENTER("select_like_stmt_test");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
+
+  lex->select_lex.context.resolve_in_select_list= TRUE;
 
   if (specific_prepare && (*specific_prepare)(thd))
     DBUG_RETURN(TRUE);
@@ -1354,9 +1358,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
   if (select_lex->item_list.elements)
   {
-    select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
+    select_lex->context.resolve_in_select_list= TRUE;
     res= select_like_stmt_test_with_open_n_lock(stmt, tables, 0, 0);
-    select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
   }
 
   /* put tables back for PS rexecuting */
@@ -1446,16 +1449,21 @@ error:
 
 static bool mysql_insert_select_prepare_tester(THD *thd)
 {
+  TABLE_LIST *first;
+  bool res;
   SELECT_LEX *first_select= &thd->lex->select_lex;
   /* Skip first table, which is the table we are inserting in */
-  first_select->table_list.first= (byte*)((TABLE_LIST*)first_select->
-                                          table_list.first)->next_local;
+  first_select->table_list.first= (byte*)(first=
+                                          ((TABLE_LIST*)first_select->
+                                           table_list.first)->next_local);
+  res= mysql_insert_select_prepare(thd);
   /*
     insert/replace from SELECT give its SELECT_LEX for SELECT,
     and item_list belong to SELECT
   */
-  first_select->resolve_mode= SELECT_LEX::SELECT_MODE;
-  return mysql_insert_select_prepare(thd);
+  thd->lex->select_lex.context.resolve_in_select_list= TRUE;
+  thd->lex->select_lex.context.table_list= first;
+  return res;
 }
 
 
@@ -1493,12 +1501,12 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
   first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
   DBUG_ASSERT(first_local_table != 0);
 
-  res= select_like_stmt_test_with_open_n_lock(stmt, tables,
-                                              &mysql_insert_select_prepare_tester,
-                                              OPTION_SETUP_TABLES_DONE);
+  res=
+    select_like_stmt_test_with_open_n_lock(stmt, tables,
+                                           &mysql_insert_select_prepare_tester,
+                                           OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
   lex->select_lex.table_list.first= (byte*) first_local_table;
-  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
   return res;
 }
 
@@ -1537,6 +1545,10 @@ static bool check_prepared_statement(Prepared_statement *stmt,
 
   lex->first_lists_tables_same();
   tables= lex->query_tables;
+
+  /* set context for commands which do not use setup_tables */
+  lex->select_lex.context.resolve_in_table_list_only(select_lex->
+                                                     get_table_list());
 
   switch (sql_command) {
   case SQLCOM_REPLACE:
@@ -1813,18 +1825,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 void init_stmt_after_parse(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
-  /*
-    Save WHERE clause pointers, because they may be changed during query
-    optimisation.
-  */
-  for (; sl; sl= sl->next_select_in_list())
-  {
-    sl->prep_where= sl->where;
-    sl->uncacheable&= ~UNCACHEABLE_PREPARE;
-  }
 
-  for (TABLE_LIST *table= lex->query_tables; table; table= table->next_global)
-    table->prep_on_expr= table->on_expr;
+  for (; sl; sl= sl->next_select_in_list())
+   sl->uncacheable&= ~UNCACHEABLE_PREPARE;
 }
 
 

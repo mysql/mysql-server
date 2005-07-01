@@ -1104,7 +1104,8 @@ void st_select_lex::init_query()
   having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
-  resolve_mode= NOMATTER_MODE;
+  context.select_lex= this;
+  context.init();
   cond_count= with_wild= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
@@ -1703,8 +1704,7 @@ bool st_lex::can_not_use_merged()
 
 bool st_lex::only_view_structure()
 {
-  switch(sql_command)
-  {
+  switch (sql_command) {
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_FIELDS:
@@ -1742,6 +1742,31 @@ bool st_lex::need_correct_ident()
   default:
     return FALSE;
   }
+}
+
+/*
+  Get effective type of CHECK OPTION for given view
+
+  SYNOPSIS
+    get_effective_with_check()
+    view    given view
+
+  NOTE
+    It have not sense to set CHECK OPTION for SELECT satement or subqueries,
+    so we do not.
+
+  RETURN
+    VIEW_CHECK_NONE      no need CHECK OPTION
+    VIEW_CHECK_LOCAL     CHECK OPTION LOCAL
+    VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
+*/
+
+uint8 st_lex::get_effective_with_check(st_table_list *view)
+{
+  if (view->select_lex->master_unit() == &unit &&
+      which_check_option_applicable())
+    return (uint8)view->with_check;
+  return VIEW_CHECK_NONE;
 }
 
 
@@ -1804,7 +1829,8 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     */
     if ((*link_to_local= test(select_lex.table_list.first)))
     {
-      select_lex.table_list.first= (byte*) first->next_local;
+      select_lex.table_list.first= (byte*) (select_lex.context.table_list=
+                                            first->next_local);
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -1909,7 +1935,8 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
     if (link_to_local)
     {
       first->next_local= (TABLE_LIST*) select_lex.table_list.first;
-      select_lex.table_list.first= (byte*) first;
+      select_lex.table_list.first=
+        (byte*) select_lex.context.table_list= first;
       select_lex.table_list.elements++;	//safety
     }
   }
@@ -1930,7 +1957,21 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
   if (!thd->current_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
-    prep_where= where;
+    if (*conds)
+    {
+      prep_where= *conds;
+      *conds= where= prep_where->copy_andor_structure(thd);
+    }
+    for (TABLE_LIST *tbl= (TABLE_LIST *)table_list.first;
+         tbl;
+         tbl= tbl->next_local)
+    {
+      if (tbl->on_expr)
+      {
+        tbl->prep_on_expr= tbl->on_expr;
+        tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
+      }
+    }
   }
 }
 
@@ -1945,3 +1986,4 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
   st_select_lex_unit::change_result
   are in sql_union.cc
 */
+
