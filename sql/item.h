@@ -1340,7 +1340,10 @@ public:
   Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
-  { return ref && (*ref)->eq(item, binary_cmp); }
+  { 
+    Item *it= ((Item *) item)->real_item();
+    return ref && (*ref)->eq(it, binary_cmp);
+  }
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
