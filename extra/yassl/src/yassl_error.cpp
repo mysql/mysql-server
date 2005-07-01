@@ -23,6 +23,7 @@
 /* yaSSL error implements and an exception class
  */
 
+#include "runtime.hpp"
 #include "yassl_error.hpp"
 
 namespace yaSSL {
