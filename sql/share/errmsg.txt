@@ -5358,3 +5358,5 @@ ER_STMT_HAS_NO_OPEN_CURSOR
 	eng "The statement (%lu) has no open cursor."
 ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
         eng "Explicit or implicit commit is not allowed in stored function or trigger."
+ER_SP_NO_RECURSION
+        eng "Recursive stored routines are not allowed."
