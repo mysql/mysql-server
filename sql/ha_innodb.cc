@@ -3538,7 +3538,9 @@ ha_innobase::delete_row(
 }
 
 /**************************************************************************
-Deletes a lock set to a row */
+Removes a new lock set on a row. This can be called after a row has been read
+in the processing of an UPDATE or a DELETE query, if the option
+innodb_locks_unsafe_for_binlog is set. */
 
 void
 ha_innobase::unlock_row(void)
@@ -3556,8 +3558,10 @@ ha_innobase::unlock_row(void)
 		mem_analyze_corruption((byte *) prebuilt->trx);
 		ut_error;
 	}
-
-	row_unlock_for_mysql(prebuilt);
+	
+	if (srv_locks_unsafe_for_binlog) {
+		row_unlock_for_mysql(prebuilt, FALSE);
+	}
 }
 
 /**********************************************************************
