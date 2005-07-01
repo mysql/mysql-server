@@ -461,7 +461,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   String *res= args[0]->val_str(str);
-  uint length=res->length(),tail;
+  uint length= 0, tail;
 
   if ((null_value=args[0]->null_value))
     goto error;

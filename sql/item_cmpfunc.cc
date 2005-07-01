@@ -638,11 +638,9 @@ int Arg_comparator::compare_e_row()
 }
 
 
-bool Item_in_optimizer::fix_left(THD *thd,
-				 struct st_table_list *tables,
-				 Item **ref)
+bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
-  if (!args[0]->fixed && args[0]->fix_fields(thd, tables, args) ||
+  if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
       !cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
     return 1;
 
@@ -679,16 +677,15 @@ bool Item_in_optimizer::fix_left(THD *thd,
 }
 
 
-bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
-				   Item ** ref)
+bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (fix_left(thd, tables, ref))
+  if (fix_left(thd, ref))
     return TRUE;
   if (args[0]->maybe_null)
     maybe_null=1;
 
-  if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args+1))
+  if (!args[1]->fixed && args[1]->fix_fields(thd, args+1))
     return TRUE;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
   if (args[0]->cols() != sub->engine->cols())
@@ -2312,7 +2309,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 
 
 bool
-Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_cond::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
@@ -2360,7 +2357,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
     // item can be substituted in fix_fields
     if ((!item->fixed &&
-	 item->fix_fields(thd, tables, li.ref())) ||
+	 item->fix_fields(thd, li.ref())) ||
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
@@ -2747,11 +2744,11 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 }
 
 
-bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
+bool Item_func_like::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (Item_bool_func2::fix_fields(thd, tlist, ref) ||
-      escape_item->fix_fields(thd, tlist, &escape_item))
+  if (Item_bool_func2::fix_fields(thd, ref) ||
+      escape_item->fix_fields(thd, &escape_item))
     return TRUE;
 
   if (!escape_item->const_during_execution())
@@ -2815,13 +2812,13 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 #ifdef USE_REGEX
 
 bool
-Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_func_regex::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   if ((!args[0]->fixed &&
-       args[0]->fix_fields(thd, tables, args)) || args[0]->check_cols(1) ||
+       args[0]->fix_fields(thd, args)) || args[0]->check_cols(1) ||
       (!args[1]->fixed &&
-       args[1]->fix_fields(thd,tables, args + 1)) || args[1]->check_cols(1))
+       args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
@@ -3481,7 +3478,7 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
   } while (swap);
 }
 
-bool Item_equal::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+bool Item_equal::fix_fields(THD *thd, Item **ref)
 {
   List_iterator_fast<Item_field> li(fields);
   Item *item;

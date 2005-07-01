@@ -2983,7 +2983,7 @@ int set_var::check(THD *thd)
   }
 
   if ((!value->fixed &&
-       value->fix_fields(thd, 0, &value)) || value->check_cols(1))
+       value->fix_fields(thd, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
   {
@@ -3017,7 +3017,7 @@ int set_var::light_check(THD *thd)
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
     return 1;
 
-  if (value && ((!value->fixed && value->fix_fields(thd, 0, &value)) ||
+  if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||
                 value->check_cols(1)))
     return -1;
   return 0;
@@ -3046,7 +3046,7 @@ int set_var_user::check(THD *thd)
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return (user_var_item->fix_fields(thd, 0, (Item**) 0) ||
+  return (user_var_item->fix_fields(thd, (Item**) 0) ||
 	  user_var_item->check()) ? -1 : 0;
 }
 
@@ -3069,7 +3069,7 @@ int set_var_user::light_check(THD *thd)
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return (user_var_item->fix_fields(thd, 0, (Item**) 0));
+  return (user_var_item->fix_fields(thd, (Item**) 0));
 }
 
 

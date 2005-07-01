@@ -124,6 +124,13 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
   fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					   (byte **)
 					   &result_table_list.next_local);
+  for (ORDER *order= (ORDER *)global_parameters->order_list.first;
+       order;
+       order=order->next)
+  {
+    (*order->item)->walk(&Item::change_context_processor,
+                         (byte *) &fake_select_lex->context);
+  }
 }
 
 
@@ -186,6 +193,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   }
   else
     tmp_result= sel_result;
+
+  sl->context.resolve_in_select_list= TRUE;
 
   for (;sl; sl= sl->next_select())
   {

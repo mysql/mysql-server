@@ -1259,7 +1259,6 @@ create:
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
-	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
 	    /* first table in list is target VIEW name */
 	    if (!lex->select_lex.add_table_to_list(thd, $5, NULL, 0))
               YYABORT;
@@ -3383,7 +3382,6 @@ alter:
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
-	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
 	    /* first table in list is target VIEW name */
 	    lex->select_lex.add_table_to_list(thd, $4, NULL, 0);
 	  }
@@ -3941,7 +3939,6 @@ select:
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_SELECT;
-	  lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
 	}
 	;
 
@@ -4095,7 +4092,10 @@ select_item_list:
 	| '*'
 	  {
 	    THD *thd= YYTHD;
-	    if (add_item_to_list(thd, new Item_field(NULL, NULL, "*")))
+	    if (add_item_to_list(thd,
+                                 new Item_field(&thd->lex->current_select->
+                                                context,
+                                                NULL, NULL, "*")))
 	      YYABORT;
 	    (thd->lex->current_select->with_wild)++;
 	  };
@@ -4393,10 +4393,10 @@ simple_expr:
 	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name->str);
 	      YYABORT;
 	    }
-	    $$= new Item_default_value($3);
+	    $$= new Item_default_value(&Select->context, $3);
 	  }
 	| VALUES '(' simple_ident ')'
-	  { $$= new Item_insert_value($3); }
+	  { $$= new Item_insert_value(&Select->context, $3); }
 	| FUNC_ARG0 '(' ')'
 	  {
 	    if (!$1.symbol->create_func)
@@ -4687,15 +4687,16 @@ simple_expr:
 	    name->init_qname(YYTHD);
 	    sp_add_to_hash(&lex->spfuns, name);
 	    if ($5)
-	      $$= new Item_func_sp(name, *$5);
+	      $$= new Item_func_sp(&lex->current_select->context, name, *$5);
 	    else
-	      $$= new Item_func_sp(name);
+	      $$= new Item_func_sp(&lex->current_select->context, name);
 	    lex->safe_to_cache_query=0;
 	  }
 	| IDENT_sys '(' udf_expr_list ')'
           {
 #ifdef HAVE_DLOPEN
             udf_func *udf;
+            SELECT_LEX *sel= Select;
 
             if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
             {
@@ -4776,9 +4777,9 @@ simple_expr:
 
               sp_add_to_hash(&lex->spfuns, name);
               if ($3)
-                $$= new Item_func_sp(name, *$3);
+                $$= new Item_func_sp(&lex->current_select->context, name, *$3);
               else
-                $$= new Item_func_sp(name);
+                $$= new Item_func_sp(&lex->current_select->context, name);
 	      lex->safe_to_cache_query=0;
 	    }
           }
@@ -4980,8 +4981,10 @@ sum_expr:
 	  opt_gconcat_separator
 	 ')'
 	  {
-	    Select->in_sum_expr--;
-	    $$=new Item_func_group_concat($3,$5,Select->gorder_list,$7);
+            SELECT_LEX *sel= Select;
+	    sel->in_sum_expr--;
+	    $$=new Item_func_group_concat(&sel->context, $3, $5,
+                                          sel->gorder_list, $7);
 	    $5->empty();
 	  };
 
@@ -5400,16 +5403,30 @@ using_list:
 	ident
 	  {
 	    SELECT_LEX *sel= Select;
-	    if (!($$= new Item_func_eq(new Item_field(sel->db1, sel->table1,
+	    if (!($$= new Item_func_eq(new Item_field(&sel->context,
+                                                      sel->db1, sel->table1,
 						      $1.str),
-				       new Item_field(sel->db2, sel->table2,
+				       new Item_field(&sel->context,
+                                                      sel->db2, sel->table2,
 						      $1.str))))
 	      YYABORT;
 	  }
 	| using_list ',' ident
 	  {
 	    SELECT_LEX *sel= Select;
-	    if (!($$= new Item_cond_and(new Item_func_eq(new Item_field(sel->db1,sel->table1,$3.str), new Item_field(sel->db2,sel->table2,$3.str)), $1)))
+	    if (!($$=
+                  new Item_cond_and(new
+                                    Item_func_eq(new
+                                                 Item_field(&sel->context,
+                                                            sel->db1,
+                                                            sel->table1,
+                                                            $3.str),
+                                                 new
+                                                 Item_field(&sel->context,
+                                                            sel->db2,
+                                                            sel->table2,
+                                                            $3.str)),
+                                    $1)))
 	      YYABORT;
 	  };
 
@@ -5675,7 +5692,10 @@ procedure_clause:
 	    lex->proc_list.elements=0;
 	    lex->proc_list.first=0;
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
-	    if (add_proc_to_list(lex->thd, new Item_field(NULL,NULL,$2.str)))
+	    if (add_proc_to_list(lex->thd, new Item_field(&lex->
+                                                          current_select->
+                                                          context,
+                                                          NULL,NULL,$2.str)))
 	      YYABORT;
 	    Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	  }
@@ -5922,7 +5942,6 @@ insert:
 	  mysql_init_select(lex);
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
-	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
 	} insert_lock_option
 	opt_ignore insert2
 	{
@@ -5940,7 +5959,6 @@ replace:
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
 	  mysql_init_select(lex);
-	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
 	}
 	replace_lock_option insert2
 	{
@@ -6058,7 +6076,7 @@ values:
 
 expr_or_default:
 	expr	  { $$= $1;}
-	| DEFAULT {$$= new Item_default_value(); }
+	| DEFAULT {$$= new Item_default_value(&Select->context); }
 	;
 
 opt_insert_update:
@@ -7027,15 +7045,17 @@ insert_ident:
 table_wild:
 	ident '.' '*'
 	{
-	  $$ = new Item_field(NullS,$1.str,"*");
-	  Lex->current_select->with_wild++;
+          SELECT_LEX *sel= Select;
+	  $$ = new Item_field(&sel->context, NullS, $1.str, "*");
+	  sel->with_wild++;
 	}
 	| ident '.' ident '.' '*'
 	{
-	  $$ = new Item_field((YYTHD->client_capabilities &
+          SELECT_LEX *sel= Select;
+	  $$ = new Item_field(&sel->context, (YYTHD->client_capabilities &
                              CLIENT_NO_SCHEMA ? NullS : $1.str),
                              $3.str,"*");
-	  Lex->current_select->with_wild++;
+	  sel->with_wild++;
 	}
 	;
 
@@ -7060,8 +7080,8 @@ simple_ident:
 	    SELECT_LEX *sel=Select;
 	    $$= (sel->parsing_place != IN_HAVING ||
 	         sel->get_in_sum_expr() > 0) ?
-                 (Item*) new Item_field(NullS,NullS,$1.str) :
-	         (Item*) new Item_ref(NullS,NullS,$1.str);
+                 (Item*) new Item_field(&sel->context, NullS, NullS, $1.str) :
+	         (Item*) new Item_ref(&sel->context, NullS, NullS, $1.str);
 	  }
         }
         | simple_ident_q { $$= $1; }
@@ -7073,8 +7093,8 @@ simple_ident_nospvar:
 	  SELECT_LEX *sel=Select;
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
-              (Item*) new Item_field(NullS,NullS,$1.str) :
-	      (Item*) new Item_ref(NullS,NullS,$1.str);
+              (Item*) new Item_field(&sel->context, NullS, NullS, $1.str) :
+	      (Item*) new Item_ref(&sel->context, NullS, NullS, $1.str);
 	}
 	| simple_ident_q { $$= $1; }
 	;
@@ -7111,7 +7131,8 @@ simple_ident_q:
               YYABORT;
             }
 
-            if (!(trg_fld= new Item_trigger_field(new_row ?
+            if (!(trg_fld= new Item_trigger_field(&lex->current_select->context,
+                                                  new_row ?
                                                   Item_trigger_field::NEW_ROW:
                                                   Item_trigger_field::OLD_ROW,
                                                   $3.str)))
@@ -7136,8 +7157,8 @@ simple_ident_q:
 	    }
 	    $$= (sel->parsing_place != IN_HAVING ||
 	         sel->get_in_sum_expr() > 0) ?
-	        (Item*) new Item_field(NullS,$1.str,$3.str) :
-	        (Item*) new Item_ref(NullS,$1.str,$3.str);
+	        (Item*) new Item_field(&sel->context, NullS, $1.str, $3.str) :
+	        (Item*) new Item_ref(&sel->context, NullS, $1.str, $3.str);
           }
         }
 	| '.' ident '.' ident
@@ -7152,8 +7173,8 @@ simple_ident_q:
 	  }
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
-	      (Item*) new Item_field(NullS,$2.str,$4.str) :
-              (Item*) new Item_ref(NullS, $2.str, $4.str);
+	      (Item*) new Item_field(&sel->context, NullS, $2.str, $4.str) :
+              (Item*) new Item_ref(&sel->context, NullS, $2.str, $4.str);
 	}
 	| ident '.' ident '.' ident
 	{
@@ -7167,10 +7188,12 @@ simple_ident_q:
 	  }
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
-	      (Item*) new Item_field((YYTHD->client_capabilities &
+	      (Item*) new Item_field(&sel->context,
+                                     (YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
 				     $3.str, $5.str) :
-	      (Item*) new Item_ref((YYTHD->client_capabilities &
+	      (Item*) new Item_ref(&sel->context,
+                                   (YYTHD->client_capabilities &
 				    CLIENT_NO_SCHEMA ? NullS : $1.str),
                                    $3.str, $5.str);
 	};
@@ -7720,9 +7743,11 @@ sys_option_value:
               it= new Item_null();
             }
 
-            if (!(trg_fld= new Item_trigger_field(Item_trigger_field::NEW_ROW,
+            if (!(trg_fld= new Item_trigger_field(&lex->current_select->context,
+                                                  Item_trigger_field::NEW_ROW,
                                                   $2.base_name.str)) ||
                 !(i= new sp_instr_set_trigger_field(
+                           &lex->current_select->context,
                            lex->sphead->instructions(), lex->spcont,
                            trg_fld, it)))
               YYABORT;
