@@ -353,7 +353,9 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   LINT_INIT(key);
   LINT_INIT(key_len);
 
-  list.push_front(new Item_field(NULL,NULL,"*"));
+  thd->lex->select_lex.context.resolve_in_table_list_only(tables);
+  list.push_front(new Item_field(&thd->lex->select_lex.context,
+                                 NULL, NULL, "*"));
   List_iterator<Item> it(list);
   it++;
 
@@ -410,7 +412,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   tables->table=table;
 
   if (cond && ((!cond->fixed &&
-                cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1)))
+                cond->fix_fields(thd, &cond)) || cond->check_cols(1)))
     goto err0;
 
   if (keyname)
@@ -422,7 +424,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     }
   }
 
-  if (insert_fields(thd, tables, tables->db, tables->alias, &it, 0))
+  if (insert_fields(thd, &thd->lex->select_lex.context,
+                    tables->db, tables->alias, &it, 0))
     goto err0;
 
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
@@ -505,7 +508,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       {
 	// 'item' can be changed by fix_fields() call
         if ((!item->fixed &&
-             item->fix_fields(thd, tables, it_ke.ref())) ||
+             item->fix_fields(thd, it_ke.ref())) ||
 	    (item= *it_ke.ref())->check_cols(1))
 	  goto err;
 	if (item->used_tables() & ~RAND_TABLE_BIT)

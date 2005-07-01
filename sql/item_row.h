@@ -61,7 +61,7 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
-  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   table_map used_tables() const { return used_tables_cache; };
   bool const_item() const { return const_item_cache; };

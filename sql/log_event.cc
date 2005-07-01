@@ -2618,13 +2618,15 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
 
 #ifndef MYSQL_CLIENT
 void Load_log_event::set_fields(const char* affected_db, 
-				List<Item> &field_list)
+				List<Item> &field_list,
+                                Name_resolution_context *context)
 {
   uint i;
   const char* field = fields;
   for (i= 0; i < num_fields; i++)
   {
-    field_list.push_back(new Item_field(affected_db, table_name, field));
+    field_list.push_back(new Item_field(context,
+                                        affected_db, table_name, field));
     field+= field_lens[i]  + 1;
   }
 }
@@ -2789,7 +2791,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
-      set_fields(thd->db,field_list);
+      thd->main_lex.select_lex.context.resolve_in_table_list_only(&tables);
+      set_fields(thd->db, field_list, &thd->main_lex.select_lex.context);
       thd->variables.pseudo_thread_id= thread_id;
       List<Item> set_fields;
       if (net)
@@ -3617,7 +3620,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  e.fix_fields(thd, 0, 0);
+  e.fix_fields(thd, 0);
   /*
     A variable can just be considered as a table with
     a single record and with a single column. Thus, like

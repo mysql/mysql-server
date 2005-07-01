@@ -2439,21 +2439,19 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 		       table_list->alias, name, item_name, (ulong) ref));
   if (table_list->field_translation)
   {
-    uint num;
-    if (table_list->schema_table_reformed)
+    Field_iterator_view field_it;
+    field_it.set(table_list);
+    DBUG_ASSERT(table_list->schema_table_reformed ||
+                (ref != 0 && table_list->view != 0));
+    for (; !field_it.end_of_fields(); field_it.next())
     {
-      num= thd->lex->current_select->item_list.elements;
-    }
-    else
-    {
-      DBUG_ASSERT(ref != 0 && table_list->view != 0);
-      num= table_list->view->select_lex.item_list.elements;
-    }
-    Field_translator *trans= table_list->field_translation;
-    for (uint i= 0; i < num; i ++)
-    {
-      if (!my_strcasecmp(system_charset_info, trans[i].name, name))
+      if (!my_strcasecmp(system_charset_info, field_it.name(), name))
       {
+        Item *item= field_it.create_item(thd);
+        if (!item)
+        {
+          DBUG_RETURN(0);
+        }
         if (table_list->schema_table_reformed)
         {
           /*
@@ -2462,7 +2460,7 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
             So we can return ->field. It is used only for 
             'show & where' commands.
           */
-          DBUG_RETURN(((Item_field*) (trans[i].item))->field);
+          DBUG_RETURN(((Item_field*) (field_it.item()))->field);
         }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (check_grants_view &&
@@ -2472,26 +2470,10 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 			       name, length))
 	  DBUG_RETURN(WRONG_GRANT);
 #endif
-        if (thd->lex->current_select->no_wrap_view_item)
-	{
-	  if (register_tree_change)
-	    thd->change_item_tree(ref, trans[i].item);
-	  else
-            *ref= trans[i].item;
-	}
+        if (register_tree_change)
+          thd->change_item_tree(ref, item);
         else
-        {
-          Item_ref *item_ref= new Item_ref(&trans[i].item,
-                                           table_list->view_name.str,
-                                           item_name);
-          /* as far as Item_ref have defined reference it do not need tables */
-          if (register_tree_change && item_ref)
-            thd->change_item_tree(ref, item_ref);
-	  else if (item_ref)
-	    *ref= item_ref;
-          if (!(*ref)->fixed)
-            (*ref)->fix_fields(thd, 0, ref);
-        }
+          *ref= item;
 	DBUG_RETURN((Field*) view_ref_found);
       }
     }
@@ -3066,7 +3048,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
         */
         it.replace(new Item_int("Not_used", (longlong) 1, 21));
       }
-      else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
+      else if (insert_fields(thd, ((Item_field*) item)->context,
+                             ((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it,
                              any_privileges))
       {
@@ -3102,7 +3085,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
-bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
+bool setup_fields(THD *thd, Item **ref_pointer_array,
                   List<Item> &fields, bool set_query_id,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
@@ -3131,7 +3114,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Item **ref= ref_pointer_array;
   while ((item= it++))
   {
-    if (!item->fixed && item->fix_fields(thd, tables, it.ref()) ||
+    if (!item->fixed && item->fix_fields(thd, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
     {
       DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -3181,6 +3164,7 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
   SYNOPSIS
     setup_tables()
     thd		  Thread handler
+    context       name resolution contest to setup table list there
     tables	  Table list
     conds	  Condition of current SELECT (can be changed by VIEW)
     leaves        List of join table leaves list
@@ -3200,11 +3184,15 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
     TRUE  error
 */
 
-bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
+bool setup_tables(THD *thd, Name_resolution_context *context,
+                  TABLE_LIST *tables, Item **conds,
                   TABLE_LIST **leaves, bool select_insert)
 {
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
+
+  context->table_list= tables;
+
   /*
     this is used for INSERT ... SELECT.
     For select we setup tables except first (and its underlying tables)
@@ -3259,10 +3247,21 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
        table_list;
        table_list= table_list->next_local)
   {
-    if (table_list->ancestor &&
-        table_list->setup_ancestor(thd, conds,
-                                   table_list->effective_with_check))
-      DBUG_RETURN(1);
+    if (table_list->ancestor)
+    {
+      DBUG_ASSERT(table_list->view);
+      Query_arena *arena= thd->current_arena, backup;
+      bool res;
+      if (arena->is_conventional())
+        arena= 0;                                   // For easier test
+      else
+        thd->set_n_backup_item_arena(arena, &backup);
+      res= table_list->setup_ancestor(thd);
+      if (arena)
+        thd->restore_backup_item_arena(arena, &backup);
+      if (res)
+        DBUG_RETURN(1);
+    }
   }
   DBUG_RETURN(0);
 }
@@ -3314,7 +3313,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
   SYNOPSIS
     insert_fields()
     thd			Thread handler
-    tables		List of tables
+    context             Context for name resolution
     db_name		Database name in case of 'database_name.table_name.*'
     table_name		Table name in case of 'table_name.*'
     it			Pointer to '*'
@@ -3328,7 +3327,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 */
 
 bool
-insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
+insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it,
               bool any_privileges)
 {
@@ -3352,7 +3351,9 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
   }
 
   found= 0;
-  for (; tables; tables= tables->next_local)
+  for (TABLE_LIST *tables= context->table_list;
+       tables;
+       tables= tables->next_local)
   {
     Field_iterator *iterator;
     TABLE_LIST *natural_join_table;
@@ -3361,7 +3362,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     TABLE_LIST *last;
     TABLE_LIST *embedding;
     TABLE *table= tables->table;
-    bool alias_used= 0;
 
     if (!table_name || (!my_strcasecmp(table_alias_charset, table_name,
 				       tables->alias) &&
@@ -3395,16 +3395,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
         }
       }
 #endif
-      if (table)
-	thd->used_tables|= table->map;
-      else
-      {
-	view_iter.set(tables);
-	for (; !view_iter.end_of_fields(); view_iter.next())
-	{
-	  thd->used_tables|= view_iter.item(thd)->used_tables();
-	}
-      }
       natural_join_table= 0;
       last= embedded= tables;
 
@@ -3435,8 +3425,6 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
       {
         iterator= &view_iter;
 	view= 1;
-	alias_used= my_strcasecmp(table_alias_charset,
-				  tables->table_name, tables->alias);
       }
       else
       {
@@ -3444,6 +3432,10 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	view= 0;
       }
       iterator->set(tables);
+
+      /* for view used tables will be collected in following loop */
+      if (table)
+	thd->used_tables|= table->map;
 
       for (; !iterator->end_of_fields(); iterator->next())
       {
@@ -3457,16 +3449,10 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                  strlen(field_name), &not_used_item, 0, 0, 0,
                                  &not_used_field_index, TRUE))
         {
-          Item *item= iterator->item(thd);
-	  if (view && !thd->lex->current_select->no_wrap_view_item)
-	  {
-            /*
-              as far as we have view, then item point to view_iter, so we
-              can use it directly for this view specific operation
-            */
-	    item= new Item_ref(view_iter.item_ptr(), tables->view_name.str,
-                               field_name);
-	  }
+          Item *item= iterator->create_item(thd);
+          if (!item)
+            goto err;
+          thd->used_tables|= item->used_tables();
           if (!found++)
             (void) it->replace(item);		// Replace '*'
           else
@@ -3537,9 +3523,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
     my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 err:
-#endif
   DBUG_RETURN(1);
 }
 
@@ -3550,16 +3534,25 @@ err:
   SYNOPSIS
     setup_conds()
     thd     thread handler
-    tables  list of tables for name resolving
     leaves  list of leaves of join table tree
 */
 
-int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
+int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
+                COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   Query_arena *arena= thd->current_arena, backup;
-  bool save_wrapper= thd->lex->current_select->no_wrap_view_item;
   TABLE_LIST *table= NULL;	// For HP compilers
+  /*
+    it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
+    which belong to LEX, i.e. most up SELECT) will be updated by
+    INSERT/UPDATE/LOAD
+    NOTE: using this condition helps to prevent call of prepare_check_option()
+    from subquery of VIEW, because tables of subquery belongs to VIEW
+    (see condition before prepare_check_option() call)
+  */
+  bool it_is_update= (select_lex == &thd->lex->select_lex) &&
+    thd->lex->which_check_option_applicable();
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
@@ -3568,12 +3561,17 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
 
   thd->set_query_id=1;
 
-  thd->lex->current_select->no_wrap_view_item= 0;
+  for (table= tables; table; table= table->next_local)
+  {
+    if (table->prepare_where(thd, conds, FALSE))
+      goto err_no_arena;
+  }
+
   select_lex->cond_count= 0;
   if (*conds)
   {
     thd->where="where clause";
-    if (!(*conds)->fixed && (*conds)->fix_fields(thd, tables, conds) ||
+    if (!(*conds)->fixed && (*conds)->fix_fields(thd, conds) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
@@ -3591,11 +3589,12 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
         /* Make a join an a expression */
         thd->where="on clause";
         if (!embedded->on_expr->fixed &&
-            embedded->on_expr->fix_fields(thd, tables, &embedded->on_expr) ||
+            embedded->on_expr->fix_fields(thd, &embedded->on_expr) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
       }
+
       if (embedded->natural_join)
       {
         /* Make a join of all fields wich have the same name */
@@ -3675,7 +3674,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
           {
             if (t2_field != view_ref_found)
             {
-              if (!(item_t2= new Item_field(thd, t2_field)))
+              if (!(item_t2= new Item_field(thd, &select_lex->context,
+                                            t2_field)))
                 goto err;
               /* Mark field used for table cache */
               t2_field->query_id= thd->query_id;
@@ -3687,7 +3687,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               t1_field->query_id= thd->query_id;
               t1->used_keys.intersect(t1_field->part_of_key);
             }
-            Item_func_eq *tmp= new Item_func_eq(iterator->item(thd),
+            Item_func_eq *tmp= new Item_func_eq(iterator->create_item(thd),
                                                 item_t2);
             if (!tmp)
               goto err;
@@ -3703,7 +3703,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
         {
           COND *on_expr= cond_and;
           if (!on_expr->fixed)
-            on_expr->fix_fields(thd, 0, &on_expr);
+            on_expr->fix_fields(thd, &on_expr);
           if (!embedded->outer_join)			// Not left join
           {
             *conds= and_conds(*conds, cond_and);
@@ -3712,7 +3712,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (*conds && !(*conds)->fixed)
             {
-              if ((*conds)->fix_fields(thd, tables, conds))
+              if ((*conds)->fix_fields(thd, conds))
                 goto err_no_arena;
             }
           }
@@ -3724,8 +3724,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (embedded->on_expr && !embedded->on_expr->fixed)
             {
-              if (embedded->on_expr->fix_fields(thd, tables,
-                                                &embedded->on_expr))
+              if (embedded->on_expr->fix_fields(thd, &embedded->on_expr))
                 goto err_no_arena;
             }
           }
@@ -3737,6 +3736,20 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
     }
     while (embedding &&
            embedding->nested_join->join_list.head() == embedded);
+
+    /* process CHECK OPTION */
+    if (it_is_update)
+    {
+      TABLE_LIST *view= table->belong_to_view;
+      if (!view)
+        view= table;
+      if (view->effective_with_check)
+      {
+        if (view->prepare_check_option(thd))
+          goto err_no_arena;
+        thd->change_item_tree(&table->check_option, view->check_option);
+      }
+    }
   }
 
   if (!thd->current_arena->is_conventional())
@@ -3750,14 +3763,12 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
     select_lex->where= *conds;
     select_lex->conds_processed_with_permanent_arena= 1;
   }
-  thd->lex->current_select->no_wrap_view_item= save_wrapper;
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
 err_no_arena:
-  thd->lex->current_select->no_wrap_view_item= save_wrapper;
   DBUG_RETURN(1);
 }
 

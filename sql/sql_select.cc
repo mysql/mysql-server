@@ -182,8 +182,8 @@ static void reset_cache_read(JOIN_CACHE *cache);
 static void reset_cache_write(JOIN_CACHE *cache);
 static void read_cached_record(JOIN_TAB *tab);
 static bool cmp_buffer_with_ref(JOIN_TAB *tab);
-static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
-			     List<Item> &all_fields,ORDER *new_order);
+static bool setup_new_fields(THD *thd, List<Item> &fields,
+			     List<Item> &all_fields, ORDER *new_order);
 static ORDER *create_distinct_group(THD *thd, ORDER *order,
 				    List<Item> &fields,
 				    bool *all_order_by_fields_used);
@@ -283,6 +283,7 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
   save_allow_sum_func= thd->allow_sum_func;
   thd->allow_sum_func= 0;
   res= setup_conds(thd, tables, leaves, conds);
+
   thd->allow_sum_func= save_allow_sum_func;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
                           order);
@@ -339,11 +340,12 @@ JOIN::prepare(Item ***rref_pointer_array,
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
+       setup_tables(thd, &select_lex->context,
+                    tables_list, &conds, &select_lex->leaf_tables,
                     FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
-      setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
+      setup_fields(thd, (*rref_pointer_array), fields_list, 1,
 		   &all_fields, 1) ||
       setup_without_group(thd, (*rref_pointer_array), tables_list,
 			  select_lex->leaf_tables, fields_list,
@@ -359,7 +361,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->allow_sum_func=1;
     select_lex->having_fix_field= 1;
     bool having_fix_rc= (!having->fixed &&
-			 (having->fix_fields(thd, tables_list, &having) ||
+			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
@@ -432,7 +434,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;					/* purecov: inspected */
   if (procedure)
   {
-    if (setup_new_fields(thd, tables_list, fields_list, all_fields,
+    if (setup_new_fields(thd, fields_list, all_fields,
 			 procedure->param_fields))
 	goto err;				/* purecov: inspected */
     if (procedure->group)
@@ -566,7 +568,7 @@ JOIN::optimize()
         Item_cond_and can't be fixed after creation, so we do not check
         conds->fixed
       */
-      conds->fix_fields(thd, tables_list, &conds);
+      conds->fix_fields(thd, &conds);
       conds->change_ref_to_fields(thd, tables_list);
       conds->top_level_item();
       having= 0;
@@ -1117,7 +1119,6 @@ int
 JOIN::reinit()
 {
   DBUG_ENTER("JOIN::reinit");
-
   first_record= 0;
 
   if (exec_tmp_table1)
@@ -1977,6 +1978,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   bool free_join= 1;
   DBUG_ENTER("mysql_select");
 
+  select_lex->context.resolve_in_select_list= TRUE;
   JOIN *join;
   if (select_lex->join != 0)
   {
@@ -7445,7 +7447,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
           conds->top_level_item();
           /* conds is always a new item as both cond and on_expr existed */
           DBUG_ASSERT(!conds->fixed);
-          conds->fix_fields(join->thd, 0, &conds);
+          conds->fix_fields(join->thd, &conds);
         }
         else
           conds= table->on_expr; 
@@ -7666,7 +7668,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
             cond->fixed, also it do not need tables so we use 0 as second
             argument.
           */
-	  cond->fix_fields(thd, 0, &cond);
+	  cond->fix_fields(thd, &cond);
 	}
 	thd->insert_id(0);		// Clear for next request
       }
@@ -7685,7 +7687,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
             cond->fixed, also it do not need tables so we use 0 as second
             argument.
           */
-	  cond->fix_fields(thd, 0, &cond);
+	  cond->fix_fields(thd, &cond);
 	}
       }
     }
@@ -8208,6 +8210,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= (uint) (reg_field - table->field);
 	    blob_count++;
 	  }
+          new_field->field_index= (uint) (reg_field - table->field);
 	  *(reg_field++)= new_field;
           if (new_field->real_type() == MYSQL_TYPE_STRING ||
               new_field->real_type() == MYSQL_TYPE_VARCHAR)
@@ -8273,6 +8276,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	new_field->flags|= GROUP_FLAG;
       }
       new_field->query_id= thd->query_id;
+      new_field->field_index= (uint) (reg_field - table->field);
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
@@ -11181,8 +11185,7 @@ static bool fix_having(JOIN *join, Item **having)
     else					// This should never happen
       if (!(table->select->cond= new Item_cond_and(table->select->cond,
 						   sort_table_cond)) ||
-	  table->select->cond->fix_fields(join->thd, join->tables_list,
-					  &table->select->cond))
+	  table->select->cond->fix_fields(join->thd, &table->select->cond))
 	return 1;
     table->select_cond=table->select->cond;
     table->select_cond->top_level_item();
@@ -11873,8 +11876,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       original field name, we should additionaly check if we have conflict
       for this name (in case if we would perform lookup in all tables).
     */
-    if (unaliased && !order_item->fixed && order_item->fix_fields(thd, tables,
-                                                                  order->item))
+    if (unaliased && !order_item->fixed &&
+        order_item->fix_fields(thd, order->item))
       return TRUE;
 
     /* Lookup the current GROUP field in the FROM clause. */
@@ -11941,7 +11944,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     arguments for which fix_fields already was called.
   */
   if (!order_item->fixed &&
-      (order_item->fix_fields(thd, tables, order->item) ||
+      (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
     return TRUE; /* Wrong field. */
@@ -12053,7 +12056,7 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 */
 
 static bool
-setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
+setup_new_fields(THD *thd, List<Item> &fields,
 		 List<Item> &all_fields, ORDER *new_field)
 {
   Item	  **item;
@@ -12070,7 +12073,7 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
     else
     {
       thd->where="procedure list";
-      if ((*new_field->item)->fix_fields(thd, tables, new_field->item))
+      if ((*new_field->item)->fix_fields(thd, new_field->item))
 	DBUG_RETURN(1); /* purecov: inspected */
       all_fields.push_front(*new_field->item);
       new_field->item=all_fields.head_ref();
@@ -12868,7 +12871,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     DBUG_RETURN(TRUE);
 
   if (!cond->fixed)
-    cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
+    cond->fix_fields(thd, (Item**)&cond);
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);
@@ -12910,8 +12913,8 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
     thd                  reference to the context
     expr                 expression to make replacement
     group_list           list of references to group by items
-    changed        out:  returns 1 if item contains a replaced field item 
-     
+    changed        out:  returns 1 if item contains a replaced field item
+
   DESCRIPTION
     The function replaces occurrences of group by fields in expr
     by ref objects for these fields unless they are under aggregate
@@ -12940,6 +12943,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
 {
   if (expr->arg_count)
   {
+    Name_resolution_context *context= &thd->lex->current_select->context;
     Item **arg,**arg_end;
     for (arg= expr->arguments(),
          arg_end= expr->arguments()+expr->arg_count;
@@ -12953,8 +12957,9 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
         {
           if (item->eq(*group_tmp->item,0))
           {
-            Item *new_item;    
-            if(!(new_item= new Item_ref(group_tmp->item, 0, item->name)))
+            Item *new_item;
+            if(!(new_item= new Item_ref(context, group_tmp->item, 0,
+                                        item->name)))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);
             *changed= TRUE;

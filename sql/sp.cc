@@ -676,14 +676,18 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 
       tables is not VIEW for sure => we can pass 0 as condition
     */
-    setup_tables(thd, &tables, 0, &leaves, FALSE);
+    thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
+    setup_tables(thd, &thd->lex->select_lex.context,
+                 &tables, 0, &leaves, FALSE);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)
     {
-      Item_field *field= new Item_field("mysql", "proc",
+      Item_field *field= new Item_field(&thd->lex->select_lex.context,
+                                        "mysql", "proc",
 					used_field->field_name);
-      if (!(used_field->field= find_field_in_tables(thd, field, &tables, 
+      if (!field ||
+          !(used_field->field= find_field_in_tables(thd, field, &tables, 
 						    0, REPORT_ALL_ERRORS, 1)))
       {
 	res= SP_INTERNAL_ERROR;

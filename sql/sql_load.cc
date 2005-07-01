@@ -149,7 +149,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
-  if (setup_tables(thd, table_list, &unused_conds,
+  if (setup_tables(thd, &thd->lex->select_lex.context,
+                   table_list, &unused_conds,
 		   &thd->lex->select_lex.leaf_tables, FALSE))
      DBUG_RETURN(-1);
   if (!table_list->table ||               // do not suport join view
@@ -157,6 +158,11 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
+    DBUG_RETURN(TRUE);
+  }
+  if (table_list->prepare_where(thd, 0, TRUE) ||
+      table_list->prepare_check_option(thd))
+  {
     DBUG_RETURN(TRUE);
   }
   /*
@@ -186,16 +192,16 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, 0, table_list, set_fields, 1, 0, 0) ||
-        setup_fields(thd, 0, table_list, set_values, 1, 0, 0))
+    if (setup_fields(thd, 0, set_fields, 1, 0, 0) ||
+        setup_fields(thd, 0, set_values, 1, 0, 0))
       DBUG_RETURN(TRUE);
   }
   else
   {						// Part field list
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    if (setup_fields(thd, 0, table_list, fields_vars, 1, 0, 0) ||
-        setup_fields(thd, 0, table_list, set_fields, 1, 0, 0) ||
-        check_that_all_fields_are_given_values(thd, table))
+    if (setup_fields(thd, 0, fields_vars, 1, 0, 0) ||
+        setup_fields(thd, 0, set_fields, 1, 0, 0) ||
+        check_that_all_fields_are_given_values(thd, table, table_list))
       DBUG_RETURN(TRUE);
     /*
       Check whenever TIMESTAMP field with auto-set feature specified
@@ -209,7 +215,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       check_that_all_fields_are_given_values() and setting use_timestamp
       since it may update query_id for some fields.
     */
-    if (setup_fields(thd, 0, table_list, set_values, 1, 0, 0))
+    if (setup_fields(thd, 0, set_values, 1, 0, 0))
       DBUG_RETURN(TRUE);
   }
 

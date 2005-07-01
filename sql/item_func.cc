@@ -194,11 +194,10 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
       ((Item_field *)(*arg))->no_const_subst= 1;
     /*
       We do not check conv->fixed, because Item_func_conv_charset which can
-      be return by safe_charset_converter can't be fixed at creation, also
-      it do not need tables (second argument) for name resolving
+      be return by safe_charset_converter can't be fixed at creation
     */
     *arg= conv;
-    conv->fix_fields(thd, 0, arg);
+    conv->fix_fields(thd, arg);
   }
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
@@ -261,7 +260,6 @@ Item_func::Item_func(THD *thd, Item_func *item)
   SYNOPSIS:
   fix_fields()
   thd		Thread object
-  tables	List of all open tables involved in the query
   ref		Pointer to where this object is used.  This reference
 		is used if we want to replace this object with another
 		one (for example in the summary functions).
@@ -290,7 +288,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
 */
 
 bool
-Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
@@ -312,7 +310,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	We can't yet set item to *arg as fix_fields may change *arg
 	We shouldn't call fix_fields() twice, so check 'fixed' field first
       */
-      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)))
+      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, arg)))
 	return TRUE;				/* purecov: inspected */
       item= *arg;
 
@@ -2010,10 +2008,9 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
 }
 
 
-bool Item_func_rand::fix_fields(THD *thd, struct st_table_list *tables,
-                                Item **ref)
+bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
-  if (Item_real_func::fix_fields(thd, tables, ref))
+  if (Item_real_func::fix_fields(thd, ref))
     return TRUE;
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
@@ -2604,7 +2601,7 @@ void udf_handler::cleanup()
 
 
 bool
-udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
+udf_handler::fix_fields(THD *thd, Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
 #ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
@@ -2646,7 +2643,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg++,i++)
     {
       if (!(*arg)->fixed &&
-          (*arg)->fix_fields(thd, tables, arg))
+          (*arg)->fix_fields(thd, arg))
 	DBUG_RETURN(1);
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
@@ -3458,12 +3455,11 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
   SELECT @a:= ).
 */
 
-bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
-					Item **ref)
+bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
-  if (Item_func::fix_fields(thd, tables, ref) ||
+  if (Item_func::fix_fields(thd, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return TRUE;
   /* 
@@ -4127,11 +4123,10 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item_user_var_as_out_param::fix_fields(THD *thd, TABLE_LIST *tables,
-                                            Item **ref)
+bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (Item::fix_fields(thd, tables, ref) ||
+  if (Item::fix_fields(thd, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return TRUE;
   entry->type= STRING_RESULT;
@@ -4314,7 +4309,7 @@ void Item_func_match::init_search(bool no_order)
 }
 
 
-bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
+bool Item_func_match::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item *item;
@@ -4329,7 +4324,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     modifications to find_best and auto_close as complement to auto_init code
     above.
    */
-  if (Item_func::fix_fields(thd, tlist, ref) ||
+  if (Item_func::fix_fields(thd, ref) ||
       !args[0]->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
@@ -4690,8 +4685,9 @@ longlong Item_func_row_count::val_int()
 }
 
 
-Item_func_sp::Item_func_sp(sp_name *name)
-  :Item_func(), m_name(name), m_sp(NULL), result_field(NULL)
+Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
+  :Item_func(), context(context_arg), m_name(name), m_sp(NULL),
+   result_field(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
@@ -4699,8 +4695,10 @@ Item_func_sp::Item_func_sp(sp_name *name)
 }
 
 
-Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
-  :Item_func(list), m_name(name), m_sp(NULL), result_field(NULL)
+Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
+                           sp_name *name, List<Item> &list)
+  :Item_func(list), context(context_arg), m_name(name), m_sp(NULL),
+   result_field(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
@@ -4944,7 +4942,10 @@ Item_func_sp::fix_length_and_dec()
   }
 
   if (!(field= sp_result_field()))
+  {
+    context->process_error(current_thd);
     DBUG_VOID_RETURN;
+  }
   decimals= field->decimals();
   max_length= field->field_length;
   maybe_null= 1;
