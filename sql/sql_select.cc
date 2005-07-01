@@ -1920,7 +1920,6 @@ Cursor::~Cursor()
 {
   if (is_open())
     close(FALSE);
-  free_root(mem_root, MYF(0));
 }
 
 /*********************************************************************/
@@ -12157,7 +12156,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
   param->quick_group=1;
   while ((field=li++))
   {
-    Item::Type type=field->type();
+    Item::Type type=field->real_item()->type();
     if (type == Item::FIELD_ITEM)
       param->field_count++;
     else if (type == Item::SUM_FUNC_ITEM)
@@ -12171,7 +12170,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 
 	for (uint i=0 ; i < sum_item->arg_count ; i++)
 	{
-	  if (sum_item->args[0]->type() == Item::FIELD_ITEM)
+	  if (sum_item->args[0]->real_item()->type() == Item::FIELD_ITEM)
 	    param->field_count++;
 	  else
 	    param->func_count++;
@@ -12418,9 +12417,10 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   param->copy_funcs.empty();
   for (i= 0; (pos= li++); i++)
   {
-    if (pos->type() == Item::FIELD_ITEM)
+    if (pos->real_item()->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
+      pos= pos->real_item();
       if (!(item= new Item_field(thd, ((Item_field*) pos))))
 	goto err;
       pos= item;
