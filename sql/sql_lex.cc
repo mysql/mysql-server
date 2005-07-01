@@ -1936,7 +1936,7 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
     {
       first->next_local= (TABLE_LIST*) select_lex.table_list.first;
       select_lex.table_list.first=
-        (byte*) select_lex.context.table_list= first;
+        (byte*) (select_lex.context.table_list= first);
       select_lex.table_list.elements++;	//safety
     }
   }
