@@ -24,6 +24,7 @@
  *
  */
 
+#include "runtime.hpp"
 #include "cert_wrapper.hpp"
 #include "yassl_int.hpp"
 
