@@ -1429,51 +1429,106 @@ run_again:
 }
 
 /*************************************************************************
-Does an unlock of a row for MySQL. */
+This can only be used when srv_locks_unsafe_for_binlog is TRUE. Before
+calling this function we must use trx_reset_new_rec_lock_info() and
+trx_register_new_rec_lock() to store the information which new record locks
+really were set. This function removes a newly set lock under prebuilt->pcur,
+and also under prebuilt->clust_pcur. Currently, this is only used and tested
+in the case of an UPDATE or a DELETE statement, where the row lock is of the
+LOCK_X type.
+Thus, this implements a 'mini-rollback' that releases the latest record
+locks we set. */
 
 int
 row_unlock_for_mysql(
 /*=================*/
 					/* out: error code or DB_SUCCESS */
-	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
+	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in MySQL
 					handle */
+	ibool		has_latches_on_recs)/* TRUE if called so that we have
+					the latches on the records under pcur
+					and clust_pcur, and we do not need to
+					reposition the cursors. */
 {
-	rec_t*		rec;
-	btr_pcur_t*	cur		= prebuilt->pcur;
+	dict_index_t*	index;
+	btr_pcur_t*	pcur		= prebuilt->pcur;
+	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
+	rec_t*		rec;
 	mtr_t           mtr;
 	
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-		
-	trx->op_info = "unlock_row";
-	
-	if (srv_locks_unsafe_for_binlog) {
-		if (trx->trx_create_lock == TRUE) {
-
-			mtr_start(&mtr);
 			
-			/* Restore a cursor position and find a record */
-			btr_pcur_restore_position(BTR_SEARCH_LEAF, cur, &mtr);
-			rec = btr_pcur_get_rec(cur);
+	if (!srv_locks_unsafe_for_binlog) {
 
-			if (rec) {
+		fprintf(stderr,
+"InnoDB: Error: calling row_unlock_for_mysql though\n"
+"InnoDB: srv_locks_unsafe_for_binlog is FALSE.\n");
 
-				lock_rec_reset_and_release_wait(rec);
-			} else {
-				fputs("InnoDB: Error: "
-				      "Record for the lock not found\n",
-				      stderr);
-				mem_analyze_corruption((byte*) trx);
-				ut_error;
-			}
+		return(DB_SUCCESS);
+	}
 
-			trx->trx_create_lock = FALSE;
-			mtr_commit(&mtr);
-		}
+	trx->op_info = "unlock_row";
+
+	index = btr_pcur_get_btr_cur(pcur)->index;
+
+	if (index != NULL && trx_new_rec_locks_contain(trx, index)) {
+
+		mtr_start(&mtr);
+			
+		/* Restore the cursor position and find the record */
 		
+		if (!has_latches_on_recs) {
+			btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr);
+		}
+
+		rec = btr_pcur_get_rec(pcur);
+
+		mutex_enter(&kernel_mutex);
+
+		lock_rec_reset_and_release_wait(rec);
+
+		mutex_exit(&kernel_mutex);
+
+		mtr_commit(&mtr);
+
+		/* If the search was done through the clustered index, then
+		we have not used clust_pcur at all, and we must NOT try to
+		reset locks on clust_pcur. The values in clust_pcur may be
+		garbage! */
+
+		if (index->type & DICT_CLUSTERED) {
+			
+			goto func_exit;
+		}
+	}
+
+	index = btr_pcur_get_btr_cur(clust_pcur)->index;
+
+	if (index != NULL && trx_new_rec_locks_contain(trx, index)) {
+
+		mtr_start(&mtr);
+			
+		/* Restore the cursor position and find the record */
+
+		if (!has_latches_on_recs) {
+			btr_pcur_restore_position(BTR_SEARCH_LEAF, clust_pcur,
+									&mtr);
+		}
+
+		rec = btr_pcur_get_rec(pcur);
+
+		mutex_enter(&kernel_mutex);
+
+		lock_rec_reset_and_release_wait(rec);
+
+		mutex_exit(&kernel_mutex);
+
+		mtr_commit(&mtr);
 	}
 			
+func_exit:
 	trx->op_info = "";
 	
 	return(DB_SUCCESS);

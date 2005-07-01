@@ -16,10 +16,39 @@ Created 3/26/1996 Heikki Tuuri
 #include "que0types.h"
 #include "mem0mem.h"
 #include "read0types.h"
+#include "dict0types.h"
 #include "trx0xa.h"
 
 extern ulint	trx_n_mysql_transactions;
 
+/*****************************************************************
+Resets the new record lock info in a transaction struct. */
+UNIV_INLINE
+void
+trx_reset_new_rec_lock_info(
+/*========================*/
+	trx_t*	trx);	/* in: transaction struct */
+/*****************************************************************
+Registers that we have set a new record lock on an index. This can only be
+called twice after calling trx_reset_new_rec_lock_info(), since we only have
+space to store 2 indexes! */
+UNIV_INLINE
+void
+trx_register_new_rec_lock(
+/*======================*/
+	trx_t*		trx,	/* in: transaction struct */
+	dict_index_t*	index);	/* in: trx sets a new record lock on this
+				index*/
+/*****************************************************************
+Checks if trx has set a new record lock on an index. */
+UNIV_INLINE
+ibool
+trx_new_rec_locks_contain(
+/*======================*/
+				/* out: TRUE if trx has set a new record lock
+				on index */
+	trx_t*		trx,	/* in: transaction struct */
+	dict_index_t*	index);	/* in: index */
 /************************************************************************
 Releases the search latch if trx has reserved it. */
 
@@ -495,8 +524,18 @@ struct trx_struct{
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
 					in the lock list trx_locks */
-	ibool		trx_create_lock;/* this is TRUE if we have created a
-					new lock for a record accessed */
+	dict_index_t*	new_rec_locks[2];/* these are normally NULL; if
+					srv_locks_unsafe_for_binlog is TRUE,
+					in a cursor search, if we set a new
+					record lock on an index, this is set
+					to point to the index; this is
+					used in releasing the locks under the
+					cursors if we are performing an UPDATE
+					and we determine after retrieving
+					the row that it does not need to be
+					locked; thus, these can be used to
+					implement a 'mini-rollback' that
+					releases the latest record locks */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)

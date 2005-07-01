@@ -2784,6 +2784,10 @@ sel_restore_position_for_mysql(
 					process the record the cursor is
 					now positioned on (i.e. we should
 					not go to the next record yet) */
+	ibool*		same_user_rec,	/* out: TRUE if we were able to restore
+					the cursor on a user record with the
+					same ordering prefix in in the
+					B-tree index */
 	ulint		latch_mode,	/* in: latch mode wished in
 					restoration */
 	btr_pcur_t*	pcur,		/* in: cursor whose position
@@ -2799,6 +2803,8 @@ sel_restore_position_for_mysql(
 	relative_position = pcur->rel_pos;
 	
 	success = btr_pcur_restore_position(latch_mode, pcur, mtr);
+
+	*same_user_rec = success;
 
 	if (relative_position == BTR_PCUR_ON) {
 		if (success) {
@@ -3064,10 +3070,12 @@ row_search_for_mysql(
 	ulint		cnt				= 0;
 #endif /* UNIV_SEARCH_DEBUG */
 	ulint		next_offs;
+	ibool		same_user_rec;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(index && pcur && search_tuple);
@@ -3138,6 +3146,14 @@ row_search_for_mysql(
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
 	
+	/* Reset the new record lock info if we srv_locks_unsafe_for_binlog
+	is set. Then we are able to remove the record locks set here on an
+	individual row. */
+
+	if (srv_locks_unsafe_for_binlog) {
+		trx_reset_new_rec_lock_info(trx);
+	}
+
 	/*-------------------------------------------------------------*/
 	/* PHASE 1: Try to pop the row from the prefetch cache */
 
@@ -3396,8 +3412,9 @@ shortcut_fails_too_big_rec:
 	clust_index = dict_table_get_first_index(index->table);
 
 	if (UNIV_LIKELY(direction != 0)) {
-		if (!sel_restore_position_for_mysql(BTR_SEARCH_LEAF, pcur,
-							moves_up, &mtr)) {
+		if (!sel_restore_position_for_mysql(&same_user_rec,
+						BTR_SEARCH_LEAF,
+						pcur, moves_up, &mtr)) {
 			goto next_rec;
 		}
 
@@ -3659,7 +3676,7 @@ rec_loop:
 			goto normal_return;
 		}
 	}
-		
+
 	/* We are ready to look at a possible new index entry in the result
 	set: the cursor is now placed on a user record */
 
@@ -3679,6 +3696,7 @@ rec_loop:
 		    || srv_locks_unsafe_for_binlog
 		    || (unique_search && !UNIV_UNLIKELY(rec_get_deleted_flag(
 					rec, page_rec_is_comp(rec))))) {
+
 			goto no_gap_lock;
 		} else {
 			lock_type = LOCK_ORDINARY;
@@ -3701,7 +3719,7 @@ rec_loop:
 		    && dtuple_get_n_fields_cmp(search_tuple)
 		       == dict_index_get_n_unique(index)
 		    && 0 == cmp_dtuple_rec(search_tuple, rec, offsets)) {
-		no_gap_lock:
+no_gap_lock:
 			lock_type = LOCK_REC_NOT_GAP;
 		}
 
@@ -3764,6 +3782,7 @@ rec_loop:
 			/* Get the clustered index record if needed */
 			index_rec = rec;
 			ut_ad(index != clust_index);
+
 			goto requires_clust_rec;
 		}
 	}
@@ -3773,6 +3792,15 @@ rec_loop:
 		/* The record is delete-marked: we can skip it if this is
 		not a consistent read which might see an earlier version
 		of a non-clustered index record */
+
+		if (srv_locks_unsafe_for_binlog) {
+			/* No need to keep a lock on a delete-marked record
+			if we do not want to use next-key locking. */
+
+			row_unlock_for_mysql(prebuilt, TRUE);
+			
+			trx_reset_new_rec_lock_info(trx);
+		}
 		
 		goto next_rec;
 	}
@@ -3783,7 +3811,8 @@ rec_loop:
 	index_rec = rec;
 
 	if (index != clust_index && prebuilt->need_to_access_clustered) {
-	requires_clust_rec:
+
+requires_clust_rec:
 		/* Before and after this "if" block, "offsets" will be
 		related to "rec", which may be in a secondary index "index" or
 		the clustered index ("clust_index").  However, after this
@@ -3815,6 +3844,16 @@ rec_loop:
 					page_rec_is_comp(clust_rec)))) {
 
 			/* The record is delete marked: we can skip it */
+
+			if (srv_locks_unsafe_for_binlog) {
+				/* No need to keep a lock on a delete-marked
+				record if we do not want to use next-key
+				locking. */
+
+				row_unlock_for_mysql(prebuilt, TRUE);
+			
+				trx_reset_new_rec_lock_info(trx);
+			}
 
 			goto next_rec;
 		}
@@ -3908,7 +3947,7 @@ got_row:
 next_rec:
 	/*-------------------------------------------------------------*/
 	/* PHASE 5: Move the cursor to the next index record */
-	
+
 	if (UNIV_UNLIKELY(mtr_has_extra_clust_latch)) {
 		/* We must commit mtr if we are moving to the next
 		non-clustered index record, because we could break the
@@ -3921,8 +3960,9 @@ next_rec:
 		mtr_has_extra_clust_latch = FALSE;
 	
 		mtr_start(&mtr);
-		if (sel_restore_position_for_mysql(BTR_SEARCH_LEAF, pcur,
-							moves_up, &mtr)) {
+		if (sel_restore_position_for_mysql(&same_user_rec,
+						BTR_SEARCH_LEAF,
+						pcur, moves_up, &mtr)) {
 #ifdef UNIV_SEARCH_DEBUG
 			cnt++;
 #endif /* UNIV_SEARCH_DEBUG */
@@ -3976,8 +4016,29 @@ lock_wait_or_error:
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		mtr_start(&mtr);
 
-		sel_restore_position_for_mysql(BTR_SEARCH_LEAF, pcur,
-							moves_up, &mtr);
+		sel_restore_position_for_mysql(&same_user_rec,
+						BTR_SEARCH_LEAF, pcur,
+						moves_up, &mtr);
+		if (srv_locks_unsafe_for_binlog && !same_user_rec) {
+			/* Since we were not able to restore the cursor
+			on the same user record, we cannot use
+			row_unlock_for_mysql() to unlock any records, and
+			we must thus reset the new rec lock info. Since
+			in lock0lock.c we have blocked the inheriting of gap
+			X-locks, we actually do not have any new record locks
+			set in this case.
+
+			Note that if we were able to restore on the 'same'
+			user record, it is still possible that we were actually
+			waiting on a delete-marked record, and meanwhile
+			it was removed by purge and inserted again by some
+			other user. But that is no problem, because in
+			rec_loop we will again try to set a lock, and
+			new_rec_lock_info in trx will be right at the end. */
+
+			trx_reset_new_rec_lock_info(trx);
+		}
+	
 		mode = pcur->search_mode;
 
 		goto rec_loop;
