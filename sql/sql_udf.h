@@ -65,8 +65,8 @@ class udf_handler :public Sql_alloc
   Item_result result_type () const
   { return u_d	? u_d->returns : STRING_RESULT;}
   bool get_arguments();
-  bool fix_fields(THD *thd,struct st_table_list *tlist,Item_result_field *item,
-		  uint arg_count,Item **args);
+  bool fix_fields(THD *thd, Item_result_field *item,
+		  uint arg_count, Item **args);
   void cleanup();
   double val(my_bool *null_value)
   {

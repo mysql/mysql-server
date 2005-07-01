@@ -201,7 +201,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   {
     trg_field->setup_field(thd, table);
     if (!trg_field->fixed &&
-        trg_field->fix_fields(thd, (TABLE_LIST *)0, (Item **)0))
+        trg_field->fix_fields(thd, (Item **)0))
       return 1;
   }
 

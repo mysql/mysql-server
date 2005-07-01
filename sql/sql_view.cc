@@ -828,10 +828,23 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
-      table->effective_with_check= (uint8)table->with_check;
+      table->effective_with_check=
+        old_lex->get_effective_with_check(table);
 
-      table->ancestor= view_tables;
-
+      /* prepare view context */
+      lex->select_lex.context.resolve_in_table_list_only(table->ancestor=
+                                                         view_tables);
+      lex->select_lex.context.outer_context= 0;
+      lex->select_lex.context.select_lex= table->select_lex;
+      /* do not check privileges & hide errors for view underlyings */
+      for (SELECT_LEX *sl= lex->all_selects_list;
+           sl;
+           sl= sl->next_select_in_list())
+      {
+        sl->context.check_privileges= FALSE;
+        sl->context.error_processor= &view_error_processor;
+        sl->context.error_processor_data= (void *)table;
+      }
       /*
         Tables of the main select of the view should be marked as belonging
         to the same select as original view (again we can use LEX::select_lex
@@ -866,13 +879,12 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->where= view_select->where;
       /*
         Add subqueries units to SELECT into which we merging current view.
-        
         unit(->next)* chain starts with subqueries that are used by this
         view and continues with subqueries that are used by other views.
         We must not add any subquery twice (otherwise we'll form a loop),
-        to do this we remember in end_unit the first subquery that has 
+        to do this we remember in end_unit the first subquery that has
         been already added.
-                
+
         NOTE: we do not support UNION here, so we take only one select
       */
       SELECT_LEX_NODE *end_unit= table->select_lex->slave;
@@ -1058,9 +1070,9 @@ frm_type_enum mysql_frm_type(char *path)
 bool check_key_in_view(THD *thd, TABLE_LIST *view)
 {
   TABLE *table;
-  Field_translator *trans;
+  Field_translator *trans, *end_of_trans;
   KEY *key_info, *key_info_end;
-  uint i, elements_in_view;
+  uint i;
   DBUG_ENTER("check_key_in_view");
 
   /*
@@ -1077,9 +1089,24 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   trans= view->field_translation;
   key_info_end= (key_info= table->key_info)+ table->s->keys;
 
-  elements_in_view= view->view->select_lex.item_list.elements;
+  end_of_trans=  view->field_translation_end;
   DBUG_ASSERT(table != 0 && view->field_translation != 0);
 
+  {
+    /*
+      We should be sure that all fields are ready to get keys from them, but
+      this operation should not have influence on Field::query_id, to avoid
+      marking as used fields which are not used
+    */
+    bool save_set_query_id= thd->set_query_id;
+    thd->set_query_id= 0;
+    for (Field_translator *fld= trans; fld < end_of_trans; fld++)
+    {
+      if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
+        return TRUE;
+    }
+    thd->set_query_id= save_set_query_id;
+  }
   /* Loop over all keys to see if a unique-not-null key is used */
   for (;key_info != key_info_end ; key_info++)
   {
@@ -1091,15 +1118,15 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       /* check that all key parts are used */
       for (;;)
       {
-        uint k;
-        for (k= 0; k < elements_in_view; k++)
+        Field_translator *k;
+        for (k= trans; k < end_of_trans; k++)
         {
           Item_field *field;
-          if ((field= trans[k].item->filed_for_view_update()) &&
+          if ((field= k->item->filed_for_view_update()) &&
               field->field == key_part->field)
             break;
         }
-        if (k == elements_in_view)
+        if (k == end_of_trans)
           break;                                // Key is not possible
         if (++key_part == key_part_end)
           DBUG_RETURN(FALSE);                   // Found usable key
@@ -1111,19 +1138,20 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   /* check all fields presence */
   {
     Field **field_ptr;
+    Field_translator *fld;
     for (field_ptr= table->field; *field_ptr; field_ptr++)
     {
-      for (i= 0; i < elements_in_view; i++)
+      for (fld= trans; fld < end_of_trans; fld++)
       {
         Item_field *field;
-        if ((field= trans[i].item->filed_for_view_update()) &&
+        if ((field= fld->item->filed_for_view_update()) &&
             field->field == *field_ptr)
           break;
       }
-      if (i == elements_in_view)                // If field didn't exists
+      if (fld == end_of_trans)                // If field didn't exists
       {
         /*
-          Keys or all fields of underlying tables are not foud => we have
+          Keys or all fields of underlying tables are not found => we have
           to check variable updatable_views_with_limit to decide should we
           issue an error or just a warning
         */
@@ -1148,6 +1176,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
 
   SYNOPSIS
     insert_view_fields()
+    thd       thread handler
     list      list for insertion
     view      view for processing
 
@@ -1156,19 +1185,22 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     TRUE  error (is not sent to cliet)
 */
 
-bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
+bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
 {
-  uint elements_in_view= view->view->select_lex.item_list.elements;
+  Field_translator *trans_end;
   Field_translator *trans;
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
     DBUG_RETURN(FALSE);
+  trans_end= view->field_translation_end;
 
-  for (uint i= 0; i < elements_in_view; i++)
+  for (Field_translator *entry= trans; entry < trans_end; entry++)
   {
     Item_field *fld;
-    if ((fld= trans[i].item->filed_for_view_update()))
+    if (!entry->item->fixed && entry->item->fix_fields(thd, &entry->item))
+      DBUG_RETURN(TRUE);
+    if ((fld= entry->item->filed_for_view_update()))
       list->push_back(fld);
     else
     {

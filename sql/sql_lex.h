@@ -470,6 +470,7 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
 class st_select_lex: public st_select_lex_node
 {
 public:
+  Name_resolution_context context;
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
@@ -548,27 +549,6 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
-
-  /* 
-     SELECT for SELECT command st_select_lex. Used to privent scaning
-     item_list of non-SELECT st_select_lex (no sense find to finding
-     reference in it (all should be in tables, it is dangerouse due
-     to order of fix_fields calling for non-SELECTs commands (item list
-     can be not fix_fieldsd)). This value will be assigned for
-     primary select (sql_yac.yy) and for any subquery and
-     UNION SELECT (sql_parse.cc mysql_new_select())
-
-
-     INSERT for primary st_select_lex structure of simple INSERT/REPLACE
-     (used for name resolution, see Item_fiels & Item_ref fix_fields,
-     FALSE for INSERT/REPLACE ... SELECT, because it's
-     st_select_lex->table_list will be preprocessed (first table removed)
-     before passing to handle_select)
-
-     NOMATTER for other
-  */
-  enum {NOMATTER_MODE, SELECT_MODE, INSERT_MODE} resolve_mode;
-
 
   void init_query();
   void init_select();
@@ -903,7 +883,30 @@ typedef struct st_lex
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
+  uint8 get_effective_with_check(st_table_list *view);
+  /*
+    Is this update command where 'WHITH CHECK OPTION' clause is important
 
+    SYNOPSIS
+      st_lex::which_check_option_applicable()
+
+    RETURN
+      TRUE   have to take 'WHITH CHECK OPTION' clause into account
+      FALSE  'WHITH CHECK OPTION' clause do not need
+  */
+  inline bool which_check_option_applicable()
+  {
+    switch (sql_command) {
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_INSERT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_LOAD:
+      return TRUE;
+    default:
+      return FALSE;
+    }
+  }
   inline bool requires_prelocking()
   {
     return test(query_tables_own_last);
