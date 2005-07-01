@@ -2206,13 +2206,15 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   ulong num_rows= uint4korr(packet+4);
   Prepared_statement *stmt;
   Statement stmt_backup;
+  Cursor *cursor;
   DBUG_ENTER("mysql_stmt_fetch");
 
   statistic_increment(thd->status_var.com_stmt_fetch, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
     DBUG_VOID_RETURN;
 
-  if (!stmt->cursor || !stmt->cursor->is_open())
+  cursor= stmt->cursor;
+  if (!cursor || !cursor->is_open())
   {
     my_error(ER_STMT_HAS_NO_OPEN_CURSOR, MYF(0), stmt_id);
     DBUG_VOID_RETURN;
@@ -2225,21 +2227,26 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
 
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
-  stmt->cursor->fetch(num_rows);
+  cursor->fetch(num_rows);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  thd->restore_backup_statement(stmt, &stmt_backup);
-  thd->current_arena= thd;
-
-  if (!stmt->cursor->is_open())
+  if (!cursor->is_open())
   {
     /* We're done with the fetch: reset PS for next execution */
     cleanup_stmt_and_thd_after_use(stmt, thd);
     reset_stmt_params(stmt);
+    /*
+      Must be the last, as some momory is still needed for
+      the previous calls.
+    */
+    free_root(cursor->mem_root, MYF(0));
   }
+
+  thd->restore_backup_statement(stmt, &stmt_backup);
+  thd->current_arena= thd;
 
   DBUG_VOID_RETURN;
 }
@@ -2267,14 +2274,21 @@ void mysql_stmt_reset(THD *thd, char *packet)
   /* There is always space for 4 bytes in buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
+  Cursor *cursor;
   DBUG_ENTER("mysql_stmt_reset");
 
   statistic_increment(thd->status_var.com_stmt_reset, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
 
-  if (stmt->cursor && stmt->cursor->is_open())
-    stmt->cursor->close();
+  cursor= stmt->cursor;
+  if (cursor && cursor->is_open())
+  {
+    thd->change_list= cursor->change_list;
+    cursor->close(FALSE);
+    cleanup_stmt_and_thd_after_use(stmt, thd);
+    free_root(cursor->mem_root, MYF(0));
+  }
 
   stmt->state= Query_arena::PREPARED;
 

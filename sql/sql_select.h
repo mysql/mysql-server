@@ -390,6 +390,7 @@ class Cursor: public Sql_alloc, public Query_arena
   /* List of items created during execution */
   query_id_t query_id;
 public:
+  Item_change_list change_list;
   select_send result;
 
   /* Temporary implementation as now we replace THD state by value */
@@ -402,7 +403,8 @@ public:
   void fetch(ulong num_rows);
   void reset() { join= 0; }
   bool is_open() const { return join != 0; }
-  void close();
+
+  void close(bool is_active);
 
   void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
   Cursor(THD *thd);
