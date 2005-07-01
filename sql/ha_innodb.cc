@@ -1496,8 +1496,8 @@ innobase_start_trx_and_assign_read_view(
 /*********************************************************************
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended. */
-
-static int
+static
+int
 innobase_commit(
 /*============*/
 			/* out: 0 */
@@ -3538,7 +3538,9 @@ ha_innobase::delete_row(
 }
 
 /**************************************************************************
-Deletes a lock set to a row */
+Removes a new lock set on a row. This can be called after a row has been read
+in the processing of an UPDATE or a DELETE query, if the option
+innodb_locks_unsafe_for_binlog is set. */
 
 void
 ha_innobase::unlock_row(void)
@@ -3556,8 +3558,10 @@ ha_innobase::unlock_row(void)
 		mem_analyze_corruption((byte *) prebuilt->trx);
 		ut_error;
 	}
-
-	row_unlock_for_mysql(prebuilt);
+	
+	if (srv_locks_unsafe_for_binlog) {
+		row_unlock_for_mysql(prebuilt, FALSE);
+	}
 }
 
 /**********************************************************************
@@ -5991,6 +5995,7 @@ ha_innobase::external_lock(
 			reads. */
 
 			prebuilt->select_lock_type = LOCK_S;
+			prebuilt->stored_select_lock_type = LOCK_S;
 		}
 
 		/* Starting from 4.1.9, no InnoDB table lock is taken in LOCK
@@ -6029,7 +6034,6 @@ ha_innobase::external_lock(
 
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
-
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -6563,12 +6567,14 @@ the value of the auto-inc counter. */
 int
 ha_innobase::innobase_read_and_init_auto_inc(
 /*=========================================*/
-				/* out: 0 or error code: deadlock or
-				lock wait timeout */
+				/* out: 0 or error code: deadlock or lock wait
+				timeout */
 	longlong*	ret)	/* out: auto-inc value */
 {
   	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
     	longlong        auto_inc;
+	ulint		old_select_lock_type;
+	ibool		trx_was_not_started	= FALSE;
   	int     	error;
 
   	ut_a(prebuilt);
@@ -6576,6 +6582,10 @@ ha_innobase::innobase_read_and_init_auto_inc(
                 (trx_t*) current_thd->ha_data[innobase_hton.slot]);
 	ut_a(prebuilt->table);
 	
+	if (prebuilt->trx->conc_state == TRX_NOT_STARTED) {
+		trx_was_not_started = TRUE;
+	}
+
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
 
@@ -6587,7 +6597,9 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		/* Already initialized */
 		*ret = auto_inc;
 	
-		return(0);
+		error = 0;
+
+		goto func_exit_early;
 	}
 
 	error = row_lock_table_autoinc_for_mysql(prebuilt);
@@ -6595,7 +6607,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	if (error != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(error, user_thd);
 
-		goto func_exit;
+		goto func_exit_early;
 	}	
 
 	/* Check again if someone has initialized the counter meanwhile */
@@ -6604,29 +6616,36 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	if (auto_inc != 0) {
 		*ret = auto_inc;
 	
-		return(0);
+		error = 0;
+
+		goto func_exit_early;
 	}
 
   	(void) extra(HA_EXTRA_KEYREAD);
   	index_init(table->s->next_number_index);
 
-	/* We use an exclusive lock when we read the max key value from the
-  	auto-increment column index. This is because then build_template will
-  	advise InnoDB to fetch all columns. In SHOW TABLE STATUS the query
-  	id of the auto-increment column is not changed, and previously InnoDB
-  	did not fetch it, causing SHOW TABLE STATUS to show wrong values
-  	for the autoinc column. */
+	/* Starting from 5.0.9, we use a consistent read to read the auto-inc
+	column maximum value. This eliminates the spurious deadlocks caused
+	by the row X-lock that we previously used. Note the following flaw
+	in our algorithm: if some other user meanwhile UPDATEs the auto-inc
+	column, our consistent read will not return the largest value. We
+	accept this flaw, since the deadlocks were a bigger trouble. */
 
-  	prebuilt->select_lock_type = LOCK_X;
-
-  	/* Play safe and also give in another way the hint to fetch
-  	all columns in the key: */
+  	/* Fetch all the columns in the key */
   	
 	prebuilt->hint_need_to_fetch_extra_cols = ROW_RETRIEVE_ALL_COLS;
 
-	prebuilt->trx->mysql_n_tables_locked += 1;
-  
+	old_select_lock_type = prebuilt->select_lock_type;
+  	prebuilt->select_lock_type = LOCK_NONE;
+
+	/* Eliminate an InnoDB error print that happens when we try to SELECT
+	from a table when no table has been locked in ::external_lock(). */
+	prebuilt->trx->n_mysql_tables_in_use++;
+
 	error = index_last(table->record[1]);
+
+	prebuilt->trx->n_mysql_tables_in_use--;
+  	prebuilt->select_lock_type = old_select_lock_type;
 
   	if (error) {
 		if (error == HA_ERR_END_OF_FILE) {
@@ -6635,7 +6654,10 @@ ha_innobase::innobase_read_and_init_auto_inc(
 
 			error = 0;
 		} else {
-			/* Deadlock or a lock wait timeout */
+			/* This should not happen in a consistent read */
+			fprintf(stderr,
+"InnoDB: Error: consistent read of auto-inc column returned %lu\n",
+								(ulong)error);
   			auto_inc = -1;
 
   			goto func_exit;
@@ -6655,7 +6677,18 @@ func_exit:
 
 	*ret = auto_inc;
 
-  	return(error);
+func_exit_early:
+	/* Since MySQL does not seem to call autocommit after SHOW TABLE
+	STATUS (even if we would register the trx here), we must commit our
+	transaction here if it was started here. This is to eliminate a
+	dangling transaction. */
+
+	if (trx_was_not_started) {
+
+		innobase_commit_low(prebuilt->trx);
+	}
+
+ 	return(error);
 }
 
 /***********************************************************************
