@@ -29,8 +29,8 @@ trx_reset_new_rec_lock_info(
 /*========================*/
 	trx_t*	trx);	/* in: transaction struct */
 /*****************************************************************
-Registers that we have set a new record lock on an index. We only have
-space to store 2 indexes! If this is called more than twice after
+Registers that we have set a new record lock on an index. We only have space
+to store 2 indexes! If this is called to store more than 2 indexes after
 trx_reset_new_rec_lock_info(), then this function does nothing. */
 UNIV_INLINE
 void
