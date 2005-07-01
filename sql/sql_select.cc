@@ -134,8 +134,8 @@ static void read_cached_record(JOIN_TAB *tab);
 static bool cmp_buffer_with_ref(JOIN_TAB *tab);
 static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 			     List<Item> &all_fields,ORDER *new_order);
-static ORDER *create_distinct_group(THD *thd, ORDER *order,
-				    List<Item> &fields,
+static ORDER *create_distinct_group(THD *thd, Item **ref_pointer_array,
+                                    ORDER *order, List<Item> &fields,
 				    bool *all_order_by_fields_used);
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
@@ -642,7 +642,8 @@ JOIN::optimize()
     bool all_order_fields_used;
     if (order)
       skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1);
-    if ((group_list=create_distinct_group(thd, order, fields_list,
+    if ((group_list=create_distinct_group(thd, select_lex->ref_pointer_array,
+                                          order, fields_list,
 				          &all_order_fields_used)))
     {
       bool skip_group= (skip_sort_order &&
@@ -8440,12 +8441,14 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 */
 
 static ORDER *
-create_distinct_group(THD *thd, ORDER *order_list, List<Item> &fields, 
+create_distinct_group(THD *thd, Item **ref_pointer_array,
+                      ORDER *order_list, List<Item> &fields, 
 		      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
+  uint index= 0;
 
   *all_order_by_fields_used= 1;
   while ((item=li++))
@@ -8477,11 +8480,17 @@ create_distinct_group(THD *thd, ORDER *order_list, List<Item> &fields,
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
-      ord->item=li.ref();
+      /*
+        We have here only field_list (not all_field_list), so we can use
+        simple indexing of ref_pointer_array (order in the array and in the
+        list are same)
+      */
+      ord->item= ref_pointer_array + index;
       ord->asc=1;
       *prev=ord;
       prev= &ord->next;
     }
+    index++;
   }
   *prev=0;
   return group;
