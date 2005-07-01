@@ -1563,7 +1563,7 @@ one	1025,2025,3025
 two	1050,1050
 select col1,group_concat(col2,col3) from v1 group by col1;
 col1	group_concat(col2,col3)
-two	1025,2025,3025
+one	1025,2025,3025
 two	1050,1050
 drop view v1;
 drop table t1;
