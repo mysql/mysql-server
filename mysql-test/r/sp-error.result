@@ -65,47 +65,6 @@ iterate foo;
 end|
 ERROR 42000: ITERATE with no matching label: foo
 create procedure foo()
-begin
-goto foo;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-begin
-label foo;
-end;
-goto foo;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-goto foo;
-begin
-label foo;
-end;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-begin
-goto foo;
-end;
-begin
-label foo;
-end;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-begin
-label foo;
-end;
-begin
-goto foo;
-end;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
 foo: loop
 foo: loop
 set @x=2;
@@ -308,16 +267,6 @@ declare continue handler for sqlstate '42S99' set x = 1;
 declare c cursor for select * from t1;
 end|
 ERROR 42000: Cursor declaration after handler declaration
-create procedure p()
-begin
-declare continue handler for sqlexception
-begin
-goto L1;
-end;
-select field from t1;
-label L1;
-end|
-ERROR HY000: GOTO is not allowed in a stored procedure handler
 drop procedure if exists p|
 create procedure p(in x int, inout y int, out z int)
 begin

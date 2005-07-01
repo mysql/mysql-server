@@ -1,0 +1,238 @@
+#
+# The non-standard GOTO, for compatibility
+#
+# QQQ The "label" syntax is temporary, it will (hopefully)
+#     change to the more common "L:" syntax soon.
+#     For the time being, this feature is disabled, until
+#     the syntax (and some other known bugs) can be fixed.
+#
+# Test cases for bugs are added at the end. See template there.
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (
+	id   char(16) not null default '',
+        data int not null
+);
+
+delimiter //;
+
+--disable_warnings
+drop procedure if exists goto1//
+--enable_warnings
+create procedure goto1()
+begin
+  declare y int;
+
+label a;
+  select * from t1;
+  select count(*) into y from t1;
+  if y > 2 then
+    goto b;
+  end if;
+  insert into t1 values ("j", y);
+  goto a;
+label b;
+end//
+
+call goto1()//
+drop procedure goto1//
+
+# With dummy handlers, just to test restore of contexts with jumps
+--disable_warnings
+drop procedure if exists goto2//
+--enable_warnings
+create procedure goto2(a int)
+begin
+  declare x int default 0;
+  declare continue handler for sqlstate '42S98' set x = 1;
+
+label a;
+  select * from t1;
+b:
+  while x < 2 do
+    begin
+      declare continue handler for sqlstate '42S99' set x = 2;
+
+      if a = 0 then
+        set x = x + 1;
+        iterate b;
+      elseif a = 1 then
+        leave b;
+      elseif a = 2 then
+        set a = 1;
+        goto a;
+      end if;
+    end;
+  end while b;
+
+  select * from t1;
+end//
+
+call goto2(0)//
+call goto2(1)//
+call goto2(2)//
+
+drop procedure goto2//
+delete from t1//
+
+# Check label visibility for some more cases. We don't call these.
+--disable_warnings
+drop procedure if exists goto3//
+--enable_warnings
+create procedure goto3()
+begin
+ label L1;
+   begin
+   end;
+ goto L1;
+end//
+drop procedure goto3//
+
+--disable_warnings
+drop procedure if exists goto4//
+--enable_warnings
+create procedure goto4()
+begin
+  begin
+   label lab1;
+    begin
+      goto lab1;
+    end;
+  end;
+end//
+drop procedure goto4//
+
+--disable_warnings
+drop procedure if exists goto5//
+--enable_warnings
+create procedure goto5()
+begin
+  begin
+    begin
+      goto lab1;
+    end;
+   label lab1;
+  end;
+end//
+drop procedure goto5//
+
+--disable_warnings
+drop procedure if exists goto6//
+--enable_warnings
+create procedure goto6()
+begin
+  label L1;
+  goto L5;
+  begin
+    label L2;
+    goto L1;
+    goto L5;
+    begin
+      label L3;
+      goto L1;
+      goto L2;
+      goto L3;
+      goto L4;
+      goto L5;
+    end;
+    goto L2;
+    goto L4;
+    label L4;
+  end;
+  label L5;
+  goto L1;
+end//
+drop procedure goto6//
+
+# Mismatching labels
+--error 1308
+create procedure foo()
+begin
+  goto foo;
+end//
+--error 1308
+create procedure foo()
+begin
+  begin
+    label foo;
+  end;
+  goto foo;
+end//
+--error 1308
+create procedure foo()
+begin
+  goto foo;
+  begin
+    label foo;
+  end;
+end//
+--error 1308
+create procedure foo()
+begin
+  begin
+    goto foo;
+  end;
+  begin
+    label foo;
+  end;
+end//
+--error 1308
+create procedure foo()
+begin
+  begin
+    label foo;
+  end;
+  begin
+    goto foo;
+  end;
+end//
+
+# No goto in a handler
+--error 1358
+create procedure p()
+begin
+  declare continue handler for sqlexception
+    begin
+      goto L1;
+    end;
+
+  select field from t1;
+  label L1;
+end//
+
+
+#
+# Test cases for old bugs
+#
+
+#
+# BUG#6898: Stored procedure crash if GOTO statements exist
+#
+--disable_warnings
+drop procedure if exists bug6898//
+--enable_warnings
+create procedure bug6898()
+begin
+  goto label1;
+  label label1;
+  begin end;
+  goto label1;
+end//
+drop procedure bug6898//
+
+#
+# BUG#NNNN: New bug synopsis
+#
+#--disable_warnings
+#drop procedure if exists bugNNNN//
+#--enable_warnings
+#create procedure bugNNNN...
+
+
+# Add bugs above this line. Use existing tables t1 and t2 when
+# practical, or create table t3, t4 etc temporarily (and drop them).
+delimiter ;//
+drop table t1;
