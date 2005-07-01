@@ -1696,3 +1696,21 @@ drop view v1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
 SELECT * FROM v1;
 drop view v1;
+
+#
+# Correct inserting data check (absence of default value) for view
+# underlying tables (BUG#6443)
+#
+set sql_mode='strict_all_tables';
+CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL) ENGINE = INNODB;
+CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
+CREATE VIEW v2 (vcol1) AS SELECT col1 FROM t1 WHERE col2 > 2;
+-- error 1364
+INSERT INTO t1 (col1) VALUES(12);
+-- error 1423
+INSERT INTO v1 (vcol1) VALUES(12);
+-- error 1423
+INSERT INTO v2 (vcol1) VALUES(12);
+set sql_mode=default;
+drop view v2,v1;
+drop table t1;

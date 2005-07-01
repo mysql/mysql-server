@@ -86,6 +86,7 @@ public:
 
   utype		unireg_check;
   uint32	field_length;		// Length of field
+  uint          field_index;            // field number in fields array
   uint16	flags;
   uchar		null_bit;		// Bit used to test null bit
 

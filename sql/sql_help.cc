@@ -81,11 +81,14 @@ enum enum_used_fields
 static bool init_fields(THD *thd, TABLE_LIST *tables,
 			struct st_find_field *find_fields, uint count)
 {
+  Name_resolution_context *context= &thd->lex->select_lex.context;
   DBUG_ENTER("init_fields");
+  context->resolve_in_table_list_only(tables);
   for (; count-- ; find_fields++)
   {
     /* We have to use 'new' here as field will be re_linked on free */
-    Item_field *field= new Item_field("mysql", find_fields->table_name,
+    Item_field *field= new Item_field(context,
+                                      "mysql", find_fields->table_name,
                                       find_fields->field_name);
     if (!(find_fields->field= find_field_in_tables(thd, field, tables,
 						   0, REPORT_ALL_ERRORS, 1)))
@@ -544,7 +547,6 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
     prepare_simple_select()
     thd      Thread handler
     cond     WHERE part of select
-    tables   list of tables, used in WHERE
     table    goal table
 
     error    code of error (out)
@@ -553,11 +555,11 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
     #  created SQL_SELECT
 */
 
-SQL_SELECT *prepare_simple_select(THD *thd, Item *cond, TABLE_LIST *tables,
+SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
 				  TABLE *table, int *error)
 {
   if (!cond->fixed)
-    cond->fix_fields(thd, tables, &cond);	// can never fail
+    cond->fix_fields(thd, &cond);	// can never fail
 
   /* Assume that no indexes cover all required fields */
   table->used_keys.clear_all();
@@ -599,7 +601,7 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
 				 new Item_string("\\",1,&my_charset_latin1));
   if (thd->is_fatal_error)
     return 0;					// OOM
-  return prepare_simple_select(thd,cond,tables,table,error);
+  return prepare_simple_select(thd, cond, table, error);
 }
 
 
@@ -651,7 +653,8 @@ bool mysqld_help(THD *thd, const char *mask)
 
     tables do not contain VIEWs => we can pass 0 as conds
   */
-  setup_tables(thd, tables, 0, &leaves, FALSE);
+  setup_tables(thd, &thd->lex->select_lex.context,
+               tables, 0, &leaves, FALSE);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
     goto error;
@@ -718,15 +721,15 @@ bool mysqld_help(THD *thd, const char *mask)
       Item *cond_cat_by_cat=
 	new Item_func_equal(new Item_field(cat_cat_id),
 			    new Item_int((int32)category_id));
-      if (!(select= prepare_simple_select(thd,cond_topic_by_cat,
-                                          tables,tables[0].table,&error)))
+      if (!(select= prepare_simple_select(thd, cond_topic_by_cat,
+                                          tables[0].table, &error)))
         goto error;
       get_all_items_for_category(thd,tables[0].table,
 				 used_fields[help_topic_name].field,
 				 select,&topics_list);
       delete select;
-      if (!(select= prepare_simple_select(thd,cond_cat_by_cat,tables,
-						     tables[1].table,&error)))
+      if (!(select= prepare_simple_select(thd, cond_cat_by_cat,
+                                          tables[1].table, &error)))
         goto error;
       get_all_items_for_category(thd,tables[1].table,
 				 used_fields[help_category_name].field,

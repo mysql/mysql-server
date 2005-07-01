@@ -1451,17 +1451,16 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       (void)local_vars.push_back(new Item_splocal(mv->s, mv->offset));
     else
     {
-      Item_func_set_user_var *xx = new Item_func_set_user_var(mv->s, item);
+      Item_func_set_user_var *var= new Item_func_set_user_var(mv->s, item);
       /*
         Item_func_set_user_var can't substitute something else on its place =>
         0 can be passed as last argument (reference on item)
         Item_func_set_user_var can't be fixed after creation, so we do not
-        check xx->fixed
+        check var->fixed
       */
-      xx->fix_fields(thd, (TABLE_LIST*) thd->lex->select_lex.table_list.first,
-		     0);
-      xx->fix_length_and_dec();
-      vars.push_back(xx);
+      var->fix_fields(thd, 0);
+      var->fix_length_and_dec();
+      vars.push_back(var);
     }
   }
   return 0;
@@ -1538,15 +1537,19 @@ void Statement::set_statement(Statement *stmt)
 void
 Statement::set_n_backup_statement(Statement *stmt, Statement *backup)
 {
+  DBUG_ENTER("Statement::set_n_backup_statement");
   backup->set_statement(this);
   set_statement(stmt);
+  DBUG_VOID_RETURN;
 }
 
 
 void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 {
+  DBUG_ENTER("Statement::restore_backup_statement");
   stmt->set_statement(this);
   set_statement(backup);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1569,6 +1572,7 @@ void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
   DBUG_ENTER("Query_arena::set_n_backup_item_arena");
   DBUG_ASSERT(backup->is_backup_arena == FALSE);
+
   backup->set_item_arena(this);
   set_item_arena(set);
 #ifndef DBUG_OFF
