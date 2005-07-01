@@ -979,6 +979,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   DBUG_ASSERT(table->key_read == 0);
+  DBUG_ASSERT(table->insert_values == 0);
   DBUG_RETURN(table);
 }
 

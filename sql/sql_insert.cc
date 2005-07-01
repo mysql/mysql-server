@@ -516,6 +516,10 @@ abort:
     ON DUPLICATE KEY ...
     we should be able to refer to sum1 in the ON DUPLICATE KEY part
 
+  WARNING
+    You MUST set table->insert_values to 0 after calling this function
+    before releasing the table object.
+
   RETURN VALUE
     0   OK
     -1  error (message is not sent to user)
