@@ -751,3 +751,9 @@ COUNT(DISTINCT(t1.id))	err_comment
 1	NULL
 1	a problem
 DROP TABLE t1, t2;
+CREATE TABLE t1 (n int);
+INSERT INTO t1 VALUES (1);
+SELECT n+1 AS n FROM t1 GROUP BY n;
+n
+2
+DROP TABLE t1;

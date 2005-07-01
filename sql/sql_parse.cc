@@ -2891,12 +2891,12 @@ unsent_create_error:
       /* revert changes for SP */
       lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       delete result;
-      insert_table->insert_values= 0;
       if (thd->net.report_error)
         res= -1;
     }
     else
       res= -1;
+    insert_table->insert_values= 0;        // Set by mysql_prepare_insert()
     first_local_table->next= tables;
     lex->select_lex.table_list.first= (byte*) first_local_table;
     break;
