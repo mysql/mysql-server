@@ -7743,13 +7743,13 @@ sys_option_value:
               it= new Item_null();
             }
 
-            if (!(trg_fld= new Item_trigger_field(&lex->current_select->context,
+            if (!(trg_fld= new Item_trigger_field(&lex->current_select->
+                                                  context,
                                                   Item_trigger_field::NEW_ROW,
                                                   $2.base_name.str)) ||
-                !(i= new sp_instr_set_trigger_field(
-                           &lex->current_select->context,
-                           lex->sphead->instructions(), lex->spcont,
-                           trg_fld, it)))
+                !(i= new sp_instr_set_trigger_field(lex->sphead->
+                                                    instructions(),
+                                                    lex->spcont, trg_fld, it)))
               YYABORT;
 
             /*
