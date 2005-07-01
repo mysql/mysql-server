@@ -22,6 +22,8 @@
 /*  Debug logging functions
  */
 
+
+#include "runtime.hpp"
 #include "log.hpp"
 
 #ifdef YASSL_LOG

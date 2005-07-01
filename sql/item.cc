@@ -4410,7 +4410,7 @@ void Item_ref::make_field(Send_field *field)
     field->table_name= table_name;
   if (db_name)
     field->db_name= db_name;
-};
+}
 
 
 void Item_ref_null_helper::print(String *str)
