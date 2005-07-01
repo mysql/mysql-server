@@ -2447,6 +2447,7 @@ Prepared_statement::~Prepared_statement()
   if (cursor)
     cursor->Cursor::~Cursor();
   free_items();
+  free_root(cursor->mem_root, MYF(0));
   delete lex->result;
 }
 
