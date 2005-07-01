@@ -1738,6 +1738,7 @@ Cursor::init_from_thd(THD *thd)
   lock=           thd->lock;
   query_id=       thd->query_id;
   free_list=	  thd->free_list;
+  change_list=    thd->change_list;
   reset_thd(thd);
   /*
     XXX: thd->locked_tables is not changed.
@@ -1754,6 +1755,7 @@ Cursor::reset_thd(THD *thd)
   thd->open_tables= 0;
   thd->lock= 0;
   thd->free_list= 0;
+  thd->change_list.empty();
 }
 
 
@@ -1827,6 +1829,7 @@ Cursor::fetch(ulong num_rows)
   thd->open_tables= open_tables;
   thd->lock= lock;
   thd->query_id= query_id;
+  thd->change_list= change_list;
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &backup_arena);
 
@@ -1843,10 +1846,8 @@ Cursor::fetch(ulong num_rows)
 #ifdef USING_TRANSACTIONS
     ha_release_temporary_latches(thd);
 #endif
-
+  /* Grab free_list here to correctly free it in close */
   thd->restore_backup_item_arena(this, &backup_arena);
-  DBUG_ASSERT(thd->free_list == 0);
-  reset_thd(thd);
 
   if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
@@ -1854,10 +1855,12 @@ Cursor::fetch(ulong num_rows)
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     ::send_eof(thd);
     thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
+    change_list= thd->change_list;
+    reset_thd(thd);
   }
   else
   {
-    close();
+    close(TRUE);
     if (error == NESTED_LOOP_OK)
     {
       thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
@@ -1872,7 +1875,7 @@ Cursor::fetch(ulong num_rows)
 
 
 void
-Cursor::close()
+Cursor::close(bool is_active)
 {
   THD *thd= join->thd;
   DBUG_ENTER("Cursor::close");
@@ -1885,6 +1888,10 @@ Cursor::close()
     (void) unit->cleanup();
   else
     (void) join->select_lex->cleanup();
+
+  if (is_active)
+    close_thread_tables(thd);
+  else
   {
     /* XXX: Another hack: closing tables used in the cursor */
     DBUG_ASSERT(lock || open_tables || derived_tables);
@@ -1904,11 +1911,7 @@ Cursor::close()
   join= 0;
   unit= 0;
   free_items();
-  /*
-    Must be last, as some memory might be allocated for free purposes,
-    like in free_tmp_table() (TODO: fix this issue)
-  */
-  free_root(mem_root, MYF(0));
+  change_list.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -1916,7 +1919,8 @@ Cursor::close()
 Cursor::~Cursor()
 {
   if (is_open())
-    close();
+    close(FALSE);
+  free_root(mem_root, MYF(0));
 }
 
 /*********************************************************************/

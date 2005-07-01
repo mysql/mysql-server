@@ -784,7 +784,10 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
   void *change_mem= alloc_root(runtime_memroot, sizeof(*change));
   if (change_mem == 0)
   {
-    fatal_error();
+    /*
+      OOM, thd->fatal_error() is called by the error handler of the
+      memroot. Just return.
+    */
     return;
   }
   change= new (change_mem) Item_change_record;
