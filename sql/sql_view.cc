@@ -1198,8 +1198,6 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
   for (Field_translator *entry= trans; entry < trans_end; entry++)
   {
     Item_field *fld;
-    if (!entry->item->fixed && entry->item->fix_fields(thd, &entry->item))
-      DBUG_RETURN(TRUE);
     if ((fld= entry->item->filed_for_view_update()))
       list->push_back(fld);
     else
