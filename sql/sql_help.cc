@@ -91,7 +91,8 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
                                       "mysql", find_fields->table_name,
                                       find_fields->field_name);
     if (!(find_fields->field= find_field_in_tables(thd, field, tables,
-						   0, REPORT_ALL_ERRORS, 1)))
+						   0, REPORT_ALL_ERRORS, 1,
+                                                   TRUE)))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

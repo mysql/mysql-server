@@ -758,7 +758,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			    Item **ref,
                             find_item_error_report_type report_error,
-                            bool check_privileges);
+                            bool check_privileges,
+                            bool register_tree_change);
 Field *
 find_field_in_table(THD *thd, TABLE_LIST *table_list,
                     const char *name, const char *item_name,
