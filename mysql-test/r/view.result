@@ -754,8 +754,6 @@ create view v1 as select * from t1;
 create view v2 as select * from t2;
 insert into v1 values (1);
 insert into v2 values (1);
-Warnings:
-Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
 create view v3 (a,b) as select v1.col1 as a, v2.col1 as b from v1, v2 where v1.col1 = v2.col1;
 select * from v3;
 a	b
