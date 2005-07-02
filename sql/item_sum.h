@@ -479,7 +479,8 @@ public:
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
   void no_rows_in_result() {}
-  const char *func_name() const { return "variance("; }
+  const char *func_name() const
+    { return sample ? "var_samp(" : "variance("; }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
   enum Item_result result_type () const { return hybrid_type; }
