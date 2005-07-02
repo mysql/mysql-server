@@ -1850,3 +1850,10 @@ SELECT * FROM v1;
 SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1)
 dkjhgd
 drop view v1;
+create table t1 (s1 int);
+create view v1 as select var_samp(s1) from t1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select var_samp(`test`.`t1`.`s1`) AS `var_samp(s1)` from `test`.`t1`
+drop view v1;
+drop table t1;
