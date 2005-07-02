@@ -2581,19 +2581,21 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
 
   SYNOPSIS
     find_field_in_tables()
-    thd			Pointer to current thread structure
-    item		Field item that should be found
-    tables		Tables to be searched for item
-    ref			If 'item' is resolved to a view field, ref is set to
-                        point to the found view field
-    report_error	Degree of error reporting:
-                        - IGNORE_ERRORS then do not report any error
-                        - IGNORE_EXCEPT_NON_UNIQUE report only non-unique
-                          fields, suppress all other errors
-                        - REPORT_EXCEPT_NON_UNIQUE report all other errors
-                          except when non-unique fields were found
-                        - REPORT_ALL_ERRORS
-    check_privileges    need to check privileges
+    thd                   Pointer to current thread structure
+    item                  Field item that should be found
+    tables                Tables to be searched for item
+    ref                   If 'item' is resolved to a view field, ref is set to
+                          point to the found view field
+    report_error          Degree of error reporting:
+                          - IGNORE_ERRORS then do not report any error
+                          - IGNORE_EXCEPT_NON_UNIQUE report only non-unique
+                           fields, suppress all other errors
+                          - REPORT_EXCEPT_NON_UNIQUE report all other errors
+                            except when non-unique fields were found
+                          - REPORT_ALL_ERRORS
+    check_privileges      need to check privileges
+    register_tree_change  TRUE if ref is not stack variable and we
+                            need register changes in item tree
 
   RETURN VALUES
     0			If error: the found field is not unique, or there are
@@ -2609,7 +2611,7 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
 Field *
 find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 		     Item **ref, find_item_error_report_type report_error,
-                     bool check_privileges)
+                     bool check_privileges, bool register_tree_change)
 {
   Field *found=0;
   const char *db=item->db_name;
@@ -2651,7 +2653,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 				       (test(table->grant.want_privilege) &&
 					check_privileges),
 				       1, &(item->cached_field_index),
-                                       TRUE);
+                                       register_tree_change);
     }
     if (found)
     {
@@ -2707,7 +2709,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 					 (test(tables->grant.want_privilege) &&
                                           check_privileges),
 					 1, &(item->cached_field_index),
-                                         TRUE);
+                                         register_tree_change);
 	if (find)
 	{
 	  item->cached_table= tables;
@@ -2775,7 +2777,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
                                        check_privileges),
 				      allow_rowid,
                                       &(item->cached_field_index),
-                                      TRUE);
+                                      register_tree_change);
     if (field)
     {
       if (field == WRONG_GRANT)

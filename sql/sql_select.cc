@@ -11890,7 +11890,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
         order_item_type == Item::REF_ITEM)
     {
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
-                                       &view_ref, IGNORE_ERRORS, TRUE);
+                                       &view_ref, IGNORE_ERRORS, TRUE,
+                                       FALSE);
       if(!from_field)
        from_field= (Field*) not_found_field;
     }
