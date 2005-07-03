@@ -1444,6 +1444,7 @@ my_decimal *Field_str::val_decimal(my_decimal *decimal_value)
 
 uint Field::fill_cache_field(CACHE_FIELD *copy)
 {
+  uint store_length;
   copy->str=ptr;
   copy->length=pack_length();
   copy->blob_field=0;
@@ -1457,10 +1458,16 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
   else if (!zero_pack() &&
            (type() == MYSQL_TYPE_STRING && copy->length >= 4 &&
             copy->length < 256))
+  {
     copy->strip=1;				/* Remove end space */
+    store_length= 2;
+  }
   else
+  {
     copy->strip=0;
-  return copy->length+(int) copy->strip;
+    store_length= 0;
+  }
+  return copy->length+ store_length;
 }
 
 
