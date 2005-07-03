@@ -5388,7 +5388,7 @@ The minimum value for this variable is 4096.",
    "Default pointer size to be used for MyISAM tables.",
    (gptr*) &myisam_data_pointer_size,
    (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
-   6, 2, 8, 0, 1, 0},
+   6, 2, 7, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
    "Deprecated option",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
@@ -6359,9 +6359,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
-    break;
-  case (int) OPT_LOG_SLOW_ADMIN_STATEMENTS:
-    opt_log_slow_admin_statements= 1;
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;

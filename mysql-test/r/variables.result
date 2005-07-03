@@ -504,10 +504,10 @@ t1	CREATE TABLE `t1` (
   `c4` double default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
+SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 Variable_name	Value
-myisam_data_pointer_size	8
+myisam_data_pointer_size	7
 SET GLOBAL table_cache=-1;
 SHOW VARIABLES LIKE 'table_cache';
 Variable_name	Value

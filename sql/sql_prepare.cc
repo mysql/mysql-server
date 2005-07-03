@@ -939,7 +939,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
       table_list->table->insert_values=(byte *)1;
     }
 
-    if (mysql_prepare_insert(thd, table_list, table_list->table, fields,
+    if (mysql_prepare_insert(thd, table_list, table_list, table_list->table, fields,
                              values, update_fields, update_values, duplic,
                              &unused_conds, FALSE))
       goto error;
