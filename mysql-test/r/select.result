@@ -2515,3 +2515,12 @@ SELECT b FROM t1 WHERE b=0x8000000000000000;
 b
 9223372036854775808
 DROP TABLE t1;
+CREATE TABLE `t1` ( `gid` int(11) default NULL, `uid` int(11) default NULL);
+CREATE TABLE `t2` ( `ident` int(11) default NULL, `level` char(16) default NULL);
+INSERT INTO `t2` VALUES (0,'READ');
+CREATE TABLE `t3` ( `id` int(11) default NULL, `name` char(16) default NULL);
+INSERT INTO `t3` VALUES (1,'fs');
+select * from t3 left join t1 on t3.id = t1.uid, t2 where t2.ident in (0, t1.gid, t3.id, 0);
+id	name	gid	uid	ident	level
+1	fs	NULL	NULL	0	READ
+drop table t1,t2,t3;

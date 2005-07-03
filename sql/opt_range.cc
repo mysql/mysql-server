@@ -981,8 +981,7 @@ get_mm_parts(PARAM *param, COND *cond_func, Field *field,
     SEL_TREE *tree2= get_mm_parts(param, cond_func,
 				  field, Item_func::GT_FUNC,
                                   value, cmp_type);
-    if (!tree2)
-      DBUG_RETURN(0)
+    /* tree_or() will return 0 if tree2 is 0 */
     tree= tree_or(param,tree,tree2);
   }
   DBUG_RETURN(tree);
