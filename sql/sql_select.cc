@@ -28,8 +28,6 @@
 #include <hash.h>
 #include <ft_global.h>
 
-typedef uint32 cache_rec_length_type;
-
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -184,8 +182,8 @@ static void read_cached_record(JOIN_TAB *tab);
 static bool cmp_buffer_with_ref(JOIN_TAB *tab);
 static bool setup_new_fields(THD *thd, List<Item> &fields,
 			     List<Item> &all_fields, ORDER *new_order);
-static ORDER *create_distinct_group(THD *thd, ORDER *order,
-				    List<Item> &fields,
+static ORDER *create_distinct_group(THD *thd, Item **ref_pointer_array,
+                                    ORDER *order, List<Item> &fields,
 				    bool *all_order_by_fields_used);
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
@@ -781,7 +779,8 @@ JOIN::optimize()
     bool all_order_fields_used;
     if (order)
       skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1);
-    if ((group_list=create_distinct_group(thd, order, fields_list,
+    if ((group_list=create_distinct_group(thd, select_lex->ref_pointer_array,
+                                          order, fields_list,
 				          &all_order_fields_used)))
     {
       bool skip_group= (skip_sort_order &&
@@ -11638,7 +11637,7 @@ used_blob_length(CACHE_FIELD **ptr)
 static bool
 store_record_in_cache(JOIN_CACHE *cache)
 {
-  cache_rec_length_type length;
+  uint length;
   uchar *pos;
   CACHE_FIELD *copy,*end_field;
   bool last_record;
@@ -11683,9 +11682,9 @@ store_record_in_cache(JOIN_CACHE *cache)
 	     end > str && end[-1] == ' ' ;
 	     end--) ;
 	length=(uint) (end-str);
-	memcpy(pos+sizeof(length), str, length);
-	memcpy_fixed(pos, &length, sizeof(length));
-	pos+= length+sizeof(length);
+	memcpy(pos+2, str, length);
+        int2store(pos, length);
+	pos+= length+2;
       }
       else
       {
@@ -11719,7 +11718,7 @@ static void
 read_cached_record(JOIN_TAB *tab)
 {
   uchar *pos;
-  cache_rec_length_type length;
+  uint length;
   bool last_record;
   CACHE_FIELD *copy,*end_field;
 
@@ -11748,10 +11747,10 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (copy->strip)
       {
-        memcpy_fixed(&length, pos, sizeof(length));
-	memcpy(copy->str, pos+sizeof(length), length);
+        length= uint2korr(pos);
+	memcpy(copy->str, pos+2, length);
 	memset(copy->str+length, ' ', copy->length-length);
-	pos+= sizeof(length)+length;
+	pos+= 2 + length;
       }
       else
       {
@@ -11788,12 +11787,10 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   for (store_key **copy=ref->key_copy ; *copy ; copy++)
   {
-    int res;
-    if ((res= (*copy)->copy()))
+    if ((*copy)->copy() & 1)
     {
       thd->count_cuted_fields= save_count_cuted_fields;
-      if ((res= res & 1))
-        return res;                               // Something went wrong
+      return 1;                                 // Something went wrong
     }
   }
   thd->count_cuted_fields= save_count_cuted_fields;
@@ -12093,12 +12090,14 @@ setup_new_fields(THD *thd, List<Item> &fields,
 */
 
 static ORDER *
-create_distinct_group(THD *thd, ORDER *order_list, List<Item> &fields, 
+create_distinct_group(THD *thd, Item **ref_pointer_array,
+                      ORDER *order_list, List<Item> &fields, 
 		      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
+  uint index= 0;
 
   *all_order_by_fields_used= 1;
   while ((item=li++))
@@ -12130,11 +12129,17 @@ create_distinct_group(THD *thd, ORDER *order_list, List<Item> &fields,
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
-      ord->item=li.ref();
+      /*
+        We have here only field_list (not all_field_list), so we can use
+        simple indexing of ref_pointer_array (order in the array and in the
+        list are same)
+      */
+      ord->item= ref_pointer_array + index;
       ord->asc=1;
       *prev=ord;
       prev= &ord->next;
     }
+    index++;
   }
   *prev=0;
   return group;

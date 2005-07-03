@@ -408,6 +408,18 @@ DROP TABLE t1;
 SET NAMES latin1;
 
 #
+# Bug#9557 MyISAM utf8 table crash
+#
+CREATE TABLE t1 (
+  a varchar(255) NOT NULL default '',
+  KEY a (a)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE ucs2_general_ci;
+insert into t1 values (0x803d);
+insert into t1 values (0x005b);
+select hex(a) from t1;
+drop table t1;
+
+#
 # Conversion from an UCS2 string to a decimal column
 #
 CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));

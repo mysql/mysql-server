@@ -543,6 +543,18 @@ SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
 DROP TABLE t1;
 
 #
+
+#
+# Test for bug #11414: crash on Windows for a simple GROUP BY query 
+#  
+                    
+CREATE TABLE t1 (n int);
+INSERT INTO t1 VALUES (1);
+
+SELECT n+1 AS n FROM t1 GROUP BY n;
+
+DROP TABLE t1;
+
 # Test for bug #8614: GROUP BY 'const' with DISTINCT  
 #
 

@@ -23,7 +23,7 @@ EXTRA_DIST =		INSTALL-SOURCE README COPYING EXCEPTIONS-CLIENT
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
-			@sql_union_dirs@ scripts man tests \
+			@sql_union_dirs@ scripts @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			@bench_dirs@ support-files @tools_dirs@
 
