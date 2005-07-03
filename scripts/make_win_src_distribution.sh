@@ -357,6 +357,9 @@ if [ -d $BASE/SSL/SCCS ]
 then
   find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
 fi
+find $BASE/ -type d -name .deps -printf " \"%p\"" | xargs rm -r -f
+find $BASE/ -type d -name .libs -printf " \"%p\"" | xargs rm -r -f
+rm -r -f "$BASE/mysql-test/var"
 
 #
 # Initialize the initial data directory

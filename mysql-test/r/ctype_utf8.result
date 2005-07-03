@@ -939,3 +939,14 @@ content	msisdn
 ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми	1234567890
 11 g	1234567890
 DROP TABLE t1,t2;
+CREATE TABLE t1 (
+a varchar(255) NOT NULL default '',
+KEY a (a)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE utf8_general_ci;
+insert into t1 values (_utf8 0xe880bd);
+insert into t1 values (_utf8 0x5b);
+select hex(a) from t1;
+hex(a)
+5B
+E880BD
+drop table t1;
