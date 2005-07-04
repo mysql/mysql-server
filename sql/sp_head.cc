@@ -643,6 +643,12 @@ sp_head::execute(THD *thd)
     */
     thd->current_arena= i;
     ret= i->execute(thd, &ip);
+    /*
+      If this SP instruction have sent eof, it has caused no_send_error to be
+      set. Clear it back to allow the next instruction to send error. (multi-
+      statement execution code clears no_send_error between statements too)
+    */
+    thd->net.no_send_error= 0;
     if (i->free_list)
       cleanup_items(i->free_list);
     i->state= Query_arena::EXECUTED;
