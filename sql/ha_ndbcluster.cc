@@ -1222,9 +1222,9 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
       op->readTuple(lm) != 0)
     ERR_RETURN(trans->getNdbError());
 
-    int res;
-    if ((res= set_primary_key_from_record(op, old_data)))
-      ERR_RETURN(trans->getNdbError());
+  int res;
+  if ((res= set_primary_key_from_record(op, old_data)))
+    ERR_RETURN(trans->getNdbError());
     
   // Read all unreferenced non-key field(s)
   for (i= 0; i < no_fields; i++) 
