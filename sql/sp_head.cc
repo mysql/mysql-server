@@ -642,6 +642,12 @@ sp_head::execute(THD *thd)
       items made during other permanent subquery transformations).
     */
     thd->current_arena= i;
+    /*
+      no_send_error may have been set by the previous SP instruction when it
+      sent eof. Allow the current SP instruction to produce an error.
+      (multi-statement execution code clears no_send_error, too)
+    */
+    thd->net.no_send_error= 0;
     ret= i->execute(thd, &ip);
     if (i->free_list)
       cleanup_items(i->free_list);
