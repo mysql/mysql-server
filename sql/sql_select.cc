@@ -7987,9 +7987,11 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                        convert_blob_length);
   }
   case Item::REF_ITEM:
-    if ( item->real_item()->type() == Item::FIELD_ITEM)
+  {
+    Item *tmp_item;
+    if ((tmp_item= item->real_item())->type() == Item::FIELD_ITEM)
     {
-      Item_field *field= (Item_field*) *((Item_ref*)item)->ref;
+      Item_field *field= (Item_field*) tmp_item;
       Field *new_field= create_tmp_field_from_field(thd, 
                                (*from_field= field->field),
                                item->name, table,
@@ -7999,6 +8001,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
         item->set_result_field(new_field);
       return new_field;
     }
+  }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
@@ -11807,14 +11810,13 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
 
   SYNOPSIS
     find_order_in_list()
-    thd		      [in]     Pointer to current thread structure
-    ref_pointer_array [in/out] All select, group and order by fields
-    tables            [in]     List of tables to search in (usually FROM clause)
-    order             [in]     Column reference to be resolved
-    fields            [in]     List of fields to search in (usually SELECT list)
-    all_fields        [in/out] All select, group and order by fields
-    is_group_field    [in]     True if order is a GROUP field, false if
-                               ORDER by field
+    thd		      	Pointer to current thread structure
+    ref_pointer_array   All select, group and order by fields
+    tables              List of tables to search in (usually FROM clause)
+    order               Column reference to be resolved
+    fields              List of fields to search in (usually SELECT list)
+    all_fields          All select, group and order by fields
+    is_group_field      True if order is a GROUP field, false if ORDER by field
 
   DESCRIPTION
     Given a column reference (represented by 'order') from a GROUP BY or ORDER
@@ -11831,6 +11833,8 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
   RETURN
     FALSE if OK
     TRUE  if error occurred
+
+    ref_pointer_array and all_fields are updated
 */
 
 static bool
@@ -11882,6 +11886,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
+    from_field= (Field*) not_found_field;
     if (is_group_field &&
         order_item_type == Item::FIELD_ITEM ||
         order_item_type == Item::REF_ITEM)
@@ -11889,14 +11894,11 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
                                        &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
-      if(!from_field)
-       from_field= (Field*) not_found_field;
+      if (!from_field)
+        from_field= (Field*) not_found_field;
     }
-    else
-      from_field= (Field*) not_found_field;
 
     if (from_field == not_found_field ||
-        from_field &&
         (from_field != view_ref_found ?
          /* it is field of base table => check that fields are same */
          ((*select_item)->type() == Item::FIELD_ITEM &&
@@ -11909,37 +11911,40 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
           view_ref->type() == Item::REF_ITEM &&
           ((Item_ref *) (*select_item))->ref ==
           ((Item_ref *) view_ref)->ref)))
-      /*
-        If there is no such field in the FROM clause, or it is the same field as
-        the one found in the SELECT clause, then use the Item created for the
-        SELECT field. As a result if there was a derived field that 'shadowed'
-        a table field with the same name, the table field will be chosen over
-        the derived field.
-      */
     {
+      /*
+        If there is no such field in the FROM clause, or it is the same field
+        as the one found in the SELECT clause, then use the Item created for
+        the SELECT field. As a result if there was a derived field that
+        'shadowed' a table field with the same name, the table field will be
+        chosen over the derived field.
+      */
       order->item= ref_pointer_array + counter;
       order->in_field_list=1;
       return FALSE;
     }
     else
+    {
       /*
-        There is a field with the same name in the FROM clause. This is the field
-        that will be chosen. In this case we issue a warning so the user knows
-        that the field from the FROM clause overshadows the column reference from
-        the SELECT list.
+        There is a field with the same name in the FROM clause. This
+        is the field that will be chosen. In this case we issue a
+        warning so the user knows that the field from the FROM clause
+        overshadows the column reference from the SELECT list.
       */
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
                           ER(ER_NON_UNIQ_ERROR), from_field->field_name,
                           current_thd->where);
+    }
   }
 
   order->in_field_list=0;
   /*
-    The call to order_item->fix_fields() means that here we resolve 'order_item'
-    to a column from a table in the list 'tables', or to a column in some outer
-    query. Exactly because of the second case we come to this point even if
-    (select_item == not_found_item), inspite of that fix_fields() calls
-    find_item_in_list() one more time.
+    The call to order_item->fix_fields() means that here we resolve
+    'order_item' to a column from a table in the list 'tables', or to
+    a column in some outer query. Exactly because of the second case
+    we come to this point even if (select_item == not_found_item),
+    inspite of that fix_fields() calls find_item_in_list() one more
+    time.
 
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.

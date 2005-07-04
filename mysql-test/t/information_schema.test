@@ -101,6 +101,12 @@ where COLLATION_NAME like 'latin1%';
 # Test for information_schema.ROUTINES &
 #
 
+--disable_warnings
+drop procedure if exists sel2;
+drop function if exists sub1;
+drop function if exists sub2;
+--enable_warnings
+
 create function sub1(i int) returns int
   return i+1;
 delimiter |;
@@ -546,6 +552,11 @@ drop database mysqltest;
 #
 # Bug #11055 information_schema: routines.sql_data_access has wrong value
 #
+--disable_warnings
+drop procedure if exists p1;
+drop procedure if exists p2;
+--enable_warnings
+
 create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
 select sql_data_access from information_schema.routines

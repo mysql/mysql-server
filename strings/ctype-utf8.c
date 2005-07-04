@@ -2790,7 +2790,7 @@ static void test_mb(CHARSET_INFO *cs, uchar *s)
 {
   while(*s)
   {
-    if(my_ismbhead_utf8(cs,*s))
+    if (my_ismbhead_utf8(cs,*s))
     {
       int len=my_mbcharlen_utf8(cs,*s);
       while(len--)

@@ -3528,15 +3528,12 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   {
     /* Optimize NOT BETWEEN and NOT IN */
     Item *arg= cond_func->arguments()[0];
-    if (arg->type() == Item::FUNC_ITEM)
-    {
-      cond_func= (Item_func*) arg;
-      if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-        DBUG_RETURN(0);
-      inv= TRUE;
-    }
-    else
+    if (arg->type() != Item::FUNC_ITEM)
       DBUG_RETURN(0);
+    cond_func= (Item_func*) arg;
+    if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(0);
+    inv= TRUE;
   }
   else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);			       
@@ -8178,7 +8175,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
                   (have_max && have_min && (max_res == 0)));
     }
     /*
-      If this is a just a GROUP BY or DISTINCT without MIN or MAX and there
+      If this is just a GROUP BY or DISTINCT without MIN or MAX and there
       are equality predicates for the key parts after the group, find the
       first sub-group with the extended prefix.
     */
@@ -8581,23 +8578,21 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
 
     if ((result == HA_ERR_KEY_NOT_FOUND) && (cur_range->flag & EQ_RANGE))
       continue; /* Check the next range. */
-    else if (result)
+    if (result)
+    {
       /*
         In no key was found with this upper bound, there certainly are no keys
         in the ranges to the left.
       */
       return result;
-
+    }
     /* A key was found. */
     if (cur_range->flag & EQ_RANGE)
-      return result; /* No need to perform the checks below for equal keys. */
+      return 0; /* No need to perform the checks below for equal keys. */
 
     /* Check if record belongs to the current group. */
     if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
-    {
-      result = HA_ERR_KEY_NOT_FOUND;
-      continue;
-    }
+      continue;                                 // Row not found
 
     /* If there is a lower limit, check if the found key is in the range. */
     if ( !(cur_range->flag & NO_MIN_RANGE) )
