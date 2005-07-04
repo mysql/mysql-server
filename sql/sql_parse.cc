@@ -3236,6 +3236,7 @@ end_with_restore_list:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
+    select_result *result;
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
@@ -3247,9 +3248,7 @@ end_with_restore_list:
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
 
-    select_result *result;
     unit->set_limit(select_lex);
-
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
@@ -6405,9 +6404,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     */
 
     /*
-     Writing this command to the binlog may result in infinite loops when doing
-     mysqlbinlog|mysql, and anyway it does not really make sense to log it
-     automatically (would cause more trouble to users than it would help them)
+      Writing this command to the binlog may result in infinite loops
+      when doing mysqlbinlog|mysql, and anyway it does not really make
+      sense to log it automatically (would cause more trouble to users
+      than it would help them)
     */
     tmp_write_to_binlog= 0;
     mysql_log.new_file(1);
