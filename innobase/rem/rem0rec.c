@@ -601,30 +601,38 @@ rec_set_nth_field_extern_bit_new(
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
-		ibool	is_null;
-		ulint	len;
 		field = dict_index_get_nth_field(index, i);
 		type = dict_col_get_type(dict_field_get_col(field));
-		is_null = !(dtype_get_prtype(type) & DATA_NOT_NULL);
-		if (is_null) {
-			/* nullable field => read the null flag */
-			is_null = !!(*nulls & null_mask);
+		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
+			if (UNIV_UNLIKELY(!(byte) null_mask)) {
+				nulls--;
+				null_mask = 1;
+			}
+
+			if (*nulls & null_mask) {
+				null_mask <<= 1;
+				/* NULL fields cannot be external. */
+				ut_ad(i != ith);
+				continue;
+			}
+
 			null_mask <<= 1;
-			if (null_mask == 0x100)
-				nulls--, null_mask = 1;
 		}
-		if (is_null || field->fixed_len) {
-			/* No length (or extern bit) is stored for
-			fields that are NULL or fixed-length. */
+		if (field->fixed_len) {
+			/* fixed-length fields cannot be external
+			(Fixed-length fields longer than
+			DICT_MAX_COL_PREFIX_LEN will be treated as
+			variable-length ones in dict_index_add_col().) */
 			ut_ad(i != ith);
 			continue;
 		}
-		len = *lens--;
+		lens--;
 		if (dtype_get_len(type) > 255
 				|| dtype_get_mtype(type) == DATA_BLOB) {
+			ulint	len = lens[1];
 			if (len & 0x80) { /* 1exxxxxx: 2-byte length */
 				if (i == ith) {
-					if (!val == !(len & 0x20)) {
+					if (!val == !(len & 0x40)) {
 						return; /* no change */
 					}
 					/* toggle the extern bit */
@@ -823,6 +831,7 @@ rec_convert_dtuple_to_rec_new(
 	byte*		lens;
 	ulint		len;
 	ulint		i;
+	ulint		n_node_ptr_field;
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
 	const ulint	n_fields	= dtuple_get_n_fields(dtuple);
@@ -831,16 +840,26 @@ rec_convert_dtuple_to_rec_new(
 	ut_ad(index->table->comp);
 
 	ut_ad(n_fields > 0);
-	switch (status) {
+
+	/* Try to ensure that the memset() between the for() loops
+	completes fast.  The address is not exact, but UNIV_PREFETCH
+	should never generate a memory fault. */
+	UNIV_PREFETCH_RW(rec - REC_N_NEW_EXTRA_BYTES - n_fields);
+	UNIV_PREFETCH_RW(rec);
+
+	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
 	case REC_STATUS_ORDINARY:
 		ut_ad(n_fields <= dict_index_get_n_fields(index));
+		n_node_ptr_field = ULINT_UNDEFINED;
 		break;
 	case REC_STATUS_NODE_PTR:
 		ut_ad(n_fields == dict_index_get_n_unique_in_tree(index) + 1);
+		n_node_ptr_field = n_fields - 1;
 		break;
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:
 		ut_ad(n_fields == 1);
+		n_node_ptr_field = ULINT_UNDEFINED;
 		goto init;
 	default:
 		ut_a(0);
@@ -852,15 +871,18 @@ rec_convert_dtuple_to_rec_new(
 	rec += (index->n_nullable + 7) / 8;
 
 	for (i = 0; i < n_fields; i++) {
+		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
+#ifdef UNIV_DEBUG
+			field = dtuple_get_nth_field(dtuple, i);
+			type = dfield_get_type(field);
+			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
+			ut_ad(dfield_get_len(field) == 4);
+#endif /* UNIV_DEBUG */
+			goto init;
+		}
 		field = dtuple_get_nth_field(dtuple, i);
 		type = dfield_get_type(field);
 		len = dfield_get_len(field);
-		if (status == REC_STATUS_NODE_PTR && i == n_fields - 1) {
-			fixed_len = 4;
-			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
-			ut_ad(len == 4);
-			continue;
-		}
 		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;
 
 		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
@@ -902,27 +924,33 @@ init:
 		type = dfield_get_type(field);
 		len = dfield_get_len(field);
 
-		if (status == REC_STATUS_NODE_PTR && i == n_fields - 1) {
-			fixed_len = 4;
+		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
 			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
 			ut_ad(len == 4);
-			goto copy;
+			memcpy(end, dfield_get_data(field), len);
+			break;
 		}
 		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;
 
 		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
 			/* nullable field */
 			ut_ad(index->n_nullable > 0);
+
+			if (UNIV_UNLIKELY(!(byte) null_mask)) {
+				nulls--;
+				null_mask = 1;
+			}
+
 			ut_ad(*nulls < null_mask);
+
 			/* set the null flag if necessary */
 			if (len == UNIV_SQL_NULL) {
 				*nulls |= null_mask;
-			}
-			null_mask <<= 1;
-			if (null_mask == 0x100)
-				nulls--, null_mask = 1;
-			if (len == UNIV_SQL_NULL)
+				null_mask <<= 1;
 				continue;
+			}
+
+			null_mask <<= 1;
 		}
 		/* only nullable fields can be null */
 		ut_ad(len != UNIV_SQL_NULL);
@@ -942,7 +970,7 @@ init:
 				*lens-- = (byte) len;
 			}
 		}
-	copy:
+
 		memcpy(end, dfield_get_data(field), len);
 		end += len;
 	}
@@ -1105,7 +1133,6 @@ rec_copy_prefix_to_buf(
 	dtype_t*	type;
 	ulint		i;
 	ulint		prefix_len;
-	ibool		is_null;
 	ulint		null_mask;
 	ulint		status;
 
@@ -1146,20 +1173,22 @@ rec_copy_prefix_to_buf(
 	for (i = 0; i < n_fields; i++) {
 		field = dict_index_get_nth_field(index, i);
 		type = dict_col_get_type(dict_field_get_col(field));
-		is_null = !(dtype_get_prtype(type) & DATA_NOT_NULL);
-		if (is_null) {
+		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */
-			is_null = !!(*nulls & null_mask);
-			null_mask <<= 1;
-			if (null_mask == 0x100) {
-				--nulls;
-				UNIV_PREFETCH_R(nulls);
+			if (UNIV_UNLIKELY(!(byte) null_mask)) {
+				nulls--;
 				null_mask = 1;
 			}
+
+			if (*nulls & null_mask) {
+				null_mask <<= 1;
+				continue;
+			}
+
+			null_mask <<= 1;
 		}
 
-		if (is_null) {
-		} else if (field->fixed_len) {
+		if (field->fixed_len) {
 			prefix_len += field->fixed_len;
 		} else {
 			ulint	len = *lens--;
