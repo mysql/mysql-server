@@ -2620,6 +2620,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   uint length=(uint) strlen(name);
   char name_buff[NAME_LEN+1];
   bool allow_rowid;
+
   if (item->cached_table)
   {
     /*
@@ -2689,7 +2690,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   if (table_name && table_name[0])
   {						/* Qualified field */
     bool found_table= 0;
-    for (; tables; tables= tables->next_local),
+    for (; tables; tables= tables->next_local)
     {
       /* TODO; Ensure that db and tables->db always points to something ! */
       if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
