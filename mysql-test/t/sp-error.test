@@ -2,6 +2,10 @@
 # Stored PROCEDURE error tests
 #
 
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
 # Make sure we don't have any procedures left.
 delete from mysql.proc;
 
@@ -933,3 +937,37 @@ create procedure p() execute stmt;
 create function f() returns int begin execute stmt;
 deallocate prepare stmt;
 
+# BUG#9814: Closing a cursor that is not open 
+create table t1(f1 int);
+create table t2(f1 int);
+ 
+delimiter |;
+CREATE PROCEDURE SP001()
+P1: BEGIN
+  DECLARE ENDTABLE INT DEFAULT 0;
+  DECLARE TEMP_NUM INT;
+  DECLARE TEMP_SUM INT;
+  DECLARE C1 CURSOR FOR SELECT F1 FROM t1;
+  DECLARE C2 CURSOR FOR SELECT F1 FROM t2;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET ENDTABLE = 1;
+
+  SET ENDTABLE=0;
+  SET TEMP_SUM=0;
+  SET TEMP_NUM=0;
+  
+  OPEN C1;
+
+  FETCH C1 INTO TEMP_NUM;
+  WHILE ENDTABLE = 0 DO
+          SET TEMP_SUM=TEMP_NUM+TEMP_SUM;
+          FETCH C1 INTO TEMP_NUM;
+  END WHILE;
+  SELECT TEMP_SUM;
+  CLOSE C1;
+  CLOSE C1;
+  SELECT 'end of proc';
+END P1|
+delimiter ;|
+call SP001();
+drop procedure SP001;
+drop table t1, t2;
