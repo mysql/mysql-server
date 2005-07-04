@@ -64,7 +64,12 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, byte *record,
 }
 
 
-/* Calculate a hash for a row */
+/*
+  Calculate a hash for a row
+
+  TODO
+    Add support for bit fields
+*/
 
 ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
 {
@@ -126,9 +131,17 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
   return crc;
 }
 
-	/*
-	  Returns 0 if both rows have equal unique value
-	 */
+
+/*
+  compare unique key for two rows
+
+  TODO
+    Add support for bit fields
+
+  RETURN
+    0   if both rows have equal unique value
+    #   Rows are different
+*/
 
 int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
 		   my_bool null_are_equal)

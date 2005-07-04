@@ -646,14 +646,14 @@ bool st_select_lex::cleanup()
 
   if (join)
   {
-    error|= join->destroy();
+    error= join->destroy();
     delete join;
     join= 0;
   }
   for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
        lex_unit= lex_unit->next_unit())
   {
-    error|= lex_unit->cleanup();
+    error= (bool) ((uint) error | (uint) lex_unit->cleanup());
   }
   DBUG_RETURN(error);
 }
