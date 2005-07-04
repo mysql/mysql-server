@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.25)
+AM_INIT_AUTOMAKE(mysql, 4.0.26)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -370,9 +370,14 @@ then
 
   if echo $CXX | grep gcc > /dev/null 2>&1
   then
-    if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+    AC_MSG_CHECKING([if CXX is gcc 3 or 4])
+    if $CXX -v 2>&1 | grep 'version [[34]]' > /dev/null 2>&1
     then
+      AC_MSG_RESULT([yes])
+      AC_MSG_NOTICE([using MySQL tricks to avoid linking C++ code with C++ libraries])
       CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
+    else
+      AC_MSG_RESULT([no])
     fi
   fi
 fi
