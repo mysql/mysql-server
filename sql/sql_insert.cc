@@ -327,7 +327,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->used_tables=0;
   values= its++;
 
-  if (mysql_prepare_insert(thd, table_list, table_list, table, fields, values,
+  if (mysql_prepare_insert(thd, table_list, table, fields, values,
 			   update_fields, update_values, duplic, &unused_conds,
                            FALSE))
     goto abort;
@@ -734,10 +734,6 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     mysql_prepare_insert()
     thd			Thread handler
     table_list	        Global/local table list
-    dup_table_list	Tables to be used in ON DUPLICATE KEY
-			It's either all global tables or only the table we
-                        insert into, depending on if we are using GROUP BY
-                        in the SELECT clause).
     table		Table to insert into (can be NULL if table should
 			be taken from table_list->table)    
     where		Where clause (for insert ... select)
@@ -759,18 +755,17 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 */
 
 bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
-                          TABLE_LIST *dup_table_list, TABLE *table,
-                          List<Item> &fields, List_item *values,
+                          TABLE *table, List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
                           COND **where, bool select_insert)
 {
-  SELECT_LEX= &thd->lex->select_lex;
+  SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *save_table_list;
   TABLE_LIST *save_next_local;
   bool insert_into_view= (table_list->view != 0);
   bool save_resolve_in_select_list;
-  bool res;
+  bool res= 0;
   DBUG_ENTER("mysql_prepare_insert");
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
 		       (ulong)table_list, (ulong)table,
@@ -815,15 +810,23 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   select_lex->context.resolve_in_table_list_only(table_list);
   if ((values && check_insert_fields(thd, table_list, fields, *values,
                                      !insert_into_view)) ||
-      (values && setup_fields(thd, 0, *values, 0, 0, 0)) ||
-      setup_fields(thd, 0, update_values, 1, 0, 0))
+      (values && setup_fields(thd, 0, *values, 0, 0, 0)))
     res= TRUE;
   else if (duplic == DUP_UPDATE)
   {
-    select_lex->context.resolve_in_table_list_only(dup_table_list);
     select_lex->no_wrap_view_item= TRUE;
     res= check_update_fields(thd, table_list, update_fields);
     select_lex->no_wrap_view_item= FALSE;
+    if (select_lex->group_list.elements == 0)
+    {
+      /*
+        When we are not using GROUP BY we can refer to other tables in the
+        ON DUPLICATE KEY part
+      */       
+      table_list->next_local= save_next_local;
+    }
+    if (!res)
+      res= setup_fields(thd, 0, update_values, 1, 0, 0);
   }
   table_list->next_local= save_next_local;
   select_lex->context.table_list= save_table_list;
@@ -2013,8 +2016,8 @@ bool delayed_insert::handle_inserts(void)
 bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
+  SELECT_LEX *select_lex= &lex->select_lex;
   TABLE_LIST *first_select_leaf_table;
-  TABLE_LIST dup_tables;
   DBUG_ENTER("mysql_insert_select_prepare");
 
   /*
@@ -2022,38 +2025,28 @@ bool mysql_insert_select_prepare(THD *thd)
     clause if table is VIEW
   */
   
-  dup_tables= *lex->query_tables;
-  if (lex->select_lex->group_list.elements != 0)
-  {
-    /*
-      When we are using GROUP BY we can't refere to other tables in the
-      ON DUPLICATE KEY part
-    */         
-    dup_tables.local_next= 0;
-  }
-
-  if (mysql_prepare_insert(thd, lex->query_tables, &dup_tables
+  if (mysql_prepare_insert(thd, lex->query_tables,
                            lex->query_tables->table, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           &lex->select_lex.where, TRUE))
+                           &select_lex->where, TRUE))
     DBUG_RETURN(TRUE);
 
   /*
     exclude first table from leaf tables list, because it belong to
     INSERT
   */
-  DBUG_ASSERT(lex->select_lex.leaf_tables != 0);
-  lex->leaf_tables_insert= lex->select_lex.leaf_tables;
+  DBUG_ASSERT(select_lex->leaf_tables != 0);
+  lex->leaf_tables_insert= select_lex->leaf_tables;
   /* skip all leaf tables belonged to view where we are insert */
-  for (first_select_leaf_table= lex->select_lex.leaf_tables->next_leaf;
+  for (first_select_leaf_table= select_lex->leaf_tables->next_leaf;
        first_select_leaf_table &&
        first_select_leaf_table->belong_to_view &&
        first_select_leaf_table->belong_to_view ==
        lex->leaf_tables_insert->belong_to_view;
        first_select_leaf_table= first_select_leaf_table->next_leaf)
   {}
-  lex->select_lex.leaf_tables= first_select_leaf_table;
+  select_lex->leaf_tables= first_select_leaf_table;
   DBUG_RETURN(FALSE);
 }
 

@@ -1954,6 +1954,131 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 
 DROP TABLE t1, t2;
 
+#
+# Test case for bug 7098: substitution of a constant for a string field 
+#
+
+CREATE TABLE t1 ( city char(30) );
+INSERT INTO t1 VALUES ('London');
+INSERT INTO t1 VALUES ('Paris');
+
+SELECT * FROM t1 WHERE city='London';
+SELECT * FROM t1 WHERE city='london';
+EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
+SELECT * FROM t1 WHERE city='London' AND city='london';
+EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
+SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
+
+DROP TABLE t1;
+
+#
+# Bug#7425 inconsistent sort order on unsigned columns result of substraction
+#
+
+create table t1 (a int(11) unsigned, b int(11) unsigned);
+insert into t1 values (1,0), (1,1), (1,2);
+select a-b  from t1 order by 1;
+select a-b , (a-b < 0)  from t1 order by 1;
+select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
+select cast((a - b) as unsigned) from t1 order by 1;
+drop table t1;
+
+
+#
+# Bug#8733 server accepts malformed query (multiply mentioned distinct)
+#
+create table t1 (a int(11));
+select all all * from t1;
+select distinct distinct * from t1;
+--error 1221
+select all distinct * from t1;
+--error 1221
+select distinct all * from t1;
+drop table t1;
+
+#
+# Test for BUG#10095
+#
+CREATE TABLE t1 (
+  kunde_intern_id int(10) unsigned NOT NULL default '0',
+  kunde_id int(10) unsigned NOT NULL default '0',
+  FK_firma_id int(10) unsigned NOT NULL default '0',
+  aktuell enum('Ja','Nein') NOT NULL default 'Ja',
+  vorname varchar(128) NOT NULL default '',
+  nachname varchar(128) NOT NULL default '',
+  geloescht enum('Ja','Nein') NOT NULL default 'Nein',
+  firma varchar(128) NOT NULL default ''
+);
+
+INSERT INTO t1 VALUES 
+  (3964,3051,1,'Ja','Vorname1','1Nachname','Nein','Print Schau XXXX'),
+  (3965,3051111,1,'Ja','Vorname1111','1111Nachname','Nein','Print Schau XXXX');
+
+
+SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname, geloescht FROM t1
+  WHERE
+   (
+      (
+         ( '' != '' AND firma LIKE CONCAT('%', '', '%'))
+         OR
+         (vorname LIKE CONCAT('%', 'Vorname1', '%') AND 
+          nachname LIKE CONCAT('%', '1Nachname', '%') AND 
+          'Vorname1' != '' AND 'xxxx' != '')
+      )
+      AND
+      (
+        aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
+      )
+   )
+ ;
+
+SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname,
+geloescht FROM t1
+  WHERE
+   (
+     (
+       aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
+     )
+     AND
+     (
+         ( '' != '' AND firma LIKE CONCAT('%', '', '%')  )
+         OR
+         (  vorname LIKE CONCAT('%', 'Vorname1', '%') AND
+nachname LIKE CONCAT('%', '1Nachname', '%') AND 'Vorname1' != '' AND
+'xxxx' != '')
+     )
+   )
+ ;
+
+SELECT COUNT(*) FROM t1 WHERE 
+( 0 OR (vorname LIKE '%Vorname1%' AND nachname LIKE '%1Nachname%' AND 1)) 
+AND FK_firma_id = 2;
+
+drop table t1;
+
+#
+# Test for Bug#8009, SELECT failed on bigint unsigned when using HEX
+#
+
+CREATE TABLE t1 (b BIGINT(20) UNSIGNED NOT NULL, PRIMARY KEY (b));
+INSERT INTO t1 VALUES (0x8000000000000000);
+SELECT b FROM t1 WHERE b=0x8000000000000000;
+DROP TABLE t1;
+
+#
+# IN with outer join condition (BUG#9393)
+#
+CREATE TABLE `t1` ( `gid` int(11) default NULL, `uid` int(11) default NULL);
+
+CREATE TABLE `t2` ( `ident` int(11) default NULL, `level` char(16) default NULL);
+INSERT INTO `t2` VALUES (0,'READ');
+
+CREATE TABLE `t3` ( `id` int(11) default NULL, `name` char(16) default NULL);
+INSERT INTO `t3` VALUES (1,'fs');
+
+select * from t3 left join t1 on t3.id = t1.uid, t2 where t2.ident in (0, t1.gid, t3.id, 0);
+
+drop table t1,t2,t3;
 
 #
 # Test case for bug 7098: substitution of a constant for a string field 
@@ -1998,30 +2123,6 @@ select distinct all * from t1;
 drop table t1;
 
 #
-
-#
-# Test for Bug#8009, SELECT failed on bigint unsigned when using HEX
-#
-
-CREATE TABLE t1 (b BIGINT(20) UNSIGNED NOT NULL, PRIMARY KEY (b));
-INSERT INTO t1 VALUES (0x8000000000000000);
-SELECT b FROM t1 WHERE b=0x8000000000000000;
-DROP TABLE t1;
-
-#
-# IN with outer join condition (BUG#9393)
-#
-CREATE TABLE `t1` ( `gid` int(11) default NULL, `uid` int(11) default NULL);
-
-CREATE TABLE `t2` ( `ident` int(11) default NULL, `level` char(16) default NULL);
-INSERT INTO `t2` VALUES (0,'READ');
-
-CREATE TABLE `t3` ( `id` int(11) default NULL, `name` char(16) default NULL);
-INSERT INTO `t3` VALUES (1,'fs');
-
-select * from t3 left join t1 on t3.id = t1.uid, t2 where t2.ident in (0, t1.gid, t3.id, 0);
-
-drop table t1,t2,t3;
 # Test for bug #6474
 #
 
@@ -2167,108 +2268,6 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 
 DROP TABLE t1, t2;
-
-#
-# Test case for bug 7098: substitution of a constant for a string field 
-#
-
-CREATE TABLE t1 ( city char(30) );
-INSERT INTO t1 VALUES ('London');
-INSERT INTO t1 VALUES ('Paris');
-
-SELECT * FROM t1 WHERE city='London';
-SELECT * FROM t1 WHERE city='london';
-EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
-SELECT * FROM t1 WHERE city='London' AND city='london';
-EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-
-DROP TABLE t1;
-
-#
-# Bug#7425 inconsistent sort order on unsigned columns result of substraction
-#
-
-create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
-select a-b  from t1 order by 1;
-select a-b , (a-b < 0)  from t1 order by 1;
-select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
-select cast((a - b) as unsigned) from t1 order by 1;
-drop table t1;
-
-
-#
-# Bug#8733 server accepts malformed query (multiply mentioned distinct)
-#
-create table t1 (a int(11));
-select all all * from t1;
-select distinct distinct * from t1;
---error 1221
-select all distinct * from t1;
---error 1221
-select distinct all * from t1;
-drop table t1;
-
-#
-# Test for BUG#10095
-#
-CREATE TABLE t1 (
-  kunde_intern_id int(10) unsigned NOT NULL default '0',
-  kunde_id int(10) unsigned NOT NULL default '0',
-  FK_firma_id int(10) unsigned NOT NULL default '0',
-  aktuell enum('Ja','Nein') NOT NULL default 'Ja',
-  vorname varchar(128) NOT NULL default '',
-  nachname varchar(128) NOT NULL default '',
-  geloescht enum('Ja','Nein') NOT NULL default 'Nein',
-  firma varchar(128) NOT NULL default ''
-);
-
-INSERT INTO t1 VALUES 
-  (3964,3051,1,'Ja','Vorname1','1Nachname','Nein','Print Schau XXXX'),
-  (3965,3051111,1,'Ja','Vorname1111','1111Nachname','Nein','Print Schau XXXX');
-
-
-SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname, geloescht FROM t1
-  WHERE
-   (
-      (
-         ( '' != '' AND firma LIKE CONCAT('%', '', '%'))
-         OR
-         (vorname LIKE CONCAT('%', 'Vorname1', '%') AND 
-          nachname LIKE CONCAT('%', '1Nachname', '%') AND 
-          'Vorname1' != '' AND 'xxxx' != '')
-      )
-      AND
-      (
-        aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
-      )
-   )
- ;
-
-SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname,
-geloescht FROM t1
-  WHERE
-   (
-     (
-       aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
-     )
-     AND
-     (
-         ( '' != '' AND firma LIKE CONCAT('%', '', '%')  )
-         OR
-         (  vorname LIKE CONCAT('%', 'Vorname1', '%') AND
-nachname LIKE CONCAT('%', '1Nachname', '%') AND 'Vorname1' != '' AND
-'xxxx' != '')
-     )
-   )
- ;
-
-SELECT COUNT(*) FROM t1 WHERE 
-( 0 OR (vorname LIKE '%Vorname1%' AND nachname LIKE '%1Nachname%' AND 1)) 
-AND FK_firma_id = 2;
-
-drop table t1;
 
 #
 # Test for bug #10084: STRAIGHT_JOIN with ON expression 
