@@ -227,6 +227,9 @@ latin1_bin	latin1
 latin1_general_ci	latin1
 latin1_general_cs	latin1
 latin1_spanish_ci	latin1
+drop procedure if exists sel2;
+drop function if exists sub1;
+drop function if exists sub2;
 create function sub1(i int) returns int
 return i+1;
 create procedure sel2()
@@ -823,6 +826,8 @@ GRANT SELECT ON *.* TO 'user4'@'localhost'
 drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
 use test;
 drop database mysqltest;
+drop procedure if exists p1;
+drop procedure if exists p2;
 create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
 select sql_data_access from information_schema.routines

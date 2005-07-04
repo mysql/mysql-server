@@ -218,14 +218,6 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
   struct my_cs_file_section_st *s;
   int    state= (int)((s=cs_file_sec(st->attr, (int) strlen(st->attr))) ? s->state : 0);
   
-#ifndef DBUG_OFF
-  if(0){
-    char   str[1024];
-    mstr(str,attr,len,sizeof(str)-1);
-    printf("VALUE %d %s='%s'\n",state,st->attr,str);
-  }
-#endif
-  
   switch (state) {
   case _CS_ID:
     i->cs.number= strtol(attr,(char**)NULL,10);

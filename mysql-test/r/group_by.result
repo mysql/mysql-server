@@ -723,6 +723,27 @@ WHERE hostname LIKE '%aol%'
 hostname	no
 cache-dtc-af05.proxy.aol.com	1
 DROP TABLE t1;
+create table t1 (c1 char(3), c2 char(3));
+create table t2 (c3 char(3), c4 char(3));
+insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
+insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by c2;
+c2
+aaa
+aaa
+Warnings:
+Warning	1052	Column 'c2' in group statement is ambiguous
+show warnings;
+Level	Code	Message
+Warning	1052	Column 'c2' in group statement is ambiguous
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by t1.c1;
+c2
+aaa
+show warnings;
+Level	Code	Message
+drop table t1, t2;
 CREATE TABLE t1 (a  int, b int);
 INSERT INTO t1 VALUES (1,2), (1,3);
 SELECT a, b FROM t1 GROUP BY 'const';
