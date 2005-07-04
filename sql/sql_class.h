@@ -653,6 +653,14 @@ typedef struct system_status_var
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
+/* The following macro is to make init of Query_arena simpler */
+#ifndef DBUG_OFF
+#define INIT_ARENA_DBUG_INFO is_backup_arena= 0
+#else 
+#define INIT_ARENA_DBUG_INFO  
+#endif
+
+
 class Query_arena
 {
 public:
@@ -664,9 +672,6 @@ public:
   MEM_ROOT *mem_root;                   // Pointer to current memroot
 #ifndef DBUG_OFF
   bool is_backup_arena; /* True if this arena is used for backup. */
-#define INIT_ARENA_DBUG_INFO is_backup_arena= 0
-#else 
-#define INIT_ARENA_DBUG_INFO  
 #endif
   enum enum_state
   {
@@ -691,7 +696,6 @@ public:
   */
   Query_arena() { INIT_ARENA_DBUG_INFO; }
 
-#undef INIT_ARENA_DBUG_INFO
   virtual Type type() const;
   virtual ~Query_arena() {};
 
