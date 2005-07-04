@@ -179,7 +179,7 @@ Summary: MySQL - server with extended functionality
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
-Requires: MySQL-server >= 4.0
+Requires: MySQL-server >= @MYSQL_BASE_VERSION@
 
 %description Max 
 Optional MySQL server binary that supports additional features like:
