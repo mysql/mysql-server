@@ -341,7 +341,7 @@ void ha_ndbcluster::records_update()
   {
     Ndb *ndb= get_ndb();
     struct Ndb_statistics stat;
-    if(ndb_get_table_statistics(ndb, m_tabname, &stat) == 0){
+    if (ndb_get_table_statistics(ndb, m_tabname, &stat) == 0){
       mean_rec_length= stat.row_size;
       data_file_length= stat.fragment_memory;
       info->records= stat.row_count;
@@ -448,27 +448,27 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
     NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
     NDB_INDEX_TYPE idx_type= m_index[i].type;
 
-    switch(idx_type) {
-    case(PRIMARY_KEY_ORDERED_INDEX):
-    case(ORDERED_INDEX):
+    switch (idx_type) {
+    case PRIMARY_KEY_ORDERED_INDEX:
+    case ORDERED_INDEX:
       if (global)
         dict->invalidateIndex(index->getName(), m_tabname);
       else
         dict->removeCachedIndex(index->getName(), m_tabname);
       break;
-    case(UNIQUE_ORDERED_INDEX):
+    case UNIQUE_ORDERED_INDEX:
       if (global)
         dict->invalidateIndex(index->getName(), m_tabname);
       else
         dict->removeCachedIndex(index->getName(), m_tabname);
-    case(UNIQUE_INDEX):
+    case UNIQUE_INDEX:
       if (global)
         dict->invalidateIndex(unique_index->getName(), m_tabname);
       else
         dict->removeCachedIndex(unique_index->getName(), m_tabname);
       break;
-    case(PRIMARY_KEY_INDEX):
-    case(UNDEFINED_INDEX):
+    case PRIMARY_KEY_INDEX:
+    case UNDEFINED_INDEX:
       break;
     }
   }
@@ -1387,7 +1387,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
       return res;
   }
   
-  if((res= define_read_attrs(buf, op)))
+  if ((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
   
   if (execute_no_commit_ie(this,trans) != 0) 
@@ -1517,10 +1517,10 @@ int ha_ndbcluster::unique_index_read(const byte *key,
     ERR_RETURN(trans->getNdbError());
   
   // Set secondary index key(s)
-  if((res= set_index_key(op, table->key_info + active_index, key)))
+  if ((res= set_index_key(op, table->key_info + active_index, key)))
     DBUG_RETURN(res);
   
-  if((res= define_read_attrs(buf, op)))
+  if ((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
 
   if (execute_no_commit_ie(this,trans) != 0) 
@@ -1580,7 +1580,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
         {
           if  (execute_commit(this,trans) != 0)
             DBUG_RETURN(-1);
-          if(trans->restart() != 0)
+          if (trans->restart() != 0)
           {
             DBUG_ASSERT(0);
             DBUG_RETURN(-1);
@@ -1618,7 +1618,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
   if (!m_active_cursor)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   
-  if((res= fetch_next(m_active_cursor)) == 0)
+  if ((res= fetch_next(m_active_cursor)) == 0)
   {
     DBUG_PRINT("info", ("One more record found"));    
     
@@ -1626,7 +1626,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
     table->status= 0;
     DBUG_RETURN(0);
   }
-  else if(res == 1)
+  else if (res == 1)
   {
     // No more records
     table->status= STATUS_NOT_FOUND;
@@ -1857,7 +1857,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     DBUG_ASSERT(op->getSorted() == sorted);
     DBUG_ASSERT(op->getLockMode() == 
                 (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
-    if(op->reset_bounds(m_force_send))
+    if (op->reset_bounds(m_force_send))
       DBUG_RETURN(ndb_err(m_active_trans));
   }
   
@@ -1903,7 +1903,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   m_active_cursor= op;
   if (generate_scan_filter(m_cond_stack, op))
     DBUG_RETURN(ndb_err(trans));
-  if((res= define_read_attrs(buf, op)))
+  if ((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
 
   if (execute_no_commit(this,trans) != 0)
@@ -2041,7 +2041,7 @@ int ha_ndbcluster::write_row(byte *record)
         no_uncommitted_rows_execute_failure();
         DBUG_RETURN(ndb_err(trans));
       }
-      if(trans->restart() != 0)
+      if (trans->restart() != 0)
       {
         DBUG_ASSERT(0);
         DBUG_RETURN(-1);
@@ -2420,7 +2420,7 @@ void ha_ndbcluster::print_results()
     field= table->field[f];
     if (!(value= m_value[f]).ptr)
     {
-      my_snprintf(buf, sizeof(buf), "not read");
+      strmov(buf, "not read");
       goto print_value;
     }
 
@@ -2430,7 +2430,7 @@ void ha_ndbcluster::print_results()
     {
       if (value.rec->isNULL())
       {
-        my_snprintf(buf, sizeof(buf), "NULL");
+        strmov(buf, "NULL");
         goto print_value;
       }
       type.length(0);
@@ -2444,10 +2444,8 @@ void ha_ndbcluster::print_results()
       NdbBlob *ndb_blob= value.blob;
       bool isNull= TRUE;
       ndb_blob->getNull(isNull);
-      if (isNull) {
-        my_snprintf(buf, sizeof(buf), "NULL");
-        goto print_value;
-      }
+      if (isNull)
+        strmov(buf, "NULL");
     }
 
 print_value:
@@ -2487,7 +2485,7 @@ check_null_in_key(const KEY* key_info, const byte *key, uint key_len)
 
   for (; curr_part != end_part && key < end_ptr; curr_part++)
   {
-    if(curr_part->null_bit && *key)
+    if (curr_part->null_bit && *key)
       return 1;
 
     key += curr_part->store_length;
@@ -2511,7 +2509,7 @@ int ha_ndbcluster::index_read(byte *buf,
   case PRIMARY_KEY_INDEX:
     if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len)
     {
-      if(m_active_cursor && (error= close_scan()))
+      if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
       DBUG_RETURN(pk_read(key, key_len, buf));
     }
@@ -2525,7 +2523,7 @@ int ha_ndbcluster::index_read(byte *buf,
     if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len &&
         !check_null_in_key(key_info, key, key_len))
     {
-      if(m_active_cursor && (error= close_scan()))
+      if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
       DBUG_RETURN(unique_index_read(key, key_len, buf));
     }
@@ -2637,7 +2635,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         start_key->length == key_info->key_length &&
         start_key->flag == HA_READ_KEY_EXACT)
     {
-      if(m_active_cursor && (error= close_scan()))
+      if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
       error= pk_read(start_key->key, start_key->length, buf);      
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
@@ -2650,7 +2648,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         start_key->flag == HA_READ_KEY_EXACT && 
         !check_null_in_key(key_info, start_key->key, start_key->length))
     {
-      if(m_active_cursor && (error= close_scan()))
+      if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
       error= unique_index_read(start_key->key, start_key->length, buf);
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
@@ -2697,7 +2695,7 @@ int ha_ndbcluster::rnd_init(bool scan)
   {
     if (!scan)
       DBUG_RETURN(1);
-    if(cursor->restart(m_force_send) != 0)
+    if (cursor->restart(m_force_send) != 0)
     {
       DBUG_ASSERT(0);
       DBUG_RETURN(-1);
@@ -3467,7 +3465,7 @@ int ndbcluster_commit(THD *thd, bool all)
   }
   ndb->closeTransaction(trans);
 
-  if(all)
+  if (all)
     thd_ndb->all= NULL;
   else
     thd_ndb->stmt= NULL;
@@ -3517,7 +3515,7 @@ int ndbcluster_rollback(THD *thd, bool all)
   }
   ndb->closeTransaction(trans);
 
-  if(all)
+  if (all)
     thd_ndb->all= NULL;
   else
     thd_ndb->stmt= NULL;
@@ -3773,7 +3771,8 @@ static int create_ndb_column(NDBCOL &col,
     col.setType(NDBCOL::Char);
     col.setLength(field->pack_length());
     break;
-  case MYSQL_TYPE_BIT: {
+  case MYSQL_TYPE_BIT:
+  {
     int no_of_bits= field->field_length*8 + ((Field_bit *) field)->bit_len;
     col.setType(NDBCOL::Bit);
     if (!no_of_bits)
@@ -3908,7 +3907,7 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= create_ndb_column(col, field, info)))
       DBUG_RETURN(my_errno);
     tab.addColumn(col);
-    if(col.getPrimaryKey())
+    if (col.getPrimaryKey())
       pk_length += (field->pack_length() + 3) / 4;
   }
   
@@ -3941,7 +3940,7 @@ int ha_ndbcluster::create(const char *name,
     {
       NdbDictionary::Column * col= tab.getColumn(i);
       int size= pk_length + (col->getPartSize()+3)/4 + 7;
-      if(size > NDB_MAX_TUPLE_SIZE_IN_WORDS && 
+      if (size > NDB_MAX_TUPLE_SIZE_IN_WORDS && 
          (pk_length+7) < NDB_MAX_TUPLE_SIZE_IN_WORDS)
       {
         size= NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
@@ -4169,12 +4168,10 @@ ulonglong ha_ndbcluster::get_auto_increment()
     m_rows_to_insert+= m_autoincrement_prefetch;
   }
   cache_size= 
-    (int)
-    (m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
-    m_rows_to_insert - m_rows_inserted 
-    : (m_rows_to_insert > m_autoincrement_prefetch) ? 
-    m_rows_to_insert 
-    : m_autoincrement_prefetch;
+    (int) ((m_rows_to_insert - m_rows_inserted < m_autoincrement_prefetch) ?
+           m_rows_to_insert - m_rows_inserted :
+           ((m_rows_to_insert > m_autoincrement_prefetch) ?
+            m_rows_to_insert : m_autoincrement_prefetch));
   auto_value= NDB_FAILED_AUTO_INCREMENT;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
   do {
@@ -4778,7 +4775,7 @@ ndbcluster_init()
                        g_ndb_cluster_connection->get_connected_port()));
     g_ndb_cluster_connection->wait_until_ready(10,3);
   } 
-  else if(res == 1)
+  else if (res == 1)
   {
     if (g_ndb_cluster_connection->start_connect_thread(connect_callback)) 
     {
@@ -4826,7 +4823,7 @@ ndbcluster_init()
   DBUG_RETURN(&ndbcluster_hton);
 
  ndbcluster_init_error:
-  if(g_ndb)
+  if (g_ndb)
     delete g_ndb;
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
@@ -4855,7 +4852,7 @@ bool ndbcluster_end()
   (void) pthread_cond_signal(&COND_ndb_util_thread);
   (void) pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
-  if(g_ndb)
+  if (g_ndb)
     delete g_ndb;
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
@@ -5105,7 +5102,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   }
 
   pthread_mutex_lock(&share->mutex);
-  if(share->commit_count_lock == lock)
+  if (share->commit_count_lock == lock)
   {
     DBUG_PRINT("info", ("Setting commit_count to %llu", stat.commit_count));
     share->commit_count= stat.commit_count;
@@ -5596,9 +5593,13 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   for (; multi_range_curr<multi_range_end && curr+reclength <= end_of_buffer; 
        multi_range_curr++)
   {
-    switch(index_type){
+    switch (index_type){
+    case PRIMARY_KEY_ORDERED_INDEX:
+      if (!(multi_range_curr->start_key.length == key_info->key_length &&
+            multi_range_curr->start_key.flag == HA_READ_KEY_EXACT))
+      goto range;
+      /* fall through */
     case PRIMARY_KEY_INDEX:
-  pk:
     {
       multi_range_curr->range_flag |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbOperation(tab)) && 
@@ -5612,8 +5613,14 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       break;
     }
     break;
+    case UNIQUE_ORDERED_INDEX:
+      if (!(multi_range_curr->start_key.length == key_info->key_length &&
+            multi_range_curr->start_key.flag == HA_READ_KEY_EXACT &&
+            !check_null_in_key(key_info, multi_range_curr->start_key.key,
+                               multi_range_curr->start_key.length)))
+      goto range;
+      /* fall through */
     case UNIQUE_INDEX:
-  sk:
     {
       multi_range_curr->range_flag |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbIndexOperation(unique_idx, tab)) && 
@@ -5626,19 +5633,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
       break;
     }
-    case PRIMARY_KEY_ORDERED_INDEX:
-      if (multi_range_curr->start_key.length == key_info->key_length &&
-          multi_range_curr->start_key.flag == HA_READ_KEY_EXACT)
-        goto pk;
-      goto range;
-    case UNIQUE_ORDERED_INDEX:
-      if (multi_range_curr->start_key.length == key_info->key_length &&
-          multi_range_curr->start_key.flag == HA_READ_KEY_EXACT &&
-          !check_null_in_key(key_info, multi_range_curr->start_key.key,
-                             multi_range_curr->start_key.length))
-        goto sk;
-      goto range;
-    case ORDERED_INDEX: {
+    case ORDERED_INDEX:
+    {
   range:
       multi_range_curr->range_flag &= ~(uint)UNIQUE_RANGE;
       if (scanOp == 0)
@@ -5649,7 +5645,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           DBUG_ASSERT(scanOp->getSorted() == sorted);
           DBUG_ASSERT(scanOp->getLockMode() == 
                       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
-          if(scanOp->reset_bounds(m_force_send))
+          if (scanOp->reset_bounds(m_force_send))
             DBUG_RETURN(ndb_err(m_active_trans));
           
           end_of_buffer -= reclength;
@@ -5675,7 +5671,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         DBUG_RETURN(res);
       break;
     }
-    case(UNDEFINED_INDEX):
+    case UNDEFINED_INDEX:
       DBUG_ASSERT(FALSE);
       DBUG_RETURN(1);
       break;
@@ -5784,7 +5780,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
         DBUG_MULTI_RANGE(6);
         // First fetch from cursor
         DBUG_ASSERT(range_no == -1);
-        if((res= m_multi_cursor->nextResult(true)))
+        if ((res= m_multi_cursor->nextResult(true)))
         {
           goto close_scan;
         }
@@ -5887,7 +5883,7 @@ ha_ndbcluster::update_table_comment(
         const char*     comment)/* in:  table comment defined by user */
 {
   uint length= strlen(comment);
-  if(length > 64000 - 3)
+  if (length > 64000 - 3)
   {
     return((char*)comment); /* string too long */
   }
@@ -5914,9 +5910,9 @@ ha_ndbcluster::update_table_comment(
     return (char*)comment;
   }
 
-  snprintf(str,fmt_len_plus_extra,fmt,comment,
-           length > 0 ? " ":"",
-           tab->getReplicaCount());
+  my_snprintf(str,fmt_len_plus_extra,fmt,comment,
+              length > 0 ? " ":"",
+              tab->getReplicaCount());
   return str;
 }
 
@@ -6015,7 +6011,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
       lock= share->commit_count_lock;
       pthread_mutex_unlock(&share->mutex);
 
-      if(ndb_get_table_statistics(ndb, tabname, &stat) == 0)
+      if (ndb_get_table_statistics(ndb, tabname, &stat) == 0)
       {
         DBUG_PRINT("ndb_util_thread",
                    ("Table: %s, commit_count: %llu, rows: %llu",
@@ -6050,7 +6046,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
     abstime.tv_sec=  tick_time.tv_sec;
     abstime.tv_nsec= tick_time.tv_usec * 1000;
 
-    if(msecs >= 1000){
+    if (msecs >= 1000){
       secs=  msecs / 1000;
       msecs= msecs % 1000;
     }
@@ -6159,17 +6155,18 @@ void ndb_serialize_cond(const Item *item, void *arg)
   {
     DBUG_PRINT("info", ("Skiping argument %d", context->skip));
     context->skip--;
-    switch(item->type()) {
-    case (Item::FUNC_ITEM): {
+    switch (item->type()) {
+    case Item::FUNC_ITEM:
+    {
       Item_func *func_item= (Item_func *) item;
       context->skip+= func_item->argument_count();
       break;
     }
-    case(Item::INT_ITEM):
-    case(Item::REAL_ITEM):
-    case(Item::STRING_ITEM):
-    case(Item::VARBIN_ITEM):
-    case(Item::DECIMAL_ITEM):
+    case Item::INT_ITEM:
+    case Item::REAL_ITEM:
+    case Item::STRING_ITEM:
+    case Item::VARBIN_ITEM:
+    case Item::DECIMAL_ITEM:
       break;
     default:
       context->supported= FALSE;
@@ -6188,8 +6185,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
         (func_item= rewrite_context->func_item) &&
         rewrite_context->count++ == 0)
     {
-      switch(func_item->functype()) {
-      case(Item_func::BETWEEN):
+      switch (func_item->functype()) {
+      case Item_func::BETWEEN:
         /*
           Rewrite 
           <field>|<const> BETWEEN <const1>|<field1> AND <const2>|<field2>
@@ -6199,7 +6196,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           BEGIN(AND) GT(<field>|<const>, <const1>|<field1>), 
           LT(<field>|<const>, <const2>|<field2>), END()
         */
-      case(Item_func::IN_FUNC): {
+      case Item_func::IN_FUNC:
+      {
         /*
           Rewrite <field>|<const> IN(<const1>|<field1>, <const2>|<field2>,..)
           to <field>|<const> = <const1>|<field1> OR 
@@ -6264,17 +6262,18 @@ void ndb_serialize_cond(const Item *item, void *arg)
       {
         Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
         const Item_func *func_item= rewrite_context->func_item;
-        switch(func_item->functype()) {
-        case(Item_func::BETWEEN): {
-        /*
-          Rewrite 
-          <field>|<const> BETWEEN <const1>|<field1> AND <const2>|<field2>
-          to <field>|<const> > <const1>|<field1> AND 
-          <field>|<const> < <const2>|<field2>
-          or actually in prefix format
-          BEGIN(AND) GT(<field>|<const>, <const1>|<field1>), 
-          LT(<field>|<const>, <const2>|<field2>), END()
-        */
+        switch (func_item->functype()) {
+        case Item_func::BETWEEN:
+        {
+          /*
+            Rewrite 
+            <field>|<const> BETWEEN <const1>|<field1> AND <const2>|<field2>
+            to <field>|<const> > <const1>|<field1> AND 
+            <field>|<const> < <const2>|<field2>
+            or actually in prefix format
+            BEGIN(AND) GT(<field>|<const>, <const1>|<field1>), 
+            LT(<field>|<const>, <const2>|<field2>), END()
+          */
           if (rewrite_context->count == 2)
           {
             // Lower limit of BETWEEN
@@ -6296,7 +6295,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           }
           break;
         }
-        case(Item_func::IN_FUNC): {
+        case Item_func::IN_FUNC:
+        {
           /*
             Rewrite <field>|<const> IN(<const1>|<field1>, <const2>|<field2>,..)
             to <field>|<const> = <const1>|<field1> OR 
@@ -6345,8 +6345,10 @@ void ndb_serialize_cond(const Item *item, void *arg)
         curr_cond->ndb_item= new Ndb_item(NDB_END_COND);
       }
       else
-        switch(item->type()) {
-        case(Item::FIELD_ITEM): {
+      {
+        switch (item->type()) {
+        case Item::FIELD_ITEM:
+        {
           Item_field *field_item= (Item_field *) item;
           Field *field= field_item->field;
           enum_field_types type= field->type();
@@ -6392,23 +6394,23 @@ void ndb_serialize_cond(const Item *item, void *arg)
                   context->expect(Item::INT_ITEM);
                 }
                 else
-                  switch(field->result_type()) {
-                  case(STRING_RESULT):
+                  switch (field->result_type()) {
+                  case STRING_RESULT:
                     // Expect char string or binary string
                     context->expect_only(Item::STRING_ITEM);
                     context->expect(Item::VARBIN_ITEM);
                     context->expect_collation(field_item->collation.collation);
                     break;
-                  case(REAL_RESULT):
+                  case REAL_RESULT:
                     context->expect_only(Item::REAL_ITEM);
                     context->expect(Item::DECIMAL_ITEM);
                     context->expect(Item::INT_ITEM);
                     break;
-                  case(INT_RESULT):
+                  case INT_RESULT:
                     context->expect_only(Item::INT_ITEM);
                     context->expect(Item::VARBIN_ITEM);
                     break;
-                  case(DECIMAL_RESULT):
+                  case DECIMAL_RESULT:
                     context->expect_only(Item::DECIMAL_ITEM);
                     context->expect(Item::REAL_ITEM);
                     context->expect(Item::INT_ITEM);
@@ -6453,7 +6455,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           }
           break;
         }
-        case(Item::FUNC_ITEM): {
+        case Item::FUNC_ITEM:
+        {
           Item_func *func_item= (Item_func *) item;
           // Check that we expect a function or functional expression here
           if (context->expecting(Item::FUNC_ITEM) || 
@@ -6466,8 +6469,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
             break;
           }
           
-          switch(func_item->functype()) {
-          case(Item_func::EQ_FUNC): {
+          switch (func_item->functype()) {
+          case Item_func::EQ_FUNC:
+          {
             DBUG_PRINT("info", ("EQ_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(), 
                                               func_item);      
@@ -6483,7 +6487,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::NE_FUNC): {
+          case Item_func::NE_FUNC:
+          {
             DBUG_PRINT("info", ("NE_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6499,7 +6504,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::LT_FUNC): {
+          case Item_func::LT_FUNC:
+          {
             DBUG_PRINT("info", ("LT_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6515,7 +6521,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::LE_FUNC): {
+          case Item_func::LE_FUNC:
+          {
             DBUG_PRINT("info", ("LE_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6531,7 +6538,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::GE_FUNC): {
+          case Item_func::GE_FUNC:
+          {
             DBUG_PRINT("info", ("GE_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6547,7 +6555,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::GT_FUNC): {
+          case Item_func::GT_FUNC:
+          {
             DBUG_PRINT("info", ("GT_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6563,7 +6572,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::LIKE_FUNC): {
+          case Item_func::LIKE_FUNC:
+          {
             DBUG_PRINT("info", ("LIKE_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6573,7 +6583,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::FUNC_ITEM);
             break;
           }
-          case(Item_func::NOTLIKE_FUNC): {
+          case Item_func::NOTLIKE_FUNC:
+          {
             DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6583,7 +6594,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::FUNC_ITEM);
             break;
           }
-          case(Item_func::ISNULL_FUNC): {
+          case Item_func::ISNULL_FUNC:
+          {
             DBUG_PRINT("info", ("ISNULL_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
@@ -6594,7 +6606,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::ISNOTNULL_FUNC): {
+          case Item_func::ISNOTNULL_FUNC:
+          {
             DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);     
@@ -6605,7 +6618,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(DECIMAL_RESULT);
             break;
           }
-          case(Item_func::NOT_FUNC): {
+          case Item_func::NOT_FUNC:
+          {
             DBUG_PRINT("info", ("NOT_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);     
@@ -6613,7 +6627,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::COND_ITEM);
             break;
           }
-          case(Item_func::BETWEEN) : {
+          case Item_func::BETWEEN:
+          {
             DBUG_PRINT("info", ("BETWEEN, rewriting using AND"));
             Ndb_rewrite_context *rewrite_context= 
               new Ndb_rewrite_context(func_item);
@@ -6629,7 +6644,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::FUNC_ITEM);
             break;
           }
-          case(Item_func::IN_FUNC) : {
+          case Item_func::IN_FUNC:
+          {
             DBUG_PRINT("info", ("IN_FUNC, rewriting using OR"));
             Ndb_rewrite_context *rewrite_context= 
               new Ndb_rewrite_context(func_item);
@@ -6645,13 +6661,16 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::FUNC_ITEM);
             break;
           }
-          case(Item_func::UNKNOWN_FUNC): {
+          case Item_func::UNKNOWN_FUNC:
+          {
             DBUG_PRINT("info", ("UNKNOWN_FUNC %s", 
                                 func_item->const_item()?"const":""));  
             DBUG_PRINT("info", ("result type %d", func_item->result_type()));
             if (func_item->const_item())
-              switch(func_item->result_type()) {
-              case(STRING_RESULT): {
+            {
+              switch (func_item->result_type()) {
+              case STRING_RESULT:
+              {
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::STRING_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item); 
@@ -6680,7 +6699,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 context->skip= func_item->argument_count();
                 break;
               }
-              case(REAL_RESULT): {
+              case REAL_RESULT:
+              {
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::REAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
@@ -6702,7 +6722,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 context->skip= func_item->argument_count();
                 break;
               }
-              case(INT_RESULT): {
+              case INT_RESULT:
+              {
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::INT_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
@@ -6724,7 +6745,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 context->skip= func_item->argument_count();
                 break;
               }
-              case(DECIMAL_RESULT): {
+              case DECIMAL_RESULT:
+              {
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::DECIMAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
@@ -6748,12 +6770,14 @@ void ndb_serialize_cond(const Item *item, void *arg)
               default:
                 break;
               }
+            }
             else
               // Function does not return constant expression
               context->supported= FALSE;
             break;
           }
-          default: {
+          default:
+          {
             DBUG_PRINT("info", ("Found func_item of type %d", 
                                 func_item->functype()));
             context->supported= FALSE;
@@ -6761,7 +6785,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           }
           break;
         }
-        case(Item::STRING_ITEM):
+        case Item::STRING_ITEM:
           DBUG_PRINT("info", ("STRING_ITEM")); 
           if (context->expecting(Item::STRING_ITEM)) 
           {
@@ -6800,7 +6824,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           else
             context->supported= FALSE;
           break;
-        case(Item::INT_ITEM): 
+        case Item::INT_ITEM:
           DBUG_PRINT("info", ("INT_ITEM"));
           if (context->expecting(Item::INT_ITEM)) 
           {
@@ -6827,7 +6851,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           else
             context->supported= FALSE;
           break;
-        case(Item::REAL_ITEM):
+        case Item::REAL_ITEM:
           DBUG_PRINT("info", ("REAL_ITEM %s"));
           if (context->expecting(Item::REAL_ITEM)) 
           {
@@ -6852,7 +6876,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           else
             context->supported= FALSE;
           break;
-        case(Item::VARBIN_ITEM):
+        case Item::VARBIN_ITEM:
           DBUG_PRINT("info", ("VARBIN_ITEM"));
           if (context->expecting(Item::VARBIN_ITEM)) 
           {
@@ -6875,7 +6899,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           else
             context->supported= FALSE;
           break;
-        case(Item::DECIMAL_ITEM):
+        case Item::DECIMAL_ITEM:
           DBUG_PRINT("info", ("DECIMAL_ITEM %s"));
           if (context->expecting(Item::DECIMAL_ITEM)) 
           {
@@ -6901,17 +6925,19 @@ void ndb_serialize_cond(const Item *item, void *arg)
           else
             context->supported= FALSE;
           break;
-        case(Item::COND_ITEM): {
+        case Item::COND_ITEM:
+        {
           Item_cond *cond_item= (Item_cond *) item;
           
           if (context->expecting(Item::COND_ITEM))
-            switch(cond_item->functype()) {
-            case(Item_func::COND_AND_FUNC):
+          {
+            switch (cond_item->functype()) {
+            case Item_func::COND_AND_FUNC:
               DBUG_PRINT("info", ("COND_AND_FUNC"));
               curr_cond->ndb_item= new Ndb_item(cond_item->functype(),
                                                 cond_item);      
               break;
-            case(Item_func::COND_OR_FUNC):
+            case Item_func::COND_OR_FUNC:
               DBUG_PRINT("info", ("COND_OR_FUNC"));
               curr_cond->ndb_item= new Ndb_item(cond_item->functype(),
                                                 cond_item);      
@@ -6921,17 +6947,21 @@ void ndb_serialize_cond(const Item *item, void *arg)
               context->supported= FALSE;
               break;
             }
+          }
           else
-            // Did not expect condition
+          {
+            /* Did not expect condition */
             context->supported= FALSE;          
+          }
           break;
         }
-        default: {
+        default:
+        {
           DBUG_PRINT("info", ("Found item of type %d", item->type()));
           context->supported= FALSE;
         }
         }
-      
+      }
       if (context->supported && context->rewrite_stack)
       {
         Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
@@ -6975,18 +7005,19 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
                                            bool negated)
 {
   DBUG_ENTER("build_scan_filter_predicate");  
-  switch(cond->ndb_item->type) {
-  case(NDB_FUNCTION): {
+  switch (cond->ndb_item->type) {
+  case NDB_FUNCTION:
+  {
     if (!cond->next)
       break;
     Ndb_item *a= cond->next->ndb_item;
     Ndb_item *b, *field, *value= NULL;
-    switch(cond->ndb_item->argument_count()) {
-    case(1):
+    switch (cond->ndb_item->argument_count()) {
+    case 1:
       field= 
         (a->type == NDB_FIELD)? a : NULL;
       break;
-    case(2):
+    case 2:
       if (!cond->next->next)
         break;
       b= cond->next->next->ndb_item;
@@ -7002,11 +7033,11 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
     default:
       break;
     }
-    switch((negated) ? 
-           Ndb_item::negate(cond->ndb_item->qualification.function_type)
-           : cond->ndb_item->qualification.function_type)
+    switch ((negated) ? 
+            Ndb_item::negate(cond->ndb_item->qualification.function_type)
+            : cond->ndb_item->qualification.function_type) {
+    case Item_func::EQ_FUNC:
     {
-    case(Item_func::EQ_FUNC): {
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
@@ -7019,7 +7050,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::NE_FUNC): {
+    case Item_func::NE_FUNC:
+    {
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
@@ -7032,7 +7064,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::LT_FUNC): {
+    case Item_func::LT_FUNC:
+    {
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
@@ -7057,7 +7090,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::LE_FUNC): {
+    case Item_func::LE_FUNC:
+    {
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
@@ -7082,7 +7116,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::GE_FUNC): {
+    case Item_func::GE_FUNC:
+    {
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
@@ -7107,7 +7142,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::GT_FUNC): {
+    case Item_func::GT_FUNC:
+    {
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
@@ -7132,7 +7168,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::LIKE_FUNC): {
+    case Item_func::LIKE_FUNC:
+    {
       if (!value || !field) break;
       if ((value->qualification.value_type != Item::STRING_ITEM) &&
           (value->qualification.value_type != Item::VARBIN_ITEM))
@@ -7150,7 +7187,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::NOTLIKE_FUNC): {
+    case Item_func::NOTLIKE_FUNC:
+    {
       if (!value || !field) break;
       if ((value->qualification.value_type != Item::STRING_ITEM) &&
           (value->qualification.value_type != Item::VARBIN_ITEM))
@@ -7168,7 +7206,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case(Item_func::ISNULL_FUNC):
+    case Item_func::ISNULL_FUNC:
       if (!field)
         break;
       DBUG_PRINT("info", ("Generating ISNULL filter"));
@@ -7176,7 +7214,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
         DBUG_RETURN(1);
       cond= cond->next->next;
       DBUG_RETURN(0);
-    case(Item_func::ISNOTNULL_FUNC): {
+    case Item_func::ISNOTNULL_FUNC:
+    {
       if (!field)
         break;
       DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
@@ -7202,15 +7241,18 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
 {
   uint level=0;
   bool negated= FALSE;
-
   DBUG_ENTER("build_scan_filter_group");
+
   do
   {
-    if (!cond) DBUG_RETURN(1);
-    switch(cond->ndb_item->type) {
-    case(NDB_FUNCTION):
-      switch(cond->ndb_item->qualification.function_type) {
-      case(Item_func::COND_AND_FUNC): {
+    if (!cond)
+      DBUG_RETURN(1);
+    switch (cond->ndb_item->type) {
+    case NDB_FUNCTION:
+    {
+      switch (cond->ndb_item->qualification.function_type) {
+      case Item_func::COND_AND_FUNC:
+      {
         level++;
         DBUG_PRINT("info", ("Generating %s group %u", (negated)?"NAND":"AND",
                             level));
@@ -7221,7 +7263,8 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         cond= cond->next;
         break;
       }
-      case(Item_func::COND_OR_FUNC): {
+      case Item_func::COND_OR_FUNC:
+      {
         level++;
         DBUG_PRINT("info", ("Generating %s group %u", (negated)?"NOR":"OR",
                             level));
@@ -7232,11 +7275,11 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         cond= cond->next;
         break;
       }
-      case(Item_func::NOT_FUNC): {
+      case Item_func::NOT_FUNC:
+      {
         DBUG_PRINT("info", ("Generating negated query"));
         cond= cond->next;
         negated= TRUE;
-        
         break;
       }
       default:
@@ -7246,7 +7289,8 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         break;
       }
       break;
-    case(NDB_END_COND):
+    }
+    case NDB_END_COND:
       DBUG_PRINT("info", ("End of group %u", level));
       level--;
       if (cond) cond= cond->next;
@@ -7255,7 +7299,8 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
       if (!negated)
         break;
       // else fall through (NOT END is an illegal condition)
-    default: {
+    default:
+    {
       DBUG_PRINT("info", ("Illegal scan filter"));
     }
     }
@@ -7270,11 +7315,11 @@ ha_ndbcluster::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
   bool simple_cond= TRUE;
   DBUG_ENTER("build_scan_filter");  
 
-    switch(cond->ndb_item->type) {
-    case(NDB_FUNCTION):
-      switch(cond->ndb_item->qualification.function_type) {
-      case(Item_func::COND_AND_FUNC):
-      case(Item_func::COND_OR_FUNC):
+    switch (cond->ndb_item->type) {
+    case NDB_FUNCTION:
+      switch (cond->ndb_item->qualification.function_type) {
+      case Item_func::COND_AND_FUNC:
+      case Item_func::COND_OR_FUNC:
         simple_cond= FALSE;
         break;
       default:

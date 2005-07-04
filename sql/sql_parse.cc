@@ -2355,10 +2355,6 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
 
-
-
-
-
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.

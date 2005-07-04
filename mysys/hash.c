@@ -277,9 +277,8 @@ static void movelink(HASH_LINK *array,uint find,uint next_link,uint newlink)
     record being compared against.
 
   RETURN
-    < 0  key of record <  key
     = 0  key of record == key
-    > 0  key of record >  key
+    != 0 key of record != key
  */
 
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)

@@ -1880,8 +1880,7 @@ void Item_func_round::fix_length_and_dec()
     return;
   }
   
-  switch (args[0]->result_type())
-  {
+  switch (args[0]->result_type()) {
   case REAL_RESULT:
   case STRING_RESULT:
     hybrid_type= REAL_RESULT;
@@ -1889,16 +1888,17 @@ void Item_func_round::fix_length_and_dec()
     max_length= float_length(decimals);
     break;
   case INT_RESULT:
-    if ((decimals_to_set==0) &&
+    if (!decimals_to_set &&
         (truncate || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)))
     {
+      int length_can_increase= test(!truncate && (args[1]->val_int() < 0));
+      max_length= args[0]->max_length + length_can_increase;
       /* Here we can keep INT_RESULT */
       hybrid_type= INT_RESULT;
-      int length_can_increase= !truncate && (args[1]->val_int() < 0);
-      max_length= args[0]->max_length + length_can_increase;
       decimals= 0;
       break;
     }
+    /* fall through */
   case DECIMAL_RESULT:
   {
     hybrid_type= DECIMAL_RESULT;
@@ -4446,7 +4446,8 @@ err:
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
-  if (item->type() != FUNC_ITEM || ((Item_func*)item)->functype() != FT_FUNC ||
+  if (item->type() != FUNC_ITEM ||
+      ((Item_func*)item)->functype() != FT_FUNC ||
       flags != ((Item_func_match*)item)->flags)
     return 0;
 
@@ -4807,7 +4808,7 @@ Item_func_sp::execute(Item **itp)
   ulong old_client_capabilites;
   int res= -1;
   bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
-  my_bool nsok;
+  my_bool save_no_send_ok;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
@@ -4822,7 +4823,7 @@ Item_func_sp::execute(Item **itp)
   thd->client_capabilities &= ~CLIENT_MULTI_RESULTS;
 
 #ifndef EMBEDDED_LIBRARY
-  nsok= thd->net.no_send_ok;
+  save_no_send_ok= thd->net.no_send_ok;
   thd->net.no_send_ok= TRUE;
 #endif
 
@@ -4834,7 +4835,7 @@ Item_func_sp::execute(Item **itp)
   if (save_ctx.changed && 
       check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error_check;
+    goto error_check_ctx;
 #endif
   /*
     Like for SPs, we don't binlog the substatements. If the statement which
@@ -4857,8 +4858,8 @@ Item_func_sp::execute(Item **itp)
                  ER_FAILED_ROUTINE_BREAK_BINLOG,
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
-error_check_ctx:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+error_check_ctx:
   sp_restore_security_context(thd, m_sp, &save_ctx);
 #endif
 
@@ -4866,7 +4867,7 @@ error_check_ctx:
 
 error_check:
 #ifndef EMBEDDED_LIBRARY
-  thd->net.no_send_ok= nsok;
+  thd->net.no_send_ok= save_no_send_ok;
 #endif
 
   thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
