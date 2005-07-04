@@ -95,6 +95,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat_ws"; }
+  table_map not_null_tables() const { return 0; }
 };
 
 class Item_func_reverse :public Item_str_func

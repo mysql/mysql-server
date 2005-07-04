@@ -543,3 +543,59 @@ SELECT * FROM t1, t2 WHERE num=str;
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 
 DROP TABLE t1,t2;
+
+#
+# Bug #11469: NOT NULL optimization wrongly used for arguments of CONCAT_WS  
+#
+
+CREATE TABLE t1(
+  id int(11) NOT NULL auto_increment,
+  pc int(11) NOT NULL default '0',
+  title varchar(20) default NULL,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO t1 VALUES
+  (1, 0, 'Main'),
+  (2, 1, 'Toys'),
+  (3, 1, 'Games');
+
+SELECT t1.id, CONCAT_WS('->', t3.title, t2.title, t1.title) as col1
+  FROM t1 LEFT JOIN t1 AS t2 ON t1.pc=t2.id
+          LEFT JOIN t1 AS t3 ON t2.pc=t3.id;
+SELECT t1.id, CONCAT_WS('->', t3.title, t2.title, t1.title) as col1
+  FROM t1 LEFT JOIN t1 AS t2 ON t1.pc=t2.id
+          LEFT JOIN t1 AS t3 ON t2.pc=t3.id
+    WHERE CONCAT_WS('->', t3.title, t2.title, t1.title) LIKE '%Toys%';
+
+DROP TABLE t1;
+
+
+CREATE TABLE t1(
+  trackid     int(10) unsigned NOT NULL auto_increment,
+  trackname   varchar(100) NOT NULL default '',
+  PRIMARY KEY (trackid)
+);
+
+CREATE TABLE t2(
+  artistid    int(10) unsigned NOT NULL auto_increment,
+  artistname  varchar(100) NOT NULL default '',
+  PRIMARY KEY (artistid)
+);
+
+CREATE TABLE t3(
+  trackid     int(10) unsigned NOT NULL,
+  artistid    int(10) unsigned NOT NULL,
+  PRIMARY KEY (trackid,artistid)
+);
+
+INSERT INTO t1 VALUES (1, 'April In Paris'), (2, 'Autumn In New York');
+INSERT INTO t2 VALUES (1, 'Vernon Duke');
+INSERT INTO t3 VALUES (1,1);
+
+SELECT CONCAT_WS(' ', trackname, artistname) trackname, artistname
+  FROM t1 LEFT JOIN t3 ON t1.trackid=t3.trackid
+          LEFT JOIN t2 ON t2.artistid=t3.artistid
+    WHERE CONCAT_WS(' ', trackname, artistname) LIKE '%In%';
+
+DROP TABLE t1,t2,t3;

@@ -338,7 +338,6 @@ Item::Item():
 	place == IN_HAVING)
       thd->lex->current_select->select_n_having_items++;
   }
-  item_flags= 0;
 }
 
 /*
@@ -359,8 +358,7 @@ Item::Item(THD *thd, Item *item):
   unsigned_flag(item->unsigned_flag),
   with_sum_func(item->with_sum_func),
   fixed(item->fixed),
-  collation(item->collation),
-  item_flags(item->item_flags)
+  collation(item->collation)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -2837,7 +2835,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                           reference,
                                           IGNORE_EXCEPT_NON_UNIQUE,
                                           !any_privileges &&
-                                          context->check_privileges)) ==
+                                          context->check_privileges,
+                                          TRUE)) ==
 	not_found_field)
     {
       /*
@@ -2880,7 +2879,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                               reference,
                                               IGNORE_EXCEPT_NON_UNIQUE,
                                               outer_context->
-                                              check_privileges)) !=
+                                              check_privileges,
+                                              TRUE)) !=
             not_found_field)
         {
           if (from_field)
@@ -2953,7 +2953,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 	  find_field_in_tables(thd, this, context->table_list,
                                reference, REPORT_ALL_ERRORS,
                                !any_privileges &&
-                               context->check_privileges);
+                               context->check_privileges, TRUE);
 	}
 	goto error;
       }
@@ -4102,7 +4102,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
                                            outer_context->table_list,
                                            reference,
                                            IGNORE_EXCEPT_NON_UNIQUE,
-                                           outer_context->check_privileges);
+                                           outer_context->check_privileges,
+                                           TRUE);
           if (! from_field)
             goto error;
           if (from_field == view_ref_found)

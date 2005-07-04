@@ -638,6 +638,17 @@ Warnings:
 Warning	1264	Out of range value adjusted for column 'Field1' at row 1
 DROP TABLE t1;
 SET NAMES latin1;
+CREATE TABLE t1 (
+a varchar(255) NOT NULL default '',
+KEY a (a)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE ucs2_general_ci;
+insert into t1 values (0x803d);
+insert into t1 values (0x005b);
+select hex(a) from t1;
+hex(a)
+005B
+803D
+drop table t1;
 CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
 INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
 update t1 set b=a;
