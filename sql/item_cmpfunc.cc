@@ -1578,17 +1578,21 @@ my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_func_case::fix_fields(THD *thd, struct st_table_list *tables,
-                                Item **ref)
+bool Item_func_case::fix_fields(THD *thd, Item **ref)
 {
   /*
     buff should match stack usage from
     Item_func_case::val_int() -> Item_func_case::find_item()
   */
   char buff[MAX_FIELD_WIDTH*2+sizeof(String)*2+sizeof(String*)*2+sizeof(double)*2+sizeof(longlong)*2];
+  bool res= Item_func::fix_fields(thd, ref);
+  /*
+    Call check_stack_overrun after fix_fields to be sure that stack variable
+    is not optimized away
+  */
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return TRUE;				// Fatal error flag is set!
-  return Item_func::fix_fields(thd, tables, ref);
+  return res;
 }
 
 
