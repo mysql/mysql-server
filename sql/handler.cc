@@ -1954,7 +1954,7 @@ int ha_create_table_from_engine(THD* thd,
 
   bzero((char*) &create_info,sizeof(create_info));
 
-  if(error= ha_discover(thd, db, name, &frmblob, &frmlen))
+  if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
   {
     // Table could not be discovered and thus not created
     DBUG_RETURN(error);

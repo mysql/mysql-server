@@ -3528,15 +3528,12 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   {
     /* Optimize NOT BETWEEN and NOT IN */
     Item *arg= cond_func->arguments()[0];
-    if (arg->type() == Item::FUNC_ITEM)
-    {
-      cond_func= (Item_func*) arg;
-      if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-        DBUG_RETURN(0);
-      inv= TRUE;
-    }
-    else
+    if (arg->type() != Item::FUNC_ITEM)
       DBUG_RETURN(0);
+    cond_func= (Item_func*) arg;
+    if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(0);
+    inv= TRUE;
   }
   else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);			       
@@ -8153,7 +8150,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
                   (have_max && have_min && (max_res == 0)));
     }
     /*
-      If this is a just a GROUP BY or DISTINCT without MIN or MAX and there
+      If this is just a GROUP BY or DISTINCT without MIN or MAX and there
       are equality predicates for the key parts after the group, find the
       first sub-group with the extended prefix.
     */
