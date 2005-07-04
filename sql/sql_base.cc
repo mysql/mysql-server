@@ -2581,19 +2581,21 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
 
   SYNOPSIS
     find_field_in_tables()
-    thd			Pointer to current thread structure
-    item		Field item that should be found
-    tables		Tables to be searched for item
-    ref			If 'item' is resolved to a view field, ref is set to
-                        point to the found view field
-    report_error	Degree of error reporting:
-                        - IGNORE_ERRORS then do not report any error
-                        - IGNORE_EXCEPT_NON_UNIQUE report only non-unique
-                          fields, suppress all other errors
-                        - REPORT_EXCEPT_NON_UNIQUE report all other errors
-                          except when non-unique fields were found
-                        - REPORT_ALL_ERRORS
-    check_privileges    need to check privileges
+    thd                   Pointer to current thread structure
+    item                  Field item that should be found
+    tables                Tables to be searched for item
+    ref                   If 'item' is resolved to a view field, ref is set to
+                          point to the found view field
+    report_error          Degree of error reporting:
+                          - IGNORE_ERRORS then do not report any error
+                          - IGNORE_EXCEPT_NON_UNIQUE report only non-unique
+                           fields, suppress all other errors
+                          - REPORT_EXCEPT_NON_UNIQUE report all other errors
+                            except when non-unique fields were found
+                          - REPORT_ALL_ERRORS
+    check_privileges      need to check privileges
+    register_tree_change  TRUE if ref is not stack variable and we
+                            need register changes in item tree
 
   RETURN VALUES
     0			If error: the found field is not unique, or there are
@@ -2609,7 +2611,7 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
 Field *
 find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 		     Item **ref, find_item_error_report_type report_error,
-                     bool check_privileges)
+                     bool check_privileges, bool register_tree_change)
 {
   Field *found=0;
   const char *db=item->db_name;
@@ -2617,6 +2619,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   const char *name=item->field_name;
   uint length=(uint) strlen(name);
   char name_buff[NAME_LEN+1];
+  bool allow_rowid;
 
   if (item->cached_table)
   {
@@ -2651,7 +2654,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 				       (test(table->grant.want_privilege) &&
 					check_privileges),
 				       1, &(item->cached_field_index),
-                                       TRUE);
+                                       register_tree_change);
     }
     if (found)
     {
@@ -2684,13 +2687,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     db= name_buff;
   }
 
-  bool search_global= item->item_flags & MY_ITEM_PREFER_1ST_TABLE;
   if (table_name && table_name[0])
   {						/* Qualified field */
-    bool found_table=0;    
-    uint table_idx= 0;
-    for (; tables; tables= search_global?tables->next_global:tables->next_local,
-        table_idx++)
+    bool found_table= 0;
+    for (; tables; tables= tables->next_local)
     {
       /* TODO; Ensure that db and tables->db always points to something ! */
       if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
@@ -2707,7 +2707,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 					 (test(tables->grant.want_privilege) &&
                                           check_privileges),
 					 1, &(item->cached_field_index),
-                                         TRUE);
+                                         register_tree_change);
 	if (find)
 	{
 	  item->cached_table= tables;
@@ -2726,8 +2726,6 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	    return (Field*) 0;
 	  }
 	  found=find;
-          if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
-            break;
 	}
       }
     }
@@ -2752,11 +2750,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	return (Field*) not_found_field;
     return (Field*) 0;
   }
-  bool allow_rowid= tables && !tables->next_local;	// Only one table
-  uint table_idx= 0;
-  for (; tables ; tables= search_global?tables->next_global:tables->next_local, 
-      table_idx++)
+  allow_rowid= tables && !tables->next_local;	// Only one table
+  for (; tables ; tables= tables->next_local)
   {
+    Field *field;
     if (!tables->table && !tables->ancestor)
     {
       if (report_error == REPORT_ALL_ERRORS ||
@@ -2765,17 +2762,17 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       return (Field*) not_found_field;
     }
 
-    Field *field= find_field_in_table(thd, tables, name, item->name,
-                                      length, ref,
-				      (tables->table &&
-				       test(tables->table->grant.
-                                            want_privilege) &&
-                                       check_privileges),
-				      (test(tables->grant.want_privilege) &&
-                                       check_privileges),
-				      allow_rowid,
-                                      &(item->cached_field_index),
-                                      TRUE);
+    field= find_field_in_table(thd, tables, name, item->name,
+                               length, ref,
+                               (tables->table &&
+                                test(tables->table->grant.
+                                     want_privilege) &&
+                                check_privileges),
+                               (test(tables->grant.want_privilege) &&
+                                check_privileges),
+                               allow_rowid,
+                               &(item->cached_field_index),
+                               register_tree_change);
     if (field)
     {
       if (field == WRONG_GRANT)
@@ -2791,8 +2788,6 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	return (Field*) 0;
       }
       found= field;
-      if (table_idx == 0 && item->item_flags & MY_ITEM_PREFER_1ST_TABLE) 
-        break;
     }
   }
   if (found)

@@ -734,28 +734,38 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     mysql_prepare_insert()
     thd			Thread handler
     table_list	        Global/local table list
-    table		Table to insert into (can be NULL if table should be taken from
-			table_list->table)    
+    table		Table to insert into (can be NULL if table should
+			be taken from table_list->table)    
     where		Where clause (for insert ... select)
     select_insert	TRUE if INSERT ... SELECT statement
 
+  TODO (in far future)
+    In cases of:
+    INSERT INTO t1 SELECT a, sum(a) as sum1 from t2 GROUP BY a
+    ON DUPLICATE KEY ...
+    we should be able to refer to sum1 in the ON DUPLICATE KEY part
+
+  WARNING
+    You MUST set table->insert_values to 0 after calling this function
+    before releasing the table object.
+  
   RETURN VALUE
     FALSE OK
     TRUE  error
 */
 
-bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
-                          List<Item> &fields, List_item *values,
+bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
+                          TABLE *table, List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
                           COND **where, bool select_insert)
 {
-  TABLE_LIST *save_table_list= thd->lex->select_lex.context.table_list;
+  SELECT_LEX *select_lex= &thd->lex->select_lex;
+  TABLE_LIST *save_table_list;
+  TABLE_LIST *save_next_local;
   bool insert_into_view= (table_list->view != 0);
-  bool save_resolve_in_select_list=
-    thd->lex->select_lex.context.resolve_in_select_list;
-  bool res;
-  TABLE_LIST *next_local;
+  bool save_resolve_in_select_list;
+  bool res= 0;
   DBUG_ENTER("mysql_prepare_insert");
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
 		       (ulong)table_list, (ulong)table,
@@ -768,7 +778,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   */
   if (!select_insert)
   {
-    for (SELECT_LEX_UNIT *un= thd->lex->select_lex.first_inner_unit();
+    for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit();
          un;
          un= un->next_unit())
     {
@@ -792,23 +802,38 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
                                        select_insert))
     DBUG_RETURN(TRUE);
 
-  next_local= table_list->next_local;
+  save_table_list= select_lex->context.table_list;
+  save_resolve_in_select_list= select_lex->context.resolve_in_select_list;
+  save_next_local= table_list->next_local;
+
   table_list->next_local= 0;
-  thd->lex->select_lex.context.resolve_in_table_list_only(table_list);
+  select_lex->context.resolve_in_table_list_only(table_list);
   if ((values && check_insert_fields(thd, table_list, fields, *values,
                                      !insert_into_view)) ||
-      (values && setup_fields(thd, 0, *values, 0, 0, 0)) ||
-      (duplic == DUP_UPDATE &&
-       ((thd->lex->select_lex.no_wrap_view_item= TRUE,
-         (res= check_update_fields(thd, table_list, update_fields)),
-         thd->lex->select_lex.no_wrap_view_item= FALSE,
-         res) ||
-        setup_fields(thd, 0, update_values, 1, 0, 0))))
-    DBUG_RETURN(TRUE);
-  table_list->next_local= next_local;
-  thd->lex->select_lex.context.table_list= save_table_list;
-  thd->lex->select_lex.context.resolve_in_select_list=
-    save_resolve_in_select_list;
+      (values && setup_fields(thd, 0, *values, 0, 0, 0)))
+    res= TRUE;
+  else if (duplic == DUP_UPDATE)
+  {
+    select_lex->no_wrap_view_item= TRUE;
+    res= check_update_fields(thd, table_list, update_fields);
+    select_lex->no_wrap_view_item= FALSE;
+    if (select_lex->group_list.elements == 0)
+    {
+      /*
+        When we are not using GROUP BY we can refer to other tables in the
+        ON DUPLICATE KEY part
+      */       
+      table_list->next_local= save_next_local;
+    }
+    if (!res)
+      res= setup_fields(thd, 0, update_values, 1, 0, 0);
+  }
+  table_list->next_local= save_next_local;
+  select_lex->context.table_list= save_table_list;
+  select_lex->context.resolve_in_select_list= save_resolve_in_select_list;
+  if (res)
+    DBUG_RETURN(res);
+
   if (!table)
     table= table_list->table;
 
@@ -820,8 +845,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
       my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    thd->lex->select_lex.fix_prepare_information(thd, &fake_conds);
-    thd->lex->select_lex.first_execution= 0;
+    select_lex->fix_prepare_information(thd, &fake_conds);
+    select_lex->first_execution= 0;
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
@@ -1991,34 +2016,37 @@ bool delayed_insert::handle_inserts(void)
 bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
+  SELECT_LEX *select_lex= &lex->select_lex;
   TABLE_LIST *first_select_leaf_table;
   DBUG_ENTER("mysql_insert_select_prepare");
+
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
     clause if table is VIEW
   */
+  
   if (mysql_prepare_insert(thd, lex->query_tables,
                            lex->query_tables->table, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           &lex->select_lex.where, TRUE))
+                           &select_lex->where, TRUE))
     DBUG_RETURN(TRUE);
 
   /*
     exclude first table from leaf tables list, because it belong to
     INSERT
   */
-  DBUG_ASSERT(lex->select_lex.leaf_tables != 0);
-  lex->leaf_tables_insert= lex->select_lex.leaf_tables;
+  DBUG_ASSERT(select_lex->leaf_tables != 0);
+  lex->leaf_tables_insert= select_lex->leaf_tables;
   /* skip all leaf tables belonged to view where we are insert */
-  for (first_select_leaf_table= lex->select_lex.leaf_tables->next_leaf;
+  for (first_select_leaf_table= select_lex->leaf_tables->next_leaf;
        first_select_leaf_table &&
        first_select_leaf_table->belong_to_view &&
        first_select_leaf_table->belong_to_view ==
        lex->leaf_tables_insert->belong_to_view;
        first_select_leaf_table= first_select_leaf_table->next_leaf)
   {}
-  lex->select_lex.leaf_tables= first_select_leaf_table;
+  select_lex->leaf_tables= first_select_leaf_table;
   DBUG_RETURN(FALSE);
 }
 

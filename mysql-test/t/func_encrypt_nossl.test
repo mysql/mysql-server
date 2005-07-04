@@ -9,6 +9,7 @@ select des_encrypt("test", 1);
 select des_encrypt("test", 9);
 select des_encrypt("test", 100);
 select des_encrypt("test", NULL);
+select des_encrypt(NULL, NULL);
 select des_decrypt("test", 'anotherkeystr');
 select des_decrypt(1, 1);
 select des_decrypt(des_encrypt("test", 'thekey'));
