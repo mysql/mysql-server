@@ -566,7 +566,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
-  bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
   uint decimal_precision() const;
   table_map not_null_tables() const { return 0; }
