@@ -917,12 +917,12 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     goto error;
 
   /*
-     open temporary memory pool for temporary data allocated by derived
-     tables & preparation procedure
-     Note that this is done without locks (should not be needed as we will not
-     access any data here)
-     If we would use locks, then we have to ensure we are not using
-     TL_WRITE_DELAYED as having two such locks can cause table corruption.
+    open temporary memory pool for temporary data allocated by derived
+    tables & preparation procedure
+    Note that this is done without locks (should not be needed as we will not
+    access any data here)
+    If we would use locks, then we have to ensure we are not using
+    TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
   if (open_normal_and_derived_tables(thd, table_list))
     goto error;
@@ -939,9 +939,9 @@ static bool mysql_test_insert(Prepared_statement *stmt,
       table_list->table->insert_values=(byte *)1;
     }
 
-    if (mysql_prepare_insert(thd, table_list, table_list, table_list->table, fields,
-                             values, update_fields, update_values, duplic,
-                             &unused_conds, FALSE))
+    if (mysql_prepare_insert(thd, table_list, table_list->table,
+                             fields, values, update_fields, update_values,
+                             duplic, &unused_conds, FALSE))
       goto error;
 
     value_count= values->elements;
