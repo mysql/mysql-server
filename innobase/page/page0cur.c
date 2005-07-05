@@ -238,14 +238,16 @@ page_cur_search_with_match(
 	      && ilow_matched_fields && ilow_matched_bytes && cursor);
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_check_typed(tuple));
+#ifdef UNIV_DEBUG
+# ifdef PAGE_CUR_DBG
+	if (mode != PAGE_CUR_DBG)
+# endif /* PAGE_CUR_DBG */
+# ifdef PAGE_CUR_LE_OR_EXTENDS
+		if (mode != PAGE_CUR_LE_OR_EXTENDS)
+# endif /* PAGE_CUR_LE_OR_EXTENDS */
 	ut_ad((mode == PAGE_CUR_L) || (mode == PAGE_CUR_LE)
-#ifdef PAGE_CUR_DBG
-	      || (mode == PAGE_CUR_DBG)
-#endif /* PAGE_CUR_DBG */
-#ifdef PAGE_CUR_LE_OR_EXTENDS
-	      || (mode == PAGE_CUR_LE_OR_EXTENDS)
-#endif /* PAGE_CUR_LE_OR_EXTENDS */
 	      || (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE));
+#endif /* UNIV_DEBUG */
 
 	page_check_dir(page);
 
