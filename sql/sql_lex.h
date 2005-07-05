@@ -371,7 +371,6 @@ typedef class st_select_lex_node SELECT_LEX_NODE;
    SELECT_LEX_UNIT - unit of selects (UNION, INTERSECT, ...) group 
    SELECT_LEXs
 */
-struct st_lex;
 class THD;
 class select_result;
 class JOIN;
@@ -627,7 +626,13 @@ public:
     order_list.first= 0;
     order_list.next= (byte**) &order_list.first;
   }
-  
+  /*
+    This method created for reiniting LEX in mysql_admin_table() and can be
+    used only if you are going remove all SELECT_LEX & units except belonger
+    to LEX (LEX::unit & LEX::select, for other purposes there are
+    SELECT_LEX_UNIT::exclude_level & SELECT_LEX_UNIT::exclude_tree
+  */
+  void cut_subtree() { slave= 0; }
   bool test_limit();
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
@@ -912,7 +917,7 @@ typedef struct st_lex
   {
     return ( query_tables_own_last ? *query_tables_own_last : 0);
   }
-
+  void cleanup_after_one_table_open();
 } LEX;
 
 struct st_lex_local: public st_lex
