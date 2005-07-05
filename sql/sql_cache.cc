@@ -278,7 +278,6 @@ TODO list:
   - Move MRG_MYISAM table type processing to handlers, something like:
         tables_used->table->file->register_used_filenames(callback,
                                                           first_argument);
-  - Make derived tables cachable.
   - QC improvement suggested by Monty:
     - Add a counter in open_table() for how many MERGE (ISAM or MyISAM)
       tables are cached in the table cache.
@@ -2137,7 +2136,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
   {
     if (tables_used->derived)
     {
-      DBUG_PRINT("qcache", ("derived table skipped");
+      DBUG_PRINT("qcache", ("derived table skipped"));
       n--;
       block_table--;
       continue;
@@ -2785,7 +2784,7 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
                             tables_used->table->s->table_name,
                             tables_used->table->s->table_cache_key,
                             tables_used->table->s->db_type));
-      if (table_used->derived)
+      if (tables_used->derived)
       {
         table_count--;
         DBUG_PRINT("qcache", ("derived table skipped"));
