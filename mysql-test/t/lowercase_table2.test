@@ -13,7 +13,7 @@ enable_query_log;
 DROP TABLE IF EXISTS t1,t2,t3,t2aA,t1Aa;
 DROP DATABASE IF EXISTS `TEST_$1`;
 DROP DATABASE IF EXISTS `test_$1`;
-DROP DATABASE mysqltest_LC2;
+DROP DATABASE IF EXISTS mysqltest_LC2;
 --enable_warnings
 
 CREATE TABLE T1 (a int);
