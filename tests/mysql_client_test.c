@@ -13332,7 +13332,6 @@ static void test_bug9992()
   mysql_close(mysql1);
 }
 
-
 /* Bug#10736: cursors and subqueries, memroot management */
 
 static void test_bug10736()
@@ -13601,6 +13600,34 @@ static void test_bug11656()
 
 
 /*
+  Check that the server signals when NO_BACKSLASH_ESCAPES mode is in effect,
+  and mysql_real_escape_string() does the right thing as a result.
+*/
+
+static void test_bug10214()
+{
+  MYSQL_RES* res ;
+  int   len;
+  char  out[8];
+
+  myheader("test_bug10214");
+
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES));
+
+  len= mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  DIE_UNLESS(memcmp(out, "a\\'b\\\\c", len) == 0);
+
+  mysql_query(mysql, "set sql_mode='NO_BACKSLASH_ESCAPES'");
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
+
+  len= mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  DIE_UNLESS(memcmp(out, "a''b\\c", len) == 0);
+
+  mysql_query(mysql, "set sql_mode=''");
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -13839,6 +13866,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug10794", test_bug10794 },
   { "test_bug11172", test_bug11172 },
   { "test_bug11656", test_bug11656 },
+  { "test_bug10214", test_bug10214 },
   { 0, 0 }
 };
 
