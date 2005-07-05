@@ -2103,6 +2103,7 @@ end:
 }
 
 
+
 /*
   RETURN VALUES
     FALSE Message sent to net (admin operation went ok)
@@ -2122,10 +2123,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                             HA_CHECK_OPT *),
                               int (view_operator_func)(THD *, TABLE_LIST*))
 {
-  TABLE_LIST *table, *next_global_table;
+  TABLE_LIST *table, *save_next_global, *save_next_local;
+  SELECT_LEX *select= &thd->lex->select_lex;
   List<Item> field_list;
   Item *item;
   Protocol *protocol= thd->protocol;
+  LEX *lex= thd->lex;
   int result_code;
   DBUG_ENTER("mysql_admin_table");
 
@@ -2152,12 +2155,25 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /* open only one table from local list of command */
-    next_global_table= table->next_global;
+    save_next_global= table->next_global;
     table->next_global= 0;
+    save_next_local= table->next_local;
+    table->next_local= 0;
+    select->table_list.first= (byte*)table;
+    /*
+      Time zone tables and SP tables can be add to lex->query_tables list,
+      so it have to be prepared.
+      TODO: Investigate if we can put extra tables into argument instead of
+      using lex->query_tables
+    */
+    lex->query_tables= table;
+    lex->query_tables_last= &table->next_global;
+    lex->query_tables_own_last= 0;;
     thd->no_warnings_for_error= no_warnings_for_error;
     open_and_lock_tables(thd, table);
     thd->no_warnings_for_error= 0;
-    table->next_global= next_global_table;
+    table->next_global= save_next_global;
+    table->next_local= save_next_local;
     /* if view are unsupported */
     if (table->view && view_operator_func == NULL)
     {
@@ -2205,7 +2221,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         err_msg= (const char *)buf;
       }
       protocol->store(err_msg, system_charset_info);
+      lex->cleanup_after_one_table_open();
       thd->clear_error();
+      /*
+        View opening can be interrupted in the middle of process so some
+        tables can be left opening
+      */
+      close_thread_tables(thd);
       if (protocol->write())
 	goto err;
       continue;
@@ -2274,6 +2296,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
 send_result:
 
+    lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -2401,13 +2424,6 @@ send_result_message:
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
-    /*
-      thd->lex->derived_tables may be set to non zero value if we open 
-      a view. It is necessary to clear thd->lex->derived_tables flag 
-      to prevent processing of derived tables during next open_and_lock_tables
-      if next table is a real table.
-    */
-    thd->lex->derived_tables= 0;
     if (protocol->write())
       goto err;
   }
