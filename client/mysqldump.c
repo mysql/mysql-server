@@ -2561,6 +2561,7 @@ static int do_show_master_status(MYSQL *mysql_con)
     row = mysql_fetch_row(master);
     if (row && row[0] && row[1])
     {
+      /* SHOW MASTER STATUS reports file and position */
       if (opt_comments)
         fprintf(md_result_file,
                 "\n--\n-- Position to start replication or point-in-time "
@@ -2569,6 +2570,14 @@ static int do_show_master_status(MYSQL *mysql_con)
               "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
               comment_prefix, row[0], row[1]); 
       check_io(md_result_file);
+    }
+    else if (!ignore_errors)
+    {
+      /* SHOW MASTER STATUS reports nothing and --force is not enabled */
+      my_printf_error(0, "Error: Binlogging on server not active", 
+		      MYF(0), mysql_error(mysql_con));
+      mysql_free_result(master);
+      return 1;
     }
     mysql_free_result(master);
   }
