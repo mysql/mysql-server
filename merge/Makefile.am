@@ -14,7 +14,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include
+INCLUDES =		@MT_INCLUDES@ \
+			-I$(top_builddir)/include -I$(top_srcdir)/include
 pkglib_LIBRARIES =	libmerge.a
 noinst_HEADERS =	mrg_def.h
 libmerge_a_SOURCES =	mrg_open.c mrg_extra.c mrg_info.c mrg_locking.c \
