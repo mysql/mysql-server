@@ -5,7 +5,8 @@
 ASRC=vi.c emacs.c common.c
 AHDR=vi.h emacs.h common.h
 
-INCLUDES =		-I$(top_srcdir)/include -I$(srcdir)/../.. -I..
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
+			-I$(srcdir)/../.. -I..
 
 noinst_LIBRARIES =	libedit.a
 

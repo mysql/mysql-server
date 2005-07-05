@@ -15,7 +15,7 @@
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 if HAVE_NETWARE
-INCLUDES =			-I$(srcdir)/../include -I../include -I..
+INCLUDES =			-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 				../dbug/libdbug.a ../strings/libmystrings.a
 bin_PROGRAMS =			mysqld_safe mysql_install_db mysql_test_run libmysql

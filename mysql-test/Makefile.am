@@ -39,7 +39,7 @@ test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
 	std_data/server-cert.pem std_data/server-key.pem 
 CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
-INCLUDES =		-I$(srcdir)/../include -I../include -I..
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 EXTRA_PROGRAMS =	mysql_test_run_new
 noinst_HEADERS =	my_manage.h
 mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c my_create_tables.c

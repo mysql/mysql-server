@@ -14,7 +14,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include 
+INCLUDES =		@MT_INCLUDES@ \
+			-I$(top_builddir)/include -I$(top_srcdir)/include 
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ libnisam.a ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
 pkglib_LIBRARIES =	libnisam.a
