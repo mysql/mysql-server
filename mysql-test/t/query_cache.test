@@ -757,6 +757,50 @@ flush query cache;
 drop table t1, t2;
 
 #
+# Query with warning prohibited to query cache (BUG#9414)
+#
+flush status;
+CREATE TABLE t1 (
+  `date` datetime NOT NULL default '0000-00-00 00:00:00',
+  KEY `date` (`date`)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES ('20050326');
+INSERT INTO t1 VALUES ('20050325');
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 0:0:0';
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050328 0:0:0';
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 0:0:0';
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
+#
+# queries with subquery in the FROM clause (BUG#11522)
+#
+create table t1 (a int);
+insert into t1 values (1);
+reset query cache;
+flush status;
+select * from (select * from t1) a;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from (select * from t1) a;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+insert into t1 values (2);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from (select * from t1) a;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
+#
 # SP cursors and selects with query cache (BUG#9715)
 #
 create table t1 (a int);

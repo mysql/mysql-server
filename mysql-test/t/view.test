@@ -1698,6 +1698,15 @@ SELECT * FROM v1;
 drop view v1;
 
 #
+# Using var_samp with view (BUG#10651)
+#
+create table t1 (s1 int);
+create view v1 as select var_samp(s1) from t1;
+show create view v1;
+drop view v1;
+drop table t1;
+
+#
 # Correct inserting data check (absence of default value) for view
 # underlying tables (BUG#6443)
 #
