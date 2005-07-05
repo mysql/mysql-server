@@ -2135,6 +2135,13 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
        tables_used;
        tables_used= tables_used->next_global, n++, block_table++)
   {
+    if (tables_used->derived)
+    {
+      DBUG_PRINT("qcache", ("derived table skipped");
+      n--;
+      block_table--;
+      continue;
+    }
     block_table->n= n;
     if (tables_used->view)
     {
@@ -2778,6 +2785,12 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
                             tables_used->table->s->table_name,
                             tables_used->table->s->table_cache_key,
                             tables_used->table->s->db_type));
+      if (table_used->derived)
+      {
+        table_count--;
+        DBUG_PRINT("qcache", ("derived table skipped"));
+        continue;
+      }
       *tables_type|= tables_used->table->file->table_cache_type();
 
       /*
