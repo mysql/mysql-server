@@ -215,7 +215,7 @@ then
   c_t="$c_t   Table_name char(64) binary DEFAULT '' NOT NULL,"
   c_t="$c_t   Grantor char(77) DEFAULT '' NOT NULL,"
   c_t="$c_t   Timestamp timestamp(14),"
-  c_t="$c_t   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
+  c_t="$c_t   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_t="$c_t   Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_t="$c_t   PRIMARY KEY (Host,Db,User,Table_name),"
   c_t="$c_t   KEY Grantor (Grantor)"
