@@ -486,6 +486,7 @@ void start_master()
 #endif
   add_arg(&al, "--local-infile");
   add_arg(&al, "--core");
+  add_arg(&al, "--log-bin-trust-routine-creators");
   add_arg(&al, "--datadir=%s", master_dir);
 #ifndef __WIN__
   add_arg(&al, "--pid-file=%s", master_pid);
