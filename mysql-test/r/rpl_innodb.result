@@ -1,0 +1,37 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t4 (
+id INT(5) unsigned NOT NULL auto_increment,
+name varchar(15) NOT NULL default '',
+number varchar(35) NOT NULL default 'default',
+PRIMARY KEY  (id),
+UNIQUE KEY unique_rec (name,number)
+) ENGINE=InnoDB;
+LOAD DATA
+INFILE '../../std_data/loaddata_pair.dat'  
+REPLACE INTO TABLE t4 
+(name,number);
+SELECT * FROM t4;
+id	name	number
+1	XXX	12345
+2	XXY	12345
+SELECT * FROM t4;
+id	name	number
+1	XXX	12345
+2	XXY	12345
+LOAD DATA
+INFILE '../../std_data/loaddata_pair.dat'  
+REPLACE INTO TABLE t4
+(name,number);
+SELECT * FROM t4;
+id	name	number
+3	XXX	12345
+4	XXY	12345
+SELECT * FROM t4;
+id	name	number
+3	XXX	12345
+4	XXY	12345
