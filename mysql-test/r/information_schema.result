@@ -738,7 +738,7 @@ x_real	NULL	NULL
 x_float	NULL	NULL
 x_double_precision	NULL	NULL
 drop table t1;
-create user mysqltest_4@localhost;
+grant select on test.* to mysqltest_4@localhost;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
@@ -751,6 +751,7 @@ COLUMN_PRIVILEGES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
+delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
