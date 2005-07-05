@@ -392,11 +392,12 @@ btr_cur_search_to_nth_level(
 		page_mode = PAGE_CUR_LE;
 		break;
 	default:
-		ut_ad(mode == PAGE_CUR_L
 #ifdef PAGE_CUR_LE_OR_EXTENDS
-			|| mode == PAGE_CUR_LE_OR_EXTENDS
+		ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE
+			|| mode == PAGE_CUR_LE_OR_EXTENDS);
+#else /* PAGE_CUR_LE_OR_EXTENDS */
+		ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE);
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
-			|| mode == PAGE_CUR_LE);
 		page_mode = mode;
 		break;
 	}
