@@ -23,8 +23,8 @@
 target =	libmysqlclient.la
 target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
 LIBS =		@CLIENT_LIBS@
-INCLUDES =	-I$(top_srcdir)/include $(openssl_includes) @ZLIB_INCLUDES@ \
-		-I$(top_builddir)/include
+INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
+		$(openssl_includes) @ZLIB_INCLUDES@
 
 include $(srcdir)/Makefile.shared
 

@@ -20,11 +20,11 @@ if HAVE_YASSL
 else
   yassl_dummy_link_fix=
 endif
-INCLUDES=-I$(top_srcdir)/include $(openssl_includes) \
-	-I$(top_builddir)/include
-LDADD=  @CLIENT_EXTRA_LDFLAGS@ \
-        $(top_builddir)/libmysql_r/libmysqlclient_r.la \
-        @openssl_libs@ @ZLIB_LIBS@ 
+INCLUDES=	-I$(top_builddir)/include -I$(top_srcdir)/include \
+		$(openssl_includes)
+LDADD=		@CLIENT_EXTRA_LDFLAGS@ \
+		$(top_builddir)/libmysql_r/libmysqlclient_r.la \
+		@openssl_libs@ @ZLIB_LIBS@ 
 bin_PROGRAMS=		mysqltestmanager
 mysqltestmanager_SOURCES=	mysqlmanager.c $(yassl_dummy_link_fix)
 mysqltestmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
