@@ -2035,7 +2035,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   {
     uint key_prefix_len;
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
-    col_privs->field[0]->store(host.hostname,(uint) strlen(host.hostname),
+    col_privs->field[0]->store(host.hostname,
+                               host.hostname ? (uint) strlen(host.hostname) : 0,
                                system_charset_info);
     col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
     col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
