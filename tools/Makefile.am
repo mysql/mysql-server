@@ -15,9 +15,11 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 # Process this file with automake to create Makefile.in
 
-INCLUDES=@MT_INCLUDES@ -I$(top_srcdir)/include $(openssl_includes)
-LDADD=  @CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ \
-	$(top_builddir)/libmysql_r/libmysqlclient_r.la @ZLIB_LIBS@ 
+INCLUDES=		@MT_INCLUDES@ -I$(top_builddir)/include \
+			-I$(top_srcdir)/include $(openssl_includes)
+LDADD=			@CLIENT_EXTRA_LDFLAGS@ @openssl_libs@ \
+			$(top_builddir)/libmysql_r/libmysqlclient_r.la \
+			@ZLIB_LIBS@ 
 bin_PROGRAMS=		mysqlmanager
 mysqlmanager_SOURCES=	mysqlmanager.c
 mysqlmanager_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
