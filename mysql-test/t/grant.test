@@ -470,3 +470,12 @@ use test;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
 DROP USER dummy@localhost;
 DROP DATABASE mysqltest;
+#
+# Bug #11330: Entry in tables_priv with host = '' causes crash
+#
+connection default;
+use mysql;
+insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_grantor',CURRENT_TIMESTAMP,'Select','Select');
+flush privileges;
+delete from tables_priv where host = '' and user = 'mysqltest_1';
+flush privileges;
