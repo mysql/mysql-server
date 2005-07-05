@@ -397,6 +397,7 @@ drop database mysqltest;
 #
 connection default;
 use mysql;
-insert into tables_priv values ('','mysqltest_1','test_table','test_grantor','',CURRENT_TIMESTAMP,'Select','Select');
+insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_grantor',CURRENT_TIMESTAMP,'Select','Select');
 flush privileges;
 delete from tables_priv where host = '' and user = 'mysqltest_1';
+flush privileges;
