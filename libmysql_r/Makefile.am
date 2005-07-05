@@ -24,8 +24,9 @@ target = libmysqlclient_r.la
 target_defs = -DDONT_USE_RAID -DMYSQL_CLIENT @LIB_EXTRA_CCFLAGS@
 LIBS = @LIBS@ @ZLIB_LIBS@ @openssl_libs@
 
-INCLUDES = @MT_INCLUDES@ \
-	   -I$(top_srcdir)/include $(openssl_includes) @ZLIB_INCLUDES@
+INCLUDES =	@MT_INCLUDES@ \
+		-I$(top_builddir)/include -I$(top_srcdir)/include \
+		$(openssl_includes) @ZLIB_INCLUDES@
 
 ## automake barfs if you don't use $(srcdir) or $(top_srcdir) in include
 include $(top_srcdir)/libmysql/Makefile.shared
