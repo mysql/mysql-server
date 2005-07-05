@@ -18,7 +18,8 @@ MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ \
-                        @ZLIB_INCLUDES@ -I$(top_srcdir)/include -I$(srcdir)
+                        @ZLIB_INCLUDES@ -I$(top_builddir)/include \
+			-I$(top_srcdir)/include -I$(srcdir)
 pkglib_LIBRARIES =	libmysys.a
 LDADD =			libmysys.a ../dbug/libdbug.a \
 			../strings/libmystrings.a
