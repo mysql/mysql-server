@@ -182,6 +182,7 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 #define kernel_mutex (*kernel_mutex_temp)
 
 #define SRV_MAX_N_IO_THREADS	100
+#define SRV_CONCURRENCY_THRESHOLD	20
 				
 /* Array of English strings describing the current state of an
 i/o handler thread */
