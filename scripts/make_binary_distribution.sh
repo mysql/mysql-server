@@ -27,7 +27,7 @@ parse_arguments() {
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
-      --machine)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
+      --machine=*)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
       --silent)   SILENT=1 ;;
       --with-ndbcluster) NDBCLUSTER=1 ;;
       *)
