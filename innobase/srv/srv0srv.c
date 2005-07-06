@@ -260,7 +260,7 @@ semaphore contention and convoy problems can occur withput this restriction.
 Value 10 should be good if there are less than 4 processors + 4 disks in the
 computer. Bigger computers need bigger values. */
 
-ulong	srv_thread_concurrency	= 8;
+ulong	srv_thread_concurrency	= SRV_CONCURRENCY_THRESHOLD;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
@@ -983,12 +983,6 @@ srv_conc_enter_innodb(
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
 
-	if (srv_thread_concurrency >= 500) {
-		/* Disable the concurrency check */
-	
-		return;
-	}
-
 	/* If trx has 'free tickets' to enter the engine left, then use one
 	such ticket */
 
@@ -1134,7 +1128,7 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
-	if (srv_thread_concurrency >= 500) {
+	if (srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD) {
 	
 		return;
 	}
@@ -1160,7 +1154,7 @@ srv_conc_force_exit_innodb(
 {
 	srv_conc_slot_t*	slot	= NULL;
 
-	if (srv_thread_concurrency >= 500) {
+	if (srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD) {
 	
 		return;
 	}
@@ -1212,11 +1206,6 @@ srv_conc_exit_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
-	if (srv_thread_concurrency >= 500) {
-	
-		return;
-	}
-
 	if (trx->n_tickets_to_enter_innodb > 0) {
 		/* We will pretend the thread is still inside InnoDB though it
 		now leaves the InnoDB engine. In this way we save
