@@ -106,8 +106,15 @@
 			      (((A) & DB_CHUNK2) >> 6) | \
 			      (((A) & DB_CHUNK3) >> 9) | \
 			      (((A) & DB_CHUNK4) >> 2))
-#define fix_rights_for_table(A) (((A) & 63) | (((A) & ~63) << 4))
-#define get_rights_for_table(A) (((A) & 63) | (((A) & ~63) >> 4))
+#define TBL_CHUNK0 DB_CHUNK0
+#define TBL_CHUNK1 DB_CHUNK1
+#define TBL_CHUNK2 (CREATE_VIEW_ACL | SHOW_VIEW_ACL)
+#define fix_rights_for_table(A) (((A)        & TBL_CHUNK0) | \
+                                (((A) <<  4) & TBL_CHUNK1) | \
+                                (((A) << 11) & TBL_CHUNK2))
+#define get_rights_for_table(A) (((A) & TBL_CHUNK0)        | \
+                                (((A) & TBL_CHUNK1) >>  4) | \
+                                (((A) & TBL_CHUNK2) >> 11))
 #define fix_rights_for_column(A) (((A) & 7) | (((A) & ~7) << 8))
 #define get_rights_for_column(A) (((A) & 7) | ((A) >> 8))
 #define fix_rights_for_procedure(A) ((((A) << 18) & EXECUTE_ACL) | \

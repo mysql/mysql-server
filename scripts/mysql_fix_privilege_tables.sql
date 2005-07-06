@@ -261,6 +261,11 @@ ALTER TABLE host ADD Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAUL
 ALTER TABLE user ADD Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 #
+# Show/Create views table privileges (v5.0)
+#
+ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
+
+#
 # Assign create/show view privileges to people who have create provileges
 #
 UPDATE user SET Create_view_priv=Create_priv, Show_view_priv=Create_priv where user<>"" AND @hadCreateViewPriv = 0;
