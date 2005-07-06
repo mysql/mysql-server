@@ -1341,14 +1341,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
-    my_snprintf(tmp_table_name, sizeof(tmp_table_name), "%s%lx_%lx_%x",
-		tmp_file_prefix, current_pid, thd->thread_id,
-		thd->tmp_table++);
+    my_snprintf(path, sizeof(path), "%s%s%lx_%lx_%x%s",
+		mysql_tmpdir, tmp_file_prefix, current_pid, thd->thread_id,
+		thd->tmp_table++, reg_ext);
     if (lower_case_table_names)
-      my_casedn_str(files_charset_info, tmp_table_name);
+      my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
-    build_table_path(path, sizeof(path), db, tmp_table_name, reg_ext);
   }
   else
     build_table_path(path, sizeof(path), db, alias, reg_ext);

@@ -1809,11 +1809,25 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
                                           "` <...>", NullS) - load_data_query);
         thd->query= load_data_query;
       }
+
+      /*
+        We need to set thd->lex->sql_command and thd->lex->duplicates
+        since InnoDB tests these variables to decide if this is a LOAD
+        DATA ... REPLACE INTO ... statement even though mysql_parse()
+        is not called.  This is not needed in 5.0 since there the LOAD
+        DATA ... statement is replicated using mysql_parse(), which
+        sets the thd->lex fields correctly.
+      */
+      thd->lex->sql_command= SQLCOM_LOAD;
       if (sql_ex.opt_flags & REPLACE_FLAG)
+      {
+        thd->lex->duplicates= DUP_REPLACE;
 	handle_dup= DUP_REPLACE;
+      }
       else if (sql_ex.opt_flags & IGNORE_FLAG)
       {
         ignore= 1;
+        thd->lex->duplicates= DUP_ERROR;
         handle_dup= DUP_ERROR;
       }
       else
@@ -1831,6 +1845,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
           If reading from net (a 3.23 master), mysql_load() will change this
           to IGNORE.
         */
+        thd->lex->duplicates= DUP_ERROR;
         handle_dup= DUP_ERROR;
       }
 
