@@ -1731,14 +1731,15 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
 		 const char* pass,
 		 const char* db, int port, const char* sock)
 {
-  int con_error = 1;
+  int con_error= 1;
+  my_bool reconnect= 1;
   int i;
-  for (i = 0; i < MAX_CON_TRIES; ++i)
+  for (i= 0; i < MAX_CON_TRIES; ++i)
   {
     if (mysql_real_connect(con, host,user, pass, db, port, sock,
 			   CLIENT_MULTI_STATEMENTS))
     {
-      con_error = 0;
+      con_error= 0;
       break;
     }
     sleep(CON_RETRY_SLEEP);
@@ -1747,7 +1748,7 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
    TODO: change this to 0 in future versions, but the 'kill' test relies on
    existing behavior
   */
-  con->reconnect= 1;
+  mysql_options(con, MYSQL_OPT_RECONNECT, (char *)&reconnect);
   return con_error;
 }
 
@@ -1781,6 +1782,7 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
                             int* create_conn)
 {
   DYNAMIC_STRING ds_tmp, *ds;
+  my_bool reconnect= 1;
   int error= 0;
 
   /*
@@ -1846,7 +1848,7 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
    TODO: change this to 0 in future versions, but the 'kill' test relies on
    existing behavior
   */
-  con->reconnect= 1;
+  mysql_options(con, MYSQL_OPT_RECONNECT, (char *)&reconnect);
 
   if (record)
   {
@@ -2090,6 +2092,7 @@ int read_line(char* buf, int size)
   enum {R_NORMAL, R_Q, R_Q_IN_Q, R_SLASH_IN_Q,
 	R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
+  LINT_INIT(quote);
 
   start_lineno= *lineno;
   for (; p < buf_end ;)
@@ -2772,6 +2775,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
     if (!disable_result_log)
     {
       ulong affected_rows;    /* Ok to be undef if 'disable_info' is set */
+      LINT_INIT(affected_rows);
 
       if (res)
       {
@@ -3924,7 +3928,7 @@ int main(int argc, char **argv)
 	  select_connection(q->first_argument);
 	else
 	{
-	  char buf[] = "slave";
+	  char buf[]= "slave";
 	  select_connection(buf);
 	}
 	do_sync_with_master2("");
@@ -3936,7 +3940,7 @@ int main(int argc, char **argv)
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
 	break;
-      case Q_EXEC: 
+      case Q_EXEC:
 	do_exec(q);
 	break;
       case Q_START_TIMER:
@@ -3948,7 +3952,7 @@ int main(int argc, char **argv)
 	timer_output();
 	got_end_timer= TRUE;
 	break;
-      case Q_CHARACTER_SET: 
+      case Q_CHARACTER_SET:
 	set_charset(q);
 	break;
       case Q_DISABLE_PS_PROTOCOL:
@@ -3958,22 +3962,31 @@ int main(int argc, char **argv)
         ps_protocol_enabled= ps_protocol;
         break;
       case Q_DISABLE_RECONNECT:
-        cur_con->mysql.reconnect= 0;
+      {
+        my_bool reconnect= 0;
+        mysql_options(&cur_con->mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
         break;
+      }
       case Q_ENABLE_RECONNECT:
-        cur_con->mysql.reconnect= 1;
+      {
+        my_bool reconnect= 1;
+        mysql_options(&cur_con->mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
         break;
+      }
 
       case Q_EXIT:
         abort_flag= 1;
         break;
-      default: processed = 0; break;
+
+      default:
+        processed= 0;
+        break;
       }
     }
 
     if (!processed)
     {
-      current_line_inc = 0;
+      current_line_inc= 0;
       switch (q->type) {
       case Q_WHILE: do_block(cmd_while, q); break;
       case Q_IF: do_block(cmd_if, q); break;
