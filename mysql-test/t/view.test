@@ -1761,3 +1761,20 @@ INSERT INTO v2 (vcol1) VALUES(12);
 set sql_mode=default;
 drop view v2,v1;
 drop table t1;
+
+#
+# Test for bug #6120: SP cache to be invalidated when altering a view
+#
+
+CREATE TABLE t1 (s1 int, s2 int);
+INSERT  INTO t1 VALUES (1,2);
+CREATE VIEW v1 AS SELECT s2 AS s1, s1 AS s2 FROM t1;
+SELECT * FROM v1;
+CREATE PROCEDURE p1 () SELECT * FROM v1;
+CALL p1();
+ALTER VIEW v1 AS SELECT s1 AS s1, s2 AS s2 FROM t1;
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
