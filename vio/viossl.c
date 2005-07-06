@@ -315,7 +315,7 @@ int sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
     vio_blocking(vio, net_blocking, &unused);
     DBUG_RETURN(1);
   }
-#ifndef DBUF_OFF
+#ifndef DBUG_OFF
   DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
 		     ,SSL_get_cipher_name((SSL*) vio->ssl_arg)));
   client_cert = SSL_get_peer_certificate ((SSL*) vio->ssl_arg);
