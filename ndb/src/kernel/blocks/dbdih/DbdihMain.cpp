@@ -10290,7 +10290,24 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
  * GCP stop detected, 
  * send SYSTEM_ERROR to all other alive nodes
  */
-void Dbdih::crashSystemAtGcpStop(Signal* signal){
+void Dbdih::crashSystemAtGcpStop(Signal* signal)
+{
+  if(cgcpStatus == GCP_NODE_FINISHED)
+  {
+    /**
+     * We're waiting for a GCP save conf
+     */
+    ndbrequire(!c_GCP_SAVEREQ_Counter.done());
+    NodeReceiverGroup rg(DBLQH, c_GCP_SAVEREQ_Counter);
+    signal->theData[0] = 2305;
+    sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+
+    infoEvent("Detected GCP stop...sending kill to %s", 
+	      c_GCP_SAVEREQ_Counter.getText());
+    ndbout_c("Detected GCP stop...sending kill to %s", 
+	     c_GCP_SAVEREQ_Counter.getText());
+    return;
+  }
   NodeRecordPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
