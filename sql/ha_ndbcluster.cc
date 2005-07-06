@@ -1249,7 +1249,7 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
 }
 
 
-int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *old_data)
+int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *record)
 {
   KEY* key_info= table->key_info + table->s->primary_key;
   KEY_PART_INFO* key_part= key_info->key_part;
@@ -1260,7 +1260,7 @@ int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *old
   {
     Field* field= key_part->field;
     if (set_ndb_key(op, field, 
-                    key_part->fieldnr-1, old_data+key_part->offset))
+		    key_part->fieldnr-1, record+key_part->offset))
       ERR_RETURN(op->getNdbError());
   }
   DBUG_RETURN(0);
@@ -2102,7 +2102,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   if ((table->s->primary_key != MAX_KEY) &&
       (key_cmp(table->s->primary_key, old_data, new_data)))
   {
-    int read_res, insert_res, delete_res;
+    int read_res, insert_res, delete_res, undo_res;
 
     DBUG_PRINT("info", ("primary key update, doing pk read+delete+insert"));
     // Get all old fields, since we optimize away fields not in query
@@ -2131,9 +2131,14 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_PRINT("info", ("insert failed"));
       if (trans->commitStatus() == NdbConnection::Started)
       {
-      // Undo write_row(new_data)
+        // Undo delete_row(old_data)
         m_primary_key_update= TRUE;
-        insert_res= write_row((byte *)old_data);
+        undo_res= write_row((byte *)old_data);
+        if (undo_res)
+          push_warning(current_thd, 
+                       MYSQL_ERROR::WARN_LEVEL_WARN, 
+                       undo_res, 
+                       "NDB failed undoing delete at primary key update");
         m_primary_key_update= FALSE;
       }
       DBUG_RETURN(insert_res);
