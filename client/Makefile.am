@@ -17,8 +17,8 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 #AUTOMAKE_OPTIONS =              nostdinc
-INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
-				$(openssl_includes)
+INCLUDES =			-I$(top_builddir)/include -I$(top_srcdir)/include \
+				-I$(top_srcdir)/regex $(openssl_includes)
 LIBS =				@CLIENT_LIBS@
 LDADD=				@CLIENT_EXTRA_LDFLAGS@ \
                                 $(top_builddir)/libmysql/libmysqlclient.la

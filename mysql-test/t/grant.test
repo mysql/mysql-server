@@ -392,3 +392,12 @@ revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
 
+#
+# Bug #11330: Entry in tables_priv with host = '' causes crash
+#
+connection default;
+use mysql;
+insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_grantor',CURRENT_TIMESTAMP,'Select','Select');
+flush privileges;
+delete from tables_priv where host = '' and user = 'mysqltest_1';
+flush privileges;

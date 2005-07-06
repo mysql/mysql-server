@@ -30,7 +30,8 @@ link_sources:
 	done;
 
 DEFS = 		-DEMBEDDED_LIBRARY
-INCLUDES =	@MT_INCLUDES@ -I$(top_srcdir)/include -I$(srcdir) \
+INCLUDES =	@MT_INCLUDES@ \
+		-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
 		$(openssl_includes)
 LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@
