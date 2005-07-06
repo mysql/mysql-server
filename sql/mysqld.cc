@@ -2992,9 +2992,7 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
-
   DEBUGGER_OFF;
-
   MY_INIT(argv[0]);		// init my_sys library & pthreads
 
 #ifdef _CUSTOMSTARTUPCONFIG_
@@ -3006,14 +3004,15 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef	__WIN__
-/* Before performing any socket operation (like retrieving hostname */
-/* in init_common_variables we have to call WSAStartup              */
-  if (!opt_disable_networking)
+  /*
+    Before performing any socket operation (like retrieving hostname
+    in init_common_variables we have to call WSAStartup
+  */
   {
     WSADATA WsaData;
     if (SOCKET_ERROR == WSAStartup (0x0101, &WsaData))
     {
-      /* errors are not read yet, so we use test here */
+      /* errors are not read yet, so we use english text here */
       my_message(ER_WSAS_FAILED, "WSAStartup Failed", MYF(0));
       unireg_abort(1);
     }

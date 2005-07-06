@@ -1498,54 +1498,56 @@ show procedure status like '%p%'|
 
 
 # Fibonacci, for recursion test. (Yet Another Numerical series :)
-
---disable_warnings
-drop table if exists fib|
---enable_warnings
-create table fib ( f bigint unsigned not null )|
-
-# We deliberately do it the awkward way, fetching the last two
-# values from the table, in order to exercise various statements
-# and table accesses at each turn.
---disable_warnings
-drop procedure if exists fib|
---enable_warnings
-create procedure fib(n int unsigned)
-begin
-  if n > 1 then
-    begin
-      declare x, y bigint unsigned;
-      declare c cursor for select f from fib order by f desc limit 2;
-
-      open c;
-      fetch c into y;
-      fetch c into x;
-      close c;
-      insert into fib values (x+y);
-      call fib(n-1);
-    end;
-  end if;
-end|
-
-# Minimum test: recursion of 3 levels
-
-insert into fib values (0), (1)|
-
-call fib(3)|
-
-select * from fib order by f asc|
-
-delete from fib|
-
-# Original test: 20 levels (may run into memory limits!)
-
-insert into fib values (0), (1)|
-
-call fib(20)|
-
-select * from fib order by f asc|
-drop table fib|
-drop procedure fib|
+#
+# This part of test is disabled until we implement support for
+# recursive stored procedures.
+#--disable_warnings
+#drop table if exists fib|
+#--enable_warnings
+#create table fib ( f bigint unsigned not null )|
+#
+## We deliberately do it the awkward way, fetching the last two
+## values from the table, in order to exercise various statements
+## and table accesses at each turn.
+#--disable_warnings
+#drop procedure if exists fib|
+#--enable_warnings
+#create procedure fib(n int unsigned)
+#begin
+#  if n > 1 then
+#    begin
+#      declare x, y bigint unsigned;
+#      declare c cursor for select f from fib order by f desc limit 2;
+#
+#      open c;
+#      fetch c into y;
+#      fetch c into x;
+#      close c;
+#      insert into fib values (x+y);
+#      call fib(n-1);
+#    end;
+#  end if;
+#end|
+#
+## Minimum test: recursion of 3 levels
+#
+#insert into fib values (0), (1)|
+#
+#call fib(3)|
+#
+#select * from fib order by f asc|
+#
+#delete from fib|
+#
+## Original test: 20 levels (may run into memory limits!)
+#
+#insert into fib values (0), (1)|
+#
+#call fib(20)|
+#
+#select * from fib order by f asc|
+#drop table fib|
+#drop procedure fib|
 
 
 #
@@ -2879,24 +2881,26 @@ drop table t3|
 #
 # BUG#6022: Stored procedure shutdown problem with self-calling function.
 #
---disable_warnings
-drop function if exists bug6022|
---enable_warnings
-
---disable_warnings
-drop function if exists bug6022|
---enable_warnings
-create function bug6022(x int) returns int
-begin
-  if x < 0 then
-    return 0;
-  else
-    return bug6022(x-1);
-  end if;
-end|
-
-select bug6022(5)|
-drop function bug6022|
+# This part of test is disabled until we implement support for
+# recursive stored functions.
+#--disable_warnings
+#drop function if exists bug6022|
+#--enable_warnings
+#
+#--disable_warnings
+#drop function if exists bug6022|
+#--enable_warnings
+#create function bug6022(x int) returns int
+#begin
+#  if x < 0 then
+#    return 0;
+#  else
+#    return bug6022(x-1);
+#  end if;
+#end|
+#
+#select bug6022(5)|
+#drop function bug6022|
 
 #
 # BUG#6029: Stored procedure specific handlers should have priority

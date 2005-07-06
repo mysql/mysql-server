@@ -128,7 +128,7 @@ tables_priv	CREATE TABLE `tables_priv` (
   `Table_name` char(64) collate utf8_bin NOT NULL default '',
   `Grantor` char(77) collate utf8_bin NOT NULL default '',
   `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') character set utf8 NOT NULL default '',
+  `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') character set utf8 NOT NULL default '',
   `Column_priv` set('Select','Insert','Update','References') character set utf8 NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`),
   KEY `Grantor` (`Grantor`)

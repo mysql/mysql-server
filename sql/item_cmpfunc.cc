@@ -275,7 +275,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
   owner= item;
   func= comparator_matrix[type]
                          [test(owner->functype() == Item_func::EQUAL_FUNC)];
-  switch(type) {
+  switch (type) {
   case ROW_RESULT:
   {
     uint n= (*a)->cols();
@@ -1576,6 +1576,25 @@ my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
   null_value= item->null_value;
   return res;
 }
+
+
+bool Item_func_case::fix_fields(THD *thd, Item **ref)
+{
+  /*
+    buff should match stack usage from
+    Item_func_case::val_int() -> Item_func_case::find_item()
+  */
+  char buff[MAX_FIELD_WIDTH*2+sizeof(String)*2+sizeof(String*)*2+sizeof(double)*2+sizeof(longlong)*2];
+  bool res= Item_func::fix_fields(thd, ref);
+  /*
+    Call check_stack_overrun after fix_fields to be sure that stack variable
+    is not optimized away
+  */
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
+    return TRUE;				// Fatal error flag is set!
+  return res;
+}
+
 
 
 void Item_func_case::fix_length_and_dec()

@@ -1675,6 +1675,44 @@ select * from v1;
 drop view v1;
 
 #
+# checking views after some view with error (BUG#11337)
+#
+CREATE TABLE t1 (col1 time);
+CREATE TABLE t2 (col1 time);
+CREATE VIEW v1 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v2 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+CREATE VIEW v3 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v4 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+CREATE VIEW v5 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v6 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+DROP TABLE t1;
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+drop view v1, v2, v3, v4, v5, v6;
+drop table t2;
+
+CREATE TABLE t1 (col1 time);
+CREATE TABLE t2 (col1 time);
+CREATE TABLE t3 (col1 time);
+create function f1 () returns int return (select max(col1) from t1);
+create function f2 () returns int return (select max(col1) from t2);
+CREATE VIEW v1 AS SELECT f1() FROM t3;
+CREATE VIEW v2 AS SELECT f2() FROM t3;
+CREATE VIEW v3 AS SELECT f1() FROM t3;
+CREATE VIEW v4 AS SELECT f2() FROM t3;
+CREATE VIEW v5 AS SELECT f1() FROM t3;
+CREATE VIEW v6 AS SELECT f2() FROM t3;
+drop function f1;
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+create function f1 () returns int return (select max(col1) from t1);
+DROP TABLE t1;
+# following will show underlying table until BUG#11555 fix
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+drop function f1;
+drop function f2;
+drop view v1, v2, v3, v4, v5, v6;
+drop table t2,t3;
+
+#
 # bug #11325 Wrong date comparison in views
 #
 create table t1 (f1 date);
@@ -1696,6 +1734,15 @@ drop view v1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
 SELECT * FROM v1;
 drop view v1;
+
+#
+# Using var_samp with view (BUG#10651)
+#
+create table t1 (s1 int);
+create view v1 as select var_samp(s1) from t1;
+show create view v1;
+drop view v1;
+drop table t1;
 
 #
 # Correct inserting data check (absence of default value) for view

@@ -2955,21 +2955,44 @@ build_template(
 		templ = prebuilt->mysql_template + n_requested_fields;
 		field = table->field[i];
 
-                ibool index_contains_field=
-                  dict_index_contains_col_or_prefix(index, i);
+		if (UNIV_LIKELY(templ_type == ROW_MYSQL_REC_FIELDS)) {
+			/* Decide which columns we should fetch
+			and which we can skip. */
+			register const ibool	index_contains_field =
+				dict_index_contains_col_or_prefix(index, i);
 
-		if (templ_type == ROW_MYSQL_REC_FIELDS && 
-                    ((prebuilt->read_just_key && !index_contains_field) ||
-		     (!(fetch_all_in_key && index_contains_field) &&
-		      !(fetch_primary_key_cols &&
-			dict_table_col_in_clustered_key(index->table, i)) &&
-		      thd->query_id != field->query_id))) {
+			if (!index_contains_field && prebuilt->read_just_key) {
+				/* If this is a 'key read', we do not need
+				columns that are not in the key */
+
+				goto skip_field;
+			}
+
+			if (index_contains_field && fetch_all_in_key) {
+				/* This field is needed in the query */
+
+				goto include_field;
+			}
+
+			if (thd->query_id == field->query_id) {
+				/* This field is needed in the query */
+
+				goto include_field;
+			}
+
+			if (fetch_primary_key_cols
+			    && dict_table_col_in_clustered_key(index->table,
+									i)) {
+				/* This field is needed in the query */
+
+				goto include_field;
+			}
 
 			/* This field is not needed in the query, skip it */
 
 			goto skip_field;
 		}
-
+include_field:
 		n_requested_fields++;
 
 		templ->col_no = i;

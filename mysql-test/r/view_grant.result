@@ -284,7 +284,7 @@ create table mysqltest.v3 (b int);
 grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
 drop table mysqltest.v3;
 create view mysqltest.v3 as select b from mysqltest.t2;
-ERROR 42000: CREATE VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v3'
+ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 'v3'
 create view v4 as select b+1 from mysqltest.t2;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't2'
 grant create view,update,select on test.* to mysqltest_1@localhost;

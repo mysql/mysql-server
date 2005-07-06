@@ -189,7 +189,6 @@ SET @@SQL_MODE='';
 SELECT 'a\\b', 'a\\\"b', 'a''\\b', 'a''\\\"b';
 SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
 
-
 #
 # Bug#6877: MySQL should give an error if the requested table type 
 #           is not available
@@ -208,5 +207,37 @@ create table t1 (a int) engine=isam;
 show create table t1;
 drop table t1;
 
+#
+# Bug #6903: ANSI_QUOTES does not come into play with SHOW CREATE FUNCTION
+# or PROCEDURE because it displays the SQL_MODE used to create the routine.
+#
+SET @@SQL_MODE='';
+create function `foo` () returns int return 5;
+show create function `foo`;
+SET @@SQL_MODE='ANSI_QUOTES';
+show create function `foo`;
+drop function `foo`;
+
+create function `foo` () returns int return 5;
+show create function `foo`;
+SET @@SQL_MODE='';
+show create function `foo`;
+drop function `foo`;
+
+# 
+# Bug #6903: ANSI_QUOTES should have effect for SHOW CREATE VIEW (Bug #6903)
+#
+SET @@SQL_MODE='';
+create table t1 (a int);
+create table t2 (a int);
+create view v1 as select a from t1;
+show create view v1;
+SET @@SQL_MODE='ANSI_QUOTES';
+show create view v1;
+# Test a view with a subselect, which will get shown incorrectly without
+# thd->lex->view_prepare_mode set properly.
+create view v2 as select a from t2 where a in (select a from v1);
+drop view v2, v1;
+drop table t1, t2;
 
 SET @@SQL_MODE=@OLD_SQL_MODE;
