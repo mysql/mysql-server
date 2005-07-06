@@ -1,3 +1,4 @@
+drop table if exists t1, t2;
 delete from mysql.proc;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
@@ -635,3 +636,72 @@ ERROR 0A000: EXECUTE is not allowed in stored procedures
 create function f() returns int begin execute stmt;
 ERROR 0A000: EXECUTE is not allowed in stored procedures
 deallocate prepare stmt;
+create table t1(f1 int);
+create table t2(f1 int);
+CREATE PROCEDURE SP001()
+P1: BEGIN
+DECLARE ENDTABLE INT DEFAULT 0;
+DECLARE TEMP_NUM INT;
+DECLARE TEMP_SUM INT;
+DECLARE C1 CURSOR FOR SELECT F1 FROM t1;
+DECLARE C2 CURSOR FOR SELECT F1 FROM t2;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET ENDTABLE = 1;
+SET ENDTABLE=0;
+SET TEMP_SUM=0;
+SET TEMP_NUM=0;
+OPEN C1;
+FETCH C1 INTO TEMP_NUM;
+WHILE ENDTABLE = 0 DO
+SET TEMP_SUM=TEMP_NUM+TEMP_SUM;
+FETCH C1 INTO TEMP_NUM;
+END WHILE;
+SELECT TEMP_SUM;
+CLOSE C1;
+CLOSE C1;
+SELECT 'end of proc';
+END P1|
+call SP001();
+TEMP_SUM
+0
+drop procedure SP001;
+drop table t1, t2;
+drop function if exists bug11394|
+drop function if exists bug11394_1|
+drop function if exists bug11394_2|
+drop procedure if exists bug11394|
+create function bug11394(i int) returns int
+begin
+if i <= 0 then
+return 0;
+else
+return (i in (100, 200, bug11394(i-1), 400));
+end if;
+end|
+select bug11394(2)|
+ERROR HY000: Recursive stored routines are not allowed.
+drop function bug11394|
+create function bug11394_1(i int) returns int
+begin
+if i <= 0 then
+return 0;
+else
+return (select bug11394_1(i-1));
+end if;
+end|
+select bug11394_1(2)|
+ERROR HY000: Recursive stored routines are not allowed.
+drop function bug11394_1|
+create function bug11394_2(i int) returns int return i|
+select bug11394_2(bug11394_2(10))|
+bug11394_2(bug11394_2(10))
+10
+drop function bug11394_2|
+create procedure bug11394(i int, j int)
+begin
+if i > 0 then
+call bug11394(i - 1,(select 1));
+end if;
+end|
+call bug11394(2, 1)|
+ERROR HY000: Recursive stored routines are not allowed.
+drop procedure bug11394|
