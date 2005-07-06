@@ -3113,7 +3113,7 @@ bug6063		CREATE PROCEDURE `test`.`bug6063`()
 l?bel: begin end
 set character set utf8|
 create procedure bug7088_1()
-label1: begin end|
+label1: begin end label1|
 create procedure bug7088_2()
 läbel1: begin end|
 call bug7088_1()|
@@ -3122,7 +3122,7 @@ set character set default|
 show create procedure bug7088_1|
 Procedure	sql_mode	Create Procedure
 bug7088_1		CREATE PROCEDURE `test`.`bug7088_1`()
-label1: begin end
+label1: begin end label1
 show create procedure bug7088_2|
 Procedure	sql_mode	Create Procedure
 bug7088_2		CREATE PROCEDURE `test`.`bug7088_2`()
