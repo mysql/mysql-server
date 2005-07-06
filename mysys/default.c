@@ -48,13 +48,14 @@ char *defaults_extra_file=0;
 
 /* Which directories are searched for options (and in which order) */
 
-#define MAX_DEFAULT_DIRS 5
+#define MAX_DEFAULT_DIRS 6
 const char *default_directories[MAX_DEFAULT_DIRS + 1];
 
 #ifdef __WIN__
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
 #define NEWLINE "\r\n"
-static char system_dir[FN_REFLEN], shared_system_dir[FN_REFLEN];
+static char system_dir[FN_REFLEN], shared_system_dir[FN_REFLEN],
+            config_dir[FN_REFLEN];
 #else
 static const char *f_extensions[]= { ".cnf", 0 };
 #define NEWLINE "\n"
@@ -286,8 +287,8 @@ int load_defaults(const char *conf_file, const char **groups,
 {
   DYNAMIC_ARRAY args;
   TYPELIB group;
-  my_bool found_print_defaults=0;
-  uint args_used=0;
+  my_bool found_print_defaults= 0;
+  uint args_used= 0;
   int error= 0;
   MEM_ROOT alloc;
   char *ptr,**res;
@@ -328,8 +329,8 @@ int load_defaults(const char *conf_file, const char **groups,
   ctx.args= &args;
   ctx.group= &group;
 
-  if (*argc >= 2 + args_used && 
-      is_prefix(argv[0][1+args_used], instance_option))
+  if (*argc >= 2 && 
+      is_prefix(argv[0][1], instance_option))
   {
     args_used++;
     defaults_instance= argv[0][args_used]+sizeof(instance_option)-1;
@@ -870,6 +871,45 @@ void print_defaults(const char *conf_file, const char **groups)
 #include <help_end.h>
 
 
+#ifdef __WIN__
+/*
+  This wrapper for GetSystemWindowsDirectory() will dynamically bind to the
+  function if it is available, emulate it on NT4 Terminal Server by stripping
+  the \SYSTEM32 from the end of the results of GetSystemDirectory(), or just
+  return GetSystemDirectory().
+ */
+
+typedef UINT (WINAPI *GET_SYSTEM_WINDOWS_DIRECTORY)(LPSTR, UINT);
+
+static uint my_get_system_windows_directory(char *buffer, uint size)
+{
+  GET_SYSTEM_WINDOWS_DIRECTORY
+    func_ptr= (GET_SYSTEM_WINDOWS_DIRECTORY)
+              GetProcAddress(GetModuleHandle("kernel32.dll"),
+                                             "GetSystemWindowsDirectoryA");
+
+  if (func_ptr)
+    return func_ptr(buffer, size);
+  else
+  {
+    /*
+      Windows NT 4.0 Terminal Server Edition:  
+      To retrieve the shared Windows directory, call GetSystemDirectory and
+      trim the "System32" element from the end of the returned path.
+     */
+    UINT count= GetSystemDirectory(buffer, size);
+
+    if (count > 8 && stricmp(buffer+(count-8), "\\System32") == 0)
+    {
+      count-= 8;
+      buffer[count] = '\0';
+    }
+    return count;
+  }
+}
+#endif
+
+
 /*
   Create the list of default directories.
 
@@ -878,7 +918,8 @@ void print_defaults(const char *conf_file, const char **groups)
     2. GetWindowsDirectory()
     3. GetSystemWindowsDirectory()
     4. getenv(DEFAULT_HOME_ENV)
-    5. ""
+    5. Direcotry above where the executable is located
+    6. ""
 
   On Novell NetWare, this is:
     1. sys:/etc/
@@ -909,13 +950,10 @@ static void init_default_directories()
 
   if (GetWindowsDirectory(system_dir,sizeof(system_dir)))
     *ptr++= (char*)&system_dir;
-#if defined(_MSC_VER) && (_MSC_VER >= 1300)
-  /* Only VC7 and up */
-  /* Only add shared system directory if different from default. */
-  if (GetSystemWindowsDirectory(shared_system_dir,sizeof(shared_system_dir)) &&
+  if (my_get_system_windows_directory(shared_system_dir,
+                                      sizeof(shared_system_dir)) &&
       strcmp(system_dir, shared_system_dir))
     *ptr++= (char *)&shared_system_dir;
-#endif
 
 #elif defined(__NETWARE__)
   *ptr++= "sys:/etc/";
@@ -931,6 +969,36 @@ static void init_default_directories()
   *ptr++= "";			/* Place for defaults_extra_file */
 #if !defined(__WIN__) && !defined(__NETWARE__)
   *ptr++= "~/";;
+#elif defined(__WIN__)
+  if (GetModuleFileName(NULL, config_dir, sizeof(config_dir)))
+  {
+    char *last= NULL, *end= strend(config_dir);
+    /*
+      Look for the second-to-last \ in the filename, but hang on
+      to a pointer after the last \ in case we're in the root of
+      a drive.
+     */
+    for ( ; end > config_dir; end--)
+    {
+      if (*end == FN_LIBCHAR)
+      {
+        if (last)
+          break;
+        last= end;
+      }
+    }
+
+    if (last)
+    {                                                            
+      if (end != config_dir && end[-1] == FN_DEVCHAR) /* Ended up with D:\ */
+        end[1]= 0; /* Keep one \ */
+      else if (end != config_dir)
+        end[0]= 0; 
+      else
+        last[1]= 0;
+    }
+    *ptr++= (char *)&config_dir;
+  }
 #endif
   *ptr= 0;			/* end marker */
 }
