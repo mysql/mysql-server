@@ -419,7 +419,8 @@ sub initial_setup () {
   {
     # Windows programs like 'mysqld' needs Windows paths
     $glob_mysql_test_dir= `cygpath -m $glob_mysql_test_dir`;
-    $glob_cygwin_shell=   `cygpath -w $ENV{'SHELL'}`; # The Windows path c:\...
+    my $shell= $ENV{'SHELL'} || "/bin/bash";
+    $glob_cygwin_shell=   `cygpath -w $shell`; # The Windows path c:\...
     chomp($glob_mysql_test_dir);
     chomp($glob_cygwin_shell);
   }
