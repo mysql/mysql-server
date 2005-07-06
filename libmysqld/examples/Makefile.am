@@ -31,9 +31,9 @@ link_sources:
 	done;
 
 DEFS = 		-DEMBEDDED_LIBRARY
-INCLUDES =	-I$(top_srcdir)/include -I$(srcdir) \
+INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
-		-I$(top_builddir)/include $(openssl_includes)
+		$(openssl_includes)
 LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@
 LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @innodb_system_libs@ @LIBDL@ $(CXXLDFLAGS)
 
