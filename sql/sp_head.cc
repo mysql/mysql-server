@@ -312,7 +312,8 @@ sp_head::operator delete(void *ptr, size_t size)
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
    m_returns_cs(NULL), m_has_return(FALSE),
-   m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
+   m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE),
+   m_is_invoked(FALSE)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
@@ -587,6 +588,28 @@ sp_head::execute(THD *thd)
     DBUG_RETURN(-1);
   }
 
+  if (m_is_invoked)
+  {
+    /*
+      We have to disable recursion for stored routines since in
+      many cases LEX structure and many Item's can't be used in
+      reentrant way now.
+
+      TODO: We can circumvent this problem by using separate
+      sp_head instances for each recursive invocation.
+
+      NOTE: Theoretically arguments of procedure can be evaluated
+      before its invocation so there should be no problem with
+      recursion. But since we perform cleanup for CALL statement
+      as for any other statement only after its execution, its LEX
+      structure is not reusable for recursive calls. Thus we have
+      to prohibit recursion for stored procedures too.
+    */
+    my_error(ER_SP_NO_RECURSION, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  m_is_invoked= TRUE;
+
   dbchanged= FALSE;
   if (m_db.length &&
       (ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
@@ -710,6 +733,7 @@ sp_head::execute(THD *thd)
     if (! thd->killed)
       ret= sp_change_db(thd, olddb, 0);
   }
+  m_is_invoked= FALSE;
   DBUG_RETURN(ret);
 }
 
