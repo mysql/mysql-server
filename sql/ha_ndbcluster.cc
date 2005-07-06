@@ -1113,41 +1113,22 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
 }
 
 
-int ha_ndbcluster::set_primary_key_from_old_data(NdbOperation *op, const byte *old_data)
+int ha_ndbcluster::set_primary_key_from_record(NdbOperation *op, const byte *record)
 {
   KEY* key_info= table->key_info + table->primary_key;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
-  DBUG_ENTER("set_primary_key_from_old_data");
+  DBUG_ENTER("set_primary_key_from_record");
 
   for (; key_part != end; key_part++) 
   {
     Field* field= key_part->field;
     if (set_ndb_key(op, field, 
-		    key_part->fieldnr-1, old_data+key_part->offset))
+		    key_part->fieldnr-1, record+key_part->offset))
       ERR_RETURN(op->getNdbError());
   }
   DBUG_RETURN(0);
 }
-
-
-int ha_ndbcluster::set_primary_key(NdbOperation *op)
-{
-  DBUG_ENTER("set_primary_key");
-  KEY* key_info= table->key_info + table->primary_key;
-  KEY_PART_INFO* key_part= key_info->key_part;
-  KEY_PART_INFO* end= key_part+key_info->key_parts;
-
-  for (; key_part != end; key_part++) 
-  {
-    Field* field= key_part->field;
-    if (set_ndb_key(op, field, 
-                    key_part->fieldnr-1, field->ptr))
-      ERR_RETURN(op->getNdbError());
-  }
-  DBUG_RETURN(0);
-}
-
 
 /*
   Read one record from NDB using primary key
@@ -1241,9 +1222,9 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
       op->readTuple(lm) != 0)
     ERR_RETURN(trans->getNdbError());
 
-    int res;
-    if ((res= set_primary_key_from_old_data(op, old_data)))
-      ERR_RETURN(trans->getNdbError());
+  int res;
+  if ((res= set_primary_key_from_record(op, old_data)))
+    ERR_RETURN(trans->getNdbError());
     
   // Read all unreferenced non-key field(s)
   for (i= 0; i < no_fields; i++) 
@@ -1273,7 +1254,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   Peek to check if a particular row already exists
 */
 
-int ha_ndbcluster::peek_row()
+int ha_ndbcluster::peek_row(const byte *record)
 {
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
@@ -1287,7 +1268,7 @@ int ha_ndbcluster::peek_row()
     ERR_RETURN(trans->getNdbError());
                                                                                 
   int res;
-  if ((res= set_primary_key(op)))
+  if ((res= set_primary_key_from_record(op, record)))
     ERR_RETURN(trans->getNdbError());
                                                                                 
   if (execute_no_commit_ie(this,trans) != 0)
@@ -1841,7 +1822,7 @@ int ha_ndbcluster::write_row(byte *record)
 
   if(m_ignore_dup_key && table->primary_key != MAX_KEY)
   {
-    int peek_res= peek_row();
+    int peek_res= peek_row(record);
     
     if (!peek_res) 
     {
@@ -1891,9 +1872,7 @@ int ha_ndbcluster::write_row(byte *record)
       m_skip_auto_increment= !auto_increment_column_changed;
     }
 
-    if ((res= (m_primary_key_update ?
-               set_primary_key_from_old_data(op, record)
-               : set_primary_key(op))))
+    if ((res= set_primary_key_from_record(op, record)))
       return res;  
   }
 
@@ -2030,7 +2009,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   if ((table->primary_key != MAX_KEY) &&
       (key_cmp(table->primary_key, old_data, new_data)))
   {
-    int read_res, insert_res, delete_res;
+    int read_res, insert_res, delete_res, undo_res;
 
     DBUG_PRINT("info", ("primary key update, doing pk read+delete+insert"));
     // Get all old fields, since we optimize away fields not in query
@@ -2059,9 +2038,14 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_PRINT("info", ("insert failed"));
       if (trans->commitStatus() == NdbConnection::Started)
       {
-      // Undo write_row(new_data)
+        // Undo delete_row(old_data)
         m_primary_key_update= TRUE;
-        insert_res= write_row((byte *)old_data);
+        undo_res= write_row((byte *)old_data);
+        if (undo_res)
+          push_warning(current_thd, 
+                       MYSQL_ERROR::WARN_LEVEL_WARN, 
+                       undo_res, 
+                       "NDB failed undoing delete at primary key update");
         m_primary_key_update= FALSE;
       }
       DBUG_RETURN(insert_res);
@@ -2110,7 +2094,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     else 
     {
       int res;
-      if ((res= set_primary_key_from_old_data(op, old_data)))
+      if ((res= set_primary_key_from_record(op, old_data)))
 	DBUG_RETURN(res);
     }
   }
@@ -2191,10 +2175,8 @@ int ha_ndbcluster::delete_row(const byte *record)
     else 
     {
       int res;
-      if ((res= (m_primary_key_update ?
-		 set_primary_key_from_old_data(op, record)
-		 : set_primary_key(op))))
-	  return res;  
+      if ((res= set_primary_key_from_record(op, record)))
+        return res;  
     }
   }
   
