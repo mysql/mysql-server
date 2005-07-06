@@ -20,6 +20,7 @@
 #include "parse_file.h"
 #include "sp.h"
 #include "sp_head.h"
+#include "sp_cache.h"
 
 #define MD5_BUFF_LENGTH 33
 
@@ -140,6 +141,9 @@ bool mysql_create_view(THD *thd,
     res= TRUE;
     goto err;
   }
+
+  if (mode != VIEW_CREATE_NEW)
+    sp_cache_invalidate();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
