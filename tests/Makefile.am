@@ -37,7 +37,8 @@ noinst_PROGRAMS =	insert_test select_test thread_test
 #
 # C Test for 4.1 protocol
 #
-INCLUDES =		-I$(top_srcdir)/include $(openssl_includes)
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
+			$(openssl_includes)
 LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
                         $(top_builddir)/libmysql/libmysqlclient.la

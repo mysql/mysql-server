@@ -16,7 +16,7 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-INCLUDES =		-I$(top_srcdir)/include
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
 pkglib_LIBRARIES =	libmystrings.a
 
 # Exact one of ASSEMBLER_X

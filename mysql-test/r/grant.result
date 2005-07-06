@@ -1,4 +1,5 @@
 drop table if exists t1;
+drop database if exists mysqltest;
 SET NAMES binary;
 delete from mysql.user where user='mysqltest_1';
 delete from mysql.db where user='mysqltest_1';
@@ -473,3 +474,120 @@ ERROR 42000: INSERT,CREATE command denied to user 'mysqltest_1'@'localhost' for 
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
+CREATE USER dummy@localhost;
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.dummytable (dummyfield INT);
+CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
+GRANT ALL PRIVILEGES ON mysqltest.dummytable TO dummy@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.dummyview TO dummy@localhost;
+SHOW GRANTS FOR dummy@localhost;
+Grants for dummy@localhost
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+use INFORMATION_SCHEMA;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	PRIVILEGES
+mysqltest	dummytable	ALTER, CREATE, CREATE VIEW, DELETE, DROP, INDEX, INSERT, REFERENCES, SELECT, SHOW VIEW, UPDATE
+mysqltest	dummyview	ALTER, CREATE, CREATE VIEW, DELETE, DROP, INDEX, INSERT, REFERENCES, SELECT, SHOW VIEW, UPDATE
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR dummy@localhost;
+Grants for dummy@localhost
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	PRIVILEGES
+mysqltest	dummytable	ALTER, CREATE, CREATE VIEW, DELETE, DROP, INDEX, INSERT, REFERENCES, SELECT, SHOW VIEW, UPDATE
+mysqltest	dummyview	ALTER, CREATE, CREATE VIEW, DELETE, DROP, INDEX, INSERT, REFERENCES, SELECT, SHOW VIEW, UPDATE
+SHOW FIELDS FROM mysql.tables_priv;
+Field	Type	Null	Key	Default	Extra
+Host	char(60)	NO	PRI		
+Db	char(64)	NO	PRI		
+User	char(16)	NO	PRI		
+Table_name	char(64)	NO	PRI		
+Grantor	char(77)	NO	MUL		
+Timestamp	timestamp	YES		CURRENT_TIMESTAMP	
+Table_priv	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view')	NO			
+Column_priv	set('Select','Insert','Update','References')	NO			
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
+DROP USER dummy@localhost;
+DROP DATABASE mysqltest;
+CREATE USER dummy@localhost;
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.dummytable (dummyfield INT);
+CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
+GRANT CREATE VIEW ON mysqltest.dummytable TO dummy@localhost;
+GRANT CREATE VIEW ON mysqltest.dummyview TO dummy@localhost;
+SHOW GRANTS FOR dummy@localhost;
+Grants for dummy@localhost
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
+GRANT CREATE VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT CREATE VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+use INFORMATION_SCHEMA;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	PRIVILEGES
+mysqltest	dummytable	CREATE VIEW
+mysqltest	dummyview	CREATE VIEW
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR dummy@localhost;
+Grants for dummy@localhost
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
+GRANT CREATE VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT CREATE VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	PRIVILEGES
+mysqltest	dummytable	CREATE VIEW
+mysqltest	dummyview	CREATE VIEW
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
+DROP USER dummy@localhost;
+DROP DATABASE mysqltest;
+CREATE USER dummy@localhost;
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.dummytable (dummyfield INT);
+CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
+GRANT SHOW VIEW ON mysqltest.dummytable TO dummy@localhost;
+GRANT SHOW VIEW ON mysqltest.dummyview TO dummy@localhost;
+SHOW GRANTS FOR dummy@localhost;
+Grants for dummy@localhost
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
+GRANT SHOW VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT SHOW VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+use INFORMATION_SCHEMA;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	PRIVILEGES
+mysqltest	dummytable	SHOW VIEW
+mysqltest	dummyview	SHOW VIEW
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR dummy@localhost;
+Grants for dummy@localhost
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
+GRANT SHOW VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT SHOW VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	PRIVILEGES
+mysqltest	dummytable	SHOW VIEW
+mysqltest	dummyview	SHOW VIEW
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
+DROP USER dummy@localhost;
+DROP DATABASE mysqltest;
+use mysql;
+insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_grantor',CURRENT_TIMESTAMP,'Select','Select');
+flush privileges;
+delete from tables_priv where host = '' and user = 'mysqltest_1';
+flush privileges;
