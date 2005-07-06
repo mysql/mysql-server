@@ -2749,7 +2749,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       thd->query= load_data_query;
 
       if (sql_ex.opt_flags & REPLACE_FLAG)
+      {
 	handle_dup= DUP_REPLACE;
+      }
       else if (sql_ex.opt_flags & IGNORE_FLAG)
       {
         ignore= 1;

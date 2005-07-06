@@ -543,18 +543,6 @@ SELECT hostname, COUNT(DISTINCT user_id) as no FROM t1
 DROP TABLE t1;
 
 #
-
-#
-# Test for bug #11414: crash on Windows for a simple GROUP BY query 
-#  
-                    
-CREATE TABLE t1 (n int);
-INSERT INTO t1 VALUES (1);
---disable_ps_protocol
-SELECT n+1 AS n FROM t1 GROUP BY n;
---enable_ps_protocol
-DROP TABLE t1;
-
 # Test for bug #8614: GROUP BY 'const' with DISTINCT  
 #
 
@@ -592,3 +580,38 @@ SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS comment
   FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY comment;
 
 DROP TABLE t1, t2;
+
+#
+# Test for bug #11414: crash on Windows for a simple GROUP BY query 
+#  
+                    
+CREATE TABLE t1 (n int);
+INSERT INTO t1 VALUES (1);
+--disable_ps_protocol
+SELECT n+1 AS n FROM t1 GROUP BY n;
+--enable_ps_protocol
+DROP TABLE t1;
+
+#
+# Bug#11211: Ambiguous column reference in GROUP BY.
+#
+
+create table t1 (c1 char(3), c2 char(3));
+create table t2 (c3 char(3), c4 char(3));
+insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');
+insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
+
+# query with ambiguous column reference 'c2'
+--disable_ps_protocol
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by c2;
+show warnings;
+--enable_ps_protocol
+
+# this query has no ambiguity
+select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
+group by t1.c1;
+
+show warnings;
+drop table t1, t2;
+

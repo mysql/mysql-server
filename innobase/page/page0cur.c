@@ -47,7 +47,6 @@ page_cur_try_search_shortcut(
 				not yet completely matched */
 	page_cur_t*	cursor) /* out: page cursor */ 
 {
-	int	cmp;
 	rec_t*	rec;
 	rec_t*	next_rec;
 	ulint	low_match;
@@ -79,9 +78,8 @@ page_cur_try_search_shortcut(
 	up_match = low_match;
 	up_bytes = low_bytes;
 
-	cmp = page_cmp_dtuple_rec_with_match(tuple, rec, offsets, &low_match,
-								&low_bytes);
-	if (cmp == -1) {
+	if (page_cmp_dtuple_rec_with_match(tuple, rec, offsets,
+						&low_match, &low_bytes) < 0) {
 		goto exit_func;
 	}
 
@@ -89,9 +87,8 @@ page_cur_try_search_shortcut(
 	offsets = rec_get_offsets(next_rec, index, offsets,
 				dtuple_get_n_fields(tuple), &heap);
 
-	cmp = page_cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
-						&up_match, &up_bytes);
-	if (cmp != -1) {
+	if (page_cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
+						&up_match, &up_bytes) >= 0) {
 		goto exit_func;
 	}
 
@@ -115,7 +112,7 @@ page_cur_try_search_shortcut(
 	ut_a(*ilow_matched_fields == low_match);
 	ut_a(*ilow_matched_bytes == low_bytes);
 #endif
-	if (next_rec != page_get_supremum_rec(page)) {
+	if (!page_rec_is_supremum(next_rec)) {
 
 		*iup_matched_fields = up_match;
 		*iup_matched_bytes = up_bytes;
@@ -137,6 +134,7 @@ exit_func:
 
 #endif
 
+#ifdef PAGE_CUR_LE_OR_EXTENDS
 /********************************************************************
 Checks if the nth field in a record is a character type field which extends
 the nth field in tuple, i.e., the field is longer or equal in length and has
@@ -185,6 +183,7 @@ page_cur_rec_field_extends(
 
         return(FALSE);
 }
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
 
 /********************************************************************
 Searches the right position for a page cursor. */
@@ -239,10 +238,17 @@ page_cur_search_with_match(
 	      && ilow_matched_fields && ilow_matched_bytes && cursor);
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_check_typed(tuple));
+#ifdef UNIV_DEBUG
+# ifdef PAGE_CUR_DBG
+	if (mode != PAGE_CUR_DBG)
+# endif /* PAGE_CUR_DBG */
+# ifdef PAGE_CUR_LE_OR_EXTENDS
+		if (mode != PAGE_CUR_LE_OR_EXTENDS)
+# endif /* PAGE_CUR_LE_OR_EXTENDS */
 	ut_ad((mode == PAGE_CUR_L) || (mode == PAGE_CUR_LE)
-	      || (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE)
-	      || (mode == PAGE_CUR_LE_OR_EXTENDS) || (mode == PAGE_CUR_DBG));
-	      
+	      || (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE));
+#endif /* UNIV_DEBUG */
+
 	page_check_dir(page);
 
 #ifdef PAGE_CUR_ADAPT
@@ -261,16 +267,18 @@ page_cur_search_with_match(
 	    		return;
 	    	}
 	}
-/*#ifdef UNIV_SEARCH_DEBUG */
+# ifdef PAGE_CUR_DBG
 	if (mode == PAGE_CUR_DBG) {
 		mode = PAGE_CUR_LE;
 	}
-/*#endif */
+# endif
 #endif	
 
 	/* The following flag does not work for non-latin1 char sets because
 	cmp_full_field does not tell how many bytes matched */
+#ifdef PAGE_CUR_LE_OR_EXTENDS
 	ut_a(mode != PAGE_CUR_LE_OR_EXTENDS); 
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
 
 	/* If mode PAGE_CUR_G is specified, we are trying to position the
 	cursor to answer a query of the form "tuple < X", where tuple is
@@ -308,33 +316,36 @@ page_cur_search_with_match(
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
 						&cur_matched_fields,
 						&cur_matched_bytes);
-		if (cmp == 1) {
+		if (UNIV_LIKELY(cmp > 0)) {
+low_slot_match:
 			low = mid;
 			low_matched_fields = cur_matched_fields;
 			low_matched_bytes = cur_matched_bytes;
 
-		} else if (cmp == -1) {
+		} else if (UNIV_LIKELY(cmp /* == -1 */)) {
+#ifdef PAGE_CUR_LE_OR_EXTENDS
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
 			    && page_cur_rec_field_extends(tuple, mid_rec,
 						offsets, cur_matched_fields)) {
-				low = mid;
-				low_matched_fields = cur_matched_fields;
-				low_matched_bytes = cur_matched_bytes;
-			} else {
-				up = mid;
-				up_matched_fields = cur_matched_fields;
-				up_matched_bytes = cur_matched_bytes;
-			}
 
-		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
-			   || mode == PAGE_CUR_LE_OR_EXTENDS) {
-			low = mid;
-			low_matched_fields = cur_matched_fields;
-			low_matched_bytes = cur_matched_bytes;
-		} else {
+				goto low_slot_match;
+			}
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
+up_slot_match:
 			up = mid;
 			up_matched_fields = cur_matched_fields;
 			up_matched_bytes = cur_matched_bytes;
+
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
+#ifdef PAGE_CUR_LE_OR_EXTENDS
+			   || mode == PAGE_CUR_LE_OR_EXTENDS
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
+		) {
+
+			goto low_slot_match;
+		} else {
+
+			goto up_slot_match;
 		}
    	}
 
@@ -360,32 +371,35 @@ page_cur_search_with_match(
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
 						&cur_matched_fields,
 						&cur_matched_bytes);
-		if (cmp == 1) {
+		if (UNIV_LIKELY(cmp > 0)) {
+low_rec_match:
 			low_rec = mid_rec;
 			low_matched_fields = cur_matched_fields;
 			low_matched_bytes = cur_matched_bytes;
 
-		} else if (cmp == -1) {
+		} else if (UNIV_LIKELY(cmp /* == -1 */)) {
+#ifdef PAGE_CUR_LE_OR_EXTENDS
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
 			    && page_cur_rec_field_extends(tuple, mid_rec,
 						offsets, cur_matched_fields)) {
-				low_rec = mid_rec;
-				low_matched_fields = cur_matched_fields;
-				low_matched_bytes = cur_matched_bytes;
-			} else {
-				up_rec = mid_rec;
-				up_matched_fields = cur_matched_fields;
-				up_matched_bytes = cur_matched_bytes;
+
+				goto low_rec_match;
 			}
-		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
-			   || mode == PAGE_CUR_LE_OR_EXTENDS) {
-			low_rec = mid_rec;
-			low_matched_fields = cur_matched_fields;
-			low_matched_bytes = cur_matched_bytes;
-		} else {
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
+up_rec_match:
 			up_rec = mid_rec;
 			up_matched_fields = cur_matched_fields;
 			up_matched_bytes = cur_matched_bytes;
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_LE
+#ifdef PAGE_CUR_LE_OR_EXTENDS
+			   || mode == PAGE_CUR_LE_OR_EXTENDS
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
+		) {
+
+			goto low_rec_match;
+		} else {
+
+			goto up_rec_match;
 		}
    	}
 
