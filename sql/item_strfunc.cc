@@ -456,7 +456,6 @@ String *Item_func_des_decrypt::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
 #ifdef HAVE_OPENSSL
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
-  DES_key_schedule ks1, ks2, ks3;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
