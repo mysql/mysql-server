@@ -15,6 +15,7 @@ MV="mv"
 STRIP=1
 DEBUG=0
 SILENT=0
+MACHINE=
 TMP=/tmp
 SUFFIX=""
 
@@ -25,6 +26,7 @@ parse_arguments() {
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
+      --machine=*)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
       --silent)   SILENT=1 ;;
       *)
 	echo "Unknown argument '$arg'"
@@ -252,8 +254,17 @@ if [ -d $BASE/sql-bench/SCCS ] ; then
   find $BASE/sql-bench -name SCCS -print | xargs rm -r -f
 fi
 
+# Use the override --machine if present
+if [ -n "$MACHINE" ] ; then
+  machine=$MACHINE
+fi
+
 # Change the distribution to a long descriptive name
 NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version-$system-$machine$SUFFIX
+
+# Print the platform name for build logs
+echo "PLATFORM NAME: $system-$machine"
+
 BASE2=$TMP/$NEW_NAME
 rm -r -f $BASE2
 mv $BASE $BASE2
