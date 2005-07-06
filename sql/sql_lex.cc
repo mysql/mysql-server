@@ -1780,12 +1780,13 @@ uint8 st_lex::get_effective_with_check(st_table_list *view)
 
 void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
-  ulonglong select_limit_val;
+  ha_rows select_limit_val;
 
   DBUG_ASSERT(! thd->current_arena->is_stmt_prepare());
-  select_limit_val= sl->select_limit ? sl->select_limit->val_uint() :
-                                       HA_POS_ERROR;
-  offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
+  select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
+                                                 HA_POS_ERROR);
+  offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
+                                                 ULL(0));
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
