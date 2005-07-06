@@ -5674,7 +5674,7 @@ delete_limit_clause:
 
 ulong_num:
           NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-	| HEX_NUM       { int error; $$= (ulong) strtol($1.str, (char**) 0, 16); }
+	| HEX_NUM       { $$= (ulong) strtol($1.str, (char**) 0, 16); }
 	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
