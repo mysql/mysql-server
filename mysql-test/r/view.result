@@ -1923,3 +1923,20 @@ ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default val
 set sql_mode=default;
 drop view v2,v1;
 drop table t1;
+CREATE TABLE t1 (s1 int, s2 int);
+INSERT  INTO t1 VALUES (1,2);
+CREATE VIEW v1 AS SELECT s2 AS s1, s1 AS s2 FROM t1;
+SELECT * FROM v1;
+s1	s2
+2	1
+CREATE PROCEDURE p1 () SELECT * FROM v1;
+CALL p1();
+s1	s2
+2	1
+ALTER VIEW v1 AS SELECT s1 AS s1, s2 AS s2 FROM t1;
+CALL p1();
+s1	s2
+1	2
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
