@@ -1057,6 +1057,5 @@ Qcache_inserts	2
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
-
 drop table t1;
 set GLOBAL query_cache_size=0;
