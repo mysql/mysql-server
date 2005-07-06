@@ -993,7 +993,7 @@ begin
 end|
 # If we allow recursive functions without additional modifications
 # this will crash server since Item for "IN" is not reenterable.
---error 1423
+--error 1424
 select bug11394(2)|
 drop function bug11394|
 create function bug11394_1(i int) returns int
@@ -1006,7 +1006,7 @@ begin
 end|
 # The following statement will crash because some LEX members responsible
 # for selects cannot be used in reentrant fashion.
---error 1423
+--error 1424
 select bug11394_1(2)|
 drop function bug11394_1|
 # Note that the following should be allowed since it does not contains
@@ -1022,7 +1022,7 @@ begin
 end|
 # Again if we allow recursion for stored procedures (without 
 # additional efforts) the following statement will crash the server.
---error 1423
+--error 1424
 call bug11394(2, 1)|
 drop procedure bug11394|
 delimiter |;
