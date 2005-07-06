@@ -971,3 +971,58 @@ delimiter ;|
 call SP001();
 drop procedure SP001;
 drop table t1, t2;
+
+# Bug #11394 "Recursion in SP crash server" and bug #11600 "Stored
+# procedures: crash with function calling itself".
+# We have to disable recursion since in many cases LEX and many
+# Item's can't be used in reentrant way nowdays.
+delimiter |;
+--disable_warnings
+drop function if exists bug11394|
+drop function if exists bug11394_1|
+drop function if exists bug11394_2|
+drop procedure if exists bug11394|
+--enable_warnings
+create function bug11394(i int) returns int
+begin
+  if i <= 0 then
+    return 0;
+  else
+    return (i in (100, 200, bug11394(i-1), 400));
+  end if;
+end|
+# If we allow recursive functions without additional modifications
+# this will crash server since Item for "IN" is not reenterable.
+--error 1423
+select bug11394(2)|
+drop function bug11394|
+create function bug11394_1(i int) returns int
+begin
+  if i <= 0 then
+    return 0;
+  else
+    return (select bug11394_1(i-1));
+  end if;
+end|
+# The following statement will crash because some LEX members responsible
+# for selects cannot be used in reentrant fashion.
+--error 1423
+select bug11394_1(2)|
+drop function bug11394_1|
+# Note that the following should be allowed since it does not contains
+# recursion
+create function bug11394_2(i int) returns int return i|
+select bug11394_2(bug11394_2(10))|
+drop function bug11394_2|
+create procedure bug11394(i int, j int)
+begin
+  if i > 0 then
+    call bug11394(i - 1,(select 1));
+  end if;
+end|
+# Again if we allow recursion for stored procedures (without 
+# additional efforts) the following statement will crash the server.
+--error 1423
+call bug11394(2, 1)|
+drop procedure bug11394|
+delimiter |;
