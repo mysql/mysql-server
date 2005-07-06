@@ -196,7 +196,7 @@ class ha_ndbcluster: public handler
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
-  int set_primary_key_from_record(NdbOperation *op, const byte *old_data);
+  int set_primary_key_from_record(NdbOperation *op, const byte *record);
   int set_bounds(NdbIndexScanOperation *ndb_op, const key_range *keys[2]);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   void print_results();
