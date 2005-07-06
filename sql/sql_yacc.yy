@@ -676,7 +676,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        sp_opt_label BIN_NUM
+        sp_opt_label BIN_NUM label_ident
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -764,7 +764,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <udf_type> udf_func_type
 
-%type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword
+%type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword keyword_sp
 
 %type <lex_user> user grant_user
 
@@ -2053,7 +2053,7 @@ sp_proc_stmt:
 
 	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
-	| LEAVE_SYM IDENT
+	| LEAVE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp = lex->sphead;
@@ -2083,7 +2083,7 @@ sp_proc_stmt:
               sp->add_instr(i);
 	    }
 	  }
-	| ITERATE_SYM IDENT
+	| ITERATE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
@@ -2400,7 +2400,7 @@ sp_whens:
 	;
 
 sp_labeled_control:
-	  IDENT ':'
+	  label_ident ':'
 	  {
 	    LEX *lex= Lex;
 	    sp_pcontext *ctx= lex->spcont;
@@ -2439,7 +2439,7 @@ sp_labeled_control:
 
 sp_opt_label:
         /* Empty  */    { $$= null_lex_str; }
-        | IDENT         { $$= $1; }
+        | label_ident   { $$= $1; }
 	;
 
 sp_unlabeled_control:
@@ -7295,6 +7295,16 @@ ident:
 	}
 	;
 
+label_ident:
+	IDENT_sys	    { $$=$1; }
+	| keyword_sp
+	{
+	  THD *thd= YYTHD;
+	  $$.str=    thd->strmake($1.str, $1.length);
+	  $$.length= $1.length;
+	}
+	;
+
 ident_or_text:
         ident                   { $$=$1;}
 	| TEXT_STRING_sys	{ $$=$1;}
@@ -7336,9 +7346,51 @@ user:
           }
 	};
 
-/* Keyword that we allow for identifiers */
-
+/* Keyword that we allow for identifiers (except SP labels) */
 keyword:
+	keyword_sp		{}
+	| ASCII_SYM		{}
+	| BACKUP_SYM		{}
+	| BEGIN_SYM		{}
+	| BYTE_SYM		{}
+	| CACHE_SYM		{}
+	| CHARSET		{}
+	| CHECKSUM_SYM		{}
+	| CLOSE_SYM		{}
+	| COMMENT_SYM		{}
+	| COMMIT_SYM		{}
+	| CONTAINS_SYM          {}
+        | DEALLOCATE_SYM        {}
+	| DO_SYM		{}
+	| END			{}
+	| EXECUTE_SYM		{}
+	| FLUSH_SYM		{}
+	| HANDLER_SYM		{}
+	| HELP_SYM		{}
+	| LANGUAGE_SYM          {}
+	| NO_SYM		{}
+	| OPEN_SYM		{}
+        | PREPARE_SYM           {}
+	| REPAIR		{}
+	| RESET_SYM		{}
+	| RESTORE_SYM		{}
+	| ROLLBACK_SYM		{}
+	| SAVEPOINT_SYM		{}
+	| SECURITY_SYM		{}
+	| SIGNED_SYM		{}
+	| SLAVE			{}
+	| START_SYM		{}
+	| STOP_SYM		{}
+	| TRUNCATE_SYM		{}
+	| UNICODE_SYM		{}
+        | XA_SYM                {}
+	;
+
+/*
+ * Keywords that we allow for labels in SPs.
+ * Anything that's the beginning of a statement must be in keyword above.
+ */
+keyword_sp:
 	ACTION			{}
 	| ADDDATE_SYM		{}
 	| AFTER_SYM		{}
@@ -7346,61 +7398,46 @@ keyword:
 	| AGGREGATE_SYM		{}
 	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
-	| ASCII_SYM		{}
 	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
-	| BACKUP_SYM		{}
-	| BEGIN_SYM		{}
 	| BERKELEY_DB_SYM	{}
 	| BINLOG_SYM		{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
-	| BYTE_SYM		{}
 	| BTREE_SYM		{}
-	| CACHE_SYM		{}
 	| CASCADED              {}
 	| CHAIN_SYM		{}
 	| CHANGED		{}
-	| CHARSET		{}
-	| CHECKSUM_SYM		{}
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
-	| CLOSE_SYM		{}
 	| COLLATION_SYM		{}
         | COLUMNS               {}
-	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
-	| COMMIT_SYM		{}
 	| COMPACT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
-	| CONTAINS_SYM          {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
-        | DEALLOCATE_SYM        {}
 	| DEFINER_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
 	| DISCARD		{}
-	| DO_SYM		{}
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}
-	| END			{}
 	| ENUM			{}
 	| ENGINE_SYM		{}
 	| ENGINES_SYM		{}
 	| ERRORS		{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
-	| EXECUTE_SYM		{}
         | EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
@@ -7411,16 +7448,13 @@ keyword:
 	| FILE_SYM		{}
 	| FIRST_SYM		{}
 	| FIXED_SYM		{}
-	| FLUSH_SYM		{}
 	| FRAC_SECOND_SYM	{}
 	| GEOMETRY_SYM		{}
 	| GEOMETRYCOLLECTION	{}
 	| GET_FORMAT		{}
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
-	| HANDLER_SYM		{}
 	| HASH_SYM		{}
-	| HELP_SYM		{}
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
@@ -7432,7 +7466,6 @@ keyword:
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
 	| RELAY_THREAD		{}
-	| LANGUAGE_SYM          {}
 	| LAST_SYM		{}
 	| LEAVES                {}
 	| LEVEL_SYM		{}
@@ -7480,21 +7513,18 @@ keyword:
 	| NDBCLUSTER_SYM	{}
 	| NEXT_SYM		{}
 	| NEW_SYM		{}
-	| NO_SYM		{}
 	| NONE_SYM		{}
 	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
-	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
         | PHASE_SYM             {}
 	| POINT_SYM		{}
 	| POLYGON		{}
-        | PREPARE_SYM           {}
 	| PREV_SYM		{}
         | PRIVILEGES            {}
 	| PROCESS		{}
@@ -7512,41 +7542,31 @@ keyword:
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}
-	| REPAIR		{}
 	| REPEATABLE_SYM	{}
 	| REPLICATION		{}
-	| RESET_SYM		{}
 	| RESOURCES		{}
-	| RESTORE_SYM		{}
         | RESUME_SYM            {}
 	| RETURNS_SYM           {}
-	| ROLLBACK_SYM		{}
 	| ROLLUP_SYM		{}
 	| ROUTINE_SYM		{}
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
 	| RTREE_SYM		{}
-	| SAVEPOINT_SYM		{}
 	| SECOND_SYM		{}
-	| SECURITY_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}
-	| SIGNED_SYM		{}
 	| SIMPLE_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
-	| SLAVE			{}
 	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
 	| SQL_THREAD		{}
-	| START_SYM		{}
 	| STATUS_SYM		{}
-	| STOP_SYM		{}
 	| STORAGE_SYM		{}
 	| STRING_SYM		{}
 	| SUBDATE_SYM		{}
@@ -7559,7 +7579,6 @@ keyword:
 	| TEMPTABLE_SYM		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
-	| TRUNCATE_SYM		{}
 	| TIMESTAMP		{}
 	| TIMESTAMP_ADD		{}
 	| TIMESTAMP_DIFF	{}
@@ -7570,7 +7589,6 @@ keyword:
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNDEFINED_SYM		{}
-	| UNICODE_SYM		{}
 	| UNKNOWN_SYM		{}
 	| UNTIL_SYM		{}
 	| USER			{}
@@ -7582,7 +7600,6 @@ keyword:
 	| WEEK_SYM		{}
 	| WORK_SYM		{}
 	| X509_SYM		{}
-        | XA_SYM                {}
 	| YEAR_SYM		{}
 	;
 
