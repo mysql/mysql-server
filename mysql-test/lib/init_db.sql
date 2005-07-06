@@ -128,7 +128,7 @@ CREATE TABLE tables_priv (
   Table_name char(64) binary DEFAULT '' NOT NULL,
   Grantor char(77) DEFAULT '' NOT NULL,
   Timestamp timestamp(14),
-  Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+  Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   PRIMARY KEY (Host,Db,User,Table_name),KEY Grantor (Grantor)
 ) engine=MyISAM
