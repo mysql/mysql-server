@@ -8586,6 +8586,28 @@ cp932_japanese_ci	6109
 cp932_japanese_ci	61
 cp932_japanese_ci	6120
 drop table t1;
+create table t1 engine=innodb select repeat('a',50) as c1;
+alter table t1 add index(c1(5));
+insert into t1 values ('abcdefg'),('abcde100'),('abcde110'),('abcde111');
+select collation(c1) from t1 limit 1;
+collation(c1)
+cp932_japanese_ci
+select c1 from t1 where c1 like 'abcdef%' order by c1;
+c1
+abcdefg
+select c1 from t1 where c1 like 'abcde1%' order by c1;
+c1
+abcde100
+abcde110
+abcde111
+select c1 from t1 where c1 like 'abcde11%' order by c1;
+c1
+abcde110
+abcde111
+select c1 from t1 where c1 like 'abcde111%' order by c1;
+c1
+abcde111
+drop table t1;
 SET collation_connection='cp932_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -8595,4 +8617,26 @@ collation(a)	hex(a)
 cp932_bin	6109
 cp932_bin	61
 cp932_bin	6120
+drop table t1;
+create table t1 engine=innodb select repeat('a',50) as c1;
+alter table t1 add index(c1(5));
+insert into t1 values ('abcdefg'),('abcde100'),('abcde110'),('abcde111');
+select collation(c1) from t1 limit 1;
+collation(c1)
+cp932_bin
+select c1 from t1 where c1 like 'abcdef%' order by c1;
+c1
+abcdefg
+select c1 from t1 where c1 like 'abcde1%' order by c1;
+c1
+abcde100
+abcde110
+abcde111
+select c1 from t1 where c1 like 'abcde11%' order by c1;
+c1
+abcde110
+abcde111
+select c1 from t1 where c1 like 'abcde111%' order by c1;
+c1
+abcde111
 drop table t1;

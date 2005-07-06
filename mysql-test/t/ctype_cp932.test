@@ -404,5 +404,7 @@ DROP TABLE t3;
 
 SET collation_connection='cp932_japanese_ci';
 -- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
 SET collation_connection='cp932_bin';
 -- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
