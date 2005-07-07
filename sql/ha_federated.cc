@@ -848,7 +848,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
   query.length(0);
 
   uint table_name_length, table_base_name_length;
-  char *tmp_table_name, *tmp_table_base_name, *table_base_name, *select_query;
+  char *tmp_table_name, *table_base_name, *select_query;
 
   /* share->table_name has the file location - we want the table's name!  */
   table_base_name= (char*) table->s->table_name;
@@ -969,7 +969,6 @@ const char **ha_federated::bas_ext() const
 
 int ha_federated::open(const char *name, int mode, uint test_if_locked)
 {
-  int rc;
   DBUG_ENTER("ha_federated::open");
 
   if (!(share= get_share(name, table)))
@@ -1088,7 +1087,7 @@ int ha_federated::write_row(byte *buf)
 {
   uint x= 0, num_fields= 0;
   Field **field;
-  ulong current_query_id= 1;
+  query_id_t current_query_id= 1;
   ulong tmp_query_id= 1;
   uint all_fields_have_same_query_id= 1;
 
@@ -1479,8 +1478,6 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
                                  __attribute__ ((unused)))
 {
   char index_value[IO_SIZE];
-  char key_value[IO_SIZE];
-  char test_value[IO_SIZE];
   String index_string(index_value, sizeof(index_value), &my_charset_bin);
   index_string.length(0);
   uint keylen;
@@ -1546,7 +1543,6 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
 int ha_federated::index_init(uint keynr)
 {
-  int error;
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info",
              ("table: '%s'  key: %d", table->s->table_name, keynr));
@@ -1578,7 +1574,6 @@ int ha_federated::index_next(byte *buf)
 int ha_federated::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_federated::rnd_init");
-  int num_fields, rows;
 
   /*
     This 'scan' flag is incredibly important for this handler to work
