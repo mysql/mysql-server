@@ -973,3 +973,8 @@ create table t1 (col1 bigint default -9223372036854775808);
 insert into t1 values (default);
 select * from t1;
 drop table t1;
+
+#
+# Bug #10891 (converting to decimal crashes server)
+#
+select cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(30,15));
