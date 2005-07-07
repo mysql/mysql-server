@@ -120,7 +120,7 @@ create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `min_num` decimal(7,6) default '0.000001'
+  `min_num` decimal(6,6) default '0.000001'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1 ;
 set session sql_mode = 'IGNORE_SPACE';
@@ -128,14 +128,14 @@ create table t1 ( min_num   dec(6,6)     default 0.000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `min_num` decimal(7,6) default '0.000001'
+  `min_num` decimal(6,6) default '0.000001'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1 ;
 create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `min_num` decimal(7,6) default '0.000001'
+  `min_num` decimal(6,6) default '0.000001'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1 ;
 set @@SQL_MODE=NULL;

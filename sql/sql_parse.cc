@@ -5564,8 +5564,14 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   new_field->flags= type_modifier;
   new_field->unireg_check= (type_modifier & AUTO_INCREMENT_FLAG ?
 			    Field::NEXT_NUMBER : Field::NONE);
-  new_field->decimals= decimals ? (uint) set_zone(atoi(decimals),0,
-						  NOT_FIXED_DEC-1) : 0;
+  new_field->decimals= decimals ? (uint)atoi(decimals) : 0;
+  if (new_field->decimals >= NOT_FIXED_DEC)
+  {
+    my_error(ER_TOO_BIG_SCALE, MYF(0), new_field->decimals, field_name,
+             NOT_FIXED_DEC-1);
+    DBUG_RETURN(NULL);
+  }
+
   new_field->sql_type=type;
   new_field->length=0;
   new_field->change=change;
@@ -5585,11 +5591,6 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   if (length && !(new_field->length= (uint) atoi(length)))
     length=0; /* purecov: inspected */
   sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
-
-  if (new_field->length && new_field->decimals &&
-      new_field->length < new_field->decimals+1 &&
-      new_field->decimals != NOT_FIXED_DEC)
-    new_field->length=new_field->decimals+1; /* purecov: inspected */
 
   switch (type) {
   case FIELD_TYPE_TINY:
@@ -5616,22 +5617,24 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_NEWDECIMAL:
     if (!length)
+      new_field->length= 10;
+    if (new_field->length > DECIMAL_MAX_PRECISION)
     {
-      if (!(new_field->length= new_field->decimals))
-        new_field->length= 10;                  // Default length for DECIMAL
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), new_field->length, field_name,
+               DECIMAL_MAX_PRECISION);
+      DBUG_RETURN(NULL);
     }
+    if (new_field->length < new_field->decimals)
+    {
+      my_error(ER_SCALE_BIGGER_THAN_PRECISION, MYF(0), field_name);
+      DBUG_RETURN(NULL);
+    }
+    new_field->length=
+      my_decimal_precision_to_length(new_field->length, new_field->decimals,
+                                     type_modifier & UNSIGNED_FLAG);
     new_field->pack_length=
       my_decimal_get_binary_size(new_field->length, new_field->decimals);
-    if (new_field->length <= DECIMAL_MAX_PRECISION &&
-        new_field->length >= new_field->decimals)
-    {
-      new_field->length=
-        my_decimal_precision_to_length(new_field->length, new_field->decimals,
-                                       type_modifier & UNSIGNED_FLAG);
-      break;
-    }
-    my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-    DBUG_RETURN(NULL);
+    break;
   case MYSQL_TYPE_VARCHAR:
     /*
       Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
