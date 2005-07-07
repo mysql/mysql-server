@@ -413,7 +413,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 default NULL,
   UNIQUE KEY `a` USING HASH (`c`(1))
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 1
@@ -449,7 +449,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 default NULL,
   UNIQUE KEY `a` USING BTREE (`c`(1))
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 1
@@ -571,7 +571,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 collate utf8_bin default NULL,
   UNIQUE KEY `a` USING HASH (`c`(1))
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 1
@@ -607,7 +607,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 collate utf8_bin default NULL,
   UNIQUE KEY `a` USING BTREE (`c`(1))
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 1

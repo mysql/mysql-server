@@ -420,7 +420,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
   KEY `i` USING HASH (`i`)
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
@@ -428,7 +428,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
   KEY `i` USING BTREE (`i`)
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -474,7 +474,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
   KEY `i` USING BTREE (`i`)
-) ENGINE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1(
 field1 text NOT NULL,
@@ -506,8 +506,8 @@ INDEX USING BTREE(c2)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL default '0',
-  `c2` int(11) NOT NULL default '0',
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
   PRIMARY KEY  USING HASH (`c1`),
   KEY `c2` USING BTREE (`c2`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
