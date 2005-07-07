@@ -566,6 +566,17 @@ String *Item_real_func::val_str(String *str)
 }
 
 
+my_decimal *Item_real_func::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed);
+  double nr= val_real();
+  if (null_value)
+    return 0; /* purecov: inspected */
+  double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
+  return decimal_value;
+}
+
+
 void Item_func::fix_num_length_and_dec()
 {
   decimals= 0;

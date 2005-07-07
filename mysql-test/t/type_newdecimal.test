@@ -978,3 +978,8 @@ drop table t1;
 # Bug #10891 (converting to decimal crashes server)
 #
 select cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(30,15));
+
+#
+# Bug #11708 (conversion to decimal fails in decimal part)
+#
+select ln(14000) c1, convert(ln(14000),decimal(2,3)) c2, cast(ln(14000) as decimal(2,3)) c3;
