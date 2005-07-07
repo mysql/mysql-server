@@ -103,7 +103,7 @@ select max(a),min(a),avg(a) from t1;
 max(a)	min(a)	avg(a)
 1	1	1
 drop table t1;
-create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(5,6));
+create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(7,6));
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 f	float	NULL	YES		NULL		#	
@@ -133,17 +133,7 @@ min(a)
 -0.010
 drop table t1;
 create table t1 (a float(200,100), b double(200,100));
-insert t1 values (1.0, 2.0);
-select * from t1;
-a	b
-1.000000000000000000000000000000	2.000000000000000000000000000000
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` float(200,30) default NULL,
-  `b` double(200,30) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
+ERROR 42000: Too big scale 100 specified for column 'a'. Maximum is 30.
 create table t1 (c20 char);
 insert into t1 values (5000.0);
 Warnings:

@@ -476,12 +476,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(0,11));
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a_dec` decimal(11,11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-DROP TABLE t1;
+ERROR 42000: Scale may not be larger than the precision (column 'a_dec').
 create table t1(a decimal(7,3));
 insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
 select * from t1;
@@ -699,24 +694,6 @@ select * from t1;
 d
 1
 drop table t1;
-create table t1 (d decimal(64,99));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `d` decimal(64,30) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-insert into t1 values (1);
-select * from t1;
-d
-1.000000000000000000000000000000
-drop table t1;
-create table t1 (d decimal(10,12));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `d` decimal(13,12) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
 create table t1 (d decimal(5));
 show create table t1;
 Table	Create Table
@@ -732,7 +709,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (d decimal(66,0));
-ERROR 42000: Incorrect column specifier for column 'd'
+ERROR 42000: Too big precision 66 specified for column 'd'. Maximum is 65.
 CREATE TABLE t1 (i INT, d1 DECIMAL(9,2), d2 DECIMAL(9,2));
 INSERT INTO t1 VALUES (1, 101.40, 21.40), (1, -80.00, 0.00),
 (2, 0.00, 0.00), (2, -13.20, 0.00), (2, 59.60, 46.40),
