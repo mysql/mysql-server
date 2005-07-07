@@ -67,7 +67,7 @@ drop table t1;
 # FLOAT/DOUBLE/DECIMAL handling
 #
 
-create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(5,6));
+create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(7,6));
 # We mask out Privileges column because it differs for embedded server
 --replace_column 8 #
 show full columns from t1;
@@ -79,11 +79,8 @@ select a from t1 order by a;
 select min(a) from t1;
 drop table t1;
 
+--error 1425
 create table t1 (a float(200,100), b double(200,100));
-insert t1 values (1.0, 2.0);
-select * from t1;
-show create table t1;
-drop table t1;
 
 #
 # float in a char(1) field
