@@ -739,11 +739,20 @@ int decimal_shift(decimal_t *dec, int shift)
   beg= ROUND_UP(beg + 1) - 1;
   end= ROUND_UP(end) - 1;
   DBUG_ASSERT(new_point >= 0);
-  new_point= ROUND_UP(new_point) - 1;
-  for(; new_point > end; new_point--)
-    dec->buf[new_point]= 0;
-  for(; new_point < beg; new_point++)
-    dec->buf[new_point]= 0;
+  
+  /* We don't want negative new_point below */
+  if (new_point != 0)
+    new_point= ROUND_UP(new_point) - 1;
+
+  if (new_point > end)
+    do
+    {
+      dec->buf[new_point]=0;
+    }while (--new_point > end);
+  else
+    for (; new_point < beg; new_point++)
+      dec->buf[new_point]= 0;
+
   dec->intg= digits_int;
   dec->frac= digits_frac;
   return err;
