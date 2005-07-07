@@ -83,18 +83,19 @@ sub mtr_script_exists (@) {
 }
 
 sub mtr_exe_exists (@) {
-  foreach my $path ( @_ )
+  my @path= @_;
+  map {$_.= ".exe"} @path if $::glob_win32;
+  foreach my $path ( @path )
   {
-    $path.= ".exe" if $::opt_win32;
     return $path if -x $path;
   }
-  if ( @_ == 1 )
+  if ( @path == 1 )
   {
-    mtr_error("Could not find $_[0]");
+    mtr_error("Could not find $path[0]");
   }
   else
   {
-    mtr_error("Could not find any of " . join(" ", @_));
+    mtr_error("Could not find any of " . join(" ", @path));
   }
 }
 
