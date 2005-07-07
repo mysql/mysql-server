@@ -199,7 +199,7 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_fields)
 {
   TABLE *table= insert_table_list->table;
-  query_id_it timestamp_query_id;
+  query_id_t timestamp_query_id;
   LINT_INIT(timestamp_query_id);
 
   /*
