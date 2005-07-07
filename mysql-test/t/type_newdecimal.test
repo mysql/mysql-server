@@ -983,3 +983,18 @@ select cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(3
 # Bug #11708 (conversion to decimal fails in decimal part)
 #
 select ln(14000) c1, convert(ln(14000),decimal(2,3)) c2, cast(ln(14000) as decimal(2,3)) c3;
+
+#
+# Bug #8449 (Silent column changes)
+#
+--error 1426
+create table t1 (sl decimal(70,30));
+--error 1425
+create table t1 (sl decimal(32,31));
+--error 1425
+create table t1 (sl decimal(0,38));
+--error 1427
+create table t1 (sl decimal(0,30));
+create table t1 (sl decimal(5, 5));
+show create table t1;
+drop table t1;
