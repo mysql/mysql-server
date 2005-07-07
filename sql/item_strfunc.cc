@@ -388,6 +388,9 @@ String *Item_func_des_encrypt::val_str(String *str)
 
   if (arg_count == 1)
   {
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     /* Protect against someone doing FLUSH DES_KEY_FILE */
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number=des_default_key];
@@ -398,6 +401,10 @@ String *Item_func_des_encrypt::val_str(String *str)
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
+
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
     VOID(pthread_mutex_unlock(&LOCK_des_key_file));
@@ -485,6 +492,10 @@ String *Item_func_des_decrypt::val_str(String *str)
     // Check if automatic key and that we have privilege to uncompress using it
     if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
       goto error;
+
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
     VOID(pthread_mutex_unlock(&LOCK_des_key_file));

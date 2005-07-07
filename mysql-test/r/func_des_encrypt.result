@@ -1,0 +1,3 @@
+select des_encrypt('hello');
+des_encrypt('hello')
+€Ö2nV“Ø}
