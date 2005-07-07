@@ -1087,7 +1087,7 @@ int ha_federated::write_row(byte *buf)
 {
   uint x= 0, num_fields= 0;
   Field **field;
-  query_id_it current_query_id= 1;
+  query_id_t current_query_id= 1;
   ulong tmp_query_id= 1;
   uint all_fields_have_same_query_id= 1;
 
