@@ -10292,7 +10292,8 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
  */
 void Dbdih::crashSystemAtGcpStop(Signal* signal)
 {
-  if(cgcpStatus == GCP_NODE_FINISHED)
+  switch(cgcpStatus){
+  case GCP_NODE_FINISHED:
   {
     /**
      * We're waiting for a GCP save conf
@@ -10301,13 +10302,49 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal)
     NodeReceiverGroup rg(DBLQH, c_GCP_SAVEREQ_Counter);
     signal->theData[0] = 2305;
     sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
-
+    
     infoEvent("Detected GCP stop...sending kill to %s", 
 	      c_GCP_SAVEREQ_Counter.getText());
     ndbout_c("Detected GCP stop...sending kill to %s", 
 	     c_GCP_SAVEREQ_Counter.getText());
     return;
   }
+  case GCP_SAVE_LQH_FINISHED:
+    ndbout_c("m_copyReason: %d m_waiting: %d",
+	     c_copyGCIMaster.m_copyReason,
+	     c_copyGCIMaster.m_waiting);
+    break;
+  }
+  
+  ndbout_c("c_COPY_GCIREQ_Counter = %s", 
+	   c_COPY_GCIREQ_Counter.getText());
+  ndbout_c("c_COPY_TABREQ_Counter = %s", 
+	   c_COPY_TABREQ_Counter.getText());
+  ndbout_c("c_CREATE_FRAGREQ_Counter = %s", 
+	   c_CREATE_FRAGREQ_Counter.getText());
+  ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
+	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
+  ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
+  ndbout_c("c_END_TOREQ_Counter = %s", c_END_TOREQ_Counter.getText());
+  ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
+  ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
+  ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
+  ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
+  ndbout_c("c_MASTER_GCPREQ_Counter = %s", 
+	   c_MASTER_GCPREQ_Counter.getText());
+  ndbout_c("c_MASTER_LCPREQ_Counter = %s", 
+	   c_MASTER_LCPREQ_Counter.getText());
+  ndbout_c("c_START_INFOREQ_Counter = %s", 
+	   c_START_INFOREQ_Counter.getText());
+  ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
+  ndbout_c("c_START_TOREQ_Counter = %s", c_START_TOREQ_Counter.getText());
+  ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
+  ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", 
+	   c_TC_CLOPSIZEREQ_Counter.getText());
+  ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", 
+	   c_TCGETOPSIZEREQ_Counter.getText());
+  ndbout_c("c_UPDATE_TOREQ_Counter = %s", c_UPDATE_TOREQ_Counter.getText());
+
   NodeRecordPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
