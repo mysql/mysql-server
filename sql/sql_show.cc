@@ -1414,15 +1414,15 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 	!limited_mysql_mode && !foreign_db_mode)
     {
       if (key_info->algorithm == HA_KEY_ALG_BTREE)
-	packet->append(" TYPE BTREE", 11);
+	packet->append(" USING BTREE", 12);
       
       if (key_info->algorithm == HA_KEY_ALG_HASH)
-	packet->append(" TYPE HASH", 10);
+	packet->append(" USING HASH", 11);
       
       // +BAR: send USING only in non-default case: non-spatial rtree
       if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
 	  !(key_info->flags & HA_SPATIAL))
-	packet->append(" TYPE RTREE", 11);
+	packet->append(" USING RTREE", 12);
 
       // No need to send TYPE FULLTEXT, it is sent as FULLTEXT KEY
     }
