@@ -15,6 +15,7 @@ grant usage on *.* to user1@localhost;
 flush privileges;
 
 --disable_warnings
+drop table if exists t1;
 drop database if exists db1_secret;
 --enable_warnings
 # Create our secret database
