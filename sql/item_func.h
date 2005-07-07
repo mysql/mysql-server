@@ -187,6 +187,7 @@ public:
   Item_real_func(Item *a,Item *b) :Item_func(a,b) {}
   Item_real_func(List<Item> &list) :Item_func(list) {}
   String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
     { DBUG_ASSERT(fixed == 1); return (longlong) val_real(); }
   enum Item_result result_type () const { return REAL_RESULT; }
