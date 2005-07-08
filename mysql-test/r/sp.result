@@ -3033,4 +3033,33 @@ call bug11529()|
 call bug11529()|
 delete from t1|
 drop procedure bug11529|
+drop procedure if exists bug6063|
+drop procedure if exists bug7088_1|
+drop procedure if exists bug7088_2|
+create procedure bug6063()
+l‚bel: begin end|
+call bug6063()|
+show create procedure bug6063|
+Procedure	sql_mode	Create Procedure
+bug6063		CREATE PROCEDURE `test`.`bug6063`()
+l?bel: begin end
+set character set utf8|
+create procedure bug7088_1()
+label1: begin end label1|
+create procedure bug7088_2()
+l√§bel1: begin end|
+call bug7088_1()|
+call bug7088_2()|
+set character set default|
+show create procedure bug7088_1|
+Procedure	sql_mode	Create Procedure
+bug7088_1		CREATE PROCEDURE `test`.`bug7088_1`()
+label1: begin end label1
+show create procedure bug7088_2|
+Procedure	sql_mode	Create Procedure
+bug7088_2		CREATE PROCEDURE `test`.`bug7088_2`()
+l‰bel1: begin end
+drop procedure bug6063|
+drop procedure bug7088_1|
+drop procedure bug7088_2|
 drop table t1,t2;
