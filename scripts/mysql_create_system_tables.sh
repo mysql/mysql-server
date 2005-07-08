@@ -669,7 +669,7 @@ fi
 if test ! -f $mdata/proc.frm
 then
   c_p="$c_p CREATE TABLE proc ("
-  c_p="$c_p   db                char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   db                char(64) collate utf8_bin DEFAULT '' NOT NULL,"
   c_p="$c_p   name              char(64) DEFAULT '' NOT NULL,"
   c_p="$c_p   type              enum('FUNCTION','PROCEDURE') NOT NULL,"
   c_p="$c_p   specific_name     char(64) DEFAULT '' NOT NULL,"
@@ -684,7 +684,7 @@ then
   c_p="$c_p   param_list        blob DEFAULT '' NOT NULL,"
   c_p="$c_p   returns           char(64) DEFAULT '' NOT NULL,"
   c_p="$c_p   body              blob DEFAULT '' NOT NULL,"
-  c_p="$c_p   definer           char(77) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   definer           char(77) collate utf8_bin DEFAULT '' NOT NULL,"
   c_p="$c_p   created           timestamp,"
   c_p="$c_p   modified          timestamp,"
   c_p="$c_p   sql_mode          set("
@@ -718,10 +718,12 @@ then
   c_p="$c_p                         'TRADITIONAL',"
   c_p="$c_p                         'NO_AUTO_CREATE_USER',"
   c_p="$c_p                         'HIGH_NOT_PRECEDENCE'"
-  c_p="$c_p                     ) DEFAULT 0 NOT NULL,"
-  c_p="$c_p   comment           char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p                     ) DEFAULT '' NOT NULL,"
+  c_p="$c_p   comment           char(64) collate utf8_bin DEFAULT '' NOT NULL,"
   c_p="$c_p   PRIMARY KEY (db,name,type)"
-  c_p="$c_p ) comment='Stored Procedures';"
+  c_p="$c_p ) engine=MyISAM"
+  c_p="$c_p character set utf8"
+  c_p="$c_p comment='Stored Procedures';"
 fi
 
 cat << END_OF_DATA

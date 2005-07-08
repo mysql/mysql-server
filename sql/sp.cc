@@ -67,7 +67,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
 		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
 {
   TABLE *table;
-  byte key[NAME_LEN*2+4+1];	// db, name, optional key length type
+  byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
