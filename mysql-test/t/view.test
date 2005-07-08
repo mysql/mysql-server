@@ -83,8 +83,7 @@ explain extended select c from v6;
 # show table/table status test
 show tables;
 show full tables;
---replace_column 12 # 13 #
---replace_result 2147483647 38654705663
+--replace_column 8 # 12 # 13 #
 show table status;
 
 drop view v1,v2,v3,v4,v5,v6;
