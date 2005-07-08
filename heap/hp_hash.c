@@ -552,9 +552,9 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2,
       if (cs->mbmaxlen > 1)
       {
         uint char_length= seg->length / cs->mbmaxlen;
-        char_length1= my_charpos(cs, pos1, pos1 + char_length1, char_length);
+        char_length1= my_charpos(cs, pos1, pos1 + char_length1, char_length1);
         set_if_smaller(char_length1, seg->length);
-        char_length2= my_charpos(cs, pos2, pos2 + char_length2, char_length);
+        char_length2= my_charpos(cs, pos2, pos2 + char_length2, char_length2);
         set_if_smaller(char_length2, seg->length);
       }
 
