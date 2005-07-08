@@ -9330,7 +9330,7 @@ bool JOIN::rollup_init()
     ORDER *group_tmp;
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
-      if (item->eq(*group_tmp->item,0))
+      if (*group_tmp->item == item)
         item->maybe_null= 1;
     }
     if (item->type() == Item::FUNC_ITEM)
@@ -9452,7 +9452,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
-          if (item->eq(*group_tmp->item,0))
+          if (*group_tmp->item == item)
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be
