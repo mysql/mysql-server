@@ -79,7 +79,8 @@ static byte* tina_get_key(TINA_SHARE *share,uint *length,
 int get_mmap(TINA_SHARE *share, int write)
 {
   DBUG_ENTER("ha_tina::get_mmap");
-  if (share->mapped_file && munmap(share->mapped_file, share->file_stat.st_size))
+  if (share->mapped_file && my_munmap(share->mapped_file,
+                                      share->file_stat.st_size))
     DBUG_RETURN(1);
 
   if (my_fstat(share->data_file, &share->file_stat, MYF(MY_WME)) == -1)
@@ -88,13 +89,13 @@ int get_mmap(TINA_SHARE *share, int write)
   if (share->file_stat.st_size) 
   {
     if (write)
-      share->mapped_file= (byte *)mmap(NULL, share->file_stat.st_size, 
-                                       PROT_READ|PROT_WRITE, MAP_SHARED,
-                                       share->data_file, 0);
+      share->mapped_file= (byte *)my_mmap(NULL, share->file_stat.st_size,
+                                          PROT_READ|PROT_WRITE, MAP_SHARED,
+                                          share->data_file, 0);
     else
-      share->mapped_file= (byte *)mmap(NULL, share->file_stat.st_size, 
-                                       PROT_READ, MAP_PRIVATE,
-                                       share->data_file, 0);
+      share->mapped_file= (byte *)my_mmap(NULL, share->file_stat.st_size,
+                                          PROT_READ, MAP_PRIVATE,
+                                          share->data_file, 0);
     if ((share->mapped_file ==(caddr_t)-1)) 
     {
       /*
@@ -202,7 +203,7 @@ static int free_share(TINA_SHARE *share)
   if (!--share->use_count){
     /* Drop the mapped file */
     if (share->mapped_file) 
-      munmap(share->mapped_file, share->file_stat.st_size);
+      my_munmap(share->mapped_file, share->file_stat.st_size);
     result_code= my_close(share->data_file,MYF(0));
     hash_delete(&tina_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
@@ -760,7 +761,7 @@ int ha_tina::rnd_end()
     if (my_chsize(share->data_file, length, 0, MYF(MY_WME)))
       DBUG_RETURN(-1);
 
-    if (munmap(share->mapped_file, length))
+    if (my_munmap(share->mapped_file, length))
       DBUG_RETURN(-1);
 
     /* We set it to null so that get_mmap() won't try to unmap it */
