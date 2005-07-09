@@ -2296,8 +2296,7 @@ mysql_execute_command(THD *thd)
     Don't reset warnings when executing a stored routine.
   */
   if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->spfuns.records || lex->spprocs.records) &&
-      !thd->spcont)
+       lex->sroutines.records) && !thd->spcont)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION

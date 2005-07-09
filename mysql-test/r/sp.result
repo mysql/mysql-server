@@ -1229,7 +1229,7 @@ a
 select * from v1|
 a
 3
-select * from v1, v2|
+select * from v1, t1|
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select f4()|
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
