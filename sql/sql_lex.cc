@@ -1997,10 +1997,8 @@ void st_lex::cleanup_after_one_table_open()
     select_lex.cut_subtree();
   }
   time_zone_tables_used= 0;
-  if (spfuns.records)
-    my_hash_reset(&spfuns);
-  if (spprocs.records)
-    my_hash_reset(&spprocs);
+  if (sroutines.records)
+    my_hash_reset(&sroutines);
 }
 
 
