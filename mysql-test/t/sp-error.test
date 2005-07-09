@@ -1025,7 +1025,7 @@ end|
 --error 1424
 call bug11394(2, 1)|
 drop procedure bug11394|
-delimiter |;
+delimiter ;|
 
 #
 # Bug#11834 "Re-execution of prepared statement with dropped function

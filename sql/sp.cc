@@ -1134,7 +1134,7 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first)
     FALSE - element was not added (because it is already present in the set).
 */
 
-static bool add_used_routine(LEX *lex, Item_arena *arena,
+static bool add_used_routine(LEX *lex, Query_arena *arena,
                              const LEX_STRING *key)
 {
   if (!hash_search(&lex->sroutines, (byte *)key->str, key->length))
@@ -1173,7 +1173,7 @@ static bool add_used_routine(LEX *lex, Item_arena *arena,
     persistent arena as second argument.
 */
 
-void sp_add_used_routine(LEX *lex, Item_arena *arena,
+void sp_add_used_routine(LEX *lex, Query_arena *arena,
                          sp_name *rt, char rt_type)
 {
   rt->set_routine_type(rt_type);
