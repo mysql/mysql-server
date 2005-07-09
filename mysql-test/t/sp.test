@@ -1414,7 +1414,8 @@ select * from v1|
 # views and functions ?
 create function f1() returns int
   return (select sum(data) from t1) + (select sum(data) from v1)|
-# FIXME All these just exceed file limit for me :)
+# This queries will crash server because we can't use LEX in
+# reenterable fashion yet. Patch disabling recursion will heal this.
 #select f1()|
 #select * from v1|
 #select * from v2|
@@ -1459,13 +1460,10 @@ select * from v2|
 select * from v1|
 # These should not work as we have too little instances of tables locked
 --error 1100
-select * from v1, v2|
+select * from v1, t1|
 --error 1100
 select f4()|
 unlock tables|
-
-
-# TODO We also should test integration with triggers
 
 
 # Cleanup

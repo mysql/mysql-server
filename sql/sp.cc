@@ -19,6 +19,7 @@
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_cache.h"
+#include "sql_trigger.h"
 
 static bool
 create_string(THD *thd, String *buf,
@@ -1072,144 +1073,316 @@ sp_function_exists(THD *thd, sp_name *name)
 }
 
 
-byte *
-sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first)
+/*
+  Structure that represents element in the set of stored routines
+  used by statement or routine.
+*/
+struct Sroutine_hash_entry;
+
+struct Sroutine_hash_entry
 {
-  LEX_STRING *lsp= (LEX_STRING *)ptr;
-  *plen= lsp->length;
-  return (byte *)lsp->str;
-}
+  /* Set key consisting of one-byte routine type and quoted routine name. */
+  LEX_STRING key;
+  /*
+    Next element in list linking all routines in set. See also comments
+    for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
+  */
+  Sroutine_hash_entry *next;
+};
 
 
-void
-sp_add_to_hash(HASH *h, sp_name *fun)
+extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first)
 {
-  if (! hash_search(h, (byte *)fun->m_qname.str, fun->m_qname.length))
-  {
-    LEX_STRING *ls= (LEX_STRING *)sql_alloc(sizeof(LEX_STRING));
-    ls->str= sql_strmake(fun->m_qname.str, fun->m_qname.length);
-    ls->length= fun->m_qname.length;
-
-    my_hash_insert(h, (byte *)ls);
-  }
+  Sroutine_hash_entry *rn= (Sroutine_hash_entry *)ptr;
+  *plen= rn->key.length;
+  return (byte *)rn->key.str;
 }
 
 
 /*
-  Merge contents of two hashes containing LEX_STRING's
+  Auxilary function that adds new element to the set of stored routines
+  used by statement.
 
   SYNOPSIS
-    sp_merge_hash()
+    add_used_routine()
+      lex     - LEX representing statement
+      arena   - arena in which memory for new element will be allocated
+      key     - key for the hash representing set
+
+  NOTES
+    Will also add element to end of 'LEX::sroutines_list' list.
+
+    In case when statement uses stored routines but does not need
+    prelocking (i.e. it does not use any tables) we will access the
+    elements of LEX::sroutines set on prepared statement re-execution.
+    Because of this we have to allocate memory for both hash element
+    and copy of its key in persistent arena.
+
+  TODO
+    When we will got rid of these accesses on re-executions we will be
+    able to allocate memory for hash elements in non-persitent arena
+    and directly use key values from sp_head::m_sroutines sets instead
+    of making their copies.
+
+  RETURN VALUE
+    TRUE  - new element was added.
+    FALSE - element was not added (because it is already present in the set).
+*/
+
+static bool add_used_routine(LEX *lex, Item_arena *arena,
+                             const LEX_STRING *key)
+{
+  if (!hash_search(&lex->sroutines, (byte *)key->str, key->length))
+  {
+    Sroutine_hash_entry *rn=
+      (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
+                                          key->length);
+    if (!rn)              // OOM. Error will be reported using fatal_error().
+      return FALSE;
+    rn->key.length= key->length;
+    rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
+    memcpy(rn->key.str, key->str, key->length);
+    my_hash_insert(&lex->sroutines, (byte *)rn);
+    lex->sroutines_list.link_in_list((byte *)rn, (byte **)&rn->next);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  Add routine to the set of stored routines used by statement.
+
+  SYNOPSIS
+    sp_add_used_routine()
+      lex     - LEX representing statement
+      arena   - arena in which memory for new element of the set
+                will be allocated
+      rt      - routine name
+      rt_type - routine type (one of TYPE_ENUM_PROCEDURE/...)
+
+  NOTES
+    Will also add element to end of 'LEX::sroutines_list' list.
+
+    To be friendly towards prepared statements one should pass
+    persistent arena as second argument.
+*/
+
+void sp_add_used_routine(LEX *lex, Item_arena *arena,
+                         sp_name *rt, char rt_type)
+{
+  rt->set_routine_type(rt_type);
+  (void)add_used_routine(lex, arena, &rt->m_sroutines_key);
+}
+
+
+/*
+  Merge contents of two hashes representing sets of routines used
+  by statements or by other routines.
+
+  SYNOPSIS
+    sp_update_sp_used_routines()
       dst - hash to which elements should be added
       src - hash from which elements merged
 
-  RETURN VALUE
-    TRUE  - if we have added some new elements to destination hash.
-    FALSE - there were no new elements in src.
+  NOTE
+    This procedure won't create new Sroutine_hash_entry objects,
+    instead it will simply add elements from source to destination
+    hash. Thus time of life of elements in destination hash becomes
+    dependant on time of life of elements from source hash. It also
+    won't touch lists linking elements in source and destination
+    hashes.
 */
 
-bool
-sp_merge_hash(HASH *dst, HASH *src)
+void sp_update_sp_used_routines(HASH *dst, HASH *src)
 {
-  bool res= FALSE;
   for (uint i=0 ; i < src->records ; i++)
   {
-    LEX_STRING *ls= (LEX_STRING *)hash_element(src, i);
-
-    if (! hash_search(dst, (byte *)ls->str, ls->length))
-    {
-      my_hash_insert(dst, (byte *)ls);
-      res= TRUE;
-    }
+    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
+    if (!hash_search(dst, (byte *)rt->key.str, rt->key.length))
+      my_hash_insert(dst, (byte *)rt);
   }
-  return res;
 }
 
 
 /*
-  Cache all routines implicitly or explicitly used by query
-  (or whatever object is represented by LEX).
+  Add contents of hash representing set of routines to the set of
+  routines used by statement.
 
   SYNOPSIS
-    sp_cache_routines()
+    sp_update_stmt_used_routines()
       thd - thread context
-      lex - LEX representing query
+      lex - LEX representing statement
+      src - hash representing set from which routines will be added
+
+  NOTE
+    It will also add elements to end of 'LEX::sroutines_list' list.
+*/
+
+static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
+{
+  for (uint i=0 ; i < src->records ; i++)
+  {
+    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
+    (void)add_used_routine(lex, thd->current_arena, &rt->key);
+  }
+}
+
+
+/*
+  Cache sub-set of routines used by statement, add tables used by these
+  routines to statement table list. Do the same for all routines used
+  by these routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables_aux()
+      thd   - thread context
+      lex   - LEX representing statement
+      start - first routine from the list of routines to be cached
+              (this list defines mentioned sub-set).
 
   NOTE
     If some function is missing this won't be reported here.
     Instead this fact will be discovered during query execution.
 
-  TODO
-    Currently if after passing through routine hashes we discover
-    that we have added something to them, we do one more pass to
-    process all routines which were missed on previous pass because
-    of these additions. We can avoid this if along with hashes
-    we use lists holding routine names and iterate other these
-    lists instead of hashes (since addition to the end of list
-    does not reorder elements in it).
+  RETURN VALUE
+    TRUE  - some tables were added
+    FALSE - no tables were added.
+*/
+
+static bool
+sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
+                                     Sroutine_hash_entry *start)
+{
+  bool result= FALSE;
+
+  DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
+
+  for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
+  {
+    sp_name name(rt->key.str, rt->key.length);
+    int type= rt->key.str[0];
+    sp_head *sp;
+
+    if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
+                              &thd->sp_func_cache : &thd->sp_proc_cache),
+                              &name)))
+    {
+      LEX *oldlex= thd->lex;
+      LEX *newlex= new st_lex;
+      thd->lex= newlex;
+      /* Pass hint pointer to mysql.proc table */
+      newlex->proc_table= oldlex->proc_table;
+      newlex->current_select= NULL;
+      name.m_name.str= strchr(name.m_qname.str, '.');
+      name.m_db.length= name.m_name.str - name.m_qname.str;
+      name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
+                                  name.m_db.length);
+      name.m_name.str+= 1;
+      name.m_name.length= name.m_qname.length - name.m_db.length - 1;
+
+      if (db_find_routine(thd, type, &name, &sp) == SP_OK)
+      {
+        if (type == TYPE_ENUM_FUNCTION)
+          sp_cache_insert(&thd->sp_func_cache, sp);
+        else
+          sp_cache_insert(&thd->sp_proc_cache, sp);
+      }
+      delete newlex;
+      thd->lex= oldlex;
+    }
+    if (sp)
+    {
+      sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
+      result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+    }
+  }
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Cache all routines from the set of used by statement, add tables used
+  by those routines to statement table list. Do the same for all routines
+  used by those routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables()
+      thd   - thread context
+      lex   - LEX representing statement
+
+  RETURN VALUE
+    TRUE  - some tables were added
+    FALSE - no tables were added.
+*/
+
+bool
+sp_cache_routines_and_add_tables(THD *thd, LEX *lex)
+{
+
+  return sp_cache_routines_and_add_tables_aux(thd, lex,
+           (Sroutine_hash_entry *)lex->sroutines_list.first);
+}
+
+
+/*
+  Add all routines used by view to the set of routines used by statement.
+  Add tables used by those routines to statement table list. Do the same
+  for all routines used by these routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables_for_view()
+      thd     - thread context
+      lex     - LEX representing statement
+      aux_lex - LEX representing view
 */
 
 void
-sp_cache_routines(THD *thd, LEX *lex)
+sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
 {
-  bool routines_added= TRUE;
-
-  DBUG_ENTER("sp_cache_routines");
-
-  while (routines_added)
-  {
-    routines_added= FALSE;
-
-    for (int type= TYPE_ENUM_FUNCTION; type < TYPE_ENUM_TRIGGER; type++)
-    {
-      HASH *h= (type == TYPE_ENUM_FUNCTION ? &lex->spfuns : &lex->spprocs);
-
-      for (uint i=0 ; i < h->records ; i++)
-      {
-        LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
-        sp_name name(*ls);
-        sp_head *sp;
-
-        name.m_qname= *ls;
-        if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
-                                   &thd->sp_func_cache : &thd->sp_proc_cache),
-                                  &name)))
-        {
-          LEX *oldlex= thd->lex;
-          LEX *newlex= new st_lex;
-
-          thd->lex= newlex;
-          /* Pass hint pointer to mysql.proc table */
-          newlex->proc_table= oldlex->proc_table;
-          newlex->current_select= NULL;
-          name.m_name.str= strchr(name.m_qname.str, '.');
-          name.m_db.length= name.m_name.str - name.m_qname.str;
-          name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
-                                      name.m_db.length);
-          name.m_name.str+= 1;
-          name.m_name.length= name.m_qname.length - name.m_db.length - 1;
-
-          if (db_find_routine(thd, type, &name, &sp) == SP_OK)
-          {
-            if (type == TYPE_ENUM_FUNCTION)
-              sp_cache_insert(&thd->sp_func_cache, sp);
-            else
-              sp_cache_insert(&thd->sp_proc_cache, sp);
-          }
-          delete newlex;
-          thd->lex= oldlex;
-        }
-
-        if (sp)
-        {
-          routines_added|= sp_merge_hash(&lex->spfuns, &sp->m_spfuns);
-          routines_added|= sp_merge_hash(&lex->spprocs, &sp->m_spprocs);
-        }
-      }
-    }
-  }
-  DBUG_VOID_RETURN;
+  Sroutine_hash_entry **last_cached_routine_ptr=
+                          (Sroutine_hash_entry **)lex->sroutines_list.next;
+  sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines);
+  (void)sp_cache_routines_and_add_tables_aux(thd, lex,
+                                             *last_cached_routine_ptr);
 }
+
+
+/*
+  Add triggers for table to the set of routines used by statement.
+  Add tables used by them to statement table list. Do the same for
+  all implicitly used routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables_for_triggers()
+      thd      - thread context
+      lex      - LEX respresenting statement
+      triggers - triggers of the table
+*/
+
+void
+sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
+                                              Table_triggers_list *triggers)
+{
+  if (add_used_routine(lex, thd->current_arena, &triggers->sroutines_key))
+  {
+    Sroutine_hash_entry **last_cached_routine_ptr=
+                            (Sroutine_hash_entry **)lex->sroutines_list.next;
+    for (int i= 0; i < 3; i++)
+      for (int j= 0; j < 2; j++)
+        if (triggers->bodies[i][j])
+        {
+          (void)triggers->bodies[i][j]->add_used_tables_to_table_list(thd,
+                                          &lex->query_tables_last);
+          sp_update_stmt_used_routines(thd, lex,
+                                       &triggers->bodies[i][j]->m_sroutines);
+        }
+
+    (void)sp_cache_routines_and_add_tables_aux(thd, lex,
+                                               *last_cached_routine_ptr);
+  }
+}
+
 
 /*
  * Generates the CREATE... string from the table information.

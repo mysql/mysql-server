@@ -686,3 +686,19 @@ ERROR 0A000: EXECUTE is not allowed in stored procedures
 create function f() returns int begin execute stmt;
 ERROR 0A000: EXECUTE is not allowed in stored procedures
 deallocate prepare stmt;
+drop function if exists bug11834_1;
+drop function if exists bug11834_2;
+create function bug11834_1() returns int return 10;
+create function bug11834_2() returns int return bug11834_1();
+prepare stmt from "select bug11834_2()";
+execute stmt;
+bug11834_2()
+10
+execute stmt;
+bug11834_2()
+10
+drop function bug11834_1;
+execute stmt;
+ERROR 42000: FUNCTION test.bug11834_1 does not exist
+deallocate prepare stmt;
+drop function bug11834_2;
