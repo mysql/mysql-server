@@ -172,10 +172,9 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->proc_list.first= 0;
   lex->query_tables_own_last= 0;
 
-  if (lex->spfuns.records)
-    my_hash_reset(&lex->spfuns);
-  if (lex->spprocs.records)
-    my_hash_reset(&lex->spprocs);
+  if (lex->sroutines.records)
+    my_hash_reset(&lex->sroutines);
+  lex->sroutines_list.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -1567,6 +1566,28 @@ void st_select_lex::print_limit(THD *thd, String *str)
     }
     select_limit->print(str);
   }
+}
+
+
+/*
+  Initialize LEX object.
+
+  SYNOPSIS
+    st_lex::st_lex()
+
+  NOTE
+    LEX object initialized with this constructor can be used as part of
+    THD object for which one can safely call open_tables(), lock_tables()
+    and close_thread_tables() functions. But it is not yet ready for
+    statement parsing. On should use lex_start() function to prepare LEX
+    for this.
+*/
+
+st_lex::st_lex()
+  :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
+{
+  hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  sroutines_list.empty();
 }
 
 

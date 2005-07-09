@@ -4707,6 +4707,7 @@ Item_func_sp::cleanup()
     delete result_field;
     result_field= NULL;
   }
+  m_sp= NULL;
   Item_func::cleanup();
 }
 
