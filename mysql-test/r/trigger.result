@@ -1,6 +1,7 @@
-drop table if exists t1, t2;
+drop table if exists t1, t2, t3;
 drop view if exists v1;
 drop database if exists mysqltest;
+drop function if exists f1;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:=1;
 set @a:=0;
@@ -182,6 +183,96 @@ select @log;
 @log
 (BEFORE_INSERT: new=(id=1, data=5))(BEFORE_UPDATE: old=(id=1, data=4) new=(id=1, data=6))(AFTER_UPDATE: old=(id=1, data=4) new=(id=1, data=6))(BEFORE_INSERT: new=(id=3, data=3))(AFTER_INSERT: new=(id=3, data=3))
 drop table t1;
+create table t1 (id int primary key, data varchar(10), fk int);
+create table t2 (event varchar(100));
+create table t3 (id int primary key);
+create trigger t1_ai after insert on t1 for each row 
+insert into t2 values (concat("INSERT INTO t1 id=", new.id, " data='", new.data, "'"));
+insert into t1 (id, data) values (1, "one"), (2, "two");
+select * from t1;
+id	data	fk
+1	one	NULL
+2	two	NULL
+select * from t2;
+event
+INSERT INTO t1 id=1 data='one'
+INSERT INTO t1 id=2 data='two'
+drop trigger t1.t1_ai;
+create trigger t1_bi before insert on t1 for each row
+begin
+if exists (select id from t3 where id=new.fk) then
+insert into t2 values (concat("INSERT INTO t1 id=", new.id, " data='", new.data, "' fk=", new.fk));
+else
+insert into t2 values (concat("INSERT INTO t1 FAILED id=", new.id, " data='", new.data, "' fk=", new.fk));
+set new.id= NULL;
+end if;
+end|
+insert into t3 values (1);
+insert into t1 values (4, "four", 1), (5, "five", 2);
+ERROR 23000: Column 'id' cannot be null
+select * from t1;
+id	data	fk
+1	one	NULL
+2	two	NULL
+4	four	1
+select * from t2;
+event
+INSERT INTO t1 id=1 data='one'
+INSERT INTO t1 id=2 data='two'
+INSERT INTO t1 id=4 data='four' fk=1
+INSERT INTO t1 FAILED id=5 data='five' fk=2
+drop table t1, t2, t3;
+create table t1 (id int primary key, data varchar(10));
+create table t2 (seq int);
+insert into t2 values (10);
+create function f1 () returns int return (select max(seq) from t2);
+create trigger t1_bi before insert on t1 for each row
+begin
+if new.id > f1() then
+set new.id:= f1();
+end if;
+end|
+select f1();
+f1()
+10
+insert into t1 values (1, "first");
+insert into t1 values (f1(), "max");
+select * from t1;
+id	data
+1	first
+10	max
+drop table t1, t2;
+drop function f1;
+create table t1 (id int primary key, fk_t2 int);
+create table t2 (id int primary key, fk_t3 int);
+create table t3 (id int primary key);
+insert into t1 values (1,1), (2,1), (3,2);
+insert into t2 values (1,1), (2,2);
+insert into t3 values (1), (2);
+create trigger t3_ad after delete on t3 for each row
+delete from t2 where fk_t3=old.id;
+create trigger t2_ad after delete on t2 for each row
+delete from t1 where fk_t2=old.id;
+delete from t3 where id = 1;
+select * from t1 left join (t2 left join t3 on t2.fk_t3 = t3.id) on t1.fk_t2 = t2.id;
+id	fk_t2	id	fk_t3	id
+3	2	2	2	2
+drop table t1, t2, t3;
+create table t1 (id int primary key, copy int);
+create table t2 (id int primary key, data int);
+insert into t2 values (1,1), (2,2);
+create trigger t1_bi before insert on t1 for each row
+set new.copy= (select data from t2 where id = new.id);
+create trigger t1_bu before update on t1 for each row
+set new.copy= (select data from t2 where id = new.id);
+insert into t1 values (1,3), (2,4), (3,3);
+update t1 set copy= 1 where id = 2;
+select * from t1;
+id	copy
+1	1
+2	2
+3	NULL
+drop table t1, t2;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:= old.i;
 ERROR HY000: There is no OLD row in on INSERT trigger
