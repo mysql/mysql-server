@@ -82,7 +82,7 @@ sp_function_exists(THD *thd, sp_name *name);
   Procedures for pre-caching of stored routines and building table list
   for prelocking.
 */
-void sp_add_used_routine(LEX *lex, Item_arena *arena,
+void sp_add_used_routine(LEX *lex, Query_arena *arena,
                          sp_name *rt, char rt_type);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
 bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex);
