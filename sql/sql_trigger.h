@@ -1,3 +1,20 @@
+/* Copyright (C) 2004-2005 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+
+
 /*
   This class holds all information about triggers of table.
 
@@ -28,6 +45,14 @@ class Table_triggers_list: public Sql_alloc
     used in CREATE/DROP TRIGGER for looking up trigger by name.
   */
   List<LEX_STRING>  names_list;
+  /*
+    Key representing triggers for this table in set of all stored
+    routines used by statement.
+    TODO: We won't need this member once triggers namespace will be
+    database-wide instead of table-wide because then we will be able
+    to use key based on sp_name as for other stored routines.
+  */
+  LEX_STRING        sroutines_key;
 
 public:
   /*
@@ -112,6 +137,8 @@ public:
   }
 
   friend class Item_trigger_field;
+  friend void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
+                Table_triggers_list *triggers);
 
 private:
   bool prepare_record1_accessors(TABLE *table);
