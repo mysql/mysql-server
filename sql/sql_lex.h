@@ -807,8 +807,14 @@ typedef struct st_lex
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   sp_pcontext *spcont;
-  HASH spfuns;		/* Called functions */
-  HASH spprocs;		/* Called procedures */
+  /* Set of stored routines called by statement. */
+  HASH sroutines;
+  /*
+    List linking elements of 'sroutines' set. Allows you to add new elements
+    to this set as you iterate through the list of existing elements.
+  */
+  SQL_LIST sroutines_list;
+
   st_sp_chistics sp_chistics;
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*
@@ -841,17 +847,11 @@ typedef struct st_lex
   */
   uchar *fname_start, *fname_end;
 
-  st_lex() :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
-  {
-    extern byte *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
-    hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
-    hash_init(&spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
-  }
+  st_lex();
 
   virtual ~st_lex()
   {
-    hash_free(&spfuns);
-    hash_free(&spprocs);
+    hash_free(&sroutines);
   }
 
   inline void uncacheable(uint8 cause)
