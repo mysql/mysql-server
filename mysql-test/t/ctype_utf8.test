@@ -790,6 +790,16 @@ SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
 DROP TABLE t1,t2;
 
 #
+# Bug#11591: CHAR column with utf8 does not work properly
+# (more chars than expected)
+#
+create table t1 (a char(20) character set utf8);
+insert into t1 values ('123456'),('андрей');
+alter table t1 modify a char(2) character set utf8;
+select char_length(a), length(a), a from t1 order by a;
+drop table t1;
+
+#
 # Bug#9557 MyISAM utf8 table crash
 #
 CREATE TABLE t1 (
