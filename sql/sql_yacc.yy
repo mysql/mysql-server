@@ -7388,7 +7388,9 @@ keyword:
 
 /*
  * Keywords that we allow for labels in SPs.
- * Anything that's the beginning of a statement must be in keyword above.
+ * Anything that's the beginning of a statement or characteristics
+ * must be in keyword above, otherwise we get (harmful) shift/reduce
+ * conflicts.
  */
 keyword_sp:
 	ACTION			{}
