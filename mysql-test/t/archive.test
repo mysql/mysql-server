@@ -1313,6 +1313,11 @@ INSERT INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
 SELECT * FROM t2;
 OPTIMIZE TABLE t2;
 SELECT * FROM t2;
+INSERT INTO t2 VALUES (2,011401,37,'breaking','dreaded','Steinberg','W');
+INSERT INTO t2 VALUES (3,011402,37,'Romans','scholastics','jarring','');
+INSERT INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
+OPTIMIZE TABLE t2 EXTENDED;
+SELECT * FROM t2;
 REPAIR TABLE t2;
 SELECT * FROM t2;
 
