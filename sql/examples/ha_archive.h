@@ -36,7 +36,7 @@ typedef struct st_archive_share {
   gzFile archive_write;     /* Archive file we are working with */
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
-  ha_rows rows_recorded;  /* Number of rows in tables */
+  ha_rows rows_recorded;    /* Number of rows in tables */
 } ARCHIVE_SHARE;
 
 /*
@@ -53,7 +53,7 @@ class ha_archive: public handler
   z_off_t current_position;  /* The position of the row we just read */
   byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
-  ulonglong scan_rows;       /* Number of rows left in scan */
+  ha_rows scan_rows;         /* Number of rows left in scan */
   bool delayed_insert;       /* If the insert is delayed */
   bool bulk_insert;          /* If we are performing a bulk insert */
 
@@ -84,6 +84,7 @@ public:
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
+  int real_write_row(byte *buf, gzFile writer);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
@@ -102,6 +103,10 @@ public:
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
+  enum row_type get_row_type() const 
+  { 
+    return ROW_TYPE_COMPRESSED;
+  }
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 };
