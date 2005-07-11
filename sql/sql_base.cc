@@ -1802,16 +1802,13 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
     may be still zero for prelocked statement...
   */
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-      (thd->lex->spfuns.records || thd->lex->spprocs.records))
+      thd->lex->sroutines.records)
   {
-    TABLE_LIST **save_query_tables_last;
-
-    sp_cache_routines(thd, thd->lex);
-    save_query_tables_last= thd->lex->query_tables_last;
+    TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
 
-    if (sp_add_sp_tables_to_table_list(thd, thd->lex, thd->lex) ||
+    if (sp_cache_routines_and_add_tables(thd, thd->lex) ||
         *start)
     {
       query_tables_last_own= save_query_tables_last;
@@ -1847,19 +1844,16 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
           and add tables used by them to table list.
         */
         if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-            (tables->view->spfuns.records || tables->view->spprocs.records))
+            tables->view->sroutines.records)
         {
-          // FIXME We should catch recursion for both views and funcs here
-          sp_cache_routines(thd, tables->view);
-
           /* We have at least one table in TL here */
           if (!query_tables_last_own)
             query_tables_last_own= thd->lex->query_tables_last;
-          sp_add_sp_tables_to_table_list(thd, thd->lex, tables->view);
+          sp_cache_routines_and_add_tables_for_view(thd, thd->lex,
+                                                    tables->view);
         }
         /* Cleanup hashes because destructo for this LEX is never called */
-        hash_free(&tables->view->spfuns);
-        hash_free(&tables->view->spprocs);
+        hash_free(&tables->view->sroutines);
 	continue;
       }
 
@@ -1914,9 +1908,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
         prelocking list.
         If we lock table for reading we won't update it so there is no need to
         process its triggers since they never will be activated.
-
-        FIXME Now we are simply turning on prelocking. Proper integration
-        and testing is to be done later.
       */
       if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
           tables->table->triggers &&
@@ -1924,6 +1915,8 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
       {
         if (!query_tables_last_own)
             query_tables_last_own= thd->lex->query_tables_last;
+        sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
+                                                      tables->table->triggers);
       }
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
     }
