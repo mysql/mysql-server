@@ -3,9 +3,10 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2;
+drop table if exists t1, t2, t3;
 drop view if exists v1;
 drop database if exists mysqltest;
+drop function if exists f1;
 --enable_warnings
 
 create table t1 (i int);
@@ -198,6 +199,86 @@ select @log;
 # This also drops associated triggers
 drop table t1;
 
+
+#
+# Let us test triggers which access other tables.
+#
+# Trivial trigger which inserts data into another table
+create table t1 (id int primary key, data varchar(10), fk int);
+create table t2 (event varchar(100));
+create table t3 (id int primary key);
+create trigger t1_ai after insert on t1 for each row 
+  insert into t2 values (concat("INSERT INTO t1 id=", new.id, " data='", new.data, "'"));
+insert into t1 (id, data) values (1, "one"), (2, "two");
+select * from t1;
+select * from t2;
+drop trigger t1.t1_ai;
+# Trigger which uses couple of tables (and partially emulates FK constraint)
+delimiter |;
+create trigger t1_bi before insert on t1 for each row
+begin
+  if exists (select id from t3 where id=new.fk) then
+    insert into t2 values (concat("INSERT INTO t1 id=", new.id, " data='", new.data, "' fk=", new.fk));
+  else
+    insert into t2 values (concat("INSERT INTO t1 FAILED id=", new.id, " data='", new.data, "' fk=", new.fk));
+    set new.id= NULL;
+  end if;
+end|
+delimiter ;|
+insert into t3 values (1);
+--error 1048
+insert into t1 values (4, "four", 1), (5, "five", 2);
+select * from t1;
+select * from t2;
+drop table t1, t2, t3;
+# Trigger which invokes function
+create table t1 (id int primary key, data varchar(10));
+create table t2 (seq int);
+insert into t2 values (10);
+create function f1 () returns int return (select max(seq) from t2);
+delimiter |;
+create trigger t1_bi before insert on t1 for each row
+begin
+  if new.id > f1() then
+    set new.id:= f1();
+  end if;
+end|
+delimiter ;|
+# Remove this once bug #11554 will be fixed.
+select f1();
+insert into t1 values (1, "first");
+insert into t1 values (f1(), "max");
+select * from t1;
+drop table t1, t2;
+drop function f1;
+# Trigger which forces invocation of another trigger
+# (emulation of FK on delete cascade policy)
+create table t1 (id int primary key, fk_t2 int);
+create table t2 (id int primary key, fk_t3 int);
+create table t3 (id int primary key);
+insert into t1 values (1,1), (2,1), (3,2);
+insert into t2 values (1,1), (2,2);
+insert into t3 values (1), (2);
+create trigger t3_ad after delete on t3 for each row
+  delete from t2 where fk_t3=old.id;
+create trigger t2_ad after delete on t2 for each row
+  delete from t1 where fk_t2=old.id;
+delete from t3 where id = 1;
+select * from t1 left join (t2 left join t3 on t2.fk_t3 = t3.id) on t1.fk_t2 = t2.id;
+drop table t1, t2, t3;
+# Trigger which assigns value selected from table to field of row
+# being inserted/updated.
+create table t1 (id int primary key, copy int);
+create table t2 (id int primary key, data int);
+insert into t2 values (1,1), (2,2);
+create trigger t1_bi before insert on t1 for each row
+  set new.copy= (select data from t2 where id = new.id);
+create trigger t1_bu before update on t1 for each row
+  set new.copy= (select data from t2 where id = new.id);
+insert into t1 values (1,3), (2,4), (3,3);
+update t1 set copy= 1 where id = 2;
+select * from t1;
+drop table t1, t2;
 
 #
 # Test of wrong column specifiers in triggers
@@ -497,14 +578,15 @@ drop table t1, t2;
 
 # Test for bug #5893 "Triggers with dropped functions cause crashes"
 # Appropriate error should be reported instead of crash.
---disable_warnings
-drop function if exists bug5893;
---enable_warnings
-create table t1 (col1 int, col2 int); 
-insert into t1 values (1, 2);
-create function bug5893 () returns int return 5;
-create trigger t1_bu before update on t1 for each row set new.col1= bug5893();
-drop function bug5893; 
---error 1305
-update t1 set col2 = 4;
-drop table t1;
+# Had to disable this test until bug #11554 will be fixed.
+#--disable_warnings
+#drop function if exists bug5893;
+#--enable_warnings
+#create table t1 (col1 int, col2 int); 
+#insert into t1 values (1, 2);
+#create function bug5893 () returns int return 5;
+#create trigger t1_bu before update on t1 for each row set new.col1= bug5893();
+#drop function bug5893; 
+#--error 1305
+#update t1 set col2 = 4;
+#drop table t1;

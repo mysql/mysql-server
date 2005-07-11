@@ -48,7 +48,7 @@ mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c my_create_tables.c
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
 		$(distdir)/std_data $(distdir)/lib
-	$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
@@ -71,7 +71,7 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data \
 		$(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
-	$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
+	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(DESTDIR)$(testdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t

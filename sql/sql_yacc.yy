@@ -1531,7 +1531,7 @@ call:
 	    lex->sql_command= SQLCOM_CALL;
 	    lex->spname= $2;
 	    lex->value_list.empty();
-	    sp_add_to_hash(&lex->spprocs, $2);
+	    sp_add_used_routine(lex, YYTHD, $2, TYPE_ENUM_PROCEDURE);
 	  }
           '(' sp_cparam_list ')' {}
 	;
@@ -4695,7 +4695,7 @@ simple_expr:
 	    sp_name *name= new sp_name($1, $3);
 
 	    name->init_qname(YYTHD);
-	    sp_add_to_hash(&lex->spfuns, name);
+	    sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
 	    if ($5)
 	      $$= new Item_func_sp(&lex->current_select->context, name, *$5);
 	    else
@@ -4785,7 +4785,7 @@ simple_expr:
 	      LEX *lex= Lex;
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
-              sp_add_to_hash(&lex->spfuns, name);
+              sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
               if ($3)
                 $$= new Item_func_sp(&lex->current_select->context, name, *$3);
               else
@@ -7740,12 +7740,6 @@ sys_option_value:
               yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-            if (lex->query_tables)
-            {
-              my_message(ER_SP_SUBSELECT_NYI, ER(ER_SP_SUBSELECT_NYI),
-              MYF(0));
-              YYABORT;
-            }
             if ($4)
               it= $4;
             else
@@ -7760,7 +7754,8 @@ sys_option_value:
                                                   $2.base_name.str)) ||
                 !(i= new sp_instr_set_trigger_field(lex->sphead->
                                                     instructions(),
-                                                    lex->spcont, trg_fld, it)))
+                                                    lex->spcont, trg_fld,
+                                                    it, lex)))
               YYABORT;
 
             /*

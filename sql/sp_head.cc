@@ -242,8 +242,11 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
 void
 sp_name::init_qname(THD *thd)
 {
-  m_qname.length= m_db.length+m_name.length+1;
-  m_qname.str= thd->alloc(m_qname.length+1);
+  m_sroutines_key.length=  m_db.length + m_name.length + 2;
+  if (!(m_sroutines_key.str= thd->alloc(m_sroutines_key.length + 1)))
+    return;
+  m_qname.length= m_sroutines_key.length - 1;
+  m_qname.str= m_sroutines_key.str + 1;
   sprintf(m_qname.str, "%*s.%*s",
 	  m_db.length, (m_db.length ? m_db.str : ""),
 	  m_name.length, m_name.str);
@@ -317,15 +320,12 @@ sp_head::sp_head()
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
-  extern byte
-    *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
-  hash_init(&m_spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
-  hash_init(&m_spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
+  hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -528,8 +528,7 @@ sp_head::destroy()
   }
 
   hash_free(&m_sptabs);
-  hash_free(&m_spfuns);
-  hash_free(&m_spprocs);
+  hash_free(&m_sroutines);
   DBUG_VOID_RETURN;
 }
 
@@ -1064,11 +1063,10 @@ sp_head::restore_lex(THD *thd)
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
   /*
-    Add routines which are used by statement to respective sets for
-    this routine
+    Add routines which are used by statement to respective set for
+    this routine.
   */
-  sp_merge_hash(&m_spfuns, &sublex->spfuns);
-  sp_merge_hash(&m_spprocs, &sublex->spprocs);
+  sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines);
   /*
     Merge tables used by this statement (but not by its functions or
     procedures) to multiset of tables used by this routine.
@@ -1605,16 +1603,22 @@ sp_instr_set::print(String *str)
 int
 sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 {
-  int res= 0;
-
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
-  /* QQ: Still unsure what should we return in case of error 1 or -1 ? */
-  if (!value->fixed && value->fix_fields(thd, &value) ||
-      trigger_field->fix_fields(thd, 0) ||
-      (value->save_in_field(trigger_field->field, 0) < 0))
+  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
+}
+
+
+int
+sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
+{
+  int res= 0;
+  Item *it= sp_prepare_func_item(thd, &value);
+  if (!it ||
+      !trigger_field->fixed && trigger_field->fix_fields(thd, 0) ||
+      (it->save_in_field(trigger_field->field, 0) < 0))
     res= -1;
-  *nextp= m_ip + 1;
-  DBUG_RETURN(res);
+  *nextp = m_ip+1;
+  return res;
 }
 
 void
@@ -2438,72 +2442,3 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   return table;
 }
 
-
-/*
-  Auxilary function for adding tables used by routines used in query
-  to table lists.
-
-  SYNOPSIS
-    sp_add_sp_tables_to_table_list_aux()
-      thd       - thread context
-      lex       - LEX to which table list tables will be added
-      func_hash - routines for which tables should be added
-      func_cache- SP cache in which this routines should be looked up
-
-  NOTE
-    See sp_add_sp_tables_to_table_list() for more info.
-
-  RETURN VALUE
-    TRUE  - some tables were added
-    FALSE - no tables were added.
-*/
-
-static bool
-sp_add_sp_tables_to_table_list_aux(THD *thd, LEX *lex, HASH *func_hash,
-                                   sp_cache **func_cache)
-{
-  uint i;
-  bool result= FALSE;
-
-  for (i= 0 ; i < func_hash->records ; i++)
-  {
-    sp_head *sp;
-    LEX_STRING *ls= (LEX_STRING *)hash_element(func_hash, i);
-    sp_name name(*ls);
-
-    name.m_qname= *ls;
-    if ((sp= sp_cache_lookup(func_cache, &name)))
-      result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
-  }
-
-  return result;
-}
-
-
-/*
-  Add tables used by routines used in query to table list.
-
-  SYNOPSIS
-    sp_add_sp_tables_to_table_list()
-      thd      - thread context
-      lex      - LEX to which table list tables will be added
-      func_lex - LEX for which functions we get tables
-                 (useful for adding tables used by view routines)
-
-  NOTE
-    Elements of list will be allocated in PS memroot, so this
-    list will be persistent between PS execetutions.
-
-  RETURN VALUE
-    TRUE  - some tables were added
-    FALSE - no tables were added.
-*/
-
-bool
-sp_add_sp_tables_to_table_list(THD *thd, LEX *lex, LEX *func_lex)
-{
-  return (sp_add_sp_tables_to_table_list_aux(thd, lex, &func_lex->spfuns,
-                                             &thd->sp_func_cache) |
-          sp_add_sp_tables_to_table_list_aux(thd, lex, &func_lex->spprocs,
-                                             &thd->sp_proc_cache));
-}
