@@ -877,7 +877,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
       }
     }
 
-    my_free(buf, MYF(0));
+    my_free((char*)buf, MYF(0));
     if (rc && rc != HA_ERR_END_OF_FILE)
       goto error;
   } 
