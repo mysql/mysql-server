@@ -347,7 +347,7 @@ static void do_cut_string(Copy_field *copy)
 
   if (copy_length < copy->to_length)
     cs->cset->fill(cs, copy->to_ptr + copy_length,
-                       copy->to_length - copy_length, ' ');
+                   copy->to_length - copy_length, ' ');
 }
 
 
