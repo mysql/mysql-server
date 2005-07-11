@@ -84,6 +84,7 @@ public:
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
+  int real_write_row(byte *buf, gzFile writer);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
