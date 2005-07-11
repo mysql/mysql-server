@@ -572,36 +572,22 @@ error:
   DBUG_RETURN(error ? error : -1);
 }
 
-
-/* 
-  Look at ha_archive::open() for an explanation of the row format.
-  Here we just write out the row.
-
-  Wondering about start_bulk_insert()? We don't implement it for
-  archive since it optimizes for lots of writes. The only save
-  for implementing start_bulk_insert() is that we could skip 
-  setting dirty to true each time.
+/*
+  This is where the actual row is written out.
 */
-int ha_archive::write_row(byte * buf)
+int ha_archive::real_write_row(byte *buf, gzFile writer)
 {
   z_off_t written;
   uint *ptr, *end;
-  DBUG_ENTER("ha_archive::write_row");
+  DBUG_ENTER("ha_archive::real_write_row");
 
-  if (share->crashed)
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
-  pthread_mutex_lock(&share->mutex);
-  written= gzwrite(share->archive_write, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
+  written= gzwrite(writer, buf, table->s->reclength);
+  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
   if (written != (z_off_t)table->s->reclength)
-    goto error;
+    DBUG_RETURN(errno ? errno : -1);
   /*
     We should probably mark the table as damagaged if the record is written
     but the blob fails.
@@ -616,20 +602,42 @@ int ha_archive::write_row(byte * buf)
     if (size)
     {
       ((Field_blob*) table->field[*ptr])->get_ptr(&data_ptr);
-      written= gzwrite(share->archive_write, data_ptr, (unsigned)size);
+      written= gzwrite(writer, data_ptr, (unsigned)size);
       if (written != (z_off_t)size)
-        goto error;
+        DBUG_RETURN(errno ? errno : -1);
     }
   }
-  share->rows_recorded++;
-  pthread_mutex_unlock(&share->mutex);
-
   DBUG_RETURN(0);
-error:
-  pthread_mutex_unlock(&share->mutex);
-  DBUG_RETURN(errno ? errno : -1);
 }
 
+
+/* 
+  Look at ha_archive::open() for an explanation of the row format.
+  Here we just write out the row.
+
+  Wondering about start_bulk_insert()? We don't implement it for
+  archive since it optimizes for lots of writes. The only save
+  for implementing start_bulk_insert() is that we could skip 
+  setting dirty to true each time.
+*/
+int ha_archive::write_row(byte *buf)
+{
+  int rc;
+  DBUG_ENTER("ha_archive::write_row");
+
+  if (share->crashed)
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
+  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
+  pthread_mutex_lock(&share->mutex);
+  share->rows_recorded++;
+  rc= real_write_row(buf, share->archive_write);
+  pthread_mutex_unlock(&share->mutex);
+
+  DBUG_RETURN(rc);
+}
 
 /*
   All calls that need to scan the table start with this method. If we are told
@@ -866,39 +874,94 @@ error:
 int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::optimize");
-  int read; // Bytes read, gzread() returns int
-  gzFile reader, writer;
-  char block[IO_SIZE];
+  int rc;
+  gzFile writer;
   char writer_filename[FN_REFLEN];
 
-  /* Closing will cause all data waiting to be flushed */
-  gzclose(share->archive_write);
-  share->archive_write= NULL; 
+  /* Flush any waiting data */
+  gzflush(share->archive_write, Z_SYNC_FLUSH);
 
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
-  if ((reader= gzopen(share->data_file_name, "rb")) == NULL)
-    DBUG_RETURN(-1); 
-
   if ((writer= gzopen(writer_filename, "wb")) == NULL)
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
+
+  /* 
+    An extended rebuild is a lot more effort. We open up each row and re-record it. 
+    Any dead rows are removed (aka rows that may have been partially recorded). 
+  */
+
+  if (check_opt->flags == T_EXTEND)
   {
-    gzclose(reader);
-    DBUG_RETURN(-1); 
+    byte *buf; 
+
+    /* 
+      First we create a buffer that we can use for reading rows, and can pass
+      to get_row().
+    */
+    if (!(buf= (byte*) my_malloc(table->s->reclength, MYF(MY_WME))))
+    {
+      rc= HA_ERR_OUT_OF_MEM;
+      goto error;
+    }
+
+    /*
+      Now we will rewind the archive file so that we are positioned at the 
+      start of the file.
+    */
+    rc= read_data_header(archive);
+    
+    /*
+      Assuming now error from rewinding the archive file, we now write out the 
+      new header for out data file.
+    */
+    if (!rc)
+      rc= write_data_header(writer);
+
+    /* 
+      On success of writing out the new header, we now fetch each row and
+      insert it into the new archive file. 
+    */
+    if (!rc)
+      while (!(rc= get_row(archive, buf)))
+        real_write_row(buf, writer);
+
+    my_free(buf, MYF(0));
+    if (rc && rc != HA_ERR_END_OF_FILE)
+      goto error;
+  } 
+  else
+  {
+    /* 
+      The quick method is to just read the data raw, and then compress it directly.
+    */
+    int read; // Bytes read, gzread() returns int
+    char block[IO_SIZE];
+    if (gzrewind(archive) == -1)
+    {
+      rc= HA_ERR_CRASHED_ON_USAGE;
+      goto error;
+    }
+
+    while ((read= gzread(archive, block, IO_SIZE)))
+      gzwrite(writer, block, read);
   }
 
-  while ((read= gzread(reader, block, IO_SIZE)))
-    gzwrite(writer, block, read);
-
-  gzclose(reader);
-  gzclose(writer);
+  gzflush(writer, Z_SYNC_FLUSH);
+  gzclose(share->archive_write);
+  share->archive_write= writer; 
 
   my_rename(writer_filename,share->data_file_name,MYF(0));
 
   DBUG_RETURN(0); 
-}
 
+error:
+  gzclose(writer);
+
+  DBUG_RETURN(rc); 
+}
 
 /* 
   Below is an example of how to setup row level locking.
