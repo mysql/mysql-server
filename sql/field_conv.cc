@@ -326,21 +326,28 @@ static void do_field_real(Copy_field *copy)
 
 static void do_cut_string(Copy_field *copy)
 {						// Shorter string field
-  memcpy(copy->to_ptr,copy->from_ptr,copy->to_length);
+  int well_formed_error;
+  CHARSET_INFO *cs= copy->from_field->charset();
+  const char *from_end= copy->from_ptr + copy->from_length;
+  uint copy_length= cs->cset->well_formed_len(cs, copy->from_ptr, from_end, 
+                                              copy->to_length / cs->mbmaxlen,
+                                              &well_formed_error);
+  if (copy->to_length < copy_length)
+    copy_length= copy->to_length;
+  memcpy(copy->to_ptr, copy->from_ptr, copy_length);
 
-  /* Check if we loosed any important characters */
-  char *ptr,*end;
-  for (ptr=copy->from_ptr+copy->to_length,end=copy->from_ptr+copy->from_length ;
-       ptr != end ;
-       ptr++)
+  /* Check if we lost any important characters */
+  if (well_formed_error ||
+      cs->cset->scan(cs, copy->from_ptr + copy_length, from_end,
+                     MY_SEQ_SPACES) < (copy->from_length - copy_length))
   {
-    if (!my_isspace(system_charset_info, *ptr))	// QQ: ucs incompatible
-    {
-      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_WARN_DATA_TRUNCATED, 1);
-      break;
-    }
+    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_DATA_TRUNCATED, 1);
   }
+
+  if (copy_length < copy->to_length)
+    cs->cset->fill(cs, copy->to_ptr + copy_length,
+                       copy->to_length - copy_length, ' ');
 }
 
 
