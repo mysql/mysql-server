@@ -1859,3 +1859,11 @@ WHERE values_id IN (SELECT values_id FROM t2
                     WHERE select_id = 0 OR select_id = 1);
 
 DROP TABLE t1, t2;
+
+# BUG#11821 : Select from subselect using aggregate function on an enum
+# segfaults:
+create table t1 (fld enum('0','1'));
+insert into t1 values ('1');
+select * from (select max(fld) from t1) as foo;
+drop table t1;
+
