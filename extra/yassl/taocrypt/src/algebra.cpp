@@ -319,9 +319,11 @@ void AbstractRing::SimultaneousExponentiate(Integer *results,
 
 } // namespace
 
+
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 namespace mySTL {
 template TaoCrypt::WindowSlider* uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
 template void destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
 }
 #endif
+

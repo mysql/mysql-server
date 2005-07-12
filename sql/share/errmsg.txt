@@ -5021,7 +5021,7 @@ ER_NON_UPDATABLE_TABLE
 	por "A tabela destino %-.100s do %s nЦo И atualizАvel"
 	rus "Таблица %-.100s в %s не может изменятся"
 	spa "La tabla destino %-.100s del %s no es actualizable"
-	swe "Tabel %-.100s anvДnd med '%s' Дr inte uppdateringsbar"
+	swe "Tabell %-.100s anvДnd med '%s' Дr inte uppdateringsbar"
 	ukr "Таблиця %-.100s у %s не може оновлюватись"
 ER_FEATURE_DISABLED  
 	eng "The '%s' feature is disabled; you need MySQL built with '%s' to have it working"
@@ -5358,3 +5358,13 @@ ER_STMT_HAS_NO_OPEN_CURSOR
 	eng "The statement (%lu) has no open cursor."
 ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
         eng "Explicit or implicit commit is not allowed in stored function or trigger."
+ER_NO_DEFAULT_FOR_VIEW_FIELD
+        eng "Field of view '%-.64s.%-.64s' underlying table doesn't have a default value"
+ER_SP_NO_RECURSION
+        eng "Recursive stored routines are not allowed."
+ER_TOO_BIG_SCALE 42000 S1009
+        eng "Too big scale %d specified for column '%-.64s'. Maximum is %d."
+ER_TOO_BIG_PRECISION 42000 S1009
+        eng "Too big precision %d specified for column '%-.64s'. Maximum is %d."
+ER_SCALE_BIGGER_THAN_PRECISION 42000 S1009
+        eng "Scale may not be larger than the precision (column '%-.64s')."

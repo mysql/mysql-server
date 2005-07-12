@@ -316,7 +316,9 @@ btr_cur_search_to_nth_level(
 	if (btr_search_latch.writer == RW_LOCK_NOT_LOCKED
 		&& latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
 		&& !estimate
+#ifdef PAGE_CUR_LE_OR_EXTENDS
 		&& mode != PAGE_CUR_LE_OR_EXTENDS
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
 		&& srv_use_adaptive_hash_indexes
 	        && btr_search_guess_on_hash(index, info, tuple, mode,
 						latch_mode, cursor,
@@ -390,9 +392,12 @@ btr_cur_search_to_nth_level(
 		page_mode = PAGE_CUR_LE;
 		break;
 	default:
-		ut_ad(mode == PAGE_CUR_L
-			|| mode == PAGE_CUR_LE
+#ifdef PAGE_CUR_LE_OR_EXTENDS
+		ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE
 			|| mode == PAGE_CUR_LE_OR_EXTENDS);
+#else /* PAGE_CUR_LE_OR_EXTENDS */
+		ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE);
+#endif /* PAGE_CUR_LE_OR_EXTENDS */
 		page_mode = mode;
 		break;
 	}
@@ -507,7 +512,7 @@ retry_page_get:
 				/* x-latch the page */
 				page = btr_page_get(space,
 						page_no, RW_X_LATCH, mtr);
-				ut_a(!!page_is_comp(page)
+				ut_a((ibool)!!page_is_comp(page)
 						== index->table->comp);
 			}
 
@@ -1385,7 +1390,7 @@ btr_cur_parse_update_in_place(
 		goto func_exit;
 	}
 
-	ut_a(!!page_is_comp(page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(page) == index->table->comp);
 	rec = page + rec_offset;
 	
 	/* We do not need to reserve btr_search_latch, as the page is only

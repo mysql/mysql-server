@@ -16,7 +16,7 @@
 
 #define USES_TYPES				/* sys/types is included */
 #include "mysys_priv.h"
-#include <sys/stat.h>
+#include <my_dir.h> /* for stat */
 #include <m_string.h>
 #if defined(HAVE_UTIME_H)
 #include <utime.h>
@@ -53,26 +53,28 @@ struct utimbuf {
 int my_copy(const char *from, const char *to, myf MyFlags)
 {
   uint Count;
-  int new_file_stat, create_flag;
+  my_bool new_file_stat; /* 1 if we could stat "to" */
+  int create_flag;
   File from_file,to_file;
   char buff[IO_SIZE];
-  struct stat stat_buff,new_stat_buff;
+  MY_STAT stat_buff,new_stat_buff;
   DBUG_ENTER("my_copy");
   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
 
   from_file=to_file= -1;
-  new_file_stat=0;
+  LINT_INIT(new_file_stat);
+  DBUG_ASSERT(!(MyFlags & (MY_FNABP | MY_NABP))); /* for my_read/my_write */
   if (MyFlags & MY_HOLD_ORIGINAL_MODES)		/* Copy stat if possible */
-    new_file_stat=stat((char*) to, &new_stat_buff);
+    new_file_stat= test(my_stat((char*) to, &new_stat_buff, MYF(0)));
 
   if ((from_file=my_open(from,O_RDONLY | O_SHARE,MyFlags)) >= 0)
   {
-    if (stat(from,&stat_buff))
+    if (!my_stat(from, &stat_buff, MyFlags))
     {
       my_errno=errno;
       goto err;
     }
-    if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
+    if (MyFlags & MY_HOLD_ORIGINAL_MODES && new_file_stat)
       stat_buff=new_stat_buff;
     create_flag= (MyFlags & MY_DONT_OVERWRITE_FILE) ? O_EXCL : O_TRUNC;
 
@@ -91,7 +93,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 
     /* Copy modes if possible */
 
-    if (MyFlags & MY_HOLD_ORIGINAL_MODES && new_file_stat)
+    if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
 	DBUG_RETURN(0);			/* File copyed but not stat */
     VOID(chmod(to, stat_buff.st_mode & 07777)); /* Copy modes */
 #if !defined(MSDOS) && !defined(__WIN__) && !defined(__EMX__) && !defined(OS2) && !defined(__NETWARE__)

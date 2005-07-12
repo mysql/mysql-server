@@ -445,7 +445,7 @@ const opaque master_label[MASTER_LABEL_SZ + 1] = "master secret";
 const opaque key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
 
-} // namespace
+} // naemspace
 
 #if __GNUC__ == 2 && __GNUC_MINOR__ <= 96
 /*
@@ -455,5 +455,6 @@ const opaque key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 */
 using yaSSL::byte;
 #endif
+
 
 #endif // yaSSL_TYPES_HPP

@@ -263,6 +263,9 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
     if (tree->flag & TREE_NO_DUPS)
       return(NULL);
     element->count++;
+    /* Avoid a wrap over of the count. */
+    if (! element->count)
+      element->count--;
   }
   DBUG_EXECUTE("check_tree", test_rb_tree(tree->root););
   return element;

@@ -53,7 +53,7 @@ void Item_row::illegal_method_call(const char *method)
   DBUG_VOID_RETURN;
 }
 
-bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
+bool Item_row::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   null_value= 0;
@@ -61,7 +61,7 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
   {
-    if ((*arg)->fix_fields(thd, tabl, arg))
+    if ((*arg)->fix_fields(thd, arg))
       return TRUE;
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item= *arg;

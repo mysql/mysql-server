@@ -159,6 +159,51 @@ void bitmap_free(MY_BITMAP *map)
 }
 
 
+/*
+  test if bit already set and set it if it was not (thread unsafe method)
+
+  SYNOPSIS
+    bitmap_fast_test_and_set()
+    MAP   bit map struct
+    BIT   bit number
+
+  RETURN
+    0    bit was not set
+    !=0  bit was set
+*/
+
+my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit)
+{
+  uchar *byte= map->bitmap + (bitmap_bit / 8);
+  uchar bit= 1 << ((bitmap_bit) & 7);
+  uchar res= (*byte) & bit;
+  *byte|= bit;
+  return res;
+}
+
+
+/*
+  test if bit already set and set it if it was not (thread safe method)
+
+  SYNOPSIS
+    bitmap_fast_test_and_set()
+    map          bit map struct
+    bitmap_bit   bit number
+
+  RETURN
+    0    bit was not set
+    !=0  bit was set
+*/
+
+my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit)
+{
+  my_bool res;
+  DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
+  bitmap_lock(map);
+  res= bitmap_fast_test_and_set(map, bitmap_bit);
+  bitmap_unlock(map);
+}
+
 uint bitmap_set_next(MY_BITMAP *map)
 {
   uint bit_found;

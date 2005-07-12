@@ -256,16 +256,17 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       build_table_path(path, sizeof(path), db, alias, reg_ext);
     }
     if (drop_temporary ||
-        (access(path,F_OK) &&
-         ha_create_table_from_engine(thd,db,alias,TRUE)) ||
+       (access(path,F_OK) &&
+         ha_create_table_from_engine(thd,db,alias)) ||
         (!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
     {
+      // Table was not found on disk and table can't be created from engine
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
 			    table->table_name);
       else
-	error= 1;
+        error= 1;
     }
     else
     {
@@ -1549,14 +1550,12 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
-    my_snprintf(tmp_table_name, sizeof(tmp_table_name), "%s%lx_%lx_%x",
-		tmp_file_prefix, current_pid, thd->thread_id,
-		thd->tmp_table++);
+    my_snprintf(path, sizeof(path), "%s%s%lx_%lx_%x%s",
+		mysql_tmpdir, tmp_file_prefix, current_pid, thd->thread_id,
+		thd->tmp_table++, reg_ext);
     if (lower_case_table_names)
-      my_casedn_str(files_charset_info, tmp_table_name);
+      my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
-    build_table_path(path, sizeof(path), db, tmp_table_name, reg_ext);
   }
   else
     build_table_path(path, sizeof(path), db, alias, reg_ext);
@@ -1604,15 +1603,14 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
-    if (!ha_create_table_from_engine(thd, db, table_name,
-				     create_if_not_exists))
+    if (ha_table_exists_in_engine(thd, db, table_name))
     {
-      DBUG_PRINT("info", ("Table already existed in handler"));
+      DBUG_PRINT("info", ("Table with same name already existed in handler"));
 
       if (create_if_not_exists)
       {
-       create_info->table_existed= 1;   // Mark that table existed
-       error= FALSE;
+        create_info->table_existed= 1;   // Mark that table existed
+        error= FALSE;
       }
       else
        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
@@ -1734,7 +1732,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       field=item->tmp_table_field(&tmp_table);
     else
       field=create_tmp_field(thd, &tmp_table, item, item->type(),
-                             (Item ***) 0, &tmp_field,0,0,0);
+                             (Item ***) 0, &tmp_field, 0, 0, 0, 0);
     if (!field ||
 	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
 					   ((Item_field *)item)->field :
@@ -2104,6 +2102,7 @@ end:
 }
 
 
+
 /*
   RETURN VALUES
     FALSE Message sent to net (admin operation went ok)
@@ -2123,10 +2122,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                             HA_CHECK_OPT *),
                               int (view_operator_func)(THD *, TABLE_LIST*))
 {
-  TABLE_LIST *table, *next_global_table;
+  TABLE_LIST *table, *save_next_global, *save_next_local;
+  SELECT_LEX *select= &thd->lex->select_lex;
   List<Item> field_list;
   Item *item;
   Protocol *protocol= thd->protocol;
+  LEX *lex= thd->lex;
   int result_code;
   DBUG_ENTER("mysql_admin_table");
 
@@ -2153,12 +2154,25 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /* open only one table from local list of command */
-    next_global_table= table->next_global;
+    save_next_global= table->next_global;
     table->next_global= 0;
+    save_next_local= table->next_local;
+    table->next_local= 0;
+    select->table_list.first= (byte*)table;
+    /*
+      Time zone tables and SP tables can be add to lex->query_tables list,
+      so it have to be prepared.
+      TODO: Investigate if we can put extra tables into argument instead of
+      using lex->query_tables
+    */
+    lex->query_tables= table;
+    lex->query_tables_last= &table->next_global;
+    lex->query_tables_own_last= 0;;
     thd->no_warnings_for_error= no_warnings_for_error;
     open_and_lock_tables(thd, table);
     thd->no_warnings_for_error= 0;
-    table->next_global= next_global_table;
+    table->next_global= save_next_global;
+    table->next_local= save_next_local;
     /* if view are unsupported */
     if (table->view && view_operator_func == NULL)
     {
@@ -2206,7 +2220,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         err_msg= (const char *)buf;
       }
       protocol->store(err_msg, system_charset_info);
+      lex->cleanup_after_one_table_open();
       thd->clear_error();
+      /*
+        View opening can be interrupted in the middle of process so some
+        tables can be left opening
+      */
+      close_thread_tables(thd);
       if (protocol->write())
 	goto err;
       continue;
@@ -2275,6 +2295,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
 send_result:
 
+    lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -2402,13 +2423,6 @@ send_result_message:
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
-    /*
-      thd->lex->derived_tables may be set to non zero value if we open 
-      a view. It is necessary to clear thd->lex->derived_tables flag 
-      to prevent processing of derived tables during next open_and_lock_tables
-      if next table is a real table.
-    */
-    thd->lex->derived_tables= 0;
     if (protocol->write())
       goto err;
   }
@@ -3400,7 +3414,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
             !Field::type_can_have_key_part(cfield->sql_type) ||
-            cfield->field->field_length == key_part_length ||
+            (cfield->field->field_length == key_part_length &&
+             !f_is_blob(key_part->key_type)) ||
 	    (cfield->length && (cfield->length < key_part_length /
                                 key_part->field->charset()->mbmaxlen)))
 	  key_part_length= 0;			// Use whole field

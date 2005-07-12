@@ -264,7 +264,7 @@ category int(10) unsigned default NULL,
 program int(10) unsigned default NULL,
 bugdesc text,
 created datetime default NULL,
-modified timestamp(14) NOT NULL,
+modified timestamp NOT NULL,
 bugstatus int(10) unsigned default NULL,
 submitter int(10) unsigned default NULL
 ) ENGINE=MyISAM;
@@ -800,3 +800,79 @@ field(0,NULL,1,0)	field("",NULL,"bar","")	field(0.0,NULL,1.0,0.0)
 select field(NULL,1,2,NULL), field(NULL,1,2,0);
 field(NULL,1,2,NULL)	field(NULL,1,2,0)
 0	0
+CREATE TABLE t1 (str varchar(20) PRIMARY KEY);
+CREATE TABLE t2 (num int primary key);
+INSERT INTO t1 VALUES ('notnumber');
+INSERT INTO t2 VALUES (0), (1);
+SELECT * FROM t1, t2 WHERE num=str;
+str	num
+notnumber	0
+SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
+str	num
+notnumber	0
+DROP TABLE t1,t2;
+CREATE TABLE t1(
+id int(11) NOT NULL auto_increment,
+pc int(11) NOT NULL default '0',
+title varchar(20) default NULL,
+PRIMARY KEY (id)
+);
+INSERT INTO t1 VALUES
+(1, 0, 'Main'),
+(2, 1, 'Toys'),
+(3, 1, 'Games');
+SELECT t1.id, CONCAT_WS('->', t3.title, t2.title, t1.title) as col1
+FROM t1 LEFT JOIN t1 AS t2 ON t1.pc=t2.id
+LEFT JOIN t1 AS t3 ON t2.pc=t3.id;
+id	col1
+1	Main
+2	Main->Toys
+3	Main->Games
+SELECT t1.id, CONCAT_WS('->', t3.title, t2.title, t1.title) as col1
+FROM t1 LEFT JOIN t1 AS t2 ON t1.pc=t2.id
+LEFT JOIN t1 AS t3 ON t2.pc=t3.id
+WHERE CONCAT_WS('->', t3.title, t2.title, t1.title) LIKE '%Toys%';
+id	col1
+2	Main->Toys
+DROP TABLE t1;
+CREATE TABLE t1(
+trackid     int(10) unsigned NOT NULL auto_increment,
+trackname   varchar(100) NOT NULL default '',
+PRIMARY KEY (trackid)
+);
+CREATE TABLE t2(
+artistid    int(10) unsigned NOT NULL auto_increment,
+artistname  varchar(100) NOT NULL default '',
+PRIMARY KEY (artistid)
+);
+CREATE TABLE t3(
+trackid     int(10) unsigned NOT NULL,
+artistid    int(10) unsigned NOT NULL,
+PRIMARY KEY (trackid,artistid)
+);
+INSERT INTO t1 VALUES (1, 'April In Paris'), (2, 'Autumn In New York');
+INSERT INTO t2 VALUES (1, 'Vernon Duke');
+INSERT INTO t3 VALUES (1,1);
+SELECT CONCAT_WS(' ', trackname, artistname) trackname, artistname
+FROM t1 LEFT JOIN t3 ON t1.trackid=t3.trackid
+LEFT JOIN t2 ON t2.artistid=t3.artistid
+WHERE CONCAT_WS(' ', trackname, artistname) LIKE '%In%';
+trackname	artistname
+April In Paris Vernon Duke	Vernon Duke
+Autumn In New York	NULL
+DROP TABLE t1,t2,t3;
+create table t1 (b varchar(5));
+insert t1 values ('ab'), ('abc'), ('abcd'), ('abcde');
+select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1;
+b	substring(b,1)	substring(b,-1)	substring(b,-2)	substring(b,-3)	substring(b,-4)	substring(b,-5)
+ab	ab	b	ab			
+abc	abc	c	bc	abc		
+abcd	abcd	d	cd	bcd	abcd	
+abcde	abcde	e	de	cde	bcde	abcde
+select * from (select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1) t;
+b	substring(b,1)	substring(b,-1)	substring(b,-2)	substring(b,-3)	substring(b,-4)	substring(b,-5)
+ab	ab	b	ab			
+abc	abc	c	bc	abc		
+abcd	abcd	d	cd	bcd	abcd	
+abcde	abcde	e	de	cde	bcde	abcde
+drop table t1;

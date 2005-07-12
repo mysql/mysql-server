@@ -739,11 +739,20 @@ int decimal_shift(decimal_t *dec, int shift)
   beg= ROUND_UP(beg + 1) - 1;
   end= ROUND_UP(end) - 1;
   DBUG_ASSERT(new_point >= 0);
-  new_point= ROUND_UP(new_point) - 1;
-  for(; new_point > end; new_point--)
-    dec->buf[new_point]= 0;
-  for(; new_point < beg; new_point++)
-    dec->buf[new_point]= 0;
+  
+  /* We don't want negative new_point below */
+  if (new_point != 0)
+    new_point= ROUND_UP(new_point) - 1;
+
+  if (new_point > end)
+    do
+    {
+      dec->buf[new_point]=0;
+    }while (--new_point > end);
+  else
+    for (; new_point < beg; new_point++)
+      dec->buf[new_point]= 0;
+
   dec->intg= digits_int;
   dec->frac= digits_frac;
   return err;
@@ -1434,6 +1443,7 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
       intg1=ROUND_UP(from->intg +
                      (((intg0 + frac0)>0) && (from->buf[0] == DIG_MAX)));
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
+  int first_dig;
 
   sanity(to);
 
@@ -1492,17 +1502,18 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
   {
     int do_inc= FALSE;
     DBUG_ASSERT(frac0+intg0 >= 0);
-    switch (round_digit)
-    {
+    switch (round_digit) {
     case 0:
     {
       dec1 *p0= buf0 + (frac1-frac0);
       for (; p0 > buf0; p0--)
+      {
         if (*p0)
         {
           do_inc= TRUE;
           break;
-        };
+        }
+      }
       break;
     }
     case 5:
@@ -1511,9 +1522,10 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
       do_inc= (x>5) || ((x == 5) &&
                         (mode == HALF_UP || (frac0+intg0 > 0 && *buf0 & 1)));
       break;
-    };
-    default:;
-    };
+    }
+    default:
+      break;
+    }
     if (do_inc)
     {
       if (frac0+intg0>0)
@@ -1567,14 +1579,6 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
       *buf1=1;
       to->intg++;
     }
-    /* Here we  check 999.9 -> 1000 case when we need to increase intg */
-    else
-    {
-      int first_dig= to->intg % DIG_PER_DEC1;
-      /* first_dig==0 should be handled above in the 'if' */
-      if (first_dig && (*buf1 >= powers10[first_dig]))
-        to->intg++;
-    }
   }
   else
   {
@@ -1595,6 +1599,12 @@ decimal_round(decimal_t *from, decimal_t *to, int scale,
       }
     }
   }
+
+  /* Here we  check 999.9 -> 1000 case when we need to increase intg */
+  first_dig= to->intg % DIG_PER_DEC1;
+  if (first_dig && (*buf1 >= powers10[first_dig]))
+    to->intg++;
+
   if (scale<0)
     scale=0;
 

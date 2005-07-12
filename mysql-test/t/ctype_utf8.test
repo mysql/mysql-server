@@ -788,3 +788,38 @@ INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
 
 DROP TABLE t1,t2;
+
+#
+# Bug#11591: CHAR column with utf8 does not work properly
+# (more chars than expected)
+#
+create table t1 (a char(20) character set utf8);
+insert into t1 values ('123456'),('андрей');
+alter table t1 modify a char(2) character set utf8;
+select char_length(a), length(a), a from t1 order by a;
+drop table t1;
+
+#
+# Bug#9557 MyISAM utf8 table crash
+#
+CREATE TABLE t1 (
+  a varchar(255) NOT NULL default '',
+  KEY a (a)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE utf8_general_ci;
+insert into t1 values (_utf8 0xe880bd);
+insert into t1 values (_utf8 0x5b);
+select hex(a) from t1;
+drop table t1;
+
+#
+# Test for bug #11484: wrong results for a DISTINCT varchar column in uft8. 
+#
+
+CREATE TABLE t1(id varchar(20) NOT NULL) DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES ('xxx'), ('aa'), ('yyy'), ('aa');
+
+SELECT id FROM t1;
+SELECT DISTINCT id FROM t1;
+SELECT DISTINCT id FROM t1 ORDER BY id;
+
+DROP TABLE t1;

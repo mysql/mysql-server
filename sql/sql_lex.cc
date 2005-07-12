@@ -172,10 +172,9 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->proc_list.first= 0;
   lex->query_tables_own_last= 0;
 
-  if (lex->spfuns.records)
-    my_hash_reset(&lex->spfuns);
-  if (lex->spprocs.records)
-    my_hash_reset(&lex->spprocs);
+  if (lex->sroutines.records)
+    my_hash_reset(&lex->sroutines);
+  lex->sroutines_list.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -1104,7 +1103,8 @@ void st_select_lex::init_query()
   having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
-  resolve_mode= NOMATTER_MODE;
+  context.select_lex= this;
+  context.init();
   cond_count= with_wild= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
@@ -1571,6 +1571,28 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 
 /*
+  Initialize LEX object.
+
+  SYNOPSIS
+    st_lex::st_lex()
+
+  NOTE
+    LEX object initialized with this constructor can be used as part of
+    THD object for which one can safely call open_tables(), lock_tables()
+    and close_thread_tables() functions. But it is not yet ready for
+    statement parsing. On should use lex_start() function to prepare LEX
+    for this.
+*/
+
+st_lex::st_lex()
+  :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
+{
+  hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  sroutines_list.empty();
+}
+
+
+/*
   Check whether the merging algorithm can be used on this VIEW
 
   SYNOPSIS
@@ -1703,8 +1725,7 @@ bool st_lex::can_not_use_merged()
 
 bool st_lex::only_view_structure()
 {
-  switch(sql_command)
-  {
+  switch (sql_command) {
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_FIELDS:
@@ -1744,6 +1765,31 @@ bool st_lex::need_correct_ident()
   }
 }
 
+/*
+  Get effective type of CHECK OPTION for given view
+
+  SYNOPSIS
+    get_effective_with_check()
+    view    given view
+
+  NOTE
+    It have not sense to set CHECK OPTION for SELECT satement or subqueries,
+    so we do not.
+
+  RETURN
+    VIEW_CHECK_NONE      no need CHECK OPTION
+    VIEW_CHECK_LOCAL     CHECK OPTION LOCAL
+    VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
+*/
+
+uint8 st_lex::get_effective_with_check(st_table_list *view)
+{
+  if (view->select_lex->master_unit() == &unit &&
+      which_check_option_applicable())
+    return (uint8)view->with_check;
+  return VIEW_CHECK_NONE;
+}
+
 
 /*
   initialize limit counters
@@ -1755,12 +1801,13 @@ bool st_lex::need_correct_ident()
 
 void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
-  ulonglong select_limit_val;
+  ha_rows select_limit_val;
 
   DBUG_ASSERT(! thd->current_arena->is_stmt_prepare());
-  select_limit_val= sl->select_limit ? sl->select_limit->val_uint() :
-                                       HA_POS_ERROR;
-  offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
+  select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
+                                                 HA_POS_ERROR);
+  offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
+                                                 ULL(0));
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
@@ -1804,7 +1851,8 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     */
     if ((*link_to_local= test(select_lex.table_list.first)))
     {
-      select_lex.table_list.first= (byte*) first->next_local;
+      select_lex.table_list.first= (byte*) (select_lex.context.table_list=
+                                            first->next_local);
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -1909,10 +1957,48 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
     if (link_to_local)
     {
       first->next_local= (TABLE_LIST*) select_lex.table_list.first;
-      select_lex.table_list.first= (byte*) first;
+      select_lex.table_list.first=
+        (byte*) (select_lex.context.table_list= first);
       select_lex.table_list.elements++;	//safety
     }
   }
+}
+
+
+
+/*
+  cleanup lex for case when we open table by table for processing
+
+  SYNOPSIS
+    st_lex::cleanup_after_one_table_open()
+*/
+
+void st_lex::cleanup_after_one_table_open()
+{
+  /*
+    thd->lex->derived_tables & additional units may be set if we open
+    a view. It is necessary to clear thd->lex->derived_tables flag
+    to prevent processing of derived tables during next open_and_lock_tables
+    if next table is a real table and cleanup & remove underlying units
+    NOTE: all units will be connected to thd->lex->select_lex, because we
+    have not UNION on most upper level.
+    */
+  if (all_selects_list != &select_lex)
+  {
+    derived_tables= 0;
+    /* cleunup underlying units (units of VIEW) */
+    for (SELECT_LEX_UNIT *un= select_lex.first_inner_unit();
+         un;
+         un= un->next_unit())
+      un->cleanup();
+    /* reduce all selects list to default state */
+    all_selects_list= &select_lex;
+    /* remove underlying units (units of VIEW) subtree */
+    select_lex.cut_subtree();
+  }
+  time_zone_tables_used= 0;
+  if (sroutines.records)
+    my_hash_reset(&sroutines);
 }
 
 
@@ -1930,7 +2016,21 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
   if (!thd->current_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
-    prep_where= where;
+    if (*conds)
+    {
+      prep_where= *conds;
+      *conds= where= prep_where->copy_andor_structure(thd);
+    }
+    for (TABLE_LIST *tbl= (TABLE_LIST *)table_list.first;
+         tbl;
+         tbl= tbl->next_local)
+    {
+      if (tbl->on_expr)
+      {
+        tbl->prep_on_expr= tbl->on_expr;
+        tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
+      }
+    }
   }
 }
 
@@ -1945,3 +2045,4 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
   st_select_lex_unit::change_result
   are in sql_union.cc
 */
+

@@ -149,5 +149,6 @@ EXPORTS
 	mysql_server_init
 	mysql_server_end
 	mysql_set_character_set
+	mysql_get_character_set_info
 	get_defaults_files
 	modify_defaults_file

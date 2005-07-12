@@ -956,7 +956,7 @@ lock_rec_has_to_wait(
 		cause waits */
 
 		if ((lock_is_on_supremum || (type_mode & LOCK_GAP))
-			&& !(type_mode & LOCK_INSERT_INTENTION)) {
+		    && !(type_mode & LOCK_INSERT_INTENTION)) {
 
 			/* Gap type locks without LOCK_INSERT_INTENTION flag
 			do not need to wait for anything. This is because 
@@ -1765,10 +1765,7 @@ lock_rec_create(
 	lock_rec_set_nth_bit(lock, heap_no);
 
 	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
-					lock_rec_fold(space, page_no), lock); 
-	/* Note that we have create a new lock */
-	trx->trx_create_lock = TRUE;
-
+					lock_rec_fold(space, page_no), lock);
 	if (type_mode & LOCK_WAIT) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
@@ -1945,15 +1942,6 @@ lock_rec_add_to_queue(
 
 	if (similar_lock && !somebody_waits && !(type_mode & LOCK_WAIT)) {
 
-		/* If the nth bit of a record lock is already set then we
-		do not set a new lock bit, otherwice we set */
-
-		if (lock_rec_get_nth_bit(similar_lock, heap_no)) {
-			trx->trx_create_lock = FALSE;
-		} else {
-			trx->trx_create_lock = TRUE;
-		}
-
 		lock_rec_set_nth_bit(similar_lock, heap_no);
 
 		return(similar_lock);
@@ -2005,11 +1993,14 @@ lock_rec_lock_fast(
 	lock = lock_rec_get_first_on_page(rec);
 
 	trx = thr_get_trx(thr);
-	trx->trx_create_lock = FALSE;
 
 	if (lock == NULL) {
 		if (!impl) {
 			lock_rec_create(mode, rec, index, trx);
+			
+			if (srv_locks_unsafe_for_binlog) {
+				trx_register_new_rec_lock(trx, index);
+			}
 		}
 		
 		return(TRUE);
@@ -2021,23 +2012,22 @@ lock_rec_lock_fast(
 	}
 
 	if (lock->trx != trx
-				|| lock->type_mode != (mode | LOCK_REC)
-				|| lock_rec_get_n_bits(lock) <= heap_no) {
+	    || lock->type_mode != (mode | LOCK_REC)
+	    || lock_rec_get_n_bits(lock) <= heap_no) {
+
 	    	return(FALSE);
 	}
 
 	if (!impl) {
+		/* If the nth bit of the record lock is already set then we
+		do not set a new lock bit, otherwise we do set */
 
-		/* If the nth bit of a record lock is already set then we
-		do not set a new lock bit, otherwice we set */
-
-		if (lock_rec_get_nth_bit(lock, heap_no)) {
-			trx->trx_create_lock = FALSE;
-		} else {
-			trx->trx_create_lock = TRUE;
+		if (!lock_rec_get_nth_bit(lock, heap_no)) {
+			lock_rec_set_nth_bit(lock, heap_no);
+			if (srv_locks_unsafe_for_binlog) {
+				trx_register_new_rec_lock(trx, index);
+			}
 		}
-
-		lock_rec_set_nth_bit(lock, heap_no);
 	}
 
 	return(TRUE);
@@ -2093,12 +2083,19 @@ lock_rec_lock_slow(
 		enough already granted on the record, we have to wait. */
     				
 		err = lock_rec_enqueue_waiting(mode, rec, index, thr);
+
+		if (srv_locks_unsafe_for_binlog) {
+			trx_register_new_rec_lock(trx, index);
+		}
 	} else {
 		if (!impl) {
 			/* Set the requested lock on the record */
 
 			lock_rec_add_to_queue(LOCK_REC | mode, rec, index,
 									trx);
+			if (srv_locks_unsafe_for_binlog) {
+				trx_register_new_rec_lock(trx, index);
+			}
 		}
 
 		err = DB_SUCCESS;
@@ -2436,8 +2433,15 @@ lock_rec_inherit_to_gap(
 	
 	lock = lock_rec_get_first(rec);
 
+	/* If srv_locks_unsafe_for_binlog is TRUE, we do not want locks set
+	by an UPDATE or a DELETE to be inherited as gap type locks. But we
+	DO want S-locks set by a consistency constraint to be inherited also
+	then. */
+
 	while (lock != NULL) {
-		if (!lock_rec_get_insert_intention(lock)) {
+		if (!lock_rec_get_insert_intention(lock)
+		    && !(srv_locks_unsafe_for_binlog
+			 && lock_get_mode(lock) == LOCK_X)) {
 			
 			lock_rec_add_to_queue(LOCK_REC | lock_get_mode(lock)
 						| LOCK_GAP,
@@ -3069,7 +3073,7 @@ lock_update_insert(
 	lock_rec_inherit_to_gap_if_gap_lock(rec, page_rec_get_next(rec));
 
 	lock_mutex_exit_kernel();
-}	
+}
 
 /*****************************************************************
 Updates the lock table when a record is removed. */

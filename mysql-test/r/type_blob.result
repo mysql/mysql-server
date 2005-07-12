@@ -703,3 +703,18 @@ select max(i) from t1 where c = '';
 max(i)
 4
 drop table t1;
+create table t1 (a int, b int, c tinyblob, d int, e int);
+alter table t1 add primary key (a,b,c(255),d);
+alter table t1 add key (a,b,d,e);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) NOT NULL default '0',
+  `c` tinyblob NOT NULL,
+  `d` int(11) NOT NULL default '0',
+  `e` int(11) default NULL,
+  PRIMARY KEY  (`a`,`b`,`c`(255),`d`),
+  KEY `a` (`a`,`b`,`d`,`e`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;

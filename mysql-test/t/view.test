@@ -1673,3 +1673,133 @@ create view v1(k, K) as select 1,2;
 create view v1 as SELECT TIME_FORMAT(SEC_TO_TIME(3600),'%H:%i') as t;
 select * from v1;
 drop view v1;
+
+#
+# checking views after some view with error (BUG#11337)
+#
+CREATE TABLE t1 (col1 time);
+CREATE TABLE t2 (col1 time);
+CREATE VIEW v1 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v2 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+CREATE VIEW v3 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v4 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+CREATE VIEW v5 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v6 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+DROP TABLE t1;
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+drop view v1, v2, v3, v4, v5, v6;
+drop table t2;
+
+CREATE TABLE t1 (col1 time);
+CREATE TABLE t2 (col1 time);
+CREATE TABLE t3 (col1 time);
+create function f1 () returns int return (select max(col1) from t1);
+create function f2 () returns int return (select max(col1) from t2);
+CREATE VIEW v1 AS SELECT f1() FROM t3;
+CREATE VIEW v2 AS SELECT f2() FROM t3;
+CREATE VIEW v3 AS SELECT f1() FROM t3;
+CREATE VIEW v4 AS SELECT f2() FROM t3;
+CREATE VIEW v5 AS SELECT f1() FROM t3;
+CREATE VIEW v6 AS SELECT f2() FROM t3;
+drop function f1;
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+create function f1 () returns int return (select max(col1) from t1);
+DROP TABLE t1;
+# following will show underlying table until BUG#11555 fix
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+drop function f1;
+drop function f2;
+drop view v1, v2, v3, v4, v5, v6;
+drop table t2,t3;
+
+#
+# bug #11325 Wrong date comparison in views
+#
+create table t1 (f1 date);
+insert into t1 values ('2005-01-01'),('2005-02-02');
+create view v1 as select * from t1;
+select * from v1 where f1='2005.02.02';
+select * from v1 where '2005.02.02'=f1;
+drop view v1;
+drop table t1;
+
+#
+# using encrypt & substring_index in view (BUG#7024)
+#
+CREATE VIEW v1 AS SELECT ENCRYPT("dhgdhgd");
+disable_result_log;
+SELECT * FROM v1;
+enable_result_log;
+drop view v1;
+CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
+SELECT * FROM v1;
+drop view v1;
+
+#
+# Using var_samp with view (BUG#10651)
+#
+create table t1 (s1 int);
+create view v1 as select var_samp(s1) from t1;
+show create view v1;
+drop view v1;
+drop table t1;
+
+#
+# Correct inserting data check (absence of default value) for view
+# underlying tables (BUG#6443)
+#
+set sql_mode='strict_all_tables';
+CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL) ENGINE = INNODB;
+CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
+CREATE VIEW v2 (vcol1) AS SELECT col1 FROM t1 WHERE col2 > 2;
+-- error 1364
+INSERT INTO t1 (col1) VALUES(12);
+-- error 1423
+INSERT INTO v1 (vcol1) VALUES(12);
+-- error 1423
+INSERT INTO v2 (vcol1) VALUES(12);
+set sql_mode=default;
+drop view v2,v1;
+drop table t1;
+
+#
+# Bug#11399 Use an alias in a select statement on a view
+#
+create table t1 (f1 int);
+insert into t1 values (1);
+create view v1 as select f1 from t1;
+select f1 as alias from v1;
+drop view v1;
+drop table t1;
+
+#
+# Test for bug #6120: SP cache to be invalidated when altering a view
+#
+
+CREATE TABLE t1 (s1 int, s2 int);
+INSERT  INTO t1 VALUES (1,2);
+CREATE VIEW v1 AS SELECT s2 AS s1, s1 AS s2 FROM t1;
+SELECT * FROM v1;
+CREATE PROCEDURE p1 () SELECT * FROM v1;
+CALL p1();
+ALTER VIEW v1 AS SELECT s1 AS s1, s2 AS s2 FROM t1;
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Test for bug #11771: wrong query_id in SELECT * FROM <view>
+#
+
+CREATE TABLE t1 (f1 char) ENGINE = innodb;
+INSERT INTO t1 VALUES ('A');
+CREATE VIEW  v1 AS SELECT * FROM t1;
+
+INSERT INTO t1 VALUES('B');
+SELECT * FROM v1;
+SELECT * FROM t1;
+
+DROP VIEW v1;
+DROP TABLE t1;

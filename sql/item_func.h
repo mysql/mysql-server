@@ -116,7 +116,7 @@ public:
   Item_func(List<Item> &list);
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, Item_func *item);
-  bool fix_fields(THD *,struct st_table_list *, Item **ref);
+  bool fix_fields(THD *, Item **ref);
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
@@ -187,6 +187,7 @@ public:
   Item_real_func(Item *a,Item *b) :Item_func(a,b) {}
   Item_real_func(List<Item> &list) :Item_func(list) {}
   String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
     { DBUG_ASSERT(fixed == 1); return (longlong) val_real(); }
   enum Item_result result_type () const { return REAL_RESULT; }
@@ -630,7 +631,7 @@ public:
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
   void update_used_tables();
-  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
 };
 
 
@@ -885,14 +886,15 @@ protected:
   udf_handler udf;
 
 public:
-  Item_udf_func(udf_func *udf_arg) :Item_func(), udf(udf_arg) {}
+  Item_udf_func(udf_func *udf_arg)
+    :Item_func(), udf(udf_arg) {}
   Item_udf_func(udf_func *udf_arg, List<Item> &list)
     :Item_func(list), udf(udf_arg) {}
   const char *func_name() const { return udf.name(); }
-  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
+  bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
-    bool res= udf.fix_fields(thd, tables, this, arg_count, args);
+    bool res= udf.fix_fields(thd, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
     const_item_cache= udf.const_item_cache;
     fixed= 1;
@@ -907,9 +909,11 @@ public:
 class Item_func_udf_float :public Item_udf_func
 {
  public:
-  Item_func_udf_float(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
-  Item_func_udf_float(udf_func *udf_arg, List<Item> &list)
-    :Item_udf_func(udf_arg,list) {}
+  Item_func_udf_float(udf_func *udf_arg)
+    :Item_udf_func(udf_arg) {}
+  Item_func_udf_float(udf_func *udf_arg,
+                      List<Item> &list)
+    :Item_udf_func(udf_arg, list) {}
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
@@ -932,9 +936,11 @@ class Item_func_udf_float :public Item_udf_func
 class Item_func_udf_int :public Item_udf_func
 {
 public:
-  Item_func_udf_int(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
-  Item_func_udf_int(udf_func *udf_arg, List<Item> &list)
-    :Item_udf_func(udf_arg,list) {}
+  Item_func_udf_int(udf_func *udf_arg)
+    :Item_udf_func(udf_arg) {}
+  Item_func_udf_int(udf_func *udf_arg,
+                    List<Item> &list)
+    :Item_udf_func(udf_arg, list) {}
   longlong val_int();
   double val_real() { return (double) Item_func_udf_int::val_int(); }
   String *val_str(String *str);
@@ -946,9 +952,10 @@ public:
 class Item_func_udf_decimal :public Item_udf_func
 {
 public:
-  Item_func_udf_decimal(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
+  Item_func_udf_decimal(udf_func *udf_arg)
+    :Item_udf_func(udf_arg) {}
   Item_func_udf_decimal(udf_func *udf_arg, List<Item> &list)
-    :Item_udf_func(udf_arg,list) {}
+    :Item_udf_func(udf_arg, list) {}
   longlong val_int();
   double val_real();
   my_decimal *val_decimal(my_decimal *);
@@ -961,9 +968,10 @@ public:
 class Item_func_udf_str :public Item_udf_func
 {
 public:
-  Item_func_udf_str(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
+  Item_func_udf_str(udf_func *udf_arg)
+    :Item_udf_func(udf_arg) {}
   Item_func_udf_str(udf_func *udf_arg, List<Item> &list)
-    :Item_udf_func(udf_arg,list) {}
+    :Item_udf_func(udf_arg, list) {}
   String *val_str(String *);
   double val_real()
   {
@@ -998,8 +1006,10 @@ public:
 class Item_func_udf_float :public Item_real_func
 {
  public:
-  Item_func_udf_float(udf_func *udf_arg) :Item_real_func() {}
-  Item_func_udf_float(udf_func *udf_arg, List<Item> &list) :Item_real_func(list) {}
+  Item_func_udf_float(udf_func *udf_arg)
+    :Item_real_func() {}
+  Item_func_udf_float(udf_func *udf_arg, List<Item> &list)
+    :Item_real_func(list) {}
   double val_real() { DBUG_ASSERT(fixed == 1); return 0.0; }
 };
 
@@ -1007,8 +1017,10 @@ class Item_func_udf_float :public Item_real_func
 class Item_func_udf_int :public Item_int_func
 {
 public:
-  Item_func_udf_int(udf_func *udf_arg) :Item_int_func() {}
-  Item_func_udf_int(udf_func *udf_arg, List<Item> &list) :Item_int_func(list) {}
+  Item_func_udf_int(udf_func *udf_arg)
+    :Item_int_func() {}
+  Item_func_udf_int(udf_func *udf_arg, List<Item> &list)
+    :Item_int_func(list) {}
   longlong val_int() { DBUG_ASSERT(fixed == 1); return 0; }
 };
 
@@ -1016,8 +1028,10 @@ public:
 class Item_func_udf_decimal :public Item_int_func
 {
 public:
-  Item_func_udf_decimal(udf_func *udf_arg) :Item_int_func() {}
-  Item_func_udf_decimal(udf_func *udf_arg, List<Item> &list) :Item_int_func(list) {}
+  Item_func_udf_decimal(udf_func *udf_arg)
+    :Item_int_func() {}
+  Item_func_udf_decimal(udf_func *udf_arg, List<Item> &list)
+    :Item_int_func(list) {}
   my_decimal *val_decimal(my_decimal *) { DBUG_ASSERT(fixed == 1); return 0; }
 };
 
@@ -1025,8 +1039,10 @@ public:
 class Item_func_udf_str :public Item_func
 {
 public:
-  Item_func_udf_str(udf_func *udf_arg) :Item_func() {}
-  Item_func_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_func(list) {}
+  Item_func_udf_str(udf_func *udf_arg)
+    :Item_func() {}
+  Item_func_udf_str(udf_func *udf_arg, List<Item> &list)
+    :Item_func(list) {}
   String *val_str(String *)
     { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
   double val_real() { DBUG_ASSERT(fixed == 1); null_value= 1; return 0.0; }
@@ -1116,7 +1132,7 @@ public:
   bool check();
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
-  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
   void print(String *str);
   void print_as_stmt(String *str);
@@ -1176,7 +1192,7 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *decimal_buffer);
   /* fix_fields() binds variable name with its entry structure */
-  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
   void print(String *str);
   void set_null_value(CHARSET_INFO* cs);
   void set_value(const char *str, uint length, CHARSET_INFO* cs);
@@ -1230,7 +1246,7 @@ public:
   const char *func_name() const { return "match"; }
   void update_used_tables() {}
   table_map not_null_tables() const { return 0; }
-  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
+  bool fix_fields(THD *thd, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
   /* The following should be safe, even if we compare doubles */
   longlong val_int() { DBUG_ASSERT(fixed == 1); return val_real() != 0.0; }
@@ -1302,6 +1318,7 @@ class sp_name;
 class Item_func_sp :public Item_func
 {
 private:
+  Name_resolution_context *context;
   sp_name *m_name;
   mutable sp_head *m_sp;
   TABLE *dummy_table;
@@ -1314,9 +1331,10 @@ private:
 
 public:
 
-  Item_func_sp(sp_name *name);
+  Item_func_sp(Name_resolution_context *context_arg, sp_name *name);
 
-  Item_func_sp(sp_name *name, List<Item> &list);
+  Item_func_sp(Name_resolution_context *context_arg,
+               sp_name *name, List<Item> &list);
 
   virtual ~Item_func_sp()
   {}
@@ -1360,6 +1378,9 @@ public:
       return NULL;
     return result_field->val_str(str);
   }
+
+  virtual bool change_context_processor(byte *cntx)
+    { context= (Name_resolution_context *)cntx; return FALSE; }
 
   void fix_length_and_dec();
 

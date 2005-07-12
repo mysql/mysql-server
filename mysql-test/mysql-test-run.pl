@@ -303,7 +303,7 @@ sub mysqld_arguments ($$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
-sub run_mysqltest ($$);
+sub run_mysqltest ($);
 sub usage ($);
 
 ######################################################################
@@ -419,7 +419,8 @@ sub initial_setup () {
   {
     # Windows programs like 'mysqld' needs Windows paths
     $glob_mysql_test_dir= `cygpath -m $glob_mysql_test_dir`;
-    $glob_cygwin_shell=   `cygpath -w $ENV{'SHELL'}`; # The Windows path c:\...
+    my $shell= $ENV{'SHELL'} || "/bin/bash";
+    $glob_cygwin_shell=   `cygpath -w $shell`; # The Windows path c:\...
     chomp($glob_mysql_test_dir);
     chomp($glob_cygwin_shell);
   }
@@ -791,13 +792,15 @@ sub executable_setup () {
       my $path_examples= "$glob_basedir/libmysqld/examples";
       $exe_mysqltest=    mtr_exe_exists("$path_examples/mysqltest");
       $exe_mysql_client_test=
-        mtr_exe_exists("$path_examples/mysql_client_test_embedded");
+        mtr_exe_exists("$path_examples/mysql_client_test_embedded",
+		       "/usr/bin/false");
     }
     else
     {
       $exe_mysqltest=  mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
-        mtr_exe_exists("$glob_basedir/tests/mysql_client_test");
+        mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
+		       "/usr/bin/false");
     }
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
@@ -819,7 +822,8 @@ sub executable_setup () {
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
-      mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables");
+      mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables",
+			"$glob_basedir/scripts/mysql_fix_privilege_tables");
 
     $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
                                          "$glob_basedir/share/english/");
@@ -833,13 +837,15 @@ sub executable_setup () {
       $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest_embedded");
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test_embedded",
-                       "$path_client_bindir/mysql_client_test_embedded");
+                       "$path_client_bindir/mysql_client_test_embedded",
+		       "/usr/bin/false");
     }
     else
     {
       $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
-        mtr_exe_exists("$path_client_bindir/mysql_client_test");
+        mtr_exe_exists("$path_client_bindir/mysql_client_test",
+		       "/usr/bin/false"); # FIXME temporary
     }
 
     $path_ndb_tools_dir=  "$glob_basedir/bin";
@@ -1342,10 +1348,11 @@ sub run_testcase ($) {
 
   if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
   {
-    if ( $tinfo->{'master_restart'} or $master->[0]->{'uses_special_flags'} )
+    if ( $tinfo->{'master_restart'} or
+         $master->[0]->{'running_master_is_special'} )
     {
       stop_masters();
-      $master->[0]->{'uses_special_flags'}= 0; # Forget about why we stopped
+      $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
     }
 
     # ----------------------------------------------------------------------
@@ -1423,9 +1430,9 @@ sub run_testcase ($) {
         }
       }
 
-      if ( @{$tinfo->{'master_opt'}} )
+      if ( $tinfo->{'master_restart'} )
       {
-        $master->[0]->{'uses_special_flags'}= 1;
+        $master->[0]->{'running_master_is_special'}= 1;
       }
     }
 
@@ -1472,7 +1479,7 @@ sub run_testcase ($) {
     }
     unlink($path_timefile);
 
-    my $res= run_mysqltest($tinfo, $tinfo->{'master_opt'});
+    my $res= run_mysqltest($tinfo);
 
     if ( $res == 0 )
     {
@@ -1547,17 +1554,18 @@ sub do_before_start_master ($$) {
        $tname ne "rpl_crash_binlog_ib_3b")
   {
     # FIXME we really want separate dir for binlogs
-    foreach my $bin ( glob("$opt_vardir/log/master*-bin.*") )
+    foreach my $bin ( glob("$opt_vardir/log/master*-bin*") )
     {
       unlink($bin);
     }
   }
 
+  # FIXME only remove the ones that are tied to this master
   # Remove old master.info and relay-log.info files
-  unlink("$opt_vardir/master-data/master.info");
-  unlink("$opt_vardir/master-data/relay-log.info");
-  unlink("$opt_vardir/master1-data/master.info");
-  unlink("$opt_vardir/master1-data/relay-log.info");
+  unlink("$master->[0]->{'path_myddir'}/master.info");
+  unlink("$master->[0]->{'path_myddir'}/relay-log.info");
+  unlink("$master->[1]->{'path_myddir'}/master.info");
+  unlink("$master->[1]->{'path_myddir'}/relay-log.info");
 
   # Run master initialization shell script if one exists
   if ( $init_script )
@@ -1584,13 +1592,13 @@ sub do_before_start_slave ($$) {
        $tname ne "rpl_crash_binlog_ib_3b" )
   {
     # FIXME we really want separate dir for binlogs
-    foreach my $bin ( glob("$opt_vardir/log/slave*-bin.*") )
+    foreach my $bin ( glob("$opt_vardir/log/slave*-bin*") )
     {
       unlink($bin);
     }
     # FIXME really master?!
-    unlink("$opt_vardir/slave-data/master.info");
-    unlink("$opt_vardir/slave-data/relay-log.info");
+    unlink("$slave->[0]->{'path_myddir'}/master.info");
+    unlink("$slave->[0]->{'path_myddir'}/relay-log.info");
   }
 
   # Run slave initialization shell script if one exists
@@ -1604,8 +1612,10 @@ sub do_before_start_slave ($$) {
     }
   }
 
-  `rm -f $opt_vardir/slave-data/log.*`;
-#  unlink("$opt_vardir/slave-data/log.*");
+  foreach my $bin ( glob("$slave->[0]->{'path_myddir'}/log.*") )
+  {
+    unlink($bin);
+  }
 }
 
 sub mysqld_arguments ($$$$$) {
@@ -1637,6 +1647,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
   mtr_add_arg($args, "%s--core", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
@@ -1651,18 +1662,26 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $type eq 'master' )
   {
-    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin", $prefix, $opt_vardir);
+    my $id= $idx > 0 ? $idx + 101 : 1;
+
+    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
+                $opt_vardir, $sidx);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $master->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
                 $master->[$idx]->{'path_myport'});
-    mtr_add_arg($args, "%s--server-id=1", $prefix);
+    mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
     mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
+
+    if ( $idx > 0 )
+    {
+      mtr_add_arg($args, "%s--skip-innodb", $prefix);
+    }
 
     if ( $opt_skip_ndbcluster )
     {
@@ -1673,7 +1692,7 @@ sub mysqld_arguments ($$$$$) {
   if ( $type eq 'slave' )
   {
     my $slave_server_id=  2 + $idx;
-    my $slave_rpl_rank= $idx > 0 ? 2 : $slave_server_id;
+    my $slave_rpl_rank= $slave_server_id;
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
@@ -1973,9 +1992,8 @@ sub stop_slaves () {
 }
 
 
-sub run_mysqltest ($$) {
+sub run_mysqltest ($) {
   my $tinfo=       shift;
-  my $master_opts= shift;
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";

@@ -67,6 +67,8 @@ static bool check_fields(THD *thd, List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   Item_field *field;
+  Name_resolution_context *context= &thd->lex->select_lex.context;
+
   while ((item= it++))
   {
     if (!(field= item->filed_for_view_update()))
@@ -185,18 +187,12 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
 #endif
-  {
-    bool res;
-    select_lex->no_wrap_view_item= 1;
-    /*
-      Indicate that the set of fields is to be updated by passing 2 for
-      set_query_id.
-    */
-    res= setup_fields(thd, 0, table_list, fields, 2, 0, 0);
-    select_lex->no_wrap_view_item= 0;
-    if (res)
-      DBUG_RETURN(1);			/* purecov: inspected */
-  }
+  /*
+    Indicate that the set of fields is to be updated by passing 2 for
+    set_query_id.
+  */
+  if (setup_fields_with_no_wrap(thd, 0, fields, 2, 0, 0))
+    DBUG_RETURN(1);                     /* purecov: inspected */
   if (table_list->view && check_fields(thd, fields))
   {
     DBUG_RETURN(1);
@@ -223,7 +219,7 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege=
     (SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, table_list, values, 1, 0, 0))
+  if (setup_fields(thd, 0, values, 1, 0, 0))
   {
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(1);				/* purecov: inspected */
@@ -657,7 +653,9 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, FALSE) ||
+  if (setup_tables(thd, &select_lex->context,
+                   table_list, conds, &select_lex->leaf_tables,
+                   FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
@@ -717,7 +715,6 @@ bool mysql_multi_update_prepare(THD *thd)
   TABLE_LIST *tl, *leaves;
   List<Item> *fields= &lex->select_lex.item_list;
   table_map tables_for_update;
-  int res;
   bool update_view= 0;
   /*
     if this multi-update was converted from usual update, here is table
@@ -742,15 +739,12 @@ bool mysql_multi_update_prepare(THD *thd)
     call in setup_tables()).
   */
 
-  if (setup_tables(thd, table_list, &lex->select_lex.where,
+  if (setup_tables(thd, &lex->select_lex.context,
+                   table_list, &lex->select_lex.where,
                    &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
-  leaves= lex->select_lex.leaf_tables;
 
-  if ((lex->select_lex.no_wrap_view_item= 1,
-       res= setup_fields(thd, 0, table_list, *fields, 2, 0, 0),
-       lex->select_lex.no_wrap_view_item= 0,
-       res))
+  if (setup_fields_with_no_wrap(thd, 0, *fields, 2, 0, 0))
     DBUG_RETURN(TRUE);
 
   for (tl= table_list; tl ; tl= tl->next_local)
@@ -772,6 +766,7 @@ bool mysql_multi_update_prepare(THD *thd)
   /*
     Setup timestamp handling and locking mode
   */
+  leaves= lex->select_lex.leaf_tables;
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
     TABLE *table= tl->table;
@@ -862,12 +857,10 @@ bool mysql_multi_update_prepare(THD *thd)
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 
-    if (setup_tables(thd, table_list, &lex->select_lex.where,
+    if (setup_tables(thd, &lex->select_lex.context,
+                     table_list, &lex->select_lex.where,
                      &lex->select_lex.leaf_tables, FALSE) ||
-        (lex->select_lex.no_wrap_view_item= 1,
-         res= setup_fields(thd, 0, table_list, *fields, 2, 0, 0),
-         lex->select_lex.no_wrap_view_item= 0,
-         res))
+        setup_fields_with_no_wrap(thd, 0, *fields, 2, 0, 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -997,7 +990,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     reference tables
   */
 
-  if (setup_fields(thd, 0, all_tables, *values, 1, 0, 0))
+  if (setup_fields(thd, 0, *values, 1, 0, 0))
     DBUG_RETURN(1);
 
   /*

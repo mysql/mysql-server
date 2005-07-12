@@ -1,0 +1,98 @@
+select des_encrypt("test", 'akeystr');
+des_encrypt("test", 'akeystr')
+NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_encrypt("test", 1);
+des_encrypt("test", 1)
+NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_encrypt("test", 9);
+des_encrypt("test", 9)
+NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_encrypt("test", 100);
+des_encrypt("test", 100)
+NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_encrypt("test", NULL);
+des_encrypt("test", NULL)
+NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_encrypt(NULL, NULL);
+des_encrypt(NULL, NULL)
+NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_decrypt("test", 'anotherkeystr');
+des_decrypt("test", 'anotherkeystr')
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_decrypt(1, 1);
+des_decrypt(1, 1)
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_decrypt(des_encrypt("test", 'thekey'));
+des_decrypt(des_encrypt("test", 'thekey'))
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select hex(des_encrypt("hello")),des_decrypt(des_encrypt("hello"));
+hex(des_encrypt("hello"))	des_decrypt(des_encrypt("hello"))
+NULL	NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_decrypt(des_encrypt("hello",4));
+des_decrypt(des_encrypt("hello",4))
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_decrypt(des_encrypt("hello",'test'),'test');
+des_decrypt(des_encrypt("hello",'test'),'test')
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select hex(des_encrypt("hello")),hex(des_encrypt("hello",5)),hex(des_encrypt("hello",'default_password'));
+hex(des_encrypt("hello"))	hex(des_encrypt("hello",5))	hex(des_encrypt("hello",'default_password'))
+NULL	NULL	NULL
+Warnings:
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+Error	1289	The 'des_encrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_decrypt(des_encrypt("hello"),'default_password');
+des_decrypt(des_encrypt("hello"),'default_password')
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select des_decrypt(des_encrypt("hello",4),'password4');
+des_decrypt(des_encrypt("hello",4),'password4')
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+SET @a=des_decrypt(des_encrypt("hello"));
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+flush des_key_file;
+select @a = des_decrypt(des_encrypt("hello"));
+@a = des_decrypt(des_encrypt("hello"))
+NULL
+select hex("hello");
+hex("hello")
+68656C6C6F
+select hex(des_decrypt(des_encrypt("hello",4),'password2'));
+hex(des_decrypt(des_encrypt("hello",4),'password2'))
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working
+select hex(des_decrypt(des_encrypt("hello","hidden")));
+hex(des_decrypt(des_encrypt("hello","hidden")))
+NULL
+Warnings:
+Error	1289	The 'des_decrypt' feature is disabled; you need MySQL built with '--with-openssl' to have it working

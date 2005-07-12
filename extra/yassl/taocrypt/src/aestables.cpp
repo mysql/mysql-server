@@ -21,6 +21,7 @@
 
 /* based on Wei Dai's aestables.cpp from CryptoPP */
 
+#include "runtime.hpp"
 #include "aes.hpp"
 
 

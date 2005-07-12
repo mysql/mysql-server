@@ -39,7 +39,7 @@ test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
 	std_data/server-cert.pem std_data/server-key.pem 
 CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
-INCLUDES =		-I$(srcdir)/../include -I../include -I..
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 EXTRA_PROGRAMS =	mysql_test_run_new
 noinst_HEADERS =	my_manage.h
 mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c my_create_tables.c
@@ -48,6 +48,7 @@ mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c my_create_tables.c
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
 		$(distdir)/std_data $(distdir)/lib
+	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
@@ -70,6 +71,7 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data \
 		$(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
+	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(DESTDIR)$(testdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t

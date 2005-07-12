@@ -259,7 +259,7 @@ error:
   This method reads the header of a meta file and returns whether or not it was successful.
   *rows will contain the current number of rows in the data file upon success.
 */
-int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
+int ha_archive::read_meta_file(File meta_file, ha_rows *rows)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   ulonglong check_point;
@@ -273,7 +273,7 @@ int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
   /*
     Parse out the meta data, we ignore version at the moment
   */
-  *rows= uint8korr(meta_buffer + 2);
+  *rows= (ha_rows)uint8korr(meta_buffer + 2);
   check_point= uint8korr(meta_buffer + 10);
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
@@ -296,7 +296,7 @@ int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
   By setting dirty you say whether or not the file represents the actual state of the data file.
   Upon ::open() we set to dirty, and upon ::close() we set to clean.
 */
-int ha_archive::write_meta_file(File meta_file, ulonglong rows, bool dirty)
+int ha_archive::write_meta_file(File meta_file, ha_rows rows, bool dirty)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   ulonglong check_point= 0; //Reserved for the future
@@ -305,12 +305,12 @@ int ha_archive::write_meta_file(File meta_file, ulonglong rows, bool dirty)
 
   meta_buffer[0]= (uchar)ARCHIVE_CHECK_HEADER;
   meta_buffer[1]= (uchar)ARCHIVE_VERSION;
-  int8store(meta_buffer + 2, rows); 
+  int8store(meta_buffer + 2, (ulonglong)rows); 
   int8store(meta_buffer + 10, check_point); 
   *(meta_buffer + 18)= (uchar)dirty;
   DBUG_PRINT("ha_archive::write_meta_file", ("Check %d", (uint)ARCHIVE_CHECK_HEADER));
   DBUG_PRINT("ha_archive::write_meta_file", ("Version %d", (uint)ARCHIVE_VERSION));
-  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %llu", rows));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Rows %llu", (ulonglong)rows));
   DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %llu", check_point));
   DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
 
@@ -326,6 +326,9 @@ int ha_archive::write_meta_file(File meta_file, ulonglong rows, bool dirty)
 
 /*
   We create the shared memory space that we will use for the open table. 
+  No matter what we try to get or create a share. This is so that a repair
+  table operation can occur. 
+
   See ha_example.cc for a longer description.
 */
 ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
@@ -363,7 +366,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     */
     VOID(pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST));
     if ((share->meta_file= my_open(meta_file_name, O_RDWR, MYF(0))) == -1)
-      goto error;
+      share->crashed= TRUE;
     
     /*
       After we read, we set the file to dirty. When we close, we will do the 
@@ -381,27 +384,14 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
       that is shared amoung all open tables.
     */
     if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
-      goto error2;
-    if (my_hash_insert(&archive_open_tables, (byte*) share))
-      goto error3;
+      share->crashed= TRUE;
+    VOID(my_hash_insert(&archive_open_tables, (byte*) share));
     thr_lock_init(&share->lock);
   }
   share->use_count++;
   pthread_mutex_unlock(&archive_mutex);
 
   return share;
-
-error3:
-  /* We close, but ignore errors since we already have errors */
-  (void)gzclose(share->archive_write);
-error2:
-  my_close(share->meta_file,MYF(0));
-error:
-  pthread_mutex_unlock(&archive_mutex);
-  VOID(pthread_mutex_destroy(&share->mutex));
-  my_free((gptr) share, MYF(0));
-
-  return NULL;
 }
 
 
@@ -458,13 +448,14 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
   DBUG_ENTER("ha_archive::open");
 
   if (!(share= get_share(name, table)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM); // Not handled well by calling code!
   thr_lock_data_init(&share->lock,&lock,NULL);
 
   if ((archive= gzopen(share->data_file_name, "rb")) == NULL)
   {
-    (void)free_share(share); //We void since we already have an error
-    DBUG_RETURN(errno ? errno : -1);
+    if (errno == EROFS || errno == EACCES)
+      DBUG_RETURN(my_errno= errno);
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
   DBUG_RETURN(0);
@@ -572,36 +563,22 @@ error:
   DBUG_RETURN(error ? error : -1);
 }
 
-
-/* 
-  Look at ha_archive::open() for an explanation of the row format.
-  Here we just write out the row.
-
-  Wondering about start_bulk_insert()? We don't implement it for
-  archive since it optimizes for lots of writes. The only save
-  for implementing start_bulk_insert() is that we could skip 
-  setting dirty to true each time.
+/*
+  This is where the actual row is written out.
 */
-int ha_archive::write_row(byte * buf)
+int ha_archive::real_write_row(byte *buf, gzFile writer)
 {
   z_off_t written;
   uint *ptr, *end;
-  DBUG_ENTER("ha_archive::write_row");
+  DBUG_ENTER("ha_archive::real_write_row");
 
-  if (share->crashed)
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
-  pthread_mutex_lock(&share->mutex);
-  written= gzwrite(share->archive_write, buf, table->s->reclength);
-  DBUG_PRINT("ha_archive::write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
+  written= gzwrite(writer, buf, table->s->reclength);
+  DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
   if (written != (z_off_t)table->s->reclength)
-    goto error;
+    DBUG_RETURN(errno ? errno : -1);
   /*
     We should probably mark the table as damagaged if the record is written
     but the blob fails.
@@ -616,20 +593,42 @@ int ha_archive::write_row(byte * buf)
     if (size)
     {
       ((Field_blob*) table->field[*ptr])->get_ptr(&data_ptr);
-      written= gzwrite(share->archive_write, data_ptr, (unsigned)size);
+      written= gzwrite(writer, data_ptr, (unsigned)size);
       if (written != (z_off_t)size)
-        goto error;
+        DBUG_RETURN(errno ? errno : -1);
     }
   }
-  share->rows_recorded++;
-  pthread_mutex_unlock(&share->mutex);
-
   DBUG_RETURN(0);
-error:
-  pthread_mutex_unlock(&share->mutex);
-  DBUG_RETURN(errno ? errno : -1);
 }
 
+
+/* 
+  Look at ha_archive::open() for an explanation of the row format.
+  Here we just write out the row.
+
+  Wondering about start_bulk_insert()? We don't implement it for
+  archive since it optimizes for lots of writes. The only save
+  for implementing start_bulk_insert() is that we could skip 
+  setting dirty to true each time.
+*/
+int ha_archive::write_row(byte *buf)
+{
+  int rc;
+  DBUG_ENTER("ha_archive::write_row");
+
+  if (share->crashed)
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
+  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
+  pthread_mutex_lock(&share->mutex);
+  share->rows_recorded++;
+  rc= real_write_row(buf, share->archive_write);
+  pthread_mutex_unlock(&share->mutex);
+
+  DBUG_RETURN(rc);
+}
 
 /*
   All calls that need to scan the table start with this method. If we are told
@@ -787,7 +786,7 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
-  current_position= my_get_ptr(pos, ref_length);
+  current_position= (z_off_t)my_get_ptr(pos, ref_length);
   (void)gzseek(archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(archive, buf));
@@ -795,68 +794,20 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
 
 /*
   This method repairs the meta file. It does this by walking the datafile and 
-  rewriting the meta file.
+  rewriting the meta file. Currently it does this by calling optimize with
+  the extended flag.
 */
 int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  int rc;
-  byte *buf; 
-  ulonglong rows_recorded= 0;
-  gzFile rebuild_file; // Archive file we are working with 
-  File meta_file; // Meta file we use 
-  char data_file_name[FN_REFLEN];
   DBUG_ENTER("ha_archive::repair");
+  check_opt->flags= T_EXTEND;
+  int rc= optimize(thd, check_opt);
 
-  /*
-    Open up the meta file to recreate it.
-  */
-  fn_format(data_file_name, share->table_name, "", ARZ,
-            MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-  if ((rebuild_file= gzopen(data_file_name, "rb")) == NULL)
-    DBUG_RETURN(errno ? errno : -1);
+  if (rc)
+    DBUG_RETURN(HA_ERR_CRASHED_ON_REPAIR);
 
-  if ((rc= read_data_header(rebuild_file)))
-    goto error;
-
-  /*
-    We malloc up the buffer we will use for counting the rows. 
-    I know, this malloc'ing memory but this should be a very 
-    rare event.
-  */
-  if (!(buf= (byte*) my_malloc(table->s->rec_buff_length > sizeof(ulonglong) +1 ? 
-                               table->s->rec_buff_length : sizeof(ulonglong) +1 ,
-                               MYF(MY_WME))))
-  {
-    rc= HA_ERR_CRASHED_ON_USAGE;
-    goto error;
-  }
-
-  while (!(rc= get_row(rebuild_file, buf)))
-    rows_recorded++;
-
-  /* 
-    Only if we reach the end of the file do we assume we can rewrite.
-    At this point we reset rc to a non-message state.
-  */
-  if (rc == HA_ERR_END_OF_FILE)
-  {
-    fn_format(data_file_name,share->table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    if ((meta_file= my_open(data_file_name, O_RDWR, MYF(0))) == -1)
-    {
-      rc= HA_ERR_CRASHED_ON_USAGE;
-      goto error;
-    }
-    (void)write_meta_file(meta_file, rows_recorded, TRUE);
-    my_close(meta_file,MYF(0));
-    rc= 0;
-  }
-
-  my_free((gptr) buf, MYF(0));
   share->crashed= FALSE;
-error:
-  gzclose(rebuild_file);
-
-  DBUG_RETURN(rc);
+  DBUG_RETURN(0);
 }
 
 /*
@@ -866,39 +817,100 @@ error:
 int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::optimize");
-  int read; // Bytes read, gzread() returns int
-  gzFile reader, writer;
-  char block[IO_SIZE];
+  int rc;
+  gzFile writer;
   char writer_filename[FN_REFLEN];
 
-  /* Closing will cause all data waiting to be flushed */
-  gzclose(share->archive_write);
-  share->archive_write= NULL; 
+  /* Flush any waiting data */
+  gzflush(share->archive_write, Z_SYNC_FLUSH);
 
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
-  if ((reader= gzopen(share->data_file_name, "rb")) == NULL)
-    DBUG_RETURN(-1); 
-
   if ((writer= gzopen(writer_filename, "wb")) == NULL)
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
+
+  /* 
+    An extended rebuild is a lot more effort. We open up each row and re-record it. 
+    Any dead rows are removed (aka rows that may have been partially recorded). 
+  */
+
+  if (check_opt->flags == T_EXTEND)
   {
-    gzclose(reader);
-    DBUG_RETURN(-1); 
+    byte *buf; 
+
+    /* 
+      First we create a buffer that we can use for reading rows, and can pass
+      to get_row().
+    */
+    if (!(buf= (byte*) my_malloc(table->s->reclength, MYF(MY_WME))))
+    {
+      rc= HA_ERR_OUT_OF_MEM;
+      goto error;
+    }
+
+    /*
+      Now we will rewind the archive file so that we are positioned at the 
+      start of the file.
+    */
+    rc= read_data_header(archive);
+    
+    /*
+      Assuming now error from rewinding the archive file, we now write out the 
+      new header for out data file.
+    */
+    if (!rc)
+      rc= write_data_header(writer);
+
+    /* 
+      On success of writing out the new header, we now fetch each row and
+      insert it into the new archive file. 
+    */
+    if (!rc)
+    {
+      share->rows_recorded= 0;
+      while (!(rc= get_row(archive, buf)))
+      {
+        real_write_row(buf, writer);
+        share->rows_recorded++;
+      }
+    }
+
+    my_free((char*)buf, MYF(0));
+    if (rc && rc != HA_ERR_END_OF_FILE)
+      goto error;
+  } 
+  else
+  {
+    /* 
+      The quick method is to just read the data raw, and then compress it directly.
+    */
+    int read; // Bytes read, gzread() returns int
+    char block[IO_SIZE];
+    if (gzrewind(archive) == -1)
+    {
+      rc= HA_ERR_CRASHED_ON_USAGE;
+      goto error;
+    }
+
+    while ((read= gzread(archive, block, IO_SIZE)))
+      gzwrite(writer, block, read);
   }
 
-  while ((read= gzread(reader, block, IO_SIZE)))
-    gzwrite(writer, block, read);
-
-  gzclose(reader);
-  gzclose(writer);
+  gzflush(writer, Z_SYNC_FLUSH);
+  gzclose(share->archive_write);
+  share->archive_write= writer; 
 
   my_rename(writer_filename,share->data_file_name,MYF(0));
 
   DBUG_RETURN(0); 
-}
 
+error:
+  gzclose(writer);
+
+  DBUG_RETURN(rc); 
+}
 
 /* 
   Below is an example of how to setup row level locking.

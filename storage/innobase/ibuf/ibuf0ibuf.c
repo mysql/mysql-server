@@ -2810,7 +2810,7 @@ ibuf_insert_to_index_page(
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
 
-	if (UNIV_UNLIKELY(index->table->comp != !!page_is_comp(page))) {
+	if (UNIV_UNLIKELY(index->table->comp != (ibool)!!page_is_comp(page))) {
 		fputs(
 "InnoDB: Trying to insert a record from the insert buffer to an index page\n"
 "InnoDB: but the 'compact' flag does not match!\n", stderr);

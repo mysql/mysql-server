@@ -307,7 +307,7 @@ while test $# -gt 0; do
      --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
      --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem \
      --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem"
-     MYSQL_TEST_SSL_OPTS="--ssl-ca=$BASEDIR/SSL/cacert.pem \
+     MYSQL_TEST_SSL_OPTS="--ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
      --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem \
      --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem" ;;
     --no-manager | --skip-manager) USE_MANAGER=0 ;;
@@ -707,6 +707,9 @@ MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --soc
 if [ "x$USE_EMBEDDED_SERVER" = "x1" ]; then
   MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST -A --language=$LANGUAGE -A --datadir=$SLAVE_MYDDIR -A --character-sets-dir=$CHARSETSDIR"
 fi
+# Save path and name of mysqldump
+MYSQL_DUMP_DIR="$MYSQL_DUMP"
+export MYSQL_DUMP_DIR
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
