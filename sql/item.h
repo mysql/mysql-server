@@ -1524,6 +1524,7 @@ public:
     :Item_direct_ref(thd, item) {}
 
   bool fix_fields(THD *, Item **);
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 
