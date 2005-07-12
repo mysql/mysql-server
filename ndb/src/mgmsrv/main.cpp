@@ -353,7 +353,8 @@ int main(int argc, char** argv)
   
   g_eventLogger.info("Shutting down server...");
   glob.socketServer->stopServer();
-  glob.socketServer->stopSessions();
+  glob.mgmObject->get_config_retriever()->disconnect();
+  glob.socketServer->stopSessions(true);
   g_eventLogger.info("Shutdown complete");
   return 0;
  error_end:
