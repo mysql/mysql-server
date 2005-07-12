@@ -972,9 +972,9 @@ number bigint(20) NOT NULL default '0',
 cname char(15) NOT NULL default '',
 carrier_id smallint(6) NOT NULL default '0',
 privacy tinyint(4) NOT NULL default '0',
-last_mod_date timestamp(14) NOT NULL,
+last_mod_date timestamp NOT NULL,
 last_mod_id smallint(6) NOT NULL default '0',
-last_app_date timestamp(14) NOT NULL,
+last_app_date timestamp NOT NULL,
 last_app_id smallint(6) default '-1',
 version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
@@ -991,9 +991,9 @@ number bigint(20) NOT NULL default '0',
 cname char(15) NOT NULL default '',
 carrier_id smallint(6) NOT NULL default '0',
 privacy tinyint(4) NOT NULL default '0',
-last_mod_date timestamp(14) NOT NULL,
+last_mod_date timestamp NOT NULL,
 last_mod_id smallint(6) NOT NULL default '0',
-last_app_date timestamp(14) NOT NULL,
+last_app_date timestamp NOT NULL,
 last_app_id smallint(6) default '-1',
 version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
@@ -1721,12 +1721,13 @@ count(*)
 0
 explain select count(*) from t1 where x > -16;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	8	NULL	1	Using where; Using index
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	8	NULL	2	Using where; Using index
 select count(*) from t1 where x > -16;
 count(*)
-1
+2
 select * from t1 where x > -16;
 x
+18446744073709551600
 18446744073709551601
 select count(*) from t1 where x = 18446744073709551601;
 count(*)

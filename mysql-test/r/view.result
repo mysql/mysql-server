@@ -550,7 +550,7 @@ create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
 show create view v1;
 View	Create View
-v1	CREATE VIEW "test"."v1" AS select `test`.`t1`.`a*b` AS `a*b` from `test`.`t1`
+v1	CREATE VIEW "test"."v1" AS select "test"."t1"."a*b" AS "a*b" from "test"."t1"
 drop view v1;
 drop table t1;
 set sql_mode=default;
@@ -760,7 +760,7 @@ a	b
 1	1
 show create view v3;
 View	Create View
-v3	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
+v3	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`test`.`v1` join `test`.`v2`) where (`v1`.`col1` = `v2`.`col1`)
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
@@ -1561,7 +1561,7 @@ one	1025,2025,3025
 two	1050,1050
 select col1,group_concat(col2,col3) from v1 group by col1;
 col1	group_concat(col2,col3)
-two	1025,2025,3025
+one	1025,2025,3025
 two	1050,1050
 drop view v1;
 drop table t1;
@@ -1831,3 +1831,134 @@ select * from v1;
 t
 01:00
 drop view v1;
+CREATE TABLE t1 (col1 time);
+CREATE TABLE t2 (col1 time);
+CREATE VIEW v1 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v2 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+CREATE VIEW v3 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v4 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+CREATE VIEW v5 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t1;
+CREATE VIEW v6 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
+DROP TABLE t1;
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+Table	Op	Msg_type	Msg_text
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v2	check	status	OK
+test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s)
+test.v4	check	status	OK
+test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s)
+test.v6	check	status	OK
+drop view v1, v2, v3, v4, v5, v6;
+drop table t2;
+CREATE TABLE t1 (col1 time);
+CREATE TABLE t2 (col1 time);
+CREATE TABLE t3 (col1 time);
+create function f1 () returns int return (select max(col1) from t1);
+create function f2 () returns int return (select max(col1) from t2);
+CREATE VIEW v1 AS SELECT f1() FROM t3;
+CREATE VIEW v2 AS SELECT f2() FROM t3;
+CREATE VIEW v3 AS SELECT f1() FROM t3;
+CREATE VIEW v4 AS SELECT f2() FROM t3;
+CREATE VIEW v5 AS SELECT f1() FROM t3;
+CREATE VIEW v6 AS SELECT f2() FROM t3;
+drop function f1;
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+Table	Op	Msg_type	Msg_text
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v2	check	status	OK
+test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s)
+test.v4	check	status	OK
+test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s)
+test.v6	check	status	OK
+create function f1 () returns int return (select max(col1) from t1);
+DROP TABLE t1;
+CHECK TABLE v1, v2, v3, v4, v5, v6;
+Table	Op	Msg_type	Msg_text
+test.v1	check	error	Table 'test.t1' doesn't exist
+test.v2	check	status	OK
+test.v3	check	error	Table 'test.t1' doesn't exist
+test.v4	check	status	OK
+test.v5	check	error	Table 'test.t1' doesn't exist
+test.v6	check	status	OK
+drop function f1;
+drop function f2;
+drop view v1, v2, v3, v4, v5, v6;
+drop table t2,t3;
+create table t1 (f1 date);
+insert into t1 values ('2005-01-01'),('2005-02-02');
+create view v1 as select * from t1;
+select * from v1 where f1='2005.02.02';
+f1
+2005-02-02
+select * from v1 where '2005.02.02'=f1;
+f1
+2005-02-02
+drop view v1;
+drop table t1;
+CREATE VIEW v1 AS SELECT ENCRYPT("dhgdhgd");
+SELECT * FROM v1;
+drop view v1;
+CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
+SELECT * FROM v1;
+SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1)
+dkjhgd
+drop view v1;
+create table t1 (s1 int);
+create view v1 as select var_samp(s1) from t1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select var_samp(`test`.`t1`.`s1`) AS `var_samp(s1)` from `test`.`t1`
+drop view v1;
+drop table t1;
+set sql_mode='strict_all_tables';
+CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL) ENGINE = INNODB;
+CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
+CREATE VIEW v2 (vcol1) AS SELECT col1 FROM t1 WHERE col2 > 2;
+INSERT INTO t1 (col1) VALUES(12);
+ERROR HY000: Field 'col2' doesn't have a default value
+INSERT INTO v1 (vcol1) VALUES(12);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+INSERT INTO v2 (vcol1) VALUES(12);
+ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
+set sql_mode=default;
+drop view v2,v1;
+drop table t1;
+create table t1 (f1 int);
+insert into t1 values (1);
+create view v1 as select f1 from t1;
+select f1 as alias from v1;
+alias
+1
+drop view v1;
+drop table t1;
+CREATE TABLE t1 (s1 int, s2 int);
+INSERT  INTO t1 VALUES (1,2);
+CREATE VIEW v1 AS SELECT s2 AS s1, s1 AS s2 FROM t1;
+SELECT * FROM v1;
+s1	s2
+2	1
+CREATE PROCEDURE p1 () SELECT * FROM v1;
+CALL p1();
+s1	s2
+2	1
+ALTER VIEW v1 AS SELECT s1 AS s1, s2 AS s2 FROM t1;
+CALL p1();
+s1	s2
+1	2
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 char) ENGINE = innodb;
+INSERT INTO t1 VALUES ('A');
+CREATE VIEW  v1 AS SELECT * FROM t1;
+INSERT INTO t1 VALUES('B');
+SELECT * FROM v1;
+f1
+A
+B
+SELECT * FROM t1;
+f1
+A
+B
+DROP VIEW v1;
+DROP TABLE t1;

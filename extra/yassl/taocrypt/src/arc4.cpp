@@ -21,6 +21,7 @@
 
 /* based on Wei Dai's arc4.cpp from CryptoPP */
 
+#include "runtime.hpp"
 #include "arc4.hpp"
 
 

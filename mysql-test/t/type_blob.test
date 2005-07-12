@@ -394,4 +394,11 @@ INSERT t1 (i, c) VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
 select max(i) from t1 where c = '';
 drop table t1;
 
-
+#
+# Bug#11657: Creation of secondary index fails
+#
+create table t1 (a int, b int, c tinyblob, d int, e int);
+alter table t1 add primary key (a,b,c(255),d);
+alter table t1 add key (a,b,d,e);
+show create table t1;
+drop table t1;

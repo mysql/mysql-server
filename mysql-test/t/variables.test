@@ -373,9 +373,13 @@ drop table t1;
 
 #
 # Bug #6993: myisam_data_pointer_size
+# Wrong bug report, data pointer size must be restricted to 7,
+# setting to 8 will not work on all computers, myisamchk and
+# the server may see a wrong value, such as 0 or negative number
+# if 8 bytes is set.
 #
 
-SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
+SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 
 #

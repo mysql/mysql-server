@@ -86,6 +86,7 @@ public:
 
   utype		unireg_check;
   uint32	field_length;		// Length of field
+  uint          field_index;            // field number in fields array
   uint16	flags;
   /* fieldnr is the id of the field (first field = 1) as is also
      used in key_part.
@@ -1292,7 +1293,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
   uint32 key_length() const { return (uint32) field_length + (bit_len > 0); }
-  uint32 max_length() { return (uint32) field_length + (bit_len > 0); }
+  uint32 max_length() { return (uint32) field_length * 8 + bit_len; }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
   void reset(void) { bzero(ptr, field_length); }
@@ -1324,6 +1325,11 @@ public:
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
+  void set_bit_ptr(uchar *bit_ptr_arg, uchar bit_ofs_arg)
+  {
+    bit_ptr= bit_ptr_arg;
+    bit_ofs= bit_ofs_arg;
+  }
 };
 
   
@@ -1335,6 +1341,7 @@ public:
                     enum utype unireg_check_arg, const char *field_name_arg,
                     struct st_table *table_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
+  uint32 max_length() { return (uint32) create_length; }
   uint size_of() const { return sizeof(*this); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr) { return Field_bit::store(nr); }

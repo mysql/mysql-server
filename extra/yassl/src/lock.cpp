@@ -22,6 +22,7 @@
 /*  Locking functions
  */
 
+#include "runtime.hpp"
 #include "lock.hpp"
 
 

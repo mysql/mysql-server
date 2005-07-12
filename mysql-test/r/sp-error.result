@@ -1,3 +1,4 @@
+drop table if exists t1, t2;
 delete from mysql.proc;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
@@ -64,47 +65,6 @@ foo: begin
 iterate foo;
 end|
 ERROR 42000: ITERATE with no matching label: foo
-create procedure foo()
-begin
-goto foo;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-begin
-label foo;
-end;
-goto foo;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-goto foo;
-begin
-label foo;
-end;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-begin
-goto foo;
-end;
-begin
-label foo;
-end;
-end|
-ERROR 42000: GOTO with no matching label: foo
-create procedure foo()
-begin
-begin
-label foo;
-end;
-begin
-goto foo;
-end;
-end|
-ERROR 42000: GOTO with no matching label: foo
 create procedure foo()
 foo: loop
 foo: loop
@@ -308,16 +268,6 @@ declare continue handler for sqlstate '42S99' set x = 1;
 declare c cursor for select * from t1;
 end|
 ERROR 42000: Cursor declaration after handler declaration
-create procedure p()
-begin
-declare continue handler for sqlexception
-begin
-goto L1;
-end;
-select field from t1;
-label L1;
-end|
-ERROR HY000: GOTO is not allowed in a stored procedure handler
 drop procedure if exists p|
 create procedure p(in x int, inout y int, out z int)
 begin
@@ -654,10 +604,10 @@ flush tables;
 return 5;
 end|
 ERROR 0A000: FLUSH is not allowed in stored procedures
-create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890()
+create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123()
 begin
 end|
-ERROR 42000: Identifier name 'bug9529_90123456789012345678901234567890123456789012345678901234567890' is too long
+ERROR 42000: Identifier name 'bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890' is too long
 drop procedure if exists bug10969|
 create procedure bug10969()
 begin
@@ -686,3 +636,88 @@ ERROR 0A000: EXECUTE is not allowed in stored procedures
 create function f() returns int begin execute stmt;
 ERROR 0A000: EXECUTE is not allowed in stored procedures
 deallocate prepare stmt;
+create table t1(f1 int);
+create table t2(f1 int);
+CREATE PROCEDURE SP001()
+P1: BEGIN
+DECLARE ENDTABLE INT DEFAULT 0;
+DECLARE TEMP_NUM INT;
+DECLARE TEMP_SUM INT;
+DECLARE C1 CURSOR FOR SELECT F1 FROM t1;
+DECLARE C2 CURSOR FOR SELECT F1 FROM t2;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET ENDTABLE = 1;
+SET ENDTABLE=0;
+SET TEMP_SUM=0;
+SET TEMP_NUM=0;
+OPEN C1;
+FETCH C1 INTO TEMP_NUM;
+WHILE ENDTABLE = 0 DO
+SET TEMP_SUM=TEMP_NUM+TEMP_SUM;
+FETCH C1 INTO TEMP_NUM;
+END WHILE;
+SELECT TEMP_SUM;
+CLOSE C1;
+CLOSE C1;
+SELECT 'end of proc';
+END P1|
+call SP001();
+TEMP_SUM
+0
+drop procedure SP001;
+drop table t1, t2;
+drop function if exists bug11394|
+drop function if exists bug11394_1|
+drop function if exists bug11394_2|
+drop procedure if exists bug11394|
+create function bug11394(i int) returns int
+begin
+if i <= 0 then
+return 0;
+else
+return (i in (100, 200, bug11394(i-1), 400));
+end if;
+end|
+select bug11394(2)|
+ERROR HY000: Recursive stored routines are not allowed.
+drop function bug11394|
+create function bug11394_1(i int) returns int
+begin
+if i <= 0 then
+return 0;
+else
+return (select bug11394_1(i-1));
+end if;
+end|
+select bug11394_1(2)|
+ERROR HY000: Recursive stored routines are not allowed.
+drop function bug11394_1|
+create function bug11394_2(i int) returns int return i|
+select bug11394_2(bug11394_2(10))|
+bug11394_2(bug11394_2(10))
+10
+drop function bug11394_2|
+create procedure bug11394(i int, j int)
+begin
+if i > 0 then
+call bug11394(i - 1,(select 1));
+end if;
+end|
+call bug11394(2, 1)|
+ERROR HY000: Recursive stored routines are not allowed.
+drop procedure bug11394|
+drop function if exists bug11834_1;
+drop function if exists bug11834_2;
+create function bug11834_1() returns int return 10;
+create function bug11834_2() returns int return bug11834_1();
+prepare stmt from "select bug11834_2()";
+execute stmt;
+bug11834_2()
+10
+execute stmt;
+bug11834_2()
+10
+drop function bug11834_1;
+execute stmt;
+ERROR 42000: FUNCTION test.bug11834_1 does not exist
+deallocate prepare stmt;
+drop function bug11834_2;

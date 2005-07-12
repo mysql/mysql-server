@@ -238,9 +238,10 @@ void Item_bool_func2::fix_length_and_dec()
     return;
   }
     
-  if (args[0]->type() == FIELD_ITEM)
+  Item *real_item= args[0]->real_item();
+  if (real_item->type() == FIELD_ITEM)
   {
-    Field *field=((Item_field*) args[0])->field;
+    Field *field= ((Item_field*) real_item)->field;
     if (field->can_be_compared_as_longlong())
     {
       if (convert_constant_item(thd, field,&args[1]))
@@ -251,9 +252,10 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
-  if (args[1]->type() == FIELD_ITEM /* && !args[1]->const_item() */)
+  real_item= args[1]->real_item();
+  if (real_item->type() == FIELD_ITEM)
   {
-    Field *field=((Item_field*) args[1])->field;
+    Field *field= ((Item_field*) real_item)->field;
     if (field->can_be_compared_as_longlong())
     {
       if (convert_constant_item(thd, field,&args[0]))
@@ -273,7 +275,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
   owner= item;
   func= comparator_matrix[type]
                          [test(owner->functype() == Item_func::EQUAL_FUNC)];
-  switch(type) {
+  switch (type) {
   case ROW_RESULT:
   {
     uint n= (*a)->cols();
@@ -636,11 +638,9 @@ int Arg_comparator::compare_e_row()
 }
 
 
-bool Item_in_optimizer::fix_left(THD *thd,
-				 struct st_table_list *tables,
-				 Item **ref)
+bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
-  if (!args[0]->fixed && args[0]->fix_fields(thd, tables, args) ||
+  if (!args[0]->fixed && args[0]->fix_fields(thd, args) ||
       !cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
     return 1;
 
@@ -677,16 +677,15 @@ bool Item_in_optimizer::fix_left(THD *thd,
 }
 
 
-bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
-				   Item ** ref)
+bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (fix_left(thd, tables, ref))
+  if (fix_left(thd, ref))
     return TRUE;
   if (args[0]->maybe_null)
     maybe_null=1;
 
-  if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args+1))
+  if (!args[1]->fixed && args[1]->fix_fields(thd, args+1))
     return TRUE;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
   if (args[0]->cols() != sub->engine->cols())
@@ -1420,6 +1419,8 @@ Item *Item_func_case::find_item(String *str)
   my_decimal *first_expr_dec, first_expr_dec_val;
   longlong first_expr_int;
   double   first_expr_real;
+  char buff[MAX_FIELD_WIDTH];
+  String buff_str(buff,sizeof(buff),default_charset());
 
   /* These will be initialized later */
   LINT_INIT(first_expr_str);
@@ -1433,7 +1434,7 @@ Item *Item_func_case::find_item(String *str)
     {
       case STRING_RESULT:
       	// We can't use 'str' here as this may be overwritten
-	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
+	if (!(first_expr_str= args[first_expr_num]->val_str(&buff_str)))
 	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
         break;
       case INT_RESULT:
@@ -1575,6 +1576,25 @@ my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
   null_value= item->null_value;
   return res;
 }
+
+
+bool Item_func_case::fix_fields(THD *thd, Item **ref)
+{
+  /*
+    buff should match stack usage from
+    Item_func_case::val_int() -> Item_func_case::find_item()
+  */
+  char buff[MAX_FIELD_WIDTH*2+sizeof(String)*2+sizeof(String*)*2+sizeof(double)*2+sizeof(longlong)*2];
+  bool res= Item_func::fix_fields(thd, ref);
+  /*
+    Call check_stack_overrun after fix_fields to be sure that stack variable
+    is not optimized away
+  */
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
+    return TRUE;				// Fatal error flag is set!
+  return res;
+}
+
 
 
 void Item_func_case::fix_length_and_dec()
@@ -2308,7 +2328,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 
 
 bool
-Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_cond::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
@@ -2356,7 +2376,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
     // item can be substituted in fix_fields
     if ((!item->fixed &&
-	 item->fix_fields(thd, tables, li.ref())) ||
+	 item->fix_fields(thd, li.ref())) ||
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
@@ -2743,11 +2763,11 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 }
 
 
-bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
+bool Item_func_like::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (Item_bool_func2::fix_fields(thd, tlist, ref) ||
-      escape_item->fix_fields(thd, tlist, &escape_item))
+  if (Item_bool_func2::fix_fields(thd, ref) ||
+      escape_item->fix_fields(thd, &escape_item))
     return TRUE;
 
   if (!escape_item->const_during_execution())
@@ -2811,13 +2831,13 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 #ifdef USE_REGEX
 
 bool
-Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_func_regex::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   if ((!args[0]->fixed &&
-       args[0]->fix_fields(thd, tables, args)) || args[0]->check_cols(1) ||
+       args[0]->fix_fields(thd, args)) || args[0]->check_cols(1) ||
       (!args[1]->fixed &&
-       args[1]->fix_fields(thd,tables, args + 1)) || args[1]->check_cols(1))
+       args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
@@ -3477,7 +3497,7 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
   } while (swap);
 }
 
-bool Item_equal::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+bool Item_equal::fix_fields(THD *thd, Item **ref)
 {
   List_iterator_fast<Item_field> li(fields);
   Item *item;

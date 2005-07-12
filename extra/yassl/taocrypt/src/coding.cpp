@@ -22,6 +22,7 @@
 /* coding.cpp implements hex and base64 encoding/decoing
 */
 
+#include "runtime.hpp"
 #include "coding.hpp"
 #include "file.hpp"
 

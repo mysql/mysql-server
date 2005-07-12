@@ -169,6 +169,8 @@ explain select * from t1 where a='aaac';
 explain select * from t1 where a='aaad';
 insert into t1 select * from t1;
 
+# avoid statistics differences between normal and ps-protocol tests
+flush tables;
 explain select * from t1 where a='aaaa';
 explain select * from t1 where a='aaab';
 explain select * from t1 where a='aaac';

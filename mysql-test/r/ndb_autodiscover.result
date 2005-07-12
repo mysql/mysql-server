@@ -93,7 +93,7 @@ name char(20), a int, b float, c char(24)
 ERROR 42S01: Table 't3' already exists
 show status like 'handler_discover%';
 Variable_name	Value
-Handler_discover	1
+Handler_discover	0
 create table IF NOT EXISTS t3(
 id int not null primary key,
 id2 int not null,
@@ -101,7 +101,7 @@ name char(20)
 ) engine=ndb;
 show status like 'handler_discover%';
 Variable_name	Value
-Handler_discover	2
+Handler_discover	0
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -114,7 +114,7 @@ id	name
 1	Explorer
 show status like 'handler_discover%';
 Variable_name	Value
-Handler_discover	2
+Handler_discover	1
 drop table t3;
 flush status;
 create table t7(

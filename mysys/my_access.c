@@ -98,17 +98,16 @@ int check_if_legal_filename(const char *path)
 
   for (reserved_name= reserved_names; *reserved_name; reserved_name++)
   {
+    const char *reserved= *reserved_name;       /* never empty */
     const char *name= path;
-    const char *current_reserved_name= *reserved_name;
     
-    while (name != end && *current_reserved_name)
+    do
     {
-      if (*current_reserved_name != my_toupper(&my_charset_latin1, *name))
+      if (*reserved != my_toupper(&my_charset_latin1, *name))
         break;
-      current_reserved_name++;
       if (++name == end)
         DBUG_RETURN(1);                         /* Found wrong path */
-    }
+    } while (*++reserved);
   }
   DBUG_RETURN(0);
 }

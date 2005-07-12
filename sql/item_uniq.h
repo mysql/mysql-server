@@ -47,7 +47,7 @@ public:
   bool add() { return 0; }
   void reset_field() {}
   void update_field() {}
-  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
+  bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
     fixed= 1;

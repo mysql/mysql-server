@@ -17,7 +17,7 @@ create table t9
 c1  tinyint, c2  smallint, c3  mediumint, c4  int,
 c5  integer, c6  bigint, c7  float, c8  double,
 c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
-c13 date, c14 datetime, c15 timestamp(14), c16 time,
+c13 date, c14 datetime, c15 timestamp, c16 time,
 c17 year, c18 tinyint, c19 bool, c20 char,
 c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
 c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
@@ -290,11 +290,11 @@ t2	1	t2_idx	1	b	A	NULL	NULL	NULL	YES	BTREE
 prepare stmt4 from ' show table status from test like ''t2%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t2	MyISAM	10	Fixed	0	0	0	4222124650659839	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+t2	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
 prepare stmt4 from ' show table status from test like ''t9%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t9	MyISAM	10	Dynamic	2	216	432	281474976710655	2048	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+t9	MyISAM	10	Dynamic	2	216	432	#	2048	0	NULL	#	#	#	latin1_swedish_ci	NULL		
 prepare stmt4 from ' show status like ''Threads_running'' ';
 execute stmt4;
 Variable_name	Value

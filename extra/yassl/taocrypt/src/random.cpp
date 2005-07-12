@@ -24,6 +24,7 @@
    specific seed, switch to /dev/random for more security but may block
 */
 
+#include "runtime.hpp"
 #include "random.hpp"
 
 #if defined(_WIN32)

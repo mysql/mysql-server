@@ -9,3 +9,5 @@
 #  Don't use any TAB characters for whitespace.
 #
 ##############################################################################
+
+sp-goto:GOTO is currently is disabled - will be fixed in the future

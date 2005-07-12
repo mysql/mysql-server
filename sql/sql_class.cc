@@ -171,9 +171,6 @@ THD::THD()
    spcont(NULL)
 {
   current_arena= this;
-#ifndef DBUG_OFF
-  backup_arena= 0;
-#endif
   host= user= priv_user= db= ip= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
@@ -285,6 +282,8 @@ void THD::init(void)
 #endif
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
+  if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
+    server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   options= thd_startup_options;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
@@ -528,7 +527,7 @@ void THD::cleanup_after_query()
     next_insert_id= 0;
   }
   /* Free Items that were created during this execution */
-  free_items(free_list);
+  free_items();
   /*
     In the rest of code we assume that free_list never points to garbage:
     Keep this predicate true.
@@ -787,7 +786,10 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
   void *change_mem= alloc_root(runtime_memroot, sizeof(*change));
   if (change_mem == 0)
   {
-    fatal_error();
+    /*
+      OOM, thd->fatal_error() is called by the error handler of the
+      memroot. Just return.
+    */
     return;
   }
   change= new (change_mem) Item_change_record;
@@ -1454,17 +1456,16 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       (void)local_vars.push_back(new Item_splocal(mv->s, mv->offset));
     else
     {
-      Item_func_set_user_var *xx = new Item_func_set_user_var(mv->s, item);
+      Item_func_set_user_var *var= new Item_func_set_user_var(mv->s, item);
       /*
         Item_func_set_user_var can't substitute something else on its place =>
         0 can be passed as last argument (reference on item)
         Item_func_set_user_var can't be fixed after creation, so we do not
-        check xx->fixed
+        check var->fixed
       */
-      xx->fix_fields(thd, (TABLE_LIST*) thd->lex->select_lex.table_list.first,
-		     0);
-      xx->fix_length_and_dec();
-      vars.push_back(xx);
+      var->fix_fields(thd, 0);
+      var->fix_length_and_dec();
+      vars.push_back(var);
     }
   }
   return 0;
@@ -1482,6 +1483,21 @@ Query_arena::Type Query_arena::type() const
 {
   DBUG_ASSERT(0); /* Should never be called */
   return STATEMENT;
+}
+
+
+void Query_arena::free_items()
+{
+  Item *next;
+  DBUG_ENTER("Query_arena::free_items");
+  /* This works because items are allocated with sql_alloc() */
+  for (; free_list; free_list= next)
+  {
+    next= free_list->next;
+    free_list->delete_self();
+  }
+  /* Postcondition: free_list is 0 */
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1526,15 +1542,19 @@ void Statement::set_statement(Statement *stmt)
 void
 Statement::set_n_backup_statement(Statement *stmt, Statement *backup)
 {
+  DBUG_ENTER("Statement::set_n_backup_statement");
   backup->set_statement(this);
   set_statement(stmt);
+  DBUG_VOID_RETURN;
 }
 
 
 void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 {
+  DBUG_ENTER("Statement::restore_backup_statement");
   stmt->set_statement(this);
   set_statement(backup);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1556,11 +1576,12 @@ void THD::end_statement()
 void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
   DBUG_ENTER("Query_arena::set_n_backup_item_arena");
-  DBUG_ASSERT(backup_arena == 0);
+  DBUG_ASSERT(backup->is_backup_arena == FALSE);
+
   backup->set_item_arena(this);
   set_item_arena(set);
 #ifndef DBUG_OFF
-  backup_arena= 1;
+  backup->is_backup_arena= TRUE;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -1569,10 +1590,11 @@ void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backup)
 {
   DBUG_ENTER("Query_arena::restore_backup_item_arena");
+  DBUG_ASSERT(backup->is_backup_arena);
   set->set_item_arena(this);
   set_item_arena(backup);
 #ifndef DBUG_OFF
-  backup_arena= 0;
+  backup->is_backup_arena= FALSE;
 #endif
   DBUG_VOID_RETURN;
 }

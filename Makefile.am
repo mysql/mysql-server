@@ -23,7 +23,7 @@ EXTRA_DIST =		INSTALL-SOURCE README COPYING EXCEPTIONS-CLIENT
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
-			@sql_union_dirs@ scripts man tests \
+			@sql_union_dirs@ scripts @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			@bench_dirs@ support-files @tools_dirs@
 
@@ -103,12 +103,12 @@ tags:
 
 test:
 	cd mysql-test; \
-	perl mysql-test-run.pl && perl mysql-test-run.pl --ps-protocol
+	./mysql-test-run && ./mysql-test-run --ps-protocol
 
 test-force:
 	cd mysql-test; \
-	perl mysql-test-run.pl --force ;\
-	perl mysql-test-run.pl --ps-protocol --force
+	./mysql-test-run --force ;\
+	./mysql-test-run --ps-protocol --force
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

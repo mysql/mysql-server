@@ -304,7 +304,7 @@ protected:
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
 
-  uint32 options;
+  ulong options;
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
@@ -371,7 +371,6 @@ typedef class st_select_lex_node SELECT_LEX_NODE;
    SELECT_LEX_UNIT - unit of selects (UNION, INTERSECT, ...) group 
    SELECT_LEXs
 */
-struct st_lex;
 class THD;
 class select_result;
 class JOIN;
@@ -470,6 +469,7 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
 class st_select_lex: public st_select_lex_node
 {
 public:
+  Name_resolution_context context;
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
@@ -549,27 +549,6 @@ public:
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
 
-  /* 
-     SELECT for SELECT command st_select_lex. Used to privent scaning
-     item_list of non-SELECT st_select_lex (no sense find to finding
-     reference in it (all should be in tables, it is dangerouse due
-     to order of fix_fields calling for non-SELECTs commands (item list
-     can be not fix_fieldsd)). This value will be assigned for
-     primary select (sql_yac.yy) and for any subquery and
-     UNION SELECT (sql_parse.cc mysql_new_select())
-
-
-     INSERT for primary st_select_lex structure of simple INSERT/REPLACE
-     (used for name resolution, see Item_fiels & Item_ref fix_fields,
-     FALSE for INSERT/REPLACE ... SELECT, because it's
-     st_select_lex->table_list will be preprocessed (first table removed)
-     before passing to handle_select)
-
-     NOMATTER for other
-  */
-  enum {NOMATTER_MODE, SELECT_MODE, INSERT_MODE} resolve_mode;
-
-
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();
@@ -627,7 +606,13 @@ public:
     order_list.first= 0;
     order_list.next= (byte**) &order_list.first;
   }
-  
+  /*
+    This method created for reiniting LEX in mysql_admin_table() and can be
+    used only if you are going remove all SELECT_LEX & units except belonger
+    to LEX (LEX::unit & LEX::select, for other purposes there are
+    SELECT_LEX_UNIT::exclude_level & SELECT_LEX_UNIT::exclude_tree
+  */
+  void cut_subtree() { slave= 0; }
   bool test_limit();
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
@@ -642,6 +627,11 @@ public:
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
   void fix_prepare_information(THD *thd, Item **conds);
+  /*
+    Destroy the used execution plan (JOIN) of this subtree (this
+    SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
+  */
+  bool cleanup();
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -817,8 +807,14 @@ typedef struct st_lex
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   sp_pcontext *spcont;
-  HASH spfuns;		/* Called functions */
-  HASH spprocs;		/* Called procedures */
+  /* Set of stored routines called by statement. */
+  HASH sroutines;
+  /*
+    List linking elements of 'sroutines' set. Allows you to add new elements
+    to this set as you iterate through the list of existing elements.
+  */
+  SQL_LIST sroutines_list;
+
   st_sp_chistics sp_chistics;
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*
@@ -851,17 +847,11 @@ typedef struct st_lex
   */
   uchar *fname_start, *fname_end;
 
-  st_lex() :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
-  {
-    extern byte *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
-    hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
-    hash_init(&spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
-  }
+  st_lex();
 
   virtual ~st_lex()
   {
-    hash_free(&spfuns);
-    hash_free(&spprocs);
+    hash_free(&sroutines);
   }
 
   inline void uncacheable(uint8 cause)
@@ -898,7 +888,30 @@ typedef struct st_lex
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
+  uint8 get_effective_with_check(st_table_list *view);
+  /*
+    Is this update command where 'WHITH CHECK OPTION' clause is important
 
+    SYNOPSIS
+      st_lex::which_check_option_applicable()
+
+    RETURN
+      TRUE   have to take 'WHITH CHECK OPTION' clause into account
+      FALSE  'WHITH CHECK OPTION' clause do not need
+  */
+  inline bool which_check_option_applicable()
+  {
+    switch (sql_command) {
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_INSERT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_LOAD:
+      return TRUE;
+    default:
+      return FALSE;
+    }
+  }
   inline bool requires_prelocking()
   {
     return test(query_tables_own_last);
@@ -912,7 +925,7 @@ typedef struct st_lex
   {
     return ( query_tables_own_last ? *query_tables_own_last : 0);
   }
-
+  void cleanup_after_one_table_open();
 } LEX;
 
 struct st_lex_local: public st_lex

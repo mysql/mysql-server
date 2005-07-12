@@ -2293,6 +2293,10 @@ mysql_execute_command(THD *thd)
   lex->first_lists_tables_same();
   /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
+  /* set context for commands which do not use setup_tables */
+  select_lex->
+    context.resolve_in_table_list_only((TABLE_LIST*)select_lex->
+                                       table_list.first);
 
   /*
     Reset warning count for each query that uses tables
@@ -2302,8 +2306,7 @@ mysql_execute_command(THD *thd)
     Don't reset warnings when executing a stored routine.
   */
   if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->spfuns.records || lex->spprocs.records) &&
-      !thd->spcont)
+       lex->sroutines.records) && !thd->spcont)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
@@ -2354,10 +2357,6 @@ mysql_execute_command(THD *thd)
 #endif
   }
 #endif /* !HAVE_REPLICATION */
-
-
-
-
 
   /*
     When option readonly is set deny operations which change tables.
@@ -2576,7 +2575,7 @@ mysql_execute_command(THD *thd)
       goto error;
     /* PURGE MASTER LOGS BEFORE 'data' */
     it= (Item *)lex->value_list.head();
-    if ((!it->fixed &&it->fix_fields(lex->thd, 0, &it)) ||
+    if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
         it->check_cols(1))
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
@@ -2885,9 +2884,7 @@ mysql_execute_command(THD *thd)
             CREATE from SELECT give its SELECT_LEX for SELECT,
             and item_list belong to SELECT
           */
-          select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
           res= handle_select(thd, lex, result, 0);
-          select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
           delete result;
         }
 	/* reset for PS */
@@ -3226,6 +3223,8 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
+    /* Skip first table, which is the table we are inserting in */
+    select_lex->context.table_list= first_table->next_local;
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
@@ -3236,6 +3235,7 @@ end_with_restore_list:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
+    select_result *result;
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
@@ -3247,27 +3247,24 @@ end_with_restore_list:
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
 
-    select_result *result;
     unit->set_limit(select_lex);
-
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
       select_lex->table_list.first= (byte*)first_table->next_local;
 
       res= mysql_insert_select_prepare(thd);
+      lex->select_lex.context.table_list= first_table->next_local;
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
-                                             &lex->update_list, &lex->value_list,
+                                             &lex->update_list,
+                                             &lex->value_list,
                                              lex->duplicates, lex->ignore)))
       {
-        /*
-          insert/replace from SELECT give its SELECT_LEX for SELECT,
-          and item_list belong to SELECT
-        */
-	select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
+        /* Skip first table, which is the table we are inserting in */
+        select_lex->context.table_list= first_table->next_local;
+
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
-	select_lex->resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
       /* revert changes for SP */
@@ -3276,7 +3273,6 @@ end_with_restore_list:
 
     if (first_table->view && !first_table->contain_auto_increment)
       thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
-
     break;
   }
   case SQLCOM_TRUNCATE:
@@ -3868,7 +3864,7 @@ end_with_restore_list:
   {
     Item *it= (Item *)lex->value_list.head();
 
-    if ((!it->fixed && it->fix_fields(lex->thd, 0, &it)) || it->check_cols(1))
+    if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
     {
       my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
 		 MYF(0));
@@ -5235,16 +5231,27 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->link_prev= 0;
     unit->return_to= lex->current_select;
     select_lex->include_down(unit);
-    /* TODO: assign resolve_mode for fake subquery after merging with new tree */
+    /*
+      By default we assume that it is usual subselect and we have outer name
+      resolution context, if no we will assign it to 0 later
+    */
+    select_lex->context.outer_context= &select_lex->outer_select()->context;
   }
   else
   {
+    Name_resolution_context *outer_context;
     if (lex->current_select->order_list.first && !lex->current_select->braces)
     {
       my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
       DBUG_RETURN(1);
     }
     select_lex->include_neighbour(lex->current_select);
+    /*
+      we are not sure that we have one level of SELECTs above, so we take
+      outer_context address from first select of unit
+    */
+    outer_context=
+      select_lex->master_unit()->first_select()->context.outer_context;
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     SELECT_LEX *fake= unit->fake_select_lex;
     if (!fake)
@@ -5261,13 +5268,23 @@ mysql_new_select(LEX *lex, bool move_down)
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
       fake->select_limit= 0;
+
+      fake->context.outer_context= outer_context;
+      /* allow item list resolving in fake select for ORDER BY */
+      fake->context.resolve_in_select_list= TRUE;
+      fake->context.select_lex= fake;
     }
+    select_lex->context.outer_context= outer_context;
   }
 
   select_lex->master_unit()->global_parameters= select_lex;
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
-  select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
+  /*
+    in subquery is SELECT query and we allow resolution of names in SELECT
+    list
+  */
+  select_lex->context.resolve_in_select_list= TRUE;
   DBUG_RETURN(0);
 }
 
@@ -5498,6 +5515,21 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     DBUG_RETURN(1);
   }
 
+  if (type == FIELD_TYPE_TIMESTAMP && length)
+  {
+    /* Display widths are no longer supported for TIMSTAMP as of MySQL 4.1.
+       In other words, for declarations such as TIMESTAMP(2), TIMESTAMP(4),
+       and so on, the display width is ignored.
+    */
+    char buf[32];
+    my_snprintf(buf, sizeof(buf),
+                "TIMESTAMP(%s)", length, system_charset_info);
+    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER(ER_WARN_DEPRECATED_SYNTAX),
+                        buf, "TIMESTAMP");
+  }
+
   if (!(new_field= new_create_field(thd, field_name, type, length, decimals,
 		type_modifier, default_value, on_update_value,
 		comment, change, interval_list, cs, uint_geom_type)))
@@ -5535,8 +5567,14 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   new_field->flags= type_modifier;
   new_field->unireg_check= (type_modifier & AUTO_INCREMENT_FLAG ?
 			    Field::NEXT_NUMBER : Field::NONE);
-  new_field->decimals= decimals ? (uint) set_zone(atoi(decimals),0,
-						  NOT_FIXED_DEC-1) : 0;
+  new_field->decimals= decimals ? (uint)atoi(decimals) : 0;
+  if (new_field->decimals >= NOT_FIXED_DEC)
+  {
+    my_error(ER_TOO_BIG_SCALE, MYF(0), new_field->decimals, field_name,
+             NOT_FIXED_DEC-1);
+    DBUG_RETURN(NULL);
+  }
+
   new_field->sql_type=type;
   new_field->length=0;
   new_field->change=change;
@@ -5556,11 +5594,6 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   if (length && !(new_field->length= (uint) atoi(length)))
     length=0; /* purecov: inspected */
   sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
-
-  if (new_field->length && new_field->decimals &&
-      new_field->length < new_field->decimals+1 &&
-      new_field->decimals != NOT_FIXED_DEC)
-    new_field->length=new_field->decimals+1; /* purecov: inspected */
 
   switch (type) {
   case FIELD_TYPE_TINY:
@@ -5587,22 +5620,24 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_NEWDECIMAL:
     if (!length)
+      new_field->length= 10;
+    if (new_field->length > DECIMAL_MAX_PRECISION)
     {
-      if (!(new_field->length= new_field->decimals))
-        new_field->length= 10;                  // Default length for DECIMAL
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), new_field->length, field_name,
+               DECIMAL_MAX_PRECISION);
+      DBUG_RETURN(NULL);
     }
+    if (new_field->length < new_field->decimals)
+    {
+      my_error(ER_SCALE_BIGGER_THAN_PRECISION, MYF(0), field_name);
+      DBUG_RETURN(NULL);
+    }
+    new_field->length=
+      my_decimal_precision_to_length(new_field->length, new_field->decimals,
+                                     type_modifier & UNSIGNED_FLAG);
     new_field->pack_length=
       my_decimal_get_binary_size(new_field->length, new_field->decimals);
-    if (new_field->length <= DECIMAL_MAX_PRECISION &&
-        new_field->length >= new_field->decimals)
-    {
-      new_field->length=
-        my_decimal_precision_to_length(new_field->length, new_field->decimals,
-                                       type_modifier & UNSIGNED_FLAG);
-      break;
-    }
-    my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-    DBUG_RETURN(NULL);
+    break;
   case MYSQL_TYPE_VARCHAR:
     /*
       Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
@@ -6371,9 +6406,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     */
 
     /*
-     Writing this command to the binlog may result in infinite loops when doing
-     mysqlbinlog|mysql, and anyway it does not really make sense to log it
-     automatically (would cause more trouble to users than it would help them)
+      Writing this command to the binlog may result in infinite loops
+      when doing mysqlbinlog|mysql, and anyway it does not really make
+      sense to log it automatically (would cause more trouble to users
+      than it would help them)
     */
     tmp_write_to_binlog= 0;
     mysql_log.new_file(1);

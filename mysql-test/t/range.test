@@ -418,6 +418,41 @@ select count(*) from t2 where x > -16;
 select count(*) from t2 where x = 18446744073709551601;
 drop table t1,t2;
 
+--disable_warnings
+create table t1 (x bigint unsigned not null primary key) engine=innodb;
+--enable_warnings
+insert into t1(x) values (0xfffffffffffffff0);
+insert into t1(x) values (0xfffffffffffffff1);
+select * from t1;
+select count(*) from t1 where x>0;
+select count(*) from t1 where x=0;
+select count(*) from t1 where x<0;
+select count(*) from t1 where x < -16;
+select count(*) from t1 where x = -16;
+select count(*) from t1 where x > -16;
+select count(*) from t1 where x = 18446744073709551601;
+
+drop table t1;
+
+#
+# Bug #11185 incorrect comparison of unsigned int to signed constant
+#
+create table t1 (a bigint unsigned);
+create index t1i on t1(a);
+insert into t1 select 18446744073709551615;
+insert into t1 select 18446744073709551614;
+
+explain select * from t1 where a <> -1;
+select * from t1 where a <> -1;
+explain select * from t1 where a > -1 or a < -1;
+select * from t1 where a > -1 or a < -1;
+explain select * from t1 where a > -1;
+select * from t1 where a > -1;
+explain select * from t1 where a < -1;
+select * from t1 where a < -1;
+
+drop table t1;
+
 #
 # Bug #6045: Binary Comparison regression in MySQL 4.1
 # Binary searches didn't use a case insensitive index.
@@ -494,4 +529,27 @@ EXPLAIN SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
 SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
 
+DROP TABLE t1;
+
+#
+# Test for bug #10031: range to be used over a view
+#
+
+CREATE TABLE  t1 (a int, b int, primary key(a,b));
+
+INSERT INTO  t1 VALUES
+  (1,1),(1,2),(1,3),(2,1),(2,2),(2,3),(3,1),(3,2),(3,3),(4,1),(4,2),(4,3);
+
+CREATE VIEW v1 as SELECT a,b FROM t1 WHERE b=3;
+
+EXPLAIN SELECT a,b FROM t1 WHERE a < 2 and b=3;
+EXPLAIN SELECT a,b FROM v1 WHERE a < 2 and b=3;
+
+EXPLAIN SELECT a,b FROM t1 WHERE a < 2;
+EXPLAIN SELECT a,b FROM v1 WHERE a < 2;
+
+SELECT a,b FROM t1 WHERE a < 2 and b=3;
+SELECT a,b FROM v1 WHERE a < 2 and b=3; 
+
+DROP VIEW v1;
 DROP TABLE t1;

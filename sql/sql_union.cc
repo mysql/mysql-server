@@ -124,6 +124,13 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
   fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					   (byte **)
 					   &result_table_list.next_local);
+  for (ORDER *order= (ORDER *)global_parameters->order_list.first;
+       order;
+       order=order->next)
+  {
+    (*order->item)->walk(&Item::change_context_processor,
+                         (byte *) &fake_select_lex->context);
+  }
 }
 
 
@@ -186,6 +193,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   }
   else
     tmp_result= sel_result;
+
+  sl->context.resolve_in_select_list= TRUE;
 
   for (;sl; sl= sl->next_select())
   {
@@ -448,7 +457,9 @@ bool st_select_lex_unit::exec()
 	  table->no_keyread=1;
 	}
 	res= sl->join->error;
-	offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : 0;
+	offset_limit_cnt= (ha_rows)(sl->offset_limit ?
+                                    sl->offset_limit->val_uint() :
+                                    0);
 	if (!res)
 	{
 	  examined_rows+= thd->examined_row_count;
@@ -553,7 +564,6 @@ bool st_select_lex_unit::exec()
 bool st_select_lex_unit::cleanup()
 {
   int error= 0;
-  JOIN *join;
   DBUG_ENTER("st_select_lex_unit::cleanup");
 
   if (cleaned)
@@ -572,29 +582,17 @@ bool st_select_lex_unit::cleanup()
   }
 
   for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
+    error|= sl->cleanup();
+
+  if (fake_select_lex)
   {
-    if ((join= sl->join))
+    JOIN *join;
+    if ((join= fake_select_lex->join))
     {
-      error|= sl->join->cleanup();
-      delete join;
+      join->tables_list= 0;
+      join->tables= 0;
     }
-    else
-    {
-      // it can be DO/SET with subqueries
-      for (SELECT_LEX_UNIT *lex_unit= sl->first_inner_unit();
-	   lex_unit != 0;
-	   lex_unit= lex_unit->next_unit())
-      {
-	error|= lex_unit->cleanup();
-      }
-    }
-  }
-  if (fake_select_lex && (join= fake_select_lex->join))
-  {
-    join->tables_list= 0;
-    join->tables= 0;
-    error|= join->cleanup();
-    delete join;
+    error|= fake_select_lex->cleanup();
   }
 
   DBUG_RETURN(error);
@@ -650,3 +648,25 @@ bool st_select_lex_unit::change_result(select_subselect *result,
     res= fake_select_lex->join->change_result(result);
   return (res);
 }
+
+
+bool st_select_lex::cleanup()
+{
+  bool error= FALSE;
+  DBUG_ENTER("st_select_lex::cleanup()");
+
+  if (join)
+  {
+    DBUG_ASSERT((st_select_lex*)join->select_lex == this);
+    error= join->destroy();
+    delete join;
+    join= 0;
+  }
+  for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
+       lex_unit= lex_unit->next_unit())
+  {
+    error= (bool) ((uint) error | (uint) lex_unit->cleanup());
+  }
+  DBUG_RETURN(error);
+}
+

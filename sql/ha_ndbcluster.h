@@ -551,7 +551,7 @@ private:
 
   int pk_read(const byte *key, uint key_len, byte *buf);
   int complemented_pk_read(const byte *old_data, byte *new_data);
-  int peek_row();
+  int peek_row(const byte *record);
   int unique_index_read(const byte *key, uint key_len, 
                         byte *buf);
   int ordered_index_scan(const key_range *start_key,
@@ -580,8 +580,7 @@ private:
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
-  int set_primary_key(NdbOperation *op);
-  int set_primary_key_from_old_data(NdbOperation *op, const byte *old_data);
+  int set_primary_key_from_record(NdbOperation *op, const byte *record);
   int set_bounds(NdbIndexScanOperation*, const key_range *keys[2], uint= 0);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   int set_index_key(NdbOperation *, const KEY *key_info, const byte *key_ptr);
@@ -680,7 +679,8 @@ int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
                           const char *wild, bool dir, List<char> *files);
-int ndbcluster_table_exists(THD* thd, const char *db, const char *name);
+int ndbcluster_table_exists_in_engine(THD* thd,
+                                      const char *db, const char *name);
 int ndbcluster_drop_database(const char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);

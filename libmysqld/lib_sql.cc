@@ -773,7 +773,7 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 }
 
 void
-send_eof(THD *thd, bool no_flush)
+send_eof(THD *thd)
 {
 }
 

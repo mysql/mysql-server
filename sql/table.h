@@ -314,9 +314,9 @@ typedef struct st_schema_table
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
 
-#define VIEW_ALGORITHM_UNDEFINED	0
-#define VIEW_ALGORITHM_TMPTABLE	1
-#define VIEW_ALGORITHM_MERGE		2
+#define VIEW_ALGORITHM_UNDEFINED        0
+#define VIEW_ALGORITHM_TMPTABLE         1
+#define VIEW_ALGORITHM_MERGE            2
 
 /* view WITH CHECK OPTION parameter options */
 #define VIEW_CHECK_NONE       0
@@ -329,8 +329,12 @@ typedef struct st_schema_table
 #define VIEW_CHECK_SKIP       2
 
 struct st_lex;
+struct st_table_list;
 class select_union;
 class TMP_TABLE_PARAM;
+
+Item *create_view_field(THD *thd, st_table_list *view, Item **field_ref,
+                        const char *name);
 
 struct Field_translator
 {
@@ -384,6 +388,8 @@ typedef struct st_table_list
   st_select_lex	*select_lex;
   st_lex	*view;			/* link on VIEW lex for merging */
   Field_translator *field_translation;	/* array of VIEW fields */
+  /* pointer to element after last one in translation table above */
+  Field_translator *field_translation_end;
   /* list of ancestor(s) of this table (underlying table(s)/view(s) */
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
@@ -408,8 +414,7 @@ typedef struct st_table_list
     algorithm)
   */
   uint8         effective_with_check;
-  uint          effective_algorithm;    /* which algorithm was really used */
-  uint		privilege_backup;       /* place for saving privileges */
+  uint8         effective_algorithm;    /* which algorithm was really used */
   GRANT_INFO	grant;
   /* data need by some engines in query cache*/
   ulonglong     engine_data;
@@ -424,7 +429,6 @@ typedef struct st_table_list
   bool          updating;               /* for replicate-do/ignore table */
   bool		force_index;		/* prefer index over table scan */
   bool          ignore_leaves;          /* preload only non-leaf nodes */
-  bool          no_where_clause;        /* do not attach WHERE to SELECT */
   table_map     dep_tables;             /* tables the table depends on      */
   table_map     on_expr_dep_tables;     /* tables on expression depends on  */
   struct st_nested_join *nested_join;   /* if the element is a nested join  */
@@ -437,6 +441,8 @@ typedef struct st_table_list
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */
+  /* view where processed */
+  bool          where_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
@@ -449,16 +455,32 @@ typedef struct st_table_list
   void calc_md5(char *buffer);
   void set_ancestor();
   int view_check_option(THD *thd, bool ignore_failure);
-  bool setup_ancestor(THD *thd, Item **conds, uint8 check_option);
+  bool setup_ancestor(THD *thd);
   void cleanup_items();
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
-  void save_and_clear_want_privilege();
-  void restore_want_privilege();
   bool check_single_table(st_table_list **table, table_map map,
                           st_table_list *view);
   bool set_insert_values(MEM_ROOT *mem_root);
+  void hide_view_error(THD *thd);
   st_table_list *find_underlying_table(TABLE *table);
+  inline bool prepare_check_option(THD *thd)
+  {
+    bool res= FALSE;
+    if (effective_with_check)
+      res= prep_check_option(thd, effective_with_check);
+    return res;
+  }
+  inline bool prepare_where(THD *thd, Item **conds,
+                            bool no_where_clause)
+  {
+    if (effective_algorithm == VIEW_ALGORITHM_MERGE)
+      return prep_where(thd, conds, no_where_clause);
+    return FALSE;
+  }
+private:
+  bool prep_check_option(THD *thd, uint8 check_opt_type);
+  bool prep_where(THD *thd, Item **conds, bool no_where_clause);
 } TABLE_LIST;
 
 class Item;
@@ -471,7 +493,7 @@ public:
   virtual void next()= 0;
   virtual bool end_of_fields()= 0;              /* Return 1 at end of list */
   virtual const char *name()= 0;
-  virtual Item *item(THD *)= 0;
+  virtual Item *create_item(THD *)= 0;
   virtual Field *field()= 0;
 };
 
@@ -486,7 +508,7 @@ public:
   void next() { ptr++; }
   bool end_of_fields() { return *ptr == 0; }
   const char *name();
-  Item *item(THD *thd);
+  Item *create_item(THD *thd);
   Field *field() { return *ptr; }
 };
 
@@ -494,15 +516,18 @@ public:
 class Field_iterator_view: public Field_iterator
 {
   Field_translator *ptr, *array_end;
+  TABLE_LIST *view;
 public:
   Field_iterator_view() :ptr(0), array_end(0) {}
   void set(TABLE_LIST *table);
   void next() { ptr++; }
   bool end_of_fields() { return ptr == array_end; }
   const char *name();
-  Item *item(THD *thd) { return ptr->item; }
+  Item *create_item(THD *thd);
   Item **item_ptr() {return &ptr->item; }
   Field *field() { return 0; }
+
+  inline Item *item() { return ptr->item; }
 };
 
 

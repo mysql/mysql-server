@@ -347,6 +347,9 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->table_name));
 
+  /* We want to preserve the tree for views. */
+  thd->lex->view_prepare_mode= TRUE;
+
   /* Only one table for now, but VIEW can involve several tables */
   if (open_normal_and_derived_tables(thd, table_list))
   {
@@ -1068,7 +1071,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   buff->append('.');
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
   buff->append(" AS ", 4);
-  buff->append(table->query.str, table->query.length);
+
+  /*
+    We can't just use table->query, because our SQL_MODE may trigger
+    a different syntax, like when ANSI_QUOTES is defined.
+  */
+  table->view->unit.print(buff);
+
   if (table->with_check != VIEW_CHECK_NONE)
   {
     if (table->with_check == VIEW_CHECK_LOCAL)
@@ -3240,11 +3249,13 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
 int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   ST_FIELD_INFO *field_info= schema_table->fields_info;
+  Name_resolution_context *context= &thd->lex->select_lex.context;
   for ( ; field_info->field_name; field_info++)
   {
     if (field_info->old_name)
     {
-      Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+      Item_field *field= new Item_field(context,
+                                        NullS, NullS, field_info->field_name);
       if (field)
       {
         field->set_name(field_info->old_name,
@@ -3264,12 +3275,14 @@ int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   char tmp[128];
   LEX *lex= thd->lex;
   SELECT_LEX *sel= lex->current_select;
+  Name_resolution_context *context= &sel->context;
 
   if (!sel->item_list.elements)
   {
     ST_FIELD_INFO *field_info= &schema_table->fields_info[1];
     String buffer(tmp,sizeof(tmp), system_charset_info);
-    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    Item_field *field= new Item_field(context,
+                                      NullS, NullS, field_info->field_name);
     if (!field || add_item_to_list(thd, field))
       return 1;
     buffer.length(0);
@@ -3291,6 +3304,7 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   char tmp[128];
   String buffer(tmp,sizeof(tmp), thd->charset());
   LEX *lex= thd->lex;
+  Name_resolution_context *context= &lex->select_lex.context;
 
   ST_FIELD_INFO *field_info= &schema_table->fields_info[2];
   buffer.length(0);
@@ -3302,7 +3316,8 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
     buffer.append(lex->wild->ptr());
     buffer.append(")");
   }
-  Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+  Item_field *field= new Item_field(context,
+                                    NullS, NullS, field_info->field_name);
   if (add_item_to_list(thd, field))
     return 1;
   field->set_name(buffer.ptr(), buffer.length(), system_charset_info);
@@ -3310,7 +3325,7 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   {
     field->set_name(buffer.ptr(), buffer.length(), system_charset_info);
     field_info= &schema_table->fields_info[3];
-    field= new Item_field(NullS, NullS, field_info->field_name);
+    field= new Item_field(context, NullS, NullS, field_info->field_name);
     if (add_item_to_list(thd, field))
       return 1;
     field->set_name(field_info->old_name, strlen(field_info->old_name),
@@ -3325,6 +3340,8 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   int fields_arr[]= {3, 14, 13, 6, 15, 5, 16, 17, 18, -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
+  Name_resolution_context *context= &thd->lex->select_lex.context;
+
   for (; *field_num >= 0; field_num++)
   {
     field_info= &schema_table->fields_info[*field_num];
@@ -3332,7 +3349,8 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                                *field_num == 17 ||
                                *field_num == 18))
       continue;
-    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    Item_field *field= new Item_field(context,
+                                      NullS, NullS, field_info->field_name);
     if (field)
     {
       field->set_name(field_info->old_name,
@@ -3351,10 +3369,13 @@ int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   int fields_arr[]= {0, 2, 1, 3, -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
+  Name_resolution_context *context= &thd->lex->select_lex.context;
+
   for (; *field_num >= 0; field_num++)
   {
     field_info= &schema_table->fields_info[*field_num];
-    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    Item_field *field= new Item_field(context,
+                                      NullS, NullS, field_info->field_name);
     if (field)
     {
       field->set_name(field_info->old_name,
@@ -3373,10 +3394,13 @@ int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   int fields_arr[]= {2, 3, 4, 19, 16, 15, 14, 18, -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
+  Name_resolution_context *context= &thd->lex->select_lex.context;
+
   for (; *field_num >= 0; field_num++)
   {
     field_info= &schema_table->fields_info[*field_num];
-    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    Item_field *field= new Item_field(context,
+                                      NullS, NullS, field_info->field_name);
     if (field)
     {
       field->set_name(field_info->old_name,
@@ -3442,12 +3466,11 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
 
     if (table_list->field_translation)
     {
-      Field_translator *end= table_list->field_translation +
-        sel->item_list.elements;
+      Field_translator *end= table_list->field_translation_end;
       for (transl= table_list->field_translation; transl < end; transl++)
       {
         if (!transl->item->fixed &&
-            transl->item->fix_fields(thd, table_list, &transl->item))
+            transl->item->fix_fields(thd, &transl->item))
           DBUG_RETURN(1);
       }
       DBUG_RETURN(0);
@@ -3464,11 +3487,12 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
     {
       char *name= item->name;
       transl[i].item= item;
-      if (!item->fixed && item->fix_fields(thd, table_list, &transl[i].item))
+      if (!item->fixed && item->fix_fields(thd, &transl[i].item))
         DBUG_RETURN(1);
       transl[i++].name= name;
     }
     table_list->field_translation= transl;
+    table_list->field_translation_end= transl + sel->item_list.elements;
   }
 
   DBUG_RETURN(0);
@@ -3495,7 +3519,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   ST_SCHEMA_TABLE *schema_table= get_schema_table(schema_table_idx);
   LEX_STRING db, table;
   DBUG_ENTER("mysql_schema_select");
-  /* 
+  /*
      We have to make non const db_name & table_name
      because of lower_case_table_names
   */
@@ -3503,7 +3527,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                   information_schema_name.length, 0);
   make_lex_string(thd, &table, schema_table->table_name,
                   strlen(schema_table->table_name), 0);
-  if (schema_table->old_format(thd, schema_table) ||      /* Handle old syntax */
+  if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
                               0, 0, TL_READ, (List<String> *) 0,
                               (List<String> *) 0))
