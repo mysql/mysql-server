@@ -18555,15 +18555,16 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     {
       logPartPtr.i = i;
       ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
-      ndbout_c("LP %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d", 
-		i,
-		logPartPtr.p->logPartState,
-		logPartPtr.p->waitWriteGciLog,
-		logPartPtr.p->gcprec,
-		logPartPtr.p->firstLogQueue,
-		logPartPtr.p->currentLogfile,
-		logPartPtr.p->logTailFileNo);
-
+      ndbout_c("LP %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d logTailMbyte: %d", 
+	       i,
+	       logPartPtr.p->logPartState,
+	       logPartPtr.p->waitWriteGciLog,
+	       logPartPtr.p->gcprec,
+	       logPartPtr.p->firstLogQueue,
+	       logPartPtr.p->currentLogfile,
+	       logPartPtr.p->logTailFileNo,
+	       logPartPtr.p->logTailMbyte);
+      
       if(gcp.i == RNIL && logPartPtr.p->gcprec != RNIL)
 	gcp.i = logPartPtr.p->gcprec;
 
@@ -18572,11 +18573,13 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       do
       {
 	ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-	ndbout_c("  file %d(%d) FileChangeState: %d logFileStatus: %d", 
-		  logFilePtr.p->fileNo,
-		  logFilePtr.i,
-		  logFilePtr.p->fileChangeState,
-		  logFilePtr.p->logFileStatus);
+	ndbout_c("  file %d(%d) FileChangeState: %d logFileStatus: %d currentMbyte: %d currentFilepage", 
+		 logFilePtr.p->fileNo,
+		 logFilePtr.i,
+		 logFilePtr.p->fileChangeState,
+		 logFilePtr.p->logFileStatus,
+		 logFilePtr.p->currentMbyte,
+		 logFilePtr.p->currentFilepage);
 	logFilePtr.i = logFilePtr.p->nextLogFile;
       } while(logFilePtr.i != first);
     }
@@ -18586,9 +18589,11 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       ptrCheckGuard(gcp, cgcprecFileSize, gcpRecord);
       for(i = 0; i<4; i++)
       {
-	ndbout_c("  GCP %d file: %d state: %d sync: %d",
-		  i, gcp.p->gcpFilePtr[i], gcp.p->gcpLogPartState[i],
-		  gcp.p->gcpSyncReady[i]);      
+	ndbout_c("  GCP %d file: %d state: %d sync: %d page: %d word: %d",
+		 i, gcp.p->gcpFilePtr[i], gcp.p->gcpLogPartState[i],
+		 gcp.p->gcpSyncReady[i],
+		 gcp.p->gcpPageNo[i],
+		 gcp.p->gcpWordNo[i]);      
       }
     }
 
