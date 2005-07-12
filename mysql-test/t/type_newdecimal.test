@@ -998,3 +998,20 @@ create table t1 (sl decimal(0,30));
 create table t1 (sl decimal(5, 5));
 show create table t1;
 drop table t1;
+
+#
+# Bug 11557 (DEFAULT values rounded improperly
+#
+create table t1 (
+       f1 decimal unsigned not null default 17.49, 
+       f2 decimal unsigned not null default 17.68, 
+       f3 decimal unsigned not null default 99.2, 
+       f4 decimal unsigned not null default 99.7, 
+       f5 decimal unsigned not null default 104.49, 
+       f6 decimal unsigned not null default 199.91, 
+       f7 decimal unsigned not null default 999.9, 
+       f8 decimal unsigned not null default 9999.99);
+insert into t1 (f1) values (1);
+select * from t1;
+drop table t1;
+
