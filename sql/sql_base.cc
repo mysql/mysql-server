@@ -3495,6 +3495,12 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
         }
+        else
+        {
+          Item *item= ((Field_iterator_view *) iterator)->item();
+          item->walk(&Item::reset_query_id_processor,
+                     (byte *)(&thd->query_id));
+        }
       }
       /*
 	All fields are used in case if usual tables (in case of view used
