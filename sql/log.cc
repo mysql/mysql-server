@@ -853,6 +853,8 @@ int MYSQL_LOG::purge_logs(const char *to_log,
            of space that deletion will free. In most cases,
            deletion won't work either, so it's not a problem.
         */
+	sql_print_information("Failed to execute my_stat on file '%s'",
+			      log_info.log_file_name);
         tmp= 0; 
       }
     }
