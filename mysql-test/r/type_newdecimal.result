@@ -955,3 +955,26 @@ t1	CREATE TABLE `t1` (
   `sl` decimal(5,5) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (
+f1 decimal unsigned not null default 17.49, 
+f2 decimal unsigned not null default 17.68, 
+f3 decimal unsigned not null default 99.2, 
+f4 decimal unsigned not null default 99.7, 
+f5 decimal unsigned not null default 104.49, 
+f6 decimal unsigned not null default 199.91, 
+f7 decimal unsigned not null default 999.9, 
+f8 decimal unsigned not null default 9999.99);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+Note	1265	Data truncated for column 'f2' at row 1
+Note	1265	Data truncated for column 'f3' at row 1
+Note	1265	Data truncated for column 'f4' at row 1
+Note	1265	Data truncated for column 'f5' at row 1
+Note	1265	Data truncated for column 'f6' at row 1
+Note	1265	Data truncated for column 'f7' at row 1
+Note	1265	Data truncated for column 'f8' at row 1
+insert into t1 (f1) values (1);
+select * from t1;
+f1	f2	f3	f4	f5	f6	f7	f8
+1	18	99	100	104	200	1000	10000
+drop table t1;
