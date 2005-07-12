@@ -358,20 +358,6 @@ Database
 mysql
 test
 use test;
-CREATE TABLE sys.SYSTAB_0 (a int);
-ERROR 42S01: Table 'SYSTAB_0' already exists
-select * from sys.SYSTAB_0;
-ERROR HY000: Failed to open 'SYSTAB_0', error while unpacking from engine
-CREATE TABLE IF NOT EXISTS sys.SYSTAB_0 (a int);
-show warnings;
-Level	Code	Message
-select * from sys.SYSTAB_0;
-ERROR HY000: Failed to open 'SYSTAB_0', error while unpacking from engine
-drop table sys.SYSTAB_0;
-ERROR 42S02: Unknown table 'SYSTAB_0'
-drop table IF EXISTS sys.SYSTAB_0;
-Warnings:
-Note	1051	Unknown table 'SYSTAB_0'
 CREATE TABLE t9 (
 a int NOT NULL PRIMARY KEY,
 b int
