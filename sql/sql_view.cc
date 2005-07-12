@@ -1004,6 +1004,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if (my_delete(path, MYF(MY_WME)))
       goto err;
     query_cache_invalidate3(thd, view, 0);
+    sp_cache_invalidate();
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   send_ok(thd);

@@ -641,6 +641,7 @@ public:
   virtual bool cleanup_processor(byte *arg);
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
+  virtual bool reset_query_id_processor(byte *query_id) { return 0; }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
@@ -895,6 +896,13 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(byte * arg);
+  bool reset_query_id_processor(byte *arg)
+  {
+    field->query_id= *((query_id_t *) arg);
+    if (result_field)
+      result_field->query_id= field->query_id;
+    return 0;
+  }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
