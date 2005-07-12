@@ -650,7 +650,7 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
   Field_translator *trans;
   Field **field_ptr= table->field;
   uint used_fields_buff_size= (table->s->fields + 7) / 8;
-  uchar *used_fields_buff= (uchar*)thd->alloc(used_fields_buff_size);
+  uint32 *used_fields_buff= (uint32*)thd->alloc(used_fields_buff_size);
   MY_BITMAP used_fields;
   DBUG_ENTER("check_key_in_view");
 
