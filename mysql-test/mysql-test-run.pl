@@ -806,8 +806,8 @@ sub executable_setup () {
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
-    $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
-    $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
+    $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/storage/ndb/tools");
+    $exe_ndb_mgm=        "$glob_basedir/storage/ndb/src/mgmclient/ndb_mgm";
   }
   else
   {
