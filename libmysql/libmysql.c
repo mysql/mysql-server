@@ -1495,6 +1495,21 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql)
   return mysql->charset->csname;
 }
 
+void STDCALL mysql_get_character_set_info(MYSQL *mysql, CHARACTER_SET *csinfo)
+{
+  csinfo->number   = mysql->charset->number;
+  csinfo->state    = mysql->charset->state;
+  csinfo->csname   = mysql->charset->csname;
+  csinfo->name     = mysql->charset->name;
+  csinfo->comment  = mysql->charset->comment;
+  csinfo->mbminlen = mysql->charset->mbminlen;
+  csinfo->mbmaxlen = mysql->charset->mbmaxlen;
+
+  if (mysql->options.charset_dir)
+    csinfo->dir = mysql->options.charset_dir;
+  else
+    csinfo->dir = charsets_dir;
+}
 
 int STDCALL mysql_set_character_set(MYSQL *mysql, char *cs_name)
 {
