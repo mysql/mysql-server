@@ -1923,6 +1923,14 @@ ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default val
 set sql_mode=default;
 drop view v2,v1;
 drop table t1;
+create table t1 (f1 int);
+insert into t1 values (1);
+create view v1 as select f1 from t1;
+select f1 as alias from v1;
+alias
+1
+drop view v1;
+drop table t1;
 CREATE TABLE t1 (s1 int, s2 int);
 INSERT  INTO t1 VALUES (1,2);
 CREATE VIEW v1 AS SELECT s2 AS s1, s1 AS s2 FROM t1;
@@ -1937,6 +1945,25 @@ ALTER VIEW v1 AS SELECT s1 AS s1, s2 AS s2 FROM t1;
 CALL p1();
 s1	s2
 1	2
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT s2 AS s1, s1 AS s2 FROM t1;
+CALL p1();
+s1	s2
+2	1
 DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 char) ENGINE = innodb;
+INSERT INTO t1 VALUES ('A');
+CREATE VIEW  v1 AS SELECT * FROM t1;
+INSERT INTO t1 VALUES('B');
+SELECT * FROM v1;
+f1
+A
+B
+SELECT * FROM t1;
+f1
+A
+B
 DROP VIEW v1;
 DROP TABLE t1;
