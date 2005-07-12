@@ -561,11 +561,30 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   DBUG_RETURN(cs);
 }
 
+
 /*
+  Escape string with backslashes (\)
+
+  SYNOPSIS
+    escape_string_for_mysql()
+    charset_info        Charset of the strings
+    to                  Buffer for escaped string
+    to_length           Length of destination buffer, or 0
+    from                The string to escape
+    length              The length of the string to escape
+
+  DESCRIPTION
+    This escapes the contents of a string by adding backslashes before special
+    characters, and turning others into specific escape sequences, such as
+    turning newlines into \n and null bytes into \0.
+
   NOTE
-    to keep old C API, to_length may be 0 to mean "big enough"
-  RETURN
-    the length of the escaped string or ~0 if it did not fit.
+    To maintain compatibility with the old C API, to_length may be 0 to mean
+    "big enough"
+
+  RETURN VALUES
+    ~0          The escaped string did not fit in the to buffer
+    >=0         The length of the escaped string
 */
 ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
                               char *to, ulong to_length,
@@ -573,20 +592,20 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  my_bool overflow=0;
+  my_bool overflow= FALSE;
 #ifdef USE_MB
   my_bool use_mb_flag= use_mb(charset_info);
 #endif
   for (end= from + length; from < end; from++)
   {
-    char escape=0;
+    char escape= 0;
 #ifdef USE_MB
     int tmp_length;
     if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
     {
       if (to + tmp_length > to_end)
       {
-        overflow=1;
+        overflow= TRUE;
         break;
       }
       while (tmp_length--)
@@ -636,7 +655,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + 2 > to_end)
       {
-        overflow=1;
+        overflow= TRUE;
         break;
       }
       *to++= '\\';
@@ -646,7 +665,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
     {
       if (to + 1 > to_end)
       {
-        overflow=1;
+        overflow= TRUE;
         break;
       }
       *to++= *from;
@@ -656,3 +675,84 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
   return overflow ? (ulong)~0 : (ulong) (to - to_start);
 }
 
+
+/*
+  Escape apostrophes by doubling them up
+
+  SYNOPSIS
+    escape_quotes_for_mysql()
+    charset_info        Charset of the strings
+    to                  Buffer for escaped string
+    to_length           Length of destination buffer, or 0
+    from                The string to escape
+    length              The length of the string to escape
+
+  DESCRIPTION
+    This escapes the contents of a string by doubling up any apostrophes that
+    it contains. This is used when the NO_BACKSLASH_ESCAPES SQL_MODE is in
+    effect on the server.
+
+  NOTE
+    To be consistent with escape_string_for_mysql(), to_length may be 0 to
+    mean "big enough"
+
+  RETURN VALUES
+    ~0          The escaped string did not fit in the to buffer
+    >=0         The length of the escaped string
+*/
+ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
+                              char *to, ulong to_length,
+                              const char *from, ulong length)
+{
+  const char *to_start= to;
+  const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
+  my_bool overflow= FALSE;
+#ifdef USE_MB
+  my_bool use_mb_flag= use_mb(charset_info);
+#endif
+  for (end= from + length; from < end; from++)
+  {
+    char escape= 0;
+#ifdef USE_MB
+    int tmp_length;
+    if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
+    {
+      if (to + tmp_length > to_end)
+      {
+        overflow= TRUE;
+        break;
+      }
+      while (tmp_length--)
+	*to++= *from++;
+      from--;
+      continue;
+    }
+    /*
+      We don't have the same issue here with a non-multi-byte character being
+      turned into a multi-byte character by the addition of an escaping
+      character, because we are only escaping the ' character with itself.
+     */
+#endif
+    if (*from == '\'')
+    {
+      if (to + 2 > to_end)
+      {
+        overflow= TRUE;
+        break;
+      }
+      *to++= '\'';
+      *to++= '\'';
+    }
+    else
+    {
+      if (to + 1 > to_end)
+      {
+        overflow= TRUE;
+        break;
+      }
+      *to++= *from;
+    }
+  }
+  *to= 0;
+  return overflow ? (ulong)~0 : (ulong) (to - to_start);
+}

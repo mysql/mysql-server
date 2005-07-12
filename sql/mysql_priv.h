@@ -667,6 +667,7 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
+			bool table_cant_handle_bit_fields,
                         uint convert_blob_length);
 void sp_prepare_create_field(THD *thd, create_field *sql_field);
 int prepare_create_field(create_field *sql_field, 
@@ -725,7 +726,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
                   List<Item> &update_values, enum_duplicates flag,
                   bool ignore);
-int check_that_all_fields_are_given_values(THD *thd, TABLE *entry);
+int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
+                                           TABLE_LIST *table_list);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                   ha_rows rows, ulong options);
@@ -756,7 +758,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			    Item **ref,
                             find_item_error_report_type report_error,
-                            bool check_privileges);
+                            bool check_privileges,
+                            bool register_tree_change);
 Field *
 find_field_in_table(THD *thd, TABLE_LIST *table_list,
                     const char *name, const char *item_name,
@@ -892,16 +895,29 @@ Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           bool *unaliased);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
-bool insert_fields(THD *thd,TABLE_LIST *tables,
+bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
-		   List_iterator<Item> *it, bool any_privileges);
-bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
+                   List_iterator<Item> *it, bool any_privileges);
+bool setup_tables(THD *thd, Name_resolution_context *context,
+                  TABLE_LIST *tables, Item **conds,
 		  TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
-bool setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
+bool setup_fields(THD *thd, Item** ref_pointer_array,
                   List<Item> &item, ulong set_query_id,
                   List<Item> *sum_func_list, bool allow_sum_func);
+inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
+                                     List<Item> &item, bool set_query_id,
+                                     List<Item> *sum_func_list,
+                                     bool allow_sum_func)
+{
+  bool res;
+  thd->lex->select_lex.no_wrap_view_item= TRUE;
+  res= setup_fields(thd, ref_pointer_array, item, set_query_id, sum_func_list,
+                    allow_sum_func);
+  thd->lex->select_lex.no_wrap_view_item= FALSE;
+  return res;
+}
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 		COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);

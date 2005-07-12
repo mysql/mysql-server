@@ -179,7 +179,7 @@ void net_printf_error(THD *thd, uint sql_errno, ...);
 void net_send_error(THD *thd, uint sql_errno=0, const char *err=0);
 void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
 	     const char *info=0);
-void send_eof(THD *thd, bool no_flush=0);
+void send_eof(THD *thd);
 bool send_old_password_request(THD *thd);
 char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from, uint length);

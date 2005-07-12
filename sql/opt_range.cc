@@ -325,7 +325,7 @@ typedef struct st_qsel_param {
   TABLE *table;
   KEY_PART *key_parts,*key_parts_end;
   KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
-  MEM_ROOT *mem_root;
+  MEM_ROOT *mem_root, *old_root;
   table_map prev_tables,read_tables,current_table;
   uint baseflag, max_key_part, range_count;
 
@@ -1669,7 +1669,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   keys_to_use.intersect(head->keys_in_use_for_query);
   if (!keys_to_use.is_clear_all())
   {
-    MEM_ROOT *old_root,alloc;
+    MEM_ROOT alloc;
     SEL_TREE *tree= NULL;
     KEY_PART *key_parts;
     KEY *key_info;
@@ -1684,6 +1684,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.table=head;
     param.keys=0;
     param.mem_root= &alloc;
+    param.old_root= thd->mem_root;
     param.needed_reg= &needed_reg;
     param.imerge_cost_buff_size= 0;
 
@@ -1699,7 +1700,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       DBUG_RETURN(0);				// Can't use range
     }
     key_parts= param.key_parts;
-    old_root= thd->mem_root;
     thd->mem_root= &alloc;
 
     /*
@@ -1849,7 +1849,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
     }
 
-    thd->mem_root= old_root;
+    thd->mem_root= param.old_root;
 
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
@@ -1864,7 +1864,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
   free_mem:
     free_root(&alloc,MYF(0));			// Return memory & allocator
-    thd->mem_root= old_root;
+    thd->mem_root= param.old_root;
     thd->no_errors=0;
   }
 
@@ -3533,15 +3533,12 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   {
     /* Optimize NOT BETWEEN and NOT IN */
     Item *arg= cond_func->arguments()[0];
-    if (arg->type() == Item::FUNC_ITEM)
-    {
-      cond_func= (Item_func*) arg;
-      if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-        DBUG_RETURN(0);
-      inv= TRUE;
-    }
-    else
+    if (arg->type() != Item::FUNC_ITEM)
       DBUG_RETURN(0);
+    cond_func= (Item_func*) arg;
+    if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(0);
+    inv= TRUE;
   }
   else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);			       
@@ -3586,15 +3583,16 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     DBUG_RETURN(ftree);
   }
   default:
-    if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
+    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[0]);
+      field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
       value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : 0;
     }
     else if (cond_func->have_rev_func() &&
-             cond_func->arguments()[1]->type() == Item::FIELD_ITEM)
+             cond_func->arguments()[1]->real_item()->type() ==
+                                                            Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[1]);
+      field_item= (Item_field*) (cond_func->arguments()[1]->real_item());
       value= cond_func->arguments()[0];
     }
     else
@@ -3615,7 +3613,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
      
   for (uint i= 0; i < cond_func->arg_count; i++)
   {
-    Item *arg= cond_func->arguments()[i];
+    Item *arg= cond_func->arguments()[i]->real_item();
     if (arg != field_item)
       ref_tables|= arg->used_tables();
   }
@@ -3700,24 +3698,38 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 {
   uint maybe_null=(uint) field->real_maybe_null();
   bool optimize_range;
-  SEL_ARG *tree;
+  SEL_ARG *tree= 0;
+  MEM_ROOT *alloc= param->mem_root;
   char *str;
   DBUG_ENTER("get_mm_leaf");
 
+  /*
+    We need to restore the runtime mem_root of the thread in this
+    function because it evaluates the value of its argument, while
+    the argument can be any, e.g. a subselect. The subselect
+    items, in turn, assume that all the memory allocated during
+    the evaluation has the same life span as the item itself.
+    TODO: opt_range.cc should not reset thd->mem_root at all.
+  */
+  param->thd->mem_root= param->old_root;
   if (!value)					// IS NULL or IS NOT NULL
   {
     if (field->table->maybe_null)		// Can't use a key on this
-      DBUG_RETURN(0);
+      goto end;
     if (!maybe_null)				// Not null field
-      DBUG_RETURN(type == Item_func::ISNULL_FUNC ? &null_element : 0);
-    if (!(tree=new SEL_ARG(field,is_null_string,is_null_string)))
-      DBUG_RETURN(0);		// out of memory
+    {
+      if (type == Item_func::ISNULL_FUNC)
+        tree= &null_element;
+      goto end;
+    }
+    if (!(tree= new (alloc) SEL_ARG(field,is_null_string,is_null_string)))
+      goto end;                                 // out of memory
     if (type == Item_func::ISNOTNULL_FUNC)
     {
       tree->min_flag=NEAR_MIN;		    /* IS NOT NULL ->  X > NULL */
       tree->max_flag=NO_MAX_RANGE;
     }
-    DBUG_RETURN(tree);
+    goto end;
   }
 
   /*
@@ -3737,7 +3749,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       key_part->image_type == Field::itRAW &&
       ((Field_str*)field)->charset() != conf_func->compare_collation() &&
       !(conf_func->compare_collation()->state & MY_CS_BINSORT))
-    DBUG_RETURN(0);
+    goto end;
 
   optimize_range= field->optimize_range(param->real_keynr[key_part->key],
                                         key_part->part);
@@ -3751,9 +3763,12 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     uint field_length= field->pack_length()+maybe_null;
 
     if (!optimize_range)
-      DBUG_RETURN(0);				// Can't optimize this
+      goto end;
     if (!(res= value->val_str(&tmp)))
-      DBUG_RETURN(&null_element);
+    {
+      tree= &null_element;
+      goto end;
+    }
 
     /*
       TODO:
@@ -3766,7 +3781,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       res= &tmp;
     }
     if (field->cmp_type() != STRING_RESULT)
-      DBUG_RETURN(0);				// Can only optimize strings
+      goto end;                                 // Can only optimize strings
 
     offset=maybe_null;
     length=key_part->store_length;
@@ -3791,8 +3806,8 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 	field_length= length;
     }
     length+=offset;
-    if (!(min_str= (char*) alloc_root(param->mem_root, length*2)))
-      DBUG_RETURN(0);
+    if (!(min_str= (char*) alloc_root(alloc, length*2)))
+      goto end;
 
     max_str=min_str+length;
     if (maybe_null)
@@ -3807,20 +3822,21 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 			      min_str+offset, max_str+offset,
 			      &min_length, &max_length);
     if (like_error)				// Can't optimize with LIKE
-      DBUG_RETURN(0);
+      goto end;
 
     if (offset != maybe_null)			// BLOB or VARCHAR
     {
       int2store(min_str+maybe_null,min_length);
       int2store(max_str+maybe_null,max_length);
     }
-    DBUG_RETURN(new SEL_ARG(field,min_str,max_str));
+    tree= new (alloc) SEL_ARG(field, min_str, max_str);
+    goto end;
   }
 
   if (!optimize_range &&
       type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
-    DBUG_RETURN(0);				// Can't optimize this
+    goto end;                                   // Can't optimize this
 
   /*
     We can't always use indexes when comparing a string index to a number
@@ -3829,21 +3845,53 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   if (field->result_type() == STRING_RESULT &&
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
-    DBUG_RETURN(0);
+    goto end;
 
   if (value->save_in_field_no_warnings(field, 1) < 0)
   {
     /* This happens when we try to insert a NULL field in a not null column */
-    DBUG_RETURN(&null_element);			// cmp with NULL is never TRUE
+    tree= &null_element;                        // cmp with NULL is never TRUE
+    goto end;
   }
-  str= (char*) alloc_root(param->mem_root, key_part->store_length+1);
+  str= (char*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
-    DBUG_RETURN(0);
+    goto end;
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null, key_part->length, key_part->image_type);
-  if (!(tree=new SEL_ARG(field,str,str)))
-    DBUG_RETURN(0);		// out of memory
+  if (!(tree= new (alloc) SEL_ARG(field, str, str)))
+    goto end;                                   // out of memory
+
+  /*
+    Check if we are comparing an UNSIGNED integer with a negative constant.
+    In this case we know that:
+    (a) (unsigned_int [< | <=] negative_constant) == FALSE
+    (b) (unsigned_int [> | >=] negative_constant) == TRUE
+    In case (a) the condition is false for all values, and in case (b) it
+    is true for all values, so we can avoid unnecessary retrieval and condition
+    testing, and we also get correct comparison of unsinged integers with
+    negative integers (which otherwise fails because at query execution time
+    negative integers are cast to unsigned if compared with unsigned).
+   */
+  if (field->result_type() == INT_RESULT &&
+      value->result_type() == INT_RESULT &&
+      ((Field_num*)field)->unsigned_flag && !((Item_int*)value)->unsigned_flag)
+  {
+    longlong item_val= value->val_int();
+    if (item_val < 0)
+    {
+      if (type == Item_func::LT_FUNC || type == Item_func::LE_FUNC)
+      {
+        tree->type= SEL_ARG::IMPOSSIBLE;
+        goto end;
+      }
+      if (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC)
+      {
+        tree= 0;
+        goto end;
+      }
+    }
+  }
 
   switch (type) {
   case Item_func::LT_FUNC:
@@ -3904,6 +3952,9 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   default:
     break;
   }
+
+end:
+  param->thd->mem_root= alloc;
   DBUG_RETURN(tree);
 }
 
@@ -5997,7 +6048,10 @@ int QUICK_RANGE_SELECT::reset()
   next=0;
   range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
-  
+
+  if (file->inited == handler::NONE && (error= file->ha_index_init(index)))
+    DBUG_RETURN(error);
+ 
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {
@@ -8126,7 +8180,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
                   (have_max && have_min && (max_res == 0)));
     }
     /*
-      If this is a just a GROUP BY or DISTINCT without MIN or MAX and there
+      If this is just a GROUP BY or DISTINCT without MIN or MAX and there
       are equality predicates for the key parts after the group, find the
       first sub-group with the extended prefix.
     */
@@ -8529,23 +8583,21 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
 
     if ((result == HA_ERR_KEY_NOT_FOUND) && (cur_range->flag & EQ_RANGE))
       continue; /* Check the next range. */
-    else if (result)
+    if (result)
+    {
       /*
         In no key was found with this upper bound, there certainly are no keys
         in the ranges to the left.
       */
       return result;
-
+    }
     /* A key was found. */
     if (cur_range->flag & EQ_RANGE)
-      return result; /* No need to perform the checks below for equal keys. */
+      return 0; /* No need to perform the checks below for equal keys. */
 
     /* Check if record belongs to the current group. */
     if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
-    {
-      result = HA_ERR_KEY_NOT_FOUND;
-      continue;
-    }
+      continue;                                 // Row not found
 
     /* If there is a lower limit, check if the found key is in the range. */
     if ( !(cur_range->flag & NO_MIN_RANGE) )

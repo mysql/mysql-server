@@ -23,6 +23,7 @@
  *
 */
 
+#include "runtime.hpp"
 #include "timer.hpp"
 
 namespace yaSSL {

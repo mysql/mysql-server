@@ -33,28 +33,36 @@
 
 void* operator new(size_t sz, yaSSL::new_t)
 {
+#ifdef YASSL_PURE_C
     void* ptr = malloc(sz ? sz : 1);
     if (!ptr) abort();
 
     return ptr;
+#else
+    return ::operator new(sz);
+#endif
 }
 
-void* operator new[](size_t sz, yaSSL::new_t)
-{
-    void* ptr = malloc(sz ? sz : 1);
-    if (!ptr) abort();
-
-    return ptr;
-}
 
 void operator delete(void* ptr, yaSSL::new_t)
 {
+#ifdef YASSL_PURE_C
     if (ptr) free(ptr);
+#else
+    ::operator delete(ptr);
+#endif
 }
 
-void operator delete[](void* ptr, yaSSL::new_t)
+
+void* operator new[](size_t sz, yaSSL::new_t nt)
 {
-    if (ptr) free(ptr);
+    return ::operator new(sz, nt);
+}
+
+
+void operator delete[](void* ptr, yaSSL::new_t nt)
+{
+    ::operator delete(ptr, nt);
 }
 
 
@@ -923,7 +931,7 @@ void SSL::setKeys()
 
 
 // local functors
-namespace yassl_int_cpp_local1 {
+namespace yassl_int_cpp_local1 {  // for explicit templates
 
 struct SumData {
     uint total_;
@@ -1385,7 +1393,8 @@ Sessions::~Sessions()
 }
 
 
-namespace yassl_int_cpp_local2 { // locals
+// locals
+namespace yassl_int_cpp_local2 { // for explicit templates
 
 typedef mySTL::list<SSL_SESSION*>::iterator iterator;
 
@@ -1974,6 +1983,8 @@ X509_NAME* X509::GetSubject()
     return &subject_;
 }
 
+
+
 } // namespace
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
@@ -1983,3 +1994,4 @@ template yaSSL::yassl_int_cpp_local1::SumBuffer for_each<mySTL::list<yaSSL::outp
 template mySTL::list<yaSSL::SSL_SESSION*>::iterator find_if<mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match>(mySTL::list<yaSSL::SSL_SESSION*>::iterator, mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match);
 }
 #endif
+

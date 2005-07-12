@@ -1495,6 +1495,21 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql)
   return mysql->charset->csname;
 }
 
+void STDCALL mysql_get_character_set_info(MYSQL *mysql, MY_CHARSET_INFO *csinfo)
+{
+  csinfo->number   = mysql->charset->number;
+  csinfo->state    = mysql->charset->state;
+  csinfo->csname   = mysql->charset->csname;
+  csinfo->name     = mysql->charset->name;
+  csinfo->comment  = mysql->charset->comment;
+  csinfo->mbminlen = mysql->charset->mbminlen;
+  csinfo->mbmaxlen = mysql->charset->mbmaxlen;
+
+  if (mysql->options.charset_dir)
+    csinfo->dir = mysql->options.charset_dir;
+  else
+    csinfo->dir = charsets_dir;
+}
 
 int STDCALL mysql_set_character_set(MYSQL *mysql, char *cs_name)
 {
@@ -1616,7 +1631,14 @@ ulong STDCALL
 mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
 			 ulong length)
 {
-  return escape_string_for_mysql(mysql->charset, to, 0, from, length);
+  if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
+  {
+    return escape_quotes_for_mysql(mysql->charset, to, 0, from, length);
+  }
+  else
+  {
+    return escape_string_for_mysql(mysql->charset, to, 0, from, length);
+  }
 }
 
 
@@ -2726,7 +2748,6 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
       set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
       return 1;
     }
-    stmt->server_status= mysql->server_status;
     if (cli_read_binary_rows(stmt))
       return 1;
     stmt->server_status= mysql->server_status;

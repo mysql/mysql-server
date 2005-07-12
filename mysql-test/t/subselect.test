@@ -1837,3 +1837,33 @@ WHERE t1.EMPNUM NOT IN
        WHERE t1.EMPNUM = t2.EMPNUM);
 select * from t1;
 DROP TABLE t1,t2;
+
+#
+# Test for bug #11487: range access in a subquery
+#
+
+CREATE TABLE t1(select_id BIGINT, values_id BIGINT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TABLE t2 (select_id BIGINT, values_id BIGINT, 
+                 PRIMARY KEY(select_id,values_id));
+INSERT INTO t2 VALUES (0, 1), (0, 2), (0, 3), (1, 5);
+
+SELECT values_id FROM t1 
+WHERE values_id IN (SELECT values_id FROM t2
+                    WHERE select_id IN (1, 0));
+SELECT values_id FROM t1 
+WHERE values_id IN (SELECT values_id FROM t2
+                    WHERE select_id BETWEEN 0 AND 1);
+SELECT values_id FROM t1 
+WHERE values_id IN (SELECT values_id FROM t2
+                    WHERE select_id = 0 OR select_id = 1);
+
+DROP TABLE t1, t2;
+
+# BUG#11821 : Select from subselect using aggregate function on an enum
+# segfaults:
+create table t1 (fld enum('0','1'));
+insert into t1 values ('1');
+select * from (select max(fld) from t1) as foo;
+drop table t1;
+

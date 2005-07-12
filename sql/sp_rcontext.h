@@ -26,6 +26,7 @@ struct sp_cond_type;
 class sp_cursor;
 struct sp_pvar;
 class sp_lex_keeper;
+class sp_instr_cpush;
 
 #define SP_HANDLER_NONE      0
 #define SP_HANDLER_EXIT      1
@@ -161,7 +162,7 @@ class sp_rcontext : public Sql_alloc
   restore_variables(uint fp);
 
   void
-  push_cursor(sp_lex_keeper *lex_keeper);
+  push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
 
   void
   pop_cursors(uint count);
@@ -203,7 +204,7 @@ class sp_cursor : public Sql_alloc
 {
 public:
 
-  sp_cursor(sp_lex_keeper *lex_keeper);
+  sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
 
   virtual ~sp_cursor()
   {
@@ -229,6 +230,12 @@ public:
   int
   fetch(THD *, List<struct sp_pvar> *vars);
 
+  inline sp_instr_cpush *
+  get_instr()
+  {
+    return m_i;
+  }
+  
 private:
 
   MEM_ROOT m_mem_root;		// My own mem_root
@@ -238,6 +245,7 @@ private:
   my_bool m_nseof;		// Original no_send_eof
   Protocol *m_oprot;		// Original protcol
   MYSQL_ROWS *m_current_row;
+  sp_instr_cpush *m_i;		// My push instruction
   
   void
   destroy();

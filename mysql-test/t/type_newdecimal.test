@@ -964,3 +964,54 @@ insert into t1 values (0.00);
 select * from t1 where a > -0.00;
 select * from t1 where a = -0.00;
 drop table t1;
+
+#
+# Bug #11215: a problem with LONGLONG_MIN
+#
+
+create table t1 (col1 bigint default -9223372036854775808);
+insert into t1 values (default);
+select * from t1;
+drop table t1;
+
+#
+# Bug #10891 (converting to decimal crashes server)
+#
+select cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(30,15));
+
+#
+# Bug #11708 (conversion to decimal fails in decimal part)
+#
+select ln(14000) c1, convert(ln(14000),decimal(2,3)) c2, cast(ln(14000) as decimal(2,3)) c3;
+
+#
+# Bug #8449 (Silent column changes)
+#
+--error 1426
+create table t1 (sl decimal(70,30));
+--error 1425
+create table t1 (sl decimal(32,31));
+--error 1425
+create table t1 (sl decimal(0,38));
+--error 1427
+create table t1 (sl decimal(0,30));
+create table t1 (sl decimal(5, 5));
+show create table t1;
+drop table t1;
+
+#
+# Bug 11557 (DEFAULT values rounded improperly
+#
+create table t1 (
+       f1 decimal unsigned not null default 17.49, 
+       f2 decimal unsigned not null default 17.68, 
+       f3 decimal unsigned not null default 99.2, 
+       f4 decimal unsigned not null default 99.7, 
+       f5 decimal unsigned not null default 104.49, 
+       f6 decimal unsigned not null default 199.91, 
+       f7 decimal unsigned not null default 999.9, 
+       f8 decimal unsigned not null default 9999.99);
+insert into t1 (f1) values (1);
+select * from t1;
+drop table t1;
+

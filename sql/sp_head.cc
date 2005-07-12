@@ -117,7 +117,7 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
   DBUG_ENTER("sp_prepare_func_item");
   it_addr= it->this_item_addr(thd, it_addr);
 
-  if (!it->fixed && (*it_addr)->fix_fields(thd, 0, it_addr))
+  if (!it->fixed && (*it_addr)->fix_fields(thd, it_addr))
   {
     DBUG_PRINT("info", ("fix_fields() failed"));
     DBUG_RETURN(NULL);
@@ -242,8 +242,11 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
 void
 sp_name::init_qname(THD *thd)
 {
-  m_qname.length= m_db.length+m_name.length+1;
-  m_qname.str= thd->alloc(m_qname.length+1);
+  m_sroutines_key.length=  m_db.length + m_name.length + 2;
+  if (!(m_sroutines_key.str= thd->alloc(m_sroutines_key.length + 1)))
+    return;
+  m_qname.length= m_sroutines_key.length - 1;
+  m_qname.str= m_sroutines_key.str + 1;
   sprintf(m_qname.str, "%*s.%*s",
 	  m_db.length, (m_db.length ? m_db.str : ""),
 	  m_name.length, m_name.str);
@@ -312,19 +315,17 @@ sp_head::operator delete(void *ptr, size_t size)
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
    m_returns_cs(NULL), m_has_return(FALSE),
-   m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE)
+   m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE),
+   m_is_invoked(FALSE)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
-  extern byte
-    *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
-  hash_init(&m_spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
-  hash_init(&m_spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
+  hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -509,7 +510,7 @@ sp_head::destroy()
     delete i;
   delete_dynamic(&m_instr);
   m_pcont->destroy();
-  free_items(free_list);
+  free_items();
 
   /*
     If we have non-empty LEX stack then we just came out of parser with
@@ -527,8 +528,7 @@ sp_head::destroy()
   }
 
   hash_free(&m_sptabs);
-  hash_free(&m_spfuns);
-  hash_free(&m_spprocs);
+  hash_free(&m_sroutines);
   DBUG_VOID_RETURN;
 }
 
@@ -587,6 +587,28 @@ sp_head::execute(THD *thd)
     DBUG_RETURN(-1);
   }
 
+  if (m_is_invoked)
+  {
+    /*
+      We have to disable recursion for stored routines since in
+      many cases LEX structure and many Item's can't be used in
+      reentrant way now.
+
+      TODO: We can circumvent this problem by using separate
+      sp_head instances for each recursive invocation.
+
+      NOTE: Theoretically arguments of procedure can be evaluated
+      before its invocation so there should be no problem with
+      recursion. But since we perform cleanup for CALL statement
+      as for any other statement only after its execution, its LEX
+      structure is not reusable for recursive calls. Thus we have
+      to prohibit recursion for stored procedures too.
+    */
+    my_error(ER_SP_NO_RECURSION, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  m_is_invoked= TRUE;
+
   dbchanged= FALSE;
   if (m_db.length &&
       (ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
@@ -596,7 +618,6 @@ sp_head::execute(THD *thd)
     ctx->clear_handler();
   thd->query_error= 0;
   old_arena= thd->current_arena;
-  thd->current_arena= this;
 
   /*
     We have to save/restore this info when we are changing call level to
@@ -636,23 +657,24 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     thd->set_time();		// Make current_time() et al work
-    {
-      /*
-        We have to substitute free_list of executing statement to
-        current_arena to store there all new items created during execution
-        (for example '*' expanding, or items made during permanent subquery
-        transformation)
-        Note: Every statement have to have all its items listed in free_list
-        for correct cleaning them up
-      */
-      Item *save_free_list= thd->current_arena->free_list;
-      thd->current_arena->free_list= i->free_list;
-      ret= i->execute(thd, &ip);
-      i->free_list= thd->current_arena->free_list;
-      thd->current_arena->free_list= save_free_list;
-    }
+    /*
+      We have to set thd->current_arena before executing the instruction
+      to store in the instruction free_list all new items, created
+      during the first execution (for example expanding of '*' or the
+      items made during other permanent subquery transformations).
+    */
+    thd->current_arena= i;
+    ret= i->execute(thd, &ip);
+    /*
+      If this SP instruction have sent eof, it has caused no_send_error to be
+      set. Clear it back to allow the next instruction to send error. (multi-
+      statement execution code clears no_send_error between statements too)
+    */
+    thd->net.no_send_error= 0;
     if (i->free_list)
       cleanup_items(i->free_list);
+    i->state= Query_arena::EXECUTED;
+
     // Check if an exception has occurred and a handler has been found
     // Note: We havo to check even if ret==0, since warnings (and some
     //       errors don't return a non-zero value.
@@ -694,7 +716,6 @@ sp_head::execute(THD *thd)
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
 
-  cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
   state= EXECUTED;
 
@@ -711,6 +732,7 @@ sp_head::execute(THD *thd)
     if (! thd->killed)
       ret= sp_change_db(thd, olddb, 0);
   }
+  m_is_invoked= FALSE;
   DBUG_RETURN(ret);
 }
 
@@ -728,8 +750,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   sp_rcontext *nctx = NULL;
   uint i;
   int ret;
-  MEM_ROOT *old_mem_root, call_mem_root;
-  Item *old_free_list, *call_free_list;
+  MEM_ROOT call_mem_root;
+  Query_arena call_arena(&call_mem_root, INITIALIZED_FOR_SP), backup_arena;
 
   if (argcount != params)
   {
@@ -741,14 +763,11 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   }
 
   init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
-  old_mem_root= thd->mem_root;
-  thd->mem_root= &call_mem_root;
-  old_free_list= thd->free_list; // Keep the old list
-  thd->free_list= NULL;	// Start a new one
+
 
   // QQ Should have some error checking here? (types, etc...)
   nctx= new sp_rcontext(csize, hmax, cmax);
-  nctx->callers_mem_root= old_mem_root;
+  nctx->callers_mem_root= thd->mem_root;
   for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
@@ -774,15 +793,16 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     }
   }
   thd->spcont= nctx;
+  thd->set_n_backup_item_arena(&call_arena, &backup_arena);
+  /* mem_root was moved to backup_arena */
+  DBUG_ASSERT(nctx->callers_mem_root == backup_arena.mem_root);
 
   ret= execute(thd);
 
   // Partially restore context now.
   // We still need the call mem root and free list for processing
   // of the result.
-  call_free_list= thd->free_list;
-  thd->free_list= old_free_list;
-  thd->mem_root= old_mem_root;
+  thd->restore_backup_item_arena(&call_arena, &backup_arena);
 
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
   {
@@ -802,8 +822,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   thd->spcont= octx;
 
   // Now get rid of the rest of the callee context
-  cleanup_items(call_free_list);
-  free_items(call_free_list);
+  call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
 
   DBUG_RETURN(ret);
@@ -835,8 +854,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
-  MEM_ROOT *old_mem_root, call_mem_root;
-  Item *old_free_list, *call_free_list;
+  MEM_ROOT call_mem_root;
+  Query_arena call_arena(&call_mem_root, INITIALIZED_FOR_SP), backup_arena;
 
   if (args->elements != params)
   {
@@ -846,10 +865,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
 
   init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
-  old_mem_root= thd->mem_root;
-  thd->mem_root= &call_mem_root;
-  old_free_list= thd->free_list; // Keep the old list
-  thd->free_list= NULL;	// Start a new one
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
@@ -914,14 +929,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
 
   if (! ret)
+  {
+    thd->set_n_backup_item_arena(&call_arena, &backup_arena);
     ret= execute(thd);
-
-  // Partially restore context now.
-  // We still need the call mem root and free list for processing
-  // of out parameters.
-  call_free_list= thd->free_list;
-  thd->free_list= old_free_list;
-  thd->mem_root= old_mem_root;
+    thd->restore_backup_item_arena(&call_arena, &backup_arena);
+  }
 
   if (!ret && csize > 0)
   {
@@ -979,7 +991,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	      we do not check suv->fixed, because it can't be fixed after
 	      creation
 	    */
-	    suv->fix_fields(thd, NULL, &item);
+	    suv->fix_fields(thd, &item);
 	    suv->fix_length_and_dec();
 	    suv->check();
 	    suv->update();
@@ -996,8 +1008,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   thd->spcont= octx;
 
   // Now get rid of the rest of the callee context
-  cleanup_items(call_free_list);
-  free_items(call_free_list);
+  call_arena.free_items();
   thd->lex->unit.cleanup();
   free_root(&call_mem_root, MYF(0));
 
@@ -1052,11 +1063,10 @@ sp_head::restore_lex(THD *thd)
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
   /*
-    Add routines which are used by statement to respective sets for
-    this routine
+    Add routines which are used by statement to respective set for
+    this routine.
   */
-  sp_merge_hash(&m_spfuns, &sublex->spfuns);
-  sp_merge_hash(&m_spprocs, &sublex->spprocs);
+  sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines);
   /*
     Merge tables used by this statement (but not by its functions or
     procedures) to multiset of tables used by this routine.
@@ -1291,6 +1301,13 @@ void sp_head::add_instr(sp_instr *instr)
 {
   instr->free_list= m_thd->free_list;
   m_thd->free_list= 0;
+  /*
+    Memory root of every instruction is designated for permanent
+    transformations (optimizations) made on the parsed tree during
+    the first execution. It points to the memory root of the
+    entire stored procedure, as their life span is equal.
+  */
+  instr->mem_root= &main_mem_root;
   insert_dynamic(&m_instr, (gptr)&instr);
 }
 
@@ -1485,13 +1502,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     they want to store some value in local variable, pass return value and
     etc... So their life time should be longer than one instruction.
 
-    Probably we can call destructors for most of them then we are leaving
-    routine. But this won't help much as they are allocated in main query
-    MEM_ROOT anyway. So they all go to global thd->free_list.
-
-    May be we can use some other MEM_ROOT for this purprose ???
-
-    What else should we do for cleanup ?
     cleanup_items() is called in sp_head::execute()
   */
   return res;
@@ -1593,16 +1603,22 @@ sp_instr_set::print(String *str)
 int
 sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 {
-  int res= 0;
-
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
-  /* QQ: Still unsure what should we return in case of error 1 or -1 ? */
-  if (!value->fixed && value->fix_fields(thd, 0, &value) ||
-      trigger_field->fix_fields(thd, 0, 0) ||
-      (value->save_in_field(trigger_field->field, 0) < 0))
+  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
+}
+
+
+int
+sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
+{
+  int res= 0;
+  Item *it= sp_prepare_func_item(thd, &value);
+  if (!it ||
+      !trigger_field->fixed && trigger_field->fix_fields(thd, 0) ||
+      (it->save_in_field(trigger_field->field, 0) < 0))
     res= -1;
-  *nextp= m_ip + 1;
-  DBUG_RETURN(res);
+  *nextp = m_ip+1;
+  return res;
 }
 
 void
@@ -1953,7 +1969,7 @@ int
 sp_instr_cpush::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_cpush::execute");
-  thd->spcont->push_cursor(&m_lex_keeper);
+  thd->spcont->push_cursor(&m_lex_keeper, this);
   *nextp= m_ip+1;
   DBUG_RETURN(0);
 }
@@ -2012,12 +2028,24 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
     }
     else
     {
+      Query_arena *old_arena= thd->current_arena;
+
+      /*
+        Get the Query_arena from the cpush instruction, which contains
+        the free_list of the query, so new items (if any) are stored in
+        the right free_list, and we can cleanup after each open.
+      */
+      thd->current_arena= c->get_instr();
       res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      /* Cleanup the query's items */
+      if (thd->current_arena->free_list)
+	cleanup_items(thd->current_arena->free_list);
+      thd->current_arena= old_arena;
       /*
         Work around the fact that errors in selects are not returned properly
         (but instead converted into a warning), so if a condition handler
         caught, we have lost the result code.
-       */
+      */
       if (!res)
       {
         uint dummy1, dummy2;
@@ -2414,72 +2442,3 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   return table;
 }
 
-
-/*
-  Auxilary function for adding tables used by routines used in query
-  to table lists.
-
-  SYNOPSIS
-    sp_add_sp_tables_to_table_list_aux()
-      thd       - thread context
-      lex       - LEX to which table list tables will be added
-      func_hash - routines for which tables should be added
-      func_cache- SP cache in which this routines should be looked up
-
-  NOTE
-    See sp_add_sp_tables_to_table_list() for more info.
-
-  RETURN VALUE
-    TRUE  - some tables were added
-    FALSE - no tables were added.
-*/
-
-static bool
-sp_add_sp_tables_to_table_list_aux(THD *thd, LEX *lex, HASH *func_hash,
-                                   sp_cache **func_cache)
-{
-  uint i;
-  bool result= FALSE;
-
-  for (i= 0 ; i < func_hash->records ; i++)
-  {
-    sp_head *sp;
-    LEX_STRING *ls= (LEX_STRING *)hash_element(func_hash, i);
-    sp_name name(*ls);
-
-    name.m_qname= *ls;
-    if ((sp= sp_cache_lookup(func_cache, &name)))
-      result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
-  }
-
-  return result;
-}
-
-
-/*
-  Add tables used by routines used in query to table list.
-
-  SYNOPSIS
-    sp_add_sp_tables_to_table_list()
-      thd      - thread context
-      lex      - LEX to which table list tables will be added
-      func_lex - LEX for which functions we get tables
-                 (useful for adding tables used by view routines)
-
-  NOTE
-    Elements of list will be allocated in PS memroot, so this
-    list will be persistent between PS execetutions.
-
-  RETURN VALUE
-    TRUE  - some tables were added
-    FALSE - no tables were added.
-*/
-
-bool
-sp_add_sp_tables_to_table_list(THD *thd, LEX *lex, LEX *func_lex)
-{
-  return (sp_add_sp_tables_to_table_list_aux(thd, lex, &func_lex->spfuns,
-                                             &thd->sp_func_cache) |
-          sp_add_sp_tables_to_table_list_aux(thd, lex, &func_lex->spprocs,
-                                             &thd->sp_proc_cache));
-}

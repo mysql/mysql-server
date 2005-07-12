@@ -79,15 +79,19 @@ sp_function_exists(THD *thd, sp_name *name);
 
 
 /*
- *  For precaching of functions and procedures
- */
-void
-sp_add_to_hash(HASH *h, sp_name *fun);
-bool
-sp_merge_hash(HASH *dst, HASH *src);
-void
-sp_cache_routines(THD *thd, LEX *lex);
+  Procedures for pre-caching of stored routines and building table list
+  for prelocking.
+*/
+void sp_add_used_routine(LEX *lex, Query_arena *arena,
+                         sp_name *rt, char rt_type);
+void sp_update_sp_used_routines(HASH *dst, HASH *src);
+bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex);
+void sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
+                                               LEX *aux_lex);
+void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
+                                         Table_triggers_list *triggers);
 
+extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
 
 //
 // Utilities...

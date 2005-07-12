@@ -60,6 +60,12 @@
 #include <sys/stat.h>
 #include <violite.h>
 #include <regex.h>                        /* Our own version of lib */
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+#ifndef WEXITSTATUS
+# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+#endif
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
@@ -986,9 +992,39 @@ static void do_exec(struct st_query* q)
       replace_dynstr_append(ds, buf);
   }
   error= pclose(res_file);
-
   if (error != 0)
-    die("command \"%s\" failed", cmd);
+  {
+    uint status= WEXITSTATUS(error), i;
+    my_bool ok= 0;
+
+    if (q->abort_on_error)
+      die("At line %u: command \"%s\" failed", start_lineno, cmd);
+
+    DBUG_PRINT("info",
+               ("error: %d, status: %d", error, status));
+    for (i=0 ; (uint) i < q->expected_errors ; i++)
+    {
+      DBUG_PRINT("info",
+                 ("error: %d, status: %d", error, status));
+      DBUG_PRINT("info", ("expected error: %d",
+                          q->expected_errno[i].code.errnum));
+      if ((q->expected_errno[i].type == ERR_ERRNO) &&
+          (q->expected_errno[i].code.errnum == status))
+        ok= 1;
+      verbose_msg("At line %u: command \"%s\" failed with expected error: %d",
+                  start_lineno, cmd, status);
+    }
+    if (!ok)
+      die("At line: %u: command \"%s\" failed with wrong error: %d",
+          start_lineno, cmd, status);
+  }
+  else if (q->expected_errno[0].type == ERR_ERRNO &&
+           q->expected_errno[0].code.errnum != 0)
+  {
+    /* Error code we wanted was != 0, i.e. not an expected success */
+    die("At line: %u: command \"%s\" succeeded - should have failed with errno %d...",
+        start_lineno, cmd, q->expected_errno[0].code.errnum);
+  }
 
   if (!disable_result_log)
   {

@@ -98,7 +98,7 @@ public:
   */
   virtual const char *func_name() const= 0;
   virtual Item *result_item(Field *field)
-    { return new Item_field(field);}
+    { return new Item_field(field); }
   table_map used_tables() const { return ~(table_map) 0; } /* Not used */
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
@@ -124,7 +124,7 @@ public:
   Item_sum_num(Item *a, Item* b) :Item_sum(a,b) {}
   Item_sum_num(List<Item> &list) :Item_sum(list) {}
   Item_sum_num(THD *thd, Item_sum_num *item) :Item_sum(thd, item) {}
-  bool fix_fields(THD *, TABLE_LIST *, Item **);
+  bool fix_fields(THD *, Item **);
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
@@ -479,7 +479,8 @@ public:
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
   void no_rows_in_result() {}
-  const char *func_name() const { return "variance("; }
+  const char *func_name() const
+    { return sample ? "var_samp(" : "variance("; }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
   enum Item_result result_type () const { return hybrid_type; }
@@ -543,7 +544,7 @@ protected:
     was_values(TRUE)
   { collation.set(&my_charset_bin); }
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item);
-  bool fix_fields(THD *, TABLE_LIST *, Item **);
+  bool fix_fields(THD *, Item **);
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
 
@@ -660,18 +661,21 @@ protected:
   udf_handler udf;
 
 public:
-  Item_udf_sum(udf_func *udf_arg) :Item_sum(), udf(udf_arg) { quick_group=0;}
-  Item_udf_sum( udf_func *udf_arg, List<Item> &list )
-    :Item_sum( list ), udf(udf_arg)
+  Item_udf_sum(udf_func *udf_arg)
+    :Item_sum(), udf(udf_arg)
+  { quick_group=0; }
+  Item_udf_sum(udf_func *udf_arg, List<Item> &list)
+    :Item_sum(list), udf(udf_arg)
   { quick_group=0;}
   Item_udf_sum(THD *thd, Item_udf_sum *item)
-    :Item_sum(thd, item), udf(item->udf) { udf.not_original= TRUE; }
+    :Item_sum(thd, item), udf(item->udf)
+  { udf.not_original= TRUE; }
   const char *func_name() const { return udf.name(); }
-  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+  bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
     fixed= 1;
-    return udf.fix_fields(thd,tables,this,this->arg_count,this->args);
+    return udf.fix_fields(thd, this, this->arg_count, this->args);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   virtual bool have_field_update(void) const { return 0; }
@@ -688,9 +692,10 @@ public:
 class Item_sum_udf_float :public Item_udf_sum
 {
  public:
-  Item_sum_udf_float(udf_func *udf_arg) :Item_udf_sum(udf_arg) {}
+  Item_sum_udf_float(udf_func *udf_arg)
+    :Item_udf_sum(udf_arg) {}
   Item_sum_udf_float(udf_func *udf_arg, List<Item> &list)
-    :Item_udf_sum(udf_arg,list) {}
+    :Item_udf_sum(udf_arg, list) {}
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
     :Item_udf_sum(thd, item) {}
   longlong val_int()
@@ -709,9 +714,10 @@ class Item_sum_udf_float :public Item_udf_sum
 class Item_sum_udf_int :public Item_udf_sum
 {
 public:
-  Item_sum_udf_int(udf_func *udf_arg) :Item_udf_sum(udf_arg) {}
+  Item_sum_udf_int(udf_func *udf_arg)
+    :Item_udf_sum(udf_arg) {}
   Item_sum_udf_int(udf_func *udf_arg, List<Item> &list)
-    :Item_udf_sum(udf_arg,list) {}
+    :Item_udf_sum(udf_arg, list) {}
   Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
     :Item_udf_sum(thd, item) {}
   longlong val_int();
@@ -728,7 +734,8 @@ public:
 class Item_sum_udf_str :public Item_udf_sum
 {
 public:
-  Item_sum_udf_str(udf_func *udf_arg) :Item_udf_sum(udf_arg) {}
+  Item_sum_udf_str(udf_func *udf_arg)
+    :Item_udf_sum(udf_arg) {}
   Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)
     :Item_udf_sum(udf_arg,list) {}
   Item_sum_udf_str(THD *thd, Item_sum_udf_str *item)
@@ -766,9 +773,10 @@ public:
 class Item_sum_udf_decimal :public Item_udf_sum
 {
 public:
-  Item_sum_udf_decimal(udf_func *udf_arg) :Item_udf_sum(udf_arg) {}
+  Item_sum_udf_decimal(udf_func *udf_arg)
+    :Item_udf_sum(udf_arg) {}
   Item_sum_udf_decimal(udf_func *udf_arg, List<Item> &list)
-    :Item_udf_sum(udf_arg,list) {}
+    :Item_udf_sum(udf_arg, list) {}
   Item_sum_udf_decimal(THD *thd, Item_sum_udf_decimal *item)
     :Item_udf_sum(thd, item) {}
   String *val_str(String *);
@@ -785,7 +793,8 @@ public:
 class Item_sum_udf_float :public Item_sum_num
 {
  public:
-  Item_sum_udf_float(udf_func *udf_arg) :Item_sum_num() {}
+  Item_sum_udf_float(udf_func *udf_arg)
+    :Item_sum_num() {}
   Item_sum_udf_float(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
     :Item_sum_num(thd, item) {}
@@ -800,7 +809,8 @@ class Item_sum_udf_float :public Item_sum_num
 class Item_sum_udf_int :public Item_sum_num
 {
 public:
-  Item_sum_udf_int(udf_func *udf_arg) :Item_sum_num() {}
+  Item_sum_udf_int(udf_func *udf_arg)
+    :Item_sum_num() {}
   Item_sum_udf_int(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
   Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
     :Item_sum_num(thd, item) {}
@@ -816,15 +826,17 @@ public:
 class Item_sum_udf_decimal :public Item_sum_num
 {
  public:
-  Item_sum_udf_decimal(udf_func *udf_arg) :Item_sum_num() {}
-  Item_sum_udf_decimal(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
+  Item_sum_udf_decimal(udf_func *udf_arg)
+    :Item_sum_num() {}
+  Item_sum_udf_decimal(udf_func *udf_arg, List<Item> &list)
+    :Item_sum_num() {}
   Item_sum_udf_decimal(THD *thd, Item_sum_udf_float *item)
     :Item_sum_num(thd, item) {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   double val_real() { DBUG_ASSERT(fixed == 1); return 0.0; }
   my_decimal *val_decimal(my_decimal *) { DBUG_ASSERT(fixed == 1); return 0; }
   void clear() {}
-  bool add() { return 0; }  
+  bool add() { return 0; }
   void update_field() {}
 };
 
@@ -832,8 +844,10 @@ class Item_sum_udf_decimal :public Item_sum_num
 class Item_sum_udf_str :public Item_sum_num
 {
 public:
-  Item_sum_udf_str(udf_func *udf_arg) :Item_sum_num() {}
-  Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_sum_num() {}
+  Item_sum_udf_str(udf_func *udf_arg)
+    :Item_sum_num() {}
+  Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)
+    :Item_sum_num() {}
   Item_sum_udf_str(THD *thd, Item_sum_udf_str *item)
     :Item_sum_num(thd, item) {}
   String *val_str(String *)
@@ -862,7 +876,7 @@ class Item_func_group_concat : public Item_sum
   TREE *tree;
   TABLE *table;
   ORDER **order;
-  TABLE_LIST *tables_list;
+  Name_resolution_context *context;
   uint arg_count_order;               // total count of ORDER BY items
   uint arg_count_field;               // count of arguments
   uint count_cut_values;
@@ -887,8 +901,9 @@ class Item_func_group_concat : public Item_sum
 			   Item_func_group_concat *group_concat_item);
 
 public:
-  Item_func_group_concat(bool is_distinct,List<Item> *is_select,
-                         SQL_LIST *is_order,String *is_separator);
+  Item_func_group_concat(Name_resolution_context *context_arg,
+                         bool is_distinct, List<Item> *is_select,
+                         SQL_LIST *is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat() {}
@@ -901,7 +916,7 @@ public:
   bool add();
   void reset_field() {}                         // not used
   void update_field() {}                        // not used
-  bool fix_fields(THD *, TABLE_LIST *, Item **);
+  bool fix_fields(THD *,Item **);
   bool setup(THD *thd);
   void make_unique();
   double val_real()
@@ -927,4 +942,6 @@ public:
   Item *copy_or_same(THD* thd);
   void no_rows_in_result() {}
   void print(String *str);
+  virtual bool change_context_processor(byte *cntx)
+    { context= (Name_resolution_context *)cntx; return FALSE; }
 };

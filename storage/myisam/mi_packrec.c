@@ -416,8 +416,19 @@ static uint find_longest_bitstream(uint16 *table, uint16 *end)
 }
 
 
-	/* Read record from datafile */
-	/* Returns length of packed record, -1 if error */
+/*
+  Read record from datafile.
+
+  SYNOPSIS
+    _mi_read_pack_record()
+    info                        A pointer to MI_INFO.
+    filepos                     File offset of the record.
+    buf                 RETURN  The buffer to receive the record.
+
+  RETURN
+    0                                   on success
+    HA_ERR_WRONG_IN_RECORD or -1        on error
+*/
 
 int _mi_read_pack_record(MI_INFO *info, my_off_t filepos, byte *buf)
 {

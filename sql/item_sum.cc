@@ -193,7 +193,7 @@ my_decimal *Item_sum_int::val_decimal(my_decimal *decimal_value)
 
 
 bool
-Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_sum_num::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
@@ -208,7 +208,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
+    if (args[i]->fix_fields(thd, args + i) || args[i]->check_cols(1))
       return TRUE;
     set_if_bigger(decimals, args[i]->decimals);
     maybe_null |= args[i]->maybe_null;
@@ -253,7 +253,7 @@ Item_sum_hybrid::Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
 }
 
 bool
-Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
@@ -268,7 +268,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
   // 'item' can be changed during fix_fields
   if (!item->fixed &&
-      item->fix_fields(thd, tables, args) ||
+      item->fix_fields(thd, args) ||
       (item= args[0])->check_cols(1))
     return TRUE;
   decimals=item->decimals;
@@ -2766,11 +2766,12 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
 */
 
 Item_func_group_concat::
-Item_func_group_concat(bool distinct_arg, List<Item> *select_list,
+Item_func_group_concat(Name_resolution_context *context_arg,
+                       bool distinct_arg, List<Item> *select_list,
                        SQL_LIST *order_list, String *separator_arg)
   :tmp_table_param(0), warning(0),
    separator(separator_arg), tree(0), table(0),
-   order(0), tables_list(0),
+   order(0), context(context_arg),
    arg_count_order(order_list ? order_list->elements : 0),
    arg_count_field(select_list->elements),
    count_cut_values(0),
@@ -2826,7 +2827,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   table(item->table),
   order(item->order),
-  tables_list(item->tables_list),
+  context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
   count_cut_values(item->count_cut_values),
@@ -2946,7 +2947,7 @@ bool Item_func_group_concat::add()
 
 
 bool
-Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_func_group_concat::fix_fields(THD *thd, Item **ref)
 {
   uint i;                       /* for loop variable */
   DBUG_ASSERT(fixed == 0);
@@ -2968,7 +2969,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   for (i=0 ; i < arg_count ; i++)
   {
     if ((!args[i]->fixed &&
-         args[i]->fix_fields(thd, tables, args + i)) ||
+         args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
       return TRUE;
     if (i < arg_count_field)
@@ -2979,7 +2980,6 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   null_value= 1;
   thd->allow_sum_func= 1;
   max_length= thd->variables.group_concat_max_len;
-  tables_list= tables;
   fixed= 1;
   return FALSE;
 }
@@ -3029,7 +3029,7 @@ bool Item_func_group_concat::setup(THD *thd)
     tmp table columns.
   */
   if (arg_count_order &&
-      setup_order(thd, args, tables_list, list, all_fields, *order))
+      setup_order(thd, args, context->table_list, list, all_fields, *order))
     DBUG_RETURN(TRUE);
 
   count_field_types(tmp_table_param,all_fields,0);

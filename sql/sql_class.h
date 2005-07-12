@@ -654,6 +654,14 @@ typedef struct system_status_var
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
+/* The following macro is to make init of Query_arena simpler */
+#ifndef DBUG_OFF
+#define INIT_ARENA_DBUG_INFO is_backup_arena= 0
+#else 
+#define INIT_ARENA_DBUG_INFO  
+#endif
+
+
 class Query_arena
 {
 public:
@@ -664,7 +672,7 @@ public:
   Item *free_list;
   MEM_ROOT *mem_root;                   // Pointer to current memroot
 #ifndef DBUG_OFF
-  bool backup_arena;
+  bool is_backup_arena; /* True if this arena is used for backup. */
 #endif
   enum enum_state
   {
@@ -682,12 +690,13 @@ public:
 
   Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg) :
     free_list(0), mem_root(mem_root_arg), state(state_arg)
-  {}
+  { INIT_ARENA_DBUG_INFO; }
   /*
     This constructor is used only when Query_arena is created as
     backup storage for another instance of Query_arena.
   */
-  Query_arena() {};
+  Query_arena() { INIT_ARENA_DBUG_INFO; }
+
   virtual Type type() const;
   virtual ~Query_arena() {};
 
@@ -727,6 +736,8 @@ public:
   void set_n_backup_item_arena(Query_arena *set, Query_arena *backup);
   void restore_backup_item_arena(Query_arena *set, Query_arena *backup);
   void set_item_arena(Query_arena *set);
+
+  void free_items();
 };
 
 
@@ -1428,10 +1439,10 @@ public:
 };
 
 #define tmp_disable_binlog(A)       \
-  ulong save_options= (A)->options; \
-  (A)->options&= ~OPTION_BIN_LOG;
+  {ulong tmp_disable_binlog__save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG
 
-#define reenable_binlog(A)          (A)->options= save_options;
+#define reenable_binlog(A)   (A)->options= tmp_disable_binlog__save_options;}
 
 /* Flags for the THD::system_thread (bitmap) variable */
 #define SYSTEM_THREAD_DELAYED_INSERT 1

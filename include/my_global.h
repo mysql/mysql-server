@@ -295,10 +295,8 @@ C_MODE_END
 #include <alloca.h>
 #endif
 #ifdef HAVE_ATOMIC_ADD
-#if defined(__ia64__)
 #define new my_arg_new
 #define need_to_restore_new 1
-#endif
 C_MODE_START
 #include <asm/atomic.h>
 C_MODE_END
@@ -341,6 +339,11 @@ C_MODE_END
 #undef  HAVE_FINITE
 #undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
 #undef  LONGLONG_MAX            /* standard system library 'limits.h' */
+#ifdef __cplusplus
+#define HAVE_RINT               /* rint() and isnan() functions are not */
+#define rint(a) std::rint(a)    /* visible in C++ scope due to an error */
+#define isnan(a) std::isnan(a)  /* in the usr/include/math.h on QNX     */
+#endif
 #endif
 
 /* We can not live without the following defines */
@@ -393,10 +396,7 @@ int	__void__;
 #endif
 
 /* Define some useful general macros */
-#if defined(__cplusplus) && defined(__GNUC__)
-#define max(a, b)	((a) >? (b))
-#define min(a, b)	((a) <? (b))
-#elif !defined(max)
+#if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif

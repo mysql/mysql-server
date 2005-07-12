@@ -2034,7 +2034,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   {
     uint key_prefix_len;
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
-    col_privs->field[0]->store(host.hostname,(uint) strlen(host.hostname),
+    col_privs->field[0]->store(host.hostname,
+                               host.hostname ? (uint) strlen(host.hostname) : 0,
                                system_charset_info);
     col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
     col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
@@ -2475,7 +2476,6 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   int old_row_exists= 1;
   int error=0;
   ulong store_proc_rights;
-  byte *key;
   DBUG_ENTER("replace_routine_table");
 
   if (!initialized)
@@ -3216,7 +3216,6 @@ my_bool grant_init(THD *org_thd)
     do
     {
       GRANT_NAME *mem_check;
-      longlong proc_type;
       HASH *hash;
       if (!(mem_check=new GRANT_NAME(p_table)))
       {

@@ -363,6 +363,7 @@ String *Item_func_des_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 #ifdef HAVE_OPENSSL
+  uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
@@ -370,8 +371,8 @@ String *Item_func_des_encrypt::val_str(String *str)
   uint key_number, res_length, tail;
   String *res= args[0]->val_str(str);
 
-  if ((null_value=args[0]->null_value))
-    return 0;
+  if ((null_value= args[0]->null_value))
+    return 0;                                   // ENCRYPT(NULL) == NULL
   if ((res_length=res->length()) == 0)
     return &my_empty_string;
 
@@ -419,6 +420,7 @@ String *Item_func_des_encrypt::val_str(String *str)
 
   tail=  (8-(res_length) % 8);			// 1..8 marking extra length
   res_length+=tail;
+  code= ER_OUT_OF_RESOURCES;
   if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length+1))
     goto error;
   (*res)[res_length-1]=tail;			// save extra length
@@ -436,6 +438,13 @@ String *Item_func_des_encrypt::val_str(String *str)
   return &tmp_value;
 
 error:
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          code, ER(code),
+                          "des_encrypt");
+#else
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+                      ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
+                      "des_encrypt","--with-openssl");
 #endif	/* HAVE_OPENSSL */
   null_value=1;
   return 0;
@@ -446,12 +455,12 @@ String *Item_func_des_decrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 #ifdef HAVE_OPENSSL
-  DES_key_schedule ks1, ks2, ks3;
+  uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   String *res= args[0]->val_str(str);
-  uint length=res->length(),tail;
+  uint length= 0, tail;
 
   if ((null_value=args[0]->null_value))
     return 0;
@@ -485,6 +494,7 @@ String *Item_func_des_decrypt::val_str(String *str)
     DES_set_key_unchecked(&keyblock.key2,&keyschedule.ks2);
     DES_set_key_unchecked(&keyblock.key3,&keyschedule.ks3);
   }
+  code= ER_OUT_OF_RESOURCES;
   if (tmp_value.alloc(length-1))
     goto error;
 
@@ -498,11 +508,19 @@ String *Item_func_des_decrypt::val_str(String *str)
 		       &ivec, FALSE);
   /* Restore old length of key */
   if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)
-    goto error;					// Wrong key
+    goto wrong_key;				     // Wrong key
   tmp_value.length(length-1-tail);
   return &tmp_value;
 
 error:
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          code, ER(code),
+                          "des_decrypt");
+wrong_key:
+#else
+  push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+                      ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
+                      "des_decrypt","--with-openssl");
 #endif	/* HAVE_OPENSSL */
   null_value=1;
   return 0;
@@ -1037,7 +1055,8 @@ void Item_func_substr::fix_length_and_dec()
   collation.set(args[0]->collation);
   if (args[1]->const_item())
   {
-    int32 start=(int32) args[1]->val_int()-1;
+    int32 start= (int32) args[1]->val_int();
+    start= (int32)((start < 0) ? max_length + start : start - 1);
     if (start < 0 || start >= (int32) max_length)
       max_length=0; /* purecov: inspected */
     else

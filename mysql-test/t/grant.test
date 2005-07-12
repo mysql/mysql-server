@@ -6,6 +6,7 @@
 # Cleanup
 --disable_warnings
 drop table if exists t1;
+drop database if exists mysqltest;
 --enable_warnings
 
 connect (master,localhost,root,,);
@@ -403,3 +404,78 @@ connection root;
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
+
+#
+# check all new table priveleges
+#
+CREATE USER dummy@localhost;
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.dummytable (dummyfield INT);
+CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
+GRANT ALL PRIVILEGES ON mysqltest.dummytable TO dummy@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.dummyview TO dummy@localhost;
+SHOW GRANTS FOR dummy@localhost;
+use INFORMATION_SCHEMA;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR dummy@localhost;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+SHOW FIELDS FROM mysql.tables_priv;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
+DROP USER dummy@localhost;
+DROP DATABASE mysqltest;
+# check view only privileges
+CREATE USER dummy@localhost;
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.dummytable (dummyfield INT);
+CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
+GRANT CREATE VIEW ON mysqltest.dummytable TO dummy@localhost;
+GRANT CREATE VIEW ON mysqltest.dummyview TO dummy@localhost;
+SHOW GRANTS FOR dummy@localhost;
+use INFORMATION_SCHEMA;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR dummy@localhost;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
+DROP USER dummy@localhost;
+DROP DATABASE mysqltest;
+CREATE USER dummy@localhost;
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.dummytable (dummyfield INT);
+CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
+GRANT SHOW VIEW ON mysqltest.dummytable TO dummy@localhost;
+GRANT SHOW VIEW ON mysqltest.dummyview TO dummy@localhost;
+SHOW GRANTS FOR dummy@localhost;
+use INFORMATION_SCHEMA;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR dummy@localhost;
+SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
+PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
+= '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM dummy@localhost;
+DROP USER dummy@localhost;
+DROP DATABASE mysqltest;
+#
+# Bug #11330: Entry in tables_priv with host = '' causes crash
+#
+connection default;
+use mysql;
+insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_grantor',CURRENT_TIMESTAMP,'Select','Select');
+flush privileges;
+delete from tables_priv where host = '' and user = 'mysqltest_1';
+flush privileges;

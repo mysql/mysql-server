@@ -2204,7 +2204,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
     t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].sort : t_wc;
     if ( s_wc != t_wc )
     {
-      return  ((int) s_wc) - ((int) t_wc);
+      return  s_wc > t_wc ? 1 : -1;
     }
 
     s+=s_res;
@@ -2277,7 +2277,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
     t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].sort : t_wc;
     if ( s_wc != t_wc )
     {
-      return  ((int) s_wc) - ((int) t_wc);
+      return  s_wc > t_wc ? 1 : -1;
     }
 
     s+=s_res;
@@ -2790,7 +2790,7 @@ static void test_mb(CHARSET_INFO *cs, uchar *s)
 {
   while(*s)
   {
-    if(my_ismbhead_utf8(cs,*s))
+    if (my_ismbhead_utf8(cs,*s))
     {
       int len=my_mbcharlen_utf8(cs,*s);
       while(len--)

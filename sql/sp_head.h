@@ -48,23 +48,49 @@ public:
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_qname;
+  /*
+    Key representing routine in the set of stored routines used by statement.
+    Consists of 1-byte routine type and m_qname (which usually refences to
+    same buffer). Note that one must complete initialization of the key by
+    calling set_routine_type().
+  */
+  LEX_STRING m_sroutines_key;
 
   sp_name(LEX_STRING name)
     : m_name(name)
   {
-    m_db.str= m_qname.str= 0;
-    m_db.length= m_qname.length= 0;
+    m_db.str= m_qname.str= m_sroutines_key.str= 0;
+    m_db.length= m_qname.length= m_sroutines_key.length= 0;
   }
 
   sp_name(LEX_STRING db, LEX_STRING name)
     : m_db(db), m_name(name)
   {
-    m_qname.str= 0;
-    m_qname.length= 0;
+    m_qname.str= m_sroutines_key.str= 0;
+    m_qname.length= m_sroutines_key.length= 0;
+  }
+
+  /*
+    Creates temporary sp_name object from key, used mainly
+    for SP-cache lookups.
+  */
+  sp_name(char *key, uint key_len)
+  {
+    m_sroutines_key.str= key;
+    m_sroutines_key.length= key_len;
+    m_name.str= m_qname.str= key + 1;
+    m_name.length= m_qname.length= key_len - 1;
+    m_db.str= 0;
+    m_db.length= 0;
   }
 
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation
+
+  void set_routine_type(char type)
+  {
+    m_sroutines_key.str[0]= type;
+  }
 
   ~sp_name()
   {}
@@ -107,13 +133,13 @@ public:
   longlong m_created;
   longlong m_modified;
   /*
-    Sets containing names of SP and SF used by this routine.
-
-    TODO Probably we should combine these two hashes in one. It will
-    decrease memory overhead ans simplify algorithms using them. The
-    same applies to similar hashes in LEX.
+    Set containing names of stored routines used by this routine.
+    Note that unlike elements of similar set for statement elements of this
+    set are not linked in one list. Because of this we are able save memory
+    by using for this set same objects that are used in 'sroutines' sets
+    for statements of which this stored routine consists.
   */
-  HASH m_spfuns, m_spprocs;
+  HASH m_sroutines;
   // Pointers set during parsing
   uchar *m_param_begin, *m_param_end, *m_body_begin;
 
@@ -259,6 +285,9 @@ private:
   */
   HASH m_sptabs;
 
+  /* Used for tracking of routine invocations and preventing recursion. */
+  bool m_is_invoked;
+
   int
   execute(THD *thd);
 
@@ -274,7 +303,7 @@ private:
 // "Instructions"...
 //
 
-class sp_instr : public Sql_alloc
+class sp_instr :public Query_arena, public Sql_alloc
 {
   sp_instr(const sp_instr &);	/* Prevent use of these */
   void operator=(sp_instr &);
@@ -282,17 +311,16 @@ class sp_instr : public Sql_alloc
 public:
 
   uint marked;
-  Item *free_list;              // My Items
   uint m_ip;			// My index
   sp_pcontext *m_ctx;		// My parse context
 
   // Should give each a name or type code for debugging purposes?
   sp_instr(uint ip, sp_pcontext *ctx)
-    :Sql_alloc(), marked(0), free_list(0), m_ip(ip), m_ctx(ctx)
+    :Query_arena(0, INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
   {}
 
   virtual ~sp_instr()
-  { free_items(free_list); }
+  { free_items(); }
 
   // Execute this instrution. '*nextp' will be set to the index of the next
   // instruction to execute. (For most instruction this will be the
@@ -472,10 +500,11 @@ class sp_instr_set_trigger_field : public sp_instr
 public:
 
   sp_instr_set_trigger_field(uint ip, sp_pcontext *ctx,
-                             Item_trigger_field *trg_fld, Item *val)
+                             Item_trigger_field *trg_fld,
+                             Item *val, LEX *lex)
     : sp_instr(ip, ctx),
       trigger_field(trg_fld),
-      value(val)
+      value(val), m_lex_keeper(lex, TRUE)
   {}
 
   virtual ~sp_instr_set_trigger_field()
@@ -483,11 +512,14 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual int exec_core(THD *thd, uint *nextp);
+
   virtual void print(String *str);
 
 private:
   Item_trigger_field *trigger_field;
   Item *value;
+  sp_lex_keeper m_lex_keeper;
 }; // class sp_instr_trigger_field : public sp_instr
 
 
@@ -952,7 +984,5 @@ TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
 		       thr_lock_type locktype);
-bool
-sp_add_sp_tables_to_table_list(THD *thd, LEX *lex, LEX *func_lex);
 
 #endif /* _SP_HEAD_H_ */

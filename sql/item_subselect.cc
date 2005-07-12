@@ -130,7 +130,7 @@ Item_subselect::select_transformer(JOIN *join)
 }
 
 
-bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
+bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 {
   char const *save_where= thd_param->where;
   bool res;
@@ -165,7 +165,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       substitution= 0;
       thd->where= "checking transformed subquery";
       if (!(*ref)->fixed)
-	ret= (*ref)->fix_fields(thd, tables, ref);
+	ret= (*ref)->fix_fields(thd, ref);
       thd->where= save_where;
       return ret;
     }
@@ -194,15 +194,8 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 bool Item_subselect::exec()
 {
   int res;
-  MEM_ROOT *old_root= thd->mem_root;
 
-  /*
-    As this is execution, all objects should be allocated through the main
-    mem root
-  */
-  thd->mem_root= &thd->main_mem_root;
   res= engine->exec();
-  thd->mem_root= old_root;
 
   if (engine_changed)
   {
@@ -840,7 +833,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
         reference, also Item_sum_(max|min) can't be fixed after creation, so
         we do not check item->fixed
       */
-      if (item->fix_fields(thd, join->tables_list, 0))
+      if (item->fix_fields(thd, 0))
 	DBUG_RETURN(RES_ERROR);
       /* we added aggregate function => we have to change statistic */
       count_field_types(&join->tmp_table_param, join->all_fields, 0);
@@ -869,7 +862,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
     thd->lex->current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
-    if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
+    if (!optimizer || optimizer->fix_left(thd, 0))
     {
       thd->lex->current_select= current;
       DBUG_RETURN(RES_ERROR);
@@ -880,7 +873,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
-    expr= new Item_direct_ref((Item**)optimizer->get_cache(),
+    expr= new Item_direct_ref(&select_lex->context,
+                              (Item**)optimizer->get_cache(),
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
 
@@ -900,7 +894,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   {
     bool tmp;
     Item *item= func->create(expr,
-                             new Item_ref_null_helper(this,
+                             new Item_ref_null_helper(&select_lex->context,
+                                                      this,
                                                       select_lex->
                                                       ref_pointer_array,
                                                       (char *)"<ref>",
@@ -920,7 +915,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       we do not check join->having->fixed, because Item_and (from and_items)
       or comparison function (from func->create) can't be fixed after creation
     */
-    tmp= join->having->fix_fields(thd, join->tables_list, 0);
+    tmp= join->having->fix_fields(thd, 0);
     select_lex->having_fix_field= 0;
     if (tmp)
       DBUG_RETURN(RES_ERROR);
@@ -956,7 +951,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
           and_items) or comparison function (from func->create) can't be
           fixed after creation
         */
-	tmp= join->having->fix_fields(thd, join->tables_list, 0);
+	tmp= join->having->fix_fields(thd, 0);
         select_lex->having_fix_field= 0;
         if (tmp)
 	  DBUG_RETURN(RES_ERROR);
@@ -978,7 +973,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
         we do not check join->conds->fixed, because Item_and can't be fixed
         after creation
       */
-      if (join->conds->fix_fields(thd, join->tables_list, 0))
+      if (join->conds->fix_fields(thd, 0))
 	DBUG_RETURN(RES_ERROR);
     }
     else
@@ -990,22 +985,23 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  comparison functions can't be changed during fix_fields()
 	  we can assign select_lex->having here, and pass 0 as last
 	  argument (reference) to fix_fields()
-	*/
-        item= func->create(expr, 
-		       new Item_null_helper(this, item,
-					    (char *)"<no matter>",
-					    (char *)"<result>"));
+        */
+        item= func->create(expr,
+                           new Item_null_helper(&select_lex->context,
+                                                this, item,
+                                                (char *)"<no matter>",
+                                                (char *)"<result>"));
 #ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
         if (!abort_on_null && left_expr->maybe_null)
           item= new Item_cond_or(new Item_func_isnull(left_expr), item);
 #endif
-	select_lex->having= join->having= item;   
+	select_lex->having= join->having= item;
 	select_lex->having_fix_field= 1;
         /*
           we do not check join->having->fixed, because comparison function
           (from func->create) can't be fixed after creation
         */
-	tmp= join->having->fix_fields(thd, join->tables_list, 0);
+	tmp= join->having->fix_fields(thd, 0);
         select_lex->having_fix_field= 0;
         if (tmp)
 	  DBUG_RETURN(RES_ERROR);
@@ -1055,7 +1051,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     SELECT_LEX *current= thd->lex->current_select, *up;
     thd->lex->current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
-    if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
+    if (!optimizer || optimizer->fix_left(thd, 0))
     {
       thd->lex->current_select= current;
       DBUG_RETURN(RES_ERROR);
@@ -1078,12 +1074,14 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->el(i)->cols()))
         DBUG_RETURN(RES_ERROR);
-      Item *func= new Item_ref_null_helper(this,
+      Item *func= new Item_ref_null_helper(&select_lex->context,
+                                           this,
                                            select_lex->ref_pointer_array+i,
                                            (char *) "<no matter>",
                                            (char *) "<list ref>");
       func=
-	eq_creator.create(new Item_direct_ref((*optimizer->get_cache())->
+	eq_creator.create(new Item_direct_ref(&select_lex->context,
+                                              (*optimizer->get_cache())->
 					      addr(i),
 					      (char *)"<no matter>",
 					      (char *)in_left_expr_name),
@@ -1106,7 +1104,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       join->having can't be fixed after creation, so we do not check
       join->having->fixed
     */
-    if (join->having->fix_fields(thd, join->tables_list, 0))
+    if (join->having->fix_fields(thd, 0))
     {
       select_lex->having_fix_field= 0;
       DBUG_RETURN(RES_ERROR);
@@ -1125,7 +1123,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       join->conds can't be fixed after creation, so we do not check
       join->conds->fixed
     */
-    if (join->conds->fix_fields(thd, join->tables_list, 0))
+    if (join->conds->fix_fields(thd, 0))
       DBUG_RETURN(RES_ERROR);
   }
 
@@ -1196,8 +1194,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 
   thd->lex->current_select= up= current->return_after_parsing();
   result= (!left_expr->fixed &&
-           left_expr->fix_fields(thd, up->get_table_list(),
-                                 optimizer->arguments()));
+           left_expr->fix_fields(thd, optimizer->arguments()));
   /* fix_fields can change reference to left_expr, we need reassign it */
   left_expr= optimizer->arguments()[0];
 
@@ -1487,7 +1484,7 @@ int subselect_uniquesubquery_engine::exec()
   TABLE *table= tab->table;
   for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    if (tab->ref.key_err= (*copy)->copy())
+    if ((tab->ref.key_err= (*copy)->copy()) & 1)
     {
       table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(1);
@@ -1540,7 +1537,7 @@ int subselect_indexsubquery_engine::exec()
 
   for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    if (tab->ref.key_err= (*copy)->copy())
+    if ((tab->ref.key_err= (*copy)->copy()) & 1)
     {
       table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(1);

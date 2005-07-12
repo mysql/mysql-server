@@ -13332,6 +13332,318 @@ static void test_bug9992()
   mysql_close(mysql1);
 }
 
+/* Bug#10736: cursors and subqueries, memroot management */
+
+static void test_bug10736()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  char a[21];
+  int rc;
+  const char *stmt_text;
+  int i= 0;
+  ulong type;
+
+  myheader("test_bug10736");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (id integer not null primary key,"
+                                      "name VARCHAR(20) NOT NULL)");
+  rc= mysql_query(mysql, "insert into t1 (id, name) values "
+                         "(1, 'aaa'), (2, 'bbb'), (3, 'ccc')");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
+  check_execute(stmt, rc);
+  stmt_text= "select name from t1 where name=(select name from t1 where id=2)";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (void*) a;
+  bind[0].buffer_length= sizeof(a);
+  mysql_stmt_bind_result(stmt, bind);
+
+  for (i= 0; i < 3; i++)
+  {
+    int row_no= 0;
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    while ((rc= mysql_stmt_fetch(stmt)) == 0)
+    {
+      if (!opt_silent)
+        printf("%d: %s\n", row_no, a);
+      ++row_no;
+    }
+    DIE_UNLESS(rc == MYSQL_NO_DATA);
+  }
+  rc= mysql_stmt_close(stmt);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+/* Bug#10794: cursors, packets out of order */
+
+static void test_bug10794()
+{
+  MYSQL_STMT *stmt, *stmt1;
+  MYSQL_BIND bind[2];
+  char a[21];
+  int id_val;
+  ulong a_len;
+  int rc;
+  const char *stmt_text;
+  int i= 0;
+  ulong type;
+
+  myheader("test_bug10794");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (id integer not null primary key,"
+                                      "name varchar(20) not null)");
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "insert into t1 (id, name) values (?, ?)";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (void*) &id_val;
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (void*) a;
+  bind[1].length= &a_len;
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+  for (i= 0; i < 34; i++)
+  {
+    id_val= (i+1)*10;
+    sprintf(a, "a%d", i);
+    a_len= strlen(a); /* safety against broken sprintf */
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+  }
+  stmt_text= "select name from t1";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  stmt1= mysql_stmt_init(mysql);
+  mysql_stmt_attr_set(stmt1, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (void*) a;
+  bind[0].buffer_length= sizeof(a);
+  bind[0].length= &a_len;
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  if (!opt_silent)
+    printf("Fetched row from stmt: %s\n", a);
+  /* Don't optimize: an attribute of the original test case */
+  mysql_stmt_free_result(stmt);
+  mysql_stmt_reset(stmt);
+  stmt_text= "select name from t1 where id=10";
+  rc= mysql_stmt_prepare(stmt1, stmt_text, strlen(stmt_text));
+  check_execute(stmt1, rc);
+  rc= mysql_stmt_bind_result(stmt1, bind);
+  check_execute(stmt1, rc);
+  rc= mysql_stmt_execute(stmt1);
+  while (1)
+  {
+    rc= mysql_stmt_fetch(stmt1);
+    if (rc == MYSQL_NO_DATA)
+    {
+      if (!opt_silent)
+        printf("End of data in stmt1\n");
+      break;
+    }
+    check_execute(stmt1, rc);
+    if (!opt_silent)
+      printf("Fetched row from stmt1: %s\n", a);
+  }
+  mysql_stmt_close(stmt);
+  mysql_stmt_close(stmt1);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
+/* Bug#11172: cursors, crash on a fetch from a datetime column */
+
+static void test_bug11172()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind_in[1], bind_out[2];
+  MYSQL_TIME hired;
+  int rc;
+  const char *stmt_text;
+  int i= 0, id;
+  ulong type;
+
+  myheader("test_bug11172");
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (id integer not null primary key,"
+                                      "hired date not null)");
+  rc= mysql_query(mysql,
+                  "insert into t1 (id, hired) values (1, '1933-08-24'), "
+                  "(2, '1965-01-01'), (3, '1949-08-17'), (4, '1945-07-07'), "
+                  "(5, '1941-05-15'), (6, '1978-09-15'), (7, '1936-03-28')");
+  myquery(rc);
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "SELECT id, hired FROM t1 WHERE hired=?";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+
+  bzero(bind_in, sizeof(bind_in));
+  bzero(bind_out, sizeof(bind_out));
+  bzero(&hired, sizeof(hired));
+  hired.year= 1965;
+  hired.month= 1;
+  hired.day= 1;
+  bind_in[0].buffer_type= MYSQL_TYPE_DATE;
+  bind_in[0].buffer= (void*) &hired;
+  bind_in[0].buffer_length= sizeof(hired);
+  bind_out[0].buffer_type= MYSQL_TYPE_LONG;
+  bind_out[0].buffer= (void*) &id;
+  bind_out[1]= bind_in[0];
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_stmt_bind_param(stmt, bind_in);
+    check_execute(stmt, rc);
+    rc= mysql_stmt_bind_result(stmt, bind_out);
+    check_execute(stmt, rc);
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+    while ((rc= mysql_stmt_fetch(stmt)) == 0)
+    {
+      if (!opt_silent)
+        printf("fetched data %d:%d-%d-%d\n", id,
+               hired.year, hired.month, hired.day);
+    }
+    DIE_UNLESS(rc == MYSQL_NO_DATA);
+    mysql_stmt_free_result(stmt) || mysql_stmt_reset(stmt);
+  }
+  mysql_stmt_close(stmt);
+  mysql_rollback(mysql);
+  mysql_rollback(mysql);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
+/* Bug#11656: cursors, crash on a fetch from a query with distinct. */
+
+static void test_bug11656()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  int rc;
+  const char *stmt_text;
+  char buf[2][20];
+  int i= 0;
+  ulong type;
+
+  myheader("test_bug11656");
+
+  mysql_query(mysql, "drop table if exists t1");
+
+  rc= mysql_query(mysql, "create table t1 ("
+                  "server varchar(40) not null, "
+                  "test_kind varchar(1) not null, "
+                  "test_id varchar(30) not null , "
+                  "primary key (server,test_kind,test_id))");
+  myquery(rc);
+
+  stmt_text= "select distinct test_kind, test_id from t1 "
+             "where server in (?, ?)";
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+
+  bzero(bind, sizeof(bind));
+  strcpy(buf[0], "pcint502_MY2");
+  strcpy(buf[1], "*");
+  for (i=0; i < 2; i++)
+  {
+    bind[i].buffer_type= MYSQL_TYPE_STRING;
+    bind[i].buffer= (gptr *)&buf[i];
+    bind[i].buffer_length= strlen(buf[i]);
+  }
+  mysql_stmt_bind_param(stmt, bind);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
+/*
+  Check that the server signals when NO_BACKSLASH_ESCAPES mode is in effect,
+  and mysql_real_escape_string() does the right thing as a result.
+*/
+
+static void test_bug10214()
+{
+  MYSQL_RES* res ;
+  int   len;
+  char  out[8];
+
+  myheader("test_bug10214");
+
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES));
+
+  len= mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  DIE_UNLESS(memcmp(out, "a\\'b\\\\c", len) == 0);
+
+  mysql_query(mysql, "set sql_mode='NO_BACKSLASH_ESCAPES'");
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
+
+  len= mysql_real_escape_string(mysql, out, "a'b\\c", 5);
+  DIE_UNLESS(memcmp(out, "a''b\\c", len) == 0);
+
+  mysql_query(mysql, "set sql_mode=''");
+}
+
+static void test_client_character_set()
+{
+  MY_CHARSET_INFO cs;
+  const char *csname;
+  int rc;
+
+  myheader("test_client_character_set");
+
+  csname = "utf8";
+  rc = mysql_set_character_set(mysql, csname);
+  DIE_UNLESS(rc == 0);
+
+  mysql_get_character_set_info(mysql, &cs);
+  DIE_UNLESS(!strcmp(cs.csname, "utf8"));
+  DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -13555,6 +13867,7 @@ static struct my_tests_st my_tests[]= {
   { "test_cursors_with_union", test_cursors_with_union },
   { "test_truncation", test_truncation },
   { "test_truncation_option", test_truncation_option },
+  { "test_client_character_set", test_client_character_set },
   { "test_bug8330", test_bug8330 },
   { "test_bug7990", test_bug7990 },
   { "test_bug8378", test_bug8378 },
@@ -13567,6 +13880,11 @@ static struct my_tests_st my_tests[]= {
   { "test_bug10729", test_bug10729 },
   { "test_bug11111", test_bug11111 },
   { "test_bug9992", test_bug9992 },
+  { "test_bug10736", test_bug10736 },
+  { "test_bug10794", test_bug10794 },
+  { "test_bug11172", test_bug11172 },
+  { "test_bug11656", test_bug11656 },
+  { "test_bug10214", test_bug10214 },
   { 0, 0 }
 };
 

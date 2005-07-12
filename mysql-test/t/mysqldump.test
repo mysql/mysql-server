@@ -5,7 +5,7 @@
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
 drop database if exists mysqldump_test_db;
 drop database if exists db1;
-drop view if exists v1, v2;
+drop view if exists v1, v2, v3;
 --enable_warnings
 
 # XML output
@@ -565,7 +565,6 @@ INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
 
-
 #
 # Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
 #
@@ -588,3 +587,125 @@ create view v2 as select * from t2 where a like 'a%' with check option;
 drop table t2;
 drop view v2;
 drop database db1;
+#
+# Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
+#
+
+CREATE DATABASE mysqldump_test_db;
+USE mysqldump_test_db;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db
+--exec $MYSQL_DUMP --skip-comments --no-data mysqldump_test_db t1 t2
+--exec $MYSQL_DUMP --skip-comments --skip-create --xml --no-data mysqldump_test_db
+--exec $MYSQL_DUMP --skip-comments --skip-create --xml --no-data mysqldump_test_db t1 t2
+DROP TABLE t1, t2;
+DROP DATABASE mysqldump_test_db;
+
+#
+#  Testing with tables and databases that don't exists
+#  or contains illegal characters
+# (Bug #9358 mysqldump crashes if tablename starts with \)
+#
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1(a varchar(30) primary key, b int not null);
+create table t2(a varchar(30) primary key, b int not null);
+create table t3(a varchar(30) primary key, b int not null);
+
+--disable_query_log
+select '------ Testing with illegal table names ------' as test_sequence ;
+--enable_query_log
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "\d-2-1.sql" 2>&1
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\t1" 2>&1
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t\1" 2>&1
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments  mysqldump_test_db  "t\\1" 2>&1
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t/1" 2>&1
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T%1"
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T'1"
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+
+--error 6
+--exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_"
+
+--disable_query_log
+select '------ Testing with illegal database names ------' as test_sequence ;
+--enable_query_log
+--error 2
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_d 2>&1
+
+--error 2
+--exec $MYSQL_DUMP --compact --skip-comments "mysqld\ump_test_db" 2>&1
+
+drop table t1, t2, t3;
+drop database mysqldump_test_db;
+use test;
+
+#
+# Bug #9657 mysqldump xml ( -x ) does not format NULL fields correctly
+#
+
+create table t1 (a int(10));
+create table t2 (pk int primary key auto_increment,
+a int(10), b varchar(30), c datetime, d blob, e text);
+insert into t1 values (NULL), (10), (20);
+insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thirty");
+--exec $MYSQL_DUMP  --skip-comments --xml --no-create-info test
+drop table t1, t2;
+
+#
+# Bug #10927 mysqldump: Can't reload dump with view that consist of other view
+#
+
+create table t1(a int, b int, c varchar(30));
+
+insert into t1 values(1, 2, "one"), (2, 4, "two"), (3, 6, "three");
+
+create view v3 as
+select * from t1;
+
+create  view v1 as
+select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
+
+create  view v2 as
+select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
+
+--exec $MYSQL_DUMP test > var/tmp/bug10927.sql
+drop view v1, v2, v3;
+drop table t1;
+--exec $MYSQL test < var/tmp/bug10927.sql
+
+# Without dropping the original tables in between
+--exec $MYSQL_DUMP test > var/tmp/bug10927.sql
+--exec $MYSQL test < var/tmp/bug10927.sql
+show full tables;
+show create view v1;
+select * from v1;
+
+drop view v1, v2, v3;
+drop table t1;

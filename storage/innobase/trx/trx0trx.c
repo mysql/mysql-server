@@ -166,6 +166,8 @@ trx_create(
 	memset(&trx->xid, 0, sizeof(trx->xid));
 	trx->xid.formatID = -1;
 
+	trx_reset_new_rec_lock_info(trx);
+
 	return(trx);
 }
 

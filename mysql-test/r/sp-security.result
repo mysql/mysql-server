@@ -1,6 +1,7 @@
 use test;
 grant usage on *.* to user1@localhost;
 flush privileges;
+drop table if exists t1;
 drop database if exists db1_secret;
 create database db1_secret;
 create procedure db1_secret.dummy() begin end;
@@ -194,3 +195,20 @@ use test;
 drop database sptest;
 delete from mysql.user where user='usera' or user='userb' or user='userc';
 delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
+drop function if exists bug_9503;
+create database mysqltest//
+use mysqltest//
+create table t1 (s1 int)//
+grant select on t1 to user1@localhost//
+create function bug_9503 () returns int sql security invoker begin declare v int;
+select min(s1) into v from t1; return v; end//
+use mysqltest;
+select bug_9503();
+ERROR 42000: execute command denied to user 'user1'@'localhost' for routine 'mysqltest.bug_9503'
+grant execute on function bug_9503 to user1@localhost;
+do 1;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
+drop function bug_9503;
+use test;
+drop database mysqltest;

@@ -6,3 +6,4 @@ libtaocrypt_a_SOURCES  = aes.cpp aestables.cpp algebra.cpp arc4.cpp asn.cpp \
 	md2.cpp md5.cpp misc.cpp random.cpp ripemd.cpp rsa.cpp sha.cpp \
 	template_instnt.cpp
 EXTRA_DIST = ../include/*.hpp
+AM_CXXFLAGS = -DYASSL_PURE_C

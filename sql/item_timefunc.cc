@@ -1753,10 +1753,10 @@ void Item_func_convert_tz::fix_length_and_dec()
 
 
 bool
-Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **ref)
+Item_func_convert_tz::fix_fields(THD *thd_arg, Item **ref)
 {
   String str;
-  if (Item_date_func::fix_fields(thd_arg, tables_arg, ref))
+  if (Item_date_func::fix_fields(thd_arg, ref))
     return TRUE;
 
   tz_tables= thd_arg->lex->time_zone_tables_used;

@@ -141,6 +141,7 @@ int deny_severity = LOG_WARNING;
 #define zVOLSTATE_DEACTIVE 2
 #define zVOLSTATE_MAINTENANCE 3
 
+#include <nks/netware.h>
 #include <nks/vm.h>
 #include <library.h>
 #include <monitor.h>
@@ -3008,14 +3009,15 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef	__WIN__
-/* Before performing any socket operation (like retrieving hostname */
-/* in init_common_variables we have to call WSAStartup              */
-  if (!opt_disable_networking)
+  /*
+    Before performing any socket operation (like retrieving hostname
+    in init_common_variables we have to call WSAStartup
+  */
   {
     WSADATA WsaData;
     if (SOCKET_ERROR == WSAStartup (0x0101, &WsaData))
     {
-      /* errors are not read yet, so we use test here */
+      /* errors are not read yet, so we use english text here */
       my_message(ER_WSAS_FAILED, "WSAStartup Failed", MYF(0));
       unireg_abort(1);
     }
@@ -4460,7 +4462,7 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
-   "Set the default storage engine (table tyoe) for tables.", 0, 0,
+   "Set the default storage engine (table type) for tables.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-table-type", OPT_STORAGE_ENGINE,
    "(deprecated) Use --default-storage-engine.", 0, 0,
@@ -5389,7 +5391,7 @@ The minimum value for this variable is 4096.",
    "Default pointer size to be used for MyISAM tables.",
    (gptr*) &myisam_data_pointer_size,
    (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
-   6, 2, 8, 0, 1, 0},
+   6, 2, 7, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
    "Deprecated option",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
@@ -6334,9 +6336,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
-    break;
-  case (int) OPT_LOG_SLOW_ADMIN_STATEMENTS:
-    opt_log_slow_admin_statements= 1;
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
