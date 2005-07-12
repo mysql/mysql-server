@@ -907,7 +907,7 @@ bool setup_fields(THD *thd, Item** ref_pointer_array,
                   List<Item> &item, ulong set_query_id,
                   List<Item> *sum_func_list, bool allow_sum_func);
 inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
-                                     List<Item> &item, bool set_query_id,
+                                     List<Item> &item, ulong set_query_id,
                                      List<Item> *sum_func_list,
                                      bool allow_sum_func)
 {

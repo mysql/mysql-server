@@ -174,7 +174,7 @@ void bitmap_free(MY_BITMAP *map)
 
 my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit)
 {
-  uchar *byte= map->bitmap + (bitmap_bit / 8);
+  uchar *byte= (uchar*)map->bitmap + (bitmap_bit / 8);
   uchar bit= 1 << ((bitmap_bit) & 7);
   uchar res= (*byte) & bit;
   *byte|= bit;
@@ -198,7 +198,7 @@ my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit)
 my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit)
 {
   my_bool res;
-  DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
+  DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock(map);
   res= bitmap_fast_test_and_set(map, bitmap_bit);
   bitmap_unlock(map);
