@@ -68,7 +68,7 @@ class CircularIndex
 {
 public:
   inline CircularIndex(  int start= 0,int size=256 );
-  operator int ();
+  operator int () const;
   CircularIndex& operator ++ ();
   friend int full( const CircularIndex& write, const CircularIndex& read );
   friend int empty( const CircularIndex& write, const CircularIndex& read );
@@ -77,7 +77,7 @@ private:
   int theIndex;
 };
 
-inline CircularIndex::operator int ()
+inline CircularIndex::operator int () const
 {
   return theIndex;
 }

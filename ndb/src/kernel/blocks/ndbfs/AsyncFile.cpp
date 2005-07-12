@@ -96,6 +96,7 @@ AsyncFile::AsyncFile() :
   theReportTo(0),
   theMemoryChannelPtr(NULL)
 {
+  m_current_request= m_last_request= 0;
 }
 
 void
@@ -177,6 +178,7 @@ AsyncFile::run()
       endReq();
       return;
     }//if
+    m_current_request= request;
     switch (request->action) {
     case Request:: open:
       openReq(request);
@@ -226,6 +228,8 @@ AsyncFile::run()
       abort();
       break;
     }//switch
+    m_last_request= request;
+    m_current_request= 0;
     theReportTo->writeChannel(request);
   }//while
 }//AsyncFile::run()
@@ -1031,3 +1035,60 @@ void printErrorAndFlags(Uint32 used_flags) {
 
 }
 #endif
+
+NdbOut&
+operator<<(NdbOut& out, const Request& req)
+{
+  out << "[ Request: file: " << hex << req.file 
+      << " userRef: " << hex << req.theUserReference
+      << " userData: " << dec << req.theUserPointer
+      << " theFilePointer: " << req.theFilePointer
+      << " action: ";
+  switch(req.action){
+  case Request::open:
+    out << "open";
+    break;
+  case Request::close:
+    out << "close";
+    break;
+  case Request::closeRemove:
+    out << "closeRemove";
+    break;
+  case Request::read:   // Allways leave readv directly after 
+    out << "read";
+    break;
+  case Request::readv:
+    out << "readv";
+    break;
+  case Request::write:// Allways leave writev directly after 
+    out << "write";
+    break;
+  case Request::writev:
+    out << "writev";
+    break;
+  case Request::writeSync:// Allways leave writevSync directly after 
+    out << "writeSync";
+    break;
+    // writeSync because SimblockAsyncFileSystem depends on it
+  case Request::writevSync:
+    out << "writevSync";
+    break;
+  case Request::sync:
+    out << "sync";
+    break;
+  case Request::end:
+    out << "end";
+    break;
+  case Request::append:
+    out << "append";
+    break;
+  case Request::rmrf:
+    out << "rmrf";
+    break;
+  default:
+    out << (Uint32)req.action;
+    break;
+  }
+  out << " ]";
+  return out;
+}
