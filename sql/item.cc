@@ -4499,6 +4499,35 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   return Item_direct_ref::fix_fields(thd, reference);
 }
 
+/*
+  Compare view field's name with item's name before call to referenced
+  item's eq()
+
+  SYNOPSIS
+    Item_direct_view_ref::eq()
+    item        item to compare with
+    binary_cmp  make binary comparison
+
+  DESCRIPTION
+    Consider queries:
+    create view v1 as select t1.f1 as f2, t1.f2 as f1 from t1;
+    select * from v1 order by f1;
+    In order to choose right field for sorting we need to compare
+    given item's name (f1) to view field's name prior to calling
+    referenced item's eq().
+
+  RETURN
+    TRUE    Referenced item is equal to given item
+    FALSE   otherwise
+*/
+
+
+bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
+{
+  Item *it= ((Item *) item)->real_item();
+  return (!it->name || !my_strcasecmp(system_charset_info, it->name,
+          field_name)) && ref && (*ref)->real_item()->eq(it, binary_cmp);
+}
 
 void Item_null_helper::print(String *str)
 {
