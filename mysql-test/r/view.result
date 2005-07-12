@@ -1863,3 +1863,11 @@ ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default val
 set sql_mode=default;
 drop view v2,v1;
 drop table t1;
+create table t1 (f1 int);
+insert into t1 values (1);
+create view v1 as select f1 from t1;
+select f1 as alias from v1;
+alias
+1
+drop view v1;
+drop table t1;

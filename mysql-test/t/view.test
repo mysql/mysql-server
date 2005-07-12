@@ -1714,3 +1714,13 @@ INSERT INTO v2 (vcol1) VALUES(12);
 set sql_mode=default;
 drop view v2,v1;
 drop table t1;
+
+#
+# Bug#11399 Use an alias in a select statement on a view
+#
+create table t1 (f1 int);
+insert into t1 values (1);
+create view v1 as select f1 from t1;
+select f1 as alias from v1;
+drop view v1;
+drop table t1;
