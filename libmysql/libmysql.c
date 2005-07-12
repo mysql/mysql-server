@@ -1495,7 +1495,7 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql)
   return mysql->charset->csname;
 }
 
-void STDCALL mysql_get_character_set_info(MYSQL *mysql, CHARACTER_SET *csinfo)
+void STDCALL mysql_get_character_set_info(MYSQL *mysql, MY_CHARSET_INFO *csinfo)
 {
   csinfo->number   = mysql->charset->number;
   csinfo->state    = mysql->charset->state;
