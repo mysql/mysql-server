@@ -372,6 +372,7 @@ drop table t1;
 use test2;
 drop table t2;
 drop database test2;
+use test;
 drop database if exists test_only_ndb_tables;
 create database test_only_ndb_tables;
 use test_only_ndb_tables;
