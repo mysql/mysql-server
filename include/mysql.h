@@ -218,6 +218,18 @@ enum mysql_rpl_type
   MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE, MYSQL_RPL_ADMIN
 };
 
+typedef struct character_set
+{
+  unsigned int      number;     /* character set number              */
+  unsigned int      state;      /* character set state               */
+  const char        *csname;    /* collation name                    */
+  const char        *name;      /* character set name                */
+  const char        *comment;   /* comment                           */
+  const char        *dir;       /* character set directory           */
+  unsigned int      mbminlen;   /* min. length for multibyte strings */
+  unsigned int      mbmaxlen;   /* max. length for multibyte strings */
+} CHARACTER_SET;
+
 struct st_mysql_methods;
 
 typedef struct st_mysql
@@ -418,6 +430,8 @@ my_bool		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 					  unsigned long length);
 my_bool		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 					       unsigned long length);
+void        STDCALL mysql_get_character_set_info(MYSQL *mysql,
+                           CHARACTER_SET *charset);
 
 /* local infile support */
 
