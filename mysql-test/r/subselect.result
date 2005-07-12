@@ -2837,3 +2837,9 @@ WHERE select_id = 0 OR select_id = 1);
 values_id
 1
 DROP TABLE t1, t2;
+create table t1 (fld enum('0','1'));
+insert into t1 values ('1');
+select * from (select max(fld) from t1) as foo;
+max(fld)
+1
+drop table t1;
