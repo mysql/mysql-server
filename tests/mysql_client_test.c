@@ -13628,7 +13628,7 @@ static void test_bug10214()
 
 static void test_client_character_set()
 {
-  CHARACTER_SET	cs;
+  MY_CHARSET_INFO cs;
   const char *csname;
   int rc;
 

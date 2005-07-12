@@ -228,7 +228,7 @@ typedef struct character_set
   const char        *dir;       /* character set directory           */
   unsigned int      mbminlen;   /* min. length for multibyte strings */
   unsigned int      mbmaxlen;   /* max. length for multibyte strings */
-} CHARACTER_SET;
+} MY_CHARSET_INFO;
 
 struct st_mysql_methods;
 
@@ -431,7 +431,7 @@ my_bool		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 my_bool		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 					       unsigned long length);
 void        STDCALL mysql_get_character_set_info(MYSQL *mysql,
-                           CHARACTER_SET *charset);
+                           MY_CHARSET_INFO *charset);
 
 /* local infile support */
 
