@@ -7173,7 +7173,7 @@ static void test_explain_bug()
   verify_prepare_field(result, 3, "type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_BLOB,
                        "", "", "", NAME_LEN*64, 0);
 
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
@@ -7186,13 +7186,13 @@ static void test_explain_bug()
                        (mysql_get_server_version(mysql) <= 50000 ? 3 : 4096),
                        0);
 
-  verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_BLOB,
                        "", "", "", NAME_LEN*16, 0);
 
   verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 9, "Extra", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 9, "Extra", "", MYSQL_TYPE_BLOB,
                        "", "", "", 255, 0);
 
   mysql_free_result(result);
