@@ -13626,6 +13626,23 @@ static void test_bug10214()
   mysql_query(mysql, "set sql_mode=''");
 }
 
+static void test_client_character_set()
+{
+  MY_CHARSET_INFO cs;
+  const char *csname;
+  int rc;
+
+  myheader("test_client_character_set");
+
+  csname = "utf8";
+  rc = mysql_set_character_set(mysql, csname);
+  DIE_UNLESS(rc == 0);
+
+  mysql_get_character_set_info(mysql, &cs);
+  DIE_UNLESS(!strcmp(cs.csname, "utf8"));
+  DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -13850,6 +13867,7 @@ static struct my_tests_st my_tests[]= {
   { "test_cursors_with_union", test_cursors_with_union },
   { "test_truncation", test_truncation },
   { "test_truncation_option", test_truncation_option },
+  { "test_client_character_set", test_client_character_set },
   { "test_bug8330", test_bug8330 },
   { "test_bug7990", test_bug7990 },
   { "test_bug8378", test_bug8378 },
