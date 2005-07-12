@@ -96,8 +96,20 @@ private:
   NdbMutex* theMutexPtr;
   NdbCondition* theConditionPtr;
 
+  template<class U>
+  friend NdbOut& operator<<(NdbOut& out, const MemoryChannel<U> & chn);
 };
 
+template <class T>
+NdbOut& operator<<(NdbOut& out, const MemoryChannel<T> & chn)
+{
+  NdbMutex_Lock(chn.theMutexPtr);
+  out << "[ theSize: " << chn.theSize
+      << " theReadIndex: " << (int)chn.theReadIndex 
+      << " theWriteIndex: " << (int)chn.theWriteIndex << " ]";
+  NdbMutex_Unlock(chn.theMutexPtr);
+  return out;
+}
 
 template <class T> MemoryChannel<T>::MemoryChannel( int size):
         theSize(size),

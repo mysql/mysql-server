@@ -10334,6 +10334,14 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal)
 	   file1Ptr.p->fileStatus, file1Ptr.p->fileType, file1Ptr.p->reqStatus
 	   );
 
+  signal->theData[0] = 404;
+  signal->theData[1] = file0Ptr.p->fileRef;
+  EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
+
+  signal->theData[0] = 404;
+  signal->theData[1] = file1Ptr.p->fileRef;
+  EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
+
   ndbout_c("c_COPY_GCIREQ_Counter = %s", 
 	   c_COPY_GCIREQ_Counter.getText());
   ndbout_c("c_COPY_TABREQ_Counter = %s", 
