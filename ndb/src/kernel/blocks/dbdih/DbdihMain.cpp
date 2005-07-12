@@ -10316,6 +10316,24 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal)
     break;
   }
   
+  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
+	   c_copyGCISlave.m_senderData,
+	   c_copyGCISlave.m_senderRef,
+	   c_copyGCISlave.m_copyReason,
+	   c_copyGCISlave.m_expectedNextWord);
+
+  FileRecordPtr file0Ptr;
+  file0Ptr.i = crestartInfoFile[0];
+  ptrCheckGuard(file0Ptr, cfileFileSize, fileRecord);
+  FileRecordPtr file1Ptr;
+  file1Ptr.i = crestartInfoFile[1];
+  ptrCheckGuard(file1Ptr, cfileFileSize, fileRecord);
+
+  ndbout_c("file[0] status: %d type: %d reqStatus: %d file1: %d %d %d",
+	   file0Ptr.p->fileStatus, file0Ptr.p->fileType, file0Ptr.p->reqStatus,
+	   file1Ptr.p->fileStatus, file1Ptr.p->fileType, file1Ptr.p->reqStatus
+	   );
+
   ndbout_c("c_COPY_GCIREQ_Counter = %s", 
 	   c_COPY_GCIREQ_Counter.getText());
   ndbout_c("c_COPY_TABREQ_Counter = %s", 
