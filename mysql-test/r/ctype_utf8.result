@@ -939,6 +939,17 @@ content	msisdn
 ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми	1234567890
 11 g	1234567890
 DROP TABLE t1,t2;
+create table t1 (a char(20) character set utf8);
+insert into t1 values ('123456'),('андрей');
+alter table t1 modify a char(2) character set utf8;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+select char_length(a), length(a), a from t1 order by a;
+char_length(a)	length(a)	a
+2	2	12
+2	4	ан
+drop table t1;
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
