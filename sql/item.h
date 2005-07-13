@@ -1039,7 +1039,6 @@ public:
   bool get_time(TIME *tm);
   bool get_date(TIME *tm, uint fuzzydate);
   int  save_in_field(Field *field, bool no_conversions);
-  bool fix_fields(THD *, Item **);
 
   void set_null();
   void set_int(longlong i, uint32 max_length_arg);
