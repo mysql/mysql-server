@@ -121,7 +121,6 @@ public:
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, Item **);
   friend bool Item_ref::fix_fields(THD *, Item **);
-  friend bool Item_param::fix_fields(THD *, Item **);
   friend void mark_select_range_as_dependent(THD*,
                                              st_select_lex*, st_select_lex*,
                                              Field*, Item*, Item_ident*);

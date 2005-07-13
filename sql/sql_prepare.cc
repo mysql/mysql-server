@@ -1825,7 +1825,10 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 void init_stmt_after_parse(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
-
+  /*
+    Switch off a temporary flag that prevents evaluation of
+    subqueries in statement prepare.
+  */
   for (; sl; sl= sl->next_select_in_list())
    sl->uncacheable&= ~UNCACHEABLE_PREPARE;
 }
