@@ -786,6 +786,7 @@ extern char *des_key_file;
 extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
 extern pthread_mutex_t LOCK_des_key_file;
+void init_des_key_file();
 bool load_des_key_file(const char *file_name);
 void free_des_key_file();
 #endif /* HAVE_OPENSSL */

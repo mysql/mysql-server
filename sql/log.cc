@@ -1154,6 +1154,9 @@ int MYSQL_LOG::purge_logs(const char *to_log,
       */
       if (my_stat(log_info.log_file_name,&s,MYF(0)))
         file_size= s.st_size;
+      else
+	sql_print_information("Failed to execute my_stat on file '%s'",
+			      log_info.log_file_name);
     }
     /*
       It's not fatal if we can't delete a log file ;
