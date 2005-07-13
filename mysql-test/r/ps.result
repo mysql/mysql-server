@@ -740,3 +740,22 @@ execute stmt using @user_id, @id;
 partner_id
 deallocate prepare stmt;
 drop table t1, t2, t3, t4;
+prepare stmt from 'select ?=?';
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+?=?
+1
+execute stmt using @a, @b;
+?=?
+1
+set @a=1, @b=2;
+execute stmt using @a, @b;
+?=?
+0
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+?=?
+1
+deallocate prepare stmt;
