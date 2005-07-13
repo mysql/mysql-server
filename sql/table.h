@@ -163,6 +163,13 @@ typedef struct st_table_share
   my_bool crashed;
   my_bool is_view;
   my_bool name_lock, replace_with_name_lock;
+  /*
+    TRUE if this is a system table like 'mysql.proc', which we want to be
+    able to open and lock even when we already have some tables open and
+    locked. To avoid deadlocks we have to put certain restrictions on
+    locking of this table for writing. FALSE - otherwise.
+  */
+  my_bool system_table;
 } TABLE_SHARE;
 
 
