@@ -5212,6 +5212,11 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_query();
   select_lex->init_select();
   select_lex->parent_lex= lex;
+  /*
+    Don't evaluate this subquery during statement prepare even if
+    it's a constant one. The flag is switched off in the end of
+    mysql_stmt_prepare.
+  */
   if (thd->current_arena->is_stmt_prepare())
     select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
