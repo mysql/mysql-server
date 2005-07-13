@@ -83,8 +83,7 @@ explain extended select c from v6;
 # show table/table status test
 show tables;
 show full tables;
---replace_column 12 # 13 #
---replace_result 2147483647 38654705663
+--replace_column 8 # 12 # 13 #
 show table status;
 
 drop view v1,v2,v3,v4,v5,v6;
@@ -1791,6 +1790,16 @@ CALL p1();
 DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Test for bug #11709 View was ordered by wrong column
+#
+create table t1 (f1 int, f2 int);
+create view v1 as select f1 as f3, f2 as f1 from t1;
+insert into t1 values (1,3),(2,1),(3,2);
+select * from v1 order by f1;
+drop view v1;
+drop table t1;
 
 #
 # Test for bug #11771: wrong query_id in SELECT * FROM <view>
