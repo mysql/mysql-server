@@ -188,7 +188,20 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
       break; // we cannot return here, we need to restore "arena".
     }
     conv->fix_fields(thd, 0, &conv);
-    *arg= conv;
+    /*
+      If in statement prepare, then we create a converter for two
+      constant items, do it once and then reuse it.
+      If we're in execution of a prepared statement, arena is NULL,
+      and the conv was created in runtime memory. This can be
+      the case only if the argument is a parameter marker ('?'),
+      because for all true constants the charset converter has already
+      been created in prepare. In this case register the change for
+      rollback.
+    */
+    if (arena)
+      *arg= conv;
+    else
+      thd->change_item_tree(arg, conv);
   }
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);

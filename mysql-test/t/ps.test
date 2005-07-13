@@ -650,3 +650,19 @@ execute stmt using @user_id, @id;
 execute stmt using @user_id, @id;
 deallocate prepare stmt;
 drop table t1, t2, t3, t4;
+
+#
+# Bug#9379: make sure that Item::collation is reset when one sets
+# a parameter marker from a string variable.
+#
+prepare stmt from 'select ?=?';
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+execute stmt using @a, @b;
+set @a=1, @b=2;
+execute stmt using @a, @b;
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+deallocate prepare stmt;
