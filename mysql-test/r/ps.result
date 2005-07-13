@@ -620,3 +620,5 @@ execute stmt using @user_id, @id;
 partner_id
 execute stmt using @user_id, @id;
 partner_id
+deallocate prepare stmt;
+drop table t1, t2, t3, t4;
