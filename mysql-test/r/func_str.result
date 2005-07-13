@@ -865,3 +865,6 @@ abc	abc	c	bc	abc
 abcd	abcd	d	cd	bcd	abcd	
 abcde	abcde	e	de	cde	bcde	abcde
 drop table t1;
+select hex(29223372036854775809), hex(-29223372036854775809);
+hex(29223372036854775809)	hex(-29223372036854775809)
+FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
