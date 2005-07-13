@@ -1131,7 +1131,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
         table_list= (table_list->belong_to_view ?
                      table_list->belong_to_view :
                      table_list);
-        view= (bool)(table_list->view);
+        view= test(table_list->view);
       }
       if (view)
       {
