@@ -2383,9 +2383,10 @@ String *Item_func_hex::val_str(String *str)
     ulonglong dec;
     char ans[65],*ptr;
     /* Return hex of unsigned longlong value */
-    if (args[0]->result_type() == REAL_RESULT)
+    if (args[0]->result_type() == REAL_RESULT ||
+        args[0]->result_type() == DECIMAL_RESULT)
     {
-      double val= args[0]->val();
+      double val= args[0]->val_real();
       if ((val <= (double) LONGLONG_MIN) || 
           (val >= (double) (ulonglong) ULONGLONG_MAX))
         dec=  ~(longlong) 0;
