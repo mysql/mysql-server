@@ -107,5 +107,5 @@ select * from t2;
 show slave status;
 
 connection master;
-drop table t1,t2;
+drop table t1,t2,t3,t4;
 sync_slave_with_master;
