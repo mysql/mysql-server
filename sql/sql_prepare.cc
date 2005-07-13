@@ -1657,13 +1657,18 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   {
     stmt->setup_set_params();
     SELECT_LEX *sl= stmt->lex->all_selects_list;
-    /*
-      Save WHERE clause pointers, because they may be changed during query
-      optimisation.
-    */
     for (; sl; sl= sl->next_select_in_list())
     {
+      /*
+        Save WHERE clause pointers, because they may be changed
+        during query optimisation.
+      */
       sl->prep_where= sl->where;
+      /*
+        Switch off a temporary flag that prevents evaluation of
+        subqueries in statement prepare.
+      */
+      sl->uncacheable&= ~UNCACHEABLE_PREPARE;
     }
     stmt->state= Item_arena::PREPARED;
   }
