@@ -1,0 +1,9 @@
+-- source include/have_openssl.inc
+
+# This test can't be in func_encrypt.test, because it requires
+# --des-key-file to not be set.
+
+#
+# Bug #11643: des_encrypt() causes server to die
+#
+select des_encrypt('hello');
