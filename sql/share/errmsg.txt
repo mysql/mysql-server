@@ -5368,3 +5368,5 @@ ER_TOO_BIG_PRECISION 42000 S1009
         eng "Too big precision %d specified for column '%-.64s'. Maximum is %d."
 ER_SCALE_BIGGER_THAN_PRECISION 42000 S1009
         eng "Scale may not be larger than the precision (column '%-.64s')."
+ER_WRONG_LOCK_OF_SYSTEM_TABLE
+        eng "You can't combine write-locking of system '%-.64s.%-.64s' table with other tables"
