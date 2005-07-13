@@ -287,6 +287,7 @@ sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
 sub kill_and_cleanup ();
+sub ndbcluster_support ();
 sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
@@ -319,6 +320,12 @@ sub main () {
   initial_setup();
   command_line_setup();
   executable_setup();
+  
+  if (! $opt_skip_ndbcluster and ! $opt_with_ndbcluster)
+  {
+    $opt_with_ndbcluster= ndbcluster_support();
+  }
+
   environment_setup();
   signal_setup();
 
@@ -1025,6 +1032,23 @@ sub kill_and_cleanup () {
 #  Start the ndb cluster
 #
 ##############################################################################
+
+sub ndbcluster_support () {
+
+  # check ndbcluster support by testing using a switch
+  # that is only available in that case
+  if ( mtr_run($exe_mysqld,
+	       ["--no-defaults",
+	        "--ndb-use-exact-count",
+	        "--help"],
+	       "", "/dev/null", "/dev/null", "") != 0 )
+  {
+    mtr_report("No ndbcluster support");
+    return 0;
+  }
+  mtr_report("Has ndbcluster support");
+  return 1;
+}
 
 # FIXME why is there a different start below?!
 
