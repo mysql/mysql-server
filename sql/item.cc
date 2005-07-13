@@ -1089,6 +1089,7 @@ void Item_param::reset()
     to the binary log.
   */
   str_value.set_charset(&my_charset_bin);
+  collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   state= NO_VALUE;
   maybe_null= 1;
   null_value= 0;
@@ -1336,6 +1337,8 @@ bool Item_param::convert_str_value(THD *thd)
     */
     str_value_ptr.set(str_value.ptr(), str_value.length(),
                       str_value.charset());
+    /* Synchronize item charset with value charset */
+    collation.set(str_value.charset(), DERIVATION_COERCIBLE);
   }
   return rc;
 }
