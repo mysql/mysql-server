@@ -61,57 +61,152 @@ bool mysql_proc_table_exists= 1;
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
-/* *opened=true means we opened ourselves */
-static int
-db_find_routine_aux(THD *thd, int type, sp_name *name,
-		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
-{
-  TABLE *table;
-  byte key[NAME_LEN*2+4+1];	// db, name, optional key length type
-  DBUG_ENTER("db_find_routine_aux");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
-		       type, name->m_name.length, name->m_name.str));
 
-  *opened= FALSE;
-  *tablep= 0;
+/*
+  Close mysql.proc, opened with open_proc_table_for_read().
+
+  SYNOPSIS
+    close_proc_table()
+      thd  Thread context
+*/
+
+static void close_proc_table(THD *thd)
+{
+  close_thread_tables(thd);
+  thd->pop_open_tables_state();
+}
+
+
+/*
+  Open the mysql.proc table for read.
+
+  SYNOPSIS
+    open_proc_table_for_read()
+      thd  Thread context
+
+  NOTES
+    Thanks to restrictions which we put on opening and locking of
+    this table for writing, we can open and lock it for reading
+    even when we already have some other tables open and locked.
+    One must call close_proc_table() to close table opened with
+    this call.
+
+  RETURN
+    0	Error
+    #	Pointer to TABLE object of mysql.proc
+*/
+
+static TABLE *open_proc_table_for_read(THD *thd)
+{
+  TABLE_LIST tables;
+  TABLE *table;
+  bool old_open_tables= thd->open_tables != 0;
+  bool refresh;
+  DBUG_ENTER("open_proc_table");
 
   /*
     Speed up things if mysql.proc doesn't exists. mysql_proc_table_exists
     is set when we create or read stored procedure or on flush privileges.
   */
-  if (!mysql_proc_table_exists && ltype == TL_READ)
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  if (!mysql_proc_table_exists)
+    DBUG_RETURN(0);
 
-  if (thd->lex->proc_table)
-    table= thd->lex->proc_table->table;
-  else
-  {
-    for (table= thd->open_tables ; table ; table= table->next)
-      if (strcmp(table->s->db, "mysql") == 0 &&
-          strcmp(table->s->table_name, "proc") == 0)
-        break;
-  }
-  if (!table)
-  {
-    TABLE_LIST tables;
+  if (thd->push_open_tables_state())
+    DBUG_RETURN(0);
 
-    memset(&tables, 0, sizeof(tables));
-    tables.db= (char*)"mysql";
-    tables.table_name= tables.alias= (char*)"proc";
-    if (! (table= open_ltable(thd, &tables, ltype)))
-    {
-      /*
-        Under explicit LOCK TABLES or in prelocked mode we should not
-        say that mysql.proc table does not exist if we are unable to
-        open it since this condition may be transient.
-      */
-      if (!(thd->locked_tables || thd->prelocked_mode))
-        mysql_proc_table_exists= 0;
-      DBUG_RETURN(SP_OPEN_TABLE_FAILED);
-    }
-    *opened= TRUE;
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*)"proc";
+  if (!(table= open_table(thd, &tables, thd->mem_root, &refresh,
+                          MYSQL_LOCK_IGNORE_FLUSH)))
+  {
+    thd->pop_open_tables_state();
+    mysql_proc_table_exists= 0;
+    DBUG_RETURN(0);
   }
-  mysql_proc_table_exists= 1;
+
+  DBUG_ASSERT(table->s->system_table);
+
+  table->reginfo.lock_type= TL_READ;
+  /*
+    If we have other tables opened, we have to ensure we are not blocked
+    by a flush tables or global read lock, as this could lead to a deadlock
+  */
+  if (!(thd->lock= mysql_lock_tables(thd, &table, 1,
+                                     old_open_tables ?
+                                     (MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+                                      MYSQL_LOCK_IGNORE_FLUSH) : 0)))
+  {
+    close_proc_table(thd);
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(table);
+}
+
+
+/*
+  Open the mysql.proc table for update.
+
+  SYNOPSIS
+    open_proc_table_for_update()
+      thd  Thread context
+
+  NOTES
+    Table opened with this call should closed using close_thread_tables().
+
+  RETURN
+    0	Error
+    #	Pointer to TABLE object of mysql.proc
+*/
+
+static TABLE *open_proc_table_for_update(THD *thd)
+{
+  TABLE_LIST tables;
+  TABLE *table;
+  DBUG_ENTER("open_proc_table");
+
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*)"proc";
+  tables.lock_type= TL_WRITE;
+
+  table= open_ltable(thd, &tables, TL_WRITE);
+
+  /*
+    Under explicit LOCK TABLES or in prelocked mode we should not
+    say that mysql.proc table does not exist if we are unable to
+    open and lock it for writing since this condition may be
+    transient.
+  */
+  if (!(thd->locked_tables || thd->prelocked_mode) || table)
+    mysql_proc_table_exists= test(table);
+
+  DBUG_RETURN(table);
+}
+
+
+/*
+  Find row in open mysql.proc table representing stored routine.
+
+  SYNOPSIS
+    db_find_routine_aux()
+      thd    Thread context
+      type   Type of routine to find (function or procedure)
+      name   Name of routine
+      table  TABLE object for open mysql.proc table.
+
+  RETURN VALUE
+    SP_OK           - Routine found
+    SP_KEY_NOT_FOUND- No routine with given name
+*/
+
+static int
+db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
+{
+  byte key[NAME_LEN*2+4+1];	// db, name, optional key length type
+  DBUG_ENTER("db_find_routine_aux");
+  DBUG_PRINT("enter", ("type: %d name: %*s",
+		       type, name->m_name.length, name->m_name.str));
 
   /*
     Create key to find row. We have to use field->store() to be able to
@@ -121,9 +216,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
     same fields.
   */
   if (name->m_name.length > table->field[1]->field_length)
-  {
     DBUG_RETURN(SP_KEY_NOT_FOUND);
-  }
   table->field[0]->store(name->m_db.str, name->m_db.length, &my_charset_bin);
   table->field[1]->store(name->m_name.str, name->m_name.length,
                          &my_charset_bin);
@@ -134,14 +227,32 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   if (table->file->index_read_idx(table->record[0], 0,
 				  key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
-  {
     DBUG_RETURN(SP_KEY_NOT_FOUND);
-  }
-  *tablep= table;
 
   DBUG_RETURN(SP_OK);
 }
 
+
+/*
+  Find routine definition in mysql.proc table and create corresponding
+  sp_head object for it.
+
+  SYNOPSIS
+    db_find_routine()
+      thd   Thread context
+      type  Type of routine (TYPE_ENUM_PROCEDURE/...)
+      name  Name of routine
+      sphp  Out parameter in which pointer to created sp_head
+            object is returned (0 in case of error).
+
+  NOTE
+    This function may damage current LEX during execution, so it is good
+    idea to create temporary LEX and make it active before calling it.
+
+  RETURN VALUE
+    0     - Success
+    non-0 - Error (may be one of special codes like SP_KEY_NOT_FOUND)
+*/
 
 static int
 db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
@@ -150,7 +261,6 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   TABLE *table;
   const char *params, *returns, *body;
   int ret;
-  bool opened;
   const char *definer;
   longlong created;
   longlong modified;
@@ -164,8 +274,11 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, TL_READ, &table, &opened);
-  if (ret != SP_OK)
+  *sphp= 0;                                     // In case of errors
+  if (!(table= open_proc_table_for_read(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
+  if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
     goto done;
 
   if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
@@ -257,11 +370,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   chistics.comment.str= ptr;
   chistics.comment.length= length;
 
-  if (opened)
-  {
-    opened= FALSE;
-    close_thread_tables(thd, 0, 1);
-  }
+  close_proc_table(thd);
+  table= 0;
 
   {
     String defstr;
@@ -337,9 +447,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
 
  done:
-
-  if (opened)
-    close_thread_tables(thd);
+  if (table)
+    close_proc_table(thd);
   DBUG_RETURN(ret);
 }
 
@@ -362,7 +471,6 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 {
   int ret;
   TABLE *table;
-  TABLE_LIST tables;
   char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   char olddb[128];
   bool dbchanged;
@@ -377,11 +485,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     goto done;
   }
 
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.table_name= tables.alias= (char*)"proc";
-
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+  if (!(table= open_proc_table_for_update(thd)))
     ret= SP_OPEN_TABLE_FAILED;
   else
   {
@@ -491,20 +595,18 @@ db_drop_routine(THD *thd, int type, sp_name *name)
 {
   TABLE *table;
   int ret;
-  bool opened;
   DBUG_ENTER("db_drop_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, TL_WRITE, &table, &opened);
-  if (ret == SP_OK)
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     if (table->file->delete_row(table->record[0]))
       ret= SP_DELETE_ROW_FAILED;
   }
-
-  if (opened)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -519,8 +621,9 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, TL_WRITE, &table, &opened);
-  if (ret == SP_OK)
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     store_record(table,record[1]);
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
@@ -538,8 +641,7 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     if ((table->file->update_row(table->record[1],table->record[0])))
       ret= SP_WRITE_ROW_FAILED;
   }
-  if (opened)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -741,20 +843,9 @@ sp_drop_db_routines(THD *thd, char *db)
   memset(key+keylen, (int)' ', 64-keylen); // Pad with space
   keylen= sizeof(key);
 
-  for (table= thd->open_tables ; table ; table= table->next)
-    if (strcmp(table->s->db, "mysql") == 0 &&
-	strcmp(table->s->table_name, "proc") == 0)
-      break;
-  if (! table)
-  {
-    TABLE_LIST tables;
-
-    memset(&tables, 0, sizeof(tables));
-    tables.db= (char*)"mysql";
-    tables.table_name= tables.alias= (char*)"proc";
-    if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-      DBUG_RETURN(SP_OPEN_TABLE_FAILED);
-  }
+  ret= SP_OPEN_TABLE_FAILED;
+  if (!(table= open_proc_table_for_update(thd)))
+    goto err;
 
   ret= SP_OK;
   table->file->ha_index_init(0);
@@ -764,7 +855,8 @@ sp_drop_db_routines(THD *thd, char *db)
     int nxtres;
     bool deleted= FALSE;
 
-    do {
+    do
+    {
       if (! table->file->delete_row(table->record[0]))
 	deleted= TRUE;		/* We deleted something */
       else
@@ -784,6 +876,7 @@ sp_drop_db_routines(THD *thd, char *db)
 
   close_thread_tables(thd);
 
+err:
   DBUG_RETURN(ret);
 }
 
@@ -977,9 +1070,7 @@ sp_find_function(THD *thd, sp_name *name, bool cache_only)
   if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)) &&
       !cache_only)
   {
-    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, name, &sp) != SP_OK)
-      sp= NULL;
-    else
+    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, name, &sp) == SP_OK)
       sp_cache_insert(&thd->sp_func_cache, sp);
   }
   DBUG_RETURN(sp);
@@ -1053,26 +1144,6 @@ sp_show_status_function(THD *thd, const char *wild)
   int ret;
   DBUG_ENTER("sp_show_status_function");
   ret= db_show_routine_status(thd, TYPE_ENUM_FUNCTION, wild);
-  DBUG_RETURN(ret);
-}
-
-
-bool
-sp_function_exists(THD *thd, sp_name *name)
-{
-  TABLE *table;
-  bool ret= FALSE;
-  bool opened= FALSE;
-  DBUG_ENTER("sp_function_exists");
-
-  if (sp_cache_lookup(&thd->sp_func_cache, name) ||
-      db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
-			  name, TL_READ,
-			  &table, &opened) == SP_OK)
-    ret= TRUE;
-  if (opened)
-    close_thread_tables(thd, 0, 1);
-  thd->clear_error();
   DBUG_RETURN(ret);
 }
 
@@ -1185,7 +1256,6 @@ sp_cache_routines(THD *thd, LEX *lex)
 
           thd->lex= newlex;
           /* Pass hint pointer to mysql.proc table */
-          newlex->proc_table= oldlex->proc_table;
           newlex->current_select= NULL;
           name.m_name.str= strchr(name.m_qname.str, '.');
           name.m_db.length= name.m_name.str - name.m_qname.str;
