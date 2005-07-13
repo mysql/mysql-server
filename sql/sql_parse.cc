@@ -2193,6 +2193,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
   table_list->schema_select_lex= sel;
   table_list->schema_table_reformed= 1;
+  statistic_increment(thd->status_var.com_stat[lex->orig_sql_command],
+                      &LOCK_status);
   DBUG_RETURN(0);
 }
 
@@ -2365,9 +2367,10 @@ mysql_execute_command(THD *thd)
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
     DBUG_RETURN(-1);
   }
+  if(lex->orig_sql_command == SQLCOM_END)
+    statistic_increment(thd->status_var.com_stat[lex->sql_command],
+                        &LOCK_status);
 
-  statistic_increment(thd->status_var.com_stat[lex->sql_command],
-		      &LOCK_status);
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
