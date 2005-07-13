@@ -135,7 +135,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   if (vio != 0)					/* If real connection */
   {
     net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
-#if defined(MYSQL_SERVER) && !defined(___WIN__) && !defined(__EMX__) && !defined(OS2)
+#if defined(MYSQL_SERVER) && !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
     if (!(test_flags & TEST_BLOCKING))
     {
       my_bool old_mode;

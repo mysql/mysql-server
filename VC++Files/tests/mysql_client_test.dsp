@@ -76,8 +76,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo 
 # ADD BSC32 /nologo 
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib mysqlclient.lib mysys.lib regex.lib ..\extra\yassl\Release\yassl.lib /nologo /out:"..\client_release\mysql_client_test.exe" /incremental:no /pdb:".\Release\mysql_client_test.pdb" /pdbtype:sept /subsystem:console 
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib mysqlclient.lib mysys.lib regex.lib ..\extra\yassl\Release\yassl.lib /nologo /out:"..\client_release\mysql_client_test.exe" /incremental:no /pdb:".\Release\mysql_client_test.pdb" /pdbtype:sept /subsystem:console 
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib mysqlclient.lib mysys.lib regex.lib ..\extra\yassl\Release\yassl.lib /nologo /out:"..\client_release\mysql_client_test.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\Release\mysql_client_test.pdb" /pdbtype:sept /subsystem:console 
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib mysqlclient.lib mysys.lib regex.lib ..\extra\yassl\Release\yassl.lib /nologo /out:"..\client_release\mysql_client_test.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\Release\mysql_client_test.pdb" /pdbtype:sept /subsystem:console 
 
 !ENDIF
 
