@@ -128,7 +128,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
   DBUG_PRINT("enter", ("set_blocking_mode: %d  old_mode: %d",
 		       (int) set_blocking_mode, (int) *old_mode));
 
-#if !defined(___WIN__) && !defined(__EMX__)
+#if !defined(__WIN__) && !defined(__EMX__)
 #if !defined(NO_FCNTL_NONBLOCK)
   if (vio->sd >= 0)
   {
@@ -161,7 +161,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
       vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     }
     if (old_fcntl != vio->fcntl_mode)
-      r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg, sizeof(arg));
+      r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg);
   }
 #ifndef __EMX__
   else
