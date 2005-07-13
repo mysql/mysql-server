@@ -13616,7 +13616,6 @@ static void test_bug11656()
 
 static void test_bug10214()
 {
-  MYSQL_RES* res ;
   int   len;
   char  out[8];
 
@@ -13639,18 +13638,21 @@ static void test_bug10214()
 static void test_client_character_set()
 {
   MY_CHARSET_INFO cs;
-  const char *csname;
+  char *csname;
   int rc;
 
   myheader("test_client_character_set");
 
-  csname = "utf8";
-  rc = mysql_set_character_set(mysql, csname);
+  csname= (char*) "utf8";
+  rc= mysql_set_character_set(mysql, csname);
   DIE_UNLESS(rc == 0);
 
   mysql_get_character_set_info(mysql, &cs);
   DIE_UNLESS(!strcmp(cs.csname, "utf8"));
   DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
+  /* Restore the default character set */
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
 }
 
 
