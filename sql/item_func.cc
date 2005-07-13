@@ -193,10 +193,23 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
     if ((*arg)->type() == FIELD_ITEM)
       ((Item_field *)(*arg))->no_const_subst= 1;
     /*
+      If in statement prepare, then we create a converter for two
+      constant items, do it once and then reuse it.
+      If we're in execution of a prepared statement, arena is NULL,
+      and the conv was created in runtime memory. This can be
+      the case only if the argument is a parameter marker ('?'),
+      because for all true constants the charset converter has already
+      been created in prepare. In this case register the change for
+      rollback.
+    */
+    if (arena)
+      *arg= conv;
+    else
+      thd->change_item_tree(arg, conv);
+    /*
       We do not check conv->fixed, because Item_func_conv_charset which can
       be return by safe_charset_converter can't be fixed at creation
     */
-    *arg= conv;
     conv->fix_fields(thd, arg);
   }
   if (arena)
