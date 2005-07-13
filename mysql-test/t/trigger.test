@@ -317,7 +317,7 @@ drop trigger t1.trg;
 drop trigger t1.trg;
 
 create view v1 as select * from t1;
---error 1361
+--error 1347
 create trigger trg before insert on v1 for each row set @a:=1;
 drop view v1;
 
@@ -576,6 +576,8 @@ drop table t1, t2;
 
 # Test for bug #5893 "Triggers with dropped functions cause crashes"
 # Appropriate error should be reported instead of crash.
+# Also test for bug #11889 "Server crashes when dropping trigger
+# using stored routine".
 --disable_warnings
 drop function if exists bug5893;
 --enable_warnings
@@ -586,4 +588,6 @@ create trigger t1_bu before update on t1 for each row set new.col1= bug5893();
 drop function bug5893; 
 --error 1305
 update t1 set col2 = 4;
+# This should not crash server too.
+drop trigger t1.t1_bu;
 drop table t1;
