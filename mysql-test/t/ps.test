@@ -648,4 +648,5 @@ set @user_id = 'nicke';
 set @id = '2';
 execute stmt using @user_id, @id;
 execute stmt using @user_id, @id;
-
+deallocate prepare stmt;
+drop table t1, t2, t3, t4;
