@@ -387,6 +387,29 @@ drop procedure p|
 
 
 #
+# Let us test that we can access mysql.proc table for routines
+# definitions lookup without locking it explicitly.
+#
+create procedure p() begin end|
+lock table t1 read|
+# This should succeed
+call p()|
+unlock tables|
+drop procedure p|
+# Let us check restrictions which this ability puts on mysql.proc locking.
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+lock tables t1 read, mysql.proc write|
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+lock tables mysql.proc write, mysql.user write|
+# Locking for read should be OK
+lock tables t1 read, mysql.proc read|
+unlock tables|
+# You also should be able lock only mysql.proc for write
+lock tables mysql.proc write|
+unlock tables|
+
+
+#
 # BUG#1965
 #
 create procedure bug1965()
@@ -676,9 +699,7 @@ create procedure bug6600()
 # BUG#9566: explicit LOCK TABLE and store procedures result in illegal state
 #
 # We should not think that mysql.proc table does not exist if we are unable
-# to open it under LOCK TABLE or in prelocked mode. Probably this test
-# should be removed when Monty will allow access to mysql.proc without
-# locking it.
+# to open it under LOCK TABLE or in prelocked mode.
 #
 --disable_warnings
 drop procedure if exists bug9566|
@@ -688,9 +709,11 @@ begin
   select * from t1;
 end|
 lock table t1 read|
-# This should fail because we forgot to lock mysql.proc table explicitly
+# This should fail since we forgot to lock mysql.proc for writing
+# explicitly, and we can't open mysql.proc for _writing_ if there
+# are locked tables.
 --error 1100
-call bug9566()|
+alter procedure bug9566 comment 'Some comment'|
 unlock tables|
 # This should succeed
 drop procedure bug9566|
