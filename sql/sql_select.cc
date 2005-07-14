@@ -1915,12 +1915,6 @@ Cursor::close(bool is_active)
 }
 
 
-Cursor::~Cursor()
-{
-  if (is_open())
-    close(FALSE);
-}
-
 /*********************************************************************/
 
 /*
