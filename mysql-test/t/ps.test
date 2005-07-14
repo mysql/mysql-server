@@ -815,10 +815,12 @@ prepare stmt from "select ?FROM t1";
 prepare stmt from "select FROM t1 WHERE?=1";
 --error 1064
 prepare stmt from "update t1 set a=a+?WHERE 1";
+--disable_ps_protocol
 --error 1064
 select ?;
 --error 1064
 select ??;
 --error 1064
 select ? from t1;
+--enable_ps_protocol
 drop table t1;
