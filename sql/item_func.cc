@@ -3196,6 +3196,9 @@ bool Item_func_match::fix_index()
 
   if (key == NO_SUCH_KEY)
     return 0;
+  
+  if (!table) 
+    goto err;
 
   for (keynr=0 ; keynr < table->keys ; keynr++)
   {
