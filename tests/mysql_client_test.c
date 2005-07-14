@@ -11697,6 +11697,50 @@ static void test_bug9735()
   myquery(rc);
 }
 
+/* Bug#11183 "mysql_stmt_reset() doesn't reset information about error" */
+
+static void test_bug11183()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  char bug_statement[]= "insert into t1 values (1)";
+
+  myheader("test_bug11183");
+
+  mysql_query(mysql, "drop table t1 if exists");
+  mysql_query(mysql, "create table t1 (a int)");
+
+  stmt= mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != 0);
+
+  rc= mysql_stmt_prepare(stmt, bug_statement, strlen(bug_statement));
+  check_execute(stmt, rc);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+
+  /* Trying to execute statement that should fail on execute stage */
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc);
+
+  mysql_stmt_reset(stmt);
+  DIE_UNLESS(mysql_stmt_errno(stmt) == 0);
+
+  mysql_query(mysql, "create table t1 (a int)");
+
+  /* Trying to execute statement that should pass ok */
+  if (mysql_stmt_execute(stmt))
+  {
+    mysql_stmt_reset(stmt);
+    DIE_UNLESS(mysql_stmt_errno(stmt) == 0);
+  }
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -11913,6 +11957,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug7990", test_bug7990 },
   { "test_bug8378", test_bug8378 },
   { "test_bug9735", test_bug9735 },
+  { "test_bug11183", test_bug11183 },
   { 0, 0 }
 };
 
