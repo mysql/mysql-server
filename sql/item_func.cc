@@ -3157,7 +3157,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   THD* thd=current_thd;
   User_level_lock* ull;
   struct timespec abstime;
-  int lock_name_len,error=0;
+  int lock_name_len;
   lock_name_len=strlen(lock_name);
   pthread_mutex_lock(&LOCK_user_locks);
 
@@ -3191,8 +3191,8 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
 
   set_timespec(abstime,lock_timeout);
   while (!thd->killed &&
-	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+         pthread_cond_timedwait(&ull->cond, &LOCK_user_locks,
+                                &abstime) != ETIMEDOUT && ull->locked) ;
   if (ull->locked)
   {
     if (!--ull->count)
@@ -3294,14 +3294,14 @@ longlong Item_func_get_lock::val_int()
   set_timespec(abstime,timeout);
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && error != EINVAL && ull->locked) ;
+         != ETIMEDOUT && error != EINVAL && ull->locked) ;
   if (thd->killed)
     error=EINTR;				// Return NULL
   if (ull->locked)
   {
     if (!--ull->count)
       delete ull;				// Should never happen
-    if (error != ETIME && error != ETIMEDOUT)
+    if (error != ETIMEDOUT)
     {
       error=1;
       null_value=1;				// Return NULL
