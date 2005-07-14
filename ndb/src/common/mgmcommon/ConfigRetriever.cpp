@@ -47,6 +47,8 @@
 ConfigRetriever::ConfigRetriever(const char * _connect_string,
 				 Uint32 version, Uint32 node_type)
 {
+  DBUG_ENTER("ConfigRetriever::ConfigRetriever");
+
   m_version = version;
   m_node_type = node_type;
   _ownNodeId= 0;
@@ -55,23 +57,26 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
 
   if (m_handle == 0) {
     setError(CR_ERROR, "Unable to allocate mgm handle");
-    return;
+    DBUG_VOID_RETURN;
   }
 
   if (ndb_mgm_set_connectstring(m_handle, _connect_string))
   {
     setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
-    return;
+    DBUG_VOID_RETURN;
   }
   resetError();
+  DBUG_VOID_RETURN;
 }
 
 ConfigRetriever::~ConfigRetriever()
 {
+  DBUG_ENTER("ConfigRetriever::~ConfigRetriever");
   if (m_handle) {
     ndb_mgm_disconnect(m_handle);
     ndb_mgm_destroy_handle(&m_handle);
   }
+  DBUG_VOID_RETURN;
 }
 
 Uint32 
