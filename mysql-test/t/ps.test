@@ -822,4 +822,3 @@ select ??;
 --error 1064
 select ? from t1;
 drop table t1;
-deallocate prepare stmt;
