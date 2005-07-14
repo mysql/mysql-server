@@ -60,6 +60,7 @@ public:
   }
   
   void add_listener(const Event_listener&);
+  void check_listeners();
   void update_max_log_level(const LogLevel&);
   void update_log_level(const LogLevel&);
   
@@ -764,16 +765,6 @@ private:
   int send(class NdbApiSignal* signal, Uint32 node, Uint32 node_type);
 
   ConfigRetriever *m_config_retriever;
-
-public:
-  /**
-   * This method does not exist
-   */
-  struct Area51 {
-    class TransporterFacade * theFacade;
-    class TransporterRegistry * theRegistry;
-  };
-  Area51 getStuff();
 };
 
 inline
