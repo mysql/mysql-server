@@ -5169,11 +5169,17 @@ static void add_not_null_conds(JOIN *join)
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
-          Item_func_isnotnull *notnull;
+          Item *notnull;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
-
-          notnull->quick_fix_field();
+          /*
+            We need to do full fix_fields() call here in order to have correct
+            notnull->const_item(). This is needed e.g. by test_quick_select 
+            when it is called from make_join_select after this function is 
+            called.
+          */
+          if (notnull->fix_fields(join->thd, join->tables_list, &notnull))
+            DBUG_VOID_RETURN;
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias););
           add_cond_and_fix(&referred_tab->select_cond, notnull);
