@@ -2290,3 +2290,43 @@ DROP TABLE t1,t2;
 #
 
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
+# Test for BUG#11700
+CREATE TABLE t1 (
+  acct_id int(11) NOT NULL default '0',
+  profile_id smallint(6) default NULL,
+  UNIQUE KEY t1$acct_id (acct_id),
+  KEY t1$profile_id (profile_id)
+);
+INSERT INTO t1 VALUES (132,17),(133,18);
+
+CREATE TABLE t2 (
+  profile_id smallint(6) default NULL,
+  queue_id int(11) default NULL,
+  seq int(11) default NULL,
+  KEY t2$queue_id (queue_id)
+);
+INSERT INTO t2 VALUES (17,31,4),(17,30,3),(17,36,2),(17,37,1);
+
+CREATE TABLE t3 (
+  id int(11) NOT NULL default '0',
+  qtype int(11) default NULL,
+  seq int(11) default NULL,
+  warn_lvl int(11) default NULL,
+  crit_lvl int(11) default NULL,
+  rr1 tinyint(4) NOT NULL default '0',
+  rr2 int(11) default NULL,
+  default_queue tinyint(4) NOT NULL default '0',
+  KEY t3$qtype (qtype),
+  KEY t3$id (id)
+);
+
+INSERT INTO t3 VALUES (30,1,29,NULL,NULL,0,NULL,0),(31,1,28,NULL,NULL,0,NULL,0),
+  (36,1,34,NULL,NULL,0,NULL,0),(37,1,35,NULL,NULL,0,121,0);
+
+SELECT COUNT(*) FROM t1 a STRAIGHT_JOIN t2 pq STRAIGHT_JOIN t3 q 
+WHERE 
+  (pq.profile_id = a.profile_id) AND (a.acct_id = 132) AND 
+  (pq.queue_id = q.id) AND (q.rr1 <> 1);
+
+drop table t1,t2,t3;
+
