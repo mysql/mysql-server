@@ -562,7 +562,7 @@ int yylex(void *arg, void *yythd)
         its value in a query for the binlog, the query must stay
         grammatically correct.
       */
-      else if (c == '?' && ((THD*) yythd)->command == COM_PREPARE &&
+      else if (c == '?' && ((THD*) yythd)->command == COM_STMT_PREPARE &&
                !ident_map[cs, yyPeek()])
         return(PARAM_MARKER);
       return((int) c);
