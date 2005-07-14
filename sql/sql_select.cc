@@ -5178,7 +5178,7 @@ static void add_not_null_conds(JOIN *join)
             when it is called from make_join_select after this function is 
             called.
           */
-          if (notnull->fix_fields(join->thd, join->tables_list, &notnull))
+          if (notnull->fix_fields(join->thd, &notnull))
             DBUG_VOID_RETURN;
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias););

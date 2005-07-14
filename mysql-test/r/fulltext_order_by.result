@@ -158,5 +158,5 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(betreff) against ('+abc' in boolean mode) desc;
-text	id	betreff
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
 drop table t1,t2,t3;

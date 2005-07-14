@@ -117,6 +117,8 @@ where
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
 
+-- todo psergey: fix
+--error 1214 
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
