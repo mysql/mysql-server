@@ -1730,7 +1730,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 #endif
 	if (thd->killed || di->status)
 	  break;
-	if (error == ETIME || error == ETIMEDOUT)
+	if (error == ETIMEDOUT)
 	{
 	  thd->killed= THD::KILL_CONNECTION;
 	  break;
