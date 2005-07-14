@@ -47,6 +47,8 @@ uchar Field_null::null[1]={1};
 const char field_separator=',';
 
 #define DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE 320
+#define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
+((ulong) ((LL(1) << min(arg, 4) * 8) - LL(1)))
 
 /*
   Rules for merging different types of fields in UNION
@@ -6696,7 +6698,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
 		       struct st_table *table_arg,uint blob_pack_length,
 		       CHARSET_INFO *cs)
-  :Field_longstr(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
+  :Field_longstr(ptr_arg, BLOB_PACK_LENGTH_TO_MAX_LENGH(blob_pack_length),
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg, cs),
    packlength(blob_pack_length)
