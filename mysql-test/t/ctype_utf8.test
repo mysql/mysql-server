@@ -748,6 +748,15 @@ select * from t1 where city = 'Durban ';
 drop table t1;
 
 #
+# Bug #11819 CREATE TABLE with a SET DEFAULT 0 and UTF8 crashes server.
+#
+--error 1067
+create table t1 (x set('A', 'B') default 0) character set utf8;
+--error 1067
+create table t1 (x enum('A', 'B') default 0) character set utf8;
+
+
+#
 # Test for bug #11167: join for utf8 varchar value longer than 255 bytes 
 #
 

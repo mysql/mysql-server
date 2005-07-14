@@ -771,6 +771,7 @@ class Item_num: public Item
 {
 public:
   virtual Item_num *neg()= 0;
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -1369,6 +1370,7 @@ public:
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
   bool eq(const Item *item, bool binary_cmp) const;
+  virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 
