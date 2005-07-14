@@ -660,3 +660,19 @@ lily
 river
 drop table t1;
 deallocate prepare stmt;
+create table t1 (a int);
+prepare stmt from "select ??";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1
+prepare stmt from "select ?FROM t1";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?FROM t1' at line 1
+prepare stmt from "select FROM t1 WHERE?=1";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM t1 WHERE?=1' at line 1
+prepare stmt from "update t1 set a=a+?WHERE 1";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?WHERE 1' at line 1
+select ?;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1
+select ??;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '??' at line 1
+select ? from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? from t1' at line 1
+drop table t1;
