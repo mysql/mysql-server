@@ -13050,27 +13050,6 @@ static void test_bug9478()
     check_execute(stmt, rc);
     if (!opt_silent && i == 0)
       printf("Fetched row: %s\n", a);
-    /*
-      Although protocol-wise an attempt to execute a statement which
-      already has an open cursor associated with it will yield an error,
-      the client library behavior tested here is consistent with
-      the non-cursor execution scenario: mysql_stmt_execute will
-      silently close the cursor if necessary.
-    */
-    {
-      char buff[9];
-      /* Fill in the execute packet */
-      int4store(buff, stmt->stmt_id);
-      buff[4]= 0;                               /* Flag */
-      int4store(buff+5, 1);                     /* Reserved for array bind */
-      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_EXECUTE, buff,
-                                               sizeof(buff), 0,0,1) ||
-           (*mysql->methods->read_query_result)(mysql));
-      DIE_UNLESS(rc);
-      if (!opt_silent && i == 0)
-        printf("Got error (as expected): %s\n", mysql_error(mysql));
-    }
-
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
 
@@ -13429,7 +13408,7 @@ static void test_bug10794()
   bind[1].length= &a_len;
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
-  for (i= 0; i < 34; i++)
+  for (i= 0; i < 42; i++)
   {
     id_val= (i+1)*10;
     sprintf(a, "a%d", i);

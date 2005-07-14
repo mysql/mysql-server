@@ -106,6 +106,7 @@ public:
   virtual ~Prepared_statement();
   void setup_set_params();
   virtual Query_arena::Type type() const;
+  virtual void close_cursor();
 };
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt,
@@ -1986,10 +1987,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   cursor= stmt->cursor;
   if (cursor && cursor->is_open())
-  {
-    my_error(ER_EXEC_STMT_WITH_OPEN_CURSOR, MYF(0));
-    DBUG_VOID_RETURN;
-  }
+    stmt->close_cursor();
 
   DBUG_ASSERT(thd->free_list == NULL);
   mysql_reset_thd_for_next_command(thd);
@@ -2284,6 +2282,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
 
+  stmt->close_cursor();                    /* will reset statement params */
   cursor= stmt->cursor;
   if (cursor && cursor->is_open())
   {
@@ -2294,12 +2293,6 @@ void mysql_stmt_reset(THD *thd, char *packet)
   }
 
   stmt->state= Query_arena::PREPARED;
-
-  /*
-    Clear parameters from data which could be set by
-    mysql_stmt_send_long_data() call.
-  */
-  reset_stmt_params(stmt);
 
   mysql_reset_thd_for_next_command(thd);
   send_ok(thd);
@@ -2448,10 +2441,17 @@ void Prepared_statement::setup_set_params()
 Prepared_statement::~Prepared_statement()
 {
   if (cursor)
+  {
+    if (cursor->is_open())
+    {
+      cursor->close(FALSE);
+      free_items();
+      free_root(cursor->mem_root, MYF(0));
+    }
     cursor->Cursor::~Cursor();
-  free_items();
-  if (cursor)
-    free_root(cursor->mem_root, MYF(0));
+  }
+  else
+    free_items();
   delete lex->result;
 }
 
@@ -2459,4 +2459,21 @@ Prepared_statement::~Prepared_statement()
 Query_arena::Type Prepared_statement::type() const
 {
   return PREPARED_STATEMENT;
+}
+
+
+void Prepared_statement::close_cursor()
+{
+  if (cursor && cursor->is_open())
+  {
+    thd->change_list= cursor->change_list;
+    cursor->close(FALSE);
+    cleanup_stmt_and_thd_after_use(this, thd);
+    free_root(cursor->mem_root, MYF(0));
+  }
+  /*
+    Clear parameters from data which could be set by
+    mysql_stmt_send_long_data() call.
+  */
+  reset_stmt_params(this);
 }
