@@ -601,12 +601,40 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
   /*
+    Allow conversion from and to "binary".
     Don't allow automatic conversion to non-Unicode charsets,
     as it potentially loses data.
   */
-  if (!(tocs->state & MY_CS_UNICODE))
+  if (collation.collation != &my_charset_bin &&
+      tocs != &my_charset_bin &&
+      !(tocs->state & MY_CS_UNICODE))
     return NULL; // safe conversion is not possible
   return new Item_func_conv_charset(this, tocs);
+}
+
+
+/*
+  Created mostly for mysql_prepare_table(). Important
+  when a string ENUM/SET column is described with a numeric default value:
+
+  CREATE TABLE t1(a SET('a') DEFAULT 1);
+
+  We cannot use generic Item::safe_charset_converter(), because
+  the latter returns a non-fixed Item, so val_str() crashes afterwards.
+  Override Item_num method, to return a fixed item.
+*/
+Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_string(s->ptr(), s->length(), s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+  }
+  return conv;
 }
 
 
@@ -3753,6 +3781,20 @@ bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
   }
   return FALSE;
 }
+
+
+Item *Item_varbinary::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  String tmp, *str= val_str(&tmp);
+
+  if (!(conv= new Item_string(str->ptr(), str->length(), tocs)))
+    return NULL;
+  conv->str_value.copy();
+  conv->str_value.mark_as_const();
+  return conv;
+}
+
 
 /*
   bin item.
