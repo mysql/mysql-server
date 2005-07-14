@@ -164,7 +164,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->current_select= &lex->select_lex;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
-  lex->sql_command=SQLCOM_END;
+  lex->sql_command= lex->orig_sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->sphead= NULL;
