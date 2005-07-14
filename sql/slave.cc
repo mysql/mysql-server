@@ -2721,6 +2721,7 @@ err:
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   pthread_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
+  close_thread_tables(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
   pthread_cond_broadcast(&mi->stop_cond);	// tell the world we are done
