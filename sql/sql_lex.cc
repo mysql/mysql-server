@@ -554,6 +554,15 @@ int yylex(void *arg, void *yythd)
 	lex->next_state= MY_LEX_START;	// Allow signed numbers
       if (c == ',')
 	lex->tok_start=lex->ptr;	// Let tok_start point at next item
+      /*
+        Check for a placeholder: it should not precede a possible identifier
+        because of binlogging: when a placeholder is replaced with
+        its value in a query for the binlog, the query must stay
+        grammatically correct.
+      */
+      else if (c == '?' && ((THD*) yythd)->command == COM_PREPARE &&
+               !ident_map[cs, yyPeek()])
+        return(PARAM_MARKER);
       return((int) c);
 
     case MY_LEX_IDENT_OR_NCHAR:
