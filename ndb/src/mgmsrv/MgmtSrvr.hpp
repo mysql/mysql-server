@@ -60,6 +60,7 @@ public:
   }
   
   void add_listener(const Event_listener&);
+  void check_listeners();
   void update_max_log_level(const LogLevel&);
   void update_log_level(const LogLevel&);
   
