@@ -272,15 +272,19 @@ ParserRow<MgmApiSession> commands[] = {
 };
 
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock)
-  : SocketServer::Session(sock), m_mgmsrv(mgm) {
+  : SocketServer::Session(sock), m_mgmsrv(mgm)
+{
+  DBUG_ENTER("MgmApiSession::MgmApiSession");
   m_input = new SocketInputStream(sock);
   m_output = new SocketOutputStream(sock);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
+  DBUG_VOID_RETURN;
 }
 
 MgmApiSession::~MgmApiSession()
 {
+  DBUG_ENTER("MgmApiSession::~MgmApiSession");
   if (m_input)
     delete m_input;
   if (m_output)
@@ -289,10 +293,19 @@ MgmApiSession::~MgmApiSession()
     delete m_parser;
   if (m_allocated_resources)
     delete m_allocated_resources;
+  if(m_socket != NDB_INVALID_SOCKET)
+  {
+    NDB_CLOSE_SOCKET(m_socket);
+    m_socket= NDB_INVALID_SOCKET;
+  }
+  DBUG_VOID_RETURN;
 }
 
 void
-MgmApiSession::runSession() {
+MgmApiSession::runSession()
+{
+  DBUG_ENTER("MgmApiSession::runSession");
+
   Parser_t::Context ctx;
   while(!m_stop) {
     m_parser->run(ctx, *this);
@@ -321,7 +334,12 @@ MgmApiSession::runSession() {
     }
   }
   if(m_socket != NDB_INVALID_SOCKET)
+  {
     NDB_CLOSE_SOCKET(m_socket);
+    m_socket= NDB_INVALID_SOCKET;
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 #ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
@@ -1259,7 +1277,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
   LogLevel::EventCategory cat;
   Logger::LoggerLevel severity;
   EventLoggerBase::EventTextFunction textF;
-  int i;
+  int i, n;
   DBUG_ENTER("Ndb_mgmd_event_service::log");
   DBUG_PRINT("enter",("eventType=%d, nodeid=%d", eventType, nodeId));
 
@@ -1286,19 +1304,22 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
 
   Vector<NDB_SOCKET_TYPE> copy;
   m_clients.lock();
-  for(i = m_clients.size() - 1; i >= 0; i--){
-    if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat)){
-      if(m_clients[i].m_socket != NDB_INVALID_SOCKET)
+  for(i = m_clients.size() - 1; i >= 0; i--)
+  {
+    if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
+    {
+      NDB_SOCKET_TYPE fd= m_clients[i].m_socket;
+      if(fd != NDB_INVALID_SOCKET)
       {
 	int r;
 	if (m_clients[i].m_parsable)
-	  r= println_socket(m_clients[i].m_socket,
+	  r= println_socket(fd,
 			    MAX_WRITE_TIMEOUT, str.c_str());
 	else
-	  r= println_socket(m_clients[i].m_socket,
+	  r= println_socket(fd,
 			    MAX_WRITE_TIMEOUT, m_text);
 	if (r == -1) {
-	  copy.push_back(m_clients[i].m_socket);
+	  copy.push_back(fd);
 	  m_clients.erase(i, false);
 	}
       }
@@ -1306,16 +1327,15 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
   }
   m_clients.unlock();
   
-  for(i = 0; (unsigned)i < copy.size(); i++){
-    NDB_CLOSE_SOCKET(copy[i]);
-  }
+  if ((n= (int)copy.size()))
+  {
+    for(i= 0; i < n; i++)
+      NDB_CLOSE_SOCKET(copy[i]);
 
-  if(copy.size()){
     LogLevel tmp; tmp.clear();
     m_clients.lock();
-    for(i = 0; (unsigned)i < m_clients.size(); i++){
+    for(i= m_clients.size() - 1; i >= 0; i--)
       tmp.set_max(m_clients[i].m_logLevel);
-    }
     m_clients.unlock();
     update_log_level(tmp);
   }
@@ -1343,9 +1363,48 @@ Ndb_mgmd_event_service::update_log_level(const LogLevel &tmp)
 }
 
 void
-Ndb_mgmd_event_service::add_listener(const Event_listener& client){
+Ndb_mgmd_event_service::check_listeners()
+{
+  int i, n= 0;
+  DBUG_ENTER("Ndb_mgmd_event_service::check_listeners");
+  m_clients.lock();
+  for(i= m_clients.size() - 1; i >= 0; i--)
+  {
+    int fd= m_clients[i].m_socket;
+    DBUG_PRINT("info",("%d %d",i,fd));
+    char buf[1];
+    buf[0]=0;
+    if (fd != NDB_INVALID_SOCKET &&
+	println_socket(fd,MAX_WRITE_TIMEOUT,"<PING>") == -1)
+    {
+      NDB_CLOSE_SOCKET(fd);
+      m_clients.erase(i, false);
+      n=1;
+    }
+  }
+  if (n)
+  {
+    LogLevel tmp; tmp.clear();
+    for(i= m_clients.size() - 1; i >= 0; i--)
+      tmp.set_max(m_clients[i].m_logLevel);
+    update_log_level(tmp);
+  }
+  m_clients.unlock();
+  DBUG_VOID_RETURN;
+}
+
+void
+Ndb_mgmd_event_service::add_listener(const Event_listener& client)
+{
+  DBUG_ENTER("Ndb_mgmd_event_service::add_listener");
+  DBUG_PRINT("enter",("client.m_socket: %d", client.m_socket));
+
+  check_listeners();
+
   m_clients.push_back(client);
   update_max_log_level(client.m_logLevel);
+
+  DBUG_VOID_RETURN;
 }
 
 void
