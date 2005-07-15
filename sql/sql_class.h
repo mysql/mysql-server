@@ -1467,6 +1467,8 @@ public:
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
+  bool is_context_analysis_only()
+    { return current_arena->is_stmt_prepare() || lex->view_prepare_mode; }
   bool push_open_tables_state();
   void pop_open_tables_state();
 };
