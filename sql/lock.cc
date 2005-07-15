@@ -424,6 +424,19 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       tables+=table_ptr[i]->file->lock_count();
       lock_count++;
     }
+    /*
+      To be able to open and lock for reading system tables like 'mysql.proc',
+      when we already have some tables opened and locked, and avoid deadlocks
+      we have to disallow write-locking of these tables with any other tables.
+    */
+    if (table_ptr[i]->s->system_table &&
+        table_ptr[i]->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
+        count != 1)
+    {
+      my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table_ptr[i]->s->db,
+               table_ptr[i]->s->table_name);
+      return 0;
+    }
   }
 
   if (!(sql_lock= (MYSQL_LOCK*)

@@ -941,12 +941,93 @@ enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
 
 
 /*
+  Class that holds information about tables which were open and locked
+  by the thread. It is also used to save/restore this information in
+  push_open_tables_state()/pop_open_tables_state().
+*/
+
+class Open_tables_state
+{
+public:
+  /*
+    open_tables - list of regular tables in use by this thread
+    temporary_tables - list of temp tables in use by this thread
+    handler_tables - list of tables that were opened with HANDLER OPEN
+     and are still in use by this thread
+  */
+  TABLE *open_tables, *temporary_tables, *handler_tables, *derived_tables;
+  /*
+    During a MySQL session, one can lock tables in two modes: automatic
+    or manual. In automatic mode all necessary tables are locked just before
+    statement execution, and all acquired locks are stored in 'lock'
+    member. Unlocking takes place automatically as well, when the
+    statement ends.
+    Manual mode comes into play when a user issues a 'LOCK TABLES'
+    statement. In this mode the user can only use the locked tables.
+    Trying to use any other tables will give an error. The locked tables are
+    stored in 'locked_tables' member.  Manual locking is described in
+    the 'LOCK_TABLES' chapter of the MySQL manual.
+    See also lock_tables() for details.
+  */
+  MYSQL_LOCK *lock;
+  /*
+    Tables that were locked with explicit or implicit LOCK TABLES.
+    (Implicit LOCK TABLES happens when we are prelocking tables for
+     execution of statement which uses stored routines. See description
+     THD::prelocked_mode for more info.)
+  */
+  MYSQL_LOCK *locked_tables;
+  /*
+    prelocked_mode_type enum and prelocked_mode member are used for
+    indicating whenever "prelocked mode" is on, and what type of
+    "prelocked mode" is it.
+
+    Prelocked mode is used for execution of queries which explicitly
+    or implicitly (via views or triggers) use functions, thus may need
+    some additional tables (mentioned in query table list) for their
+    execution.
+
+    First open_tables() call for such query will analyse all functions
+    used by it and add all additional tables to table its list. It will
+    also mark this query as requiring prelocking. After that lock_tables()
+    will issue implicit LOCK TABLES for the whole table list and change
+    thd::prelocked_mode to non-0. All queries called in functions invoked
+    by the main query will use prelocked tables. Non-0 prelocked_mode
+    will also surpress mentioned analysys in those queries thus saving
+    cycles. Prelocked mode will be turned off once close_thread_tables()
+    for the main query will be called.
+
+    Note: Since not all "tables" present in table list are really locked
+    thd::prelocked_mode does not imply thd::locked_tables.
+  */
+  prelocked_mode_type prelocked_mode;
+  ulong	version;
+  uint current_tablenr;
+
+  Open_tables_state();
+
+  void set_open_tables_state(Open_tables_state *state)
+  {
+    *this= *state;
+  }
+
+  void reset_open_tables_state()
+  {
+    open_tables= temporary_tables= handler_tables= derived_tables= 0;
+    lock= locked_tables= 0;
+    prelocked_mode= NON_PRELOCKED;
+  }
+};
+
+
+/*
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
 
 class THD :public ilink,
-           public Statement
+           public Statement,
+           public Open_tables_state
 {
 public:
 #ifdef EMBEDDED_LIBRARY
@@ -1014,34 +1095,6 @@ public:
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
 
-  /*
-    open_tables - list of regular tables in use by this thread
-    temporary_tables - list of temp tables in use by this thread
-    handler_tables - list of tables that were opened with HANDLER OPEN
-     and are still in use by this thread
-  */
-  TABLE   *open_tables,*temporary_tables, *handler_tables, *derived_tables;
-  /*
-    During a MySQL session, one can lock tables in two modes: automatic
-    or manual. In automatic mode all necessary tables are locked just before
-    statement execution, and all acquired locks are stored in 'lock'
-    member. Unlocking takes place automatically as well, when the
-    statement ends.
-    Manual mode comes into play when a user issues a 'LOCK TABLES'
-    statement. In this mode the user can only use the locked tables.
-    Trying to use any other tables will give an error. The locked tables are
-    stored in 'locked_tables' member.  Manual locking is described in
-    the 'LOCK_TABLES' chapter of the MySQL manual.
-    See also lock_tables() for details.
-  */
-  MYSQL_LOCK	*lock;				/* Current locks */
-  /*
-    Tables that were locked with explicit or implicit LOCK TABLES.
-    (Implicit LOCK TABLES happens when we are prelocking tables for
-     execution of statement which uses stored routines. See description
-     THD::prelocked_mode for more info.)
-  */
-  MYSQL_LOCK	*locked_tables;
   HASH		handler_tables_hash;
   /*
     One thread can hold up to one named user-level lock. This variable
@@ -1158,6 +1211,7 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
+  List	     <Open_tables_state> open_state_list;
   /*
     Id of current query. Statement can be reused to execute several queries
     query_id is global in context of the whole MySQL server.
@@ -1167,7 +1221,7 @@ public:
     update auto-updatable fields (like auto_increment and timestamp).
   */
   query_id_t query_id, warn_id;
-  ulong	     version, options, thread_id, col_access;
+  ulong	     options, thread_id, col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
@@ -1175,7 +1229,7 @@ public:
   ulong      row_count;  // Row counter, mainly for errors and warnings
   long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	     current_tablenr,tmp_table,global_read_lock;
+  uint	     tmp_table, global_read_lock;
   uint	     server_status,open_options,system_thread;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
@@ -1225,31 +1279,6 @@ public:
     my_bool my_bool_value;
     long    long_value;
   } sys_var_tmp;
-
-  /*
-    prelocked_mode_type enum and prelocked_mode member are used for
-    indicating whenever "prelocked mode" is on, and what type of
-    "prelocked mode" is it.
-
-    Prelocked mode is used for execution of queries which explicitly
-    or implicitly (via views or triggers) use functions, thus may need
-    some additional tables (mentioned in query table list) for their
-    execution.
-
-    First open_tables() call for such query will analyse all functions
-    used by it and add all additional tables to table its list. It will
-    also mark this query as requiring prelocking. After that lock_tables()
-    will issue implicit LOCK TABLES for the whole table list and change
-    thd::prelocked_mode to non-0. All queries called in functions invoked
-    by the main query will use prelocked tables. Non-0 prelocked_mode
-    will also surpress mentioned analysys in those queries thus saving
-    cycles. Prelocked mode will be turned off once close_thread_tables()
-    for the main query will be called.
-
-    Note: Since not all "tables" present in table list are really locked
-    thd::relocked_mode does not imply thd::locked_tables.
-  */
-  prelocked_mode_type prelocked_mode;
 
   THD();
   ~THD();
@@ -1436,7 +1465,10 @@ public:
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
+  bool push_open_tables_state();
+  void pop_open_tables_state();
 };
+
 
 #define tmp_disable_binlog(A)       \
   {ulong tmp_disable_binlog__save_options= (A)->options; \

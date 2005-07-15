@@ -61,6 +61,7 @@ public:
   }
   
   void add_listener(const Event_listener&);
+  void check_listeners();
   void update_max_log_level(const LogLevel&);
   void update_log_level(const LogLevel&);
   
@@ -519,7 +520,7 @@ public:
 
   ConfigRetriever *get_config_retriever() { return m_config_retriever; };
 
-  const char *get_connect_address(Uint32 node_id) { return inet_ntoa(m_connect_address[node_id]); }
+  const char *get_connect_address(Uint32 node_id);
   void get_connected_nodes(NodeBitmask &connected_nodes) const;
   SocketServer *get_socket_server() { return m_socket_server; }
 
@@ -775,16 +776,6 @@ private:
   int send(class NdbApiSignal* signal, Uint32 node, Uint32 node_type);
 
   ConfigRetriever *m_config_retriever;
-
-public:
-  /**
-   * This method does not exist
-   */
-  struct Area51 {
-    class TransporterFacade * theFacade;
-    class TransporterRegistry * theRegistry;
-  };
-  Area51 getStuff();
 };
 
 inline

@@ -1381,3 +1381,15 @@ update t1 set a=2 where a=1;
 insert into t1 (val) values (1);
 select * from t1;
 drop table t1;
+#
+# Bug #10465
+#
+
+--disable_warnings
+CREATE TABLE t1 (GRADE DECIMAL(4) NOT NULL, PRIMARY KEY (GRADE)) ENGINE=INNODB;
+--enable_warnings
+INSERT INTO t1 (GRADE) VALUES (151),(252),(343);
+SELECT GRADE  FROM t1 WHERE GRADE > 160 AND GRADE < 300;
+SELECT GRADE  FROM t1 WHERE GRADE= 151;
+DROP TABLE t1;
+

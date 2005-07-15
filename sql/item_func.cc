@@ -193,10 +193,23 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
     if ((*arg)->type() == FIELD_ITEM)
       ((Item_field *)(*arg))->no_const_subst= 1;
     /*
+      If in statement prepare, then we create a converter for two
+      constant items, do it once and then reuse it.
+      If we're in execution of a prepared statement, arena is NULL,
+      and the conv was created in runtime memory. This can be
+      the case only if the argument is a parameter marker ('?'),
+      because for all true constants the charset converter has already
+      been created in prepare. In this case register the change for
+      rollback.
+    */
+    if (arena)
+      *arg= conv;
+    else
+      thd->change_item_tree(arg, conv);
+    /*
       We do not check conv->fixed, because Item_func_conv_charset which can
       be return by safe_charset_converter can't be fixed at creation
     */
-    *arg= conv;
     conv->fix_fields(thd, arg);
   }
   if (arena)
@@ -3144,7 +3157,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   THD* thd=current_thd;
   User_level_lock* ull;
   struct timespec abstime;
-  int lock_name_len,error=0;
+  int lock_name_len;
   lock_name_len=strlen(lock_name);
   pthread_mutex_lock(&LOCK_user_locks);
 
@@ -3178,8 +3191,8 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
 
   set_timespec(abstime,lock_timeout);
   while (!thd->killed &&
-	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+         pthread_cond_timedwait(&ull->cond, &LOCK_user_locks,
+                                &abstime) != ETIMEDOUT && ull->locked) ;
   if (ull->locked)
   {
     if (!--ull->count)
@@ -3281,14 +3294,14 @@ longlong Item_func_get_lock::val_int()
   set_timespec(abstime,timeout);
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && error != EINVAL && ull->locked) ;
+         != ETIMEDOUT && error != EINVAL && ull->locked) ;
   if (thd->killed)
     error=EINTR;				// Return NULL
   if (ull->locked)
   {
     if (!--ull->count)
       delete ull;				// Should never happen
-    if (error != ETIME && error != ETIMEDOUT)
+    if (error != ETIMEDOUT)
     {
       error=1;
       null_value=1;				// Return NULL
@@ -4382,6 +4395,9 @@ bool Item_func_match::fix_index()
 
   if (key == NO_SUCH_KEY)
     return 0;
+  
+  if (!table) 
+    goto err;
 
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
