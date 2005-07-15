@@ -752,10 +752,15 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
         Convert the default value from client character
         set into the column character set if necessary.
       */
-      if (sql_field->def)
+      if (sql_field->def && cs != sql_field->def->collation.collation)
       {
-        sql_field->def= 
-          sql_field->def->safe_charset_converter(cs);
+        if (!(sql_field->def= 
+              sql_field->def->safe_charset_converter(cs)))
+        {
+          /* Could not convert */
+          my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+          DBUG_RETURN(-1);
+        }
       }
 
       if (sql_field->sql_type == FIELD_TYPE_SET)
@@ -1761,7 +1766,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                             create_info, *extra_fields, *keys, 0,
                             select_field_count))
     {
-      if (!(table= open_table(thd, create_table, thd->mem_root, (bool*) 0)))
+      if (!(table= open_table(thd, create_table, thd->mem_root, (bool*)0, 0)))
         quick_rm_table(create_info->db_type, create_table->db,
                        table_case_name(create_info, create_table->table_name));
     }
@@ -3572,7 +3577,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
-      new_table= open_table(thd, &tbl, thd->mem_root, 0);
+      new_table= open_table(thd, &tbl, thd->mem_root, 0, 0);
     }
     else
     {

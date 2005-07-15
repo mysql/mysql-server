@@ -344,6 +344,8 @@ int mysql_update(THD *thd,
 	    break;
 	  }
 	}
+	else
+	  table->file->unlock_row();
       }
       if (thd->killed && !error)
 	error= 1;				// Aborted
