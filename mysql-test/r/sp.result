@@ -3083,9 +3083,10 @@ drop procedure if exists bug9538|
 create procedure bug9538()
 set @@sort_buffer_size = 1000000|
 set @x = @@sort_buffer_size|
+set @@sort_buffer_size = 2000000|
 select @@sort_buffer_size|
 @@sort_buffer_size
-262136
+2000000
 call bug9538()|
 select @@sort_buffer_size|
 @@sort_buffer_size
