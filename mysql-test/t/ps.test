@@ -801,3 +801,26 @@ execute stmt using @param1;
 select utext from t1 where utext like '%%';
 drop table t1;
 deallocate prepare stmt;
+#
+# Bug#11299 "prepared statement makes wrong SQL syntax in binlog which stops
+# replication": check that errouneous queries with placeholders are not
+# allowed
+#
+create table t1 (a int);
+--error 1064
+prepare stmt from "select ??";
+--error 1064
+prepare stmt from "select ?FROM t1";
+--error 1064
+prepare stmt from "select FROM t1 WHERE?=1";
+--error 1064
+prepare stmt from "update t1 set a=a+?WHERE 1";
+--disable_ps_protocol
+--error 1064
+select ?;
+--error 1064
+select ??;
+--error 1064
+select ? from t1;
+--enable_ps_protocol
+drop table t1;
