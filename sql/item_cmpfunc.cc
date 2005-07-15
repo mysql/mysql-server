@@ -237,30 +237,33 @@ void Item_bool_func2::fix_length_and_dec()
     set_cmp_func();
     return;
   }
-    
-  if (args[0]->type() == FIELD_ITEM)
+
+  if (!thd->is_context_analysis_only())
   {
-    Field *field=((Item_field*) args[0])->field;
-    if (field->can_be_compared_as_longlong())
+    if (args[0]->type() == FIELD_ITEM)
     {
-      if (convert_constant_item(thd, field,&args[1]))
+      Field *field=((Item_field*) args[0])->field;
+      if (field->can_be_compared_as_longlong())
       {
-	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-			 INT_RESULT);		// Works for all types.
-	return;
+        if (convert_constant_item(thd, field,&args[1]))
+        {
+          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
+                           INT_RESULT);		// Works for all types.
+          return;
+        }
       }
     }
-  }
-  if (args[1]->type() == FIELD_ITEM /* && !args[1]->const_item() */)
-  {
-    Field *field=((Item_field*) args[1])->field;
-    if (field->can_be_compared_as_longlong())
+    if (args[1]->type() == FIELD_ITEM /* && !args[1]->const_item() */)
     {
-      if (convert_constant_item(thd, field,&args[0]))
+      Field *field=((Item_field*) args[1])->field;
+      if (field->can_be_compared_as_longlong())
       {
-	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-			 INT_RESULT); // Works for all types.
-	return;
+        if (convert_constant_item(thd, field,&args[0]))
+        {
+          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
+                           INT_RESULT); // Works for all types.
+          return;
+        }
       }
     }
   }
@@ -991,7 +994,8 @@ void Item_func_between::fix_length_and_dec()
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
-    if (field->can_be_compared_as_longlong())
+    if (!thd->is_context_analysis_only() &&
+        field->can_be_compared_as_longlong())
     {
       /*
         The following can't be recoded with || as convert_constant_item

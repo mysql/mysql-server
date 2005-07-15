@@ -194,3 +194,27 @@ use test;
 drop database sptest;
 delete from mysql.user where user='usera' or user='userb' or user='userc';
 delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
+use test;
+select current_user();
+current_user()
+root@localhost
+select user();
+user()
+root@localhost
+create procedure bug7291_0 () sql security invoker select current_user(), user();
+create procedure bug7291_1 () sql security definer call bug7291_0();
+create procedure bug7291_2 () sql security invoker call bug7291_0();
+grant execute on procedure bug7291_0 to user1@localhost;
+grant execute on procedure bug7291_1 to user1@localhost;
+grant execute on procedure bug7291_2 to user1@localhost;
+call bug7291_2();
+current_user()	user()
+user1@localhost	user1@localhost
+call bug7291_1();
+current_user()	user()
+root@localhost	user1@localhost
+drop procedure bug7291_1;
+drop procedure bug7291_2;
+drop procedure bug7291_0;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
+drop user user1@localhost;

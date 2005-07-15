@@ -1831,3 +1831,28 @@ select * from v1;
 t
 01:00
 drop view v1;
+create table t1 (a timestamp default now());
+create table t2 (b timestamp default now());
+create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,(`test`.`t1`.`a` < now()) AS `t1.a < now()` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` < now())
+drop view v1;
+drop table t1, t2;
+CREATE TABLE t1 ( a varchar(50) );
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = CURRENT_USER();
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = current_user())
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = VERSION();
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = version())
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = DATABASE();
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = database())
+DROP VIEW v1;
+DROP TABLE t1;
