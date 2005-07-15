@@ -1308,7 +1308,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
   {
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
     {
-      int fd= m_clients[i].m_socket;
+      NDB_SOCKET_TYPE fd= m_clients[i].m_socket;
       if(fd != NDB_INVALID_SOCKET)
       {
 	int r;
