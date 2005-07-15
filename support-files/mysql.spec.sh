@@ -440,19 +440,20 @@ then
 	/sbin/chkconfig --add mysql
 fi
 
-# Create a MySQL user. Do not report any problems if it already
-# exists. This is redhat specific and should be handled more portable
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" %{mysqld_user} 2> /dev/null || true 
+# Create a MySQL user and group. Do not report any problems if it already
+# exists.
+groupadd -r -c "MySQL server" %{mysqld_user} 2> /dev/null || true
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_user} %{mysqld_user} 2> /dev/null || true 
 
 # Change permissions so that the user that will run the MySQL daemon
 # owns all database files.
-chown -R %{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
 
 # Initiate databases
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
-chown -R %{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
 
 # Fix permissions for the permission database so that only the user
 # can read them.
@@ -667,6 +668,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jul 15 2005 Lenz Grimmer <lenz@mysql.com>
+
+- create a "mysql" user group and assign the mysql user account to that group
+  in the server postinstall section. (BUG 10984)
+
 * Tue Jun 14 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Do not build statically on i386 by default, only when adding either "--with
