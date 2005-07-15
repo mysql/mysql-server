@@ -51,6 +51,12 @@ extern int g_ndb_shm_signum;
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
+struct in_addr
+TransporterRegistry::get_connect_address(NodeId node_id) const
+{
+  return theTransporters[node_id]->m_connect_address;
+}
+
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
@@ -70,7 +76,9 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
 TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
-					 unsigned sizeOfLongSignalMemory) {
+					 unsigned sizeOfLongSignalMemory)
+{
+  DBUG_ENTER("TransporterRegistry::TransporterRegistry");
 
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
@@ -107,9 +115,13 @@ TransporterRegistry::TransporterRegistry(void * callback,
   theOSEReceiver = 0;
   theOSEJunkSocketSend = 0;
   theOSEJunkSocketRecv = 0;
+
+  DBUG_VOID_RETURN;
 }
 
-TransporterRegistry::~TransporterRegistry() {
+TransporterRegistry::~TransporterRegistry()
+{
+  DBUG_ENTER("TransporterRegistry::~TransporterRegistry");
   
   removeAll();
   
@@ -129,6 +141,8 @@ TransporterRegistry::~TransporterRegistry() {
     theOSEReceiver = 0;
   }
 #endif
+
+  DBUG_VOID_RETURN;
 }
 
 void

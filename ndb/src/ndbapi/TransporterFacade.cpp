@@ -395,12 +395,10 @@ TransporterFacade::doStop(){
   if (theReceiveThread) {
     NdbThread_WaitFor(theReceiveThread, &status);
     NdbThread_Destroy(&theReceiveThread);
-    theReceiveThread= 0;
   }
   if (theSendThread) {
     NdbThread_WaitFor(theSendThread, &status);
     NdbThread_Destroy(&theSendThread);
-    theSendThread= 0;
   }
   DBUG_VOID_RETURN;
 }
@@ -435,7 +433,7 @@ void TransporterFacade::threadMainSend(void)
   theTransporterRegistry->stopSending();
 
   m_socket_server.stopServer();
-  m_socket_server.stopSessions();
+  m_socket_server.stopSessions(true);
 
   theTransporterRegistry->stop_clients();
 }
@@ -477,6 +475,8 @@ TransporterFacade::TransporterFacade() :
   theReceiveThread(NULL),
   m_fragmented_signal_id(0)
 {
+  DBUG_ENTER("TransporterFacade::TransporterFacade");
+
   theOwnId = 0;
 
   theMutexPtr = NdbMutex_Create();
@@ -493,11 +493,15 @@ TransporterFacade::TransporterFacade() :
   m_max_trans_id = 0;
 
   theClusterMgr = new ClusterMgr(* this);
+
+  DBUG_VOID_RETURN;
 }
 
 bool
 TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
 {
+  DBUG_ENTER("TransporterFacade::init");
+
   theOwnId = nodeId;
   theTransporterRegistry = new TransporterRegistry(this);
 
@@ -506,7 +510,7 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
 						   * theTransporterRegistry);
   if(res <= 0){
     TRP_DEBUG( "configureTransporters returned 0 or less" );
-    return false;
+    DBUG_RETURN(false);
   }
   
   ndb_mgm_configuration_iterator iter(* props, CFG_SECTION_NODE);
@@ -524,7 +528,7 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
     iter.first();
     if(iter.find(CFG_NODE_ID, nodeId)){
       TRP_DEBUG( "Node info missing from config." );
-      return false;
+      DBUG_RETURN(false);
     }
     
     Uint32 rank = 0;
@@ -553,7 +557,7 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   
   if (!theTransporterRegistry->start_service(m_socket_server)){
     ndbout_c("Unable to start theTransporterRegistry->start_service");
-    return false;
+    DBUG_RETURN(false);
   }
 
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
@@ -573,7 +577,7 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   signalLogger.logOn(true, 0, SignalLoggerManager::LogInOut);
 #endif
   
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -694,8 +698,10 @@ TransporterFacade::open(void* objRef,
   DBUG_RETURN(r);
 }
 
-TransporterFacade::~TransporterFacade(){
-  
+TransporterFacade::~TransporterFacade()
+{  
+  DBUG_ENTER("TransporterFacade::~TransporterFacade");
+
   NdbMutex_Lock(theMutexPtr);
   delete theClusterMgr;  
   delete theArbitMgr;
@@ -705,6 +711,7 @@ TransporterFacade::~TransporterFacade(){
 #ifdef API_TRACE
   signalLogger.setOutputStream(0);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 void 
