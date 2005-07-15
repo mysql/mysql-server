@@ -31,6 +31,7 @@ LogHandler::LogHandler() :
   m_last_message[0]= 0;
   m_last_log_time= 0;
   m_now= 0;
+  m_last_level= (Logger::LoggerLevel)-1;
 }
 
 LogHandler::~LogHandler()
