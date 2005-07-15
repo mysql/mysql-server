@@ -238,6 +238,8 @@ public:
   };
   Vector<Transporter_interface> m_transporter_interface;
   void add_transporter_interface(const char *interf, unsigned short port);
+
+  struct in_addr get_connect_address(NodeId node_id) const;
 protected:
   
 private:
