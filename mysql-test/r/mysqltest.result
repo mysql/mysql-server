@@ -7,6 +7,7 @@ otto
 select otto from (select 1 as otto) as t1;
 otto
 1
+mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed: 1054: Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
@@ -15,10 +16,12 @@ otto
 select otto from (select 1 as otto) as t1;
 otto
 1
+mysqltest: At line 1: query 'select otto from (select 1 as otto) as t1' succeeded - should have failed with sqlstate 42S22...
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
+mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22 instead of 00000...
 select otto from (select 1 as otto) as t1;
 otto
 1
@@ -135,6 +138,8 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
+mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1000...
+mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1000...
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 1064 as "after_--enable_abort_on_error" ;
@@ -142,3 +147,119 @@ after_--enable_abort_on_error
 1064
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
+mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1064...
+mysqltest: At line 1: query 'select 3 from t1' failed: 1146: Table 'test.t1' doesn't exist
+hello
+hello
+;;;;;;;;
+# MySQL: -- The
+mysqltest: At line 1: End of line junk detected: "6"
+mysqltest: At line 1: End of line junk detected: "6"
+mysqltest: At line 1: Missing delimiter
+mysqltest: At line 1: Extra delimiter ";" found
+MySQL
+"MySQL"
+MySQL: The world''s most popular open source database
+"MySQL: The world's most popular open source database"
+MySQL: The world''s
+most popular open
+source database
+# MySQL: The world''s
+# most popular open
+# source database
+- MySQL: The world''s
+- most popular open
+- source database
+- MySQL: The world''s
+-- most popular open
+-- source database
+# MySQL: The
+--world''s
+# most popular
+-- open
+- source database
+"MySQL: The world's most popular; open source database"
+"MySQL: The world's most popular ; open source database"
+"MySQL: The world's most popular ;open source database"
+echo message echo message
+
+mysqltest: At line 1: Empty variable
+sh: -c: line 0: syntax error near unexpected token `;'
+sh: -c: line 0: `;'
+mysqltest: At line 1: command ";" failed
+mysqltest: At line 1: Missing argument in exec
+MySQL
+"MySQL"
+MySQL: The
+world''s most
+popular open
+source database
+# MySQL: The
+# world''s most
+# popular open
+# source database
+-- MySQL: The
+-- world''s most
+-- popular open
+-- source database
+# MySQL: The
+- world''s most
+-- popular open
+# source database
+'$message'
+"$message"
+hej
+hej 
+hej
+mysqltest: At line 1: Missing arguments to let
+mysqltest: At line 1: Missing variable name in let
+mysqltest: At line 1: Variable name in hi=hi does not start with '$'
+mysqltest: At line 1: Missing assignment operator in let
+mysqltest: At line 1: Missing assignment operator in let
+mysqltest: At line 1: Missing arguments to let
+mysqltest: At line 1: Missing variable name in let
+mysqltest: At line 1: Variable name in =hi does not start with '$'
+mysqltest: At line 1: Missing assignment operator in let
+mysqltest: At line 1: Missing file name in source
+mysqltest: At line 1: Could not open file ./non_existingFile
+mysqltest: In included file "./var/tmp/recursive.sql": At line 1: Source directives are nesting too deep
+mysqltest: In included file "./var/tmp/error.sql": At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+mysqltest: At line 1: Missing argument to sleep
+mysqltest: At line 1: Invalid argument to sleep "abc"
+1
+2
+101
+hej
+1
+mysqltest: At line 1: Missing arguments to inc
+mysqltest: At line 1: First argument to inc must be a variable (start with $)
+mysqltest: At line 1: End of line junk detected: "1000"
+4
+4
+-1
+-2
+99
+hej
+-1
+mysqltest: At line 1: Missing arguments to dec
+mysqltest: At line 1: First argument to dec must be a variable (start with $)
+mysqltest: At line 1: End of line junk detected: "1000"
+mysqltest: At line 1: Missing arguments to system, nothing to do!
+mysqltest: At line 1: Missing arguments to system, nothing to do!
+sh: NonExistsinfComamdn: command not found
+mysqltest: At line 1: system command 'NonExistsinfComamdn' failed
+test
+test2
+test3
+test4
+1
+mysqltest: In included file "./include/mysqltest_while.inc": At line 32: Nesting too deeply
+mysqltest: At line 1: missing '(' in while
+mysqltest: At line 1: missing ')' in while
+mysqltest: At line 1: Missing '{' after while. Found "dec $i"
+mysqltest: At line 1: Stray '}' - end of block before beginning
+mysqltest: At line 1: Stray '}' - end of block before beginning
+mysqltest: At line 1: query '' failed: 1065: Query was empty
+mysqltest: At line 1: Missing '{' after while. Found "echo hej"
+mysqltest: At line 3: Missing end of block
+mysqltest: At line 1: Missing newline between while and '{'
