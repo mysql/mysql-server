@@ -1940,7 +1940,8 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (tables || &lex->select_lex != lex->all_selects_list)
+  if (tables || &lex->select_lex != lex->all_selects_list ||
+      lex->time_zone_tables_used)
     mysql_reset_errors(thd);
 
   /*
@@ -5413,7 +5414,7 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list)
+  if (&lex->select_lex != lex->all_selects_list || lex->time_zone_tables_used)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next)
