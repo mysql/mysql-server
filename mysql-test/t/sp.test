@@ -3856,6 +3856,25 @@ drop procedure bug9565|
 
 
 #
+# BUG#9538: SProc: Creation fails if we try to SET system variable
+#           using @@var_name in proc
+#
+--disable_warnings
+drop procedure if exists bug9538|
+--enable_warnings
+create procedure bug9538()
+  set @@sort_buffer_size = 1000000|
+
+set @x = @@sort_buffer_size|
+select @@sort_buffer_size|
+call bug9538()|
+select @@sort_buffer_size|
+set @@sort_buffer_size = @x|
+
+drop procedure bug9538|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
