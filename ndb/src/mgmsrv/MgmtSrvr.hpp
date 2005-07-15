@@ -509,7 +509,7 @@ public:
 
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   
-  const char *get_connect_address(Uint32 node_id) { return inet_ntoa(m_connect_address[node_id]); }
+  const char *get_connect_address(Uint32 node_id);
   void get_connected_nodes(NodeBitmask &connected_nodes) const;
   SocketServer *get_socket_server() { return m_socket_server; }
 
