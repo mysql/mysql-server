@@ -988,6 +988,29 @@ public:
 };
 
 
+/* A system variable */
+
+class Item_func_get_system_var :public Item_func
+{
+  sys_var *var;
+  enum_var_type var_type;
+  LEX_STRING component;
+public:
+  Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
+                           LEX_STRING *component_arg, const char *name_arg,
+                           size_t name_len_arg);
+  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
+  /*
+    Stubs for pure virtual methods. Should never be called: this
+    item is always substituted with a constant in fix_fields().
+  */
+  double val()              { DBUG_ASSERT(0); return 0.0; }
+  longlong val_int()        { DBUG_ASSERT(0); return 0; }
+  String* val_str(String*)  { DBUG_ASSERT(0); return 0; }
+  void fix_length_and_dec() { DBUG_ASSERT(0); }
+};
+
+
 class Item_func_inet_aton : public Item_int_func
 {
 public:
