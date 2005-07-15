@@ -1170,12 +1170,22 @@ public:
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
     register_item_tree_change() in memory root of THD, and freed in
-    rollback_item_tree_changes(). For conventional execution it's always 0.
+    rollback_item_tree_changes(). For conventional execution it's always
+    empty.
   */
   Item_change_list change_list;
 
   /*
-    Current prepared Query_arena if there one, or 0
+    A permanent memory area of the statement. For conventional
+    execution, the parsed tree and execution runtime reside in the same
+    memory root. In this case current_arena points to THD. In case of
+    a prepared statement or a stored procedure statement, thd->mem_root
+    conventionally points to runtime memory, and thd->current_arena
+    points to the memory of the PS/SP, where the parsed tree of the
+    statement resides. Whenever you need to perform a permanent
+    transformation of a parsed tree, you should allocate new memory in
+    current_arena, to allow correct re-execution of PS/SP.
+    Note: in the parser, current_arena == thd, even for PS/SP.
   */
   Query_arena *current_arena;
   /*
