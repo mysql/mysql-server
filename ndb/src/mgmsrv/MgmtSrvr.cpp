@@ -569,10 +569,11 @@ MgmtSrvr::check_start()
 bool 
 MgmtSrvr::start(BaseString &error_string)
 {
+  DBUG_ENTER("MgmtSrvr::start");
   if (_props == NULL) {
     if (!check_start()) {
       error_string.append("MgmtSrvr.cpp: check_start() failed.");
-      return false;
+      DBUG_RETURN(false);
     }
   }
   theFacade= TransporterFacade::theFacadeInstance
@@ -581,12 +582,12 @@ MgmtSrvr::start(BaseString &error_string)
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
     error_string.append("MgmtSrvr.cpp: theFacade is NULL.");
-    return false;
+    DBUG_RETURN(false);
   }  
   if ( theFacade->start_instance
        (_ownNodeId, (ndb_mgm_configuration*)_config->m_configValues) < 0) {
     DEBUG("MgmtSrvr.cpp: TransporterFacade::start_instance < 0.");
-    return false;
+    DBUG_RETURN(false);
   }
 
   MGM_REQUIRE(_blockNumber == 1);
@@ -602,7 +603,7 @@ MgmtSrvr::start(BaseString &error_string)
     error_string.append("MgmtSrvr.cpp: _blockNumber is -1.");
     theFacade->stop_instance();
     theFacade = 0;
-    return false;
+    DBUG_RETURN(false);
   }
 
   TransporterRegistry *reg = theFacade->get_registry();
@@ -624,7 +625,6 @@ MgmtSrvr::start(BaseString &error_string)
     DBUG_PRINT("info",("Set result: %d: %s",res,msg.c_str()));
   }
 
-  
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
   
   startEventLog();
@@ -644,7 +644,7 @@ MgmtSrvr::start(BaseString &error_string)
 					"MgmtSrvr_Service",
 					NDB_THREAD_PRIO_LOW);
 
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -658,6 +658,7 @@ MgmtSrvr::~MgmtSrvr()
 
   if(theFacade != 0){
     theFacade->stop_instance();
+    delete theFacade;
     theFacade = 0;
   }
 
@@ -2603,19 +2604,6 @@ MgmtSrvr::repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted)
   return 0;
 }
 
-
-/*****************************************************************************
- * Area 51 ???
- *****************************************************************************/
-
-MgmtSrvr::Area51
-MgmtSrvr::getStuff()
-{
-  Area51 ret;
-  ret.theFacade = theFacade;
-  ret.theRegistry = theFacade->theTransporterRegistry;
-  return ret;
-}
 
 NodeId
 MgmtSrvr::getPrimaryNode() const {

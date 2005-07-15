@@ -74,7 +74,9 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
 TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
-					 unsigned sizeOfLongSignalMemory) {
+					 unsigned sizeOfLongSignalMemory)
+{
+  DBUG_ENTER("TransporterRegistry::TransporterRegistry");
 
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
@@ -112,6 +114,8 @@ TransporterRegistry::TransporterRegistry(void * callback,
   theOSEReceiver = 0;
   theOSEJunkSocketSend = 0;
   theOSEJunkSocketRecv = 0;
+
+  DBUG_VOID_RETURN;
 }
 
 void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
@@ -135,7 +139,9 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
   DBUG_VOID_RETURN;
 }
 
-TransporterRegistry::~TransporterRegistry() {
+TransporterRegistry::~TransporterRegistry()
+{
+  DBUG_ENTER("TransporterRegistry::~TransporterRegistry");
   
   removeAll();
   
@@ -157,6 +163,8 @@ TransporterRegistry::~TransporterRegistry() {
 #endif
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
+
+  DBUG_VOID_RETURN;
 }
 
 void
