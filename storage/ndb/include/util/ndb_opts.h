@@ -28,6 +28,7 @@
 my_bool	opt_ndb_optimized_node_selection
 
 int opt_ndb_nodeid;
+bool opt_endinfo= 0;
 my_bool opt_ndb_shm;
 const char *opt_ndb_connectstring= 0;
 const char *opt_connect_str= 0;
@@ -119,6 +120,7 @@ ndb_std_get_one_option(int optid,
     {
       DBUG_PUSH("d:t");
     }
+    opt_endinfo= 1;
     break;
 #endif
   case 'V':

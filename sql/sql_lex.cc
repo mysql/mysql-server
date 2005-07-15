@@ -145,7 +145,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
-  lex->leaf_tables_insert= lex->proc_table= lex->query_tables= 0;
+  lex->leaf_tables_insert= lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   lex->variables_used= 0;
   lex->select_lex.parent_lex= lex;
@@ -164,7 +164,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->current_select= &lex->select_lex;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
-  lex->sql_command=SQLCOM_END;
+  lex->sql_command= lex->orig_sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->sphead= NULL;
@@ -556,6 +556,15 @@ int yylex(void *arg, void *yythd)
 	lex->next_state= MY_LEX_START;	// Allow signed numbers
       if (c == ',')
 	lex->tok_start=lex->ptr;	// Let tok_start point at next item
+      /*
+        Check for a placeholder: it should not precede a possible identifier
+        because of binlogging: when a placeholder is replaced with
+        its value in a query for the binlog, the query must stay
+        grammatically correct.
+      */
+      else if (c == '?' && ((THD*) yythd)->command == COM_STMT_PREPARE &&
+               !ident_map[cs, yyPeek()])
+        return(PARAM_MARKER);
       return((int) c);
 
     case MY_LEX_IDENT_OR_NCHAR:

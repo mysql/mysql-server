@@ -232,9 +232,6 @@ if new.id > f1() then
 set new.id:= f1();
 end if;
 end|
-select f1();
-f1()
-10
 insert into t1 values (1, "first");
 insert into t1 values (f1(), "max");
 select * from t1;
@@ -300,7 +297,7 @@ drop trigger t1.trg;
 ERROR HY000: Trigger does not exist
 create view v1 as select * from t1;
 create trigger trg before insert on v1 for each row set @a:=1;
-ERROR HY000: Trigger's 'v1' is view or temporary table
+ERROR HY000: 'test.v1' is not BASE TABLE
 drop view v1;
 drop table t1;
 create temporary table t1 (i int);
@@ -573,3 +570,13 @@ i	k	ts
 1	1	0000-00-00 00:00:00
 2	2	0000-00-00 00:00:00
 drop table t1, t2;
+drop function if exists bug5893;
+create table t1 (col1 int, col2 int);
+insert into t1 values (1, 2);
+create function bug5893 () returns int return 5;
+create trigger t1_bu before update on t1 for each row set new.col1= bug5893();
+drop function bug5893;
+update t1 set col2 = 4;
+ERROR 42000: FUNCTION test.bug5893 does not exist
+drop trigger t1.t1_bu;
+drop table t1;
