@@ -358,6 +358,11 @@ inline THD *_current_thd(void)
 #include "protocol.h"
 #include "sql_udf.h"
 class user_var_entry;
+enum enum_var_type
+{
+  OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
+};
+class sys_var;
 #include "item.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
@@ -1119,12 +1124,9 @@ extern bool sql_cache_init();
 extern void sql_cache_free();
 extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
-/* item.cc */
+/* item_func.cc */
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component);
-Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
-		     uint length, const char *item_name);
-/* item_func.cc */
 int get_var_with_binlog(THD *thd, LEX_STRING &name,
                         user_var_entry **out_entry);
 /* log.cc */

@@ -30,11 +30,6 @@ class set_var;
 typedef struct system_variables SV;
 extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib;
 
-enum enum_var_type
-{
-  OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
-};
-
 typedef int (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
 typedef void (*sys_after_update_func)(THD *,enum_var_type);

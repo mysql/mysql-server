@@ -1551,15 +1551,7 @@ err:
 
 /*
   Return an Item for a variable.  Used with @@[global.]variable_name
-
   If type is not given, return local value if exists, else global
-
-  We have to use netprintf() instead of my_error() here as this is
-  called on the parsing stage.
-
-  TODO:
-    With prepared statements/stored procedures this has to be fixed
-    to create an item that gets the current value at fix_fields() stage.
 */
 
 Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
@@ -1568,8 +1560,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
   {
     if (var_type != OPT_DEFAULT)
     {
-      net_printf(thd, ER_INCORRECT_GLOBAL_LOCAL_VAR,
-		 name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
+               name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
       return 0;
     }
     /* As there was no local variable, return the global value */
@@ -1613,7 +1605,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     return tmp;
   }
   default:
-    net_printf(thd, ER_VAR_CANT_BE_READ, name);
+    my_error(ER_VAR_CANT_BE_READ, MYF(0), name);
   }
   return 0;
 }
