@@ -369,6 +369,9 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
   Properties p;
   char buf[256];
 
+  struct timeval start_time;
+  gettimeofday(&start_time, 0);
+
   /* header */
   while (1) {
     if (in.gets(buf,sizeof(buf)) == 0)
@@ -383,7 +386,23 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     }
     if ( strcmp("log event reply\n", buf) == 0 )
       break;
-    ndbout_c("skipped: %s", buf);
+
+    if ( strcmp("<PING>\n", buf) )
+      ndbout_c("skipped: %s", buf);
+
+    struct timeval now;
+    gettimeofday(&now, 0);
+    unsigned elapsed_ms=
+      (now.tv_sec-start_time.tv_sec)*1000 +
+      (now.tv_usec-start_time.tv_usec)/1000;
+
+    if (elapsed_ms >= timeout_in_milliseconds)
+    {
+      // timed out
+      return 0;
+    }
+
+    new (&in) SocketInputStream(h->socket, timeout_in_milliseconds-elapsed_ms);
   }
 
   /* read name-value pairs into properties object */
