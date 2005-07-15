@@ -156,6 +156,14 @@ bool foreign_key_prefix(Key *a, Key *b)
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/
+
+Open_tables_state::Open_tables_state()
+  :version(refresh_version)
+{
+  reset_open_tables_state();
+}
+
+
 /*
   Pass nominal parameters to Statement constructor only to ensure that
   the destructor works OK in case of error. The main_mem_root will be
@@ -164,6 +172,7 @@ bool foreign_key_prefix(Key *a, Key *b)
 
 THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
+   Open_tables_state(),
    user_time(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
@@ -181,10 +190,8 @@ THD::THD()
   db_length= col_access=0;
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
-  open_tables= temporary_tables= handler_tables= derived_tables= 0;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
-  lock=locked_tables=0;
   used_tables=0;
   cuted_fields= sent_row_count= 0L;
   limit_found_rows= 0;
@@ -230,7 +237,6 @@ THD::THD()
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access=NO_ACCESS;
 #endif
-  version=refresh_version;			// For boot
   *scramble= '\0';
 
   init();
@@ -259,7 +265,6 @@ THD::THD()
   tablespace_op=FALSE;
   ulong tmp=sql_rnd_with_mutex();
   randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
-  prelocked_mode= NON_PRELOCKED;
 }
 
 
@@ -1774,4 +1779,41 @@ void thd_increment_net_big_packet_count(ulong length)
 void THD::set_status_var_init()
 {
   bzero((char*) &status_var, sizeof(status_var));
+}
+
+/****************************************************************************
+  Handling of open and locked tables states.
+
+  This is used when we want to open/lock (and then close) some tables when
+  we already have a set of tables open and locked. We use these methods for
+  access to mysql.proc table to find definitions of stored routines.
+****************************************************************************/
+
+bool THD::push_open_tables_state()
+{
+  Open_tables_state *state;
+  DBUG_ENTER("push_open_table_state");
+  /* Currently we only push things one level */
+  DBUG_ASSERT(open_state_list.elements == 0);
+
+  if (!(state= (Open_tables_state*) alloc(sizeof(*state))))
+    DBUG_RETURN(1);                             // Fatal error is set
+  /* Store state for currently open tables */
+  state->set_open_tables_state(this);
+  if (open_state_list.push_back(state, mem_root))
+    DBUG_RETURN(1);                             // Fatal error is set
+  reset_open_tables_state();
+  DBUG_RETURN(0);
+}
+
+void THD::pop_open_tables_state()
+{
+  Open_tables_state *state;
+  DBUG_ENTER("pop_open_table_state");
+  /* Currently we only push things one level */
+  DBUG_ASSERT(open_state_list.elements == 1);
+
+  state= open_state_list.pop();
+  set_open_tables_state(state);
+  DBUG_VOID_RETURN;
 }

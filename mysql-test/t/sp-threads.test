@@ -112,6 +112,25 @@ drop procedure bug11158;
 drop table t1, t2;
 
 #
+# BUG#11554: Server crashes on statement indirectly using non-cached function
+#
+--disable_warnings
+drop function if exists bug11554;
+drop view if exists v1;
+--enable_warnings
+create table t1 (i int);
+create function bug11554 () returns int return 1;
+create view v1 as select bug11554() as f;
+connection con2root;
+# This should not crash server
+insert into t1 (select f from v1);
+# Clean-up
+connection con1root;
+drop function bug11554;
+drop table t1;
+drop view v1;
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

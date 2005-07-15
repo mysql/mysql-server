@@ -719,7 +719,6 @@ typedef struct st_lex
     function)
   */
   TABLE_LIST **query_tables_last;
-  TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
 
