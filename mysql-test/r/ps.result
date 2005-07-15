@@ -759,25 +759,6 @@ execute stmt using @a, @b;
 ?=?
 1
 deallocate prepare stmt;
-create table t1 (utext varchar(20) character set ucs2);
-insert into t1 values ("lily");
-insert into t1 values ("river");
-prepare stmt from 'select utext from t1 where utext like ?';
-set @param1='%%';
-execute stmt using @param1;
-utext
-lily
-river
-execute stmt using @param1;
-utext
-lily
-river
-select utext from t1 where utext like '%%';
-utext
-lily
-river
-drop table t1;
-deallocate prepare stmt;
 create table t1 (a int);
 prepare stmt from "select ??";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1
