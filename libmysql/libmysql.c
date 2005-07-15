@@ -1774,6 +1774,7 @@ static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
+static int stmt_read_row_no_result_set(MYSQL_STMT *stmt, unsigned char **row);
 
 /*
   This function is used in mysql_stmt_store_result if
@@ -1866,6 +1867,16 @@ static void net_clear_error(NET *net)
     net->last_errno= 0;
     net->last_error[0]= '\0';
     strmov(net->sqlstate, not_error_sqlstate);
+  }
+}
+
+static void stmt_clear_error(MYSQL_STMT *stmt)
+{
+  if (stmt->last_errno)
+  {
+    stmt->last_errno= 0;
+    stmt->last_error[0]= '\0';
+    strmov(stmt->sqlstate, not_error_sqlstate);
   }
 }
 
@@ -2026,7 +2037,7 @@ mysql_stmt_init(MYSQL *mysql)
   stmt->list.data= stmt;
   stmt->state= MYSQL_STMT_INIT_DONE;
   stmt->mysql= mysql;
-  stmt->read_row_func= stmt_read_row_no_data;
+  stmt->read_row_func= stmt_read_row_no_result_set;
   stmt->prefetch_rows= DEFAULT_PREFETCH_ROWS;
   /* The rest of statement members was bzeroed inside malloc */
 
@@ -2767,6 +2778,13 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
 
 static int
 stmt_read_row_no_data(MYSQL_STMT *stmt  __attribute__((unused)),
+                      unsigned char **row  __attribute__((unused)))
+{
+  return MYSQL_NO_DATA;
+}
+
+static int
+stmt_read_row_no_result_set(MYSQL_STMT *stmt  __attribute__((unused)),
                       unsigned char **row  __attribute__((unused)))
 {
   set_stmt_error(stmt, CR_NO_RESULT_SET, unknown_sqlstate);
@@ -4590,7 +4608,8 @@ int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt)
       ((rc= stmt_fetch_row(stmt, row)) && rc != MYSQL_DATA_TRUNCATED))
   {
     stmt->state= MYSQL_STMT_PREPARE_DONE;       /* XXX: this is buggy */
-    stmt->read_row_func= stmt_read_row_no_data;
+    stmt->read_row_func= (rc == MYSQL_NO_DATA) ? 
+      stmt_read_row_no_data : stmt_read_row_no_result_set;
   }
   else
   {
@@ -4907,13 +4926,12 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
   {
     MYSQL *mysql= stmt->mysql;
     MYSQL_DATA *result= &stmt->result;
-    my_bool has_cursor= stmt->read_row_func == stmt_read_row_from_cursor;
 
     /*
       Reset stored result set if so was requested or it's a part
       of cursor fetch.
     */
-    if (result->data && (has_cursor || (flags & RESET_STORE_RESULT)))
+    if (result->data && (flags & RESET_STORE_RESULT))
     {
       /* Result buffered */
       free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
@@ -4928,7 +4946,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
       for (; param < param_end; param++)
         param->long_data_used= 0;
     }
-    stmt->read_row_func= stmt_read_row_no_data;
+    stmt->read_row_func= stmt_read_row_no_result_set;
     if (mysql)
     {
       if ((int) stmt->state > (int) MYSQL_STMT_PREPARE_DONE)
@@ -4944,7 +4962,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
           mysql->status= MYSQL_STATUS_READY;
         }
       }
-      if (has_cursor || (flags & RESET_SERVER_SIDE))
+      if (flags & RESET_SERVER_SIDE)
       {
         /*
           Reset the server side statement and close the server side
@@ -4960,6 +4978,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
           stmt->state= MYSQL_STMT_INIT_DONE;
           return 1;
         }
+        stmt_clear_error(stmt);
       }
     }
     stmt->state= MYSQL_STMT_PREPARE_DONE;
