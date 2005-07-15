@@ -3062,4 +3062,21 @@ läbel1: begin end
 drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
+drop procedure if exists bug9565_sub|
+drop procedure if exists bug9565|
+create procedure bug9565_sub()
+begin
+select * from t1;
+end|
+create procedure bug9565()
+begin
+insert into t1 values ("one", 1);
+call bug9565_sub();
+end|
+call bug9565()|
+id	data
+one	1
+delete from t1|
+drop procedure bug9565_sub|
+drop procedure bug9565|
 drop table t1,t2;
