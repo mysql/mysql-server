@@ -166,6 +166,14 @@ DIE_UNLESS(stmt == 0);\
 #define mytest_r(x) if (x) {myerror(NULL);DIE_UNLESS(FALSE);}
 
 
+/* A workaround for Sun Forte 5.6 on Solaris x86 */
+
+static int cmp_double(double *a, double *b)
+{
+  return *a == *b;
+}
+
+
 /* Print the error message */
 
 static void print_error(const char *msg)
@@ -1396,7 +1404,7 @@ static void test_prepare()
     DIE_UNLESS(real_data == o_real_data);
     DIE_UNLESS(length[5] == 4);
 
-    DIE_UNLESS(double_data == o_double_data);
+    DIE_UNLESS(cmp_double(&double_data, &o_double_data));
     DIE_UNLESS(length[6] == 8);
 
     DIE_UNLESS(strcmp(data, str_data) == 0);
@@ -9583,7 +9591,7 @@ static void test_bug3035()
   uint32 uint32_val;
   longlong int64_val;
   ulonglong uint64_val;
-  double double_val, udouble_val;
+  double double_val, udouble_val, double_tmp;
   char longlong_as_string[22], ulonglong_as_string[22];
 
   /* mins and maxes */
@@ -9727,7 +9735,8 @@ static void test_bug3035()
   DIE_UNLESS(int64_val == int64_min);
   DIE_UNLESS(uint64_val == uint64_min);
   DIE_UNLESS(double_val == (longlong) uint64_min);
-  DIE_UNLESS(udouble_val == ulonglong2double(uint64_val));
+  double_tmp= ulonglong2double(uint64_val);
+  DIE_UNLESS(cmp_double(&udouble_val, &double_tmp));
   DIE_UNLESS(!strcmp(longlong_as_string, "0"));
   DIE_UNLESS(!strcmp(ulonglong_as_string, "0"));
 
@@ -9743,7 +9752,8 @@ static void test_bug3035()
   DIE_UNLESS(int64_val == int64_max);
   DIE_UNLESS(uint64_val == uint64_max);
   DIE_UNLESS(double_val == (longlong) uint64_val);
-  DIE_UNLESS(udouble_val == ulonglong2double(uint64_val));
+  double_tmp= ulonglong2double(uint64_val);
+  DIE_UNLESS(cmp_double(&udouble_val, &double_tmp));
   DIE_UNLESS(!strcmp(longlong_as_string, "-1"));
   DIE_UNLESS(!strcmp(ulonglong_as_string, "18446744073709551615"));
 
