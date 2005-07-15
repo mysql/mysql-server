@@ -2142,6 +2142,24 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
   return nodeTypes[nodeId];
 }
 
+const char *MgmtSrvr::get_connect_address(Uint32 node_id)
+{
+  if (m_connect_address[node_id].s_addr == 0 &&
+      theFacade && theFacade->theTransporterRegistry &&
+      theFacade->theClusterMgr &&
+      getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB) 
+  {
+    const ClusterMgr::Node &node=
+      theFacade->theClusterMgr->getNodeInfo(node_id);
+    if (node.connected)
+    {
+      m_connect_address[node_id]=
+	theFacade->theTransporterRegistry->get_connect_address(node_id);
+    }
+  }
+  return inet_ntoa(m_connect_address[node_id]);  
+}
+
 void
 MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 {
