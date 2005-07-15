@@ -3832,6 +3832,28 @@ drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
 
+#
+# BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
+#           is called".
+#
+--disable_warnings
+drop procedure if exists bug9565_sub|
+drop procedure if exists bug9565|
+--enable_warnings
+create procedure bug9565_sub()
+begin
+  select * from t1;
+end|
+create procedure bug9565()
+begin
+  insert into t1 values ("one", 1);
+  call bug9565_sub();
+end|
+call bug9565()|
+delete from t1|
+drop procedure bug9565_sub|
+drop procedure bug9565|
+
 
 #
 # BUG#NNNN: New bug synopsis

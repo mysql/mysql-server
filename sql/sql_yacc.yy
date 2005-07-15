@@ -465,6 +465,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PACK_KEYS_SYM
 %token  PARTIAL
 %token  PASSWORD
+%token  PARAM_MARKER
 %token  PHASE_SYM
 %token  POINTFROMTEXT
 %token  POINT_SYM
@@ -6933,23 +6934,15 @@ text_string:
 	;
 
 param_marker:
-        '?'
+        PARAM_MARKER
         {
           THD *thd=YYTHD;
 	  LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          Item_param *item= new Item_param((uint) (lex->tok_start -
+                                                   (uchar *) thd->query));
+          if (!($$= item) || lex->param_list.push_back(item))
           {
-            Item_param *item= new Item_param((uint) (lex->tok_start -
-                                                     (uchar *) thd->query));
-            if (!($$= item) || lex->param_list.push_back(item))
-            {
-	      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	      YYABORT;
-            }
-          }
-          else
-          {
-            yyerror(ER(ER_SYNTAX_ERROR));
+            my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
             YYABORT;
           }
         }
