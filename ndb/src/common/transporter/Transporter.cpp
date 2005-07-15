@@ -76,6 +76,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   m_connected     = false;
   m_timeOutMillis = 1000;
 
+  m_connect_address.s_addr= 0;
   if(s_port<0)
     s_port= -s_port; // was dynamic
 
@@ -103,6 +104,13 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
     DBUG_RETURN(true); // TODO assert(0);
   }
   
+  {
+    struct sockaddr addr;
+    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
+    int r= getpeername(sockfd, &addr, &addrlen);
+    m_connect_address= ((struct sockaddr_in *)&addr)->sin_addr;
+  }
+
   bool res = connect_server_impl(sockfd);
   if(res){
     m_connected  = true;
@@ -187,6 +195,13 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   else if (m_type == tt_SHM_TRANSPORTER)
   {
     g_eventLogger.warning("Unable to verify transporter compatability with node %d", nodeId);
+  }
+
+  {
+    struct sockaddr addr;
+    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
+    int r= getpeername(sockfd, &addr, &addrlen);
+    m_connect_address= ((struct sockaddr_in *)&addr)->sin_addr;
   }
 
   bool res = connect_client_impl(sockfd);
