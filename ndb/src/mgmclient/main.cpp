@@ -44,7 +44,9 @@ static Ndb_mgmclient* com;
 
 extern "C"
 void 
-handler(int sig){
+handler(int sig)
+{
+  DBUG_ENTER("handler");
   switch(sig){
   case SIGPIPE:
     /**
@@ -54,6 +56,7 @@ handler(int sig){
     com->disconnect();    
     break;
   }
+  DBUG_VOID_RETURN;
 }
 
 NDB_STD_OPTS_VARS;
@@ -163,7 +166,8 @@ int main(int argc, char** argv){
     com->execute(opt_execute_str,_try_reconnect, &ret);
   }
   delete com;
-  
+
+  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return ret;
 }
 

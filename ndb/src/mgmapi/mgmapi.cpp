@@ -265,6 +265,9 @@ static const Properties *
 ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 	     const char *cmd, const Properties *cmd_args) 
 {
+  DBUG_ENTER("ndb_mgm_call");
+  DBUG_PRINT("enter",("handle->socket: %d, cmd: %s",
+		      handle->socket, cmd));
   SocketOutputStream out(handle->socket);
   SocketInputStream in(handle->socket, handle->read_timeout);
 
@@ -331,7 +334,8 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 	   << "' status=" << (Uint32)ctx.m_status
 	   << ", curr=" << ctx.m_currentToken
 	   << endl;
-    DBUG_PRINT("info",("parser.parse returned NULL"));
+    DBUG_PRINT("info",("ctx.status: %d, ctx.m_currentToken: %s",
+		       ctx.m_status, ctx.m_currentToken));
   } 
 #ifdef MGMAPI_LOG
   else {
@@ -341,7 +345,7 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
     p->print(handle->logfile, "IN: ");
   }
 #endif
-  return p;
+  DBUG_RETURN(p);
 }
 
 /**
