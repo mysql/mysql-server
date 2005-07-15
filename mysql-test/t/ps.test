@@ -789,19 +789,6 @@ set @b='CHRISTINE';
 execute stmt using @a, @b;
 deallocate prepare stmt;
 #
-# Bug#9442 Set parameter make query fail if column character set is UCS2
-#
-create table t1 (utext varchar(20) character set ucs2);
-insert into t1 values ("lily");
-insert into t1 values ("river");
-prepare stmt from 'select utext from t1 where utext like ?';
-set @param1='%%';
-execute stmt using @param1;
-execute stmt using @param1;
-select utext from t1 where utext like '%%';
-drop table t1;
-deallocate prepare stmt;
-#
 # Bug#11299 "prepared statement makes wrong SQL syntax in binlog which stops
 # replication": check that errouneous queries with placeholders are not
 # allowed
