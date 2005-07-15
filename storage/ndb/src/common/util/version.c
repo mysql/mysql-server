@@ -38,22 +38,24 @@ Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build) {
   
 }
 
-const char * getVersionString(Uint32 version, const char * status) {
-  char buff[100];
+char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
+const char * getVersionString(Uint32 version, const char * status,
+			      char *buf, unsigned sz)
+{
   if (status && status[0] != 0)
-	  basestring_snprintf(buff, sizeof(buff),
+	  basestring_snprintf(buf, sz,
 	     "Version %d.%d.%d (%s)",
 	     getMajor(version),
 	     getMinor(version),
 	     getBuild(version),
 	     status);
   else
-    basestring_snprintf(buff, sizeof(buff),
+    basestring_snprintf(buf, sz,
 	     "Version %d.%d.%d",
 	     getMajor(version),
 	     getMinor(version),
 	     getBuild(version));
-  return strdup(buff);
+  return buf;
 }
 
 typedef enum {

@@ -698,7 +698,7 @@ static void verify_prepare_field(MYSQL_RES *result,
       fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
               field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
-    fprintf(stdout, "\n    length   :`%ld`\t(expected: `%ld`)",
+    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%lu`)",
             field->length, length * cs->mbmaxlen);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
@@ -13050,27 +13050,6 @@ static void test_bug9478()
     check_execute(stmt, rc);
     if (!opt_silent && i == 0)
       printf("Fetched row: %s\n", a);
-    /*
-      Although protocol-wise an attempt to execute a statement which
-      already has an open cursor associated with it will yield an error,
-      the client library behavior tested here is consistent with
-      the non-cursor execution scenario: mysql_stmt_execute will
-      silently close the cursor if necessary.
-    */
-    {
-      char buff[9];
-      /* Fill in the execute packet */
-      int4store(buff, stmt->stmt_id);
-      buff[4]= 0;                               /* Flag */
-      int4store(buff+5, 1);                     /* Reserved for array bind */
-      rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_EXECUTE, buff,
-                                               sizeof(buff), 0,0,1) ||
-           (*mysql->methods->read_query_result)(mysql));
-      DIE_UNLESS(rc);
-      if (!opt_silent && i == 0)
-        printf("Got error (as expected): %s\n", mysql_error(mysql));
-    }
-
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
 
@@ -13429,7 +13408,7 @@ static void test_bug10794()
   bind[1].length= &a_len;
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
-  for (i= 0; i < 34; i++)
+  for (i= 0; i < 42; i++)
   {
     id_val= (i+1)*10;
     sprintf(a, "a%d", i);
@@ -13616,7 +13595,6 @@ static void test_bug11656()
 
 static void test_bug10214()
 {
-  MYSQL_RES* res ;
   int   len;
   char  out[8];
 
@@ -13639,20 +13617,93 @@ static void test_bug10214()
 static void test_client_character_set()
 {
   MY_CHARSET_INFO cs;
-  const char *csname;
+  char *csname;
   int rc;
 
   myheader("test_client_character_set");
 
-  csname = "utf8";
-  rc = mysql_set_character_set(mysql, csname);
+  csname= (char*) "utf8";
+  rc= mysql_set_character_set(mysql, csname);
   DIE_UNLESS(rc == 0);
 
   mysql_get_character_set_info(mysql, &cs);
   DIE_UNLESS(!strcmp(cs.csname, "utf8"));
   DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
+  /* Restore the default character set */
+  rc= mysql_query(mysql, "set names default");
+  myquery(rc);
 }
 
+/* Test correct max length for MEDIUMTEXT and LONGTEXT columns */
+
+static void test_bug9735()
+{
+  MYSQL_RES *res;
+  int rc;
+
+  myheader("test_bug9735");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (a mediumtext, b longtext) "
+                         "character set latin1");
+  myquery(rc);
+  rc= mysql_query(mysql, "select * from t1");
+  myquery(rc);
+  res= mysql_store_result(mysql);
+  verify_prepare_field(res, 0, "a", "a", MYSQL_TYPE_BLOB,
+                       "t1", "t1", current_db, (1U << 24)-1, 0);
+  verify_prepare_field(res, 1, "b", "b", MYSQL_TYPE_BLOB,
+                       "t1", "t1", current_db, ~0U, 0);
+  mysql_free_result(res);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
+/* Bug#11183 "mysql_stmt_reset() doesn't reset information about error" */
+
+static void test_bug11183()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  char bug_statement[]= "insert into t1 values (1)";
+
+  myheader("test_bug11183");
+
+  mysql_query(mysql, "drop table t1 if exists");
+  mysql_query(mysql, "create table t1 (a int)");
+
+  stmt= mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != 0);
+
+  rc= mysql_stmt_prepare(stmt, bug_statement, strlen(bug_statement));
+  check_execute(stmt, rc);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+
+  /* Trying to execute statement that should fail on execute stage */
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc);
+
+  mysql_stmt_reset(stmt);
+  DIE_UNLESS(mysql_stmt_errno(stmt) == 0);
+
+  mysql_query(mysql, "create table t1 (a int)");
+
+  /* Trying to execute statement that should pass ok */
+  if (mysql_stmt_execute(stmt))
+  {
+    mysql_stmt_reset(stmt);
+    DIE_UNLESS(mysql_stmt_errno(stmt) == 0);
+  }
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -13895,6 +13946,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11172", test_bug11172 },
   { "test_bug11656", test_bug11656 },
   { "test_bug10214", test_bug10214 },
+  { "test_bug9735", test_bug9735 },
+  { "test_bug11183", test_bug11183 },
   { 0, 0 }
 };
 

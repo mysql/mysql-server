@@ -69,7 +69,10 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     But do we want this ?
   */
 
-  if (open_and_lock_tables(thd, tables))
+  /* We should have only one table in table list. */
+  DBUG_ASSERT(tables->next_global == 0);
+
+  if (!(table= open_ltable(thd, tables, tables->lock_type)))
     DBUG_RETURN(TRUE);
 
   /*
@@ -79,8 +82,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   */
   if (check_global_access(thd, SUPER_ACL))
     DBUG_RETURN(TRUE);
-
-  table= tables->table;
 
   /*
     We do not allow creation of triggers on views or temporary tables.

@@ -705,3 +705,122 @@ execute stmt;
 execute stmt;
 deallocate prepare stmt;
 drop table t1;
+#
+# Bug#11458 "Prepared statement with subselects return random data":
+# drop PARAM_TABLE_BIT from the list of tables used by a subquery
+#
+create table t1 (
+  id int(11) unsigned not null primary key auto_increment,
+  partner_id varchar(35) not null,
+  t1_status_id int(10) unsigned
+);
+
+insert into t1 values ("1", "partner1", "10"), ("2", "partner2", "10"),
+                      ("3", "partner3", "10"), ("4", "partner4", "10");
+
+create table t2 (
+  id int(11) unsigned not null default '0',
+  t1_line_id int(11) unsigned not null default '0',
+  article_id varchar(20),
+  sequence int(11) not null default '0',
+  primary key  (id,t1_line_id)
+);
+
+insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
+                      ("2", "2", "sup", "2"), ("2", "3", "sup", "3"),
+                      ("2", "4", "imp", "4"), ("3", "1", "sup", "0"),
+                      ("4", "1", "sup", "0");
+
+create table t3 (
+  id int(11) not null default '0',
+  preceeding_id int(11) not null default '0',
+  primary key  (id,preceeding_id)
+);
+
+create table t4 (
+  user_id varchar(50) not null,
+  article_id varchar(20) not null,
+  primary key  (user_id,article_id)
+);
+
+insert into t4 values("nicke", "imp");
+
+prepare stmt from
+'select distinct t1.partner_id
+from t1 left join t3 on t1.id = t3.id
+     left join t1 pp on pp.id = t3.preceeding_id
+where
+  exists (
+    select *
+    from t2 as pl_inner
+    where pl_inner.id = t1.id
+    and pl_inner.sequence <= (
+      select min(sequence) from t2 pl_seqnr
+      where pl_seqnr.id = t1.id
+    )
+    and exists (
+      select * from t4
+      where t4.article_id = pl_inner.article_id
+      and t4.user_id = ?
+    )
+  )
+  and t1.id = ?
+group by t1.id
+having count(pp.id) = 0';
+set @user_id = 'nicke';
+set @id = '2';
+execute stmt using @user_id, @id;
+execute stmt using @user_id, @id;
+deallocate prepare stmt;
+drop table t1, t2, t3, t4;
+#
+# Bug#9379: make sure that Item::collation is reset when one sets
+# a parameter marker from a string variable.
+#
+prepare stmt from 'select ?=?';
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+execute stmt using @a, @b;
+set @a=1, @b=2;
+execute stmt using @a, @b;
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+deallocate prepare stmt;
+#
+# Bug#9442 Set parameter make query fail if column character set is UCS2
+#
+create table t1 (utext varchar(20) character set ucs2);
+insert into t1 values ("lily");
+insert into t1 values ("river");
+prepare stmt from 'select utext from t1 where utext like ?';
+set @param1='%%';
+execute stmt using @param1;
+execute stmt using @param1;
+select utext from t1 where utext like '%%';
+drop table t1;
+deallocate prepare stmt;
+#
+# Bug#11299 "prepared statement makes wrong SQL syntax in binlog which stops
+# replication": check that errouneous queries with placeholders are not
+# allowed
+#
+create table t1 (a int);
+--error 1064
+prepare stmt from "select ??";
+--error 1064
+prepare stmt from "select ?FROM t1";
+--error 1064
+prepare stmt from "select FROM t1 WHERE?=1";
+--error 1064
+prepare stmt from "update t1 set a=a+?WHERE 1";
+--disable_ps_protocol
+--error 1064
+select ?;
+--error 1064
+select ??;
+--error 1064
+select ? from t1;
+--enable_ps_protocol
+drop table t1;

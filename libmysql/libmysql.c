@@ -1869,6 +1869,16 @@ static void net_clear_error(NET *net)
   }
 }
 
+static void stmt_clear_error(MYSQL_STMT *stmt)
+{
+  if (stmt->last_errno)
+  {
+    stmt->last_errno= 0;
+    stmt->last_error[0]= '\0';
+    strmov(stmt->sqlstate, not_error_sqlstate);
+  }
+}
+
 /*
   Set statement error code, sqlstate, and error message
   from given errcode and sqlstate.
@@ -4907,13 +4917,12 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
   {
     MYSQL *mysql= stmt->mysql;
     MYSQL_DATA *result= &stmt->result;
-    my_bool has_cursor= stmt->read_row_func == stmt_read_row_from_cursor;
 
     /*
       Reset stored result set if so was requested or it's a part
       of cursor fetch.
     */
-    if (result->data && (has_cursor || (flags & RESET_STORE_RESULT)))
+    if (result->data && (flags & RESET_STORE_RESULT))
     {
       /* Result buffered */
       free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
@@ -4944,7 +4953,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
           mysql->status= MYSQL_STATUS_READY;
         }
       }
-      if (has_cursor || (flags & RESET_SERVER_SIDE))
+      if (flags & RESET_SERVER_SIDE)
       {
         /*
           Reset the server side statement and close the server side
@@ -4960,6 +4969,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
           stmt->state= MYSQL_STMT_INIT_DONE;
           return 1;
         }
+        stmt_clear_error(stmt);
       }
     }
     stmt->state= MYSQL_STMT_PREPARE_DONE;

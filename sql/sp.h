@@ -74,9 +74,6 @@ sp_show_create_function(THD *thd, sp_name *name);
 int
 sp_show_status_function(THD *thd, const char *wild);
 
-bool
-sp_function_exists(THD *thd, sp_name *name);
-
 
 /*
   Procedures for pre-caching of stored routines and building table list
