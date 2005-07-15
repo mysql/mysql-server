@@ -76,7 +76,7 @@ void Qmgr::execCM_HEARTBEAT(Signal* signal)
 void Qmgr::execCM_NODEINFOREF(Signal* signal) 
 {
   jamEntry();
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Qmgr::execCM_NODEINFOREF()
 
@@ -121,7 +121,7 @@ void Qmgr::execCONTINUEB(Signal* signal)
   default:
     jam();
     // ZCOULD_NOT_OCCUR_ERROR;
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
     break;
   }//switch
@@ -593,7 +593,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     jam();
     char buf[128];
     BaseString::snprintf(buf,sizeof(buf),"incompatible version own=0x%x other=0x%x, shutting down", NDB_VERSION, cmRegConf->presidentVersion);
-    systemErrorLab(signal, buf);
+    systemErrorLab(signal, __LINE__, buf);
     return;
   }
 
@@ -688,7 +688,7 @@ void Qmgr::execCM_REGREF(Signal* signal)
   switch (TrefuseReason) {
   case CmRegRef::ZINCOMPATIBLE_VERSION:
     jam();
-    systemErrorLab(signal, "incompatible version, connection refused by running ndb node");
+    systemErrorLab(signal, __LINE__, "incompatible version, connection refused by running ndb node");
     break;
   case CmRegRef::ZBUSY:
   case CmRegRef::ZBUSY_TO_PRES:
@@ -1751,7 +1751,7 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
 
     if (failedNodePtr.p->rcv[0] == failedNodePtr.p->rcv[1]) {
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
     } else {
       jam();
       failedNodePtr.p->rcv[0] = 0;
@@ -1763,7 +1763,7 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
     ndbout << "failedNodePtr.p->failState = "
 	   << (Uint32)(failedNodePtr.p->failState) << endl;
 #endif   
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   return;
 }//Qmgr::execAPI_FAILCONF()
@@ -1780,7 +1780,7 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
     failedNodePtr.p->failState = NORMAL;
   } else {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   if (cpresident == getOwnNodeId()) {
     jam();
@@ -1931,20 +1931,13 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 #endif
 
   bool compatability_check;
-  switch(getNodeInfo(apiNodePtr.i).getType()){
+  NodeInfo::NodeType type= getNodeInfo(apiNodePtr.i).getType();
+  switch(type){
   case NodeInfo::API:
     compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
-    if (!compatability_check)
-      infoEvent("Connection attempt from api or mysqld id=%d with %s "
-		"incompatible with %s", apiNodePtr.i,
-		getVersionString(version,""), NDB_VERSION_STRING);
     break;
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
-    if (!compatability_check)
-      infoEvent("Connection attempt from management server id=%d with %s "
-		"incompatible with %s", apiNodePtr.i,
-		getVersionString(version,""), NDB_VERSION_STRING);
     break;
   case NodeInfo::REP:
     //    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
@@ -1953,13 +1946,19 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   case NodeInfo::INVALID:
   default:
     sendApiRegRef(signal, ref, ApiRegRef::WrongType);
-    infoEvent("Invalid connection attempt with type %d",
-	      getNodeInfo(apiNodePtr.i).getType());
+    infoEvent("Invalid connection attempt with type %d", type);
     return;
   }
 
   if (!compatability_check) {
     jam();
+    char buf[NDB_VERSION_STRING_BUF_SZ];
+    infoEvent("Connection attempt from %s id=%d with %s "
+	      "incompatible with %s",
+	      type == NodeInfo::API ? "api or mysqld" : "management server",
+	      apiNodePtr.i,
+	      getVersionString(version,"",buf,sizeof(buf)),
+	      NDB_VERSION_STRING);
     apiNodePtr.p->phase = ZAPI_INACTIVE;
     sendApiRegRef(signal, ref, ApiRegRef::UnsupportedVersion);
     return;
@@ -2085,7 +2084,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
   if (failedNodePtr.i == getOwnNodeId()) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
 
@@ -2093,7 +2092,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   if (myNodePtr.p->phase != ZRUNNING) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
   TnoFailedNodes = cnoFailedNodes;
@@ -2172,7 +2171,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   if (myNodePtr.p->phase != ZRUNNING) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
 
@@ -2675,7 +2674,7 @@ void Qmgr::execREAD_NODESREQ(Signal* signal)
 	     ReadNodesConf::SignalLength, JBB);
 }//Qmgr::execREAD_NODESREQ()
 
-void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal, 
+void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line,
 					     NodeId failedNodeId) {
   jam();
 
@@ -2687,11 +2686,11 @@ void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal,
 	   "Node was shutdown during startup because node %d failed",
 	   failedNodeId);
 
-  progError(__LINE__, ERR_SR_OTHERNODEFAILED, buf);  
+  progError(line, ERR_SR_OTHERNODEFAILED, buf);  
 }
 
 
-void Qmgr::systemErrorLab(Signal* signal, const char * message) 
+void Qmgr::systemErrorLab(Signal* signal, Uint32 line, const char * message) 
 {
   jam();
   // Broadcast that this node is failing to other nodes
@@ -2699,7 +2698,7 @@ void Qmgr::systemErrorLab(Signal* signal, const char * message)
 
   // If it's known why shutdown occured
   // an error message has been passed to this function
-  progError(__LINE__, 0, message);  
+  progError(line, 0, message);  
 
   return;
 }//Qmgr::systemErrorLab()
@@ -2867,7 +2866,7 @@ Uint16 Qmgr::translateDynamicIdToNodeId(Signal* signal, UintR TdynamicId)
   }//for
   if (TtdiNodeId == ZNIL) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   return TtdiNodeId;
 }//Qmgr::translateDynamicIdToNodeId()
