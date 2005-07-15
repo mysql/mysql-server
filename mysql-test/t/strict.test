@@ -1093,3 +1093,13 @@ set @@sql_mode='traditional';
 create table t1(a varchar(65537));
 --error 1074
 create table t1(a varbinary(65537));
+
+#
+# Bug #9881: problem with altering table
+#
+
+set @@sql_mode='traditional';
+create table t1(a int, b date not null);                                       
+alter table t1 modify a bigint unsigned not null;
+show create table t1;
+drop table t1;
