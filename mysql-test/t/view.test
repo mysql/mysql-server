@@ -1673,3 +1673,24 @@ create view v1(k, K) as select 1,2;
 create view v1 as SELECT TIME_FORMAT(SEC_TO_TIME(3600),'%H:%i') as t;
 select * from v1;
 drop view v1;
+
+#
+# evaluation constant functions in WHERE (BUG#4663)
+#
+create table t1 (a timestamp default now());
+create table t2 (b timestamp default now());
+create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
+SHOW CREATE VIEW v1;
+drop view v1;
+drop table t1, t2;
+CREATE TABLE t1 ( a varchar(50) );
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = CURRENT_USER();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = VERSION();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = DATABASE();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+DROP TABLE t1;
