@@ -392,9 +392,8 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
 
     struct timeval now;
     gettimeofday(&now, 0);
-    unsigned elapsed_ms=
-      (now.tv_sec-start_time.tv_sec)*1000 +
-      (now.tv_usec-start_time.tv_usec)/1000;
+    unsigned elapsed_ms= (now.tv_sec-start_time.tv_sec)*1000 +
+      ((signed int)now.tv_usec-(signed int)start_time.tv_usec)/1000;
 
     if (elapsed_ms >= timeout_in_milliseconds)
     {
