@@ -13617,8 +13617,8 @@ static void test_bug10214()
 static void test_client_character_set()
 {
   MY_CHARSET_INFO cs;
-  char *csname = (char*) "utf8";
-  char *csdefault = (char*)mysql_character_set_name(mysql);
+  char *csname= (char*) "utf8";
+  char *csdefault= (char*)mysql_character_set_name(mysql);
   int rc;
 
   myheader("test_client_character_set");
@@ -13732,16 +13732,16 @@ static void test_bug11037()
     fprintf(stdout, "Got error, as expected:\n [%d] %s\n",
             mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
-  rc = mysql_stmt_execute(stmt);
+  rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  rc = mysql_stmt_fetch(stmt);
+  rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc==0);
 
-  rc = mysql_stmt_fetch(stmt);
+  rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc==MYSQL_NO_DATA);
 
-  rc = mysql_stmt_fetch(stmt);
+  rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc==MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
