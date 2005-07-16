@@ -268,6 +268,8 @@ public:
   Transporter* get_transporter(NodeId nodeId);
   NodeId get_localNodeId() { return localNodeId; };
 
+
+  struct in_addr get_connect_address(NodeId node_id) const;
 protected:
   
 private:
