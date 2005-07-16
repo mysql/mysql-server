@@ -477,7 +477,7 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 class user_var_entry;
 enum enum_var_type
 {
-  OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
+  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
 };
 class sys_var;
 #include "item.h"
