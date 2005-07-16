@@ -5370,3 +5370,15 @@ ER_SCALE_BIGGER_THAN_PRECISION 42000 S1009
         eng "Scale may not be larger than the precision (column '%-.64s')."
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system '%-.64s.%-.64s' table with other tables"
+ER_CONNECT_TO_FOREIGN_DATA_SRC
+        eng "Unable to connect to foreign data source - database '%s'!"
+ER_QUERY_ON_FOREIGN_DATA_SRC
+        eng "There was a problem processing the query on the foreign data source. Data source error: '%-.64s'"
+ER_FOREIGN_DATA_SRC_DOESNT_EXIST
+        eng "The foreign data source you are trying to reference does not exist. Data source error : '%-.64s'"
+ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE
+        eng "Can't create federated table. The data source connection string '%-.64s' is not in the correct format"
+ER_FOREIGN_DATA_STRING_INVALID
+        eng "The data source connection string '%-.64s' is not in the correct format"
+ER_CANT_CREATE_FEDERATED_TABLE  
+	eng "Can't create federated table. Foreign data src error : '%-.64s'"

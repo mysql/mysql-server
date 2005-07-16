@@ -1,19 +1,7 @@
---source include/have_federated_db.inc
-
-source include/master-slave.inc;
-
-# remote table creation
+source include/federated.inc;
 
 connection slave;
---replicate-ignore-db=federated
-stop slave;
-
---disable_warnings
-# at this point, we are connected to master
-DROP DATABASE IF EXISTS federated;
---enable_warnings
-CREATE DATABASE federated;
-
+DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
@@ -21,14 +9,10 @@ CREATE TABLE federated.t1 (
   DEFAULT CHARSET=latin1;
 
 connection master;
---disable_warnings
-DROP DATABASE IF EXISTS federated;
---enable_warnings
-CREATE DATABASE federated;
-
+DROP TABLE IF EXISTS federated.t1;
 # test too many items (malformed) in the comment string url
---error 1005
-eval CREATE TABLE federated.t1 (
+--error 1432
+CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
     )
@@ -36,8 +20,8 @@ eval CREATE TABLE federated.t1 (
   COMMENT='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
 
 # test not enough items (malformed) in the comment string url
---error 1005
-eval CREATE TABLE federated.t1 (
+--error 1432 
+CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
     )
@@ -46,7 +30,7 @@ eval CREATE TABLE federated.t1 (
 
 # test non-existant table
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---error 1219 
+--error 1434
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
@@ -56,7 +40,7 @@ eval CREATE TABLE federated.t1 (
 
 # test bad user/password 
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---error 1218
+--error 1429
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
@@ -150,11 +134,8 @@ CREATE TABLE federated.t1 (
     `name` varchar(32) NOT NULL default '',
     `other` int(20) NOT NULL default '0',
     `created` datetime default '2004-04-04 04:04:04',
-    PRIMARY KEY  (`id`),
-    KEY `name` (`name`),
-    KEY `other_key` (`other`))
+    PRIMARY KEY  (`id`))
   DEFAULT CHARSET=latin1;
-
 
 connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
@@ -163,9 +144,7 @@ eval CREATE TABLE federated.t1 (
     `name` varchar(32) NOT NULL default '',
     `other` int(20) NOT NULL default '0',
     `created` datetime default '2004-04-04 04:04:04',
-    PRIMARY KEY  (`id`),
-    KEY `name` (`name`),
-    KEY `other_key` (`other`))
+    PRIMARY KEY  (`id`))
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
 
@@ -181,15 +160,109 @@ INSERT INTO federated.t1 (name, other) VALUES ('Ninth Name', 99999);
 INSERT INTO federated.t1 (name, other) VALUES ('Tenth Name', 101010);
 
 # basic select
+EXPLAIN SELECT * FROM federated.t1;
 SELECT * FROM federated.t1;
 # with PRIMARY KEY index_read_idx
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 5;
+SELECT * FROM federated.t1 WHERE id = 5;
+EXPLAIN SELECT * FROM federated.t1 WHERE name = 'Sixth Name';
+SELECT * FROM federated.t1 WHERE name = 'Sixth Name';
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 6 and name = 'Sixth Name';
+SELECT * FROM federated.t1 WHERE id = 6 and name = 'Sixth Name';
+EXPLAIN SELECT * FROM federated.t1 WHERE name = 'Sixth Name' AND other = 44444;
+SELECT * FROM federated.t1 WHERE name = 'Sixth Name' AND other = 44444;
+EXPLAIN SELECT * FROM federated.t1 WHERE name like '%th%';
+SELECT * FROM federated.t1 WHERE name like '%th%';
+UPDATE federated.t1 SET name = '3rd name' WHERE id = 3;
+SELECT * FROM federated.t1 WHERE name = '3rd name';
+UPDATE federated.t1 SET name = 'Third name' WHERE name = '3rd name';
+SELECT * FROM federated.t1 WHERE name = 'Third name';
+# rnd_post, ::position
+EXPLAIN SELECT * FROM federated.t1 ORDER BY id DESC;
+SELECT * FROM federated.t1 ORDER BY id DESC;
+EXPLAIN SELECT * FROM federated.t1 ORDER BY name;
+SELECT * FROM federated.t1 ORDER BY name;
+EXPLAIN SELECT * FROM federated.t1 ORDER BY name DESC;
+SELECT * FROM federated.t1 ORDER BY name DESC;
+EXPLAIN SELECT * FROM federated.t1 ORDER BY name ASC;
+SELECT * FROM federated.t1 ORDER BY name ASC;
+EXPLAIN SELECT * FROM federated.t1 GROUP BY other;
+SELECT * FROM federated.t1 GROUP BY other;
+
+# ::delete_row
+DELETE FROM federated.t1 WHERE id = 5; 
+SELECT * FROM federated.t1 WHERE id = 5;
+
+# ::delete_all_rows
+DELETE FROM federated.t1;
+SELECT * FROM federated.t1 WHERE id = 5;
+
+# previous test, but this time with indexes
+connection slave;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL auto_increment,
+    `name` varchar(32) NOT NULL default '',
+    `other` int(20) NOT NULL default '0',
+    `created` datetime NOT NULL,
+    PRIMARY KEY  (`id`),
+    key name(`name`),
+    key other(`other`),
+    key created(`created`))
+  DEFAULT CHARSET=latin1;
+
+connection master;
+DROP TABLE IF EXISTS federated.t1;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL auto_increment,
+    `name` varchar(32) NOT NULL default '',
+    `other` int(20) NOT NULL default '0',
+    `created` datetime NOT NULL,
+    PRIMARY KEY  (`id`),
+    key name(`name`),
+    key other(`other`),
+    key created(`created`))
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t1 (name, other, created)
+  VALUES ('First Name', 11111, '2004-01-01 01:01:01');
+INSERT INTO federated.t1 (name, other, created)
+  VALUES ('Second Name', 22222, '2004-01-23 02:43:00');
+INSERT INTO federated.t1 (name, other, created)
+  VALUES ('Third Name', 33333, '2004-02-14 02:14:00');
+INSERT INTO federated.t1 (name, other, created)
+  VALUES ('Fourth Name', 44444, '2003-04-05 00:00:00');
+INSERT INTO federated.t1 (name, other, created) 
+  VALUES ('Fifth Name', 55555, '2001-02-02 02:02:02');
+INSERT INTO federated.t1 (name, other, created) 
+  VALUES ('Sixth Name', 66666, '2005-06-06 15:30:00');
+INSERT INTO federated.t1 (name, other, created) 
+  VALUES ('Seventh Name', 77777, '2003-12-12 18:32:00');
+INSERT INTO federated.t1 (name, other, created) 
+  VALUES ('Eigth Name', 88888, '2005-03-12 11:00:00');
+INSERT INTO federated.t1 (name, other, created) 
+  VALUES ('Ninth Name', 99999, '2005-03-12 11:00:01');
+INSERT INTO federated.t1 (name, other, created) 
+  VALUES ('Tenth Name', 101010, '2005-03-12 12:00:01');
+
+# basic select
+EXPLAIN SELECT * FROM federated.t1;
+SELECT * FROM federated.t1;
+# with PRIMARY KEY index_read_idx
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 5;
 SELECT * FROM federated.t1 WHERE id = 5;
 # with regular key index_read -> index_read_idx
+EXPLAIN SELECT * FROM federated.t1 WHERE name = 'Sixth Name';
 SELECT * FROM federated.t1 WHERE name = 'Sixth Name';
 # regular and PRIMARY KEY index_read_idx
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 6 and name = 'Sixth Name';
 SELECT * FROM federated.t1 WHERE id = 6 and name = 'Sixth Name';
 # with regular key index_read -> index_read_idx
+EXPLAIN SELECT * FROM federated.t1 WHERE other = 44444;
 SELECT * FROM federated.t1 WHERE other = 44444;
+EXPLAIN SELECT * FROM federated.t1 WHERE name like '%th%';
 SELECT * FROM federated.t1 WHERE name like '%th%';
 # update - update_row, index_read_idx
 UPDATE federated.t1 SET name = '3rd name' WHERE id = 3;
@@ -211,7 +284,6 @@ SELECT * FROM federated.t1 WHERE id = 5;
 # ::delete_all_rows
 DELETE FROM federated.t1;
 SELECT * FROM federated.t1 WHERE id = 5;
-
 connection slave;
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 ( 
@@ -253,8 +325,7 @@ SET name = 'Fourth Name', other = 'four four four'
 WHERE name IS NULL AND other IS NULL;
 
 UPDATE federated.t1 SET other = 'two two two two' WHERE name = 'Second Name';
-UPDATE federated.t1 SET other = 'seven seven' WHERE name like 'Sec%';
-UPDATE federated.t1 SET other = 'seven seven' WHERE name = 'Seventh Name';
+UPDATE federated.t1 SET other = 'seven seven' WHERE name like 'Sev%';
 UPDATE federated.t1 SET name = 'Tenth Name' WHERE other like 'fee fie%';
 SELECT * FROM federated.t1 WHERE name IS NULL OR other IS NULL ;
 SELECT * FROM federated.t1;
@@ -338,6 +409,272 @@ SELECT * FROM federated.t1 WHERE name='third';
 SELECT * FROM federated.t1 WHERE other=2222;
 SELECT * FROM federated.t1 WHERE name='third' and other=2222;
 
+# more multi-column indexes, in the primary key
+connection slave;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+  `id` int NOT NULL auto_increment,
+  `col1` int(10) NOT NULL DEFAULT 0,
+  `col2` varchar(64) NOT NULL DEFAULT '',
+  `col3` int(20) NOT NULL,
+  `col4` int(40) NOT NULL,
+  primary key (`id`, `col1`, `col2`, `col3`, `col4`),
+  key col1(col1),
+  key col2(col2),
+  key col3(col3),
+  key col4(col4));
+
+connection master;
+DROP TABLE IF EXISTS federated.t1;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+  `id` int NOT NULL auto_increment,
+  `col1` int(10) NOT NULL DEFAULT 0,
+  `col2` varchar(64) NOT NULL DEFAULT '',
+  `col3` int(20) NOT NULL,
+  `col4` int(40) NOT NULL,
+  primary key (`id`, `col1`, `col2`, `col3`, `col4`),
+  key col1(col1),
+  key col2(col2),
+  key col3(col3),
+  key col4(col4))
+  ENGINE="FEDERATED"
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (1, 'one One', 11, 1111);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (2, 'Two two', 22, 2222);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (3, 'three Three', 33, 33333);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (4, 'fourfourfour', 444, 4444444);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (5, 'five 5 five five 5', 5, 55555);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (6, 'six six Sixsix', 6666, 6);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (7, 'seven Sevenseven', 77777, 7777);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (8, 'eight eight eight', 88888, 88);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (9, 'nine Nine', 999999, 999999);
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES (10, 'Tenth ten TEN', 1010101, 1010);
+
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 = 'two two'; 
+SELECT * FROM federated.t1 WHERE col2 = 'two two'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 = 'two Two'; 
+SELECT * FROM federated.t1 WHERE col2 = 'two Two'; 
+SELECT * FROM federated.t1 WHERE id = 3; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 3; 
+SELECT * FROM federated.t1 WHERE id = 3 AND col1 = 3; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 3 AND col1 = 3; 
+SELECT * FROM federated.t1 WHERE id = 4 AND col1 = 4 AND col2 = 'Two two'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 4 AND col1 = 4 AND col2 = 'Two two'; 
+SELECT * FROM federated.t1 WHERE id = 4 AND col1 = 4 AND col2 = 'fourfourfour'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 4 AND col1 = 4 AND col2 = 'fourfourfour'; 
+SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5' 
+  AND col3 = 5; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5' 
+  AND col3 = 5; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5' 
+  AND col3 = 5
+  AND col4 = 55555;
+SELECT * FROM federated.t1 WHERE id = 5 AND col2 = 'five 5 five five 5' 
+  AND col3 = 5
+  AND col4 = 55555;
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 5 
+  AND col2 = 'Two two' AND col3 = 22
+  AND col4 = 33;
+SELECT * FROM federated.t1 WHERE id = 5 
+  AND col2 = 'Two two' AND col3 = 22
+  AND col4 = 33;
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 5 
+  AND col2 = 'five 5 five five 5' AND col3 = 5 
+  AND col4 = 55555;
+SELECT * FROM federated.t1 WHERE id = 5 
+  AND col2 = 'five 5 five five 5' AND col3 = 5 
+  AND col4 = 55555;
+EXPLAIN SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
+  OR (col2 = 'three Three' AND col3 = 33);
+SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
+  OR (col2 = 'three Three' AND col3 = 33);
+EXPLAIN SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
+  OR (col2 = 'three Three' AND col3 = 33)
+  OR col4 = 1010;
+SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
+  OR (col2 = 'three Three' AND col3 = 33)
+  OR col4 = 1010;
+EXPLAIN SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
+  OR (col2 = 444 AND col3 = 4444444);
+SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
+  OR (col2 = 444 AND col3 = 4444444);
+EXPLAIN SELECT * FROM federated.t1 WHERE id = 1 
+  OR col1 = 10
+  OR col2 = 'Two two' 
+  OR col3 = 33
+  OR col4 = 4444444;
+SELECT * FROM federated.t1 WHERE id = 1 
+  OR col1 = 10
+  OR col2 = 'Two two' 
+  OR col3 = 33
+  OR col4 = 4444444;
+EXPLAIN SELECT * FROM federated.t1 WHERE id > 5; 
+SELECT * FROM federated.t1 WHERE id > 5; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id >= 5; 
+SELECT * FROM federated.t1 WHERE id >= 5; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id < 5; 
+SELECT * FROM federated.t1 WHERE id < 5; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id <= 5; 
+SELECT * FROM federated.t1 WHERE id <= 5; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id != 5; 
+SELECT * FROM federated.t1 WHERE id != 5; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id > 3 AND id < 7; 
+SELECT * FROM federated.t1 WHERE id > 3 AND id < 7; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id > 3 AND id <= 7; 
+SELECT * FROM federated.t1 WHERE id > 3 AND id <= 7; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id >= 3 AND id <= 7; 
+SELECT * FROM federated.t1 WHERE id >= 3 AND id <= 7; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id < 3 AND id <= 7; 
+SELECT * FROM federated.t1 WHERE id < 3 AND id <= 7; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id < 3 AND id > 7; 
+SELECT * FROM federated.t1 WHERE id < 3 AND id > 7; 
+EXPLAIN SELECT * FROM federated.t1 WHERE id < 3 OR id > 7; 
+SELECT * FROM federated.t1 WHERE id < 3 OR id > 7; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 = 'three Three'; 
+SELECT * FROM federated.t1 WHERE col2 = 'three Three'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 > 'one'; 
+SELECT * FROM federated.t1 WHERE col2 > 'one'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 LIKE 's%'; 
+SELECT * FROM federated.t1 WHERE col2 LIKE 's%'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 LIKE 'si%'; 
+SELECT * FROM federated.t1 WHERE col2 LIKE 'si%'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 LIKE 'se%'; 
+SELECT * FROM federated.t1 WHERE col2 LIKE 'se%'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 NOT LIKE 'e%'; 
+SELECT * FROM federated.t1 WHERE col2 NOT LIKE 'e%'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 <> 'one One'; 
+SELECT * FROM federated.t1 WHERE col2 <> 'one One'; 
+
+# more multi-column indexes, in the primary key
+connection slave;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+  `col1` varchar(8) NOT NULL DEFAULT '',
+  `col2` varchar(128) NOT NULL DEFAULT '',
+  `col3` varchar(20) NOT NULL DEFAULT '',
+  `col4` varchar(40) NOT NULL DEFAULT '',
+  primary key (`col1`, `col2`, `col3`, `col4`),
+  key 3key(`col2`,`col3`,`col4`),
+  key 2key (`col3`,`col4`),
+  key col4(col4));
+
+connection master;
+DROP TABLE IF EXISTS federated.t1;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+  `col1` varchar(8) NOT NULL DEFAULT '',
+  `col2` varchar(128) NOT NULL DEFAULT '',
+  `col3` varchar(20) NOT NULL DEFAULT '',
+  `col4` varchar(40) NOT NULL DEFAULT '',
+  primary key (`col1`, `col2`, `col3`, `col4`),
+  key 3key(`col2`,`col3`,`col4`),
+  key 2key (`col3`,`col4`),
+  key col4(col4))
+  ENGINE="FEDERATED"
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('aaaa', 'aaaaaaaaaaaaaaaaaaa', 'ababababab', 'acacacacacacacac');
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('bbbb', 'bbbbbbbbbbbbbbbbbbb', 'bababababa', 'bcbcbcbcbcbcbcbc');
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('cccc', 'ccccccccccccccccccc', 'cacacacaca', 'cbcbcbcbcbcbcbcb');
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('dddd', 'ddddddddddddddddddd', 'dadadadada', 'dcdcdcdcdcdcdcdc');
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('eeee', 'eeeeeeeeeeeeeeeeeee', 'eaeaeaeaea', 'ecececececececec');
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('ffff', 'fffffffffffffffffff', 'fafafafafa', 'fcfcfcfcfcfcfcfc');
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('gggg', 'ggggggggggggggggggg', 'gagagagaga', 'gcgcgcgcgcgcgcgc');
+INSERT INTO federated.t1 (col1, col2, col3, col4) 
+  VALUES ('hhhh', 'hhhhhhhhhhhhhhhhhhh', 'hahahahaha', 'hchchchchchchchc');
+
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 = 'cccc'; 
+SELECT * FROM federated.t1 WHERE col1 = 'cccc'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col2 = 'eeeeeeeeeeeeeeeeeee'; 
+SELECT * FROM federated.t1 WHERE col2 = 'eeeeeeeeeeeeeeeeeee'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col3 = 'bababababa'; 
+SELECT * FROM federated.t1 WHERE col3 = 'bababababa'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 =  'gggg' AND col2 = 'ggggggggggggggggggg'; 
+SELECT * FROM federated.t1 WHERE col1 =  'gggg' AND col2 = 'ggggggggggggggggggg'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 =  'gggg' AND col3 = 'gagagagaga'; 
+SELECT * FROM federated.t1 WHERE col1 =  'gggg' AND col3 = 'gagagagaga'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 =  'ffff' AND col4 = 'fcfcfcfcfcfcfcfc'; 
+SELECT * FROM federated.t1 WHERE col1 =  'ffff' AND col4 = 'fcfcfcfcfcfcfcfc'; 
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 >  'bbbb';
+SELECT * FROM federated.t1 WHERE col1 >  'bbbb';
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 >=  'bbbb';
+SELECT * FROM federated.t1 WHERE col1 >=  'bbbb';
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 <  'bbbb';
+SELECT * FROM federated.t1 WHERE col1 <  'bbbb';
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 <=  'bbbb';
+SELECT * FROM federated.t1 WHERE col1 <=  'bbbb';
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 <>  'bbbb';
+SELECT * FROM federated.t1 WHERE col1 <>  'bbbb';
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 LIKE  'b%';
+SELECT * FROM federated.t1 WHERE col1 LIKE  'b%';
+EXPLAIN SELECT * FROM federated.t1 WHERE col4 LIKE  '%b%';
+SELECT * FROM federated.t1 WHERE col4 LIKE  '%b%';
+EXPLAIN SELECT * FROM federated.t1 WHERE col1 NOT LIKE  'c%';
+SELECT * FROM federated.t1 WHERE col1 NOT LIKE  'c%';
+EXPLAIN SELECT * FROM federated.t1 WHERE col4 NOT LIKE  '%c%';
+SELECT * FROM federated.t1 WHERE col4 NOT LIKE  '%c%';
+connection slave;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+  `col1` varchar(8) NOT NULL DEFAULT '',
+  `col2` int(8) NOT NULL DEFAULT 0,
+  `col3` varchar(8) NOT NULL DEFAULT '',
+  primary key (`col1`, `col2`, `col3`));
+
+connection master;
+DROP TABLE IF EXISTS federated.t1;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+  `col1` varchar(8) NOT NULL DEFAULT '',
+  `col2` varchar(8) NOT NULL DEFAULT '',
+  `col3` varchar(8) NOT NULL DEFAULT '',
+  primary key (`col1`, `col2`, `col3`))
+  ENGINE="FEDERATED"
+  DEFAULT CHARSET=latin1
+  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t1 VALUES ('a00', '110', 'cc0');
+INSERT INTO federated.t1 VALUES ('aaa', '111', 'ccc');
+INSERT INTO federated.t1 VALUES ('bbb', '222', 'yyy');
+INSERT INTO federated.t1 VALUES ('ccc', '111', 'zzz');
+INSERT INTO federated.t1 VALUES ('ccd', '112', 'zzzz');
+
+# let's see what the foreign database says 
+connection slave;
+EXPLAIN SELECT col3 FROM federated.t1 WHERE  (
+(col1 = 'aaa' AND col2 >= '111') OR col1 > 'aaa') AND 
+(col1 < 'ccc' OR ( col1 = 'ccc' AND col2 <= '111')); 
+SELECT col3 FROM federated.t1 WHERE  (
+(col1 = 'aaa' AND col2 >= '111') OR col1 > 'aaa') AND 
+(col1 < 'ccc' OR ( col1 = 'ccc' AND col2 <= '111')); 
+
+connection master;
+EXPLAIN SELECT col3 FROM federated.t1 WHERE  (
+(col1 = 'aaa' AND col2 >= '111') OR col1 > 'aaa') AND 
+(col1 < 'ccc' OR ( col1 = 'ccc' AND col2 <= '111')); 
+SELECT col3 FROM federated.t1 WHERE  (
+(col1 = 'aaa' AND col2 >= '111') OR col1 > 'aaa') AND 
+(col1 < 'ccc' OR ( col1 = 'ccc' AND col2 <= '111')); 
+
 # test NULLs
 connection slave;
 DROP TABLE IF EXISTS federated.t1;
@@ -370,6 +707,11 @@ INSERT INTO federated.t1 (name, floatval, other)
   VALUES (0, 00.3333, NULL);
 SELECT * FROM federated.t1;
 SELECT count(*) FROM federated.t1 
+WHERE id IS NULL 
+AND name IS NULL 
+AND floatval IS NULL
+AND other IS NULL;
+EXPLAIN SELECT count(*) FROM federated.t1 
 WHERE id IS NULL 
 AND name IS NULL 
 AND floatval IS NULL
@@ -735,6 +1077,7 @@ values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, "PatrickG");
 UPDATE federated.t1 SET b=repeat('a',256);
 UPDATE federated.t1 SET i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0, i8=0, i9=0, i10=0;
+EXPLAIN SELECT * FROM federated.t1 WHERE i9=0 and i10=0;
 SELECT * FROM federated.t1 WHERE i9=0 and i10=0;
 UPDATE federated.t1 SET i50=20;
 SELECT * FROM federated.t1;
@@ -928,14 +1271,4 @@ ORDER BY federated.t1.country_id;
 
 DROP TABLE federated.countries;
 
-connection master;
---disable_warnings
-DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
---enable_warnings
-
-connection slave;
---disable_warnings
-DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE IF EXISTS federated;
---enable_warnings
+source include/federated_cleanup.inc;
