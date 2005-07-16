@@ -553,3 +553,26 @@ SELECT a,b FROM v1 WHERE a < 2 and b=3;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug #11853: DELETE statement with a NOT (LIKE/<=>) where condition
+#             for an indexed attribute              
+#             
+
+CREATE TABLE t1 (name varchar(15) NOT NULL, KEY idx(name));
+INSERT INTO t1 VALUES ('Betty'), ('Anna');
+
+SELECT * FROM t1;
+DELETE FROM t1 WHERE name NOT LIKE 'A%a';
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a int, KEY idx(a));
+INSERT INTO t1 VALUES (NULL), (1), (2), (3);
+
+SELECT * FROM t1;
+DELETE FROM t1 WHERE NOT(a <=> 2);
+SELECT * FROM t1;
+
+DROP TABLE t1;
