@@ -2127,3 +2127,14 @@ insert into t2 values (1,2,3),(2,4,6);
 select A.f2 from t1 left join t2 A on A.f2 = f1 where A.f3=(select min(f3)
 from  t2 C where A.f4 = C.f4) or A.f3 IS NULL; 
 drop table t1,t2;
+
+#
+# Bug #11521 Negative integer keys incorrectly substituted for 0 during
+#            range analysis.
+
+create table t2 (a tinyint unsigned);
+create index t2i on t2(a);
+insert into t2 values (0), (254), (255);
+explain select * from t2 where a > -1;
+select * from t2 where a > -1;
+drop table t2;
