@@ -313,24 +313,28 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len)
 
 static void set_param_float(Item_param *param, uchar **pos, ulong len)
 {
+  float data;
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
-#endif
-  float data;
   float4get(data,*pos);
+#else
+  data= *(float*) *pos;
+#endif
   param->set_double((double) data);
   *pos+= 4;
 }
 
 static void set_param_double(Item_param *param, uchar **pos, ulong len)
 {
+  double data;
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-#endif
-  double data;
   float8get(data,*pos);
+#else
+  data= *(double*) *pos;
+#endif
   param->set_double((double) data);
   *pos+= 8;
 }
