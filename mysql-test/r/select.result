@@ -2746,3 +2746,14 @@ WHERE
 COUNT(*)
 4
 drop table t1,t2,t3;
+create table t1 (f1 int);
+insert into t1 values (1),(NULL);
+create table t2 (f2 int, f3 int, f4 int);
+create index idx1 on t2 (f4);
+insert into t2 values (1,2,3),(2,4,6);
+select A.f2 from t1 left join t2 A on A.f2 = f1 where A.f3=(select min(f3)
+from  t2 C where A.f4 = C.f4) or A.f3 IS NULL;
+f2
+1
+NULL
+drop table t1,t2;
