@@ -1836,7 +1836,7 @@ create table t2 (b timestamp default now());
 create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,(`test`.`t1`.`a` < now()) AS `t1.a < now()` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` < now())
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,(`test`.`t1`.`a` < now()) AS `t1.a < now()` from (`test`.`t1` join `test`.`t2`) where (`test`.`t1`.`a` < now())
 drop view v1;
 drop table t1, t2;
 CREATE TABLE t1 ( a varchar(50) );
