@@ -31,7 +31,7 @@
 #define NDB_NONBLOCK FNDELAY
 #define NDB_SOCKET_TYPE int
 #define NDB_INVALID_SOCKET -1
-#define NDB_CLOSE_SOCKET(x) close(x)
+#define _NDB_CLOSE_SOCKET(x) close(x)
 
 /**
  * socklen_t not defined in the header files of OSE 
@@ -52,7 +52,7 @@ typedef int socklen_t;
 #define EWOULDBLOCK WSAEWOULDBLOCK
 #define NDB_SOCKET_TYPE SOCKET
 #define NDB_INVALID_SOCKET INVALID_SOCKET
-#define NDB_CLOSE_SOCKET(x) closesocket(x)
+#define _NDB_CLOSE_SOCKET(x) closesocket(x)
 
 #else
 
@@ -64,7 +64,7 @@ typedef int socklen_t;
 #define NDB_NONBLOCK O_NONBLOCK
 #define NDB_SOCKET_TYPE int
 #define NDB_INVALID_SOCKET -1
-#define NDB_CLOSE_SOCKET(x) ::close(x)
+#define _NDB_CLOSE_SOCKET(x) ::close(x)
 
 #define InetErrno errno
 
@@ -88,6 +88,12 @@ extern "C" {
  *      inet_addr
  */
 int Ndb_getInAddr(struct in_addr * dst, const char *address);
+
+#ifdef DBUG_OFF
+#define NDB_CLOSE_SOCKET(fd) _NDB_CLOSE_SOCKET(fd)
+#else
+int NDB_CLOSE_SOCKET(int fd);
+#endif
 
 #ifdef	__cplusplus
 }
