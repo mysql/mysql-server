@@ -4229,7 +4229,7 @@ Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
 
 
 bool
-Item_func_get_system_var::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_func_get_system_var::fix_fields(THD *thd, Item **ref)
 {
   Item *item= var->item(thd, var_type, &component);
   DBUG_ENTER("Item_func_get_system_var::fix_fields");
