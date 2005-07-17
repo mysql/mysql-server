@@ -2138,3 +2138,21 @@ insert into t2 values (0), (254), (255);
 explain select * from t2 where a > -1;
 select * from t2 where a > -1;
 drop table t2;
+
+#
+# Bug #11745: SELECT ... FROM DUAL with WHERE condition
+#
+
+CREATE TABLE t1 (a int, b int, c int);
+INSERT INTO t1
+  SELECT 50, 3, 3 FROM DUAL
+    WHERE NOT EXISTS
+      (SELECT * FROM t1 WHERE a = 50 AND b = 3);
+SELECT * FROM t1;
+INSERT INTO t1
+  SELECT 50, 3, 3 FROM DUAL
+    WHERE NOT EXISTS
+      (SELECT * FROM t1 WHERE a = 50 AND b = 3);
+SELECT * FROM t1;
+
+DROP TABLE t1;
