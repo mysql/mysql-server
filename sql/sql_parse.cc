@@ -1940,7 +1940,8 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (tables || &lex->select_lex != lex->all_selects_list)
+  if (tables || &lex->select_lex != lex->all_selects_list ||
+      lex->time_zone_tables_used)
     mysql_reset_errors(thd);
 
   /*
@@ -4123,6 +4124,14 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->select_number= ++lex->thd->select_number;
   select_lex->init_query();
   select_lex->init_select();
+  /*
+    Don't evaluate this subquery during statement prepare even if
+    it's a constant one. The flag is switched off in the end of
+    mysql_stmt_prepare.
+  */
+  if (lex->thd->current_arena->is_stmt_prepare())
+    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
+
   if (move_down)
   {
     lex->subqueries= TRUE;
@@ -5405,7 +5414,7 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list)
+  if (&lex->select_lex != lex->all_selects_list || lex->time_zone_tables_used)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next)

@@ -257,8 +257,8 @@ private:
   void hbReceivedLab(Signal* signal);
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
 		       CmRegRef::ErrorCode);
-  void systemErrorBecauseOtherNodeFailed(Signal* signal, NodeId);
-  void systemErrorLab(Signal* signal,
+  void systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line, NodeId);
+  void systemErrorLab(Signal* signal, Uint32 line,
 		      const char* message = NULL);
   void prepFailReqLab(Signal* signal);
   void prepFailConfLab(Signal* signal);

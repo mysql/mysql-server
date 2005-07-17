@@ -306,24 +306,28 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len)
 
 static void set_param_float(Item_param *param, uchar **pos, ulong len)
 {
+  float data;
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
-#endif
-  float data;
   float4get(data,*pos);
+#else
+  data= *(float*) *pos;
+#endif
   param->set_double((double) data);
   *pos+= 4;
 }
 
 static void set_param_double(Item_param *param, uchar **pos, ulong len)
 {
+  double data;
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-#endif
-  double data;
   float8get(data,*pos);
+#else
+  data= *(double*) *pos;
+#endif
   param->set_double((double) data);
   *pos+= 8;
 }
@@ -1657,13 +1661,18 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   {
     stmt->setup_set_params();
     SELECT_LEX *sl= stmt->lex->all_selects_list;
-    /*
-      Save WHERE clause pointers, because they may be changed during query
-      optimisation.
-    */
     for (; sl; sl= sl->next_select_in_list())
     {
+      /*
+        Save WHERE clause pointers, because they may be changed
+        during query optimisation.
+      */
       sl->prep_where= sl->where;
+      /*
+        Switch off a temporary flag that prevents evaluation of
+        subqueries in statement prepare.
+      */
+      sl->uncacheable&= ~UNCACHEABLE_PREPARE;
     }
     stmt->state= Item_arena::PREPARED;
   }

@@ -388,6 +388,9 @@ String *Item_func_des_encrypt::val_str(String *str)
 
   if (arg_count == 1)
   {
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     /* Protect against someone doing FLUSH DES_KEY_FILE */
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number=des_default_key];
@@ -398,6 +401,10 @@ String *Item_func_des_encrypt::val_str(String *str)
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
+
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
     VOID(pthread_mutex_unlock(&LOCK_des_key_file));
@@ -485,6 +492,10 @@ String *Item_func_des_decrypt::val_str(String *str)
     // Check if automatic key and that we have privilege to uncompress using it
     if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
       goto error;
+
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
     VOID(pthread_mutex_unlock(&LOCK_des_key_file));
@@ -2337,9 +2348,21 @@ String *Item_func_hex::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
-    /* Return hex of unsigned longlong value */
-    longlong dec= args[0]->val_int();
+    ulonglong dec;
     char ans[65],*ptr;
+    /* Return hex of unsigned longlong value */
+    if (args[0]->result_type() == REAL_RESULT)
+    {
+      double val= args[0]->val();
+      if ((val <= (double) LONGLONG_MIN) || 
+          (val >= (double) (ulonglong) ULONGLONG_MAX))
+        dec=  ~(longlong) 0;
+      else
+        dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));
+    }
+    else
+      dec= (ulonglong) args[0]->val_int();
+
     if ((null_value= args[0]->null_value))
       return 0;
     ptr= longlong2str(dec,ans,16);

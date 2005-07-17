@@ -143,6 +143,7 @@ extern "C"
 NdbMgmHandle
 ndb_mgm_create_handle()
 {
+  DBUG_ENTER("ndb_mgm_create_handle");
   NdbMgmHandle h     =
     (NdbMgmHandle)my_malloc(sizeof(ndb_mgm_handle),MYF(MY_WME));
   h->connected       = 0;
@@ -162,17 +163,20 @@ ndb_mgm_create_handle()
   h->logfile = 0;
 #endif
 
-  return h;
+  DBUG_PRINT("exit",("ret: %lx", h));
+  DBUG_RETURN(h);
 }
 
 extern "C"
 int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
 {
+  handle->cfg.~LocalConfig();
   new (&(handle->cfg)) LocalConfig;
   if (!handle->cfg.init(mgmsrv, 0) ||
       handle->cfg.ids.size() == 0)
   {
+    handle->cfg.~LocalConfig();
     new (&(handle->cfg)) LocalConfig;
     handle->cfg.init(0, 0); /* reset the LocalCongig */
     SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
@@ -189,8 +193,11 @@ extern "C"
 void
 ndb_mgm_destroy_handle(NdbMgmHandle * handle)
 {
+  DBUG_ENTER("ndb_mgm_destroy_handle");
   if(!handle)
     return;
+  DBUG_PRINT("enter",("*handle: %lx", *handle));
+
   if((* handle)->connected){
     ndb_mgm_disconnect(* handle);
   }
@@ -203,6 +210,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   (*handle)->cfg.~LocalConfig();
   my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************************
@@ -251,6 +259,9 @@ static const Properties *
 ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 	     const char *cmd, const Properties *cmd_args) 
 {
+  DBUG_ENTER("ndb_mgm_call");
+  DBUG_PRINT("enter",("handle->socket: %d, cmd: %s",
+		      handle->socket, cmd));
   SocketOutputStream out(handle->socket);
   SocketInputStream in(handle->socket, handle->read_timeout);
 
@@ -310,6 +321,8 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
     /**
      * Print some info about why the parser returns NULL
      */
+    DBUG_PRINT("info",("ctx.status: %d, ctx.m_currentToken: %s",
+		       ctx.m_status, ctx.m_currentToken));
     //ndbout << " status=" << ctx.m_status << ", curr="
     //<< ctx.m_currentToken << endl;
   } 
@@ -321,9 +334,9 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
     p->print(handle->logfile, "IN: ");
   }
 #endif
-  return p;
+  DBUG_RETURN(p);
 #else
-   return parser.parse(ctx, session);
+  DBUG_RETURN(parser.parse(ctx, session));
 #endif
 }
 

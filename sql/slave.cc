@@ -4462,6 +4462,7 @@ void rotate_relay_log(MASTER_INFO* mi)
   RELAY_LOG_INFO* rli= &mi->rli;
 
   lock_slave_threads(mi);
+  pthread_mutex_lock(&mi->data_lock);
   pthread_mutex_lock(&rli->data_lock);
   /* 
      We need to test inited because otherwise, new_file() will attempt to lock
@@ -4492,6 +4493,7 @@ void rotate_relay_log(MASTER_INFO* mi)
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
   pthread_mutex_unlock(&rli->data_lock);
+  pthread_mutex_unlock(&mi->data_lock);
   unlock_slave_threads(mi);
   DBUG_VOID_RETURN;
 }

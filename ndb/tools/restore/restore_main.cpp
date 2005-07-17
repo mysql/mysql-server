@@ -251,8 +251,9 @@ main(int argc, char** argv)
   const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
   const Uint32 version = tmp.NdbVersion;
   
+  char buf[NDB_VERSION_STRING_BUF_SZ];
   ndbout << "Ndb version in backup files: " 
-	 <<  getVersionString(version, 0) << endl;
+	 <<  getVersionString(version, 0, buf, sizeof(buf)) << endl;
   
   /**
    * check wheater we can restore the backup (right version).

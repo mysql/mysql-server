@@ -77,8 +77,8 @@ def	test	t9	t9	c25	c25	252	65535	4	Y	144	0	63
 def	test	t9	t9	c26	c26	252	65535	4	Y	16	0	8
 def	test	t9	t9	c27	c27	252	16777215	10	Y	144	0	63
 def	test	t9	t9	c28	c28	252	16777215	10	Y	16	0	8
-def	test	t9	t9	c29	c29	252	16777215	8	Y	144	0	63
-def	test	t9	t9	c30	c30	252	16777215	8	Y	16	0	8
+def	test	t9	t9	c29	c29	252	4294967295	8	Y	144	0	63
+def	test	t9	t9	c30	c30	252	4294967295	8	Y	16	0	8
 def	test	t9	t9	c31	c31	254	5	3	Y	256	0	8
 def	test	t9	t9	c32	c32	254	24	7	Y	2048	0	8
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32
@@ -1812,17 +1812,17 @@ def	test	t5	t5	param02	param02	5	20	1	Y	32768	31	63
 def	test	t5	t5	const03	const03	5	23	1	N	32769	31	63
 def	test	t5	t5	param03	param03	5	20	1	Y	32768	31	63
 def	test	t5	t5	const04	const04	254	3	3	N	1	0	8
-def	test	t5	t5	param04	param04	252	16777215	3	Y	16	0	8
+def	test	t5	t5	param04	param04	252	4294967295	3	Y	16	0	8
 def	test	t5	t5	const05	const05	254	3	3	N	129	0	63
-def	test	t5	t5	param05	param05	252	16777215	3	Y	144	0	63
+def	test	t5	t5	param05	param05	252	4294967295	3	Y	144	0	63
 def	test	t5	t5	const06	const06	253	10	10	N	1	0	8
-def	test	t5	t5	param06	param06	252	16777215	10	Y	16	0	8
+def	test	t5	t5	param06	param06	252	4294967295	10	Y	16	0	8
 def	test	t5	t5	const07	const07	10	10	10	Y	128	0	63
-def	test	t5	t5	param07	param07	252	16777215	10	Y	144	0	63
+def	test	t5	t5	param07	param07	252	4294967295	10	Y	144	0	63
 def	test	t5	t5	const08	const08	253	19	19	N	1	0	8
-def	test	t5	t5	param08	param08	252	16777215	19	Y	16	0	8
+def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	8
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
-def	test	t5	t5	param09	param09	252	16777215	19	Y	144	0	63
+def	test	t5	t5	param09	param09	252	4294967295	19	Y	144	0	63
 def	test	t5	t5	const10	const10	3	10	9	N	32769	0	63
 def	test	t5	t5	param10	param10	8	20	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
@@ -1830,8 +1830,8 @@ def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	5	20	0	Y	32768	31	63
-def	test	t5	t5	param14	param14	252	16777215	0	Y	16	0	8
-def	test	t5	t5	param15	param15	252	16777215	0	Y	144	0	63
+def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	8
+def	test	t5	t5	param15	param15	252	4294967295	0	Y	144	0	63
 const01	8
 param01	8
 const02	8.0

@@ -201,3 +201,16 @@ analyze table t1,t2;
 update t1, t2 set t1.a = t2.a where t2.b = t1.b;
 show warnings;
 drop table t1, t2;
+
+#
+# Bug #11868 Update with subquery with ref built with a key from the updated
+#            table crashes server
+#
+create table t1(f1 int, f2 int);
+create table t2(f3 int, f4 int);
+create index idx on t2(f3);
+insert into t1 values(1,0),(2,0);
+insert into t2 values(1,1),(2,2);
+UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
+select * from t1;
+drop table t1,t2;
