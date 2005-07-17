@@ -30,6 +30,42 @@
 #define FEDERATED_QUERY_BUFFER_SIZE STRING_BUFFER_USUAL_SIZE * 5
 #define FEDERATED_RECORDS_IN_RANGE 2
 
+#define FEDERATED_INFO " SHOW TABLE STATUS LIKE "
+#define FEDERATED_SELECT "SELECT "
+#define FEDERATED_WHERE " WHERE "
+#define FEDERATED_FROM " FROM "
+#define FEDERATED_PERCENT "%"
+#define FEDERATED_IS " IS "
+#define FEDERATED_NULL " NULL "
+#define FEDERATED_ISNULL " IS NULL "
+#define FEDERATED_LIKE " LIKE "
+#define FEDERATED_TRUNCATE "TRUNCATE "
+#define FEDERATED_DELETE "DELETE "
+#define FEDERATED_INSERT "INSERT INTO "
+#define FEDERATED_LIMIT1 " LIMIT 1"
+#define FEDERATED_VALUES "VALUES "
+#define FEDERATED_UPDATE "UPDATE "
+#define FEDERATED_SET "SET "
+#define FEDERATED_AND " AND "
+#define FEDERATED_CONJUNCTION ") AND ("
+#define FEDERATED_OR " OR "
+#define FEDERATED_NOT " NOT "
+#define FEDERATED_STAR "* "
+#define FEDERATED_SPACE " "
+#define FEDERATED_SQUOTE "'"
+#define FEDERATED_COMMA ", "
+#define FEDERATED_DQOUTE '"' 
+#define FEDERATED_BTICK  "`" 
+#define FEDERATED_OPENPAREN " ("
+#define FEDERATED_CLOSEPAREN ") "
+#define FEDERATED_NE " != "
+#define FEDERATED_GT " > "
+#define FEDERATED_LT " < "
+#define FEDERATED_LE " <= "
+#define FEDERATED_GE " >= "
+#define FEDERATED_EQ " = "
+#define FEDERATED_1EQ0   " 1=0"
+
 /*
   FEDERATED_SHARE is a structure that will be shared amoung all open handlers
   The example implements the minimum of what you will probably need.
@@ -65,7 +101,7 @@ class ha_federated: public handler
   THR_LOCK_DATA lock;      /* MySQL lock */
   FEDERATED_SHARE *share;    /* Shared lock info */
   MYSQL *mysql; /* MySQL connection */
-  MYSQL_RES *result;
+  MYSQL_RES *stored_result;
   bool scan_flag;
   uint ref_length;
   uint fetch_num; // stores the fetch num
@@ -84,7 +120,7 @@ private:
 
 public:
   ha_federated(TABLE *table): handler(table),
-    mysql(0), result(0), scan_flag(0),
+    mysql(0), stored_result(0), scan_flag(0),
     ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)
   {
   }
@@ -145,13 +181,18 @@ public:
   double scan_time()
   {
     DBUG_PRINT("info",
-               ("records %d", records)); return (double)(records*1000); 
+               ("records %d", records));
+    return (double)(records*1000); 
   }
   /*
     The next method will never be called if you do not implement indexes.
   */
   double read_time(uint index, uint ranges, ha_rows rows) 
   {
+    /*
+      Per Brian, this number is bugus, but this method must be implemented,
+      and at a later date, he intends to document this issue for handler code
+    */
     return (double) rows /  20.0+1;
   }
 
@@ -190,7 +231,7 @@ public:
   int rnd_init(bool scan);                                      //required
   int rnd_end();
   int rnd_next(byte *buf);                                      //required
-  int rnd_pos(byte *buf, byte *pos);                           //required
+  int rnd_pos(byte *buf, byte *pos);                            //required
   void position(const byte *record);                            //required
   void info(uint);                                              //required
 
