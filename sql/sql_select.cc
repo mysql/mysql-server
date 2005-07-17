@@ -2834,11 +2834,11 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
         cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	     !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
         values--;
+      DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
+                  cond_func->argument_count() != 2);
       add_key_equal_fields(key_fields, *and_level, cond_func,
                            (Item_field*) (cond_func->key_item()->real_item()),
-                           cond_func->argument_count() == 2 &&
-                           cond_func->functype() == Item_func::IN_FUNC,
-                           values,
+                           0, values,
                            cond_func->argument_count()-1,
                            usable_tables);
     }

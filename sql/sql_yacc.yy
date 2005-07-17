@@ -4227,9 +4227,25 @@ bool_pri:
 
 predicate:
 	 bit_expr IN_SYM '(' expr_list ')'
-	  { $4->push_front($1); $$= new Item_func_in(*$4); }
+	  { 
+            if ($4->elements == 1)
+              $$= new Item_func_eq($1, $4->head());
+            else
+            {
+              $4->push_front($1);
+              $$= new Item_func_in(*$4);
+            }
+          }
 	| bit_expr not IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= negate_expression(YYTHD, new Item_func_in(*$5)); }
+          {
+            if ($5->elements == 1)
+              $$= new Item_func_ne($1, $5->head());
+            else
+            {
+              $5->push_front($1);
+              $$= negate_expression(YYTHD, new Item_func_in(*$5));
+            }            
+          }
         | bit_expr IN_SYM in_subselect
 	  { $$= new Item_in_subselect($1, $3); }
 	| bit_expr not IN_SYM in_subselect
