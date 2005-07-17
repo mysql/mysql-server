@@ -1834,6 +1834,17 @@ static void net_clear_error(NET *net)
   }
 }
 
+
+static void stmt_clear_error(MYSQL_STMT *stmt)
+{
+  if (stmt->last_errno)
+  {
+    stmt->last_errno= 0;
+    stmt->last_error[0]= '\0';
+    strmov(stmt->sqlstate, not_error_sqlstate);
+  }
+}
+
 /*
   Set statement error code, sqlstate, and error message
   from given errcode and sqlstate.
@@ -4625,6 +4636,7 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
        param < param_end;
        param++)
     param->long_data_used= 0;
+  stmt_clear_error(stmt);
 
   DBUG_RETURN(0);
 }

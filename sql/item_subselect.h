@@ -119,7 +119,6 @@ public:
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, TABLE_LIST *, Item **);
   friend bool Item_ref::fix_fields(THD *, TABLE_LIST *, Item **);
-  friend bool Item_param::fix_fields(THD *, TABLE_LIST *, Item **);
 };
 
 /* single value subselect */

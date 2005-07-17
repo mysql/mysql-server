@@ -571,10 +571,11 @@ MgmtSrvr::check_start()
 bool 
 MgmtSrvr::start(BaseString &error_string)
 {
+  DBUG_ENTER("MgmtSrvr::start");
   if (_props == NULL) {
     if (!check_start()) {
       error_string.append("MgmtSrvr.cpp: check_start() failed.");
-      return false;
+      DBUG_RETURN(false);
     }
   }
   theFacade= TransporterFacade::theFacadeInstance= new TransporterFacade();
@@ -582,12 +583,12 @@ MgmtSrvr::start(BaseString &error_string)
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
     error_string.append("MgmtSrvr.cpp: theFacade is NULL.");
-    return false;
+    DBUG_RETURN(false);
   }  
   if ( theFacade->start_instance
        (_ownNodeId, (ndb_mgm_configuration*)_config->m_configValues) < 0) {
     DEBUG("MgmtSrvr.cpp: TransporterFacade::start_instance < 0.");
-    return false;
+    DBUG_RETURN(false);
   }
 
   MGM_REQUIRE(_blockNumber == 1);
@@ -603,7 +604,7 @@ MgmtSrvr::start(BaseString &error_string)
     error_string.append("MgmtSrvr.cpp: _blockNumber is -1.");
     theFacade->stop_instance();
     theFacade = 0;
-    return false;
+    DBUG_RETURN(false);
   }
   
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
@@ -625,7 +626,7 @@ MgmtSrvr::start(BaseString &error_string)
 					"MgmtSrvr_Service",
 					NDB_THREAD_PRIO_LOW);
 
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -639,6 +640,7 @@ MgmtSrvr::~MgmtSrvr()
 
   if(theFacade != 0){
     theFacade->stop_instance();
+    delete theFacade;
     theFacade = 0;
   }
 
@@ -2124,6 +2126,24 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
   return nodeTypes[nodeId];
 }
 
+const char *MgmtSrvr::get_connect_address(Uint32 node_id)
+{
+  if (m_connect_address[node_id].s_addr == 0 &&
+      theFacade && theFacade->theTransporterRegistry &&
+      theFacade->theClusterMgr &&
+      getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB) 
+  {
+    const ClusterMgr::Node &node=
+      theFacade->theClusterMgr->getNodeInfo(node_id);
+    if (node.connected)
+    {
+      m_connect_address[node_id]=
+	theFacade->theTransporterRegistry->get_connect_address(node_id);
+    }
+  }
+  return inet_ntoa(m_connect_address[node_id]);  
+}
+
 void
 MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 {
@@ -2582,19 +2602,6 @@ MgmtSrvr::repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted)
   return 0;
 }
 
-
-/*****************************************************************************
- * Area 51 ???
- *****************************************************************************/
-
-MgmtSrvr::Area51
-MgmtSrvr::getStuff()
-{
-  Area51 ret;
-  ret.theFacade = theFacade;
-  ret.theRegistry = theFacade->theTransporterRegistry;
-  return ret;
-}
 
 NodeId
 MgmtSrvr::getPrimaryNode() const {

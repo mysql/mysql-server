@@ -1746,3 +1746,11 @@ CREATE TABLE `t2` (
 INSERT INTO `t2` VALUES (1, 1, 1, '10.10.10.1');
 SELECT s.ip, count( e.itemid ) FROM `t1` e JOIN t2 s ON s.sessionid = e.sessionid WHERE e.sessionid = ( SELECT sessionid FROM t2 ORDER BY sessionid DESC LIMIT 1 ) GROUP BY s.ip HAVING count( e.itemid ) >0 LIMIT 0 , 30;
 drop tables t1,t2;
+
+# BUG#11821 : Select from subselect using aggregate function on an enum
+# segfaults:
+create table t1 (fld enum('0','1'));
+insert into t1 values ('1');
+select * from (select max(fld) from t1) as foo;
+drop table t1;
+
