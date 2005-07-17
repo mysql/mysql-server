@@ -606,3 +606,8 @@ insert t1 values ('ab'), ('abc'), ('abcd'), ('abcde');
 select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1;
 select * from (select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1) t;
 drop table t1;
+
+#
+# Bug #9854  hex() and out of range handling
+#
+select hex(29223372036854775809), hex(-29223372036854775809);

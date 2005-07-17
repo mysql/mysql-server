@@ -657,7 +657,13 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    tmp->killed=1;
+    /* 
+     Re: bug 7403 - close_connection will be called mulitple times
+     bug a wholesale clean up of our network code is a very large 
+     project.  This will wake up the socket on Windows and prevent the
+     printing of the error message that we are force closing a connection.
+    */
+    close_connection(tmp, 0, 1);  
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
