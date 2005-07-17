@@ -101,3 +101,21 @@ create table t1 (a char(20) character set binary);
 insert into t1 values ('aa'), ('bb');
 select * from t1 where a in (NULL, 'aa');
 drop table t1;
+
+#
+# Bug #11885: WHERE condition with NOT IN (one element)          
+#             
+
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES (44), (45), (46);
+
+SELECT * FROM t1 WHERE a IN (45);
+SELECT * FROM t1 WHERE a NOT IN (0, 45);
+SELECT * FROM t1 WHERE a NOT IN (45);
+
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a NOT IN (45);
+SHOW CREATE VIEW v1;
+SELECT * FROM v1; 
+
+DROP VIEW v1;
+DROP TABLE t1;
