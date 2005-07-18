@@ -3531,7 +3531,8 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     if (arg->type() != Item::FUNC_ITEM)
       DBUG_RETURN(0);
     cond_func= (Item_func*) arg;
-    if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
+    if (cond_func->functype() != Item_func::BETWEEN &&
+        cond_func->functype() != Item_func::IN_FUNC)
       DBUG_RETURN(0);
     inv= TRUE;
   }

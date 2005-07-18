@@ -357,7 +357,14 @@ public:
   Item_func_sysconst()
   { collation.set(system_charset_info,DERIVATION_SYSCONST); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
+  /*
+    Used to create correct Item name in new converted item in
+    safe_charset_converter, return string representation of this function
+    call
+  */
+  virtual const char *fully_qualified_func_name() const = 0;
 };
+
 
 class Item_func_database :public Item_func_sysconst
 {
@@ -370,18 +377,27 @@ public:
     maybe_null=1;
   }
   const char *func_name() const { return "database"; }
+  const char *fully_qualified_func_name() const { return "database()"; }
 };
+
 
 class Item_func_user :public Item_func_sysconst
 {
+  bool is_current;
+
 public:
-  Item_func_user() :Item_func_sysconst() {}
+  Item_func_user(bool is_current_arg)
+    :Item_func_sysconst(), is_current(is_current_arg) {}
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
-    max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*system_charset_info->mbmaxlen;
+  void fix_length_and_dec()
+  {
+    max_length= ((USERNAME_LENGTH + HOSTNAME_LENGTH + 1) *
+                 system_charset_info->mbmaxlen);
   }
-  const char *func_name() const { return "user"; }
+  const char *func_name() const
+    { return is_current ? "current_user" : "user"; }
+  const char *fully_qualified_func_name() const
+    { return is_current ? "current_user()" : "user()"; }
 };
 
 
