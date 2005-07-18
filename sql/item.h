@@ -1132,6 +1132,7 @@ public:
   Item_static_int_func(const char *str_arg, longlong i, uint length)
     :Item_int(NullS, i, length), func_name(str_arg)
   {}
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
 };
 
@@ -1242,6 +1243,7 @@ public:
     :Item_float(NullS, val_arg, decimal_par, length), func_name(str)
   {}
   void print(String *str) { str->append(func_name); }
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 
@@ -1314,6 +1316,7 @@ public:
                           Derivation dv= DERIVATION_COERCIBLE)
     :Item_string(NullS, str, length, cs, dv), func_name(name_par)
   {}
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
 };
 
