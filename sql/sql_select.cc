@@ -6720,7 +6720,7 @@ static COND *build_equal_items_for_cond(COND *cond,
        of the condition expression.
     */
     li.rewind();
-    while((item= li++))
+    while ((item= li++))
     { 
       Item *new_item;
       if ((new_item = build_equal_items_for_cond(item, inherited))!= item)
@@ -7529,7 +7529,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     
   /* Flatten nested joins that can be flattened. */
   li.rewind();
-  while((table= li++))
+  while ((table= li++))
   {
     nested_join= table->nested_join;
     if (nested_join && !table->on_expr)
@@ -12125,7 +12125,6 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
-  uint index= 0;
 
   *all_order_by_fields_used= 1;
   while ((item=li++))
@@ -12162,12 +12161,12 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
         simple indexing of ref_pointer_array (order in the array and in the
         list are same)
       */
-      ord->item= ref_pointer_array + index;
+      ord->item= ref_pointer_array;
       ord->asc=1;
       *prev=ord;
       prev= &ord->next;
     }
-    index++;
+    ref_pointer_array++;
   }
   *prev=0;
   return group;
@@ -12996,7 +12995,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
           if (item->eq(*group_tmp->item,0))
           {
             Item *new_item;
-            if(!(new_item= new Item_ref(context, group_tmp->item, 0,
+            if (!(new_item= new Item_ref(context, group_tmp->item, 0,
                                         item->name)))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);

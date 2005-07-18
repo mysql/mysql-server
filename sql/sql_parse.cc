@@ -2151,7 +2151,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       sel= new SELECT_LEX();
       sel->init_query();
-      if(!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
+      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
                                  (List<String> *) 0, (List<String> *) 0))
         DBUG_RETURN(1);
       lex->query_tables_last= query_tables_last;

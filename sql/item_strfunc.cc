@@ -2118,7 +2118,7 @@ String *Item_func_rpad::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
-  if(args[2]->null_value || !pad_char_length)
+  if (args[2]->null_value || !pad_char_length)
     goto err;
   res_byte_length= res->length();	/* Must be done before alloc_buffer */
   if (!(res= alloc_buffer(res,str,&tmp_value,byte_count)))
