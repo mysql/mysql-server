@@ -1652,15 +1652,7 @@ err:
 
 /*
   Return an Item for a variable.  Used with @@[global.]variable_name
-
   If type is not given, return local value if exists, else global
-
-  We have to use netprintf() instead of my_error() here as this is
-  called on the parsing stage.
-
-  TODO:
-    With prepared statements/stored procedures this has to be fixed
-    to create an item that gets the current value at fix_fields() stage.
 */
 
 Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)

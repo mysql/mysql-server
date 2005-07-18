@@ -119,7 +119,7 @@ c char(1) character set latin1 collate latin1_danish_ci
 insert into t1 values ('A','B','C');
 insert into t1 values ('a','c','c');
 select * from t1 where a in (b);
-ERROR HY000: Illegal mix of collations (latin1_general_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation ' IN '
+ERROR HY000: Illegal mix of collations (latin1_general_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '='
 select * from t1 where a in (b,c);
 ERROR HY000: Illegal mix of collations (latin1_general_ci,IMPLICIT), (latin1_swedish_ci,IMPLICIT), (latin1_danish_ci,IMPLICIT) for operation ' IN '
 select * from t1 where 'a' in (a,b,c);
@@ -193,3 +193,26 @@ select * from t1 where a in (NULL, 'aa');
 a
 aa
 drop table t1;
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES (44), (45), (46);
+SELECT * FROM t1 WHERE a IN (45);
+a
+45
+SELECT * FROM t1 WHERE a NOT IN (0, 45);
+a
+44
+46
+SELECT * FROM t1 WHERE a NOT IN (45);
+a
+44
+46
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a NOT IN (45);
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <> 45)
+SELECT * FROM v1;
+a
+44
+46
+DROP VIEW v1;
+DROP TABLE t1;
