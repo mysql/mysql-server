@@ -5185,7 +5185,12 @@ static void add_not_null_conds(JOIN *join)
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
-          if (referred_tab->join != join)
+          /*
+            For UPDATE queries such as:
+            UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
+            not_null_item is the t1.f1, but it's referred_tab is 0.
+          */
+          if (!referred_tab || referred_tab->join != join)
             continue;
           Item *notnull;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
