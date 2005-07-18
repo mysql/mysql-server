@@ -1512,7 +1512,7 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
 }
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
-int ha_federated::index_init(uint keynr)
+int ha_federated::index_init(uint keynr, bool sorted)
 {
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info",

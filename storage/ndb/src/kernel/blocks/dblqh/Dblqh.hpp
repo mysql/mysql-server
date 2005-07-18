@@ -2096,7 +2096,7 @@ private:
   void execSTART_EXEC_SR(Signal* signal);
   void execEXEC_SRREQ(Signal* signal);
   void execEXEC_SRCONF(Signal* signal);
-  void execREAD_PSUEDO_REQ(Signal* signal);
+  void execREAD_PSEUDO_REQ(Signal* signal);
   
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_COM_BLOCK(Signal* signal);

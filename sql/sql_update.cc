@@ -148,7 +148,7 @@ int mysql_update(THD *thd,
     /* pass counter value */
     thd->lex->table_count= table_count;
     /* convert to multiupdate */
-    return 2;
+    DBUG_RETURN(2);
   }
 
   if (lock_tables(thd, table_list, table_count) ||
@@ -265,7 +265,12 @@ int mysql_update(THD *thd,
   else
     used_key_is_modified=0;
 
+#ifdef HAVE_PARTITION_DB
+  if (used_key_is_modified || order ||
+      partition_key_modified(table, fields))
+#else
   if (used_key_is_modified || order)
+#endif
   {
     /*
       We can't update table directly;  We must first search after all
@@ -452,8 +457,8 @@ int mysql_update(THD *thd,
             call then it should be included in the count of dup_key_found
             and error should be set to 0 (only if these errors are ignored).
           */
-          error= table->file->bulk_update_row(table->record[0],
-                                              table->record[1],
+          error= table->file->bulk_update_row(table->record[1],
+                                              table->record[0],
                                               &dup_key_found);
           limit+= dup_key_found;
           updated-= dup_key_found;

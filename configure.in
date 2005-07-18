@@ -2437,6 +2437,7 @@ MYSQL_CHECK_CSVDB
 MYSQL_CHECK_BLACKHOLEDB
 MYSQL_CHECK_NDBCLUSTER
 MYSQL_CHECK_FEDERATED
+MYSQL_CHECK_PARTITIONDB
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=

@@ -1,0 +1,58 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Basic syntax test
+#
+
+# Support for partition key verified
+CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b,c))
+  ENGINE = NDB
+  PARTITION BY KEY (a,b);
+
+insert into t1 values (1,1,1,1);
+select * from t1;
+update t1 set d = 2 where a = 1 and b = 1 and c = 1;
+select * from t1;
+delete from t1;
+select * from t1;
+
+drop table t1;
+
+# only support for partition key on primary key
+--error 1453
+CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b))
+  ENGINE = NDB
+  PARTITION BY KEY (c);
+
+CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
+  ENGINE = NDB
+  PARTITION BY KEY (a);
+
+insert into t1 values 
+       (1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
+       (1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
+
+select * from t1 order by b;
+
+DROP TABLE t1;
+
+#
+# Test partition and char support
+#
+
+CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
+                 PRIMARY KEY USING HASH (a,b,c))
+                 ENGINE=NDB
+                 DEFAULT CHARSET=latin1
+                 PARTITION BY KEY (b);
+
+insert into t1 values (1,"a",1,1),(2,"a",1,1),(3,"a",1,1);
+
+# should show only one attribute with DISTRIBUTION KEY
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | sed 's/Version: [0-9]*//'
+
+DROP TABLE t1;

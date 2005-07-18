@@ -786,6 +786,7 @@ struct show_var_st init_vars[]= {
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
   {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
+  {"have_partition_engine",   (char*) &have_partition_db,	    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
   {"have_rtree_keys",         (char*) &have_rtree_keys,             SHOW_HAVE},

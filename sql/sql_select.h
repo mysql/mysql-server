@@ -133,6 +133,7 @@ typedef struct st_join_table {
   uint		used_fields,used_fieldlength,used_blobs;
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
+  bool		sorted;
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;

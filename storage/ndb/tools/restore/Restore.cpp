@@ -226,7 +226,8 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
     return false;
 
   debug << "parseTableInfo " << tableImpl->getName() << " done" << endl;
-
+  tableImpl->m_ng.clear();
+  tableImpl->m_fragmentType = NdbDictionary::Object::FragAllSmall;
   TableS * table = new TableS(m_fileHeader.NdbVersion, tableImpl);
   if(table == NULL) {
     return false;

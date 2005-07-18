@@ -63,7 +63,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			examples/ha_example.h examples/ha_archive.h \
 			examples/ha_tina.h ha_blackhole.h  \
-			ha_federated.h
+			ha_federated.h ha_partition.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -100,6 +100,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
 			examples/ha_example.cc examples/ha_archive.cc \
 			examples/ha_tina.cc ha_blackhole.cc \
+                        ha_partition.cc sql_partition.cc \
 			ha_federated.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc

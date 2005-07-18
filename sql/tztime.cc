@@ -1623,7 +1623,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     mysql.time_zone* tables are MyISAM and these operations always succeed
     for MyISAM.
   */
-  (void)table->file->ha_index_init(0);
+  (void)table->file->ha_index_init(0, 1);
   tz_leapcnt= 0;
 
   res= table->file->index_first(table->record[0]);
@@ -1800,7 +1800,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     mysql.time_zone* tables are MyISAM and these operations always succeed
     for MyISAM.
   */
-  (void)table->file->ha_index_init(0);
+  (void)table->file->ha_index_init(0, 1);
 
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
                               0, HA_READ_KEY_EXACT))
@@ -1827,7 +1827,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong)tzid);
-  (void)table->file->ha_index_init(0);
+  (void)table->file->ha_index_init(0, 1);
 
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
                               0, HA_READ_KEY_EXACT))
@@ -1854,7 +1854,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong)tzid);
-  (void)table->file->ha_index_init(0);
+  (void)table->file->ha_index_init(0, 1);
 
   // FIXME Is there any better approach than explicitly specifying 4 ???
   res= table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
@@ -1926,7 +1926,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table; 
   table->field[0]->store((longlong)tzid);
-  (void)table->file->ha_index_init(0);
+  (void)table->file->ha_index_init(0, 1);
 
   // FIXME Is there any better approach than explicitly specifying 4 ???
   res= table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,

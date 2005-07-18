@@ -1,0 +1,77 @@
+#--disable_abort_on_error
+#
+# Simple test for the partition storage engine
+# Taken fromm the select test
+#
+-- source include/have_partition.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Partition by hash, basic
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a + 2)
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+
+insert into t1 values (1,1,1);
+insert into t1 values (2,1,1);
+insert into t1 values (3,1,1);
+insert into t1 values (4,1,1);
+insert into t1 values (5,1,1);
+
+select * from t1;
+
+update t1 set c=3 where b=1;
+select * from t1;
+
+select b from t1 where a=3;
+select b,c from t1 where a=1 AND b=1;
+
+delete from t1 where a=1;
+delete from t1 where c=3;
+
+select * from t1;
+
+ALTER TABLE t1
+partition by hash (a + 3)
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+select * from t1;
+drop table t1;
+
+#
+# Partition by hash, only one partition
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a)
+(partition x1);
+
+drop table t1;
+#
+# Partition by key, only one partition
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+(partition x1);
+
+drop table t1;

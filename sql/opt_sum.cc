@@ -181,7 +181,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             const_result= 0;
             break;
           }
-          error= table->file->ha_index_init((uint) ref.key);
+          error= table->file->ha_index_init((uint) ref.key, 1);
 
           if (!ref.key_length)
             error= table->file->index_first(table->record[0]);
@@ -253,7 +253,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             const_result= 0;
             break;
           }
-          error= table->file->ha_index_init((uint) ref.key);
+          error= table->file->ha_index_init((uint) ref.key, 1);
 
           if (!ref.key_length)
             error= table->file->index_last(table->record[0]);

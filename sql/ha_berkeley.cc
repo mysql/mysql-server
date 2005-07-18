@@ -1360,7 +1360,7 @@ int ha_berkeley::delete_row(const byte * record)
 }
 
 
-int ha_berkeley::index_init(uint keynr)
+int ha_berkeley::index_init(uint keynr, bool sorted)
 {
   int error;
   DBUG_ENTER("ha_berkeley::index_init");
@@ -1638,7 +1638,7 @@ int ha_berkeley::rnd_init(bool scan)
 {
   DBUG_ENTER("rnd_init");
   current_row.flags=DB_DBT_REALLOC;
-  DBUG_RETURN(index_init(primary_key));
+  DBUG_RETURN(index_init(primary_key, 0));
 }
 
 int ha_berkeley::rnd_end()
@@ -2146,7 +2146,7 @@ ulonglong ha_berkeley::get_auto_increment()
   (void) ha_berkeley::extra(HA_EXTRA_KEYREAD);
 
   /* Set 'active_index' */
-  ha_berkeley::index_init(table->s->next_number_index);
+  ha_berkeley::index_init(table->s->next_number_index, 0);
 
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start
@@ -2485,7 +2485,7 @@ void ha_berkeley::get_status()
     if (!(share->status & STATUS_PRIMARY_KEY_INIT))
     {
       (void) extra(HA_EXTRA_KEYREAD);
-      index_init(primary_key);
+      index_init(primary_key, 0);
       if (!index_last(table->record[1]))
 	share->auto_ident=uint5korr(current_ident);
       index_end();

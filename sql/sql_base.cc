@@ -2561,6 +2561,42 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 
 
 /*
+  Find field in table, no side effects, only purpose is to check for field
+  in table object and get reference to the field if found.
+
+  SYNOPSIS
+  find_field_in_table_sef()
+
+  table                         table where to find
+  name                          Name of field searched for
+
+  RETURN
+    0			field is not found
+    #			pointer to field
+*/
+
+Field *find_field_in_table_sef(TABLE *table, const char *name)
+{
+  Field **field_ptr;
+  if (table->s->name_hash.records)
+    field_ptr= (Field**)hash_search(&table->s->name_hash,(byte*) name,
+                                    strlen(name));
+  else
+  {
+    if (!(field_ptr= table->field))
+      return (Field *)0;
+    for (; *field_ptr; ++field_ptr)
+      if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
+        break;
+  }
+  if (field_ptr)
+    return *field_ptr;
+  else
+    return (Field *)0;
+}
+
+
+/*
   Find field in table
 
   SYNOPSIS
@@ -2623,13 +2659,16 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
                                       (bool)(thd->set_query_id-1));
     if (field->query_id != thd->query_id)
     {
+      if (table->get_fields_in_item_tree)
+        field->flags|= GET_FIXED_FIELDS_FLAG;
       field->query_id=thd->query_id;
       table->used_fields++;
       table->used_keys.intersect(field->part_of_key);
     }
     else
       thd->dupp_field=field;
-  }
+  } else if (table->get_fields_in_item_tree)
+    field->flags|= GET_FIXED_FIELDS_FLAG;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_grants && check_grant_column(thd, &table->grant,
 					 table->s->db,

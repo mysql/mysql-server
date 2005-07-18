@@ -3595,7 +3595,8 @@ int
 ha_innobase::index_init(
 /*====================*/
 			/* out: 0 or error number */
-	uint 	keynr)	/* in: key (index) number */
+        uint 	keynr,	/* in: key (index) number */
+        bool sorted)	/* in: 1 if result MUST be sorted according to index */
 {
 	int 	error	= 0;
   	DBUG_ENTER("index_init");
@@ -6646,7 +6647,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	}
 
   	(void) extra(HA_EXTRA_KEYREAD);
-  	index_init(table->s->next_number_index);
+  	index_init(table->s->next_number_index, 1);
 
 	/* Starting from 5.0.9, we use a consistent read to read the auto-inc
 	column maximum value. This eliminates the spurious deadlocks caused

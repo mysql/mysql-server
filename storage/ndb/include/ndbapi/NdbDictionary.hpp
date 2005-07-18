@@ -145,7 +145,10 @@ public:
       FragSingle = 1,         ///< Only one fragment
       FragAllSmall = 2,       ///< One fragment per node, default
       FragAllMedium = 3,      ///< two fragments per node
-      FragAllLarge = 4        ///< Four fragments per node.
+      FragAllLarge = 4,       ///< Four fragments per node.
+      DistrKeyHash = 5,
+      DistrKeyLin = 6,
+      UserDefined = 7
     };
   };
 
@@ -614,6 +617,12 @@ public:
     const void* getFrmData() const;
     Uint32 getFrmLength() const;
 
+    /**
+     * Get Node Group and Tablespace id's for fragments in table
+     */
+    const void *getNodeGroupIds() const;
+    Uint32 getNodeGroupIdsLength() const;
+
     /** @} *******************************************************************/
 
     /** 
@@ -711,6 +720,11 @@ public:
      * Set frm file to store with this table
      */ 
     void setFrm(const void* data, Uint32 len);
+
+    /**
+     * Set node group for fragments
+     */
+    void setNodeGroupIds(const void *data, Uint32 len);
 
     /**
      * Set table object type

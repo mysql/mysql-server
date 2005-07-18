@@ -963,11 +963,16 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-      packet->append(" TYPE=", 6);
-    else
-      packet->append(" ENGINE=", 8);
-    packet->append(file->table_type());
+#ifdef HAVE_PARTITION_DB
+    if (!table->s->part_info)
+#endif
+    {
+      if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+        packet->append(" TYPE=", 6);
+      else
+        packet->append(" ENGINE=", 8);
+      packet->append(file->table_type());
+    }
     
     if (share->table_charset &&
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&
@@ -1034,6 +1039,23 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     append_directory(thd, packet, "DATA",  create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
+#ifdef HAVE_PARTITION_DB
+  {
+    /*
+      Partition syntax for CREATE TABLE is at the end of the syntax.
+    */
+    uint part_syntax_len;
+    char *part_syntax;
+    if (table->s->part_info &&
+        ((part_syntax= generate_partition_syntax(table->s->part_info,
+                                                  &part_syntax_len,
+                                                  FALSE))))
+    {
+       packet->append(part_syntax, part_syntax_len);
+       my_free(part_syntax, MYF(0));
+    }
+  }
+#endif
   DBUG_RETURN(0);
 }
 
@@ -2728,7 +2750,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   {
     DBUG_RETURN(1);
   }
-  proc_table->file->ha_index_init(0);
+  proc_table->file->ha_index_init(0, 1);
   if ((res= proc_table->file->index_first(proc_table->record[0])))
   {
     res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;

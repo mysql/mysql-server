@@ -889,7 +889,7 @@ private:
   void execACC_OVER_REC(Signal* signal);
   void execACC_SAVE_PAGES(Signal* signal);
   void execNEXTOPERATION(Signal* signal);
-  void execREAD_PSUEDO_REQ(Signal* signal);
+  void execREAD_PSEUDO_REQ(Signal* signal);
 
   // Received signals
   void execSTTOR(Signal* signal);

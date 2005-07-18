@@ -2613,7 +2613,7 @@ Dblqh::updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId)
 }//Dblqh::updatePackedList()
 
 void
-Dblqh::execREAD_PSUEDO_REQ(Signal* signal){
+Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
   jamEntry();
   TcConnectionrecPtr regTcPtr;
   regTcPtr.i = signal->theData[0];
@@ -2627,7 +2627,7 @@ Dblqh::execREAD_PSUEDO_REQ(Signal* signal){
     ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
     
     signal->theData[0] = regFragptr.p->accFragptr[regTcPtr.p->localFragptr];
-    EXECUTE_DIRECT(DBACC, GSN_READ_PSUEDO_REQ, signal, 2);
+    EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
   }
   else
   {

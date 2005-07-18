@@ -887,6 +887,7 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
   
   fireTrigOrd->setConnectionPtr(regOperPtr->tcOpIndex);
   fireTrigOrd->setTriggerId(trigPtr->triggerId);
+  fireTrigOrd->fragId= regOperPtr->fragId >> 1; //Handle two local frags
 
   switch(regOperPtr->optype) {
   case(ZINSERT):

@@ -11225,6 +11225,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     
     c_firedTriggerHash.remove(trigPtr);
 
+    trigPtr.p->fragId= fireOrd->fragId;
     bool ok = trigPtr.p->keyValues.getSize() == fireOrd->m_noPrimKeyWords;
     ok &= trigPtr.p->afterValues.getSize() == fireOrd->m_noAfterValueWords;
     ok &= trigPtr.p->beforeValues.getSize() == fireOrd->m_noBeforeValueWords;
@@ -12122,7 +12123,11 @@ void Dbtc::executeIndexOperation(Signal* signal,
   Uint32 dataPos = 0;
   TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
-  Uint32 * dataPtr = &tcKeyReq->scanInfo;
+  /*
+    Data points to distrGroupHashValue since scanInfo is used to send
+    fragment id of receiving fragment
+  */
+  Uint32 * dataPtr = &tcKeyReq->distrGroupHashValue;
   Uint32 tcKeyLength = TcKeyReq::StaticLength;
   Uint32 tcKeyRequestInfo = tcIndxReq->requestInfo;
   TcIndexData* indexData;
@@ -12161,11 +12166,16 @@ void Dbtc::executeIndexOperation(Signal* signal,
   regApiPtr->executingIndexOp = indexOp->indexOpId;;
   regApiPtr->noIndexOp++; // Increase count
 
-  // Filter out AttributeHeader:s since this should not be in key
+  /*
+    Filter out AttributeHeader:s since this should not be in key.
+    Also filter out fragment id from primary key and handle that
+    separately by setting it as Distribution Key and set indicator.
+  */
+
   AttributeHeader* attrHeader = (AttributeHeader *) aiIter.data;
     
   Uint32 headerSize = attrHeader->getHeaderSize();
-  Uint32 keySize = attrHeader->getDataSize();
+  Uint32 keySize = attrHeader->getDataSize() - 1;
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keySize);
   // Skip header
   if (headerSize == 1) {
@@ -12175,6 +12185,9 @@ void Dbtc::executeIndexOperation(Signal* signal,
     jam();
     moreKeyData = indexOp->transIdAI.next(aiIter, headerSize - 1);
   }//if
+  tcKeyReq->scanInfo = *aiIter.data; //Fragment Id
+  moreKeyData = indexOp->transIdAI.next(aiIter);
+  TcKeyReq::setDistributionKeyFlag(tcKeyRequestInfo, 1U);
   while(// If we have not read complete key
 	(keySize != 0) &&
 	(dataPos < keyBufSize)) {
@@ -12584,10 +12597,11 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     moreAttrData = keyValues.next(iter, hops);
   }
   AttributeHeader pkAttrHeader(attrId, totalPrimaryKeyLength);
+  Uint32 attributesLength = afterValues.getSize() + 
+    pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize() + 1;
   
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLength);
-  tcKeyReq->attrLen = afterValues.getSize() + 
-    pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize();
+  tcKeyReq->attrLen = attributesLength;
   tcKeyReq->tableId = indexData->indexId;
   TcKeyReq::setOperationType(tcKeyRequestInfo, ZINSERT);
   TcKeyReq::setExecutingTrigger(tcKeyRequestInfo, true);
@@ -12637,8 +12651,11 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   }
 
   tcKeyLength += dataPos;
-  Uint32 attributesLength = afterValues.getSize() + 
-    pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize();
+  /*
+    Size of attrinfo is unique index attributes one by one, header for each
+    of them (all contained in the afterValues data structure), plus a header,
+    the primary key (compacted) and the fragment id before the primary key
+  */
   if (attributesLength <= attrBufSize) {
     jam();
     // ATTRINFO fits in TCKEYREQ
@@ -12655,6 +12672,10 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     // as one attribute
     pkAttrHeader.insertHeader(dataPtr);
     dataPtr += pkAttrHeader.getHeaderSize();
+    /*
+      Insert fragment id before primary key as part of reference to tuple
+    */
+    *dataPtr++ = firedTriggerData->fragId;
     moreAttrData = keyValues.first(iter);
     while(moreAttrData) {
       jam();
@@ -12819,6 +12840,29 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     pkAttrHeader.insertHeader(dataPtr);
     dataPtr += pkAttrHeader.getHeaderSize();
     attrInfoPos += pkAttrHeader.getHeaderSize();
+    /*
+      Add fragment id before primary key
+      TODO: This code really needs to be made into a long signal
+      to remove this messy code.
+    */
+    if (attrInfoPos == AttrInfo::DataLength)
+    {
+      jam();
+      // Flush ATTRINFO
+#if INTERNAL_TRIGGER_TCKEYREQ_JBA
+      sendSignal(reference(), GSN_ATTRINFO, signal, 
+                 AttrInfo::HeaderLength + AttrInfo::DataLength, JBA);
+#else
+      EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
+                     AttrInfo::HeaderLength + AttrInfo::DataLength);
+      jamEntry();
+#endif
+      dataPtr = (Uint32 *) &attrInfo->attrData;	  
+      attrInfoPos = 0;
+    }
+    attrInfoPos++;
+    *dataPtr++ = firedTriggerData->fragId;
+
     moreAttrData = keyValues.first(iter);
     while(moreAttrData) {
       jam();

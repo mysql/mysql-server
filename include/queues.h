@@ -41,6 +41,9 @@ typedef struct st_queue {
 #define queue_element(queue,index) ((queue)->root[index+1])
 #define queue_end(queue) ((queue)->root[(queue)->elements])
 #define queue_replaced(queue) _downheap(queue,1)
+#define queue_set_cmp_arg(queue, set_arg) (queue)->first_cmp_arg= set_arg
+#define queue_set_max_at_top(queue, set_arg) \
+  (queue)->max_at_top= set_arg ? (-1 ^ 1) : 0
 typedef int (*queue_compare)(void *,byte *, byte *);
 
 int init_queue(QUEUE *queue,uint max_elements,uint offset_to_key,

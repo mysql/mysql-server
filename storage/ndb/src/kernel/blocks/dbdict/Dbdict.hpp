@@ -232,6 +232,10 @@ public:
     /** TODO Could preferrably be made dynamic size */
     Uint32 frmLen;
     char frmData[MAX_FRM_DATA_SIZE];
+    /**  Node Group and Tablespace id for this table */
+    /** TODO Could preferrably be made dynamic size */
+    Uint32 ngLen;
+    Uint16 ngData[MAX_NDB_PARTITIONS];
 
     Uint32 fragmentCount;
   };

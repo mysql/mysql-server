@@ -5370,3 +5370,81 @@ ER_SCALE_BIGGER_THAN_PRECISION 42000 S1009
         eng "Scale may not be larger than the precision (column '%-.64s')."
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system '%-.64s.%-.64s' table with other tables"
+ER_PARTITION_REQUIRES_VALUES_ERROR
+        eng "%s PARTITIONING requires definition of VALUES %s for each partition"
+        swe "%s PARTITIONering kräver definition av VALUES %s för varje partition"
+ER_PARTITION_WRONG_VALUES_ERROR
+        eng "Only %s PARTITIONING can use VALUES %s in partition definition"
+        swe "Endast %s partitionering kan använda VALUES %s i definition av partitionen" 
+ER_PARTITION_MAXVALUE_ERROR
+        eng "MAXVALUE can only be used in last partition definition"
+        swe "MAXVALUE kan bara användas i definitionen av den sista partitionen"
+ER_PARTITION_SUBPARTITION_ERROR
+        eng "Subpartitions can only be hash partitions and by key"
+        swe "Subpartitioner kan bara vara hash och key partitioner"
+ER_PARTITION_WRONG_NO_PART_ERROR
+        eng "Wrong number of partitions defined, mismatch with previous setting"
+        swe "Antal partitioner definierade och antal partitioner är inte lika"
+ER_PARTITION_WRONG_NO_SUBPART_ERROR
+        eng "Wrong number of subpartitions defined, mismatch with previous setting"
+        swe "Antal subpartitioner definierade och antal subpartitioner är inte lika"
+ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR
+        eng "Constant/Random expression in (sub)partitioning function is not allowed"
+        swe "Konstanta uttryck eller slumpmässiga uttryck är inte tillåtna (sub)partitioneringsfunktioner"
+ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR
+        eng "Expression in RANGE/LIST VALUES must be constant"
+        swe "Uttryck i RANGE/LIST VALUES måste vara ett konstant uttryck"
+ER_FIELD_NOT_FOUND_PART_ERROR
+        eng "Field in list of fields for partition function not found in table"
+        swe "Fält i listan av fält för partitionering med key inte funnen i tabellen"
+ER_LIST_OF_FIELDS_ONLY_IN_HASH_ERROR
+        eng "List of fields is only allowed in KEY partitions"
+        swe "En lista av fält är endast tillåtet för KEY partitioner"
+ER_INCONSISTENT_PARTITION_INFO_ERROR
+        eng "The partition info in the frm file is not consistent with what can be written into the frm file"
+        swe "Partitioneringsinformationen i frm-filen är inte konsistent med vad som kan skrivas i frm-filen"
+ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+        eng "The %s function returns the wrong type"
+        swe "%s-funktionen returnerar felaktig typ"
+ER_PARTITIONS_MUST_BE_DEFINED_ERROR
+        eng "For %s partitions each partition must be defined"
+        swe "För %s partitionering så måste varje partition definieras"
+ER_RANGE_NOT_INCREASING_ERROR
+        eng "VALUES LESS THAN value must be strictly increasing for each partition"
+        swe "Värden i VALUES LESS THAN måste vara strikt växande för varje partition"
+ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
+        eng "VALUES %s value must be of same type as partition function"
+        swe "Värden i VALUES %s måste vara av samma typ som partitioneringsfunktionen"
+ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR
+        eng "Multiple definition of same constant in list partitioning"
+        swe "Multipel definition av samma konstant i list partitionering"
+ER_PARTITION_ENTRY_ERROR
+        eng "Partitioning can not be used stand-alone in query"
+        swe "Partitioneringssyntax kan inte användas på egen hand i en SQL-fråga"
+ER_MIX_HANDLER_ERROR
+        eng "The mix of handlers in the partitions is not allowed in this version in MySQL"
+        swe "Denna mix av lagringsmotorer är inte tillåten i denna version av MySQL"
+ER_PARTITION_NOT_DEFINED_ERROR
+        eng "For the partitioned engine it is necessary to define all %s"
+        swe "För partitioneringsmotorn så är det nödvändigt att definiera alla %s"
+ER_TOO_MANY_PARTITIONS_ERROR
+        eng "Too many partitions were defined"
+        swe "För många partitioner definierades"
+ER_SUBPARTITION_ERROR
+        eng "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning"
+        swe "Det är endast möjligt att blanda RANGE/LIST partitionering med HASH/KEY partitionering för subpartitionering"
+ER_CANT_CREATE_HANDLER_FILE
+        eng "Failed to create specific handler file"
+        swe "Misslyckades med att skapa specifik fil i lagringsmotor"
+ER_BLOB_FIELD_IN_PART_FUNC_ERROR
+        eng "A BLOB field is not allowed in partition function"
+        swe "Ett BLOB-fält är inte tillåtet i partitioneringsfunktioner"
+ER_CHAR_SET_IN_PART_FIELD_ERROR
+        eng "VARCHAR only allowed if binary collation for partition functions"
+        swe "VARCHAR endast tillåten med binär collation för partitioneringsfunktion"
+ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
+        eng "A %s need to include all fields in the partition function"
+        swe "En %s behöver inkludera alla fält i partitioneringsfunktionen för denna lagringsmotor"
+ER_NO_PARTS_ERROR
+        eng "Number of %s = 0 is not an allowed value"
+        swe "Antal %s = 0 är inte ett tillåten värde"

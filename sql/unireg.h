@@ -80,6 +80,7 @@
 #define PSEUDO_TABLE_BITS (PARAM_TABLE_BIT | OUTER_REF_TABLE_BIT | \
                            RAND_TABLE_BIT)
 #define MAX_FIELDS	4096			/* Limit in the .frm file */
+#define MAX_PARTITIONS  1024
 
 #define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)
 #define MIN_SORT_MEMORY (32*1024-MALLOC_OVERHEAD)

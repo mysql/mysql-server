@@ -24,7 +24,6 @@ printCREATE_FRAGMENTATION_REQ(FILE * output, const Uint32 * theData,
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " fragmentationType: %x\n", sig->fragmentationType);
   fprintf(output, " noOfFragments: %x\n", sig->noOfFragments);
-  fprintf(output, " fragmentNode: %x\n", sig->fragmentNode);
   if (sig->primaryTableId == RNIL)
     fprintf(output, " primaryTableId: none\n");
   else
