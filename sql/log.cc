@@ -2650,7 +2650,7 @@ int TC_LOG_MMAP::log(THD *thd, my_xid xid)
   {                                          // somebody's syncing. let's wait
     p->waiters++;
     /*
-      note - it must be while(), not do ... while() here
+      note - it must be while (), not do ... while () here
       as p->state may be not DIRTY when we come here
     */
     while (p->state == DIRTY && syncing)

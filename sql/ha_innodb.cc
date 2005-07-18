@@ -5484,7 +5484,7 @@ ha_innobase::update_table_comment(
 	external_lock(). To be safe, update the thd of the current table
 	handle. */
 
-	if(length > 64000 - 3) {
+	if (length > 64000 - 3) {
 		return((char*)comment); /* string too long */
 	}
 
@@ -5522,7 +5522,7 @@ ha_innobase::update_table_comment(
 
 		if (str) {
 			char* pos	= str + length;
-			if(length) {
+			if (length) {
 				memcpy(str, comment, length);
 				*pos++ = ';';
 				*pos++ = ' ';
@@ -5580,7 +5580,7 @@ ha_innobase::get_foreign_key_create_info(void)
 		flen = ftell(file);
 		if (flen < 0) {
 			flen = 0;
-		} else if(flen > 64000 - 1) {
+		} else if (flen > 64000 - 1) {
 			flen = 64000 - 1;
 		}
 
