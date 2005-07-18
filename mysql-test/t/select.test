@@ -2331,8 +2331,8 @@ WHERE
 drop table t1,t2,t3;
 
 #
-# Bug #11482 4.1.12 produces different resultset for a complex query 
-#             than in previous 4.1.x
+# Bug #11482 Wrongly applied optimization was erroneously rejecting valid
+#            rows 
 create table t1 (f1 int);
 insert into t1 values (1),(NULL);
 create table t2 (f2 int, f3 int, f4 int);
