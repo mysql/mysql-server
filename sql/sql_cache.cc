@@ -2052,7 +2052,7 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
     */
     data_len= len - new_block->length;
     prev_block= new_block;
-  } while(1);
+  } while (1);
 
   DBUG_RETURN(TRUE);
 }

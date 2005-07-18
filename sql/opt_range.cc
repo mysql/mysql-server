@@ -630,7 +630,7 @@ int imerge_list_or_tree(PARAM *param,
 {
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
-  while((imerge= it++))
+  while ((imerge= it++))
   {
     if (imerge->or_sel_tree_with_checks(param, tree))
       it.remove();
@@ -990,7 +990,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
-  while((quick= quick_it++))
+  while ((quick= quick_it++))
   {
     if (quick->init_ror_merged_scan(FALSE))
       DBUG_RETURN(1);
@@ -6942,7 +6942,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   List_iterator<Item> select_items_it(join->fields_list);
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
-  if(join->make_sum_func_list(join->all_fields, join->fields_list, 1))
+  if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
     DBUG_RETURN(NULL);
   if (join->sum_funcs[0])
   {
@@ -7268,7 +7268,7 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     Item *and_or_arg;
     while ((and_or_arg= li++))
     {
-      if(!check_group_min_max_predicates(and_or_arg, min_max_arg_item,
+      if (!check_group_min_max_predicates(and_or_arg, min_max_arg_item,
                                          image_type))
         DBUG_RETURN(FALSE);
     }
@@ -7350,7 +7350,7 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     }
     else if (cur_arg->type() == Item::FUNC_ITEM)
     {
-      if(!check_group_min_max_predicates(cur_arg, min_max_arg_item,
+      if (!check_group_min_max_predicates(cur_arg, min_max_arg_item,
                                          image_type))
         DBUG_RETURN(FALSE);
     }
@@ -7881,19 +7881,19 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
 
   if (min_max_arg_part)
   {
-    if(my_init_dynamic_array(&min_max_ranges, sizeof(QUICK_RANGE*), 16, 16))
+    if (my_init_dynamic_array(&min_max_ranges, sizeof(QUICK_RANGE*), 16, 16))
       return 1;
 
     if (have_min)
     {
-      if(!(min_functions= new List<Item_sum>))
+      if (!(min_functions= new List<Item_sum>))
         return 1;
     }
     else
       min_functions= NULL;
     if (have_max)
     {
-      if(!(max_functions= new List<Item_sum>))
+      if (!(max_functions= new List<Item_sum>))
         return 1;
     }
     else
@@ -7967,7 +7967,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
   uint range_flag= sel_range->min_flag | sel_range->max_flag;
 
   /* Skip (-inf,+inf) ranges, e.g. (x < 5 or x > 4). */
-  if((range_flag & NO_MIN_RANGE) && (range_flag & NO_MAX_RANGE))
+  if ((range_flag & NO_MIN_RANGE) && (range_flag & NO_MAX_RANGE))
     return FALSE;
 
   if (!(sel_range->min_flag & NO_MIN_RANGE) &&

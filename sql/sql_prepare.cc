@@ -1752,6 +1752,10 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     DBUG_RETURN(TRUE);
   }
 
+  /*
+    alloc_query() uses thd->memroot && thd->query, so we have to call
+    both of backup_statement() and backup_item_area() here.
+  */
   thd->set_n_backup_statement(stmt, &stmt_backup);
   thd->set_n_backup_item_arena(stmt, &stmt_backup);
 
@@ -2239,7 +2243,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     cleanup_stmt_and_thd_after_use(stmt, thd);
     reset_stmt_params(stmt);
     /*
-      Must be the last, as some momory is still needed for
+      Must be the last, as some memory is still needed for
       the previous calls.
     */
     free_root(cursor->mem_root, MYF(0));

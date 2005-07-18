@@ -263,7 +263,7 @@ extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
-extern  const char *defaults_instance;
+extern const char *defaults_group_suffix;
 
 extern my_bool timed_mutexes;
 
@@ -785,8 +785,9 @@ extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
-extern void get_defaults_files(int argc, char **argv,
-                               char **defaults, char **extra_defaults);
+extern int get_defaults_options(int argc, char **argv,
+                                char **defaults, char **extra_defaults,
+                                char **group_suffix);
 extern int load_defaults(const char *conf_file, const char **groups,
 			 int *argc, char ***argv);
 extern int modify_defaults_file(const char *file_location, const char *option,
