@@ -4469,13 +4469,13 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   bool in_dst_time_gap;
   THD *thd= table->in_use;
 
+  /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   have_smth_to_conv= (str_to_datetime(from, len, &l_time,
-                                      ((table->in_use->variables.sql_mode &
-                                        MODE_NO_ZERO_DATE) |
-                                       MODE_NO_ZERO_IN_DATE),
-                                      &error) >
+                                      (table->in_use->variables.sql_mode &
+                                       MODE_NO_ZERO_DATE) |
+                                      MODE_NO_ZERO_IN_DATE, &error) >
                       MYSQL_TIMESTAMP_ERROR);
-  
+
   if (error || !have_smth_to_conv)
   {
     error= 1;
@@ -4488,16 +4488,15 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   {
     if (!(tmp= TIME_to_timestamp(thd, &l_time, &in_dst_time_gap)))
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                            ER_WARN_DATA_OUT_OF_RANGE,
                            from, len, MYSQL_TIMESTAMP_DATETIME, !error);
-      
       error= 1;
     }
     else if (in_dst_time_gap)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                           ER_WARN_INVALID_TIMESTAMP, 
+                           ER_WARN_INVALID_TIMESTAMP,
                            from, len, MYSQL_TIMESTAMP_DATETIME, !error);
       error= 1;
     }
@@ -4522,8 +4521,8 @@ int Field_timestamp::store(double nr)
   int error= 0;
   if (nr < 0 || nr > 99991231235959.0)
   {
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, 
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                         ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATETIME);
     nr= 0;					// Avoid overflow on buff
     error= 1;
@@ -4541,35 +4540,35 @@ int Field_timestamp::store(longlong nr)
   bool in_dst_time_gap;
   THD *thd= table->in_use;
 
-  if (number_to_datetime(nr, &l_time, 0, &error))
+  /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
+  long tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
+                                             MODE_NO_ZERO_DATE) |
+                               MODE_NO_ZERO_IN_DATE, &error);
+  if (tmp < 0)
+  {
+    error= 2;
+  }
+
+  if (!error && tmp)
   {
     if (!(timestamp= TIME_to_timestamp(thd, &l_time, &in_dst_time_gap)))
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                          ER_WARN_DATA_OUT_OF_RANGE,
-                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
+      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                           ER_WARN_DATA_OUT_OF_RANGE,
+                           nr, MYSQL_TIMESTAMP_DATETIME, 1);
       error= 1;
     }
-  
     if (in_dst_time_gap)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                           ER_WARN_INVALID_TIMESTAMP, 
-                           nr, MYSQL_TIMESTAMP_DATETIME, !error);
+                           ER_WARN_INVALID_TIMESTAMP,
+                           nr, MYSQL_TIMESTAMP_DATETIME, 1);
       error= 1;
     }
-  }
-  else if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+  } else if (error)
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          WARN_DATA_TRUNCATED,
                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
-  if (!error && timestamp == 0 &&
-      (table->in_use->variables.sql_mode & MODE_NO_ZERO_DATE))
-  {
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         WARN_DATA_TRUNCATED,
-                         nr, MYSQL_TIMESTAMP_DATETIME, 1);
-  }
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4579,7 +4578,7 @@ int Field_timestamp::store(longlong nr)
   else
 #endif
     longstore(ptr,(uint32) timestamp);
-    
+
   return error;
 }
 
@@ -5152,14 +5151,14 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
   TIME l_time;
   uint32 tmp;
   int error;
-  
+
   if (str_to_datetime(from, len, &l_time, TIME_FUZZY_DATE |
                       (table->in_use->variables.sql_mode &
                        (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                         MODE_INVALID_DATES)),
                       &error) <= MYSQL_TIMESTAMP_ERROR)
   {
-    tmp=0;
+    tmp= 0;
     error= 2;
   }
   else
@@ -5190,56 +5189,50 @@ int Field_date::store(double nr)
   if (nr < 0.0 || nr > 99991231.0)
   {
     tmp=0L;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, 
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                         ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATE);
     error= 1;
   }
   else
     tmp=(long) rint(nr);
 
-  /*
-    We don't need to check for zero dates here as this date type is only
-    used in .frm tables from very old MySQL versions
-  */
-
-#ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int4store(ptr,tmp);
-  }
-  else
-#endif
-    longstore(ptr,tmp);
-  return error;
+  return Field_date::store(tmp);
 }
 
 
 int Field_date::store(longlong nr)
 {
-  long tmp;
-  int error= 0;
-  if (nr >= LL(19000000000000) && nr < LL(99991231235959))
-    nr=nr/LL(1000000);			// Timestamp to date
-  if (nr < 0 || nr > LL(99991231))
+  TIME not_used;
+  int error;
+  longlong initial_nr= nr;
+
+  nr= number_to_datetime(nr, &not_used, (TIME_FUZZY_DATE |
+                                         (table->in_use->variables.sql_mode &
+                                          (MODE_NO_ZERO_IN_DATE |
+                                           MODE_NO_ZERO_DATE |
+                                           MODE_INVALID_DATES))), &error);
+
+  if (nr < 0)
   {
-    tmp=0L;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE,
-                         nr, MYSQL_TIMESTAMP_DATE, 0);
-    error= 1;
+    nr= 0;
+    error= 2;
   }
-  else
-    tmp=(long) nr;
+
+  if (error)
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                         error == 2 ? ER_WARN_DATA_OUT_OF_RANGE :
+                         WARN_DATA_TRUNCATED, initial_nr,
+                         MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    int4store(ptr,tmp);
+    int4store(ptr, nr);
   }
   else
 #endif
-    longstore(ptr,tmp);
+    longstore(ptr, nr);
   return error;
 }
 
@@ -5363,7 +5356,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
                          MODE_INVALID_DATES))),
                       &error) <= MYSQL_TIMESTAMP_ERROR)
   {
-    tmp=0L;
+    tmp= 0L;
     error= 2;
   }
   else
@@ -5372,7 +5365,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_DATE, 1);
-    
+
   int3store(ptr,tmp);
   return error;
 }
@@ -5383,7 +5376,7 @@ int Field_newdate::store(double nr)
   if (nr < 0.0 || nr > 99991231235959.0)
   {
     int3store(ptr,(int32) 0);
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          WARN_DATA_TRUNCATED, nr, MYSQL_TIMESTAMP_DATE);
     return 1;
   }
@@ -5393,52 +5386,28 @@ int Field_newdate::store(double nr)
 
 int Field_newdate::store(longlong nr)
 {
-  int32 tmp;
-  int error= 0;
-  if (nr >= LL(100000000) && nr <= LL(99991231235959))
-    nr=nr/LL(1000000);			// Timestamp to date
-  if (nr < 0L || nr > 99991231L)
+  TIME l_time;
+  long tmp;
+  int error;
+  if ((tmp= number_to_datetime(nr, &l_time,
+                               (TIME_FUZZY_DATE |
+                                (table->in_use->variables.sql_mode &
+                                 (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                                  MODE_INVALID_DATES))),
+                               &error) < 0))
   {
-    tmp=0;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, nr,
-                         MYSQL_TIMESTAMP_DATE, 1);
-    error= 1;
+    tmp= 0L;
+    error= 2;
   }
   else
-  {
-    uint month, day;
+    tmp= l_time.day + l_time.month*32 + l_time.year*16*32;
 
-    tmp=(int32) nr;
-    if (tmp)
-    {
-      if (tmp < YY_PART_YEAR*10000L)			// Fix short dates
-	tmp+= (uint32) 20000000L;
-      else if (tmp < 999999L)
-	tmp+= (uint32) 19000000L;
+  if (error)
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                         error == 2 ? ER_WARN_DATA_OUT_OF_RANGE :
+                         WARN_DATA_TRUNCATED,nr,MYSQL_TIMESTAMP_DATE, 1);
 
-      month= (uint) ((tmp/100) % 100);
-      day=   (uint) (tmp%100);
-      if (month > 12 || day > 31)
-      {
-        tmp=0L;					// Don't allow date to change
-        set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                             ER_WARN_DATA_OUT_OF_RANGE, nr,
-                             MYSQL_TIMESTAMP_DATE, 1);
-        error= 1;
-      }
-      else
-        tmp= day + month*32 + (tmp/10000)*16*32;
-    }
-    else if (table->in_use->variables.sql_mode & MODE_NO_ZERO_DATE)
-    {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                           ER_WARN_DATA_OUT_OF_RANGE, 
-                           0, MYSQL_TIMESTAMP_DATE);
-      error= 1;
-    }
-  }
-  int3store(ptr, tmp);
+  int3store(ptr,tmp);
   return error;
 }
 
@@ -5565,7 +5534,7 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   ulonglong tmp= 0;
   enum enum_mysql_timestamp_type func_res;
-  
+
   func_res= str_to_datetime(from, len, &time_tmp,
                             (TIME_FUZZY_DATE |
                              (table->in_use->variables.sql_mode &
@@ -5578,7 +5547,7 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
     error= 1;                                 // Fix if invalid zero date
 
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
                          from, len, MYSQL_TIMESTAMP_DATETIME, 1);
 
@@ -5615,20 +5584,24 @@ int Field_datetime::store(longlong nr)
   TIME not_used;
   int error;
   longlong initial_nr= nr;
-  
-  nr= number_to_datetime(nr, &not_used, 1, &error);
+
+  nr= number_to_datetime(nr, &not_used, (TIME_FUZZY_DATE |
+                                         (table->in_use->variables.sql_mode &
+                                          (MODE_NO_ZERO_IN_DATE |
+                                           MODE_NO_ZERO_DATE |
+                                           MODE_INVALID_DATES))), &error);
+
+  if (nr < 0)
+  {
+    nr= 0;
+    error= 2;
+  }
 
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         WARN_DATA_TRUNCATED, initial_nr, 
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                         error == 2 ? ER_WARN_DATA_OUT_OF_RANGE :
+                         WARN_DATA_TRUNCATED, initial_nr,
                          MYSQL_TIMESTAMP_DATETIME, 1);
-  else if (nr == 0 && table->in_use->variables.sql_mode & MODE_NO_ZERO_DATE)
-  {
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_DATA_OUT_OF_RANGE, 
-                         initial_nr, MYSQL_TIMESTAMP_DATE, 1);
-    error= 1;
-  }
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
