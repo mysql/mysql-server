@@ -436,10 +436,6 @@ SOURCE=..\mysys\my_symlink2.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\mysys\my_tempnam.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\mysys\my_thr_init.c
 # End Source File
 # Begin Source File

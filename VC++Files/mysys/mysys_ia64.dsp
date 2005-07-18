@@ -526,10 +526,6 @@ SOURCE=.\my_sync.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\my_tempnam.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\my_thr_init.c
 # End Source File
 # Begin Source File

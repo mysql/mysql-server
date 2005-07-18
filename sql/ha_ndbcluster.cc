@@ -5445,7 +5445,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     Uint64 sum_commits= 0;
     Uint64 sum_row_size= 0;
     Uint64 sum_mem= 0;
-    while((check= pOp->nextResult(TRUE, TRUE)) == 0)
+    while ((check= pOp->nextResult(TRUE, TRUE)) == 0)
     {
       sum_rows+= rows;
       sum_commits+= commits;
@@ -5473,7 +5473,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
                         sum_mem, count));
 
     DBUG_RETURN(0);
-  } while(0);
+  } while (0);
 
   if (pTrans)
     ndb->closeTransaction(pTrans);
