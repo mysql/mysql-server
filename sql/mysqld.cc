@@ -882,7 +882,7 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_end();
 
 #ifdef __NETWARE__
-  if(!event_flag)
+  if (!event_flag)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
