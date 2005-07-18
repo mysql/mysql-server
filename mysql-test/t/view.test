@@ -1674,6 +1674,27 @@ select * from v1;
 drop view v1;
 
 #
+# evaluation constant functions in WHERE (BUG#4663)
+#
+create table t1 (a timestamp default now());
+create table t2 (b timestamp default now());
+create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
+SHOW CREATE VIEW v1;
+drop view v1;
+drop table t1, t2;
+CREATE TABLE t1 ( a varchar(50) );
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = CURRENT_USER();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = VERSION();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = DATABASE();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
 # checking views after some view with error (BUG#11337)
 #
 CREATE TABLE t1 (col1 time);
@@ -1804,7 +1825,6 @@ drop table t1;
 #
 # Test for bug #11771: wrong query_id in SELECT * FROM <view>
 #
-
 CREATE TABLE t1 (f1 char) ENGINE = innodb;
 INSERT INTO t1 VALUES ('A');
 CREATE VIEW  v1 AS SELECT * FROM t1;
@@ -1813,5 +1833,23 @@ INSERT INTO t1 VALUES('B');
 SELECT * FROM v1;
 SELECT * FROM t1;
 
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# opening table in correct locking mode (BUG#9597)
+#
+CREATE TABLE t1 ( bug_table_seq   INTEGER NOT NULL);
+CREATE OR REPLACE VIEW v1 AS SELECT * from t1;
+DROP PROCEDURE IF EXISTS p1;
+delimiter //;
+CREATE PROCEDURE p1 ( )
+BEGIN
+        DO (SELECT  @next := IFNULL(max(bug_table_seq),0) + 1 FROM v1);
+        INSERT INTO t1 VALUES (1);
+END //
+delimiter ;//
+CALL p1();
+DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;

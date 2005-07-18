@@ -789,15 +789,42 @@ set @b='CHRISTINE';
 execute stmt using @a, @b;
 deallocate prepare stmt;
 #
-# Bug#9442 Set parameter make query fail if column character set is UCS2
+# Bug#11299 "prepared statement makes wrong SQL syntax in binlog which stops
+# replication": check that errouneous queries with placeholders are not
+# allowed
 #
-create table t1 (utext varchar(20) character set ucs2);
-insert into t1 values ("lily");
-insert into t1 values ("river");
-prepare stmt from 'select utext from t1 where utext like ?';
-set @param1='%%';
-execute stmt using @param1;
-execute stmt using @param1;
-select utext from t1 where utext like '%%';
+create table t1 (a int);
+--error 1064
+prepare stmt from "select ??";
+--error 1064
+prepare stmt from "select ?FROM t1";
+--error 1064
+prepare stmt from "select FROM t1 WHERE?=1";
+--error 1064
+prepare stmt from "update t1 set a=a+?WHERE 1";
+--disable_ps_protocol
+--error 1064
+select ?;
+--error 1064
+select ??;
+--error 1064
+select ? from t1;
+--enable_ps_protocol
 drop table t1;
+#
+# Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
+# time"
+#
+prepare stmt from "select @@time_zone";
+execute stmt;
+set @@time_zone:='Japan';
+execute stmt;
+prepare stmt from "select @@tx_isolation";
+execute stmt;
+set transaction isolation level read committed;
+execute stmt;
+set transaction isolation level serializable;
+execute stmt;
+set @@tx_isolation=default;
+execute stmt;
 deallocate prepare stmt;

@@ -1041,6 +1041,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (thd->locked_tables || thd->prelocked_mode)
   {						// Using table locks
+    TABLE *best_table= 0;
+    int best_distance= INT_MIN, distance;
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
@@ -1049,10 +1051,36 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           table->query_id != thd->query_id && /* skip tables already used by this query */
           !(thd->prelocked_mode && table->query_id))
       {
-        table->query_id= thd->query_id;
-        DBUG_PRINT("info",("Using locked table"));
-	goto reset;
+        distance= ((int) table->reginfo.lock_type -
+                   (int) table_list->lock_type);
+        /*
+          Find a table that either has the exact lock type requested,
+          or has the best suitable lock. In case there is no locked
+          table that has an equal or higher lock than requested,
+          we still maitain the best_table to produce an error message
+          about wrong lock mode on the table. The best_table is changed
+          if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
+
+          distance <  0 - we have not enough high lock mode
+          distance >  0 - we have lock mode higher then we require
+          distance == 0 - we have lock mode exactly which we need
+        */
+        if (best_distance < 0 && distance > best_distance ||
+            distance >= 0 && distance < best_distance)
+        {
+          best_distance= distance;
+          best_table= table;
+          if (best_distance == 0)
+            break;
+        }
       }
+    }
+    if (best_table)
+    {
+      table= best_table;
+      table->query_id= thd->query_id;
+      DBUG_PRINT("info",("Using locked table"));
+      goto reset;
     }
     /*
       is it view?

@@ -601,12 +601,72 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
   /*
+    Allow conversion from and to "binary".
     Don't allow automatic conversion to non-Unicode charsets,
     as it potentially loses data.
   */
-  if (!(tocs->state & MY_CS_UNICODE))
+  if (collation.collation != &my_charset_bin &&
+      tocs != &my_charset_bin &&
+      !(tocs->state & MY_CS_UNICODE))
     return NULL; // safe conversion is not possible
   return new Item_func_conv_charset(this, tocs);
+}
+
+
+/*
+  Created mostly for mysql_prepare_table(). Important
+  when a string ENUM/SET column is described with a numeric default value:
+
+  CREATE TABLE t1(a SET('a') DEFAULT 1);
+
+  We cannot use generic Item::safe_charset_converter(), because
+  the latter returns a non-fixed Item, so val_str() crashes afterwards.
+  Override Item_num method, to return a fixed item.
+*/
+Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_string(s->ptr(), s->length(), s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+  }
+  return conv;
+}
+
+
+Item *Item_static_int_func::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_static_string_func(func_name, s->ptr(), s->length(),
+                                         s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+  }
+  return conv;
+}
+
+
+Item *Item_static_float_func::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_static_string_func(func_name, s->ptr(), s->length(),
+                                         s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+  }
+  return conv;
 }
 
 
@@ -619,6 +679,33 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
   if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
                                              cstr.charset(),
                                              collation.derivation)))
+  {
+    /*
+      Safe conversion is not possible (or EOM).
+      We could not convert a string into the requested character set
+      without data loss. The target charset does not cover all the
+      characters from the string. Operation cannot be done correctly.
+    */
+    return NULL;
+  }
+  conv->str_value.copy();
+  /* Ensure that no one is going to change the result string */
+  conv->str_value.mark_as_const();
+  return conv;
+}
+
+
+Item *Item_static_string_func::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  uint conv_errors;
+  String tmp, cstr, *ostr= val_str(&tmp);
+  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  if (conv_errors ||
+      !(conv= new Item_static_string_func(func_name,
+                                          cstr.ptr(), cstr.length(),
+                                          cstr.charset(),
+                                          collation.derivation)))
   {
     /*
       Safe conversion is not possible (or EOM).
@@ -3753,6 +3840,20 @@ bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
   }
   return FALSE;
 }
+
+
+Item *Item_hex_string::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  String tmp, *str= val_str(&tmp);
+
+  if (!(conv= new Item_string(str->ptr(), str->length(), tocs)))
+    return NULL;
+  conv->str_value.copy();
+  conv->str_value.mark_as_const();
+  return conv;
+}
+
 
 /*
   bin item.
