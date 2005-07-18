@@ -69,12 +69,12 @@ master-bin.000002	346	Query	1	434	use `test`; insert into t1 values (1)
 master-bin.000002	434	Query	1	510	use `test`; drop table t1
 show binary logs;
 Log_name	File_size
-master-bin.000001	0
+master-bin.000001	1171
 master-bin.000002	510
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	0
+slave-bin.000001	1285
 slave-bin.000002	348
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
