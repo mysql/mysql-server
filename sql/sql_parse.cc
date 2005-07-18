@@ -2304,7 +2304,8 @@ mysql_execute_command(THD *thd)
     Don't reset warnings when executing a stored routine.
   */
   if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->sroutines.records) && !thd->spcont)
+       lex->sroutines.records) && !thd->spcont ||
+      lex->time_zone_tables_used)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
@@ -6843,7 +6844,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list)
+  if (&lex->select_lex != lex->all_selects_list || lex->time_zone_tables_used)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)
