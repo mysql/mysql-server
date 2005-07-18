@@ -64,6 +64,8 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
     return false;
   }
   
+  DBUG_PRINT("info",("NDB_SOCKET: %d", sock));
+
   const int on = 1;
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
 		 (const char*)&on, sizeof(on)) == -1) {
@@ -104,6 +106,8 @@ SocketServer::setup(SocketServer::Service * service,
     DBUG_RETURN(false);
   }
   
+  DBUG_PRINT("info",("NDB_SOCKET: %d", sock));
+ 
   const int on = 1;
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
 		 (const char*)&on, sizeof(on)) == -1) {

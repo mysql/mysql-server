@@ -752,10 +752,15 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
         Convert the default value from client character
         set into the column character set if necessary.
       */
-      if (sql_field->def)
+      if (sql_field->def && cs != sql_field->def->collation.collation)
       {
-        sql_field->def= 
-          sql_field->def->safe_charset_converter(cs);
+        if (!(sql_field->def= 
+              sql_field->def->safe_charset_converter(cs)))
+        {
+          /* Could not convert */
+          my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+          DBUG_RETURN(-1);
+        }
       }
 
       if (sql_field->sql_type == FIELD_TYPE_SET)

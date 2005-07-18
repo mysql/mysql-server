@@ -1915,12 +1915,6 @@ Cursor::close(bool is_active)
 }
 
 
-Cursor::~Cursor()
-{
-  if (is_open())
-    close(FALSE);
-}
-
 /*********************************************************************/
 
 /*
@@ -2840,11 +2834,11 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
         cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	     !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
         values--;
+      DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
+                  cond_func->argument_count() != 2);
       add_key_equal_fields(key_fields, *and_level, cond_func,
                            (Item_field*) (cond_func->key_item()->real_item()),
-                           cond_func->argument_count() == 2 &&
-                           cond_func->functype() == Item_func::IN_FUNC,
-                           values,
+                           0, values,
                            cond_func->argument_count()-1,
                            usable_tables);
     }
@@ -5144,7 +5138,23 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
       (where othertbl is a non-const table and othertbl.field may be NULL)
       and add them to conditions on correspoding tables (othertbl in this
       example).
-      
+
+      Exception from that is the case when referred_tab->join != join.
+      I.e. don't add NOT NULL constraints from any embedded subquery.
+      Consider this query:
+      SELECT A.f2 FROM t1 LEFT JOIN t2 A ON A.f2 = f1
+      WHERE A.f3=(SELECT MIN(f3) FROM  t2 C WHERE A.f4 = C.f4) OR A.f3 IS NULL;
+      Here condition A.f3 IS NOT NULL is going to be added to the WHERE
+      condition of the embedding query.
+      Another example:
+      SELECT * FROM t10, t11 WHERE (t10.a < 10 OR t10.a IS NULL)
+      AND t11.b <=> t10.b AND (t11.a = (SELECT MAX(a) FROM t12
+      WHERE t12.b = t10.a ));
+      Here condition t10.a IS NOT NULL is going to be added.
+      In both cases addition of NOT NULL condition will erroneously reject
+      some rows of the result set.
+      referred_tab->join != join constraint would disallow such additions.
+
       This optimization doesn't affect the choices that ref, range, or join
       optimizer make. This was intentional because this was added after 4.1
       was GA.
@@ -5175,11 +5185,19 @@ static void add_not_null_conds(JOIN *join)
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
-          Item_func_isnotnull *notnull;
+          if (referred_tab->join != join)
+            continue;
+          Item *notnull;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
-
-          notnull->quick_fix_field();
+          /*
+            We need to do full fix_fields() call here in order to have correct
+            notnull->const_item(). This is needed e.g. by test_quick_select 
+            when it is called from make_join_select after this function is 
+            called.
+          */
+          if (notnull->fix_fields(join->thd, &notnull))
+            DBUG_VOID_RETURN;
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias););
           add_cond_and_fix(&referred_tab->select_cond, notnull);

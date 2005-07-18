@@ -2657,16 +2657,22 @@ end|
 call avg ()|
 drop procedure avg|
 drop procedure if exists bug6129|
-set @@sql_mode = 'traditional'|
-create procedure bug6129(mode text)
-select @@sql_mode = mode|
-call bug6129(@@sql_mode)|
-@@sql_mode = mode
-1
-set @@sql_mode = ''|
-call bug6129(@@sql_mode)|
-@@sql_mode = mode
-0
+set @old_mode= @@sql_mode;
+set @@sql_mode= "";
+create procedure bug6129()
+select @@sql_mode|
+call bug6129()|
+@@sql_mode
+
+set @@sql_mode= "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO"|
+call bug6129()|
+@@sql_mode
+NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO
+set @@sql_mode= "NO_ZERO_IN_DATE"|
+call bug6129()|
+@@sql_mode
+NO_ZERO_IN_DATE
+set @@sql_mode=@old_mode;
 drop procedure bug6129|
 drop procedure if exists bug9856|
 create procedure bug9856()
@@ -3062,4 +3068,35 @@ läbel1: begin end
 drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
+drop procedure if exists bug9565_sub|
+drop procedure if exists bug9565|
+create procedure bug9565_sub()
+begin
+select * from t1;
+end|
+create procedure bug9565()
+begin
+insert into t1 values ("one", 1);
+call bug9565_sub();
+end|
+call bug9565()|
+id	data
+one	1
+delete from t1|
+drop procedure bug9565_sub|
+drop procedure bug9565|
+drop procedure if exists bug9538|
+create procedure bug9538()
+set @@sort_buffer_size = 1000000|
+set @x = @@sort_buffer_size|
+set @@sort_buffer_size = 2000000|
+select @@sort_buffer_size|
+@@sort_buffer_size
+2000000
+call bug9538()|
+select @@sort_buffer_size|
+@@sort_buffer_size
+1000000
+set @@sort_buffer_size = @x|
+drop procedure bug9538|
 drop table t1,t2;

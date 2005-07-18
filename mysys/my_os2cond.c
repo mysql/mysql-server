@@ -100,7 +100,7 @@ int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
    rc = DosWaitEventSem(cond->semaphore, timeout);
    if (rc != 0)
-      rval = ETIME;
+      rval= ETIMEDOUT;
 
    if (mutex) pthread_mutex_lock(mutex);
 
