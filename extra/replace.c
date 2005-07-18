@@ -175,7 +175,7 @@ register char **argv[];
       case 'I':
       case '?':
 	help=1;					/* Help text written */
-	printf("%s  Ver 1.3 for %s at %s\n",my_progname,SYSTEM_TYPE,
+	printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
 	if (version)
 	  break;
@@ -1048,23 +1048,25 @@ FILE *in,*out;
 }
 
 
-static int convert_file(rep,name)
-REPLACE *rep;
-my_string name;
+static int convert_file(REPLACE *rep, my_string name)
 {
   int error;
   FILE *in,*out;
-  char dir_buff[FN_REFLEN],*tempname;
+  char dir_buff[FN_REFLEN], tempname[FN_REFLEN];
+  File temp_file;
   DBUG_ENTER("convert_file");
 
   if (!(in=my_fopen(name,O_RDONLY,MYF(MY_WME))))
     DBUG_RETURN(1);
   dirname_part(dir_buff,name);
-  tempname=my_tempnam(dir_buff,"PR",MYF(MY_WME));
-  if (!(out=my_fopen(tempname,(int) (O_WRONLY | O_CREAT),
-		     MYF(MY_WME))))
+  if ((temp_file= create_temp_file(tempname, dir_buff, "PR", O_WRONLY,
+                                   MYF(MY_WME))) < 0)
   {
-    (*free)(tempname);
+    my_fclose(in,MYF(0));
+    DBUG_RETURN(1);
+  }    
+  if (!(out= my_fdopen(temp_file, tempname, O_WRONLY, MYF(MY_WME))))
+  {
     my_fclose(in,MYF(0));
     DBUG_RETURN(1);
   }
@@ -1076,7 +1078,6 @@ my_string name;
     my_redel(name,tempname,MYF(MY_WME | MY_LINK_WARNING));
   else
     my_delete(tempname,MYF(MY_WME));
-  (*free)(tempname);
   if (!silent && ! error)
   {
     if (updated)
