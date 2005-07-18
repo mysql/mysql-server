@@ -155,6 +155,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->yylineno = 1;
   lex->in_comment=0;
   lex->length=0;
+  lex->part_info= 0;
   lex->select_lex.in_sum_expr=0;
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();

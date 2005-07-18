@@ -1,0 +1,355 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a, b);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1, partition x2, partition x3);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1 nodegroup 0,
+partition x2 nodegroup 1,
+partition x3 nodegroup 2);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1 engine myisam,
+partition x2 engine myisam,
+partition x3 engine myisam);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (a)
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (b*a)
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (b*a)
+(partition x1 values in (1) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+drop table t1;
+partition by list (a)
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+ERROR 42000: Partitioning can not be used stand-alone in query near 'partition by list (a)
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ' at line 1
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (a)
+partitions 2;
+ERROR HY000: For LIST partitions each partition must be defined
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (sin(a))
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+ERROR HY000: The PARTITION function returns the wrong type
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a+2)
+partitions 3
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+2)
+partitions 3
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+part' at line 6
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3)' at line 8
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a,d)
+partitions 3
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+ERROR HY000: Field in list of fields for partition function not found in table
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a + d)
+partitions 3
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+ERROR 42S22: Unknown column 'd' in 'partition function'
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (sin(a))
+partitions 3
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+ERROR HY000: The PARTITION function returns the wrong type
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1, partition x2);
+ERROR 42000: Wrong number of partitions defined, mismatch with previous setting near ')' at line 8
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (rand(a))
+partitions 2
+(partition x1, partition x2);
+ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')
+partitions 2
+(partition x1, partition x2)' at line 6
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by range (rand(a))
+partitions 2
+(partition x1 values less than (0), partition x2 values less than (2));
+ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')
+partitions 2
+(partition x1 values less than (0), partition x2 values less than' at line 6
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (rand(a))
+partitions 2
+(partition x1 values in (1), partition x2 values in (2));
+ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')
+partitions 2
+(partition x1 values in (1), partition x2 values in (2))' at line 6
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a)
+partitions 2
+(partition x1 values less than (4),
+partition x2 values less than (5));
+ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a)
+partitions 2
+(partition x1 values in (4),
+partition x2 values in (5));
+ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a)
+partitions 2
+(partition x1 values in (4,6),
+partition x2 values in (5,7));
+ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (b);
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (a, b);
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (a+b);
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (b);
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (a, b);
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (a+b);
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (rand(a+b));
+ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')' at line 7
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (sin(a+b))
+(partition x1 (subpartition x11, subpartition x12),
+partition x2 (subpartition x21, subpartition x22));
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by key (a+b)
+(partition x1 values less than (1) (subpartition x11, subpartition x12),
+partition x2 values less than (2) (subpartition x21, subpartition x22));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+b)
+(partition x1 values less than (1) (subpartition x11, subpartition x12),
+par' at line 7
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by key (a,d)
+(partition x1 values less than (1) (subpartition x11, subpartition x12),
+partition x2 values less than (2) (subpartition x21, subpartition x22));
+ERROR HY000: Field in list of fields for partition function not found in table
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (3+4);
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+d)
+(partition x1 values less than (1) (subpartition x11, subpartition x12),
+partition x2 values less than (2) (subpartition x21, subpartition x22));
+ERROR 42S22: Unknown column 'd' in 'partition function'

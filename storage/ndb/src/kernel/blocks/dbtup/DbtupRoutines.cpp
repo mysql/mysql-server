@@ -210,8 +210,8 @@ int Dbtup::readAttributes(Page* const pagePtr,
       } else {
         return -1;
       }//if
-    } else if(attributeId & AttributeHeader::PSUEDO){
-      Uint32 sz = read_psuedo(attributeId, 
+    } else if(attributeId & AttributeHeader::PSEUDO){
+      Uint32 sz = read_pseudo(attributeId, 
 			      outBuffer+tmpAttrBufIndex+1);
       AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, sz);
       tOutBufIndex = tmpAttrBufIndex + 1 + sz;
@@ -995,7 +995,7 @@ Dbtup::updateDynSmallVarSize(Uint32* inBuffer,
 }//Dbtup::updateDynSmallVarSize()
 
 Uint32 
-Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
+Dbtup::read_pseudo(Uint32 attrId, Uint32* outBuffer){
   Uint32 tmp[sizeof(SignalHeader)+25];
   Signal * signal = (Signal*)&tmp;
   switch(attrId){
@@ -1017,7 +1017,7 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
     signal->theData[0] = operPtr.p->userpointer;
     signal->theData[1] = attrId;
     
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSUEDO_REQ, signal, 2);
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
     outBuffer[0] = signal->theData[0];
     outBuffer[1] = signal->theData[1];
     return 2;
@@ -1025,7 +1025,7 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
     signal->theData[0] = operPtr.p->userpointer;
     signal->theData[1] = attrId;
     
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSUEDO_REQ, signal, 2);
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
     outBuffer[0] = signal->theData[0];
     return 1;
   default:

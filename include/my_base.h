@@ -388,6 +388,7 @@ enum data_file_type {
 #define EQ_RANGE	32
 #define NULL_RANGE	64
 #define GEOM_FLAG      128
+#define SKIP_RANGE     256
 
 typedef struct st_key_range
 {

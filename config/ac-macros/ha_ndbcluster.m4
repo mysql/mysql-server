@@ -128,8 +128,9 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   ndb_mgmclient_libs=
   case "$ndbcluster" in
     yes )
-      AC_MSG_RESULT([Using NDB Cluster])
+      AC_MSG_RESULT([Using NDB Cluster and Partitioning])
       AC_DEFINE([HAVE_NDBCLUSTER_DB], [1], [Using Ndb Cluster DB])
+      AC_DEFINE([HAVE_PARTITION_DB], [1], [Builds Partition DB])
       have_ndbcluster="yes"
       ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_builddir)/storage/ndb/include/ndbapi"
       ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"

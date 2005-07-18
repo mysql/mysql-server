@@ -88,6 +88,8 @@ enum enum_server_command
 #define GROUP_FLAG	32768		/* Intern: Group field */
 #define UNIQUE_FLAG	65536		/* Intern: Used by sql_yacc */
 #define BINCMP_FLAG	131072		/* Intern: Used by sql_yacc */
+#define GET_FIXED_FIELDS_FLAG (1 << 18) /* Used to get fields in item tree */
+#define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */

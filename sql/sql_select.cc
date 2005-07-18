@@ -1277,6 +1277,9 @@ JOIN::exec()
     /* Copy data to the temporary table */
     thd->proc_info= "Copying to tmp table";
     DBUG_PRINT("info", ("%s", thd->proc_info));
+    if (!curr_join->sort_and_group &&
+        curr_join->const_tables != curr_join->tables)
+      curr_join->join_tab[curr_join->const_tables].sorted= 0;
     if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
     {
       error= tmp_error;
@@ -1423,6 +1426,9 @@ JOIN::exec()
 					1, TRUE))
         DBUG_VOID_RETURN;
       curr_join->group_list= 0;
+      if (!curr_join->sort_and_group &&
+          curr_join->const_tables != curr_join->tables)
+        curr_join->join_tab[curr_join->const_tables].sorted= 0;
       if (setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
@@ -1608,6 +1614,16 @@ JOIN::exec()
 			    (select_options & OPTION_FOUND_ROWS ?
 			     HA_POS_ERROR : unit->select_limit_cnt)))
 	DBUG_VOID_RETURN;
+      if (curr_join->const_tables != curr_join->tables &&
+          !curr_join->join_tab[curr_join->const_tables].table->sort.io_cache)
+      {
+        /*
+          If no IO cache exists for the first table then we are using an
+          INDEX SCAN and no filesort. Thus we should not remove the sorted
+          attribute on the INDEX SCAN.
+        */
+        skip_sort_order= 1;
+      }
     }
   }
   /* XXX: When can we have here thd->net.report_error not zero? */
@@ -5659,6 +5675,7 @@ make_join_readinfo(JOIN *join, uint options)
   uint i;
 
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  bool sorted= 1;
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -5668,6 +5685,8 @@ make_join_readinfo(JOIN *join, uint options)
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->next_select=sub_select;		/* normal select */
+    tab->sorted= sorted;
+    sorted= 0;                                  // only first must be sorted
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join
       table->status=STATUS_NO_RECORD;
@@ -8915,7 +8934,12 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table.file->extra(HA_EXTRA_WRITE_CACHE);
 #endif
 
-  /* copy all old rows */
+  /*
+    copy all old rows from heap table to MyISAM table
+    This is the only code that uses record[1] to read/write but this
+    is safe as this is a temporary MyISAM table without timestamp/autoincrement
+    or partitioning.
+  */
   while (!table->file->rnd_next(new_table.record[1]))
   {
     if ((write_err=new_table.file->write_row(new_table.record[1])))
@@ -9046,7 +9070,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     empty_record(table);
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
-      table->file->ha_index_init(0);
+      table->file->ha_index_init(0, 0);
   }
   /* Set up select_end */
   join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
@@ -9660,18 +9684,19 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       table->file->extra(HA_EXTRA_KEYREAD);
       tab->index= tab->ref.key;
     }
-    if ((error=join_read_const(tab)))
+    error=join_read_const(tab);
+    if (table->key_read)
+    {
+      table->key_read=0;
+      table->file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    if (error)
     {
       tab->info="unique row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
-    }
-    if (table->key_read)
-    {
-      table->key_read=0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
   if (*tab->on_expr_ref && !table->null_row)
@@ -9744,7 +9769,7 @@ join_read_const(JOIN_TAB *tab)
       table->status= STATUS_NOT_FOUND;
       mark_as_null_row(tab->table);
       empty_record(table);
-      if (error != HA_ERR_KEY_NOT_FOUND)
+      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
 	return report_error(table, error);
       return -1;
     }
@@ -9767,7 +9792,9 @@ join_read_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key);
+  {
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  }
   if (cmp_buffer_with_ref(tab) ||
       (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
   {
@@ -9779,7 +9806,7 @@ join_read_key(JOIN_TAB *tab)
     error=table->file->index_read(table->record[0],
 				  tab->ref.key_buff,
 				  tab->ref.key_length,HA_READ_KEY_EXACT);
-    if (error && error != HA_ERR_KEY_NOT_FOUND)
+    if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
   }
   table->null_row=0;
@@ -9794,14 +9821,16 @@ join_read_always_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key);
+  {
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  }
   if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
     return -1;
   if ((error=table->file->index_read(table->record[0],
 				     tab->ref.key_buff,
 				     tab->ref.key_length,HA_READ_KEY_EXACT)))
   {
-    if (error != HA_ERR_KEY_NOT_FOUND)
+    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
     return -1; /* purecov: inspected */
   }
@@ -9821,14 +9850,14 @@ join_read_last_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key);
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
   if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last(table->record[0],
 					  tab->ref.key_buff,
 					  tab->ref.key_length)))
   {
-    if (error != HA_ERR_KEY_NOT_FOUND)
+    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
     return -1; /* purecov: inspected */
   }
@@ -9931,7 +9960,7 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index);
+    table->file->ha_index_init(tab->index, tab->sorted);
   if ((error=tab->table->file->index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -9970,7 +9999,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index);
+    table->file->ha_index_init(tab->index, 1);
   if ((error= tab->table->file->index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
@@ -9994,7 +10023,7 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key);
+    table->file->ha_index_init(tab->ref.key, 1);
 #if NOT_USED_YET
   if (cp_buffer_from_ref(tab->join->thd, &tab->ref)) // as ft-key doesn't use store_key's
     return -1;                             // see also FT_SELECT::init()
@@ -10380,7 +10409,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 				error, 0))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
-    table->file->ha_index_init(0);
+    table->file->ha_index_init(0, 0);
     join->join_tab[join->tables-1].next_select=end_unique_update;
   }
   join->send_records++;

@@ -33,14 +33,13 @@ class CreateFragmentationReq {
   friend bool printCREATE_FRAGMENTATION_REQ(FILE *, 
 					    const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 fragmentationType;
   Uint32 noOfFragments;
-  Uint32 fragmentNode;
   Uint32 primaryTableId;  // use same fragmentation as this table if not RNIL
 };
 
@@ -62,10 +61,11 @@ public:
  
   enum ErrorCode {
     OK = 0
-    ,InvalidFragmentationType = 1
-    ,InvalidNodeId = 2
-    ,InvalidNodeType = 3
-    ,InvalidPrimaryTable = 4
+    ,InvalidFragmentationType = 1301
+    ,InvalidNodeId = 1302
+    ,InvalidNodeType = 1303
+    ,InvalidPrimaryTable = 1304
+    ,InvalidNodeGroup = 1305
   };
  
 private:

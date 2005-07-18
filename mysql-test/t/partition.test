@@ -1,0 +1,494 @@
+#--disable_abort_on_error
+#
+# Simple test for the partition storage engine
+# Taken fromm the select test
+#
+-- source include/have_partition.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+#
+# Partition by key no partition defined => OK
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a);
+
+drop table t1;
+#
+# Partition by key no partition, list of fields
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a, b);
+
+drop table t1;
+#
+# Partition by key specified 3 partitions and defined 3 => ok
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1, partition x2, partition x3);
+
+drop table t1;
+#
+# Partition by key specifying nodegroup
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1 nodegroup 0,
+ partition x2 nodegroup 1,
+ partition x3 nodegroup 2);
+
+drop table t1;
+#
+# Partition by key specifying engine
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1 engine myisam,
+ partition x2 engine myisam,
+ partition x3 engine myisam);
+
+drop table t1;
+#
+# Partition by key specifying tablespace
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+
+drop table t1;
+
+#
+# Partition by key list, basic
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (a)
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+ partition x2 values in (3, 11, 5, 7) tablespace ts2,
+ partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+
+drop table t1;
+#
+# Partition by key list, list function
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (b*a)
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+ partition x2 values in (3, 11, 5, 7) tablespace ts2,
+ partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+
+drop table t1;
+
+#
+# Partition by key list, list function, no spec of #partitions
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (b*a)
+(partition x1 values in (1) tablespace ts1,
+ partition x2 values in (3, 11, 5, 7) tablespace ts2,
+ partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+
+drop table t1;
+
+#
+# Partition by key stand-alone error
+#
+--error 1064
+partition by list (a)
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+ partition x2 values in (3, 11, 5, 7) tablespace ts2,
+ partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+
+#
+# Partition by key list, number of partitions defined, no partition defined
+#
+--error 1441
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (a)
+partitions 2;
+
+#
+# Partition by key list, wrong result type
+#
+--error 1440
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (sin(a))
+partitions 3
+(partition x1 values in (1,2,9,4) tablespace ts1,
+ partition x2 values in (3, 11, 5, 7) tablespace ts2,
+ partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+
+#
+# Partition by key, partition function not allowed
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a+2)
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+
+#
+# Partition by key, no partition name
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+
+#
+# Partition by key, invalid field in field list
+#
+--error 1437
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a,d)
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+#
+# Partition by hash, invalid field in function
+#
+--error 1054
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a + d)
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+
+#
+# Partition by hash, invalid result type
+#
+--error 1440
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (sin(a))
+partitions 3
+(partition x1 tablespace ts1,
+ partition x2 tablespace ts2,
+ partition x3 tablespace ts3);
+
+#
+# Partition by key specified 3 partitions but only defined 2 => error
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by key (a)
+partitions 3
+(partition x1, partition x2);
+
+#
+# Partition by key specified 3 partitions but only defined 2 => error
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (rand(a))
+partitions 2
+(partition x1, partition x2);
+
+#
+# Partition by key specified 3 partitions but only defined 2 => error
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by range (rand(a))
+partitions 2
+(partition x1 values less than (0), partition x2 values less than (2));
+
+#
+# Partition by key specified 3 partitions but only defined 2 => error
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (rand(a))
+partitions 2
+(partition x1 values in (1), partition x2 values in (2));
+
+#
+# Partition by hash, values less than error
+#
+--error 1430
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a)
+partitions 2
+(partition x1 values less than (4),
+ partition x2 values less than (5));
+
+#
+# Partition by hash, values in error
+#
+--error 1430
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a)
+partitions 2
+(partition x1 values in (4),
+ partition x2 values in (5));
+
+#
+# Partition by hash, values in error
+#
+--error 1430
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by hash (a)
+partitions 2
+(partition x1 values in (4,6),
+ partition x2 values in (5,7));
+
+#
+# Subpartition by key, no partitions defined, single field
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (b);
+
+#
+# Subpartition by key, no partitions defined, list of fields
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (a, b);
+
+#
+# Subpartition by hash, no partitions defined
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (a+b);
+
+#
+# Subpartition by key, no partitions defined, single field
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (b);
+
+#
+# Subpartition by key, no partitions defined, list of fields
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by key (a, b);
+
+#
+# Subpartition by hash, no partitions defined
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (a+b);
+
+#
+# Subpartition by hash, no partitions defined, wrong subpartition function
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (rand(a+b));
+
+#
+# Subpartition by hash, wrong subpartition function
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (sin(a+b))
+(partition x1 (subpartition x11, subpartition x12),
+ partition x2 (subpartition x21, subpartition x22));
+
+#
+# Subpartition by hash, no partitions defined, wrong subpartition function
+#
+--error 1064
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by key (a+b)
+(partition x1 values less than (1) (subpartition x11, subpartition x12),
+ partition x2 values less than (2) (subpartition x21, subpartition x22));
+
+#
+# Subpartition by hash, no partitions defined, wrong subpartition function
+#
+--error 1437
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by key (a,d)
+(partition x1 values less than (1) (subpartition x11, subpartition x12),
+ partition x2 values less than (2) (subpartition x21, subpartition x22));
+
+#
+# Subpartition by hash, no partitions defined, wrong subpartition function
+#
+--error 1449
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by key (a)
+subpartition by hash (3+4);
+
+#
+# Subpartition by hash, no partitions defined, wrong subpartition function
+#
+--error 1054
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+d)
+(partition x1 values less than (1) (subpartition x11, subpartition x12),
+ partition x2 values less than (2) (subpartition x21, subpartition x22));
+

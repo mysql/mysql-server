@@ -70,7 +70,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   int	 j,error, errarg= 0;
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
          interval_count,interval_parts,read_length,db_create_options;
-  uint	 key_info_length, com_length;
+  uint	 key_info_length, com_length, part_info_len, extra_rec_buf_length;
   ulong  pos;
   char	 index_file[FN_REFLEN], *names, *keynames, *comment_pos;
   uchar  head[288],*disk_buff,new_field_pack_flag;
@@ -153,6 +153,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     goto err;                                   /* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
+  part_info_len= uint4korr(head+55);
   share->frm_version= head[2];
   /*
     Check if .frm file created by MySQL 5.0. In this case we want to
@@ -300,10 +301,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
 #endif
 
-  /* Allocate handler */
-  if (!(outparam->file= get_new_handler(outparam, share->db_type)))
-    goto err;
-
   error=4;
   outparam->reginfo.lock_type= TL_UNLOCK;
   outparam->current_lock=F_UNLCK;
@@ -314,8 +311,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (prgflag & (READ_ALL+EXTRA_RECORD))
     records++;
   /* QQ: TODO, remove the +1 from below */
+  extra_rec_buf_length= uint2korr(head+59);
   rec_buff_length= ALIGN_SIZE(share->reclength + 1 +
-                              outparam->file->extra_rec_buf_length());
+                              extra_rec_buf_length);
   share->rec_buff_length= rec_buff_length;
   if (!(record= (char *) alloc_root(&outparam->mem_root,
                                     rec_buff_length * records)))
@@ -435,8 +433,21 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   if (keynames)
     fix_type_pointers(&int_array, &share->keynames, 1, &keynames);
+  if (part_info_len > 0)
+  {
+#ifdef HAVE_PARTITION_DB
+    if (mysql_unpack_partition(file, thd, part_info_len, outparam)) 
+      goto err;
+#else
+    goto err;
+#endif
+  }
   VOID(my_close(file,MYF(MY_WME)));
   file= -1;
+
+  /* Allocate handler */
+  if (!(outparam->file= get_new_handler(outparam, share->db_type)))
+    goto err;
 
   record= (char*) outparam->record[0]-1;	/* Fieldstart = 1 */
   if (null_field_first)
@@ -859,6 +870,13 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (outparam->file->ha_allocate_read_write_set(share->fields))
     goto err;
 
+  /* Fix the partition functions and ensure they are not constant functions*/
+  if (part_info_len > 0)
+#ifdef HAVE_PARTITION_DB
+    if (fix_partition_func(thd,name,outparam))
+#endif
+      goto err;
+  
   /* The table struct is now initialized;  Open the table */
   error=2;
   if (db_stat)
@@ -916,6 +934,13 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (! error_reported)
     frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG, errarg);
   delete outparam->file;
+#ifdef HAVE_PARTITION_DB
+  if (outparam->s->part_info)
+  {
+    free_items(outparam->s->part_info->item_free_list);
+    outparam->s->part_info->item_free_list= 0;
+  }
+#endif
   outparam->file=0;				// For easier errorchecking
   outparam->db_stat=0;
   hash_free(&share->name_hash);
@@ -942,6 +967,13 @@ int closefrm(register TABLE *table)
     table->field= 0;
   }
   delete table->file;
+#ifdef HAVE_PARTITION_DB
+  if (table->s->part_info)
+  {
+    free_items(table->s->part_info->item_free_list);
+    table->s->part_info->item_free_list= 0;
+  }
+#endif
   table->file= 0;				/* For easier errorchecking */
   hash_free(&table->s->name_hash);
   free_root(&table->mem_root, MYF(0));

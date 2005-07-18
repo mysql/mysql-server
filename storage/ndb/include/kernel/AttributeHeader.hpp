@@ -30,9 +30,9 @@ class AttributeHeader {
 
 public:
   /**
-   * Psuedo columns
+   * Pseudo columns
    */
-  STATIC_CONST( PSUEDO       = 0x8000 );
+  STATIC_CONST( PSEUDO       = 0x8000 );
   STATIC_CONST( FRAGMENT     = 0xFFFE ); // Read fragment no
   STATIC_CONST( ROW_COUNT    = 0xFFFD ); // Read row count (committed)
   STATIC_CONST( COMMIT_COUNT = 0xFFFC ); // Read commit count

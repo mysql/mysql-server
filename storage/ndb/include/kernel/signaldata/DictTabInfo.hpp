@@ -151,7 +151,12 @@ public:
     AllNodesSmallTable = 0,
     AllNodesMediumTable = 1,
     AllNodesLargeTable = 2,
-    SingleFragment = 3
+    SingleFragment = 3,
+    DistrKeyHash = 4,
+    DistrKeyLin = 5,
+    UserDefined = 6,
+    DistrKeyUniqueHashIndex = 7,
+    DistrKeyOrderedIndex = 8
   };
   
   // TableType constants + objects

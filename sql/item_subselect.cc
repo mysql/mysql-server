@@ -1492,7 +1492,7 @@ int subselect_uniquesubquery_engine::exec()
   }
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key);
+    table->file->ha_index_init(tab->ref.key, 0);
   error= table->file->index_read(table->record[0],
                                  tab->ref.key_buff,
                                  tab->ref.key_length,HA_READ_KEY_EXACT);
@@ -1545,7 +1545,7 @@ int subselect_indexsubquery_engine::exec()
   }
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key);
+    table->file->ha_index_init(tab->ref.key, 1);
   error= table->file->index_read(table->record[0],
                                  tab->ref.key_buff,
                                  tab->ref.key_length,HA_READ_KEY_EXACT);

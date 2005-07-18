@@ -21,6 +21,7 @@ class Item;				/* Needed by ORDER */
 class GRANT_TABLE;
 class st_select_lex_unit;
 class st_select_lex;
+class partition_info;
 class COND_EQUAL;
 
 /* Order clause list element */
@@ -96,6 +97,9 @@ class Table_triggers_list;
 
 typedef struct st_table_share
 {
+#ifdef HAVE_PARTITION_DB
+  partition_info *part_info;            /* Partition related information */
+#endif
   /* hash of field names (contains pointers to elements of field array) */
   HASH	name_hash;			/* hash of field names */
   MEM_ROOT mem_root;
@@ -203,6 +207,8 @@ struct st_table {
   ORDER		*group;
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
+  MY_BITMAP     *read_set;
+  MY_BITMAP     *write_set;
   query_id_t	query_id;
 
   ha_rows	quick_rows[MAX_KEY];
@@ -256,6 +262,7 @@ struct st_table {
   my_bool auto_increment_field_not_null;
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
+  my_bool get_fields_in_item_tree;      /* Signal to fix_field */
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;

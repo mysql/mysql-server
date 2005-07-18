@@ -751,7 +751,7 @@ int QUICK_RANGE_SELECT::init()
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
 
   if (file->inited == handler::NONE)
-    DBUG_RETURN(error= file->ha_index_init(index));
+    DBUG_RETURN(error= file->ha_index_init(index, 1));
   error= 0;
   DBUG_RETURN(0);
 }
@@ -6049,7 +6049,7 @@ int QUICK_RANGE_SELECT::reset()
   range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index)))
+  if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
     DBUG_RETURN(error);
  
   /* Do not allocate the buffers twice. */
@@ -6308,7 +6308,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 			     (byte*) range->min_key,
 			     range->min_length,
 			     (ha_rkey_function)(range->flag ^ GEOM_FLAG));
-    if (result != HA_ERR_KEY_NOT_FOUND)
+    if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)
       DBUG_RETURN(result);
     range=0;				// Not found, to next range
   }
@@ -6451,7 +6451,7 @@ int QUICK_SELECT_DESC::get_next()
     }
     if (result)
     {
-      if (result != HA_ERR_KEY_NOT_FOUND)
+      if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)
 	DBUG_RETURN(result);
       range=0;					// Not found, to next range
       continue;
@@ -8083,7 +8083,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
   file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
-  result= file->ha_index_init(index);
+  result= file->ha_index_init(index, 1);
   result= file->index_last(record);
   if (result == HA_ERR_END_OF_FILE)
     DBUG_RETURN(0);
@@ -8159,7 +8159,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
     DBUG_ASSERT(is_last_prefix <= 0);
     if (result == HA_ERR_KEY_NOT_FOUND)
       continue;
-    else if (result)
+    if (result)
       break;
 
     if (have_min)
@@ -8189,10 +8189,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
                                HA_READ_KEY_EXACT);
 
     result= have_min ? min_res : have_max ? max_res : result;
-  }
-  while (result == HA_ERR_KEY_NOT_FOUND && is_last_prefix != 0);
+  } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
+           is_last_prefix != 0);
 
   if (result == 0)
+  {
     /*
       Partially mimic the behavior of end_select_send. Copy the
       field data from Item_field::field into Item_field::result_field
@@ -8200,6 +8201,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       other fields in non-ANSI SQL mode).
     */
     copy_fields(&join->tmp_table_param);
+  }
   else if (result == HA_ERR_KEY_NOT_FOUND)
     result= HA_ERR_END_OF_FILE;
 
@@ -8226,6 +8228,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
   RETURN
     0                    on success
     HA_ERR_KEY_NOT_FOUND if no MIN key was found that fulfills all conditions.
+    HA_ERR_END_OF_FILE   - "" -
     other                if some error occurred
 */
 
@@ -8279,7 +8282,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
         if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
           key_restore(record, tmp_record, index_info, 0);
       }
-      else if (result == HA_ERR_KEY_NOT_FOUND) 
+      else if (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE)
         result= 0; /* There is a result in any case. */
     }
   }
@@ -8304,6 +8307,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
   RETURN
     0                    on success
     HA_ERR_KEY_NOT_FOUND if no MAX key was found that fulfills all conditions.
+    HA_ERR_END_OF_FILE	 - "" -
     other                if some error occurred
 */
 
@@ -8404,6 +8408,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
     0                    on success
     HA_ERR_KEY_NOT_FOUND if there is no key with the given prefix in any of
                          the ranges
+    HA_ERR_END_OF_FILE   - "" -
     other                if some error
 */
 
@@ -8448,11 +8453,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
 
     result= file->index_read(record, group_prefix, search_prefix_len,
                              find_flag);
-    if ((result == HA_ERR_KEY_NOT_FOUND) &&
-        (cur_range->flag & (EQ_RANGE | NULL_RANGE)))
-        continue; /* Check the next range. */
-    else if (result)
+    if (result)
     {
+      if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
+          (cur_range->flag & (EQ_RANGE | NULL_RANGE)))
+        continue; /* Check the next range. */
+
       /*
         In all other cases (HA_ERR_*, HA_READ_KEY_EXACT with NO_MIN_RANGE,
         HA_READ_AFTER_KEY, HA_READ_KEY_OR_NEXT) if the lookup failed for this
@@ -8479,7 +8485,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
     /* Check if record belongs to the current group. */
     if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
     {
-      result = HA_ERR_KEY_NOT_FOUND;
+      result= HA_ERR_KEY_NOT_FOUND;
       continue;
     }
 
@@ -8497,7 +8503,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
       if (!((cur_range->flag & NEAR_MAX) && (cmp_res == -1) ||
             (cmp_res <= 0)))
       {
-        result = HA_ERR_KEY_NOT_FOUND;
+        result= HA_ERR_KEY_NOT_FOUND;
         continue;
       }
     }
@@ -8536,6 +8542,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
     0                    on success
     HA_ERR_KEY_NOT_FOUND if there is no key with the given prefix in any of
                          the ranges
+    HA_ERR_END_OF_FILE   - "" -
     other                if some error
 */
 
@@ -8581,10 +8588,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
     result= file->index_read(record, group_prefix, search_prefix_len,
                              find_flag);
 
-    if ((result == HA_ERR_KEY_NOT_FOUND) && (cur_range->flag & EQ_RANGE))
-      continue; /* Check the next range. */
     if (result)
     {
+      if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
+          (cur_range->flag & EQ_RANGE))
+        continue; /* Check the next range. */
+
       /*
         In no key was found with this upper bound, there certainly are no keys
         in the ranges to the left.

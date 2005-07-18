@@ -429,3 +429,86 @@ int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length)
   }
   return 0;                                     // Keys are equal
 }
+
+
+/*
+  Compare two records in index order
+  SYNOPSIS
+    key_rec_cmp()
+    key                         Index information
+    rec0                        Pointer to table->record[0]
+    first_rec                   Pointer to record compare with
+    second_rec                  Pointer to record compare against first_rec
+  DESCRIPTION
+    This method is set-up such that it can be called directly from the
+    priority queue and it is attempted to be optimised as much as possible
+    since this will be called O(N * log N) times while performing a merge
+    sort in various places in the code.
+
+    We retrieve the pointer to table->record[0] using the fact that key_parts
+    have an offset making it possible to calculate the start of the record.
+    We need to get the diff to the compared record since none of the records
+    being compared are stored in table->record[0].
+
+    We first check for NULL values, if there are no NULL values we use
+    a compare method that gets two field pointers and a max length
+    and return the result of the comparison.
+*/
+
+int key_rec_cmp(void *key, byte *first_rec, byte *second_rec)
+{
+  KEY *key_info= (KEY*)key;
+  uint key_parts= key_info->key_parts, i= 0;
+  KEY_PART_INFO *key_part= key_info->key_part;
+  char *rec0= key_part->field->ptr - key_part->offset;
+  my_ptrdiff_t first_diff= first_rec - rec0, sec_diff= second_rec - rec0;
+  int result= 0;
+  DBUG_ENTER("key_rec_cmp");
+
+  do
+  {
+    Field *field= key_part->field;
+    uint length;
+
+    if (key_part->null_bit)
+    {
+      /* The key_part can contain NULL values */
+      bool first_is_null= field->is_null(first_diff);
+      bool sec_is_null= field->is_null(sec_diff);
+      /*
+        NULL is smaller then everything so if first is NULL and the other
+        not then we know that we should return -1 and for the opposite
+        we should return +1. If both are NULL then we call it equality
+        although it is a strange form of equality, we have equally little
+        information of the real value.
+      */
+      if (!first_is_null)
+      {
+        if (!sec_is_null)
+          ; /* Fall through, no NULL fields */
+        else
+        {
+          DBUG_RETURN(+1);
+        }
+      }
+      else if (!sec_is_null)
+      {
+        DBUG_RETURN(-1);
+      }
+      else
+        goto next_loop; /* Both were NULL */
+    }
+    /*
+      No null values in the fields
+      We use the virtual method cmp_max with a max length parameter.
+      For most field types this translates into a cmp without
+      max length. The exceptions are the BLOB and VARCHAR field types
+      that take the max length into account.
+    */
+    result= field->cmp_max(field->ptr+first_diff, field->ptr+sec_diff,
+                           key_part->length);
+next_loop:
+    key_part++;
+  } while (!result && ++i < key_parts);
+  DBUG_RETURN(result);
+}

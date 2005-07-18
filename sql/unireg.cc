@@ -46,7 +46,8 @@ static bool pack_fields(File file, List<create_field> &create_fields,
 static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
-			   uint reclength, ulong data_offset);
+			   uint reclength, ulong data_offset,
+                           handler *handler);
 
 /*
   Create a frm (table definition) file
@@ -79,13 +80,18 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
+#ifdef HAVE_PARTITION_DB
+  partition_info *part_info= thd->lex->part_info;
+#endif
   DBUG_ENTER("mysql_create_frm");
+#ifdef HAVE_PARTITION_DB
+  thd->lex->part_info= NULL;
+#endif
 
   formnames.type_names=0;
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
     DBUG_RETURN(1);
-  if (db_file == NULL)
-    db_file= get_new_handler((TABLE*) 0, create_info->db_type);
+  DBUG_ASSERT(db_file != NULL);
 
  /* If fixed row records, we need one bit to check for deleted rows */
   if (!(create_info->table_options & HA_OPTION_PACK_RECORD))
@@ -136,6 +142,13 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 	  60);
   forminfo[46]=(uchar) strlen((char*)forminfo+47);	// Length of comment
 
+#ifdef HAVE_PARTITION_DB
+  if (part_info)
+  {
+    int4store(fileinfo+55,part_info->part_info_len);
+  }
+#endif
+  int2store(fileinfo+59,db_file->extra_rec_buf_length());
   if (my_pwrite(file,(byte*) fileinfo,64,0L,MYF_RW) ||
       my_pwrite(file,(byte*) keybuff,key_info_length,
 		(ulong) uint2korr(fileinfo+6),MYF_RW))
@@ -144,7 +157,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 	       (ulong) uint2korr(fileinfo+6)+ (ulong) key_buff_length,
 	       MY_SEEK_SET,MYF(0)));
   if (make_empty_rec(thd,file,create_info->db_type,create_info->table_options,
-		     create_fields,reclength, data_offset))
+		     create_fields,reclength, data_offset, db_file))
     goto err;
 
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
@@ -153,6 +166,14 @@ bool mysql_create_frm(THD *thd, my_string file_name,
       pack_fields(file, create_fields, data_offset))
     goto err;
 
+#ifdef HAVE_PARTITION_DB
+  if (part_info)
+  {
+    if (my_write(file, (byte*) part_info->part_info_string,
+                 part_info->part_info_len, MYF_RW))
+      goto err;
+  }
+#endif
 #ifdef HAVE_CRYPTED_FRM
   if (create_info->password)
   {
@@ -211,15 +232,14 @@ err3:
   Create a frm (table definition) file and the tables
 
   SYNOPSIS
-    mysql_create_frm()
+    rea_create_table()
     thd			Thread handler
     file_name		Name of file (including database and .frm)
     create_info		create info parameters
     create_fields	Fields to create
     keys		number of keys to create
     key_info		Keys to create
-    db_file		Handler to use. May be zero, in which case we use
-                        create_info->db_type
+    file		Handler to use.
   RETURN
     0  ok
     1  error
@@ -228,19 +248,21 @@ err3:
 int rea_create_table(THD *thd, my_string file_name,
 		     HA_CREATE_INFO *create_info,
 		     List<create_field> &create_fields,
-		     uint keys, KEY *key_info)
+		     uint keys, KEY *key_info, handler *file)
 {
   DBUG_ENTER("rea_create_table");
 
   if (mysql_create_frm(thd, file_name, create_info,
-                       create_fields, keys, key_info, NULL))
+                       create_fields, keys, key_info, file))
     DBUG_RETURN(1);
+  if (file->create_handler_files(file_name))
+    goto err_handler;
   if (!create_info->frm_only && ha_create_table(file_name,create_info,0))
-  {
-    my_delete(file_name,MYF(0));
-    DBUG_RETURN(1);
-  }
+    goto err_handler;
   DBUG_RETURN(0);
+err_handler:
+  my_delete(file_name, MYF(0));
+  DBUG_RETURN(1);
 } /* rea_create_table */
 
 
@@ -664,7 +686,8 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
 			   uint reclength,
-                           ulong data_offset)
+                           ulong data_offset,
+                           handler *handler)
 {
   int error;
   Field::utype type;
@@ -672,19 +695,15 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
   uchar *buff,*null_pos;
   TABLE table;
   create_field *field;
-  handler *handler;
   enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
   bzero((char*) &table,sizeof(table));
   table.s= &table.share_not_to_be_used;
-  handler= get_new_handler((TABLE*) 0, table_type);
 
-  if (!handler ||
-      !(buff=(uchar*) my_malloc((uint) reclength,MYF(MY_WME | MY_ZEROFILL))))
+  if (!(buff=(uchar*) my_malloc((uint) reclength,MYF(MY_WME | MY_ZEROFILL))))
   {
-    delete handler;
     DBUG_RETURN(1);
   }
 
@@ -771,7 +790,6 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 
 err:
   my_free((gptr) buff,MYF(MY_FAE));
-  delete handler;
   thd->count_cuted_fields= old_count_cuted_fields;
   DBUG_RETURN(error);
 } /* make_empty_rec */

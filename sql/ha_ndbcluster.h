@@ -420,7 +420,7 @@ class ha_ndbcluster: public handler
   int write_row(byte *buf);
   int update_row(const byte *old_data, byte *new_data);
   int delete_row(const byte *buf);
-  int index_init(uint index);
+  int index_init(uint index, bool sorted);
   int index_end();
   int index_read(byte *buf, const byte *key, uint key_len, 
                  enum ha_rkey_function find_flag);
@@ -462,6 +462,11 @@ class ha_ndbcluster: public handler
   const char * table_type() const;
   const char ** bas_ext() const;
   ulong table_flags(void) const;
+  ulong partition_flags(void) const
+  {
+    return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
+            HA_CAN_PARTITION_UNIQUE);
+  }
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
@@ -471,6 +476,7 @@ class ha_ndbcluster: public handler
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
+  int get_default_no_partitions(ulonglong max_rows);
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
@@ -549,15 +555,21 @@ private:
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   int check_index_fields_not_null(uint index_no);
 
-  int pk_read(const byte *key, uint key_len, byte *buf);
-  int complemented_pk_read(const byte *old_data, byte *new_data);
+  uint set_up_partition_info(partition_info *part_info,
+                             TABLE *table,
+                             void *tab);
+  int complemented_pk_read(const byte *old_data, byte *new_data,
+                           uint32 old_part_id);
+  int pk_read(const byte *key, uint key_len, byte *buf, uint32 part_id);
+  int ordered_index_scan(const key_range *start_key,
+                         const key_range *end_key,
+                         bool sorted, bool descending, byte* buf,
+                         part_id_range *part_spec);
+  int full_table_scan(byte * buf);
+
   int peek_row(const byte *record);
   int unique_index_read(const byte *key, uint key_len, 
                         byte *buf);
-  int ordered_index_scan(const key_range *start_key,
-                         const key_range *end_key,
-                         bool sorted, bool descending, byte* buf);
-  int full_table_scan(byte * buf);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
   int define_read_attrs(byte* buf, NdbOperation* op);
@@ -637,6 +649,11 @@ private:
   // NdbRecAttr has no reference to blob
   typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
+  partition_info *m_part_info;
+  byte *m_rec0;
+  Field **m_part_field_array;
+  bool m_use_partition_function;
+  bool m_sorted;
   bool m_use_write;
   bool m_ignore_dup_key;
   bool m_primary_key_update;

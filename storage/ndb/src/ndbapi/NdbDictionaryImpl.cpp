@@ -233,7 +233,7 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
 }
 
 NdbDictionary::Column *
-NdbColumnImpl::create_psuedo(const char * name){
+NdbColumnImpl::create_pseudo(const char * name){
   NdbDictionary::Column * col = new NdbDictionary::Column();
   col->setName(name);
   if(!strcmp(name, "NDB$FRAGMENT")){
@@ -302,8 +302,9 @@ void
 NdbTableImpl::init(){
   m_changeMask= 0;
   m_tableId= RNIL;
+  m_primaryTableId= RNIL;
   m_frm.clear();
-  m_fragmentType= NdbDictionary::Object::FragAllSmall;
+  m_fragmentType= NdbDictionary::Object::DistrKeyHash;
   m_hashValueMask= 0;
   m_hashpointerValue= 0;
   m_logging= true;
@@ -390,6 +391,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_externalName.assign(org.m_externalName);
   m_newExternalName.assign(org.m_newExternalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
+  m_ng.assign(org.m_ng.get_data(), org.m_ng.length());
   m_fragmentType = org.m_fragmentType;
   m_fragmentCount = org.m_fragmentCount;
 
@@ -788,17 +790,17 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
     m_globalHash->lock();
     if(f_dictionary_count++ == 0){
       NdbDictionary::Column::FRAGMENT= 
-	NdbColumnImpl::create_psuedo("NDB$FRAGMENT");
+	NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
       NdbDictionary::Column::FRAGMENT_MEMORY= 
-	NdbColumnImpl::create_psuedo("NDB$FRAGMENT_MEMORY");
+	NdbColumnImpl::create_pseudo("NDB$FRAGMENT_MEMORY");
       NdbDictionary::Column::ROW_COUNT= 
-	NdbColumnImpl::create_psuedo("NDB$ROW_COUNT");
+	NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
       NdbDictionary::Column::COMMIT_COUNT= 
-	NdbColumnImpl::create_psuedo("NDB$COMMIT_COUNT");
+	NdbColumnImpl::create_pseudo("NDB$COMMIT_COUNT");
       NdbDictionary::Column::ROW_SIZE=
-	NdbColumnImpl::create_psuedo("NDB$ROW_SIZE");
+	NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
       NdbDictionary::Column::RANGE_NO= 
-	NdbColumnImpl::create_psuedo("NDB$RANGE_NO");
+	NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
     }
     m_globalHash->unlock();
     return true;
@@ -1220,6 +1222,9 @@ fragmentTypeMapping[] = {
   { DictTabInfo::AllNodesMediumTable, NdbDictionary::Object::FragAllMedium },
   { DictTabInfo::AllNodesLargeTable,  NdbDictionary::Object::FragAllLarge },
   { DictTabInfo::SingleFragment,      NdbDictionary::Object::FragSingle },
+  { DictTabInfo::DistrKeyHash,      NdbDictionary::Object::DistrKeyHash },
+  { DictTabInfo::DistrKeyLin,      NdbDictionary::Object::DistrKeyLin },
+  { DictTabInfo::UserDefined,      NdbDictionary::Object::UserDefined },
   { -1, -1 }
 };
 
@@ -1293,6 +1298,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_externalName.assign(externalName);
 
   impl->m_frm.assign(tableDesc.FrmData, tableDesc.FrmLen);
+  impl->m_ng.assign(tableDesc.FragmentData, tableDesc.FragmentDataLen);
   
   impl->m_fragmentType = (NdbDictionary::Object::FragmentType)
     getApiConstant(tableDesc.FragmentType, 
@@ -1406,12 +1412,12 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   if(tableDesc.FragmentDataLen > 0)
   {
-    Uint32 replicaCount = tableDesc.FragmentData[0];
-    Uint32 fragCount = tableDesc.FragmentData[1];
+    Uint16 replicaCount = tableDesc.FragmentData[0];
+    Uint16 fragCount = tableDesc.FragmentData[1];
 
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
-
+    DBUG_PRINT("info", ("replicaCount=%x , fragCount=%x",replicaCount,fragCount));
     for(i = 0; i<(fragCount*replicaCount); i++)
     {
       impl->m_fragments.push_back(tableDesc.FragmentData[i+2]);
@@ -1452,29 +1458,35 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 int
 NdbDictionaryImpl::createTable(NdbTableImpl &t)
 { 
+  DBUG_ENTER("NdbDictionaryImpl::createTable");
   if (m_receiver.createTable(m_ndb, t) != 0)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
   if (t.m_noOfBlobs == 0)
-    return 0;
+  {
+    DBUG_RETURN(0);
+  }
   // update table def from DICT
   Ndb_local_table_info *info=
     get_local_table_info(t.m_internalName,false);
   if (info == NULL) {
     m_error.code= 709;
-    return -1;
+    DBUG_RETURN(-1);
   }
   if (createBlobTables(*(info->m_table_impl)) != 0) {
     int save_code = m_error.code;
     (void)dropTable(t);
     m_error.code= save_code;
-    return -1;
+    DBUG_RETURN(-1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int
 NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
 {
+  DBUG_ENTER("NdbDictionaryImpl::createBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
     NdbColumnImpl & c = *t.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
@@ -1482,23 +1494,26 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
     NdbTableImpl bt;
     NdbBlob::getBlobTable(bt, &t, &c);
     if (createTable(bt) != 0)
-      return -1;
+    {
+      DBUG_RETURN(-1);
+    }
     // Save BLOB table handle
     Ndb_local_table_info *info=
       get_local_table_info(bt.m_internalName, false);
-    if (info == 0) {
-      return -1;
+    if (info == 0)
+    {
+      DBUG_RETURN(-1);
     }
     c.m_blobTable = info->m_table_impl;
   }
-  
-  return 0;
+  DBUG_RETURN(0); 
 }
 
 int
 NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
 {
   unsigned n= t.m_noOfBlobs;
+  DBUG_ENTER("NdbDictioanryImpl::addBlobTables");
   // optimized for blob column being the last one
   // and not looking for more than one if not neccessary
   for (unsigned i = t.m_columns.size(); i > 0 && n > 0;) {
@@ -1512,19 +1527,19 @@ NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
     // Save BLOB table handle
     NdbTableImpl * cachedBlobTable = getTable(btname);
     if (cachedBlobTable == 0) {
-      return -1;
+      DBUG_RETURN(-1);
     }
     c.m_blobTable = cachedBlobTable;
   }
-  
-  return 0;
+  DBUG_RETURN(0); 
 }
 
 int 
 NdbDictInterface::createTable(Ndb & ndb,
 			      NdbTableImpl & impl)
 {
-  return createOrAlterTable(ndb, impl, false);
+  DBUG_ENTER("NdbDictInterface::createTable");
+  DBUG_RETURN(createOrAlterTable(ndb, impl, false));
 }
 
 int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
@@ -1560,7 +1575,8 @@ int
 NdbDictInterface::alterTable(Ndb & ndb,
 			      NdbTableImpl & impl)
 {
-  return createOrAlterTable(ndb, impl, true);
+  DBUG_ENTER("NdbDictInterface::alterTable");
+  DBUG_RETURN(createOrAlterTable(ndb, impl, true));
 }
 
 int 
@@ -1592,7 +1608,8 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     ndb.internalize_table_name(impl.m_externalName.c_str()));
   impl.m_internalName.assign(internalName);
   UtilBufferWriter w(m_buffer);
-  DictTabInfo::Table tmpTab; tmpTab.init();
+  DictTabInfo::Table tmpTab;
+  tmpTab.init();
   BaseString::snprintf(tmpTab.TableName,
 	   sizeof(tmpTab.TableName),
 	   internalName.c_str());
@@ -1615,6 +1632,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     if (col->m_distributionKey)
       distKeys++;
   }
+  if (distKeys == impl.m_noOfKeys)
+    distKeys= 0;
+  impl.m_noOfDistributionKeys= distKeys;
+
 
   // Check max length of frm data
   if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
@@ -1623,12 +1644,15 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   }
   tmpTab.FrmLen = impl.m_frm.length();
   memcpy(tmpTab.FrmData, impl.m_frm.get_data(), impl.m_frm.length());
+  tmpTab.FragmentDataLen = impl.m_ng.length();
+  memcpy(tmpTab.FragmentData, impl.m_ng.get_data(), impl.m_ng.length());
 
   tmpTab.TableLoggedFlag = impl.m_logging;
   tmpTab.TableKValue = impl.m_kvalue;
   tmpTab.MinLoadFactor = impl.m_minLoadFactor;
   tmpTab.MaxLoadFactor = impl.m_maxLoadFactor;
   tmpTab.TableType = DictTabInfo::UserTable;
+  tmpTab.PrimaryTableId = impl.m_primaryTableId;
   tmpTab.NoOfAttributes = sz;
   
   tmpTab.FragmentType = getKernelConstant(impl.m_fragmentType,
@@ -1646,6 +1670,8 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     abort();
   }
   
+  DBUG_PRINT("info",("impl.m_noOfDistributionKeys: %d impl.m_noOfKeys: %d distKeys: %d",
+		     impl.m_noOfDistributionKeys, impl.m_noOfKeys, distKeys));
   if (distKeys == impl.m_noOfKeys)
     distKeys= 0;
   impl.m_noOfDistributionKeys= distKeys;
@@ -1655,6 +1681,8 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     if(col == 0)
       continue;
     
+    DBUG_PRINT("info",("column: %s(%d) col->m_distributionKey: %d",
+		       col->m_name.c_str(), i, col->m_distributionKey));
     DictTabInfo::Attribute tmpAttr; tmpAttr.init();
     BaseString::snprintf(tmpAttr.AttributeName, sizeof(tmpAttr.AttributeName), 
 	     col->m_name.c_str());
@@ -1685,8 +1713,14 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     }
     // distribution key not supported for Char attribute
     if (distKeys && col->m_distributionKey && col->m_cs != NULL) {
-      m_error.code= 745;
-      DBUG_RETURN(-1);
+      // we can allow this for non-var char where strxfrm does nothing
+      if (col->m_type == NdbDictionary::Column::Char &&
+          (col->m_cs->state & MY_CS_BINSORT))
+        ;
+      else {
+        m_error.code= 745;
+        DBUG_RETURN(-1);
+      }
     }
     // charset in upper half of precision
     if (col->getCharType()) {

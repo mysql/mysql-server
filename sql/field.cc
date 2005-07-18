@@ -6311,7 +6311,8 @@ my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
 }
 
 
-int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
+int Field_varstring::cmp_max(const char *a_ptr, const char *b_ptr,
+                             uint max_len)
 {
   uint a_length, b_length;
   int diff;
@@ -6326,6 +6327,8 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
     a_length= uint2korr(a_ptr);
     b_length= uint2korr(b_ptr);
   }
+  set_if_smaller(a_length, max_len);
+  set_if_smaller(b_length, max_len);
   diff= field_charset->coll->strnncollsp(field_charset,
                                          (const uchar*) a_ptr+
                                          length_bytes,
@@ -6956,13 +6959,16 @@ int Field_blob::cmp(const char *a,uint32 a_length, const char *b,
 }
 
 
-int Field_blob::cmp(const char *a_ptr, const char *b_ptr)
+int Field_blob::cmp_max(const char *a_ptr, const char *b_ptr,
+                        uint max_length)
 {
   char *blob1,*blob2;
   memcpy_fixed(&blob1,a_ptr+packlength,sizeof(char*));
   memcpy_fixed(&blob2,b_ptr+packlength,sizeof(char*));
-  return Field_blob::cmp(blob1,get_length(a_ptr),
-			 blob2,get_length(b_ptr));
+  uint a_len= get_length(a_ptr), b_len= get_length(b_ptr);
+  set_if_smaller(a_len, max_length);
+  set_if_smaller(b_len, max_length);
+  return Field_blob::cmp(blob1,a_len,blob2,b_len);
 }
 
 
@@ -7976,6 +7982,35 @@ my_decimal *Field_bit::val_decimal(my_decimal *deciaml_value)
 {
   int2my_decimal(E_DEC_FATAL_ERROR, val_int(), 1, deciaml_value);
   return deciaml_value;
+}
+
+
+/*
+  Compare two bit fields using pointers within the record.
+  SYNOPSIS
+    cmp_max()
+    a                 Pointer to field->ptr in first record
+    b                 Pointer to field->ptr in second record
+    max_len           Maximum length used in index
+  DESCRIPTION
+    This method is used from key_rec_cmp used by merge sorts used
+    by partitioned index read and later other similar places.
+    The a and b pointer must be pointers to the field in a record
+    (not the table->record[0] necessarily)
+*/
+int Field_bit::cmp_max(const char *a, const char *b, uint max_len)
+{
+  my_ptrdiff_t a_diff= a - ptr;
+  my_ptrdiff_t b_diff= b - ptr;
+  if (bit_len)
+  {
+    int flag;
+    uchar bits_a= get_rec_bits(bit_ptr+a_diff, bit_ofs, bit_len);
+    uchar bits_b= get_rec_bits(bit_ptr+b_diff, bit_ofs, bit_len);
+    if ((flag= (int) (bits_a - bits_b)))
+      return flag;
+  }
+  return memcmp(a, b, field_length);
 }
 
 

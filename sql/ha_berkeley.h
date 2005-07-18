@@ -98,7 +98,7 @@ class ha_berkeley: public handler
   const char **bas_ext() const;
   ulong table_flags(void) const { return int_table_flags; }
   uint max_supported_keys()        const { return MAX_KEY-1; }
-  uint extra_rec_buf_length()	 { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
+  uint extra_rec_buf_length() const { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
   ha_rows estimate_rows_upper_bound();
   const key_map *keys_to_use_for_scanning() { return &key_map_full; }
   bool has_transactions()  { return 1;}
@@ -109,7 +109,7 @@ class ha_berkeley: public handler
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
-  int index_init(uint index);
+  int index_init(uint index, bool sorted);
   int index_end();
   int index_read(byte * buf, const byte * key,
 		 uint key_len, enum ha_rkey_function find_flag);
