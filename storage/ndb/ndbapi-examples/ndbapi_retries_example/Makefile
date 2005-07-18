@@ -5,10 +5,11 @@ CXX = g++
 CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 DEBUG = 
 LFLAGS = -Wall
+TOP_SRCDIR = ../../../..
 INCLUDE_DIR = ../../include
-LIB_DIR = -L../../src/.libs \
-          -L../../../libmysql_r/.libs \
-          -L../../../mysys -L../../../strings
+LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src/.libs \
+          -L$(TOP_SRCDIR)/libmysql_r/.libs \
+          -L$(TOP_SRCDIR)/mysys -L$(TOP_SRCDIR)/strings
 SYS_LIB = 
 
 $(TARGET): $(OBJS)
