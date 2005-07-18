@@ -90,7 +90,7 @@ public:
   static const NdbColumnImpl & getImpl(const NdbDictionary::Column & t);
   NdbDictionary::Column * m_facade;
 
-  static NdbDictionary::Column * create_psuedo(const char *);
+  static NdbDictionary::Column * create_pseudo(const char *);
 };
 
 class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
@@ -105,10 +105,12 @@ public:
 
   Uint32 m_changeMask;
   Uint32 m_tableId;
+  Uint32 m_primaryTableId;
   BaseString m_internalName;
   BaseString m_externalName;
   BaseString m_newExternalName; // Used for alter table
   UtilBuffer m_frm; 
+  UtilBuffer m_ng;
   NdbDictionary::Object::FragmentType m_fragmentType;
 
   /**

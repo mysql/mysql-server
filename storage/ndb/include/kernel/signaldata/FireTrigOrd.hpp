@@ -52,9 +52,9 @@ class FireTrigOrd {
   friend bool printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 7 );
-  STATIC_CONST( SignalWithGCILength = 8 );
-  STATIC_CONST( SignalWithHashValueLength = 9 );
+  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalWithGCILength = 9 );
+  STATIC_CONST( SignalWithHashValueLength = 10 );
 
 private:
   Uint32 m_connectionPtr;
@@ -64,6 +64,7 @@ private:
   Uint32 m_noPrimKeyWords;
   Uint32 m_noBeforeValueWords;
   Uint32 m_noAfterValueWords;
+  Uint32 fragId;
   Uint32 m_gci;
   Uint32 m_hashValue;
   // Public methods

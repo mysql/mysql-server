@@ -614,6 +614,18 @@ bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
 
+/*
+  General routine to change field->ptr of a NULL-terminated array of Field
+  objects. Useful when needed to call val_int, val_str or similar and the
+  field data is not in table->record[0] but in some other structure.
+  set_key_field_ptr changes all fields of an index using a key_info object.
+  All methods presume that there is at least one field to change.
+*/
+
+void set_field_ptr(Field **ptr, const byte *new_buf, const byte *old_buf);
+void set_key_field_ptr(KEY *key_info, const byte *new_buf,
+                       const byte *old_buf);
+
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
@@ -772,6 +784,9 @@ Field *
 find_field_in_real_table(THD *thd, TABLE *table, const char *name,
                          uint length, bool check_grants, bool allow_rowid,
                          uint *cached_field_index_ptr);
+Field *
+find_field_in_table_sef(TABLE *table, const char *name);
+
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock
@@ -1020,6 +1035,7 @@ bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
 int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
+int key_rec_cmp(void *key_info, byte *a, byte *b);
 
 bool init_errmessage(void);
 void sql_perror(const char *message);
@@ -1188,6 +1204,7 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_partition_db;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -1238,7 +1255,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 		      uint key_count,KEY *key_info,handler *db_type);
 int rea_create_table(THD *thd, my_string file_name,HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
-		     uint key_count,KEY *key_info);
+		     uint key_count,KEY *key_info, handler *file);
 int format_number(uint inputflag,uint max_length,my_string pos,uint length,
 		  my_string *errpos);
 int openfrm(THD *thd, const char *name,const char *alias,uint filestat,

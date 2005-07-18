@@ -461,7 +461,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       if (keyname)
       {
         table->file->ha_index_or_rnd_end();
-        table->file->ha_index_init(keyno);
+        table->file->ha_index_init(keyno, 1);
         error= table->file->index_first(table->record[0]);
       }
       else
@@ -483,7 +483,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     case RLAST:
       DBUG_ASSERT(keyname != 0);
       table->file->ha_index_or_rnd_end();
-      table->file->ha_index_init(keyno);
+      table->file->ha_index_init(keyno, 1);
       error= table->file->index_last(table->record[0]);
       mode=RPREV;
       break;
@@ -522,7 +522,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
 	goto err;
       table->file->ha_index_or_rnd_end();
-      table->file->ha_index_init(keyno);
+      table->file->ha_index_init(keyno, 1);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
       error= table->file->index_read(table->record[0],
 				  key,key_len,ha_rkey_mode);

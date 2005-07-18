@@ -89,6 +89,11 @@
 #define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 
+/* Flags for partition handlers */
+#define HA_CAN_PARTITION       (1 << 0) /* Partition support */
+#define HA_CAN_UPDATE_PARTITION_KEY (1 << 1)
+#define HA_CAN_PARTITION_UNIQUE (1 << 2)
+
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -172,6 +177,7 @@ enum db_type
   DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB, DB_TYPE_CSV_DB,
   DB_TYPE_FEDERATED_DB,
   DB_TYPE_BLACKHOLE_DB,
+  DB_TYPE_PARTITION_DB,
   DB_TYPE_DEFAULT // Must be last
 };
 
@@ -364,6 +370,208 @@ typedef struct st_thd_trans
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
+
+typedef struct {
+  uint32 start_part;
+  uint32 end_part;
+  bool use_bit_array;
+} part_id_range;
+/**
+ * An enum and a struct to handle partitioning and subpartitioning.
+ */
+enum partition_type {
+  NOT_A_PARTITION= 0,
+  RANGE_PARTITION,
+  HASH_PARTITION,
+  LIST_PARTITION
+};
+
+#define UNDEF_NODEGROUP 65535
+class Item;
+
+class partition_element :public Sql_alloc {
+public:
+  List<partition_element> subpartitions;
+  List<Item> list_expr_list;
+  ulonglong part_max_rows;
+  ulonglong part_min_rows;
+  char *partition_name;
+  char *tablespace_name;
+  Item* range_expr;
+  char* part_comment;
+  char* data_file_name;
+  char* index_file_name;
+  enum db_type engine_type;
+  uint16 nodegroup_id;
+  
+  partition_element()
+  : part_max_rows(0), part_min_rows(0), partition_name(NULL),
+    tablespace_name(NULL), range_expr(NULL), part_comment(NULL),
+    data_file_name(NULL), index_file_name(NULL),
+    engine_type(DB_TYPE_UNKNOWN), nodegroup_id(UNDEF_NODEGROUP)
+  {
+    subpartitions.empty();
+    list_expr_list.empty();
+  }
+  ~partition_element() {}
+};
+
+typedef struct {
+  longlong list_value;
+  uint partition_id;
+} LIST_PART_ENTRY;
+enum Item_result;
+
+class partition_info;
+
+typedef bool (*get_part_id_func)(partition_info *part_info,
+                                 uint32 *part_id);
+typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
+
+class partition_info :public Sql_alloc {
+public:
+  /*
+   * Here comes a set of definitions needed for partitioned table handlers.
+   */
+  List<partition_element> partitions;
+
+  List<char> part_field_list;
+  List<char> subpart_field_list;
+
+  get_part_id_func get_partition_id;
+  get_part_id_func get_part_partition_id;
+  get_subpart_id_func get_subpartition_id;
+
+  Field **part_field_array;
+  Field **subpart_field_array;
+  Field **full_part_field_array;
+
+  Item *part_expr;
+  Item *subpart_expr;
+
+  Item *item_free_list;
+
+  union {
+    longlong *range_int_array;
+    LIST_PART_ENTRY *list_array;
+  };
+  char* part_info_string;
+
+  char *part_func_string;
+  char *subpart_func_string;
+
+  partition_element *curr_part_elem;
+  partition_element *current_partition;
+  /*
+    These key_map's are used for Partitioning to enable quick decisions
+    on whether we can derive more information about which partition to
+    scan just by looking at what index is used.
+  */
+  key_map all_fields_in_PF, all_fields_in_PPF, all_fields_in_SPF;
+  key_map some_fields_in_PF;
+
+  enum db_type default_engine_type;
+  Item_result part_result_type;
+  partition_type part_type;
+  partition_type subpart_type;
+
+  uint part_info_len;
+  uint part_func_len;
+  uint subpart_func_len;
+
+  uint no_full_parts;
+  uint no_parts;
+  uint no_subparts;
+  uint count_curr_parts;
+  uint count_curr_subparts;
+
+  uint part_error_code;
+
+  uint no_list_values;
+
+  uint no_part_fields;
+  uint no_subpart_fields;
+  uint no_full_part_fields;
+
+  uint16 linear_hash_mask;
+
+  bool use_default_partitions;
+  bool use_default_subpartitions;
+  bool defined_max_value;
+  bool list_of_part_fields;
+  bool list_of_subpart_fields;
+  bool linear_hash_ind;
+
+  partition_info()
+  : get_partition_id(NULL), get_part_partition_id(NULL),
+    get_subpartition_id(NULL),
+    part_field_array(NULL), subpart_field_array(NULL),
+    full_part_field_array(NULL),
+    part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
+    list_array(NULL),
+    part_info_string(NULL),
+    part_func_string(NULL), subpart_func_string(NULL),
+    curr_part_elem(NULL), current_partition(NULL),
+    default_engine_type(DB_TYPE_UNKNOWN),
+    part_result_type(INT_RESULT),
+    part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
+    part_info_len(0), part_func_len(0), subpart_func_len(0),
+    no_full_parts(0), no_parts(0), no_subparts(0),
+    count_curr_parts(0), count_curr_subparts(0), part_error_code(0),
+    no_list_values(0), no_part_fields(0), no_subpart_fields(0),
+    no_full_part_fields(0), linear_hash_mask(0),
+    use_default_partitions(TRUE),
+    use_default_subpartitions(TRUE), defined_max_value(FALSE),
+    list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
+    linear_hash_ind(FALSE)
+  {
+    all_fields_in_PF.clear_all();
+    all_fields_in_PPF.clear_all();
+    all_fields_in_SPF.clear_all();
+    some_fields_in_PF.clear_all();
+    partitions.empty();
+    part_field_list.empty();
+    subpart_field_list.empty();
+  }
+  ~partition_info() {}
+};
+
+
+#ifdef HAVE_PARTITION_DB
+/*
+  Answers the question if subpartitioning is used for a certain table
+  SYNOPSIS
+    is_sub_partitioned()
+    part_info          A reference to the partition_info struct
+  RETURN VALUE
+    Returns true if subpartitioning used and false otherwise
+  DESCRIPTION
+    A routine to check for subpartitioning for improved readability of code
+*/
+inline
+bool is_sub_partitioned(partition_info *part_info)
+{ return (part_info->subpart_type == NOT_A_PARTITION ?  FALSE : TRUE); }
+
+
+/*
+  Returns the total number of partitions on the leaf level.
+  SYNOPSIS
+    get_tot_partitions()
+    part_info          A reference to the partition_info struct
+  RETURN VALUE
+    Returns the number of partitions
+  DESCRIPTION
+    A routine to check for number of partitions for improved readability
+    of code
+*/
+inline
+uint get_tot_partitions(partition_info *part_info)
+{
+  return part_info->no_parts *
+         (is_sub_partitioned(part_info) ? part_info->no_subparts : 1);
+}
+#endif
+
 typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
@@ -412,6 +620,31 @@ typedef struct st_ha_check_opt
 } HA_CHECK_OPT;
 
 
+#ifdef HAVE_PARTITION_DB
+handler *get_ha_partition(partition_info *part_info);
+int get_parts_for_update(const byte *old_data, byte *new_data,
+                         const byte *rec0, partition_info *part_info,
+                         uint32 *old_part_id, uint32 *new_part_id);
+int get_part_for_delete(const byte *buf, const byte *rec0,
+                        partition_info *part_info, uint32 *part_id);
+bool check_partition_info(partition_info *part_info,enum db_type eng_type,
+                          handler *file, ulonglong max_rows);
+bool fix_partition_func(THD *thd, const char *name, TABLE *table);
+char *generate_partition_syntax(partition_info *part_info,
+                                uint *buf_length, bool use_sql_alloc);
+bool partition_key_modified(TABLE *table, List<Item> &fields);
+void get_partition_set(const TABLE *table, byte *buf, const uint index,
+                       const key_range *key_spec,
+                       part_id_range *part_spec);
+void get_full_part_id_from_key(const TABLE *table, byte *buf,
+                               KEY *key_info,
+                               const key_range *key_spec,
+                               part_id_range *part_spec);
+bool mysql_unpack_partition(File file, THD *thd, uint part_info_len,
+                            TABLE *table);
+#endif
+
+
 /*
   This is a buffer area that the handler can use to store rows.
   'end_of_used_area' should be kept updated after calls to
@@ -429,10 +662,13 @@ typedef struct st_handler_buffer
 
 class handler :public Sql_alloc
 {
+#ifdef HAVE_PARTITION_DB
+ friend class ha_partition;
+#endif
  protected:
   struct st_table *table;		/* The table definition */
 
-  virtual int index_init(uint idx) { active_index=idx; return 0; }
+  virtual int index_init(uint idx, bool sorted) { active_index=idx; return 0; }
   virtual int index_end() { active_index=MAX_KEY; return 0; }
   /*
     rnd_init() can be called two times without rnd_end() in between
@@ -518,7 +754,7 @@ public:
  { return rows2double(ranges+rows); }
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   virtual bool has_transactions(){ return 0;}
-  virtual uint extra_rec_buf_length() { return 0; }
+  virtual uint extra_rec_buf_length() const { return 0; }
   
   /*
     Return upper bound of current number of records in the table
@@ -537,12 +773,12 @@ public:
 
   virtual const char *index_type(uint key_number) { DBUG_ASSERT(0); return "";}
 
-  int ha_index_init(uint idx)
+  int ha_index_init(uint idx, bool sorted)
   {
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
     inited=INDEX;
-    DBUG_RETURN(index_init(idx));
+    DBUG_RETURN(index_init(idx, sorted));
   }
   int ha_index_end()
   {
@@ -902,6 +1138,10 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
+#ifdef HAVE_PARTITION_DB
+  virtual ulong partition_flags(void) const { return 0;}
+  virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
+#endif
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
   virtual ulong index_ddl_flags(KEY *wanted_index) const
   { return (HA_DDL_SUPPORT); }
@@ -941,6 +1181,7 @@ public:
   virtual int delete_table(const char *name);
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
+  virtual int create_handler_files(const char *name) { return FALSE;}
 
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }

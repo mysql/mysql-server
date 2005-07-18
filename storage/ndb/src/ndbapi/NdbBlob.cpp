@@ -67,11 +67,40 @@ NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnIm
 void
 NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c)
 {
+  DBUG_ENTER("NdbBlob::getBlobTable");
   char btname[NdbBlobImpl::BlobTableNameSize];
   getBlobTableName(btname, t, c);
   bt.setName(btname);
   bt.setLogging(t->getLogging());
-  bt.setFragmentType(t->getFragmentType());
+  /*
+    BLOB tables use the same fragmentation as the original table
+    but may change the fragment type if it is UserDefined since it
+    must be hash based so that the kernel can handle it on its own.
+  */
+  bt.m_primaryTableId = t->m_tableId;
+  bt.m_ng.clear();
+  switch (t->getFragmentType())
+  {
+    case NdbDictionary::Object::FragAllSmall:
+    case NdbDictionary::Object::FragAllMedium:
+    case NdbDictionary::Object::FragAllLarge:
+    case NdbDictionary::Object::FragSingle:
+      bt.setFragmentType(t->getFragmentType());
+      break;
+    case NdbDictionary::Object::DistrKeyLin:
+    case NdbDictionary::Object::DistrKeyHash:
+      bt.setFragmentType(t->getFragmentType());
+      break;
+    case NdbDictionary::Object::UserDefined:
+      bt.setFragmentType(NdbDictionary::Object::DistrKeyHash);
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+  }
+  DBUG_PRINT("info",
+  ("Create BLOB table with primary table = %u and Fragment Type = %u",
+    bt.m_primaryTableId, (uint)bt.getFragmentType()));
   { NdbDictionary::Column bc("PK");
     bc.setType(NdbDictionary::Column::Unsigned);
     assert(t->m_keyLenInWords != 0);
@@ -107,6 +136,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     bc.setLength(c->getPartSize());
     bt.addColumn(bc);
   }
+  DBUG_VOID_RETURN;
 }
 
 // initialization
@@ -371,8 +401,8 @@ NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
   DBUG_ENTER("NdbBlob::setPartKeyValue");
   DBUG_PRINT("info", ("dist=%u part=%u key=", getDistKey(part), part));
   DBUG_DUMP("info", theKeyBuf.data, 4 * theTable->m_keyLenInWords);
-  Uint32* data = (Uint32*)theKeyBuf.data;
-  unsigned size = theTable->m_keyLenInWords;
+  //Uint32* data = (Uint32*)theKeyBuf.data;
+  //unsigned size = theTable->m_keyLenInWords;
   // TODO use attr ids after compatibility with 4.1.7 not needed
   if (anOp->equal("PK", theKeyBuf.data) == -1 ||
       anOp->equal("DIST", getDistKey(part)) == -1 ||

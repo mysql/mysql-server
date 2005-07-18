@@ -799,7 +799,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       }
     }
 
-    table->file->ha_index_init(0);
+    table->file->ha_index_init(0, 1);
     if ((res= table->file->index_first(table->record[0])))
     {
       res= (res == HA_ERR_END_OF_FILE) ? 0 : SP_INTERNAL_ERROR;
@@ -849,7 +849,7 @@ sp_drop_db_routines(THD *thd, char *db)
     goto err;
 
   ret= SP_OK;
-  table->file->ha_index_init(0);
+  table->file->ha_index_init(0, 1);
   if (! table->file->index_read(table->record[0],
 				key, keylen, HA_READ_KEY_EXACT))
   {

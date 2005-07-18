@@ -28,6 +28,7 @@
 #include <io.h>
 #endif
 
+
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
@@ -1513,7 +1514,66 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
-  file=get_new_handler((TABLE*) 0, create_info->db_type);
+  if (!(file=get_new_handler((TABLE*) 0, create_info->db_type)))
+  {
+    my_error(ER_OUTOFMEMORY, MYF(0), 128);//128 bytes invented
+    DBUG_RETURN(TRUE);
+  }
+#ifdef HAVE_PARTITION_DB
+  partition_info *part_info= thd->lex->part_info;
+  if (part_info)
+  {
+    /*
+    The table has been specified as a partitioned table.
+    If this is part of an ALTER TABLE the handler will be the partition
+    handler but we need to specify the default handler to use for
+    partitions also in the call to check_partition_info. We transport
+    this information in the default_db_type variable, it is either
+    DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
+    */
+    enum db_type part_engine_type= create_info->db_type;
+    char *part_syntax_buf;
+    uint syntax_len;
+    if (part_engine_type == DB_TYPE_PARTITION_DB)
+    {
+      /*
+        This only happens at ALTER TABLE.
+        default_engine_type was assigned from the engine set in the ALTER
+        TABLE command.
+      */
+      part_engine_type= ha_checktype(thd,
+                                     part_info->default_engine_type, 0, 0);
+    }
+    if (check_partition_info(part_info, part_engine_type,
+                             file, create_info->max_rows))
+      DBUG_RETURN(TRUE);
+    /*
+      We reverse the partitioning parser and generate a standard format
+      for syntax stored in frm file.
+    */
+    if (!(part_syntax_buf= generate_partition_syntax(part_info,
+                                                     &syntax_len,
+                                                     TRUE)))
+      DBUG_RETURN(TRUE);
+    part_info->part_info_string= part_syntax_buf;
+    part_info->part_info_len= syntax_len;
+    if ((!(file->partition_flags() & HA_CAN_PARTITION)) ||
+        create_info->db_type == DB_TYPE_PARTITION_DB)
+    {
+      /*
+        The handler assigned to the table cannot handle partitioning.
+        Assign the partition handler as the handler of the table.
+      */
+      DBUG_PRINT("info", ("db_type= %d, part_flag= %d", create_info->db_type,file->partition_flags()));
+      delete file;
+      create_info->db_type= DB_TYPE_PARTITION_DB;
+      if (!(file= get_ha_partition(part_info)))
+      {
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+#endif
 
 #ifdef NOT_USED
   /*
@@ -1527,7 +1587,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       (file->table_flags() & HA_NO_TEMP_TABLES))
   {
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
-    DBUG_RETURN(TRUE);
+    goto err;
   }
 #endif
 
@@ -1550,7 +1610,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
 			  &keys, internal_tmp_table, &db_options, file,
 			  &key_info_buffer, &key_count,
 			  select_field_count))
-    DBUG_RETURN(TRUE);
+    goto err;
 
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -1572,13 +1632,13 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
       create_info->table_existed= 1;		// Mark that table existed
-      DBUG_RETURN(FALSE);
+      goto no_err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
-    DBUG_RETURN(TRUE);
+    goto err;
   }
   if (wait_if_global_read_lock(thd, 0, 1))
-    DBUG_RETURN(error);
+    goto err;
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
@@ -1631,7 +1691,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   create_info->table_options=db_options;
 
   if (rea_create_table(thd, path, create_info, fields, key_count,
-		       key_info_buffer))
+		       key_info_buffer, file))
   {
     /* my_error(ER_CANT_CREATE_TABLE,MYF(0),table_name,my_errno); */
     goto end;
@@ -1660,6 +1720,13 @@ end:
   delete file;
   thd->proc_info="After create";
   DBUG_RETURN(error);
+
+err:
+  delete file;
+  DBUG_RETURN(TRUE);
+no_err:
+  delete file;
+  DBUG_RETURN(FALSE);
 }
 
 /*
@@ -3138,6 +3205,59 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   old_db_type= table->s->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)
     create_info->db_type= old_db_type;
+#ifdef HAVE_PARTITION_DB
+  /*
+   When thd->lex->part_info has a reference to a partition_info the
+   ALTER TABLE contained a definition of a partitioning.
+
+   Case I:
+     If there was a partition before and there is a new one defined.
+     We use the new partitioning. The new partitioning is already
+     defined in the correct variable so no work is needed to
+     accomplish this.
+
+   Case IIa:
+     There was a partitioning before and there is no new one defined.
+     Also the user has not specified an explicit engine to use.
+
+     We use the old partitioning also for the new table. We do this
+     by assigning the partition_info from the table loaded in
+     open_ltable to the partition_info struct used by mysql_create_table
+     later in this method.
+
+   Case IIb:
+     There was a partitioning before and there is no new one defined.
+     The user has specified an explicit engine to use.
+
+     Since the user has specified an explicit engine to use we override
+     the old partitioning info and create a new table using the specified
+     engine. This is the reason for the extra check if old and new engine
+     is equal.
+
+   Case III:
+     There was no partitioning before altering the table, there is
+     partitioning defined in the altered table. Use the new partitioning.
+     No work needed since the partitioning info is already in the
+     correct variable.
+
+   Case IV:
+     There was no partitioning before and no partitioning defined. Obviously
+     no work needed.
+  */
+  if (table->s->part_info)
+    if (!thd->lex->part_info &&
+        create_info->db_type == old_db_type)
+      thd->lex->part_info= table->s->part_info;
+  if (thd->lex->part_info)
+  {
+    /*
+      Need to cater for engine types that can handle partition without
+      using the partition handler.
+    */
+    thd->lex->part_info->default_engine_type= create_info->db_type;
+    create_info->db_type= DB_TYPE_PARTITION_DB;
+  }
+#endif
   if (check_engine(thd, new_name, &create_info->db_type))
     DBUG_RETURN(TRUE);
   new_db_type= create_info->db_type;

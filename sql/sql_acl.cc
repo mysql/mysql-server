@@ -2048,7 +2048,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
-    col_privs->file->ha_index_init(0);
+    col_privs->file->ha_index_init(0, 1);
     if (col_privs->file->index_read(col_privs->record[0],
                                     (byte*) key,
                                     key_prefix_len, HA_READ_KEY_EXACT))
@@ -2193,7 +2193,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  table->file->ha_index_init(0);
+  table->file->ha_index_init(0, 1);
   while ((column= iter++))
   {
     ulong privileges= column->rights;
@@ -3168,8 +3168,8 @@ my_bool grant_init(THD *org_thd)
 
   t_table = tables[0].table; c_table = tables[1].table;
   p_table= tables[2].table;
-  t_table->file->ha_index_init(0);
-  p_table->file->ha_index_init(0);
+  t_table->file->ha_index_init(0, 1);
+  p_table->file->ha_index_init(0, 1);
   if (!t_table->file->index_first(t_table->record[0]))
   {
     /* Will be restored by org_thd->store_globals() */
@@ -4473,7 +4473,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                                             user_key, key_prefix_length,
                                             HA_READ_KEY_EXACT)))
     {
-      if (error != HA_ERR_KEY_NOT_FOUND)
+      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
         table->file->print_error(error, MYF(0));
         result= -1;

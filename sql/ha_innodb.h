@@ -136,7 +136,7 @@ class ha_innobase: public handler
   	int delete_row(const byte * buf);
 	void unlock_row();
 
-  	int index_init(uint index);
+  	int index_init(uint index, bool sorted);
   	int index_end();
   	int index_read(byte * buf, const byte * key,
 		       uint key_len, enum ha_rkey_function find_flag);

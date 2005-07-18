@@ -1,0 +1,71 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b,c))
+ENGINE = NDB
+PARTITION BY KEY (a,b);
+insert into t1 values (1,1,1,1);
+select * from t1;
+a	b	c	d
+1	1	1	1
+update t1 set d = 2 where a = 1 and b = 1 and c = 1;
+select * from t1;
+a	b	c	d
+1	1	1	2
+delete from t1;
+select * from t1;
+a	b	c	d
+drop table t1;
+CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b))
+ENGINE = NDB
+PARTITION BY KEY (c);
+ERROR HY000: A PRIMARY KEY need to include all fields in the partition function
+CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
+ENGINE = NDB
+PARTITION BY KEY (a);
+insert into t1 values 
+(1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
+(1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
+select * from t1 order by b;
+a	b	c
+1	1	3
+1	2	3
+1	3	3
+1	4	3
+1	5	3
+1	6	3
+1	7	3
+1	8	3
+1	9	3
+1	10	3
+1	11	3
+1	12	3
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
+PRIMARY KEY USING HASH (a,b,c))
+ENGINE=NDB
+DEFAULT CHARSET=latin1
+PARTITION BY KEY (b);
+insert into t1 values (1,"a",1,1),(2,"a",1,1),(3,"a",1,1);
+-- t1 --
+
+Fragment type: 5
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 3
+Length of frm data: 301
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY
+b Char(10;latin1_bin) PRIMARY KEY DISTRIBUTION KEY
+c Int PRIMARY KEY
+d Int NULL
+
+-- Indexes -- 
+PRIMARY KEY(a, b, c) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+DROP TABLE t1;

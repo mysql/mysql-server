@@ -9,7 +9,7 @@ atrt supports fully distributed test and utilizes ndb_cpcd.
 atrt has the following main loop:
 
 /**
-  * Psuedo code for atrt
+  * Pseudo code for atrt
   */
   read config file (default d.txt)
   contact each ndb_cpcd 
@@ -36,7 +36,7 @@ atrt has the following main loop:
 
   done
 /**
- * End of psuedo code
+ * End of pseudo code
  */     
 
 =================================

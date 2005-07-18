@@ -87,7 +87,7 @@ public:
   utype		unireg_check;
   uint32	field_length;		// Length of field
   uint          field_index;            // field number in fields array
-  uint16	flags;
+  uint32	flags;
   /* fieldnr is the id of the field (first field = 1) as is also
      used in key_part.
   */
@@ -154,6 +154,8 @@ public:
   virtual enum_field_types type() const =0;
   virtual enum_field_types real_type() const { return type(); }
   inline  int cmp(const char *str) { return cmp(ptr,str); }
+  virtual int cmp_max(const char *a, const char *b, uint max_len)
+    { return cmp(a, b); }
   virtual int cmp(const char *,const char *)=0;
   virtual int cmp_binary(const char *a,const char *b, uint32 max_length=~0L)
   { return memcmp(a,b,pack_length()); }
@@ -1059,7 +1061,11 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   my_decimal *val_decimal(my_decimal *);
-  int cmp(const char *,const char*);
+  int cmp_max(const char *, const char *, uint max_length);
+  int cmp(const char *a,const char*b)
+  {
+    return cmp_max(a, b, ~0);
+  }
   void sort_string(char *buff,uint length);
   void get_key_image(char *buff,uint length, imagetype type);
   void set_key_image(char *buff,uint length);
@@ -1115,7 +1121,9 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   my_decimal *val_decimal(my_decimal *);
-  int cmp(const char *,const char*);
+  int cmp_max(const char *, const char *, uint max_length);
+  int cmp(const char *a,const char*b)
+    { return cmp_max(a, b, ~0); }
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);
   int key_cmp(const byte *,const byte*);
@@ -1138,6 +1146,10 @@ public:
   inline void get_ptr(char **str)
     {
       memcpy_fixed(str,ptr+packlength,sizeof(char*));
+    }
+  inline void get_ptr(char **str, uint row_offset)
+    {
+      memcpy_fixed(str,ptr+packlength+row_offset,sizeof(char*));
     }
   inline void set_ptr(char *length,char *data)
     {
@@ -1307,6 +1319,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int cmp(const char *a, const char *b)
   { return cmp_binary(a, b); }
+  int cmp_max(const char *a, const char *b, uint max_length);
   int key_cmp(const byte *a, const byte *b)
   { return cmp_binary((char *) a, (char *) b); }
   int key_cmp(const byte *str, uint length);

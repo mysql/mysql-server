@@ -34,6 +34,9 @@
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
 #endif
+#ifdef HAVE_PARTITION_DB
+#include "ha_partition.h"
+#endif
 #ifdef HAVE_ARCHIVE_DB
 #include "examples/ha_archive.h"
 #endif
@@ -170,7 +173,13 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
 {
   if (ha_storage_engine_is_enabled(database_type))
     return database_type;
-
+#ifdef HAVE_PARTITION_DB
+  /*
+    Partition handler is not in the list of handlers shown since it is an internal handler
+  */
+  if (database_type == DB_TYPE_PARTITION_DB)
+    return database_type;
+#endif
   if (no_substitute)
   {
     if (report_error)
@@ -236,6 +245,13 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
     file= new ha_example(table);
     break;
 #endif
+#ifdef HAVE_PARTITION_DB
+  case DB_TYPE_PARTITION_DB:
+  {
+    file= new ha_partition(table);
+    break;
+  }
+#endif
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     file= new ha_archive(table);
@@ -289,6 +305,29 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   }
   return file;
 }
+
+
+#ifdef HAVE_PARTITION_DB
+handler *get_ha_partition(partition_info *part_info)
+{
+  ha_partition *partition;
+  DBUG_ENTER("get_ha_partition");
+  if ((partition= new ha_partition(part_info)))
+  {
+    if (partition->ha_initialise())
+    {
+      delete partition;
+      partition= 0;
+    }
+  }
+  else
+  {
+    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(ha_partition));
+  }
+  DBUG_RETURN(((handler*) partition));
+}
+#endif
+
 
 /*
   Register handler error messages for use with my_error().
@@ -1406,27 +1445,41 @@ int handler::ha_allocate_read_write_set(ulong no_fields)
   my_bool r;
 #endif
   DBUG_ENTER("ha_allocate_read_write_set");
-  DBUG_PRINT("info", ("no_fields = %d", no_fields));
-  read_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
-  write_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
-  read_buf= (uint32*)sql_alloc(bitmap_size);
-  write_buf= (uint32*)sql_alloc(bitmap_size);
-  if (!read_set || !write_set || !read_buf || !write_buf)
+  DBUG_PRINT("enter", ("no_fields = %d", no_fields));
+
+  if (table)
   {
-    ha_deallocate_read_write_set();
-    DBUG_RETURN(TRUE);
+    if (table->read_set == NULL)
+    {
+      read_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
+      write_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
+      read_buf= (uint32*)sql_alloc(bitmap_size);
+      write_buf= (uint32*)sql_alloc(bitmap_size);
+      if (!read_set || !write_set || !read_buf || !write_buf)
+      {
+        ha_deallocate_read_write_set();
+        DBUG_RETURN(TRUE);
+      }
+#ifndef DEBUG_OFF
+      r =
+#endif
+        bitmap_init(read_set, read_buf, no_fields+1, FALSE);
+      DBUG_ASSERT(!r /*bitmap_init(read_set...)*/);
+#ifndef DEBUG_OFF
+      r =
+#endif
+        bitmap_init(write_set, write_buf, no_fields+1, FALSE);
+      DBUG_ASSERT(!r /*bitmap_init(write_set...)*/);
+      table->read_set= read_set;
+      table->write_set= write_set;
+      ha_clear_all_set();
+    }
+    else
+    {
+      read_set= table->read_set;
+      write_set= table->write_set;
+    }
   }
-#ifndef DEBUG_OFF
-  r =
-#endif
-    bitmap_init(read_set, read_buf, no_fields+1, FALSE);
-  DBUG_ASSERT(!r /*bitmap_init(read_set...)*/);
-#ifndef DEBUG_OFF
-  r =
-#endif
-    bitmap_init(write_set, write_buf, no_fields+1, FALSE);
-  DBUG_ASSERT(!r /*bitmap_init(write_set...)*/);
-  ha_clear_all_set();
   DBUG_RETURN(FALSE);
 }
 
@@ -1476,6 +1529,8 @@ void handler::ha_set_primary_key_in_read_set()
   }
   DBUG_VOID_RETURN;
 }
+
+
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types
@@ -1504,7 +1559,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
   else
   {
     /* Find the first row through the primary key */
-    (void) ha_index_init(primary_key);
+    (void) ha_index_init(primary_key, 0);
     error=index_first(buf);
     (void) ha_index_end();
   }
@@ -1688,7 +1743,7 @@ ulonglong handler::get_auto_increment()
   int error;
 
   (void) extra(HA_EXTRA_KEYREAD);
-  index_init(table->s->next_number_index);
+  index_init(table->s->next_number_index, 1);
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start
     error=index_last(table->record[1]);
@@ -2512,7 +2567,7 @@ int handler::compare_key(key_range *range)
 int handler::index_read_idx(byte * buf, uint index, const byte * key,
 			     uint key_len, enum ha_rkey_function find_flag)
 {
-  int error= ha_index_init(index);
+  int error= ha_index_init(index, 0);
   if (!error)
     error= index_read(buf, key, key_len, find_flag);
   if (!error)

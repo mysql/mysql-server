@@ -61,6 +61,7 @@
 // ------------------------------------------
 // Error Codes for Transactions (None sofar)
 // ------------------------------------------
+#define ZUNDEFINED_FRAGMENT_ERROR 311
 
 // --------------------------------------
 // Error Codes for Add Table
@@ -469,8 +470,10 @@ public:
       TS_DROPPING = 3
     };
     enum Method {
-      HASH = 0,
-      NOTDEFINED = 1
+      LINEAR_HASH = 0,
+      NOTDEFINED = 1,
+      NORMAL_HASH = 2,
+      USER_DEFINED = 3
     };
     CopyStatus tabCopyStatus;
     UpdateState tabUpdateState;

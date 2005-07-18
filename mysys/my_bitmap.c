@@ -20,20 +20,20 @@
   API limitations (or, rather asserted safety assumptions,
   to encourage correct programming)
 
-    * the size of the used bitmap is less than ~(uint) 0
-    * it's a multiple of 8 (for efficiency reasons)
-    * when arguments are a bitmap and a bit number, the number
-      must be within bitmap size
-    * bitmap_set_prefix() is an exception - one can use ~0 to set all bits
-    * when both arguments are bitmaps, they must be of the same size
-    * bitmap_intersect() is an exception :)
-      (for for Bitmap::intersect(ulonglong map2buff))
-
-  If THREAD is defined all bitmap operations except bitmap_init/bitmap_free
-  are thread-safe.
+    * the internal size is a set of 32 bit words
+    * the number of bits specified in creation can be any number > 0
+    * there are THREAD safe versions of most calls called bitmap_lock_*
+      many of those are not used and not compiled normally but the code
+      already exist for them in an #ifdef:ed part. These can only be used
+      if THREAD was specified in bitmap_init
 
   TODO:
   Make assembler THREAD safe versions of these using test-and-set instructions
+
+  Original version created by Sergei Golubchik 2001 - 2004.
+  New version written and test program added and some changes to the interface
+  was made by Mikael Ronström 2005, with assistance of Tomas Ulin and Mats
+  Kindahl.
 */
 
 #include "mysys_priv.h"
@@ -1046,17 +1046,9 @@ int main()
 }
 
 /*
-This is the way the test part was compiled after a complete tree build with
-debug.
-
-gcc -DHAVE_CONFIG_H -I. -I. -I.. -I../include -I.    -g -O -DDBUG_ON
--DSAFE_MUTEX -fno-omit-frame-pointer   -DHAVE_DARWIN_THREADS
--D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DTEST_BITMAP
--DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT -MT
-my_bitmap.o -MD -MP -MF ".deps/my_bitmap.Tpo" -c -o my_bitmap.o my_bitmap.c
-
-gcc -o my_bitmap my_bitmap.o -L../mysys -lmysys -L../strings -lmystrings
--L../dbug -ldbug
+  In directory mysys:
+  make test_bitmap
+  will build the bitmap tests and ./test_bitmap will execute it
 */
 
 #endif

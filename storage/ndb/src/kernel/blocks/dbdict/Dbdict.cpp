@@ -271,7 +271,6 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
     req->senderData = RNIL;
     req->fragmentationType = tablePtr.p->fragmentType;
     req->noOfFragments = 0;
-    req->fragmentNode = 0;
     req->primaryTableId = tablePtr.i;
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
 		   CreateFragmentationReq::SignalLength);
@@ -1492,8 +1491,11 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->gciTableCreated = 0;
   tablePtr.p->noOfAttributes = ZNIL;
   tablePtr.p->noOfNullAttr = 0;
+  tablePtr.p->ngLen = 0;
+  memset(tablePtr.p->ngData, 0, sizeof(tablePtr.p->ngData));
   tablePtr.p->frmLen = 0;
   memset(tablePtr.p->frmData, 0, sizeof(tablePtr.p->frmData));
+  tablePtr.p->fragmentCount = 0;
   /*
     tablePtr.p->lh3PageIndexBits = 0;
     tablePtr.p->lh3DistrBits = 0;
@@ -2919,25 +2921,52 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     createTabPtr.p->m_fragmentsPtrI = RNIL;
     createTabPtr.p->m_dihAddFragPtr = RNIL;
 
-    Uint32 * theData = signal->getDataPtrSend();
+    Uint32 *theData = signal->getDataPtrSend(), i;
+    Uint16 *node_group= (Uint16*)&signal->theData[25];
     CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
     req->senderRef = reference();
     req->senderData = createTabPtr.p->key;
+    req->primaryTableId = parseRecord.tablePtr.p->primaryTableId;
+    req->noOfFragments = parseRecord.tablePtr.p->ngLen >> 1;
     req->fragmentationType = parseRecord.tablePtr.p->fragmentType;
-    req->noOfFragments = 0;
-    req->fragmentNode = 0;
-    req->primaryTableId = RNIL;
+    for (i = 0; i < req->noOfFragments; i++)
+      node_group[i] = parseRecord.tablePtr.p->ngData[i];
     if (parseRecord.tablePtr.p->isOrderedIndex()) {
+      jam();
       // ordered index has same fragmentation as the table
-      const Uint32 primaryTableId = parseRecord.tablePtr.p->primaryTableId;
-      TableRecordPtr primaryTablePtr;
-      c_tableRecordPool.getPtr(primaryTablePtr, primaryTableId);
-      // fragmentationType must be consistent
-      req->fragmentationType = primaryTablePtr.p->fragmentType;
-      req->primaryTableId = primaryTableId;
+      req->primaryTableId = parseRecord.tablePtr.p->primaryTableId;
+      req->fragmentationType = DictTabInfo::DistrKeyOrderedIndex;
     }
-    sendSignal(DBDIH_REF, GSN_CREATE_FRAGMENTATION_REQ, signal,
-	       CreateFragmentationReq::SignalLength, JBB);
+    else if (parseRecord.tablePtr.p->isHashIndex())
+    {
+      jam();
+      /*
+        Unique hash indexes has same amount of fragments as primary table
+        and distributed in the same manner but has always a normal hash
+        fragmentation.
+      */
+      req->primaryTableId = parseRecord.tablePtr.p->primaryTableId;
+      req->fragmentationType = DictTabInfo::DistrKeyUniqueHashIndex;
+    }
+    else
+    {
+      jam();
+      /*
+        Blob tables come here with primaryTableId != RNIL but we only need
+        it for creating the fragments so we set it to RNIL now that we got
+        what we wanted from it to avoid other side effects.
+      */
+      parseRecord.tablePtr.p->primaryTableId = RNIL;
+    }
+    EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
+		   CreateFragmentationReq::SignalLength);
+    jamEntry();
+    if (signal->theData[0] != 0)
+    {
+      jam();
+      parseRecord.errorCode= signal->theData[0];
+      break;
+    }
     
     c_blockState = BS_CREATE_TAB;
     return;
@@ -4884,6 +4913,10 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->frmLen = tableDesc.FrmLen;
   memcpy(tablePtr.p->frmData, tableDesc.FrmData, tableDesc.FrmLen);  
 
+  tablePtr.p->ngLen = tableDesc.FragmentDataLen;
+  memcpy(tablePtr.p->ngData, tableDesc.FragmentData,
+         tableDesc.FragmentDataLen);
+
   if(tableDesc.PrimaryTableId != RNIL) {
     
     tablePtr.p->primaryTableId = tableDesc.PrimaryTableId;
@@ -6510,7 +6543,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   initialiseTableRecord(indexPtr);
   if (req->getIndexType() == DictTabInfo::UniqueHashIndex) {
     indexPtr.p->storedTable = opPtr.p->m_storedIndex;
-    indexPtr.p->fragmentType = tablePtr.p->fragmentType;
+    indexPtr.p->fragmentType = DictTabInfo::DistrKeyUniqueHashIndex;
   } else if (req->getIndexType() == DictTabInfo::OrderedIndex) {
     // first version will not supported logging
     if (opPtr.p->m_storedIndex) {
@@ -6520,8 +6553,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       return;
     }
     indexPtr.p->storedTable = false;
-    // follows table fragmentation
-    indexPtr.p->fragmentType = tablePtr.p->fragmentType;
+    indexPtr.p->fragmentType = DictTabInfo::DistrKeyOrderedIndex;
   } else {
     jam();
     opPtr.p->m_errorCode = CreateIndxRef::InvalidIndexType;
@@ -6645,7 +6677,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)false);
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)false);
     w.add(DictTabInfo::AttributeExtType, (Uint32)DictTabInfo::ExtUnsigned);
-    w.add(DictTabInfo::AttributeExtLength, tablePtr.p->tupKeyLength);
+    w.add(DictTabInfo::AttributeExtLength, tablePtr.p->tupKeyLength+1);
     w.add(DictTabInfo::AttributeEnd, (Uint32)true);
   }
   if (indexPtr.p->isOrderedIndex()) {
@@ -11834,11 +11866,19 @@ Dbdict::alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr,
  * MODULE: Support routines for index and trigger.
  */
 
+/*
+  This routine is used to set-up the primary key attributes of the unique
+  hash index. Since we store fragment id as part of the primary key here
+  we insert the pseudo column for getting fragment id first in the array.
+  This routine is used as part of the building of the index.
+*/
+
 void
 Dbdict::getTableKeyList(TableRecordPtr tablePtr, AttributeList& list)
 {
   jam();
   list.sz = 0;
+  list.id[list.sz++] = AttributeHeader::FRAGMENT;
   for (Uint32 tAttr = tablePtr.p->firstAttribute; tAttr != RNIL; ) {
     AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);
     if (aRec->tupleKey)

@@ -325,6 +325,7 @@ my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
+bool opt_ndb_linear_hash;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -430,6 +431,7 @@ CHARSET_INFO *national_charset_info, *table_alias_charset;
 SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
   have_example_db, have_archive_db, have_csv_db;
 SHOW_COMP_OPTION have_federated_db;
+SHOW_COMP_OPTION have_partition_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -4235,6 +4237,7 @@ enum options_mysqld
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
+  OPT_NDB_LINEAR_HASH,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4800,6 +4803,16 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    0, GET_ULONG, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
+  {"ndb-use-linear-hash", OPT_NDB_LINEAR_HASH,
+   "Flag to indicate whether to use linear hash for default in new tables",
+   (gptr*) &opt_ndb_linear_hash,
+   (gptr*) &opt_ndb_linear_hash,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb_use_linear_hash", OPT_NDB_LINEAR_HASH,
+   "Flag to indicate whether to use linear hash for default in new tables",
+   (gptr*) &opt_ndb_linear_hash,
+   (gptr*) &opt_ndb_linear_hash,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ndb-force-send", OPT_NDB_FORCE_SEND,
    "Force send of buffers to ndb immediately without waiting for "
    "other threads.",
@@ -6054,6 +6067,11 @@ static void mysql_init_variables(void)
   have_example_db= SHOW_OPTION_YES;
 #else
   have_example_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_PARTITION_DB
+  have_partition_db= SHOW_OPTION_YES;
+#else
+  have_partition_db= SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_ARCHIVE_DB
   have_archive_db= SHOW_OPTION_YES;

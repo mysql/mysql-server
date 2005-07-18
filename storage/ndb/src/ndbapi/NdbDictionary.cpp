@@ -412,6 +412,22 @@ NdbDictionary::Table::setFrm(const void* data, Uint32 len){
   m_impl.m_frm.assign(data, len);
 }
 
+const void* 
+NdbDictionary::Table::getNodeGroupIds() const {
+  return m_impl.m_ng.get_data();
+}
+
+Uint32
+NdbDictionary::Table::getNodeGroupIdsLength() const {
+  return m_impl.m_ng.length();
+}
+
+void
+NdbDictionary::Table::setNodeGroupIds(const void* data, Uint32 noWords)
+{
+  m_impl.m_ng.assign(data, 2*noWords);
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::Table::getObjectStatus() const {
   return m_impl.m_status;
@@ -732,8 +748,10 @@ NdbDictionary::Dictionary::~Dictionary(){
 }
 
 int 
-NdbDictionary::Dictionary::createTable(const Table & t){
-  return m_impl.createTable(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::createTable(const Table & t)
+{
+  DBUG_ENTER("NdbDictionary::Dictionary::createTable");
+  DBUG_RETURN(m_impl.createTable(NdbTableImpl::getImpl(t)));
 }
 
 int

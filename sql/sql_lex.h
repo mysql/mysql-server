@@ -25,6 +25,7 @@ class sp_head;
 class sp_name;
 class sp_instr;
 class sp_pcontext;
+class partition_info;
 
 /*
   The following hack is needed because mysql_yacc.cc does not define
@@ -721,6 +722,8 @@ typedef struct st_lex
   TABLE_LIST **query_tables_last;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
+  /* Partition info structure filled in by PARTITION BY parse part */
+  partition_info *part_info;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;

@@ -5491,11 +5491,9 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
 #endif
   }
 
-  bool ok = false;
   MasterLCPConf::State lcpState;
   switch (c_lcpState.lcpStatus) {
   case LCP_STATUS_IDLE:
-    ok = true;
     jam();
     /*------------------------------------------------*/
     /*       LOCAL CHECKPOINT IS CURRENTLY NOT ACTIVE */
@@ -5506,7 +5504,6 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     lcpState = MasterLCPConf::LCP_STATUS_IDLE;
     break;
   case LCP_STATUS_ACTIVE:
-    ok = true;
     jam();
     /*--------------------------------------------------*/
     /*       COPY OF RESTART INFORMATION HAS BEEN       */
@@ -5515,7 +5512,6 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     lcpState = MasterLCPConf::LCP_STATUS_ACTIVE;
     break;
   case LCP_TAB_COMPLETED:
-    ok = true;
     jam();
     /*--------------------------------------------------------*/
     /*       ALL LCP_REPORT'S HAVE BEEN COMPLETED FOR         */
@@ -5525,7 +5521,6 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     lcpState = MasterLCPConf::LCP_TAB_COMPLETED;
     break;
   case LCP_TAB_SAVED:
-    ok = true;
     jam();
     /*--------------------------------------------------------*/
     /*       ALL LCP_REPORT'S HAVE BEEN COMPLETED FOR         */
@@ -5549,15 +5544,15 @@ Dbdih::sendMASTER_LCPCONF(Signal * signal){
     break;
   case LCP_COPY_GCI:
   case LCP_INIT_TABLES:
-    ok = true;
     /**
      * These two states are handled by if statements above
      */
     ndbrequire(false);
     lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
     break;
+  default:
+    ndbrequire(false);
   }//switch
-  ndbrequire(ok);
 
   Uint32 failedNodeId = c_lcpState.m_MASTER_LCPREQ_FailedNodeId;
   MasterLCPConf * const conf = (MasterLCPConf *)&signal->theData[0];
@@ -6158,95 +6153,135 @@ void Dbdih::execDIRELEASEREQ(Signal* signal)
   3.7.1   A D D   T A B L E   M A I N L Y
   ***************************************
   */
-void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
+
+#define UNDEF_NODEGROUP 65535
+static inline void inc_node_or_group(Uint32 &node, Uint32 max_node)
+{
+  Uint32 next = node + 1;
+  node = (next == max_node ? 0 : next);
+}
+
+/*
+  Spread fragments in backwards compatible mode
+*/
+static void set_default_node_groups(Signal *signal, Uint32 noFrags)
+{
+  Uint16 *node_group_array = (Uint16*)&signal->theData[25];
+  Uint32 i;
+  node_group_array[0] = 0;
+  for (i = 1; i < noFrags; i++)
+    node_group_array[i] = UNDEF_NODEGROUP;
+}
+void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
+{
+  Uint16 node_group_id[MAX_NDB_PARTITIONS];
   jamEntry();
   CreateFragmentationReq * const req = 
     (CreateFragmentationReq*)signal->getDataPtr();
   
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
-  const Uint32 fragmentNode = req->fragmentNode;
-  const Uint32 fragmentType = req->fragmentationType;
-  //const Uint32 fragmentCount = req->noOfFragments;
+  Uint32 noOfFragments = req->noOfFragments;
+  const Uint32 fragType = req->fragmentationType;
   const Uint32 primaryTableId = req->primaryTableId;
 
   Uint32 err = 0;
   
   do {
-    Uint32 noOfFragments = 0;
-    Uint32 noOfReplicas = cnoReplicas;
-    switch(fragmentType){
-    case DictTabInfo::AllNodesSmallTable:
-      jam();
-      noOfFragments = csystemnodes;
-      break;
-    case DictTabInfo::AllNodesMediumTable:
-      jam();
-      noOfFragments = 2 * csystemnodes;
-      break;
-    case DictTabInfo::AllNodesLargeTable:
-      jam();
-      noOfFragments = 4 * csystemnodes;
-      break;
-    case DictTabInfo::SingleFragment:
-      jam();
-      noOfFragments = 1;
-      break;
-#if 0
-    case DictTabInfo::SpecifiedFragmentCount:
-      noOfFragments = (fragmentCount == 0 ? 1 : (fragmentCount + 1)/ 2);
-      break;
-#endif
-    default:
-      jam();
-      err = CreateFragmentationRef::InvalidFragmentationType;
-      break;
-    }
-    if(err)
-      break;
-   
     NodeGroupRecordPtr NGPtr;
     TabRecordPtr primTabPtr;
+    Uint32 count = 2;
+    Uint16 noOfReplicas = cnoReplicas;
+    Uint16 *fragments = (Uint16*)(signal->theData+25);
     if (primaryTableId == RNIL) {
-      if(fragmentNode == 0){
-        jam();
-        NGPtr.i = 0; 
-	if(noOfFragments < csystemnodes)
-	{
-	  NGPtr.i = c_nextNodeGroup; 
-	  c_nextNodeGroup = (NGPtr.i + 1 == cnoOfNodeGroups ? 0 : NGPtr.i + 1);
-	}
-      } else if(! (fragmentNode < MAX_NDB_NODES)) {
-        jam();
-        err = CreateFragmentationRef::InvalidNodeId;
-      } else {
-        jam();
-        const Uint32 stat = Sysfile::getNodeStatus(fragmentNode,
-                                                   SYSFILE->nodeStatus);
-        switch (stat) {
-        case Sysfile::NS_Active:
-        case Sysfile::NS_ActiveMissed_1:
-        case Sysfile::NS_ActiveMissed_2:
-        case Sysfile::NS_TakeOver:
+      jam();
+      switch ((DictTabInfo::FragmentType)fragType)
+      {
+        /*
+          Backward compatability and for all places in code not changed.
+        */
+        case DictTabInfo::AllNodesSmallTable:
           jam();
+          noOfFragments = csystemnodes;
+          set_default_node_groups(signal, noOfFragments);
           break;
-        case Sysfile::NS_NotActive_NotTakenOver:
+        case DictTabInfo::AllNodesMediumTable:
           jam();
+          noOfFragments = 2 * csystemnodes;
+          set_default_node_groups(signal, noOfFragments);
           break;
-        case Sysfile::NS_HotSpare:
+        case DictTabInfo::AllNodesLargeTable:
           jam();
-        case Sysfile::NS_NotDefined:
+          noOfFragments = 4 * csystemnodes;
+          set_default_node_groups(signal, noOfFragments);
+          break;
+        case DictTabInfo::SingleFragment:
           jam();
+          noOfFragments = 1;
+          set_default_node_groups(signal, noOfFragments);
+          break;
         default:
           jam();
-          err = CreateFragmentationRef::InvalidNodeType;
+          if (noOfFragments == 0)
+          {
+            jam();
+            err = CreateFragmentationRef::InvalidFragmentationType;
+          }
+          break;
+      }
+      if (err)
+        break;
+      /*
+        When we come here the the exact partition is specified
+        and there is an array of node groups sent along as well.
+      */
+      memcpy(&node_group_id[0], &signal->theData[25], 2 * noOfFragments);
+      Uint16 next_replica_node[MAX_NDB_NODES];
+      memset(next_replica_node,0,sizeof(next_replica_node));
+      Uint32 default_node_group= c_nextNodeGroup;
+      for(Uint32 fragNo = 0; fragNo < noOfFragments; fragNo++)
+      {
+        jam();
+        NGPtr.i = node_group_id[fragNo];
+        if (NGPtr.i == UNDEF_NODEGROUP)
+        {
+          jam();
+	  NGPtr.i = default_node_group; 
+        }
+        if (NGPtr.i > cnoOfNodeGroups)
+        {
+          jam();
+          err = CreateFragmentationRef::InvalidNodeGroup;
           break;
         }
-        if(err)
-          break;
-        NGPtr.i = Sysfile::getNodeGroup(fragmentNode,
-                                        SYSFILE->nodeGroups);
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+        const Uint32 max = NGPtr.p->nodeCount;
+	
+	Uint32 tmp= next_replica_node[NGPtr.i];
+        for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
+        {
+          jam();
+          const Uint16 nodeId = NGPtr.p->nodesInGroup[tmp];
+          fragments[count++]= nodeId;
+          inc_node_or_group(tmp, max);
+        }
+        inc_node_or_group(tmp, max);
+	next_replica_node[NGPtr.i]= tmp;
+	
+        /**
+         * Next node group for next fragment
+         */
+        inc_node_or_group(default_node_group, cnoOfNodeGroups);
+      }
+      if (err)
+      {
+        jam();
         break;
+      }
+      else
+      {
+        jam();
+        c_nextNodeGroup = default_node_group;
       }
     } else {
       if (primaryTableId >= ctabFileSize) {
@@ -6261,49 +6296,14 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
         err = CreateFragmentationRef::InvalidPrimaryTable;
         break;
       }
-      if (noOfFragments != primTabPtr.p->totalfragments) {
-        jam();
-        err = CreateFragmentationRef::InvalidFragmentationType;
-        break;
-      }
-    }
-    
-    Uint32 count = 2;
-    Uint16 *fragments = (Uint16*)(signal->theData+25);
-    if (primaryTableId == RNIL) {
-      jam();
-      Uint8 next_replica_node[MAX_NDB_NODES];
-      memset(next_replica_node,0,sizeof(next_replica_node));
-      for(Uint32 fragNo = 0; fragNo<noOfFragments; fragNo++){
-        jam();
-        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);      
-        const Uint32 max = NGPtr.p->nodeCount;
-	
-	Uint32 tmp= next_replica_node[NGPtr.i];
-        for(Uint32 replicaNo = 0; replicaNo<noOfReplicas; replicaNo++)
-        {
-          jam();
-          const Uint32 nodeId = NGPtr.p->nodesInGroup[tmp++];
-          fragments[count++] = nodeId;
-          tmp = (tmp >= max ? 0 : tmp);
-        }
-	tmp++;
-	next_replica_node[NGPtr.i]= (tmp >= max ? 0 : tmp);
-	
-        /**
-         * Next node group for next fragment
-         */
-        NGPtr.i++;
-        NGPtr.i = (NGPtr.i == cnoOfNodeGroups ? 0 : NGPtr.i);
-      }
-    } else {
+      noOfFragments= primTabPtr.p->totalfragments;
       for (Uint32 fragNo = 0;
-           fragNo < primTabPtr.p->totalfragments; fragNo++) {
+           fragNo < noOfFragments; fragNo++) {
         jam();
         FragmentstorePtr fragPtr;
         ReplicaRecordPtr replicaPtr;
         getFragstore(primTabPtr.p, fragNo, fragPtr);
-        fragments[count++] = fragPtr.p->preferredPrimary;
+        fragments[count++]= fragPtr.p->preferredPrimary;
         for (replicaPtr.i = fragPtr.p->storedReplicas;
              replicaPtr.i != RNIL;
              replicaPtr.i = replicaPtr.p->nextReplica) {
@@ -6311,9 +6311,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
           ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
           if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary) {
             jam();
-            fragments[count++] = replicaPtr.p->procNode;
-          }//if
-        }//for
+            fragments[count++]= replicaPtr.p->procNode;
+          }
+        }
         for (replicaPtr.i = fragPtr.p->oldStoredReplicas;
              replicaPtr.i != RNIL;
              replicaPtr.i = replicaPtr.p->nextReplica) {
@@ -6321,25 +6321,26 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
           ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
           if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary) {
             jam();
-            fragments[count++] = replicaPtr.p->procNode;
-          }//if
-        }//for
+            fragments[count++]= replicaPtr.p->procNode;
+          }
+        }
       }
     }
-    ndbrequire(count == (2 + noOfReplicas * noOfFragments)); 
+    ndbrequire(count == (2U + noOfReplicas * noOfFragments)); 
     
     CreateFragmentationConf * const conf = 
       (CreateFragmentationConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = senderData;
-    conf->noOfReplicas = noOfReplicas;
-    conf->noOfFragments = noOfFragments;
+    conf->noOfReplicas = (Uint32)noOfReplicas;
+    conf->noOfFragments = (Uint32)noOfFragments;
 
-    fragments[0] = noOfReplicas;
-    fragments[1] = noOfFragments;
+    fragments[0]= noOfReplicas;
+    fragments[1]= noOfFragments;
     
     if(senderRef != 0)
     {
+      jam();
       LinearSectionPtr ptr[3];
       ptr[0].p = (Uint32*)&fragments[0];
       ptr[0].sz = (count + 1) / 2;
@@ -6351,33 +6352,17 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
 		 ptr,
 		 1);
     }
-    else
-    {
-      // Execute direct
-      signal->theData[0] = 0;
-    }
+    // Always ACK/NACK (here ACK)
+    signal->theData[0] = 0;
     return;
   } while(false);
-
-  if(senderRef != 0)
-  {
-    CreateFragmentationRef * const ref = 
-      (CreateFragmentationRef*)signal->getDataPtrSend();
-    ref->senderRef = reference();
-    ref->senderData = senderData;
-    ref->errorCode = err;
-    sendSignal(senderRef, GSN_CREATE_FRAGMENTATION_REF, signal, 
-	       CreateFragmentationRef::SignalLength, JBB);
-  }
-  else
-  {
-    // Execute direct
-    signal->theData[0] = err;
-  }
+  // Always ACK/NACK (here NACK)
+  signal->theData[0] = err;
 }
 
 void Dbdih::execDIADDTABREQ(Signal* signal) 
 {
+  Uint32 fragType;
   jamEntry();
 
   DiAddTabReq * const req = (DiAddTabReq*)signal->getDataPtr();
@@ -6402,6 +6387,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   tabPtr.p->connectrec = connectPtr.i;
   tabPtr.p->tableType = req->tableType;
+  fragType= req->fragType;
   tabPtr.p->schemaVersion = req->schemaVersion;
   tabPtr.p->primaryTableId = req->primaryTableId;
 
@@ -6438,8 +6424,32 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
   tabPtr.p->tabStatus = TabRecord::TS_CREATING;
   tabPtr.p->storedTable = req->storedTable;
-  tabPtr.p->method = TabRecord::HASH;
   tabPtr.p->kvalue = req->kValue;
+
+  switch ((DictTabInfo::FragmentType)fragType)
+  {
+    case DictTabInfo::AllNodesSmallTable:
+    case DictTabInfo::AllNodesMediumTable:
+    case DictTabInfo::AllNodesLargeTable:
+    case DictTabInfo::SingleFragment:
+      jam();
+    case DictTabInfo::DistrKeyLin:
+      jam();
+      tabPtr.p->method= TabRecord::LINEAR_HASH;
+      break;
+    case DictTabInfo::DistrKeyHash:
+    case DictTabInfo::DistrKeyUniqueHashIndex:
+    case DictTabInfo::DistrKeyOrderedIndex:
+      jam();
+      tabPtr.p->method= TabRecord::NORMAL_HASH;
+      break;
+    case DictTabInfo::UserDefined:
+      jam();
+      tabPtr.p->method= TabRecord::USER_DEFINED;
+      break;
+    default:
+      ndbrequire(false);
+  }
 
   union {
     Uint16 fragments[2 + MAX_FRAG_PER_NODE*MAX_REPLICAS*MAX_NDB_NODES];
@@ -6875,17 +6885,40 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   tabPtr.i = req->tableId;
   Uint32 hashValue = req->hashValue;
   Uint32 ttabFileSize = ctabFileSize;
+  Uint32 fragId;
+  DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
   jamEntry();
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
-  Uint32 fragId = hashValue & tabPtr.p->mask;
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
-  if (fragId < tabPtr.p->hashpointer) {
+  if (tabPtr.p->method == TabRecord::LINEAR_HASH)
+  {
     jam();
-    fragId = hashValue & ((tabPtr.p->mask << 1) + 1);
-  }//if
+    fragId = hashValue & tabPtr.p->mask;
+    ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
+    if (fragId < tabPtr.p->hashpointer) {
+      jam();
+      fragId = hashValue & ((tabPtr.p->mask << 1) + 1);
+    }//if
+  }
+  else if (tabPtr.p->method == TabRecord::NORMAL_HASH)
+  {
+    jam();
+    fragId= hashValue % tabPtr.p->totalfragments;
+  }
+  else
+  {
+    jam();
+    ndbassert(tabPtr.p->method == TabRecord::USER_DEFINED);
+    fragId= hashValue;
+    if (fragId >= tabPtr.p->totalfragments)
+    {
+      jam();
+      conf->zero= 1; //Indicate error;
+      signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
+      return;
+    }
+  }
   getFragstore(tabPtr.p, fragId, fragPtr);
-  DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   Uint32 nodeCount = extractNodeInfo(fragPtr.p, conf->nodes);
   Uint32 sig2 = (nodeCount - 1) + 
     (fragPtr.p->distributionKey << 16);
@@ -8410,8 +8443,7 @@ void Dbdih::readPagesIntoTableLab(Signal* signal, Uint32 tableId)
   rf.rwfTabPtr.p->hashpointer = readPageWord(&rf);
   rf.rwfTabPtr.p->kvalue = readPageWord(&rf);
   rf.rwfTabPtr.p->mask = readPageWord(&rf);
-  ndbrequire(readPageWord(&rf) == TabRecord::HASH);
-  rf.rwfTabPtr.p->method = TabRecord::HASH;
+  rf.rwfTabPtr.p->method = (TabRecord::Method)readPageWord(&rf);
   /* ---------------------------------- */
   /* Type of table, 2 = temporary table */
   /* ---------------------------------- */
@@ -8505,7 +8537,7 @@ void Dbdih::packTableIntoPagesLab(Signal* signal, Uint32 tableId)
   writePageWord(&wf, tabPtr.p->hashpointer);
   writePageWord(&wf, tabPtr.p->kvalue);
   writePageWord(&wf, tabPtr.p->mask);
-  writePageWord(&wf, TabRecord::HASH);
+  writePageWord(&wf, tabPtr.p->method);
   writePageWord(&wf, tabPtr.p->storedTable);
 
   signal->theData[0] = DihContinueB::ZPACK_FRAG_INTO_PAGES;
@@ -10947,6 +10979,7 @@ void Dbdih::initCommonData()
   cnoHotSpare = 0;
   cnoOfActiveTables = 0;
   cnoOfNodeGroups = 0;
+  c_nextNodeGroup = 0;
   cnoReplicas = 0;
   coldgcp = 0;
   coldGcpId = 0;

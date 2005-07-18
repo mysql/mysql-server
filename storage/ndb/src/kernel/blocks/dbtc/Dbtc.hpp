@@ -395,6 +395,13 @@ public:
     Uint32 fireingOperation;
 
     /**
+     * The fragment id of the firing operation. This will be appended
+     * to the Primary Key such that the record can be found even in the
+     * case of user defined partitioning.
+     */
+    Uint32 fragId;
+
+    /**
      * Used for scrapping in case of node failure
      */
     Uint32 nodeId;

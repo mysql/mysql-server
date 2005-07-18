@@ -11788,7 +11788,7 @@ void Dbacc::execSET_VAR_REQ(Signal* signal)
 }//execSET_VAR_REQ()
 
 void
-Dbacc::execREAD_PSUEDO_REQ(Signal* signal){
+Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
   jamEntry();
   fragrecptr.i = signal->theData[0];
   Uint32 attrId = signal->theData[1];
