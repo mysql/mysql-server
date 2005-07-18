@@ -3600,7 +3600,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   case MYSQL_TYPE_TIMESTAMP:
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    (void) str_to_datetime(value, length, tm, 0, &err);
+    (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &err);
     *param->error= test(err) && (param->buffer_type == MYSQL_TYPE_DATE &&
                                  tm->time_type != MYSQL_TIMESTAMP_DATE);
     break;
@@ -3718,7 +3718,8 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_DATETIME:
   {
     int error;
-    value= number_to_datetime(value, (MYSQL_TIME *) buffer, 1, &error);
+    value= number_to_datetime(value, (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
+                              &error);
     *param->error= test(error);
     break;
   }
