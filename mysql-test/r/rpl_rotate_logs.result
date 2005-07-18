@@ -27,8 +27,8 @@ insert into t2 values (34),(67),(123);
 flush logs;
 show binary logs;
 Log_name	File_size
-master-bin.000001	461
-master-bin.000002	213
+master-bin.000001	592
+master-bin.000002	363
 master-bin.000003	98
 create table t3 select * from temp_table;
 select * from t3;
@@ -43,12 +43,12 @@ start slave;
 purge master logs to 'master-bin.000002';
 show master logs;
 Log_name	File_size
-master-bin.000002	213
+master-bin.000002	363
 master-bin.000003	407
 purge binary logs to 'master-bin.000002';
 show binary logs;
 Log_name	File_size
-master-bin.000002	213
+master-bin.000002	363
 master-bin.000003	407
 purge master logs before now();
 show binary logs;
@@ -74,8 +74,8 @@ count(*)
 create table t4 select * from temp_table;
 show binary logs;
 Log_name	File_size
-master-bin.000003	4167
-master-bin.000004	0
+master-bin.000003	4185
+master-bin.000004	4190
 master-bin.000005	2032
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
