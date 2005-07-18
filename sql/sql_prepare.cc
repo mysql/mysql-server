@@ -1776,10 +1776,10 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   /* Reset warnings from previous command */
   mysql_reset_errors(thd, 0);
   lex= thd->lex;
-  lex->safe_to_cache_query= 0;
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          thd->net.report_error || init_param_array(stmt);
+  lex->safe_to_cache_query= 0;
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
