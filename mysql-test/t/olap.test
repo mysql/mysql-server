@@ -265,6 +265,7 @@ SELECT type FROM v1 GROUP BY type WITH ROLLUP;
 EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
 
 DROP VIEW v1;
+DROP TABLE t1;
 # Test for bug #11543: ROLLUP query with a repeated column in GROUP BY 
 #
 

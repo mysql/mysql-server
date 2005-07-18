@@ -1965,7 +1965,7 @@ AC_LANG_CPLUSPLUS
 
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 fi
 
 AC_TRY_COMPILE(
@@ -2000,7 +2000,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
@@ -2033,7 +2033,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
