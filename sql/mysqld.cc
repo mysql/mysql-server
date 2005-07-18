@@ -663,7 +663,7 @@ static void close_connections(void)
      project.  This will wake up the socket on Windows and prevent the
      printing of the error message that we are force closing a connection.
     */
-    close_connection(tmp, 0, 1);  
+    close_connection(tmp, 0, 0);  
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
