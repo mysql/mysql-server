@@ -408,7 +408,7 @@ public:
 
   void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
   Cursor(THD *thd);
-  ~Cursor();
+  ~Cursor() {}
 };
 
 

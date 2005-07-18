@@ -465,6 +465,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PACK_KEYS_SYM
 %token  PARTIAL
 %token  PASSWORD
+%token  PARAM_MARKER
 %token  PHASE_SYM
 %token  POINTFROMTEXT
 %token  POINT_SYM
@@ -4226,9 +4227,25 @@ bool_pri:
 
 predicate:
 	 bit_expr IN_SYM '(' expr_list ')'
-	  { $4->push_front($1); $$= new Item_func_in(*$4); }
+	  { 
+            if ($4->elements == 1)
+              $$= new Item_func_eq($1, $4->head());
+            else
+            {
+              $4->push_front($1);
+              $$= new Item_func_in(*$4);
+            }
+          }
 	| bit_expr not IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= negate_expression(YYTHD, new Item_func_in(*$5)); }
+          {
+            if ($5->elements == 1)
+              $$= new Item_func_ne($1, $5->head());
+            else
+            {
+              $5->push_front($1);
+              $$= negate_expression(YYTHD, new Item_func_in(*$5));
+            }            
+          }
         | bit_expr IN_SYM in_subselect
 	  { $$= new Item_in_subselect($1, $3); }
 	| bit_expr not IN_SYM in_subselect
@@ -4805,7 +4822,7 @@ simple_expr:
 	| UNIX_TIMESTAMP '(' expr ')'
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
-	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
+	  { $$= new Item_func_user(FALSE); Lex->safe_to_cache_query=0; }
 	| UTC_DATE_SYM optional_braces
 	  { $$= new Item_func_curdate_utc(); Lex->safe_to_cache_query=0;}
 	| UTC_TIME_SYM optional_braces
@@ -6933,23 +6950,15 @@ text_string:
 	;
 
 param_marker:
-        '?'
+        PARAM_MARKER
         {
           THD *thd=YYTHD;
 	  LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          Item_param *item= new Item_param((uint) (lex->tok_start -
+                                                   (uchar *) thd->query));
+          if (!($$= item) || lex->param_list.push_back(item))
           {
-            Item_param *item= new Item_param((uint) (lex->tok_start -
-                                                     (uchar *) thd->query));
-            if (!($$= item) || lex->param_list.push_back(item))
-            {
-	      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	      YYABORT;
-            }
-          }
-          else
-          {
-            yyerror(ER(ER_SYNTAX_ERROR));
+            my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
             YYABORT;
           }
         }
