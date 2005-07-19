@@ -479,7 +479,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
     }
     if (!got_error)
     {
-      share->state.key_map|=(ulonglong) 1 << sinfo->key;
+      mi_set_key_active(share->state.key_map, sinfo->key);
       if (param->testflag & T_STATISTICS)
         update_key_parts(sinfo->keyinfo, rec_per_key_part,
                          sinfo->unique, (ulonglong) info->state->records);

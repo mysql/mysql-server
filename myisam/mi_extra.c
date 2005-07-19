@@ -244,7 +244,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       error=1;					/* Not possibly if not lock */
       break;
     }
-    if (share->state.key_map)
+    if (mi_is_any_key_active(share->state.key_map))
     {
       MI_KEYDEF *key=share->keyinfo;
       uint i;
@@ -252,7 +252,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       {
         if (!(key->flag & HA_NOSAME) && info->s->base.auto_key != i+1)
         {
-          share->state.key_map&= ~ ((ulonglong) 1 << i);
+          mi_clear_key_active(share->state.key_map, i);
           info->update|= HA_STATE_CHANGED;
         }
       }
