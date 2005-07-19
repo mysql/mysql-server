@@ -2367,7 +2367,15 @@ ConfigInfo::isSection(const char * section) const {
 }
 
 const char*
-ConfigInfo::getAlias(const char * section) const {
+ConfigInfo::nameToAlias(const char * name) {
+  for (int i = 0; m_sectionNameAliases[i].name != 0; i++)
+    if(!strcasecmp(name, m_sectionNameAliases[i].name))
+      return m_sectionNameAliases[i].alias;
+  return 0;
+}
+
+const char*
+ConfigInfo::getAlias(const char * section) {
   for (int i = 0; m_sectionNameAliases[i].name != 0; i++)
     if(!strcasecmp(section, m_sectionNameAliases[i].alias))
       return m_sectionNameAliases[i].name;
@@ -3416,7 +3424,10 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     }
     
     if (g_print_full_config)
-      printf("[%s]\n", ctx.fname);
+    {
+      const char *alias= ConfigInfo::nameToAlias(ctx.fname);
+      printf("[%s]\n", alias ? alias : ctx.fname);
+    }
 
     Uint32 no = 0;
     ctx.m_userProperties.get("$Section", id, &no);
