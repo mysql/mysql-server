@@ -21,7 +21,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -96,14 +98,14 @@ _rl_abort_internal ()
 
 int
 rl_abort (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   return (_rl_abort_internal ());
 }
 
 int
 rl_tty_status (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
 #if defined (TIOCSTAT)
   ioctl (1, TIOCSTAT, (char *)0);
@@ -153,7 +155,7 @@ rl_extend_line_buffer (len)
 /* A function for simple tilde expansion. */
 int
 rl_tilde_expand (ignore, key)
-     int ignore __attribute__((unused)), key __attribute__((unused));
+     int ignore, key;
 {
   register int start, end;
   char *homedir, *temp;
@@ -248,7 +250,7 @@ _rl_strpbrk (string1, string2)
 	{
 	  v = _rl_get_char_len (string1, &ps);
 	  if (v > 1)
-	    string += v - 1;	/* -1 to account for auto-increment in loop */
+	    string1 += v - 1;	/* -1 to account for auto-increment in loop */
 	}
 #endif
     }

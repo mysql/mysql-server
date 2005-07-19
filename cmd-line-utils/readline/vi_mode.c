@@ -1,7 +1,7 @@
 /* vi_mode.c -- A vi emulation mode for Bash.
    Derived from code written by Jeff Sparkes (jsparkes@bnr.ca).  */
 
-/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -31,7 +31,9 @@
 
 #if defined (VI_MODE)
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 
@@ -61,6 +63,8 @@
 #define member(c, s) ((c) ? (char *)strchr ((s), (c)) != (char *)NULL : 0)
 #endif
 
+int _rl_vi_last_command = 'i';	/* default `.' puts you in insert mode */
+
 /* Non-zero means enter insertion mode. */
 static int _rl_vi_doing_insert;
 
@@ -81,7 +85,6 @@ static int vi_continued_command;
 static char *vi_insert_buffer;
 static int vi_insert_buffer_size;
 
-static int _rl_vi_last_command = 'i';	/* default `.' puts you in insert mode */
 static int _rl_vi_last_repeat = 1;
 static int _rl_vi_last_arg_sign = 1;
 static int _rl_vi_last_motion;
@@ -109,7 +112,7 @@ static int rl_digit_loop1 PARAMS((void));
 void
 _rl_vi_initialize_line ()
 {
-  register unsigned int i;
+  register int i;
 
   for (i = 0; i < sizeof (vi_mark_chars) / sizeof (int); i++)
     vi_mark_chars[i] = -1;
@@ -131,6 +134,16 @@ _rl_vi_set_last (key, repeat, sign)
   _rl_vi_last_command = key;
   _rl_vi_last_repeat = repeat;
   _rl_vi_last_arg_sign = sign;
+}
+
+/* A convenience function that calls _rl_vi_set_last to save the last command
+   information and enters insertion mode. */
+void
+rl_vi_start_inserting (key, repeat, sign)
+     int key, repeat, sign;
+{
+  _rl_vi_set_last (key, repeat, sign);
+  rl_vi_insertion_mode (1, key);
 }
 
 /* Is the command C a VI mode text modification command? */
@@ -156,7 +169,7 @@ _rl_vi_stuff_insert (count)
    puts you back into insert mode. */
 int
 rl_vi_redo (count, c)
-     int count, c __attribute__((unused));
+     int count, c;
 {
   int r;
 
@@ -195,7 +208,7 @@ rl_vi_undo (count, key)
 /* Yank the nth arg from the previous line into this line at point. */
 int
 rl_vi_yank_arg (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   /* Readline thinks that the first word on a line is the 0th, while vi
      thinks the first word on a line is the 1st.  Compensate. */
@@ -276,7 +289,7 @@ rl_vi_search (count, key)
 /* Completion, from vi's point of view. */
 int
 rl_vi_complete (ignore, key)
-     int ignore __attribute__((unused)), key;
+     int ignore, key;
 {
   if ((rl_point < rl_end) && (!whitespace (rl_line_buffer[rl_point])))
     {
@@ -295,21 +308,18 @@ rl_vi_complete (ignore, key)
     rl_complete (0, key);
 
   if (key == '*' || key == '\\')
-    {
-      _rl_vi_set_last (key, 1, rl_arg_sign);
-      rl_vi_insertion_mode (1, key);
-    }
+    rl_vi_start_inserting (key, 1, rl_arg_sign);
+
   return (0);
 }
 
 /* Tilde expansion for vi mode. */
 int
 rl_vi_tilde_expand (ignore, key)
-     int ignore __attribute__((unused)), key;
+     int ignore, key;
 {
   rl_tilde_expand (0, key);
-  _rl_vi_set_last (key, 1, rl_arg_sign);	/* XXX */
-  rl_vi_insertion_mode (1, key);
+  rl_vi_start_inserting (key, 1, rl_arg_sign);
   return (0);
 }
 
@@ -377,7 +387,7 @@ rl_vi_end_word (count, key)
 /* Move forward a word the way that 'W' does. */
 int
 rl_vi_fWord (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   while (count-- && rl_point < (rl_end - 1))
     {
@@ -394,7 +404,7 @@ rl_vi_fWord (count, ignore)
 
 int
 rl_vi_bWord (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   while (count-- && rl_point > 0)
     {
@@ -418,7 +428,7 @@ rl_vi_bWord (count, ignore)
 
 int
 rl_vi_eWord (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   while (count-- && rl_point < (rl_end - 1))
     {
@@ -427,7 +437,8 @@ rl_vi_eWord (count, ignore)
 
       /* Move to the next non-whitespace character (to the start of the
 	 next word). */
-      while (++rl_point < rl_end && whitespace (rl_line_buffer[rl_point]));
+      while (rl_point < rl_end && whitespace (rl_line_buffer[rl_point]))
+	rl_point++;
 
       if (rl_point && rl_point < rl_end)
 	{
@@ -448,7 +459,7 @@ rl_vi_eWord (count, ignore)
 
 int
 rl_vi_fword (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   while (count-- && rl_point < (rl_end - 1))
     {
@@ -474,7 +485,7 @@ rl_vi_fword (count, ignore)
 
 int
 rl_vi_bword (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   while (count-- && rl_point > 0)
     {
@@ -513,7 +524,7 @@ rl_vi_bword (count, ignore)
 
 int
 rl_vi_eword (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   while (count-- && rl_point < rl_end - 1)
     {
@@ -538,7 +549,7 @@ rl_vi_eword (count, ignore)
 
 int
 rl_vi_insert_beg (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   rl_beg_of_line (1, key);
   rl_vi_insertion_mode (1, key);
@@ -547,7 +558,7 @@ rl_vi_insert_beg (count, key)
 
 int
 rl_vi_append_mode (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   if (rl_point < rl_end)
     {
@@ -567,7 +578,7 @@ rl_vi_append_mode (count, key)
 
 int
 rl_vi_append_eol (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   rl_end_of_line (1, key);
   rl_vi_append_mode (1, key);
@@ -577,7 +588,7 @@ rl_vi_append_eol (count, key)
 /* What to do in the case of C-d. */
 int
 rl_vi_eof_maybe (count, c)
-     int count __attribute__((unused)), c __attribute__((unused));
+     int count, c;
 {
   return (rl_newline (1, '\n'));
 }
@@ -588,7 +599,7 @@ rl_vi_eof_maybe (count, c)
    switching keymaps. */
 int
 rl_vi_insertion_mode (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   _rl_keymap = vi_insertion_keymap;
   _rl_vi_last_key_before_insert = key;
@@ -638,7 +649,7 @@ _rl_vi_done_inserting ()
     }
   else
     {
-      if (_rl_vi_last_key_before_insert == 'i' && rl_undo_list)
+      if ((_rl_vi_last_key_before_insert == 'i' || _rl_vi_last_key_before_insert == 'a') && rl_undo_list)
         _rl_vi_save_insert (rl_undo_list);
       /* XXX - Other keys probably need to be checked. */
       else if (_rl_vi_last_key_before_insert == 'C')
@@ -651,7 +662,7 @@ _rl_vi_done_inserting ()
 
 int
 rl_vi_movement_mode (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   if (rl_point > 0)
     rl_backward_char (1, key);
@@ -678,7 +689,8 @@ _rl_vi_change_mbchar_case (count)
      int count;
 {
   wchar_t wc;
-  char mb[MB_LEN_MAX];
+  char mb[MB_LEN_MAX+1];
+  int mblen;
   mbstate_t ps;
 
   memset (&ps, 0, sizeof (mbstate_t));
@@ -701,7 +713,9 @@ _rl_vi_change_mbchar_case (count)
       /* Vi is kind of strange here. */
       if (wc)
 	{
-	  wctomb (mb, wc);
+	  mblen = wcrtomb (mb, wc, &ps);
+	  if (mblen >= 0)
+	    mb[mblen] = '\0';
 	  rl_begin_undo_group ();
 	  rl_delete (1, 0);
 	  rl_insert_text (mb);
@@ -718,14 +732,15 @@ _rl_vi_change_mbchar_case (count)
 
 int
 rl_vi_change_case (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
-  char c = 0;
+  int c, p;
 
   /* Don't try this on an empty line. */
   if (rl_point >= rl_end)
     return (0);
 
+  c = 0;
 #if defined (HANDLE_MULTIBYTE)
   if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
     return (_rl_vi_change_mbchar_case (count));
@@ -747,8 +762,11 @@ rl_vi_change_case (count, ignore)
       /* Vi is kind of strange here. */
       if (c)
 	{
+	  p = rl_point;
 	  rl_begin_undo_group ();
-	  rl_delete (1, c);
+	  rl_vi_delete (1, c);
+	  if (rl_point < p)	/* Did we retreat at EOL? */
+	    rl_point++;
 	  _rl_insert_char (1, c);
 	  rl_end_undo_group ();
 	  rl_vi_check ();
@@ -761,12 +779,14 @@ rl_vi_change_case (count, ignore)
 
 int
 rl_vi_put (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   if (!_rl_uppercase_p (key) && (rl_point + 1 <= rl_end))
     rl_point = _rl_find_next_mbchar (rl_line_buffer, rl_point, 1, MB_FIND_NONZERO);
 
-  rl_yank (1, key);
+  while (count--)
+    rl_yank (1, key);
+
   rl_backward_char (1, key);
   return (0);
 }
@@ -814,6 +834,7 @@ rl_vi_domove (key, nextkey)
 	{
 	  save = rl_numeric_arg;
 	  rl_numeric_arg = _rl_digit_value (c);
+	  rl_explicit_arg = 1;
 	  rl_digit_loop1 ();
 	  rl_numeric_arg *= save;
 	  RL_SETSTATE(RL_STATE_MOREINPUT);
@@ -941,7 +962,7 @@ rl_digit_loop1 ()
 
 int
 rl_vi_delete_to (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   int c;
 
@@ -1012,8 +1033,7 @@ rl_vi_change_to (count, key)
       /* `C' does not save the text inserted for undoing or redoing. */
       if (_rl_uppercase_p (key) == 0)
         _rl_vi_doing_insert = 1;
-      _rl_vi_set_last (key, count, rl_arg_sign);
-      rl_vi_insertion_mode (1, key);
+      rl_vi_start_inserting (key, rl_numeric_arg, rl_arg_sign);
     }
 
   return (0);
@@ -1021,7 +1041,7 @@ rl_vi_change_to (count, key)
 
 int
 rl_vi_yank_to (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   int c, save = rl_point;
 
@@ -1077,7 +1097,7 @@ rl_vi_delete (count, key)
 
 int
 rl_vi_back_to_indent (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   rl_beg_of_line (1, key);
   while (rl_point < rl_end && whitespace (rl_line_buffer[rl_point]))
@@ -1087,7 +1107,7 @@ rl_vi_back_to_indent (count, key)
 
 int
 rl_vi_first_print (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   return (rl_vi_back_to_indent (1, key));
 }
@@ -1156,7 +1176,7 @@ rl_vi_char_search (count, key)
 /* Match brackets */
 int
 rl_vi_match (ignore, key)
-     int ignore __attribute__((unused)), key;
+     int ignore, key;
 {
   int count = 1, brack, pos, tmp, pre;
 
@@ -1262,14 +1282,14 @@ rl_vi_bracktype (c)
 
 /* XXX - think about reading an entire mbchar with _rl_read_mbchar and
    inserting it in one bunch instead of the loop below (like in
-   rl_vi_char_search or _rl_vi_change_mbchar_case.  Set c to mbchar[0]
+   rl_vi_char_search or _rl_vi_change_mbchar_case).  Set c to mbchar[0]
    for test against 033 or ^C.  Make sure that _rl_read_mbchar does
    this right. */
 int
 rl_vi_change_char (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
-  int c;
+  int c, p;
 
   if (vi_redoing)
     c = _rl_vi_last_replacement;
@@ -1283,11 +1303,11 @@ rl_vi_change_char (count, key)
   if (c == '\033' || c == CTRL ('C'))
     return -1;
 
+  rl_begin_undo_group ();
   while (count-- && rl_point < rl_end)
     {
-      rl_begin_undo_group ();
-
-      rl_delete (1, c);
+      p = rl_point;
+      rl_vi_delete (1, c);
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	while (_rl_insert_char (1, c))
@@ -1298,12 +1318,14 @@ rl_vi_change_char (count, key)
 	  }
       else
 #endif
-	_rl_insert_char (1, c);
-      if (count == 0)
-	rl_backward_char (1, c);
-
-      rl_end_undo_group ();
+	{
+	  if (rl_point < p)		/* Did we retreat at EOL? */
+	    rl_point++;
+	  _rl_insert_char (1, c);
+	}
     }
+  rl_end_undo_group ();
+
   return (0);
 }
 
@@ -1313,7 +1335,7 @@ rl_vi_subst (count, key)
 {
   /* If we are redoing, rl_vi_change_to will stuff the last motion char */
   if (vi_redoing == 0)
-    rl_stuff_char ((key == 'S') ? 'c' : ' ');	/* `S' == `cc', `s' == `c ' */
+    rl_stuff_char ((key == 'S') ? 'c' : 'l');	/* `S' == `cc', `s' == `cl' */
 
   return (rl_vi_change_to (count, 'c'));
 }
@@ -1370,7 +1392,7 @@ rl_vi_overstrike_delete (count, key)
 
 int
 rl_vi_replace (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   int i;
 
@@ -1431,7 +1453,7 @@ rl_vi_possible_completions()
 /* Functions to save and restore marks. */
 int
 rl_vi_set_mark (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   int ch;
 
@@ -1451,7 +1473,7 @@ rl_vi_set_mark (count, key)
 
 int
 rl_vi_goto_mark (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   int ch;
 

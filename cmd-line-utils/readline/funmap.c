@@ -21,7 +21,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #if !defined (BUFSIZ)
 #include <stdio.h>
@@ -129,6 +131,7 @@ static FUNMAP default_funmap[] = {
   { "tty-status", rl_tty_status },
   { "undo", rl_undo_command },
   { "universal-argument", rl_universal_argument },
+  { "unix-filename-rubout", rl_unix_filename_rubout },
   { "unix-line-discard", rl_unix_line_discard },
   { "unix-word-rubout", rl_unix_word_rubout },
   { "upcase-word", rl_upcase_word },
