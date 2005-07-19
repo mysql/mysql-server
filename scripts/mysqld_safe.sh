@@ -84,29 +84,47 @@ parse_arguments() {
 }
 
 
+#
+# First, try to find BASEDIR and ledir (where mysqld is)
+# 
+
 MY_PWD=`pwd`
-# Check if we are starting this relative (for the binary release)
-if test -f ./share/mysql/english/errmsg.sys -a \
- -x ./bin/mysqld
+# Check for the directories we would expect from a binary release install
+if test -f ./share/mysql/english/errmsg.sys -a -x ./bin/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where bin, share and data are
   ledir=$MY_BASEDIR_VERSION/bin		# Where mysqld is
-  DATADIR=$MY_BASEDIR_VERSION/data
-  if test -z "$defaults"
-  then
-    defaults="--defaults-extra-file=$MY_BASEDIR_VERSION/data/my.cnf"
-  fi
-# Check if this is a 'moved install directory'
+# Check for the directories we would expect from a source install
 elif test -f ./share/mysql/english/errmsg.sys -a \
  -x ./libexec/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where libexec, share and var are
   ledir=$MY_BASEDIR_VERSION/libexec	# Where mysqld is
-  DATADIR=$MY_BASEDIR_VERSION/var
+# Since we didn't find anything, used the compiled-in defaults
 else
   MY_BASEDIR_VERSION=@prefix@
-  DATADIR=@localstatedir@
   ledir=@libexecdir@
+fi
+
+#
+# Second, try to find the data directory
+#
+
+# Try where the binary installs put it
+if test -d $MY_BASEDIR_VERSION/data/mysql
+then
+  DATADIR=$MY_BASEDIR_VERSION/data
+  if test -z "$defaults"
+  then
+    defaults="--defaults-extra-file=$DATADIR/my.cnf"
+  fi
+# Next try where the source installs put it
+elif test -d $MY_BASEDIR_VERSION/var/mysql
+then
+  DATADIR=$MY_BASEDIR_VERSION/var
+# Or just give up and use our compiled-in default
+else
+  DATADIR=@localstatedir@
 fi
 
 user=@MYSQLD_USER@
