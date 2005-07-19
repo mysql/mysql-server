@@ -602,7 +602,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
-			((ulonglong) 1L << share->base.keys)-1 :
+			mi_get_mask_all_keys_active(share->base.keys) :
 			share->state.key_map);
     uint testflag=param.testflag;
     if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
@@ -903,7 +903,7 @@ int ha_myisam::enable_indexes(uint mode)
 {
   int error;
 
-  if (file->s->state.key_map == set_bits(ulonglong, file->s->base.keys))
+  if (mi_is_all_keys_active(file->s->state.key_map, file->s->base.keys))
   {
     /* All indexes are enabled already. */
     return 0;
@@ -1002,8 +1002,8 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
   if (! rows || (rows > MI_MIN_ROWS_TO_USE_WRITE_CACHE))
     mi_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
 
-  can_enable_indexes= (file->s->state.key_map ==
-                       set_bits(ulonglong, file->s->base.keys));
+  can_enable_indexes= mi_is_all_keys_active(file->s->state.key_map,
+                                            file->s->base.keys);
 
   if (!(specialflag & SPECIAL_SAFE_MODE))
   {
@@ -1256,7 +1256,7 @@ void ha_myisam::info(uint flag)
     share->db_options_in_use= info.options;
     block_size= myisam_block_size;
     share->keys_in_use.set_prefix(share->keys);
-    share->keys_in_use.intersect(info.key_map);
+    share->keys_in_use.intersect_extended(info.key_map);
     share->keys_for_keyread.intersect(share->keys_in_use);
     share->db_record_offset= info.record_offset;
     if (share->key_parts)
