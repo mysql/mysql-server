@@ -2184,7 +2184,13 @@ void Item_func_in::fix_length_and_dec()
     return;
 
   for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
-    const_itm&= arg[0]->const_item();
+  {
+    if (!arg[0]->const_item())
+    {
+      const_itm= 0;
+      break;
+    }
+  }
 
   /*
     Row item with NULLs inside can return NULL or FALSE => 

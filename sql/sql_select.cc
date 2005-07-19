@@ -1198,7 +1198,7 @@ JOIN::exec()
     {
       result->send_fields(fields_list,
                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-      if (!having || having->val_int())
+      if (cond_value != Item::COND_FALSE && (!having || having->val_int()))
       {
 	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
                                           procedure->end_of_records())
@@ -5185,7 +5185,12 @@ static void add_not_null_conds(JOIN *join)
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
-          if (referred_tab->join != join)
+          /*
+            For UPDATE queries such as:
+            UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
+            not_null_item is the t1.f1, but it's referred_tab is 0.
+          */
+          if (!referred_tab || referred_tab->join != join)
             continue;
           Item *notnull;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
@@ -6715,7 +6720,7 @@ static COND *build_equal_items_for_cond(COND *cond,
        of the condition expression.
     */
     li.rewind();
-    while((item= li++))
+    while ((item= li++))
     { 
       Item *new_item;
       if ((new_item = build_equal_items_for_cond(item, inherited))!= item)
@@ -7524,7 +7529,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     
   /* Flatten nested joins that can be flattened. */
   li.rewind();
-  while((table= li++))
+  while ((table= li++))
   {
     nested_join= table->nested_join;
     if (nested_join && !table->on_expr)
@@ -12120,7 +12125,6 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
-  uint index= 0;
 
   *all_order_by_fields_used= 1;
   while ((item=li++))
@@ -12157,12 +12161,12 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
         simple indexing of ref_pointer_array (order in the array and in the
         list are same)
       */
-      ord->item= ref_pointer_array + index;
+      ord->item= ref_pointer_array;
       ord->asc=1;
       *prev=ord;
       prev= &ord->next;
     }
-    index++;
+    ref_pointer_array++;
   }
   *prev=0;
   return group;
@@ -12991,7 +12995,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
           if (item->eq(*group_tmp->item,0))
           {
             Item *new_item;
-            if(!(new_item= new Item_ref(context, group_tmp->item, 0,
+            if (!(new_item= new Item_ref(context, group_tmp->item, 0,
                                         item->name)))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);
@@ -13061,7 +13065,7 @@ bool JOIN::rollup_init()
     ORDER *group_tmp;
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
-      if (item->eq(*group_tmp->item,0))
+      if (*group_tmp->item == item)
         item->maybe_null= 1;
     }
     if (item->type() == Item::FUNC_ITEM)
@@ -13181,7 +13185,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
-          if (item->eq(*group_tmp->item,0))
+          if (*group_tmp->item == item)
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be

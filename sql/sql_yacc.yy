@@ -45,7 +45,7 @@ int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str={0,0};
 
-#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
+#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 #define WARN_DEPRECATED(A,B)                                        \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
@@ -4026,7 +4026,7 @@ select_into:
 select_from:
 	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
-        | FROM DUAL_SYM opt_limit_clause
+        | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
              Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?

@@ -152,6 +152,7 @@ my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit)
   bitmap_lock(map);
   res= bitmap_fast_test_and_set(map, bitmap_bit);
   bitmap_unlock(map);
+  return res;
 }
 
 uint bitmap_set_next(MY_BITMAP *map)
