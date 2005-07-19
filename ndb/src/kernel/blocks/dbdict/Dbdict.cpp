@@ -6468,6 +6468,9 @@ void
 Dbdict::createIndex_slavePrepare(Signal* signal, OpCreateIndexPtr opPtr)
 {
   jam();
+  if (ERROR_INSERTED(6006) && ! opPtr.p->m_isMaster) {
+    ndbrequire(false);
+  }
 }
 
 void
@@ -9668,7 +9671,7 @@ Dbdict::alterIndex_toDropTc(Signal* signal, OpAlterIndexPtr opPtr)
   // broken index allowed if force
   if (! (indexPtr.p->indexLocal & TableRecord::IL_CREATED_TC)) {
     jam();
-    ndbrequire(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
+    ndbassert(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
     alterIndex_sendReply(signal, opPtr, false);
     return;
   }
@@ -11719,7 +11722,7 @@ Dbdict::alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
     // broken trigger allowed if force
     if (! (triggerPtr.p->triggerLocal & TriggerRecord::TL_CREATED_TC)) {
       jam();
-      ndbrequire(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
+      ndbassert(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
       alterTrigger_sendReply(signal, opPtr, false);
       return;
     }
@@ -11729,7 +11732,7 @@ Dbdict::alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
     // broken trigger allowed if force
     if (! (triggerPtr.p->triggerLocal & TriggerRecord::TL_CREATED_LQH)) {
       jam();
-      ndbrequire(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
+      ndbassert(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
       alterTrigger_sendReply(signal, opPtr, false);
       return;
     }
