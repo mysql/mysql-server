@@ -101,7 +101,7 @@ int mi_write(MI_INFO *info, byte *record)
   buff=info->lastkey2;
   for (i=0 ; i < share->base.keys ; i++)
   {
-    if (((ulonglong) 1 << i) & share->state.key_map)
+    if (mi_is_key_active(share->state.key_map, i))
     {
       bool local_lock_tree= (lock_tree &&
 			     !(info->bulk_insert &&
@@ -175,7 +175,7 @@ err:
     info->errkey= (int) i;
     while ( i-- > 0)
     {
-      if (((ulonglong) 1 << i) & share->state.key_map)
+      if (mi_is_key_active(share->state.key_map, i))
       {
 	bool local_lock_tree= (lock_tree &&
 			       !(info->bulk_insert &&
@@ -944,20 +944,21 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
   MI_KEYDEF *key=share->keyinfo;
   bulk_insert_param *params;
   uint i, num_keys, total_keylength;
-  ulonglong key_map=0;
+  ulonglong key_map;
   DBUG_ENTER("_mi_init_bulk_insert");
   DBUG_PRINT("enter",("cache_size: %lu", cache_size));
 
   DBUG_ASSERT(!info->bulk_insert &&
 	      (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT));
 
+  mi_clear_all_keys_active(key_map);
   for (i=total_keylength=num_keys=0 ; i < share->base.keys ; i++)
   {
-    if (!(key[i].flag & HA_NOSAME) && share->base.auto_key != i+1
-        && test(share->state.key_map & ((ulonglong) 1 << i)))
+    if (! (key[i].flag & HA_NOSAME) && (share->base.auto_key != i + 1) &&
+        mi_is_key_active(share->state.key_map, i))
     {
       num_keys++;
-      key_map |=((ulonglong) 1 << i);
+      mi_set_key_active(key_map, i);
       total_keylength+=key[i].maxlength+TREE_ELEMENT_EXTRA_SIZE;
     }
   }
@@ -981,7 +982,7 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
   params=(bulk_insert_param *)(info->bulk_insert+share->base.keys);
   for (i=0 ; i < share->base.keys ; i++)
   {
-    if (test(key_map & ((ulonglong) 1 << i)))
+    if (mi_is_key_active(key_map, i))
     {
       params->info=info;
       params->keynr=i;
