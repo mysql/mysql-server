@@ -31,40 +31,83 @@
 #define FEDERATED_RECORDS_IN_RANGE 2
 
 #define FEDERATED_INFO " SHOW TABLE STATUS LIKE "
+#define FEDERATED_INFO_LEN sizeof(FEDERATED_INFO)
 #define FEDERATED_SELECT "SELECT "
+#define FEDERATED_SELECT_LEN sizeof(FEDERATED_SELECT)
 #define FEDERATED_WHERE " WHERE "
+#define FEDERATED_WHERE_LEN sizeof(FEDERATED_WHERE)
 #define FEDERATED_FROM " FROM "
+#define FEDERATED_FROM_LEN sizeof(FEDERATED_FROM)
 #define FEDERATED_PERCENT "%"
+#define FEDERATED_PERCENT_LEN sizeof(FEDERATED_PERCENT)
 #define FEDERATED_IS " IS "
+#define FEDERATED_IS_LEN sizeof(FEDERATED_IS)
 #define FEDERATED_NULL " NULL "
+#define FEDERATED_NULL_LEN sizeof(FEDERATED_NULL)
 #define FEDERATED_ISNULL " IS NULL "
+#define FEDERATED_ISNULL_LEN sizeof(FEDERATED_ISNULL)
 #define FEDERATED_LIKE " LIKE "
+#define FEDERATED_LIKE_LEN sizeof(FEDERATED_LIKE)
 #define FEDERATED_TRUNCATE "TRUNCATE "
+#define FEDERATED_TRUNCATE_LEN sizeof(FEDERATED_TRUNCATE)
 #define FEDERATED_DELETE "DELETE "
+#define FEDERATED_DELETE_LEN sizeof(FEDERATED_DELETE)
 #define FEDERATED_INSERT "INSERT INTO "
+#define FEDERATED_INSERT_LEN sizeof(FEDERATED_INSERT)
+#define FEDERATED_OPTIMIZE "OPTIMIZE TABLE "
+#define FEDERATED_OPTIMIZE_LEN sizeof(FEDERATED_OPTIMIZE)
+#define FEDERATED_REPAIR "REPAIR TABLE "
+#define FEDERATED_REPAIR_LEN sizeof(FEDERATED_REPAIR)
+#define FEDERATED_QUICK " QUICK"
+#define FEDERATED_QUICK_LEN sizeof(FEDERATED_QUICK)
+#define FEDERATED_EXTENDED " EXTENDED"
+#define FEDERATED_EXTENDED_LEN sizeof(FEDERATED_EXTENDED)
+#define FEDERATED_USE_FRM " USE_FRM"
+#define FEDERATED_USE_FRM_LEN sizeof(FEDERATED_USE_FRM)
 #define FEDERATED_LIMIT1 " LIMIT 1"
+#define FEDERATED_LIMIT1_LEN sizeof(FEDERATED_LIMIT1)
 #define FEDERATED_VALUES "VALUES "
+#define FEDERATED_VALUES_LEN sizeof(FEDERATED_VALUES)
 #define FEDERATED_UPDATE "UPDATE "
+#define FEDERATED_UPDATE_LEN sizeof(FEDERATED_UPDATE)
 #define FEDERATED_SET "SET "
+#define FEDERATED_SET_LEN sizeof(FEDERATED_SET)
 #define FEDERATED_AND " AND "
+#define FEDERATED_AND_LEN sizeof(FEDERATED_AND)
 #define FEDERATED_CONJUNCTION ") AND ("
+#define FEDERATED_CONJUNCTION_LEN sizeof(FEDERATED_CONJUNCTION)
 #define FEDERATED_OR " OR "
+#define FEDERATED_OR_LEN sizeof(FEDERATED_OR)
 #define FEDERATED_NOT " NOT "
+#define FEDERATED_NOT_LEN sizeof(FEDERATED_NOT)
 #define FEDERATED_STAR "* "
+#define FEDERATED_STAR_LEN sizeof(FEDERATED_STAR)
 #define FEDERATED_SPACE " "
+#define FEDERATED_SPACE_LEN sizeof(FEDERATED_SPACE)
 #define FEDERATED_SQUOTE "'"
+#define FEDERATED_SQUOTE_LEN sizeof(FEDERATED_SQUOTE)
 #define FEDERATED_COMMA ", "
-#define FEDERATED_DQOUTE '"' 
-#define FEDERATED_BTICK  "`" 
+#define FEDERATED_COMMA_LEN sizeof(FEDERATED_COMMA)
+#define FEDERATED_BTICK "`" 
+#define FEDERATED_BTICK_LEN sizeof(FEDERATED_BTICK)
 #define FEDERATED_OPENPAREN " ("
+#define FEDERATED_OPENPAREN_LEN sizeof(FEDERATED_OPENPAREN)
 #define FEDERATED_CLOSEPAREN ") "
+#define FEDERATED_CLOSEPAREN_LEN sizeof(FEDERATED_CLOSEPAREN)
 #define FEDERATED_NE " != "
+#define FEDERATED_NE_LEN sizeof(FEDERATED_NE)
 #define FEDERATED_GT " > "
+#define FEDERATED_GT_LEN sizeof(FEDERATED_GT)
 #define FEDERATED_LT " < "
+#define FEDERATED_LT_LEN sizeof(FEDERATED_LT)
 #define FEDERATED_LE " <= "
+#define FEDERATED_LE_LEN sizeof(FEDERATED_LE)
 #define FEDERATED_GE " >= "
+#define FEDERATED_GE_LEN sizeof(FEDERATED_GE)
 #define FEDERATED_EQ " = "
-#define FEDERATED_1EQ0   " 1=0"
+#define FEDERATED_EQ_LEN sizeof(FEDERATED_EQ)
+#define FEDERATED_FALSE " 1=0"
+#define FEDERATED_FALSE_LEN sizeof(FEDERATED_FALSE)
 
 /*
   FEDERATED_SHARE is a structure that will be shared amoung all open handlers
@@ -88,7 +131,7 @@ typedef struct st_federated_share {
   char *socket;
   char *sport;
   ushort port;
-  uint table_name_length,use_count;
+  uint table_name_length, use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
 } FEDERATED_SHARE;
@@ -234,6 +277,9 @@ public:
   int rnd_pos(byte *buf, byte *pos);                            //required
   void position(const byte *record);                            //required
   void info(uint);                                              //required
+
+  int repair(THD* thd, HA_CHECK_OPT* check_opt);
+  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
 
   int delete_all_rows(void);
   int create(const char *name, TABLE *form,
