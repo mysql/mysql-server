@@ -2386,10 +2386,12 @@ mysql_execute_command(THD *thd)
     select_result *result=lex->result;
     if (all_tables)
     {
-      res= check_table_access(thd,
-			      lex->exchange ? SELECT_ACL | FILE_ACL :
-			      SELECT_ACL,
-			      all_tables, 0);
+      if (lex->orig_sql_command != SQLCOM_SHOW_STATUS_PROC &&
+          lex->orig_sql_command != SQLCOM_SHOW_STATUS_FUNC)
+        res= check_table_access(thd,
+                                lex->exchange ? SELECT_ACL | FILE_ACL :
+                                SELECT_ACL,
+                                all_tables, 0);
     }
     else
       res= check_access(thd,
