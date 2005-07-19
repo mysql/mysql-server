@@ -1740,7 +1740,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       !my_strcasecmp(system_charset_info, name, "proc"))
     entry->s->system_table= 1;
 
-  if (Table_triggers_list::check_n_load(thd, db, name, entry))
+  if (Table_triggers_list::check_n_load(thd, db, name, entry, 0))
     goto err;
 
   /*
