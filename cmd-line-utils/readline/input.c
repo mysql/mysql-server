@@ -25,9 +25,7 @@
 #  include <floss.h>
 #endif
 
-#if defined (HAVE_CONFIG_H)
-#  include <config.h>
-#endif
+#include "config_readline.h"
 
 #include <sys/types.h>
 #include <fcntl.h>
