@@ -1082,6 +1082,7 @@ extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond;
 extern const char * const triggers_file_ext;
+extern const char * const trigname_file_ext;
 extern Eq_creator eq_creator;
 extern Ne_creator ne_creator;
 extern Gt_creator gt_creator;
