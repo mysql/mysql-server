@@ -312,7 +312,7 @@ static void set_param_float(Item_param *param, uchar **pos, ulong len)
     return;
   float4get(data,*pos);
 #else
-  data= *(float*) *pos;
+  floatget(data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 4;
@@ -326,7 +326,7 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
     return;
   float8get(data,*pos);
 #else
-  data= *(double*) *pos;
+  doubleget(data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 8;
@@ -580,10 +580,8 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
   Item_param **begin= stmt->param_array;
   Item_param **end= begin + stmt->param_count;
   uint32 length= 0;
-
   String str; 
   const String *res;
-
   DBUG_ENTER("insert_params_withlog"); 
 
   if (query->copy(stmt->query, stmt->query_length, default_charset_info))
