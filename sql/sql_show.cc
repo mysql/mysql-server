@@ -2377,6 +2377,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     {
       const char *tmp_buff;
       byte *pos;
+      bool is_blob;
       uint flags=field->flags;
       char tmp[MAX_FIELD_WIDTH];
       char tmp1[MAX_FIELD_WIDTH];
@@ -2455,12 +2456,14 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                    "NO" : "YES");
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
-      if (field->has_charset())
+      is_blob= (field->type() == FIELD_TYPE_BLOB);
+      if (field->has_charset() || is_blob)
       {
-        table->field[8]->store((longlong) field->field_length/
-                               field->charset()->mbmaxlen);
+        longlong c_octet_len= is_blob ? (longlong) field->max_length() :
+          (longlong) field->max_length()/field->charset()->mbmaxlen;
+        table->field[8]->store(c_octet_len);
         table->field[8]->set_notnull();
-        table->field[9]->store((longlong) field->field_length);
+        table->field[9]->store((longlong) field->max_length());
         table->field[9]->set_notnull();
       }
 
@@ -2488,6 +2491,17 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         case FIELD_TYPE_LONG:
         case FIELD_TYPE_LONGLONG:
         case FIELD_TYPE_INT24:
+        {
+          table->field[10]->store((longlong) field->max_length() - 1);
+          table->field[10]->set_notnull();
+          break;
+        }
+        case FIELD_TYPE_BIT:
+        {
+          table->field[10]->store((longlong) field->max_length());
+          table->field[10]->set_notnull();
+          break;
+        }
         case FIELD_TYPE_FLOAT:  
         case FIELD_TYPE_DOUBLE:
         {
