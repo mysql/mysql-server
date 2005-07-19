@@ -339,6 +339,37 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
 }
 
 
+/*
+  Set/clear all bits above a bit.
+
+  SYNOPSIS
+    bitmap_set_above()
+    map                  RETURN The bitmap to change.
+    from_byte                   The bitmap buffer byte offset to start with.
+    use_bit                     The bit value (1/0) to use for all upper bits.
+
+  NOTE
+    You can only set/clear full bytes.
+    The function is meant for the situation that you copy a smaller bitmap
+    to a bigger bitmap. Bitmap lengths are always multiple of eigth (the
+    size of a byte). Using 'from_byte' saves multiplication and division
+    by eight during parameter passing.
+
+  RETURN
+    void
+*/
+
+void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit)
+{
+  uchar use_byte= use_bit ? 0xff : 0;
+  uchar *to= map->bitmap + from_byte;
+  uchar *end= map->bitmap + map->bitmap_size;
+
+  while (to < end)
+    *to++= use_byte;
+}
+
+
 void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   uchar *to=map->bitmap, *from=map2->bitmap, *end;

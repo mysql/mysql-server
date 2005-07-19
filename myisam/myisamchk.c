@@ -871,8 +871,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
        MI_STATE_INFO_SIZE ||
        mi_uint2korr(share->state.header.base_info_length) !=
        MI_BASE_INFO_SIZE ||
-       ((param->keys_in_use & ~share->state.key_map) &
-	(((ulonglong) 1L << share->base.keys)-1)) ||
+       mi_is_any_intersect_keys_active(param->keys_in_use, share->base.keys,
+                                       ~share->state.key_map) ||
        test_if_almost_full(info) ||
        info->s->state.header.file_version[3] != myisam_file_magic[3] ||
        (set_collation &&
@@ -939,8 +939,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       if (param->testflag & T_REP_ANY)
       {
 	ulonglong tmp=share->state.key_map;
-	share->state.key_map= (((ulonglong) 1 << share->base.keys)-1)
-	  & param->keys_in_use;
+	mi_copy_keys_active(share->state.key_map, share->base.keys,
+                            param->keys_in_use);
 	if (tmp != share->state.key_map)
 	  info->update|=HA_STATE_CHANGED;
       }
@@ -961,7 +961,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       if (!error)
       {
 	if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
-	    (share->state.key_map ||
+	    (mi_is_any_key_active(share->state.key_map) ||
 	     (rep_quick && !param->keys_in_use && !recreate)) &&
 	    mi_test_if_sort_rep(info, info->state->records,
 				info->s->state.key_map,
@@ -1037,7 +1037,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	       llstr(info->state->records,llbuff),
 	       llstr(info->state->del,llbuff2));
       error =chk_status(param,info);
-      share->state.key_map &=param->keys_in_use;
+      mi_intersect_keys_active(share->state.key_map, param->keys_in_use);
       error =chk_size(param,info);
       if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
 	error|=chk_del(param, info,param->testflag);
@@ -1266,7 +1266,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
   }
 
   printf("Recordlength:        %13d\n",(int) share->base.pack_reclength);
-  if (share->state.key_map != (((ulonglong) 1 << share->base.keys) -1))
+  if (! mi_is_all_keys_active(share->state.key_map, share->base.keys))
   {
     longlong2str(share->state.key_map,buff,2);
     printf("Using only keys '%s' of %d possibly keys\n",
@@ -1448,7 +1448,7 @@ static int mi_sort_records(MI_CHECK *param,
   temp_buff=0;
   new_file= -1;
 
-  if (!(((ulonglong) 1 << sort_key) & share->state.key_map))
+  if (! mi_is_key_active(share->state.key_map, sort_key))
   {
     mi_check_print_warning(param,
 			   "Can't sort table '%s' on key %d;  No such key",
