@@ -1510,7 +1510,7 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql)
 }
 
 
-int STDCALL mysql_set_character_set(MYSQL *mysql, char *cs_name)
+int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 {
   struct charset_info_st *cs;
   const char *save_csdir= charsets_dir;
@@ -1518,7 +1518,8 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, char *cs_name)
   if (mysql->options.charset_dir)
     charsets_dir= mysql->options.charset_dir;
 
-  if ((cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0))))
+  if (strlen(cs_name) < MY_CS_NAME_SIZE && 
+      (cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0))))
   {
     char buff[MY_CS_NAME_SIZE + 10];
     charsets_dir= save_csdir;
