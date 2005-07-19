@@ -19,7 +19,11 @@
    along with Readline; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
-#include "config_readline.h"
+#define READLINE_LIBRARY
+
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #if defined (HAVE_UNISTD_H)
 #  ifdef _MINIX
@@ -188,7 +192,7 @@ tilde_expand (string)
   int result_size, result_index;
 
   result_index = result_size = 0;
-  if ((result = strchr(string, '~')))
+  if (result = strchr (string, '~'))
     result = (char *)xmalloc (result_size = (strlen (string) + 16));
   else
     result = (char *)xmalloc (result_size = (strlen (string) + 1));

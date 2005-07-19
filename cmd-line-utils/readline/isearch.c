@@ -26,7 +26,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 
@@ -68,7 +70,7 @@ static char *prev_line_found;
 static char *last_isearch_string;
 static int last_isearch_string_len;
 
-static const char *default_isearch_terminators = "\033\012";
+static char *default_isearch_terminators = "\033\012";
 
 /* Search backwards through the history looking for a string which is typed
    interactively.  Start with the current line. */
@@ -96,7 +98,7 @@ rl_forward_search_history (sign, key)
 static void
 rl_display_search (search_string, reverse_p, where)
      char *search_string;
-     int reverse_p, where __attribute__((unused));
+     int reverse_p, where;
 {
   char *message;
   int msglen, searchlen;
@@ -144,7 +146,7 @@ rl_display_search (search_string, reverse_p, where)
    backwards. */
 static int
 rl_search_history (direction, invoking_key)
-     int direction, invoking_key __attribute__((unused));
+     int direction, invoking_key;
 {
   /* The string that the user types in to search for. */
   char *search_string;
@@ -184,7 +186,7 @@ rl_search_history (direction, invoking_key)
   /* The list of characters which terminate the search, but are not
      subsequently executed.  If the variable isearch-terminators has
      been set, we use that value, otherwise we use ESC and C-J. */
-  const char *isearch_terminators;
+  char *isearch_terminators;
 
   RL_SETSTATE(RL_STATE_ISEARCH);
   orig_point = rl_point;
