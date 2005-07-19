@@ -55,7 +55,7 @@ public:
   void intersect_extended(ulonglong map2buff)
   {
     intersect(map2buff);
-    if (map.bitmap_size > sizeof(ulonglong))
+    if (map.n_bits > sizeof(ulonglong) * 8)
       bitmap_set_above(&map, sizeof(ulonglong),
                        test(map2buff & (LL(1) << (sizeof(ulonglong) * 8 - 1))));
   }
