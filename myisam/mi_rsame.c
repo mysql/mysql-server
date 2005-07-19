@@ -30,7 +30,7 @@ int mi_rsame(MI_INFO *info, byte *record, int inx)
 {
   DBUG_ENTER("mi_rsame");
 
-  if (inx != -1 && ! (((ulonglong) 1 << inx) & info->s->state.key_map))
+  if (inx != -1 && ! mi_is_key_active(info->s->state.key_map, inx))
   {
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
   }

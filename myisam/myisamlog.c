@@ -810,7 +810,7 @@ static int find_record_with_key(struct file_info *file_info, byte *record)
 
   for (key=0 ; key < info->s->base.keys ; key++)
   {
-    if ((((ulonglong) 1 << key) & info->s->state.key_map) &&
+    if (mi_is_key_active(info->s->state.key_map, key) &&
 	info->s->keyinfo[key].flag & HA_NOSAME)
     {
       VOID(_mi_make_key(info,key,tmp_key,record,0L));

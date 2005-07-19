@@ -35,14 +35,26 @@ extern "C" {
 
 	/* defines used by myisam-funktions */
 
-/* The following defines can be increased if necessary */
-#define MI_MAX_KEY	64		/* Max allowed keys */
-#define MI_MAX_KEY_SEG	16		/* Max segments for key */
-#define MI_MAX_KEY_LENGTH 1000
+/*
+  There is a hard limit for the maximum number of keys as there are only
+  8 bits in the index file header for the number of keys in a table.
+  This means that 0..255 keys can exist for a table. The idea of
+  MI_MAX_POSSIBLE_KEY is to ensure that one can use myisamchk & tools on
+  a MyISAM table for which one has more keys than MyISAM is normally
+  compiled for. If you don't have this, you will get a core dump when
+  running myisamchk compiled for 128 keys on a table with 255 keys.
+*/
+#define MI_MAX_POSSIBLE_KEY         255             /* For myisam_chk */
+#define MI_MAX_POSSIBLE_KEY_BUFF    (1024+6+6)      /* For myisam_chk */
+/*
+  The following defines can be increased if necessary.
+  BUT: MI_MAX_KEY must be <= MI_MAX_POSSIBLE_KEY.
+*/
+#define MI_MAX_KEY                  64              /* Max allowed keys */
+#define MI_MAX_KEY_SEG              16              /* Max segments for key */
+#define MI_MAX_KEY_LENGTH           1000
 
 #define MI_MAX_KEY_BUFF  (MI_MAX_KEY_LENGTH+MI_MAX_KEY_SEG*6+8+8)
-#define MI_MAX_POSSIBLE_KEY_BUFF (1024+6+6)	/* For myisam_chk */
-#define MI_MAX_POSSIBLE_KEY	64		/* For myisam_chk */
 #define MI_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 #define MI_NAME_IEXT	".MYI"
 #define MI_NAME_DEXT	".MYD"
@@ -55,6 +67,63 @@ extern "C" {
 #define MI_MAX_KEY_BLOCK_LENGTH	16384
 
 #define mi_portable_sizeof_char_ptr 8
+
+/*
+  In the following macros '_keyno_' is 0 .. keys-1.
+  If there can be more keys than bits in the key_map, the highest bit
+  is for all upper keys. They cannot be switched individually.
+  This means that clearing of high keys is ignored, setting one high key
+  sets all high keys.
+*/
+#define MI_KEYMAP_BITS      (8 * SIZEOF_LONG_LONG)
+#define MI_KEYMAP_HIGH_MASK (ULL(1) << (MI_KEYMAP_BITS - 1))
+#define mi_get_mask_all_keys_active(_keys_) \
+                            (((_keys_) < MI_KEYMAP_BITS) ? \
+                             ((ULL(1) << (_keys_)) - ULL(1)) : \
+                             (~ ULL(0)))
+
+#if MI_MAX_KEY > MI_KEYMAP_BITS
+
+#define mi_is_key_active(_keymap_,_keyno_) \
+                            (((_keyno_) < MI_KEYMAP_BITS) ? \
+                             test((_keymap_) & (ULL(1) << (_keyno_))) : \
+                             test((_keymap_) & MI_KEYMAP_HIGH_MASK))
+#define mi_set_key_active(_keymap_,_keyno_) \
+                            (_keymap_)|= (((_keyno_) < MI_KEYMAP_BITS) ? \
+                                          (ULL(1) << (_keyno_)) : \
+                                          MI_KEYMAP_HIGH_MASK)
+#define mi_clear_key_active(_keymap_,_keyno_) \
+                            (_keymap_)&= (((_keyno_) < MI_KEYMAP_BITS) ? \
+                                          (~ (ULL(1) << (_keyno_))) : \
+                                          (~ (ULL(0))) /*ignore*/ )
+
+#else
+
+#define mi_is_key_active(_keymap_,_keyno_) \
+                            test((_keymap_) & (ULL(1) << (_keyno_)))
+#define mi_set_key_active(_keymap_,_keyno_) \
+                            (_keymap_)|= (ULL(1) << (_keyno_))
+#define mi_clear_key_active(_keymap_,_keyno_) \
+                            (_keymap_)&= (~ (ULL(1) << (_keyno_)))
+
+#endif
+
+#define mi_is_any_key_active(_keymap_) \
+                            test((_keymap_))
+#define mi_is_all_keys_active(_keymap_,_keys_) \
+                            ((_keymap_) == mi_get_mask_all_keys_active(_keys_))
+#define mi_set_all_keys_active(_keymap_,_keys_) \
+                            (_keymap_)= mi_get_mask_all_keys_active(_keys_)
+#define mi_clear_all_keys_active(_keymap_) \
+                            (_keymap_)= 0
+#define mi_intersect_keys_active(_to_,_from_) \
+                            (_to_)&= (_from_)
+#define mi_is_any_intersect_keys_active(_keymap1_,_keys_,_keymap2_) \
+                            ((_keymap1_) & (_keymap2_) & \
+                             mi_get_mask_all_keys_active(_keys_))
+#define mi_copy_keys_active(_to_,_maxkeys_,_from_) \
+                            (_to_)= (mi_get_mask_all_keys_active(_maxkeys_) & \
+                                     (_from_))
 
 	/* Param to/from mi_info */
 
