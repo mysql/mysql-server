@@ -2579,6 +2579,25 @@ K2C4	K4N4	F2I4
 WART	0100	1
 WART	0200	1
 WART	0300	3
+select found_rows();
+found_rows()
+3
+select count(*) from t1;
+count(*)
+15
+select found_rows();
+found_rows()
+1
+select count(*) from t1 limit 2,3;
+count(*)
+select found_rows();
+found_rows()
+0
+select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
+count(*)
+select found_rows();
+found_rows()
+1
 DROP TABLE t1;
 CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
 CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
@@ -2781,26 +2800,7 @@ INSERT INTO t1
 SELECT 50, 3, 3 FROM DUAL
 WHERE NOT EXISTS
 (SELECT * FROM t1 WHERE a = 50 AND b = 3);
-select found_rows();
-found_rows()
-0
 SELECT * FROM t1;
 a	b	c
 50	3	3
-select count(*) from t1;
-count(*)
-1
-select found_rows();
-found_rows()
-1
-select count(*) from t1 limit 2,3;
-count(*)
-select found_rows();
-found_rows()
-0
-select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
-count(*)
-select found_rows();
-found_rows()
-1
 DROP TABLE t1;
