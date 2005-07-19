@@ -23,9 +23,33 @@
 #include <myisampack.h>
 #include "ha_heap.h"
 
+static handlerton heap_hton= {
+  "MEMORY",
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* release savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0,       /* rollback_by_xid */
+  HTON_NO_FLAGS
+};
+
 /*****************************************************************************
 ** HEAP tables
 *****************************************************************************/
+
+ha_heap::ha_heap(TABLE *table_arg)
+  :handler(&heap_hton, table_arg), file(0), records_changed(0),
+  key_stats_ok(0)
+{}
+
+
 static const char *ha_heap_exts[] = {
   NullS
 };

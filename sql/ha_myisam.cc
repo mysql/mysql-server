@@ -44,6 +44,29 @@ TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 ** MyISAM tables
 *****************************************************************************/
 
+/* MyISAM handlerton */
+
+static handlerton myisam_hton= {
+  "MyISAM",
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* release savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0,       /* rollback_by_xid */
+  /*
+    MyISAM doesn't support transactions and doesn't have
+    transaction-dependent context: cursors can survive a commit.
+  */
+  HTON_NO_FLAGS
+};
+
 // collect errors printed by mi_check routines
 
 static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
@@ -122,6 +145,17 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 }
 
 }
+
+
+ha_myisam::ha_myisam(TABLE *table_arg)
+  :handler(&myisam_hton, table_arg), file(0),
+  int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
+                  HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
+                  HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
+                  HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD),
+  can_enable_indexes(1)
+{}
+
 
 static const char *ha_myisam_exts[] = {
   ".MYI",

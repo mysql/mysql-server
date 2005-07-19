@@ -679,6 +679,37 @@ error:
 }
 
 
+/* Federated storage engine handlerton */
+
+static handlerton federated_hton= {
+  "FEDERATED",
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* release savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0,       /* rollback_by_xid */
+  HTON_NO_FLAGS
+};
+
+
+/*****************************************************************************
+** FEDERATED tables
+*****************************************************************************/
+
+ha_federated::ha_federated(TABLE *table_arg)
+  :handler(&federated_hton, table_arg),
+  mysql(0), stored_result(0), scan_flag(0),
+  ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)
+{}
+
+
 /*
   Convert MySQL result set row to handler internal format
 
