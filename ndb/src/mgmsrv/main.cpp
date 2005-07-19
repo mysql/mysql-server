@@ -77,6 +77,7 @@ struct MgmGlobals {
 };
 
 int g_no_nodeid_checks= 0;
+int g_print_full_config;
 static MgmGlobals *glob= 0;
 
 /******************************************************************************
@@ -110,6 +111,9 @@ static struct my_option my_long_options[] =
   { "config-file", 'f', "Specify cluster configuration file",
     (gptr*) &opt_config_filename, (gptr*) &opt_config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print-full-config", 'P', "Print full config and exit",
+    (gptr*) &g_print_full_config, (gptr*) &g_print_full_config, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
     (gptr*) &opt_daemon, (gptr*) &opt_daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
@@ -188,7 +192,8 @@ int main(int argc, char** argv)
     exit(ho_error);
 
   if (opt_interactive ||
-      opt_non_interactive) {
+      opt_non_interactive ||
+      g_print_full_config) {
     opt_daemon= 0;
   }
 
@@ -199,6 +204,9 @@ int main(int argc, char** argv)
   glob->mgmObject = new MgmtSrvr(glob->socketServer,
 				opt_config_filename,
 				opt_connect_str);
+
+  if (g_print_full_config)
+    goto the_end;
 
   if (glob->mgmObject->init())
     goto error_end;
@@ -309,6 +317,7 @@ int main(int argc, char** argv)
   glob->socketServer->stopServer();
   glob->socketServer->stopSessions(true);
   g_eventLogger.info("Shutdown complete");
+ the_end:
   delete glob;
   ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return 0;
