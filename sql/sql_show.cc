@@ -639,29 +639,32 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 }
 
 /*
-returns the length of the longest type on the given table.
-This is used so that show fields will return the data using the proper 
-lengths instead of forcing columns such as type to always return with a 
-given length.
+   returns the length of the longest type on the given table.
+
+   This is used so that show fields will return the data using the proper 
+   lengths instead of forcing columns such as type to always return with a 
+   given length.
 */
+
 uint get_longest_type_in_table(TABLE *table, const char *wild)
 {  
-  Field **ptr,*field;  
-  char tmp[MAX_FIELD_WIDTH];  
-  uint max_len = 0;  
+  Field **ptr,*field;
+  char tmp[MAX_FIELD_WIDTH];
+  uint max_len= 0;
 
-  for (ptr=table->field; (field= *ptr); ptr++)  
-  {    
-    if (!wild || !wild[0] ||         
-        !wild_case_compare(system_charset_info, field->field_name,wild))    
+  for (ptr=table->field; (field= *ptr); ptr++)
+  {
+    if (!wild || !wild[0] ||
+        !wild_case_compare(system_charset_info, field->field_name,wild))
     {
-      String type(tmp,sizeof(tmp), system_charset_info);      
-      field->sql_type(type);      
-      max_len = max(max_len, type.length());     
-    }  
-  }  
+      String type(tmp,sizeof(tmp), system_charset_info);
+      field->sql_type(type);
+      max_len= max(max_len, type.length());
+    }
+  }
   return max_len;
 }
+
 
 /***************************************************************************
 ** List all columns in a table_list->real_name
