@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.11";
+const char *VER= "14.12";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -340,16 +340,15 @@ static sig_handler mysql_end(int sig);
 int main(int argc,char *argv[])
 {
   char buff[80];
-  char *defaults, *extra_defaults;
-  char *emb_argv[3];
-  int emb_argc= 1;
+  char *defaults, *extra_defaults, *group_suffix;
+  char *emb_argv[4];
+  int emb_argc;
 
-  emb_argv[0]= argv[0];
-  get_defaults_files(argc, argv, &defaults, &extra_defaults);
-  if (defaults)
-    emb_argv[emb_argc++]= defaults;
-  if (extra_defaults)
-    emb_argv[emb_argc++]= extra_defaults;
+  /* Get --defaults-xxx args for mysql_server_init() */
+  emb_argc= get_defaults_options(argc, argv, &defaults, &extra_defaults,
+                                 &group_suffix)+1;
+  memcpy((char*) emb_argv, (char*) argv, emb_argc * sizeof(*argv));
+  emb_argv[emb_argc]= 0;
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -2060,6 +2059,7 @@ static void end_tee()
   return;
 }
 
+
 static int
 com_ego(String *buffer,char *line)
 {
@@ -2071,8 +2071,10 @@ com_ego(String *buffer,char *line)
   return result;
 }
 
-static char *fieldtype2str(enum enum_field_types type) {
-  switch(type) {
+
+static const char *fieldtype2str(enum enum_field_types type)
+{
+  switch (type) {
     case FIELD_TYPE_BIT:         return "BIT";
     case FIELD_TYPE_BLOB:        return "BLOB";
     case FIELD_TYPE_DATE:        return "DATE";

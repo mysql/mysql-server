@@ -1718,7 +1718,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   ident_table.length= strlen(table);
   table_ident= new Table_ident(thd, ident_db, ident_table, 1);
   sel->init_query();
-  if(!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
+  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
                              (List<String> *) 0, (List<String> *) 0))
     return 1;
   return 0;

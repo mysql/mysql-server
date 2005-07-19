@@ -84,6 +84,7 @@ CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
 DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
+			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" $(target_defs)
 
 # The automatic dependencies miss this
