@@ -339,7 +339,7 @@ static void do_cut_string(Copy_field *copy)
                      MY_SEQ_SPACES) < copy->from_length - copy->to_length)
   {
     copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                                ER_WARN_DATA_TRUNCATED, 1);
+                                WARN_DATA_TRUNCATED, 1);
   }
 }
 

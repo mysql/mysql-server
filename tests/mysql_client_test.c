@@ -666,13 +666,20 @@ static void verify_col_data(const char *table, const char *col,
 
 /* Utility function to verify the field members */
 
-static void verify_prepare_field(MYSQL_RES *result,
-                                 unsigned int no, const char *name,
-                                 const char *org_name,
-                                 enum enum_field_types type,
-                                 const char *table,
-                                 const char *org_table, const char *db,
-                                 unsigned long length, const char *def)
+#define verify_prepare_field(result,no,name,org_name,type,table,\
+                             org_table,db,length,def) \
+          do_verify_prepare_field((result),(no),(name),(org_name),(type), \
+                                  (table),(org_table),(db),(length),(def), \
+                                  __FILE__, __LINE__)
+
+static void do_verify_prepare_field(MYSQL_RES *result,
+                                   unsigned int no, const char *name,
+                                   const char *org_name,
+                                   enum enum_field_types type,
+                                   const char *table,
+                                   const char *org_table, const char *db,
+                                   unsigned long length, const char *def,
+                                   const char *file, int line)
 {
   MYSQL_FIELD *field;
   CHARSET_INFO *cs;
@@ -719,8 +726,9 @@ static void verify_prepare_field(MYSQL_RES *result,
   {
     if (field->type != type)
     {
-      fprintf(stderr, "Expected field type: %d,  got type: %d\n",
-              (int) type, (int) field->type);
+      fprintf(stderr,
+              "Expected field type: %d,  got type: %d in file %s, line %d\n",
+              (int) type, (int) field->type, file, line);
       DIE_UNLESS(field->type == type);
     }
   }
@@ -7402,8 +7410,8 @@ static void test_explain_bug()
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
                        0, 0, "", 64, 0);
 
-  verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
-                       MYSQL_TYPE_BLOB, 0, 0, "", 0, 0);
+  verify_prepare_field(result, 1, "Type", "COLUMN_TYPE", MYSQL_TYPE_BLOB,
+                       0, 0, "", 0, 0);
 
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
                        mysql_get_server_version(mysql) <= 50000 ?
@@ -7457,7 +7465,7 @@ static void test_explain_bug()
   verify_prepare_field(result, 3, "type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_BLOB,
+  verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN*MAX_KEY, 0);
 
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
@@ -7474,13 +7482,13 @@ static void test_explain_bug()
                          "", "", NAME_LEN*MAX_KEY, 0);
   }
 
-  verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_BLOB,
+  verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN*16, 0);
 
   verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 9, "Extra", "", MYSQL_TYPE_BLOB,
+  verify_prepare_field(result, 9, "Extra", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 255, 0);
 
   mysql_free_result(result);
