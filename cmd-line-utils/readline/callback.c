@@ -129,7 +129,7 @@ rl_callback_read_char ()
 	  if (in_handler == 0 && rl_linefunc)
 	    _rl_callback_newline ();
 	}
-      if (rl_pending_input)
+      if (rl_pending_input || _rl_pushed_input_available ())
 	eof = readline_internal_char ();
       else
         break;
