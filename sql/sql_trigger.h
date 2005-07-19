@@ -23,7 +23,7 @@
 class Table_triggers_list: public Sql_alloc
 {
   /* Triggers as SPs grouped by event, action_time */
-  sp_head           *bodies[3][2];
+  sp_head           *bodies[TRG_EVENT_MAX][TRG_ACTION_MAX];
   /*
     Copy of TABLE::Field array with field pointers set to TABLE::record[1]
     buffer instead of TABLE::record[0] (used for OLD values in on UPDATE
@@ -121,9 +121,13 @@ public:
 
     return res;
   }
+  bool get_trigger_info(THD *thd, trg_event_type event,
+                        trg_action_time_type time_type,
+                        LEX_STRING *trigger_name, LEX_STRING *trigger_stmt);
 
   static bool check_n_load(THD *thd, const char *db, const char *table_name,
-                           TABLE *table);
+                           TABLE *table, bool names_only);
+  static bool drop_all_triggers(THD *thd, char *db, char *table_name);
 
   bool has_delete_triggers()
   {
@@ -143,3 +147,6 @@ public:
 private:
   bool prepare_record1_accessors(TABLE *table);
 };
+
+extern const LEX_STRING trg_action_time_type_names[];
+extern const LEX_STRING trg_event_type_names[];
