@@ -2104,6 +2104,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_TABLE_NAMES:
   case SCH_TABLES:
   case SCH_VIEWS:
+  case SCH_TRIGGERS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND,
                ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */

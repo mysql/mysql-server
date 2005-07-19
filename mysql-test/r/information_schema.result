@@ -48,6 +48,7 @@ TABLE_PRIVILEGES
 COLUMN_PRIVILEGES
 TABLE_CONSTRAINTS
 KEY_COLUMN_USAGE
+TRIGGERS
 columns_priv
 db
 func
@@ -77,6 +78,7 @@ c	table_name
 TABLES	TABLES
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
@@ -94,6 +96,7 @@ c	table_name
 TABLES	TABLES
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
@@ -111,6 +114,7 @@ c	table_name
 TABLES	TABLES
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
 time_zone_leap_second	time_zone_leap_second
@@ -577,6 +581,7 @@ Tables_in_information_schema (T%)
 TABLES
 TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
+TRIGGERS
 create database information_schema;
 ERROR HY000: Can't create database 'information_schema'; database exists
 use information_schema;
@@ -585,6 +590,7 @@ Tables_in_information_schema (T%)	Table_type
 TABLES	TEMPORARY
 TABLE_PRIVILEGES	TEMPORARY
 TABLE_CONSTRAINTS	TEMPORARY
+TRIGGERS	TEMPORARY
 create table t1(a int);
 ERROR 42S02: Unknown table 't1' in information_schema
 use test;
@@ -596,6 +602,7 @@ Tables_in_information_schema (T%)
 TABLES
 TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
+TRIGGERS
 select table_name from tables where table_name='user';
 table_name
 user
@@ -690,7 +697,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-100
+101
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -701,6 +708,8 @@ information_schema	COLUMNS	COLUMN_TYPE
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
 information_schema	VIEWS	VIEW_DEFINITION
+information_schema	TRIGGERS	ACTION_CONDITION
+information_schema	TRIGGERS	ACTION_STATEMENT
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
 table_name	column_name	data_type
@@ -709,6 +718,7 @@ TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
 ROUTINES	CREATED	datetime
 ROUTINES	LAST_ALTERED	datetime
+TRIGGERS	CREATED	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS 
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -755,8 +765,71 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	15
+information_schema	16
 mysql	17
+create table t1 (i int, j int);
+create trigger trg1 before insert on t1 for each row
+begin
+if new.j > 10 then
+set new.j := 10;
+end if;
+end|
+create trigger trg2 before update on t1 for each row
+begin
+if old.i % 2 = 0 then
+set new.j := -1;
+end if;
+end|
+create trigger trg3 after update on t1 for each row
+begin
+if new.j = -1 then
+set @fired:= "Yes";
+end if;
+end|
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created
+trg1	INSERT	t1	
+begin
+if new.j > 10 then
+set new.j := 10;
+end if;
+end	BEFORE	NULL
+trg2	UPDATE	t1	
+begin
+if old.i % 2 = 0 then
+set new.j := -1;
+end if;
+end	BEFORE	NULL
+trg3	UPDATE	t1	
+begin
+if new.j = -1 then
+set @fired:= "Yes";
+end if;
+end	AFTER	NULL
+select * from information_schema.triggers;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED
+NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	
+begin
+if new.j > 10 then
+set new.j := 10;
+end if;
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL
+NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	
+begin
+if old.i % 2 = 0 then
+set new.j := -1;
+end if;
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL
+NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	
+begin
+if new.j = -1 then
+set @fired:= "Yes";
+end if;
+end	ROW	AFTER	NULL	NULL	OLD	NEW	NULL
+drop trigger trg1;
+drop trigger trg2;
+drop trigger trg3;
+drop table t1;
 create database mysqltest;
 create table mysqltest.t1 (f1 int, f2 int);
 create table mysqltest.t2 (f1 int);
