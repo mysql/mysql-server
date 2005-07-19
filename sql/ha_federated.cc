@@ -495,7 +495,7 @@ static int check_foreign_data_source(
     query.append(escaped_table_name);
     query.append(FEDERATED_BTICK);
     query.append(FEDERATED_WHERE);
-    query.append(FEDERATED_1EQ0);
+    query.append(FEDERATED_FALSE);
 
     DBUG_PRINT("info", ("check_foreign_data_source query %s", query.c_ptr_quick()));
     if (mysql_real_query(mysql, query.ptr(), query.length()))
@@ -1655,6 +1655,62 @@ int ha_federated::write_row(byte *buf)
                               mysql_errno(mysql), mysql_error(mysql)));
     my_error(error_code, MYF(0), error_buffer);
     DBUG_RETURN(error_code);
+  }
+
+  DBUG_RETURN(0);
+}
+
+
+int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  char query_buffer[STRING_BUFFER_USUAL_SIZE];
+  String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
+
+  DBUG_ENTER("ha_federated::optimize");
+  
+  query.length(0);
+
+  query.set_charset(system_charset_info);
+  query.append(FEDERATED_OPTIMIZE);
+  query.append(FEDERATED_BTICK);
+  query.append(share->table_name, share->table_name_length);
+  query.append(FEDERATED_BTICK);
+
+  if (mysql_real_query(mysql, query.ptr(), query.length()))
+  {
+    my_error(-1, MYF(0), mysql_error(mysql));
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+
+int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  char query_buffer[STRING_BUFFER_USUAL_SIZE];
+  String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
+  
+  DBUG_ENTER("ha_federated::repair");
+
+  query.length(0);
+
+  query.set_charset(system_charset_info);
+  query.append(FEDERATED_REPAIR);
+  query.append(FEDERATED_BTICK);
+  query.append(share->table_name, share->table_name_length);
+  query.append(FEDERATED_BTICK);
+  if (check_opt->flags & T_QUICK)
+    query.append(FEDERATED_QUICK);
+  if (check_opt->flags & T_EXTEND)
+    query.append(FEDERATED_EXTENDED);
+  if (check_opt->sql_flags & TT_USEFRM)
+    query.append(FEDERATED_USE_FRM);
+      
+  if (mysql_real_query(mysql, query.ptr(), query.length()))
+  {
+    my_error(-1, MYF(0), mysql_error(mysql));
+    DBUG_RETURN(-1);
   }
 
   DBUG_RETURN(0);
