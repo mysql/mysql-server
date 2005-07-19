@@ -6781,14 +6781,16 @@ Dbdict::createIndex_sendReply(Signal* signal, OpCreateIndexPtr opPtr,
   CreateIndxRef* rep = (CreateIndxRef*)signal->getDataPtrSend();
   Uint32 gsn = GSN_CREATE_INDX_CONF;
   Uint32 length = CreateIndxConf::InternalLength;
-  bool sendRef = opPtr.p->hasError();
+  bool sendRef;
   if (! toUser) {
+    sendRef = opPtr.p->hasLastError();
     rep->setUserRef(opPtr.p->m_coordinatorRef);
     rep->setConnectionPtr(opPtr.p->key);
     rep->setRequestType(opPtr.p->m_requestType);
     if (opPtr.p->m_requestType == CreateIndxReq::RT_DICT_ABORT)
       sendRef = false;
   } else {
+    sendRef = opPtr.p->hasError();
     rep->setUserRef(opPtr.p->m_request.getUserRef());
     rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
     rep->setRequestType(opPtr.p->m_request.getRequestType());
@@ -6857,11 +6859,8 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
 	goto error;
       }
 
-      if (tmp.p->indexState == TableRecord::IS_DROPPING){
-	jam();
-	err = DropIndxRef::IndexNotFound;
-	goto error;
-      }
+      if (tmp.p->indexState != TableRecord::IS_ONLINE)
+        req->addRequestFlag(RequestFlag::RF_FORCE);
 
       tmp.p->indexState = TableRecord::IS_DROPPING;
 
@@ -7124,14 +7123,16 @@ Dbdict::dropIndex_sendReply(Signal* signal, OpDropIndexPtr opPtr,
   DropIndxRef* rep = (DropIndxRef*)signal->getDataPtrSend();
   Uint32 gsn = GSN_DROP_INDX_CONF;
   Uint32 length = DropIndxConf::InternalLength;
-  bool sendRef = opPtr.p->hasError();
+  bool sendRef;
   if (! toUser) {
+    sendRef = opPtr.p->hasLastError();
     rep->setUserRef(opPtr.p->m_coordinatorRef);
     rep->setConnectionPtr(opPtr.p->key);
     rep->setRequestType(opPtr.p->m_requestType);
     if (opPtr.p->m_requestType == DropIndxReq::RT_DICT_ABORT)
       sendRef = false;
   } else {
+    sendRef = opPtr.p->hasError();
     rep->setUserRef(opPtr.p->m_request.getUserRef());
     rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
     rep->setRequestType(opPtr.p->m_request.getRequestType());
@@ -9648,7 +9649,7 @@ Dbdict::alterIndex_fromCreateTc(Signal* signal, OpAlterIndexPtr opPtr)
 {
   jam();
   // mark created in local TC
-  if (! opPtr.p->hasError()) {
+  if (! opPtr.p->hasLastError()) {
     TableRecordPtr indexPtr;
     c_tableRecordPool.getPtr(indexPtr, opPtr.p->m_request.getIndexId());
     indexPtr.p->indexLocal |= TableRecord::IL_CREATED_TC;
@@ -9664,9 +9665,10 @@ Dbdict::alterIndex_toDropTc(Signal* signal, OpAlterIndexPtr opPtr)
   jam();
   TableRecordPtr indexPtr;
   c_tableRecordPool.getPtr(indexPtr, opPtr.p->m_request.getIndexId());
-  // broken index
+  // broken index allowed if force
   if (! (indexPtr.p->indexLocal & TableRecord::IL_CREATED_TC)) {
     jam();
+    ndbrequire(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
     alterIndex_sendReply(signal, opPtr, false);
     return;
   }
@@ -9688,8 +9690,8 @@ Dbdict::alterIndex_fromDropTc(Signal* signal, OpAlterIndexPtr opPtr)
 {
   jam();
   ndbrequire(opPtr.p->m_requestType == AlterIndxReq::RT_DICT_TC);
-  if (! opPtr.p->hasError()) {
-    // mark dropped in local TC
+  // mark dropped locally
+  if (! opPtr.p->hasLastError()) {
     TableRecordPtr indexPtr;
     c_tableRecordPool.getPtr(indexPtr, opPtr.p->m_request.getIndexId());
     indexPtr.p->indexLocal &= ~TableRecord::IL_CREATED_TC;
@@ -9827,51 +9829,46 @@ Dbdict::alterIndex_toDropTrigger(Signal* signal, OpAlterIndexPtr opPtr)
   req->setUserRef(reference());
   req->setConnectionPtr(opPtr.p->key);
   req->setRequestType(DropTrigReq::RT_ALTER_INDEX);
+  req->addRequestFlag(opPtr.p->m_requestFlag);
   req->setTableId(opPtr.p->m_request.getTableId());
   req->setIndexId(opPtr.p->m_request.getIndexId());
   req->setTriggerInfo(0);       // not used
   opPtr.p->m_triggerCounter = 0;
-  // insert
-  if (indexPtr.p->insertTriggerId != RNIL) {
+  if (indexPtr.p->isHashIndex()) {
+    // insert
     req->setTriggerId(indexPtr.p->insertTriggerId);
     sendSignal(reference(), GSN_DROP_TRIG_REQ, 
         signal, DropTrigReq::SignalLength, JBB);
     opPtr.p->m_triggerCounter++;
-  }
-  // update
-  if (indexPtr.p->updateTriggerId != RNIL) {
+    // update
     req->setTriggerId(indexPtr.p->updateTriggerId);
     sendSignal(reference(), GSN_DROP_TRIG_REQ, 
         signal, DropTrigReq::SignalLength, JBB);
     opPtr.p->m_triggerCounter++;
-  }
-  // delete
-  if (indexPtr.p->deleteTriggerId != RNIL) {
+    // delete
     req->setTriggerId(indexPtr.p->deleteTriggerId);
     sendSignal(reference(), GSN_DROP_TRIG_REQ, 
         signal, DropTrigReq::SignalLength, JBB);
     opPtr.p->m_triggerCounter++;
+    // build
+    if (indexPtr.p->buildTriggerId != RNIL) {
+      req->setTriggerId(indexPtr.p->buildTriggerId);
+      sendSignal(reference(), GSN_DROP_TRIG_REQ, 
+          signal, DropTrigReq::SignalLength, JBB);
+      opPtr.p->m_triggerCounter++;
+    }
+    return;
   }
-  // custom
-  if (indexPtr.p->customTriggerId != RNIL) {
+  if (indexPtr.p->isOrderedIndex()) {
+    // custom
+    req->addRequestFlag(RequestFlag::RF_NOTCTRIGGER);
     req->setTriggerId(indexPtr.p->customTriggerId);
     sendSignal(reference(), GSN_DROP_TRIG_REQ, 
         signal, DropTrigReq::SignalLength, JBB);
     opPtr.p->m_triggerCounter++;
+    return;
   }
-  // build
-  if (indexPtr.p->buildTriggerId != RNIL) {
-    req->setTriggerId(indexPtr.p->buildTriggerId);
-    sendSignal(reference(), GSN_DROP_TRIG_REQ, 
-        signal, DropTrigReq::SignalLength, JBB);
-    opPtr.p->m_triggerCounter++;
-  }
-  if (opPtr.p->m_triggerCounter == 0) {
-    // drop in each TC
-    jam();
-    opPtr.p->m_requestType = AlterIndxReq::RT_DICT_TC;
-    alterIndex_sendSlaveReq(signal, opPtr);
-  }
+  ndbrequire(false);
 }
 
 void
@@ -9989,14 +9986,16 @@ Dbdict::alterIndex_sendReply(Signal* signal, OpAlterIndexPtr opPtr,
   AlterIndxRef* rep = (AlterIndxRef*)signal->getDataPtrSend();
   Uint32 gsn = GSN_ALTER_INDX_CONF;
   Uint32 length = AlterIndxConf::InternalLength;
-  bool sendRef = opPtr.p->hasError();
+  bool sendRef;
   if (! toUser) {
+    sendRef = opPtr.p->hasLastError();
     rep->setUserRef(opPtr.p->m_coordinatorRef);
     rep->setConnectionPtr(opPtr.p->key);
     rep->setRequestType(opPtr.p->m_requestType);
     if (opPtr.p->m_requestType == AlterIndxReq::RT_DICT_ABORT)
       sendRef = false;
   } else {
+    sendRef = opPtr.p->hasError();
     rep->setUserRef(opPtr.p->m_request.getUserRef());
     rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
     rep->setRequestType(opPtr.p->m_request.getRequestType());
@@ -10409,8 +10408,10 @@ Dbdict::buildIndex_toOnline(Signal* signal, OpBuildIndexPtr opPtr)
   req->setUserRef(reference());
   req->setConnectionPtr(opPtr.p->key);
   if (opPtr.p->m_requestType == BuildIndxReq::RT_DICT_TC) {
+    jam();
     req->setRequestType(AlterIndxReq::RT_TC);
   } else if (opPtr.p->m_requestType == BuildIndxReq::RT_DICT_TUX) {
+    jam();
     req->setRequestType(AlterIndxReq::RT_TUX);
   } else {
     ndbrequire(false);
@@ -10421,8 +10422,10 @@ Dbdict::buildIndex_toOnline(Signal* signal, OpBuildIndexPtr opPtr)
   req->setOnline(true);
   BlockReference blockRef = 0;
   if (opPtr.p->m_requestType == BuildIndxReq::RT_DICT_TC) {
+    jam();
     blockRef = calcTcBlockRef(getOwnNodeId());
   } else if (opPtr.p->m_requestType == BuildIndxReq::RT_DICT_TUX) {
+    jam();
     blockRef = calcTuxBlockRef(getOwnNodeId());
   } else {
     ndbrequire(false);
@@ -10449,15 +10452,14 @@ Dbdict::buildIndex_sendSlaveReq(Signal* signal, OpBuildIndexPtr opPtr)
   req->setConnectionPtr(opPtr.p->key);
   req->setRequestType(opPtr.p->m_requestType);
   req->addRequestFlag(opPtr.p->m_requestFlag);
-  if(opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL)
-  {
+  if(opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL) {
+    jam();
     opPtr.p->m_signalCounter.clearWaitingFor();
     opPtr.p->m_signalCounter.setWaitingFor(getOwnNodeId());
     sendSignal(reference(), GSN_BUILDINDXREQ,
 	       signal, BuildIndxReq::SignalLength, JBB);
-  }
-  else
-  {
+  } else {
+    jam();
     opPtr.p->m_signalCounter = c_aliveNodes;
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
     sendSignal(rg, GSN_BUILDINDXREQ,
@@ -10472,14 +10474,16 @@ Dbdict::buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr,
   BuildIndxRef* rep = (BuildIndxRef*)signal->getDataPtrSend();
   Uint32 gsn = GSN_BUILDINDXCONF;
   Uint32 length = BuildIndxConf::InternalLength;
-  bool sendRef = opPtr.p->hasError();
+  bool sendRef;
   if (! toUser) {
+    sendRef = opPtr.p->hasLastError();
     rep->setUserRef(opPtr.p->m_coordinatorRef);
     rep->setConnectionPtr(opPtr.p->key);
     rep->setRequestType(opPtr.p->m_requestType);
     if (opPtr.p->m_requestType == BuildIndxReq::RT_DICT_ABORT)
       sendRef = false;
   } else {
+    sendRef = opPtr.p->hasError();
     rep->setUserRef(opPtr.p->m_request.getUserRef());
     rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
     rep->setRequestType(opPtr.p->m_request.getRequestType());
@@ -10965,14 +10969,16 @@ Dbdict::createTrigger_sendReply(Signal* signal, OpCreateTriggerPtr opPtr,
   CreateTrigRef* rep = (CreateTrigRef*)signal->getDataPtrSend();
   Uint32 gsn = GSN_CREATE_TRIG_CONF;
   Uint32 length = CreateTrigConf::InternalLength;
-  bool sendRef = opPtr.p->hasError();
+  bool sendRef;
   if (! toUser) {
+    sendRef = opPtr.p->hasLastError();
     rep->setUserRef(opPtr.p->m_coordinatorRef);
     rep->setConnectionPtr(opPtr.p->key);
     rep->setRequestType(opPtr.p->m_requestType);
     if (opPtr.p->m_requestType == CreateTrigReq::RT_DICT_ABORT)
       sendRef = false;
   } else {
+    sendRef = opPtr.p->hasError();
     rep->setUserRef(opPtr.p->m_request.getUserRef());
     rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
     rep->setRequestType(opPtr.p->m_request.getRequestType());
@@ -11060,8 +11066,10 @@ Dbdict::execDROP_TRIG_REQ(Signal* signal)
 	OpDropTrigger opBad;
 	opPtr.p = &opBad;
 	opPtr.p->save(req);
-	opPtr.p->m_errorCode = DropTrigRef::TriggerNotFound;
-	opPtr.p->m_errorLine = __LINE__;
+        if (! (req->getRequestFlag() & RequestFlag::RF_FORCE)) {
+          opPtr.p->m_errorCode = DropTrigRef::TriggerNotFound;
+          opPtr.p->m_errorLine = __LINE__;
+        }
 	dropTrigger_sendReply(signal,  opPtr, true);
 	return;
       }
@@ -11228,6 +11236,7 @@ Dbdict::dropTrigger_toAlterTrigger(Signal* signal, OpDropTriggerPtr opPtr)
   req->setUserRef(reference());
   req->setConnectionPtr(opPtr.p->key);
   req->setRequestType(AlterTrigReq::RT_DROP_TRIGGER);
+  req->addRequestFlag(opPtr.p->m_requestFlag);
   req->setTableId(opPtr.p->m_request.getTableId());
   req->setTriggerId(opPtr.p->m_request.getTriggerId());
   req->setTriggerInfo(0);       // not used
@@ -11323,14 +11332,16 @@ Dbdict::dropTrigger_sendReply(Signal* signal, OpDropTriggerPtr opPtr,
   DropTrigRef* rep = (DropTrigRef*)signal->getDataPtrSend();
   Uint32 gsn = GSN_DROP_TRIG_CONF;
   Uint32 length = DropTrigConf::InternalLength;
-  bool sendRef = opPtr.p->hasError();
+  bool sendRef;
   if (! toUser) {
+    sendRef = opPtr.p->hasLastError();
     rep->setUserRef(opPtr.p->m_coordinatorRef);
     rep->setConnectionPtr(opPtr.p->key);
     rep->setRequestType(opPtr.p->m_requestType);
     if (opPtr.p->m_requestType == DropTrigReq::RT_DICT_ABORT)
       sendRef = false;
   } else {
+    sendRef = opPtr.p->hasError();
     rep->setUserRef(opPtr.p->m_request.getUserRef());
     rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
     rep->setRequestType(opPtr.p->m_request.getRequestType());
@@ -11554,28 +11565,37 @@ Dbdict::alterTrigger_recvReply(Signal* signal, const AlterTrigConf* conf,
   if (! (opPtr.p->m_request.getRequestFlag() & RequestFlag::RF_NOTCTRIGGER)) {
     if (requestType == AlterTrigReq::RT_DICT_PREPARE) {
       jam();
-      if (opPtr.p->m_request.getOnline())
+      if (opPtr.p->m_request.getOnline()) {
+        jam();
         opPtr.p->m_requestType = AlterTrigReq::RT_DICT_TC;
-      else
+      } else {
+        jam();
         opPtr.p->m_requestType = AlterTrigReq::RT_DICT_LQH;
+      }
       alterTrigger_sendSlaveReq(signal, opPtr);
       return;
     }
     if (requestType == AlterTrigReq::RT_DICT_TC) {
       jam();
-      if (opPtr.p->m_request.getOnline())
+      if (opPtr.p->m_request.getOnline()) {
+        jam();
         opPtr.p->m_requestType = AlterTrigReq::RT_DICT_LQH;
-      else
+      } else {
+        jam();
         opPtr.p->m_requestType = AlterTrigReq::RT_DICT_COMMIT;
+      }
       alterTrigger_sendSlaveReq(signal, opPtr);
       return;
     }
     if (requestType == AlterTrigReq::RT_DICT_LQH) {
       jam();
-      if (opPtr.p->m_request.getOnline())
+      if (opPtr.p->m_request.getOnline()) {
+        jam();
         opPtr.p->m_requestType = AlterTrigReq::RT_DICT_COMMIT;
-      else
+      } else {
+        jam();
         opPtr.p->m_requestType = AlterTrigReq::RT_DICT_TC;
+      }
       alterTrigger_sendSlaveReq(signal, opPtr);
       return;
     }
@@ -11630,8 +11650,10 @@ Dbdict::alterTrigger_toCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr)
   req->setUserRef(reference());
   req->setConnectionPtr(opPtr.p->key);
   if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+    jam();
     req->setRequestType(CreateTrigReq::RT_TC);
   } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
+    jam();
     req->setRequestType(CreateTrigReq::RT_LQH);
   } else {
     ndbassert(false);
@@ -11648,8 +11670,10 @@ Dbdict::alterTrigger_toCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr)
   req->setReceiverRef(opPtr.p->m_request.getReceiverRef());
   BlockReference blockRef = 0;
   if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+    jam();
     blockRef = calcTcBlockRef(getOwnNodeId());
   } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
+    jam();
     blockRef = calcLqhBlockRef(getOwnNodeId());
   } else {
     ndbassert(false);
@@ -11663,13 +11687,15 @@ void
 Dbdict::alterTrigger_fromCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr)
 {
   jam();
-  if (! opPtr.p->hasError()) {
+  if (! opPtr.p->hasLastError()) {
     // mark created locally
     TriggerRecordPtr triggerPtr;
     c_triggerRecordPool.getPtr(triggerPtr, opPtr.p->m_request.getTriggerId());
     if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+      jam();
       triggerPtr.p->triggerLocal |= TriggerRecord::TL_CREATED_TC;
     } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
+      jam();
       triggerPtr.p->triggerLocal |= TriggerRecord::TL_CREATED_LQH;
     } else {
       ndbrequire(false);
@@ -11689,17 +11715,21 @@ Dbdict::alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
   req->setUserRef(reference());
   req->setConnectionPtr(opPtr.p->key);
   if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
-    // broken trigger
+    jam();
+    // broken trigger allowed if force
     if (! (triggerPtr.p->triggerLocal & TriggerRecord::TL_CREATED_TC)) {
       jam();
+      ndbrequire(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
       alterTrigger_sendReply(signal, opPtr, false);
       return;
     }
     req->setRequestType(DropTrigReq::RT_TC);
   } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
-    // broken trigger
+    jam();
+    // broken trigger allowed if force
     if (! (triggerPtr.p->triggerLocal & TriggerRecord::TL_CREATED_LQH)) {
       jam();
+      ndbrequire(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
       alterTrigger_sendReply(signal, opPtr, false);
       return;
     }
@@ -11717,8 +11747,10 @@ Dbdict::alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
   req->setMonitorAllAttributes(triggerPtr.p->monitorAllAttributes);
   BlockReference blockRef = 0;
   if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+    jam();
     blockRef = calcTcBlockRef(getOwnNodeId());
   } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
+    jam();
     blockRef = calcLqhBlockRef(getOwnNodeId());
   } else {
     ndbassert(false);
@@ -11731,13 +11763,15 @@ void
 Dbdict::alterTrigger_fromDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
 {
   jam();
-  if (! opPtr.p->hasError()) {
+  if (! opPtr.p->hasLastError()) {
     // mark dropped locally
     TriggerRecordPtr triggerPtr;
     c_triggerRecordPool.getPtr(triggerPtr, opPtr.p->m_request.getTriggerId());
     if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_TC) {
+      jam();
       triggerPtr.p->triggerLocal &= ~TriggerRecord::TL_CREATED_TC;
     } else if (opPtr.p->m_requestType == AlterTrigReq::RT_DICT_LQH) {
+      jam();
       triggerPtr.p->triggerLocal &= ~TriggerRecord::TL_CREATED_LQH;
     } else {
       ndbrequire(false);
@@ -11794,8 +11828,9 @@ Dbdict::alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr,
   AlterTrigRef* rep = (AlterTrigRef*)signal->getDataPtrSend();
   Uint32 gsn = GSN_ALTER_TRIG_CONF;
   Uint32 length = AlterTrigConf::InternalLength;
-  bool sendRef = opPtr.p->hasError();
+  bool sendRef;
   if (! toUser) {
+    sendRef = opPtr.p->hasLastError();
     rep->setUserRef(opPtr.p->m_coordinatorRef);
     rep->setConnectionPtr(opPtr.p->key);
     rep->setRequestType(opPtr.p->m_requestType);
@@ -11806,6 +11841,7 @@ Dbdict::alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr,
       jam();
     }
   } else {
+    sendRef = opPtr.p->hasError();
     jam();
     rep->setUserRef(opPtr.p->m_request.getUserRef());
     rep->setConnectionPtr(opPtr.p->m_request.getConnectionPtr());
