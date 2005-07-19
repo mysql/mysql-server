@@ -66,11 +66,11 @@
 #include "xmalloc.h"
 
 #ifndef RL_LIBRARY_VERSION
-#  define RL_LIBRARY_VERSION "4.3"
+#  define RL_LIBRARY_VERSION "5.0"
 #endif
 
 #ifndef RL_READLINE_VERSION
-#  define RL_READLINE_VERSION	0x0403
+#  define RL_READLINE_VERSION	0x0500
 #endif
 
 extern void _rl_free_history_entry PARAMS((HIST_ENTRY *));
@@ -83,6 +83,7 @@ static void bind_arrow_keys_internal PARAMS((Keymap));
 static void bind_arrow_keys PARAMS((void));
 
 static void readline_default_bindings PARAMS((void));
+static void reset_default_bindings PARAMS((void));
 
 /* **************************************************************** */
 /*								    */
@@ -345,7 +346,7 @@ readline_internal_setup ()
 
 #if defined (VI_MODE)
   if (rl_editing_mode == vi_mode)
-    rl_vi_insertion_mode (1, 0);
+    rl_vi_insertion_mode (1, 'i');
 #endif /* VI_MODE */
 
   if (rl_pre_input_hook)
@@ -648,7 +649,21 @@ _rl_dispatch_subseq (key, map, got_subseq)
 	       the function.  The recursive call to _rl_dispatch_subseq has
 	       already taken care of pushing any necessary input back onto
 	       the input queue with _rl_unget_char. */
-	    r = _rl_dispatch (ANYOTHERKEY, FUNCTION_TO_KEYMAP (map, key));
+	    {
+#if 0
+	      r = _rl_dispatch (ANYOTHERKEY, FUNCTION_TO_KEYMAP (map, key));
+#else
+	      /* XXX - experimental code -- might never be executed.  Save
+		 for later. */
+	      Keymap m = FUNCTION_TO_KEYMAP (map, key);
+	      int type = m[ANYOTHERKEY].type;
+	      func = m[ANYOTHERKEY].function;
+	      if (type == ISFUNC && func == rl_do_lowercase_version)
+		r = _rl_dispatch (_rl_to_lower (key), map);
+	      else
+		r = _rl_dispatch (ANYOTHERKEY, m);
+#endif
+	    }
 	  else if (r && map[ANYOTHERKEY].function)
 	    {
 	      /* We didn't match (r is probably -1), so return something to
@@ -682,6 +697,7 @@ _rl_dispatch_subseq (key, map, got_subseq)
     }
 #if defined (VI_MODE)
   if (rl_editing_mode == vi_mode && _rl_keymap == vi_movement_keymap &&
+      key != ANYOTHERKEY &&
       _rl_vi_textmod_command (key))
     _rl_vi_set_last (key, rl_numeric_arg, rl_arg_sign);
 #endif
@@ -836,7 +852,7 @@ readline_initialize_everything ()
   /* If the completion parser's default word break characters haven't
      been set yet, then do so now. */
   if (rl_completer_word_break_characters == (char *)NULL)
-    rl_completer_word_break_characters = rl_basic_word_break_characters;
+    rl_completer_word_break_characters = (char *)rl_basic_word_break_characters;
 }
 
 /* If this system allows us to look at the values of the regular
@@ -845,6 +861,15 @@ readline_initialize_everything ()
 static void
 readline_default_bindings ()
 {
+  rl_tty_set_default_bindings (_rl_keymap);
+}
+
+/* Reset the default bindings for the terminal special characters we're
+   interested in back to rl_insert and read the new ones. */
+static void
+reset_default_bindings ()
+{
+  rl_tty_unset_default_bindings (_rl_keymap);
   rl_tty_set_default_bindings (_rl_keymap);
 }
 
@@ -859,25 +884,25 @@ bind_arrow_keys_internal (map)
   _rl_keymap = map;
 
 #if defined (__MSDOS__)
-   _rl_bind_if_unbound ("\033[0A", rl_get_previous_history);
-   _rl_bind_if_unbound ("\033[0B", rl_backward_char);
-   _rl_bind_if_unbound ("\033[0C", rl_forward_char);
-   _rl_bind_if_unbound ("\033[0D", rl_get_next_history);
+  rl_bind_keyseq_if_unbound ("\033[0A", rl_get_previous_history);
+  rl_bind_keyseq_if_unbound ("\033[0B", rl_backward_char);
+  rl_bind_keyseq_if_unbound ("\033[0C", rl_forward_char);
+  rl_bind_keyseq_if_unbound ("\033[0D", rl_get_next_history);
 #endif
 
-  _rl_bind_if_unbound ("\033[A", rl_get_previous_history);
-  _rl_bind_if_unbound ("\033[B", rl_get_next_history);
-  _rl_bind_if_unbound ("\033[C", rl_forward_char);
-  _rl_bind_if_unbound ("\033[D", rl_backward_char);
-  _rl_bind_if_unbound ("\033[H", rl_beg_of_line);
-  _rl_bind_if_unbound ("\033[F", rl_end_of_line);
+  rl_bind_keyseq_if_unbound ("\033[A", rl_get_previous_history);
+  rl_bind_keyseq_if_unbound ("\033[B", rl_get_next_history);
+  rl_bind_keyseq_if_unbound ("\033[C", rl_forward_char);
+  rl_bind_keyseq_if_unbound ("\033[D", rl_backward_char);
+  rl_bind_keyseq_if_unbound ("\033[H", rl_beg_of_line);
+  rl_bind_keyseq_if_unbound ("\033[F", rl_end_of_line);
 
-  _rl_bind_if_unbound ("\033OA", rl_get_previous_history);
-  _rl_bind_if_unbound ("\033OB", rl_get_next_history);
-  _rl_bind_if_unbound ("\033OC", rl_forward_char);
-  _rl_bind_if_unbound ("\033OD", rl_backward_char);
-  _rl_bind_if_unbound ("\033OH", rl_beg_of_line);
-  _rl_bind_if_unbound ("\033OF", rl_end_of_line);
+  rl_bind_keyseq_if_unbound ("\033OA", rl_get_previous_history);
+  rl_bind_keyseq_if_unbound ("\033OB", rl_get_next_history);
+  rl_bind_keyseq_if_unbound ("\033OC", rl_forward_char);
+  rl_bind_keyseq_if_unbound ("\033OD", rl_backward_char);
+  rl_bind_keyseq_if_unbound ("\033OH", rl_beg_of_line);
+  rl_bind_keyseq_if_unbound ("\033OF", rl_end_of_line);
 
   _rl_keymap = xkeymap;
 }

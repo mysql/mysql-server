@@ -355,7 +355,12 @@ typedef struct
    int  (*recover)(XID *xid_list, uint len);
    int  (*commit_by_xid)(XID *xid);
    int  (*rollback_by_xid)(XID *xid);
+   uint32 flags;                                /* global handler flags */
 } handlerton;
+
+/* Possible flags of a handlerton */
+#define HTON_NO_FLAGS 0
+#define HTON_CLOSE_CURSORS_AT_COMMIT 1
 
 typedef struct st_thd_trans
 {
@@ -683,6 +688,7 @@ class handler :public Sql_alloc
 private:
   virtual int reset() { return extra(HA_EXTRA_RESET); }
 public:
+  const handlerton *ht;                 /* storage engine of this handler */
   byte *ref;				/* Pointer to current row */
   byte *dupp_ref;			/* Pointer to dupp row */
   ulonglong data_file_length;		/* Length off data file */
@@ -726,7 +732,8 @@ public:
   MY_BITMAP *read_set;
   MY_BITMAP *write_set;
 
-  handler(TABLE *table_arg) :table(table_arg),
+  handler(const handlerton *ht_arg, TABLE *table_arg) :table(table_arg),
+    ht(ht_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
     delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0),

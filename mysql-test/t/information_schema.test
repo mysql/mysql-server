@@ -157,6 +157,8 @@ select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 show create procedure sel2;
 show create function sub1;
 show create function sub2;
+--replace_column 5 # 6 #
+show function status like "sub2";
 connection default;
 disconnect user1;
 drop function sub2;
@@ -505,6 +507,41 @@ flush privileges;
 #
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 
+
+#
+# TRIGGERS table test
+#
+create table t1 (i int, j int);
+
+delimiter |;
+create trigger trg1 before insert on t1 for each row
+begin
+  if new.j > 10 then
+    set new.j := 10;
+  end if;
+end|
+create trigger trg2 before update on t1 for each row
+begin
+  if old.i % 2 = 0 then
+    set new.j := -1;
+  end if;
+end|
+create trigger trg3 after update on t1 for each row
+begin
+  if new.j = -1 then
+    set @fired:= "Yes";
+  end if;
+end|
+delimiter ;|
+show triggers;
+select * from information_schema.triggers;
+
+drop trigger trg1;
+drop trigger trg2;
+drop trigger trg3;
+drop table t1;
+
+
 #
 # Bug #10964  Information Schema:Authorization check on privilege tables is improper
 #
@@ -569,3 +606,19 @@ drop procedure p2;
 # Bug #9434 SHOW CREATE DATABASE information_schema;
 #
 show create database information_schema;
+
+#
+# Bug #11057 information_schema: columns table has some questionable contents
+#
+create table t1(f1 LONGBLOB, f2 LONGTEXT);
+select column_name,data_type,CHARACTER_OCTET_LENGTH,
+       CHARACTER_MAXIMUM_LENGTH
+from information_schema.columns
+where table_name='t1';
+drop table t1;
+create table t1(f1 tinyint, f2 SMALLINT, f3 mediumint, f4 int,
+                f5 BIGINT, f6 BIT, f7 bit(64));
+select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
+from information_schema.columns
+where table_name='t1';
+drop table t1;

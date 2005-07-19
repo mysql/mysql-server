@@ -237,7 +237,7 @@ select * from t1;
 a
 10
 delete from t1;
-drop trigger t1.trg;
+drop trigger trg;
 insert into t1 values (1);
 select * from t1;
 a
@@ -248,7 +248,7 @@ master-bin.000002	#	Query	1	#	use `mysqltest1`; delete from t1
 master-bin.000002	#	Query	1	#	use `mysqltest1`; create trigger trg before insert on t1 for each row set new.a= 10
 master-bin.000002	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
 master-bin.000002	#	Query	1	#	use `mysqltest1`; delete from t1
-master-bin.000002	#	Query	1	#	use `mysqltest1`; drop trigger t1.trg
+master-bin.000002	#	Query	1	#	use `mysqltest1`; drop trigger trg
 master-bin.000002	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
 select * from t1;
 a

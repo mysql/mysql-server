@@ -441,9 +441,9 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
     if (!(mrg->file[i]=open_isam_file(names[i],O_RDONLY)))
       goto error;
 
-    mrg->src_file_has_indexes_disabled|= ((mrg->file[i]->s->state.key_map != 
-                                           (((ulonglong) 1) <<
-                                            mrg->file[i]->s->base. keys) - 1));
+    mrg->src_file_has_indexes_disabled|=
+      ! mi_is_all_keys_active(mrg->file[i]->s->state.key_map,
+                              mrg->file[i]->s->base.keys);
   }
   /* Check that files are identical */
   for (j=0 ; j < count-1 ; j++)
@@ -2941,7 +2941,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   share->state.dellink= HA_OFFSET_ERROR;
   share->state.split=(ha_rows) mrg->records;
   share->state.version=(ulong) time((time_t*) 0);
-  if (share->state.key_map != (ULL(1) << share->base.keys) - 1)
+  if (! mi_is_all_keys_active(share->state.key_map, share->base.keys))
   {
     /*
       Some indexes are disabled, cannot use current key_file_length value
@@ -2955,7 +2955,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
     original file so "myisamchk -rq" can use this value (this is necessary 
     because index size cannot be easily calculated for fulltext keys)
   */
-  share->state.key_map=0;
+  mi_clear_all_keys_active(share->state.key_map);
   for (key=0 ; key < share->base.keys ; key++)
     share->state.key_root[key]= HA_OFFSET_ERROR;
   for (key=0 ; key < share->state.header.max_block_size ; key++)
@@ -2995,7 +2995,7 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   }
   state.dellink= HA_OFFSET_ERROR;
   state.version=(ulong) time((time_t*) 0);
-  state.key_map=0;
+  mi_clear_all_keys_active(state.key_map);
   state.checksum=crc;
   if (isam_file->s->base.keys)
     isamchk_neaded=1;

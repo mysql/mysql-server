@@ -2108,6 +2108,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_TABLE_NAMES:
   case SCH_TABLES:
   case SCH_VIEWS:
+  case SCH_TRIGGERS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND,
                ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
@@ -2155,7 +2156,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       sel= new SELECT_LEX();
       sel->init_query();
-      if(!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
+      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
                                  (List<String> *) 0, (List<String> *) 0))
         DBUG_RETURN(1);
       lex->query_tables_last= query_tables_last;
@@ -2308,7 +2309,8 @@ mysql_execute_command(THD *thd)
     Don't reset warnings when executing a stored routine.
   */
   if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->sroutines.records) && !thd->spcont)
+       lex->sroutines.records) && !thd->spcont ||
+      lex->time_zone_tables_used)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
@@ -2389,10 +2391,12 @@ mysql_execute_command(THD *thd)
     select_result *result=lex->result;
     if (all_tables)
     {
-      res= check_table_access(thd,
-			      lex->exchange ? SELECT_ACL | FILE_ACL :
-			      SELECT_ACL,
-			      all_tables, 0);
+      if (lex->orig_sql_command != SQLCOM_SHOW_STATUS_PROC &&
+          lex->orig_sql_command != SQLCOM_SHOW_STATUS_FUNC)
+        res= check_table_access(thd,
+                                lex->exchange ? SELECT_ACL | FILE_ACL :
+                                SELECT_ACL,
+                                all_tables, 0);
     }
     else
       res= check_access(thd,
@@ -6847,7 +6851,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list)
+  if (&lex->select_lex != lex->all_selects_list || lex->time_zone_tables_used)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)

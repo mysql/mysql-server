@@ -32,6 +32,30 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
+/* MyISAM MERGE handlerton */
+
+static handlerton myisammrg_hton= {
+  "MRG_MyISAM",
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* release savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0,       /* rollback_by_xid */
+  HTON_NO_FLAGS
+};
+
+
+ha_myisammrg::ha_myisammrg(TABLE *table_arg)
+  :handler(&myisammrg_hton, table_arg), file(0)
+{}
+
 static const char *ha_myisammrg_exts[] = {
   ".MRG",
   NullS

@@ -1,7 +1,7 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.58)dnl		Minimum Autoconf version required.
+AC_PREREQ(2.57)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
@@ -13,7 +13,7 @@ AM_CONFIG_HEADER(config.h)
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_VERSION=14:0:0
+SHARED_LIB_VERSION=15:0:0
 
 # ndb version
 NDB_VERSION_MAJOR=5
@@ -1966,7 +1966,7 @@ AC_LANG_CPLUSPLUS
 
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 fi
 
 AC_TRY_COMPILE(
@@ -2001,7 +2001,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline
@@ -2034,7 +2034,7 @@ AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no"
 then
-  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-Wcheck//'`
+  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 fi
 AC_TRY_COMPILE(
 [#undef inline

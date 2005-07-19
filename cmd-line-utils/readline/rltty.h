@@ -61,22 +61,22 @@
 #endif /* !NEW_TTY_DRIVER && !_POSIX_VDISABLE */
 
 typedef struct _rl_tty_chars {
-  char t_eof;
-  char t_eol;
-  char t_eol2;
-  char t_erase;
-  char t_werase;
-  char t_kill;
-  char t_reprint;
-  char t_intr;
-  char t_quit;
-  char t_susp;
-  char t_dsusp;
-  char t_start;
-  char t_stop;
-  char t_lnext;
-  char t_flush;
-  char t_status;
+  unsigned char t_eof;
+  unsigned char t_eol;
+  unsigned char t_eol2;
+  unsigned char t_erase;
+  unsigned char t_werase;
+  unsigned char t_kill;
+  unsigned char t_reprint;
+  unsigned char t_intr;
+  unsigned char t_quit;
+  unsigned char t_susp;
+  unsigned char t_dsusp;
+  unsigned char t_start;
+  unsigned char t_stop;
+  unsigned char t_lnext;
+  unsigned char t_flush;
+  unsigned char t_status;
 } _RL_TTY_CHARS;
 
 #endif /* _RLTTY_H_ */

@@ -757,7 +757,7 @@ class Cursor;
   be used explicitly.
 */
 
-class Statement: public Query_arena
+class Statement: public ilink, public Query_arena
 {
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
@@ -841,6 +841,8 @@ public:
   void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
+  /* Close the cursor open for this statement, if there is one */
+  virtual void close_cursor();
 };
 
 
@@ -892,15 +894,25 @@ public:
     }
     hash_delete(&st_hash, (byte *) statement);
   }
+  void add_transient_cursor(Statement *stmt)
+  { transient_cursor_list.append(stmt); }
+  void erase_transient_cursor(Statement *stmt) { stmt->unlink(); }
+  /*
+    Close all cursors of this connection that use tables of a storage
+    engine that has transaction-specific state and therefore can not
+    survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
+  */
+  void close_transient_cursors();
   /* Erase all statements (calls Statement destructor) */
   void reset()
   {
     my_hash_reset(&names_hash);
     my_hash_reset(&st_hash);
+    transient_cursor_list.empty();
     last_found_statement= 0;
   }
 
-  ~Statement_map()
+  void destroy()
   {
     hash_free(&names_hash);
     hash_free(&st_hash);
@@ -908,6 +920,7 @@ public:
 private:
   HASH st_hash;
   HASH names_hash;
+  I_List<Statement> transient_cursor_list;
   Statement *last_found_statement;
 };
 
@@ -1025,8 +1038,7 @@ public:
   a thread/connection descriptor
 */
 
-class THD :public ilink,
-           public Statement,
+class THD :public Statement,
            public Open_tables_state
 {
 public:
@@ -1052,6 +1064,10 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
+  THR_LOCK_INFO lock_info;              // Locking info of this thread
+  THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
+  THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
+                                        // the lock_id of a cursor.
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
@@ -1475,6 +1491,8 @@ public:
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
+  bool is_context_analysis_only()
+    { return current_arena->is_stmt_prepare() || lex->view_prepare_mode; }
   bool push_open_tables_state();
   void pop_open_tables_state();
 };

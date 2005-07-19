@@ -1,6 +1,6 @@
 /* Readline.h -- the names of functions callable from within readline. */
 
-/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -40,9 +40,9 @@ extern "C" {
 #endif
 
 /* Hex-encoded Readline version number. */
-#define RL_READLINE_VERSION	0x0403		/* Readline 4.3 */
-#define RL_VERSION_MAJOR	4
-#define RL_VERSION_MINOR	3
+#define RL_READLINE_VERSION	0x0500		/* Readline 5.0 */
+#define RL_VERSION_MAJOR	5
+#define RL_VERSION_MINOR	0
 
 /* Readline data structures. */
 
@@ -160,6 +160,7 @@ extern int rl_kill_line PARAMS((int, int));
 extern int rl_backward_kill_line PARAMS((int, int));
 extern int rl_kill_full_line PARAMS((int, int));
 extern int rl_unix_word_rubout PARAMS((int, int));
+extern int rl_unix_filename_rubout PARAMS((int, int));
 extern int rl_unix_line_discard PARAMS((int, int));
 extern int rl_copy_region_to_kill PARAMS((int, int));
 extern int rl_kill_region PARAMS((int, int));
@@ -258,6 +259,8 @@ extern int rl_vi_check PARAMS((void));
 extern int rl_vi_domove PARAMS((int, int *));
 extern int rl_vi_bracktype PARAMS((int));
 
+extern void rl_vi_start_inserting PARAMS((int, int, int));
+
 /* VI-mode pseudo-bindable commands, used as utility functions. */
 extern int rl_vi_fWord PARAMS((int, int));
 extern int rl_vi_bWord PARAMS((int, int));
@@ -290,11 +293,19 @@ extern int rl_bind_key PARAMS((int, rl_command_func_t *));
 extern int rl_bind_key_in_map PARAMS((int, rl_command_func_t *, Keymap));
 extern int rl_unbind_key PARAMS((int));
 extern int rl_unbind_key_in_map PARAMS((int, Keymap));
+extern int rl_bind_key_if_unbound PARAMS((int, rl_command_func_t *));
+extern int rl_bind_key_if_unbound_in_map PARAMS((int, rl_command_func_t *, Keymap));
 extern int rl_unbind_function_in_map PARAMS((rl_command_func_t *, Keymap));
 extern int rl_unbind_command_in_map PARAMS((const char *, Keymap));
-extern int rl_set_key PARAMS((const char *, rl_command_func_t *, Keymap));
+extern int rl_bind_keyseq PARAMS((const char *, rl_command_func_t *));
+extern int rl_bind_keyseq_in_map PARAMS((const char *, rl_command_func_t *, Keymap));
+extern int rl_bind_keyseq_if_unbound PARAMS((const char *, rl_command_func_t *));
+extern int rl_bind_keyseq_if_unbound_in_map PARAMS((const char *, rl_command_func_t *, Keymap));
 extern int rl_generic_bind PARAMS((int, const char *, char *, Keymap));
 extern int rl_variable_bind PARAMS((const char *, const char *));
+
+/* Backwards compatibility, use rl_bind_keyseq_in_map instead. */
+extern int rl_set_key PARAMS((const char *, rl_command_func_t *, Keymap));
 
 /* Backwards compatibility, use rl_generic_bind instead. */
 extern int rl_macro_bind PARAMS((const char *, const char *, Keymap));
@@ -329,7 +340,7 @@ extern void rl_set_keymap PARAMS((Keymap));
 extern Keymap rl_get_keymap PARAMS((void));
 /* Undocumented; used internally only. */
 extern void rl_set_keymap_from_edit_mode PARAMS((void));
-extern const char *rl_get_keymap_name_from_edit_mode PARAMS((void));
+extern char *rl_get_keymap_name_from_edit_mode PARAMS((void));
 
 /* Functions for manipulating the funmap, which maps command names to functions. */
 extern int rl_add_funmap_entry PARAMS((const char *, rl_command_func_t *));
@@ -358,7 +369,7 @@ extern int rl_clear_message PARAMS((void));
 extern int rl_reset_line_state PARAMS((void));
 extern int rl_crlf PARAMS((void));
 
-#if (defined (__STDC__) || defined (__cplusplus)) && defined (USE_VARARGS) && defined (PREFER_STDARG)
+#if defined (USE_VARARGS) && defined (PREFER_STDARG)
 extern int rl_message (const char *, ...)  __attribute__((__format__ (printf, 1, 2)));
 #else
 extern int rl_message ();
@@ -384,13 +395,14 @@ extern char *rl_copy_text PARAMS((int, int));
 extern void rl_prep_terminal PARAMS((int));
 extern void rl_deprep_terminal PARAMS((void));
 extern void rl_tty_set_default_bindings PARAMS((Keymap));
+extern void rl_tty_unset_default_bindings PARAMS((Keymap));
 
 extern int rl_reset_terminal PARAMS((const char *));
 extern void rl_resize_terminal PARAMS((void));
 extern void rl_set_screen_size PARAMS((int, int));
 extern void rl_get_screen_size PARAMS((int *, int *));
 
-extern const char *rl_get_termcap PARAMS((const char *));
+extern char *rl_get_termcap PARAMS((const char *));
 
 /* Functions for character input. */
 extern int rl_stuff_char PARAMS((int));
@@ -603,7 +615,12 @@ extern const char *rl_basic_word_break_characters;
 /* The list of characters that signal a break between words for
    rl_complete_internal.  The default list is the contents of
    rl_basic_word_break_characters.  */
-extern const char *rl_completer_word_break_characters;
+extern /*const*/ char *rl_completer_word_break_characters;
+
+/* Hook function to allow an application to set the completion word
+   break characters before readline breaks up the line.  Allows
+   position-dependent word break characters. */
+extern rl_cpvfunc_t *rl_completion_word_break_hook;
 
 /* List of characters which can be used to quote a substring of the line.
    Completion occurs on the entire substring, and within the substring   
@@ -687,6 +704,11 @@ extern int rl_attempted_completion_over;
    functions. */
 extern int rl_completion_type;
 
+/* Up to this many items will be displayed in response to a
+   possible-completions call.  After that, we ask the user if she
+   is sure she wants to see them all.  The default value is 100. */
+extern int rl_completion_query_items;
+
 /* Character appended to completed words when at the end of the line.  The
    default is a space.  Nothing is added if this is '\0'. */
 extern int rl_completion_append_character;
@@ -695,10 +717,18 @@ extern int rl_completion_append_character;
    rl_completion_append_character will not be appended. */
 extern int rl_completion_suppress_append;
 
-/* Up to this many items will be displayed in response to a
-   possible-completions call.  After that, we ask the user if she
-   is sure she wants to see them all.  The default value is 100. */
-extern int rl_completion_query_items;
+/* Set to any quote character readline thinks it finds before any application
+   completion function is called. */
+extern int rl_completion_quote_character;
+
+/* Set to a non-zero value if readline found quoting anywhere in the word to
+   be completed; set before any application completion function is called. */
+extern int rl_completion_found_quote;
+
+/* If non-zero, the completion functions don't append any closing quote.
+   This is set to 0 by rl_complete_internal and may be changed by an
+   application-specific completion function. */
+extern int rl_completion_suppress_quote;
 
 /* If non-zero, a slash will be appended to completed filenames that are
    symbolic links to directory names, subject to the value of the
@@ -749,6 +779,7 @@ extern int rl_inhibit_completion;
 #define RL_STATE_SIGHANDLER	0x08000		/* in readline sighandler */
 #define RL_STATE_UNDOING	0x10000		/* doing an undo */
 #define RL_STATE_INPUTPENDING	0x20000		/* rl_execute_next called */
+#define RL_STATE_TTYCSAVED	0x40000		/* tty special chars saved */
 
 #define RL_STATE_DONE		0x80000		/* done; accepted line */
 
@@ -784,6 +815,12 @@ struct readline_state {
   /* signal state */
   int catchsigs;
   int catchsigwinch;
+
+  /* search state */
+
+  /* completion state */
+
+  /* options state */
 
   /* reserved for future expansion, so the struct size doesn't change */
   char reserved[64];

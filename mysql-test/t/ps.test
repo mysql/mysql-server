@@ -811,3 +811,20 @@ select ??;
 select ? from t1;
 --enable_ps_protocol
 drop table t1;
+#
+# Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
+# time"
+#
+prepare stmt from "select @@time_zone";
+execute stmt;
+set @@time_zone:='Japan';
+execute stmt;
+prepare stmt from "select @@tx_isolation";
+execute stmt;
+set transaction isolation level read committed;
+execute stmt;
+set transaction isolation level serializable;
+execute stmt;
+set @@tx_isolation=default;
+execute stmt;
+deallocate prepare stmt;
