@@ -408,10 +408,11 @@ Drop Table/Index:
 4001: Crash on REL_TABMEMREQ in TUP
 4002: Crash on DROP_TABFILEREQ in TUP
 4003: Fail next trigger create in TUP
+4004: Fail next trigger drop in TUP
 8033: Fail next trigger create in TC
 8034: Fail next index create in TC
-
-
+8035: Fail next trigger drop in TC
+8036: Fail next index drop in TC
 
 System Restart:
 ---------------
