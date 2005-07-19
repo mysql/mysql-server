@@ -2546,7 +2546,7 @@ static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const
   }
 
   if (localhost_used) {
-    ctx.reportError("Mixing of localhost with other hostname(%s) is illegal",
+    ctx.reportError("Mixing of localhost (default for [NDBD]HostName) with other hostname(%s) is illegal",
 		    hostname);
     DBUG_RETURN(false);
   }
