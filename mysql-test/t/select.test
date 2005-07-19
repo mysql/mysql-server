@@ -2153,6 +2153,13 @@ INSERT INTO t1
   SELECT 50, 3, 3 FROM DUAL
     WHERE NOT EXISTS
       (SELECT * FROM t1 WHERE a = 50 AND b = 3);
+select found_rows();
 SELECT * FROM t1;
+select count(*) from t1;
+select found_rows();
+select count(*) from t1 limit 2,3;
+select found_rows();
+select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
+select found_rows();
 
 DROP TABLE t1;

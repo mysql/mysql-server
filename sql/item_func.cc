@@ -3045,14 +3045,15 @@ Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
 bool
 Item_func_get_system_var::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  Item *item= var->item(thd, var_type, &component);
+  Item *item;
   DBUG_ENTER("Item_func_get_system_var::fix_fields");
+
   /*
     Evaluate the system variable and substitute the result (a basic constant)
     instead of this item. If the variable can not be evaluated,
     the error is reported in sys_var::item().
   */
-  if (item == 0)
+  if (!(item= var->item(thd, var_type, &component)))
     DBUG_RETURN(1);                             // Impossible
   item->set_name(name, 0, system_charset_info); // don't allocate a new name
   thd->change_item_tree(ref, item);
