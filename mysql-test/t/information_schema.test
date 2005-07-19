@@ -571,3 +571,19 @@ drop procedure p2;
 # Bug #9434 SHOW CREATE DATABASE information_schema;
 #
 show create database information_schema;
+
+#
+# Bug #11057 information_schema: columns table has some questionable contents
+#
+create table t1(f1 LONGBLOB, f2 LONGTEXT);
+select column_name,data_type,CHARACTER_OCTET_LENGTH,
+       CHARACTER_MAXIMUM_LENGTH
+from information_schema.columns
+where table_name='t1';
+drop table t1;
+create table t1(f1 tinyint, f2 SMALLINT, f3 mediumint, f4 int,
+                f5 BIGINT, f6 BIT, f7 bit(64));
+select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
+from information_schema.columns
+where table_name='t1';
+drop table t1;
