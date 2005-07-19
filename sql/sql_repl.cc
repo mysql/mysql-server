@@ -1527,7 +1527,7 @@ bool show_binlogs(THD* thd)
     else
     {
       /* this is an old log, open it and find the size */
-      if ((file= my_open(fname+dir_len, O_RDONLY | O_SHARE | O_BINARY,
+      if ((file= my_open(fname, O_RDONLY | O_SHARE | O_BINARY,
                          MYF(0))) >= 0)
       {
         file_length= (ulonglong) my_seek(file, 0L, MY_SEEK_END, MYF(0));

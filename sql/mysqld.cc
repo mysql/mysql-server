@@ -686,7 +686,13 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    tmp->killed= THD::KILL_CONNECTION;
+    /*
+      Re: bug 7403 - close_connection will be called mulitple times
+      a wholesale clean up of our network code is a very large project.
+      This will wake up the socket on Windows and prevent the printing of
+      the error message that we are force closing a connection.
+    */
+    close_connection(tmp, 0, 0);
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -883,7 +889,7 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_end();
 
 #ifdef __NETWARE__
-  if(!event_flag)
+  if (!event_flag)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
@@ -4343,7 +4349,8 @@ enum options_mysqld
   OPT_ENABLE_LARGE_PAGES,
   OPT_TIMED_MUTEXES,
   OPT_OLD_STYLE_USER_LIMITS,
-  OPT_LOG_SLOW_ADMIN_STATEMENTS
+  OPT_LOG_SLOW_ADMIN_STATEMENTS,
+  OPT_TABLE_LOCK_WAIT_TIMEOUT
 };
 
 
@@ -5606,6 +5613,11 @@ The minimum value for this variable is 4096.",
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
    (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
    0, 1, 0},
+  {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT, "Timeout in "
+    "seconds to wait for a table level lock before returning an error. Used"
+     " only if the connection has active cursors.",
+   (gptr*) &table_lock_wait_timeout, (gptr*) &table_lock_wait_timeout,
+   0, GET_ULONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
   {"thread_cache_size", OPT_THREAD_CACHE_SIZE,
    "How many threads we should keep in a cache for reuse.",
    (gptr*) &thread_cache_size, (gptr*) &thread_cache_size, 0, GET_ULONG,
@@ -5739,6 +5751,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_status",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
   {"Com_show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
   {"Com_show_tables",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
+  {"Com_show_triggers",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
   {"Com_show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
   {"Com_show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
   {"Com_slave_start",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
@@ -7073,4 +7086,6 @@ template class I_List_iterator<THD>;
 template class I_List<i_string>;
 template class I_List<i_string_pair>;
 template class I_List<NAMED_LIST>;
+template class I_List<Statement>;
+template class I_List_iterator<Statement>;
 #endif

@@ -45,7 +45,7 @@ int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str={0,0};
 
-#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
+#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 #define WARN_DEPRECATED(A,B)                                        \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
@@ -610,6 +610,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TRAILING
 %token  TRANSACTION_SYM
 %token  TRIGGER_SYM
+%token  TRIGGERS_SYM
 %token  TRIM
 %token  TRUE_SYM
 %token  TRUNCATE_SYM
@@ -1277,7 +1278,7 @@ create:
 	  }
 	  opt_view_list AS select_init check_option
 	  {}
-        | CREATE TRIGGER_SYM ident trg_action_time trg_event 
+        | CREATE TRIGGER_SYM sp_name trg_action_time trg_event 
           ON table_ident FOR_SYM EACH_SYM ROW_SYM
           {
             LEX *lex= Lex;
@@ -1296,6 +1297,7 @@ create:
             
             sp->m_type= TYPE_ENUM_TRIGGER;
             lex->sphead= sp;
+            lex->spname= $3;
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
               stored procedure, otherwise yylex will chop it into pieces
@@ -1306,7 +1308,7 @@ create:
             
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
-            lex->sphead->m_body_begin= lex->tok_start;
+            lex->sphead->m_body_begin= lex->ptr;
           }
           sp_proc_stmt
           {
@@ -1314,13 +1316,11 @@ create:
             sp_head *sp= lex->sphead;
             
             lex->sql_command= SQLCOM_CREATE_TRIGGER;
-            sp->init_strings(YYTHD, lex, NULL);
+            sp->init_strings(YYTHD, lex, $3);
             /* Restore flag if it was cleared above */
             if (sp->m_old_cmq)
               YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
             sp->restore_thd_mem_root(YYTHD);
-
-            lex->ident= $3;
 
             /*
               We have to do it after parsing trigger body, because some of
@@ -4455,7 +4455,7 @@ select_into:
 select_from:
 	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
-        | FROM DUAL_SYM opt_limit_clause
+        | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
              Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
@@ -4656,9 +4656,25 @@ bool_pri:
 
 predicate:
 	 bit_expr IN_SYM '(' expr_list ')'
-	  { $4->push_front($1); $$= new Item_func_in(*$4); }
+	  { 
+            if ($4->elements == 1)
+              $$= new Item_func_eq($1, $4->head());
+            else
+            {
+              $4->push_front($1);
+              $$= new Item_func_in(*$4);
+            }
+          }
 	| bit_expr not IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= negate_expression(YYTHD, new Item_func_in(*$5)); }
+          {
+            if ($5->elements == 1)
+              $$= new Item_func_ne($1, $5->head());
+            else
+            {
+              $5->push_front($1);
+              $$= negate_expression(YYTHD, new Item_func_in(*$5));
+            }            
+          }
         | bit_expr IN_SYM in_subselect
 	  { $$= new Item_in_subselect($1, $3); }
 	| bit_expr not IN_SYM in_subselect
@@ -5235,7 +5251,7 @@ simple_expr:
 	| UNIX_TIMESTAMP '(' expr ')'
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
-	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
+	  { $$= new Item_func_user(FALSE); Lex->safe_to_cache_query=0; }
 	| UTC_DATE_SYM optional_braces
 	  { $$= new Item_func_curdate_utc(); Lex->safe_to_cache_query=0;}
 	| UTC_TIME_SYM optional_braces
@@ -6332,19 +6348,11 @@ drop:
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
-        | DROP TRIGGER_SYM ident '.' ident
+        | DROP TRIGGER_SYM sp_name
           {
             LEX *lex= Lex;
-
             lex->sql_command= SQLCOM_DROP_TRIGGER;
-            /* QQ: Could we loosen lock type in certain cases ? */
-            if (!lex->select_lex.add_table_to_list(YYTHD,
-                                                   new Table_ident($3),
-                                                   (LEX_STRING*) 0,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_WRITE))
-              YYABORT;
-            lex->ident= $5;
+            lex->spname= $3;
           }
 	;
 
@@ -6707,6 +6715,15 @@ show_param:
              lex->orig_sql_command= SQLCOM_SHOW_TABLES;
              lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
+               YYABORT;
+           }
+         | opt_full TRIGGERS_SYM opt_db wild_and_where
+           {
+             LEX *lex= Lex;
+             lex->sql_command= SQLCOM_SELECT;
+             lex->orig_sql_command= SQLCOM_SHOW_TRIGGERS;
+             lex->select_lex.db= $3;
+             if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
                YYABORT;
            }
          | TABLE_SYM STATUS_SYM opt_db wild_and_where
@@ -8012,6 +8029,7 @@ keyword_sp:
 	| TEXT_SYM		{}
 	| THAN_SYM		{}
 	| TRANSACTION_SYM	{}
+	| TRIGGERS_SYM		{}
 	| TIMESTAMP		{}
 	| TIMESTAMP_ADD		{}
 	| TIMESTAMP_DIFF	{}

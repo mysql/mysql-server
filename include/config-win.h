@@ -353,6 +353,9 @@ inline double ulonglong2double(ulonglong value)
 #ifndef DEFAULT_HOME_ENV
 #define DEFAULT_HOME_ENV MYSQL_HOME
 #endif
+#ifndef DEFAULT_GROUP_SUFFIX_ENV
+#define DEFAULT_GROUP_SUFFIX_ENV MYSQL_GROUP_SUFFIX
+#endif
 
 /* File name handling */
 

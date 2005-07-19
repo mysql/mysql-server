@@ -43,13 +43,7 @@ class ha_myisam: public handler
   int repair(THD *thd, MI_CHECK &param, bool optimize);
 
  public:
-  ha_myisam(TABLE *table): handler(table), file(0),
-    int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-		    HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-		    HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
-                    HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD),
-    can_enable_indexes(1)
-  {}
+  ha_myisam(TABLE *table_arg);
   ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
   const char *index_type(uint key_number);

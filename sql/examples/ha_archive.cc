@@ -149,7 +149,8 @@ static handlerton archive_hton = {
   0,       /* prepare */
   0,       /* recover */
   0,       /* commit_by_xid */
-  0        /* rollback_by_xid */
+  0,       /* rollback_by_xid */
+  HTON_NO_FLAGS
 };
 
 
@@ -208,6 +209,15 @@ bool archive_db_end()
   return FALSE;
 }
 
+ha_archive::ha_archive(TABLE *table_arg)
+  :handler(&archive_hton, table_arg), delayed_insert(0), bulk_insert(0)
+{
+  /* Set our original buffer from pre-allocated memory */
+  buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
+
+  /* The size of the offset value we will use for position() */
+  ref_length = sizeof(z_off_t);
+}
 
 /*
   This method reads the header of a datafile and returns whether or not it was successful.

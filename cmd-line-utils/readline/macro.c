@@ -190,7 +190,7 @@ _rl_kill_kbd_macro ()
    re-executing the existing macro. */
 int
 rl_start_kbd_macro (ignore1, ignore2)
-     int ignore1 __attribute__((unused)), ignore2 __attribute__((unused));
+     int ignore1, ignore2;
 {
   if (RL_ISSTATE (RL_STATE_MACRODEF))
     {
@@ -215,7 +215,7 @@ rl_start_kbd_macro (ignore1, ignore2)
    that many times, counting the definition as the first time. */
 int
 rl_end_kbd_macro (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   if (RL_ISSTATE (RL_STATE_MACRODEF) == 0)
     {
@@ -235,7 +235,7 @@ rl_end_kbd_macro (count, ignore)
    COUNT says how many times to execute it. */
 int
 rl_call_last_kbd_macro (count, ignore)
-     int count, ignore __attribute__((unused));
+     int count, ignore;
 {
   if (current_macro == 0)
     _rl_abort_internal ();

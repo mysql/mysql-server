@@ -1,6 +1,6 @@
 /* misc.c -- miscellaneous bindable readline functions. */
 
-/* Copyright (C) 1987-2002 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -155,7 +155,7 @@ rl_digit_loop ()
 /* Add the current digit to the argument in progress. */
 int
 rl_digit_argument (ignore, key)
-     int ignore __attribute__((unused)), key;
+     int ignore, key;
 {
   rl_execute_next (key);
   return (rl_digit_loop ());
@@ -185,7 +185,7 @@ _rl_init_argument ()
    dispatch on it.  If the key is the abort character then abort. */
 int
 rl_universal_argument (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   rl_numeric_arg *= 4;
   return (rl_digit_loop ());
@@ -251,6 +251,8 @@ rl_maybe_unsave_line ()
 {
   if (_rl_saved_line_for_history)
     {
+      /* Can't call with `1' because rl_undo_list might point to an undo
+	 list from a history entry, as in rl_replace_from_history() below. */
       rl_replace_line (_rl_saved_line_for_history->line, 0);
       rl_undo_list = (UNDO_LIST *)_rl_saved_line_for_history->data;
       _rl_free_history_entry (_rl_saved_line_for_history);
@@ -272,6 +274,13 @@ rl_maybe_save_line ()
       _rl_saved_line_for_history->line = savestring (rl_line_buffer);
       _rl_saved_line_for_history->data = (char *)rl_undo_list;
     }
+  else if (STREQ (rl_line_buffer, _rl_saved_line_for_history->line) == 0)
+    {
+      free (_rl_saved_line_for_history->line);
+      _rl_saved_line_for_history->line = savestring (rl_line_buffer);
+      _rl_saved_line_for_history->data = (char *)rl_undo_list;	/* XXX possible memleak */
+    }
+
   return 0;
 }
 
@@ -296,7 +305,7 @@ _rl_history_set_point ()
     rl_point = rl_end;
 
 #if defined (VI_MODE)
-  if (rl_editing_mode == vi_mode)
+  if (rl_editing_mode == vi_mode && _rl_keymap != vi_insertion_keymap)
     rl_point = 0;
 #endif /* VI_MODE */
 
@@ -307,8 +316,10 @@ _rl_history_set_point ()
 void
 rl_replace_from_history (entry, flags)
      HIST_ENTRY *entry;
-     int flags __attribute__((unused));			/* currently unused */
+     int flags;			/* currently unused */
 {
+  /* Can't call with `1' because rl_undo_list might point to an undo list
+     from a history entry, just like we're setting up here. */
   rl_replace_line (entry->line, 0);
   rl_undo_list = (UNDO_LIST *)entry->data;
   rl_point = rl_end;
@@ -332,7 +343,7 @@ rl_replace_from_history (entry, flags)
 /* Meta-< goes to the start of the history. */
 int
 rl_beginning_of_history (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
   return (rl_get_previous_history (1 + where_history (), key));
 }
@@ -340,7 +351,7 @@ rl_beginning_of_history (count, key)
 /* Meta-> goes to the end of the history.  (The current line). */
 int
 rl_end_of_history (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   rl_maybe_replace_line ();
   using_history ();
@@ -433,6 +444,7 @@ rl_get_previous_history (count, key)
       rl_replace_from_history (temp, 0);
       _rl_history_set_point ();
     }
+
   return 0;
 }
 
@@ -444,7 +456,7 @@ rl_get_previous_history (count, key)
 /* How to toggle back and forth between editing modes. */
 int
 rl_vi_editing_mode (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
 #if defined (VI_MODE)
   _rl_set_insert_mode (RL_IM_INSERT, 1);	/* vi mode ignores insert mode */
@@ -457,7 +469,7 @@ rl_vi_editing_mode (count, key)
 
 int
 rl_emacs_editing_mode (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   rl_editing_mode = emacs_mode;
   _rl_set_insert_mode (RL_IM_INSERT, 1); /* emacs mode default is insert mode */
@@ -468,7 +480,7 @@ rl_emacs_editing_mode (count, key)
 /* Function for the rest of the library to use to set insert/overwrite mode. */
 void
 _rl_set_insert_mode (im, force)
-     int im, force __attribute__((unused));
+     int im, force;
 {
 #ifdef CURSOR_MODE
   _rl_set_cursor (im, force);
@@ -481,7 +493,7 @@ _rl_set_insert_mode (im, force)
    mode.  A negative or zero explicit argument selects insert mode. */
 int
 rl_overwrite_mode (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   if (rl_explicit_arg == 0)
     _rl_set_insert_mode (rl_insert_mode ^ 1, 0);

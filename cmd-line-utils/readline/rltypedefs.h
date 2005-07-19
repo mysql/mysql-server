@@ -1,6 +1,6 @@
 /* rltypedefs.h -- Type declarations for readline functions. */
 
-/* Copyright (C) 2000 Free Software Foundation, Inc.
+/* Copyright (C) 2000-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -79,6 +79,12 @@ typedef void rl_voidfunc_t PARAMS((void));
 typedef void rl_vintfunc_t PARAMS((int));
 typedef void rl_vcpfunc_t PARAMS((char *));
 typedef void rl_vcppfunc_t PARAMS((char **));
+
+typedef char *rl_cpvfunc_t PARAMS((void));
+typedef char *rl_cpifunc_t PARAMS((int));
+typedef char *rl_cpcpfunc_t PARAMS((char  *));
+typedef char *rl_cpcppfunc_t PARAMS((char  **));
+
 #endif /* _RL_FUNCTION_TYPEDEF */
 
 #ifdef __cplusplus

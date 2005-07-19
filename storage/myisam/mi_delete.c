@@ -74,7 +74,7 @@ int mi_delete(MI_INFO *info,const byte *record)
   old_key=info->lastkey2;
   for (i=0 ; i < share->base.keys ; i++ )
   {
-    if (((ulonglong) 1 << i) & info->s->state.key_map)
+    if (mi_is_key_active(info->s->state.key_map, i))
     {
       info->s->keyinfo[i].version++;
       if (info->s->keyinfo[i].flag & HA_FULLTEXT )
