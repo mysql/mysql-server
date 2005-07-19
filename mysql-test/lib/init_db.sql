@@ -553,7 +553,7 @@ CREATE TABLE proc (
                         'TRADITIONAL',
                         'NO_AUTO_CREATE_USER',
                         'HIGH_NOT_PRECEDENCE'
-                    ) DEFAULT 0 NOT NULL,
+                    ) DEFAULT '' NOT NULL,
   comment           char(64) binary DEFAULT '' NOT NULL,
   PRIMARY KEY (db,name,type)
 ) comment='Stored Procedures';
