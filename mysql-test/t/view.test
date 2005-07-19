@@ -1182,7 +1182,7 @@ create view v1 as select * from t1 where s1 <> 127 with check option;
 insert into v1 values (0);
 select * from v1;
 select * from t1;
-drop trigger t1.t1_bi;
+drop trigger t1_bi;
 drop view v1;
 drop table t1;
 

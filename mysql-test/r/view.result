@@ -1245,7 +1245,7 @@ select * from v1;
 s1
 select * from t1;
 s1
-drop trigger t1.t1_bi;
+drop trigger t1_bi;
 drop view v1;
 drop table t1;
 create table t1 (s1 tinyint);
