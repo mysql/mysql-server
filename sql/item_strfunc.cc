@@ -1552,9 +1552,11 @@ Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
   uint conv_errors;
   String tmp, cstr, *ostr= val_str(&tmp);
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
-                                             cstr.charset(),
-                                             collation.derivation)))
+  if (conv_errors ||
+      !(conv= new Item_static_string_func(fully_qualified_func_name(),
+                                          cstr.ptr(), cstr.length(),
+                                          cstr.charset(),
+                                          collation.derivation)))
   {
     return NULL;
   }
@@ -1584,13 +1586,24 @@ String *Item_func_user::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   THD          *thd=current_thd;
   CHARSET_INFO *cs= system_charset_info;
-  const char   *host= thd->host_or_ip;
+  const char   *host, *user;
   uint		res_length;
 
+  if (is_current)
+  {
+    user= thd->priv_user;
+    host= thd->priv_host;
+  }
+  else
+  {
+    user= thd->user;
+    host= thd->host_or_ip;
+  }
+
   // For system threads (e.g. replication SQL thread) user may be empty
-  if (!thd->user)
+  if (!user)
     return &my_empty_string;
-  res_length= (strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
+  res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
   if (str->alloc(res_length))
   {
@@ -1598,11 +1611,12 @@ String *Item_func_user::val_str(String *str)
     return 0;
   }
   res_length=cs->cset->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",
-			  thd->user, host);
+			        user, host);
   str->length(res_length);
   str->set_charset(cs);
   return str;
 }
+
 
 void Item_func_soundex::fix_length_and_dec()
 {
@@ -2104,7 +2118,7 @@ String *Item_func_rpad::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
-  if(args[2]->null_value || !pad_char_length)
+  if (args[2]->null_value || !pad_char_length)
     goto err;
   res_byte_length= res->length();	/* Must be done before alloc_buffer */
   if (!(res= alloc_buffer(res,str,&tmp_value,byte_count)))

@@ -299,16 +299,8 @@ Item *create_func_pow(Item* a, Item *b)
 
 Item *create_func_current_user()
 {
-  THD *thd=current_thd;
-  char buff[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
-  uint length;
-
-  thd->lex->safe_to_cache_query= 0;
-  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->priv_host, NullS) -
-		  buff);
-  return new Item_static_string_func("current_user()",
-                                     thd->memdup(buff, length), length,
-                                     system_charset_info);
+  current_thd->lex->safe_to_cache_query= 0;
+  return new Item_func_user(TRUE);
 }
 
 Item *create_func_radians(Item *a)

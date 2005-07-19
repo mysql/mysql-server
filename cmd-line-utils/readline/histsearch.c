@@ -75,11 +75,11 @@ history_search_internal (string, direction, anchored)
   if (string == 0 || *string == '\0')
     return (-1);
 
-  if (!history_length || ((i == history_length) && !reverse))
+  if (!history_length || ((i >= history_length) && !reverse))
     return (-1);
 
-  if (reverse && (i == history_length))
-    i--;
+  if (reverse && (i >= history_length))
+    i = history_length - 1;
 
 #define NEXT_LINE() do { if (reverse) i--; else i++; } while (0)
 

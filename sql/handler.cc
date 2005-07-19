@@ -217,19 +217,11 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifndef NO_HASH
   case DB_TYPE_HASH:
     file= new ha_hash(table);
+    break;
 #endif
-#ifdef HAVE_ISAM
-  case DB_TYPE_MRG_ISAM:
-    file= new ha_isammrg(table);
-    break;
-  case DB_TYPE_ISAM:
-    file= new ha_isam(table);
-    break;
-#else
   case DB_TYPE_MRG_ISAM:
     file= new ha_myisammrg(table);
     break;
-#endif
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
     file= new ha_berkeley(table);
@@ -697,6 +689,11 @@ int ha_commit_trans(THD *thd, bool all)
       DBUG_RETURN(1);
     }
     DBUG_EXECUTE_IF("crash_commit_before", abort(););
+
+    /* Close all cursors that can not survive COMMIT */
+    if (is_real_trans)                          /* not a statement commit */
+      thd->stmt_map.close_transient_cursors();
+
     if (!trans->no_2pc && trans->nht > 1)
     {
       for (; *ht && !error; ht++)
@@ -798,6 +795,10 @@ int ha_rollback_trans(THD *thd, bool all)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
+    /* Close all cursors that can not survive ROLLBACK */
+    if (is_real_trans)                          /* not a statement commit */
+      thd->stmt_map.close_transient_cursors();
+
     for (handlerton **ht=trans->ht; *ht; ht++)
     {
       int err;
@@ -2602,6 +2603,7 @@ TYPELIB *ha_known_exts(void)
 
     known_extensions_id= mysys_usage_id;
     found_exts.push_back((char*) triggers_file_ext);
+    found_exts.push_back((char*) trigname_file_ext);
     for (types= sys_table_types; types->type; types++)
     {
       if (*types->value == SHOW_OPTION_YES)

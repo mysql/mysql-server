@@ -31,8 +31,7 @@ class ha_heap: public handler
   uint    records_changed;
   bool    key_stats_ok;
 public:
-  ha_heap(TABLE *table): handler(table), file(0), records_changed(0),
-      key_stats_ok(0) {}
+  ha_heap(TABLE *table);
   ~ha_heap() {}
   const char *table_type() const
   {

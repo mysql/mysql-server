@@ -82,41 +82,40 @@ static int tcap_initialized;
 #  if defined (__EMX__) || defined (NEED_EXTERN_PC)
 extern 
 #  endif /* __EMX__ || NEED_EXTERN_PC */
-char PC;
-char *BC, *UP;
+char PC, *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
-const char *_rl_term_clreol;
-const char *_rl_term_clrpag;
-const char *_rl_term_cr;
-const char *_rl_term_backspace;
-const char *_rl_term_goto;
-const char *_rl_term_pc;
+char *_rl_term_clreol;
+char *_rl_term_clrpag;
+char *_rl_term_cr;
+char *_rl_term_backspace;
+char *_rl_term_goto;
+char *_rl_term_pc;
 
 /* Non-zero if we determine that the terminal can do character insertion. */
 int _rl_terminal_can_insert = 0;
 
 /* How to insert characters. */
-const char *_rl_term_im;
-const char *_rl_term_ei;
-const char *_rl_term_ic;
-const char *_rl_term_ip;
-const char *_rl_term_IC;
+char *_rl_term_im;
+char *_rl_term_ei;
+char *_rl_term_ic;
+char *_rl_term_ip;
+char *_rl_term_IC;
 
 /* How to delete characters. */
-const char *_rl_term_dc;
-const char *_rl_term_DC;
+char *_rl_term_dc;
+char *_rl_term_DC;
 
 #if defined (HACK_TERMCAP_MOTION)
 char *_rl_term_forward_char;
 #endif  /* HACK_TERMCAP_MOTION */
 
 /* How to go up a line. */
-const char *_rl_term_up;
+char *_rl_term_up;
 
 /* A visible bell; char if the terminal can be made to flash the screen. */
-static const char *_rl_visible_bell;
+static char *_rl_visible_bell;
 
 /* Non-zero means the terminal can auto-wrap lines. */
 int _rl_term_autowrap;
@@ -126,30 +125,30 @@ static int term_has_meta;
 
 /* The sequences to write to turn on and off the meta key, if this
    terminal has one. */
-static const char *_rl_term_mm;
-static const char *_rl_term_mo;
+static char *_rl_term_mm;
+static char *_rl_term_mo;
 
 /* The key sequences output by the arrow keys, if this terminal has any. */
-static const char *_rl_term_ku;
-static const char *_rl_term_kd;
-static const char *_rl_term_kr;
-static const char *_rl_term_kl;
+static char *_rl_term_ku;
+static char *_rl_term_kd;
+static char *_rl_term_kr;
+static char *_rl_term_kl;
 
 /* How to initialize and reset the arrow keys, if this terminal has any. */
-static const char *_rl_term_ks;
-static const char *_rl_term_ke;
+static char *_rl_term_ks;
+static char *_rl_term_ke;
 
 /* The key sequences sent by the Home and End keys, if any. */
-static const char *_rl_term_kh;
-static const char *_rl_term_kH;
-static const char *_rl_term_at7;	/* @7 */
+static char *_rl_term_kh;
+static char *_rl_term_kH;
+static char *_rl_term_at7;	/* @7 */
 
 /* Insert key */
-static const char *_rl_term_kI;
+static char *_rl_term_kI;
 
 /* Cursor control */
-static const char *_rl_term_vs;	/* very visible */
-static const char *_rl_term_ve;	/* normal */
+static char *_rl_term_vs;	/* very visible */
+static char *_rl_term_ve;	/* normal */
 
 static void bind_termcap_arrow_keys PARAMS((Keymap));
 
@@ -295,7 +294,7 @@ rl_resize_terminal ()
 
 struct _tc_string {
      const char *tc_var;
-     const char **tc_value;
+     char **tc_value;
 };
 
 /* This should be kept sorted, just in case we decide to change the
@@ -343,14 +342,10 @@ get_term_capabilities (bp)
      char **bp;
 {
 #if !defined (__DJGPP__)	/* XXX - doesn't DJGPP have a termcap library? */
-  register unsigned int i;
+  register int i;
 
   for (i = 0; i < NUM_TC_STRINGS; i++)
-#  if defined(__LCC__) || defined(__MWERKS__)
     *(tc_strings[i].tc_value) = tgetstr ((char *)tc_strings[i].tc_var, bp);
-#  else
-    *(tc_strings[i].tc_value) = tgetstr (tc_strings[i].tc_var, bp);
-#  endif
 #endif
   tcap_initialized = 1;
 }
@@ -432,8 +427,8 @@ _rl_init_terminal_io (terminal_name)
          tgoto if _rl_term_IC or _rl_term_DC is defined, but just in case we
          change that later... */
       PC = '\0';
-      BC = (char*)(_rl_term_backspace = "\b");
-      UP = (char*)_rl_term_up;
+      BC = _rl_term_backspace = "\b";
+      UP = _rl_term_up;
 
       return 0;
     }
@@ -443,8 +438,8 @@ _rl_init_terminal_io (terminal_name)
   /* Set up the variables that the termcap library expects the application
      to provide. */
   PC = _rl_term_pc ? *_rl_term_pc : 0;
-  BC = (char*)_rl_term_backspace;
-  UP = (char*)_rl_term_up;
+  BC = _rl_term_backspace;
+  UP = _rl_term_up;
 
   if (!_rl_term_cr)
     _rl_term_cr = "\r";
@@ -488,22 +483,22 @@ bind_termcap_arrow_keys (map)
   xkeymap = _rl_keymap;
   _rl_keymap = map;
 
-  _rl_bind_if_unbound (_rl_term_ku, rl_get_previous_history);
-  _rl_bind_if_unbound (_rl_term_kd, rl_get_next_history);
-  _rl_bind_if_unbound (_rl_term_kr, rl_forward);
-  _rl_bind_if_unbound (_rl_term_kl, rl_backward);
+  rl_bind_keyseq_if_unbound (_rl_term_ku, rl_get_previous_history);
+  rl_bind_keyseq_if_unbound (_rl_term_kd, rl_get_next_history);
+  rl_bind_keyseq_if_unbound (_rl_term_kr, rl_forward_char);
+  rl_bind_keyseq_if_unbound (_rl_term_kl, rl_backward_char);
 
-  _rl_bind_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
-  _rl_bind_if_unbound (_rl_term_at7, rl_end_of_line);	/* End */
+  rl_bind_keyseq_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
+  rl_bind_keyseq_if_unbound (_rl_term_at7, rl_end_of_line);	/* End */
 
   _rl_keymap = xkeymap;
 }
 
-const char *
+char *
 rl_get_termcap (cap)
      const char *cap;
 {
-  register unsigned int i;
+  register int i;
 
   if (tcap_initialized == 0)
     return ((char *)NULL);

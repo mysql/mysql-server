@@ -475,6 +475,11 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "protocol.h"
 #include "sql_udf.h"
 class user_var_entry;
+enum enum_var_type
+{
+  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
+};
+class sys_var;
 #include "item.h"
 extern my_decimal decimal_zero;
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
@@ -1093,6 +1098,7 @@ extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond;
 extern const char * const triggers_file_ext;
+extern const char * const trigname_file_ext;
 extern Eq_creator eq_creator;
 extern Ne_creator ne_creator;
 extern Gt_creator gt_creator;
@@ -1345,12 +1351,9 @@ extern bool sql_cache_init();
 extern void sql_cache_free();
 extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
-/* item.cc */
+/* item_func.cc */
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component);
-Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
-		     uint length, const char *item_name);
-/* item_func.cc */
 int get_var_with_binlog(THD *thd, LEX_STRING &name,
                         user_var_entry **out_entry);
 /* log.cc */

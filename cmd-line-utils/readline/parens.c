@@ -21,6 +21,10 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
+#if defined (__TANDEM)
+#  include <floss.h>
+#endif
+
 #include "rlconf.h"
 
 #include "config_readline.h"

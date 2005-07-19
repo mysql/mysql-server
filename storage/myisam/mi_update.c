@@ -87,7 +87,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
   changed=0;
   for (i=0 ; i < share->base.keys ; i++)
   {
-    if (((ulonglong) 1 << i) & share->state.key_map)
+    if (mi_is_key_active(share->state.key_map, i))
     {
       if (share->keyinfo[i].flag & HA_FULLTEXT )
       {

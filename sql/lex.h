@@ -510,6 +510,7 @@ static SYMBOL symbols[] = {
   { "TRAILING",		SYM(TRAILING)},
   { "TRANSACTION",	SYM(TRANSACTION_SYM)},
   { "TRIGGER",          SYM(TRIGGER_SYM)},
+  { "TRIGGERS",         SYM(TRIGGERS_SYM)},
   { "TRUE",		SYM(TRUE_SYM)},
   { "TRUNCATE",		SYM(TRUNCATE_SYM)},
   { "TYPE",		SYM(TYPE_SYM)},

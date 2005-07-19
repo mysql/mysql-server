@@ -2206,7 +2206,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
   tmp_mysql.rpl_pivot = mysql->rpl_pivot;
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
-			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
+			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS) ||
+      mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
   {
     mysql->net.last_errno= tmp_mysql.net.last_errno;
     strmov(mysql->net.last_error, tmp_mysql.net.last_error);
@@ -2778,8 +2779,49 @@ uint STDCALL mysql_errno(MYSQL *mysql)
   return mysql->net.last_errno;
 }
 
+
 const char * STDCALL mysql_error(MYSQL *mysql)
 {
   return mysql->net.last_error;
 }
+
+/* 
+   mysql_set_character_set function sends SET NAMES cs_name to
+   the server (which changes character_set_client, character_set_result
+   and character_set_connection) and updates mysql->charset so other
+   functions like mysql_real_escape will work correctly.
+*/
+int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
+{
+  struct charset_info_st *cs;
+  const char *save_csdir= charsets_dir;
+
+  if (mysql->options.charset_dir)
+    charsets_dir= mysql->options.charset_dir;
+
+  if (strlen(cs_name) < MY_CS_NAME_SIZE &&
+     (cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0))))
+  {
+    char buff[MY_CS_NAME_SIZE + 10];
+    charsets_dir= save_csdir;
+    sprintf(buff, "SET NAMES %s", cs_name);
+    if (!mysql_real_query(mysql, buff, strlen(buff)))
+    {
+      mysql->charset= cs;
+    }
+  }
+  else
+  {
+    char cs_dir_name[FN_REFLEN];
+    get_charsets_dir(cs_dir_name);
+    mysql->net.last_errno= CR_CANT_READ_CHARSET;
+    strmov(mysql->net.sqlstate, unknown_sqlstate);
+    my_snprintf(mysql->net.last_error, sizeof(mysql->net.last_error) - 1,
+		ER(mysql->net.last_errno), cs_name, cs_dir_name);
+
+  }
+  charsets_dir= save_csdir;
+  return mysql->net.last_errno;
+}
+
 

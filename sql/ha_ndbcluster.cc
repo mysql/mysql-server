@@ -63,7 +63,8 @@ static handlerton ndbcluster_hton = {
   NULL, /* prepare */
   NULL, /* recover */
   NULL, /* commit_by_xid */
-  NULL  /* rollback_by_xid */
+  NULL, /* rollback_by_xid */
+  HTON_NO_FLAGS
 };
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
@@ -4091,7 +4092,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
  */
 
 ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
-  handler(table_arg),
+  handler(&ndbcluster_hton, table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_table(NULL),
@@ -5372,7 +5373,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     Uint64 sum_commits= 0;
     Uint64 sum_row_size= 0;
     Uint64 sum_mem= 0;
-    while((check= pOp->nextResult(TRUE, TRUE)) == 0)
+    while ((check= pOp->nextResult(TRUE, TRUE)) == 0)
     {
       sum_rows+= rows;
       sum_commits+= commits;
@@ -5400,7 +5401,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
                         sum_mem, count));
 
     DBUG_RETURN(0);
-  } while(0);
+  } while (0);
 
   if (pTrans)
     ndb->closeTransaction(pTrans);

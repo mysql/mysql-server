@@ -1194,7 +1194,7 @@ JOIN::exec()
     {
       result->send_fields(fields_list,
                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-      if (!having || having->val_int())
+      if (cond_value != Item::COND_FALSE && (!having || having->val_int()))
       {
 	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
                                           procedure->end_of_records())
@@ -1714,10 +1714,12 @@ JOIN::destroy()
 
 Cursor::Cursor(THD *thd)
   :Query_arena(&main_mem_root, INITIALIZED),
-   join(0), unit(0)
+   join(0), unit(0),
+   close_at_commit(FALSE)
 {
   /* We will overwrite it at open anyway. */
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+  thr_lock_owner_init(&lock_id, &thd->lock_info);
 }
 
 
@@ -1751,6 +1753,21 @@ Cursor::init_from_thd(THD *thd)
   free_list=	  thd->free_list;
   change_list=    thd->change_list;
   reset_thd(thd);
+  /* Now we have an active cursor and can cause a deadlock */
+  thd->lock_info.n_cursors++;
+
+  close_at_commit= FALSE; /* reset in case we're reusing the cursor */
+  for (TABLE *table= open_tables; table; table= table->next)
+  {
+    const handlerton *ht= table->file->ht;
+    if (ht)
+      close_at_commit|= (ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
+    else
+    {
+      close_at_commit= TRUE;     /* handler status is unknown */
+      break;
+    }
+  }
   /*
     XXX: thd->locked_tables is not changed.
     What problems can we have with it if cursor is open?
@@ -1919,6 +1936,7 @@ Cursor::close(bool is_active)
     thd->derived_tables= tmp_derived_tables;
     thd->lock= tmp_lock;
   }
+  thd->lock_info.n_cursors--; /* Decrease the number of active cursors */
   join= 0;
   unit= 0;
   free_items();
@@ -2846,11 +2864,11 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
         cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	     !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
         values--;
+      DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
+                  cond_func->argument_count() != 2);
       add_key_equal_fields(key_fields, *and_level, cond_func,
                            (Item_field*) (cond_func->key_item()->real_item()),
-                           cond_func->argument_count() == 2 &&
-                           cond_func->functype() == Item_func::IN_FUNC,
-                           values,
+                           0, values,
                            cond_func->argument_count()-1,
                            usable_tables);
     }
@@ -5150,7 +5168,23 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
       (where othertbl is a non-const table and othertbl.field may be NULL)
       and add them to conditions on correspoding tables (othertbl in this
       example).
-      
+
+      Exception from that is the case when referred_tab->join != join.
+      I.e. don't add NOT NULL constraints from any embedded subquery.
+      Consider this query:
+      SELECT A.f2 FROM t1 LEFT JOIN t2 A ON A.f2 = f1
+      WHERE A.f3=(SELECT MIN(f3) FROM  t2 C WHERE A.f4 = C.f4) OR A.f3 IS NULL;
+      Here condition A.f3 IS NOT NULL is going to be added to the WHERE
+      condition of the embedding query.
+      Another example:
+      SELECT * FROM t10, t11 WHERE (t10.a < 10 OR t10.a IS NULL)
+      AND t11.b <=> t10.b AND (t11.a = (SELECT MAX(a) FROM t12
+      WHERE t12.b = t10.a ));
+      Here condition t10.a IS NOT NULL is going to be added.
+      In both cases addition of NOT NULL condition will erroneously reject
+      some rows of the result set.
+      referred_tab->join != join constraint would disallow such additions.
+
       This optimization doesn't affect the choices that ref, range, or join
       optimizer make. This was intentional because this was added after 4.1
       was GA.
@@ -5181,6 +5215,13 @@ static void add_not_null_conds(JOIN *join)
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
+          /*
+            For UPDATE queries such as:
+            UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
+            not_null_item is the t1.f1, but it's referred_tab is 0.
+          */
+          if (!referred_tab || referred_tab->join != join)
+            continue;
           Item *notnull;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
@@ -6712,7 +6753,7 @@ static COND *build_equal_items_for_cond(COND *cond,
        of the condition expression.
     */
     li.rewind();
-    while((item= li++))
+    while ((item= li++))
     { 
       Item *new_item;
       if ((new_item = build_equal_items_for_cond(item, inherited))!= item)
@@ -7521,7 +7562,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     
   /* Flatten nested joins that can be flattened. */
   li.rewind();
-  while((table= li++))
+  while ((table= li++))
   {
     nested_join= table->nested_join;
     if (nested_join && !table->on_expr)
@@ -12134,7 +12175,6 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
   List_iterator<Item> li(fields);
   Item *item;
   ORDER *order,*group,**prev;
-  uint index= 0;
 
   *all_order_by_fields_used= 1;
   while ((item=li++))
@@ -12171,12 +12211,12 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
         simple indexing of ref_pointer_array (order in the array and in the
         list are same)
       */
-      ord->item= ref_pointer_array + index;
+      ord->item= ref_pointer_array;
       ord->asc=1;
       *prev=ord;
       prev= &ord->next;
     }
-    index++;
+    ref_pointer_array++;
   }
   *prev=0;
   return group;
@@ -13005,7 +13045,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
           if (item->eq(*group_tmp->item,0))
           {
             Item *new_item;
-            if(!(new_item= new Item_ref(context, group_tmp->item, 0,
+            if (!(new_item= new Item_ref(context, group_tmp->item, 0,
                                         item->name)))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);
@@ -13075,7 +13115,7 @@ bool JOIN::rollup_init()
     ORDER *group_tmp;
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
-      if (item->eq(*group_tmp->item,0))
+      if (*group_tmp->item == item)
         item->maybe_null= 1;
     }
     if (item->type() == Item::FUNC_ITEM)
@@ -13195,7 +13235,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
-          if (item->eq(*group_tmp->item,0))
+          if (*group_tmp->item == item)
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be
