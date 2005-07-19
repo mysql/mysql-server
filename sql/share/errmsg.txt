@@ -5370,3 +5370,5 @@ ER_SCALE_BIGGER_THAN_PRECISION 42000 S1009
         eng "Scale may not be larger than the precision (column '%-.64s')."
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system '%-.64s.%-.64s' table with other tables"
+ER_TRG_IN_WRONG_SCHEMA  
+	eng "Trigger in wrong schema"
