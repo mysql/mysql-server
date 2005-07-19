@@ -28,9 +28,7 @@ class ha_blackhole: public handler
   THR_LOCK thr_lock;
 
 public:
-  ha_blackhole(TABLE *table): handler(table)
-  {
-  }
+  ha_blackhole(TABLE *table_arg);
   ~ha_blackhole()
   {
   }

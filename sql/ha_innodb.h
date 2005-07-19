@@ -81,19 +81,7 @@ class ha_innobase: public handler
 
 	/* Init values for the class: */
  public:
-  	ha_innobase(TABLE *table): handler(table),
-	  int_table_flags(HA_REC_NOT_IN_SEQ |
-			  HA_NULL_IN_KEY |
-			  HA_CAN_INDEX_BLOBS |
-			  HA_CAN_SQL_HANDLER |
-			  HA_NOT_EXACT_COUNT |
-			  HA_PRIMARY_KEY_IN_READ_INDEX |
-			  HA_TABLE_SCAN_ON_INDEX),
-	  last_dup_key((uint) -1),
-	  start_of_scan(0),
-	  num_write_row(0)
-  	{
-  	}
+  	ha_innobase(TABLE *table_arg);
   	~ha_innobase() {}
 	/*
 	  Get the row type from the storage engine.  If this method returns

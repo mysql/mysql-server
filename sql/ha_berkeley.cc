@@ -120,7 +120,8 @@ static handlerton berkeley_hton = {
   NULL, /* prepare */
   NULL, /* recover */
   NULL, /* commit_by_xid */
-  NULL /* rollback_by_xid */
+  NULL, /* rollback_by_xid */
+  HTON_CLOSE_CURSORS_AT_COMMIT
 };
 
 typedef struct st_berkeley_trx_data {
@@ -372,6 +373,17 @@ void berkeley_cleanup_log_files(void)
 /*****************************************************************************
 ** Berkeley DB tables
 *****************************************************************************/
+
+ha_berkeley::ha_berkeley(TABLE *table_arg)
+  :handler(&berkeley_hton, table_arg), alloc_ptr(0), rec_buff(0), file(0),
+  int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ |
+                  HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_NOT_EXACT_COUNT |
+                  HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED |
+                  HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
+  changed_rows(0), last_dup_key((uint) -1), version(0), using_ignore(0)
+{}
+
+
 static const char *ha_berkeley_exts[] = {
   ha_berkeley_ext,
   NullS

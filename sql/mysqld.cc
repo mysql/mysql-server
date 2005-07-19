@@ -4342,7 +4342,8 @@ enum options_mysqld
   OPT_ENABLE_LARGE_PAGES,
   OPT_TIMED_MUTEXES,
   OPT_OLD_STYLE_USER_LIMITS,
-  OPT_LOG_SLOW_ADMIN_STATEMENTS
+  OPT_LOG_SLOW_ADMIN_STATEMENTS,
+  OPT_TABLE_LOCK_WAIT_TIMEOUT
 };
 
 
@@ -5595,6 +5596,11 @@ The minimum value for this variable is 4096.",
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
    (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
    0, 1, 0},
+  {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT, "Timeout in "
+    "seconds to wait for a table level lock before returning an error. Used"
+     " only if the connection has active cursors.",
+   (gptr*) &table_lock_wait_timeout, (gptr*) &table_lock_wait_timeout,
+   0, GET_ULONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
   {"thread_cache_size", OPT_THREAD_CACHE_SIZE,
    "How many threads we should keep in a cache for reuse.",
    (gptr*) &thread_cache_size, (gptr*) &thread_cache_size, 0, GET_ULONG,
@@ -7083,4 +7089,6 @@ template class I_List_iterator<THD>;
 template class I_List<i_string>;
 template class I_List<i_string_pair>;
 template class I_List<NAMED_LIST>;
+template class I_List<Statement>;
+template class I_List_iterator<Statement>;
 #endif
