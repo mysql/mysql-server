@@ -208,15 +208,8 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_HASH:
     return new ha_hash(table);
 #endif
-#ifdef HAVE_ISAM
-  case DB_TYPE_MRG_ISAM:
-    return new ha_isammrg(table);
-  case DB_TYPE_ISAM:
-    return new ha_isam(table);
-#else
   case DB_TYPE_MRG_ISAM:
     return new ha_myisammrg(table);
-#endif
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
     return new ha_berkeley(table);
@@ -634,6 +627,11 @@ int ha_commit_trans(THD *thd, bool all)
       DBUG_RETURN(1);
     }
     DBUG_EXECUTE_IF("crash_commit_before", abort(););
+
+    /* Close all cursors that can not survive COMMIT */
+    if (is_real_trans)                          /* not a statement commit */
+      thd->stmt_map.close_transient_cursors();
+
     if (!trans->no_2pc && trans->nht > 1)
     {
       for (; *ht && !error; ht++)
@@ -735,6 +733,10 @@ int ha_rollback_trans(THD *thd, bool all)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
+    /* Close all cursors that can not survive ROLLBACK */
+    if (is_real_trans)                          /* not a statement commit */
+      thd->stmt_map.close_transient_cursors();
+
     for (handlerton **ht=trans->ht; *ht; ht++)
     {
       int err;

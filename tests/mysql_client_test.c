@@ -55,6 +55,7 @@ static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int iter_count= 0;
+static my_bool have_innodb= FALSE;
 
 static const char *opt_basedir= "./";
 
@@ -220,6 +221,28 @@ static void print_st_error(MYSQL_STMT *stmt, const char *msg)
   }
 }
 
+/* Check if the connection has InnoDB tables */
+
+static my_bool check_have_innodb(MYSQL *conn)
+{
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  int rc;
+  my_bool result;
+
+  rc= mysql_query(conn, "show variables like 'have_innodb'");
+  myquery(rc);
+  res= mysql_use_result(conn);
+  DIE_UNLESS(res);
+
+  row= mysql_fetch_row(res);
+  DIE_UNLESS(row);
+
+  result= strcmp(row[1], "YES") == 0;
+  mysql_free_result(res);
+  return result;
+}
+
 
 /*
   This is to be what mysql_query() is for mysql_real_query(), for
@@ -290,6 +313,7 @@ static void client_connect(ulong flag)
   strxmov(query, "USE ", current_db, NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
+  have_innodb= check_have_innodb(mysql);
 
   if (!opt_silent)
     fprintf(stdout, " OK");
@@ -13749,6 +13773,110 @@ static void test_bug11037()
   myquery(rc);
 }
 
+/* Bug#10760: cursors, crash in a fetch after rollback. */
+
+static void test_bug10760()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  int rc;
+  const char *stmt_text;
+  char id_buf[20];
+  ulong id_len;
+  int i= 0;
+  ulong type;
+
+  myheader("test_bug10760");
+
+  mysql_query(mysql, "drop table if exists t1, t2");
+
+  /* create tables */
+  rc= mysql_query(mysql, "create table t1 (id integer not null primary key)"
+                         " engine=MyISAM");
+  myquery(rc);
+  for (; i < 42; ++i)
+  {
+    char buf[100];
+    sprintf(buf, "insert into t1 (id) values (%d)", i+1);
+    rc= mysql_query(mysql, buf);
+    myquery(rc);
+  }
+  mysql_autocommit(mysql, FALSE);
+  /* create statement */
+  stmt= mysql_stmt_init(mysql);
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+
+  /*
+    1: check that a deadlock within the same connection
+    is resolved and an error is returned. The deadlock is modelled
+    as follows:
+    con1: open cursor for select * from t1;
+    con1: insert into t1 (id) values (1)
+  */
+  stmt_text= "select id from t1 order by 1";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  rc= mysql_query(mysql, "update t1 set id=id+100");
+  DIE_UNLESS(rc);
+  if (!opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(mysql));
+  /*
+    2: check that MyISAM tables used in cursors survive
+    COMMIT/ROLLBACK.
+  */
+  rc= mysql_rollback(mysql);                  /* should not close the cursor */
+  myquery(rc);
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  /*
+    3: check that cursors to InnoDB tables are closed (for now) by
+    COMMIT/ROLLBACK.
+  */
+  if (! have_innodb)
+  {
+    if (!opt_silent)
+      printf("Testing that cursors are closed at COMMIT/ROLLBACK requires "
+             "InnoDB.\n");
+  }
+  else
+  {
+    stmt_text= "select id from t1 order by 1";
+    rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+    check_execute(stmt, rc);
+
+    rc= mysql_query(mysql, "alter table t1 engine=InnoDB");
+    myquery(rc);
+
+    bzero(bind, sizeof(bind));
+    bind[0].buffer_type= MYSQL_TYPE_STRING;
+    bind[0].buffer= (void*) id_buf;
+    bind[0].buffer_length= sizeof(id_buf);
+    bind[0].length= &id_len;
+    check_execute(stmt, rc);
+    mysql_stmt_bind_result(stmt, bind);
+
+    rc= mysql_stmt_execute(stmt);
+    rc= mysql_stmt_fetch(stmt);
+    DIE_UNLESS(rc == 0);
+    if (!opt_silent)
+      printf("Fetched row %s\n", id_buf);
+    rc= mysql_rollback(mysql);                  /* should close the cursor */
+    myquery(rc);
+    rc= mysql_stmt_fetch(stmt);
+    DIE_UNLESS(rc);
+    if (!opt_silent)
+      printf("Got error (as expected): %s\n", mysql_error(mysql));
+  }
+
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+  mysql_autocommit(mysql, TRUE);                /* restore default */
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -13994,6 +14122,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
   { "test_bug11037", test_bug11037 },
+  { "test_bug10760", test_bug10760 },
   { 0, 0 }
 };
 

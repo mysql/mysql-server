@@ -62,7 +62,8 @@ static handlerton ndbcluster_hton = {
   NULL, /* prepare */
   NULL, /* recover */
   NULL, /* commit_by_xid */
-  NULL  /* rollback_by_xid */
+  NULL, /* rollback_by_xid */
+  HTON_NO_FLAGS
 };
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
@@ -4174,7 +4175,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
  */
 
 ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
-  handler(table_arg),
+  handler(&ndbcluster_hton, table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_table(NULL),

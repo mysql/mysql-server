@@ -72,6 +72,24 @@
 #ifdef HAVE_EXAMPLE_DB
 #include "ha_example.h"
 
+
+static handlerton example_hton= {
+  "CSV",
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* release savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0,       /* rollback_by_xid */
+  HTON_NO_FLAGS
+};
+
 /* Variables for example share methods */
 static HASH example_open_tables; // Hash used to track open tables
 pthread_mutex_t example_mutex;   // This is the mutex we use to init the hash
@@ -178,6 +196,10 @@ static int free_share(EXAMPLE_SHARE *share)
   return 0;
 }
 
+
+ha_example::ha_example(TABLE *table_arg)
+  :handler(&example_hton, table_arg)
+{}
 
 /*
   If frm_error() is called then we will use this to to find out what file extentions

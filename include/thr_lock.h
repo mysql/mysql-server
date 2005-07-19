@@ -62,17 +62,45 @@ enum thr_lock_type { TL_IGNORE=-1,
 		     /* Abort new lock request with an error */
 		     TL_WRITE_ONLY};
 
+enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
+                            THR_LOCK_WAIT_TIMEOUT= 2, THR_LOCK_DEADLOCK= 3 };
+
+
 extern ulong max_write_lock_count;
+extern ulong table_lock_wait_timeout;
 extern my_bool thr_lock_inited;
 extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 
-typedef struct st_thr_lock_data {
+/*
+  A description of the thread which owns the lock. The address
+  of an instance of this structure is used to uniquely identify the thread.
+*/
+
+typedef struct st_thr_lock_info
+{
   pthread_t thread;
+  ulong thread_id;
+  ulong n_cursors;
+} THR_LOCK_INFO;
+
+/*
+  Lock owner identifier. Globally identifies the lock owner within the
+  thread and among all the threads. The address of an instance of this
+  structure is used as id.
+*/
+
+typedef struct st_thr_lock_owner
+{
+  THR_LOCK_INFO *info;
+} THR_LOCK_OWNER;
+
+
+typedef struct st_thr_lock_data {
+  THR_LOCK_OWNER *owner;
   struct st_thr_lock_data *next,**prev;
   struct st_thr_lock *lock;
   pthread_cond_t *cond;
   enum thr_lock_type type;
-  ulong thread_id;
   void *status_param;			/* Param to status functions */
   void *debug_print_param;
 } THR_LOCK_DATA;
@@ -102,13 +130,18 @@ extern LIST *thr_lock_thread_list;
 extern pthread_mutex_t THR_LOCK_lock;
 
 my_bool init_thr_lock(void);		/* Must be called once/thread */
+#define thr_lock_owner_init(owner, info_arg) (owner)->info= (info_arg)
+void thr_lock_info_init(THR_LOCK_INFO *info);
 void thr_lock_init(THR_LOCK *lock);
 void thr_lock_delete(THR_LOCK *lock);
 void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
 			void *status_param);
-int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type);
+enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
+                                   THR_LOCK_OWNER *owner,
+                                   enum thr_lock_type lock_type);
 void thr_unlock(THR_LOCK_DATA *data);
-int thr_multi_lock(THR_LOCK_DATA **data,uint count);
+enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
+                                         uint count, THR_LOCK_OWNER *owner);
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
 void thr_abort_locks(THR_LOCK *lock);
 void thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread);

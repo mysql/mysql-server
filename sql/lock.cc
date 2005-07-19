@@ -103,6 +103,10 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
 {
   MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
+  int rc;
+  /* Map the return value of thr_lock to an error from errmsg.txt */
+  const static int thr_lock_errno_to_mysql[]=
+  { 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
   DBUG_ENTER("mysql_lock_tables");
 
   for (;;)
@@ -135,15 +139,24 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
     {
       my_free((gptr) sql_lock,MYF(0));
       sql_lock=0;
-      thd->proc_info=0;
       break;
     }
     thd->proc_info="Table lock";
     thd->locked=1;
-    if (thr_multi_lock(sql_lock->locks,sql_lock->lock_count))
+    rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks,
+                                                     sql_lock->lock_count,
+                                                     thd->lock_id)];
+    if (rc > 1)                                 /* a timeout or a deadlock */
+    {
+      my_error(rc, MYF(0));
+      my_free((gptr) sql_lock,MYF(0));
+      sql_lock= 0;
+      break;
+    }
+    else if (rc == 1)                           /* aborted */
     {
       thd->some_tables_deleted=1;		// Try again
-      sql_lock->lock_count=0;			// Locks are alread freed
+      sql_lock->lock_count= 0;                  // Locks are already freed
     }
     else if (!thd->some_tables_deleted || (flags & MYSQL_LOCK_IGNORE_FLUSH))
     {

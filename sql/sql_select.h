@@ -392,6 +392,8 @@ class Cursor: public Sql_alloc, public Query_arena
 public:
   Item_change_list change_list;
   select_send result;
+  THR_LOCK_OWNER lock_id;
+  my_bool close_at_commit;
 
   /* Temporary implementation as now we replace THD state by value */
   /* Save THD state into cursor */
