@@ -157,6 +157,8 @@ select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 show create procedure sel2;
 show create function sub1;
 show create function sub2;
+--replace_column 5 # 6 #
+show function status like "sub2";
 connection default;
 disconnect user1;
 drop function sub2;
