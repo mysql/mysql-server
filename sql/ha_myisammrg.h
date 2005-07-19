@@ -28,7 +28,7 @@ class ha_myisammrg: public handler
   MYRG_INFO *file;
 
  public:
-  ha_myisammrg(TABLE *table): handler(table), file(0) {}
+  ha_myisammrg(TABLE *table_arg);
   ~ha_myisammrg() {}
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
