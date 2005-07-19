@@ -1555,7 +1555,7 @@ void Item_func_date_format::fix_length_and_dec()
   {
     fixed_length=0;
     /* The result is a binary string (no reason to use collation->mbmaxlen */
-    max_length=args[1]->max_length*10;
+    max_length=min(args[1]->max_length,MAX_BLOB_WIDTH) * 10;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
   maybe_null=1;					// If wrong date

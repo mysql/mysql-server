@@ -2153,7 +2153,14 @@ SELECT K2C4, K4N4, F2I4 FROM t1
   WHERE  K2C4 = 'WART' AND 
         (F2I4 = 2 AND K2C4 = 'WART' OR (F2I4 = 2 OR K4N4 = '0200'));
 
+select found_rows();
 SELECT K2C4, K4N4, F2I4 FROM t1
+select count(*) from t1;
+select found_rows();
+select count(*) from t1 limit 2,3;
+select found_rows();
+select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
+select found_rows();
   WHERE  K2C4 = 'WART' AND (K2C4 = 'WART' OR K4N4 = '0200');
 
 DROP TABLE t1;
