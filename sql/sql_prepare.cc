@@ -2020,6 +2020,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
       stmt->lex->result= &cursor->result;
+      thd->lock_id= &cursor->lock_id;
     }
   }
 #ifndef EMBEDDED_LIBRARY
@@ -2069,6 +2070,9 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
       Cursor::open is buried deep in JOIN::exec of the top level join.
     */
     cursor->init_from_thd(thd);
+
+    if (cursor->close_at_commit)
+      thd->stmt_map.add_transient_cursor(stmt);
   }
   else
   {
@@ -2078,6 +2082,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   }
 
   thd->set_statement(&stmt_backup);
+  thd->lock_id= &thd->main_lock_id;
   thd->current_arena= thd;
   DBUG_VOID_RETURN;
 
@@ -2252,6 +2257,8 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
       the previous calls.
     */
     free_root(cursor->mem_root, MYF(0));
+    if (cursor->close_at_commit)
+      thd->stmt_map.erase_transient_cursor(stmt);
   }
 
   thd->restore_backup_statement(stmt, &stmt_backup);
@@ -2291,14 +2298,6 @@ void mysql_stmt_reset(THD *thd, char *packet)
     DBUG_VOID_RETURN;
 
   stmt->close_cursor();                    /* will reset statement params */
-  cursor= stmt->cursor;
-  if (cursor && cursor->is_open())
-  {
-    thd->change_list= cursor->change_list;
-    cursor->close(FALSE);
-    cleanup_stmt_and_thd_after_use(stmt, thd);
-    free_root(cursor->mem_root, MYF(0));
-  }
 
   stmt->state= Query_arena::PREPARED;
 
@@ -2478,6 +2477,8 @@ void Prepared_statement::close_cursor()
     cursor->close(FALSE);
     cleanup_stmt_and_thd_after_use(this, thd);
     free_root(cursor->mem_root, MYF(0));
+    if (cursor->close_at_commit)
+      thd->stmt_map.erase_transient_cursor(this);
   }
   /*
     Clear parameters from data which could be set by

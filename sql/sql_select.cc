@@ -1702,10 +1702,12 @@ JOIN::destroy()
 
 Cursor::Cursor(THD *thd)
   :Query_arena(&main_mem_root, INITIALIZED),
-   join(0), unit(0)
+   join(0), unit(0),
+   close_at_commit(FALSE)
 {
   /* We will overwrite it at open anyway. */
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+  thr_lock_owner_init(&lock_id, &thd->lock_info);
 }
 
 
@@ -1739,6 +1741,21 @@ Cursor::init_from_thd(THD *thd)
   free_list=	  thd->free_list;
   change_list=    thd->change_list;
   reset_thd(thd);
+  /* Now we have an active cursor and can cause a deadlock */
+  thd->lock_info.n_cursors++;
+
+  close_at_commit= FALSE; /* reset in case we're reusing the cursor */
+  for (TABLE *table= open_tables; table; table= table->next)
+  {
+    const handlerton *ht= table->file->ht;
+    if (ht)
+      close_at_commit|= (ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
+    else
+    {
+      close_at_commit= TRUE;     /* handler status is unknown */
+      break;
+    }
+  }
   /*
     XXX: thd->locked_tables is not changed.
     What problems can we have with it if cursor is open?
@@ -1907,6 +1924,7 @@ Cursor::close(bool is_active)
     thd->derived_tables= tmp_derived_tables;
     thd->lock= tmp_lock;
   }
+  thd->lock_info.n_cursors--; /* Decrease the number of active cursors */
   join= 0;
   unit= 0;
   free_items();
