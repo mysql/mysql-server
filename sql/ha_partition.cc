@@ -67,8 +67,25 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
                 MODULE create/delete handler object
 ****************************************************************************/
 
+static handlerton partition_hton = {
+  "partition",
+  0, /* slot */
+  0, /* savepoint size */
+  NULL /*ndbcluster_close_connection*/,
+  NULL, /* savepoint_set */
+  NULL, /* savepoint_rollback */
+  NULL, /* savepoint_release */
+  NULL /*ndbcluster_commit*/,
+  NULL /*ndbcluster_rollback*/,
+  NULL, /* prepare */
+  NULL, /* recover */
+  NULL, /* commit_by_xid */
+  NULL, /* rollback_by_xid */
+  HTON_NO_FLAGS
+};
+
 ha_partition::ha_partition(TABLE *table)
-  :handler(table), m_part_info(NULL), m_create_handler(FALSE),
+  :handler(&partition_hton, table), m_part_info(NULL), m_create_handler(FALSE),
    m_is_sub_partitioned(0)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
@@ -86,7 +103,7 @@ ha_partition::ha_partition(TABLE *table)
 
 
 ha_partition::ha_partition(partition_info *part_info)
-  :handler(NULL), m_part_info(part_info), m_create_handler(TRUE),
+  :handler(&partition_hton, NULL), m_part_info(part_info), m_create_handler(TRUE),
    m_is_sub_partitioned(is_sub_partitioned(m_part_info))
 
 {

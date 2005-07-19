@@ -351,11 +351,12 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
 void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit)
 {
   uchar use_byte= use_bit ? 0xff : 0;
-  uchar *to= map->bitmap + from_byte;
-  uchar *end= map->bitmap + map->bitmap_size;
+  uchar *to= (uchar *)map->bitmap + from_byte;
+  uchar *end= (uchar *)map->bitmap + (map->n_bits+7)/8;
 
   while (to < end)
     *to++= use_byte;
+  *map->last_word_ptr|= map->last_word_mask; /*Set last bits again*/
 }
 
 
