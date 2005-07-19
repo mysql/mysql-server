@@ -2151,7 +2151,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       sel= new SELECT_LEX();
       sel->init_query();
-      if(!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
+      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
                                  (List<String> *) 0, (List<String> *) 0))
         DBUG_RETURN(1);
       lex->query_tables_last= query_tables_last;
@@ -2304,7 +2304,8 @@ mysql_execute_command(THD *thd)
     Don't reset warnings when executing a stored routine.
   */
   if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->sroutines.records) && !thd->spcont)
+       lex->sroutines.records) && !thd->spcont ||
+      lex->time_zone_tables_used)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
@@ -6843,7 +6844,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list)
+  if (&lex->select_lex != lex->all_selects_list || lex->time_zone_tables_used)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)

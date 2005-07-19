@@ -685,7 +685,13 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    tmp->killed= THD::KILL_CONNECTION;
+    /*
+      Re: bug 7403 - close_connection will be called mulitple times
+      a wholesale clean up of our network code is a very large project.
+      This will wake up the socket on Windows and prevent the printing of
+      the error message that we are force closing a connection.
+    */
+    close_connection(tmp, 0, 0);
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -882,7 +888,7 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_end();
 
 #ifdef __NETWARE__
-  if(!event_flag)
+  if (!event_flag)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 

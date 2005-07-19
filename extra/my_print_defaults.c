@@ -1,3 +1,4 @@
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -23,7 +24,9 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include <m_string.h>
 #include <my_getopt.h>
+
 
 const char *config_file="my";			/* Default config file */
 uint verbose= 0, opt_defaults_file_used= 0;
@@ -48,6 +51,10 @@ static struct my_option my_long_options[] =
    "Read this file after the global /etc config file and before the config file in the users home directory.",
    (gptr*) &defaults_extra_file, (gptr*) &defaults_extra_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"defaults-group-suffix", 'g',
+   "In addition to the given groups, read also groups with this suffix",
+   (gptr*) &defaults_group_suffix, (gptr*) &defaults_group_suffix,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extra-file", 'e',
    "Synonym for --defaults-extra-file.",
    (gptr*) &defaults_extra_file, (gptr*) &defaults_extra_file, 0, GET_STR,
@@ -127,37 +134,32 @@ static int get_options(int *argc,char ***argv)
   return 0;
 }
 
+
 int main(int argc, char **argv)
 {
-  int count, error;
-  char **load_default_groups, *tmp_arguments[3],
-       **argument, **arguments;
-  char *defaults, *extra_defaults;
+  int count, error, args_used;
+  char **load_default_groups, *tmp_arguments[6];
+  char **argument, **arguments, **org_argv;
+  char *defaults, *extra_defaults, *group_suffix;
   MY_INIT(argv[0]);
 
-  get_defaults_files(argc, argv, &defaults, &extra_defaults);
+  org_argv= argv;
+  args_used= get_defaults_options(argc, argv, &defaults, &extra_defaults,
+                                  &group_suffix);
 
-  /*
-  ** Check out the args
-  */
-  if (!(load_default_groups=(char**) my_malloc((argc+2)*sizeof(char*),
+  /* Copy defaults-xxx arguments & program name */
+  count=args_used+1;
+  arguments= tmp_arguments;
+  memcpy((char*) arguments, (char*) org_argv, count * sizeof(*org_argv));
+  arguments[count]= 0;
+
+  /* Check out the args */
+  if (!(load_default_groups=(char**) my_malloc((argc+1)*sizeof(char*),
 					       MYF(MY_WME))))
     exit(1);
   if (get_options(&argc,&argv))
     exit(1);
-
-  for (count=0; *argv ; argv++,count++)
-    load_default_groups[count]= *argv;
-  load_default_groups[count]=0;
-
-  count=0;
-  arguments=tmp_arguments;
-  arguments[count++]=my_progname;
-  if (extra_defaults)
-    arguments[count++]= extra_defaults;
-  if (defaults)
-    arguments[count++]= defaults;
-  arguments[count]= 0;
+  memcpy((char*) load_default_groups, (char*) argv, (argc + 1) * sizeof(*argv));
 
   if ((error= load_defaults(config_file, (const char **) load_default_groups,
 			   &count, &arguments)))

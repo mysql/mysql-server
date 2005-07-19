@@ -266,3 +266,13 @@ EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
 
 DROP VIEW v1;
 DROP TABLE t1;
+# Test for bug #11543: ROLLUP query with a repeated column in GROUP BY 
+#
+
+CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (1, 2);
+
+SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
+
+DROP TABLE t1;
