@@ -1,6 +1,6 @@
 /* text.c -- text handling commands for readline. */
 
-/* Copyright (C) 1987-2002 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -168,6 +168,9 @@ _rl_fix_point (fix_mark_too)
 }
 #undef _RL_FIX_POINT
 
+/* Replace the contents of the line buffer between START and END with
+   TEXT.  The operation is undoable.  To replace the entire line in an
+   undoable mode, use _rl_replace_text(text, 0, rl_end); */
 int
 _rl_replace_text (text, start, end)
      const char *text;
@@ -400,7 +403,7 @@ rl_backward (count, key)
 /* Move to the beginning of the line. */
 int
 rl_beg_of_line (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   rl_point = 0;
   return 0;
@@ -409,7 +412,7 @@ rl_beg_of_line (count, key)
 /* Move to the end of the line. */
 int
 rl_end_of_line (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   rl_point = rl_end;
   return 0;
@@ -506,7 +509,7 @@ rl_backward_word (count, key)
 /* Clear the current line.  Numeric argument to C-l does this. */
 int
 rl_refresh_line (ignore1, ignore2)
-     int ignore1 __attribute__((unused)), ignore2 __attribute__((unused));
+     int ignore1, ignore2;
 {
   int curr_line;
 
@@ -545,7 +548,7 @@ rl_clear_screen (count, key)
 
 int
 rl_arrow_keys (count, c)
-     int count, c __attribute__((unused));
+     int count, c;
 {
   int ch;
 
@@ -799,13 +802,10 @@ _rl_overwrite_char (count, c)
     k = _rl_read_mbstring (c, mbkey, MB_LEN_MAX);
 #endif
 
+  rl_begin_undo_group ();
+
   for (i = 0; i < count; i++)
     {
-      rl_begin_undo_group ();
-
-      if (rl_point < rl_end)
-	rl_delete (1, c);
-
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	rl_insert_text (mbkey);
@@ -813,8 +813,11 @@ _rl_overwrite_char (count, c)
 #endif
 	_rl_insert_char (1, c);
 
-      rl_end_undo_group ();
+      if (rl_point < rl_end)
+	rl_delete (1, c);
     }
+
+  rl_end_undo_group ();
 
   return 0;
 }
@@ -830,7 +833,7 @@ rl_insert (count, c)
 /* Insert the next typed character verbatim. */
 int
 rl_quoted_insert (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   int c;
 
@@ -852,7 +855,7 @@ rl_quoted_insert (count, key)
 /* Insert a tab character. */
 int
 rl_tab_insert (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   return (_rl_insert_char (count, '\t'));
 }
@@ -862,7 +865,7 @@ rl_tab_insert (count, key)
    meaning in the future. */
 int
 rl_newline (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   rl_done = 1;
 
@@ -875,7 +878,8 @@ rl_newline (count, key)
   if (rl_editing_mode == vi_mode)
     {
       _rl_vi_done_inserting ();
-      _rl_vi_reset_last ();
+      if (_rl_vi_textmod_command (_rl_vi_last_command) == 0)	/* XXX */
+	_rl_vi_reset_last ();
     }
 #endif /* VI_MODE */
 
@@ -895,7 +899,7 @@ rl_newline (count, key)
    is special cased. */
 int
 rl_do_lowercase_version (ignore1, ignore2)
-     int ignore1 __attribute__((unused)), ignore2 __attribute__((unused));
+     int ignore1, ignore2;
 {
   return 0;
 }
@@ -933,9 +937,12 @@ _rl_overwrite_rubout (count, key)
     rl_delete_text (opoint, rl_point);
 
   /* Emacs puts point at the beginning of the sequence of spaces. */
-  opoint = rl_point;
-  _rl_insert_char (l, ' ');
-  rl_point = opoint;
+  if (rl_point < rl_end)
+    {
+      opoint = rl_point;
+      _rl_insert_char (l, ' ');
+      rl_point = opoint;
+    }
 
   rl_end_undo_group ();
 
@@ -1087,7 +1094,7 @@ rl_rubout_or_delete (count, key)
 /* Delete all spaces and tabs around point. */
 int
 rl_delete_horizontal_space (count, ignore)
-     int count __attribute__((unused)), ignore __attribute__((unused));
+     int count, ignore;
 {
   int start = rl_point;
 
@@ -1128,9 +1135,9 @@ rl_delete_or_show_completions (count, key)
    A K*rn shell style function. */
 int
 rl_insert_comment (count, key)
-     int count __attribute__((unused)), key;
+     int count, key;
 {
-  const char *rl_comment_text;
+  char *rl_comment_text;
   int rl_comment_len;
 
   rl_beg_of_line (1, key);
@@ -1167,7 +1174,7 @@ rl_insert_comment (count, key)
 /* Uppercase the word at point. */
 int
 rl_upcase_word (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   return (rl_change_case (count, UpCase));
 }
@@ -1175,7 +1182,7 @@ rl_upcase_word (count, key)
 /* Lowercase the word at point. */
 int
 rl_downcase_word (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   return (rl_change_case (count, DownCase));
 }
@@ -1183,7 +1190,7 @@ rl_downcase_word (count, key)
 /* Upcase the first letter, downcase the rest. */
 int
 rl_capitalize_word (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
  return (rl_change_case (count, CapCase));
 }
@@ -1308,7 +1315,7 @@ rl_transpose_words (count, key)
    then transpose the characters before point. */
 int
 rl_transpose_chars (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
 #if defined (HANDLE_MULTIBYTE)
   char *dummy;
@@ -1480,14 +1487,14 @@ _rl_char_search (count, fdir, bdir)
 
 int
 rl_char_search (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   return (_rl_char_search (count, FFIND, BFIND));
 }
 
 int
 rl_backward_char_search (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   return (_rl_char_search (count, BFIND, FFIND));
 }
@@ -1513,7 +1520,7 @@ _rl_set_mark_at_pos (position)
 /* A bindable command to set the mark. */
 int
 rl_set_mark (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   return (_rl_set_mark_at_pos (rl_explicit_arg ? count : rl_point));
 }
@@ -1521,7 +1528,7 @@ rl_set_mark (count, key)
 /* Exchange the position of mark and point. */
 int
 rl_exchange_point_and_mark (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   if (rl_mark > rl_end)
     rl_mark = -1;

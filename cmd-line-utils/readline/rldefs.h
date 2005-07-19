@@ -32,10 +32,6 @@
 
 #include "rlstdc.h"
 
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ <8)
-#define __attribute__(A)
-#endif
-
 #if defined (_POSIX_VERSION) && !defined (TERMIOS_MISSING)
 #  define TERMIOS_TTY_DRIVER
 #else
@@ -81,7 +77,7 @@ extern int _rl_stricmp PARAMS((char *, char *));
 extern int _rl_strnicmp PARAMS((char *, char *, int));
 #endif
 
-#if defined (HAVE_STRPBRK)
+#if defined (HAVE_STRPBRK) && !defined (HAVE_MULTIBYTE)
 #  define _rl_strpbrk(a,b)	strpbrk((a),(b))
 #else
 extern char *_rl_strpbrk PARAMS((const char *, const char *));
