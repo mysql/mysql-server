@@ -17,13 +17,13 @@ set @a:=0;
 select @a;
 insert into t1 values (1);
 select @a;
-drop trigger t1.trg;
+drop trigger trg;
 
 # let us test simple trigger reading some values 
 create trigger trg before insert on t1 for each row set @a:=new.i;
 insert into t1 values (123);
 select @a;
-drop trigger t1.trg;
+drop trigger trg;
 
 drop table t1;
 
@@ -40,7 +40,7 @@ end|
 insert into t1 (i) values (1)|
 insert into t1 (i,j) values (2, 3)|
 select * from t1|
-drop trigger t1.trg|
+drop trigger trg|
 drop table t1|
 delimiter ;|
 
@@ -52,7 +52,7 @@ create trigger trg after insert on t1 for each row
 set @a:="";
 insert into t1 values (2),(3),(4),(5);
 select @a;
-drop trigger t1.trg;
+drop trigger trg;
 drop table t1;
 
 # PS doesn't work with multi-row statements
@@ -75,7 +75,7 @@ set @update_failed:=""|
 update t1 set balance=1500|
 select @update_failed;
 select * from t1|
-drop trigger t1.trg|
+drop trigger trg|
 drop table t1|
 delimiter ;|
 --enable_ps_protocol
@@ -88,7 +88,7 @@ create trigger trg after update on t1 for each row
 set @total_change:=0;
 update t1 set i=3;
 select @total_change;
-drop trigger t1.trg;
+drop trigger trg;
 drop table t1;
 
 # Before delete trigger
@@ -100,7 +100,7 @@ create trigger trg before delete on t1 for each row
 set @del_sum:= 0;
 delete from t1 where i <= 3;
 select @del_sum;
-drop trigger t1.trg;
+drop trigger trg;
 drop table t1;
 
 # After delete trigger. 
@@ -111,7 +111,7 @@ create trigger trg after delete on t1 for each row set @del:= 1;
 set @del:= 0;
 delete from t1 where i <> 0;
 select @del;
-drop trigger t1.trg;
+drop trigger trg;
 drop table t1;
 
 # Several triggers on one table
@@ -145,9 +145,9 @@ update t1 set j= 20;
 select @fired;
 select * from t1;
 
-drop trigger t1.trg1;
-drop trigger t1.trg2;
-drop trigger t1.trg3;
+drop trigger trg1;
+drop trigger trg2;
+drop trigger trg3;
 drop table t1;
 
 
@@ -212,7 +212,7 @@ create trigger t1_ai after insert on t1 for each row
 insert into t1 (id, data) values (1, "one"), (2, "two");
 select * from t1;
 select * from t2;
-drop trigger t1.t1_ai;
+drop trigger t1_ai;
 # Trigger which uses couple of tables (and partially emulates FK constraint)
 delimiter |;
 create trigger t1_bi before insert on t1 for each row
@@ -282,6 +282,7 @@ drop table t1, t2;
 # Test of wrong column specifiers in triggers
 #
 create table t1 (i int);
+create table t3 (i int);
 
 --error 1363
 create trigger trg before insert on t1 for each row set @a:= old.i;
@@ -301,7 +302,7 @@ create trigger trg before update on t1 for each row set @a:=old.j;
 
 #
 # Let us test various trigger creation errors
-#
+# Also quickly test table namespace (bug#5892/6182)
 #
 --error 1146
 create trigger trg before insert on t2 for each row set @a:=1;
@@ -311,10 +312,14 @@ create trigger trg before insert on t1 for each row set @a:=1;
 create trigger trg after insert on t1 for each row set @a:=1;
 --error 1359
 create trigger trg2 before insert on t1 for each row set @a:=1;
-drop trigger t1.trg;
+--error 1359
+create trigger trg before insert on t3 for each row set @a:=1;
+create trigger trg2 before insert on t3 for each row set @a:=1;
+drop trigger trg2;
+drop trigger trg;
 
 --error 1360
-drop trigger t1.trg;
+drop trigger trg;
 
 create view v1 as select * from t1;
 --error 1347
@@ -322,6 +327,7 @@ create trigger trg before insert on v1 for each row set @a:=1;
 drop view v1;
 
 drop table t1;
+drop table t3;
 
 create temporary table t1 (i int);
 --error 1361
@@ -339,7 +345,7 @@ drop table t1;
 create table t1 (x1col char);  
 create trigger tx1 before insert on t1 for each row set new.x1col = 'x';
 insert into t1 values ('y');
-drop trigger t1.tx1;
+drop trigger tx1;
 drop table t1;
 
 #
@@ -355,8 +361,8 @@ create trigger trg2 after delete on t1 for each row set @del_after:= @del_after 
 set @del_before:=0, @del_after:= 0;
 delete from t1;
 select @del_before, @del_after;
-drop trigger t1.trg1;
-drop trigger t1.trg2;
+drop trigger trg1;
+drop trigger trg2;
 drop table t1;
 
 # Test for bug #5859 "DROP TABLE does not drop triggers". Trigger should not
@@ -377,6 +383,19 @@ create trigger trg1 before insert on t1 for each row set @a:= 1;
 # This should succeed
 drop database mysqltest;
 use test;
+
+# Test for bug #8791
+# "Triggers: Allowed to create triggers on a subject table in a different DB". 
+create database mysqltest;
+create table mysqltest.t1 (i int);
+--error ER_TRG_IN_WRONG_SCHEMA
+create trigger trg1 before insert on mysqltest.t1 for each row set @a:= 1;
+use mysqltest;
+--error ER_TRG_IN_WRONG_SCHEMA
+create trigger test.trg1 before insert on t1 for each row set @a:= 1;
+drop database mysqltest;
+use test;
+
 
 # Test for bug #5860 "Multi-table UPDATE does not activate update triggers"
 # We will also test how delete triggers wor for multi-table DELETE.
@@ -559,7 +578,7 @@ select * from t1;
 # To test properly code-paths different from those that are used
 # in ordinary INSERT we need to drop "before insert" trigger.
 alter table t1 add primary key (i);
-drop trigger t1.bi;
+drop trigger bi;
 --error 1054
 insert into t1 values (2, 4) on duplicate key update k= k + 10;
 select * from t1;
@@ -589,5 +608,5 @@ drop function bug5893;
 --error 1305
 update t1 set col2 = 4;
 # This should not crash server too.
-drop trigger t1.t1_bu;
+drop trigger t1_bu;
 drop table t1;
