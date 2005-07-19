@@ -692,7 +692,7 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    tmp->killed= 1;
+    tmp->killed= THD::KILL_CONNECTION;
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
