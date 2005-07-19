@@ -324,7 +324,34 @@ static void do_field_real(Copy_field *copy)
 }
 
 
+/*
+  string copy for single byte characters set when to string is shorter than
+  from string
+*/
+
 static void do_cut_string(Copy_field *copy)
+{
+  CHARSET_INFO *cs= copy->from_field->charset();
+  memcpy(copy->to_ptr,copy->from_ptr,copy->to_length);
+
+  /* Check if we loosed any important characters */
+  if (cs->cset->scan(cs,
+                     copy->from_ptr + copy->to_length,
+                     copy->from_ptr + copy->from_length,
+                     MY_SEQ_SPACES) < copy->from_length - copy->to_length)
+  {
+    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_DATA_TRUNCATED, 1);
+  }
+}
+
+
+/*
+  string copy for multi byte characters set when to string is shorter than
+  from string
+*/
+
+static void do_cut_string_complex(Copy_field *copy)
 {						// Shorter string field
   int well_formed_error;
   CHARSET_INFO *cs= copy->from_field->charset();
@@ -349,6 +376,8 @@ static void do_cut_string(Copy_field *copy)
     cs->cset->fill(cs, copy->to_ptr + copy_length,
                    copy->to_length - copy_length, ' ');
 }
+
+
 
 
 static void do_expand_string(Copy_field *copy)
@@ -517,7 +546,8 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 	       from_length)
 	return do_varstring;
       else if (to_length < from_length)
-	return do_cut_string;
+	return (from->charset()->mbmaxlen == 1 ?
+                do_cut_string : do_cut_string_complex);
       else if (to_length > from_length)
 	return do_expand_string;
     }
