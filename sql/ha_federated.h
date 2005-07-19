@@ -162,11 +162,7 @@ private:
                              bool records_in_range);
 
 public:
-  ha_federated(TABLE *table): handler(table),
-    mysql(0), stored_result(0), scan_flag(0),
-    ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)
-  {
-  }
+  ha_federated(TABLE *table_arg);
   ~ha_federated()
   {
   }

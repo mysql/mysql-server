@@ -24,6 +24,34 @@
 #include "ha_blackhole.h"
 
 
+/* Blackhole storage engine handlerton */
+
+static handlerton myisam_hton= {
+  "BLACKHOLE",
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* release savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0,       /* rollback_by_xid */
+  HTON_NO_FLAGS
+};
+
+/*****************************************************************************
+** BLACKHOLE tables
+*****************************************************************************/
+
+ha_blackhole::ha_blackhole(TABLE *table_arg)
+  :handler(&blackhole_hton, table_arg)
+{}
+
+
 static const char *ha_blackhole_exts[] = {
   NullS
 };

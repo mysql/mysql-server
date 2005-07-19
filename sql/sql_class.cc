@@ -173,6 +173,7 @@ Open_tables_state::Open_tables_state()
 THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
    Open_tables_state(),
+   lock_id(&main_lock_id),
    user_time(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
@@ -265,6 +266,8 @@ THD::THD()
   tablespace_op=FALSE;
   ulong tmp=sql_rnd_with_mutex();
   randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
+  thr_lock_info_init(&lock_info); /* safety: will be reset after start */
+  thr_lock_owner_init(&main_lock_id, &lock_info);
 }
 
 
@@ -406,6 +409,8 @@ THD::~THD()
     net_end(&net);
   }
 #endif
+  stmt_map.destroy();                     /* close all prepared statements */
+  DBUG_ASSERT(lock_info.n_cursors == 0);
   if (!cleanup_done)
     cleanup();
 
@@ -518,6 +523,7 @@ bool THD::store_globals()
     if this is the slave SQL thread.
   */
   variables.pseudo_thread_id= thread_id;
+  thr_lock_info_init(&lock_info);
   return 0;
 }
 
@@ -1563,6 +1569,12 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 }
 
 
+void Statement::close_cursor()
+{
+  DBUG_ASSERT("Statement::close_cursor()" == "not implemented");
+}
+
+
 void THD::end_statement()
 {
   /* Cleanup SQL processing state to resuse this statement in next query. */
@@ -1680,6 +1692,14 @@ int Statement_map::insert(Statement *statement)
       hash_delete(&st_hash, (byte*)statement);
   }
   return rc;
+}
+
+
+void Statement_map::close_transient_cursors()
+{
+  Statement *stmt;
+  while ((stmt= transient_cursor_list.head()))
+    stmt->close_cursor();                 /* deletes itself from the list */
 }
 
 
