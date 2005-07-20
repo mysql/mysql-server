@@ -218,6 +218,18 @@ enum mysql_rpl_type
   MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE, MYSQL_RPL_ADMIN
 };
 
+typedef struct character_set
+{
+  unsigned int      number;     /* character set number              */
+  unsigned int      state;      /* character set state               */
+  const char        *csname;    /* collation name                    */
+  const char        *name;      /* character set name                */
+  const char        *comment;   /* comment                           */
+  const char        *dir;       /* character set directory           */
+  unsigned int      mbminlen;   /* min. length for multibyte strings */
+  unsigned int      mbmaxlen;   /* max. length for multibyte strings */
+} MY_CHARSET_INFO;
+
 struct st_mysql_methods;
 
 typedef struct st_mysql
@@ -384,7 +396,7 @@ unsigned int STDCALL mysql_warning_count(MYSQL *mysql);
 const char * STDCALL mysql_info(MYSQL *mysql);
 unsigned long STDCALL mysql_thread_id(MYSQL *mysql);
 const char * STDCALL mysql_character_set_name(MYSQL *mysql);
-int          STDCALL mysql_set_character_set(MYSQL *mysql, char *csname);
+int          STDCALL mysql_set_character_set(MYSQL *mysql, const char *csname);
 
 MYSQL *		STDCALL mysql_init(MYSQL *mysql);
 my_bool		STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
@@ -418,6 +430,8 @@ my_bool		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 					  unsigned long length);
 my_bool		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 					       unsigned long length);
+void        STDCALL mysql_get_character_set_info(MYSQL *mysql,
+                           MY_CHARSET_INFO *charset);
 
 /* local infile support */
 

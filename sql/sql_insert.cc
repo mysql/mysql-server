@@ -199,7 +199,7 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_fields)
 {
   TABLE *table= insert_table_list->table;
-  ulong	timestamp_query_id;
+  query_id_t timestamp_query_id;
   LINT_INIT(timestamp_query_id);
 
   /*
@@ -1118,7 +1118,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
         table_list= (table_list->belong_to_view ?
                      table_list->belong_to_view :
                      table_list);
-        view= (table_list->view);
+        view= test(table_list->view);
       }
       if (view)
       {
@@ -1730,7 +1730,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 #endif
 	if (thd->killed || di->status)
 	  break;
-	if (error == ETIME || error == ETIMEDOUT)
+	if (error == ETIMEDOUT)
 	{
 	  thd->killed= THD::KILL_CONNECTION;
 	  break;

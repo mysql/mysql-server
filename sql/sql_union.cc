@@ -457,7 +457,9 @@ bool st_select_lex_unit::exec()
 	  table->no_keyread=1;
 	}
 	res= sl->join->error;
-	offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : 0;
+	offset_limit_cnt= (ha_rows)(sl->offset_limit ?
+                                    sl->offset_limit->val_uint() :
+                                    0);
 	if (!res)
 	{
 	  examined_rows+= thd->examined_row_count;

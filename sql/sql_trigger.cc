@@ -1,3 +1,20 @@
+/* Copyright (C) 2004-2005 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+
+
 #include "mysql_priv.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
@@ -52,7 +69,10 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     But do we want this ?
   */
 
-  if (open_and_lock_tables(thd, tables))
+  /* We should have only one table in table list. */
+  DBUG_ASSERT(tables->next_global == 0);
+
+  if (!(table= open_ltable(thd, tables, tables->lock_type)))
     DBUG_RETURN(TRUE);
 
   /*
@@ -62,8 +82,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   */
   if (check_global_access(thd, SUPER_ACL))
     DBUG_RETURN(TRUE);
-
-  table= tables->table;
 
   /*
     We do not allow creation of triggers on views or temporary tables.
@@ -416,6 +434,18 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         DBUG_RETURN(1);
 
       table->triggers= triggers;
+
+      /*
+        Construct key that will represent triggers for this table in the set
+        of routines used by statement.
+      */
+      triggers->sroutines_key.length= 1+strlen(db)+1+strlen(table_name)+1;
+      if (!(triggers->sroutines_key.str=
+              alloc_root(&table->mem_root, triggers->sroutines_key.length)))
+        DBUG_RETURN(1);
+      triggers->sroutines_key.str[0]= TYPE_ENUM_TRIGGER;
+      strmov(strmov(strmov(triggers->sroutines_key.str+1, db), "."),
+             table_name);
 
       /*
         TODO: This could be avoided if there is no triggers

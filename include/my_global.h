@@ -396,10 +396,7 @@ int	__void__;
 #endif
 
 /* Define some useful general macros */
-#if defined(__cplusplus) && defined(__GNUC__)
-#define max(a, b)	((a) >? (b))
-#define min(a, b)	((a) <? (b))
-#elif !defined(max)
+#if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif
@@ -833,7 +830,7 @@ typedef off_t os_off_t;
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
-#define SOCKET_EWOULDBLOCK WSAEINPROGRESS
+#define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #elif defined(OS2)

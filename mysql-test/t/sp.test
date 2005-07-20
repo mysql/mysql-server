@@ -1283,7 +1283,8 @@ select * from v1|
 # views and functions ?
 create function f1() returns int
   return (select sum(data) from t1) + (select sum(data) from v1)|
-# FIXME All these just exceed file limit for me :)
+# This queries will crash server because we can't use LEX in
+# reenterable fashion yet. Patch disabling recursion will heal this.
 #select f1()|
 #select * from v1|
 #select * from v2|
@@ -1328,13 +1329,10 @@ select * from v2|
 select * from v1|
 # These should not work as we have too little instances of tables locked
 --error 1100
-select * from v1, v2|
+select * from v1, t1|
 --error 1100
 select f4()|
 unlock tables|
-
-
-# TODO We also should test integration with triggers
 
 
 # Cleanup
@@ -3379,15 +3377,16 @@ drop procedure avg|
 --disable_warnings
 drop procedure if exists bug6129|
 --enable_warnings
-set @@sql_mode = 'traditional'|
-create procedure bug6129(mode text)
-  select @@sql_mode = mode|
-
-# 1
-call bug6129(@@sql_mode)|
-set @@sql_mode = ''|
-# 0
-call bug6129(@@sql_mode)|
+set @old_mode= @@sql_mode;
+set @@sql_mode= "";
+create procedure bug6129()
+  select @@sql_mode|
+call bug6129()|
+set @@sql_mode= "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO"|
+call bug6129()|
+set @@sql_mode= "NO_ZERO_IN_DATE"|
+call bug6129()|
+set @@sql_mode=@old_mode;
 
 drop procedure bug6129|
 
@@ -3804,6 +3803,80 @@ drop procedure bug11529|
 
 
 #
+# BUG#6063: Stored procedure labels are subject to restrictions (partial)
+# BUG#7088: Stored procedures: labels won't work if character set is utf8
+#
+--disable_warnings
+drop procedure if exists bug6063|
+drop procedure if exists bug7088_1|
+drop procedure if exists bug7088_2|
+--enable_warnings
+
+create procedure bug6063()
+  l‚bel: begin end|
+call bug6063()|
+# QQ Known bug: this will not show the label correctly.
+show create procedure bug6063|
+
+set character set utf8|
+create procedure bug7088_1()
+  label1: begin end label1|
+create procedure bug7088_2()
+  l√§bel1: begin end|
+call bug7088_1()|
+call bug7088_2()|
+set character set default|
+show create procedure bug7088_1|
+show create procedure bug7088_2|
+
+drop procedure bug6063|
+drop procedure bug7088_1|
+drop procedure bug7088_2|
+
+#
+# BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
+#           is called".
+#
+--disable_warnings
+drop procedure if exists bug9565_sub|
+drop procedure if exists bug9565|
+--enable_warnings
+create procedure bug9565_sub()
+begin
+  select * from t1;
+end|
+create procedure bug9565()
+begin
+  insert into t1 values ("one", 1);
+  call bug9565_sub();
+end|
+call bug9565()|
+delete from t1|
+drop procedure bug9565_sub|
+drop procedure bug9565|
+
+
+#
+# BUG#9538: SProc: Creation fails if we try to SET system variable
+#           using @@var_name in proc
+#
+--disable_warnings
+drop procedure if exists bug9538|
+--enable_warnings
+create procedure bug9538()
+  set @@sort_buffer_size = 1000000|
+
+set @x = @@sort_buffer_size|
+set @@sort_buffer_size = 2000000|
+select @@sort_buffer_size|
+call bug9538()|
+select @@sort_buffer_size|
+set @@sort_buffer_size = @x|
+
+drop procedure bug9538|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
@@ -3816,4 +3889,3 @@ drop procedure bug11529|
 # practical, or create table t3, t4 etc temporarily (and drop them).
 delimiter ;|
 drop table t1,t2;
-

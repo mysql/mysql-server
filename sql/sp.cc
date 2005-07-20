@@ -19,6 +19,7 @@
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_cache.h"
+#include "sql_trigger.h"
 
 static bool
 create_string(THD *thd, String *buf,
@@ -61,57 +62,152 @@ bool mysql_proc_table_exists= 1;
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
-/* *opened=true means we opened ourselves */
-static int
-db_find_routine_aux(THD *thd, int type, sp_name *name,
-		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
-{
-  TABLE *table;
-  byte key[NAME_LEN*2+4+1];	// db, name, optional key length type
-  DBUG_ENTER("db_find_routine_aux");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
-		       type, name->m_name.length, name->m_name.str));
 
-  *opened= FALSE;
-  *tablep= 0;
+/*
+  Close mysql.proc, opened with open_proc_table_for_read().
+
+  SYNOPSIS
+    close_proc_table()
+      thd  Thread context
+*/
+
+static void close_proc_table(THD *thd)
+{
+  close_thread_tables(thd);
+  thd->pop_open_tables_state();
+}
+
+
+/*
+  Open the mysql.proc table for read.
+
+  SYNOPSIS
+    open_proc_table_for_read()
+      thd  Thread context
+
+  NOTES
+    Thanks to restrictions which we put on opening and locking of
+    this table for writing, we can open and lock it for reading
+    even when we already have some other tables open and locked.
+    One must call close_proc_table() to close table opened with
+    this call.
+
+  RETURN
+    0	Error
+    #	Pointer to TABLE object of mysql.proc
+*/
+
+static TABLE *open_proc_table_for_read(THD *thd)
+{
+  TABLE_LIST tables;
+  TABLE *table;
+  bool old_open_tables= thd->open_tables != 0;
+  bool refresh;
+  DBUG_ENTER("open_proc_table");
 
   /*
     Speed up things if mysql.proc doesn't exists. mysql_proc_table_exists
     is set when we create or read stored procedure or on flush privileges.
   */
-  if (!mysql_proc_table_exists && ltype == TL_READ)
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  if (!mysql_proc_table_exists)
+    DBUG_RETURN(0);
 
-  if (thd->lex->proc_table)
-    table= thd->lex->proc_table->table;
-  else
-  {
-    for (table= thd->open_tables ; table ; table= table->next)
-      if (strcmp(table->s->db, "mysql") == 0 &&
-          strcmp(table->s->table_name, "proc") == 0)
-        break;
-  }
-  if (!table)
-  {
-    TABLE_LIST tables;
+  if (thd->push_open_tables_state())
+    DBUG_RETURN(0);
 
-    memset(&tables, 0, sizeof(tables));
-    tables.db= (char*)"mysql";
-    tables.table_name= tables.alias= (char*)"proc";
-    if (! (table= open_ltable(thd, &tables, ltype)))
-    {
-      /*
-        Under explicit LOCK TABLES or in prelocked mode we should not
-        say that mysql.proc table does not exist if we are unable to
-        open it since this condition may be transient.
-      */
-      if (!(thd->locked_tables || thd->prelocked_mode))
-        mysql_proc_table_exists= 0;
-      DBUG_RETURN(SP_OPEN_TABLE_FAILED);
-    }
-    *opened= TRUE;
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*)"proc";
+  if (!(table= open_table(thd, &tables, thd->mem_root, &refresh,
+                          MYSQL_LOCK_IGNORE_FLUSH)))
+  {
+    thd->pop_open_tables_state();
+    mysql_proc_table_exists= 0;
+    DBUG_RETURN(0);
   }
-  mysql_proc_table_exists= 1;
+
+  DBUG_ASSERT(table->s->system_table);
+
+  table->reginfo.lock_type= TL_READ;
+  /*
+    If we have other tables opened, we have to ensure we are not blocked
+    by a flush tables or global read lock, as this could lead to a deadlock
+  */
+  if (!(thd->lock= mysql_lock_tables(thd, &table, 1,
+                                     old_open_tables ?
+                                     (MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+                                      MYSQL_LOCK_IGNORE_FLUSH) : 0)))
+  {
+    close_proc_table(thd);
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(table);
+}
+
+
+/*
+  Open the mysql.proc table for update.
+
+  SYNOPSIS
+    open_proc_table_for_update()
+      thd  Thread context
+
+  NOTES
+    Table opened with this call should closed using close_thread_tables().
+
+  RETURN
+    0	Error
+    #	Pointer to TABLE object of mysql.proc
+*/
+
+static TABLE *open_proc_table_for_update(THD *thd)
+{
+  TABLE_LIST tables;
+  TABLE *table;
+  DBUG_ENTER("open_proc_table");
+
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*)"proc";
+  tables.lock_type= TL_WRITE;
+
+  table= open_ltable(thd, &tables, TL_WRITE);
+
+  /*
+    Under explicit LOCK TABLES or in prelocked mode we should not
+    say that mysql.proc table does not exist if we are unable to
+    open and lock it for writing since this condition may be
+    transient.
+  */
+  if (!(thd->locked_tables || thd->prelocked_mode) || table)
+    mysql_proc_table_exists= test(table);
+
+  DBUG_RETURN(table);
+}
+
+
+/*
+  Find row in open mysql.proc table representing stored routine.
+
+  SYNOPSIS
+    db_find_routine_aux()
+      thd    Thread context
+      type   Type of routine to find (function or procedure)
+      name   Name of routine
+      table  TABLE object for open mysql.proc table.
+
+  RETURN VALUE
+    SP_OK           - Routine found
+    SP_KEY_NOT_FOUND- No routine with given name
+*/
+
+static int
+db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
+{
+  byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
+  DBUG_ENTER("db_find_routine_aux");
+  DBUG_PRINT("enter", ("type: %d name: %*s",
+		       type, name->m_name.length, name->m_name.str));
 
   /*
     Create key to find row. We have to use field->store() to be able to
@@ -121,9 +217,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
     same fields.
   */
   if (name->m_name.length > table->field[1]->field_length)
-  {
     DBUG_RETURN(SP_KEY_NOT_FOUND);
-  }
   table->field[0]->store(name->m_db.str, name->m_db.length, &my_charset_bin);
   table->field[1]->store(name->m_name.str, name->m_name.length,
                          &my_charset_bin);
@@ -134,14 +228,32 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   if (table->file->index_read_idx(table->record[0], 0,
 				  key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
-  {
     DBUG_RETURN(SP_KEY_NOT_FOUND);
-  }
-  *tablep= table;
 
   DBUG_RETURN(SP_OK);
 }
 
+
+/*
+  Find routine definition in mysql.proc table and create corresponding
+  sp_head object for it.
+
+  SYNOPSIS
+    db_find_routine()
+      thd   Thread context
+      type  Type of routine (TYPE_ENUM_PROCEDURE/...)
+      name  Name of routine
+      sphp  Out parameter in which pointer to created sp_head
+            object is returned (0 in case of error).
+
+  NOTE
+    This function may damage current LEX during execution, so it is good
+    idea to create temporary LEX and make it active before calling it.
+
+  RETURN VALUE
+    0     - Success
+    non-0 - Error (may be one of special codes like SP_KEY_NOT_FOUND)
+*/
 
 static int
 db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
@@ -150,7 +262,6 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   TABLE *table;
   const char *params, *returns, *body;
   int ret;
-  bool opened;
   const char *definer;
   longlong created;
   longlong modified;
@@ -164,8 +275,11 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, TL_READ, &table, &opened);
-  if (ret != SP_OK)
+  *sphp= 0;                                     // In case of errors
+  if (!(table= open_proc_table_for_read(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
+  if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
     goto done;
 
   if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
@@ -257,11 +371,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   chistics.comment.str= ptr;
   chistics.comment.length= length;
 
-  if (opened)
-  {
-    opened= FALSE;
-    close_thread_tables(thd, 0, 1);
-  }
+  close_proc_table(thd);
+  table= 0;
 
   {
     String defstr;
@@ -337,9 +448,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   }
 
  done:
-
-  if (opened)
-    close_thread_tables(thd);
+  if (table)
+    close_proc_table(thd);
   DBUG_RETURN(ret);
 }
 
@@ -362,7 +472,6 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 {
   int ret;
   TABLE *table;
-  TABLE_LIST tables;
   char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   char olddb[128];
   bool dbchanged;
@@ -377,11 +486,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     goto done;
   }
 
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.table_name= tables.alias= (char*)"proc";
-
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+  if (!(table= open_proc_table_for_update(thd)))
     ret= SP_OPEN_TABLE_FAILED;
   else
   {
@@ -491,20 +596,18 @@ db_drop_routine(THD *thd, int type, sp_name *name)
 {
   TABLE *table;
   int ret;
-  bool opened;
   DBUG_ENTER("db_drop_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, TL_WRITE, &table, &opened);
-  if (ret == SP_OK)
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     if (table->file->delete_row(table->record[0]))
       ret= SP_DELETE_ROW_FAILED;
   }
-
-  if (opened)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -519,8 +622,9 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, TL_WRITE, &table, &opened);
-  if (ret == SP_OK)
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     store_record(table,record[1]);
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
@@ -538,8 +642,7 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     if ((table->file->update_row(table->record[1],table->record[0])))
       ret= SP_WRITE_ROW_FAILED;
   }
-  if (opened)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -741,20 +844,9 @@ sp_drop_db_routines(THD *thd, char *db)
   memset(key+keylen, (int)' ', 64-keylen); // Pad with space
   keylen= sizeof(key);
 
-  for (table= thd->open_tables ; table ; table= table->next)
-    if (strcmp(table->s->db, "mysql") == 0 &&
-	strcmp(table->s->table_name, "proc") == 0)
-      break;
-  if (! table)
-  {
-    TABLE_LIST tables;
-
-    memset(&tables, 0, sizeof(tables));
-    tables.db= (char*)"mysql";
-    tables.table_name= tables.alias= (char*)"proc";
-    if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-      DBUG_RETURN(SP_OPEN_TABLE_FAILED);
-  }
+  ret= SP_OPEN_TABLE_FAILED;
+  if (!(table= open_proc_table_for_update(thd)))
+    goto err;
 
   ret= SP_OK;
   table->file->ha_index_init(0);
@@ -764,7 +856,8 @@ sp_drop_db_routines(THD *thd, char *db)
     int nxtres;
     bool deleted= FALSE;
 
-    do {
+    do
+    {
       if (! table->file->delete_row(table->record[0]))
 	deleted= TRUE;		/* We deleted something */
       else
@@ -784,6 +877,7 @@ sp_drop_db_routines(THD *thd, char *db)
 
   close_thread_tables(thd);
 
+err:
   DBUG_RETURN(ret);
 }
 
@@ -977,9 +1071,7 @@ sp_find_function(THD *thd, sp_name *name, bool cache_only)
   if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)) &&
       !cache_only)
   {
-    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, name, &sp) != SP_OK)
-      sp= NULL;
-    else
+    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, name, &sp) == SP_OK)
       sp_cache_insert(&thd->sp_func_cache, sp);
   }
   DBUG_RETURN(sp);
@@ -1057,164 +1149,314 @@ sp_show_status_function(THD *thd, const char *wild)
 }
 
 
-bool
-sp_function_exists(THD *thd, sp_name *name)
+/*
+  Structure that represents element in the set of stored routines
+  used by statement or routine.
+*/
+struct Sroutine_hash_entry;
+
+struct Sroutine_hash_entry
 {
-  TABLE *table;
-  bool ret= FALSE;
-  bool opened= FALSE;
-  DBUG_ENTER("sp_function_exists");
-
-  if (sp_cache_lookup(&thd->sp_func_cache, name) ||
-      db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
-			  name, TL_READ,
-			  &table, &opened) == SP_OK)
-    ret= TRUE;
-  if (opened)
-    close_thread_tables(thd, 0, 1);
-  thd->clear_error();
-  DBUG_RETURN(ret);
-}
+  /* Set key consisting of one-byte routine type and quoted routine name. */
+  LEX_STRING key;
+  /*
+    Next element in list linking all routines in set. See also comments
+    for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
+  */
+  Sroutine_hash_entry *next;
+};
 
 
-byte *
-sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first)
+extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first)
 {
-  LEX_STRING *lsp= (LEX_STRING *)ptr;
-  *plen= lsp->length;
-  return (byte *)lsp->str;
-}
-
-
-void
-sp_add_to_hash(HASH *h, sp_name *fun)
-{
-  if (! hash_search(h, (byte *)fun->m_qname.str, fun->m_qname.length))
-  {
-    LEX_STRING *ls= (LEX_STRING *)sql_alloc(sizeof(LEX_STRING));
-    ls->str= sql_strmake(fun->m_qname.str, fun->m_qname.length);
-    ls->length= fun->m_qname.length;
-
-    my_hash_insert(h, (byte *)ls);
-  }
+  Sroutine_hash_entry *rn= (Sroutine_hash_entry *)ptr;
+  *plen= rn->key.length;
+  return (byte *)rn->key.str;
 }
 
 
 /*
-  Merge contents of two hashes containing LEX_STRING's
+  Auxilary function that adds new element to the set of stored routines
+  used by statement.
 
   SYNOPSIS
-    sp_merge_hash()
+    add_used_routine()
+      lex     - LEX representing statement
+      arena   - arena in which memory for new element will be allocated
+      key     - key for the hash representing set
+
+  NOTES
+    Will also add element to end of 'LEX::sroutines_list' list.
+
+    In case when statement uses stored routines but does not need
+    prelocking (i.e. it does not use any tables) we will access the
+    elements of LEX::sroutines set on prepared statement re-execution.
+    Because of this we have to allocate memory for both hash element
+    and copy of its key in persistent arena.
+
+  TODO
+    When we will got rid of these accesses on re-executions we will be
+    able to allocate memory for hash elements in non-persitent arena
+    and directly use key values from sp_head::m_sroutines sets instead
+    of making their copies.
+
+  RETURN VALUE
+    TRUE  - new element was added.
+    FALSE - element was not added (because it is already present in the set).
+*/
+
+static bool add_used_routine(LEX *lex, Query_arena *arena,
+                             const LEX_STRING *key)
+{
+  if (!hash_search(&lex->sroutines, (byte *)key->str, key->length))
+  {
+    Sroutine_hash_entry *rn=
+      (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry) +
+                                          key->length);
+    if (!rn)              // OOM. Error will be reported using fatal_error().
+      return FALSE;
+    rn->key.length= key->length;
+    rn->key.str= (char *)rn + sizeof(Sroutine_hash_entry);
+    memcpy(rn->key.str, key->str, key->length);
+    my_hash_insert(&lex->sroutines, (byte *)rn);
+    lex->sroutines_list.link_in_list((byte *)rn, (byte **)&rn->next);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  Add routine to the set of stored routines used by statement.
+
+  SYNOPSIS
+    sp_add_used_routine()
+      lex     - LEX representing statement
+      arena   - arena in which memory for new element of the set
+                will be allocated
+      rt      - routine name
+      rt_type - routine type (one of TYPE_ENUM_PROCEDURE/...)
+
+  NOTES
+    Will also add element to end of 'LEX::sroutines_list' list.
+
+    To be friendly towards prepared statements one should pass
+    persistent arena as second argument.
+*/
+
+void sp_add_used_routine(LEX *lex, Query_arena *arena,
+                         sp_name *rt, char rt_type)
+{
+  rt->set_routine_type(rt_type);
+  (void)add_used_routine(lex, arena, &rt->m_sroutines_key);
+}
+
+
+/*
+  Merge contents of two hashes representing sets of routines used
+  by statements or by other routines.
+
+  SYNOPSIS
+    sp_update_sp_used_routines()
       dst - hash to which elements should be added
       src - hash from which elements merged
 
-  RETURN VALUE
-    TRUE  - if we have added some new elements to destination hash.
-    FALSE - there were no new elements in src.
+  NOTE
+    This procedure won't create new Sroutine_hash_entry objects,
+    instead it will simply add elements from source to destination
+    hash. Thus time of life of elements in destination hash becomes
+    dependant on time of life of elements from source hash. It also
+    won't touch lists linking elements in source and destination
+    hashes.
 */
 
-bool
-sp_merge_hash(HASH *dst, HASH *src)
+void sp_update_sp_used_routines(HASH *dst, HASH *src)
 {
-  bool res= FALSE;
   for (uint i=0 ; i < src->records ; i++)
   {
-    LEX_STRING *ls= (LEX_STRING *)hash_element(src, i);
-
-    if (! hash_search(dst, (byte *)ls->str, ls->length))
-    {
-      my_hash_insert(dst, (byte *)ls);
-      res= TRUE;
-    }
+    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
+    if (!hash_search(dst, (byte *)rt->key.str, rt->key.length))
+      my_hash_insert(dst, (byte *)rt);
   }
-  return res;
 }
 
 
 /*
-  Cache all routines implicitly or explicitly used by query
-  (or whatever object is represented by LEX).
+  Add contents of hash representing set of routines to the set of
+  routines used by statement.
 
   SYNOPSIS
-    sp_cache_routines()
+    sp_update_stmt_used_routines()
       thd - thread context
-      lex - LEX representing query
+      lex - LEX representing statement
+      src - hash representing set from which routines will be added
+
+  NOTE
+    It will also add elements to end of 'LEX::sroutines_list' list.
+*/
+
+static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
+{
+  for (uint i=0 ; i < src->records ; i++)
+  {
+    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
+    (void)add_used_routine(lex, thd->current_arena, &rt->key);
+  }
+}
+
+
+/*
+  Cache sub-set of routines used by statement, add tables used by these
+  routines to statement table list. Do the same for all routines used
+  by these routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables_aux()
+      thd   - thread context
+      lex   - LEX representing statement
+      start - first routine from the list of routines to be cached
+              (this list defines mentioned sub-set).
 
   NOTE
     If some function is missing this won't be reported here.
     Instead this fact will be discovered during query execution.
 
-  TODO
-    Currently if after passing through routine hashes we discover
-    that we have added something to them, we do one more pass to
-    process all routines which were missed on previous pass because
-    of these additions. We can avoid this if along with hashes
-    we use lists holding routine names and iterate other these
-    lists instead of hashes (since addition to the end of list
-    does not reorder elements in it).
+  RETURN VALUE
+    TRUE  - some tables were added
+    FALSE - no tables were added.
+*/
+
+static bool
+sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
+                                     Sroutine_hash_entry *start)
+{
+  bool result= FALSE;
+
+  DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
+
+  for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
+  {
+    sp_name name(rt->key.str, rt->key.length);
+    int type= rt->key.str[0];
+    sp_head *sp;
+
+    if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
+                              &thd->sp_func_cache : &thd->sp_proc_cache),
+                              &name)))
+    {
+      LEX *oldlex= thd->lex;
+      LEX *newlex= new st_lex;
+      thd->lex= newlex;
+      newlex->current_select= NULL;
+      name.m_name.str= strchr(name.m_qname.str, '.');
+      name.m_db.length= name.m_name.str - name.m_qname.str;
+      name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
+                                  name.m_db.length);
+      name.m_name.str+= 1;
+      name.m_name.length= name.m_qname.length - name.m_db.length - 1;
+
+      if (db_find_routine(thd, type, &name, &sp) == SP_OK)
+      {
+        if (type == TYPE_ENUM_FUNCTION)
+          sp_cache_insert(&thd->sp_func_cache, sp);
+        else
+          sp_cache_insert(&thd->sp_proc_cache, sp);
+      }
+      delete newlex;
+      thd->lex= oldlex;
+    }
+    if (sp)
+    {
+      sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
+      result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+    }
+  }
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Cache all routines from the set of used by statement, add tables used
+  by those routines to statement table list. Do the same for all routines
+  used by those routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables()
+      thd   - thread context
+      lex   - LEX representing statement
+
+  RETURN VALUE
+    TRUE  - some tables were added
+    FALSE - no tables were added.
+*/
+
+bool
+sp_cache_routines_and_add_tables(THD *thd, LEX *lex)
+{
+
+  return sp_cache_routines_and_add_tables_aux(thd, lex,
+           (Sroutine_hash_entry *)lex->sroutines_list.first);
+}
+
+
+/*
+  Add all routines used by view to the set of routines used by statement.
+  Add tables used by those routines to statement table list. Do the same
+  for all routines used by these routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables_for_view()
+      thd     - thread context
+      lex     - LEX representing statement
+      aux_lex - LEX representing view
 */
 
 void
-sp_cache_routines(THD *thd, LEX *lex)
+sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
 {
-  bool routines_added= TRUE;
-
-  DBUG_ENTER("sp_cache_routines");
-
-  while (routines_added)
-  {
-    routines_added= FALSE;
-
-    for (int type= TYPE_ENUM_FUNCTION; type < TYPE_ENUM_TRIGGER; type++)
-    {
-      HASH *h= (type == TYPE_ENUM_FUNCTION ? &lex->spfuns : &lex->spprocs);
-
-      for (uint i=0 ; i < h->records ; i++)
-      {
-        LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
-        sp_name name(*ls);
-        sp_head *sp;
-
-        name.m_qname= *ls;
-        if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
-                                   &thd->sp_func_cache : &thd->sp_proc_cache),
-                                  &name)))
-        {
-          LEX *oldlex= thd->lex;
-          LEX *newlex= new st_lex;
-
-          thd->lex= newlex;
-          /* Pass hint pointer to mysql.proc table */
-          newlex->proc_table= oldlex->proc_table;
-          newlex->current_select= NULL;
-          name.m_name.str= strchr(name.m_qname.str, '.');
-          name.m_db.length= name.m_name.str - name.m_qname.str;
-          name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
-                                      name.m_db.length);
-          name.m_name.str+= 1;
-          name.m_name.length= name.m_qname.length - name.m_db.length - 1;
-
-          if (db_find_routine(thd, type, &name, &sp) == SP_OK)
-          {
-            if (type == TYPE_ENUM_FUNCTION)
-              sp_cache_insert(&thd->sp_func_cache, sp);
-            else
-              sp_cache_insert(&thd->sp_proc_cache, sp);
-          }
-          delete newlex;
-          thd->lex= oldlex;
-        }
-
-        if (sp)
-        {
-          routines_added|= sp_merge_hash(&lex->spfuns, &sp->m_spfuns);
-          routines_added|= sp_merge_hash(&lex->spprocs, &sp->m_spprocs);
-        }
-      }
-    }
-  }
-  DBUG_VOID_RETURN;
+  Sroutine_hash_entry **last_cached_routine_ptr=
+                          (Sroutine_hash_entry **)lex->sroutines_list.next;
+  sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines);
+  (void)sp_cache_routines_and_add_tables_aux(thd, lex,
+                                             *last_cached_routine_ptr);
 }
+
+
+/*
+  Add triggers for table to the set of routines used by statement.
+  Add tables used by them to statement table list. Do the same for
+  all implicitly used routines.
+
+  SYNOPSIS
+    sp_cache_routines_and_add_tables_for_triggers()
+      thd      - thread context
+      lex      - LEX respresenting statement
+      triggers - triggers of the table
+*/
+
+void
+sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
+                                              Table_triggers_list *triggers)
+{
+  if (add_used_routine(lex, thd->current_arena, &triggers->sroutines_key))
+  {
+    Sroutine_hash_entry **last_cached_routine_ptr=
+                            (Sroutine_hash_entry **)lex->sroutines_list.next;
+    for (int i= 0; i < 3; i++)
+      for (int j= 0; j < 2; j++)
+        if (triggers->bodies[i][j])
+        {
+          (void)triggers->bodies[i][j]->add_used_tables_to_table_list(thd,
+                                          &lex->query_tables_last);
+          sp_update_stmt_used_routines(thd, lex,
+                                       &triggers->bodies[i][j]->m_sroutines);
+        }
+
+    (void)sp_cache_routines_and_add_tables_aux(thd, lex,
+                                               *last_cached_routine_ptr);
+  }
+}
+
 
 /*
  * Generates the CREATE... string from the table information.

@@ -346,6 +346,18 @@ DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 
+#Test bug#11717
+CREATE TABLE t1(c1 varchar(10)) default character set = eucjpms;
+
+insert into t1 values(_ucs2 0x00F7);
+insert into t1 values(_eucjpms 0xA1E0);
+insert into t1 values(_ujis 0xA1E0);
+insert into t1 values(_sjis 0x8180);
+insert into t1 values(_cp932 0x8180);
+
+SELECT HEX(c1) FROM t1;
+
+DROP TABLE t1;
 
 SET collation_connection='eucjpms_japanese_ci';
 -- source include/ctype_filesort.inc
