@@ -1005,7 +1005,8 @@ do { doubleget_union _tmp; \
 #define float4get(V,M) do { *((long *) &(V)) = *((long*) (M)); } while(0)
 #define float8get(V,M) doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
-#define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
+#define floatstore(T,V)  memcpy((byte*)(T), (byte*)(&V),sizeof(float))
+#define floatget(V,M)    memcpy((byte*) &V,(byte*) (M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
 #endif /* __i386__ */
 
@@ -1176,7 +1177,8 @@ do { doubleget_union _tmp; \
                              *(((char*)T)+1)=(((A) >> 16));\
                              *(((char*)T)+0)=(((A) >> 24)); } while(0)
 
-#define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
+#define floatget(V,M)    memcpy_fixed((byte*) &V,(byte*) (M),sizeof(float))
+#define floatstore(T,V)  memcpy_fixed((byte*) (T),(byte*)(&V),sizeof(float))
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
 #define doublestore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(double))
 #define longlongget(V,M) memcpy_fixed((byte*) &V,(byte*) (M),sizeof(ulonglong))
@@ -1191,7 +1193,8 @@ do { doubleget_union _tmp; \
 #define shortstore(T,V) int2store(T,V)
 #define longstore(T,V)	int4store(T,V)
 #ifndef floatstore
-#define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
+#define floatstore(T,V)  memcpy_fixed((byte*) (T),(byte*) (&V),sizeof(float))
+#define floatget(V,M)    memcpy_fixed((byte*) &V, (byte*) (M), sizeof(float))
 #endif
 #ifndef doubleget
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
