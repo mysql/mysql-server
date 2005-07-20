@@ -368,3 +368,12 @@ show index from t1;
 --disable_metadata
 drop table t1;
 
+# Test for BUG#11635: mysqldump exports TYPE instead of USING for HASH
+create table t1 (
+  c1 int NOT NULL,
+  c2 int NOT NULL,
+  PRIMARY KEY USING HASH (c1),
+  INDEX USING BTREE(c2)
+);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

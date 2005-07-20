@@ -5,7 +5,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 4.1.13)
+AM_INIT_AUTOMAKE(mysql, 4.1.14)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -16,7 +16,7 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=4
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=13
+NDB_VERSION_BUILD=14
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -118,7 +118,7 @@ AC_SUBST(SAVE_LDFLAGS)
 AC_SUBST(SAVE_CXXLDFLAGS)
 AC_SUBST(CXXLDFLAGS)
 
-AC_PREREQ(2.58)dnl		Minimum Autoconf version required.
+AC_PREREQ(2.57)dnl		Minimum Autoconf version required.
 
 #AC_ARG_PROGRAM			# Automaticly invoked by AM_INIT_AUTOMAKE
 AM_SANITY_CHECK

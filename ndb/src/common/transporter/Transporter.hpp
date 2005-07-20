@@ -122,6 +122,7 @@ protected:
 private:
 
   SocketClient *m_socket_client;
+  struct in_addr m_connect_address;
 
 protected:
   Uint32 getErrorCount();

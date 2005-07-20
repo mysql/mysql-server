@@ -28,6 +28,7 @@
 const char *opt_connect_str= 0;\
 my_bool	opt_ndb_optimized_node_selection
 
+bool opt_endinfo= 0;
 my_bool opt_ndb_shm;
 
 #define OPT_NDB_CONNECTSTRING 'c'
@@ -93,6 +94,7 @@ ndb_std_get_one_option(int optid,
     {
       DBUG_PUSH(argument);
     }
+    opt_endinfo= 1;
     break;
   case 'V':
     ndb_std_print_version();

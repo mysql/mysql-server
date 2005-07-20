@@ -2721,3 +2721,9 @@ SELECT s.ip, count( e.itemid ) FROM `t1` e JOIN t2 s ON s.sessionid = e.sessioni
 ip	count( e.itemid )
 10.10.10.1	1
 drop tables t1,t2;
+create table t1 (fld enum('0','1'));
+insert into t1 values ('1');
+select * from (select max(fld) from t1) as foo;
+max(fld)
+1
+drop table t1;

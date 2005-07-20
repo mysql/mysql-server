@@ -166,6 +166,14 @@ DIE_UNLESS(stmt == 0);\
 #define mytest_r(x) if (x) {myerror(NULL);DIE_UNLESS(FALSE);}
 
 
+/* A workaround for Sun Forte 5.6 on Solaris x86 */
+
+static int cmp_double(double *a, double *b)
+{
+  return *a == *b;
+}
+
+
 /* Print the error message */
 
 static void print_error(const char *msg)
@@ -672,7 +680,7 @@ static void verify_prepare_field(MYSQL_RES *result,
     fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
             field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
-    fprintf(stdout, "\n    length   :`%ld`\t(expected: `%ld`)",
+    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%lu`)",
             field->length, length * cs->mbmaxlen);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
@@ -1396,7 +1404,7 @@ static void test_prepare()
     DIE_UNLESS(real_data == o_real_data);
     DIE_UNLESS(length[5] == 4);
 
-    DIE_UNLESS(double_data == o_double_data);
+    DIE_UNLESS(cmp_double(&double_data, &o_double_data));
     DIE_UNLESS(length[6] == 8);
 
     DIE_UNLESS(strcmp(data, str_data) == 0);
@@ -7173,7 +7181,7 @@ static void test_explain_bug()
   verify_prepare_field(result, 3, "type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_BLOB,
                        "", "", "", NAME_LEN*64, 0);
 
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
@@ -7186,13 +7194,13 @@ static void test_explain_bug()
                        (mysql_get_server_version(mysql) <= 50000 ? 3 : 4096),
                        0);
 
-  verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_BLOB,
                        "", "", "", NAME_LEN*16, 0);
 
   verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);
 
-  verify_prepare_field(result, 9, "Extra", "", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 9, "Extra", "", MYSQL_TYPE_BLOB,
                        "", "", "", 255, 0);
 
   mysql_free_result(result);
@@ -9583,7 +9591,7 @@ static void test_bug3035()
   uint32 uint32_val;
   longlong int64_val;
   ulonglong uint64_val;
-  double double_val, udouble_val;
+  double double_val, udouble_val, double_tmp;
   char longlong_as_string[22], ulonglong_as_string[22];
 
   /* mins and maxes */
@@ -9727,7 +9735,8 @@ static void test_bug3035()
   DIE_UNLESS(int64_val == int64_min);
   DIE_UNLESS(uint64_val == uint64_min);
   DIE_UNLESS(double_val == (longlong) uint64_min);
-  DIE_UNLESS(udouble_val == ulonglong2double(uint64_val));
+  double_tmp= ulonglong2double(uint64_val);
+  DIE_UNLESS(cmp_double(&udouble_val, &double_tmp));
   DIE_UNLESS(!strcmp(longlong_as_string, "0"));
   DIE_UNLESS(!strcmp(ulonglong_as_string, "0"));
 
@@ -9743,7 +9752,8 @@ static void test_bug3035()
   DIE_UNLESS(int64_val == int64_max);
   DIE_UNLESS(uint64_val == uint64_max);
   DIE_UNLESS(double_val == (longlong) uint64_val);
-  DIE_UNLESS(udouble_val == ulonglong2double(uint64_val));
+  double_tmp= ulonglong2double(uint64_val);
+  DIE_UNLESS(cmp_double(&udouble_val, &double_tmp));
   DIE_UNLESS(!strcmp(longlong_as_string, "-1"));
   DIE_UNLESS(!strcmp(ulonglong_as_string, "18446744073709551615"));
 
@@ -11670,6 +11680,78 @@ static void test_bug8378()
 #endif
 }
 
+
+/* Test correct max length for MEDIUMTEXT and LONGTEXT columns */
+
+static void test_bug9735()
+{
+  MYSQL_RES *res;
+  int rc;
+
+  myheader("test_bug9735");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (a mediumtext, b longtext) "
+                         "character set latin1");
+  myquery(rc);
+  rc= mysql_query(mysql, "select * from t1");
+  myquery(rc);
+  res= mysql_store_result(mysql);
+  verify_prepare_field(res, 0, "a", "a", MYSQL_TYPE_BLOB,
+                       "t1", "t1", current_db, (1U << 24)-1, 0);
+  verify_prepare_field(res, 1, "b", "b", MYSQL_TYPE_BLOB,
+                       "t1", "t1", current_db, ~0U, 0);
+  mysql_free_result(res);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+/* Bug#11183 "mysql_stmt_reset() doesn't reset information about error" */
+
+static void test_bug11183()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  char bug_statement[]= "insert into t1 values (1)";
+
+  myheader("test_bug11183");
+
+  mysql_query(mysql, "drop table t1 if exists");
+  mysql_query(mysql, "create table t1 (a int)");
+
+  stmt= mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != 0);
+
+  rc= mysql_stmt_prepare(stmt, bug_statement, strlen(bug_statement));
+  check_execute(stmt, rc);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+
+  /* Trying to execute statement that should fail on execute stage */
+  rc= mysql_stmt_execute(stmt);
+  DIE_UNLESS(rc);
+
+  mysql_stmt_reset(stmt);
+  DIE_UNLESS(mysql_stmt_errno(stmt) == 0);
+
+  mysql_query(mysql, "create table t1 (a int)");
+
+  /* Trying to execute statement that should pass ok */
+  if (mysql_stmt_execute(stmt))
+  {
+    mysql_stmt_reset(stmt);
+    DIE_UNLESS(mysql_stmt_errno(stmt) == 0);
+  }
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -11884,6 +11966,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug8330", test_bug8330 },
   { "test_bug7990", test_bug7990 },
   { "test_bug8378", test_bug8378 },
+  { "test_bug9735", test_bug9735 },
+  { "test_bug11183", test_bug11183 },
   { 0, 0 }
 };
 
