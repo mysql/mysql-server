@@ -22,6 +22,7 @@
 
 #include "buffer.h"
 #include "instance.h"
+#include "options.h"
 
 #include <m_ctype.h>
 #include <mysql_com.h>
@@ -138,13 +139,23 @@ Instance_map::~Instance_map()
 
 int Instance_map::lock()
 {
+#ifdef __WIN__
+  pthread_mutex_lock(&LOCK_instance_map);
+  return 0;
+#else
   return pthread_mutex_lock(&LOCK_instance_map);
+#endif
 }
 
 
 int Instance_map::unlock()
 {
+#ifdef __WIN__
+  pthread_mutex_unlock(&LOCK_instance_map);
+  return 0;
+#else
   return pthread_mutex_unlock(&LOCK_instance_map);
+#endif
 }
 
 
@@ -245,7 +256,7 @@ int Instance_map::load()
   else
     argv_options[1]= '\0';
 
-  if (my_search_option_files("my", &argc, (char ***) &argv, &args_used,
+  if (my_search_option_files(Options::config_file, &argc, (char ***) &argv, &args_used,
                              process_option, (void*) this) ||
       complete_initialization())
     return 1;

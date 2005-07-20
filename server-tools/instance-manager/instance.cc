@@ -18,14 +18,19 @@
 #pragma implementation
 #endif
 
+#ifdef __WIN__
+#include <process.h>
+#endif
 #include "instance.h"
 
 #include "mysql_manager_error.h"
 #include "log.h"
 #include "instance_map.h"
 #include "priv.h"
-
+#include "port.h"
+#ifndef __WIN__
 #include <sys/wait.h>
+#endif
 #include <my_sys.h>
 #include <signal.h>
 #include <m_string.h>
@@ -50,6 +55,16 @@ pthread_handler_decl(proxy, arg)
 C_MODE_END
 
 
+void Instance::remove_pid()
+{
+    int pid;
+    if ((pid= options.get_pid()) != 0)          /* check the pidfile */
+      if (options.unlink_pidfile())             /* remove stalled pidfile */
+        log_error("cannot remove pidfile for instance %i, this might be \
+                  since IM lacks permmissions or hasn't found the pidifle",
+                  options.instance_name);
+}
+
 /*
   The method starts an instance.
 
@@ -65,8 +80,6 @@ C_MODE_END
 
 int Instance::start()
 {
-  pid_t pid;
-
   /* clear crash flag */
   pthread_mutex_lock(&LOCK_instance);
   crashed= 0;
@@ -75,11 +88,7 @@ int Instance::start()
 
   if (!is_running())
   {
-    if ((pid= options.get_pid()) != 0)          /* check the pidfile */
-      if (options.unlink_pidfile())             /* remove stalled pidfile */
-        log_error("cannot remove pidfile for instance %i, this might be \
-                  since IM lacks permmissions or hasn't found the pidifle",
-                  options.instance_name);
+    remove_pid();
 
     /*
       No need to monitor this thread in the Thread_registry, as all
@@ -107,20 +116,21 @@ int Instance::start()
   return ER_INSTANCE_ALREADY_STARTED;
 }
 
-
-void Instance::fork_and_monitor()
+#ifndef __WIN__
+int Instance::launch_and_wait()
 {
-  pid_t pid;
-  log_info("starting instance %s", options.instance_name);
-  switch (pid= fork()) {
-  case 0:
-    execv(options.mysqld_path, options.argv);
-    /* exec never returns */
-    exit(1);
-  case -1:
-    log_info("cannot fork() to start instance %s", options.instance_name);
-    return;
-  default:
+  pid_t pid = fork();
+
+  switch (pid)
+  {
+    case 0:
+      execv(options.mysqld_path, options.argv);
+      /* exec never returns */
+      exit(1);
+    case -1:
+      log_info("cannot fork() to start instance %s", options.instance_name);
+      return -1;
+    default:
     /*
       Here we wait for the child created. This process differs for systems
       running LinuxThreads and POSIX Threads compliant systems. This is because
@@ -141,22 +151,89 @@ void Instance::fork_and_monitor()
       wait(NULL);                               /* LinuxThreads were detected */
     else
       waitpid(pid, NULL, 0);
-    /* set instance state to crashed */
-    pthread_mutex_lock(&LOCK_instance);
-    crashed= 1;
-    pthread_mutex_unlock(&LOCK_instance);
-
-    /*
-      Wake connection threads waiting for an instance to stop. This
-      is needed if a user issued command to stop an instance via
-      mysql connection. This is not the case if Guardian stop the thread.
-    */
-    pthread_cond_signal(&COND_instance_stopped);
-    /* wake guardian */
-    pthread_cond_signal(&instance_map->guardian->COND_guardian);
-    /* thread exits */
-    return;
   }
+  return 0;
+}
+#else
+int Instance::launch_and_wait()
+{
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    ZeroMemory( &si, sizeof(si) );
+    si.cb = sizeof(si);
+    ZeroMemory( &pi, sizeof(pi) );
+
+    int cmdlen = 0;
+    for (int i=1; options.argv[i] != 0; i++)
+      cmdlen += strlen(options.argv[i]) + 1;
+    cmdlen++;  // we have to add a single space for CreateProcess (read the docs)
+
+    char *cmdline = NULL;
+    if (cmdlen > 0)
+    {
+      cmdline = new char[cmdlen];
+      cmdline[0] = 0;
+      for (int i=1; options.argv[i] != 0; i++)
+      {
+        strcat(cmdline, " ");
+        strcat(cmdline, options.argv[i]);
+      }
+    }
+
+    // Start the child process. 
+    BOOL result = CreateProcess(options.mysqld_path,    // file to execute 
+        cmdline,                            // Command line. 
+        NULL,                               // Process handle not inheritable. 
+        NULL,                               // Thread handle not inheritable. 
+        FALSE,                              // Set handle inheritance to FALSE. 
+        0,                                  // No creation flags. 
+        NULL,                               // Use parent's environment block. 
+        NULL,                               // Use parent's starting directory. 
+        &si,                                // Pointer to STARTUPINFO structure.
+        &pi );                              // Pointer to PROCESS_INFORMATION structure.
+    delete cmdline;
+    if (! result)
+      return -1;
+    
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD exitcode;
+    ::GetExitCodeProcess(pi.hProcess, &exitcode);
+
+    // Close process and thread handles. 
+    CloseHandle( pi.hProcess );
+    CloseHandle( pi.hThread );
+
+    return exitcode;
+}
+#endif
+
+
+void Instance::fork_and_monitor()
+{
+  log_info("starting instance %s", options.instance_name);
+  
+  int result = launch_and_wait();
+  if (result == -1) return;
+
+  /* set instance state to crashed */
+  pthread_mutex_lock(&LOCK_instance);
+  crashed= 1;
+  pthread_mutex_unlock(&LOCK_instance);
+
+  /*
+    Wake connection threads waiting for an instance to stop. This
+    is needed if a user issued command to stop an instance via
+    mysql connection. This is not the case if Guardian stop the thread.
+  */
+  pthread_cond_signal(&COND_instance_stopped);
+  /* wake guardian */
+  pthread_cond_signal(&instance_map->guardian->COND_guardian);
+  /* thread exits */
+  return;
+
   /* we should never end up here */
   DBUG_ASSERT(0);
 }
@@ -253,7 +330,6 @@ bool Instance::is_running()
 
 int Instance::stop()
 {
-  pid_t pid;
   struct timespec timeout;
   uint waitchild= (uint)  DEFAULT_SHUTDOWN_DELAY;
 
@@ -290,6 +366,68 @@ err:
   return ER_STOP_INSTANCE;
 }
 
+#ifdef __WIN__
+
+BOOL SafeTerminateProcess(HANDLE hProcess, UINT uExitCode)
+{
+  DWORD dwTID, dwCode, dwErr = 0;
+  HANDLE hProcessDup = INVALID_HANDLE_VALUE;
+  HANDLE hRT = NULL;
+  HINSTANCE hKernel = GetModuleHandle("Kernel32");
+  BOOL bSuccess = FALSE;
+
+  BOOL bDup = DuplicateHandle(GetCurrentProcess(),
+    hProcess, GetCurrentProcess(), &hProcessDup, PROCESS_ALL_ACCESS, FALSE, 0);
+
+  // Detect the special case where the process is
+  // already dead...
+  if ( GetExitCodeProcess((bDup) ? hProcessDup : hProcess, &dwCode) &&
+    (dwCode == STILL_ACTIVE) )
+  {
+      FARPROC pfnExitProc;
+
+      pfnExitProc = GetProcAddress(hKernel, "ExitProcess");
+
+      hRT = CreateRemoteThread((bDup) ? hProcessDup : hProcess, NULL, 0,
+        (LPTHREAD_START_ROUTINE)pfnExitProc, (PVOID)uExitCode, 0, &dwTID);
+
+      if ( hRT == NULL )
+          dwErr = GetLastError();
+  }
+  else
+  {
+      dwErr = ERROR_PROCESS_ABORTED;
+  }
+
+  if ( hRT )
+  {
+      // Must wait process to terminate to
+      // guarantee that it has exited...
+      WaitForSingleObject((bDup) ? hProcessDup : hProcess, INFINITE);
+
+      CloseHandle(hRT);
+      bSuccess = TRUE;
+  }
+
+  if ( bDup )
+      CloseHandle(hProcessDup);
+
+  if ( !bSuccess )
+      SetLastError(dwErr);
+
+  return bSuccess;
+} 
+
+int kill(pid_t pid, int signum)
+{
+  HANDLE processhandle = ::OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+  if (signum == SIGTERM)
+    ::SafeTerminateProcess(processhandle, 0);
+  else
+    ::TerminateProcess(processhandle, -1);
+  return 0;
+}
+#endif
 
 void Instance::kill_instance(int signum)
 {
