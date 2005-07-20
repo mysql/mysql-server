@@ -960,7 +960,8 @@ private:
     enum {
       RF_LOCAL = 1 << 0,        // create on local node only
       RF_NOBUILD = 1 << 1,      // no need to build index
-      RF_NOTCTRIGGER = 1 << 2   // alter trigger: no trigger in TC
+      RF_NOTCTRIGGER = 1 << 2,  // alter trigger: no trigger in TC
+      RF_FORCE = 1 << 4         // force drop
     };
   };
 
@@ -980,6 +981,7 @@ private:
     CreateIndxReq::RequestType m_requestType;
     Uint32 m_requestFlag;
     // error info
+    CreateIndxRef::ErrorCode m_lastError;
     CreateIndxRef::ErrorCode m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
@@ -991,6 +993,7 @@ private:
       m_coordinatorRef = 0;
       m_requestType = CreateIndxReq::RT_UNDEFINED;
       m_requestFlag = 0;
+      m_lastError = CreateIndxRef::NoError;
       m_errorCode = CreateIndxRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1000,34 +1003,49 @@ private:
       m_requestType = req->getRequestType();
       m_requestFlag = req->getRequestFlag();
     }
+    bool hasLastError() {
+      return m_lastError != CreateIndxRef::NoError;
+    }
     bool hasError() {
       return m_errorCode != CreateIndxRef::NoError;
     }
     void setError(const CreateIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = CreateIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const CreateTableRef* ref) {
-      if (ref != 0 && ! hasError()) {
+      m_lastError = CreateIndxRef::NoError;
+      if (ref != 0) {
         switch (ref->getErrorCode()) {
         case CreateTableRef::TableAlreadyExist:
-          m_errorCode = CreateIndxRef::IndexExists;
+          m_lastError = CreateIndxRef::IndexExists;
           break;
         default:
-          m_errorCode = (CreateIndxRef::ErrorCode)ref->getErrorCode();
+          m_lastError = (CreateIndxRef::ErrorCode)ref->getErrorCode();
           break;
         }
-        m_errorLine = ref->getErrorLine();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+        }
       }
     }
     void setError(const AlterIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (CreateIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = CreateIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (CreateIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
   };
@@ -1046,6 +1064,7 @@ private:
     DropIndxReq::RequestType m_requestType;
     Uint32 m_requestFlag;
     // error info
+    DropIndxRef::ErrorCode m_lastError;
     DropIndxRef::ErrorCode m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
@@ -1057,6 +1076,7 @@ private:
       m_coordinatorRef = 0;
       m_requestType = DropIndxReq::RT_UNDEFINED;
       m_requestFlag = 0;
+      m_lastError = DropIndxRef::NoError;
       m_errorCode = DropIndxRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1066,44 +1086,59 @@ private:
       m_requestType = req->getRequestType();
       m_requestFlag = req->getRequestFlag();
     }
+    bool hasLastError() {
+      return m_lastError != DropIndxRef::NoError;
+    }
     bool hasError() {
       return m_errorCode != DropIndxRef::NoError;
     }
     void setError(const DropIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = DropIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = ref->getErrorCode();
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const AlterIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (DropIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = DropIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (DropIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const DropTableRef* ref) {
-      if (ref != 0 && ! hasError()) {
-	switch(ref->errorCode) {
-	case(DropTableRef::Busy):
-	  m_errorCode = DropIndxRef::Busy;
+      m_lastError = DropIndxRef::NoError;
+      if (ref != 0) {
+	switch (ref->errorCode) {
+	case DropTableRef::Busy:
+	  m_lastError = DropIndxRef::Busy;
 	  break;
-	case(DropTableRef::NoSuchTable):
-	  m_errorCode = DropIndxRef::IndexNotFound;
+	case DropTableRef::NoSuchTable:
+	  m_lastError = DropIndxRef::IndexNotFound;
 	  break;
-	case(DropTableRef::DropInProgress):
-	  m_errorCode = DropIndxRef::Busy;
+	case DropTableRef::DropInProgress:
+	  m_lastError = DropIndxRef::Busy;
 	  break;
-	case(DropTableRef::NoDropTableRecordAvailable):
-	  m_errorCode = DropIndxRef::Busy;
+	case DropTableRef::NoDropTableRecordAvailable:
+	  m_lastError = DropIndxRef::Busy;
 	  break;
 	default:
-	  m_errorCode = (DropIndxRef::ErrorCode)ref->errorCode;
+	  m_lastError = (DropIndxRef::ErrorCode)ref->errorCode;
 	  break;
 	}
-        //m_errorLine = ref->getErrorLine();
-        //m_errorNode = ref->getErrorNode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = 0;
+          m_errorNode = 0;
+        }
       }
     }
   };
@@ -1124,6 +1159,7 @@ private:
     AlterIndxReq::RequestType m_requestType;
     Uint32 m_requestFlag;
     // error info
+    AlterIndxRef::ErrorCode m_lastError;
     AlterIndxRef::ErrorCode m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
@@ -1136,6 +1172,7 @@ private:
       m_coordinatorRef = 0;
       m_requestType = AlterIndxReq::RT_UNDEFINED;
       m_requestFlag = 0;
+      m_lastError = AlterIndxRef::NoError;
       m_errorCode = AlterIndxRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1146,47 +1183,76 @@ private:
       m_requestType = req->getRequestType();
       m_requestFlag = req->getRequestFlag();
     }
+    bool hasLastError() {
+      return m_lastError != AlterIndxRef::NoError;
+    }
     bool hasError() {
       return m_errorCode != AlterIndxRef::NoError;
     }
     void setError(const AlterIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const CreateIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const DropIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const BuildIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterIndxRef::ErrorCode)ref->getErrorCode();
+      m_lastError = AlterIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = 0;
+          m_errorNode = 0;
+        }
       }
     }
     void setError(const CreateTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const DropTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
   };
@@ -1208,6 +1274,7 @@ private:
     Uint32 m_requestFlag;
     Uint32 m_constrTriggerId;
     // error info
+    BuildIndxRef::ErrorCode m_lastError;
     BuildIndxRef::ErrorCode m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
@@ -1219,7 +1286,7 @@ private:
       m_coordinatorRef = 0;
       m_requestType = BuildIndxReq::RT_UNDEFINED;
       m_requestFlag = 0;
-//      Uint32 m_constrTriggerId = RNIL;
+      m_lastError = BuildIndxRef::NoError;
       m_errorCode = BuildIndxRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1229,33 +1296,54 @@ private:
       m_requestType = req->getRequestType();
       m_requestFlag = req->getRequestFlag();
     }
+    bool hasLastError() {
+      return m_lastError != BuildIndxRef::NoError;
+    }
     bool hasError() {
       return m_errorCode != BuildIndxRef::NoError;
     }
     void setError(const BuildIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
+      m_lastError = BuildIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = 0;
+          m_errorNode = 0;
+        }
       }
     }
     void setError(const AlterIndxRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = BuildIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const CreateTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = BuildIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const DropTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (BuildIndxRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = BuildIndxRef::NoError;
+      if (ref != 0) {
+        m_lastError = (BuildIndxRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
   };
@@ -1388,6 +1476,7 @@ private:
     CreateTrigReq::RequestType m_requestType;
     Uint32 m_requestFlag;
     // error info
+    CreateTrigRef::ErrorCode m_lastError;
     CreateTrigRef::ErrorCode m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
@@ -1399,6 +1488,7 @@ private:
       m_coordinatorRef = 0;
       m_requestType = CreateTrigReq::RT_UNDEFINED;
       m_requestFlag = 0;
+      m_lastError = CreateTrigRef::NoError;
       m_errorCode = CreateTrigRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1408,21 +1498,32 @@ private:
       m_requestType = req->getRequestType();
       m_requestFlag = req->getRequestFlag();
     }
+    bool hasLastError() {
+      return m_lastError != CreateTrigRef::NoError;
+    }
     bool hasError() {
       return m_errorCode != CreateTrigRef::NoError;
     }
     void setError(const CreateTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = CreateTrigRef::NoError;
+      if (ref != 0) {
+        m_lastError = ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const AlterTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (CreateTrigRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = CreateTrigRef::NoError;
+      if (ref != 0) {
+        m_lastError = (CreateTrigRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
   };
@@ -1441,6 +1542,7 @@ private:
     DropTrigReq::RequestType m_requestType;
     Uint32 m_requestFlag;
     // error info
+    DropTrigRef::ErrorCode m_lastError;
     DropTrigRef::ErrorCode m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
@@ -1452,6 +1554,7 @@ private:
       m_coordinatorRef = 0;
       m_requestType = DropTrigReq::RT_UNDEFINED;
       m_requestFlag = 0;
+      m_lastError = DropTrigRef::NoError;
       m_errorCode = DropTrigRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1461,21 +1564,32 @@ private:
       m_requestType = req->getRequestType();
       m_requestFlag = req->getRequestFlag();
     }
+    bool hasLastError() {
+      return m_lastError != DropTrigRef::NoError;
+    }
     bool hasError() {
       return m_errorCode != DropTrigRef::NoError;
     }
     void setError(const DropTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = DropTrigRef::NoError;
+      if (ref != 0) {
+        m_lastError = ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const AlterTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (DropTrigRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = DropTrigRef::NoError;
+      if (ref != 0) {
+        m_lastError = (DropTrigRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
   };
@@ -1496,6 +1610,7 @@ private:
     AlterTrigReq::RequestType m_requestType;
     Uint32 m_requestFlag;
     // error info
+    AlterTrigRef::ErrorCode m_lastError;
     AlterTrigRef::ErrorCode m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
@@ -1507,6 +1622,7 @@ private:
       m_coordinatorRef = 0;
       m_requestType = AlterTrigReq::RT_UNDEFINED;
       m_requestFlag = 0;
+      m_lastError = AlterTrigRef::NoError;
       m_errorCode = AlterTrigRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1516,28 +1632,43 @@ private:
       m_requestType = req->getRequestType();
       m_requestFlag = req->getRequestFlag();
     }
+    bool hasLastError() {
+      return m_lastError != AlterTrigRef::NoError;
+    }
     bool hasError() {
       return m_errorCode != AlterTrigRef::NoError;
     }
     void setError(const AlterTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterTrigRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const CreateTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterTrigRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
     void setError(const DropTrigRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = (AlterTrigRef::ErrorCode)ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
+      m_lastError = AlterTrigRef::NoError;
+      if (ref != 0) {
+        m_lastError = (AlterTrigRef::ErrorCode)ref->getErrorCode();
+        if (! hasError()) {
+          m_errorCode = m_lastError;
+          m_errorLine = ref->getErrorLine();
+          m_errorNode = ref->getErrorNode();
+        }
       }
     }
   };
