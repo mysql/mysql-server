@@ -84,7 +84,8 @@ public:
   MemoryChannel( int size= 256);
   virtual ~MemoryChannel( );
 
-  virtual void writeChannel( T *t);
+  void writeChannel( T *t);
+  void writeChannelNoSignal( T *t);
   T* readChannel();
   T* tryReadChannel();
 
@@ -127,6 +128,15 @@ template <class T> void MemoryChannel<T>::writeChannel( T *t)
   NdbCondition_Signal(theConditionPtr);
 }
 
+template <class T> void MemoryChannel<T>::writeChannelNoSignal( T *t)
+{
+
+  NdbMutex_Lock(theMutexPtr);
+  if(full(theWriteIndex, theReadIndex) || theChannel == NULL) abort();
+  theChannel[theWriteIndex]= t;
+  ++theWriteIndex;
+  NdbMutex_Unlock(theMutexPtr);
+}
 
 template <class T> T* MemoryChannel<T>::readChannel()
 {
@@ -149,8 +159,6 @@ template <class T> T* MemoryChannel<T>::tryReadChannel()
 {
   T* tmp= 0;
   NdbMutex_Lock(theMutexPtr);
-  NdbCondition_WaitTimeout(theConditionPtr,
-                        theMutexPtr, 0);
   if ( !empty(theWriteIndex, theReadIndex) )
   {     
     tmp= theChannel[theReadIndex];
