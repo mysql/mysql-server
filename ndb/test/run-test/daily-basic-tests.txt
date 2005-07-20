@@ -54,6 +54,10 @@ max-time: 600
 cmd: atrt-testBackup
 args: -n BackupOne T1 T6 T3 I3
 
+max-time: 600
+cmd: atrt-testBackup
+args: -n BackupDDL T1
+
 # BASIC FUNCTIONALITY
 max-time: 500
 cmd: testBasic

@@ -1049,6 +1049,8 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+#define C2(x) { int _x= (x); if(_x == 0) return NDBT_FAILED; }
+
 int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   const NdbDictionary::Table* pTab = ctx->getTab();
@@ -1056,228 +1058,76 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*pTab);
 
   Ndb* pNdb = GETNDB(step);
-  Uint32 lm;
 
-  NdbConnection* pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);  
-    return NDBT_FAILED;
-  }
-  
-  NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);  
-    return NDBT_FAILED;
-  }
-  
-  if (pOp->readTuple(NdbOperation::LM_Exclusive) != 0){
-    pNdb->closeTransaction(pCon);
-    ERR(pOp->getNdbError());
-    return NDBT_FAILED;
-  }
-      
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkInsertRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkWriteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkWriteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
 
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() != true){
-      if (pOp->getValue(pTab->getColumn(a)->getName()) == NULL) {
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
-  
-  int check = pCon->execute(NoCommit);
-  if (check == 0){
-    ndbout << "execute worked" << endl;
-  } else {
-    ERR(pCon->getNdbError());
-    result = NDBT_FAILED;
-  }
-  
-  pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);  
-    return NDBT_FAILED;
-  }
-  
-  if (pOp->deleteTuple() != 0){
-    pNdb->closeTransaction(pCon);
-    ERR(pOp->getNdbError());
-    return NDBT_FAILED;
-  }
-      
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkInsertRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkWriteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkWriteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
 
-  check = pCon->execute(NoCommit);
-  if (check == 0){
-    ndbout << "execute worked" << endl;
-  } else {
-    ERR(pCon->getNdbError());
-    result = NDBT_FAILED;
-  }
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkInsertRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
 
-  pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);  
-    return NDBT_FAILED;
-  }
-  
-  if (pOp->writeTuple() != 0){
-    pNdb->closeTransaction(pCon);
-    ERR(pOp->getNdbError());
-    return NDBT_FAILED;
-  }
-  
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
-  
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() != true){
-      if(hugoOps.setValueForAttr(pOp, a, 1, 1) != 0)
-      {
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
-  
-  check = pCon->execute(NoCommit);
-  if (check == 0){
-    ndbout << "execute worked" << endl;
-  } else {
-    ERR(pCon->getNdbError());
-    result = NDBT_FAILED;
-  }
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkReadRecord(pNdb, 0, 1, NdbOperation::LM_Exclusive) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkWriteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkWriteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
 
-  pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);  
-    return NDBT_FAILED;
-  }
-  
-  if (pOp->writeTuple() != 0){
-    pNdb->closeTransaction(pCon);
-    ERR(pOp->getNdbError());
-    return NDBT_FAILED;
-  }
-  
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
-  
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() != true){
-      if(hugoOps.setValueForAttr(pOp, a, 1, 1) != 0)
-      {
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
-  
-  check = pCon->execute(NoCommit);
-  if (check == 0){
-    ndbout << "execute worked" << endl;
-  } else {
-    ERR(pCon->getNdbError());
-    result = NDBT_FAILED;
-  }
-  
-  check = pCon->execute(Rollback);
-  if (check == 0){
-    ndbout << "execute worked" << endl;
-  } else {
-    ERR(pCon->getNdbError());
-    result = NDBT_FAILED;
-  }
-  
-  pCon->close();
+  Ndb ndb2("TEST_DB");
+  C2(ndb2.init() == 0);
+  C2(ndb2.waitUntilReady() == 0);
+  HugoOperations hugoOps2(*pTab);  
 
-  pCon = pNdb->startTransaction();
-  if (pCon == NULL){
-    pNdb->closeTransaction(pCon);  
-    return NDBT_FAILED;
-  }
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkInsertRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps2.startTransaction(&ndb2) == 0);
+  C2(hugoOps2.pkWriteRecord(&ndb2, 0, 1) == 0);
+  C2(hugoOps2.execute_async(&ndb2, NoCommit) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps2.wait_async(&ndb2) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
+  C2(hugoOps2.closeTransaction(&ndb2) == 0);  
 
-  pOp = pCon->getNdbOperation(pTab->getName());
-  if (pOp == NULL){
-    ERR(pCon->getNdbError());
-    pNdb->closeTransaction(pCon);  
-    return NDBT_FAILED;
-  }
-  
-  if (pOp->writeTuple() != 0){
-    pNdb->closeTransaction(pCon);
-    ERR(pOp->getNdbError());
-    return NDBT_FAILED;
-  }
-  
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() == true){
-      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
-  
-  for(int a = 0; a<pTab->getNoOfColumns(); a++){
-    if (pTab->getColumn(a)->getPrimaryKey() != true){
-      if(hugoOps.setValueForAttr(pOp, a, 1, 1) != 0)
-      {
-	ERR(pCon->getNdbError());
-	pNdb->closeTransaction(pCon);
-	return NDBT_FAILED;
-      }
-    }
-  }
-  
-  check = pCon->execute(Commit);
-  if (check == 0){
-    ndbout << "execute worked" << endl;
-  } else {
-    ERR(pCon->getNdbError());
-    result = NDBT_FAILED;
-  }
-  
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps2.startTransaction(&ndb2) == 0);
+  C2(hugoOps2.pkWriteRecord(&ndb2, 0, 1) == 0);
+  C2(hugoOps2.execute_async(&ndb2, NoCommit) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps2.wait_async(&ndb2) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
+  C2(hugoOps2.closeTransaction(&ndb2) == 0);  
+
   return result;
 }
 
@@ -1359,7 +1209,6 @@ TESTCASE("ReadWithoutGetValue",
 }
 TESTCASE("Bug_11133", 
 	 "Test ReadEx-Delete-Write\n"){ 
-  INITIALIZER(runLoadTable);
   INITIALIZER(runBug_11133);
   FINALIZER(runClearTable);
 }
