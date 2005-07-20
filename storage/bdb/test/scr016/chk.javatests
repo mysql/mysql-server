@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: chk.javatests,v 1.5 2002/08/16 19:35:56 dda Exp $
+# $Id: chk.javatests,v 1.6 2003/11/21 02:35:46 bostic Exp $
 #
 # Check to make sure that regression tests for Java run.
 
@@ -26,7 +26,7 @@ cd ..
 	echo 'FAIL: chk.javatests must be run from a local build directory.'
 	exit 1
 }
-[ -d ../docs_src ] || {
+[ -d ../env ] || {
 	echo 'FAIL: chk.javatests must be run from a local build directory.'
 	exit 1
 }

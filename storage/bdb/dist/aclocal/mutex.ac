@@ -1,28 +1,6 @@
-# $Id: mutex.ac,v 11.38 2002/07/25 20:07:52 sue Exp $
+# $Id: mutex.ac,v 11.46 2004/07/09 16:23:19 bostic Exp $
 
 # POSIX pthreads tests: inter-process safe and intra-process only.
-#
-# We need to run a test here, because the PTHREAD_PROCESS_SHARED flag compiles
-# fine on problematic systems, but won't actually work.  This is a problem for
-# cross-compilation environments.  I think inter-process mutexes are as likely
-# to fail in cross-compilation environments as real ones (especially since the
-# likely cross-compilation environment is Linux, where inter-process mutexes
-# don't currently work -- the latest estimate I've heard is Q1 2002, as part
-# of IBM's NGPT package).  So:
-#
-# If checking for inter-process pthreads mutexes:
-#	If it's local, run a test.
-#	If it's a cross-compilation, fail.
-#
-# If the user specified pthreads mutexes and we're checking for intra-process
-# mutexes only:
-#	If it's local, run a test.
-#	If it's a cross-compilation, run a link-test.
-#
-# So, the thing you can't do here is configure for inter-process POSIX pthread
-# mutexes when cross-compiling.  Since we're using the GNU/Cygnus toolchain for
-# cross-compilation, the target system is likely Linux or *BSD, so we're doing
-# the right thing.
 AC_DEFUN(AM_PTHREADS_SHARED, [
 AC_TRY_RUN([
 #include <pthread.h>
@@ -44,7 +22,27 @@ main() {
 	pthread_cond_destroy(&cond) ||
 	pthread_condattr_destroy(&condattr) ||
 	pthread_mutexattr_destroy(&mutexattr));
-}], [db_cv_mutex="$1"],, [db_cv_mutex="no"])])
+}], [db_cv_mutex="$1"],,
+AC_TRY_LINK([
+#include <pthread.h>],[
+	pthread_cond_t cond;
+	pthread_mutex_t mutex;
+	pthread_condattr_t condattr;
+	pthread_mutexattr_t mutexattr;
+	exit (
+	pthread_condattr_init(&condattr) ||
+	pthread_condattr_setpshared(&condattr, PTHREAD_PROCESS_SHARED) ||
+	pthread_mutexattr_init(&mutexattr) ||
+	pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED) ||
+	pthread_cond_init(&cond, &condattr) ||
+	pthread_mutex_init(&mutex, &mutexattr) ||
+	pthread_mutex_lock(&mutex) ||
+	pthread_mutex_unlock(&mutex) ||
+	pthread_mutex_destroy(&mutex) ||
+	pthread_cond_destroy(&cond) ||
+	pthread_condattr_destroy(&condattr) ||
+	pthread_mutexattr_destroy(&mutexattr));
+], [db_cv_mutex="$1"]))])
 AC_DEFUN(AM_PTHREADS_PRIVATE, [
 AC_TRY_RUN([
 #include <pthread.h>
@@ -91,7 +89,6 @@ AC_DEFUN(AM_DEFINE_MUTEXES, [
 # other ports.
 AH_TEMPLATE(HAVE_MUTEX_VMS, [Define to 1 to use VMS mutexes.])
 AH_TEMPLATE(HAVE_MUTEX_VXWORKS, [Define to 1 to use VxWorks mutexes.])
-AH_TEMPLATE(HAVE_MUTEX_WIN32, [Define to 1 to use Windows mutexes.])
 
 AC_CACHE_CHECK([for mutexes], db_cv_mutex, [
 db_cv_mutex=no
@@ -104,37 +101,32 @@ orig_libs=$LIBS
 # is already using one type of mutex and doesn't want to mix-and-match (for
 # example, on Solaris, which has POSIX, UI and LWP mutexes).  Second, the
 # applications POSIX pthreads mutexes don't support inter-process locking,
-# but the application wants to use them anyway (for example, current Linux
-# and *BSD systems).
-#
-# If we're on Solaris, we insist that -lthread or -lpthread be used.  The
-# problem is the Solaris C library has UI/POSIX interface stubs, but they're
-# broken, configuring them for inter-process mutexes doesn't return an error,
-# but it doesn't work either.   Otherwise, we try first without the library
-# and then with it: there's some information that SCO/UnixWare/OpenUNIX needs
-# this. [#4950]
+# but the application wants to use them anyway (for example, some Linux and
+# *BSD systems).
 #
 # Test for LWP threads before testing for UI/POSIX threads, we prefer them
 # on Solaris.  There's a bug in SunOS 5.7 where applications get pwrite, not
 # pwrite64, if they load the C library before the appropriate threads library,
 # e.g., tclsh using dlopen to load the DB library.  By using LWP threads we
 # avoid answering lots of user questions, not to mention the bugs.
+#
+# Otherwise, test for POSIX threads before UI threads.  There are Linux systems
+# that support a UI compatibility mode, and applications are more likely to be
+# written for POSIX threads than UI threads.
+#
+# Try and link with a threads library if possible.  The problem is the Solaris
+# C library has UI/POSIX interface stubs, but they're broken, configuring them
+# for inter-process mutexes doesn't return an error, but it doesn't work either.
 if test "$db_cv_posixmutexes" = yes; then
-	case "$host_os" in
-	solaris*)
-		db_cv_mutex="posix_library_only";;
-	*)
-		db_cv_mutex="posix_only";;
-	esac
+	db_cv_mutex="posix_only";
+fi
+if test "$db_cv_uimutexes" = yes; then
+	db_cv_mutex="ui_only";
 fi
 
-if test "$db_cv_uimutexes" = yes; then
-	case "$host_os" in
-	solaris*)
-		db_cv_mutex="ui_library_only";;
-	*)
-		db_cv_mutex="ui_only";;
-	esac
+# User-specified Win32 mutexes (MinGW build)
+if test "$db_cv_mingw" = "yes"; then
+	db_cv_mutex=win32/gcc
 fi
 
 # LWP threads: _lwp_XXX
@@ -151,25 +143,32 @@ AC_TRY_LINK([
 ], [db_cv_mutex="Solaris/lwp"])
 fi
 
-# UI threads: thr_XXX
+# POSIX.1 pthreads: pthread_XXX
 #
-# Try with and without the -lthread library.
-if test "$db_cv_mutex" = no -o "$db_cv_mutex" = "ui_only"; then
-AC_TRY_LINK([
-#include <thread.h>
-#include <synch.h>],[
-	mutex_t mutex;
-	cond_t cond;
-	int type = USYNC_PROCESS;
-	exit (
-	mutex_init(&mutex, type, NULL) ||
-	cond_init(&cond, type, NULL) ||
-	mutex_lock(&mutex) ||
-	mutex_unlock(&mutex));
-], [db_cv_mutex="UI/threads"])
+# If the user specified we use POSIX pthreads mutexes, and we fail to find the
+# full interface, try and configure for just intra-process support.
+if test "$db_cv_mutex" = no -o "$db_cv_mutex" = "posix_only"; then
+	LIBS="$LIBS -lpthread"
+	AM_PTHREADS_SHARED("POSIX/pthreads/library")
+	LIBS="$orig_libs"
 fi
-if test "$db_cv_mutex" = no -o \
-    "$db_cv_mutex" = "ui_only" -o "$db_cv_mutex" = "ui_library_only"; then
+if test "$db_cv_mutex" = no -o "$db_cv_mutex" = "posix_only"; then
+	AM_PTHREADS_SHARED("POSIX/pthreads")
+fi
+if test "$db_cv_mutex" = "posix_only"; then
+	AM_PTHREADS_PRIVATE("POSIX/pthreads/private")
+fi
+if test "$db_cv_mutex" = "posix_only"; then
+	LIBS="$LIBS -lpthread"
+	AM_PTHREADS_PRIVATE("POSIX/pthreads/library/private")
+	LIBS="$orig_libs"
+fi
+if test "$db_cv_mutex" = "posix_only"; then
+	AC_MSG_ERROR([unable to find POSIX 1003.1 mutex interfaces])
+fi
+
+# UI threads: thr_XXX
+if test "$db_cv_mutex" = no -o "$db_cv_mutex" = "ui_only"; then
 LIBS="$LIBS -lthread"
 AC_TRY_LINK([
 #include <thread.h>
@@ -185,37 +184,22 @@ AC_TRY_LINK([
 ], [db_cv_mutex="UI/threads/library"])
 LIBS="$orig_libs"
 fi
-if test "$db_cv_mutex" = "ui_only" -o "$db_cv_mutex" = "ui_library_only"; then
+if test "$db_cv_mutex" = no -o "$db_cv_mutex" = "ui_only"; then
+AC_TRY_LINK([
+#include <thread.h>
+#include <synch.h>],[
+	mutex_t mutex;
+	cond_t cond;
+	int type = USYNC_PROCESS;
+	exit (
+	mutex_init(&mutex, type, NULL) ||
+	cond_init(&cond, type, NULL) ||
+	mutex_lock(&mutex) ||
+	mutex_unlock(&mutex));
+], [db_cv_mutex="UI/threads"])
+fi
+if test "$db_cv_mutex" = "ui_only"; then
 	AC_MSG_ERROR([unable to find UI mutex interfaces])
-fi
-
-# POSIX.1 pthreads: pthread_XXX
-#
-# Try with and without the -lpthread library.  If the user specified we use
-# POSIX pthreads mutexes, and we fail to find the full interface, try and
-# configure for just intra-process support.
-if test "$db_cv_mutex" = no -o "$db_cv_mutex" = "posix_only"; then
-	AM_PTHREADS_SHARED("POSIX/pthreads")
-fi
-if test "$db_cv_mutex" = no -o \
-    "$db_cv_mutex" = "posix_only" -o "$db_cv_mutex" = "posix_library_only"; then
-	LIBS="$LIBS -lpthread"
-	AM_PTHREADS_SHARED("POSIX/pthreads/library")
-	LIBS="$orig_libs"
-fi
-if test "$db_cv_mutex" = "posix_only"; then
-	AM_PTHREADS_PRIVATE("POSIX/pthreads/private")
-fi
-if test "$db_cv_mutex" = "posix_only" -o \
-    "$db_cv_mutex" = "posix_library_only"; then
-	LIBS="$LIBS -lpthread"
-	AM_PTHREADS_PRIVATE("POSIX/pthreads/library/private")
-	LIBS="$orig_libs"
-fi
-
-if test "$db_cv_mutex" = "posix_only" -o \
-    "$db_cv_mutex" = "posix_library_only"; then
-	AC_MSG_ERROR([unable to find POSIX 1003.1 mutex interfaces])
 fi
 
 # msemaphore: HPPA only
@@ -327,7 +311,27 @@ AC_TRY_LINK([
 ], [db_cv_mutex="AIX/_check_lock"])
 fi
 
-# Alpha/gcc: OSF/1
+# _spin_lock_try/_spin_unlock: Apple/Darwin
+if test "$db_cv_mutex" = no; then
+AC_TRY_LINK(,[
+	int x;
+	_spin_lock_try(&x);
+	_spin_unlock(&x);
+], [db_cv_mutex="Darwin/_spin_lock_try"])
+fi
+
+# Tru64/cc
+if test "$db_cv_mutex" = no; then
+AC_TRY_COMPILE(,[
+#if defined(__alpha) && defined(__DECC)
+	exit(0);
+#else
+	FAIL TO COMPILE/LINK
+#endif
+], [db_cv_mutex="Tru64/cc-assembly"])
+fi
+
+# Alpha/gcc
 if test "$db_cv_mutex" = no; then
 AC_TRY_COMPILE(,[
 #if defined(__alpha) && defined(__GNUC__)
@@ -361,16 +365,6 @@ AC_TRY_COMPILE(,[
 fi
 
 # PPC/gcc:
-# Test for Apple first, it requires slightly different assembly.
-if test "$db_cv_mutex" = no; then
-AC_TRY_COMPILE(,[
-#if (defined(__powerpc__) || defined(__ppc__)) && defined(__GNUC__) && defined(__APPLE__)
-	exit(0);
-#else
-	FAIL TO COMPILE/LINK
-#endif
-], [db_cv_mutex="PPC_APPLE/gcc-assembly"])
-fi
 if test "$db_cv_mutex" = no; then
 AC_TRY_COMPILE(,[
 #if (defined(__powerpc__) || defined(__ppc__)) && defined(__GNUC__)
@@ -378,7 +372,7 @@ AC_TRY_COMPILE(,[
 #else
 	FAIL TO COMPILE/LINK
 #endif
-], [db_cv_mutex="PPC_GENERIC/gcc-assembly"])
+], [db_cv_mutex="PPC/gcc-assembly"])
 fi
 
 # Sparc/gcc: SunOS, Solaris
@@ -406,12 +400,23 @@ fi
 # x86/gcc: FreeBSD, NetBSD, BSD/OS, Linux
 if test "$db_cv_mutex" = no; then
 AC_TRY_COMPILE(,[
-#if (defined(i386) || defined(__i386__)) && defined(__GNUC__)
+#if (defined(i386) || defined(__i386__) || defined(__x86_64__)) && defined(__GNUC__)
 	exit(0);
 #else
 	FAIL TO COMPILE/LINK
 #endif
 ], [db_cv_mutex="x86/gcc-assembly"])
+fi
+
+# S390/cc: IBM OS/390 Unix
+if test "$db_cv_mutex" = no; then
+AC_TRY_COMPILE(,[
+#if defined(__MVS__) && defined(__IBMC__)
+	exit(0);
+#else
+	FAIL TO COMPILE/LINK
+#endif
+], [db_cv_mutex="S390/cc-assembly"])
 fi
 
 # S390/gcc: Linux
@@ -462,6 +467,10 @@ AIX/_check_lock)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_AIX_CHECK_LOCK)
 			AH_TEMPLATE(HAVE_MUTEX_AIX_CHECK_LOCK,
 			    [Define to 1 to use the AIX _check_lock mutexes.]);;
+Darwin/_spin_lock_try)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
+			AC_DEFINE(HAVE_MUTEX_DARWIN_SPIN_LOCK_TRY)
+			AH_TEMPLATE(HAVE_MUTEX_DARWIN_SPIN_LOCK_TRY,
+			    [Define to 1 to use the Apple/Darwin _spin_lock_try mutexes.]);;
 ALPHA/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_ALPHA_GCC_ASSEMBLY)
 			AH_TEMPLATE(HAVE_MUTEX_ALPHA_GCC_ASSEMBLY,
@@ -494,12 +503,16 @@ POSIX/pthreads/private)	ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
 			AH_TEMPLATE(HAVE_MUTEX_THREAD_ONLY,
 			    [Define to 1 to configure mutexes intra-process only.]);;
 POSIX/pthreads/library)	LIBS="$LIBS -lpthread"
+			LIBJSO_LIBS="$LIBJSO_LIBS -lpthread"
+			LIBTSO_LIBS="$LIBTSO_LIBS -lpthread"
 			ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_PTHREADS)
 			AH_TEMPLATE(HAVE_MUTEX_PTHREADS,
 			    [Define to 1 to use POSIX 1003.1 pthread_XXX mutexes.]);;
 POSIX/pthreads/library/private)
 			LIBS="$LIBS -lpthread"
+			LIBJSO_LIBS="$LIBJSO_LIBS -lpthread"
+			LIBTSO_LIBS="$LIBTSO_LIBS -lpthread"
 			ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_PTHREADS)
 			AH_TEMPLATE(HAVE_MUTEX_PTHREADS,
@@ -507,20 +520,20 @@ POSIX/pthreads/library/private)
 			AC_DEFINE(HAVE_MUTEX_THREAD_ONLY)
 			AH_TEMPLATE(HAVE_MUTEX_THREAD_ONLY,
 			    [Define to 1 to configure mutexes intra-process only.]);;
-PPC_GENERIC/gcc-assembly)
+PPC/gcc-assembly)
 			ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
-			AC_DEFINE(HAVE_MUTEX_PPC_GENERIC_GCC_ASSEMBLY)
-			AH_TEMPLATE(HAVE_MUTEX_PPC_GENERIC_GCC_ASSEMBLY,
-			    [Define to 1 to use the GCC compiler and generic PowerPC assembly language.]);;
-PPC_APPLE/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
-			AC_DEFINE(HAVE_MUTEX_PPC_APPLE_GCC_ASSEMBLY)
-			AH_TEMPLATE(HAVE_MUTEX_PPC_APPLE_GCC_ASSEMBLY,
-			    [Define to 1 to use the GCC compiler and Apple PowerPC assembly language.]);;
+			AC_DEFINE(HAVE_MUTEX_PPC_GCC_ASSEMBLY)
+			AH_TEMPLATE(HAVE_MUTEX_PPC_GCC_ASSEMBLY,
+			    [Define to 1 to use the GCC compiler and PowerPC assembly language mutexes.]);;
 ReliantUNIX/initspin)	LIBS="$LIBS -lmproc"
 			ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_RELIANTUNIX_INITSPIN)
 			AH_TEMPLATE(HAVE_MUTEX_RELIANTUNIX_INITSPIN,
 			    [Define to 1 to use Reliant UNIX initspin mutexes.]);;
+S390/cc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
+			AC_DEFINE(HAVE_MUTEX_S390_CC_ASSEMBLY)
+			AH_TEMPLATE(HAVE_MUTEX_S390_CC_ASSEMBLY,
+			    [Define to 1 to use the IBM C compiler and S/390 assembly language mutexes.]);;
 S390/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_S390_GCC_ASSEMBLY)
 			AH_TEMPLATE(HAVE_MUTEX_S390_GCC_ASSEMBLY,
@@ -545,6 +558,11 @@ Sparc/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_SPARC_GCC_ASSEMBLY)
 			AH_TEMPLATE(HAVE_MUTEX_SPARC_GCC_ASSEMBLY,
 			    [Define to 1 to use the GCC compiler and Sparc assembly language mutexes.]);;
+Tru64/cc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
+			AC_DEFINE(HAVE_MUTEX_TRU64_CC_ASSEMBLY)
+			AH_TEMPLATE(HAVE_MUTEX_TRU64_CC_ASSEMBLY,
+			    [Define to 1 to use the CC compiler and Tru64 assembly language mutexes.]);;
+
 UI/threads)		ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_UI_THREADS)
 			AH_TEMPLATE(HAVE_MUTEX_UI_THREADS,
@@ -562,10 +580,16 @@ UNIX/sema_init)		ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_SEMA_INIT)
 			AH_TEMPLATE(HAVE_MUTEX_SEMA_INIT,
 			    [Define to 1 to use the obsolete POSIX 1003.1 sema_XXX mutexes.]);;
-UTS/cc-assembly)	ADDITIONAL_OBJS="$ADDITIONAL_OBJS uts4.cc${o}"
+UTS/cc-assembly)	ADDITIONAL_OBJS="uts4.cc${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_UTS_CC_ASSEMBLY)
 			AH_TEMPLATE(HAVE_MUTEX_UTS_CC_ASSEMBLY,
 			    [Define to 1 to use the UTS compiler and assembly language mutexes.]);;
+win32)			ADDITIONAL_OBJS="mut_win32${o} $ADDITIONAL_OBJS"
+			AC_DEFINE(HAVE_MUTEX_WIN32)
+			AH_TEMPLATE(HAVE_MUTEX_WIN32, [Define to 1 to use the MSVC compiler and Windows mutexes.]);;
+win32/gcc)		ADDITIONAL_OBJS="mut_win32${o} $ADDITIONAL_OBJS"
+			AC_DEFINE(HAVE_MUTEX_WIN32_GCC)
+			AH_TEMPLATE(HAVE_MUTEX_WIN32_GCC, [Define to 1 to use the GCC compiler and Windows mutexes.]);;
 x86/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_X86_GCC_ASSEMBLY)
 			AH_TEMPLATE(HAVE_MUTEX_X86_GCC_ASSEMBLY,

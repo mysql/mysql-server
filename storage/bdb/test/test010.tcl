@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test010.tcl,v 11.20 2002/06/11 14:09:56 sue Exp $
+# $Id: test010.tcl,v 11.23 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test010
 # TEST	Duplicate test
@@ -14,7 +14,7 @@
 # TEST	After all are entered, retrieve all; verify output.
 # TEST	Close file, reopen, do retrieve and re-verify.
 # TEST	This does not work for recno
-proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
+proc test010 { method {nentries 10000} {ndups 5} {tnum "010"} args } {
 	source ./include.tcl
 
 	set omethod $method
@@ -23,7 +23,7 @@ proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
 
 	if { [is_record_based $method] == 1 || \
 	    [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $method"
+		puts "Test$tnum skipping for method $method"
 		return
 	}
 
@@ -34,10 +34,10 @@ proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -54,7 +54,7 @@ proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
 		}
 		set testdir [get_home $env]
 	}
-	puts "Test0$tnum: $method ($args) $nentries \
+	puts "Test$tnum: $method ($args) $nentries \
 	    small $ndups dup key/data pairs"
 
 	set t1 $testdir/t1
@@ -111,12 +111,12 @@ proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
 			}
 			set datastr [lindex [lindex $ret 0] 1]
 			set d [data_of $datastr]
-			error_check_good "Test0$tnum:get" $d $str
+			error_check_good "Test$tnum:get" $d $str
 			set id [ id_of $datastr ]
-			error_check_good "Test0$tnum:dup#" $id $x
+			error_check_good "Test$tnum:dup#" $id $x
 			incr x
 		}
-		error_check_good "Test0$tnum:ndups:$str" [expr $x - 1] $ndups
+		error_check_good "Test$tnum:ndups:$str" [expr $x - 1] $ndups
 		error_check_good cursor_close [$dbc close] 0
 		if { $txnenv == 1 } {
 			error_check_good txn [$t commit] 0
@@ -128,7 +128,7 @@ proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.a: Checking file for correct duplicates"
+	puts "\tTest$tnum.a: Checking file for correct duplicates"
 	set dlist ""
 	for { set i 1 } { $i <= $ndups } {incr i} {
 		lappend dlist $i
@@ -149,14 +149,14 @@ proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
 	filesort $t3 $t2
 	filesort $t1 $t3
 
-	error_check_good Test0$tnum:diff($t3,$t2) \
+	error_check_good Test$tnum:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 
 	error_check_good db_close [$db close] 0
 	set db [eval {berkdb_open} $args $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
-	puts "\tTest0$tnum.b: Checking file for correct duplicates after close"
+	puts "\tTest$tnum.b: Checking file for correct duplicates after close"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -169,7 +169,7 @@ proc test010 { method {nentries 10000} {ndups 5} {tnum 10} args } {
 
 	# Now compare the keys to see if they match the dictionary entries
 	filesort $t1 $t3
-	error_check_good Test0$tnum:diff($t3,$t2) \
+	error_check_good Test$tnum:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 
 	error_check_good db_close [$db close] 0

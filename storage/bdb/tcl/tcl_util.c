@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2001
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: tcl_util.c,v 11.43 2004/06/10 17:20:57 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: tcl_util.c,v 11.35 2002/08/06 06:21:42 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -40,17 +38,15 @@ bdb_RandCommand(interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *rcmds[] = {
+	static const char *rcmds[] = {
 		"rand",	"random_int",	"srand",
 		NULL
 	};
 	enum rcmds {
 		RRAND, RRAND_INT, RSRAND
 	};
-	long t;
-	int cmdindex, hi, lo, result, ret;
 	Tcl_Obj *res;
-	char msg[MSG_SIZE];
+	int cmdindex, hi, lo, result, ret;
 
 	result = TCL_OK;
 	/*
@@ -83,29 +79,21 @@ bdb_RandCommand(interp, objc, objv)
 			Tcl_WrongNumArgs(interp, 2, objv, "lo hi");
 			return (TCL_ERROR);
 		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &lo);
-		if (result != TCL_OK)
-			break;
-		result = Tcl_GetIntFromObj(interp, objv[3], &hi);
-		if (result == TCL_OK) {
-#ifndef RAND_MAX
-#define	RAND_MAX	0x7fffffff
-#endif
-			t = rand();
-			if (t > RAND_MAX) {
-				snprintf(msg, MSG_SIZE,
-				    "Max random is higher than %ld\n",
-				    (long)RAND_MAX);
-				Tcl_SetResult(interp, msg, TCL_VOLATILE);
-				result = TCL_ERROR;
-				break;
-			}
-			_debug_check();
-			ret = (int)(((double)t / ((double)(RAND_MAX) + 1)) *
-			    (hi - lo + 1));
-			ret += lo;
-			res = Tcl_NewIntObj(ret);
+		if ((result =
+		    Tcl_GetIntFromObj(interp, objv[2], &lo)) != TCL_OK)
+			return (result);
+		if ((result =
+		    Tcl_GetIntFromObj(interp, objv[3], &hi)) != TCL_OK)
+			return (result);
+		if (lo < 0 || hi < 0) {
+			Tcl_SetResult(interp,
+			    "Range value less than 0", TCL_STATIC);
+			return (TCL_ERROR);
 		}
+
+		_debug_check();
+		ret = lo + rand() % ((hi - lo) + 1);
+		res = Tcl_NewIntObj(ret);
 		break;
 	case RSRAND:
 		/*
@@ -115,16 +103,17 @@ bdb_RandCommand(interp, objc, objv)
 			Tcl_WrongNumArgs(interp, 2, objv, "seed");
 			return (TCL_ERROR);
 		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &lo);
-		if (result == TCL_OK) {
+		if ((result =
+		    Tcl_GetIntFromObj(interp, objv[2], &lo)) == TCL_OK) {
 			srand((u_int)lo);
 			res = Tcl_NewIntObj(0);
 		}
 		break;
 	}
+
 	/*
-	 * Only set result if we have a res.  Otherwise, lower
-	 * functions have already done so.
+	 * Only set result if we have a res.  Otherwise, lower functions have
+	 * already done so.
 	 */
 	if (result == TCL_OK && res)
 		Tcl_SetObjResult(interp, res);
@@ -150,13 +139,12 @@ tcl_Mutex(interp, objc, objv, envp, envip)
 	DBTCL_INFO *ip;
 	Tcl_Obj *res;
 	_MUTEX_DATA *md;
-	int i, mode, nitems, result, ret;
+	int i, nitems, mode, result, ret;
 	char newname[MSG_SIZE];
 
 	md = NULL;
 	result = TCL_OK;
-	mode = nitems = ret = 0;
-	memset(newname, 0, MSG_SIZE);
+	ret = 0;
 
 	if (objc != 4) {
 		Tcl_WrongNumArgs(interp, 2, objv, "mode nitems");
@@ -169,6 +157,7 @@ tcl_Mutex(interp, objc, objv, envp, envip)
 	if (result != TCL_OK)
 		return (TCL_ERROR);
 
+	memset(newname, 0, MSG_SIZE);
 	snprintf(newname, sizeof(newname),
 	    "%s.mutex%d", envip->i_name, envip->i_envmutexid);
 	ip = _NewInfo(interp, NULL, newname, I_MUTEX);
@@ -192,12 +181,11 @@ tcl_Mutex(interp, objc, objv, envp, envip)
 	if (__os_calloc(NULL, 1, sizeof(_MUTEX_DATA), &md) != 0)
 		goto posixout;
 	md->env = envp;
-	md->n_mutex = nitems;
-	md->size = sizeof(_MUTEX_ENTRY) * nitems;
+	md->size = sizeof(_MUTEX_ENTRY) * (u_int)nitems;
 
+	md->reginfo.dbenv = envp;
 	md->reginfo.type = REGION_TYPE_MUTEX;
-	md->reginfo.id = INVALID_REGION_TYPE;
-	md->reginfo.mode = mode;
+	md->reginfo.id = INVALID_REGION_ID;
 	md->reginfo.flags = REGION_CREATE_OK | REGION_JOIN_OK;
 	if ((ret = __db_r_attach(envp, &md->reginfo, md->size)) != 0)
 		goto posixout;
@@ -220,23 +208,22 @@ tcl_Mutex(interp, objc, objv, envp, envip)
 	envip->i_envmutexid++;
 	ip->i_parent = envip;
 	_SetInfoData(ip, md);
-	Tcl_CreateObjCommand(interp, newname,
+	(void)Tcl_CreateObjCommand(interp, newname,
 	    (Tcl_ObjCmdProc *)mutex_Cmd, (ClientData)md, NULL);
-	res = Tcl_NewStringObj(newname, strlen(newname));
+	res = NewStringObj(newname, strlen(newname));
 	Tcl_SetObjResult(interp, res);
 
 	return (TCL_OK);
 
 posixout:
 	if (ret > 0)
-		Tcl_PosixError(interp);
+		(void)Tcl_PosixError(interp);
 	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "mutex");
 	_DeleteInfo(ip);
 
 	if (md != NULL) {
 		if (md->reginfo.addr != NULL)
-			(void)__db_r_detach(md->env,
-			    &md->reginfo, F_ISSET(&md->reginfo, REGION_CREATE));
+			(void)__db_r_detach(md->env, &md->reginfo, 0);
 		__os_free(md->env, md);
 	}
 	return (result);
@@ -253,7 +240,7 @@ mutex_Cmd(clientData, interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *mxcmds[] = {
+	static const char *mxcmds[] = {
 		"close",
 		"get",
 		"getval",

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test031.tcl,v 11.24 2002/06/26 06:22:44 krinsky Exp $
+# $Id: test031.tcl,v 11.27 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test031
 # TEST	Duplicate sorting functionality
@@ -20,7 +20,7 @@
 # TEST	After all are entered, retrieve all; verify output.
 # TEST	Close file, reopen, do retrieve and re-verify.
 # TEST	This does not work for recno
-proc test031 { method {nentries 10000} {ndups 5} {tnum 31} args } {
+proc test031 { method {nentries 10000} {ndups 5} {tnum "031"} args } {
 	global alphabet
 	global rand_init
 	source ./include.tcl
@@ -37,11 +37,11 @@ proc test031 { method {nentries 10000} {ndups 5} {tnum 31} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set checkdb $testdir/checkdb.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		set checkdb checkdb.db
 		incr eindex
 		set env [lindex $args $eindex]
@@ -64,11 +64,11 @@ proc test031 { method {nentries 10000} {ndups 5} {tnum 31} args } {
 	set t3 $testdir/t3
 	cleanup $testdir $env
 
-	puts "Test0$tnum: \
+	puts "Test$tnum: \
 	    $method ($args) $nentries small $ndups sorted dup key/data pairs"
 	if { [is_record_based $method] == 1 || \
 	    [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $omethod"
+		puts "Test$tnum skipping for method $omethod"
 		return
 	}
 	set db [eval {berkdb_open -create \
@@ -86,7 +86,7 @@ proc test031 { method {nentries 10000} {ndups 5} {tnum 31} args } {
 	set count 0
 
 	# Here is the loop where we put and get each key/data pair
-	puts "\tTest0$tnum.a: Put/get loop, check nodupdata"
+	puts "\tTest$tnum.a: Put/get loop, check nodupdata"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -151,7 +151,7 @@ proc test031 { method {nentries 10000} {ndups 5} {tnum 31} args } {
 			incr x
 			set lastdup $datastr
 		}
-		error_check_good "Test0$tnum:ndups:$str" $x $ndups
+		error_check_good "Test$tnum:ndups:$str" $x $ndups
 		incr count
 	}
 	error_check_good cursor_close [$dbc close] 0
@@ -162,7 +162,7 @@ proc test031 { method {nentries 10000} {ndups 5} {tnum 31} args } {
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.b: Checking file for correct duplicates"
+	puts "\tTest$tnum.b: Checking file for correct duplicates"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE

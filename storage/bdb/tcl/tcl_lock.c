@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2001
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: tcl_lock.c,v 11.59 2004/10/07 16:48:39 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: tcl_lock.c,v 11.47 2002/08/08 15:27:10 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -25,30 +23,13 @@ static const char revid[] = "$Id: tcl_lock.c,v 11.47 2002/08/08 15:27:10 bostic 
 /*
  * Prototypes for procedures defined later in this file:
  */
+#ifdef CONFIG_TEST
 static int      lock_Cmd __P((ClientData, Tcl_Interp *, int, Tcl_Obj * CONST*));
 static int	_LockMode __P((Tcl_Interp *, Tcl_Obj *, db_lockmode_t *));
 static int	_GetThisLock __P((Tcl_Interp *, DB_ENV *, u_int32_t,
 				     u_int32_t, DBT *, db_lockmode_t, char *));
 static void	_LockPutInfo __P((Tcl_Interp *, db_lockop_t, DB_LOCK *,
 				     u_int32_t, DBT *));
-#if CONFIG_TEST
-static char *lkmode[] = {
-	"ng",
-	"read",
-	"write",
-	"iwrite",
-	"iread",
-	"iwr",
-	 NULL
-};
-enum lkmode {
-	LK_NG,
-	LK_READ,
-	LK_WRITE,
-	LK_IWRITE,
-	LK_IREAD,
-	LK_IWR
-};
 
 /*
  * tcl_LockDetect --
@@ -63,10 +44,11 @@ tcl_LockDetect(interp, objc, objv, envp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *envp;			/* Environment pointer */
 {
-	static char *ldopts[] = {
-		"expire",
+	static const char *ldopts[] = {
 		"default",
+		"expire",
 		"maxlocks",
+		"maxwrites",
 		"minlocks",
 		"minwrites",
 		"oldest",
@@ -75,9 +57,10 @@ tcl_LockDetect(interp, objc, objv, envp)
 		 NULL
 	};
 	enum ldopts {
-		LD_EXPIRE,
 		LD_DEFAULT,
+		LD_EXPIRE,
 		LD_MAXLOCKS,
+		LD_MAXWRITES,
 		LD_MINLOCKS,
 		LD_MINWRITES,
 		LD_OLDEST,
@@ -96,37 +79,41 @@ tcl_LockDetect(interp, objc, objv, envp)
 			return (IS_HELP(objv[i]));
 		i++;
 		switch ((enum ldopts)optindex) {
-		case LD_EXPIRE:
-			FLAG_CHECK(policy);
-			policy = DB_LOCK_EXPIRE;
-			break;
 		case LD_DEFAULT:
 			FLAG_CHECK(policy);
 			policy = DB_LOCK_DEFAULT;
+			break;
+		case LD_EXPIRE:
+			FLAG_CHECK(policy);
+			policy = DB_LOCK_EXPIRE;
 			break;
 		case LD_MAXLOCKS:
 			FLAG_CHECK(policy);
 			policy = DB_LOCK_MAXLOCKS;
 			break;
-		case LD_MINWRITES:
+		case LD_MAXWRITES:
 			FLAG_CHECK(policy);
-			policy = DB_LOCK_MINWRITE;
+			policy = DB_LOCK_MAXWRITE;
 			break;
 		case LD_MINLOCKS:
 			FLAG_CHECK(policy);
 			policy = DB_LOCK_MINLOCKS;
 			break;
+		case LD_MINWRITES:
+			FLAG_CHECK(policy);
+			policy = DB_LOCK_MINWRITE;
+			break;
 		case LD_OLDEST:
 			FLAG_CHECK(policy);
 			policy = DB_LOCK_OLDEST;
 			break;
-		case LD_YOUNGEST:
-			FLAG_CHECK(policy);
-			policy = DB_LOCK_YOUNGEST;
-			break;
 		case LD_RANDOM:
 			FLAG_CHECK(policy);
 			policy = DB_LOCK_RANDOM;
+			break;
+		case LD_YOUNGEST:
+			FLAG_CHECK(policy);
+			policy = DB_LOCK_YOUNGEST;
 			break;
 		}
 	}
@@ -150,7 +137,7 @@ tcl_LockGet(interp, objc, objv, envp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *envp;			/* Environment pointer */
 {
-	static char *lgopts[] = {
+	static const char *lgopts[] = {
 		"-nowait",
 		 NULL
 	};
@@ -212,12 +199,12 @@ tcl_LockGet(interp, objc, objv, envp)
 
 	result = _GetThisLock(interp, envp, lockid, flag, &obj, mode, newname);
 	if (result == TCL_OK) {
-		res = Tcl_NewStringObj(newname, strlen(newname));
+		res = NewStringObj(newname, strlen(newname));
 		Tcl_SetObjResult(interp, res);
 	}
 out:
 	if (freeobj)
-		(void)__os_free(envp, otmp);
+		__os_free(envp, otmp);
 	return (result);
 }
 
@@ -285,7 +272,7 @@ tcl_LockStat(interp, objc, objv, envp)
 	MAKE_STAT_LIST("Number of transaction timeouts", sp->st_ntxntimeouts);
 	Tcl_SetObjResult(interp, res);
 error:
-	free(sp);
+	__os_ufree(envp, sp);
 	return (result);
 }
 
@@ -332,7 +319,7 @@ lock_Cmd(clientData, interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *lkcmds[] = {
+	static const char *lkcmds[] = {
 		"put",
 		NULL
 	};
@@ -400,14 +387,14 @@ tcl_LockVec(interp, objc, objv, envp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *envp;			/* environment pointer */
 {
-	static char *lvopts[] = {
+	static const char *lvopts[] = {
 		"-nowait",
 		 NULL
 	};
 	enum lvopts {
 		LVNOWAIT
 	};
-	static char *lkops[] = {
+	static const char *lkops[] = {
 		"get",
 		"put",
 		"put_all",
@@ -422,6 +409,7 @@ tcl_LockVec(interp, objc, objv, envp)
 		LKPUTOBJ,
 		LKTIMEOUT
 	};
+
 	DB_LOCK *lock;
 	DB_LOCKREQ list;
 	DBT obj;
@@ -433,8 +421,10 @@ tcl_LockVec(interp, objc, objv, envp)
 
 	result = TCL_OK;
 	memset(newname, 0, MSG_SIZE);
+	memset(&list, 0, sizeof(DB_LOCKREQ));
 	flag = 0;
 	freeobj = 0;
+	otmp = NULL;
 
 	/*
 	 * If -nowait is given, it MUST be first arg.
@@ -518,10 +508,10 @@ tcl_LockVec(interp, objc, objv, envp)
 				    thisop);
 				goto error;
 			}
-			thisop = Tcl_NewStringObj(newname, strlen(newname));
+			thisop = NewStringObj(newname, strlen(newname));
 			(void)Tcl_ListObjAppendElement(interp, res, thisop);
-			if (freeobj) {
-				(void)__os_free(envp, otmp);
+			if (freeobj && otmp != NULL) {
+				__os_free(envp, otmp);
 				freeobj = 0;
 			}
 			continue;
@@ -591,8 +581,8 @@ tcl_LockVec(interp, objc, objv, envp)
 		if (ret != 0 && result == TCL_OK)
 			result = _ReturnSetup(interp, ret,
 			    DB_RETOK_STD(ret), "lock put");
-		if (freeobj) {
-			(void)__os_free(envp, otmp);
+		if (freeobj && otmp != NULL) {
+			__os_free(envp, otmp);
 			freeobj = 0;
 		}
 		/*
@@ -615,6 +605,23 @@ _LockMode(interp, obj, mode)
 	Tcl_Obj *obj;
 	db_lockmode_t *mode;
 {
+	static const char *lkmode[] = {
+		"ng",
+		"read",
+		"write",
+		"iwrite",
+		"iread",
+		"iwr",
+		 NULL
+	};
+	enum lkmode {
+		LK_NG,
+		LK_READ,
+		LK_WRITE,
+		LK_IWRITE,
+		LK_IREAD,
+		LK_IWR
+	};
 	int optindex;
 
 	if (Tcl_GetIndexFromObj(interp, obj, lkmode, "option",
@@ -731,7 +738,7 @@ _GetThisLock(interp, envp, lockid, flag, objp, mode, newname)
 	ip->i_parent = envip;
 	ip->i_locker = lockid;
 	_SetInfoData(ip, lock);
-	Tcl_CreateObjCommand(interp, newname,
+	(void)Tcl_CreateObjCommand(interp, newname,
 	    (Tcl_ObjCmdProc *)lock_Cmd, (ClientData)lock, NULL);
 error:
 	return (result);

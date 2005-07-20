@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test073.tcl,v 11.23 2002/05/22 15:42:59 sue Exp $
+# $Id: test073.tcl,v 11.26 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test073
 # TEST	Test of cursor stability on duplicate pages.
@@ -22,7 +22,7 @@
 # TEST	f. Ditto for the two sequence tests, only doing a
 # TEST	   DBC->c_put(DB_CURRENT) of a larger datum instead of adding a
 # TEST	   new one.
-proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
+proc test073 { method {pagesize 512} {ndups 50} {tnum "073"} args } {
 	source ./include.tcl
 	global alphabet
 
@@ -35,10 +35,10 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -52,7 +52,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 	set key "the key"
 	set txn ""
 
-	puts -nonewline "Test0$tnum $omethod ($args): "
+	puts -nonewline "Test$tnum $omethod ($args): "
 	if { [is_record_based $method] || [is_rbtree $method] } {
 		puts "Skipping for method $method."
 		return
@@ -74,7 +74,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 	# Number of outstanding keys.
 	set keys 0
 
-	puts "\tTest0$tnum.a.1: Initializing put loop; $ndups dups, short data."
+	puts "\tTest$tnum.a.1: Initializing put loop; $ndups dups, short data."
 
 	for { set i 0 } { $i < $ndups } { incr i } {
 		set datum [makedatum_t73 $i 0]
@@ -94,7 +94,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 		incr keys
 	}
 
-	puts "\tTest0$tnum.a.2: Initializing cursor get loop; $keys dups."
+	puts "\tTest$tnum.a.2: Initializing cursor get loop; $keys dups."
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -111,7 +111,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 		    [list [list $key $datum]]
 	}
 
-	puts "\tTest0$tnum.b: Cursor put (DB_KEYLAST); $ndups new dups,\
+	puts "\tTest$tnum.b: Cursor put (DB_KEYLAST); $ndups new dups,\
 	    short data."
 
 	for { set i 0 } { $i < $ndups } { incr i } {
@@ -132,7 +132,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 		verify_t73 is_long dbc $keys $key
 	}
 
-	puts "\tTest0$tnum.c: Cursor put (DB_KEYFIRST); $ndups new dups,\
+	puts "\tTest$tnum.c: Cursor put (DB_KEYFIRST); $ndups new dups,\
 	    short data."
 
 	for { set i 0 } { $i < $ndups } { incr i } {
@@ -153,7 +153,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 		verify_t73 is_long dbc $keys $key
 	}
 
-	puts "\tTest0$tnum.d: Cursor put (DB_AFTER) first to last;\
+	puts "\tTest$tnum.d: Cursor put (DB_AFTER) first to last;\
 	    $keys new dups, short data"
 	# We want to add a datum after each key from 0 to the current
 	# value of $keys, which we thus need to save.
@@ -179,7 +179,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 		verify_t73 is_long dbc $keys $key
 	}
 
-	puts "\tTest0$tnum.e: Cursor put (DB_BEFORE) last to first;\
+	puts "\tTest$tnum.e: Cursor put (DB_BEFORE) last to first;\
 	    $keys new dups, short data"
 
 	for { set i [expr $keys - 1] } { $i >= 0 } { incr i -1 } {
@@ -206,7 +206,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 	}
 	verify_t73 is_long dbc $keys $key
 
-	puts "\tTest0$tnum.f: Cursor put (DB_CURRENT), first to last,\
+	puts "\tTest$tnum.f: Cursor put (DB_CURRENT), first to last,\
 	    growing $keys data."
 	set keysnow $keys
 	for { set i 0 } { $i < $keysnow } { incr i } {
@@ -233,7 +233,7 @@ proc test073 { method {pagesize 512} {ndups 50} {tnum 73} args } {
 	verify_t73 is_long dbc $keys $key
 
 	# Close cursors.
-	puts "\tTest0$tnum.g: Closing cursors."
+	puts "\tTest$tnum.g: Closing cursors."
 	for { set i 0 } { $i < $keys } { incr i } {
 		error_check_good "dbc close ($i)" [$dbc($i) close] 0
 	}

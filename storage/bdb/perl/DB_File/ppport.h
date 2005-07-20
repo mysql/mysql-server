@@ -278,7 +278,35 @@ SV *sv;
 
 #endif /* START_MY_CXT */
 
+#ifdef SvPVbyte
+#   if PERL_REVISION == 5 && PERL_VERSION < 7
+       /* SvPVbyte does not work in perl-5.6.1, borrowed version for 5.7.3 */
+#       undef SvPVbyte
+#       define SvPVbyte(sv, lp) \
+          ((SvFLAGS(sv) & (SVf_POK|SVf_UTF8)) == (SVf_POK) \
+           ? ((lp = SvCUR(sv)), SvPVX(sv)) : my_sv_2pvbyte(aTHX_ sv, &lp))
+       static char *
+       my_sv_2pvbyte(pTHX_ register SV *sv, STRLEN *lp)
+       {
+           sv_utf8_downgrade(sv,0);
+           return SvPV(sv,*lp);
+       }
+#   endif
+#else
+#   define SvPVbyte SvPV
+#endif
+	
+#ifndef SvUTF8_off
+#    define SvUTF8_off(s)
+#endif
 
+#if 1
+#ifdef DBM_setFilter
+#undef DBM_setFilter
+#undef DBM_ckFilter
+#endif
+#endif
+	
 #ifndef DBM_setFilter
 
 /* 
@@ -305,6 +333,7 @@ SV *sv;
 
 #define DBM_ckFilter(arg,type,name)				\
 	if (db->type) {						\
+	    /*printf("ckFilter %s\n", name);*/			\
 	    if (db->filtering) {				\
 	        croak("recursion detected in %s", name) ;	\
 	    }                     				\
@@ -313,6 +342,8 @@ SV *sv;
 	    SAVEINT(db->filtering) ;				\
 	    db->filtering = TRUE ;				\
 	    SAVESPTR(DEFSV) ;					\
+            if (name[7] == 's')                                 \
+                arg = newSVsv(arg);                             \
 	    DEFSV = arg ;					\
 	    SvTEMP_off(arg) ;					\
 	    PUSHMARK(SP) ;					\
@@ -322,6 +353,10 @@ SV *sv;
 	    PUTBACK ;						\
 	    FREETMPS ;						\
 	    LEAVE ;						\
+            if (name[7] == 's'){                                \
+                arg = sv_2mortal(arg);                          \
+            }                                                   \
+            SvOKp(arg);                                         \
 	}
 
 #endif /* DBM_setFilter */

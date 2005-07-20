@@ -1,19 +1,18 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2002
+ * Copyright (c) 2001-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_id.c,v 1.9 2004/09/22 16:27:54 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: os_id.c,v 1.2 2002/01/11 15:52:59 bostic Exp $";
-#endif /* not lint */
-
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
+#include <stdlib.h>
 #include <unistd.h>
 #endif
 
@@ -42,6 +41,49 @@ __os_id(idp)
 #ifdef	HAVE_VXWORKS
 	*idp = taskIdSelf();
 #else
-	*idp = getpid();
+	*idp = (u_int32_t)getpid();
 #endif
+}
+
+/*
+ * __os_unique_id --
+ *	Return a unique 32-bit value.
+ *
+ * PUBLIC: void __os_unique_id __P((DB_ENV *, u_int32_t *));
+ */
+void
+__os_unique_id(dbenv, idp)
+	DB_ENV *dbenv;
+	u_int32_t *idp;
+{
+	static int first = 1;
+	u_int32_t id, pid, sec, usec;
+
+	*idp = 0;
+
+	/*
+	 * Our randomized value is comprised of our process ID, the current
+	 * time of day and a couple of a stack addresses, all XOR'd together.
+	 */
+	__os_id(&pid);
+	__os_clock(dbenv, &sec, &usec);
+
+	id = pid ^ sec ^ usec ^ P_TO_UINT32(&pid);
+
+	/*
+	 * We could try and find a reasonable random-number generator, but
+	 * that's not all that easy to do.  Seed and use srand()/rand(), if
+	 * we can find them.
+	 */
+#if HAVE_SRAND
+	if (first == 1)
+		srand((u_int)id);
+#endif
+	first = 0;
+
+#if HAVE_RAND
+	id ^= (u_int)rand();
+#endif
+
+	*idp = id;
 }

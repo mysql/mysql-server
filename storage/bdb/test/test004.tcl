@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test004.tcl,v 11.21 2002/05/22 18:32:35 sue Exp $
+# $Id: test004.tcl,v 11.24 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test004
 # TEST	Small keys/medium data
@@ -13,14 +13,14 @@
 # TEST	Check that cursor operations work.  Create a database.
 # TEST	Read through the database sequentially using cursors and
 # TEST	delete each element.
-proc test004 { method {nentries 10000} {reopen 4} {build_only 0} args} {
+proc test004 { method {nentries 10000} {reopen "004"} {build_only 0} args} {
 	source ./include.tcl
 
 	set do_renumber [is_rrecno $method]
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	set tnum test00$reopen
+	set tnum test$reopen
 
 	# Create the database and open the dictionary
 	set txnenv 0
@@ -51,7 +51,7 @@ proc test004 { method {nentries 10000} {reopen 4} {build_only 0} args} {
 
 	puts -nonewline "$tnum:\
 	    $method ($args) $nentries delete small key; medium data pairs"
-	if {$reopen == 5} {
+	if {$reopen == "005"} {
 		puts "(with close)"
 	} else {
 		puts ""
@@ -78,7 +78,7 @@ proc test004 { method {nentries 10000} {reopen 4} {build_only 0} args} {
 
 	# Here is the loop where we put and get each key/data pair
 	set kvals ""
-	puts "\tTest00$reopen.a: put/get loop"
+	puts "\tTest$reopen.a: put/get loop"
 	while { [gets $did str] != -1 && $count < $nentries } {
 		if { [is_record_based $method] == 1 } {
 			set key [expr $count + 1]
@@ -110,13 +110,13 @@ proc test004 { method {nentries 10000} {reopen 4} {build_only 0} args} {
 	if { $build_only == 1 } {
 		return $db
 	}
-	if { $reopen == 5 } {
+	if { $reopen == "005" } {
 		error_check_good db_close [$db close] 0
 
 		set db [eval {berkdb_open} $args {$testfile}]
 		error_check_good dbopen [is_valid_db $db] TRUE
 	}
-	puts "\tTest00$reopen.b: get/delete loop"
+	puts "\tTest$reopen.b: get/delete loop"
 	# Now we will get each key from the DB and compare the results
 	# to the original, then delete it.
 	set outf [open $t1 w]
@@ -155,13 +155,13 @@ proc test004 { method {nentries 10000} {reopen 4} {build_only 0} args} {
 
 	# Now compare the keys to see if they match the dictionary
 	if { [is_record_based $method] == 1 } {
-		error_check_good test00$reopen:keys_deleted $count $nentries
+		error_check_good test$reopen:keys_deleted $count $nentries
 	} else {
 		set q q
 		filehead $nentries $dict $t3
 		filesort $t3 $t2
 		filesort $t1 $t3
-		error_check_good Test00$reopen:diff($t3,$t2) \
+		error_check_good Test$reopen:diff($t3,$t2) \
 		    [filecmp $t3 $t2] 0
 	}
 

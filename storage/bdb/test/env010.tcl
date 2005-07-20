@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #       Sleepycat Software.  All rights reserved.
 #
-# $Id: env010.tcl,v 1.4 2002/02/20 17:08:21 sandstro Exp $
+# $Id: env010.tcl,v 1.7 2004/01/28 03:36:27 bostic Exp $
 #
 # TEST	env010
 # TEST	Run recovery in an empty directory, and then make sure we can still
@@ -28,7 +28,8 @@ proc env010 { } {
 
 		puts "\tEnv010: Creating env for $rmethod test."
 		env_cleanup $testdir/EMPTYDIR
-		set e [berkdb_env -create -home $testdir/EMPTYDIR -$rmethod]
+		set e [berkdb_env \
+		    -create -home $testdir/EMPTYDIR -txn -$rmethod]
 		error_check_good dbenv [is_valid_env $e] TRUE
 
 		# Open and close a database

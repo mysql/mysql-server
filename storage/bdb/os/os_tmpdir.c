@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2002
+ * Copyright (c) 1998-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_tmpdir.c,v 11.24 2004/10/05 14:55:33 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_tmpdir.c,v 11.19 2002/01/11 15:53:02 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -98,17 +96,25 @@ __os_tmpdir(dbenv, flags)
 #endif
 #ifdef DB_WIN32
 	/* Get the path to the temporary directory. */
-	{int len;
-	char *eos, temp[MAXPATHLEN + 1];
+	{
+		int ret;
+		_TCHAR tpath[MAXPATHLEN + 1];
+		char *path, *eos;
 
-		if ((len = GetTempPath(sizeof(temp) - 1, temp)) > 2) {
-			eos = &temp[len];
-			*eos-- = '\0';
+		if (GetTempPath(MAXPATHLEN, tpath) > 2) {
+			FROM_TSTRING(dbenv, tpath, path, ret);
+			if (ret != 0)
+				return (ret);
+			eos = path + strlen(path) - 1;
 			if (*eos == '\\' || *eos == '/')
 				*eos = '\0';
-			if (__os_exists(temp, &isdir) == 0 && isdir != 0)
-				return (__os_strdup(dbenv,
-				    temp, &dbenv->db_tmp_dir));
+			if (__os_exists(path, &isdir) == 0 && isdir) {
+				ret = __os_strdup(dbenv,
+				    path, &dbenv->db_tmp_dir);
+				FREE_STRING(dbenv, path);
+				return (ret);
+			}
+			FREE_STRING(dbenv, path);
 		}
 	}
 #endif

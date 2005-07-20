@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2001
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: tcl_mp.c,v 11.58 2004/10/07 16:48:39 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: tcl_mp.c,v 11.39 2002/08/06 06:21:27 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -25,6 +23,7 @@ static const char revid[] = "$Id: tcl_mp.c,v 11.39 2002/08/06 06:21:27 bostic Ex
 /*
  * Prototypes for procedures defined later in this file:
  */
+#ifdef CONFIG_TEST
 static int      mp_Cmd __P((ClientData, Tcl_Interp *, int, Tcl_Obj * CONST*));
 static int      pg_Cmd __P((ClientData, Tcl_Interp *, int, Tcl_Obj * CONST*));
 static int      tcl_MpGet __P((Tcl_Interp *, int, Tcl_Obj * CONST*,
@@ -35,6 +34,7 @@ static int      tcl_PgInit __P((Tcl_Interp *, int, Tcl_Obj * CONST*,
     void *, DBTCL_INFO *));
 static int      tcl_PgIsset __P((Tcl_Interp *, int, Tcl_Obj * CONST*,
     void *, DBTCL_INFO *));
+#endif
 
 /*
  * _MpInfoDelete --
@@ -56,14 +56,14 @@ _MpInfoDelete(interp, mpip)
 		 * mp.  Remove its commands and info structure.
 		 */
 		nextp = LIST_NEXT(p, entries);
-		 if (p->i_parent == mpip && p->i_type == I_PG) {
+		if (p->i_parent == mpip && p->i_type == I_PG) {
 			(void)Tcl_DeleteCommand(interp, p->i_name);
 			_DeleteInfo(p);
 		}
 	}
 }
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_MpSync --
  *
@@ -98,8 +98,7 @@ tcl_MpSync(interp, objc, objv, envp)
 
 	_debug_check();
 	ret = envp->memp_sync(envp, lsnp);
-	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "memp sync");
-	return (result);
+	return (_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "memp sync"));
 }
 
 /*
@@ -116,11 +115,8 @@ tcl_MpTrickle(interp, objc, objv, envp)
 	DB_ENV *envp;			/* Environment pointer */
 {
 
-	int pages;
-	int percent;
-	int result;
-	int ret;
 	Tcl_Obj *res;
+	int pages, percent, result, ret;
 
 	result = TCL_OK;
 	/*
@@ -161,7 +157,7 @@ tcl_Mp(interp, objc, objv, envp, envip)
 	DB_ENV *envp;			/* Environment pointer */
 	DBTCL_INFO *envip;		/* Info pointer */
 {
-	static char *mpopts[] = {
+	static const char *mpopts[] = {
 		"-create",
 		"-mode",
 		"-nommap",
@@ -296,9 +292,9 @@ tcl_Mp(interp, objc, objv, envp, envip)
 	ip->i_parent = envip;
 	ip->i_pgsz = pgsize;
 	_SetInfoData(ip, mpf);
-	Tcl_CreateObjCommand(interp, newname,
+	(void)Tcl_CreateObjCommand(interp, newname,
 	    (Tcl_ObjCmdProc *)mp_Cmd, (ClientData)mpf, NULL);
-	res = Tcl_NewStringObj(newname, strlen(newname));
+	res = NewStringObj(newname, strlen(newname));
 	Tcl_SetObjResult(interp, res);
 
 error:
@@ -351,6 +347,11 @@ tcl_MpStat(interp, objc, objv, envp)
 	MAKE_STAT_LIST("Cache size (bytes)", sp->st_bytes);
 	MAKE_STAT_LIST("Number of caches", sp->st_ncache);
 	MAKE_STAT_LIST("Region size", sp->st_regsize);
+	MAKE_STAT_LIST("Maximum memory-mapped file size", sp->st_mmapsize);
+	MAKE_STAT_LIST("Maximum open file descriptors", sp->st_maxopenfd);
+	MAKE_STAT_LIST("Maximum sequential buffer writes", sp->st_maxwrite);
+	MAKE_STAT_LIST(
+	    "Sleep after writing maximum buffers", sp->st_maxwrite_sleep);
 	MAKE_STAT_LIST("Pages mapped into address space", sp->st_map);
 	MAKE_STAT_LIST("Cache hits", sp->st_cache_hit);
 	MAKE_STAT_LIST("Cache misses", sp->st_cache_miss);
@@ -413,9 +414,9 @@ tcl_MpStat(interp, objc, objv, envp)
 	}
 	Tcl_SetObjResult(interp, res1);
 error:
-	free(sp);
+	__os_ufree(envp, sp);
 	if (savefsp != NULL)
-		free(savefsp);
+		__os_ufree(envp, savefsp);
 	return (result);
 }
 
@@ -430,22 +431,36 @@ mp_Cmd(clientData, interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *mpcmds[] = {
+	static const char *mpcmds[] = {
 		"close",
 		"fsync",
 		"get",
+		"get_clear_len",
+		"get_fileid",
+		"get_ftype",
+		"get_lsn_offset",
+		"get_pgcookie",
 		NULL
 	};
 	enum mpcmds {
 		MPCLOSE,
 		MPFSYNC,
-		MPGET
+		MPGET,
+		MPGETCLEARLEN,
+		MPGETFILEID,
+		MPGETFTYPE,
+		MPGETLSNOFFSET,
+		MPGETPGCOOKIE
 	};
 	DB_MPOOLFILE *mp;
-	int cmdindex, length, result, ret;
+	int cmdindex, ftype, length, result, ret;
 	DBTCL_INFO *mpip;
 	Tcl_Obj *res;
 	char *obj_name;
+	u_int32_t value;
+	int32_t intval;
+	u_int8_t fileid[DB_FILE_ID_LEN];
+	DBT cookie;
 
 	Tcl_ResetResult(interp);
 	mp = (DB_MPOOLFILE *)clientData;
@@ -497,6 +512,58 @@ mp_Cmd(clientData, interp, objc, objv)
 	case MPGET:
 		result = tcl_MpGet(interp, objc, objv, mp, mpip);
 		break;
+	case MPGETCLEARLEN:
+		if (objc != 2) {
+			Tcl_WrongNumArgs(interp, 1, objv, NULL);
+			return (TCL_ERROR);
+		}
+		ret = mp->get_clear_len(mp, &value);
+		if ((result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+		    "mp get_clear_len")) == TCL_OK)
+			res = Tcl_NewIntObj((int)value);
+		break;
+	case MPGETFILEID:
+		if (objc != 2) {
+			Tcl_WrongNumArgs(interp, 1, objv, NULL);
+			return (TCL_ERROR);
+		}
+		ret = mp->get_fileid(mp, fileid);
+		if ((result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+		    "mp get_fileid")) == TCL_OK)
+			res = NewStringObj((char *)fileid, DB_FILE_ID_LEN);
+		break;
+	case MPGETFTYPE:
+		if (objc != 2) {
+			Tcl_WrongNumArgs(interp, 1, objv, NULL);
+			return (TCL_ERROR);
+		}
+		ret = mp->get_ftype(mp, &ftype);
+		if ((result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+		    "mp get_ftype")) == TCL_OK)
+			res = Tcl_NewIntObj(ftype);
+		break;
+	case MPGETLSNOFFSET:
+		if (objc != 2) {
+			Tcl_WrongNumArgs(interp, 1, objv, NULL);
+			return (TCL_ERROR);
+		}
+		ret = mp->get_lsn_offset(mp, &intval);
+		if ((result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+		    "mp get_lsn_offset")) == TCL_OK)
+			res = Tcl_NewIntObj(intval);
+		break;
+	case MPGETPGCOOKIE:
+		if (objc != 2) {
+			Tcl_WrongNumArgs(interp, 1, objv, NULL);
+			return (TCL_ERROR);
+		}
+		memset(&cookie, 0, sizeof(DBT));
+		ret = mp->get_pgcookie(mp, &cookie);
+		if ((result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+		    "mp get_pgcookie")) == TCL_OK)
+			res = Tcl_NewByteArrayObj((u_char *)cookie.data,
+			    (int)cookie.size);
+		break;
 	}
 	/*
 	 * Only set result if we have a res.  Otherwise, lower
@@ -518,7 +585,7 @@ tcl_MpGet(interp, objc, objv, mp, mpip)
 	DB_MPOOLFILE *mp;		/* mp pointer */
 	DBTCL_INFO *mpip;		/* mp info pointer */
 {
-	static char *mpget[] = {
+	static const char *mpget[] = {
 		"-create",
 		"-last",
 		"-new",
@@ -594,7 +661,7 @@ tcl_MpGet(interp, objc, objv, mp, mpip)
 		return (TCL_ERROR);
 	}
 	_debug_check();
-	pgno = ipgno;
+	pgno = (db_pgno_t)ipgno;
 	ret = mp->get(mp, &pgno, flag, &page);
 	result = _ReturnSetup(interp, ret, DB_RETOK_MPGET(ret), "mpool get");
 	if (result == TCL_ERROR)
@@ -609,9 +676,9 @@ tcl_MpGet(interp, objc, objv, mp, mpip)
 		ip->i_pgno = pgno;
 		ip->i_pgsz = mpip->i_pgsz;
 		_SetInfoData(ip, page);
-		Tcl_CreateObjCommand(interp, newname,
+		(void)Tcl_CreateObjCommand(interp, newname,
 		    (Tcl_ObjCmdProc *)pg_Cmd, (ClientData)page, NULL);
-		res = Tcl_NewStringObj(newname, strlen(newname));
+		res = NewStringObj(newname, strlen(newname));
 		Tcl_SetObjResult(interp, res);
 	}
 error:
@@ -629,7 +696,7 @@ pg_Cmd(clientData, interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *pgcmds[] = {
+	static const char *pgcmds[] = {
 		"init",
 		"is_setto",
 		"pgnum",
@@ -684,15 +751,15 @@ pg_Cmd(clientData, interp, objc, objv)
 	res = NULL;
 	switch ((enum pgcmds)cmdindex) {
 	case PGNUM:
-		res = Tcl_NewLongObj((long)pgip->i_pgno);
+		res = Tcl_NewWideIntObj((Tcl_WideInt)pgip->i_pgno);
 		break;
 	case PGSIZE:
-		res = Tcl_NewLongObj(pgip->i_pgsz);
+		res = Tcl_NewWideIntObj((Tcl_WideInt)pgip->i_pgsz);
 		break;
 	case PGSET:
 	case PGPUT:
 		result = tcl_Pg(interp, objc, objv, page, mp, pgip,
-		    cmdindex == PGSET ? 0 : 1);
+		    (enum pgcmds)cmdindex == PGSET ? 0 : 1);
 		break;
 	case PGINIT:
 		result = tcl_PgInit(interp, objc, objv, page, pgip);
@@ -701,11 +768,12 @@ pg_Cmd(clientData, interp, objc, objv)
 		result = tcl_PgIsset(interp, objc, objv, page, pgip);
 		break;
 	}
+
 	/*
 	 * Only set result if we have a res.  Otherwise, lower
 	 * functions have already done so.
 	 */
-	if (result == TCL_OK && res)
+	if (result == TCL_OK && res != NULL)
 		Tcl_SetObjResult(interp, res);
 	return (result);
 }
@@ -720,7 +788,7 @@ tcl_Pg(interp, objc, objv, page, mp, pgip, putop)
 	DBTCL_INFO *pgip;		/* Info pointer */
 	int putop;			/* Operation */
 {
-	static char *pgopt[] = {
+	static const char *pgopt[] = {
 		"-clean",
 		"-dirty",
 		"-discard",
@@ -779,9 +847,8 @@ tcl_PgInit(interp, objc, objv, page, pgip)
 	DBTCL_INFO *pgip;		/* Info pointer */
 {
 	Tcl_Obj *res;
-	size_t pgsz;
 	long *p, *endp, newval;
-	int length, result;
+	int length, pgsz, result;
 	u_char *s;
 
 	result = TCL_OK;
@@ -796,12 +863,11 @@ tcl_PgInit(interp, objc, objv, page, pgip)
 		s = Tcl_GetByteArrayFromObj(objv[2], &length);
 		if (s == NULL)
 			return (TCL_ERROR);
-		memcpy(page, s,
-		    ((size_t)length < pgsz) ? (size_t)length : pgsz);
+		memcpy(page, s, (size_t)((length < pgsz) ? length : pgsz));
 		result = TCL_OK;
 	} else {
 		p = (long *)page;
-		for (endp = p + (pgsz / sizeof(long)); p < endp; p++)
+		for (endp = p + ((u_int)pgsz / sizeof(long)); p < endp; p++)
 			*p = newval;
 	}
 	res = Tcl_NewIntObj(0);
@@ -818,9 +884,8 @@ tcl_PgIsset(interp, objc, objv, page, pgip)
 	DBTCL_INFO *pgip;		/* Info pointer */
 {
 	Tcl_Obj *res;
-	size_t pgsz;
 	long *p, *endp, newval;
-	int length, result;
+	int length, pgsz, result;
 	u_char *s;
 
 	result = TCL_OK;
@@ -837,7 +902,7 @@ tcl_PgIsset(interp, objc, objv, page, pgip)
 		result = TCL_OK;
 
 		if (memcmp(page, s,
-		    ((size_t)length < pgsz) ? (size_t)length : pgsz ) != 0) {
+		    (size_t)((length < pgsz) ? length : pgsz)) != 0) {
 			res = Tcl_NewIntObj(0);
 			Tcl_SetObjResult(interp, res);
 			return (result);
@@ -849,7 +914,7 @@ tcl_PgIsset(interp, objc, objv, page, pgip)
 		 * this value).  Otherwise, if we finish the loop, we return 1
 		 * (is set to this value).
 		 */
-		for (endp = p + (pgsz/sizeof(long)); p < endp; p++)
+		for (endp = p + ((u_int)pgsz / sizeof(long)); p < endp; p++)
 			if (*p != newval) {
 				res = Tcl_NewIntObj(0);
 				Tcl_SetObjResult(interp, res);

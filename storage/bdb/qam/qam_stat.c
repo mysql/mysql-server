@@ -1,19 +1,18 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: qam_stat.c,v 11.47 2004/09/22 16:29:47 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: qam_stat.c,v 11.32 2002/05/11 13:40:11 bostic Exp $";
-#endif /* not lint */
-
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <string.h>
 #endif
 
@@ -22,22 +21,23 @@ static const char revid[] = "$Id: qam_stat.c,v 11.32 2002/05/11 13:40:11 bostic 
 #include "dbinc/db_shash.h"
 #include "dbinc/db_am.h"
 #include "dbinc/lock.h"
-#include "dbinc/log.h"
+#include "dbinc/mp.h"
 #include "dbinc/qam.h"
 
+#ifdef HAVE_STATISTICS
 /*
  * __qam_stat --
  *	Gather/print the qam statistics
  *
- * PUBLIC: int __qam_stat __P((DB *, void *, u_int32_t));
+ * PUBLIC: int __qam_stat __P((DBC *, void *, u_int32_t));
  */
 int
-__qam_stat(dbp, spp, flags)
-	DB *dbp;
+__qam_stat(dbc, spp, flags)
+	DBC *dbc;
 	void *spp;
 	u_int32_t flags;
 {
-	DBC *dbc;
+	DB *dbp;
 	DB_LOCK lock;
 	DB_MPOOLFILE *mpf;
 	DB_QUEUE_STAT *sp;
@@ -50,26 +50,15 @@ __qam_stat(dbp, spp, flags)
 	u_int32_t re_len;
 	int ret, t_ret;
 
-	PANIC_CHECK(dbp->dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->stat");
+	dbp = dbc->dbp;
 
 	LOCK_INIT(lock);
 	mpf = dbp->mpf;
 	sp = NULL;
 	t = dbp->q_internal;
 
-	/* Check for invalid flags. */
-	if ((ret = __db_statchk(dbp, flags)) != 0)
-		return (ret);
-
 	if (spp == NULL)
 		return (0);
-
-	/* Acquire a cursor. */
-	if ((ret = dbp->cursor(dbp, NULL, &dbc, 0)) != 0)
-		return (ret);
-
-	DEBUG_LWRITE(dbc, NULL, "qam_stat", NULL, NULL, flags);
 
 	/* Allocate and clear the structure. */
 	if ((ret = __os_umalloc(dbp->dbenv, sizeof(*sp), &sp)) != 0)
@@ -79,10 +68,9 @@ __qam_stat(dbp, spp, flags)
 	re_len = ((QUEUE *)dbp->q_internal)->re_len;
 
 	/* Determine the last page of the database. */
-	if ((ret = __db_lget(dbc,
-	    0, t->q_meta, DB_LOCK_READ, 0, &lock)) != 0)
+	if ((ret = __db_lget(dbc, 0, t->q_meta, DB_LOCK_READ, 0, &lock)) != 0)
 		goto err;
-	if ((ret = mpf->get(mpf, &t->q_meta, 0, (PAGE **)&meta)) != 0)
+	if ((ret = __memp_fget(mpf, &t->q_meta, 0, &meta)) != 0)
 		goto err;
 
 	if (flags == DB_FAST_STAT || flags == DB_CACHED_COUNTS) {
@@ -94,13 +82,15 @@ __qam_stat(dbp, spp, flags)
 	first = QAM_RECNO_PAGE(dbp, meta->first_recno);
 	last = QAM_RECNO_PAGE(dbp, meta->cur_recno);
 
-	if ((ret = mpf->put(mpf, meta, 0)) != 0)
+	ret = __memp_fput(mpf, meta, 0);
+	if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
+		ret = t_ret;
+	if (ret != 0)
 		goto err;
-	(void)__LPUT(dbc, lock);
 
 	pgno = first;
 	if (first > last)
-		stop = QAM_RECNO_PAGE(dbp, UINT32_T_MAX);
+		stop = QAM_RECNO_PAGE(dbp, UINT32_MAX);
 	else
 		stop = last;
 
@@ -124,7 +114,7 @@ begin:
 				ret = 0;
 				break;
 			}
-			pgno += pg_ext - ((pgno - 1) % pg_ext) - 1;
+			pgno += (pg_ext - ((pgno - 1) % pg_ext)) - 1;
 			continue;
 		}
 		if (ret != 0)
@@ -142,12 +132,15 @@ begin:
 				sp->qs_pgfree += re_len;
 		}
 
-		if ((ret = __qam_fput(dbp, pgno, h, 0)) != 0)
+		ret = __qam_fput(dbp, pgno, h, 0);
+		if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
+			ret = t_ret;
+		if (ret != 0)
 			goto err;
-		(void)__LPUT(dbc, lock);
 	}
 
-	(void)__LPUT(dbc, lock);
+	if ((ret = __LPUT(dbc, lock)) != 0)
+		goto err;
 	if (first > last) {
 		pgno = 1;
 		stop = last;
@@ -160,7 +153,7 @@ begin:
 	    0, t->q_meta, F_ISSET(dbp, DB_AM_RDONLY) ?
 	    DB_LOCK_READ : DB_LOCK_WRITE, 0, &lock)) != 0)
 		goto err;
-	if ((ret = mpf->get(mpf, &t->q_meta, 0, (PAGE **)&meta)) != 0)
+	if ((ret = __memp_fget(mpf, &t->q_meta, 0, &meta)) != 0)
 		goto err;
 
 	if (!F_ISSET(dbp, DB_AM_RDONLY))
@@ -181,23 +174,88 @@ meta_only:
 	sp->qs_cur_recno = meta->cur_recno;
 
 	/* Discard the meta-data page. */
-	if ((ret = mpf->put(mpf,
-	    meta, F_ISSET(dbp, DB_AM_RDONLY) ? 0 : DB_MPOOL_DIRTY)) != 0)
+	ret = __memp_fput(mpf,
+	    meta, F_ISSET(dbp, DB_AM_RDONLY) ? 0 : DB_MPOOL_DIRTY);
+	if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
+		ret = t_ret;
+	if (ret != 0)
 		goto err;
-	(void)__LPUT(dbc, lock);
 
 	*(DB_QUEUE_STAT **)spp = sp;
-	ret = 0;
 
 	if (0) {
 err:		if (sp != NULL)
 			__os_ufree(dbp->dbenv, sp);
 	}
 
-	(void)__LPUT(dbc, lock);
-
-	if ((t_ret = dbc->c_close(dbc)) != 0 && ret == 0)
+	if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
 		ret = t_ret;
 
 	return (ret);
 }
+
+/*
+ * __qam_stat_print --
+ *	Display queue statistics.
+ *
+ * PUBLIC: int __qam_stat_print __P((DBC *, u_int32_t));
+ */
+int
+__qam_stat_print(dbc, flags)
+	DBC *dbc;
+	u_int32_t flags;
+{
+	DB *dbp;
+	DB_ENV *dbenv;
+	DB_QUEUE_STAT *sp;
+	int ret;
+
+	dbp = dbc->dbp;
+	dbenv = dbp->dbenv;
+
+	if ((ret = __qam_stat(dbc, &sp, 0)) != 0)
+		return (ret);
+
+	if (LF_ISSET(DB_STAT_ALL)) {
+		__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
+		__db_msg(dbenv, "Default Queue database information:");
+	}
+	__db_msg(dbenv, "%lx\tQueue magic number", (u_long)sp->qs_magic);
+	__db_msg(dbenv, "%lu\tQueue version number", (u_long)sp->qs_version);
+	__db_dl(dbenv, "Fixed-length record size", (u_long)sp->qs_re_len);
+	__db_msg(dbenv, "%#x\tFixed-length record pad", (int)sp->qs_re_pad);
+	__db_dl(dbenv,
+	    "Underlying database page size", (u_long)sp->qs_pagesize);
+	__db_dl(dbenv,
+	    "Underlying database extent size", (u_long)sp->qs_extentsize);
+	__db_dl(dbenv,
+	    "Number of records in the database", (u_long)sp->qs_nkeys);
+	__db_dl(dbenv, "Number of database pages", (u_long)sp->qs_pages);
+	__db_dl_pct(dbenv,
+	    "Number of bytes free in database pages",
+	    (u_long)sp->qs_pgfree,
+	    DB_PCT_PG(sp->qs_pgfree, sp->qs_pages, sp->qs_pagesize), "ff");
+	__db_msg(dbenv,
+	    "%lu\tFirst undeleted record", (u_long)sp->qs_first_recno);
+	__db_msg(dbenv,
+	    "%lu\tNext available record number", (u_long)sp->qs_cur_recno);
+
+	__os_ufree(dbenv, sp);
+
+	return (0);
+}
+
+#else /* !HAVE_STATISTICS */
+
+int
+__qam_stat(dbc, spp, flags)
+	DBC *dbc;
+	void *spp;
+	u_int32_t flags;
+{
+	COMPQUIET(spp, NULL);
+	COMPQUIET(flags, 0);
+
+	return (__db_stat_not_built(dbc->dbp->dbenv));
+}
+#endif

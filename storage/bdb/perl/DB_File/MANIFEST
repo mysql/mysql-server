@@ -28,3 +28,4 @@ t/db-hash.t
 t/db-recno.t
 typemap
 version.c
+META.yml                                 Module meta-data (added by MakeMaker)

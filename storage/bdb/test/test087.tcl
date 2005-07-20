@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test087.tcl,v 11.14 2002/07/08 20:16:31 sue Exp $
+# $Id: test087.tcl,v 11.19 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test087
 # TEST	Test of cursor stability when converting to and modifying
@@ -25,7 +25,7 @@
 # TEST	f. Ditto for the two sequence tests, only doing a
 # TEST	   DBC->c_put(DB_CURRENT) of a larger datum instead of adding a
 # TEST	   new one.
-proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
+proc test087 { method {pagesize 512} {ndups 50} {tnum "087"} args } {
 	source ./include.tcl
 	global alphabet
 
@@ -34,7 +34,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	set args [split_encargs $args encargs]
 	set omethod [convert_method $method]
 
-	puts "Test0$tnum $omethod ($args): "
+	puts "Test$tnum $omethod ($args): "
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then return
@@ -48,7 +48,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 		return
 	}
 	env_cleanup $testdir
-	set testfile test0$tnum.db
+	set testfile test$tnum.db
 	set key "the key"
 	append args " -pagesize $pagesize -dup"
 
@@ -56,7 +56,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 		puts "Skipping for method $method."
 		return
 	} else {
-		puts "Cursor stability on dup. pages w/ aborts."
+		puts "Test$tnum: Cursor stability on dup. pages w/ aborts."
 	}
 
 	set env [eval {berkdb_env -create -home $testdir -txn} $encargs]
@@ -69,7 +69,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	# Number of outstanding keys.
 	set keys $ndups
 
-	puts "\tTest0$tnum.a: put/abort/put/commit loop;\
+	puts "\tTest$tnum.a: put/abort/put/commit loop;\
 	    $ndups dups, short data."
 	set txn [$env txn]
 	error_check_good txn [is_valid_txn $txn $env] TRUE
@@ -102,7 +102,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 		verify_t73 is_long dbc $i $key
 	}
 
-	puts "\tTest0$tnum.b: Cursor put (DB_KEYLAST); $ndups new dups,\
+	puts "\tTest$tnum.b: Cursor put (DB_KEYLAST); $ndups new dups,\
 	    short data."
 
 	set ctxn [$env txn -parent $txn]
@@ -128,7 +128,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	error_check_good ctxn_abort [$ctxn abort] 0
 	verify_t73 is_long dbc $keys $key
 
-	puts "\tTest0$tnum.c: Cursor put (DB_KEYFIRST); $ndups new dups,\
+	puts "\tTest$tnum.c: Cursor put (DB_KEYFIRST); $ndups new dups,\
 	    short data."
 
 	set ctxn [$env txn -parent $txn]
@@ -152,7 +152,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	error_check_good ctxn_abort [$ctxn abort] 0
 	verify_t73 is_long dbc $keys $key
 
-	puts "\tTest0$tnum.d: Cursor put (DB_AFTER) first to last;\
+	puts "\tTest$tnum.d: Cursor put (DB_AFTER) first to last;\
 	    $keys new dups, short data"
 	# We want to add a datum after each key from 0 to the current
 	# value of $keys, which we thus need to save.
@@ -179,7 +179,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	error_check_good ctxn_abort [$ctxn abort] 0
 	verify_t73 is_long dbc $keys $key
 
-	puts "\tTest0$tnum.e: Cursor put (DB_BEFORE) last to first;\
+	puts "\tTest$tnum.e: Cursor put (DB_BEFORE) last to first;\
 	    $keys new dups, short data"
 	set ctxn [$env txn -parent $txn]
 	error_check_good ctxn($i) [is_valid_txn $ctxn $env] TRUE
@@ -203,7 +203,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	error_check_good ctxn_abort [$ctxn abort] 0
 	verify_t73 is_long dbc $keys $key
 
-	puts "\tTest0$tnum.f: Cursor put (DB_CURRENT), first to last,\
+	puts "\tTest$tnum.f: Cursor put (DB_CURRENT), first to last,\
 	    growing $keys data."
 	set ctxn [$env txn -parent $txn]
 	error_check_good ctxn($i) [is_valid_txn $ctxn $env] TRUE
@@ -233,7 +233,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 
 	# Now delete the first item, abort the deletion, and make sure
 	# we're still sane.
-	puts "\tTest0$tnum.g: Cursor delete first item, then abort delete."
+	puts "\tTest$tnum.g: Cursor delete first item, then abort delete."
 	set ctxn [$env txn -parent $txn]
 	error_check_good ctxn($i) [is_valid_txn $ctxn $env] TRUE
 	set curs [$db cursor -txn $ctxn]
@@ -247,7 +247,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	verify_t73 is_long dbc $keys $key
 
 	# Ditto, for the last item.
-	puts "\tTest0$tnum.h: Cursor delete last item, then abort delete."
+	puts "\tTest$tnum.h: Cursor delete last item, then abort delete."
 	set ctxn [$env txn -parent $txn]
 	error_check_good ctxn($i) [is_valid_txn $ctxn $env] TRUE
 	set curs [$db cursor -txn $ctxn]
@@ -261,7 +261,7 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	verify_t73 is_long dbc $keys $key
 
 	# Ditto, for all the items.
-	puts "\tTest0$tnum.i: Cursor delete all items, then abort delete."
+	puts "\tTest$tnum.i: Cursor delete all items, then abort delete."
 	set ctxn [$env txn -parent $txn]
 	error_check_good ctxn($i) [is_valid_txn $ctxn $env] TRUE
 	set curs [$db cursor -txn $ctxn]
@@ -280,11 +280,11 @@ proc test087 { method {pagesize 512} {ndups 50} {tnum 87} args } {
 	verify_t73 is_long dbc $keys $key
 
 	# Close cursors.
-	puts "\tTest0$tnum.j: Closing cursors."
+	puts "\tTest$tnum.j: Closing cursors."
 	for { set i 0 } { $i < $keys } { incr i } {
 		error_check_good "dbc close ($i)" [$dbc($i) close] 0
 	}
-	error_check_good "db close" [$db close] 0
 	error_check_good txn_commit [$txn commit] 0
+	error_check_good "db close" [$db close] 0
 	error_check_good "env close" [$env close] 0
 }

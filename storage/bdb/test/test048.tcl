@@ -1,21 +1,22 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test048.tcl,v 11.18 2002/07/29 20:27:49 sandstro Exp $
+# $Id: test048.tcl,v 11.22 2004/05/13 18:51:43 mjc Exp $
 #
 # TEST	test048
 # TEST	Cursor stability across Btree splits.
 proc test048 { method args } {
 	global errorCode
+	global is_je_test
 	source ./include.tcl
 
-	set tstn 048
+	set tnum 048
 	set args [convert_args $method $args]
 
 	if { [is_btree $method] != 1 } {
-		puts "Test$tstn skipping for method $method."
+		puts "Test$tnum skipping for method $method."
 		return
 	}
 	set pgindex [lsearch -exact $args "-pagesize"]
@@ -29,24 +30,24 @@ proc test048 { method args } {
 
 	set method "-btree"
 
-	puts "\tTest$tstn: Test of cursor stability across btree splits."
+	puts "\tTest$tnum: Test of cursor stability across btree splits."
 
 	set key	"key"
 	set data	"data"
 	set txn ""
 	set flags ""
 
-	puts "\tTest$tstn.a: Create $method database."
+	puts "\tTest$tnum.a: Create $method database."
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tstn.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tstn.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -65,7 +66,7 @@ proc test048 { method args } {
 	set nkeys 5
 	# Fill page w/ small key/data pairs, keep at leaf
 	#
-	puts "\tTest$tstn.b: Fill page with $nkeys small key/data pairs."
+	puts "\tTest$tnum.b: Fill page with $nkeys small key/data pairs."
 	for { set i 0 } { $i < $nkeys } { incr i } {
 		if { $txnenv == 1 } {
 			set t [$env txn]
@@ -80,7 +81,7 @@ proc test048 { method args } {
 	}
 
 	# get db ordering, set cursors
-	puts "\tTest$tstn.c: Set cursors on each of $nkeys pairs."
+	puts "\tTest$tnum.c: Set cursors on each of $nkeys pairs."
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -101,7 +102,7 @@ proc test048 { method args } {
 
 	# if mkeys is above 1000, need to adjust below for lexical order
 	set mkeys 1000
-	puts "\tTest$tstn.d: Add $mkeys pairs to force split."
+	puts "\tTest$tnum.d: Add $mkeys pairs to force split."
 	for {set i $nkeys} { $i < $mkeys } { incr i } {
 		if { $i >= 100 } {
 			set ret [eval {$db put} $txn {key0$i $data$i}]
@@ -113,14 +114,14 @@ proc test048 { method args } {
 		error_check_good dbput:more $ret 0
 	}
 
-	puts "\tTest$tstn.e: Make sure split happened."
+	puts "\tTest$tnum.e: Make sure split happened."
 	# XXX We cannot call stat with active txns or we deadlock.
-	if { $txnenv != 1 } {
+	if { $txnenv != 1 && !$is_je_test } {
 		error_check_bad stat:check-split [is_substr [$db stat] \
 					"{{Internal pages} 0}"] 1
 	}
 
-	puts "\tTest$tstn.f: Check to see that cursors maintained reference."
+	puts "\tTest$tnum.f: Check to see that cursors maintained reference."
 	for {set i 0} { $i < $nkeys } {incr i} {
 		set ret [$dbc_set($i) get -current]
 		error_check_bad dbc$i:get:current [llength $ret] 0
@@ -129,7 +130,7 @@ proc test048 { method args } {
 		error_check_good dbc$i:get(match) $ret $ret2
 	}
 
-	puts "\tTest$tstn.g: Delete added keys to force reverse split."
+	puts "\tTest$tnum.g: Delete added keys to force reverse split."
 	for {set i $nkeys} { $i < $mkeys } { incr i } {
 		if { $i >= 100 } {
 			error_check_good db_del:$i \
@@ -143,7 +144,7 @@ proc test048 { method args } {
 		}
 	}
 
-	puts "\tTest$tstn.h: Verify cursor reference."
+	puts "\tTest$tnum.h: Verify cursor reference."
 	for {set i 0} { $i < $nkeys } {incr i} {
 		set ret [$dbc_set($i) get -current]
 		error_check_bad dbc$i:get:current [llength $ret] 0
@@ -152,7 +153,7 @@ proc test048 { method args } {
 		error_check_good dbc$i:get(match) $ret $ret2
 	}
 
-	puts "\tTest$tstn.i: Cleanup."
+	puts "\tTest$tnum.i: Cleanup."
 	# close cursors
 	for {set i 0} { $i < $nkeys } {incr i} {
 		error_check_good dbc_close:$i [$dbc_set($i) close] 0
@@ -160,11 +161,11 @@ proc test048 { method args } {
 	if { $txnenv == 1 } {
 		error_check_good txn [$t commit] 0
 	}
-	puts "\tTest$tstn.j: Verify reverse split."
+	puts "\tTest$tnum.j: Verify reverse split."
 	error_check_good stat:check-reverse_split [is_substr [$db stat] \
 					"{{Internal pages} 0}"] 1
 
 	error_check_good dbclose [$db close] 0
 
-	puts "\tTest$tstn complete."
+	puts "\tTest$tnum complete."
 }

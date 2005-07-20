@@ -27,7 +27,7 @@ umask(0);
 
     my $home = "./fred" ;
     ok 1, my $lexD = new LexDir($home);
-    ok 2, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 2, my $env = new BerkeleyDB::Env -Home => $home, @StdErrFile,
 				     -Flags => DB_CREATE| DB_INIT_MPOOL;
     eval { $env->txn_begin() ; } ;
     ok 3, $@ =~ /^BerkeleyDB Aborting: Transaction Manager not enabled at/ ;
@@ -47,7 +47,7 @@ umask(0);
 
     my $home = "./fred" ;
     ok 5, my $lexD = new LexDir($home);
-    ok 6, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 6, my $env = new BerkeleyDB::Env -Home => $home, @StdErrFile,
 				     -Flags => DB_CREATE|DB_INIT_TXN|
 					  	DB_INIT_MPOOL|DB_INIT_LOCK ;
     ok 7, my $txn = $env->txn_begin() ;
@@ -117,7 +117,7 @@ umask(0);
 
     my $home = "./fred" ;
     ok 18, my $lexD = new LexDir($home);
-    ok 19, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 19, my $env = new BerkeleyDB::Env -Home => $home, @StdErrFile,
 				     -Flags => DB_CREATE|DB_INIT_TXN|
 					  	DB_INIT_MPOOL|DB_INIT_LOCK ;
     ok 20, my $txn_mgr = $env->TxnMgr() ;
@@ -188,7 +188,7 @@ umask(0);
 
     my $home = "./fred" ;
     ok 32, my $lexD = new LexDir($home);
-    ok 33, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 33, my $env = new BerkeleyDB::Env -Home => $home, @StdErrFile,
 				     -Flags => DB_CREATE|DB_INIT_TXN|
 					  	DB_INIT_MPOOL|DB_INIT_LOCK ;
     ok 34, my $txn = $env->txn_begin() ;
@@ -257,7 +257,7 @@ umask(0);
 
     my $home = "./fred" ;
     ok 45, my $lexD = new LexDir($home);
-    ok 46, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 46, my $env = new BerkeleyDB::Env -Home => $home, @StdErrFile,
 				     -Flags => DB_CREATE|DB_INIT_TXN|
 					  	DB_INIT_MPOOL|DB_INIT_LOCK ;
     ok 47, my $txn_mgr = $env->TxnMgr() ;

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test039.tcl,v 11.20 2002/06/11 14:09:57 sue Exp $
+# $Id: test039.tcl,v 11.23 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test039
 # TEST	DB_GET_BOTH/DB_GET_BOTH_RANGE on deleted items without comparison
@@ -18,7 +18,7 @@
 # TEST	Test the DB_GET_BOTH and DB_GET_BOTH_RANGE functionality by retrieving
 # TEST	each dup in the file explicitly.  Then remove each duplicate and try
 # TEST	the retrieval again.
-proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
+proc test039 { method {nentries 10000} {ndups 5} {tnum "039"} args } {
 	global alphabet
 	global rand_init
 	source ./include.tcl
@@ -30,7 +30,7 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 
 	if { [is_record_based $method] == 1 || \
 	    [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $method"
+		puts "Test$tnum skipping for method $method"
 		return
 	}
 	# Create the database and open the dictionary
@@ -40,11 +40,11 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set checkdb $testdir/checkdb.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		set checkdb checkdb.db
 		incr eindex
 		set env [lindex $args $eindex]
@@ -67,7 +67,7 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 	set t3 $testdir/t3
 	cleanup $testdir $env
 
-	puts "Test0$tnum: $method $nentries \
+	puts "Test$tnum: $method $nentries \
 	    small $ndups unsorted dup key/data pairs"
 
 	set db [eval {berkdb_open -create -mode 0644 \
@@ -85,7 +85,7 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 	set count 0
 
 	# Here is the loop where we put and get each key/data pair
-	puts "\tTest0$tnum.a: Put/get loop"
+	puts "\tTest$tnum.a: Put/get loop"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -143,7 +143,7 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 			error_check_good retrieve $datastr $check_data
 			incr x
 		}
-		error_check_good "Test0$tnum:ndups:$str" $x $ndups
+		error_check_good "Test$tnum:ndups:$str" $x $ndups
 		incr count
 	}
 	error_check_good cursor_close [$dbc close] 0
@@ -153,7 +153,7 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 	close $did
 
 	# Now check the duplicates, then delete then recheck
-	puts "\tTest0$tnum.b: Checking and Deleting duplicates"
+	puts "\tTest$tnum.b: Checking and Deleting duplicates"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE

@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2002
+ * Copyright (c) 2001-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_clock.c,v 1.15 2004/07/06 17:33:14 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_clock.c,v 1.9 2002/03/29 20:46:44 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -34,38 +32,37 @@ static const char revid[] = "$Id: os_clock.c,v 1.9 2002/03/29 20:46:44 bostic Ex
  * __os_clock --
  *	Return the current time-of-day clock in seconds and microseconds.
  *
- * PUBLIC: int __os_clock __P((DB_ENV *, u_int32_t *, u_int32_t *));
+ * PUBLIC: void __os_clock __P((DB_ENV *, u_int32_t *, u_int32_t *));
  */
-int
+void
 __os_clock(dbenv, secsp, usecsp)
 	DB_ENV *dbenv;
 	u_int32_t *secsp, *usecsp;	/* Seconds and microseconds. */
 {
-#if defined(HAVE_GETTIMEOFDAY)
-	struct timeval tp;
+	const char *sc;
 	int ret;
 
-retry:	if (gettimeofday(&tp, NULL) != 0) {
-		if ((ret = __os_get_errno()) == EINTR)
-			goto retry;
-		__db_err(dbenv, "gettimeofday: %s", strerror(ret));
-		return (ret);
+#if defined(HAVE_GETTIMEOFDAY)
+	struct timeval tp;
+
+	RETRY_CHK((gettimeofday(&tp, NULL)), ret);
+	if (ret != 0) {
+		sc = "gettimeofday";
+		goto err;
 	}
 
 	if (secsp != NULL)
-		*secsp = tp.tv_sec;
+		*secsp = (u_int32_t)tp.tv_sec;
 	if (usecsp != NULL)
-		*usecsp = tp.tv_usec;
+		*usecsp = (u_int32_t)tp.tv_usec;
 #endif
 #if !defined(HAVE_GETTIMEOFDAY) && defined(HAVE_CLOCK_GETTIME)
 	struct timespec tp;
-	int ret;
 
-retry:	if (clock_gettime(CLOCK_REALTIME, &tp) != 0) {
-		if ((ret = __os_get_errno()) == EINTR)
-			goto retry;
-		__db_err(dbenv, "clock_gettime: %s", strerror(ret));
-		return (ret);
+	RETRY_CHK((clock_gettime(CLOCK_REALTIME, &tp)), ret);
+	if (ret != 0) {
+		sc = "clock_gettime";
+		goto err;
 	}
 
 	if (secsp != NULL)
@@ -75,12 +72,11 @@ retry:	if (clock_gettime(CLOCK_REALTIME, &tp) != 0) {
 #endif
 #if !defined(HAVE_GETTIMEOFDAY) && !defined(HAVE_CLOCK_GETTIME)
 	time_t now;
-	int ret;
 
-	if (time(&now) == (time_t)-1) {
-		ret = __os_get_errno();
-		__db_err(dbenv, "time: %s", strerror(ret));
-		return (ret);
+	RETRY_CHK((time(&now) == (time_t)-1 ? 1 : 0), ret);
+	if (ret != 0) {
+		sc = "time";
+		goto err;
 	}
 
 	if (secsp != NULL)
@@ -88,5 +84,8 @@ retry:	if (clock_gettime(CLOCK_REALTIME, &tp) != 0) {
 	if (usecsp != NULL)
 		*usecsp = 0;
 #endif
-	return (0);
+	return;
+
+err:	__db_err(dbenv, "%s: %s", sc, strerror(ret));
+	(void)__db_panic(dbenv, ret);
 }
