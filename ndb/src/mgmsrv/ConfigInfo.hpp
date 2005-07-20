@@ -105,7 +105,8 @@ public:
    *   @note Result is not defined if section/name are wrong!
    */
   bool verify(const Properties* secti, const char* fname, Uint64 value) const;
-  const char* getAlias(const char*) const;
+  static const char* nameToAlias(const char*);
+  static const char* getAlias(const char*);
   bool isSection(const char*) const;
 
   const char*  getDescription(const Properties * sec, const char* fname) const;
