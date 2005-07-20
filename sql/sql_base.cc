@@ -370,9 +370,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=0;
     for (TABLE_LIST *table=tables ; table ; table=table->next)
     {
-      uint flags= OWNED_BY_THD_FLAG;
       if (remove_table_from_cache(thd, table->db, table->real_name,
-                                  flags))
+                                  RTFC_OWNED_BY_THD_FLAG))
 	found=1;
     }
     if (!found)
@@ -2415,13 +2414,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   uint key_length;
   TABLE *table;
   bool result=0, signalled= 0;
-  bool return_if_owned_by_thd= flags & OWNED_BY_THD_FLAG;
-  bool wait_for_other_thread= flags & WAIT_OTHER_THREAD_FLAG;
-  bool check_killed_flag= flags & CHECK_KILLED_FLAG;
   DBUG_ENTER("remove_table_from_cache");
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  do
+  for (;;)
   {
     result= signalled= 0;
 
@@ -2465,21 +2461,17 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 	     thd_table= thd_table->next)
         {
 	  if (thd_table->db_stat)		// If table is open
-          {
-            bool found;
-	    found= mysql_lock_abort_for_thread(thd, thd_table);
-            signalled|= found;
-          }
+	    signalled|= mysql_lock_abort_for_thread(thd, thd_table);
         }
       }
       else
-        result= result || return_if_owned_by_thd;
+        result= result || (flags & RTFC_OWNED_BY_THD_FLAG);
     }
     while (unused_tables && !unused_tables->version)
       VOID(hash_delete(&open_cache,(byte*) unused_tables));
-    if (result && wait_for_other_thread)
+    if (result && (flags & RTFC_WAIT_OTHER_THREAD_FLAG))
     {
-      if (!check_killed_flag || !thd->killed)
+      if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
         if (likely(signalled))
         {
@@ -2508,7 +2500,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       }
     }
     break;
-  } while (1);
+  }
   DBUG_RETURN(result);
 }
 
