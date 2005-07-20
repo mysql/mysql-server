@@ -36,7 +36,8 @@ struct User
 
 int User::init(const char *line)
 {
-  const char *name_begin, *name_end, *password;
+  const char *name_begin, *name_end;
+  char *password;
 
   if (line[0] == '\'' || line[0] == '"')
   {
@@ -44,7 +45,7 @@ int User::init(const char *line)
     name_end= strchr(name_begin, line[0]);
     if (name_end == 0 || name_end[1] != ':')
       goto err;
-    password= name_end + 2;
+    password= (char*)(name_end + 2);
   }
   else
   {
@@ -52,13 +53,18 @@ int User::init(const char *line)
     name_end= strchr(name_begin, ':');
     if (name_end == 0)
       goto err;
-    password= name_end + 1;
+    password= (char*)(name_end + 1);
   }
   user_length= name_end - name_begin;
   if (user_length > USERNAME_LENGTH)
     goto err;
 
   /* assume that newline characater is present */
+  if (password[strlen(password)-2] == '\r')
+  {
+    password[strlen(password)-2] = '\n';
+    password[strlen(password)-1] = 0;
+  }
   if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + 1)
     goto err;
 
