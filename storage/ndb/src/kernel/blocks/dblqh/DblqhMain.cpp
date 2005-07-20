@@ -169,6 +169,8 @@ void Dblqh::execTUP_COM_UNBLOCK(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dblqh::systemError(Signal* signal) 
 {
+  signal->theData[0] = 2304;
+  execDUMP_STATE_ORD(signal);
   progError(0, 0);
 }//Dblqh::systemError()
 
@@ -12598,6 +12600,22 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
 
 void Dblqh::writePageZeroLab(Signal* signal) 
 {
+  if (false && logPartPtr.p->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM) 
+  {
+    if (logPartPtr.p->firstLogQueue == RNIL) 
+    {
+      jam();
+      logPartPtr.p->logPartState = LogPartRecord::IDLE;
+      ndbout_c("resetting logPartState to IDLE");
+    } 
+    else 
+    {
+      jam();
+      logPartPtr.p->logPartState = LogPartRecord::ACTIVE;
+      ndbout_c("resetting logPartState to ACTIVE");
+    }
+  }
+  
   logFilePtr.p->fileChangeState = LogFileRecord::NOT_ONGOING;
 /*---------------------------------------------------------------------------*/
 /* IT COULD HAVE ARRIVED PAGE WRITES TO THE CURRENT FILE WHILE WE WERE       */
@@ -15661,6 +15679,7 @@ void Dblqh::warningHandlerLab(Signal* signal)
 
 void Dblqh::systemErrorLab(Signal* signal) 
 {
+  systemError(signal);
   progError(0, 0);
 /*************************************************************************>*/
 /*       WE WANT TO INVOKE AN IMMEDIATE ERROR HERE SO WE GET THAT BY       */
@@ -18526,8 +18545,65 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
+  Uint32 arg= dumpState->args[0];
+  if(arg == 2304 || arg == 2305)
+  {
+    jam();
+    Uint32 i;
+    GcpRecordPtr gcp; gcp.i = RNIL;
+    for(i = 0; i<4; i++)
+    {
+      logPartPtr.i = i;
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      ndbout_c("LP %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d logTailMbyte: %d", 
+	       i,
+	       logPartPtr.p->logPartState,
+	       logPartPtr.p->waitWriteGciLog,
+	       logPartPtr.p->gcprec,
+	       logPartPtr.p->firstLogQueue,
+	       logPartPtr.p->currentLogfile,
+	       logPartPtr.p->logTailFileNo,
+	       logPartPtr.p->logTailMbyte);
+      
+      if(gcp.i == RNIL && logPartPtr.p->gcprec != RNIL)
+	gcp.i = logPartPtr.p->gcprec;
 
+      LogFileRecordPtr logFilePtr;
+      Uint32 first= logFilePtr.i= logPartPtr.p->firstLogfile;
+      do
+      {
+	ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+	ndbout_c("  file %d(%d) FileChangeState: %d logFileStatus: %d currentMbyte: %d currentFilepage", 
+		 logFilePtr.p->fileNo,
+		 logFilePtr.i,
+		 logFilePtr.p->fileChangeState,
+		 logFilePtr.p->logFileStatus,
+		 logFilePtr.p->currentMbyte,
+		 logFilePtr.p->currentFilepage);
+	logFilePtr.i = logFilePtr.p->nextLogFile;
+      } while(logFilePtr.i != first);
+    }
+    
+    if(gcp.i != RNIL)
+    {
+      ptrCheckGuard(gcp, cgcprecFileSize, gcpRecord);
+      for(i = 0; i<4; i++)
+      {
+	ndbout_c("  GCP %d file: %d state: %d sync: %d page: %d word: %d",
+		 i, gcp.p->gcpFilePtr[i], gcp.p->gcpLogPartState[i],
+		 gcp.p->gcpSyncReady[i],
+		 gcp.p->gcpPageNo[i],
+		 gcp.p->gcpWordNo[i]);      
+      }
+    }
 
+    if(arg== 2305)
+    {
+      progError(__LINE__, ERR_SYSTEM_ERROR, 
+		"Shutting down node due to failed handling of GCP_SAVEREQ");
+      
+    }
+  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 void Dblqh::execSET_VAR_REQ(Signal* signal) 
