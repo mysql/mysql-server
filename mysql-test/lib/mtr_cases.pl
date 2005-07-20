@@ -8,7 +8,7 @@ use File::Basename;
 use strict;
 
 sub collect_test_cases ($);
-sub collect_one_test_case ($$$$$);
+sub collect_one_test_case ($$$$$$);
 
 ##############################################################################
 #
@@ -46,18 +46,36 @@ sub collect_test_cases ($) {
       {
         mtr_error("Test case $tname ($testdir/$elem) is not found");
       }
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases);
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,{});
     }
     closedir TESTDIR;
   }
   else
   {
+    # ----------------------------------------------------------------------
+    # Skip some tests listed in disabled.def
+    # ----------------------------------------------------------------------
+    my %skiplist;
+    my $skipfile= "$testdir/disabled.def";
+    if ( open(SKIPFILE, $skipfile) )
+    {
+      while ( <SKIPFILE> )
+      {
+        chomp;
+        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+        {
+          $skiplist{$1}= $2;
+        }
+      }
+      close SKIPFILE;
+    }
+
     foreach my $elem ( sort readdir(TESTDIR) ) {
       my $tname= mtr_match_extension($elem,"test");
       next if ! defined $tname;
       next if $::opt_do_test and ! defined mtr_match_prefix($elem,$::opt_do_test);
 
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases);
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%skiplist);
     }
     closedir TESTDIR;
   }
@@ -95,12 +113,13 @@ sub collect_test_cases ($) {
 ##############################################################################
 
 
-sub collect_one_test_case($$$$$) {
+sub collect_one_test_case($$$$$$) {
   my $testdir= shift;
   my $resdir=  shift;
   my $tname=   shift;
   my $elem=    shift;
   my $cases=   shift;
+  my $skiplist=shift;
 
   my $path= "$testdir/$elem";
 
@@ -270,6 +289,14 @@ sub collect_one_test_case($$$$$) {
       $tinfo->{'slave_sh'}= $slave_sh;
       $tinfo->{'slave_restart'}= 1;
     }
+  }
+
+  # FIXME why this late?
+  if ( $skiplist->{$tname} )
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'disable'}= 1;   # Sub type of 'skip'
+    $tinfo->{'comment'}= $skiplist->{$tname} if $skiplist->{$tname};
   }
 
   if ( -f $disabled )

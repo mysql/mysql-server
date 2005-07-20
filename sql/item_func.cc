@@ -193,10 +193,23 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
     if ((*arg)->type() == FIELD_ITEM)
       ((Item_field *)(*arg))->no_const_subst= 1;
     /*
+      If in statement prepare, then we create a converter for two
+      constant items, do it once and then reuse it.
+      If we're in execution of a prepared statement, arena is NULL,
+      and the conv was created in runtime memory. This can be
+      the case only if the argument is a parameter marker ('?'),
+      because for all true constants the charset converter has already
+      been created in prepare. In this case register the change for
+      rollback.
+    */
+    if (arena)
+      *arg= conv;
+    else
+      thd->change_item_tree(arg, conv);
+    /*
       We do not check conv->fixed, because Item_func_conv_charset which can
       be return by safe_charset_converter can't be fixed at creation
     */
-    *arg= conv;
     conv->fix_fields(thd, arg);
   }
   if (arena)
@@ -563,6 +576,17 @@ String *Item_real_func::val_str(String *str)
     return 0; /* purecov: inspected */
   str->set(nr,decimals, &my_charset_bin);
   return str;
+}
+
+
+my_decimal *Item_real_func::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed);
+  double nr= val_real();
+  if (null_value)
+    return 0; /* purecov: inspected */
+  double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
+  return decimal_value;
 }
 
 
@@ -3133,7 +3157,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   THD* thd=current_thd;
   User_level_lock* ull;
   struct timespec abstime;
-  int lock_name_len,error=0;
+  int lock_name_len;
   lock_name_len=strlen(lock_name);
   pthread_mutex_lock(&LOCK_user_locks);
 
@@ -3167,8 +3191,8 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
 
   set_timespec(abstime,lock_timeout);
   while (!thd->killed &&
-	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+         pthread_cond_timedwait(&ull->cond, &LOCK_user_locks,
+                                &abstime) != ETIMEDOUT && ull->locked) ;
   if (ull->locked)
   {
     if (!--ull->count)
@@ -3270,14 +3294,14 @@ longlong Item_func_get_lock::val_int()
   set_timespec(abstime,timeout);
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && error != EINVAL && ull->locked) ;
+         != ETIMEDOUT && error != EINVAL && ull->locked) ;
   if (thd->killed)
     error=EINTR;				// Return NULL
   if (ull->locked)
   {
     if (!--ull->count)
       delete ull;				// Should never happen
-    if (error != ETIME && error != ETIMEDOUT)
+    if (error != ETIMEDOUT)
     {
       error=1;
       null_value=1;				// Return NULL
@@ -4193,6 +4217,36 @@ void Item_user_var_as_out_param::print(String *str)
 }
 
 
+Item_func_get_system_var::
+Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
+                       LEX_STRING *component_arg, const char *name_arg,
+                       size_t name_len_arg)
+  :var(var_arg), var_type(var_type_arg), component(*component_arg)
+{
+  /* set_name() will allocate the name */
+  set_name(name_arg, name_len_arg, system_charset_info);
+}
+
+
+bool
+Item_func_get_system_var::fix_fields(THD *thd, Item **ref)
+{
+  Item *item= var->item(thd, var_type, &component);
+  DBUG_ENTER("Item_func_get_system_var::fix_fields");
+  /*
+    Evaluate the system variable and substitute the result (a basic constant)
+    instead of this item. If the variable can not be evaluated,
+    the error is reported in sys_var::item().
+  */
+  if (item == 0)
+    DBUG_RETURN(1);                             // Impossible
+  item->set_name(name, 0, system_charset_info); // don't allocate a new name
+  thd->change_item_tree(ref, item);
+
+  DBUG_RETURN(0);
+}
+
+
 longlong Item_func_inet_aton::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4371,6 +4425,9 @@ bool Item_func_match::fix_index()
 
   if (key == NO_SUCH_KEY)
     return 0;
+  
+  if (!table) 
+    goto err;
 
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
@@ -4536,21 +4593,20 @@ longlong Item_func_bit_xor::val_int()
     0	error
     #	constant item
 */
-  
+
 
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component)
 {
+  sys_var *var;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
+  LEX_STRING *base_name, *component_name;
+
   if (component.str == 0 &&
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info, DERIVATION_SYSCONST);
-
-  Item *item;
-  sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
-  LEX_STRING *base_name, *component_name;
 
   if (component.str)
   {
@@ -4573,9 +4629,8 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       return 0;
     }
   }
-  if (!(item=var->item(thd, var_type, component_name)))
-    return 0;					// Impossible
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -4596,28 +4651,8 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   memcpy(pos, base_name->str, base_name->length);
   pos+= base_name->length;
 
-  // set_name() will allocate the name
-  item->set_name(buff,(uint) (pos-buff), system_charset_info);
-  return item;
-}
-
-
-Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
-		     uint length, const char *item_name)
-{
-  Item *item;
-  sys_var *var;
-  LEX_STRING null_lex_string;
-
-  null_lex_string.str= 0;
-
-  var= find_sys_var(var_name, length);
-  DBUG_ASSERT(var != 0);
-  if (!(item=var->item(thd, var_type, &null_lex_string)))
-    return 0;						// Impossible
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  item->set_name(item_name, 0, system_charset_info);  // Will use original name
-  return item;
+  return new Item_func_get_system_var(var, var_type, component_name,
+                                      buff, pos - buff);
 }
 
 
@@ -4714,6 +4749,7 @@ Item_func_sp::cleanup()
     delete result_field;
     result_field= NULL;
   }
+  m_sp= NULL;
   Item_func::cleanup();
 }
 

@@ -86,3 +86,77 @@ a	rel
 1	1
 2	2
 drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+thread int(11) NOT NULL default '0',
+beitrag longtext NOT NULL,
+PRIMARY KEY  (id),
+KEY thread (thread),
+FULLTEXT KEY beitrag (beitrag)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
+CREATE TABLE t2 (
+id int(11) NOT NULL auto_increment,
+text varchar(100) NOT NULL default '',
+PRIMARY KEY  (id),
+KEY text (text)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
+CREATE TABLE t3 (
+id int(11) NOT NULL auto_increment,
+forum int(11) NOT NULL default '0',
+betreff varchar(70) NOT NULL default '',
+PRIMARY KEY  (id),
+KEY forum (forum),
+FULLTEXT KEY betreff (betreff)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(b.betreff) against ('+abc' in boolean mode)
+group by a.text, b.id, b.betreff
+union
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(c.beitrag) against ('+abc' in boolean mode)
+group by 
+a.text, b.id, b.betreff
+order by 
+match(b.betreff) against ('+abc' in boolean mode) desc;
+ERROR 42S02: Unknown table 'b' in order clause
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(b.betreff) against ('+abc' in boolean mode)
+union
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(c.beitrag) against ('+abc' in boolean mode)
+order by 
+match(b.betreff) against ('+abc' in boolean mode) desc;
+ERROR 42S02: Unknown table 'b' in order clause
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(b.betreff) against ('+abc' in boolean mode)
+union
+select a.text, b.id, b.betreff
+from 
+t2 a inner join t3 b on a.id = b.forum inner join
+t1 c on b.id = c.thread
+where 
+match(c.beitrag) against ('+abc' in boolean mode)
+order by 
+match(betreff) against ('+abc' in boolean mode) desc;
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+drop table t1,t2,t3;

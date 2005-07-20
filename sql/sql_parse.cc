@@ -2151,7 +2151,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       sel= new SELECT_LEX();
       sel->init_query();
-      if(!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
+      if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
                                  (List<String> *) 0, (List<String> *) 0))
         DBUG_RETURN(1);
       lex->query_tables_last= query_tables_last;
@@ -2193,6 +2193,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
   table_list->schema_select_lex= sel;
   table_list->schema_table_reformed= 1;
+  statistic_increment(thd->status_var.com_stat[lex->orig_sql_command],
+                      &LOCK_status);
   DBUG_RETURN(0);
 }
 
@@ -2302,8 +2304,8 @@ mysql_execute_command(THD *thd)
     Don't reset warnings when executing a stored routine.
   */
   if ((all_tables || &lex->select_lex != lex->all_selects_list ||
-       lex->spfuns.records || lex->spprocs.records) &&
-      !thd->spcont)
+       lex->sroutines.records) && !thd->spcont ||
+      lex->time_zone_tables_used)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
@@ -2366,9 +2368,10 @@ mysql_execute_command(THD *thd)
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
     DBUG_RETURN(-1);
   }
+  if(lex->orig_sql_command == SQLCOM_END)
+    statistic_increment(thd->status_var.com_stat[lex->sql_command],
+                        &LOCK_status);
 
-  statistic_increment(thd->status_var.com_stat[lex->sql_command],
-		      &LOCK_status);
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -2383,10 +2386,12 @@ mysql_execute_command(THD *thd)
     select_result *result=lex->result;
     if (all_tables)
     {
-      res= check_table_access(thd,
-			      lex->exchange ? SELECT_ACL | FILE_ACL :
-			      SELECT_ACL,
-			      all_tables, 0);
+      if (lex->orig_sql_command != SQLCOM_SHOW_STATUS_PROC &&
+          lex->orig_sql_command != SQLCOM_SHOW_STATUS_FUNC)
+        res= check_table_access(thd,
+                                lex->exchange ? SELECT_ACL | FILE_ACL :
+                                SELECT_ACL,
+                                all_tables, 0);
     }
     else
       res= check_access(thd,
@@ -5187,7 +5192,6 @@ mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex= lex->current_select;
   select_lex->init_select();
-  lex->orig_sql_command= SQLCOM_END;
   lex->wild= 0;
   if (select_lex == &lex->select_lex)
   {
@@ -5210,6 +5214,11 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_query();
   select_lex->init_select();
   select_lex->parent_lex= lex;
+  /*
+    Don't evaluate this subquery during statement prepare even if
+    it's a constant one. The flag is switched off in the end of
+    mysql_stmt_prepare.
+  */
   if (thd->current_arena->is_stmt_prepare())
     select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
@@ -5564,8 +5573,14 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   new_field->flags= type_modifier;
   new_field->unireg_check= (type_modifier & AUTO_INCREMENT_FLAG ?
 			    Field::NEXT_NUMBER : Field::NONE);
-  new_field->decimals= decimals ? (uint) set_zone(atoi(decimals),0,
-						  NOT_FIXED_DEC-1) : 0;
+  new_field->decimals= decimals ? (uint)atoi(decimals) : 0;
+  if (new_field->decimals >= NOT_FIXED_DEC)
+  {
+    my_error(ER_TOO_BIG_SCALE, MYF(0), new_field->decimals, field_name,
+             NOT_FIXED_DEC-1);
+    DBUG_RETURN(NULL);
+  }
+
   new_field->sql_type=type;
   new_field->length=0;
   new_field->change=change;
@@ -5585,11 +5600,6 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   if (length && !(new_field->length= (uint) atoi(length)))
     length=0; /* purecov: inspected */
   sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
-
-  if (new_field->length && new_field->decimals &&
-      new_field->length < new_field->decimals+1 &&
-      new_field->decimals != NOT_FIXED_DEC)
-    new_field->length=new_field->decimals+1; /* purecov: inspected */
 
   switch (type) {
   case FIELD_TYPE_TINY:
@@ -5616,22 +5626,24 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_NEWDECIMAL:
     if (!length)
+      new_field->length= 10;
+    if (new_field->length > DECIMAL_MAX_PRECISION)
     {
-      if (!(new_field->length= new_field->decimals))
-        new_field->length= 10;                  // Default length for DECIMAL
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), new_field->length, field_name,
+               DECIMAL_MAX_PRECISION);
+      DBUG_RETURN(NULL);
     }
+    if (new_field->length < new_field->decimals)
+    {
+      my_error(ER_SCALE_BIGGER_THAN_PRECISION, MYF(0), field_name);
+      DBUG_RETURN(NULL);
+    }
+    new_field->length=
+      my_decimal_precision_to_length(new_field->length, new_field->decimals,
+                                     type_modifier & UNSIGNED_FLAG);
     new_field->pack_length=
       my_decimal_get_binary_size(new_field->length, new_field->decimals);
-    if (new_field->length <= DECIMAL_MAX_PRECISION &&
-        new_field->length >= new_field->decimals)
-    {
-      new_field->length=
-        my_decimal_precision_to_length(new_field->length, new_field->decimals,
-                                       type_modifier & UNSIGNED_FLAG);
-      break;
-    }
-    my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-    DBUG_RETURN(NULL);
+    break;
   case MYSQL_TYPE_VARCHAR:
     /*
       Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
@@ -6834,7 +6846,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
   /*
     Is there tables of subqueries?
   */
-  if (&lex->select_lex != lex->all_selects_list)
+  if (&lex->select_lex != lex->all_selects_list || lex->time_zone_tables_used)
   {
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next_global)

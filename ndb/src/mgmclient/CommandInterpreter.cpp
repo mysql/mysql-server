@@ -455,11 +455,13 @@ static int do_event_thread;
 static void*
 event_thread_run(void* m)
 {
+  DBUG_ENTER("event_thread_run");
+
   NdbMgmHandle handle= *(NdbMgmHandle*)m;
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
   int fd = ndb_mgm_listen_event(handle, filter);
-  if (fd > 0)
+  if (fd != NDB_INVALID_SOCKET)
   {
     do_event_thread= 1;
     char *tmp= 0;
@@ -468,15 +470,20 @@ event_thread_run(void* m)
     do {
       if (tmp == 0) NdbSleep_MilliSleep(10);
       if((tmp = in.gets(buf, 1024)))
-	ndbout << tmp;
+      {
+	const char ping_token[]= "<PING>";
+	if (memcmp(ping_token,tmp,sizeof(ping_token)-1))
+	  ndbout << tmp;
+      }
     } while(do_event_thread);
+    NDB_CLOSE_SOCKET(fd);
   }
   else
   {
     do_event_thread= -1;
   }
 
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 bool
@@ -516,9 +523,19 @@ CommandInterpreter::connect()
 	    do_event_thread == 0 ||
 	    do_event_thread == -1)
 	{
-	  DBUG_PRINT("warning",("thread not started"));
-	  printf("Warning, event thread startup failed, degraded printouts as result\n");
+	  DBUG_PRINT("info",("Warning, event thread startup failed, "
+			     "degraded printouts as result, errno=%d",
+			     errno));
+	  printf("Warning, event thread startup failed, "
+		 "degraded printouts as result, errno=%d\n", errno);
 	  do_event_thread= 0;
+	  if (m_event_thread)
+	  {
+	    void *res;
+	    NdbThread_WaitFor(m_event_thread, &res);
+	    NdbThread_Destroy(&m_event_thread);
+	  }
+	  ndb_mgm_disconnect(m_mgmsrv2);
 	}
       }
       else
@@ -548,6 +565,7 @@ CommandInterpreter::connect()
 bool 
 CommandInterpreter::disconnect() 
 {
+  DBUG_ENTER("CommandInterpreter::disconnect");
   if (m_event_thread) {
     void *res;
     do_event_thread= 0;
@@ -564,7 +582,7 @@ CommandInterpreter::disconnect()
     }
     m_connected= false;
   }
-  return true;
+  DBUG_RETURN(true);
 }
 
 //*****************************************************************************

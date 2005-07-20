@@ -412,22 +412,22 @@ PRIMARY KEY TranTime (Transition_time)
 #
 
 CREATE TABLE IF NOT EXISTS proc (
-  db                char(64) binary DEFAULT '' NOT NULL,
+  db                char(64) collate utf8_bin DEFAULT '' NOT NULL,
   name              char(64) DEFAULT '' NOT NULL,
   type              enum('FUNCTION','PROCEDURE') NOT NULL,
   specific_name     char(64) DEFAULT '' NOT NULL,
   language          enum('SQL') DEFAULT 'SQL' NOT NULL,
   sql_data_access   enum('CONTAINS_SQL',
-			 'NO_SQL',
-			 'READS_SQL_DATA',
-			 'MODIFIES_SQL_DATA'
-		    ) DEFAULT 'CONTAINS_SQL' NOT NULL,
+                         'NO_SQL',
+                         'READS_SQL_DATA',
+                         'MODIFIES_SQL_DATA'
+                    ) DEFAULT 'CONTAINS_SQL' NOT NULL,
   is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
   security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
   param_list        blob DEFAULT '' NOT NULL,
   returns           char(64) DEFAULT '' NOT NULL,
   body              blob DEFAULT '' NOT NULL,
-  definer           char(77) binary DEFAULT '' NOT NULL,
+  definer           char(77) collate utf8_bin DEFAULT '' NOT NULL,
   created           timestamp,
   modified          timestamp,
   sql_mode          set(
@@ -461,20 +461,22 @@ CREATE TABLE IF NOT EXISTS proc (
                         'TRADITIONAL',
                         'NO_AUTO_CREATE_USER',
                         'HIGH_NOT_PRECEDENCE'
-                    ) DEFAULT 0 NOT NULL,
-  comment           char(64) binary DEFAULT '' NOT NULL,
+                    ) DEFAULT '' NOT NULL,
+  comment           char(64) collate utf8_bin DEFAULT '' NOT NULL,
   PRIMARY KEY (db,name,type)
-) comment='Stored Procedures';
+) engine=MyISAM
+  character set utf8
+  comment='Stored Procedures';
 
 # Correct the name fields to not binary, and expand sql_data_access
 ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                  MODIFY specific_name char(64) DEFAULT '' NOT NULL,
-		 MODIFY sql_data_access
-			enum('CONTAINS_SQL',
-			     'NO_SQL',
-			     'READS_SQL_DATA',
-			     'MODIFIES_SQL_DATA'
-			    ) DEFAULT 'CONTAINS_SQL' NOT NULL,
+                 MODIFY sql_data_access
+                        enum('CONTAINS_SQL',
+                             'NO_SQL',
+                             'READS_SQL_DATA',
+                             'MODIFIES_SQL_DATA'
+                            ) DEFAULT 'CONTAINS_SQL' NOT NULL,
                  MODIFY sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',
@@ -506,4 +508,15 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
-                            ) DEFAULT 0 NOT NULL;
+                            ) DEFAULT '' NOT NULL
+                 DEFAULT CHARACTER SET utf8;
+
+# Correct the character set and collation
+ALTER TABLE proc CONVERT TO CHARACTER SET utf8;
+# Reset some fields after the conversion
+ALTER TABLE proc  MODIFY db
+                         char(64) collate utf8_bin DEFAULT '' NOT NULL,
+                  MODIFY definer
+                         char(77) collate utf8_bin DEFAULT '' NOT NULL,
+                  MODIFY comment
+                         char(64) collate utf8_bin DEFAULT '' NOT NULL;

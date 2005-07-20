@@ -32,6 +32,7 @@ public:
   ~ConfigRetriever();
 
   int do_connect(int no_retries, int retry_delay_in_seconds, int verbose);
+  int disconnect();
   
   /**
    * Get configuration for current node.

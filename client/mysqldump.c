@@ -1212,7 +1212,7 @@ static uint get_table_structure(char *table, char *db)
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
   if (opt_order_by_primary)
-    order_by = primary_key_fields(opt_quoted_table);
+    order_by = primary_key_fields(result_table);
 
   if (!opt_xml && !mysql_query_with_error_report(sock, 0, query_buff))
   {
@@ -1272,7 +1272,7 @@ static uint get_table_structure(char *table, char *db)
 
         /* Create temp table by selecting from the view */
         my_snprintf(query_buff, sizeof(query_buff),
-                    "CREATE  TEMPORARY TABLE %s SELECT * FROM %s WHERE 0",
+                    "CREATE TEMPORARY TABLE %s SELECT * FROM %s WHERE 0",
                     result_table, result_table);
         if (mysql_query_with_error_report(sock, 0, query_buff))
         {
@@ -1391,7 +1391,7 @@ static uint get_table_structure(char *table, char *db)
 	fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
 		result_table);
       if (opt_drop)
-        fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",result_table);
+        fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
       if (!opt_xml)
 	fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
       else
@@ -2782,6 +2782,7 @@ static const char *check_if_ignore_table(const char *table_name)
     or if there is some failure.  It is better to continue to dump
     the table unsorted, rather than exit without dumping the data.
 */
+
 static char *primary_key_fields(const char *table_name)
 {
   MYSQL_RES  *res = NULL;
@@ -2818,11 +2819,13 @@ static char *primary_key_fields(const char *table_name)
   }
 
   /* Build the ORDER BY clause result */
-  if (result_length) {
+  if (result_length)
+  {
     char *end;
     /* result (terminating \0 is already in result_length) */
     result = my_malloc(result_length + 10, MYF(MY_WME));
-    if (!result) {
+    if (!result)
+    {
       fprintf(stderr, "Error: Not enough memory to store ORDER BY clause\n");
       goto cleanup;
     }

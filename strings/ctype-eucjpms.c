@@ -1584,7 +1584,7 @@ static uint16 tab_uni_jisx02082[]={
 
 /* page 3 0x00F7-0x00F7 */
 static uint16 tab_uni_jisx02083[]={
-0x07};
+0x2160};
 
 /* page 4 0x0391-0x03C9 */
 static uint16 tab_uni_jisx02084[]={

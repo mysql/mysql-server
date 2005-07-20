@@ -45,7 +45,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			ptr_cmp.c mf_radix.c queues.c \
 			tree.c list.c hash.c array.c string.c typelib.c \
 			my_copy.c my_append.c my_lib.c \
-			my_delete.c my_rename.c my_redel.c my_tempnam.c \
+			my_delete.c my_rename.c my_redel.c \
 			my_chsize.c my_lread.c my_lwrite.c my_clock.c \
 			my_quick.c my_lockmem.c my_static.c \
 			my_sync.c my_getopt.c my_mkdir.c \
@@ -69,6 +69,7 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
+			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
                         @DEFS@
 
 libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@

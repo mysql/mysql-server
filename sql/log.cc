@@ -1154,6 +1154,9 @@ int MYSQL_LOG::purge_logs(const char *to_log,
       */
       if (my_stat(log_info.log_file_name,&s,MYF(0)))
         file_size= s.st_size;
+      else
+	sql_print_information("Failed to execute my_stat on file '%s'",
+			      log_info.log_file_name);
     }
     /*
       It's not fatal if we can't delete a log file ;
@@ -2647,7 +2650,7 @@ int TC_LOG_MMAP::log(THD *thd, my_xid xid)
   {                                          // somebody's syncing. let's wait
     p->waiters++;
     /*
-      note - it must be while(), not do ... while() here
+      note - it must be while (), not do ... while () here
       as p->state may be not DIRTY when we come here
     */
     while (p->state == DIRTY && syncing)
