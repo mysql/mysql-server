@@ -149,8 +149,6 @@ public:
     /**    Pointer to last attribute in table */
     Uint32 lastAttribute;
 
-    /*    Temporary record used during add/drop table */
-    Uint32 myConnect;
 #ifdef HAVE_TABLE_REORG    
     /*    Second table used by this table (for table reorg) */
     Uint32 secondTable;
@@ -174,7 +172,8 @@ public:
       CHECKED = 3,
       DEFINED = 4,
       PREPARE_DROPPING = 5,
-      DROPPING = 6
+      DROPPING = 6,
+      BACKUP_ONGOING = 7
     };
     TabState tabState;
 
@@ -501,6 +500,8 @@ private:
   void execBUILDINDXREQ(Signal* signal);
   void execBUILDINDXCONF(Signal* signal);
   void execBUILDINDXREF(Signal* signal);
+
+  void execBACKUP_FRAGMENT_REQ(Signal*);
 
   // Util signals used by Event code
   void execUTIL_PREPARE_CONF(Signal* signal);
@@ -894,6 +895,8 @@ private:
     
     Uint32 m_errorCode;
     void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
+
+    MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
     
     /**
      * When sending stuff around
@@ -1908,6 +1911,7 @@ private:
 
   bool getIsFailed(Uint32 nodeId) const;
 
+  void dropTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
   void dropTableRef(Signal * signal, DropTableReq *, DropTableRef::ErrorCode);
   void printTables(); // For debugging only
   int handleAlterTab(AlterTabReq * req,
@@ -1918,6 +1922,7 @@ private:
 			Uint32 changeMask, 
 			Uint32 tableId,
 			CreateTableRecord * regAlterTabPtr);
+  void alterTable_backup_mutex_locked(Signal* signal, Uint32, Uint32);
   void alterTableRef(Signal * signal, 
 		     AlterTableReq *, AlterTableRef::ErrorCode, 
 		     ParseDictTabInfoRecord* parseRecord = NULL);

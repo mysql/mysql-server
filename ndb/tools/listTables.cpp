@@ -131,6 +131,9 @@ list(const char * tabname,
         case NdbDictionary::Object::StateOnline:
             strcpy(state, "Online");
             break;
+        case NdbDictionary::Object::StateBackup:
+	    strcpy(state, "Backup");
+            break;
         case NdbDictionary::Object::StateBroken:
             strcpy(state, "Broken");
             break;
