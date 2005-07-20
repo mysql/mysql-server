@@ -10322,7 +10322,87 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
  * GCP stop detected, 
  * send SYSTEM_ERROR to all other alive nodes
  */
-void Dbdih::crashSystemAtGcpStop(Signal* signal){
+void Dbdih::crashSystemAtGcpStop(Signal* signal)
+{
+  switch(cgcpStatus){
+  case GCP_NODE_FINISHED:
+  {
+    /**
+     * We're waiting for a GCP save conf
+     */
+    ndbrequire(!c_GCP_SAVEREQ_Counter.done());
+    NodeReceiverGroup rg(DBLQH, c_GCP_SAVEREQ_Counter);
+    signal->theData[0] = 2305;
+    sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+    
+    infoEvent("Detected GCP stop...sending kill to %s", 
+	      c_GCP_SAVEREQ_Counter.getText());
+    ndbout_c("Detected GCP stop...sending kill to %s", 
+	     c_GCP_SAVEREQ_Counter.getText());
+    return;
+  }
+  case GCP_SAVE_LQH_FINISHED:
+    ndbout_c("m_copyReason: %d m_waiting: %d",
+	     c_copyGCIMaster.m_copyReason,
+	     c_copyGCIMaster.m_waiting);
+    break;
+  }
+  
+  ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
+	   c_copyGCISlave.m_senderData,
+	   c_copyGCISlave.m_senderRef,
+	   c_copyGCISlave.m_copyReason,
+	   c_copyGCISlave.m_expectedNextWord);
+
+  FileRecordPtr file0Ptr;
+  file0Ptr.i = crestartInfoFile[0];
+  ptrCheckGuard(file0Ptr, cfileFileSize, fileRecord);
+  FileRecordPtr file1Ptr;
+  file1Ptr.i = crestartInfoFile[1];
+  ptrCheckGuard(file1Ptr, cfileFileSize, fileRecord);
+
+  ndbout_c("file[0] status: %d type: %d reqStatus: %d file1: %d %d %d",
+	   file0Ptr.p->fileStatus, file0Ptr.p->fileType, file0Ptr.p->reqStatus,
+	   file1Ptr.p->fileStatus, file1Ptr.p->fileType, file1Ptr.p->reqStatus
+	   );
+
+  signal->theData[0] = 404;
+  signal->theData[1] = file0Ptr.p->fileRef;
+  EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
+
+  signal->theData[0] = 404;
+  signal->theData[1] = file1Ptr.p->fileRef;
+  EXECUTE_DIRECT(NDBFS, GSN_DUMP_STATE_ORD, signal, 2);
+
+  ndbout_c("c_COPY_GCIREQ_Counter = %s", 
+	   c_COPY_GCIREQ_Counter.getText());
+  ndbout_c("c_COPY_TABREQ_Counter = %s", 
+	   c_COPY_TABREQ_Counter.getText());
+  ndbout_c("c_CREATE_FRAGREQ_Counter = %s", 
+	   c_CREATE_FRAGREQ_Counter.getText());
+  ndbout_c("c_DIH_SWITCH_REPLICA_REQ_Counter = %s", 
+	   c_DIH_SWITCH_REPLICA_REQ_Counter.getText());
+  ndbout_c("c_EMPTY_LCP_REQ_Counter = %s",c_EMPTY_LCP_REQ_Counter.getText());
+  ndbout_c("c_END_TOREQ_Counter = %s", c_END_TOREQ_Counter.getText());
+  ndbout_c("c_GCP_COMMIT_Counter = %s", c_GCP_COMMIT_Counter.getText());
+  ndbout_c("c_GCP_PREPARE_Counter = %s", c_GCP_PREPARE_Counter.getText());
+  ndbout_c("c_GCP_SAVEREQ_Counter = %s", c_GCP_SAVEREQ_Counter.getText());
+  ndbout_c("c_INCL_NODEREQ_Counter = %s", c_INCL_NODEREQ_Counter.getText());
+  ndbout_c("c_MASTER_GCPREQ_Counter = %s", 
+	   c_MASTER_GCPREQ_Counter.getText());
+  ndbout_c("c_MASTER_LCPREQ_Counter = %s", 
+	   c_MASTER_LCPREQ_Counter.getText());
+  ndbout_c("c_START_INFOREQ_Counter = %s", 
+	   c_START_INFOREQ_Counter.getText());
+  ndbout_c("c_START_RECREQ_Counter = %s", c_START_RECREQ_Counter.getText());
+  ndbout_c("c_START_TOREQ_Counter = %s", c_START_TOREQ_Counter.getText());
+  ndbout_c("c_STOP_ME_REQ_Counter = %s", c_STOP_ME_REQ_Counter.getText());
+  ndbout_c("c_TC_CLOPSIZEREQ_Counter = %s", 
+	   c_TC_CLOPSIZEREQ_Counter.getText());
+  ndbout_c("c_TCGETOPSIZEREQ_Counter = %s", 
+	   c_TCGETOPSIZEREQ_Counter.getText());
+  ndbout_c("c_UPDATE_TOREQ_Counter = %s", c_UPDATE_TOREQ_Counter.getText());
+
   NodeRecordPtr nodePtr;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
