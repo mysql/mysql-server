@@ -1103,3 +1103,18 @@ create table t1(a int, b date not null);
 alter table t1 modify a bigint unsigned not null;
 show create table t1;
 drop table t1;
+
+#
+# Bug #5906: handle invalid date due to conversion
+#
+set @@sql_mode='traditional';
+create table t1 (d date);
+--error 1292
+insert into t1 values ('2000-10-00');
+--error 1292
+insert into t1 values (1000);
+insert into t1 values ('2000-10-01');
+--error 1292
+update t1 set d = 1100;
+select * from t1;
+drop table t1;

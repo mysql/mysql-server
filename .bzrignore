@@ -1119,3 +1119,4 @@ vio/viotest-ssl
 ndb/src/dummy.cpp
 innobase/mkinstalldirs
 mkinstalldirs
+mysql-test/var
