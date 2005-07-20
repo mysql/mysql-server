@@ -2016,3 +2016,11 @@ CALL p1();
 DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;
+create table t1(f1 datetime);
+insert into t1 values('2005.01.01 12:0:0');
+create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
+select * from v1;
+f1	sb
+2005-01-01 12:00:00	2005-01-01 10:58:59
+drop view v1;
+drop table t1;
