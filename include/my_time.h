@@ -53,7 +53,7 @@ enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                               my_bool fuzzy_date, int *was_cut);
+                            uint flags, int *was_cut);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *time);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *time);
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *time);
