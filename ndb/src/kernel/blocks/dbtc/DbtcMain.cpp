@@ -11043,6 +11043,7 @@ void Dbtc::execCREATE_TRIG_REQ(Signal* signal)
   if (ERROR_INSERTED(8033) ||
       !c_theDefinedTriggers.seizeId(triggerPtr, 
 				    createTrigReq->getTriggerId())) {
+    jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to allocate trigger record
     CreateTrigRef * const createTrigRef =  
@@ -11077,8 +11078,10 @@ void Dbtc::execDROP_TRIG_REQ(Signal* signal)
   DropTrigReq * const dropTrigReq =  (DropTrigReq *)&signal->theData[0];
   BlockReference sender = signal->senderBlockRef();
 
-  if ((c_theDefinedTriggers.getPtr(dropTrigReq->getTriggerId())) == NULL) {
+  if (ERROR_INSERTED(8035) ||
+      (c_theDefinedTriggers.getPtr(dropTrigReq->getTriggerId())) == NULL) {
     jam();
+    CLEAR_ERROR_INSERT_VALUE;
     // Failed to find find trigger record
     DropTrigRef * const dropTrigRef =  (DropTrigRef *)&signal->theData[0];
 
@@ -11110,6 +11113,7 @@ void Dbtc::execCREATE_INDX_REQ(Signal* signal)
   
   if (ERROR_INSERTED(8034) ||
       !c_theIndexes.seizeId(indexPtr, createIndxReq->getIndexId())) {
+    jam();
     CLEAR_ERROR_INSERT_VALUE;
     // Failed to allocate index record
      CreateIndxRef * const createIndxRef =  
@@ -11321,8 +11325,10 @@ void Dbtc::execDROP_INDX_REQ(Signal* signal)
   TcIndexData* indexData;
   BlockReference sender = signal->senderBlockRef();
   
-  if ((indexData = c_theIndexes.getPtr(dropIndxReq->getIndexId())) == NULL) {
+  if (ERROR_INSERTED(8036) ||
+      (indexData = c_theIndexes.getPtr(dropIndxReq->getIndexId())) == NULL) {
     jam();
+    CLEAR_ERROR_INSERT_VALUE;
     // Failed to find index record
     DropIndxRef * const dropIndxRef =  
       (DropIndxRef *)signal->getDataPtrSend();

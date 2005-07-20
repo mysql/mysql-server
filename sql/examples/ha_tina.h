@@ -49,18 +49,8 @@ class ha_tina: public handler
   byte chain_alloced;
   uint32 chain_size;
 
-  public:
-  ha_tina(TABLE *table): handler(table),
-  /* 
-     These definitions are found in hanler.h 
-     Theses are not probably completely right.
-   */
-  current_position(0), next_position(0), chain_alloced(0), chain_size(DEFAULT_CHAIN_LENGTH)
-  {
-    /* Set our original buffers from pre-allocated memory */
-    buffer.set(byte_buffer, IO_SIZE, system_charset_info);
-    chain = chain_buffer;
-  }
+public:
+  ha_tina(TABLE *table_arg);
   ~ha_tina() 
   {
     if (chain_alloced)
