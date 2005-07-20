@@ -606,9 +606,10 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const my_string db);
 void flush_tables();
-#define OWNED_BY_THD_FLAG 1
-#define WAIT_OTHER_THREAD_FLAG 2
-#define CHECK_KILLED_FLAG 4
+#define RTFC_NO_FLAG                0x0000
+#define RTFC_OWNED_BY_THD_FLAG      0x0001
+#define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
+#define RTFC_CHECK_KILLED_FLAG      0x0004
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
