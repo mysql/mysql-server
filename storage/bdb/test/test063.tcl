@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test063.tcl,v 11.17 2002/05/24 15:24:55 sue Exp $
+# $Id: test063.tcl,v 11.20 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test063
 # TEST	Test of the DB_RDONLY flag to DB->open
@@ -15,7 +15,7 @@ proc test063 { method args } {
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
-	set tnum 63
+	set tnum "063"
 
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
@@ -23,10 +23,10 @@ proc test063 { method args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -51,10 +51,10 @@ proc test063 { method args } {
 	    append gflags " -recno"
 	}
 
-	puts "Test0$tnum: $method ($args) DB_RDONLY test."
+	puts "Test$tnum: $method ($args) DB_RDONLY test."
 
 	# Create a test database.
-	puts "\tTest0$tnum.a: Creating test database."
+	puts "\tTest$tnum.a: Creating test database."
 	set db [eval {berkdb_open_noerr -create -mode 0644} \
 	    $omethod $args $testfile]
 	error_check_good db_create [is_valid_db $db] TRUE
@@ -84,7 +84,7 @@ proc test063 { method args } {
 		error_check_good writable [file writable $testfile] 1
 	}
 
-	puts "\tTest0$tnum.b: Re-opening DB_RDONLY and attempting to put."
+	puts "\tTest$tnum.b: Re-opening DB_RDONLY and attempting to put."
 
 	# Now open it read-only and make sure we can get but not put.
 	set db [eval {berkdb_open_noerr -rdonly} $args {$testfile}]
@@ -109,7 +109,7 @@ proc test063 { method args } {
 
 	set errorCode "NONE"
 
-	puts "\tTest0$tnum.c: Attempting cursor put."
+	puts "\tTest$tnum.c: Attempting cursor put."
 
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -127,7 +127,7 @@ proc test063 { method args } {
 	set dbt [eval {$db get} $gflags {$key2}]
 	error_check_good db_get_key2 $dbt ""
 
-	puts "\tTest0$tnum.d: Attempting ordinary delete."
+	puts "\tTest$tnum.d: Attempting ordinary delete."
 
 	set errorCode "NONE"
 	set ret [catch {eval {$db del} $txn {$key}} 1]
@@ -138,7 +138,7 @@ proc test063 { method args } {
 	error_check_good db_get_key $dbt \
 	    [list [list $key [pad_data $method $data]]]
 
-	puts "\tTest0$tnum.e: Attempting cursor delete."
+	puts "\tTest$tnum.e: Attempting cursor delete."
 	# Just set the cursor to the beginning;  we don't care what's there...
 	# yet.
 	set dbt2 [$dbc get -first]
@@ -151,7 +151,7 @@ proc test063 { method args } {
 	set dbt2 [$dbc get -current]
 	error_check_good db_get_key $dbt2 $dbt
 
-	puts "\tTest0$tnum.f: Close, reopen db;  verify unchanged."
+	puts "\tTest$tnum.f: Close, reopen db;  verify unchanged."
 
 	error_check_good dbc_close [$dbc close] 0
 	if { $txnenv == 1 } {

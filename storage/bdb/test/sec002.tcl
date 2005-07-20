@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2001
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sec002.tcl,v 11.3 2002/04/24 19:04:59 bostic Exp $
+# $Id: sec002.tcl,v 11.13 2004/11/02 16:12:04 carol Exp $
 #
 # TEST	sec002
 # TEST	Test of security interface and catching errors in the
@@ -11,8 +11,15 @@
 proc sec002 { } {
 	global errorInfo
 	global errorCode
+	global has_crypto
 
 	source ./include.tcl
+
+	# Skip test if release does not support encryption.
+	if { $has_crypto == 0 } {
+		puts "Skipping test sec002 for non-crypto release."
+		return
+	}
 
 	set testfile1 $testdir/sec002-1.db
 	set testfile2 $testdir/sec002-2.db
@@ -57,6 +64,27 @@ proc sec002 { } {
 	error_check_good dbclose [$db close] 0
 
 	#
+	# If we reopen the normal file with the -chksum flag, there
+	# should be no error and checksumming should be ignored.
+	# If we reopen a checksummed file without the -chksum flag,
+	# checksumming should still be in effect.  [#6959]
+	#
+	puts "\tSec002.b: Inheritance of chksum properties"
+	puts "\t\tSec002.b1: Reopen ordinary file with -chksum flag"
+	set db [eval {berkdb_open} -chksum $testfile4]
+	error_check_good open_with_chksum [is_valid_db $db] TRUE
+	set retdata [$db get $key]
+	error_check_good testfile4_get [lindex [lindex $retdata 0] 1] $data
+	error_check_good dbclose [$db close] 0
+
+	puts "\t\tSec002.b2: Reopen checksummed file without -chksum flag"
+	set db [eval {berkdb_open} $testfile3]
+	error_check_good open_wo_chksum [is_valid_db $db] TRUE
+	set retdata [$db get $key]
+	error_check_good testfile3_get [lindex [lindex $retdata 0] 1] $data
+	error_check_good dbclose [$db close] 0
+
+	#
 	# First just touch some bits in the file.  We know that in btree
 	# meta pages, bytes 92-459 are unused.  Scribble on them in both
 	# an encrypted, and both unencrypted files.  We should get
@@ -71,7 +99,7 @@ proc sec002 { } {
 	set fid [open $testfile4 r+]
 	lappend fidlist $fid
 
-	puts "\tSec002.b: Overwrite unused space in meta-page"
+	puts "\tSec002.c: Overwrite unused space in meta-page"
 	foreach f $fidlist {
 		fconfigure $f -translation binary
 		seek $f 100 start
@@ -83,7 +111,7 @@ proc sec002 { } {
 		puts -nonewline $f $newbyte
 		close $f
 	}
-	puts "\tSec002.c: Reopen modified databases"
+	puts "\tSec002.d: Reopen modified databases"
 	set stat [catch {berkdb_open_noerr -encryptaes $passwd1 $testfile1} ret]
 	error_check_good db:$testfile1 $stat 1
 	error_check_good db:$testfile1:fail \
@@ -98,34 +126,45 @@ proc sec002 { } {
 	error_check_good db:$testfile4 $stat 0
 	error_check_good dbclose [$db close] 0
 
-	puts "\tSec002.d: Replace root page in encrypted w/ encrypted"
+	# Skip the remainder of the test for Windows platforms.
+	# Forcing the error which causes DB_RUNRECOVERY to be
+	# returned ends up leaving open files that cannot be removed.
+	if { $is_windows_test == 1 } {
+		cleanup $testdir NULL 1
+		puts "Skipping remainder of test for Windows"
+		return
+	}
+
+	puts "\tSec002.e: Replace root page in encrypted w/ encrypted"
 	set fid1 [open $testfile1 r+]
+	fconfigure $fid1 -translation binary
 	set fid2 [open $testfile2 r+]
+	fconfigure $fid2 -translation binary
 	seek $fid1 $pagesize start
 	seek $fid2 $pagesize start
-	set root1 [read $fid1 $pagesize]
+	fcopy $fid1 $fid2 -size $pagesize
 	close $fid1
-	puts -nonewline $fid2 $root1
 	close $fid2
 
 	set db [berkdb_open_noerr -encryptaes $passwd2 $testfile2]
 	error_check_good db [is_valid_db $db] TRUE
 	set stat [catch {$db get $key} ret]
 	error_check_good dbget $stat 1
-	error_check_good db:$testfile2:fail \
-	    [is_substr $ret "checksum error: catastrophic recovery required"] 1
+	error_check_good db:$testfile2:fail1 \
+	    [is_substr $ret "checksum error"] 1
 	set stat [catch {$db close} ret]
 	error_check_good dbclose $stat 1
-	error_check_good db:$testfile2:fail [is_substr $ret "DB_RUNRECOVERY"] 1
+	error_check_good db:$testfile2:fail2 [is_substr $ret "DB_RUNRECOVERY"] 1
 
-	puts "\tSec002.e: Replace root page in encrypted w/ unencrypted"
+	puts "\tSec002.f: Replace root page in encrypted w/ unencrypted"
 	set fid2 [open $testfile2 r+]
+	fconfigure $fid2 -translation binary
 	set fid4 [open $testfile4 r+]
+	fconfigure $fid4 -translation binary
 	seek $fid2 $pagesize start
 	seek $fid4 $pagesize start
-	set root4 [read $fid4 $pagesize]
+	fcopy $fid4 $fid2 -size $pagesize
 	close $fid4
-	puts -nonewline $fid2 $root4
 	close $fid2
 
 	set db [berkdb_open_noerr -encryptaes $passwd2 $testfile2]
@@ -133,11 +172,10 @@ proc sec002 { } {
 	set stat [catch {$db get $key} ret]
 	error_check_good dbget $stat 1
 	error_check_good db:$testfile2:fail \
-	    [is_substr $ret "checksum error: catastrophic recovery required"] 1
+	    [is_substr $ret "checksum error"] 1
 	set stat [catch {$db close} ret]
 	error_check_good dbclose $stat 1
 	error_check_good db:$testfile2:fail [is_substr $ret "DB_RUNRECOVERY"] 1
 
 	cleanup $testdir NULL 1
-	puts "\tSec002 complete."
 }

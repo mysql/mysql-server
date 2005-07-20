@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: qam_rec.c,v 11.78 2004/05/11 14:04:51 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: qam_rec.c,v 11.69 2002/08/06 06:17:10 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -23,6 +21,7 @@ static const char revid[] = "$Id: qam_rec.c,v 11.69 2002/08/06 06:17:10 bostic E
 #include "dbinc/db_am.h"
 #include "dbinc/lock.h"
 #include "dbinc/log.h"
+#include "dbinc/mp.h"
 #include "dbinc/qam.h"
 
 /*
@@ -44,13 +43,14 @@ __qam_incfirst_recover(dbenv, dbtp, lsnp, op, info)
 	DB *file_dbp;
 	DBC *dbc;
 	DB_LOCK lock;
+	DB_LSN trunc_lsn;
 	DB_MPOOLFILE *mpf;
 	QMETA *meta;
 	QUEUE_CURSOR *cp;
 	db_pgno_t metapg;
-	int exact, modified, ret, rec_ext;
+	u_int32_t rec_ext;
+	int exact, modified, ret, t_ret;
 
-	COMPQUIET(info, NULL);
 	REC_PRINT(__qam_incfirst_print);
 	REC_INTRO(__qam_incfirst_read, 1);
 
@@ -59,9 +59,9 @@ __qam_incfirst_recover(dbenv, dbtp, lsnp, op, info)
 	if ((ret = __db_lget(dbc,
 	    LCK_ROLLBACK, metapg,  DB_LOCK_WRITE, 0, &lock)) != 0)
 		goto done;
-	if ((ret = mpf->get(mpf, &metapg, 0, &meta)) != 0) {
+	if ((ret = __memp_fget(mpf, &metapg, 0, &meta)) != 0) {
 		if (DB_REDO(op)) {
-			if ((ret = mpf->get(mpf,
+			if ((ret = __memp_fget(mpf,
 			    &metapg, DB_MPOOL_CREATE, &meta)) != 0) {
 				(void)__LPUT(dbc, lock);
 				goto out;
@@ -70,8 +70,7 @@ __qam_incfirst_recover(dbenv, dbtp, lsnp, op, info)
 			meta->dbmeta.type = P_QAMMETA;
 		} else {
 			*lsnp = argp->prev_lsn;
-			ret = 0;
-			(void)__LPUT(dbc, lock);
+			ret = __LPUT(dbc, lock);
 			goto out;
 		}
 	}
@@ -88,13 +87,22 @@ __qam_incfirst_recover(dbenv, dbtp, lsnp, op, info)
 			meta->first_recno = argp->recno;
 			modified = 1;
 		}
+
+		trunc_lsn = ((DB_TXNHEAD *)info)->trunc_lsn;
+		/* if we are truncating, update the LSN */
+		if (!IS_ZERO_LSN(trunc_lsn) &&
+		    log_compare(&LSN(meta), &trunc_lsn) > 0) {
+			LSN(meta) = trunc_lsn;
+			modified = 1;
+		}
 	} else {
 		if (log_compare(&LSN(meta), lsnp) < 0) {
 			LSN(meta) = *lsnp;
 			modified = 1;
 		}
-		rec_ext = 0;
-		if (meta->page_ext != 0)
+		if (meta->page_ext == 0)
+			rec_ext = 0;
+		else
 			rec_ext = meta->page_ext * meta->rec_page;
 		cp = (QUEUE_CURSOR *)dbc->internal;
 		if (meta->first_recno == RECNO_OOB)
@@ -104,8 +112,9 @@ __qam_incfirst_recover(dbenv, dbtp, lsnp, op, info)
 			if ((ret = __qam_position(dbc,
 			    &meta->first_recno, QAM_READ, &exact)) != 0)
 				goto err;
-			if (cp->page != NULL)
-				__qam_fput(file_dbp, cp->pgno, cp->page, 0);
+			if (cp->page != NULL && (ret =
+			    __qam_fput(file_dbp, cp->pgno, cp->page, 0)) != 0)
+				goto err;
 
 			if (exact == 1)
 				break;
@@ -121,17 +130,18 @@ __qam_incfirst_recover(dbenv, dbtp, lsnp, op, info)
 		}
 	}
 
-	if ((ret = mpf->put(mpf, meta, modified ? DB_MPOOL_DIRTY : 0)) != 0)
-		goto err1;
-
-	(void)__LPUT(dbc, lock);
+	ret = __memp_fput(mpf, meta, modified ? DB_MPOOL_DIRTY : 0);
+	if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
+		ret = t_ret;
+	if (ret != 0)
+		goto out;
 
 done:	*lsnp = argp->prev_lsn;
 	ret = 0;
 
 	if (0) {
-err:		(void)mpf->put(mpf, meta, 0);
-err1:		(void)__LPUT(dbc, lock);
+err:		(void)__memp_fput(mpf, meta, 0);
+		(void)__LPUT(dbc, lock);
 	}
 
 out:	REC_CLOSE;
@@ -155,13 +165,13 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 	__qam_mvptr_args *argp;
 	DB *file_dbp;
 	DBC *dbc;
+	DB_LSN trunc_lsn;
 	DB_LOCK lock;
 	DB_MPOOLFILE *mpf;
 	QMETA *meta;
 	db_pgno_t metapg;
 	int cmp_n, cmp_p, modified, ret;
 
-	COMPQUIET(info, NULL);
 	REC_PRINT(__qam_mvptr_print);
 	REC_INTRO(__qam_mvptr_read, 1);
 
@@ -170,9 +180,9 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 	if ((ret = __db_lget(dbc,
 	    LCK_ROLLBACK, metapg,  DB_LOCK_WRITE, 0, &lock)) != 0)
 		goto done;
-	if ((ret = mpf->get(mpf, &metapg, 0, &meta)) != 0) {
+	if ((ret = __memp_fget(mpf, &metapg, 0, &meta)) != 0) {
 		if (DB_REDO(op)) {
-			if ((ret = mpf->get(mpf,
+			if ((ret = __memp_fget(mpf,
 			    &metapg, DB_MPOOL_CREATE, &meta)) != 0) {
 				(void)__LPUT(dbc, lock);
 				goto out;
@@ -181,8 +191,7 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 			meta->dbmeta.type = P_QAMMETA;
 		} else {
 			*lsnp = argp->prev_lsn;
-			ret = 0;
-			(void)__LPUT(dbc, lock);
+			ret = __LPUT(dbc, lock);
 			goto out;
 		}
 	}
@@ -198,14 +207,21 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 	 * If we're undoing a truncate, we need to reset the pointers to
 	 * their state before the truncate.
 	 */
-	if (DB_UNDO(op) && (argp->opcode & QAM_TRUNCATE)) {
-		if (cmp_n == 0) {
+	if (DB_UNDO(op)) {
+		if ((argp->opcode & QAM_TRUNCATE) && cmp_n <= 0) {
 			meta->first_recno = argp->old_first;
 			meta->cur_recno = argp->old_cur;
+			LSN(meta) = argp->metalsn;
 			modified = 1;
-			meta->dbmeta.lsn = argp->metalsn;
 		}
-	} else if (cmp_p == 0) {
+		/* If the page lsn is beyond the truncate point, move it back */
+		trunc_lsn = ((DB_TXNHEAD *)info)->trunc_lsn;
+		if (!IS_ZERO_LSN(trunc_lsn) &&
+		    log_compare(&trunc_lsn, &LSN(meta)) < 0) {
+			LSN(meta) = argp->metalsn;
+			modified = 1;
+		}
+	} else if (op == DB_TXN_APPLY || cmp_p == 0) {
 		if (argp->opcode & QAM_SETFIRST)
 			meta->first_recno = argp->new_first;
 
@@ -216,10 +232,11 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 		meta->dbmeta.lsn = *lsnp;
 	}
 
-	if ((ret = mpf->put(mpf, meta, modified ? DB_MPOOL_DIRTY : 0)) != 0)
+	if ((ret = __memp_fput(mpf, meta, modified ? DB_MPOOL_DIRTY : 0)) != 0)
 		goto out;
 
-	(void)__LPUT(dbc, lock);
+	if ((ret = __LPUT(dbc, lock)) != 0)
+		goto out;
 
 done:	*lsnp = argp->prev_lsn;
 	ret = 0;
@@ -252,7 +269,7 @@ __qam_del_recover(dbenv, dbtp, lsnp, op, info)
 	QMETA *meta;
 	QPAGE *pagep;
 	db_pgno_t metapg;
-	int cmp_n, modified, ret;
+	int cmp_n, modified, ret, t_ret;
 
 	COMPQUIET(info, NULL);
 	REC_PRINT(__qam_del_print);
@@ -277,7 +294,7 @@ __qam_del_recover(dbenv, dbtp, lsnp, op, info)
 		if ((ret = __db_lget(dbc,
 		    LCK_ROLLBACK, metapg, DB_LOCK_WRITE, 0, &lock)) != 0)
 			goto err;
-		if ((ret = mpf->get(mpf, &metapg, 0, &meta)) != 0) {
+		if ((ret = __memp_fget(mpf, &metapg, 0, &meta)) != 0) {
 			(void)__LPUT(dbc, lock);
 			goto err;
 		}
@@ -287,10 +304,13 @@ __qam_del_recover(dbenv, dbtp, lsnp, op, info)
 		    meta->first_recno -
 		    argp->recno < argp->recno - meta->cur_recno))) {
 			meta->first_recno = argp->recno;
-			(void)mpf->put(mpf, meta, DB_MPOOL_DIRTY);
+			ret = __memp_fput(mpf, meta, DB_MPOOL_DIRTY);
 		} else
-			(void)mpf->put(mpf, meta, 0);
-		(void)__LPUT(dbc, lock);
+			ret = __memp_fput(mpf, meta, 0);
+		if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
+			ret = t_ret;
+		if (ret != 0)
+			goto err;
 
 		/* Need to undo delete - mark the record as present */
 		qp = QAM_GET_RECORD(file_dbp, pagep, argp->indx);
@@ -307,7 +327,7 @@ __qam_del_recover(dbenv, dbtp, lsnp, op, info)
 		if (op == DB_TXN_BACKWARD_ROLL && cmp_n <= 0)
 			LSN(pagep) = argp->lsn;
 		modified = 1;
-	} else if (cmp_n > 0 && DB_REDO(op)) {
+	} else if (op == DB_TXN_APPLY || (cmp_n > 0 && DB_REDO(op))) {
 		/* Need to redo delete - clear the valid bit */
 		qp = QAM_GET_RECORD(file_dbp, pagep, argp->indx);
 		F_CLR(qp, QAM_VALID);
@@ -351,7 +371,7 @@ __qam_delext_recover(dbenv, dbtp, lsnp, op, info)
 	QMETA *meta;
 	QPAGE *pagep;
 	db_pgno_t metapg;
-	int cmp_n, modified, ret;
+	int cmp_n, modified, ret, t_ret;
 
 	COMPQUIET(info, NULL);
 	REC_PRINT(__qam_delext_print);
@@ -386,7 +406,7 @@ __qam_delext_recover(dbenv, dbtp, lsnp, op, info)
 		if ((ret = __db_lget(dbc,
 		    LCK_ROLLBACK, metapg, DB_LOCK_WRITE, 0, &lock)) != 0)
 			goto err;
-		if ((ret = mpf->get(mpf, &metapg, 0, &meta)) != 0) {
+		if ((ret = __memp_fget(mpf, &metapg, 0, &meta)) != 0) {
 			(void)__LPUT(dbc, lock);
 			goto err;
 		}
@@ -396,10 +416,13 @@ __qam_delext_recover(dbenv, dbtp, lsnp, op, info)
 		    meta->first_recno -
 		    argp->recno < argp->recno - meta->cur_recno))) {
 			meta->first_recno = argp->recno;
-			(void)mpf->put(mpf, meta, DB_MPOOL_DIRTY);
+			ret = __memp_fput(mpf, meta, DB_MPOOL_DIRTY);
 		} else
-			(void)mpf->put(mpf, meta, 0);
-		(void)__LPUT(dbc, lock);
+			ret = __memp_fput(mpf, meta, 0);
+		if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
+			ret = t_ret;
+		if (ret != 0)
+			goto err;
 
 		if ((ret = __qam_pitem(dbc, pagep,
 		    argp->indx, argp->recno, &argp->data)) != 0)
@@ -416,7 +439,7 @@ __qam_delext_recover(dbenv, dbtp, lsnp, op, info)
 		if (op == DB_TXN_BACKWARD_ROLL && cmp_n <= 0)
 			LSN(pagep) = argp->lsn;
 		modified = 1;
-	} else if (cmp_n > 0 && DB_REDO(op)) {
+	} else if (op == DB_TXN_APPLY || (cmp_n > 0 && DB_REDO(op))) {
 		/* Need to redo delete - clear the valid bit */
 		qp = QAM_GET_RECORD(file_dbp, pagep, argp->indx);
 		F_CLR(qp, QAM_VALID);
@@ -491,7 +514,7 @@ __qam_add_recover(dbenv, dbtp, lsnp, op, info)
 	if (DB_REDO(op)) {
 		/* Fix meta-data page. */
 		metapg = ((QUEUE *)file_dbp->q_internal)->q_meta;
-		if ((ret = mpf->get(mpf, &metapg, 0, &meta)) != 0)
+		if ((ret = __memp_fget(mpf, &metapg, 0, &meta)) != 0)
 			goto err;
 		meta_dirty = 0;
 		if (QAM_BEFORE_FIRST(meta, argp->recno)) {
@@ -503,20 +526,18 @@ __qam_add_recover(dbenv, dbtp, lsnp, op, info)
 			meta->cur_recno = argp->recno + 1;
 			meta_dirty = 1;
 		}
-		if ((ret =
-		    mpf->put(mpf, meta, meta_dirty? DB_MPOOL_DIRTY : 0)) != 0)
+		if ((ret = __memp_fput(mpf,
+		    meta, meta_dirty? DB_MPOOL_DIRTY : 0)) != 0)
 			goto err;
 
 		/* Now update the actual page if necessary. */
-		if (cmp_n > 0) {
+		if (op == DB_TXN_APPLY || cmp_n > 0) {
 			/* Need to redo add - put the record on page */
 			if ((ret = __qam_pitem(dbc,
 			    pagep, argp->indx, argp->recno, &argp->data)) != 0)
 				goto err;
 			LSN(pagep) = *lsnp;
 			modified = 1;
-			/* Make sure pointers include this record. */
-			metapg = ((QUEUE *)file_dbp->q_internal)->q_meta;
 		}
 	} else if (DB_UNDO(op)) {
 		/*

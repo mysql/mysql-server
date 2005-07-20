@@ -1,21 +1,21 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: txn003.tcl,v 11.40 2002/09/05 17:23:08 sandstro Exp $
+# $Id: txn003.tcl,v 11.43 2004/01/28 03:36:33 bostic Exp $
 #
 
 # TEST	txn003
 # TEST	Test abort/commit/prepare of txns with outstanding child txns.
-proc txn003 { {tnum "03"} } {
+proc txn003 { {tnum "003"} } {
 	source ./include.tcl
 	global txn_curid
 	global txn_maxid
 
-	puts -nonewline "Txn0$tnum: Outstanding child transaction test"
+	puts -nonewline "Txn$tnum: Outstanding child transaction test"
 
-	if { $tnum != "03" } {
+	if { $tnum != "003" } {
 		puts " (with ID wrap)"
 	} else {
 		puts ""
@@ -49,7 +49,7 @@ proc txn003 { {tnum "03"} } {
 
 	txn003_check $db $key "Origdata" $origdata
 
-	puts "\tTxn0$tnum.a: Parent abort"
+	puts "\tTxn$tnum.a: Parent abort"
 	set parent [$env txn]
 	error_check_good txn_begin [is_valid_txn $parent $env] TRUE
 	set child [$env txn -parent $parent]
@@ -62,7 +62,7 @@ proc txn003 { {tnum "03"} } {
 	error_check_good child_handle $stat 1
 	error_check_good child_h2 [is_substr $ret "invalid command name"] 1
 
-	puts "\tTxn0$tnum.b: Parent commit"
+	puts "\tTxn$tnum.b: Parent commit"
 	set parent [$env txn]
 	error_check_good txn_begin [is_valid_txn $parent $env] TRUE
 	set child [$env txn -parent $parent]
@@ -81,7 +81,7 @@ proc txn003 { {tnum "03"} } {
 	# Since the data check assumes what has come before, the 'commit'
 	# operation must be last.
 	#
-	set hdr "\tTxn0$tnum"
+	set hdr "\tTxn$tnum"
 	set rlist {
 		{begin		".c"}
 		{prepare	".d"}
@@ -131,7 +131,7 @@ proc txn003 { {tnum "03"} } {
 		puts "Skipping remainder of test for Windows"
 		return
 	}
-	puts "\tTxn0$tnum.g: Attempt child prepare"
+	puts "\tTxn$tnum.g: Attempt child prepare"
 	set env [eval $env_cmd]
 	error_check_good dbenv [is_valid_env $env] TRUE
 	berkdb debug_check
@@ -148,7 +148,7 @@ proc txn003 { {tnum "03"} } {
 	error_check_good child_prepare $stat 1
 	error_check_good child_prep_err [is_substr $ret "txn prepare"] 1
 
-	puts "\tTxn0$tnum.h: Attempt child discard"
+	puts "\tTxn$tnum.h: Attempt child discard"
 	set stat [catch {$child discard} ret]
 	error_check_good child_discard $stat 1
 

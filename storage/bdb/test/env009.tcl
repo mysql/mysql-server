@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: env009.tcl,v 11.5 2002/08/12 20:40:36 sandstro Exp $
+# $Id: env009.tcl,v 11.9 2004/09/23 21:45:21 mjc Exp $
 #
 # TEST	env009
 # TEST	Test calls to all the various stat functions.  We have several
@@ -12,7 +12,7 @@
 proc env009 { } {
 	source ./include.tcl
 
-	puts "Env009: Various stat function test."
+	puts "Env009: Various stat functions test."
 
 	env_cleanup $testdir
 	puts "\tEnv009.a: Setting up env and a database."
@@ -23,35 +23,60 @@ proc env009 { } {
 	error_check_good dbopen [is_valid_db $dbbt] TRUE
 	set dbh [berkdb_open -create -hash $testdir/env009h.db]
 	error_check_good dbopen [is_valid_db $dbh] TRUE
-	set dbq [berkdb_open -create -btree $testdir/env009q.db]
+	set dbq [berkdb_open -create -queue $testdir/env009q.db]
 	error_check_good dbopen [is_valid_db $dbq] TRUE
 
+	puts "\tEnv009.b: Setting up replication master and client envs."
+	replsetup $testdir/MSGQUEUEDIR
+	set masterdir $testdir/MASTERDIR
+	set clientdir $testdir/CLIENTDIR
+	file mkdir $masterdir
+	file mkdir $clientdir
+
+	repladd 1
+	set repenv(M) [berkdb_env -create -home $masterdir \
+	    -txn -rep_master -rep_transport [list 1 replsend]]
+	repladd 2
+	set repenv(C) [berkdb_env -create -home $clientdir \
+	    -txn -rep_client -rep_transport [list 2 replsend]]
+
 	set rlist {
-	{ "lock_stat" "Maximum locks" "Env009.b"}
-	{ "log_stat" "Magic" "Env009.c"}
-	{ "mpool_stat" "Number of caches" "Env009.d"}
-	{ "txn_stat" "Max Txns" "Env009.e"}
+	{ "lock_stat" "Maximum locks" "Env009.c" $e }
+	{ "log_stat" "Magic" "Env009.d" "$e" }
+	{ "mpool_stat" "Number of caches" "Env009.e" "$e"}
+	{ "txn_stat" "Max Txns" "Env009.f" "$e" }
+	{ "rep_stat" "{Environment ID} 1" "Env009.g (Master)" "$repenv(M)"}
+	{ "rep_stat" "{Environment ID} 2" "Env009.h (Client)" "$repenv(C)"}
 	}
 
-	foreach pair $rlist {
-		set cmd [lindex $pair 0]
-		set str [lindex $pair 1]
-		set msg [lindex $pair 2]
+	foreach set $rlist {
+		set cmd [lindex $set 0]
+		set str [lindex $set 1]
+		set msg [lindex $set 2]
+		set env [lindex $set 3]
 		puts "\t$msg: $cmd"
-		set ret [$e $cmd]
+		set ret [eval $env $cmd]
 		error_check_good $cmd [is_substr $ret $str] 1
 	}
-	puts "\tEnv009.f: btree stats"
+
+	puts "\tEnv009.i: btree stats"
 	set ret [$dbbt stat]
-	error_check_good $cmd [is_substr $ret "Magic"] 1
-	puts "\tEnv009.g: hash stats"
+	error_check_good $cmd [is_substr $ret "Leaf pages"] 1
+
+	puts "\tEnv009.j: hash stats"
 	set ret [$dbh stat]
-	error_check_good $cmd [is_substr $ret "Magic"] 1
-	puts "\tEnv009.f: queue stats"
+	error_check_good $cmd [is_substr $ret "Buckets"] 1
+
+	puts "\tEnv009.k: queue stats"
 	set ret [$dbq stat]
-	error_check_good $cmd [is_substr $ret "Magic"] 1
+	error_check_good $cmd [is_substr $ret "Extent size"] 1
+
+	# Clean up.
 	error_check_good dbclose [$dbbt close] 0
 	error_check_good dbclose [$dbh close] 0
 	error_check_good dbclose [$dbq close] 0
+	error_check_good masterenvclose [$repenv(M) close] 0
+	error_check_good clientenvclose [$repenv(C) close] 0
+	replclose $testdir/MSGQUEUEDIR
 	error_check_good envclose [$e close] 0
 }

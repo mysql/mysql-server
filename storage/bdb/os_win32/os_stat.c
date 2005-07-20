@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_stat.c,v 11.32 2004/10/07 14:00:11 carol Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_stat.c,v 11.22 2002/07/12 18:56:56 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -23,8 +21,6 @@ static const char revid[] = "$Id: os_stat.c,v 11.22 2002/07/12 18:56:56 bostic E
 /*
  * __os_exists --
  *	Return if the file exists.
- *
- * PUBLIC: int __os_exists __P((const char *, int *));
  */
 int
 __os_exists(path, isdirp)
@@ -33,33 +29,29 @@ __os_exists(path, isdirp)
 {
 	int ret;
 	DWORD attrs;
+	_TCHAR *tpath;
 
 	if (DB_GLOBAL(j_exists) != NULL)
 		return (DB_GLOBAL(j_exists)(path, isdirp));
 
-	ret = 0;
-	do {
-		attrs = GetFileAttributes(path);
-		if (attrs == (DWORD)-1)
-			ret = __os_win32_errno();
-	} while (ret == EINTR);
-
+	TO_TSTRING(NULL, path, tpath, ret);
 	if (ret != 0)
 		return (ret);
 
-	if (isdirp != NULL)
+	RETRY_CHK(
+	    ((attrs = GetFileAttributes(tpath)) == (DWORD)-1 ? 1 : 0), ret);
+
+	if (ret == 0 && isdirp != NULL)
 		*isdirp = (attrs & FILE_ATTRIBUTE_DIRECTORY);
 
-	return (0);
+	FREE_STRING(NULL, tpath);
+	return (ret);
 }
 
 /*
  * __os_ioinfo --
  *	Return file size and I/O size; abstracted to make it easier
  *	to replace.
- *
- * PUBLIC: int __os_ioinfo __P((DB_ENV *, const char *,
- * PUBLIC:    DB_FH *, u_int32_t *, u_int32_t *, u_int32_t *));
  */
 int
 __os_ioinfo(dbenv, path, fhp, mbytesp, bytesp, iosizep)
@@ -76,9 +68,8 @@ __os_ioinfo(dbenv, path, fhp, mbytesp, bytesp, iosizep)
 		return (DB_GLOBAL(j_ioinfo)(path,
 		    fhp->fd, mbytesp, bytesp, iosizep));
 
-retry:	if (!GetFileInformationByHandle(fhp->handle, &bhfi)) {
-		if ((ret = __os_win32_errno()) == EINTR)
-			goto retry;
+	RETRY_CHK((!GetFileInformationByHandle(fhp->handle, &bhfi)), ret);
+	if (ret != 0) {
 		__db_err(dbenv,
 		    "GetFileInformationByHandle: %s", strerror(ret));
 		return (ret);
@@ -93,7 +84,12 @@ retry:	if (!GetFileInformationByHandle(fhp->handle, &bhfi)) {
 	if (bytesp != NULL)
 		*bytesp = (u_int32_t)(filesize % MEGABYTE);
 
-	/* The filesystem blocksize is not easily available. */
+	/*
+	 * The filesystem blocksize is not easily available.  In particular,
+	 * the values returned by GetDiskFreeSpace() are not very helpful
+	 * (NTFS volumes often report 512B clusters, which are too small to
+	 * be a useful default).
+	 */
 	if (iosizep != NULL)
 		*iosizep = DB_DEF_IOSIZE;
 	return (0);

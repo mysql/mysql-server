@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -35,18 +35,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: bt_split.c,v 11.66 2004/10/01 13:00:21 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: bt_split.c,v 11.58 2002/07/03 19:03:50 bostic Exp $";
-#endif /* not lint */
-
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
-#include <limits.h>
 #include <string.h>
 #endif
 
@@ -54,6 +51,7 @@ static const char revid[] = "$Id: bt_split.c,v 11.58 2002/07/03 19:03:50 bostic 
 #include "dbinc/db_page.h"
 #include "dbinc/db_shash.h"
 #include "dbinc/lock.h"
+#include "dbinc/mp.h"
 #include "dbinc/btree.h"
 
 static int __bam_broot __P((DBC *, PAGE *, PAGE *, PAGE *));
@@ -119,7 +117,7 @@ __bam_split(dbc, arg, root_pgnop)
 			arg, S_WRPAIR, level, NULL, &exact) :
 		    __bam_rsearch(dbc,
 			(db_recno_t *)arg, S_WRPAIR, level, &exact))) != 0)
-			return (ret);
+			break;
 
 		if (root_pgnop != NULL)
 			*root_pgnop = cp->csp[0].page->pgno == root_pgno ?
@@ -133,7 +131,7 @@ __bam_split(dbc, arg, root_pgnop)
 		if (2 * B_MAXSIZEONPAGE(cp->ovflsize)
 		    <= (db_indx_t)P_FREESPACE(dbc->dbp, cp->csp[0].page)) {
 			__bam_stkrel(dbc, STK_NOLOCK);
-			return (0);
+			break;
 		}
 		ret = cp->csp[0].page->pgno == root_pgno ?
 		    __bam_root(dbc, &cp->csp[0]) :
@@ -161,10 +159,13 @@ __bam_split(dbc, arg, root_pgnop)
 				dir = UP;
 			break;
 		default:
-			return (ret);
+			goto err;
 		}
 	}
-	/* NOTREACHED */
+
+err:	if (root_pgnop != NULL)
+		*root_pgnop = cp->root;
+	return (ret);
 }
 
 /*
@@ -183,10 +184,11 @@ __bam_root(dbc, cp)
 	PAGE *lp, *rp;
 	db_indx_t split;
 	u_int32_t opflags;
-	int ret;
+	int ret, t_ret;
 
 	dbp = dbc->dbp;
 	mpf = dbp->mpf;
+	lp = rp = NULL;
 
 	/* Yeah, right. */
 	if (cp->page->level >= MAXBTREELEVEL) {
@@ -197,7 +199,6 @@ __bam_root(dbc, cp)
 	}
 
 	/* Create new left and right pages for the split. */
-	lp = rp = NULL;
 	if ((ret = __db_new(dbc, TYPE(cp->page), &lp)) != 0 ||
 	    (ret = __db_new(dbc, TYPE(cp->page), &rp)) != 0)
 		goto err;
@@ -237,24 +238,21 @@ __bam_root(dbc, cp)
 		goto err;
 
 	/* Adjust any cursors. */
-	if ((ret = __bam_ca_split(dbc,
-	    cp->page->pgno, lp->pgno, rp->pgno, split, 1)) != 0)
-		goto err;
+	ret = __bam_ca_split(dbc, cp->page->pgno, lp->pgno, rp->pgno, split, 1);
 
-	/* Success -- write the real pages back to the store. */
-	(void)mpf->put(mpf, cp->page, DB_MPOOL_DIRTY);
-	(void)__TLPUT(dbc, cp->lock);
-	(void)mpf->put(mpf, lp, DB_MPOOL_DIRTY);
-	(void)mpf->put(mpf, rp, DB_MPOOL_DIRTY);
+	/* Success or error: release pages and locks. */
+err:	if ((t_ret =
+	    __memp_fput(mpf, cp->page, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+		ret = t_ret;
+	if ((t_ret = __TLPUT(dbc, cp->lock)) != 0 && ret == 0)
+		ret = t_ret;
+	if (lp != NULL &&
+	    (t_ret = __memp_fput(mpf, lp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+		ret = t_ret;
+	if (rp != NULL &&
+	    (t_ret = __memp_fput(mpf, rp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+		ret = t_ret;
 
-	return (0);
-
-err:	if (lp != NULL)
-		(void)mpf->put(mpf, lp, 0);
-	if (rp != NULL)
-		(void)mpf->put(mpf, rp, 0);
-	(void)mpf->put(mpf, cp->page, 0);
-	(void)__TLPUT(dbc, cp->lock);
 	return (ret);
 }
 
@@ -358,7 +356,7 @@ __bam_page(dbc, pp, cp)
 		if ((ret = __db_lget(dbc,
 		    0, NEXT_PGNO(cp->page), DB_LOCK_WRITE, 0, &tplock)) != 0)
 			goto err;
-		if ((ret = mpf->get(mpf, &NEXT_PGNO(cp->page), 0, &tp)) != 0)
+		if ((ret = __memp_fget(mpf, &NEXT_PGNO(cp->page), 0, &tp)) != 0)
 			goto err;
 	}
 
@@ -370,9 +368,13 @@ __bam_page(dbc, pp, cp)
 		goto err;
 
 	/*
-	 * Lock the new page.  We need to do this because someone
-	 * could get here through bt_lpgno if this page was recently
-	 * dealocated.  They can't look at it before we commit.
+	 * Lock the new page.  We need to do this for two reasons: first, the
+	 * fast-lookup code might have a reference to this page in bt_lpgno if
+	 * the page was recently deleted from the tree, and that code doesn't
+	 * walk the tree and so won't encounter the parent's page lock.
+	 * Second, a dirty reader could get to this page via the parent or old
+	 * page after the split is done but before the transaction is committed
+	 * or aborted.
 	 */
 	if ((ret = __db_lget(dbc,
 	    0, PGNO(alloc_rp), DB_LOCK_WRITE, 0, &rplock)) != 0)
@@ -456,20 +458,27 @@ __bam_page(dbc, pp, cp)
 	 * releasing locks on the pages that reference it.  We're finished
 	 * modifying the page so it's not really necessary, but it's neater.
 	 */
-	if ((t_ret = mpf->put(mpf, alloc_rp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+	if ((t_ret =
+	    __memp_fput(mpf, alloc_rp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
 		ret = t_ret;
-	(void)__TLPUT(dbc, rplock);
-	if ((t_ret = mpf->put(mpf, pp->page, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+	if ((t_ret = __TLPUT(dbc, rplock)) != 0 && ret == 0)
 		ret = t_ret;
-	(void)__TLPUT(dbc, pp->lock);
-	if ((t_ret = mpf->put(mpf, cp->page, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+	if ((t_ret =
+	    __memp_fput(mpf, pp->page, DB_MPOOL_DIRTY)) != 0 && ret == 0)
 		ret = t_ret;
-	(void)__TLPUT(dbc, cp->lock);
+	if ((t_ret = __TLPUT(dbc, pp->lock)) != 0 && ret == 0)
+		ret = t_ret;
+	if ((t_ret =
+	    __memp_fput(mpf, cp->page, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+		ret = t_ret;
+	if ((t_ret = __TLPUT(dbc, cp->lock)) != 0 && ret == 0)
+		ret = t_ret;
 	if (tp != NULL) {
 		if ((t_ret =
-		    mpf->put(mpf, tp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+		    __memp_fput(mpf, tp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
 			ret = t_ret;
-		(void)__TLPUT(dbc, tplock);
+		if ((t_ret = __TLPUT(dbc, tplock)) != 0 && ret == 0)
+			ret = t_ret;
 	}
 	return (ret);
 
@@ -478,21 +487,21 @@ err:	if (lp != NULL)
 	if (rp != NULL)
 		__os_free(dbp->dbenv, rp);
 	if (alloc_rp != NULL)
-		(void)mpf->put(mpf, alloc_rp, 0);
+		(void)__memp_fput(mpf, alloc_rp, 0);
 	if (tp != NULL)
-		(void)mpf->put(mpf, tp, 0);
+		(void)__memp_fput(mpf, tp, 0);
 
 	/* We never updated the new or next pages, we can release them. */
 	(void)__LPUT(dbc, rplock);
 	(void)__LPUT(dbc, tplock);
 
-	(void)mpf->put(mpf, pp->page, 0);
+	(void)__memp_fput(mpf, pp->page, 0);
 	if (ret == DB_NEEDSPLIT)
 		(void)__LPUT(dbc, pp->lock);
 	else
 		(void)__TLPUT(dbc, pp->lock);
 
-	(void)mpf->put(mpf, cp->page, 0);
+	(void)__memp_fput(mpf, cp->page, 0);
 	if (ret == DB_NEEDSPLIT)
 		(void)__LPUT(dbc, cp->lock);
 	else

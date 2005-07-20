@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_alloc.c,v 11.41 2004/07/06 21:06:36 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_alloc.c,v 11.32 2002/08/06 04:57:07 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -23,7 +21,7 @@ static const char revid[] = "$Id: os_alloc.c,v 11.32 2002/08/06 04:57:07 bostic 
 #ifdef DIAGNOSTIC
 static void __os_guard __P((DB_ENV *));
 
-union __db_alloc {
+union __db_allocinfo {
 	size_t size;
 	double align;
 };
@@ -40,13 +38,6 @@ union __db_alloc {
  *
  * !!!
  * Correct for systems that don't set errno when malloc and friends fail.
- *
- * !!!
- * There is no circumstance in which we can call __os_umalloc, __os_urealloc
- * or __os_ufree without an environment handle, as we need one to determine
- * whether or not to use an application-specified malloc function.  If we
- * don't have an environment handle, we should be calling __os_XXX instead.
- * Make DIAGNOSTIC blow up if we get this wrong.
  *
  *	Out of memory.
  *	We wish to hold the whole sky,
@@ -69,9 +60,6 @@ __os_umalloc(dbenv, size, storep)
 {
 	int ret;
 
-	/* Require an environment handle. */
-	DB_ASSERT(dbenv != NULL);
-
 	/* Never allocate 0 bytes -- some C libraries don't like it. */
 	if (size == 0)
 		++size;
@@ -85,7 +73,7 @@ __os_umalloc(dbenv, size, storep)
 			/*
 			 *  Correct error return, see __os_malloc.
 			 */
-			if ((ret = __os_get_errno()) == 0) {
+			if ((ret = __os_get_errno_ret_zero()) == 0) {
 				ret = ENOMEM;
 				__os_set_errno(ENOMEM);
 			}
@@ -121,9 +109,6 @@ __os_urealloc(dbenv, size, storep)
 
 	ptr = *(void **)storep;
 
-	/* Require an environment handle. */
-	DB_ASSERT(dbenv != NULL);
-
 	/* Never allocate 0 bytes -- some C libraries don't like it. */
 	if (size == 0)
 		++size;
@@ -140,7 +125,7 @@ __os_urealloc(dbenv, size, storep)
 			/*
 			 * Correct errno, see __os_realloc.
 			 */
-			if ((ret = __os_get_errno()) == 0) {
+			if ((ret = __os_get_errno_ret_zero()) == 0) {
 				ret = ENOMEM;
 				__os_set_errno(ENOMEM);
 			}
@@ -164,24 +149,19 @@ __os_urealloc(dbenv, size, storep)
  * __os_ufree --
  *	free(3) counterpart to __os_umalloc.
  *
- * PUBLIC: int __os_ufree __P((DB_ENV *, void *));
+ * PUBLIC: void __os_ufree __P((DB_ENV *, void *));
  */
-int
+void
 __os_ufree(dbenv, ptr)
 	DB_ENV *dbenv;
 	void *ptr;
 {
-	/* Require an environment handle. */
-	DB_ASSERT(dbenv != NULL);
-
 	if (dbenv != NULL && dbenv->db_free != NULL)
 		dbenv->db_free(ptr);
 	else if (DB_GLOBAL(j_free) != NULL)
 		DB_GLOBAL(j_free)(ptr);
 	else
 		free(ptr);
-
-	return (0);
 }
 
 /*
@@ -260,7 +240,7 @@ __os_malloc(dbenv, size, storep)
 
 #ifdef DIAGNOSTIC
 	/* Add room for size and a guard byte. */
-	size += sizeof(union __db_alloc) + 1;
+	size += sizeof(union __db_allocinfo) + 1;
 #endif
 
 	if (DB_GLOBAL(j_malloc) != NULL)
@@ -274,7 +254,7 @@ __os_malloc(dbenv, size, storep)
 		 * but it turns out that setting errno is quite expensive on
 		 * Windows/NT in an MT environment.
 		 */
-		if ((ret = __os_get_errno()) == 0) {
+		if ((ret = __os_get_errno_ret_zero()) == 0) {
 			ret = ENOMEM;
 			__os_set_errno(ENOMEM);
 		}
@@ -284,6 +264,9 @@ __os_malloc(dbenv, size, storep)
 	}
 
 #ifdef DIAGNOSTIC
+	/* Overwrite memory. */
+	memset(p, CLEAR_BYTE, size);
+
 	/*
 	 * Guard bytes: if #DIAGNOSTIC is defined, we allocate an additional
 	 * byte after the memory and set it to a special value that we check
@@ -291,8 +274,8 @@ __os_malloc(dbenv, size, storep)
 	 */
 	((u_int8_t *)p)[size - 1] = CLEAR_BYTE;
 
-	((union __db_alloc *)p)->size = size;
-	p = &((union __db_alloc *)p)[1];
+	((union __db_allocinfo *)p)->size = size;
+	p = &((union __db_allocinfo *)p)[1];
 #endif
 	*(void **)storep = p;
 
@@ -326,10 +309,10 @@ __os_realloc(dbenv, size, storep)
 
 #ifdef DIAGNOSTIC
 	/* Add room for size and a guard byte. */
-	size += sizeof(union __db_alloc) + 1;
+	size += sizeof(union __db_allocinfo) + 1;
 
-	/* Back up to the real begining */
-	ptr = &((union __db_alloc *)ptr)[-1];
+	/* Back up to the real beginning */
+	ptr = &((union __db_allocinfo *)ptr)[-1];
 #endif
 
 	/*
@@ -347,7 +330,7 @@ __os_realloc(dbenv, size, storep)
 		 * but it turns out that setting errno is quite expensive on
 		 * Windows/NT in an MT environment.
 		 */
-		if ((ret = __os_get_errno()) == 0) {
+		if ((ret = __os_get_errno_ret_zero()) == 0) {
 			ret = ENOMEM;
 			__os_set_errno(ENOMEM);
 		}
@@ -358,8 +341,8 @@ __os_realloc(dbenv, size, storep)
 #ifdef DIAGNOSTIC
 	((u_int8_t *)p)[size - 1] = CLEAR_BYTE;	/* Initialize guard byte. */
 
-	((union __db_alloc *)p)->size = size;
-	p = &((union __db_alloc *)p)[1];
+	((union __db_allocinfo *)p)->size = size;
+	p = &((union __db_allocinfo *)p)[1];
 #endif
 
 	*(void **)storep = p;
@@ -379,7 +362,7 @@ __os_free(dbenv, ptr)
 	void *ptr;
 {
 #ifdef DIAGNOSTIC
-	int size;
+	size_t size;
 	/*
 	 * Check that the guard byte (one past the end of the memory) is
 	 * still CLEAR_BYTE.
@@ -387,12 +370,12 @@ __os_free(dbenv, ptr)
 	if (ptr == NULL)
 		return;
 
-	ptr = &((union __db_alloc *)ptr)[-1];
-	size = ((union __db_alloc *)ptr)->size;
+	ptr = &((union __db_allocinfo *)ptr)[-1];
+	size = ((union __db_allocinfo *)ptr)->size;
 	if (((u_int8_t *)ptr)[size - 1] != CLEAR_BYTE)
 		 __os_guard(dbenv);
 
-	/* Clear memory. */
+	/* Overwrite memory. */
 	if (size != 0)
 		memset(ptr, CLEAR_BYTE, size);
 #endif

@@ -1,44 +1,68 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: log001.tcl,v 11.29 2002/04/30 20:27:56 sue Exp $
+# $Id: log001.tcl,v 11.34 2004/09/22 18:01:05 bostic Exp $
 #
 
 # TEST	log001
 # TEST	Read/write log records.
+# TEST	Test with and without fixed-length, in-memory logging,
+# TEST	and encryption.
 proc log001 { } {
 	global passwd
+	global has_crypto
 	global rand_init
 
 	berkdb srand $rand_init
 	set iter 1000
+
 	set max [expr 1024 * 128]
-	log001_body $max $iter 1
-	log001_body $max $iter 0
-	log001_body $max $iter 1 "-encryptaes $passwd"
-	log001_body $max $iter 0 "-encryptaes $passwd"
-	log001_body $max [expr $iter * 15] 1
-	log001_body $max [expr $iter * 15] 0
-	log001_body $max [expr $iter * 15] 1 "-encryptaes $passwd"
-	log001_body $max [expr $iter * 15] 0 "-encryptaes $passwd"
+	foreach fixedlength { 0 1 } {
+		foreach inmem { 1 0 } {
+			log001_body $max $iter $fixedlength $inmem
+			log001_body $max [expr $iter * 15] $fixedlength $inmem
+
+			# Skip encrypted tests if not supported.
+			if { $has_crypto == 0 } {
+				continue
+			}
+			log001_body $max\
+			    $iter $fixedlength $inmem "-encryptaes $passwd"
+			log001_body $max\
+			    [expr $iter * 15] $fixedlength $inmem "-encryptaes $passwd"
+		}
+	}
 }
 
-proc log001_body { max nrecs fixedlength {encargs ""} } {
+proc log001_body { max nrecs fixedlength inmem {encargs ""} } {
 	source ./include.tcl
 
-	puts -nonewline "Log001: Basic put/get log records "
+	puts -nonewline "Log001: Basic put/get log records: "
 	if { $fixedlength == 1 } {
-		puts "(fixed-length $encargs)"
+		puts -nonewline "fixed-length ($encargs)"
 	} else {
-		puts "(variable-length $encargs)"
+		puts -nonewline "variable-length ($encargs)"
+	}
+
+	# In-memory logging requires a large enough log buffer that
+	# any active transaction can be aborted.
+	if { $inmem == 1 } {
+		set lbuf [expr 8 * [expr 1024 * 1024]]
+		puts " with in-memory logging."
+	} else {
+		puts " with on-disk logging."
 	}
 
 	env_cleanup $testdir
 
+	set logargs ""
+	if { $inmem == 1 } {
+		set logargs "-log_inmemory -log_buffer $lbuf"
+	}
 	set env [eval {berkdb_env -log -create -home $testdir -mode 0644} \
-	    $encargs -log_max $max]
+	    $encargs $logargs -log_max $max]
 	error_check_good envopen [is_valid_env $env] TRUE
 
 	# We will write records to the log and make sure we can

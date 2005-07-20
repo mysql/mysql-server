@@ -1,16 +1,14 @@
 #!/bin/sh -
-#	$Id: s_tags,v 1.16 2002/03/28 20:13:07 krinsky Exp $
+#	$Id: s_tags,v 1.18 2004/04/01 15:11:14 bostic Exp $
 #
 # Build tags files.
 
-. ./RELEASE
-
-files="../dbinc/*.h \
+files=`echo ../dbinc/*.h \
 	../dbinc/*.in \
 	../btree/*.[ch] \
 	../clib/*.[ch] \
 	../common/*.[ch] \
-#	../crypto/*.[ch] \
+	../crypto/*.[ch] \
 	../crypto/mersenne/*.[ch] \
 	../crypto/rijndael/*.[ch] \
 	../db/*.[ch] \
@@ -31,11 +29,12 @@ files="../dbinc/*.h \
 	../rep/*.[ch] \
 	../rpc_client/*.[ch] \
 	../rpc_server/c/*.[ch] \
+	../sequence/*.[ch] \
 	../tcl/*.[ch] \
 	../txn/*.[ch] \
 	../xa/*.[ch] \
 	../cxx/*.cpp \
-	../libdb_java/*.[ch]"
+	../libdb_java/*.[ch] | sed 's/[^ ]*stub.c//g'`
 
 f=tags
 echo "Building $f"
@@ -56,7 +55,7 @@ fi
 ctags $flags $files 2>/dev/null
 chmod 444 $f
 
-#f=../test_perf/tags
-#echo "Building $f"
-#(cd ../test_perf && ctags $flags *.[ch] 2>/dev/null)
-#chmod 444 $f
+f=../test_perf/tags
+echo "Building $f"
+(cd ../test_perf && ctags $flags *.[ch] 2>/dev/null)
+chmod 444 $f

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sysscript.tcl,v 11.17 2002/07/29 17:05:24 sue Exp $
+# $Id: sysscript.tcl,v 11.19 2004/01/28 03:36:30 bostic Exp $
 #
 # System integration test script.
 # This script runs a single process that tests the full functionality of

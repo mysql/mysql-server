@@ -1,0 +1,76 @@
+# $Id: sequence.ac,v 1.3 2004/10/28 18:14:30 bostic Exp $
+
+# Try and configure sequence support.
+AC_DEFUN(AM_SEQUENCE_CONFIGURE, [
+	AC_MSG_CHECKING([for 64-bit integral type support for sequences])
+	db_cv_build_sequence="yes"
+
+	# Have to have found 64-bit types to support sequences.  If we don't
+	# find the native types, we try and create our own.
+	if test "$ac_cv_type_int64_t" = "no" -a -z "$int64_decl"; then
+		db_cv_build_sequence="no"
+	fi
+	if test "$ac_cv_type_uint64_t" = "no" -a -z "$u_int64_decl"; then
+		db_cv_build_sequence="no"
+	fi
+
+	# Have to be able to cast variables to the "unsigned long long" and
+	# "long long" types, that's our cast for the printf "%ll[du]" format.
+	if test "$ac_cv_type_long_long" = "no"; then
+		db_cv_build_sequence="no"
+	fi
+	if test "$ac_cv_type_unsigned_long_long" = "no"; then
+		db_cv_build_sequence="no"
+	fi
+
+	# Test to see if we can declare variables of the appropriate size
+	# and format them.  If we're cross-compiling, all we get is a link
+	# test, which won't test for the appropriate printf format strings.
+	if test "$db_cv_build_sequence" = "yes"; then
+		AC_TRY_RUN([
+		main() {
+			long long l;
+			unsigned long long u;
+			char buf[100];
+
+			buf[0] = 'a';
+			l = 9223372036854775807LL;
+			(void)snprintf(buf, sizeof(buf), "%lld", l);
+			if (strcmp(buf, "9223372036854775807"))
+				return (1);
+			u = 18446744073709551615ULL;
+			(void)snprintf(buf, sizeof(buf), "%llu", u);
+			if (strcmp(buf, "18446744073709551615"))
+				return (1);
+			return (0);
+		}],, [db_cv_build_sequence="no"],
+		AC_TRY_LINK(,[
+			long long l;
+			unsigned long long u;
+			char buf[100];
+
+			buf[0] = 'a';
+			l = 9223372036854775807LL;
+			(void)snprintf(buf, sizeof(buf), "%lld", l);
+			if (strcmp(buf, "9223372036854775807"))
+				return (1);
+			u = 18446744073709551615ULL;
+			(void)snprintf(buf, sizeof(buf), "%llu", u);
+			if (strcmp(buf, "18446744073709551615"))
+				return (1);
+			return (0);
+		],, [db_cv_build_sequence="no"]))
+	fi
+	if test "$db_cv_build_sequence" = "yes"; then
+		AC_DEFINE(HAVE_SEQUENCE)
+		AH_TEMPLATE(HAVE_SEQUENCE,
+		    [Define to 1 if building sequence support.])
+
+		AC_SUBST(db_seq_decl)
+		db_seq_decl="typedef int64_t db_seq_t;";
+	else
+		# It still has to compile, but it won't run.
+		db_seq_decl="typedef int db_seq_t;";
+	fi
+	AC_MSG_RESULT($db_cv_build_sequence)
+])

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -38,13 +38,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: db_overflow.c,v 11.54 2004/03/28 17:17:50 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_overflow.c,v 11.46 2002/08/08 03:57:48 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -54,8 +52,9 @@ static const char revid[] = "$Id: db_overflow.c,v 11.46 2002/08/08 03:57:48 bost
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
 #include "dbinc/db_am.h"
-#include "dbinc/db_verify.h"
+#include "dbinc/mp.h"
 
 /*
  * Big key/data code.
@@ -116,7 +115,7 @@ __db_goff(dbp, dbt, tlen, pgno, bpp, bpsz)
 	if (F_ISSET(dbt, DB_DBT_USERMEM)) {
 		if (needed > dbt->ulen) {
 			dbt->size = needed;
-			return (ENOMEM);
+			return (DB_BUFFER_SMALL);
 		}
 	} else if (F_ISSET(dbt, DB_DBT_MALLOC)) {
 		if ((ret = __os_umalloc(dbenv, needed, &dbt->data)) != 0)
@@ -124,13 +123,20 @@ __db_goff(dbp, dbt, tlen, pgno, bpp, bpsz)
 	} else if (F_ISSET(dbt, DB_DBT_REALLOC)) {
 		if ((ret = __os_urealloc(dbenv, needed, &dbt->data)) != 0)
 			return (ret);
-	} else if (*bpsz == 0 || *bpsz < needed) {
+	} else if (bpsz != NULL && (*bpsz == 0 || *bpsz < needed)) {
 		if ((ret = __os_realloc(dbenv, needed, bpp)) != 0)
 			return (ret);
 		*bpsz = needed;
 		dbt->data = *bpp;
-	} else
+	} else if (bpp != NULL)
 		dbt->data = *bpp;
+	else {
+		DB_ASSERT(
+		    F_ISSET(dbt,
+		    DB_DBT_USERMEM | DB_DBT_MALLOC | DB_DBT_REALLOC) ||
+		    bpsz != NULL || bpp != NULL);
+		return (DB_BUFFER_SMALL);
+	}
 
 	/*
 	 * Step through the linked list of pages, copying the data on each
@@ -138,7 +144,7 @@ __db_goff(dbp, dbt, tlen, pgno, bpp, bpsz)
 	 */
 	dbt->size = needed;
 	for (curoff = 0, p = dbt->data; pgno != PGNO_INVALID && needed > 0;) {
-		if ((ret = mpf->get(mpf, &pgno, 0, &h)) != 0)
+		if ((ret = __memp_fget(mpf, &pgno, 0, &h)) != 0)
 			return (ret);
 
 		/* Check if we need any bytes from this page. */
@@ -157,7 +163,7 @@ __db_goff(dbp, dbt, tlen, pgno, bpp, bpsz)
 		}
 		curoff += OV_LEN(h);
 		pgno = h->next_pgno;
-		(void)mpf->put(mpf, h, 0);
+		(void)__memp_fput(mpf, h, 0);
 	}
 	return (0);
 }
@@ -222,7 +228,7 @@ __db_poff(dbc, dbt, pgnop)
 			    lastp == NULL ? &null_lsn : &LSN(lastp),
 			    &null_lsn)) != 0) {
 				if (lastp != NULL)
-					(void)mpf->put(mpf,
+					(void)__memp_fput(mpf,
 					    lastp, DB_MPOOL_DIRTY);
 				lastp = pagep;
 				break;
@@ -251,12 +257,12 @@ __db_poff(dbc, dbt, pgnop)
 		else {
 			lastp->next_pgno = PGNO(pagep);
 			pagep->prev_pgno = PGNO(lastp);
-			(void)mpf->put(mpf, lastp, DB_MPOOL_DIRTY);
+			(void)__memp_fput(mpf, lastp, DB_MPOOL_DIRTY);
 		}
 		lastp = pagep;
 	}
 	if (lastp != NULL &&
-	    (t_ret = mpf->put(mpf, lastp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
+	    (t_ret = __memp_fput(mpf, lastp, DB_MPOOL_DIRTY)) != 0 && ret == 0)
 		ret = t_ret;
 	return (ret);
 }
@@ -281,22 +287,20 @@ __db_ovref(dbc, pgno, adjust)
 	dbp = dbc->dbp;
 	mpf = dbp->mpf;
 
-	if ((ret = mpf->get(mpf, &pgno, 0, &h)) != 0) {
-		__db_pgerr(dbp, pgno, ret);
-		return (ret);
-	}
+	if ((ret = __memp_fget(mpf, &pgno, 0, &h)) != 0)
+		return (__db_pgerr(dbp, pgno, ret));
 
 	if (DBC_LOGGING(dbc)) {
 		if ((ret = __db_ovref_log(dbp,
 		    dbc->txn, &LSN(h), 0, h->pgno, adjust, &LSN(h))) != 0) {
-			(void)mpf->put(mpf, h, 0);
+			(void)__memp_fput(mpf, h, 0);
 			return (ret);
 		}
 	} else
 		LSN_NOT_LOGGED(LSN(h));
 	OV_REF(h) += adjust;
 
-	(void)mpf->put(mpf, h, DB_MPOOL_DIRTY);
+	(void)__memp_fput(mpf, h, DB_MPOOL_DIRTY);
 	return (0);
 }
 
@@ -322,10 +326,8 @@ __db_doff(dbc, pgno)
 	mpf = dbp->mpf;
 
 	do {
-		if ((ret = mpf->get(mpf, &pgno, 0, &pagep)) != 0) {
-			__db_pgerr(dbp, pgno, ret);
-			return (ret);
-		}
+		if ((ret = __memp_fget(mpf, &pgno, 0, &pagep)) != 0)
+			return (__db_pgerr(dbp, pgno, ret));
 
 		DB_ASSERT(TYPE(pagep) == P_OVERFLOW);
 		/*
@@ -333,7 +335,7 @@ __db_doff(dbc, pgno)
 		 * decrement the reference count and return.
 		 */
 		if (OV_REF(pagep) > 1) {
-			(void)mpf->put(mpf, pagep, 0);
+			(void)__memp_fput(mpf, pagep, 0);
 			return (__db_ovref(dbc, pgno, -1));
 		}
 
@@ -346,12 +348,13 @@ __db_doff(dbc, pgno)
 			    PGNO(pagep), PREV_PGNO(pagep),
 			    NEXT_PGNO(pagep), &tmp_dbt,
 			    &LSN(pagep), &null_lsn, &null_lsn)) != 0) {
-				(void)mpf->put(mpf, pagep, 0);
+				(void)__memp_fput(mpf, pagep, 0);
 				return (ret);
 			}
 		} else
 			LSN_NOT_LOGGED(LSN(pagep));
 		pgno = pagep->next_pgno;
+		OV_LEN(pagep) = 0;
 		if ((ret = __db_free(dbc, pagep)) != 0)
 			return (ret);
 	} while (pgno != PGNO_INVALID);
@@ -411,7 +414,7 @@ __db_moff(dbp, dbt, pgno, tlen, cmpfunc, cmpp)
 	/* While there are both keys to compare. */
 	for (*cmpp = 0, p1 = dbt->data,
 	    key_left = dbt->size; key_left > 0 && pgno != PGNO_INVALID;) {
-		if ((ret = mpf->get(mpf, &pgno, 0, &pagep)) != 0)
+		if ((ret = __memp_fget(mpf, &pgno, 0, &pagep)) != 0)
 			return (ret);
 
 		cmp_bytes = OV_LEN(pagep) < key_left ? OV_LEN(pagep) : key_left;
@@ -424,7 +427,7 @@ __db_moff(dbp, dbt, pgno, tlen, cmpfunc, cmpp)
 				break;
 			}
 		pgno = NEXT_PGNO(pagep);
-		if ((ret = mpf->put(mpf, pagep, 0)) != 0)
+		if ((ret = __memp_fput(mpf, pagep, 0)) != 0)
 			return (ret);
 		if (*cmpp != 0)
 			return (0);
@@ -437,290 +440,4 @@ __db_moff(dbp, dbt, pgno, tlen, cmpfunc, cmpp)
 		*cmpp = 0;
 
 	return (0);
-}
-
-/*
- * __db_vrfy_overflow --
- *	Verify overflow page.
- *
- * PUBLIC: int __db_vrfy_overflow __P((DB *, VRFY_DBINFO *, PAGE *, db_pgno_t,
- * PUBLIC:     u_int32_t));
- */
-int
-__db_vrfy_overflow(dbp, vdp, h, pgno, flags)
-	DB *dbp;
-	VRFY_DBINFO *vdp;
-	PAGE *h;
-	db_pgno_t pgno;
-	u_int32_t flags;
-{
-	VRFY_PAGEINFO *pip;
-	int isbad, ret, t_ret;
-
-	isbad = 0;
-	if ((ret = __db_vrfy_getpageinfo(vdp, pgno, &pip)) != 0)
-		return (ret);
-
-	if ((ret = __db_vrfy_datapage(dbp, vdp, h, pgno, flags)) != 0) {
-		if (ret == DB_VERIFY_BAD)
-			isbad = 1;
-		else
-			goto err;
-	}
-
-	pip->refcount = OV_REF(h);
-	if (pip->refcount < 1) {
-		EPRINT((dbp->dbenv,
-		    "Page %lu: overflow page has zero reference count",
-		    (u_long)pgno));
-		isbad = 1;
-	}
-
-	/* Just store for now. */
-	pip->olen = HOFFSET(h);
-
-err:	if ((t_ret = __db_vrfy_putpageinfo(dbp->dbenv, vdp, pip)) != 0)
-		ret = t_ret;
-	return ((ret == 0 && isbad == 1) ? DB_VERIFY_BAD : ret);
-}
-
-/*
- * __db_vrfy_ovfl_structure --
- *	Walk a list of overflow pages, avoiding cycles and marking
- *	pages seen.
- *
- * PUBLIC: int __db_vrfy_ovfl_structure
- * PUBLIC:     __P((DB *, VRFY_DBINFO *, db_pgno_t, u_int32_t, u_int32_t));
- */
-int
-__db_vrfy_ovfl_structure(dbp, vdp, pgno, tlen, flags)
-	DB *dbp;
-	VRFY_DBINFO *vdp;
-	db_pgno_t pgno;
-	u_int32_t tlen;
-	u_int32_t flags;
-{
-	DB *pgset;
-	VRFY_PAGEINFO *pip;
-	db_pgno_t next, prev;
-	int isbad, p, ret, t_ret;
-	u_int32_t refcount;
-
-	pgset = vdp->pgset;
-	DB_ASSERT(pgset != NULL);
-	isbad = 0;
-
-	/* This shouldn't happen, but just to be sure. */
-	if (!IS_VALID_PGNO(pgno))
-		return (DB_VERIFY_BAD);
-
-	/*
-	 * Check the first prev_pgno;  it ought to be PGNO_INVALID,
-	 * since there's no prev page.
-	 */
-	if ((ret = __db_vrfy_getpageinfo(vdp, pgno, &pip)) != 0)
-		return (ret);
-
-	/* The refcount is stored on the first overflow page. */
-	refcount = pip->refcount;
-
-	if (pip->type != P_OVERFLOW) {
-		EPRINT((dbp->dbenv,
-		    "Page %lu: overflow page of invalid type %lu",
-		    (u_long)pgno, (u_long)pip->type));
-		ret = DB_VERIFY_BAD;
-		goto err;		/* Unsafe to continue. */
-	}
-
-	prev = pip->prev_pgno;
-	if (prev != PGNO_INVALID) {
-		EPRINT((dbp->dbenv,
-	    "Page %lu: first page in overflow chain has a prev_pgno %lu",
-		    (u_long)pgno, (u_long)prev));
-		isbad = 1;
-	}
-
-	for (;;) {
-		/*
-		 * This is slightly gross.  Btree leaf pages reference
-		 * individual overflow trees multiple times if the overflow page
-		 * is the key to a duplicate set.  The reference count does not
-		 * reflect this multiple referencing.  Thus, if this is called
-		 * during the structure verification of a btree leaf page, we
-		 * check to see whether we've seen it from a leaf page before
-		 * and, if we have, adjust our count of how often we've seen it
-		 * accordingly.
-		 *
-		 * (This will screw up if it's actually referenced--and
-		 * correctly refcounted--from two different leaf pages, but
-		 * that's a very unlikely brokenness that we're not checking for
-		 * anyway.)
-		 */
-
-		if (LF_ISSET(ST_OVFL_LEAF)) {
-			if (F_ISSET(pip, VRFY_OVFL_LEAFSEEN)) {
-				if ((ret =
-				    __db_vrfy_pgset_dec(pgset, pgno)) != 0)
-					goto err;
-			} else
-				F_SET(pip, VRFY_OVFL_LEAFSEEN);
-		}
-
-		if ((ret = __db_vrfy_pgset_get(pgset, pgno, &p)) != 0)
-			goto err;
-
-		/*
-		 * We may have seen this elsewhere, if the overflow entry
-		 * has been promoted to an internal page.
-		 */
-		if ((u_int32_t)p > refcount) {
-			EPRINT((dbp->dbenv,
-			    "Page %lu: encountered twice in overflow traversal",
-			    (u_long)pgno));
-			ret = DB_VERIFY_BAD;
-			goto err;
-		}
-		if ((ret = __db_vrfy_pgset_inc(pgset, pgno)) != 0)
-			goto err;
-
-		/* Keep a running tab on how much of the item we've seen. */
-		tlen -= pip->olen;
-
-		/* Send feedback to the application about our progress. */
-		if (!LF_ISSET(DB_SALVAGE))
-			__db_vrfy_struct_feedback(dbp, vdp);
-
-		next = pip->next_pgno;
-
-		/* Are we there yet? */
-		if (next == PGNO_INVALID)
-			break;
-
-		/*
-		 * We've already checked this when we saved it, but just
-		 * to be sure...
-		 */
-		if (!IS_VALID_PGNO(next)) {
-			DB_ASSERT(0);
-			EPRINT((dbp->dbenv,
-			    "Page %lu: bad next_pgno %lu on overflow page",
-			    (u_long)pgno, (u_long)next));
-			ret = DB_VERIFY_BAD;
-			goto err;
-		}
-
-		if ((ret = __db_vrfy_putpageinfo(dbp->dbenv, vdp, pip)) != 0 ||
-		    (ret = __db_vrfy_getpageinfo(vdp, next, &pip)) != 0)
-			return (ret);
-		if (pip->prev_pgno != pgno) {
-			EPRINT((dbp->dbenv,
-		"Page %lu: bad prev_pgno %lu on overflow page (should be %lu)",
-			    (u_long)next, (u_long)pip->prev_pgno,
-			    (u_long)pgno));
-			isbad = 1;
-			/*
-			 * It's safe to continue because we have separate
-			 * cycle detection.
-			 */
-		}
-
-		pgno = next;
-	}
-
-	if (tlen > 0) {
-		isbad = 1;
-		EPRINT((dbp->dbenv,
-		    "Page %lu: overflow item incomplete", (u_long)pgno));
-	}
-
-err:	if ((t_ret =
-	    __db_vrfy_putpageinfo(dbp->dbenv, vdp, pip)) != 0 && ret == 0)
-		ret = t_ret;
-	return ((ret == 0 && isbad == 1) ? DB_VERIFY_BAD : ret);
-}
-
-/*
- * __db_safe_goff --
- *	Get an overflow item, very carefully, from an untrusted database,
- *	in the context of the salvager.
- *
- * PUBLIC: int __db_safe_goff __P((DB *, VRFY_DBINFO *, db_pgno_t,
- * PUBLIC:     DBT *, void **, u_int32_t));
- */
-int
-__db_safe_goff(dbp, vdp, pgno, dbt, buf, flags)
-	DB *dbp;
-	VRFY_DBINFO *vdp;
-	db_pgno_t pgno;
-	DBT *dbt;
-	void **buf;
-	u_int32_t flags;
-{
-	DB_MPOOLFILE *mpf;
-	PAGE *h;
-	int ret, t_ret;
-	u_int32_t bytesgot, bytes;
-	u_int8_t *src, *dest;
-
-	mpf = dbp->mpf;
-	h = NULL;
-	ret = t_ret = 0;
-	bytesgot = bytes = 0;
-
-	while ((pgno != PGNO_INVALID) && (IS_VALID_PGNO(pgno))) {
-		/*
-		 * Mark that we're looking at this page;  if we've seen it
-		 * already, quit.
-		 */
-		if ((ret = __db_salvage_markdone(vdp, pgno)) != 0)
-			break;
-
-		if ((ret = mpf->get(mpf, &pgno, 0, &h)) != 0)
-			break;
-
-		/*
-		 * Make sure it's really an overflow page, unless we're
-		 * being aggressive, in which case we pretend it is.
-		 */
-		if (!LF_ISSET(DB_AGGRESSIVE) && TYPE(h) != P_OVERFLOW) {
-			ret = DB_VERIFY_BAD;
-			break;
-		}
-
-		src = (u_int8_t *)h + P_OVERHEAD(dbp);
-		bytes = OV_LEN(h);
-
-		if (bytes + P_OVERHEAD(dbp) > dbp->pgsize)
-			bytes = dbp->pgsize - P_OVERHEAD(dbp);
-
-		if ((ret = __os_realloc(dbp->dbenv,
-		    bytesgot + bytes, buf)) != 0)
-			break;
-
-		dest = (u_int8_t *)*buf + bytesgot;
-		bytesgot += bytes;
-
-		memcpy(dest, src, bytes);
-
-		pgno = NEXT_PGNO(h);
-
-		if ((ret = mpf->put(mpf, h, 0)) != 0)
-			break;
-		h = NULL;
-	}
-
-	/*
-	 * If we're being aggressive, salvage a partial datum if there
-	 * was an error somewhere along the way.
-	 */
-	if (ret == 0 || LF_ISSET(DB_AGGRESSIVE)) {
-		dbt->size = bytesgot;
-		dbt->data = *buf;
-	}
-
-	/* If we broke out on error, don't leave pages pinned. */
-	if (h != NULL && (t_ret = mpf->put(mpf, h, 0)) != 0 && ret == 0)
-		ret = t_ret;
-
-	return (ret);
 }

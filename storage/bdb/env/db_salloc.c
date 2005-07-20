@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_salloc.c,v 11.28 2004/09/17 22:00:27 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_salloc.c,v 11.16 2002/08/24 20:27:25 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -36,21 +34,27 @@ struct __data {
 	SH_LIST_ENTRY links;
 };
 
+#define	ILLEGAL_SIZE	1			/* An illegal size. */
+
 /*
  * __db_shalloc_init --
  *	Initialize the area as one large chunk.
  *
- * PUBLIC: void __db_shalloc_init __P((void *, size_t));
+ * PUBLIC: void __db_shalloc_init __P((REGINFO *, size_t));
  */
 void
-__db_shalloc_init(area, size)
-	void *area;
+__db_shalloc_init(infop, size)
+	REGINFO *infop;
 	size_t size;
 {
 	struct __data *elp;
 	struct __head *hp;
 
-	hp = area;
+	/* No initialization needed for heap memory regions. */
+	if (F_ISSET(infop->dbenv, DB_ENV_PRIVATE))
+		return;
+
+	hp = infop->addr;
 	SH_LIST_INIT(hp);
 
 	elp = (struct __data *)(hp + 1);
@@ -62,9 +66,9 @@ __db_shalloc_init(area, size)
  * __db_shalloc_size --
  *	Return the space needed for an allocation, including alignment.
  *
- * PUBLIC: int __db_shalloc_size __P((size_t, size_t));
+ * PUBLIC: size_t __db_shalloc_size __P((size_t, size_t));
  */
-int
+size_t
 __db_shalloc_size(len, align)
 	size_t len, align;
 {
@@ -77,27 +81,67 @@ __db_shalloc_size(len, align)
 	++len;
 #endif
 
-	/* Never align to less than a db_align_t boundary. */
-	if (align <= sizeof(db_align_t))
-		align = sizeof(db_align_t);
+	/* Never align to less than a uintmax_t boundary. */
+	if (align <= sizeof(uintmax_t))
+		align = sizeof(uintmax_t);
 
-	return ((int)(ALIGN(len, align) + sizeof (struct __data)));
+	return ((size_t)DB_ALIGN(len, align) + sizeof(struct __data));
 }
 
 /*
  * __db_shalloc --
- *	Allocate some space from the shared region.
+ *	Allocate space from the shared region.
  *
- * PUBLIC: int __db_shalloc __P((void *, size_t, size_t, void *));
+ * PUBLIC: int __db_shalloc __P((REGINFO *, size_t, size_t, void *));
  */
 int
-__db_shalloc(p, len, align, retp)
-	void *p, *retp;
+__db_shalloc(infop, len, align, retp)
+	REGINFO *infop;
 	size_t len, align;
+	void *retp;
 {
+	DB_ENV *dbenv;
 	struct __data *elp;
 	size_t *sp;
-	void *rp;
+	int ret;
+	void *p, *rp;
+
+	dbenv = infop->dbenv;
+
+	/* Never align to less than a uintmax_t boundary. */
+	if (align <= sizeof(uintmax_t))
+		align = sizeof(uintmax_t);
+
+	/* In a private region, we call malloc for additional space. */
+	if (F_ISSET(dbenv, DB_ENV_PRIVATE)) {
+		/* Check to see if we're over our limit. */
+		if (infop->allocated >= infop->max_alloc)
+			return (ENOMEM);
+
+		/* Add enough room for a size. */
+		len += sizeof(size_t);
+
+		/* Add enough room to guarantee alignment is possible. */
+		len += align - 1;
+
+		/* Allocate the space. */
+		if ((ret = __os_malloc(dbenv, len, &p)) != 0)
+			return (ret);
+		infop->allocated += len;
+
+		/* Store the size. */
+		sp = p;
+		*sp++ = len;
+
+		/* Find the aligned location. */
+		*(void **)retp = rp = ALIGNP_INC(sp, align);
+
+		/* Fill in any gaps with illegal sizes. */
+		for (; (void *)sp < rp; ++sp)
+			*sp = ILLEGAL_SIZE;
+
+		return (0);
+	}
 
 	/* Never allocate less than the size of a struct __data. */
 	if (len < sizeof(struct __data))
@@ -108,9 +152,7 @@ __db_shalloc(p, len, align, retp)
 	++len;
 #endif
 
-	/* Never align to less than a db_align_t boundary. */
-	if (align <= sizeof(db_align_t))
-		align = sizeof(db_align_t);
+	p = infop->addr;
 
 	/* Walk the list, looking for a slot. */
 	for (elp = SH_LIST_FIRST((struct __head *)p, __data);
@@ -125,7 +167,8 @@ __db_shalloc(p, len, align, retp)
 		 */
 		rp = (u_int8_t *)elp + sizeof(size_t) + elp->len;
 		rp = (u_int8_t *)rp - len;
-		rp = (u_int8_t *)((db_alignp_t)rp & ~(align - 1));
+		rp = (u_int8_t *)((uintptr_t)rp & ~(align - 1));
+		rp = ALIGNP_DEC(rp, align);
 
 		/*
 		 * Rp may now point before elp->links, in which case the chunk
@@ -168,7 +211,6 @@ __db_shalloc(p, len, align, retp)
 		 * size_t length fields back to the "real" length field to a
 		 * flag value, so that we can find the real length during free.
 		 */
-#define	ILLEGAL_SIZE	1
 		SH_LIST_REMOVE(elp, links, __data);
 		for (sp = rp; (u_int8_t *)--sp >= (u_int8_t *)&elp->links;)
 			*sp = ILLEGAL_SIZE;
@@ -180,18 +222,22 @@ __db_shalloc(p, len, align, retp)
 
 /*
  * __db_shalloc_free --
- *	Free a shared memory allocation.
+ *	Free space into the shared region.
  *
- * PUBLIC: void __db_shalloc_free __P((void *, void *));
+ * PUBLIC: void __db_shalloc_free __P((REGINFO *, void *));
  */
 void
-__db_shalloc_free(regionp, ptr)
-	void *regionp, *ptr;
+__db_shalloc_free(infop, ptr)
+	REGINFO *infop;
+	void *ptr;
 {
+	DB_ENV *dbenv;
 	struct __data *elp, *lastp, *newp;
 	struct __head *hp;
 	size_t free_size, *sp;
 	int merged;
+
+	dbenv = infop->dbenv;
 
 	/*
 	 * Step back over flagged length fields to find the beginning of
@@ -203,6 +249,15 @@ __db_shalloc_free(regionp, ptr)
 
 	newp = (struct __data *)((u_int8_t *)ptr - sizeof(size_t));
 	free_size = newp->len;
+
+	/* In a private region, we call free. */
+	if (F_ISSET(dbenv, DB_ENV_PRIVATE)) {
+		DB_ASSERT(infop->allocated >= free_size);
+		infop->allocated -= free_size;
+
+		__os_free(dbenv, newp);
+		return;
+	}
 
 #ifdef DIAGNOSTIC
 	/*
@@ -225,7 +280,6 @@ __db_shalloc_free(regionp, ptr)
 	/* Trash the returned memory (including guard byte). */
 	memset(ptr, CLEAR_BYTE, free_size);
 #endif
-
 	/*
 	 * Walk the list, looking for where this entry goes.
 	 *
@@ -235,7 +289,7 @@ __db_shalloc_free(regionp, ptr)
 	 * XXX
 	 * Probably worth profiling this to see how expensive it is.
 	 */
-	hp = (struct __head *)regionp;
+	hp = (struct __head *)(infop->addr);
 	for (elp = SH_LIST_FIRST(hp, __data), lastp = NULL;
 	    elp != NULL && (void *)elp < (void *)ptr;
 	    lastp = elp, elp = SH_LIST_NEXT(elp, links, __data))
@@ -284,7 +338,7 @@ __db_shalloc_free(regionp, ptr)
 }
 
 /*
- * __db_shsizeof --
+ * __db_shalloc_sizeof --
  *	Return the size of a shalloc'd piece of memory.
  *
  * !!!
@@ -292,10 +346,10 @@ __db_shalloc_free(regionp, ptr)
  * the size of the memory being used, but also the extra alignment bytes
  * in front and, #ifdef DIAGNOSTIC, the guard byte at the end.
  *
- * PUBLIC: size_t __db_shsizeof __P((void *));
+ * PUBLIC: size_t __db_shalloc_sizeof __P((void *));
  */
 size_t
-__db_shsizeof(ptr)
+__db_shalloc_sizeof(ptr)
 	void *ptr;
 {
 	struct __data *elp;
@@ -310,29 +364,4 @@ __db_shsizeof(ptr)
 
 	elp = (struct __data *)((u_int8_t *)sp - sizeof(size_t));
 	return (elp->len);
-}
-
-/*
- * __db_shalloc_dump --
- *
- * PUBLIC: void __db_shalloc_dump __P((void *, FILE *));
- */
-void
-__db_shalloc_dump(addr, fp)
-	void *addr;
-	FILE *fp;
-{
-	struct __data *elp;
-
-	/* Make it easy to call from the debugger. */
-	if (fp == NULL)
-		fp = stderr;
-
-	fprintf(fp, "%s\nMemory free list\n", DB_LINE);
-
-	for (elp = SH_LIST_FIRST((struct __head *)addr, __data);
-	    elp != NULL;
-	    elp = SH_LIST_NEXT(elp, links, __data))
-		fprintf(fp, "%#lx: %lu\t", P_TO_ULONG(elp), (u_long)elp->len);
-	fprintf(fp, "\n");
 }

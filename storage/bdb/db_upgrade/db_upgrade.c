@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_upgrade.c,v 1.37 2004/06/10 01:00:09 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2002\nSleepycat Software Inc.  All rights reserved.\n";
-static const char revid[] =
-    "$Id: db_upgrade.c,v 1.31 2002/03/28 20:13:47 bostic Exp $";
+    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -40,7 +40,7 @@ main(argc, argv)
 	DB *dbp;
 	DB_ENV *dbenv;
 	u_int32_t flags;
-	int ch, e_close, exitval, nflag, ret, t_ret;
+	int ch, exitval, nflag, ret, t_ret;
 	char *home, *passwd;
 
 	if ((ret = version_check(progname)) != 0)
@@ -48,7 +48,7 @@ main(argc, argv)
 
 	dbenv = NULL;
 	flags = nflag = 0;
-	e_close = exitval = 0;
+	exitval = 0;
 	home = passwd = NULL;
 	while ((ch = getopt(argc, argv, "h:NP:sV")) != EOF)
 		switch (ch) {
@@ -95,7 +95,6 @@ main(argc, argv)
 		    progname, db_strerror(ret));
 		goto shutdown;
 	}
-	e_close = 1;
 
 	dbenv->set_errfile(dbenv, stderr);
 	dbenv->set_errpfx(dbenv, progname);
@@ -123,9 +122,11 @@ main(argc, argv)
 	 */
 	if ((ret = dbenv->open(dbenv,
 	    home, DB_JOINENV | DB_USE_ENVIRON, 0)) != 0 &&
+	    (ret == DB_VERSION_MISMATCH ||
 	    (ret = dbenv->open(dbenv, home,
-	    DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE | DB_USE_ENVIRON, 0)) != 0) {
-		dbenv->err(dbenv, ret, "open");
+	    DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE | DB_USE_ENVIRON,
+	    0)) != 0)) {
+		dbenv->err(dbenv, ret, "DB_ENV->open");
 		goto shutdown;
 	}
 
@@ -150,11 +151,14 @@ main(argc, argv)
 	if (0) {
 shutdown:	exitval = 1;
 	}
-	if (e_close && (ret = dbenv->close(dbenv, 0)) != 0) {
+	if (dbenv != NULL && (ret = dbenv->close(dbenv, 0)) != 0) {
 		exitval = 1;
 		fprintf(stderr,
 		    "%s: dbenv->close: %s\n", progname, db_strerror(ret));
 	}
+
+	if (passwd != NULL)
+		free(passwd);
 
 	/* Resend any caught signal. */
 	__db_util_sigresend();
@@ -178,12 +182,11 @@ version_check(progname)
 
 	/* Make sure we're loaded with the right version of the DB library. */
 	(void)db_version(&v_major, &v_minor, &v_patch);
-	if (v_major != DB_VERSION_MAJOR ||
-	    v_minor != DB_VERSION_MINOR || v_patch != DB_VERSION_PATCH) {
+	if (v_major != DB_VERSION_MAJOR || v_minor != DB_VERSION_MINOR) {
 		fprintf(stderr,
-	"%s: version %d.%d.%d doesn't match library version %d.%d.%d\n",
+	"%s: version %d.%d doesn't match library version %d.%d\n",
 		    progname, DB_VERSION_MAJOR, DB_VERSION_MINOR,
-		    DB_VERSION_PATCH, v_major, v_minor, v_patch);
+		    v_major, v_minor);
 		return (EXIT_FAILURE);
 	}
 	return (0);

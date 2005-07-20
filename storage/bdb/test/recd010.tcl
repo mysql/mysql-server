@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd010.tcl,v 1.19 2002/03/15 19:05:07 sue Exp $
+# $Id: recd010.tcl,v 1.21 2004/01/28 03:36:28 bostic Exp $
 #
 # TEST	recd010
 # TEST	Test stability of btree duplicates across btree off-page dup splits

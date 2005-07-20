@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -38,13 +38,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: bt_compare.c,v 11.20 2004/02/21 15:54:44 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: bt_compare.c,v 11.17 2002/03/27 04:30:42 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -204,8 +202,12 @@ __bam_defpfx(dbp, a, b)
 			return (cnt);
 
 	/*
-	 * We know that a->size must be <= b->size, or they wouldn't be
-	 * in this order.
+	 * They match up to the smaller of the two sizes.
+	 * Collate the longer after the shorter.
 	 */
-	return (a->size < b->size ? a->size + 1 : a->size);
+	if (a->size < b->size)
+		return (a->size + 1);
+	if (b->size < a->size)
+		return (b->size + 1);
+	return (b->size);
 }

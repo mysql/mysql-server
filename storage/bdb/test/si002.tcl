@@ -1,13 +1,21 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2001-2002
+# Copyright (c) 2001-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: si002.tcl,v 1.6 2002/04/29 17:12:02 sandstro Exp $
+# $Id: si002.tcl,v 1.14 2004/10/27 20:40:25 carol Exp $
 #
-# TEST	sindex002
+# TEST	si002
 # TEST	Basic cursor-based secondary index put/delete test
-proc sindex002 { methods {nentries 200} {tnum 2} args } {
+# TEST
+# TEST  Cursor put data in primary db and check that pget
+# TEST  on secondary index finds the right entries.
+# TEST  Overwrite while walking primary, check pget again.
+# TEST      Overwrite while walking secondary (use c_pget), check
+# TEST  pget again.
+# TEST  Cursor delete half of entries through primary, check.
+# TEST  Cursor delete half of remainder through secondary, check.
+proc si002 { methods {nentries 200} {tnum "002"} args } {
 	source ./include.tcl
 	global dict nsecondaries
 
@@ -29,11 +37,11 @@ proc sindex002 { methods {nentries 200} {tnum 2} args } {
 	set argses [convert_argses $methods $args]
 	set omethods [convert_methods $methods]
 
-	puts "Sindex00$tnum ($pmethod/$methods) $nentries equal key/data pairs"
+	puts "si$tnum \{\[ list $pmethod $methods \]\} $nentries"
 	env_cleanup $testdir
 
-	set pname "primary00$tnum.db"
-	set snamebase "secondary00$tnum"
+	set pname "primary$tnum.db"
+	set snamebase "secondary$tnum"
 
 	# Open an environment
 	# XXX if one is not supplied!
@@ -56,7 +64,7 @@ proc sindex002 { methods {nentries 200} {tnum 2} args } {
 		lappend sdbs $sdb
 	}
 
-	puts "\tSindex00$tnum.a: Cursor put (-keyfirst/-keylast) loop"
+	puts "\tSi$tnum.a: Cursor put (-keyfirst/-keylast) loop"
 	set did [open $dict]
 	set pdbc [$pdb cursor]
 	error_check_good pdb_cursor [is_valid_cursor $pdbc $pdb] TRUE
@@ -84,9 +92,9 @@ proc sindex002 { methods {nentries 200} {tnum 2} args } {
 	}
 	close $did
 	error_check_good pdbc_close [$pdbc close] 0
-	check_secondaries $pdb $sdbs $nentries keys data "Sindex00$tnum.a"
+	check_secondaries $pdb $sdbs $nentries keys data "Si$tnum.a"
 
-	puts "\tSindex00$tnum.b: Cursor put overwrite (-current) loop"
+	puts "\tSi$tnum.b: Cursor put overwrite (-current) loop"
 	set pdbc [$pdb cursor]
 	error_check_good pdb_cursor [is_valid_cursor $pdbc $pdb] TRUE
 	for { set dbt [$pdbc get -first] } { [llength $dbt] > 0 } \
@@ -99,9 +107,9 @@ proc sindex002 { methods {nentries 200} {tnum 2} args } {
 		set data($ns($key)) [pad_data $pmethod $newd]
 	}
 	error_check_good pdbc_close [$pdbc close] 0
-	check_secondaries $pdb $sdbs $nentries keys data "Sindex00$tnum.b"
+	check_secondaries $pdb $sdbs $nentries keys data "Si$tnum.b"
 
-	puts "\tSindex00$tnum.c: Secondary c_pget/primary put overwrite loop"
+	puts "\tSi$tnum.c: Secondary c_pget/primary put overwrite loop"
 	# We walk the first secondary, then put-overwrite each primary key/data
 	# pair we find.  This doubles as a DBC->c_pget test.
 	set sdb [lindex $sdbs 0]
@@ -127,13 +135,13 @@ proc sindex002 { methods {nentries 200} {tnum 2} args } {
 		set data($ns($pkey)) [pad_data $pmethod $newd]
 	}
 	error_check_good sdbc_close [$sdbc close] 0
-	check_secondaries $pdb $sdbs $nentries keys data "Sindex00$tnum.c"
+	check_secondaries $pdb $sdbs $nentries keys data "Si$tnum.c"
 
 	# Delete the second half of the entries through the primary.
 	# We do the second half so we can just pass keys(0 ... n/2)
 	# to check_secondaries.
 	set half [expr $nentries / 2]
-	puts "\tSindex00$tnum.d:\
+	puts "\tSi$tnum.d:\
 	    Primary cursor delete loop: deleting $half entries"
 	set pdbc [$pdb cursor]
 	error_check_good pdb_cursor [is_valid_cursor $pdbc $pdb] TRUE
@@ -143,11 +151,11 @@ proc sindex002 { methods {nentries 200} {tnum 2} args } {
 		set dbt [$pdbc get -next]
 	}
 	error_check_good pdbc_close [$pdbc close] 0
-	cursor_check_secondaries $pdb $sdbs $half "Sindex00$tnum.d"
+	cursor_check_secondaries $pdb $sdbs $half "Si$tnum.d"
 
 	# Delete half of what's left, through the first secondary.
 	set quar [expr $half / 2]
-	puts "\tSindex00$tnum.e:\
+	puts "\tSi$tnum.e:\
 	    Secondary cursor delete loop: deleting $quar entries"
 	set sdb [lindex $sdbs 0]
 	set sdbc [$sdb cursor]
@@ -157,7 +165,7 @@ proc sindex002 { methods {nentries 200} {tnum 2} args } {
 		set dbt [$sdbc get -next]
 	}
 	error_check_good sdbc_close [$sdbc close] 0
-	cursor_check_secondaries $pdb $sdbs $quar "Sindex00$tnum.e"
+	cursor_check_secondaries $pdb $sdbs $quar "Si$tnum.e"
 
 	foreach sdb $sdbs {
 		error_check_good secondary_close [$sdb close] 0

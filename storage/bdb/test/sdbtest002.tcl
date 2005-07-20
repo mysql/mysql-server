@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdbtest002.tcl,v 11.26 2002/09/05 17:23:07 sandstro Exp $
+# $Id: sdbtest002.tcl,v 11.29 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	sdbtest002
 # TEST	Tests multiple access methods in one subdb access by multiple
@@ -43,8 +43,7 @@ proc sdbtest002 { {nentries 10000} } {
 	set methods \
 	    [list "-rbtree" "-recno" "-btree" "-btree" "-recno" "-rbtree"]
 	cleanup $testdir NULL
-	puts "\tSubdbtest002.a: create subdbs of different access methods:"
-	puts "\t\t$methods"
+	puts "\tSubdbtest002.a: create subdbs of different methods: $methods"
 	set psize 4096
 	set nsubdbs [llength $methods]
 	set duplist ""

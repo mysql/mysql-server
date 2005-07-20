@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_method.c,v 11.21 2004/09/17 22:00:31 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_method.c,v 11.15 2002/07/12 18:56:51 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -85,6 +83,17 @@ db_env_set_func_fsync(func_fsync)
 }
 
 /*
+ * EXTERN: int db_env_set_func_ftruncate __P((int (*)(int, off_t)));
+ */
+int
+db_env_set_func_ftruncate(func_ftruncate)
+	int (*func_ftruncate) __P((int, off_t));
+{
+	DB_GLOBAL(j_ftruncate) = func_ftruncate;
+	return (0);
+}
+
+/*
  * EXTERN: int db_env_set_func_ioinfo __P((int (*)(const char *,
  * EXTERN:     int, u_int32_t *, u_int32_t *, u_int32_t *)));
  */
@@ -117,6 +126,30 @@ db_env_set_func_map(func_map)
 	int (*func_map) __P((char *, size_t, int, int, void **));
 {
 	DB_GLOBAL(j_map) = func_map;
+	return (0);
+}
+
+/*
+ * EXTERN: int db_env_set_func_pread
+ * EXTERN:    __P((ssize_t (*)(int, void *, size_t, off_t)));
+ */
+int
+db_env_set_func_pread(func_pread)
+	ssize_t (*func_pread) __P((int, void *, size_t, off_t));
+{
+	DB_GLOBAL(j_pread) = func_pread;
+	return (0);
+}
+
+/*
+ * EXTERN: int db_env_set_func_pwrite
+ * EXTERN:    __P((ssize_t (*)(int, const void *, size_t, off_t)));
+ */
+int
+db_env_set_func_pwrite(func_pwrite)
+	ssize_t (*func_pwrite) __P((int, const void *, size_t, off_t));
+{
+	DB_GLOBAL(j_pwrite) = func_pwrite;
 	return (0);
 }
 
@@ -167,11 +200,11 @@ db_env_set_func_rename(func_rename)
 
 /*
  * EXTERN: int db_env_set_func_seek
- * EXTERN:     __P((int (*)(int, size_t, db_pgno_t, u_int32_t, int, int)));
+ * EXTERN:     __P((int (*)(int, off_t, int)));
  */
 int
 db_env_set_func_seek(func_seek)
-	int (*func_seek) __P((int, size_t, db_pgno_t, u_int32_t, int, int));
+	int (*func_seek) __P((int, off_t, int));
 {
 	DB_GLOBAL(j_seek) = func_seek;
 	return (0);

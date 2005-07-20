@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd012.tcl,v 11.27 2002/05/10 00:48:07 margo Exp $
+# $Id: recd012.tcl,v 11.31 2004/04/19 14:56:13 bostic Exp $
 #
 # TEST	recd012
 # TEST	Test of log file ID management. [#2288]
@@ -12,14 +12,14 @@ proc recd012 { method {start 0} \
     {niter 49} {noutiter 25} {niniter 100} {ndbs 5} args } {
 	source ./include.tcl
 
-	set tnum 12
+	set tnum "012"
 	set pagesize 512
 
 	if { $is_qnx_test } {
 		set niter 40
 	}
 
-	puts "Recd0$tnum $method ($args): Test recovery file management."
+	puts "Recd$tnum $method ($args): Test recovery file management."
 	set pgindex [lsearch -exact $args "-pagesize"]
 	if { $pgindex != -1 } {
 		puts "Recd012: skipping for specific pagesizes"
@@ -52,8 +52,8 @@ proc recd012_body { method {ndbs 5} iter noutiter niniter psz tnum {largs ""} } 
 	set largs [convert_args $method $largs]
 	set omethod [convert_method $method]
 
-	puts "\tRecd0$tnum $method ($largs): Iteration $iter"
-	puts "\t\tRecd0$tnum.a: Create environment and $ndbs databases."
+	puts "\tRecd$tnum $method ($largs): Iteration $iter"
+	puts "\t\tRecd$tnum.a: Create environment and $ndbs databases."
 
 	# We run out of lockers during some of the recovery runs, so
 	# we need to make sure that we specify a DB_CONFIG that will
@@ -98,10 +98,10 @@ proc recd012_body { method {ndbs 5} iter noutiter niniter psz tnum {largs ""} } 
 		# 50-50 chance of being a subdb, unless we're a queue.
 		if { [berkdb random_int 0 1] || [is_queue $method] } {
 			# not a subdb
-			set dbname recd0$tnum-$i.db
+			set dbname recd$tnum-$i.db
 		} else {
 			# subdb
-			set dbname "recd0$tnum-subdb.db s$i"
+			set dbname "recd$tnum-subdb.db s$i"
 		}
 		puts $f $dbname
 		set db [eval berkdb_open $oflags $dbname]
@@ -127,7 +127,7 @@ proc recd012_body { method {ndbs 5} iter noutiter niniter psz tnum {largs ""} } 
 	# before we run recovery 50% of the time.
 	set out [berkdb random_int 1 $noutiter]
 	puts \
-    "\t\tRecd0$tnum.b: Performing $out recoveries of up to $niniter ops."
+    "\t\tRecd$tnum.b: Performing $out recoveries of up to $niniter ops."
 	for { set i 0 } { $i < $out } { incr i } {
 		set child [open "|$tclsh_path" w]
 
@@ -136,7 +136,7 @@ proc recd012_body { method {ndbs 5} iter noutiter niniter psz tnum {largs ""} } 
 		puts $child "load $tcllib"
 		puts $child "set fixed_len $fixed_len"
 		puts $child "source $src_root/test/testutils.tcl"
-		puts $child "source $src_root/test/recd0$tnum.tcl"
+		puts $child "source $src_root/test/recd$tnum.tcl"
 
 		set rnd [expr $iter * 10000 + $i * 100 + $rand_init]
 
@@ -174,7 +174,7 @@ proc recd012_body { method {ndbs 5} iter noutiter niniter psz tnum {largs ""} } 
 	}
 
 	# Make sure each datum is the correct filename.
-	puts "\t\tRecd0$tnum.c: Checking data integrity."
+	puts "\t\tRecd$tnum.c: Checking data integrity."
 	set dbenv [berkdb_env -create -private -home $testdir]
 	error_check_good env_open_integrity [is_valid_env $dbenv] TRUE
 	set f [open $testdir/dblist r]
@@ -199,7 +199,7 @@ proc recd012_body { method {ndbs 5} iter noutiter niniter psz tnum {largs ""} } 
 
 	# Verify
 	error_check_good verify \
-	    [verify_dir $testdir "\t\tRecd0$tnum.d: " 0 0 1] 0
+	    [verify_dir $testdir "\t\tRecd$tnum.d: " 0 0 1] 0
 }
 
 proc recd012_dochild { env_cmd rnd outiter niniter ndbs tnum method\
@@ -268,6 +268,7 @@ proc recd012_dochild { env_cmd rnd outiter niniter ndbs tnum method\
 			if { $num_open == 0 } {
 				# If none are open, do an open first.
 				recd012_open
+				set num_open [llength $opendbs]
 			}
 			set n [berkdb random_int 0 [expr $num_open - 1]]
 			set pair [lindex $opendbs $n]
@@ -322,7 +323,7 @@ proc recd012_dochild { env_cmd rnd outiter niniter ndbs tnum method\
 
 		# One time in two hundred, checkpoint.
 		if { [berkdb random_int 0 199] == 0 } {
-			puts "\t\t\tRecd0$tnum:\
+			puts "\t\t\tRecd$tnum:\
 			    Random checkpoint after operation $outiter.$j."
 			error_check_good txn_ckpt \
 			    [$dbenv txn_checkpoint] 0
