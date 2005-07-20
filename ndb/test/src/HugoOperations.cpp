@@ -16,7 +16,6 @@
 
 #include <HugoOperations.hpp>
 
-
 int HugoOperations::startTransaction(Ndb* pNdb){
   
   if (pTrans != NULL){
@@ -226,6 +225,48 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
   return NDBT_OK;
 }
 
+int HugoOperations::pkWriteRecord(Ndb* pNdb,
+				  int recordNo,
+				  int numRecords,
+				  int updatesValue){
+  
+  int a, check;
+  for(int r=0; r < numRecords; r++){
+    NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    check = pOp->writeTuple();
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    // Define primary keys
+    for(a = 0; a<tab.getNoOfColumns(); a++){
+      if (tab.getColumn(a)->getPrimaryKey() == true){
+	if(equalForAttr(pOp, a, r+recordNo) != 0){
+	  ERR(pTrans->getNdbError());
+	  return NDBT_FAILED;
+	}
+      }
+    }
+    
+    // Define attributes to update
+    for(a = 0; a<tab.getNoOfColumns(); a++){
+      if (tab.getColumn(a)->getPrimaryKey() == false){
+	if(setValueForAttr(pOp, a, recordNo+r, updatesValue ) != 0){ 
+	  ERR(pTrans->getNdbError());
+	  return NDBT_FAILED;
+	}
+      }
+    } 
+  }
+  return NDBT_OK;
+}
+
 int HugoOperations::pkDeleteRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords){
@@ -367,16 +408,57 @@ int HugoOperations::execute_Rollback(Ndb* pNdb){
   return NDBT_OK;
 }
 
-HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
-			       const NdbDictionary::Index* idx):
-  UtilTransactions(_tab, idx),
+void
+HugoOperations_async_callback(int res, NdbConnection* pCon, void* ho)
+{
+  ((HugoOperations*)ho)->callback(res, pCon);
+}
+
+void
+HugoOperations::callback(int res, NdbConnection* pCon)
+{
+  assert(pCon == pTrans);
+  m_async_reply= 1;
+  m_async_return= res;
+}
+
+int 
+HugoOperations::execute_async(Ndb* pNdb, ExecType et, AbortOption eao){
+  
+  m_async_reply= 0;
+  pTrans->executeAsynchPrepare(et,
+			       HugoOperations_async_callback,
+			       this,
+			       eao);
+  
+  pNdb->sendPreparedTransactions();
+  
+  return NDBT_OK;
+}
+
+int
+HugoOperations::wait_async(Ndb* pNdb, int timeout)
+{
+  pNdb->pollNdb(1000);
+
+  if(m_async_reply)
+  {
+    return m_async_return;
+  }
+  ndbout_c("wait returned nothing...");
+  return -1;
+}
+
+HugoOperations::HugoOperations(const NdbDictionary::Table& _tab):
+  UtilTransactions(_tab),
   calc(_tab)
 {
 }
 
 HugoOperations::~HugoOperations(){
   deallocRows();
-  if (pTrans != NULL){
+  if (pTrans != NULL)
+  {
     pTrans->close();
     pTrans = NULL;
   }

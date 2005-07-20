@@ -41,6 +41,11 @@ public:
 		     int numRecords = 1,
 		     int updatesValue = 0);
   
+  int pkWriteRecord(Ndb*,
+		    int recordNo,
+		    int numRecords = 1,
+		    int updatesValue = 0);
+  
   int pkReadRecord(Ndb*,
 		   int recordNo,
 		   int numRecords = 1,
@@ -97,6 +102,10 @@ public:
   NdbIndexScanOperation* pIndexScanOp;
 
   NDBT_ResultRow& get_row(Uint32 idx) { return *rows[idx];}
+
+  int execute_async(Ndb*, ExecType, AbortOption = AbortOnError);
+  int wait_async(Ndb*, int timeout = -1);
+
 protected:
   void allocRows(int rows);
   void deallocRows();
@@ -109,6 +118,11 @@ protected:
   struct RsPair { NdbScanOperation* m_result_set; int records; };
   Vector<RsPair> m_result_sets;
   Vector<RsPair> m_executed_result_sets;
+
+  int m_async_reply;
+  int m_async_return;
+  friend void HugoOperations_async_callback(int, NdbConnection*, void*);
+  void callback(int res, NdbConnection*);
 };
 
 #endif
