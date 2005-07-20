@@ -160,6 +160,7 @@ public:
   Uint32 theTrace;
 };
 
+NdbOut& operator <<(NdbOut&, const Request&);
 
 inline
 void 
@@ -173,6 +174,7 @@ Request::set(BlockReference userReference,
 
 class AsyncFile
 {
+  friend class Ndbfs;
 public:
   AsyncFile();
   ~AsyncFile();
@@ -188,6 +190,7 @@ public:
   bool isOpen();
 
   Filename theFileName;
+  Request *m_current_request, *m_last_request;
 private:
   
   void openReq(Request *request);
