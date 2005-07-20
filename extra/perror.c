@@ -41,7 +41,7 @@ static struct my_option my_long_options[] =
   {"info", 'I', "Synonym for --help.",  0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_NDBCLUSTER_DB
-  {"ndb", 0, "Ndbcluster storage engine specific error codes.",  (gptr*) &ndb_code,
+  {"ndb", 257, "Ndbcluster storage engine specific error codes.",  (gptr*) &ndb_code,
    (gptr*) &ndb_code, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #ifdef HAVE_SYS_ERRLIST

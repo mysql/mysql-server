@@ -62,11 +62,13 @@ rl_make_bare_keymap ()
       keymap[i].function = (rl_command_func_t *)NULL;
     }
 
+#if 0
   for (i = 'A'; i < ('Z' + 1); i++)
     {
       keymap[i].type = ISFUNC;
       keymap[i].function = rl_do_lowercase_version;
     }
+#endif
 
   return (keymap);
 }
@@ -77,8 +79,9 @@ rl_copy_keymap (map)
      Keymap map;
 {
   register int i;
-  Keymap temp = rl_make_bare_keymap ();
+  Keymap temp;
 
+  temp = rl_make_bare_keymap ();
   for (i = 0; i < KEYMAP_SIZE; i++)
     {
       temp[i].type = map[i].type;
@@ -107,12 +110,8 @@ rl_make_keymap ()
   newmap[CTRL('H')].function = rl_rubout;
 
 #if KEYMAP_SIZE > 128
-  /* Printing characters in some 8-bit character sets. */
-  for (i = 128; i < 160; i++)
-    newmap[i].function = rl_insert;
-
-  /* ISO Latin-1 printing characters should self-insert. */
-  for (i = 160; i < 256; i++)
+  /* Printing characters in ISO Latin-1 and some 8-bit character sets. */
+  for (i = 128; i < 256; i++)
     newmap[i].function = rl_insert;
 #endif /* KEYMAP_SIZE > 128 */
 

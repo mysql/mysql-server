@@ -192,14 +192,14 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     share->state_diff_length=len-MI_STATE_INFO_SIZE;
 
-    mi_state_info_read(disk_cache, &share->state);
+    mi_state_info_read((uchar*) disk_cache, &share->state);
     len= mi_uint2korr(share->state.header.base_info_length);
     if (len != MI_BASE_INFO_SIZE)
     {
       DBUG_PRINT("warning",("saved_base_info_length: %d  base_info_length: %d",
 			    len,MI_BASE_INFO_SIZE))
     }
-    disk_pos=my_n_base_info_read(disk_cache+base_pos, &share->base);
+    disk_pos=my_n_base_info_read((uchar*) disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
 
     if (!(open_flags & HA_OPEN_FOR_REPAIR) &&
@@ -863,7 +863,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
 }
 
 
-char *mi_state_info_read(char *ptr, MI_STATE_INFO *state)
+char *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 {
   uint i,keys,key_parts,key_blocks;
   memcpy_fixed(&state->header,ptr, sizeof(state->header));
@@ -929,7 +929,7 @@ uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
     }
     else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
       return (MY_FILE_ERROR);
-    mi_state_info_read(buff, state);
+    mi_state_info_read((uchar*) buff, state);
   }
   return 0;
 }
@@ -974,7 +974,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
 }
 
 
-char *my_n_base_info_read(char *ptr, MI_BASE_INFO *base)
+char *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
 {
   base->keystart = mi_sizekorr(ptr);			ptr +=8;
   base->max_data_file_length = mi_sizekorr(ptr);	ptr +=8;
@@ -1204,7 +1204,7 @@ int mi_disable_indexes(MI_INFO *info)
 {
   MYISAM_SHARE *share= info->s;
 
-  share->state.key_map= 0;
+  mi_clear_all_keys_active(share->state.key_map);
   return 0;
 }
 
@@ -1240,7 +1240,7 @@ int mi_enable_indexes(MI_INFO *info)
     error= HA_ERR_CRASHED;
   }
   else
-    share->state.key_map= ((ulonglong) 1L << share->base.keys) - 1;
+    mi_set_all_keys_active(share->state.key_map, share->base.keys);
   return error;
 }
 
@@ -1265,6 +1265,6 @@ int mi_indexes_are_disabled(MI_INFO *info)
 {
   MYISAM_SHARE *share= info->s;
 
-  return (! share->state.key_map && share->base.keys);
+  return (! mi_is_any_key_active(share->state.key_map) && share->base.keys);
 }
 

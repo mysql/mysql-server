@@ -29,7 +29,7 @@ int _mi_check_index(MI_INFO *info, int inx)
 {
   if (inx == -1)                        /* Use last index */
     inx=info->lastinx;
-  if (inx < 0 || ! (((ulonglong) 1 << inx) & info->s->state.key_map))
+  if (inx < 0 || ! mi_is_key_active(info->s->state.key_map, inx))
   {
     my_errno=HA_ERR_WRONG_INDEX;
     return -1;

@@ -62,7 +62,8 @@ static handlerton ndbcluster_hton = {
   NULL, /* prepare */
   NULL, /* recover */
   NULL, /* commit_by_xid */
-  NULL  /* rollback_by_xid */
+  NULL, /* rollback_by_xid */
+  HTON_NO_FLAGS
 };
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
@@ -706,8 +707,8 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         blob_ptr= (char*)"";
       }
 
-      DBUG_PRINT("value", ("set blob ptr=%x len=%u",
-                           (unsigned)blob_ptr, blob_len));
+      DBUG_PRINT("value", ("set blob ptr=%p len=%u",
+                           blob_ptr, blob_len));
       DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
 
       if (set_blob_value)
@@ -4174,7 +4175,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
  */
 
 ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
-  handler(table_arg),
+  handler(&ndbcluster_hton, table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_table(NULL),

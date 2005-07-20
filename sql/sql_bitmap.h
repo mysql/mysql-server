@@ -51,6 +51,14 @@ public:
     bitmap_init(&map2, (uchar *)&map2buff, sizeof(ulonglong)*8, 0);
     bitmap_intersect(&map, &map2);
   }
+  /* Use highest bit for all bits above sizeof(ulonglong)*8. */
+  void intersect_extended(ulonglong map2buff)
+  {
+    intersect(map2buff);
+    if (map.bitmap_size > sizeof(ulonglong))
+      bitmap_set_above(&map, sizeof(ulonglong),
+                       test(map2buff & (LL(1) << (sizeof(ulonglong) * 8 - 1))));
+  }
   void subtract(Bitmap& map2) { bitmap_subtract(&map, &map2.map); }
   void merge(Bitmap& map2) { bitmap_union(&map, &map2.map); }
   my_bool is_set(uint n) const { return bitmap_is_set(&map, n); }
@@ -116,6 +124,7 @@ public:
   void clear_all() { map=(ulonglong)0; }
   void intersect(Bitmap<64>& map2) { map&= map2.map; }
   void intersect(ulonglong map2) { map&= map2; }
+  void intersect_extended(ulonglong map2) { map&= map2; }
   void subtract(Bitmap<64>& map2) { map&= ~map2.map; }
   void merge(Bitmap<64>& map2) { map|= map2.map; }
   my_bool is_set(uint n) const { return test(map & (((ulonglong)1) << n)); }

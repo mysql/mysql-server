@@ -11,3 +11,4 @@
 ##############################################################################
 
 sp-goto:GOTO is currently is disabled - will be fixed in the future
+ndb_condition_pushdown:Bug #12021

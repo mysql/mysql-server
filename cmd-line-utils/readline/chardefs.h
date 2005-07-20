@@ -77,7 +77,11 @@
 #  define isxdigit(c)   (isdigit((c)) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
 #endif
 
-#define NON_NEGATIVE(c)	((unsigned char)(c) == (c))
+#if defined (CTYPE_NON_ASCII)
+#  define NON_NEGATIVE(c) 1
+#else
+#  define NON_NEGATIVE(c) ((unsigned char)(c) == (c))
+#endif
 
 /* Some systems define these; we want our definitions. */
 #undef ISPRINT
