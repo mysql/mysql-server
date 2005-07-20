@@ -1,6 +1,6 @@
-/* History.c -- standalone history library */
+/* history.c -- standalone history library */
 
-/* Copyright (C) 1989, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2003 Free Software Foundation, Inc.
 
    This file contains the GNU History Library (the Library), a set of
    routines for managing the text of previously typed lines.
@@ -49,6 +49,8 @@
 
 /* The number of slots to increase the_history by. */
 #define DEFAULT_HISTORY_GROW_SIZE 50
+
+static char *hist_inittime PARAMS((void));
 
 /* **************************************************************** */
 /*								    */
@@ -121,14 +123,15 @@ using_history ()
 }
 
 /* Return the number of bytes that the primary history entries are using.
-   This just adds up the lengths of the_history->lines. */
+   This just adds up the lengths of the_history->lines and the associated
+   timestamps. */
 int
 history_total_bytes ()
 {
   register int i, result;
 
   for (i = result = 0; the_history && the_history[i]; i++)
-    result += strlen (the_history[i]->line);
+    result += HISTENT_BYTES (the_history[i]);
 
   return (result);
 }
@@ -204,6 +207,40 @@ history_get (offset)
 		: the_history[local_index];
 }
 
+time_t
+history_get_time (hist)
+     HIST_ENTRY *hist;
+{
+  char *ts;
+  time_t t;
+
+  if (hist == 0 || hist->timestamp == 0)
+    return 0;
+  ts = hist->timestamp;
+  if (ts[0] != history_comment_char)
+    return 0;
+  t = (time_t) atol (ts + 1);		/* XXX - should use strtol() here */
+  return t;
+}
+
+static char *
+hist_inittime ()
+{
+  time_t t;
+  char ts[64], *ret;
+
+  t = (time_t) time ((time_t *)0);
+#if defined (HAVE_VSNPRINTF)		/* assume snprintf if vsnprintf exists */
+  snprintf (ts, sizeof (ts) - 1, "X%lu", (unsigned long) t);
+#else
+  sprintf (ts, "X%lu", (unsigned long) t);
+#endif
+  ret = savestring (ts);
+  ret[0] = history_comment_char;
+
+  return ret;
+}
+
 /* Place STRING at the end of the history list.  The data field
    is  set to NULL. */
 void
@@ -223,10 +260,7 @@ add_history (string)
 
       /* If there is something in the slot, then remove it. */
       if (the_history[0])
-	{
-	  free (the_history[0]->line);
-	  free (the_history[0]);
-	}
+	(void) free_history_entry (the_history[0]);
 
       /* Copy the rest of the entries, moving down one slot. */
       for (i = 0; i < history_length; i++)
@@ -258,10 +292,41 @@ add_history (string)
   temp->line = savestring (string);
   temp->data = (char *)NULL;
 
+  temp->timestamp = hist_inittime ();
+
   the_history[history_length] = (HIST_ENTRY *)NULL;
   the_history[history_length - 1] = temp;
 }
 
+/* Change the time stamp of the most recent history entry to STRING. */
+void
+add_history_time (string)
+     const char *string;
+{
+  HIST_ENTRY *hs;
+
+  hs = the_history[history_length - 1];
+  FREE (hs->timestamp);
+  hs->timestamp = savestring (string);
+}
+
+/* Free HIST and return the data so the calling application can free it
+   if necessary and desired. */
+histdata_t
+free_history_entry (hist)
+     HIST_ENTRY *hist;
+{
+  histdata_t x;
+
+  if (hist == 0)
+    return ((histdata_t) 0);
+  FREE (hist->line);
+  FREE (hist->timestamp);
+  x = hist->data;
+  free (hist);
+  return (x);
+}
+  
 /* Make the history entry at WHICH have LINE and DATA.  This returns
    the old entry so you can dispose of the data.  In the case of an
    invalid WHICH, a NULL pointer is returned. */
@@ -281,6 +346,7 @@ replace_history_entry (which, line, data)
 
   temp->line = savestring (line);
   temp->data = data;
+  temp->timestamp = savestring (old_value->timestamp);
   the_history[which] = temp;
 
   return (old_value);
@@ -325,10 +391,7 @@ stifle_history (max)
     {
       /* This loses because we cannot free the data. */
       for (i = 0, j = history_length - max; i < j; i++)
-	{
-	  free (the_history[i]->line);
-	  free (the_history[i]);
-	}
+	free_history_entry (the_history[i]);
 
       history_base = i;
       for (j = 0, i = history_length - max; j < max; i++, j++)
@@ -370,8 +433,7 @@ clear_history ()
   /* This loses because we cannot free the data. */
   for (i = 0; i < history_length; i++)
     {
-      free (the_history[i]->line);
-      free (the_history[i]);
+      free_history_entry (the_history[i]);
       the_history[i] = (HIST_ENTRY *)NULL;
     }
 

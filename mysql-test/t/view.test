@@ -1182,7 +1182,7 @@ create view v1 as select * from t1 where s1 <> 127 with check option;
 insert into v1 values (0);
 select * from v1;
 select * from t1;
-drop trigger t1.t1_bi;
+drop trigger t1_bi;
 drop view v1;
 drop table t1;
 
@@ -1853,3 +1853,13 @@ CALL p1();
 DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug #11760 Typo in Item_func_add_time::print() results in NULLs returned
+#             subtime() in view
+create table t1(f1 datetime);
+insert into t1 values('2005.01.01 12:0:0');
+create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
+select * from v1;
+drop view v1;
+drop table t1; 

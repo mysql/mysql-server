@@ -335,19 +335,20 @@ null:
 
 void Item_func_concat::fix_length_and_dec()
 {
-  max_length=0;
+  ulonglong max_result_length= 0;
 
   if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
-    max_length+=args[i]->max_length;
+    max_result_length+= args[i]->max_length;
 
-  if (max_length > MAX_BLOB_WIDTH)
+  if (max_result_length >= MAX_BLOB_WIDTH)
   {
-    max_length=MAX_BLOB_WIDTH;
-    maybe_null=1;
+    max_result_length= MAX_BLOB_WIDTH;
+    maybe_null= 1;
   }
+  max_length= (ulong) max_result_length;
 }
 
 /*
@@ -378,9 +379,6 @@ String *Item_func_des_encrypt::val_str(String *str)
 
   if (arg_count == 1)
   {
-    /* Make sure LOCK_des_key_file was initialized. */
-    init_des_key_file();
-
     /* Protect against someone doing FLUSH DES_KEY_FILE */
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number=des_default_key];
@@ -391,10 +389,6 @@ String *Item_func_des_encrypt::val_str(String *str)
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
-
-    /* Make sure LOCK_des_key_file was initialized. */
-    init_des_key_file();
-
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
     VOID(pthread_mutex_unlock(&LOCK_des_key_file));
@@ -481,9 +475,6 @@ String *Item_func_des_decrypt::val_str(String *str)
     // Check if automatic key and that we have privilege to uncompress using it
     if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
       goto error;
-
-    /* Make sure LOCK_des_key_file was initialized. */
-    init_des_key_file();
 
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
@@ -658,7 +649,7 @@ null:
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  max_length=0;
+  ulonglong max_result_length;
 
   if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
     return;
@@ -668,15 +659,16 @@ void Item_func_concat_ws::fix_length_and_dec()
      it is done on parser level in sql_yacc.yy
      so, (arg_count - 2) is safe here.
   */
-  max_length= args[0]->max_length * (arg_count - 2);
+  max_result_length= (ulonglong) args[0]->max_length * (arg_count - 2);
   for (uint i=1 ; i < arg_count ; i++)
-    max_length+=args[i]->max_length;
+    max_result_length+=args[i]->max_length;
 
-  if (max_length > MAX_BLOB_WIDTH)
+  if (max_result_length >= MAX_BLOB_WIDTH)
   {
-    max_length=MAX_BLOB_WIDTH;
-    maybe_null=1;
+    max_result_length= MAX_BLOB_WIDTH;
+    maybe_null= 1;
   }
+  max_length= (ulong) max_result_length;
 }
 
 
@@ -855,18 +847,19 @@ null:
 
 void Item_func_replace::fix_length_and_dec()
 {
-  max_length=args[0]->max_length;
+  ulonglong max_result_length= args[0]->max_length;
   int diff=(int) (args[2]->max_length - args[1]->max_length);
   if (diff > 0 && args[1]->max_length)
   {						// Calculate of maxreplaces
-    uint max_substrs= max_length/args[1]->max_length;
-    max_length+= max_substrs * (uint) diff;
+    ulonglong max_substrs= max_result_length/args[1]->max_length;
+    max_result_length+= max_substrs * (uint) diff;
   }
-  if (max_length > MAX_BLOB_WIDTH)
+  if (max_result_length >= MAX_BLOB_WIDTH)
   {
-    max_length=MAX_BLOB_WIDTH;
-    maybe_null=1;
+    max_result_length= MAX_BLOB_WIDTH;
+    maybe_null= 1;
   }
+  max_length= (ulong) max_result_length;
   
   if (agg_arg_charsets(collation, args, 3, MY_COLL_CMP_CONV))
     return;
@@ -914,18 +907,22 @@ null:
 void Item_func_insert::fix_length_and_dec()
 {
   Item *cargs[2];
+  ulonglong max_result_length;
+
   cargs[0]= args[0];
   cargs[1]= args[3];
   if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
     return;
   args[0]= cargs[0];
   args[3]= cargs[1];
-  max_length=args[0]->max_length+args[3]->max_length;
-  if (max_length > MAX_BLOB_WIDTH)
+  max_result_length= ((ulonglong) args[0]->max_length+
+                      (ulonglong) args[3]->max_length);
+  if (max_result_length >= MAX_BLOB_WIDTH)
   {
-    max_length=MAX_BLOB_WIDTH;
-    maybe_null=1;
+    max_result_length= MAX_BLOB_WIDTH;
+    maybe_null= 1;
   }
+  max_length= (ulong) max_result_length;
 }
 
 
@@ -2001,17 +1998,19 @@ void Item_func_repeat::fix_length_and_dec()
   collation.set(args[0]->collation);
   if (args[1]->const_item())
   {
-    max_length=(long) (args[0]->max_length * args[1]->val_int());
-    if (max_length >= MAX_BLOB_WIDTH)
+    ulonglong max_result_length= ((ulonglong) args[0]->max_length *
+                                  args[1]->val_int());
+    if (max_result_length >= MAX_BLOB_WIDTH)
     {
-      max_length=MAX_BLOB_WIDTH;
-      maybe_null=1;
+      max_result_length= MAX_BLOB_WIDTH;
+      maybe_null= 1;
     }
+    max_length= (ulong) max_result_length;
   }
   else
   {
-    max_length=MAX_BLOB_WIDTH;
-    maybe_null=1;
+    max_length= MAX_BLOB_WIDTH;
+    maybe_null= 1;
   }
 }
 
@@ -2066,6 +2065,7 @@ err:
 void Item_func_rpad::fix_length_and_dec()
 {
   Item *cargs[2];
+
   cargs[0]= args[0];
   cargs[1]= args[2];
   if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
@@ -2074,18 +2074,20 @@ void Item_func_rpad::fix_length_and_dec()
   args[2]= cargs[1];
   if (args[1]->const_item())
   {
-    uint32 length= (uint32) args[1]->val_int() * collation.collation->mbmaxlen;
-    max_length=max(args[0]->max_length,length);
-    if (max_length >= MAX_BLOB_WIDTH)
+    ulonglong length= ((ulonglong) args[1]->val_int() *
+                       collation.collation->mbmaxlen);
+    length= max((ulonglong) args[0]->max_length, length);
+    if (length >= MAX_BLOB_WIDTH)
     {
-      max_length=MAX_BLOB_WIDTH;
-      maybe_null=1;
+      length= MAX_BLOB_WIDTH;
+      maybe_null= 1;
     }
+    max_length= (ulong) length;
   }
   else
   {
-    max_length=MAX_BLOB_WIDTH;
-    maybe_null=1;
+    max_length= MAX_BLOB_WIDTH;
+    maybe_null= 1;
   }
 }
 
@@ -2160,18 +2162,20 @@ void Item_func_lpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    uint32 length= (uint32) args[1]->val_int() * collation.collation->mbmaxlen;
-    max_length=max(args[0]->max_length,length);
-    if (max_length >= MAX_BLOB_WIDTH)
+    ulonglong length= ((ulonglong) args[1]->val_int() *
+                       collation.collation->mbmaxlen);
+    length= max((ulonglong) args[0]->max_length, length);
+    if (length >= MAX_BLOB_WIDTH)
     {
-      max_length=MAX_BLOB_WIDTH;
-      maybe_null=1;
+      length= MAX_BLOB_WIDTH;
+      maybe_null= 1;
     }
+    max_length= (ulong) length;
   }
   else
   {
-    max_length=MAX_BLOB_WIDTH;
-    maybe_null=1;
+    max_length= MAX_BLOB_WIDTH;
+    maybe_null= 1;
   }
 }
 

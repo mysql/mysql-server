@@ -4,9 +4,9 @@ dnl
 dnl report bugs to chet@po.cwru.edu
 dnl
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION([for Readline 4.3, version 2.45, from autoconf version] AC_ACVERSION)
+AC_REVISION([for Readline 5.0, version 2.52, from autoconf version] AC_ACVERSION)
 
-AC_INIT(readline, 4.3, bug-readline@gnu.org)
+AC_INIT(readline, 5.0-rc1, bug-readline@gnu.org)
 
 dnl make sure we are using a recent autoconf version
 AC_PREREQ(2.50)
@@ -16,7 +16,7 @@ AC_CONFIG_AUX_DIR(./support)
 AC_CONFIG_HEADERS(config.h)
 
 dnl update the value of RL_READLINE_VERSION in readline.h when this changes
-LIBVERSION=4.3
+LIBVERSION=5.0
 
 AC_CANONICAL_HOST
 
@@ -31,11 +31,17 @@ if test "$opt_curses" = "yes"; then
 fi
 
 dnl option parsing for optional features
+opt_multibyte=yes
 opt_static_libs=yes
 opt_shared_libs=yes
 
+AC_ARG_ENABLE(multibyte, AC_HELP_STRING([--enable-multibyte], [enable multibyte characters if OS supports them]), opt_multibyte=$enableval)
 AC_ARG_ENABLE(shared, AC_HELP_STRING([--enable-shared], [build shared libraries [[default=YES]]]), opt_shared_libs=$enableval)
 AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [build static libraries [[default=YES]]]), opt_static_libs=$enableval)
+
+if test $opt_multibyte = no; then
+AC_DEFINE(NO_MULTIBYTE_SUPPORT)
+fi
 
 echo ""
 echo "Beginning configuration for readline-$LIBVERSION for ${host_cpu}-${host_vendor}-${host_os}"
@@ -72,6 +78,8 @@ AC_TYPE_SIGNAL
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(ssize_t, int)
 
+AC_HEADER_STDC
+
 AC_HEADER_STAT
 AC_HEADER_DIRENT
 
@@ -90,6 +98,7 @@ BASH_SYS_REINSTALL_SIGHANDLERS
 BASH_FUNC_POSIX_SETJMP
 BASH_FUNC_LSTAT
 BASH_FUNC_STRCOLL
+BASH_FUNC_CTYPE_NONASCII
 
 BASH_CHECK_GETPW_FUNCS
 

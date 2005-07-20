@@ -40,6 +40,12 @@ insert into t1 (i, ts) values
 Warnings:
 Warning	1299	Invalid TIMESTAMP value in column 'ts' at row 2
 insert into t1 (i, ts) values
+(unix_timestamp(20030330015959),20030330015959),
+(unix_timestamp(20030330023000),20030330023000),
+(unix_timestamp(20030330030000),20030330030000);
+Warnings:
+Warning	1299	Invalid TIMESTAMP value in column 'ts' at row 2
+insert into t1 (i, ts) values
 (unix_timestamp('2003-05-01 00:00:00'),'2003-05-01 00:00:00');
 insert into t1 (i, ts) values
 (unix_timestamp('2003-10-26 01:00:00'),'2003-10-26 01:00:00'),
@@ -51,6 +57,9 @@ set time_zone='UTC';
 select * from t1;
 i	ts
 1046473200	2003-02-28 23:00:00
+1048985999	2003-03-30 00:59:59
+1048986000	2003-03-30 01:00:00
+1048986000	2003-03-30 01:00:00
 1048985999	2003-03-30 00:59:59
 1048986000	2003-03-30 01:00:00
 1048986000	2003-03-30 01:00:00
