@@ -1203,14 +1203,18 @@ JOIN::exec()
 	else
 	{
 	  error= (int) result->send_eof();
-	  send_records=1;
+	  send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
+                         thd->sent_row_count);
 	}
       }
       else
+      {
 	error=(int) result->send_eof();
+        send_records= 0;
+      }
     }
-    /* Single select (without union and limit) always returns 1 row */
-    thd->limit_found_rows= 1;
+    /* Single select (without union) always returns 0 or 1 row */
+    thd->limit_found_rows= send_records;
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
@@ -5212,6 +5216,7 @@ static void add_not_null_conds(JOIN *join)
         if (tab->ref.null_rejecting & (1 << keypart))
         {
           Item *item= tab->ref.items[keypart];
+          Item *notnull;
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
@@ -5222,7 +5227,6 @@ static void add_not_null_conds(JOIN *join)
           */
           if (!referred_tab || referred_tab->join != join)
             continue;
-          Item *notnull;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
           /*
