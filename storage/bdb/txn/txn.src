@@ -1,19 +1,28 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: txn.src,v 11.19 2002/03/27 04:33:15 bostic Exp $
+ * $Id: txn.src,v 11.33 2004/07/27 12:35:19 bostic Exp $
  */
 
 PREFIX	__txn
 DBPRIVATE
 
-INCLUDE	#include "db_config.h"
-INCLUDE
 INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
+INCLUDE
+INCLUDE #if TIME_WITH_SYS_TIME
+INCLUDE #include <sys/time.h>
+INCLUDE #include <time.h>
+INCLUDE #else
+INCLUDE #if HAVE_SYS_TIME_H
+INCLUDE #include <sys/time.h>
+INCLUDE #else
+INCLUDE #include <time.h>
+INCLUDE #endif /* HAVE_SYS_TIME_H */
+INCLUDE #endif /* TIME_WITH SYS_TIME */
 INCLUDE
 INCLUDE #include <ctype.h>
 INCLUDE #include <string.h>
@@ -24,8 +33,9 @@ INCLUDE #include "dbinc/crypto.h"
 INCLUDE #include "dbinc/db_page.h"
 INCLUDE #include "dbinc/db_dispatch.h"
 INCLUDE #include "dbinc/db_am.h"
+INCLUDE #include "dbinc/db_shash.h"
+INCLUDE #include "dbinc/lock.h"
 INCLUDE #include "dbinc/log.h"
-INCLUDE #include "dbinc/rep.h"
 INCLUDE #include "dbinc/txn.h"
 INCLUDE
 
@@ -36,8 +46,9 @@ INCLUDE
  * either changes the Epoch or has a 64-bit offset.
  */
 BEGIN regop		10
-ARG	opcode		u_int32_t	lu
-ARG	timestamp	int32_t		ld
+ARG	opcode		u_int32_t	ld
+TIME	timestamp	int32_t		ld
+LOCKS	locks		DBT		s
 END
 
 /*
@@ -53,11 +64,17 @@ END
  *	The previous checkpoint.
  * timestamp:
  *	See comment in commit about timestamps.
+ * envid:
+ *	Environment ID of this checkpoint.
+ * rep_gen:
+ *	Persistent replication generation number.
  */
 BEGIN ckp		11
 POINTER	ckp_lsn		DB_LSN *	lu
 POINTER	last_ckp	DB_LSN *	lu
-ARG	timestamp	int32_t		ld
+TIME	timestamp	int32_t		ld
+ARG	envid		u_int32_t	ld
+ARG	rep_gen		u_int32_t	ld
 END
 
 /*
@@ -82,6 +99,7 @@ ARG	formatID	int32_t		ld
 ARG	gtrid		u_int32_t	u
 ARG	bqual		u_int32_t	u
 POINTER	begin_lsn	DB_LSN *	lu
+LOCKS	locks		DBT		s
 END
 
 /*

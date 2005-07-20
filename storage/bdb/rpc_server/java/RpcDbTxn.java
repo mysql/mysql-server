@@ -1,123 +1,132 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2002
- *      Sleepycat Software.  All rights reserved.
+ * Copyright (c) 2001-2004
+ *	Sleepycat Software.  All rights reserved.
  *
- * $Id: RpcDbTxn.java,v 1.2 2002/08/09 01:56:10 bostic Exp $
+ * $Id: RpcDbTxn.java,v 1.9 2004/05/04 13:45:33 sue Exp $
  */
 
 package com.sleepycat.db.rpcserver;
 
 import com.sleepycat.db.*;
-import java.io.IOException;
+import com.sleepycat.db.internal.DbConstants;
 import java.io.*;
 import java.util.*;
 
 /**
  * RPC wrapper around a txn object for the Java RPC server.
  */
-public class RpcDbTxn extends Timer
-{
-	RpcDbEnv rdbenv;
-	DbTxn txn;
+public class RpcDbTxn extends Timer {
+    RpcDbEnv rdbenv;
+    Transaction txn;
 
-	public RpcDbTxn(RpcDbEnv rdbenv, DbTxn txn)
-	{
-		this.rdbenv = rdbenv;
-		this.txn = txn;
-	}
+    public RpcDbTxn(RpcDbEnv rdbenv, Transaction txn) {
+        this.rdbenv = rdbenv;
+        this.txn = txn;
+    }
 
-	void dispose()
-	{
-		if (txn != null) {
-			try {
-				txn.abort();
-			} catch(DbException e) {
-				e.printStackTrace(DbServer.err);
-			}
-			txn = null;
-		}
-	}
+    void dispose() {
+        if (txn != null) {
+            try {
+                txn.abort();
+            } catch (DatabaseException e) {
+                e.printStackTrace(Server.err);
+            }
+            txn = null;
+        }
+    }
 
-	public  void abort(DbDispatcher server,
-		__txn_abort_msg args, __txn_abort_reply reply)
-	{
-		try {
-			txn.abort();
-			txn = null;
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		} finally {
-			server.delTxn(this);
-		}
-	}
+    public  void abort(Dispatcher server,
+                       __txn_abort_msg args, __txn_abort_reply reply) {
+        try {
+            txn.abort();
+            txn = null;
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        } finally {
+            server.delTxn(this, false);
+        }
+    }
 
-	public  void begin(DbDispatcher server,
-		__txn_begin_msg args, __txn_begin_reply reply)
-	{
-		try {
-			if (rdbenv == null) {
-				reply.status = Db.DB_NOSERVER_ID;
-				return;
-			}
-			DbEnv dbenv = rdbenv.dbenv;
-			RpcDbTxn rparent = server.getTxn(args.parentcl_id);
-			DbTxn parent = (rparent != null) ? rparent.txn : null;
+    public  void begin(Dispatcher server,
+                       __txn_begin_msg args, __txn_begin_reply reply) {
+        try {
+            if (rdbenv == null) {
+                reply.status = DbConstants.DB_NOSERVER_ID;
+                return;
+            }
+            Environment dbenv = rdbenv.dbenv;
+            RpcDbTxn rparent = server.getTxn(args.parentcl_id);
+            Transaction parent = (rparent != null) ? rparent.txn : null;
 
-			txn = dbenv.txn_begin(parent, args.flags);
+            TransactionConfig config = new TransactionConfig();
+            config.setDegree2((args.flags & DbConstants.DB_DEGREE_2) != 0);
+            config.setDirtyRead((args.flags & DbConstants.DB_DIRTY_READ) != 0);
+            config.setNoSync((args.flags & DbConstants.DB_TXN_NOSYNC) != 0);
+            config.setNoWait(true);
+            config.setSync((args.flags & DbConstants.DB_TXN_SYNC) != 0);
 
-			if (rparent != null)
-				timer = rparent.timer;
-			reply.txnidcl_id = server.addTxn(this);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            txn = dbenv.beginTransaction(parent, config);
 
-	public  void commit(DbDispatcher server,
-		__txn_commit_msg args, __txn_commit_reply reply)
-	{
-		try {
-			txn.commit(args.flags);
-			txn = null;
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		} finally {
-			server.delTxn(this);
-		}
-	}
+            if (rparent != null)
+                timer = rparent.timer;
+            reply.txnidcl_id = server.addTxn(this);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-	public  void discard(DbDispatcher server,
-		__txn_discard_msg args, __txn_discard_reply reply)
-	{
-		try {
-			txn.discard(args.flags);
-			txn = null;
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		} finally {
-			server.delTxn(this);
-		}
-	}
+    public  void commit(Dispatcher server,
+                        __txn_commit_msg args, __txn_commit_reply reply) {
+        try {
+            switch(args.flags) {
+            case 0:
+                txn.commit();
+                break;
 
-	public  void prepare(DbDispatcher server,
-		__txn_prepare_msg args, __txn_prepare_reply reply)
-	{
-		try {
-			txn.prepare(args.gid);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            case DbConstants.DB_TXN_SYNC:
+                txn.commitSync();
+                break;
+
+            case DbConstants.DB_TXN_NOSYNC:
+                txn.commitSync();
+                break;
+
+            default:
+                throw new UnsupportedOperationException("Unknown flag: " + (args.flags & ~Server.DB_MODIFIER_MASK));
+            }
+            txn = null;
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        } finally {
+            server.delTxn(this, false);
+        }
+    }
+
+    public  void discard(Dispatcher server,
+                         __txn_discard_msg args, __txn_discard_reply reply) {
+        try {
+            txn.discard(/* args.flags == 0 */);
+            txn = null;
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        } finally {
+            server.delTxn(this, false);
+        }
+    }
+
+    public  void prepare(Dispatcher server,
+                         __txn_prepare_msg args, __txn_prepare_reply reply) {
+        try {
+            txn.prepare(args.gid);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 }

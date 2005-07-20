@@ -1,21 +1,18 @@
 /*
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2002
+ * Copyright (c) 2002-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: mut_win32.c,v 1.18 2004/07/06 21:06:39 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: mut_win32.c,v 1.8 2002/09/10 02:37:25 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
 #include <string.h>
-#include <unistd.h>
 #endif
 
 /*
@@ -27,25 +24,19 @@ static const char revid[] = "$Id: mut_win32.c,v 1.8 2002/09/10 02:37:25 bostic E
 /* We don't want to run this code even in "ordinary" diagnostic mode. */
 #undef MUTEX_DIAG
 
+static _TCHAR hex_digits[] = _T("0123456789abcdef");
+
 #define	GET_HANDLE(mutexp, event) do {					\
-	char idbuf[13];							\
+	_TCHAR idbuf[] = _T("db.m00000000");				\
+	_TCHAR *p = idbuf + 12;						\
+	u_int32_t id;							\
 									\
-	if (F_ISSET(mutexp, MUTEX_THREAD)) {				\
-		event = mutexp->event;					\
-		return (0);						\
-	}								\
-									\
-	snprintf(idbuf, sizeof idbuf, "db.m%08x", mutexp->id);		\
+	for (id = (mutexp)->id; id != 0; id >>= 4)			\
+		*--p = hex_digits[id & 0xf];				\
 	event = CreateEvent(NULL, FALSE, FALSE, idbuf);			\
 	if (event == NULL)						\
-		return (__os_win32_errno());				\
+		return (__os_get_errno());				\
 } while (0)
-
-#define	RELEASE_HANDLE(mutexp, event)					\
-	if (!F_ISSET(mutexp, MUTEX_THREAD) && event != NULL) {		\
-		CloseHandle(event);					\
-		event = NULL;						\
-	}
 
 /*
  * __db_win32_mutex_init --
@@ -62,7 +53,7 @@ __db_win32_mutex_init(dbenv, mutexp, flags)
 	u_int32_t save;
 
 	/*
-	 * The only setting/checking of the MUTEX_MPOOL flags is in the mutex
+	 * The only setting/checking of the MUTEX_MPOOL flag is in the mutex
 	 * mutex allocation code (__db_mutex_alloc/free).  Preserve only that
 	 * flag.  This is safe because even if this flag was never explicitly
 	 * set, but happened to be set in memory, it will never be checked or
@@ -74,27 +65,18 @@ __db_win32_mutex_init(dbenv, mutexp, flags)
 
 	/*
 	 * If this is a thread lock or the process has told us that there are
-	 * no other processes in the environment, use thread-only locks, they
-	 * are faster in some cases.
-	 *
-	 * This is where we decide to ignore locks we don't need to set -- if
-	 * the application isn't threaded, there aren't any threads to block.
+	 * no other processes in the environment, and the application isn't
+	 * threaded, there aren't any threads to block.
 	 */
 	if (LF_ISSET(MUTEX_THREAD) || F_ISSET(dbenv, DB_ENV_PRIVATE)) {
 		if (!F_ISSET(dbenv, DB_ENV_THREAD)) {
 			F_SET(mutexp, MUTEX_IGNORE);
 			return (0);
 		}
-		F_SET(mutexp, MUTEX_THREAD);
-		mutexp->event = CreateEvent(NULL, FALSE, FALSE, NULL);
-		if (mutexp->event == NULL)
-			return (__os_win32_errno());
-	} else
-		mutexp->id = ((getpid() & 0xffff) << 16) ^ P_TO_UINT32(mutexp);
+	}
 
-	mutexp->spins = __os_spin(dbenv);
+	mutexp->id = ((getpid() & 0xffff) << 16) ^ P_TO_UINT32(mutexp);
 	F_SET(mutexp, MUTEX_INITED);
-
 	return (0);
 }
 
@@ -110,7 +92,8 @@ __db_win32_mutex_lock(dbenv, mutexp)
 	DB_MUTEX *mutexp;
 {
 	HANDLE event;
-	int ret, ms, nspins;
+	u_int32_t nspins;
+	int ret, ms;
 #ifdef MUTEX_DIAG
 	LARGE_INTEGER now;
 #endif
@@ -123,9 +106,17 @@ __db_win32_mutex_lock(dbenv, mutexp)
 	ret = 0;
 
 loop:	/* Attempt to acquire the resource for N spins. */
-	for (nspins = mutexp->spins; nspins > 0; --nspins) {
-		if (!MUTEX_SET(&mutexp->tas))
+	for (nspins = dbenv->tas_spins; nspins > 0; --nspins) {
+		if (!MUTEX_SET(&mutexp->tas)) {
+			/*
+			 * Some systems (notably those with newer Intel CPUs)
+			 * need a small pause here. [#6975]
+			 */
+#ifdef MUTEX_PAUSE
+			MUTEX_PAUSE
+#endif
 			continue;
+		}
 
 #ifdef DIAGNOSTIC
 		if (mutexp->locked)
@@ -139,7 +130,7 @@ loop:	/* Attempt to acquire the resource for N spins. */
 			++mutexp->mutex_set_nowait;
 		else {
 			++mutexp->mutex_set_wait;
-			RELEASE_HANDLE(mutexp, event);
+			CloseHandle(event);
 			InterlockedDecrement(&mutexp->nwaiters);
 #ifdef MUTEX_DIAG
 			if (ret != WAIT_OBJECT_0) {
@@ -170,7 +161,7 @@ loop:	/* Attempt to acquire the resource for N spins. */
 		GET_HANDLE(mutexp, event);
 	}
 	if ((ret = WaitForSingleObject(event, ms)) == WAIT_FAILED)
-		return (__os_win32_errno());
+		return (__os_get_errno());
 	if ((ms <<= 1) > MS_PER_SEC)
 		ms = MS_PER_SEC;
 
@@ -207,7 +198,7 @@ __db_win32_mutex_unlock(dbenv, mutexp)
 	MUTEX_UNSET(&mutexp->tas);
 
 	ret = 0;
-	
+
 	if (mutexp->nwaiters > 0) {
 		GET_HANDLE(mutexp, event);
 
@@ -217,9 +208,9 @@ __db_win32_mutex_unlock(dbenv, mutexp)
 		    now.QuadPart, mutexp, mutexp->id);
 #endif
 		if (!PulseEvent(event))
-			ret = __os_win32_errno();
+			ret = __os_get_errno();
 
-		RELEASE_HANDLE(mutexp, event);
+		CloseHandle(event);
 	}
 
 #ifdef DIAGNOSTIC
@@ -233,7 +224,7 @@ __db_win32_mutex_unlock(dbenv, mutexp)
 
 /*
  * __db_win32_mutex_destroy --
- *	Destroy a DB_MUTEX.
+ *	Destroy a DB_MUTEX - noop with this implementation.
  *
  * PUBLIC: int __db_win32_mutex_destroy __P((DB_MUTEX *));
  */
@@ -241,17 +232,5 @@ int
 __db_win32_mutex_destroy(mutexp)
 	DB_MUTEX *mutexp;
 {
-	int ret;
-
-	if (F_ISSET(mutexp, MUTEX_IGNORE) || !F_ISSET(mutexp, MUTEX_THREAD))
-		return (0);
-
-	ret = 0;
-	if (mutexp->event != NULL) {
-		if (!CloseHandle(mutexp->event))
-			ret = __os_win32_errno();
-		mutexp->event = NULL;
-	}
-
-	return (ret);
+	return (0);
 }

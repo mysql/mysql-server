@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_int.in,v 11.106 2002/09/10 02:48:08 bostic Exp $
+ * $Id: db_int.in,v 11.155 2004/10/28 16:07:38 ubell Exp $
  */
 
 #ifndef _DB_INTERNAL_H_
@@ -15,7 +15,7 @@
  * here because it's OK if db_int.h includes queue structure declarations.
  *******************************************************/
 #ifndef NO_SYSTEM_INCLUDES
-#if defined(__STDC__) || defined(__cplusplus)
+#if defined(STDC_HEADERS) || defined(__cplusplus)
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -35,8 +35,43 @@ extern "C" {
 /*******************************************************
  * General purpose constants and macros.
  *******************************************************/
-#define	UINT16_T_MAX	    0xffff	/* Maximum 16 bit unsigned. */
-#define	UINT32_T_MAX	0xffffffff	/* Maximum 32 bit unsigned. */
+#ifndef	UINT16_MAX
+#define	UINT16_MAX	65535		/* Maximum 16-bit unsigned. */
+#endif
+#ifndef	UINT32_MAX
+#ifdef __STDC__
+#define	UINT32_MAX	4294967295U	/* Maximum 32-bit unsigned. */
+#else
+#define	UINT32_MAX	0xffffffff	/* Maximum 32-bit unsigned. */
+#endif
+#endif
+
+#if defined(HAVE_LONG_LONG) && defined(HAVE_UNSIGNED_LONG_LONG)
+#undef	INT64_MAX
+#undef	INT64_MIN
+#undef	UINT64_MAX
+
+#ifdef	DB_WIN32
+#define	INT64_MAX	_I64_MAX
+#define	INT64_MIN	_I64_MIN
+#define	UINT64_MAX	_UI64_MAX
+
+#define	INT64_FMT	"%l64d"
+#define	UINT64_FMT	"%l64u"
+#else
+/*
+ * Override the system's 64-bit min/max constants.  AIX's 32-bit compiler can
+ * handle 64-bit values, but the system's constants don't include the LL/ULL
+ * suffix, and so can't be compiled using the 32-bit compiler.
+ */
+#define	INT64_MAX	9223372036854775807LL
+#define	INT64_MIN	(-INT64_MAX-1)
+#define	UINT64_MAX	18446744073709551615ULL
+
+#define	INT64_FMT	"%lld"
+#define	UINT64_FMT	"%llu"
+#endif	/* DB_WIN32 */
+#endif	/* HAVE_LONG_LONG && HAVE_UNSIGNED_LONG_LONG */
 
 #define	MEGABYTE	1048576
 #define	GIGABYTE	1073741824
@@ -64,50 +99,38 @@ extern "C" {
  */
 #define	DB_DEF_IOSIZE	(8 * 1024)
 
-/*
- * Aligning items to particular sizes or in pages or memory.
- *
- * db_align_t --
- * Largest integral type, used to align structures in memory.  We don't store
- * floating point types in structures, so integral types should be sufficient
- * (and we don't have to worry about systems that store floats in other than
- * power-of-2 numbers of bytes).  Additionally this fixes compiler that rewrite
- * structure assignments and ANSI C memcpy calls to be in-line instructions
- * that happen to require alignment.  Note: this alignment isn't sufficient for
- * mutexes, which depend on things like cache line alignment.  Mutex alignment
- * is handled separately, in mutex.h.
- *
- * db_alignp_t --
- * Integral type that's the same size as a pointer.  There are places where
- * DB modifies pointers by discarding the bottom bits to guarantee alignment.
- * We can't use db_align_t, it may be larger than the pointer, and compilers
- * get upset about that.  So far we haven't run on any machine where there
- * isn't an integral type the same size as a pointer -- here's hoping.
- */
-@db_align_t_decl@
-@db_alignp_t_decl@
-
 /* Align an integer to a specific boundary. */
-#undef	ALIGN
-#define	ALIGN(v, bound)	(((v) + (bound) - 1) & ~(((db_align_t)bound) - 1))
+#undef	DB_ALIGN
+#define	DB_ALIGN(v, bound)						\
+	(((v) + (bound) - 1) & ~(((uintmax_t)bound) - 1))
+
+/* Increment a pointer to a specific boundary. */
+#undef	ALIGNP_INC
+#define	ALIGNP_INC(p, bound)						\
+	(void *)(((uintptr_t)(p) + (bound) - 1) & ~(((uintptr_t)bound) - 1))
+
+/* Decrement a pointer to a specific boundary. */
+#undef	ALIGNP_DEC
+#define	ALIGNP_DEC(p, bound)						\
+	(void *)((uintptr_t)(p) & ~(((uintptr_t)bound) - 1))
 
 /*
  * Print an address as a u_long (a u_long is the largest type we can print
  * portably).  Most 64-bit systems have made longs 64-bits, so this should
  * work.
  */
-#define	P_TO_ULONG(p)	((u_long)(db_alignp_t)(p))
+#define	P_TO_ULONG(p)	((u_long)(uintptr_t)(p))
 
 /*
  * Convert a pointer to a small integral value.
  *
- * The (u_int16_t)(db_alignp_t) cast avoids warnings: the (db_alignp_t) cast
+ * The (u_int16_t)(uintptr_t) cast avoids warnings: the (uintptr_t) cast
  * converts the value to an integral type, and the (u_int16_t) cast converts
  * it to a small integral type so we don't get complaints when we assign the
- * final result to an integral type smaller than db_alignp_t.
+ * final result to an integral type smaller than uintptr_t.
  */
-#define	P_TO_UINT32(p)	((u_int32_t)(db_alignp_t)(p))
-#define	P_TO_UINT16(p)	((u_int16_t)(db_alignp_t)(p))
+#define	P_TO_UINT32(p)	((u_int32_t)(uintptr_t)(p))
+#define	P_TO_UINT16(p)	((u_int16_t)(uintptr_t)(p))
 
 /*
  * There are several on-page structures that are declared to have a number of
@@ -145,71 +168,117 @@ typedef struct __fn {
 #define	LF_ISSET(f)		((flags) & (f))
 #define	LF_SET(f)		((flags) |= (f))
 
-/* Display separator string. */
-#undef	DB_LINE
-#define	DB_LINE "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+/*
+ * Calculate a percentage.  The values can overflow 32-bit integer arithmetic
+ * so we use floating point.
+ *
+ * When calculating a bytes-vs-page size percentage, we're getting the inverse
+ * of the percentage in all cases, that is, we want 100 minus the percentage we
+ * calculate.
+ */
+#define	DB_PCT(v, total)						\
+	((int)((total) == 0 ? 0 : ((double)(v) * 100) / (total)))
+#define	DB_PCT_PG(v, total, pgsize)					\
+	((int)((total) == 0 ? 0 :					\
+	    100 - ((double)(v) * 100) / ((total) * (pgsize))))
 
-/* Unused, or not-used-yet variable.  "Shut that bloody compiler up!" */
-#define	COMPQUIET(n, v)	(n) = (v)
+/*
+ * Structure used for callback message aggregation.
+ *
+ * Display values in XXX_stat_print calls.
+ */
+typedef struct __db_msgbuf {
+	char *buf;			/* Heap allocated buffer. */
+	char *cur;			/* Current end of message. */
+	size_t len;			/* Allocated length of buffer. */
+} DB_MSGBUF;
+#define	DB_MSGBUF_INIT(a) do {						\
+	(a)->buf = (a)->cur = NULL;					\
+	(a)->len = 0;							\
+} while (0)
+#define	DB_MSGBUF_FLUSH(dbenv, a) do {					\
+	if ((a)->buf != NULL) {						\
+		if ((a)->cur != (a)->buf)				\
+			__db_msg(dbenv, "%s", (a)->buf);		\
+		__os_free(dbenv, (a)->buf);				\
+		DB_MSGBUF_INIT(a);					\
+	}								\
+} while (0)
+#define	STAT_FMT(msg, fmt, type, v) do {				\
+	DB_MSGBUF __mb;							\
+	DB_MSGBUF_INIT(&__mb);						\
+	__db_msgadd(dbenv, &__mb, fmt, (type)(v));			\
+	__db_msgadd(dbenv, &__mb, "\t%s", msg);				\
+	DB_MSGBUF_FLUSH(dbenv, &__mb);					\
+} while (0)
+#define	STAT_HEX(msg, v)						\
+	__db_msg(dbenv, "%#lx\t%s", (u_long)(v), msg)
+#define	STAT_ISSET(msg, p)						\
+	__db_msg(dbenv, "%sSet\t%s", (p) == NULL ? "!" : " ", msg)
+#define	STAT_LONG(msg, v)						\
+	__db_msg(dbenv, "%ld\t%s", (long)(v), msg)
+#define	STAT_LSN(msg, lsnp)						\
+	__db_msg(dbenv, "%lu/%lu\t%s",					\
+	    (u_long)(lsnp)->file, (u_long)(lsnp)->offset, msg)
+#define	STAT_STRING(msg, p) do {					\
+	const char *__p = p;	/* p may be a function call. */		\
+	__db_msg(dbenv, "%s\t%s", __p == NULL ? "!Set" : __p, msg);	\
+} while (0)
+#define	STAT_ULONG(msg, v)						\
+	__db_msg(dbenv, "%lu\t%s", (u_long)(v), msg)
 
 /*******************************************************
  * API return values
  *******************************************************/
- /*
-  * Return values that are OK for each different call.  Most calls have
-  * a standard 'return of 0 is only OK value', but some, like db->get
-  * have DB_NOTFOUND as a return value, but it really isn't an error.
-  */
+/*
+ * Return values that are OK for each different call.  Most calls have a
+ * standard 'return of 0 is only OK value', but some, like db->get have
+ * DB_NOTFOUND as a return value, but it really isn't an error.
+ */
 #define	DB_RETOK_STD(ret)	((ret) == 0)
 #define	DB_RETOK_DBCDEL(ret)	((ret) == 0 || (ret) == DB_KEYEMPTY || \
 				    (ret) == DB_NOTFOUND)
-#define	DB_RETOK_DBCGET(ret)	DB_RETOK_DBGET(ret)
+#define	DB_RETOK_DBCGET(ret)	((ret) == 0 || (ret) == DB_KEYEMPTY || \
+				    (ret) == DB_NOTFOUND)
 #define	DB_RETOK_DBCPUT(ret)	((ret) == 0 || (ret) == DB_KEYEXIST || \
 				    (ret) == DB_NOTFOUND)
-#define	DB_RETOK_DBDEL(ret)	((ret) == 0 || (ret) == DB_NOTFOUND)
-#define	DB_RETOK_DBGET(ret)	((ret) == 0 || (ret) == DB_KEYEMPTY || \
-				    (ret) == DB_NOTFOUND)
+#define	DB_RETOK_DBDEL(ret)	DB_RETOK_DBCDEL(ret)
+#define	DB_RETOK_DBGET(ret)	DB_RETOK_DBCGET(ret)
 #define	DB_RETOK_DBPUT(ret)	((ret) == 0 || (ret) == DB_KEYEXIST)
 #define	DB_RETOK_LGGET(ret)	((ret) == 0 || (ret) == DB_NOTFOUND)
 #define	DB_RETOK_MPGET(ret)	((ret) == 0 || (ret) == DB_PAGE_NOTFOUND)
-#define	DB_RETOK_REPPMSG(ret)	((ret) == 0 || (ret) == DB_REP_NEWMASTER || \
-				    (ret) == DB_REP_NEWSITE)
+#define	DB_RETOK_REPPMSG(ret)	((ret) == 0 || \
+				    (ret) == DB_REP_ISPERM || \
+				    (ret) == DB_REP_NEWMASTER || \
+				    (ret) == DB_REP_NEWSITE || \
+				    (ret) == DB_REP_NOTPERM || \
+				    (ret) == DB_REP_STARTUPDONE)
+
+/* Find a reasonable operation-not-supported error. */
+#ifdef	EOPNOTSUPP
+#define	DB_OPNOTSUP	EOPNOTSUPP
+#else
+#ifdef	ENOTSUP
+#define	DB_OPNOTSUP	ENOTSUP
+#else
+#define	DB_OPNOTSUP	EINVAL
+#endif
+#endif
 
 /*******************************************************
  * Files.
  *******************************************************/
- /*
-  * We use 1024 as the maximum path length.  It's too hard to figure out what
-  * the real path length is, as it was traditionally stored in <sys/param.h>,
-  * and that file isn't always available.
-  */
+/*
+ * We use 1024 as the maximum path length.  It's too hard to figure out what
+ * the real path length is, as it was traditionally stored in <sys/param.h>,
+ * and that file isn't always available.
+ */
 #undef	MAXPATHLEN
 #define	MAXPATHLEN	1024
 
 #define	PATH_DOT	"."	/* Current working directory. */
-#define	PATH_SEPARATOR	"/"	/* Path separator character(s). */
-
-/*
- * Flags understood by __os_open.
- */
-#define	DB_OSO_CREATE	0x0001		/* POSIX: O_CREAT */
-#define	DB_OSO_DIRECT	0x0002		/* Don't buffer the file in the OS. */
-#define	DB_OSO_EXCL	0x0004		/* POSIX: O_EXCL */
-#define	DB_OSO_LOG	0x0008		/* Opening a log file. */
-#define	DB_OSO_RDONLY	0x0010		/* POSIX: O_RDONLY */
-#define	DB_OSO_REGION	0x0020		/* Opening a region file. */
-#define	DB_OSO_SEQ	0x0040		/* Expected sequential access. */
-#define	DB_OSO_TEMP	0x0080		/* Remove after last close. */
-#define	DB_OSO_TRUNC	0x0100		/* POSIX: O_TRUNC */
-
-/*
- * Seek options understood by __os_seek.
- */
-typedef enum {
-	DB_OS_SEEK_CUR,			/* POSIX: SEEK_CUR */
-	DB_OS_SEEK_END,			/* POSIX: SEEK_END */
-	DB_OS_SEEK_SET			/* POSIX: SEEK_SET */
-} DB_OS_SEEK;
+				/* Path separator character(s). */
+#define	PATH_SEPARATOR	"@PATH_SEPARATOR@"
 
 /*******************************************************
  * Environment.
@@ -228,6 +297,7 @@ typedef enum {
  * LOCKING_ON	Locking has been configured.
  * LOGGING_ON	Logging has been configured.
  * MPOOL_ON	Memory pool has been configured.
+ * REP_ON	Replication has been configured.
  * RPC_ON	RPC has been configured.
  * TXN_ON	Transactions have been configured.
  */
@@ -236,6 +306,7 @@ typedef enum {
 #define	LOCKING_ON(dbenv)	((dbenv)->lk_handle != NULL)
 #define	LOGGING_ON(dbenv)	((dbenv)->lg_handle != NULL)
 #define	MPOOL_ON(dbenv)		((dbenv)->mp_handle != NULL)
+#define	REP_ON(dbenv)		((dbenv)->rep_handle != NULL)
 #define	RPC_ON(dbenv)		((dbenv)->cl_handle != NULL)
 #define	TXN_ON(dbenv)		((dbenv)->tx_handle != NULL)
 
@@ -267,6 +338,9 @@ typedef enum {
 #define	ENV_REQUIRES_CONFIG(dbenv, handle, i, flags)			\
 	if (handle == NULL)						\
 		return (__db_env_config(dbenv, i, flags));
+#define	ENV_NOT_CONFIGURED(dbenv, handle, i, flags)			\
+	if (F_ISSET((dbenv), DB_ENV_OPEN_CALLED))			\
+		ENV_REQUIRES_CONFIG(dbenv, handle, i, flags)
 
 /*******************************************************
  * Database Access Methods.
@@ -381,7 +455,7 @@ typedef struct __dbpginfo {
 	(LSN).file = 0;							\
 	(LSN).offset = 0;						\
 } while (0)
-#define	IS_ZERO_LSN(LSN)	((LSN).file == 0)
+#define	IS_ZERO_LSN(LSN)	((LSN).file == 0 && (LSN).offset == 0)
 
 #define	IS_INIT_LSN(LSN)	((LSN).file == 1 && (LSN).offset == 0)
 #define	INIT_LSN(LSN)		do {					\
@@ -390,11 +464,11 @@ typedef struct __dbpginfo {
 } while (0)
 
 #define	MAX_LSN(LSN) do {						\
-	(LSN).file = UINT32_T_MAX;					\
-	(LSN).offset = UINT32_T_MAX;					\
+	(LSN).file = UINT32_MAX;					\
+	(LSN).offset = UINT32_MAX;					\
 } while (0)
 #define	IS_MAX_LSN(LSN) \
-	((LSN).file == UINT32_T_MAX && (LSN).offset == UINT32_T_MAX)
+	((LSN).file == UINT32_MAX && (LSN).offset == UINT32_MAX)
 
 /* If logging is turned off, smash the lsn. */
 #define	LSN_NOT_LOGGED(LSN) do {					\
@@ -404,34 +478,12 @@ typedef struct __dbpginfo {
 #define	IS_NOT_LOGGED_LSN(LSN) \
 	((LSN).file == 0 && (LSN).offset == 1)
 
-/*
- * Test if the environment is currently logging changes.  If we're in
- * recovery or we're a replication client, we don't need to log changes
- * because they're already in the log, even though we have a fully functional
- * log system.
- */
-#define	DBENV_LOGGING(dbenv)						\
-	(LOGGING_ON(dbenv) && !F_ISSET((dbenv), DB_ENV_REP_CLIENT) &&	\
-	    (!IS_RECOVERING(dbenv)))
-
-/*
- * Test if we need to log a change.  Note that the DBC_RECOVER flag is set
- * when we're in abort, as well as during recovery;  thus DBC_LOGGING may be
- * false for a particular dbc even when DBENV_LOGGING is true.
- *
- * We explicitly use LOGGING_ON/DB_ENV_REP_CLIENT here because we don't
- * want to have to pull in the log headers, which IS_RECOVERING (and thus
- * DBENV_LOGGING) rely on, and because DBC_RECOVER should be set anytime
- * IS_RECOVERING would be true.
- */
-#define	DBC_LOGGING(dbc)						\
-	(LOGGING_ON((dbc)->dbp->dbenv) && !F_ISSET((dbc), DBC_RECOVER) && \
-	 !F_ISSET((dbc)->dbp->dbenv, DB_ENV_REP_CLIENT))
-
 /*******************************************************
  * Txn.
  *******************************************************/
 #define	DB_NONBLOCK(C)	((C)->txn != NULL && F_ISSET((C)->txn, TXN_NOWAIT))
+#define	NOWAIT_FLAG(txn) \
+	((txn) != NULL && F_ISSET((txn), TXN_NOWAIT) ? DB_LOCK_NOWAIT : 0)
 #define	IS_SUBTRANSACTION(txn)						\
 	((txn) != NULL && (txn)->parent != NULL)
 
@@ -440,6 +492,33 @@ typedef struct __dbpginfo {
  *******************************************************/
 #define	DB_IV_BYTES     16		/* Bytes per IV */
 #define	DB_MAC_KEY	20		/* Bytes per MAC checksum */
+
+/*******************************************************
+ * Secondaries over RPC.
+ *******************************************************/
+#ifdef CONFIG_TEST
+/*
+ * These are flags passed to DB->associate calls by the Tcl API if running
+ * over RPC.  The RPC server will mask out these flags before making the real
+ * DB->associate call.
+ *
+ * These flags must coexist with the valid flags to DB->associate (currently
+ * DB_AUTO_COMMIT and DB_CREATE).  DB_AUTO_COMMIT is in the group of
+ * high-order shared flags (0xff000000), and DB_CREATE is in the low-order
+ * group (0x00000fff), so we pick a range in between.
+ */
+#define	DB_RPC2ND_MASK		0x00f00000 /* Reserved bits. */
+
+#define	DB_RPC2ND_REVERSEDATA	0x00100000 /* callback_n(0) _s_reversedata. */
+#define	DB_RPC2ND_NOOP		0x00200000 /* callback_n(1) _s_noop */
+#define	DB_RPC2ND_CONCATKEYDATA	0x00300000 /* callback_n(2) _s_concatkeydata */
+#define	DB_RPC2ND_CONCATDATAKEY 0x00400000 /* callback_n(3) _s_concatdatakey */
+#define	DB_RPC2ND_REVERSECONCAT	0x00500000 /* callback_n(4) _s_reverseconcat */
+#define	DB_RPC2ND_TRUNCDATA	0x00600000 /* callback_n(5) _s_truncdata */
+#define	DB_RPC2ND_CONSTANT	0x00700000 /* callback_n(6) _s_constant */
+#define	DB_RPC2ND_GETZIP	0x00800000 /* sj_getzip */
+#define	DB_RPC2ND_GETNAME	0x00900000 /* sj_getname */
+#endif
 
 /*******************************************************
  * Forward structure declarations.
@@ -467,7 +546,46 @@ struct __vrfy_pageinfo; typedef struct __vrfy_pageinfo VRFY_PAGEINFO;
 #include "dbinc_auto/mutex_ext.h"	/* XXX: Include after region.h. */
 #include "dbinc_auto/env_ext.h"
 #include "dbinc/os.h"
+#include "dbinc/rep.h"
 #include "dbinc_auto/clib_ext.h"
 #include "dbinc_auto/common_ext.h"
+
+/*******************************************************
+ * Remaining Log.
+ * These need to be defined after the general includes
+ * because they need rep.h from above.
+ *******************************************************/
+/*
+ * Test if the environment is currently logging changes.  If we're in recovery
+ * or we're a replication client, we don't need to log changes because they're
+ * already in the log, even though we have a fully functional log system.
+ */
+#define	DBENV_LOGGING(dbenv)						\
+	(LOGGING_ON(dbenv) && !IS_REP_CLIENT(dbenv) &&			\
+	    (!IS_RECOVERING(dbenv)))
+
+/*
+ * Test if we need to log a change.  By default, we don't log operations without
+ * associated transactions, unless DIAGNOSTIC, DEBUG_ROP or DEBUG_WOP are on.
+ * This is because we want to get log records for read/write operations, and, if
+ * we trying to debug something, more information is always better.
+ *
+ * The DBC_RECOVER flag is set when we're in abort, as well as during recovery;
+ * thus DBC_LOGGING may be false for a particular dbc even when DBENV_LOGGING
+ * is true.
+ *
+ * We explicitly use LOGGING_ON/IS_REP_CLIENT here because we don't want to pull
+ * in the log headers, which IS_RECOVERING (and thus DBENV_LOGGING) rely on, and
+ * because DBC_RECOVER should be set anytime IS_RECOVERING would be true.
+ */
+#if defined(DIAGNOSTIC) || defined(DEBUG_ROP)  || defined(DEBUG_WOP)
+#define	DBC_LOGGING(dbc)						\
+	(LOGGING_ON((dbc)->dbp->dbenv) &&				\
+	    !F_ISSET((dbc), DBC_RECOVER) && !IS_REP_CLIENT((dbc)->dbp->dbenv))
+#else
+#define	DBC_LOGGING(dbc)						\
+	((dbc)->txn != NULL && LOGGING_ON((dbc)->dbp->dbenv) &&		\
+	    !F_ISSET((dbc), DBC_RECOVER) && !IS_REP_CLIENT((dbc)->dbp->dbenv))
+#endif
 
 #endif /* !_DB_INTERNAL_H_ */

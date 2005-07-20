@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db_dispatch.h,v 11.30 2002/06/20 19:34:03 margo Exp $
+ * $Id: db_dispatch.h,v 11.38 2004/07/26 19:54:08 margo Exp $
  */
 
 #ifndef _DB_DISPATCH_H_
@@ -57,14 +57,14 @@ struct __db_txnhead {
 	DB_LSN ckplsn;		/* LSN of last retained checkpoint. */
 	DB_LSN trunc_lsn;	/* Lsn to which we are going to truncate;
 				 * make sure we abort anyone after this. */
-	int32_t generation;	/* Current generation number. */
-	int32_t gen_alloc;	/* Number of generations allocated. */
+	u_int32_t generation;	/* Current generation number. */
+	u_int32_t gen_alloc;	/* Number of generations allocated. */
 	struct {
-		int32_t generation;
+		u_int32_t generation;
 		u_int32_t txn_min;
 		u_int32_t txn_max;
-	} *gen_array;		/* Array of txnids associted with a gen. */
-	int nslots;
+	} *gen_array;		/* Array of txnids associated with a gen. */
+	u_int nslots;
 	LIST_HEAD(__db_headlink, __db_txnlist) head[1];
 };
 
@@ -74,17 +74,17 @@ struct __db_txnlist {
 	union {
 		struct {
 			u_int32_t txnid;
-			int32_t	generation;
-			int32_t status;
+			u_int32_t generation;
+			u_int32_t status;
 		} t;
 		struct {
-			int32_t ntxns;
-			int32_t maxn;
+			u_int32_t ntxns;
+			u_int32_t maxn;
 			DB_LSN *lsn_array;
 		} l;
 		struct {
-			int32_t nentries;
-			int32_t maxentry;
+			u_int32_t nentries;
+			u_int32_t maxentry;
 			int32_t locked;
 			char *fname;
 			int32_t fileid;
@@ -100,6 +100,16 @@ struct __db_txnlist {
  */
 #define	TXNLIST_NEW	0x1
 
-#define	DB_user_BEGIN		10000
+/*
+ * States for limbo list processing.
+ */
+
+typedef enum {
+	LIMBO_NORMAL,		/* Normal processing. */
+	LIMBO_PREPARE,		/* We are preparing a transaction. */
+	LIMBO_RECOVER,		/* We are in recovery. */
+	LIMBO_TIMESTAMP,	/* We are recovering to a timestamp. */
+	LIMBO_COMPENSATE	/* After recover to ts, generate log records. */
+} db_limbo_state;
 
 #endif /* !_DB_DISPATCH_H_ */

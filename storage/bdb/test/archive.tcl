@@ -1,20 +1,26 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: archive.tcl,v 11.20 2002/04/30 19:21:21 sue Exp $
+# $Id: archive.tcl,v 11.26 2004/09/22 18:01:04 bostic Exp $
 #
 # Options are:
 # -checkrec <checkpoint frequency"
 # -dir <dbhome directory>
 # -maxfilesize <maxsize of log file>
-proc archive { args } {
+proc archive { { inmem 0 } args } {
 	global alphabet
 	source ./include.tcl
 
 	# Set defaults
-	set maxbsize [expr 8 * 1024]
+	if { $inmem == 1 } {
+		set maxbsize [expr 8 * [expr 1024 * 1024]]
+		set desc "in-memory"
+	} else {
+		set maxbsize [expr 8 * 1024]
+		set desc "on-disk"
+	}
 	set maxfile [expr 32 * 1024]
 	set checkrec 500
 	for { set i 0 } { $i < [llength $args] } {incr i} {
@@ -28,71 +34,92 @@ proc archive { args } {
 	    -dir <directory> -maxfilesize <max size of log files>"
 				return
 			}
-
 		}
 	}
 
 	# Clean out old log if it existed
-	puts "Archive: Log archive test"
+	puts "Archive: Log archive test (using $desc logging)."
 	puts "Unlinking log: error message OK"
 	env_cleanup $testdir
 
 	# Now run the various functionality tests
-	set eflags "-create -txn -home $testdir \
-	    -log_buffer $maxbsize -log_max $maxfile"
+	if { $inmem == 0 } {
+		set eflags "-create -txn -home $testdir \
+		    -log_buffer $maxbsize -log_max $maxfile"
+	} else {
+		set eflags "-create -txn -home $testdir -log_inmemory \
+		    -log_buffer $maxbsize -log_max $maxfile"
+	}
 	set dbenv [eval {berkdb_env} $eflags]
-	error_check_bad dbenv $dbenv NULL
-	error_check_good dbenv [is_substr $dbenv env] 1
+	error_check_good dbenv [is_valid_env $dbenv] TRUE
 
 	set logc [$dbenv log_cursor]
 	error_check_good log_cursor [is_valid_logc $logc $dbenv] TRUE
 
 	# The basic test structure here is that we write a lot of log
 	# records (enough to fill up 100 log files; each log file it
-	# small).  We take periodic checkpoints.  Between each pair
-	# of checkpoints, we refer to 2 files, overlapping them each
-	# checkpoint.  We also start transactions and let them overlap
-	# checkpoints as well.  The pattern that we try to create is:
-	# ---- write log records----|||||--- write log records ---
-	# -T1 T2 T3 --- D1 D2 ------CHECK--- CT1 --- D2 D3 CD1 ----CHECK
-	# where TX is begin transaction, CTx is commit transaction, DX is
-	# open data file and CDx is close datafile.
+	# small).  We start with three txns and open a database in
+	# each transaction.  Then, in a loop, we take periodic
+	# checkpoints.  Between each pair of checkpoints, we end one
+	# transaction; when no transactions are left, we start up three
+	# new ones, letting them overlap checkpoints as well.
+	#
+	# The pattern that we create is:
+	# 1.  Create TXN1, TXN2, TXN3 and open dbs within the txns.
+	# 2.  Write a bunch of additional log records.
+	# 3.  Checkpoint.
+	# 4.  Archive, checking that we list the right files.
+	# 5.  Commit one transaction.
+	# 6.  If no txns left, start 3 new ones.
+	# 7.  Until we've gone through enough records, return to step 2.
 
 	set baserec "1:$alphabet:2:$alphabet:3:$alphabet:4:$alphabet"
 	puts "\tArchive.a: Writing log records; checkpoint every $checkrec records"
 	set nrecs $maxfile
 	set rec 0:$baserec
 
-	# Begin transaction and write a log record
+	# Begin 1st transaction and record current log file.  Open
+	# a database in the transaction; the log file won't be
+	# removable until the transaction is aborted or committed.
 	set t1 [$dbenv txn]
-	error_check_good t1:txn_begin [is_substr $t1 "txn"] 1
+	error_check_good t1:txn_begin [is_valid_txn $t1 $dbenv] TRUE
 
-	set l1 [$dbenv log_put $rec]
-	error_check_bad l1:log_put [llength $l1] 0
+	set l1 [lindex [lindex [$logc get -last] 0] 0]
+	set lsnlist [list $l1]
 
-	set lsnlist [list [lindex $l1 0]]
+	set tdb1 [eval {berkdb_open -create -mode 0644} \
+	    -env $dbenv -txn $t1 -btree tdb1.db]
+	error_check_good dbopen [is_valid_db $tdb1] TRUE
 
+	# Do the same for a 2nd and 3rd transaction.
 	set t2 [$dbenv txn]
-	error_check_good t2:txn_begin [is_substr $t2 "txn"] 1
-
-	set l1 [$dbenv log_put $rec]
-	lappend lsnlist [lindex $l1 0]
+	error_check_good t2:txn_begin [is_valid_txn $t2 $dbenv] TRUE
+	set l2 [lindex [lindex [$logc get -last] 0] 0]
+	lappend lsnlist $l2
+	set tdb2 [eval {berkdb_open -create -mode 0644} \
+	    -env $dbenv -txn $t2 -btree tdb2.db]
+	error_check_good dbopen [is_valid_db $tdb2] TRUE
 
 	set t3 [$dbenv txn]
-	set l1 [$dbenv log_put $rec]
-	lappend lsnlist [lindex $l1 0]
+	error_check_good t3:txn_begin [is_valid_txn $t3 $dbenv] TRUE
+	set l3 [lindex [lindex [$logc get -last] 0] 0]
+	lappend lsnlist $l3
+	set tdb3 [eval {berkdb_open -create -mode 0644} \
+	    -env $dbenv -txn $t3 -btree tdb3.db]
+	error_check_good dbopen [is_valid_db $tdb3] TRUE
 
-	set txnlist [list $t1 $t2 $t3]
-	set db1 [eval {berkdb_open} "-create -mode 0644 -hash -env $dbenv ar1"]
-	set db2 [eval {berkdb_open} "-create -mode 0644 -btree -env $dbenv ar2"]
-	set dbcount 3
-	set dblist [list $db1 $db2]
+	# Keep a list of active transactions and databases opened
+	# within those transactions.
+	set txnlist [list "$t1 $tdb1" "$t2 $tdb2" "$t3 $tdb3"]
 
+	# Loop through a large number of log records, checkpointing
+	# and checking db_archive periodically.
 	for { set i 1 } { $i <= $nrecs } { incr i } {
 		set rec $i:$baserec
 		set lsn [$dbenv log_put $rec]
 		error_check_bad log_put [llength $lsn] 0
 		if { [expr $i % $checkrec] == 0 } {
+
 			# Take a checkpoint
 			$dbenv txn_checkpoint
 			set ckp_file [lindex [lindex [$logc get -last] 0] 0]
@@ -108,16 +135,24 @@ proc archive { args } {
 			catch { archive_command -h $testdir -a -s } \
 			    res_data_full
 			catch { archive_command -h $testdir -s } res_data
-			error_check_good nlogfiles [llength $res_alllog] \
-			    [lindex [lindex [$logc get -last] 0] 0]
+
+			if { $inmem == 0 } {
+				error_check_good nlogfiles [llength $res_alllog] \
+				    [lindex [lindex [$logc get -last] 0] 0]
+			} else {
+				error_check_good nlogfiles [llength $res_alllog] 0
+			}
+
 			error_check_good logs_match [llength $res_log_full] \
 			    [llength $res_log]
 			error_check_good data_match [llength $res_data_full] \
 			    [llength $res_data]
 
 			# Check right number of log files
-			error_check_good nlogs [llength $res_log] \
-			    [expr [lindex $lsnlist 0] - 1]
+			if { $inmem == 0 } {
+				set expected [min $ckp_file [expr [lindex $lsnlist 0] - 1]]
+				error_check_good nlogs [llength $res_log] $expected
+			}
 
 			# Check that the relative names are a subset of the
 			# full names
@@ -137,68 +172,59 @@ proc archive { args } {
 				incr n
 			}
 
-			# Begin/commit any transactions
-			set t [lindex $txnlist 0]
+			# Commit a transaction and close the associated db.
+			set t [lindex [lindex $txnlist 0] 0]
+			set tdb [lindex [lindex $txnlist 0] 1]
 			if { [string length $t] != 0 } {
 				error_check_good txn_commit:$t [$t commit] 0
+				error_check_good tdb_close:$tdb [$tdb close] 0
 				set txnlist [lrange $txnlist 1 end]
+				set lsnlist [lrange $lsnlist 1 end]
 			}
-			set lsnlist [lrange $lsnlist 1 end]
 
+			# If we're down to no transactions, start some new ones.
 			if { [llength $txnlist] == 0 } {
 				set t1 [$dbenv txn]
 				error_check_bad tx_begin $t1 NULL
 				error_check_good \
 				    tx_begin [is_substr $t1 $dbenv] 1
-				set l1 [lindex [$dbenv log_put $rec] 0]
-				lappend lsnlist [min $l1 $ckp_file]
+				set tdb1 [eval {berkdb_open -create -mode 0644} \
+				    -env $dbenv -txn $t1 -btree tdb1.db]
+				error_check_good dbopen [is_valid_db $tdb1] TRUE
+				set l1 [lindex [lindex [$logc get -last] 0] 0]
+				lappend lsnlist $l1
 
 				set t2 [$dbenv txn]
 				error_check_bad tx_begin $t2 NULL
 				error_check_good \
 				    tx_begin [is_substr $t2 $dbenv] 1
-				set l1 [lindex [$dbenv log_put $rec] 0]
-				lappend lsnlist [min $l1 $ckp_file]
+				set tdb2 [eval {berkdb_open -create -mode 0644} \
+				    -env $dbenv -txn $t2 -btree tdb2.db]
+				error_check_good dbopen [is_valid_db $tdb2] TRUE
+				set l2 [lindex [lindex [$logc get -last] 0] 0]
+				lappend lsnlist $l2
 
 				set t3 [$dbenv txn]
 				error_check_bad tx_begin $t3 NULL
 				error_check_good \
 				    tx_begin [is_substr $t3 $dbenv] 1
-				set l1 [lindex [$dbenv log_put $rec] 0]
-				lappend lsnlist [min $l1 $ckp_file]
+				set tdb3 [eval {berkdb_open -create -mode 0644} \
+				    -env $dbenv -txn $t3 -btree tdb3.db]
+				error_check_good dbopen [is_valid_db $tdb3] TRUE
+				set l3 [lindex [lindex [$logc get -last] 0] 0]
+				lappend lsnlist $l3
 
-				set txnlist [list $t1 $t2 $t3]
+				set txnlist [list "$t1 $tdb1" "$t2 $tdb2" "$t3 $tdb3"]
 			}
-
-			# Open/close some DB files
-			if { [expr $dbcount % 2] == 0 } {
-				set type "-hash"
-			} else {
-				set type "-btree"
-			}
-			set db [eval {berkdb_open} \
-			    "-create -mode 0644 $type -env $dbenv ar$dbcount"]
-			error_check_bad db_open:$dbcount $db NULL
-			error_check_good db_open:$dbcount [is_substr $db db] 1
-			incr dbcount
-
-			lappend dblist $db
-			set db [lindex $dblist 0]
-			error_check_good db_close:$db [$db close] 0
-			set dblist [lrange $dblist 1 end]
-
 		}
 	}
 	# Commit any transactions still running.
 	puts "\tArchive.b: Commit any transactions still running."
-	foreach t $txnlist {
+	foreach pair $txnlist {
+		set t [lindex $pair 0]
+		set tdb [lindex $pair 1]
 		error_check_good txn_commit:$t [$t commit] 0
-	}
-
-	# Close any files that are still open.
-	puts "\tArchive.c: Close open files."
-	foreach d $dblist {
-		error_check_good db_close:$db [$d close] 0
+		error_check_good tdb_close:$tdb [$tdb close] 0
 	}
 
 	# Close and unlink the file

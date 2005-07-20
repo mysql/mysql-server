@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #       Sleepycat Software.  All rights reserved.
 #
-# $Id: rpc.src,v 1.75 2002/07/18 02:57:19 margo Exp $
+# $Id: rpc.src,v 1.90 2004/07/15 19:54:11 sue Exp $
 #
 # Syntax:
 # BEGIN	function_name  {CODE | RETCODE | NOFUNC}
@@ -39,7 +39,8 @@
 # All messages automatically return "status" and return that from
 # the call to the function.  RET's are additional things the server
 # may return.  RET is like ARG but does not need the IGNORE option.
-# RET	{STRING | INT | DBT | LIST | ID} varname [GID | INT | ID]
+# ARETs are RETs which are returned in arguments by the client.
+# {RET | ARET}	{STRING | INT | DBT | LIST | ID} varname [GID | INT | ID]
 #	STRING:	string from server
 #	DBT:	DBT arg from server
 #	LIST:	list from server (NULL-terminated list)
@@ -65,13 +66,19 @@ ARG	ID	DB_ENV *	dbenv
 FUNCPROT	int (*)(DB_ENV *, DBT *, DB_LSN *, db_recops)
 FUNCARG	int (*func0) __P((DB_ENV *, DBT *, DB_LSN *, db_recops))
 END
+BEGIN	env_get_cachesize	CODE
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	gbytes
+ARET	INT	u_int32_t	bytes
+ARET	INT	int		ncache
+END
 BEGIN	env_cachesize	CODE
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	gbytes
 ARG	INT	u_int32_t	bytes
 ARG	INT	int		ncache
 END
-BEGIN	env_close	RETCODE
+BEGIN	env_close	CODE
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	flags
 END
@@ -79,6 +86,10 @@ BEGIN	env_create	RETCODE
 ARG	IGNORE	DB_ENV *	dbenv
 ARG	INT	long		timeout
 RET	ID	long		env
+END
+BEGIN	get_data_dirs	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	STRING	const char ***	dirpp
 END
 BEGIN	set_data_dir	NOFUNC
 ARG	ID	DB_ENV *	dbenv
@@ -99,6 +110,10 @@ ARG	STRING	const char *	subdb
 ARG	STRING	const char *	newname
 ARG	INT	u_int32_t	flags
 END
+BEGIN	env_get_encrypt_flags		CODE
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	flags
+END
 BEGIN	env_encrypt		CODE
 ARG	ID	DB_ENV *	dbenv
 ARG	STRING	const char *	passwd
@@ -109,31 +124,60 @@ ARG	ID	DB_ENV *	dbenv
 FUNCPROT	void (*)(DB_ENV *, int, int)
 FUNCARG	void (*func0) __P((DB_ENV *, int, int))
 END
+BEGIN	env_get_flags	CODE
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	flags
+END
 BEGIN	env_flags	CODE
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	flags
 ARG	INT	int		onoff
 END
+BEGIN	get_lg_bsize	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	bsize
+END
 BEGIN	set_lg_bsize	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	bsize
+END
+BEGIN	get_lg_dir	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	STRING	const char *	dir
 END
 BEGIN	set_lg_dir	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	STRING	const char *	dir
 END
+BEGIN	get_lg_max	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	max
+END
 BEGIN	set_lg_max	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	max
+END
+BEGIN	get_lg_regionmax	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	max
 END
 BEGIN	set_lg_regionmax	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	max
 END
+BEGIN	get_lk_conflicts	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	IGNORE	const u_int8_t **	conflicts
+ARG	IGNORE	int *		modes
+END
 BEGIN	set_lk_conflict	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int8_t *	conflicts
 ARG	INT	int		modes
+END
+BEGIN	get_lk_detect	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	detect
 END
 BEGIN	set_lk_detect	NOFUNC
 ARG	ID	DB_ENV *	dbenv
@@ -143,21 +187,63 @@ BEGIN	set_lk_max	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	max
 END
+BEGIN	get_lk_max_locks	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	max
+END
 BEGIN	set_lk_max_locks	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	max
+END
+BEGIN	get_lk_max_lockers	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	max
 END
 BEGIN	set_lk_max_lockers	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	max
 END
+BEGIN	get_lk_max_objects	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	max
+END
 BEGIN	set_lk_max_objects	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	max
 END
+BEGIN	get_mp_max_openfd	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	int		nopen
+END
+BEGIN	set_mp_max_openfd	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	int		nopen
+END
+BEGIN	get_mp_max_write	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	int		nwrite
+ARET	INT	int		nsleep
+END
+BEGIN	set_mp_max_write	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	int		nwrite
+ARG	INT	int		nsleep
+END
+BEGIN	get_mp_mmapsize	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	size_t		mmapsize
+END
 BEGIN	set_mp_mmapsize	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	size_t		mmapsize
+END
+BEGIN	env_get_home	CODE
+ARG	ID	DB_ENV *	dbenv
+ARET	STRING	const char *	home
+END
+BEGIN	env_get_open_flags	CODE
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	flags
 END
 BEGIN	env_open	RETCODE
 ARG	ID	DB_ENV *	dbenv
@@ -176,30 +262,60 @@ ARG	ID	DB_ENV *	dbenv
 ARG	STRING	const char *	home
 ARG	INT	u_int32_t	flags
 END
+BEGIN	get_shm_key	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	long		shm_key
+END
 BEGIN	set_shm_key	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	long		shm_key
 END
+BEGIN	get_tas_spins	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	tas_spins
+END
 BEGIN	set_tas_spins	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	tas_spins
+END
+BEGIN	get_timeout	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	timeout
+ARG	INT	u_int32_t	flags
 END
 BEGIN	set_timeout	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	timeout
 ARG	INT	u_int32_t	flags
 END
+BEGIN	get_tmp_dir	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	STRING	const char *	dir
+END
 BEGIN	set_tmp_dir	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	STRING	const char *	dir
+END
+BEGIN	get_tx_max	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	max
 END
 BEGIN	set_tx_max	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	u_int32_t	max
 END
+BEGIN	get_tx_timestamp	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	time_t	max
+END
 BEGIN	set_tx_timestamp	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	time_t *	max
+END
+BEGIN	get_verbose	NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARG	INT	u_int32_t	which
+ARET	INT	int		onoff
 END
 BEGIN	set_verbose	NOFUNC
 ARG	ID	DB_ENV *	dbenv
@@ -263,9 +379,11 @@ END
 BEGIN	rep_elect	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	int		nsites
+ARG	INT	int		nvotes
 ARG	INT	int		pri
 ARG	INT	u_int32_t	timeout
 ARG	IGNORE	int *		idp
+ARG	INT	u_int32_t	flags
 END
 BEGIN	rep_flush	NOFUNC
 ARG	ID	DB_ENV *	dbenv
@@ -275,6 +393,12 @@ ARG	ID	DB_ENV *	dbenv
 ARG	DBT	DBT *		rec
 ARG	DBT	DBT *		control
 ARG	IGNORE	int *		idp
+ARG	IGNORE	DB_LSN *	ret_lsnp
+END
+BEGIN	rep_get_limit		NOFUNC
+ARG	ID	DB_ENV *	dbenv
+ARET	INT	u_int32_t	mbytes
+ARET	INT	u_int32_t	bytes
 END
 BEGIN	rep_set_limit		NOFUNC
 ARG	ID	DB_ENV *	dbenv
@@ -289,8 +413,8 @@ END
 BEGIN	rep_set_rep_transport	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	int		id
-FUNCPROT	int (*)(DB_ENV *, const DBT *, const DBT *, int, u_int32_t)
-FUNCARG	int (*func0) __P((DB_ENV *, const DBT *, const DBT *, int, u_int32_t))
+FUNCPROT	int (*)(DB_ENV *, const DBT *, const DBT *, const DB_LSN *, int, u_int32_t)
+FUNCARG	int (*func0) __P((DB_ENV *, const DBT *, const DBT *, const DB_LSN *, int, u_int32_t))
 END
 BEGIN	rep_start	NOFUNC
 ARG	ID	DB_ENV *	dbenv
@@ -332,6 +456,10 @@ BEGIN	db_bt_maxkey	CODE
 ARG	ID	DB *		dbp
 ARG	INT	u_int32_t	maxkey
 END
+BEGIN	db_get_bt_minkey	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	minkey
+END
 BEGIN	db_bt_minkey	CODE
 ARG	ID	DB *		dbp
 ARG	INT	u_int32_t	minkey
@@ -346,9 +474,11 @@ ARG	ID	DB *		dbp
 FUNCPROT	int (*)(DB *, DBT *, db_recno_t)
 FUNCARG	int (*func0) __P((DB *, DBT *, db_recno_t))
 END
-BEGIN	db_cache_priority	NOFUNC
+BEGIN	db_get_cachesize	NOFUNC
 ARG	ID	DB *		dbp
-ARG	INT	DB_CACHE_PRIORITY	priority
+ARET	INT	u_int32_t	gbytes
+ARET	INT	u_int32_t	bytes
+ARET	INT	int		ncache
 END
 BEGIN	db_cachesize	NOFUNC
 ARG	ID	DB *		dbp
@@ -377,10 +507,18 @@ ARG	ID	DB *		dbp
 FUNCPROT	int (*)(DB *, const DBT *, const DBT *)
 FUNCARG	int (*func0) __P((DB *, const DBT *, const DBT *))
 END
+BEGIN	db_get_encrypt_flags		CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	flags
+END
 BEGIN	db_encrypt		CODE
 ARG	ID	DB *		dbp
 ARG	STRING	const char *	passwd
 ARG	INT	u_int32_t	flags
+END
+BEGIN	db_get_extentsize	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	extentsize
 END
 BEGIN	db_extentsize	CODE
 ARG	ID	DB *		dbp
@@ -395,6 +533,10 @@ ARG	ID	DB *		dbp
 FUNCPROT	void (*)(DB *, int, int)
 FUNCARG	void (*func0) __P((DB *, int, int))
 END
+BEGIN	db_get_flags	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	flags
+END
 BEGIN	db_flags	CODE
 ARG	ID	DB *		dbp
 ARG	INT	u_int32_t	flags
@@ -408,6 +550,19 @@ ARG	INT	u_int32_t	flags
 RET	DBT	DBT *		key
 RET	DBT	DBT *		data
 END
+BEGIN	db_get_name	CODE
+ARG	ID	DB *		dbp
+ARET	STRING	const char *	filename
+ARET	STRING	const char *	dbname
+END
+BEGIN	db_get_open_flags	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	flags
+END
+BEGIN	db_get_h_ffactor	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	ffactor
+END
 BEGIN	db_h_ffactor	CODE
 ARG	ID	DB *		dbp
 ARG	INT	u_int32_t	ffactor
@@ -416,6 +571,10 @@ BEGIN	db_h_hash	NOFUNC
 ARG	ID	DB *		dbp
 FUNCPROT	u_int32_t(*)(DB *, const void *, u_int32_t)
 FUNCARG	u_int32_t (*func0) __P((DB *, const void *, u_int32_t))
+END
+BEGIN	db_get_h_nelem	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	nelem
 END
 BEGIN	db_h_nelem	CODE
 ARG	ID	DB *		dbp
@@ -430,6 +589,10 @@ ARG	INT	u_int32_t	flags
 RET	DBL	double		less
 RET	DBL	double		equal
 RET	DBL	double		greater
+END
+BEGIN	db_get_lorder	CODE
+ARG	ID	DB *		dbp
+ARET	INT	int		lorder
 END
 BEGIN	db_lorder	CODE
 ARG	ID	DB *		dbp
@@ -451,8 +614,11 @@ ARG	INT	u_int32_t	flags
 ARG	INT	int		mode
 RET	ID	long		db
 RET	INT	DBTYPE		type
-RET	INT	u_int32_t	dbflags
 RET	INT	int		lorder
+END
+BEGIN	db_get_pagesize	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	pagesize
 END
 BEGIN	db_pagesize	CODE
 ARG	ID	DB *		dbp
@@ -482,9 +648,17 @@ ARG	DBT	DBT *		data
 ARG	INT	u_int32_t	flags
 RET	DBT	DBT *		key
 END
+BEGIN	db_get_re_delim	CODE
+ARG	ID	DB *		dbp
+ARET	INT	int		delim
+END
 BEGIN	db_re_delim	CODE
 ARG	ID	DB *		dbp
 ARG	INT	int		delim
+END
+BEGIN	db_get_re_len	CODE
+ARG	ID	DB *		dbp
+ARET	INT	u_int32_t	len
 END
 BEGIN	db_re_len	CODE
 ARG	ID	DB *		dbp
@@ -493,6 +667,14 @@ END
 BEGIN	db_re_pad	CODE
 ARG	ID	DB *		dbp
 ARG	INT	int		pad
+END
+BEGIN	db_get_re_pad	CODE
+ARG	ID	DB *		dbp
+ARET	INT	int		pad
+END
+BEGIN	db_get_re_source	NOFUNC
+ARG	ID	DB *		dbp
+ARET	STRING	const char *	re_source
 END
 BEGIN	db_re_source	NOFUNC
 ARG	ID	DB *		dbp
@@ -513,6 +695,7 @@ ARG	INT	u_int32_t	flags
 END
 BEGIN	db_stat		RETCODE
 ARG	ID	DB *		dbp
+ARG	ID	DB_TXN *	txnp
 ARG	IGNORE	void *		sp
 ARG	INT	u_int32_t	flags
 RET	LIST	u_int32_t *	stats	INT
@@ -685,14 +868,10 @@ ARG	ID	DB_ENV *	dbenv
 ARG	IGNORE	DB_LOG_STAT **	statp
 ARG	INT	u_int32_t	flags
 END
+
 #
-# Mpool Subsystem
+# DB_MPOOL methods.
 #
-BEGIN	memp_fcreate	NOFUNC
-ARG	ID	DB_ENV *	dbenv
-ARG	IGNORE	DB_MPOOLFILE **	mpf
-ARG	IGNORE	u_int32_t	flags
-END
 BEGIN	memp_register	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	int		ftype
@@ -715,4 +894,101 @@ BEGIN	memp_trickle	NOFUNC
 ARG	ID	DB_ENV *	dbenv
 ARG	INT	int		pct
 ARG	IGNORE	int *		nwrotep
+END
+
+#
+# DB_MPOOLFILE methods.
+#
+BEGIN	memp_fget		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int32_t *	pgnoaddr
+ARG	IGNORE	u_int32_t	flags
+ARG	IGNORE	void *		addrp
+END
+BEGIN	memp_fopen		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	const char *	path
+ARG	IGNORE	u_int32_t	flags
+ARG	IGNORE	int		mode
+ARG	IGNORE	size_t		pagesize
+END
+BEGIN	memp_fput		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	void *		pgaddr
+ARG	IGNORE	u_int32_t	flags
+END
+BEGIN	memp_fset		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	void *		pgaddr
+ARG	IGNORE	u_int32_t	flags
+END
+BEGIN	memp_get_clear_len	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int32_t *	clear_lenp
+END
+BEGIN	memp_set_clear_len	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int32_t	clear_len
+END
+BEGIN	memp_get_fileid		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int8_t *	fileid
+END
+BEGIN	memp_set_fileid		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int8_t *	fileid
+END
+BEGIN	memp_get_flags		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int32_t *	flagsp
+END
+BEGIN	memp_set_flags		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int32_t	flags
+ARG	IGNORE	int		onoff
+END
+BEGIN	memp_get_ftype		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	int *		ftype
+END
+BEGIN	memp_set_ftype		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	int		ftype
+END
+BEGIN	memp_get_lsn_offset	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	int32_t *	lsn_offsetp
+END
+BEGIN	memp_set_lsn_offset	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	int32_t		lsn_offset
+END
+BEGIN	memp_get_maxsize	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int32_t *	gbytesp
+ARG	IGNORE	u_int32_t *	bytesp
+END
+BEGIN	memp_set_maxsize	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	u_int32_t	gbytes
+ARG	IGNORE	u_int32_t	bytes
+END
+BEGIN	memp_get_pgcookie	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	DBT *		pgcookie
+END
+BEGIN	memp_set_pgcookie	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	DBT *		pgcookie
+END
+BEGIN	memp_get_priority	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	DB_CACHE_PRIORITY *	priorityp
+END
+BEGIN	memp_set_priority	NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
+ARG	IGNORE	DB_CACHE_PRIORITY	priority
+END
+BEGIN	memp_fsync		NOFUNC
+ARG	ID	DB_MPOOLFILE *	dbmfp
 END

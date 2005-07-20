@@ -2,5 +2,5 @@ got data: data
 get using bad key: DB_NOTFOUND: No matching key/data pair found
 truncating data...
 truncate returns 1
-after trunctate get: DB_NOTFOUND: No matching key/data pair found
+after truncate get: DB_NOTFOUND: No matching key/data pair found
 finished test

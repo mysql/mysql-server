@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -38,13 +38,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: bt_delete.c,v 11.49 2004/02/27 12:38:28 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: bt_delete.c,v 11.44 2002/07/03 19:03:49 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -57,6 +55,7 @@ static const char revid[] = "$Id: bt_delete.c,v 11.44 2002/07/03 19:03:49 bostic
 #include "dbinc/db_shash.h"
 #include "dbinc/btree.h"
 #include "dbinc/lock.h"
+#include "dbinc/mp.h"
 
 /*
  * __bam_ditem --
@@ -161,7 +160,7 @@ __bam_ditem(dbc, h, indx)
 	/* Delete the item and mark the page dirty. */
 	if ((ret = __db_ditem(dbc, h, indx, nbytes)) != 0)
 		return (ret);
-	if ((ret = mpf->set(mpf, h, DB_MPOOL_DIRTY)) != 0)
+	if ((ret = __memp_fset(mpf, h, DB_MPOOL_DIRTY)) != 0)
 		return (ret);
 
 	return (0);
@@ -211,7 +210,7 @@ __bam_adjindx(dbc, h, indx, indx_copy, is_insert)
 			memmove(&inp[indx], &inp[indx + O_INDX],
 			    sizeof(db_indx_t) * (NUM_ENT(h) - indx));
 	}
-	if ((ret = mpf->set(mpf, h, DB_MPOOL_DIRTY)) != 0)
+	if ((ret = __memp_fset(mpf, h, DB_MPOOL_DIRTY)) != 0)
 		return (ret);
 
 	return (0);
@@ -260,9 +259,10 @@ __bam_dpages(dbc, stack_epg)
 	 */
 	ret = 0;
 	for (epg = cp->sp; epg < stack_epg; ++epg) {
-		if ((t_ret = mpf->put(mpf, epg->page, 0)) != 0 && ret == 0)
+		if ((t_ret = __memp_fput(mpf, epg->page, 0)) != 0 && ret == 0)
 			ret = t_ret;
-		(void)__TLPUT(dbc, epg->lock);
+		if ((t_ret = __TLPUT(dbc, epg->lock)) != 0 && ret == 0)
+			ret = t_ret;
 	}
 	if (ret != 0)
 		goto err;
@@ -276,7 +276,7 @@ __bam_dpages(dbc, stack_epg)
 	 * It will deadlock here.  Before we unlink the subtree, we relink the
 	 * leaf page chain.
 	 */
-	if ((ret = __db_relink(dbc, DB_REM_PAGE, cp->csp->page, NULL, 1)) != 0)
+	if ((ret = __bam_relink(dbc, cp->csp->page, NULL)) != 0)
 		goto err;
 
 	/*
@@ -295,9 +295,11 @@ __bam_dpages(dbc, stack_epg)
 	pgno = PGNO(epg->page);
 	nitems = NUM_ENT(epg->page);
 
-	if ((ret = mpf->put(mpf, epg->page, 0)) != 0)
+	ret = __memp_fput(mpf, epg->page, 0);
+	if ((t_ret = __TLPUT(dbc, epg->lock)) != 0 && ret == 0)
+		ret = t_ret;
+	if (ret != 0)
 		goto err_inc;
-	(void)__TLPUT(dbc, epg->lock);
 
 	/* Free the rest of the pages in the stack. */
 	while (++epg <= cp->csp) {
@@ -314,18 +316,19 @@ __bam_dpages(dbc, stack_epg)
 				goto err;
 		}
 
-		if ((ret = __db_free(dbc, epg->page)) != 0) {
-			epg->page = NULL;
+		ret = __db_free(dbc, epg->page);
+		epg->page = NULL;
+		if ((t_ret = __TLPUT(dbc, epg->lock)) != 0 && ret == 0)
+			ret = t_ret;
+		if (ret != 0)
 			goto err_inc;
-		}
-		(void)__TLPUT(dbc, epg->lock);
 	}
 
 	if (0) {
 err_inc:	++epg;
 err:		for (; epg <= cp->csp; ++epg) {
 			if (epg->page != NULL)
-				(void)mpf->put(mpf, epg->page, 0);
+				(void)__memp_fput(mpf, epg->page, 0);
 			(void)__TLPUT(dbc, epg->lock);
 		}
 		BT_STK_CLR(cp);
@@ -354,7 +357,7 @@ err:		for (; epg <= cp->csp; ++epg) {
 		if ((ret =
 		    __db_lget(dbc, 0, pgno, DB_LOCK_WRITE, 0, &p_lock)) != 0)
 			goto stop;
-		if ((ret = mpf->get(mpf, &pgno, 0, &parent)) != 0)
+		if ((ret = __memp_fget(mpf, &pgno, 0, &parent)) != 0)
 			goto stop;
 
 		if (NUM_ENT(parent) != 1)
@@ -384,7 +387,7 @@ err:		for (; epg <= cp->csp; ++epg) {
 		if ((ret =
 		    __db_lget(dbc, 0, pgno, DB_LOCK_WRITE, 0, &c_lock)) != 0)
 			goto stop;
-		if ((ret = mpf->get(mpf, &pgno, 0, &child)) != 0)
+		if ((ret = __memp_fget(mpf, &pgno, 0, &child)) != 0)
 			goto stop;
 
 		/* Log the change. */
@@ -423,9 +426,9 @@ err:		for (; epg <= cp->csp; ++epg) {
 			RE_NREC_SET(parent, rcnt);
 
 		/* Mark the pages dirty. */
-		if ((ret = mpf->set(mpf, parent, DB_MPOOL_DIRTY)) != 0)
+		if ((ret = __memp_fset(mpf, parent, DB_MPOOL_DIRTY)) != 0)
 			goto stop;
-		if ((ret = mpf->set(mpf, child, DB_MPOOL_DIRTY)) != 0)
+		if ((ret = __memp_fset(mpf, child, DB_MPOOL_DIRTY)) != 0)
 			goto stop;
 
 		/* Adjust the cursors. */
@@ -446,15 +449,125 @@ err:		for (; epg <= cp->csp; ++epg) {
 		if (0) {
 stop:			done = 1;
 		}
-		(void)__TLPUT(dbc, p_lock);
-		if (parent != NULL &&
-		    (t_ret = mpf->put(mpf, parent, 0)) != 0 && ret == 0)
+		if ((t_ret = __TLPUT(dbc, p_lock)) != 0 && ret == 0)
 			ret = t_ret;
-		(void)__TLPUT(dbc, c_lock);
+		if (parent != NULL &&
+		    (t_ret = __memp_fput(mpf, parent, 0)) != 0 && ret == 0)
+			ret = t_ret;
+		if ((t_ret = __TLPUT(dbc, c_lock)) != 0 && ret == 0)
+			ret = t_ret;
 		if (child != NULL &&
-		    (t_ret = mpf->put(mpf, child, 0)) != 0 && ret == 0)
+		    (t_ret = __memp_fput(mpf, child, 0)) != 0 && ret == 0)
 			ret = t_ret;
 	}
 
+	return (ret);
+}
+
+/*
+ * __bam_relink --
+ *	Relink around a deleted page.
+ *
+ * PUBLIC: int __bam_relink __P((DBC *, PAGE *, PAGE **));
+ */
+int
+__bam_relink(dbc, pagep, new_next)
+	DBC *dbc;
+	PAGE *pagep, **new_next;
+{
+	DB *dbp;
+	PAGE *np, *pp;
+	DB_LOCK npl, ppl;
+	DB_LSN *nlsnp, *plsnp, ret_lsn;
+	DB_MPOOLFILE *mpf;
+	int ret, t_ret;
+
+	dbp = dbc->dbp;
+	np = pp = NULL;
+	LOCK_INIT(npl);
+	LOCK_INIT(ppl);
+	nlsnp = plsnp = NULL;
+	mpf = dbp->mpf;
+	ret = 0;
+
+	/*
+	 * Retrieve and lock the one/two pages.  For a remove, we may need
+	 * two pages (the before and after).  For an add, we only need one
+	 * because, the split took care of the prev.
+	 */
+	if (pagep->next_pgno != PGNO_INVALID) {
+		if ((ret = __db_lget(dbc,
+		    0, pagep->next_pgno, DB_LOCK_WRITE, 0, &npl)) != 0)
+			goto err;
+		if ((ret = __memp_fget(mpf, &pagep->next_pgno, 0, &np)) != 0) {
+			ret = __db_pgerr(dbp, pagep->next_pgno, ret);
+			goto err;
+		}
+		nlsnp = &np->lsn;
+	}
+	if (pagep->prev_pgno != PGNO_INVALID) {
+		if ((ret = __db_lget(dbc,
+		    0, pagep->prev_pgno, DB_LOCK_WRITE, 0, &ppl)) != 0)
+			goto err;
+		if ((ret = __memp_fget(mpf, &pagep->prev_pgno, 0, &pp)) != 0) {
+			ret = __db_pgerr(dbp, pagep->prev_pgno, ret);
+			goto err;
+		}
+		plsnp = &pp->lsn;
+	}
+
+	/* Log the change. */
+	if (DBC_LOGGING(dbc)) {
+		if ((ret = __bam_relink_log(dbp, dbc->txn, &ret_lsn, 0,
+		    pagep->pgno, &pagep->lsn, pagep->prev_pgno, plsnp,
+		    pagep->next_pgno, nlsnp)) != 0)
+			goto err;
+	} else
+		LSN_NOT_LOGGED(ret_lsn);
+	if (np != NULL)
+		np->lsn = ret_lsn;
+	if (pp != NULL)
+		pp->lsn = ret_lsn;
+	pagep->lsn = ret_lsn;
+
+	/*
+	 * Modify and release the two pages.
+	 *
+	 * !!!
+	 * The parameter new_next gets set to the page following the page we
+	 * are removing.  If there is no following page, then new_next gets
+	 * set to NULL.
+	 */
+	if (np != NULL) {
+		np->prev_pgno = pagep->prev_pgno;
+		if (new_next == NULL)
+			ret = __memp_fput(mpf, np, DB_MPOOL_DIRTY);
+		else {
+			*new_next = np;
+			ret = __memp_fset(mpf, np, DB_MPOOL_DIRTY);
+		}
+		if ((t_ret = __TLPUT(dbc, npl)) != 0 && ret == 0)
+			ret = t_ret;
+		if (ret != 0)
+			goto err;
+	} else if (new_next != NULL)
+		*new_next = NULL;
+
+	if (pp != NULL) {
+		pp->next_pgno = pagep->next_pgno;
+		ret = __memp_fput(mpf, pp, DB_MPOOL_DIRTY);
+		if ((t_ret = __TLPUT(dbc, ppl)) != 0 && ret == 0)
+			ret = t_ret;
+		if (ret != 0)
+			goto err;
+	}
+	return (0);
+
+err:	if (np != NULL)
+		(void)__memp_fput(mpf, np, 0);
+	(void)__TLPUT(dbc, npl);
+	if (pp != NULL)
+		(void)__memp_fput(mpf, pp, 0);
+	(void)__TLPUT(dbc, ppl);
 	return (ret);
 }

@@ -1,17 +1,15 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: btree.src,v 10.35 2002/04/17 19:02:56 krinsky Exp $
+ * $Id: btree.src,v 10.42 2004/06/17 17:35:12 bostic Exp $
  */
 
 PREFIX	__bam
 DBPRIVATE
 
-INCLUDE	#include "db_config.h"
-INCLUDE
 INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
@@ -26,13 +24,8 @@ INCLUDE #include "dbinc/db_dispatch.h"
 INCLUDE #include "dbinc/db_am.h"
 INCLUDE #include "dbinc/btree.h"
 INCLUDE #include "dbinc/log.h"
-INCLUDE #include "dbinc/rep.h"
 INCLUDE #include "dbinc/txn.h"
 INCLUDE
-
-/*
- * NOTE: pg_alloc and pg_free have been moved to db.src, where they belong.
- */
 
 /*
  * BTREE-split: used to log a page split.
@@ -50,14 +43,14 @@ INCLUDE
  */
 BEGIN split		62
 DB	fileid		int32_t		ld
-WRLOCK	left		db_pgno_t	lu
+ARG	left		db_pgno_t	lu
 POINTER	llsn		DB_LSN *	lu
-WRLOCK	right		db_pgno_t	lu
+ARG	right		db_pgno_t	lu
 POINTER	rlsn		DB_LSN *	lu
 ARG	indx		u_int32_t	lu
 ARG	npgno		db_pgno_t	lu
 POINTER	nlsn		DB_LSN *	lu
-WRLOCKNZ root_pgno	db_pgno_t	lu
+ARG	root_pgno	db_pgno_t	lu
 PGDBT	pg		DBT		s
 ARG	opflags		u_int32_t	lu
 END
@@ -74,9 +67,9 @@ END
  */
 BEGIN rsplit		63
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 PGDBT	pgdbt		DBT		s
-WRLOCK	root_pgno	db_pgno_t	lu
+ARG	root_pgno	db_pgno_t	lu
 ARG	nrec		db_pgno_t	lu
 DBT	rootent		DBT		s
 POINTER rootlsn		DB_LSN *	lu
@@ -93,7 +86,7 @@ END
  */
 BEGIN adj		55
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 POINTER	lsn		DB_LSN *	lu
 ARG	indx		u_int32_t	lu
 ARG	indx_copy	u_int32_t	lu
@@ -111,7 +104,7 @@ END
  */
 BEGIN cadjust		56
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 POINTER	lsn		DB_LSN *	lu
 ARG	indx		u_int32_t	lu
 ARG	adjust		int32_t		ld
@@ -127,7 +120,7 @@ END
  */
 BEGIN cdel		57
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 POINTER	lsn		DB_LSN *	lu
 ARG	indx		u_int32_t	lu
 END
@@ -137,13 +130,16 @@ END
  *
  * pgno:	the page modified.
  * lsn:		the page's original lsn.
+ * indx:	the index to be replaced.
+ * isdeleted:	set if the record was previously deleted.
  * orig:	the original data.
- * new:		the replacement data.
- * duplicate:	the prefix of the replacement that matches the original.
+ * repl:	the replacement data.
+ * prefix:	the prefix of the replacement that matches the original.
+ * suffix:	the suffix of the replacement that matches the original.
  */
 BEGIN repl		58
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 POINTER	lsn		DB_LSN *	lu
 ARG	indx		u_int32_t	lu
 ARG	isdeleted	u_int32_t	lu
@@ -158,8 +154,8 @@ END
  */
 BEGIN root		59
 DB	fileid		int32_t		ld
-WRLOCK	meta_pgno	db_pgno_t	lu
-WRLOCK	root_pgno	db_pgno_t	lu
+ARG	meta_pgno	db_pgno_t	lu
+ARG	root_pgno	db_pgno_t	lu
 POINTER	meta_lsn	DB_LSN *	lu
 END
 
@@ -205,4 +201,25 @@ ARG	root		db_pgno_t	ld
 ARG	recno		db_recno_t	ld
 /* Order number of the adjustment. */
 ARG	order		u_int32_t	ld
+END
+
+/*
+ * BTREE-relink -- Handles relinking around a deleted leaf page.
+ *
+ */
+BEGIN relink		147
+/* Fileid of db affected. */
+DB	fileid		int32_t		ld
+/* The page being changed. */
+ARG	pgno		db_pgno_t	lu
+/* The page's original lsn. */
+POINTER	lsn		DB_LSN *	lu
+/* The previous page. */
+ARG	prev		db_pgno_t	lu
+/* The previous page's original lsn. */
+POINTER	lsn_prev	DB_LSN *	lu
+/* The next page. */
+ARG	next		db_pgno_t	lu
+/* The previous page's original lsn. */
+POINTER	lsn_next	DB_LSN *	lu
 END

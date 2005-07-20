@@ -1,16 +1,24 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: log002.tcl,v 11.28 2002/04/29 20:07:54 sue Exp $
+# $Id: log002.tcl,v 11.33 2004/09/22 18:01:05 bostic Exp $
 #
-
 # TEST	log002
 # TEST	Tests multiple logs
 # TEST		Log truncation
 # TEST		LSN comparison and file functionality.
 proc log002 { } {
+	global rand_init
+	error_check_good set_random_seed [berkdb srand $rand_init] 0
+
+	foreach inmem { 1 0 } {
+		log002_body $inmem
+	}
+}
+
+proc log002_body { inmem } {
 	source ./include.tcl
 
 	puts "Log002: Multiple log test w/trunc, file, compare functionality"
@@ -18,11 +26,20 @@ proc log002 { } {
 	env_cleanup $testdir
 
 	set max [expr 1024 * 128]
-	set env [berkdb_env -create -home $testdir -mode 0644 \
-	    -log -log_max $max]
+
+	set logargs ""
+	if { $inmem == 0 } {
+		puts "Log002: Using on-disk logging."
+	} else {
+		puts "Log002: Using in-memory logging."
+		set lbuf [expr 8 * [expr 1024 * 1024]]
+		set logargs "-log_inmemory -log_buffer $lbuf"
+	}
+	set env [eval {berkdb_env} -create -home $testdir -log \
+	    -mode 0644 $logargs -log_max $max]
 	error_check_good envopen [is_valid_env $env] TRUE
 
-	# We'll record every hundred'th record for later use
+	# We'll record every hundredth record for later use
 	set info_list {}
 
 	puts "\tLog002.a: Writing log records"
@@ -54,17 +71,17 @@ proc log002 { } {
 	}
 
 	puts "\tLog002.c: Checking log_file"
-	set flist [glob $testdir/log*]
-	foreach p $info_list {
+	if { $inmem == 0 } {
+		set flist [glob $testdir/log*]
+		foreach p $info_list {
+			set lsn [lindex $p 0]
+			set f [$env log_file $lsn]
 
-		set lsn [lindex $p 0]
-		set f [$env log_file $lsn]
-
-		# Change all backslash separators on Windows to forward slash
-		# separators, which is what the rest of the test suite expects.
-		regsub -all {\\} $f {/} f
-
-		error_check_bad log_file:$f [lsearch $flist $f] -1
+			# Change backslash separators on Windows to forward
+			# slashes, as the rest of the test suite expects.
+			regsub -all {\\} $f {/} f
+			error_check_bad log_file:$f [lsearch $flist $f] -1
+		}
 	}
 
 	puts "\tLog002.d: Verifying records"

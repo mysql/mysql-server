@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_seek.c,v 11.22 2004/09/17 22:00:32 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_seek.c,v 11.17 2002/08/06 04:56:20 bostic Exp $";
-#endif /* not lint */
 
 #include "db_int.h"
 
@@ -21,7 +19,7 @@ int
 __os_seek(dbenv, fhp, pgsize, pageno, relative, isrewind, db_whence)
 	DB_ENV *dbenv;
 	DB_FH *fhp;
-	size_t pgsize;
+	u_int32_t pgsize;
 	db_pgno_t pageno;
 	u_int32_t relative;
 	int isrewind;
@@ -34,9 +32,14 @@ __os_seek(dbenv, fhp, pgsize, pageno, relative, isrewind, db_whence)
 			unsigned long low;
 			long high;
 		};
-	} offset;
+	} offbytes;
+	off_t offset;
 	int ret, whence;
 	DWORD from;
+
+	offset = (off_t)pgsize * pageno + relative;
+	if (isrewind)
+		offset = -offset;
 
 	if (DB_GLOBAL(j_seek) != NULL) {
 		switch (db_whence) {
@@ -53,8 +56,7 @@ __os_seek(dbenv, fhp, pgsize, pageno, relative, isrewind, db_whence)
 			return (EINVAL);
 		}
 
-		ret = DB_GLOBAL(j_seek)(fhp->fd, pgsize, pageno,
-		    relative, isrewind, whence);
+		ret = DB_GLOBAL(j_seek)(fhp->fd, offset, whence);
 	} else {
 		switch (db_whence) {
 		case DB_OS_SEEK_CUR:
@@ -70,19 +72,21 @@ __os_seek(dbenv, fhp, pgsize, pageno, relative, isrewind, db_whence)
 			return (EINVAL);
 		}
 
-		offset.bigint = (__int64)pgsize * pageno + relative;
-		if (isrewind)
-			offset.bigint = -offset.bigint;
-
+		offbytes.bigint = offset;
 		ret = (SetFilePointer(fhp->handle,
-		    offset.low, &offset.high, from) == (DWORD) - 1) ?
-		    __os_win32_errno() : 0;
+		    offbytes.low, &offbytes.high, from) == (DWORD) - 1) ?
+		    __os_get_errno() : 0;
 	}
 
-	if (ret != 0)
+	if (ret == 0) {
+		fhp->pgsize = pgsize;
+		fhp->pgno = pageno;
+		fhp->offset = relative;
+	} else {
 		__db_err(dbenv, "seek: %lu %d %d: %s",
 		    (u_long)pgsize * pageno + relative,
 		    isrewind, db_whence, strerror(ret));
+	}
 
 	return (ret);
 }

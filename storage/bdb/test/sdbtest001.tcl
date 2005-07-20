@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdbtest001.tcl,v 11.19 2002/05/22 15:42:42 sue Exp $
+# $Id: sdbtest001.tcl,v 11.21 2004/01/28 03:36:29 bostic Exp $
 #
 # TEST	sdbtest001
 # TEST	Tests multiple access methods in one subdb

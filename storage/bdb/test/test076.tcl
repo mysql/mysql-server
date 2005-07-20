@@ -1,13 +1,14 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test076.tcl,v 1.18 2002/07/08 20:16:31 sue Exp $
+# $Id: test076.tcl,v 1.22 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test076
 # TEST	Test creation of many small databases in a single environment. [#1528].
-proc test076 { method { ndbs 1000  } { tnum 76 } args } {
+proc test076 { method { ndbs 1000  } { tnum "076" } args } {
+	global is_qnx_test
 	source ./include.tcl
 
 	set args [convert_args $method $args]
@@ -44,7 +45,10 @@ proc test076 { method { ndbs 1000  } { tnum 76 } args } {
 		}
 		set testdir [get_home $env]
 	}
-	puts -nonewline "Test0$tnum $method ($args): "
+	if { $is_qnx_test && $ndbs > 100 } {
+		set ndbs 100
+	}
+	puts -nonewline "Test$tnum $method ($args): "
 	puts -nonewline "Create $ndbs"
 	puts " small databases in one env."
 
@@ -52,7 +56,7 @@ proc test076 { method { ndbs 1000  } { tnum 76 } args } {
 	set txn ""
 
 	for { set i 1 } { $i <= $ndbs } { incr i } {
-		set testfile test0$tnum.$i.db
+		set testfile test$tnum.$i.db
 
 		set db [eval {berkdb_open -create -mode 0644}\
 		    $args $omethod $testfile]
@@ -76,5 +80,5 @@ proc test076 { method { ndbs 1000  } { tnum 76 } args } {
 		error_check_good env_close [$env close] 0
 	}
 
-	puts "\tTest0$tnum passed."
+	puts "\tTest$tnum passed."
 }

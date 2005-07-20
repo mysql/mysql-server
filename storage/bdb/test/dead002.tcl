@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: dead002.tcl,v 11.23 2002/09/05 17:23:05 sandstro Exp $
+# $Id: dead002.tcl,v 11.30 2004/07/07 17:05:55 carol Exp $
 #
 # TEST	dead002
 # TEST	Same test as dead001, but use "detect on every collision" instead
@@ -12,7 +12,7 @@ proc dead002 { { procs "2 4 10" } {tests "ring clump" } \
     {timeout 0} {tnum 002} } {
 	source ./include.tcl
 
-	puts "Dead$tnum: Deadlock detector tests"
+	puts "Dead$tnum: Deadlock detector tests (detect on every collision)"
 
 	env_cleanup $testdir
 
@@ -24,7 +24,7 @@ proc dead002 { { procs "2 4 10" } {tests "ring clump" } \
 	}
 	set env [berkdb_env \
 	    -create -mode 0644 -home $testdir \
-	    -lock -txn_timeout $timeout -lock_detect $lmode]
+	    -lock -lock_timeout $timeout -lock_detect $lmode]
 	error_check_good lock_env:open [is_valid_env $env] TRUE
 
 	foreach t $tests {
@@ -44,6 +44,11 @@ proc dead002 { { procs "2 4 10" } {tests "ring clump" } \
 					ddscript.tcl $testdir/dead$tnum.log.$i \
 					$testdir $t $locker $i $n &]
 				lappend pidlist $p
+				# If we're running with timeouts, pause so that
+				# locks will have a chance to time out.
+				if { $timeout != 0 } {
+					tclsleep 2
+				}
 			}
 			watch_procs $pidlist 5
 
@@ -62,6 +67,8 @@ proc dead002 { { procs "2 4 10" } {tests "ring clump" } \
 				}
 				close $did
 			}
+
+			puts "\tDead$tnum: dead check ..."
 			dead_check $t $n $timeout $dead $clean $other
 		}
 	}

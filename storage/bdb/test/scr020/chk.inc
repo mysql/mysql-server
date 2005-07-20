@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: chk.inc,v 1.1 2002/02/10 17:14:33 bostic Exp $
+# $Id: chk.inc,v 1.2 2003/08/01 16:49:29 bostic Exp $
 #
 # Check for inclusion of db_config.h after "const" or other includes.
 
@@ -16,12 +16,13 @@ t1=__1
 t2=__2
 
 (cd $d && find . -name '*.[chys]' -o -name '*.cpp' |
-    xargs egrep -l '#include.*db_config.h') > $t1
+    xargs egrep -l '#include.*db_config.h') | tee /tmp/o |
+    sed -e '/dbdemo.c$/d' \
+        -e '/db_java_wrap.c$/d' > $t1
 
-:> $t2
-for i in `cat $t1`; do
-	egrep -w 'db_config.h|const' /dev/null $d/$i | head -1 >> $t2
-done
+(for i in `cat $t1`; do
+	egrep -w 'db_config.h|const' /dev/null $d/$i | head -1
+done) > $t2
 
 if egrep const $t2 > /dev/null; then
 	echo 'FAIL: found const before include of db_config.h'

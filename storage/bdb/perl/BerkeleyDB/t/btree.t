@@ -104,7 +104,7 @@ umask(0) ;
     ok 27, my $lexD = new LexDir($home) ;
 
     ok 28, my $env = new BerkeleyDB::Env -Flags => DB_CREATE|DB_INIT_MPOOL,
-    					 -Home => $home ;
+    					 @StdErrFile, -Home => $home ;
     ok 29, my $db = new BerkeleyDB::Btree -Filename => $Dfile, 
 				    -Env      => $env,
 				    -Flags    => DB_CREATE ;
@@ -127,6 +127,7 @@ umask(0) ;
     my ($k, $v) ;
     ok 33, my $db = new BerkeleyDB::Btree -Filename => $Dfile, 
 				     -Flags    => DB_CREATE ;
+print "[$db] [$!] $BerkeleyDB::Error\n" ;				     
 
     # create some data
     my %data =  (
@@ -631,7 +632,7 @@ umask(0) ;
 
     my $home = "./fred" ;
     ok 177, my $lexD = new LexDir($home) ;
-    ok 178, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 178, my $env = new BerkeleyDB::Env -Home => $home, @StdErrFile,
 				     -Flags => DB_CREATE|DB_INIT_TXN|
 					  	DB_INIT_MPOOL|DB_INIT_LOCK ;
     ok 179, my $txn = $env->txn_begin() ;
@@ -783,7 +784,7 @@ umask(0) ;
 
    require Exporter ;
    use BerkeleyDB;
-   @ISA=qw(BerkeleyDB::Btree);
+   @ISA=qw(BerkeleyDB BerkeleyDB::Btree );
    @EXPORT = @BerkeleyDB::EXPORT ;
 
    sub db_put { 

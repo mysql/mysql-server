@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: ddscript.tcl,v 11.12 2002/02/20 16:35:18 sandstro Exp $
+# $Id: ddscript.tcl,v 11.15 2004/03/18 20:58:14 carol Exp $
 #
 # Deadlock detector script tester.
 # Usage: ddscript dir test lockerid objid numprocs
@@ -27,7 +27,7 @@ if { $argc != 5 } {
 
 # Initialize arguments
 set dir [lindex $argv 0]
-set tnum [ lindex $argv 1 ]
+set test [ lindex $argv 1 ]
 set lockerid [ lindex $argv 2 ]
 set objid [ lindex $argv 3 ]
 set numprocs [ lindex $argv 4 ]
@@ -36,7 +36,7 @@ set myenv [berkdb_env -lock -home $dir -create -mode 0644 ]
 error_check_bad lock_open $myenv NULL
 error_check_good lock_open [is_substr $myenv "env"] 1
 
-puts [eval $tnum $myenv $lockerid $objid $numprocs]
+puts [eval $test $myenv $lockerid $objid $numprocs]
 
 error_check_good lock_id_free [$myenv lock_id_free $lockerid] 0
 error_check_good envclose [$myenv close] 0

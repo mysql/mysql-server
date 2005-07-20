@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test092.tcl,v 11.13 2002/02/22 15:26:28 sandstro Exp $
+# $Id: test092.tcl,v 11.18 2004/09/22 18:01:06 bostic Exp $
 #
 # TEST	test092
 # TEST	Test of DB_DIRTY_READ [#3395]
@@ -109,10 +109,16 @@ proc test092 { method {nentries 1000} args } {
 	set dbcdr1 [$dbdr cursor -dirty]
 	error_check_good dbcurs:dbdr1 [is_valid_cursor $dbcdr1 $dbdr] TRUE
 
+	# Test that $db stat can use -dirty flag.
+	puts "\tTest092.c: Smoke test for db_stat -txn -dirty"
+	if { [catch {set statret [$dbcl stat -txn $t -dirty]} res] } {
+		puts "FAIL: db_stat -txn -dirty returned $res"
+	}
+
 	#
 	# Now that we have all of our handles, change all the data in there
 	# to be the key and data the same, but data is capitalized.
-	puts "\tTest092.c: put/get data within a txn"
+	puts "\tTest092.d: put/get data within a txn"
 	set gflags ""
 	if { [is_record_based $method] == 1 } {
 		set checkfunc test092dr_recno.check
@@ -156,13 +162,13 @@ proc test092 { method {nentries 1000} args } {
 	}
 	close $did
 
-	puts "\tTest092.d: Check dirty data using dirty txn and clean db/cursor"
+	puts "\tTest092.e: Check dirty data using dirty txn and clean db/cursor"
 	dump_file_walk $dbccl $t1 $checkfunc "-first" "-next"
 
-	puts "\tTest092.e: Check dirty data using -dirty cget flag"
+	puts "\tTest092.f: Check dirty data using -dirty cget flag"
 	dump_file_walk $dbcdr0 $t2 $checkfunc "-first" "-next" "-dirty"
 
-	puts "\tTest092.f: Check dirty data using -dirty cursor"
+	puts "\tTest092.g: Check dirty data using -dirty cursor"
 	dump_file_walk $dbcdr1 $t3 $checkfunc "-first" "-next"
 
 	#
@@ -176,7 +182,7 @@ proc test092 { method {nentries 1000} args } {
 	#
 	# Now abort the modifying transaction and rerun the data checks.
 	#
-	puts "\tTest092.g: Aborting the write-txn"
+	puts "\tTest092.h: Aborting the write-txn"
 	error_check_good txnabort [$t abort] 0
 
 	set dbccl [$dbcl cursor -txn $tdr]
@@ -193,13 +199,13 @@ proc test092 { method {nentries 1000} args } {
 	} else {
 		set checkfunc test092cl.check
 	}
-	puts "\tTest092.h: Check clean data using -dirty cget flag"
+	puts "\tTest092.i: Check clean data using -dirty cget flag"
 	dump_file_walk $dbccl $t1 $checkfunc "-first" "-next"
 
-	puts "\tTest092.i: Check clean data using -dirty cget flag"
+	puts "\tTest092.j: Check clean data using -dirty cget flag"
 	dump_file_walk $dbcdr0 $t2 $checkfunc "-first" "-next" "-dirty"
 
-	puts "\tTest092.j: Check clean data using -dirty cursor"
+	puts "\tTest092.k: Check clean data using -dirty cursor"
 	dump_file_walk $dbcdr1 $t3 $checkfunc "-first" "-next"
 
 	# Clean up our handles

@@ -1,11 +1,10 @@
 #!/bin/sh -
-#	$Id: s_win32_dsp,v 1.8 2002/03/26 23:37:55 bostic Exp $
+#	$Id: s_win32_dsp,v 1.12 2004/08/20 15:01:06 mjc Exp $
 #
 # Build Windows/32 .dsp files.
 
-. ./RELEASE
+. RELEASE
 
-BUILDDIR=../build_win32
 SRCFILES=srcfiles.in
 
 create_dsp()
@@ -27,7 +26,7 @@ create_dsp()
         # forward slash, but we need that when feeding that to the
         # later sed command.
         set - `echo $srcpath | sed -e 's;\(.*\)/;../\\1 ;' \
-            -e 's;../build_win32;.;' \
+            -e "s;$BUILDDIR;.;" \
             -e 's;/;\\\\\\\\;g'`
 	srcdir="$1"
 	srcfile="$2"
@@ -35,9 +34,7 @@ create_dsp()
             -e "s/@srcfile@/$srcfile/g" \
             < $srctemplate >> $dspoutput.insert
     done
-    # We need exactly one space after the 'r' modifier
-    # See 5.9 in http://www.student.northpark.edu/pemente/sed/sedfaq.txt
-    sed -e "/@SOURCE_FILES@/r $dspoutput.insert" \
+    sed -e "/@SOURCE_FILES@/r$dspoutput.insert" \
         -e "/@SOURCE_FILES@/d" \
         -e "s/@project_name@/$projname/g" \
         -e "s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/g" \
@@ -70,40 +67,52 @@ sed -e "s/#.*$//" \
 MODULES="`sed -e 's/^[^ ]* //' < $TMPA \
     | tr ' ' '\012' | sort | uniq`"
 
-for module in $MODULES
+for BUILDDIR in ../build_win32 ../build_win64
 do
-    case "$module" in
-    dynamic )
-        create_dsp db_dll " $module " $TMPA \
-		$BUILDDIR/dynamic_dsp.src $BUILDDIR/srcfile_dsp.src
-        ;;
-    java )
-        create_dsp db_java " $module " $TMPA \
-		$BUILDDIR/java_dsp.src $BUILDDIR/srcfile_dsp.src
-        ;;
-    tcl )
-        create_dsp db_tcl " $module " $TMPA \
-		$BUILDDIR/tcl_dsp.src $BUILDDIR/srcfile_dsp.src
-        ;;
-    testutil )
-        create_dsp db_test " $module " $TMPA \
-		$BUILDDIR/db_test.src $BUILDDIR/srcfile_dsp.src
-        ;;
-    static )
-        create_dsp db_static " $module " $TMPA \
-		$BUILDDIR/static_dsp.src $BUILDDIR/srcfile_dsp.src
-        ;;
-    app=* )
-	appname=`echo $module | sed -e 's/^app=//'`
-        create_dsp $appname " $module " $TMPA \
-		$BUILDDIR/app_dsp.src $BUILDDIR/srcfile_dsp.src
-        ;;
-    vx )
-	;;
-    * )
-        echo "s_win32_dsp: module name $module in $SRCFILES is unknown type"
-        ;;
-    esac
+    for module in $MODULES
+    do
+        case "$module" in
+        dynamic )
+            create_dsp db_dll " $module " $TMPA \
+                    $BUILDDIR/dynamic_dsp.src $BUILDDIR/srcfile_dsp.src
+            ;;
+        small )
+            create_dsp db_small " $module " $TMPA \
+                    $BUILDDIR/small_dsp.src $BUILDDIR/srcfile_dsp.src
+            ;;
+        static )
+            create_dsp db_static " $module " $TMPA \
+                    $BUILDDIR/static_dsp.src $BUILDDIR/srcfile_dsp.src
+            ;;
+        java )
+            create_dsp db_java " $module " $TMPA \
+                    $BUILDDIR/java_dsp.src $BUILDDIR/srcfile_dsp.src
+            ;;
+        tcl )
+            create_dsp db_tcl " $module " $TMPA \
+                    $BUILDDIR/tcl_dsp.src $BUILDDIR/srcfile_dsp.src
+            ;;
+        testutil )
+            create_dsp db_test " $module " $TMPA \
+                    $BUILDDIR/db_test.src $BUILDDIR/srcfile_dsp.src
+            ;;
+        app=* )
+            appname=`echo $module | sed -e 's/^app=//'`
+            if [ -f $BUILDDIR/$appname.src ] ; then
+                    srcname=$BUILDDIR/$appname.src
+            else
+                    srcname=$BUILDDIR/app_dsp.src
+            fi
+            create_dsp $appname " $module " $TMPA \
+                    $srcname $BUILDDIR/srcfile_dsp.src
+            ;;
+        vx|vxsmall )
+            ;;
+        * )
+            echo "s_win32_dsp: module name $module in $SRCFILES is unknown type"
+            ;;
+        esac
+    done
 done
 
 rm -f $TMPA

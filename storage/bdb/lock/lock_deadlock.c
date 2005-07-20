@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: lock_deadlock.c,v 11.86 2004/10/15 16:59:42 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: lock_deadlock.c,v 11.54 2002/08/06 05:05:21 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -20,10 +18,10 @@ static const char revid[] = "$Id: lock_deadlock.c,v 11.54 2002/08/06 05:05:21 bo
 #include "db_int.h"
 #include "dbinc/db_shash.h"
 #include "dbinc/lock.h"
+#include "dbinc/log.h"
 #include "dbinc/txn.h"
-#include "dbinc/rep.h"
 
-#define	ISSET_MAP(M, N)	((M)[(N) / 32] & (1 << (N) % 32))
+#define	ISSET_MAP(M, N)	((M)[(N) / 32] & (1 << ((N) % 32)))
 
 #define	CLEAR_MAP(M, N) {						\
 	u_int32_t __i;							\
@@ -44,19 +42,21 @@ static const char revid[] = "$Id: lock_deadlock.c,v 11.54 2002/08/06 05:05:21 bo
 typedef struct {
 	int		valid;
 	int		self_wait;
+	int		in_abort;
 	u_int32_t	count;
 	u_int32_t	id;
-	u_int32_t	last_lock;
+	roff_t		last_lock;
+	roff_t		last_obj;
 	u_int32_t	last_locker_id;
 	db_pgno_t	pgno;
 } locker_info;
 
-static int  __dd_abort __P((DB_ENV *, locker_info *));
-static int  __dd_build __P((DB_ENV *,
+static int __dd_abort __P((DB_ENV *, locker_info *));
+static int __dd_build __P((DB_ENV *,
 	    u_int32_t, u_int32_t **, u_int32_t *, u_int32_t *, locker_info **));
-static int  __dd_find __P((DB_ENV *,
+static int __dd_find __P((DB_ENV *,
 	    u_int32_t *, locker_info *, u_int32_t, u_int32_t, u_int32_t ***));
-static int  __dd_isolder __P((u_int32_t, u_int32_t, u_int32_t, u_int32_t));
+static int __dd_isolder __P((u_int32_t, u_int32_t, u_int32_t, u_int32_t));
 static int __dd_verify __P((locker_info *, u_int32_t *, u_int32_t *,
 	    u_int32_t *, u_int32_t, u_int32_t, u_int32_t));
 
@@ -66,24 +66,18 @@ static void __dd_debug
 #endif
 
 /*
- * lock_detect --
+ * __lock_detect_pp --
+ *	DB_ENV->lock_detect pre/post processing.
  *
- * PUBLIC: int __lock_detect __P((DB_ENV *, u_int32_t, u_int32_t, int *));
+ * PUBLIC: int __lock_detect_pp __P((DB_ENV *, u_int32_t, u_int32_t, int *));
  */
 int
-__lock_detect(dbenv, flags, atype, abortp)
+__lock_detect_pp(dbenv, flags, atype, abortp)
 	DB_ENV *dbenv;
 	u_int32_t flags, atype;
 	int *abortp;
 {
-	DB_LOCKREGION *region;
-	DB_LOCKTAB *lt;
-	DB_TXNMGR *tmgr;
-	locker_info *idmap;
-	u_int32_t *bitmap, *copymap, **deadp, **free_me, *tmpmap;
-	u_int32_t i, keeper, killid, limit, nalloc, nlockers;
-	u_int32_t lock_max, txn_max;
-	int ret;
+	int ret, rep_check;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
@@ -96,6 +90,7 @@ __lock_detect(dbenv, flags, atype, abortp)
 	case DB_LOCK_DEFAULT:
 	case DB_LOCK_EXPIRE:
 	case DB_LOCK_MAXLOCKS:
+	case DB_LOCK_MAXWRITE:
 	case DB_LOCK_MINLOCKS:
 	case DB_LOCK_MINWRITE:
 	case DB_LOCK_OLDEST:
@@ -107,6 +102,37 @@ __lock_detect(dbenv, flags, atype, abortp)
 	    "DB_ENV->lock_detect: unknown deadlock detection mode specified");
 		return (EINVAL);
 	}
+
+	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
+	if (rep_check)
+		__env_rep_enter(dbenv);
+	ret = __lock_detect(dbenv, atype, abortp);
+	if (rep_check)
+		__env_db_rep_exit(dbenv);
+	return (ret);
+}
+
+/*
+ * __lock_detect --
+ *	DB_ENV->lock_detect.
+ *
+ * PUBLIC: int __lock_detect __P((DB_ENV *, u_int32_t, int *));
+ */
+int
+__lock_detect(dbenv, atype, abortp)
+	DB_ENV *dbenv;
+	u_int32_t atype;
+	int *abortp;
+{
+	DB_LOCKREGION *region;
+	DB_LOCKTAB *lt;
+	DB_TXNMGR *tmgr;
+	db_timeval_t now;
+	locker_info *idmap;
+	u_int32_t *bitmap, *copymap, **deadp, **free_me, *tmpmap;
+	u_int32_t i, cid, keeper, killid, limit, nalloc, nlockers;
+	u_int32_t lock_max, txn_max;
+	int ret;
 
 	/*
 	 * If this environment is a replication client, then we must use the
@@ -127,10 +153,15 @@ __lock_detect(dbenv, flags, atype, abortp)
 	/* Make a pass only if auto-detect would run. */
 	region = lt->reginfo.primary;
 
-	if (region->need_dd == 0) {
+	LOCK_SET_TIME_INVALID(&now);
+	if (region->need_dd == 0 &&
+	     (!LOCK_TIME_ISVALID(&region->next_timeout) ||
+	     !__lock_expired(dbenv, &now, &region->next_timeout))) {
 		UNLOCKREGION(dbenv, lt);
 		return (0);
 	}
+	if (region->need_dd == 0)
+		atype = DB_LOCK_EXPIRE;
 
 	/* Reset need_dd, so we know we've run the detector. */
 	region->need_dd = 0;
@@ -184,73 +215,8 @@ __lock_detect(dbenv, flags, atype, abortp)
 	for (; *deadp != NULL; deadp++) {
 		if (abortp != NULL)
 			++*abortp;
-		killid = (u_int32_t)((*deadp - bitmap) / nalloc);
+		killid = (u_int32_t)(*deadp - bitmap) / nalloc;
 		limit = killid;
-		keeper = BAD_KILLID;
-
-		if (atype == DB_LOCK_DEFAULT || atype == DB_LOCK_RANDOM)
-			goto dokill;
-		/*
-		 * It's conceivable that under XA, the locker could
-		 * have gone away.
-		 */
-		if (killid == BAD_KILLID)
-			break;
-
-		/*
-		 * Start with the id that we know is deadlocked
-		 * and then examine all other set bits and see
-		 * if any are a better candidate for abortion
-		 * and that they are genuinely part of the
-		 * deadlock.  The definition of "best":
-		 * OLDEST: smallest id
-		 * YOUNGEST: largest id
-		 * MAXLOCKS: maximum count
-		 * MINLOCKS: minimum count
-		 * MINWRITE: minimum count
-		 */
-
-		for (i = (killid + 1) % nlockers;
-		    i != limit;
-		    i = (i + 1) % nlockers) {
-			if (!ISSET_MAP(*deadp, i))
-				continue;
-			switch (atype) {
-			case DB_LOCK_OLDEST:
-				if (__dd_isolder(idmap[killid].id,
-				    idmap[i].id, lock_max, txn_max))
-					continue;
-				keeper = i;
-				break;
-			case DB_LOCK_YOUNGEST:
-				if (__dd_isolder(idmap[i].id,
-				    idmap[killid].id, lock_max, txn_max))
-					continue;
-				keeper = i;
-				break;
-			case DB_LOCK_MAXLOCKS:
-				if (idmap[i].count < idmap[killid].count)
-					continue;
-				keeper = i;
-				break;
-			case DB_LOCK_MINLOCKS:
-			case DB_LOCK_MINWRITE:
-				if (idmap[i].count > idmap[killid].count)
-					continue;
-				keeper = i;
-				break;
-			default:
-				killid = BAD_KILLID;
-				ret = EINVAL;
-				goto dokill;
-			}
-			if (__dd_verify(idmap, *deadp,
-			    tmpmap, copymap, nlockers, nalloc, i))
-				killid = i;
-		}
-
-dokill:		if (killid == BAD_KILLID)
-			continue;
 
 		/*
 		 * There are cases in which our general algorithm will
@@ -260,22 +226,112 @@ dokill:		if (killid == BAD_KILLID)
 		 * progress.  Unfortunately, there are cases where we need
 		 * to abort someone, but killing them will not necessarily
 		 * ensure forward progress (imagine N readers all trying to
-		 * acquire a write lock).  In such a scenario, we'll have
-		 * gotten all the way through the loop, we will have found
-		 * someone to keep (keeper will be valid), but killid will
-		 * still be the initial deadlocker.  In this case, if the
-		 * initial killid satisfies __dd_verify, kill it, else abort
-		 * keeper and indicate that we need to run deadlock detection
-		 * again.
+		 * acquire a write lock).
+		 * killid is only set to lockers that pass the db_verify test.
+		 * keeper will hold the best candidate even if it does
+		 * not pass db_verify.  Once we fill in killid then we do
+		 * not need a keeper, but we keep updating it anyway.
 		 */
 
-		if (keeper != BAD_KILLID && killid == limit &&
+		keeper = idmap[killid].in_abort == 0 ? killid : BAD_KILLID;
+		if (keeper == BAD_KILLID ||
 		    __dd_verify(idmap, *deadp,
-		    tmpmap, copymap, nlockers, nalloc, killid) == 0) {
-			LOCKREGION(dbenv, lt);
-			region->need_dd = 1;
-			UNLOCKREGION(dbenv, lt);
-			killid = keeper;
+		    tmpmap, copymap, nlockers, nalloc, keeper) == 0)
+			killid = BAD_KILLID;
+
+		if (killid != BAD_KILLID &&
+		    (atype == DB_LOCK_DEFAULT || atype == DB_LOCK_RANDOM))
+			goto dokill;
+
+		/*
+		 * Start with the id that we know is deadlocked, then examine
+		 * all other set bits and see if any are a better candidate
+		 * for abortion and they are genuinely part of the deadlock.
+		 * The definition of "best":
+		 *	MAXLOCKS: maximum count
+		 *	MAXWRITE: maximum write count
+		 *	MINLOCKS: minimum count
+		 *	MINWRITE: minimum write count
+		 *	OLDEST: smallest id
+		 *	YOUNGEST: largest id
+		 */
+		for (i = (limit + 1) % nlockers;
+		    i != limit;
+		    i = (i + 1) % nlockers) {
+			if (!ISSET_MAP(*deadp, i) || idmap[i].in_abort)
+				continue;
+
+			/*
+			 * Determine if we have a verified candidate
+			 * in killid, if not then compare with the
+			 * non-verified candidate in keeper.
+			 */
+			if (killid == BAD_KILLID) {
+				if (keeper == BAD_KILLID)
+					goto use_next;
+				else
+					cid = keeper;
+			} else
+				cid = killid;
+
+			switch (atype) {
+			case DB_LOCK_OLDEST:
+				if (__dd_isolder(idmap[cid].id,
+				    idmap[i].id, lock_max, txn_max))
+					continue;
+				break;
+			case DB_LOCK_YOUNGEST:
+				if (__dd_isolder(idmap[i].id,
+				    idmap[cid].id, lock_max, txn_max))
+					continue;
+				break;
+			case DB_LOCK_MAXLOCKS:
+				if (idmap[i].count < idmap[cid].count)
+					continue;
+				break;
+			case DB_LOCK_MAXWRITE:
+				if (idmap[i].count < idmap[cid].count)
+					continue;
+				break;
+			case DB_LOCK_MINLOCKS:
+			case DB_LOCK_MINWRITE:
+				if (idmap[i].count > idmap[cid].count)
+					continue;
+				break;
+			case DB_LOCK_DEFAULT:
+			case DB_LOCK_RANDOM:
+				goto dokill;
+
+			default:
+				killid = BAD_KILLID;
+				ret = EINVAL;
+				goto dokill;
+			}
+
+use_next:		keeper = i;
+			if (__dd_verify(idmap, *deadp,
+			    tmpmap, copymap, nlockers, nalloc, i))
+				killid = i;
+		}
+
+dokill:		if (killid == BAD_KILLID) {
+			if (keeper == BAD_KILLID)
+				/*
+				 * It's conceivable that under XA, the
+				 * locker could have gone away.
+				 */
+				continue;
+			else {
+				/*
+				 * Removing a single locker will not
+				 * break the deadlock, signal to run
+				 * detection again.
+				 */
+				LOCKREGION(dbenv, lt);
+				region->need_dd = 1;
+				UNLOCKREGION(dbenv, lt);
+				killid = keeper;
+			}
 		}
 
 		/* Kill the locker with lockid idmap[killid]. */
@@ -292,7 +348,7 @@ dokill:		if (killid == BAD_KILLID)
 				    "warning: unable to abort locker %lx",
 				    (u_long)idmap[killid].id);
 		} else if (FLD_ISSET(dbenv->verbose, DB_VERB_DEADLOCK))
-			__db_err(dbenv,
+			__db_msg(dbenv,
 			    "Aborting locker %lx", (u_long)idmap[killid].id);
 	}
 	__os_free(dbenv, tmpmap);
@@ -325,15 +381,15 @@ __dd_build(dbenv, atype, bmp, nlockers, allocp, idmap)
 	DB_LOCKREGION *region;
 	DB_LOCKTAB *lt;
 	locker_info *id_array;
-	db_timeval_t now;
+	db_timeval_t now, min_timeout;
 	u_int32_t *bitmap, count, dd, *entryp, id, ndx, nentries, *tmpmap;
 	u_int8_t *pptr;
-	int expire_only, is_first, need_timeout, ret;
+	int expire_only, is_first, ret;
 
 	lt = dbenv->lk_handle;
 	region = lt->reginfo.primary;
 	LOCK_SET_TIME_INVALID(&now);
-	need_timeout = 0;
+	LOCK_SET_TIME_MAX(&min_timeout);
 	expire_only = atype == DB_LOCK_EXPIRE;
 
 	/*
@@ -364,10 +420,10 @@ retry:	count = region->stat.st_nlockers;
 	}
 
 	if (FLD_ISSET(dbenv->verbose, DB_VERB_DEADLOCK))
-		__db_err(dbenv, "%lu lockers", (u_long)count);
+		__db_msg(dbenv, "%lu lockers", (u_long)count);
 
 	count += 20;
-	nentries = ALIGN(count, 32) / 32;
+	nentries = (u_int32_t)DB_ALIGN(count, 32) / 32;
 
 	/*
 	 * Allocate enough space for a count by count bitmap matrix.
@@ -409,16 +465,21 @@ retry:	count = region->stat.st_nlockers;
 	for (id = 0, lip = SH_TAILQ_FIRST(&region->lockers, __db_locker);
 	    lip != NULL;
 	    lip = SH_TAILQ_NEXT(lip, ulinks, __db_locker)) {
-		if (F_ISSET(lip, DB_LOCKER_INABORT))
-			continue;
 		if (lip->master_locker == INVALID_ROFF) {
 			lip->dd_id = id++;
 			id_array[lip->dd_id].id = lip->id;
-			if (atype == DB_LOCK_MINLOCKS ||
-			    atype == DB_LOCK_MAXLOCKS)
+			switch (atype) {
+			case DB_LOCK_MINLOCKS:
+			case DB_LOCK_MAXLOCKS:
 				id_array[lip->dd_id].count = lip->nlocks;
-			if (atype == DB_LOCK_MINWRITE)
+				break;
+			case DB_LOCK_MINWRITE:
+			case DB_LOCK_MAXWRITE:
 				id_array[lip->dd_id].count = lip->nwrites;
+				break;
+			}
+			if (F_ISSET(lip, DB_LOCKER_INABORT))
+				id_array[lip->dd_id].in_abort = 1;
 		} else
 			lip->dd_id = DD_INVALID_ID;
 
@@ -449,18 +510,23 @@ obj_loop:
 			if ((ret = __lock_getlocker(lt,
 			    lp->holder, ndx, 0, &lockerp)) != 0)
 				continue;
-			if (F_ISSET(lockerp, DB_LOCKER_INABORT))
-				continue;
 
 			if (lockerp->dd_id == DD_INVALID_ID) {
 				dd = ((DB_LOCKER *)R_ADDR(&lt->reginfo,
 				    lockerp->master_locker))->dd_id;
 				lockerp->dd_id = dd;
-				if (atype == DB_LOCK_MINLOCKS ||
-				    atype == DB_LOCK_MAXLOCKS)
+				switch (atype) {
+				case DB_LOCK_MINLOCKS:
+				case DB_LOCK_MAXLOCKS:
 					id_array[dd].count += lockerp->nlocks;
-				if (atype == DB_LOCK_MINWRITE)
+					break;
+				case DB_LOCK_MINWRITE:
+				case DB_LOCK_MAXWRITE:
 					id_array[dd].count += lockerp->nwrites;
+					break;
+				}
+				if (F_ISSET(lockerp, DB_LOCKER_INABORT))
+					id_array[dd].in_abort = 1;
 
 			} else
 				dd = lockerp->dd_id;
@@ -495,8 +561,10 @@ look_waiters:
 					MUTEX_UNLOCK(dbenv, &lp->mutex);
 					continue;
 				}
-				need_timeout =
-				    LOCK_TIME_ISVALID(&lockerp->lk_expire);
+				if (LOCK_TIME_GREATER(
+				    &min_timeout, &lockerp->lk_expire))
+					min_timeout = lockerp->lk_expire;
+
 			}
 
 			if (expire_only)
@@ -506,11 +574,16 @@ look_waiters:
 				dd = ((DB_LOCKER *)R_ADDR(&lt->reginfo,
 				    lockerp->master_locker))->dd_id;
 				lockerp->dd_id = dd;
-				if (atype == DB_LOCK_MINLOCKS ||
-				    atype == DB_LOCK_MAXLOCKS)
+				switch (atype) {
+				case DB_LOCK_MINLOCKS:
+				case DB_LOCK_MAXLOCKS:
 					id_array[dd].count += lockerp->nlocks;
-				if (atype == DB_LOCK_MINWRITE)
+					break;
+				case DB_LOCK_MINWRITE:
+				case DB_LOCK_MAXWRITE:
 					id_array[dd].count += lockerp->nwrites;
+					break;
+				}
 			} else
 				dd = lockerp->dd_id;
 			id_array[dd].valid = 1;
@@ -539,10 +612,14 @@ look_waiters:
 		}
 	}
 
-	if (expire_only) {
-		region->need_dd = need_timeout;
-		return (0);
+	if (LOCK_TIME_ISVALID(&region->next_timeout)) {
+		if (LOCK_TIME_ISMAX(&min_timeout))
+			LOCK_SET_TIME_INVALID(&region->next_timeout);
+		else
+			region->next_timeout = min_timeout;
 	}
+	if (expire_only)
+		return (0);
 
 	/* Now for each locker; record its last lock. */
 	for (id = 0; id < count; id++) {
@@ -577,7 +654,8 @@ look_waiters:
 		lp = SH_LIST_FIRST(&lockerp->heldby, __db_lock);
 		if (lp != NULL) {
 			id_array[id].last_locker_id = lockerp->id;
-	get_lock:	id_array[id].last_lock = R_OFFSET(&lt->reginfo, lp);
+get_lock:		id_array[id].last_lock = R_OFFSET(&lt->reginfo, lp);
+			id_array[id].last_obj = lp->obj;
 			lo = (DB_LOCKOBJ *)((u_int8_t *)lp + lp->obj);
 			pptr = SH_DBT_PTR(&lo->lockobj);
 			if (lo->lockobj.size >= sizeof(db_pgno_t))
@@ -589,10 +667,9 @@ look_waiters:
 	}
 
 	/*
-	 * Pass complete, reset the deadlock detector bit,
-	 * unless we have pending timeouts.
+	 * Pass complete, reset the deadlock detector bit.
 	 */
-	region->need_dd = need_timeout;
+	region->need_dd = 0;
 
 	/*
 	 * Now we can release everything except the bitmap matrix that we
@@ -613,9 +690,9 @@ __dd_find(dbenv, bmp, idmap, nlockers, nalloc, deadp)
 	locker_info *idmap;
 	u_int32_t ***deadp;
 {
-	u_int32_t i, j, k, *mymap, *tmpmap;
-	u_int32_t **retp;
-	int ndead, ndeadalloc, ret;
+	u_int32_t i, j, k, *mymap, *tmpmap, **retp;
+	u_int ndead, ndeadalloc;
+	int ret;
 
 #undef	INITIAL_DEAD_ALLOC
 #define	INITIAL_DEAD_ALLOC	8
@@ -690,28 +767,36 @@ __dd_abort(dbenv, info)
 
 	LOCKREGION(dbenv, lt);
 
-	/* Find the locker's last lock. */
+	/*
+	 * Get the locker.  If its gone or was aborted while
+	 * we were detecting return that.
+	 */
 	LOCKER_LOCK(lt, region, info->last_locker_id, ndx);
 	if ((ret = __lock_getlocker(lt,
-	    info->last_locker_id, ndx, 0, &lockerp)) != 0 || lockerp == NULL) {
+	    info->last_locker_id, ndx, 0, &lockerp)) != 0 ||
+	    lockerp == NULL || F_ISSET(lockerp, DB_LOCKER_INABORT)) {
 		if (ret == 0)
 			ret = DB_ALREADY_ABORTED;
 		goto out;
 	}
 
-	/* It's possible that this locker was already aborted. */
+	/*
+	 * Find the locker's last lock.
+	 * It is possible for this lock to have been freed,
+	 * either though a timeout or another detector run.
+	 */
 	if ((lockp = SH_LIST_FIRST(&lockerp->heldby, __db_lock)) == NULL) {
 		ret = DB_ALREADY_ABORTED;
 		goto out;
 	}
 	if (R_OFFSET(&lt->reginfo, lockp) != info->last_lock ||
-	    lockp->status != DB_LSTAT_WAITING) {
+	    lockp->holder != lockerp->id ||
+	    lockp->obj != info->last_obj || lockp->status != DB_LSTAT_WAITING) {
 		ret = DB_ALREADY_ABORTED;
 		goto out;
 	}
 
 	sh_obj = (DB_LOCKOBJ *)((u_int8_t *)lockp + lockp->obj);
-	SH_LIST_REMOVE(lockp, locker_links, __db_lock);
 
 	/* Abort lock, take it off list, and wake up this lock. */
 	SHOBJECT_LOCK(lt, region, sh_obj, ndx);
@@ -746,32 +831,25 @@ __dd_debug(dbenv, idmap, bitmap, nlockers, nalloc)
 	locker_info *idmap;
 	u_int32_t *bitmap, nlockers, nalloc;
 {
+	DB_MSGBUF mb;
 	u_int32_t i, j, *mymap;
-	char *msgbuf;
 
-	__db_err(dbenv, "Waitsfor array\nWaiter:\tWaiting on:");
+	DB_MSGBUF_INIT(&mb);
 
-	/* Allocate space to print 10 bytes per item waited on. */
-#undef	MSGBUF_LEN
-#define	MSGBUF_LEN ((nlockers + 1) * 10 + 64)
-	if (__os_malloc(dbenv, MSGBUF_LEN, &msgbuf) != 0)
-		return;
-
+	__db_msg(dbenv, "Waitsfor array\nWaiter:\tWaiting on:");
 	for (mymap = bitmap, i = 0; i < nlockers; i++, mymap += nalloc) {
 		if (!idmap[i].valid)
 			continue;
-		sprintf(msgbuf,					/* Waiter. */
+
+		__db_msgadd(dbenv, &mb,				/* Waiter. */
 		    "%lx/%lu:\t", (u_long)idmap[i].id, (u_long)idmap[i].pgno);
 		for (j = 0; j < nlockers; j++)
 			if (ISSET_MAP(mymap, j))
-				sprintf(msgbuf, "%s %lx", msgbuf,
-				    (u_long)idmap[j].id);
-		(void)sprintf(msgbuf,
-		    "%s %lu", msgbuf, (u_long)idmap[i].last_lock);
-		__db_err(dbenv, msgbuf);
+				__db_msgadd(dbenv,
+				    &mb, " %lx", (u_long)idmap[j].id);
+		__db_msgadd(dbenv, &mb, " %lu", (u_long)idmap[i].last_lock);
+		DB_MSGBUF_FLUSH(dbenv, &mb);
 	}
-
-	__os_free(dbenv, msgbuf);
 }
 #endif
 
@@ -779,12 +857,12 @@ __dd_debug(dbenv, idmap, bitmap, nlockers, nalloc)
  * Given a bitmap that contains a deadlock, verify that the bit
  * specified in the which parameter indicates a transaction that
  * is actually deadlocked.  Return 1 if really deadlocked, 0 otherwise.
- * deadmap is the array that identified the deadlock.
- * tmpmap is a copy of the initial bitmaps from the dd_build phase
- * origmap is a temporary bit map into which we can OR things
- * nlockers is the number of actual lockers under consideration
- * nalloc is the number of words allocated for the bitmap
- * which is the locker in question
+ * deadmap  --  the array that identified the deadlock.
+ * tmpmap   --  a copy of the initial bitmaps from the dd_build phase.
+ * origmap  --  a temporary bit map into which we can OR things.
+ * nlockers --  the number of actual lockers under consideration.
+ * nalloc   --  the number of words allocated for the bitmap.
+ * which    --  the locker in question.
  */
 static int
 __dd_verify(idmap, deadmap, tmpmap, origmap, nlockers, nalloc, which)

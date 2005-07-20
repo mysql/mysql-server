@@ -1,20 +1,18 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: log_get.c,v 11.110 2004/09/17 22:00:31 mjc Exp $
  */
-#include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: log_get.c,v 11.81 2002/08/14 20:09:27 bostic Exp $";
-#endif /* not lint */
+#include "db_config.h"
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -26,82 +24,100 @@ static const char revid[] = "$Id: log_get.c,v 11.81 2002/08/14 20:09:27 bostic E
 
 typedef enum { L_ALREADY, L_ACQUIRED, L_NONE } RLOCK;
 
-static int __log_c_close __P((DB_LOGC *, u_int32_t));
-static int __log_c_get __P((DB_LOGC *, DB_LSN *, DBT *, u_int32_t));
+static int __log_c_close_pp __P((DB_LOGC *, u_int32_t));
+static int __log_c_get_pp __P((DB_LOGC *, DB_LSN *, DBT *, u_int32_t));
 static int __log_c_get_int __P((DB_LOGC *, DB_LSN *, DBT *, u_int32_t));
-static int __log_c_hdrchk __P((DB_LOGC *, HDR *, int *));
+static int __log_c_hdrchk __P((DB_LOGC *, DB_LSN *, HDR *, int *));
 static int __log_c_incursor __P((DB_LOGC *, DB_LSN *, HDR *, u_int8_t **));
 static int __log_c_inregion __P((DB_LOGC *,
 	       DB_LSN *, RLOCK *, DB_LSN *, HDR *, u_int8_t **));
 static int __log_c_io __P((DB_LOGC *,
 	       u_int32_t, u_int32_t, void *, size_t *, int *));
 static int __log_c_ondisk __P((DB_LOGC *,
-	       DB_LSN *, DB_LSN *, int, HDR *, u_int8_t **, int *));
+	       DB_LSN *, DB_LSN *, u_int32_t, HDR *, u_int8_t **, int *));
 static int __log_c_set_maxrec __P((DB_LOGC *, char *));
-static int __log_c_shortread __P((DB_LOGC *, int));
+static int __log_c_shortread __P((DB_LOGC *, DB_LSN *, int));
 
 /*
- * __log_cursor --
- *	Create a log cursor.
+ * __log_cursor_pp --
+ *	DB_ENV->log_cursor
  *
- * PUBLIC: int __log_cursor __P((DB_ENV *, DB_LOGC **, u_int32_t));
+ * PUBLIC: int __log_cursor_pp __P((DB_ENV *, DB_LOGC **, u_int32_t));
  */
 int
-__log_cursor(dbenv, logcp, flags)
+__log_cursor_pp(dbenv, logcp, flags)
 	DB_ENV *dbenv;
 	DB_LOGC **logcp;
 	u_int32_t flags;
 {
-	DB_LOGC *logc;
-	int ret;
+	int rep_check, ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
 	    dbenv->lg_handle, "DB_ENV->log_cursor", DB_INIT_LOG);
 
-	*logcp = NULL;
-
 	/* Validate arguments. */
 	if ((ret = __db_fchk(dbenv, "DB_ENV->log_cursor", flags, 0)) != 0)
 		return (ret);
 
-	/* Allocate memory for the cursor. */
-	if ((ret = __os_calloc(dbenv, 1, sizeof(DB_LOGC), &logc)) != 0)
-		goto err;
-	if ((ret = __os_calloc(dbenv, 1, sizeof(DB_FH), &logc->c_fh)) != 0)
-		goto err;
-
-	logc->bp_size = DB_LOGC_BUF_SIZE;
-	if ((ret = __os_malloc(dbenv, logc->bp_size, &logc->bp)) != 0)
-		goto err;
-
-	logc->dbenv = dbenv;
-	logc->close = __log_c_close;
-	logc->get = __log_c_get;
-
-	*logcp = logc;
-	return (0);
-
-err:	if (logc != NULL) {
-		if (logc->c_fh != NULL)
-			__os_free(dbenv, logc->c_fh);
-		__os_free(dbenv, logc);
-	}
-
+	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
+	if (rep_check)
+		__env_rep_enter(dbenv);
+	ret = __log_cursor(dbenv, logcp);
+	if (rep_check)
+		__env_db_rep_exit(dbenv);
 	return (ret);
 }
 
 /*
- * __log_c_close --
- *	Close a log cursor.
+ * __log_cursor --
+ *	Create a log cursor.
+ *
+ * PUBLIC: int __log_cursor __P((DB_ENV *, DB_LOGC **));
+ */
+int
+__log_cursor(dbenv, logcp)
+	DB_ENV *dbenv;
+	DB_LOGC **logcp;
+{
+	DB_LOGC *logc;
+	int ret;
+
+	*logcp = NULL;
+
+	/* Allocate memory for the cursor. */
+	if ((ret = __os_calloc(dbenv, 1, sizeof(DB_LOGC), &logc)) != 0)
+		return (ret);
+
+	logc->bp_size = DB_LOGC_BUF_SIZE;
+	/*
+	 * Set this to something positive.
+	 */
+	logc->bp_maxrec = MEGABYTE;
+	if ((ret = __os_malloc(dbenv, logc->bp_size, &logc->bp)) != 0) {
+		__os_free(dbenv, logc);
+		return (ret);
+	}
+
+	logc->dbenv = dbenv;
+	logc->close = __log_c_close_pp;
+	logc->get = __log_c_get_pp;
+
+	*logcp = logc;
+	return (0);
+}
+
+/*
+ * __log_c_close_pp --
+ *	DB_LOGC->close pre/post processing.
  */
 static int
-__log_c_close(logc, flags)
+__log_c_close_pp(logc, flags)
 	DB_LOGC *logc;
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int ret;
+	int rep_check, ret;
 
 	dbenv = logc->dbenv;
 
@@ -109,33 +125,56 @@ __log_c_close(logc, flags)
 	if ((ret = __db_fchk(dbenv, "DB_LOGC->close", flags, 0)) != 0)
 		return (ret);
 
-	if (F_ISSET(logc->c_fh, DB_FH_VALID))
-		(void)__os_closehandle(dbenv, logc->c_fh);
+	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
+	if (rep_check)
+		__env_rep_enter(dbenv);
+	ret = __log_c_close(logc);
+	if (rep_check)
+		__env_db_rep_exit(dbenv);
+	return (ret);
+}
+
+/*
+ * __log_c_close --
+ *	DB_LOGC->close.
+ *
+ * PUBLIC: int __log_c_close __P((DB_LOGC *));
+ */
+int
+__log_c_close(logc)
+	DB_LOGC *logc;
+{
+	DB_ENV *dbenv;
+
+	dbenv = logc->dbenv;
+
+	if (logc->c_fhp != NULL) {
+		(void)__os_closehandle(dbenv, logc->c_fhp);
+		logc->c_fhp = NULL;
+	}
 
 	if (logc->c_dbt.data != NULL)
 		__os_free(dbenv, logc->c_dbt.data);
 
 	__os_free(dbenv, logc->bp);
-	__os_free(dbenv, logc->c_fh);
 	__os_free(dbenv, logc);
 
 	return (0);
 }
 
 /*
- * __log_c_get --
- *	Get a log record.
+ * __log_c_get_pp --
+ *	DB_LOGC->get pre/post processing.
  */
 static int
-__log_c_get(logc, alsn, dbt, flags)
+__log_c_get_pp(logc, alsn, dbt, flags)
 	DB_LOGC *logc;
 	DB_LSN *alsn;
 	DBT *dbt;
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	DB_LSN saved_lsn;
-	int ret;
+	int rep_check, ret;
 
 	dbenv = logc->dbenv;
 
@@ -151,13 +190,42 @@ __log_c_get(logc, alsn, dbt, flags)
 		break;
 	case DB_SET:
 		if (IS_ZERO_LSN(*alsn)) {
-			__db_err(dbenv, "DB_LOGC->get: invalid LSN");
+			__db_err(dbenv, "DB_LOGC->get: invalid LSN: %lu/%lu",
+			    (u_long)alsn->file, (u_long)alsn->offset);
 			return (EINVAL);
 		}
 		break;
 	default:
 		return (__db_ferr(dbenv, "DB_LOGC->get", 1));
 	}
+
+	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
+	if (rep_check)
+		__env_rep_enter(dbenv);
+	ret = __log_c_get(logc, alsn, dbt, flags);
+	if (rep_check)
+		__env_db_rep_exit(dbenv);
+	return (ret);
+}
+
+/*
+ * __log_c_get --
+ *	DB_LOGC->get.
+ *
+ * PUBLIC: int __log_c_get __P((DB_LOGC *, DB_LSN *, DBT *, u_int32_t));
+ */
+int
+__log_c_get(logc, alsn, dbt, flags)
+	DB_LOGC *logc;
+	DB_LSN *alsn;
+	DBT *dbt;
+	u_int32_t flags;
+{
+	DB_ENV *dbenv;
+	DB_LSN saved_lsn;
+	int ret;
+
+	dbenv = logc->dbenv;
 
 	/*
 	 * On error, we take care not to overwrite the caller's LSN.  This
@@ -192,6 +260,10 @@ __log_c_get(logc, alsn, dbt, flags)
 			break;
 		case DB_LAST:
 			flags = DB_PREV;
+			break;
+		case DB_NEXT:
+		case DB_PREV:
+		default:
 			break;
 		}
 		if (F_ISSET(dbt, DB_DBT_MALLOC)) {
@@ -297,15 +369,15 @@ __log_c_get_int(logc, alsn, dbt, flags)
 		if (!IS_ZERO_LSN(nlsn)) {
 			/* If at start-of-file, move to the previous file. */
 			if (nlsn.offset == 0) {
-				if (nlsn.file == 1 ||
-				    __log_valid(dblp,
-					nlsn.file - 1, 0, &status) != 0) {
+				if (nlsn.file == 1) {
 					ret = DB_NOTFOUND;
 					goto err;
 				}
-
-				if (status != DB_LV_NORMAL &&
-				    status != DB_LV_OLD_READABLE) {
+				if ((!lp->db_log_inmemory &&
+				    (__log_valid(dblp, nlsn.file - 1, 0, NULL,
+				    0, &status) != 0 ||
+				    (status != DB_LV_NORMAL &&
+				    status != DB_LV_OLD_READABLE)))) {
 					ret = DB_NOTFOUND;
 					goto err;
 				}
@@ -327,6 +399,10 @@ __log_c_get_int(logc, alsn, dbt, flags)
 	case DB_SET:				/* Set log record. */
 		nlsn = *alsn;
 		break;
+	default:
+		DB_ASSERT(0);
+		ret = EINVAL;
+		goto err;
 	}
 
 	if (0) {				/* Move to the next file. */
@@ -357,12 +433,13 @@ next_file:	++nlsn.file;
 	 * coming from the disk -- it means the record can't be in the region's
 	 * buffer.  Else, check the region's buffer.
 	 *
-	 * If the record isn't in the region's buffer, we're going to have to
-	 * read the record from disk.  We want to make a point of not reading
-	 * past the end of the logical log (after recovery, there may be data
-	 * after the end of the logical log, not to mention the log file may
-	 * have been pre-allocated).  So, zero out last_lsn, and initialize it
-	 * inside __log_c_inregion -- if it's still zero when we check it in
+	 * If the record isn't in the region's buffer, then either logs are
+	 * in-memory, and we're done, or  we're going to have to read the
+	 * record from disk.  We want to make a point of not reading past the
+	 * end of the logical log (after recovery, there may be data after the
+	 * end of the logical log, not to mention the log file may have been
+	 * pre-allocated).  So, zero out last_lsn, and initialize it inside
+	 * __log_c_inregion -- if it's still zero when we check it in
 	 * __log_c_ondisk, that's OK, it just means the logical end of the log
 	 * isn't an issue for this request.
 	 */
@@ -376,6 +453,8 @@ next_file:	++nlsn.file;
 			goto err;
 		if (rp != NULL)
 			goto cksum;
+		if (lp->db_log_inmemory)
+			goto nohdr;
 	}
 
 	/*
@@ -393,7 +472,7 @@ next_file:	++nlsn.file;
 	if ((ret = __log_c_ondisk(
 	    logc, &nlsn, &last_lsn, flags, &hdr, &rp, &eof)) != 0)
 		goto err;
-	if (eof == 1) {
+	if (eof) {
 		/*
 		 * Only DB_NEXT automatically moves to the next file, and
 		 * it only happens once.
@@ -429,7 +508,8 @@ cksum:	/*
 				ret = EIO;
 		} else if (ret == -1) {
 			__db_err(dbenv,
-		    "DB_LOGC->get: log record checksum mismatch");
+		    "DB_LOGC->get: log record LSN %lu/%lu: checksum mismatch",
+			    (u_long)nlsn.file, (u_long)nlsn.offset);
 			__db_err(dbenv,
 		    "DB_LOGC->get: catastrophic recovery may be required");
 			ret = __db_panic(dbenv, DB_RUNRECOVERY);
@@ -443,12 +523,11 @@ cksum:	/*
 	 * going to have to retry.
 	 */
 	if (hdr.len == 0) {
-		switch (flags) {
+nohdr:		switch (flags) {
 		case DB_FIRST:
 		case DB_NEXT:
 			/* Zero'd records always indicate the end of a file. */
 			goto next_file;
-
 		case DB_LAST:
 		case DB_PREV:
 			/*
@@ -459,9 +538,11 @@ cksum:	/*
 			 * the first record in that new file should have its
 			 * prev field set correctly.
 			 */
-			 __db_err(dbenv,
+			__db_err(dbenv,
 		"Encountered zero length records while traversing backwards");
-			 DB_ASSERT(0);
+			DB_ASSERT(0);
+			ret = __db_panic(dbenv, DB_RUNRECOVERY);
+			goto err;
 		case DB_SET:
 		default:
 			/* Return the 0-length record. */
@@ -515,6 +596,7 @@ __log_c_incursor(logc, lsn, hdr, pp)
 	u_int8_t **pp;
 {
 	u_int8_t *p;
+	int eof;
 
 	*pp = NULL;
 
@@ -547,9 +629,9 @@ __log_c_incursor(logc, lsn, hdr, pp)
 	 */
 	p = logc->bp + (lsn->offset - logc->bp_lsn.offset);
 	memcpy(hdr, p, hdr->size);
-	if (__log_c_hdrchk(logc, hdr, NULL))
+	if (__log_c_hdrchk(logc, lsn, hdr, &eof))
 		return (DB_NOTFOUND);
-	if (logc->bp_lsn.offset + logc->bp_rlen <= lsn->offset + hdr->len)
+	if (eof || logc->bp_lsn.offset + logc->bp_rlen < lsn->offset + hdr->len)
 		return (0);
 
 	*pp = p;				/* Success. */
@@ -572,9 +654,9 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	DB_ENV *dbenv;
 	DB_LOG *dblp;
 	LOG *lp;
-	size_t len, nr;
-	u_int32_t b_disk, b_region;
-	int ret;
+	size_t b_region, len, nr;
+	u_int32_t b_disk;
+	int eof, ret;
 	u_int8_t *p;
 
 	dbenv = logc->dbenv;
@@ -582,6 +664,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	lp = ((DB_LOG *)logc->dbenv->lg_handle)->reginfo.primary;
 
 	ret = 0;
+	b_region = 0;
 	*pp = NULL;
 
 	/* If we haven't yet acquired the log region lock, do so. */
@@ -601,7 +684,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	 * come later than this point if the log buffer isn't empty.
 	 */
 	*last_lsn = lp->lsn;
-	if (last_lsn->offset > lp->w_off)
+	if (!lp->db_log_inmemory && last_lsn->offset > lp->w_off)
 		last_lsn->offset = lp->w_off;
 
 	/*
@@ -628,43 +711,61 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	 */
 	if (IS_ZERO_LSN(lp->lsn))
 		return (0);
-	if (lsn->file > lp->lsn.file ||
-	    (lsn->file == lp->lsn.file && lsn->offset >= lp->lsn.offset))
+	if (log_compare(lsn, &lp->lsn) >= 0)
 		return (DB_NOTFOUND);
-	if (lp->b_off == 0)
-		return (0);
-	if (lsn->file < lp->f_lsn.file || lsn->offset < lp->f_lsn.offset)
+	else if (lp->db_log_inmemory) {
+		if ((ret = __log_inmem_lsnoff(dblp, lsn, &b_region)) != 0)
+			return (ret);
+	} else if (lp->b_off == 0 || log_compare(lsn, &lp->f_lsn) < 0)
 		return (0);
 
 	/*
 	 * The current contents of the cursor's buffer will be useless for a
-	 * future call -- trash it rather than try and make it look correct.
+	 * future call, we're about to overwrite it -- trash it rather than
+	 * try and make it look correct.
 	 */
-	ZERO_LSN(logc->bp_lsn);
+	logc->bp_rlen = 0;
 
 	/*
 	 * If the requested LSN is greater than the region buffer's first
-	 * byte, we know the entire record is in the buffer.
+	 * byte, we know the entire record is in the buffer on a good LSN.
 	 *
-	 * If the header check fails for any reason, it must be because the
-	 * LSN is bogus.  Fail hard.
+	 * If we're given a bad LSN, the "entire" record might not be in
+	 * our buffer in order to fail at the chksum.  __log_c_hdrchk made
+	 * sure our dest buffer fits, via bp_maxrec, but we also need to
+	 * make sure we don't run off the end of this buffer, the src.
+	 *
+	 * There is one case where the header check can fail: on a scan through
+	 * in-memory logs, when we reach the end of a file we can read an empty
+	 * heady.  In that case, it's safe to return zero, here: it will be
+	 * caught in our caller.  Otherwise, the LSN is bogus.  Fail hard.
 	 */
-	if (lsn->offset > lp->f_lsn.offset) {
-		p = dblp->bufp + (lsn->offset - lp->w_off);
-		memcpy(hdr, p, hdr->size);
-		if (__log_c_hdrchk(logc, hdr, NULL))
+	if (lp->db_log_inmemory || log_compare(lsn, &lp->f_lsn) > 0) {
+		if (!lp->db_log_inmemory)
+			b_region = lsn->offset - lp->w_off;
+		__log_inmem_copyout(dblp, b_region, hdr, hdr->size);
+		if (__log_c_hdrchk(logc, lsn, hdr, &eof) != 0)
+			return (DB_NOTFOUND);
+		if (eof)
+			return (0);
+		if (lp->db_log_inmemory) {
+			if (RINGBUF_LEN(lp, b_region, lp->b_off) < hdr->len)
+				return (DB_NOTFOUND);
+		} else if (lsn->offset + hdr->len > lp->w_off + lp->buffer_size)
 			return (DB_NOTFOUND);
 		if (logc->bp_size <= hdr->len) {
-			len = ALIGN(hdr->len * 2, 128);
+			len = (size_t)DB_ALIGN(hdr->len * 2, 128);
 			if ((ret =
 			    __os_realloc(logc->dbenv, len, &logc->bp)) != 0)
 				 return (ret);
 			logc->bp_size = (u_int32_t)len;
 		}
-		memcpy(logc->bp, p, hdr->len);
+		__log_inmem_copyout(dblp, b_region, logc->bp, hdr->len);
 		*pp = logc->bp;
 		return (0);
 	}
+
+	DB_ASSERT(!lp->db_log_inmemory);
 
 	/*
 	 * There's a partial record, that is, the requested record starts
@@ -702,7 +803,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	 * of waiting.
 	 */
 	if (logc->bp_size <= b_region + b_disk) {
-		len = ALIGN((b_region + b_disk) * 2, 128);
+		len = (size_t)DB_ALIGN((b_region + b_disk) * 2, 128);
 		if ((ret = __os_realloc(logc->dbenv, len, &logc->bp)) != 0)
 			return (ret);
 		logc->bp_size = (u_int32_t)len;
@@ -729,7 +830,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 		    logc, lsn->file, lsn->offset, p, &nr, NULL)) != 0)
 			return (ret);
 		if (nr < b_disk)
-			return (__log_c_shortread(logc, 0));
+			return (__log_c_shortread(logc, lsn, 0));
 	}
 
 	/* Copy the header information into the caller's structure. */
@@ -747,7 +848,8 @@ static int
 __log_c_ondisk(logc, lsn, last_lsn, flags, hdr, pp, eofp)
 	DB_LOGC *logc;
 	DB_LSN *lsn, *last_lsn;
-	int flags, *eofp;
+	u_int32_t flags;
+	int *eofp;
 	HDR *hdr;
 	u_int8_t **pp;
 {
@@ -766,27 +868,29 @@ __log_c_ondisk(logc, lsn, last_lsn, flags, hdr, pp, eofp)
 	if (*eofp)
 		return (0);
 
-	/* If we read 0 bytes, assume we've hit EOF. */
-	if (nr == 0) {
+	/*
+	 * If the read was successful, but we can't read a full header, assume
+	 * we've hit EOF.  We can't check that the header has been partially
+	 * zeroed out, but it's unlikely that this is caused by a write failure
+	 * since the header is written as a single write call and it's less
+	 * than sector.
+	 */
+	if (nr < hdr->size) {
 		*eofp = 1;
 		return (0);
 	}
 
 	/* Check the HDR. */
-	if ((ret = __log_c_hdrchk(logc, hdr, eofp)) != 0)
+	if ((ret = __log_c_hdrchk(logc, lsn, hdr, eofp)) != 0)
 		return (ret);
 	if (*eofp)
 		return (0);
-
-	/* Otherwise, we should have gotten the bytes we wanted. */
-	if (nr < hdr->size)
-		return (__log_c_shortread(logc, 0));
 
 	/*
 	 * Regardless of how we return, the previous contents of the cursor's
 	 * buffer are useless -- trash it.
 	 */
-	ZERO_LSN(logc->bp_lsn);
+	logc->bp_rlen = 0;
 
 	/*
 	 * Otherwise, we now (finally!) know how big the record is.  (Maybe
@@ -794,7 +898,7 @@ __log_c_ondisk(logc, lsn, last_lsn, flags, hdr, pp, eofp)
 	 * Make sure we have enough space.
 	 */
 	if (logc->bp_size <= hdr->len) {
-		len = ALIGN(hdr->len * 2, 128);
+		len = (size_t)DB_ALIGN(hdr->len * 2, 128);
 		if ((ret = __os_realloc(dbenv, len, &logc->bp)) != 0)
 			return (ret);
 		logc->bp_size = (u_int32_t)len;
@@ -831,11 +935,15 @@ __log_c_ondisk(logc, lsn, last_lsn, flags, hdr, pp, eofp)
 	 * record we're reading.
 	 */
 	if (nr < (lsn->offset + hdr->len) - offset)
-		return (__log_c_shortread(logc, 1));
+		return (__log_c_shortread(logc, lsn, 1));
 
-	/* Set up the return information. */
+	/*
+	 * Set up the return information.
+	 *
+	 * !!!
+	 * No need to set the bp_lsn.file field, __log_c_io set it for us.
+	 */
 	logc->bp_rlen = (u_int32_t)nr;
-	logc->bp_lsn.file = lsn->file;
 	logc->bp_lsn.offset = offset;
 
 	*pp = logc->bp + (lsn->offset - offset);
@@ -855,16 +963,6 @@ __log_c_ondisk(logc, lsn, last_lsn, flags, hdr, pp, eofp)
  * and one made it to disk before a different one that logically precedes
  * it in the log file.
  *
- * XXX
- * I think there's a potential pre-allocation recovery flaw here -- if we
- * fail to write a buffer at the end of a log file (by scheduling its
- * write asynchronously, and it never making it to disk), then succeed in
- * writing a log file block to a subsequent log file, I don't think we will
- * detect that the buffer of 0's should have marked the end of the log files
- * during recovery.  I think we may need to always write some garbage after
- * each block write if we pre-allocate log files.  (At the moment, we do not
- * pre-allocate, so this isn't currently an issue.)
- *
  * Check for impossibly large records.  The malloc should fail later, but we
  * have customers that run mallocs that treat all allocation failures as fatal
  * errors.
@@ -874,8 +972,9 @@ __log_c_ondisk(logc, lsn, last_lsn, flags, hdr, pp, eofp)
  * the middle of a log record, there's no way to tell.
  */
 static int
-__log_c_hdrchk(logc, hdr, eofp)
+__log_c_hdrchk(logc, lsn, hdr, eofp)
 	DB_LOGC *logc;
+	DB_LSN *lsn;
 	HDR *hdr;
 	int *eofp;
 {
@@ -884,9 +983,24 @@ __log_c_hdrchk(logc, hdr, eofp)
 
 	dbenv = logc->dbenv;
 
-	/* Sanity check the log record's size. */
+	/*
+	 * Check EOF before we do any other processing.
+	 */
+	if (eofp != NULL) {
+		if (hdr->prev == 0 && hdr->chksum[0] == 0 && hdr->len == 0) {
+			*eofp = 1;
+			return (0);
+		}
+		*eofp = 0;
+	}
+
+	/*
+	 * Sanity check the log record's size.
+	 * We must check it after "virtual" EOF above.
+	 */
 	if (hdr->len <= hdr->size)
 		goto err;
+
 	/*
 	 * If the cursor's max-record value isn't yet set, it means we aren't
 	 * reading these records from a log file and no check is necessary.
@@ -904,18 +1018,12 @@ __log_c_hdrchk(logc, hdr, eofp)
 		if (logc->bp_maxrec != 0 && hdr->len > logc->bp_maxrec)
 			goto err;
 	}
-
-	if (eofp != NULL) {
-		if (hdr->prev == 0 && hdr->chksum[0] == 0 && hdr->len == 0) {
-			*eofp = 1;
-			return (0);
-		}
-		*eofp = 0;
-	}
 	return (0);
 
 err:	if (!F_ISSET(logc, DB_LOG_SILENT_ERR))
-		__db_err(dbenv, "DB_LOGC->get: invalid log record header");
+		__db_err(dbenv,
+		    "DB_LOGC->get: LSN %lu/%lu: invalid log record header",
+		    (u_long)lsn->file, (u_long)lsn->offset);
 	return (EIO);
 }
 
@@ -943,12 +1051,17 @@ __log_c_io(logc, fnum, offset, p, nrp, eofp)
 	 * If we've switched files, discard the current file handle and acquire
 	 * a new one.
 	 */
-	if (F_ISSET(logc->c_fh, DB_FH_VALID) && logc->bp_lsn.file != fnum)
-		if ((ret = __os_closehandle(dbenv, logc->c_fh)) != 0)
+	if (logc->c_fhp != NULL && logc->bp_lsn.file != fnum) {
+		ret = __os_closehandle(dbenv, logc->c_fhp);
+		logc->c_fhp = NULL;
+		logc->bp_lsn.file = 0;
+
+		if (ret != 0)
 			return (ret);
-	if (!F_ISSET(logc->c_fh, DB_FH_VALID)) {
+	}
+	if (logc->c_fhp == NULL) {
 		if ((ret = __log_name(dblp, fnum,
-		    &np, logc->c_fh, DB_OSO_RDONLY | DB_OSO_SEQ)) != 0) {
+		    &np, &logc->c_fhp, DB_OSO_RDONLY | DB_OSO_SEQ)) != 0) {
 			/*
 			 * If we're allowed to return EOF, assume that's the
 			 * problem, set the EOF status flag and return 0.
@@ -970,22 +1083,26 @@ __log_c_io(logc, fnum, offset, p, nrp, eofp)
 			return (ret);
 		}
 		__os_free(dbenv, np);
+
+		logc->bp_lsn.file = fnum;
 	}
 
 	/* Seek to the record's offset. */
 	if ((ret = __os_seek(dbenv,
-	    logc->c_fh, 0, 0, offset, 0, DB_OS_SEEK_SET)) != 0) {
+	    logc->c_fhp, 0, 0, offset, 0, DB_OS_SEEK_SET)) != 0) {
 		if (!F_ISSET(logc, DB_LOG_SILENT_ERR))
 			__db_err(dbenv,
-			    "DB_LOGC->get: seek: %s", db_strerror(ret));
+			    "DB_LOGC->get: LSN: %lu/%lu: seek: %s",
+			    (u_long)fnum, (u_long)offset, db_strerror(ret));
 		return (ret);
 	}
 
 	/* Read the data. */
-	if ((ret = __os_read(dbenv, logc->c_fh, p, *nrp, nrp)) != 0) {
+	if ((ret = __os_read(dbenv, logc->c_fhp, p, *nrp, nrp)) != 0) {
 		if (!F_ISSET(logc, DB_LOG_SILENT_ERR))
 			__db_err(dbenv,
-			    "DB_LOGC->get: read: %s", db_strerror(ret));
+			    "DB_LOGC->get: LSN: %lu/%lu: read: %s",
+			    (u_long)fnum, (u_long)offset, db_strerror(ret));
 		return (ret);
 	}
 
@@ -997,12 +1114,14 @@ __log_c_io(logc, fnum, offset, p, nrp, eofp)
  *	Read was short -- return a consistent error message and error.
  */
 static int
-__log_c_shortread(logc, silent)
+__log_c_shortread(logc, lsn, check_silent)
 	DB_LOGC *logc;
-	int silent;
+	DB_LSN *lsn;
+	int check_silent;
 {
-	if (!silent || !F_ISSET(logc, DB_LOG_SILENT_ERR))
-		__db_err(logc->dbenv, "DB_LOGC->get: short read");
+	if (!check_silent || !F_ISSET(logc, DB_LOG_SILENT_ERR))
+		__db_err(logc->dbenv, "DB_LOGC->get: LSN: %lu/%lu: short read",
+		    (u_long)lsn->file, (u_long)lsn->offset);
 	return (EIO);
 }
 
@@ -1033,11 +1152,13 @@ __log_c_set_maxrec(logc, np)
 	 * of the file but that's hard -- we may have to decrypt it, checksum
 	 * it and so on.  Stat the file instead.
 	 */
-	if ((ret =
-	    __os_ioinfo(dbenv, np, logc->c_fh, &mbytes, &bytes, NULL)) != 0)
-		return (ret);
-
-	logc->bp_maxrec = mbytes * MEGABYTE + bytes;
+	if (logc->c_fhp != NULL) {
+		if ((ret = __os_ioinfo(dbenv, np, logc->c_fhp,
+		    &mbytes, &bytes, NULL)) != 0)
+			return (ret);
+		if (logc->bp_maxrec < (mbytes * MEGABYTE + bytes))
+			logc->bp_maxrec = mbytes * MEGABYTE + bytes;
+	}
 
 	/*
 	 * If reading from the log file currently being written, we could get
@@ -1052,7 +1173,8 @@ __log_c_set_maxrec(logc, np)
 	 * changed, we don't need a lock on it.
 	 */
 	lp = dblp->reginfo.primary;
-	logc->bp_maxrec += lp->buffer_size;
+	if (logc->bp_maxrec < lp->buffer_size)
+		logc->bp_maxrec = lp->buffer_size;
 
 	return (0);
 }

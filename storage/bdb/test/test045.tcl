@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test045.tcl,v 11.24 2002/02/07 17:50:10 sue Exp $
+# $Id: test045.tcl,v 11.27 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test045
 # TEST	Small random tester
@@ -101,8 +101,10 @@ proc test045 { method {nops 10000} args } {
 		    > $testdir/test045.init
 	}
 	# Check for test failure
-	set e [findfail $testdir/test045.init]
-	error_check_good "FAIL: error message(s) in init file" $e 0
+	set initerrs [findfail $testdir/test045.init]
+	foreach str $initerrs {
+		puts "FAIL: error message in .init file: $str"
+	}
 
 	puts "\tTest045.b: Now firing off berkdb rand dbscript, running: "
 	# Now the database is initialized, run a test
@@ -117,7 +119,8 @@ proc test045 { method {nops 10000} args } {
 	    > $testdir/test045.log
 
 	# Check for test failure
-	set e [findfail $testdir/test045.log]
-	error_check_good "FAIL: error message(s) in log file" $e 0
-
+	set logerrs [findfail $testdir/test045.log]
+	foreach str $logerrs {
+		puts "FAIL: error message in log file: $str"
+	}
 }
