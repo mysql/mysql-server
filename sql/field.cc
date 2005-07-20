@@ -5184,20 +5184,20 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
 
 int Field_date::store(double nr)
 {
-  long tmp;
+  longlong tmp;
   int error= 0;
   if (nr >= 19000000000000.0 && nr <= 99991231235959.0)
     nr=floor(nr/1000000.0);			// Timestamp to date
   if (nr < 0.0 || nr > 99991231.0)
   {
-    tmp=0L;
+    tmp= LL(0);
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATE);
     error= 1;
   }
   else
-    tmp=(long) rint(nr);
+    tmp= (longlong) rint(nr);
 
   return Field_date::store(tmp);
 }
@@ -6908,8 +6908,8 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
 
 my_decimal *Field_blob::val_decimal(my_decimal *decimal_value)
 {
-  char *blob;
-  memcpy_fixed(&blob, ptr+packlength, sizeof(char*));
+  const char *blob;
+  memcpy_fixed(&blob, ptr+packlength, sizeof(const char*));
   if (!blob)
     blob= "";
   str2my_decimal(E_DEC_FATAL_ERROR, blob, get_length(ptr), charset(),
