@@ -188,7 +188,20 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
       break; // we cannot return here, we need to restore "arena".
     }
     conv->fix_fields(thd, 0, &conv);
-    *arg= conv;
+    /*
+      If in statement prepare, then we create a converter for two
+      constant items, do it once and then reuse it.
+      If we're in execution of a prepared statement, arena is NULL,
+      and the conv was created in runtime memory. This can be
+      the case only if the argument is a parameter marker ('?'),
+      because for all true constants the charset converter has already
+      been created in prepare. In this case register the change for
+      rollback.
+    */
+    if (arena)
+      *arg= conv;
+    else
+      thd->change_item_tree(arg, conv);
   }
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
@@ -3018,6 +3031,37 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 }
 
 
+Item_func_get_system_var::
+Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
+                       LEX_STRING *component_arg, const char *name_arg,
+                       size_t name_len_arg)
+  :var(var_arg), var_type(var_type_arg), component(*component_arg)
+{
+  /* set_name() will allocate the name */
+  set_name(name_arg, name_len_arg, system_charset_info);
+}
+
+
+bool
+Item_func_get_system_var::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+{
+  Item *item;
+  DBUG_ENTER("Item_func_get_system_var::fix_fields");
+
+  /*
+    Evaluate the system variable and substitute the result (a basic constant)
+    instead of this item. If the variable can not be evaluated,
+    the error is reported in sys_var::item().
+  */
+  if (!(item= var->item(thd, var_type, &component)))
+    DBUG_RETURN(1);                             // Impossible
+  item->set_name(name, 0, system_charset_info); // don't allocate a new name
+  thd->change_item_tree(ref, item);
+
+  DBUG_RETURN(0);
+}
+
+
 longlong Item_func_inet_aton::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -3196,6 +3240,9 @@ bool Item_func_match::fix_index()
 
   if (key == NO_SUCH_KEY)
     return 0;
+  
+  if (!table) 
+    goto err;
 
   for (keynr=0 ; keynr < table->keys ; keynr++)
   {
@@ -3359,21 +3406,20 @@ longlong Item_func_bit_xor::val_int()
     0	error
     #	constant item
 */
-  
+
 
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component)
 {
+  sys_var *var;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
+  LEX_STRING *base_name, *component_name;
+
   if (component.str == 0 &&
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info, DERIVATION_SYSCONST);
-
-  Item *item;
-  sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
-  LEX_STRING *base_name, *component_name;
 
   if (component.str)
   {
@@ -3396,9 +3442,8 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
       return 0;
     }
   }
-  if (!(item=var->item(thd, var_type, component_name)))
-    return 0;					// Impossible
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -3419,28 +3464,8 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   memcpy(pos, base_name->str, base_name->length);
   pos+= base_name->length;
 
-  // set_name() will allocate the name
-  item->set_name(buff,(uint) (pos-buff), system_charset_info);
-  return item;
-}
-
-
-Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
-		     uint length, const char *item_name)
-{
-  Item *item;
-  sys_var *var;
-  LEX_STRING null_lex_string;
-
-  null_lex_string.str= 0;
-
-  var= find_sys_var(var_name, length);
-  DBUG_ASSERT(var != 0);
-  if (!(item=var->item(thd, var_type, &null_lex_string)))
-    return 0;						// Impossible
-  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  item->set_name(item_name, 0, system_charset_info);	// Will use original name
-  return item;
+  return new Item_func_get_system_var(var, var_type, component_name,
+                                      buff, pos - buff);
 }
 
 

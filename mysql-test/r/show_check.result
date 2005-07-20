@@ -420,7 +420,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
-  KEY `i` TYPE HASH (`i`)
+  KEY `i` USING HASH (`i`)
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
@@ -428,7 +428,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
-  KEY `i` TYPE BTREE (`i`)
+  KEY `i` USING BTREE (`i`)
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
@@ -444,7 +444,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
-  KEY `i` TYPE BTREE (`i`)
+  KEY `i` USING BTREE (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
@@ -467,14 +467,14 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
-  KEY `i` TYPE BTREE (`i`)
+  KEY `i` USING BTREE (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) default NULL,
-  KEY `i` TYPE BTREE (`i`)
+  KEY `i` USING BTREE (`i`)
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1(
@@ -498,3 +498,18 @@ def					Comment	253	255	0	N	129	31	63
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	field1	A	0	1000	NULL		BTREE	
 drop table t1;
+create table t1 (
+c1 int NOT NULL,
+c2 int NOT NULL,
+PRIMARY KEY USING HASH (c1),
+INDEX USING BTREE(c2)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL default '0',
+  `c2` int(11) NOT NULL default '0',
+  PRIMARY KEY  USING HASH (`c1`),
+  KEY `c2` USING BTREE (`c2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;

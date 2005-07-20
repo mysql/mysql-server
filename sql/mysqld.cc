@@ -417,6 +417,9 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+#ifdef HAVE_OPENSSL
+pthread_mutex_t LOCK_des_key_file;
+#endif
 rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
 	       COND_slave_start;
@@ -647,7 +650,11 @@ static void close_connections(void)
   end_thr_alarm(0);			 // Abort old alarms.
   end_slave();
 
-  /* First signal all threads that it's time to die */
+  /*
+    First signal all threads that it's time to die
+    This will give the threads some time to gracefully abort their
+    statements and inform their clients that the server is about to die.
+  */
 
   THD *tmp;
   (void) pthread_mutex_lock(&LOCK_thread_count); // For unlink from list
@@ -657,7 +664,7 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    tmp->killed=1;
+    tmp->killed= 1;
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -674,9 +681,13 @@ static void close_connections(void)
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
   if (thread_count)
-    sleep(1);					// Give threads time to die
+    sleep(2);					// Give threads time to die
 
-  /* Force remaining threads to die by closing the connection to the client */
+  /*
+    Force remaining threads to die by closing the connection to the client
+    This will ensure that threads that are waiting for a command from the
+    client on a blocking read call are aborted.
+  */
 
   for (;;)
   {
@@ -691,8 +702,9 @@ static void close_connections(void)
 #ifndef __bsdi__				// Bug in BSDI kernel
     if (tmp->vio_ok())
     {
-      sql_print_error(ER(ER_FORCING_CLOSE),my_progname,
-		      tmp->thread_id,tmp->user ? tmp->user : "");
+      if (global_system_variables.log_warnings)
+        sql_print_warning(ER(ER_FORCING_CLOSE),my_progname,
+                          tmp->thread_id,tmp->user ? tmp->user : "");
       close_connection(tmp,0,0);
     }
 #endif
@@ -1006,7 +1018,6 @@ void clean_up(bool print_message)
 #ifdef HAVE_OPENSSL
   if (ssl_acceptor_fd)
     my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
-  free_des_key_file();
 #endif /* HAVE_OPENSSL */
 #ifdef USE_REGEX
   regex_end();
@@ -1076,6 +1087,9 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
+#ifdef HAVE_OPENSSL
+  (void) pthread_mutex_destroy(&LOCK_des_key_file);
+#endif
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
   (void) pthread_cond_destroy(&COND_rpl_status);
@@ -2579,6 +2593,9 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
+#ifdef HAVE_OPENSSL
+  (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
+#endif
   (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
   (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);

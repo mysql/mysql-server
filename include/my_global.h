@@ -375,10 +375,7 @@ int	__void__;
 #endif
 
 /* Define some useful general macros */
-#if defined(__cplusplus) && defined(__GNUC__)
-#define max(a, b)	((a) >? (b))
-#define min(a, b)	((a) <? (b))
-#elif !defined(max)
+#if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif
@@ -800,7 +797,7 @@ typedef off_t os_off_t;
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
-#define SOCKET_EWOULDBLOCK WSAEINPROGRESS
+#define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #elif defined(OS2)
@@ -975,7 +972,8 @@ do { doubleget_union _tmp; \
 #define float4get(V,M) do { *((long *) &(V)) = *((long*) (M)); } while(0)
 #define float8get(V,M) doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
-#define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
+#define floatstore(T,V)  memcpy((byte*)(T), (byte*)(&V),sizeof(float))
+#define floatget(V,M)    memcpy((byte*) &V,(byte*) (M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
 #endif /* __i386__ */
 
@@ -1146,7 +1144,8 @@ do { doubleget_union _tmp; \
                              *(((char*)T)+1)=(((A) >> 16));\
                              *(((char*)T)+0)=(((A) >> 24)); } while(0)
 
-#define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
+#define floatget(V,M)    memcpy_fixed((byte*) &V,(byte*) (M),sizeof(float))
+#define floatstore(T,V)  memcpy_fixed((byte*) (T),(byte*)(&V),sizeof(float))
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
 #define doublestore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(double))
 #define longlongget(V,M) memcpy_fixed((byte*) &V,(byte*) (M),sizeof(ulonglong))
@@ -1161,7 +1160,8 @@ do { doubleget_union _tmp; \
 #define shortstore(T,V) int2store(T,V)
 #define longstore(T,V)	int4store(T,V)
 #ifndef floatstore
-#define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
+#define floatstore(T,V)  memcpy_fixed((byte*) (T),(byte*) (&V),sizeof(float))
+#define floatget(V,M)    memcpy_fixed((byte*) &V, (byte*) (M), sizeof(float))
 #endif
 #ifndef doubleget
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))

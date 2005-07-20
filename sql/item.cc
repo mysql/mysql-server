@@ -212,12 +212,40 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
   /*
+    Allow conversion from and to "binary".
     Don't allow automatic conversion to non-Unicode charsets,
     as it potentially loses data.
   */
-  if (!(tocs->state & MY_CS_UNICODE))
+  if (collation.collation != &my_charset_bin &&
+      tocs != &my_charset_bin &&
+      !(tocs->state & MY_CS_UNICODE))
     return NULL; // safe conversion is not possible
   return new Item_func_conv_charset(this, tocs);
+}
+
+
+/*
+  Created mostly for mysql_prepare_table(). Important
+  when a string ENUM/SET column is described with a numeric default value:
+
+  CREATE TABLE t1(a SET('a') DEFAULT 1);
+
+  We cannot use generic Item::safe_charset_converter(), because
+  the latter returns a non-fixed Item, so val_str() crashes afterwards.
+  Override Item_num method, to return a fixed item.
+*/
+Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_string(s->ptr(), s->length(), s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.shrink_to_length();
+  }
+  return conv;
 }
 
 
@@ -889,6 +917,7 @@ void Item_param::set_null()
   max_length= 0;
   decimals= 0;
   state= NULL_VALUE;
+  item_type= Item::NULL_ITEM;
   DBUG_VOID_RETURN;
 }
 
@@ -1088,6 +1117,7 @@ void Item_param::reset()
     to the binary log.
   */
   str_value.set_charset(&my_charset_bin);
+  collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   state= NO_VALUE;
   maybe_null= 1;
   null_value= 0;
@@ -1335,36 +1365,10 @@ bool Item_param::convert_str_value(THD *thd)
     */
     str_value_ptr.set(str_value.ptr(), str_value.length(),
                       str_value.charset());
+    /* Synchronize item charset with value charset */
+    collation.set(str_value.charset(), DERIVATION_COERCIBLE);
   }
   return rc;
-}
-
-bool Item_param::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
-{
-  DBUG_ASSERT(fixed == 0);
-  SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
-
-  /*
-    Parameters in a subselect should mark the subselect as not constant
-    during prepare
-  */
-  if (state == NO_VALUE)
-  {
-    /*
-      SELECT_LEX_UNIT::item set only for subqueries, so test of it presence
-      can be barrier to stop before derived table SELECT or very outer SELECT
-    */
-    for(;
-        cursel->master_unit()->item;
-        cursel= cursel->outer_select())
-    {
-      Item_subselect *subselect_item= cursel->master_unit()->item;
-      subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-      subselect_item->const_item_cache= 0;
-    }
-  }
-  fixed= 1;
-  return 0;
 }
 
 
@@ -1768,7 +1772,14 @@ void Item::make_field(Send_field *tmp_field)
 
 void Item_empty_string::make_field(Send_field *tmp_field)
 {
-  init_make_field(tmp_field,FIELD_TYPE_VAR_STRING);
+  enum_field_types type = FIELD_TYPE_VAR_STRING;  
+  if (max_length >= 16777216)    
+    type = FIELD_TYPE_LONG_BLOB;  
+  else if (max_length >= 65536)    
+    type = FIELD_TYPE_MEDIUM_BLOB;  
+  else if (max_length >= 256)    
+    type = FIELD_TYPE_BLOB;  
+  init_make_field(tmp_field, type);
 }
 
 
@@ -2150,6 +2161,20 @@ bool Item_varbinary::eq(const Item *arg, bool binary_cmp) const
   }
   return FALSE;
 }
+
+
+Item *Item_varbinary::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  String tmp, *str= val_str(&tmp);
+
+  if (!(conv= new Item_string(str->ptr(), str->length(), tocs)))
+    return NULL;
+  conv->str_value.copy();
+  conv->str_value.shrink_to_length();
+  return conv;
+}
+
 
 /*
   Pack data in buffer for sending
@@ -3121,9 +3146,13 @@ void Item_type_holder::get_full_info(Item *item)
   if (fld_type == MYSQL_TYPE_ENUM ||
       fld_type == MYSQL_TYPE_SET)
   {
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        (((Item_sum*)item)->sum_func() == Item_sum::MAX_FUNC ||
+         ((Item_sum*)item)->sum_func() == Item_sum::MIN_FUNC))
+      item = ((Item_sum*)item)->args[0];
     /*
-      We can have enum/set type after merging only if we have one enum/set
-      field and number of NULL fields
+      We can have enum/set type after merging only if we have one enum|set
+      field (or MIN|MAX(enum|set field)) and number of NULL fields
     */
     DBUG_ASSERT((enum_set_typelib &&
                  get_real_type(item) == MYSQL_TYPE_NULL) ||

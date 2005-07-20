@@ -130,7 +130,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
     sprintf(vio->desc,
 	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
 	    vio->sd);
-#if !defined(___WIN__) && !defined(__EMX__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
 #if !defined(NO_FCNTL_NONBLOCK)
 #if defined(__FreeBSD__)
     fcntl(sd, F_SETFL, vio->fcntl_mode); /* Yahoo! FreeBSD patch */
@@ -145,7 +145,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
     {
       /* set to blocking mode by default */
       ulong arg=0, r;
-      r = ioctlsocket(sd,FIONBIO,(void*) &arg, sizeof(arg));
+      r = ioctlsocket(sd,FIONBIO,(void*) &arg);
       vio->fcntl_mode &= ~O_NONBLOCK;
     }
 #endif

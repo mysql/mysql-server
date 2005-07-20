@@ -412,7 +412,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 default NULL,
-  UNIQUE KEY `a` TYPE HASH (`c`(1))
+  UNIQUE KEY `a` USING HASH (`c`(1))
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -448,7 +448,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 default NULL,
-  UNIQUE KEY `a` TYPE BTREE (`c`(1))
+  UNIQUE KEY `a` USING BTREE (`c`(1))
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -570,7 +570,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 collate utf8_bin default NULL,
-  UNIQUE KEY `a` TYPE HASH (`c`(1))
+  UNIQUE KEY `a` USING HASH (`c`(1))
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -606,7 +606,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 collate utf8_bin default NULL,
-  UNIQUE KEY `a` TYPE BTREE (`c`(1))
+  UNIQUE KEY `a` USING BTREE (`c`(1))
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -905,6 +905,10 @@ select * from t1 where city = 'Durban ';
 id	city
 2	Durban
 drop table t1;
+create table t1 (x set('A', 'B') default 0) character set utf8;
+ERROR 42000: Invalid default value for 'x'
+create table t1 (x enum('A', 'B') default 0) character set utf8;
+ERROR 42000: Invalid default value for 'x'
 SET NAMES UTF8;
 CREATE TABLE t1 (
 `id` int(20) NOT NULL auto_increment,
@@ -939,6 +943,17 @@ content	msisdn
 ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми	1234567890
 11 g	1234567890
 DROP TABLE t1,t2;
+create table t1 (a char(20) character set utf8);
+insert into t1 values ('123456'),('андрей');
+alter table t1 modify a char(2) character set utf8;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+select char_length(a), length(a), a from t1 order by a;
+char_length(a)	length(a)	a
+2	2	12
+2	4	ан
+drop table t1;
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)

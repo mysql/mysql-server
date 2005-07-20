@@ -251,6 +251,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define UNCACHEABLE_SIDEEFFECT	4
 // forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
+/* Don't evaluate subqueries in prepare even if they're not correlated */
+#define UNCACHEABLE_PREPARE    16
 
 #ifdef EXTRA_DEBUG
 /*
@@ -356,6 +358,11 @@ inline THD *_current_thd(void)
 #include "protocol.h"
 #include "sql_udf.h"
 class user_var_entry;
+enum enum_var_type
+{
+  OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
+};
+class sys_var;
 #include "item.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
@@ -625,7 +632,6 @@ extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
 extern pthread_mutex_t LOCK_des_key_file;
 bool load_des_key_file(const char *file_name);
-void free_des_key_file();
 #endif /* HAVE_OPENSSL */
 
 /* sql_do.cc */
@@ -935,6 +941,9 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
+#ifdef HAVE_OPENSSL
+extern pthread_mutex_t LOCK_des_key_file;
+#endif
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
@@ -1116,12 +1125,9 @@ extern bool sql_cache_init();
 extern void sql_cache_free();
 extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
-/* item.cc */
+/* item_func.cc */
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component);
-Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
-		     uint length, const char *item_name);
-/* item_func.cc */
 int get_var_with_binlog(THD *thd, LEX_STRING &name,
                         user_var_entry **out_entry);
 /* log.cc */

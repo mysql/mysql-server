@@ -324,24 +324,60 @@ static void do_field_real(Copy_field *copy)
 }
 
 
+/*
+  string copy for single byte characters set when to string is shorter than
+  from string
+*/
+
 static void do_cut_string(Copy_field *copy)
-{						// Shorter string field
+{
+  CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->to_length);
 
   /* Check if we loosed any important characters */
-  char *ptr,*end;
-  for (ptr=copy->from_ptr+copy->to_length,end=copy->from_ptr+copy->from_length ;
-       ptr != end ;
-       ptr++)
+  if (cs->cset->scan(cs,
+                     copy->from_ptr + copy->to_length,
+                     copy->from_ptr + copy->from_length,
+                     MY_SEQ_SPACES) < copy->from_length - copy->to_length)
   {
-    if (!my_isspace(system_charset_info, *ptr))	// QQ: ucs incompatible
-    {
-      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_WARN_DATA_TRUNCATED, 1);
-      break;
-    }
+    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_DATA_TRUNCATED, 1);
   }
 }
+
+
+/*
+  string copy for multi byte characters set when to string is shorter than
+  from string
+*/
+
+static void do_cut_string_complex(Copy_field *copy)
+{						// Shorter string field
+  int well_formed_error;
+  CHARSET_INFO *cs= copy->from_field->charset();
+  const char *from_end= copy->from_ptr + copy->from_length;
+  uint copy_length= cs->cset->well_formed_len(cs, copy->from_ptr, from_end, 
+                                              copy->to_length / cs->mbmaxlen,
+                                              &well_formed_error);
+  if (copy->to_length < copy_length)
+    copy_length= copy->to_length;
+  memcpy(copy->to_ptr, copy->from_ptr, copy_length);
+
+  /* Check if we lost any important characters */
+  if (well_formed_error ||
+      cs->cset->scan(cs, copy->from_ptr + copy_length, from_end,
+                     MY_SEQ_SPACES) < (copy->from_length - copy_length))
+  {
+    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                ER_WARN_DATA_TRUNCATED, 1);
+  }
+
+  if (copy_length < copy->to_length)
+    cs->cset->fill(cs, copy->to_ptr + copy_length,
+                   copy->to_length - copy_length, ' ');
+}
+
+
 
 
 static void do_expand_string(Copy_field *copy)
@@ -510,7 +546,8 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 	       from_length)
 	return do_varstring;
       else if (to_length < from_length)
-	return do_cut_string;
+	return (from->charset()->mbmaxlen == 1 ?
+                do_cut_string : do_cut_string_complex);
       else if (to_length > from_length)
 	return do_expand_string;
     }

@@ -597,3 +597,17 @@ SELECT CONCAT_WS(' ', trackname, artistname) trackname, artistname
     WHERE CONCAT_WS(' ', trackname, artistname) LIKE '%In%';
 
 DROP TABLE t1,t2,t3;
+
+#
+# Correct length reporting from substring() (BUG#10269)
+#
+create table t1 (b varchar(5));
+insert t1 values ('ab'), ('abc'), ('abcd'), ('abcde');
+select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1;
+select * from (select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1) t;
+drop table t1;
+
+#
+# Bug #9854  hex() and out of range handling
+#
+select hex(29223372036854775809), hex(-29223372036854775809);

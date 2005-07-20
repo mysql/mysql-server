@@ -460,19 +460,20 @@ use test;
 # a table with tha same name as a table that can't be
 # discovered( for example a table created via NDBAPI)
 
---error 1050
-CREATE TABLE sys.SYSTAB_0 (a int);
---error 1105
-select * from sys.SYSTAB_0;
+# Test disabled since it doesn't work on case insensitive systems
+#--error 1050
+#CREATE TABLE sys.SYSTAB_0 (a int);
+#--error 1105
+#select * from sys.SYSTAB_0;
 
-CREATE TABLE IF NOT EXISTS sys.SYSTAB_0 (a int);
-show warnings;
---error 1105
-select * from sys.SYSTAB_0;
+#CREATE TABLE IF NOT EXISTS sys.SYSTAB_0 (a int);
+#show warnings;
+#--error 1105
+#select * from sys.SYSTAB_0;
 
---error 1051
-drop table sys.SYSTAB_0;
-drop table IF EXISTS sys.SYSTAB_0;
+#--error 1051
+#drop table sys.SYSTAB_0;
+#drop table IF EXISTS sys.SYSTAB_0;
 
 ######################################################
 # Note! This should always be the last step in this 
