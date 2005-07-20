@@ -121,6 +121,9 @@ static handlerton berkeley_hton = {
   NULL, /* recover */
   NULL, /* commit_by_xid */
   NULL, /* rollback_by_xid */
+  NULL, /* create_cursor_read_view */
+  NULL, /* set_cursor_read_view */
+  NULL, /* close_cursor_read_view */
   HTON_CLOSE_CURSORS_AT_COMMIT
 };
 

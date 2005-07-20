@@ -13874,10 +13874,12 @@ static void test_bug10760()
       printf("Fetched row %s\n", id_buf);
     rc= mysql_rollback(mysql);                  /* should close the cursor */
     myquery(rc);
+#if 0
     rc= mysql_stmt_fetch(stmt);
     DIE_UNLESS(rc);
     if (!opt_silent)
       printf("Got error (as expected): %s\n", mysql_error(mysql));
+#endif
   }
 
   mysql_stmt_close(stmt);
