@@ -21,6 +21,7 @@
 #include "sql_select.h"                         // For select_describe
 #include "repl_failsafe.h"
 #include "sp_head.h"
+#include "sql_trigger.h"
 #include <my_dir.h>
 
 #ifdef HAVE_BERKELEY_DB
@@ -1696,6 +1697,7 @@ void get_index_field_values(LEX *lex, INDEX_FIELD_VALUES *index_field_values)
     break;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_TRIGGERS:
     index_field_values->db_value= lex->current_select->db;
     index_field_values->table_value= wild;
     break;
@@ -2377,6 +2379,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     {
       const char *tmp_buff;
       byte *pos;
+      bool is_blob;
       uint flags=field->flags;
       char tmp[MAX_FIELD_WIDTH];
       char tmp1[MAX_FIELD_WIDTH];
@@ -2455,12 +2458,14 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                    "NO" : "YES");
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
-      if (field->has_charset())
+      is_blob= (field->type() == FIELD_TYPE_BLOB);
+      if (field->has_charset() || is_blob)
       {
-        table->field[8]->store((longlong) field->field_length/
-                               field->charset()->mbmaxlen);
+        longlong c_octet_len= is_blob ? (longlong) field->max_length() :
+          (longlong) field->max_length()/field->charset()->mbmaxlen;
+        table->field[8]->store(c_octet_len);
         table->field[8]->set_notnull();
-        table->field[9]->store((longlong) field->field_length);
+        table->field[9]->store((longlong) field->max_length());
         table->field[9]->set_notnull();
       }
 
@@ -2488,6 +2493,17 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         case FIELD_TYPE_LONG:
         case FIELD_TYPE_LONGLONG:
         case FIELD_TYPE_INT24:
+        {
+          table->field[10]->store((longlong) field->max_length() - 1);
+          table->field[10]->set_notnull();
+          break;
+        }
+        case FIELD_TYPE_BIT:
+        {
+          table->field[10]->store((longlong) field->max_length());
+          table->field[10]->set_notnull();
+          break;
+        }
         case FIELD_TYPE_FLOAT:  
         case FIELD_TYPE_DOUBLE:
         {
@@ -2960,6 +2976,73 @@ static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
     }
   }
   DBUG_RETURN(res);
+}
+
+
+static bool store_trigger(THD *thd, TABLE *table, const char *db,
+                          const char *tname, LEX_STRING *trigger_name,
+                          enum trg_event_type event,
+                          enum trg_action_time_type timing,
+                          LEX_STRING *trigger_stmt)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  restore_record(table, s->default_values);
+  table->field[1]->store(db, strlen(db), cs);
+  table->field[2]->store(trigger_name->str, trigger_name->length, cs);
+  table->field[3]->store(trg_event_type_names[event].str,
+                         trg_event_type_names[event].length, cs);
+  table->field[5]->store(db, strlen(db), cs);
+  table->field[6]->store(tname, strlen(tname), cs);
+  table->field[9]->store(trigger_stmt->str, trigger_stmt->length, cs);
+  table->field[10]->store("ROW", 3, cs);
+  table->field[11]->store(trg_action_time_type_names[timing].str,
+                          trg_action_time_type_names[timing].length, cs);
+  table->field[14]->store("OLD", 3, cs);
+  table->field[15]->store("NEW", 3, cs);
+  return schema_table_store_record(thd, table);
+}
+
+
+static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
+				      TABLE *table, bool res,
+				      const char *base_name,
+				      const char *file_name)
+{
+  DBUG_ENTER("get_schema_triggers_record");
+  /*
+    res can be non zero value when processed table is a view or
+    error happened during opening of processed table.
+  */
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  if (!tables->view && tables->table->triggers)
+  {
+    Table_triggers_list *triggers= tables->table->triggers;
+    int event, timing;
+    for (event= 0; event < (int)TRG_EVENT_MAX; event++)
+    {
+      for (timing= 0; timing < (int)TRG_ACTION_MAX; timing++)
+      {
+        LEX_STRING trigger_name;
+        LEX_STRING trigger_stmt;
+        if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
+                                       (enum trg_action_time_type)timing,
+                                       &trigger_name, &trigger_stmt))
+          continue;
+        if (store_trigger(thd, table, base_name, file_name, &trigger_name,
+                         (enum trg_event_type) event,
+                         (enum trg_action_time_type) timing, &trigger_stmt))
+          DBUG_RETURN(1);
+      }
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -3847,6 +3930,29 @@ ST_FIELD_INFO open_tables_fields_info[]=
 };
 
 
+ST_FIELD_INFO triggers_fields_info[]=
+{
+  {"TRIGGER_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TRIGGER_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TRIGGER_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Trigger"},
+  {"EVENT_MANIPULATION", 6, MYSQL_TYPE_STRING, 0, 0, "Event"},
+  {"EVENT_OBJECT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"EVENT_OBJECT_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EVENT_OBJECT_TABLE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table"},
+  {"ACTION_ORDER", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"ACTION_CONDITION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ACTION_STATEMENT", 65535, MYSQL_TYPE_STRING, 0, 0, "Statement"},
+  {"ACTION_ORIENTATION", 9, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"ACTION_TIMING", 6, MYSQL_TYPE_STRING, 0, 0, "Timing"},
+  {"ACTION_REFERENCE_OLD_TABLE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ACTION_REFERENCE_NEW_TABLE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Created"},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
 ST_FIELD_INFO variables_fields_info[]=
 {
   {"Variable_name", 80, MYSQL_TYPE_STRING, 0, 0, "Variable_name"},
@@ -3897,6 +4003,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_open_tables, make_old_format, 0, -1, -1, 1},
   {"STATUS", variables_fields_info, create_schema_table, fill_status, 
    make_old_format, 0, -1, -1, 1},
+  {"TRIGGERS", triggers_fields_info, create_schema_table, 
+   get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0},
   {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
    make_old_format, 0, -1, -1, 1},
   {0, 0, 0, 0, 0, 0, 0, 0, 0}

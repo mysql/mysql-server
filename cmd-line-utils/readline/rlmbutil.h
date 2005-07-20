@@ -35,9 +35,16 @@
 #if defined (HAVE_WCTYPE_H) && defined (HAVE_WCHAR_H)
 #  include <wchar.h>
 #  include <wctype.h>
-#  if defined (HAVE_MBSRTOWCS) /* system is supposed to support XPG5 */
+#  if defined (HAVE_MBSRTOWCS) && defined (HAVE_MBRTOWC) && defined (HAVE_MBRLEN) && defined (HAVE_WCWIDTH)
+     /* system is supposed to support XPG5 */
 #    define HANDLE_MULTIBYTE      1
 #  endif
+#endif
+
+/* If we don't want multibyte chars even on a system that supports them, let
+   the configuring user turn multibyte support off. */
+#if defined (NO_MULTIBYTE_SUPPORT)
+#  undef HANDLE_MULTIBYTE
 #endif
 
 /* Some systems, like BeOS, have multibyte encodings but lack mbstate_t.  */
@@ -82,13 +89,16 @@ extern int _rl_find_next_mbchar PARAMS((char *, int, int, int));
 #ifdef HANDLE_MULTIBYTE
 
 extern int _rl_compare_chars PARAMS((char *, int, mbstate_t *, char *, int, mbstate_t *));
-extern int _rl_get_char_len PARAMS((const char *, mbstate_t *));
-extern int _rl_adjust_point PARAMS((const char *, int, mbstate_t *));
+extern int _rl_get_char_len PARAMS((char *, mbstate_t *));
+extern int _rl_adjust_point PARAMS((char *, int, mbstate_t *));
 
 extern int _rl_read_mbchar PARAMS((char *, int));
 extern int _rl_read_mbstring PARAMS((int, char *, int));
 
 extern int _rl_is_mbchar_matched PARAMS((char *, int, int, char *, int));
+
+#define MB_INVALIDCH(x)		((x) == (size_t)-1 || (x) == (size_t)-2)
+#define MB_NULLWCH(x)		((x) == 0)
 
 #else /* !HANDLE_MULTIBYTE */
 
@@ -100,6 +110,9 @@ extern int _rl_is_mbchar_matched PARAMS((char *, int, int, char *, int));
 
 #define _rl_find_prev_mbchar(b, i, f)		(((i) == 0) ? (i) : ((i) - 1))
 #define _rl_find_next_mbchar(b, i1, i2, f)	((i1) + (i2))
+
+#define MB_INVALIDCH(x)		(0)
+#define MB_NULLWCH(x)		(0)
 
 #endif /* !HANDLE_MULTIBYTE */
 

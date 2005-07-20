@@ -54,6 +54,23 @@ pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
 
+static handlerton tina_hton= {
+  "CSV",
+  0,       /* slot */
+  0,       /* savepoint size. */
+  0,       /* close_connection */
+  0,       /* savepoint */
+  0,       /* rollback to savepoint */
+  0,       /* release savepoint */
+  0,       /* commit */
+  0,       /* rollback */
+  0,       /* prepare */
+  0,       /* recover */
+  0,       /* commit_by_xid */
+  0,       /* rollback_by_xid */
+  HTON_NO_FLAGS
+};
+
 /*****************************************************************************
  ** TINA tables
  *****************************************************************************/
@@ -226,6 +243,20 @@ byte * find_eoln(byte *data, off_t begin, off_t end)
       return data + x;
 
   return 0;
+}
+
+
+ha_tina::ha_tina(TABLE *table_arg)
+  :handler(&tina_hton, table_arg),
+  /*
+    These definitions are found in hanler.h
+    These are not probably completely right.
+  */
+  current_position(0), next_position(0), chain_alloced(0), chain_size(DEFAULT_CHAIN_LENGTH)
+{
+  /* Set our original buffers from pre-allocated memory */
+  buffer.set(byte_buffer, IO_SIZE, system_charset_info);
+  chain= chain_buffer;
 }
 
 /*

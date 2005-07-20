@@ -73,6 +73,23 @@ static char *normalize_codeset PARAMS((char *));
 static char *find_codeset PARAMS((char *, size_t *));
 #endif /* !HAVE_SETLOCALE */
 
+static char *_rl_get_locale_var PARAMS((const char *));
+
+static char *
+_rl_get_locale_var (v)
+     const char *v;
+{
+  char *lspec;
+
+  lspec = sh_get_env_value ("LC_ALL");
+  if (lspec == 0 || *lspec == 0)
+    lspec = sh_get_env_value (v);
+  if (lspec == 0 || *lspec == 0)
+    lspec = sh_get_env_value ("LANG");
+
+  return lspec;
+}
+  
 /* Check for LC_ALL, LC_CTYPE, and LANG and use the first with a value
    to decide the defaults for 8-bit character input and output.  Returns
    1 if we set eight-bit mode. */
@@ -82,10 +99,21 @@ _rl_init_eightbit ()
 /* If we have setlocale(3), just check the current LC_CTYPE category
    value, and go into eight-bit mode if it's not C or POSIX. */
 #if defined (HAVE_SETLOCALE)
-  char *t;
+  char *lspec, *t;
 
   /* Set the LC_CTYPE locale category from environment variables. */
-  t = setlocale (LC_CTYPE, "");
+  lspec = _rl_get_locale_var ("LC_CTYPE");
+  /* Since _rl_get_locale_var queries the right environment variables,
+     we query the current locale settings with setlocale(), and, if
+     that doesn't return anything, we set lspec to the empty string to
+     force the subsequent call to setlocale() to define the `native'
+     environment. */
+  if (lspec == 0 || *lspec == 0)
+    lspec = setlocale (LC_CTYPE, (char *)NULL);
+  if (lspec == 0)
+    lspec = "";
+  t = setlocale (LC_CTYPE, lspec);
+
   if (t && *t && (t[0] != 'C' || t[1]) && (STREQ (t, "POSIX") == 0))
     {
       _rl_meta_flag = 1;
@@ -103,9 +131,8 @@ _rl_init_eightbit ()
   /* We don't have setlocale.  Finesse it.  Check the environment for the
      appropriate variables and set eight-bit mode if they have the right
      values. */
-  lspec = sh_get_env_value ("LC_ALL");
-  if (lspec == 0) lspec = sh_get_env_value ("LC_CTYPE");
-  if (lspec == 0) lspec = sh_get_env_value ("LANG");
+  lspec = _rl_get_locale_var ("LC_CTYPE");
+
   if (lspec == 0 || (t = normalize_codeset (lspec)) == 0)
     return (0);
   for (i = 0; t && legal_lang_values[i]; i++)

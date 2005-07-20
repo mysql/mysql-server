@@ -23,6 +23,8 @@
 #include <hash.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 #ifdef __WIN__
 #include <io.h>
@@ -290,16 +292,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	if (!(new_error=my_delete(path,MYF(MY_WME))))
         {
 	  some_tables_deleted=1;
-          /*
-            Destroy triggers for this table if there are any.
-
-            We won't need this as soon as we will have new .FRM format,
-            in which we will store trigger definitions in the same .FRM
-            files as table descriptions.
-          */
-          strmov(end, triggers_file_ext);
-          if (!access(path, F_OK))
-            new_error= my_delete(path, MYF(MY_WME));
+          new_error= Table_triggers_list::drop_all_triggers(thd, db,
+                                                            table->table_name);
         }
         error|= new_error;
       }

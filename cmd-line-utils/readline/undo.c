@@ -169,8 +169,7 @@ rl_do_undo ()
 
 int
 _rl_fix_last_undo_of_type (type, start, end)
-     unsigned int type;
-     int start, end;
+     int type, start, end;
 {
   UNDO_LIST *rl;
 
@@ -228,7 +227,7 @@ rl_modifying (start, end)
 /* Revert the current line to its previous state. */
 int
 rl_revert_line (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   if (!rl_undo_list)
     rl_ding ();
@@ -243,7 +242,7 @@ rl_revert_line (count, key)
 /* Do some undoing of things that were done. */
 int
 rl_undo_command (count, key)
-     int count, key __attribute__((unused));
+     int count, key;
 {
   if (count < 0)
     return 0;	/* Nothing to do. */
