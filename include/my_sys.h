@@ -165,7 +165,7 @@ extern char *my_strdup_with_length(const byte *from, uint length,
 #endif /* _AIX */
 #if defined(__MWERKS__)
 #undef alloca
-#define alloca __alloca
+#define alloca _alloca
 #endif /* __MWERKS__ */
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
