@@ -791,9 +791,7 @@ extern char *des_key_file;
 extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
 extern pthread_mutex_t LOCK_des_key_file;
-void init_des_key_file();
 bool load_des_key_file(const char *file_name);
-void free_des_key_file();
 #endif /* HAVE_OPENSSL */
 
 /* sql_do.cc */
@@ -1157,8 +1155,11 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
-       LOCK_global_system_variables, LOCK_user_conn, 
+       LOCK_global_system_variables, LOCK_user_conn,
        LOCK_bytes_sent, LOCK_bytes_received;
+#ifdef HAVE_OPENSSL
+extern pthread_mutex_t LOCK_des_key_file;
+#endif
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
