@@ -138,6 +138,61 @@ int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  unsigned backupId = 0;
+  
+  int loops = ctx->getNumLoops();
+  while(!ctx->isTestStopped() && loops--)
+  {
+    if (backup.start(backupId) == -1)
+    {
+      sleep(1);
+      loops++;
+    }
+    else
+    {
+      sleep(3);
+    }
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+runDDL(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb= GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  
+  const int tables = NDBT_Tables::getNumTables();
+  while(!ctx->isTestStopped())
+  {
+    const int tab_no = rand() % (tables);
+    NdbDictionary::Table tab = *NDBT_Tables::getTable(tab_no);
+    BaseString name= tab.getName();
+    name.appfmt("-%d", step->getStepNo());
+    tab.setName(name.c_str());
+    if(pDict->createTable(tab) == 0)
+    {
+      HugoTransactions hugoTrans(* pDict->getTable(name.c_str()));
+      if (hugoTrans.loadTable(pNdb, 10000) != 0){
+	return NDBT_FAILED;
+      }
+      
+      while(pDict->dropTable(tab.getName()) != 0 &&
+	    pDict->getNdbError().code != 4009)
+	g_err << pDict->getNdbError() << endl;
+      
+      sleep(1);
+
+    }
+  }
+  return NDBT_OK;
+}
+
+
 int runRestartInitial(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
@@ -415,6 +470,15 @@ TESTCASE("BackupOne",
   INITIALIZER(runRestartInitial);
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);
+  FINALIZER(runClearTable);
+}
+TESTCASE("BackupDDL", 
+	 "Test that backup and restore works on with DDL ongoing\n"
+	 "1. Backups and DDL (create,drop,table.index)"){
+  INITIALIZER(runLoadTable);
+  STEP(runBackupLoop);
+  STEP(runDDL);
+  STEP(runDDL);
   FINALIZER(runClearTable);
 }
 TESTCASE("BackupBank", 
