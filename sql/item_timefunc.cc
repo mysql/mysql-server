@@ -2524,7 +2524,7 @@ void Item_func_add_time::print(String *str)
   }
   args[0]->print(str);
   str->append(',');
-  args[0]->print(str);
+  args[1]->print(str);
   str->append(')');
 }
 
