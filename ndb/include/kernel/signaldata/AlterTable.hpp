@@ -129,7 +129,7 @@ public:
     InvalidPrimaryKeySize  = 739,
     NullablePrimaryKey = 740,
     UnsupportedChange = 741,
-    BackupInProgress = 746
+    BackupInProgress = 762
   };
 
 private:
