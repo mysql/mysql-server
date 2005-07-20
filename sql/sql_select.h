@@ -389,6 +389,12 @@ class Cursor: public Sql_alloc, public Query_arena
   TABLE *derived_tables;
   /* List of items created during execution */
   query_id_t query_id;
+  struct Engine_info
+  {
+    const handlerton *ht;
+    void *read_view;
+  };
+  Engine_info ht_info[MAX_HA];
 public:
   Item_change_list change_list;
   select_send result;

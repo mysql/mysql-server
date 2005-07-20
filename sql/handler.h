@@ -106,9 +106,11 @@
 
 /*
   Note: the following includes binlog and closing 0.
-  so: innodb+bdb+ndb+binlog+0
+  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
+      example + csv + heap + blackhole + federated + 0
+  (yes, the sum is deliberately inaccurate)
 */
-#define MAX_HA 6
+#define MAX_HA 14
 
 /*
   Bits in index_ddl_flags(KEY *wanted_index)
@@ -349,6 +351,9 @@ typedef struct
    int  (*recover)(XID *xid_list, uint len);
    int  (*commit_by_xid)(XID *xid);
    int  (*rollback_by_xid)(XID *xid);
+   void *(*create_cursor_read_view)();
+   void (*set_cursor_read_view)(void *);
+   void (*close_cursor_read_view)(void *);
    uint32 flags;                                /* global handler flags */
 } handlerton;
 
