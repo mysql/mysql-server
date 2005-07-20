@@ -508,7 +508,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   mi_int2store(share.state.header.key_parts,key_segs);
   mi_int2store(share.state.header.unique_key_parts,unique_key_parts);
 
-  share.state.key_map = ((ulonglong) 1 << keys)-1;
+  mi_set_all_keys_active(share.state.key_map, keys);
   share.base.keystart = share.state.state.key_file_length=
     MY_ALIGN(info_length, myisam_block_size);
   share.base.max_key_block_length=max_key_block_length;

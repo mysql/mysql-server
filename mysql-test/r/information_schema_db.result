@@ -16,11 +16,13 @@ TABLE_PRIVILEGES
 COLUMN_PRIVILEGES
 TABLE_CONSTRAINTS
 KEY_COLUMN_USAGE
+TRIGGERS
 show tables from INFORMATION_SCHEMA like 'T%';
 Tables_in_information_schema (T%)
 TABLES
 TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
+TRIGGERS
 create database `inf%`;
 use `inf%`;
 show tables;

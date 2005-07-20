@@ -1207,14 +1207,18 @@ JOIN::exec()
 	else
 	{
 	  error= (int) result->send_eof();
-	  send_records=1;
+	  send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
+                         thd->sent_row_count);
 	}
       }
       else
+      {
 	error=(int) result->send_eof();
+        send_records= 0;
+      }
     }
-    /* Single select (without union and limit) always returns 1 row */
-    thd->limit_found_rows= 1;
+    /* Single select (without union) always returns 0 or 1 row */
+    thd->limit_found_rows= send_records;
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
@@ -1702,10 +1706,12 @@ JOIN::destroy()
 
 Cursor::Cursor(THD *thd)
   :Query_arena(&main_mem_root, INITIALIZED),
-   join(0), unit(0)
+   join(0), unit(0),
+   close_at_commit(FALSE)
 {
   /* We will overwrite it at open anyway. */
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+  thr_lock_owner_init(&lock_id, &thd->lock_info);
 }
 
 
@@ -1739,6 +1745,21 @@ Cursor::init_from_thd(THD *thd)
   free_list=	  thd->free_list;
   change_list=    thd->change_list;
   reset_thd(thd);
+  /* Now we have an active cursor and can cause a deadlock */
+  thd->lock_info.n_cursors++;
+
+  close_at_commit= FALSE; /* reset in case we're reusing the cursor */
+  for (TABLE *table= open_tables; table; table= table->next)
+  {
+    const handlerton *ht= table->file->ht;
+    if (ht)
+      close_at_commit|= (ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
+    else
+    {
+      close_at_commit= TRUE;     /* handler status is unknown */
+      break;
+    }
+  }
   /*
     XXX: thd->locked_tables is not changed.
     What problems can we have with it if cursor is open?
@@ -1907,6 +1928,7 @@ Cursor::close(bool is_active)
     thd->derived_tables= tmp_derived_tables;
     thd->lock= tmp_lock;
   }
+  thd->lock_info.n_cursors--; /* Decrease the number of active cursors */
   join= 0;
   unit= 0;
   free_items();
@@ -5182,6 +5204,7 @@ static void add_not_null_conds(JOIN *join)
         if (tab->ref.null_rejecting & (1 << keypart))
         {
           Item *item= tab->ref.items[keypart];
+          Item *notnull;
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
@@ -5192,7 +5215,6 @@ static void add_not_null_conds(JOIN *join)
           */
           if (!referred_tab || referred_tab->join != join)
             continue;
-          Item *notnull;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
           /*

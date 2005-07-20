@@ -775,29 +775,19 @@ static int check_connection(THD *thd)
       return (ER_OUT_OF_RESOURCES);
     thd->host_or_ip= thd->ip;
     vio_in_addr(net->vio,&thd->remote.sin_addr);
-#if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
-    /* Fast local hostname resolve for Win32 */
-    if (!strcmp(thd->ip,"127.0.0.1"))
+    if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      thd->host= (char*) my_localhost;
-      thd->host_or_ip= my_localhost;
-    }
-    else
-#endif
-    {
-      if (!(specialflag & SPECIAL_NO_RESOLVE))
+      vio_in_addr(net->vio,&thd->remote.sin_addr);
+      thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
+      /* Cut very long hostnames to avoid possible overflows */
+      if (thd->host)
       {
-	vio_in_addr(net->vio,&thd->remote.sin_addr);
-	thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
-	/* Cut very long hostnames to avoid possible overflows */
-	if (thd->host)
-	{
-	  thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
-	  thd->host_or_ip= thd->host;
-	}
-	if (connect_errors > max_connect_errors)
-	  return(ER_HOST_IS_BLOCKED);
+        if (thd->host != my_localhost)
+          thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+        thd->host_or_ip= thd->host;
       }
+      if (connect_errors > max_connect_errors)
+        return(ER_HOST_IS_BLOCKED);
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
 		       thd->host ? thd->host : "unknown host",
@@ -2104,6 +2094,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_TABLE_NAMES:
   case SCH_TABLES:
   case SCH_VIEWS:
+  case SCH_TRIGGERS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND,
                ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
@@ -2386,10 +2377,12 @@ mysql_execute_command(THD *thd)
     select_result *result=lex->result;
     if (all_tables)
     {
-      res= check_table_access(thd,
-			      lex->exchange ? SELECT_ACL | FILE_ACL :
-			      SELECT_ACL,
-			      all_tables, 0);
+      if (lex->orig_sql_command != SQLCOM_SHOW_STATUS_PROC &&
+          lex->orig_sql_command != SQLCOM_SHOW_STATUS_FUNC)
+        res= check_table_access(thd,
+                                lex->exchange ? SELECT_ACL | FILE_ACL :
+                                SELECT_ACL,
+                                all_tables, 0);
     }
     else
       res= check_access(thd,

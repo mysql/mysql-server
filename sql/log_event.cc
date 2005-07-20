@@ -1,15 +1,15 @@
 /* Copyright (C) 2000-2004 MySQL AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -242,7 +242,7 @@ static void print_set_option(FILE* file, uint32 bits_changed, uint32 option,
   {
     if (*need_comma)
       fprintf(file,", ");
-    fprintf(file,"%s=%d", name, (bool)(flags & option));
+    fprintf(file,"%s=%d", name, test(flags & option));
     *need_comma= 1;
   }
 }
@@ -2774,6 +2774,16 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
         */
         handle_dup= DUP_ERROR;
       }
+      /*
+        We need to set thd->lex->sql_command and thd->lex->duplicates
+        since InnoDB tests these variables to decide if this is a LOAD
+        DATA ... REPLACE INTO ... statement even though mysql_parse()
+        is not called.  This is not needed in 5.0 since there the LOAD
+        DATA ... statement is replicated using mysql_parse(), which
+        sets the thd->lex fields correctly.
+      */
+      thd->lex->sql_command= SQLCOM_LOAD;
+      thd->lex->duplicates= handle_dup;
 
       sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len,log_cs);
