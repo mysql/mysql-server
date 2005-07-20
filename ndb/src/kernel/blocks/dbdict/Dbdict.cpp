@@ -2800,7 +2800,7 @@ Dbdict::execBACKUP_FRAGMENT_REQ(Signal* signal)
     ndbrequire(tablePtr.p->tabState == TableRecord::DEFINED);
     tablePtr.p->tabState = TableRecord::BACKUP_ONGOING;
   }
-  else if(tablePtr.p->tabState == TableRecord::BACKUP_ONGOING);
+  else if(tablePtr.p->tabState == TableRecord::BACKUP_ONGOING)
   {
     tablePtr.p->tabState = TableRecord::DEFINED;
   }
