@@ -1712,12 +1712,14 @@ Cursor::Cursor(THD *thd)
   /* We will overwrite it at open anyway. */
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   thr_lock_owner_init(&lock_id, &thd->lock_info);
+  bzero((void*) ht_info, sizeof(ht_info));
 }
 
 
 void
 Cursor::init_from_thd(THD *thd)
 {
+  Engine_info *info;
   /*
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
@@ -1749,15 +1751,16 @@ Cursor::init_from_thd(THD *thd)
   thd->lock_info.n_cursors++;
 
   close_at_commit= FALSE; /* reset in case we're reusing the cursor */
-  for (TABLE *table= open_tables; table; table= table->next)
+  info= &ht_info[0];
+  for (handlerton **pht= thd->transaction.stmt.ht; *pht; pht++)
   {
-    const handlerton *ht= table->file->ht;
-    if (ht)
-      close_at_commit|= (ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
-    else
+    const handlerton *ht= *pht;
+    close_at_commit|= (ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
+    if (ht->create_cursor_read_view)
     {
-      close_at_commit= TRUE;     /* handler status is unknown */
-      break;
+      info->ht= ht;
+      info->read_view= (ht->create_cursor_read_view)();
+      ++info;
     }
   }
   /*
@@ -1853,6 +1856,9 @@ Cursor::fetch(ulong num_rows)
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &backup_arena);
 
+  for (Engine_info *info= ht_info; info->read_view ; info++)
+    (info->ht->set_cursor_read_view)(info->read_view);
+
   join->fetch_limit+= num_rows;
 
   error= sub_select(join, join_tab, 0);
@@ -1868,6 +1874,9 @@ Cursor::fetch(ulong num_rows)
 #endif
   /* Grab free_list here to correctly free it in close */
   thd->restore_backup_item_arena(this, &backup_arena);
+
+  for (Engine_info *info= ht_info; info->read_view; info++)
+    (info->ht->set_cursor_read_view)(0);
 
   if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
@@ -1908,6 +1917,13 @@ Cursor::close(bool is_active)
     (void) unit->cleanup();
   else
     (void) join->select_lex->cleanup();
+
+  for (Engine_info *info= ht_info; info->read_view; info++)
+  {
+    (info->ht->close_cursor_read_view)(info->read_view);
+    info->read_view= 0;
+    info->ht= 0;
+  }
 
   if (is_active)
     close_thread_tables(thd);
