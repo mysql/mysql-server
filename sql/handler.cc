@@ -1514,6 +1514,8 @@ int ha_discover(THD *thd, const char *db, const char *name,
   int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
+  if (is_prefix(name,tmp_file_prefix)) /* skip temporary tables */
+    DBUG_RETURN(error);
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
     error= ndbcluster_discover(thd, db, name, frmblob, frmlen);
