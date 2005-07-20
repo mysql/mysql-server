@@ -23,7 +23,7 @@ select * from t1;
 drop table t1;
 
 # only support for partition key on primary key
---error 1453
+--error 1460
 CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b))
   ENGINE = NDB
   PARTITION BY KEY (c);
