@@ -56,11 +56,14 @@ uint calc_days_in_year(uint year)
 }
 
 /*
-  check date.
+  Check datetime value for validity according to flags.
 
-  SYNOPOSIS
-    bool check_date()
-    time	Date to check.
+  SYNOPSIS
+    check_date()
+      ltime         - Date to check.
+      not_zero_date - ltime is not the zero date
+      flags         - flags to check
+      was_cut       - set to whether the value was truncated
 
   NOTES
     Here we assume that year and month is ok !
@@ -69,18 +72,35 @@ uint calc_days_in_year(uint year)
 
   RETURN
     0  ok
-    1  errro
+    1  error
 */
 
-bool check_date(MYSQL_TIME *ltime)
+bool check_date(const MYSQL_TIME *ltime, bool not_zero_date, ulong flags,
+                int *was_cut)
 {
-  if (ltime->month && ltime->day > days_in_month[ltime->month-1])
+
+  if (not_zero_date)
   {
-    if (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
-        ltime->day != 29)
-      return 1;
+    if ((((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
+         (ltime->month == 0 || ltime->day == 0)) ||
+        (!(flags & TIME_INVALID_DATES) &&
+         ltime->month && ltime->day > days_in_month[ltime->month-1] &&
+         (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
+          ltime->day != 29)))
+    {
+      *was_cut= 2;
+      return TRUE;
+    }
   }
-  return 0;
+  else if (flags & TIME_NO_ZERO_DATE)
+  {
+    /*
+      We don't set *was_cut here to signal that the problem was a zero date
+      and not an invalid date
+    */
+    return TRUE;
+  }
+  return FALSE;
 }
 
 
@@ -100,7 +120,7 @@ bool check_date(MYSQL_TIME *ltime)
                         TIME_INVALID_DATES	Allow 2000-02-31
     was_cut             0	Value ok
 			1       If value was cut during conversion
-			2	Date part was withing ranges but date was wrong
+			2	Date part was within ranges but date was wrong
 
   DESCRIPTION
     At least the following formats are recogniced (based on number of digits)
@@ -168,8 +188,6 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     *was_cut= 1;
     DBUG_RETURN(MYSQL_TIMESTAMP_NONE);
   }
-  if (flags & TIME_NO_ZERO_IN_DATE)
-    flags&= ~TIME_FUZZY_DATE;
 
   is_internal_format= 0;
   /* This has to be changed if want to activate different timestamp formats */
@@ -385,22 +403,10 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   if (year_length == 2 && not_zero_date)
     l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
 
-  if (!not_zero_date && (flags & TIME_NO_ZERO_DATE))
-  {
-    /*
-      We don't set *was_cut here to signal that the problem was a zero date
-      and not an invalid date
-    */
-    goto err;
-  }
-
   if (number_of_fields < 3 ||
       l_time->year > 9999 || l_time->month > 12 ||
       l_time->day > 31 || l_time->hour > 23 ||
-      l_time->minute > 59 || l_time->second > 59 ||
-      (!(flags & TIME_FUZZY_DATE) && (l_time->month == 0 ||
-                                      l_time->day == 0) &&
-       not_zero_date))
+      l_time->minute > 59 || l_time->second > 59)
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)                         /* If zero date */
@@ -418,14 +424,11 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     goto err;
   }
 
+  if (check_date(l_time, not_zero_date, flags, was_cut))
+    goto err;
+
   l_time->time_type= (number_of_fields <= 3 ?
                       MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
-
-  if (not_zero_date && !(flags & TIME_INVALID_DATES) && check_date(l_time))
-  {
-    *was_cut= 2;                                /* Not correct date */
-    goto err;
-  }
 
   for (; str != end ; str++)
   {
@@ -881,9 +884,10 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to)
     number_to_datetime()
       nr         - datetime value as number
       time_res   - pointer for structure for broken-down representation
-      fuzzy_date - indicates whenever we allow fuzzy dates
-      was_cut    - set ot 1 if there was some kind of error during
-                   conversion or to 0 if everything was OK.
+      flags      - flags to use in validating date, as in str_to_datetime()
+      was_cut    0      Value ok
+                 1      If value was cut during conversion
+                 2      Date part was within ranges but date was wrong
 
   DESCRIPTION
     Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS,
@@ -893,12 +897,13 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to)
     This function also checks if datetime value fits in DATETIME range.
 
   RETURN VALUE
+    -1              Timestamp with wrong values
+    anything else   DATETIME as integer in YYYYMMDDHHMMSS format
     Datetime value in YYYYMMDDHHMMSS format.
-    If input value is not valid datetime value then 0 is returned.
 */
 
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                               my_bool fuzzy_date, int *was_cut)
+                            uint flags, int *was_cut)
 {
   long part1,part2;
 
@@ -952,13 +957,17 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   if (time_res->year <= 9999 && time_res->month <= 12 &&
       time_res->day <= 31 && time_res->hour <= 23 &&
       time_res->minute <= 59 && time_res->second <= 59 &&
-      (fuzzy_date || (time_res->month != 0 && time_res->day != 0) || nr==0))
+      !check_date(time_res, (nr != 0), flags, was_cut))
     return nr;
+
+  /* Don't want to have was_cut get set if NO_ZERO_DATE was violated. */
+  if (!nr && flags & TIME_NO_ZERO_DATE)
+    return LL(-1);
 
  err:
 
   *was_cut= 1;
-  return LL(0);
+  return LL(-1);
 }
 
 
