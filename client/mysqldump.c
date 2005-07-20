@@ -2321,9 +2321,9 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   {
     const char *table_name= hash_element(&dump_tables, i);
     DBUG_PRINT("info",("Dumping table %s", table_name));
-    numrows= getTableStructure(table_name, db);
+    numrows= getTableStructure((char*) table_name, db);
     if (!dFlag && numrows > 0)
-      dumpTable(numrows, table_name);
+      dumpTable(numrows, (char*) table_name);
   }
   hash_free(&dump_tables);
   my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));

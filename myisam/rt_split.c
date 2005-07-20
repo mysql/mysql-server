@@ -267,8 +267,9 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
 
   n_dim = keyinfo->keysegs / 2;
   
-  if (!(coord_buf= my_alloca(n_dim * 2 * sizeof(double) * (max_keys + 1 + 4) +
-			     sizeof(SplitStruct) * (max_keys + 1))))
+  if (!(coord_buf= (double*) my_alloca(n_dim * 2 * sizeof(double) *
+				       (max_keys + 1 + 4) +
+				       sizeof(SplitStruct) * (max_keys + 1))))
     return -1;
 
   task= (SplitStruct *)(coord_buf + n_dim * 2 * (max_keys + 1 + 4));
