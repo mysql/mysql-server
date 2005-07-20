@@ -184,6 +184,8 @@ static int set_tty_settings PARAMS((int, TIOTYPE *));
 
 static void prepare_terminal_settings PARAMS((int, TIOTYPE, TIOTYPE *));
 
+static void set_special_char PARAMS((Keymap, TIOTYPE *, int, rl_command_func_t));
+
 static void
 save_tty_chars (tiop)
      TIOTYPE *tiop;
@@ -397,6 +399,9 @@ static int _set_tty_settings PARAMS((int, TIOTYPE *));
 static int set_tty_settings PARAMS((int, TIOTYPE *));
 
 static void prepare_terminal_settings PARAMS((int, TIOTYPE, TIOTYPE *));
+
+static void set_special_char PARAMS((Keymap, TIOTYPE *, int, rl_command_func_t));
+static void _rl_bind_tty_special_chars PARAMS((Keymap, TIOTYPE));
 
 #if defined (FLUSHO)
 #  define OUTPUT_BEING_FLUSHED(tp)  (tp->c_lflag & FLUSHO)
@@ -650,7 +655,10 @@ rl_prep_terminal (meta_flag)
 
   otio = tio;
 
+  rl_tty_unset_default_bindings (_rl_keymap);
   save_tty_chars (&otio);
+  RL_SETSTATE(RL_STATE_TTYCSAVED);
+  _rl_bind_tty_special_chars (_rl_keymap, tio);
 
   prepare_terminal_settings (meta_flag, otio, &tio);
 
@@ -709,7 +717,7 @@ rl_deprep_terminal ()
 
 int
 rl_restart_output (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   int fildes = fileno (rl_outstream);
 #if defined (TIOCSTART)
@@ -742,7 +750,7 @@ rl_restart_output (count, key)
 
 int
 rl_stop_output (count, key)
-     int count __attribute__((unused)), key __attribute__((unused));
+     int count, key;
 {
   int fildes = fileno (rl_instream);
 
@@ -774,6 +782,83 @@ rl_stop_output (count, key)
 /*								    */
 /* **************************************************************** */
 
+#define SET_SPECIAL(sc, func)	set_special_char(kmap, &ttybuff, sc, func)
+
+#if defined (NEW_TTY_DRIVER)
+static void
+set_special_char (kmap, tiop, sc, func)
+     Keymap kmap;
+     TIOTYPE *tiop;
+     int sc;
+     rl_command_func_t *func;
+{
+  if (sc != -1 && kmap[(unsigned char)sc].type == ISFUNC)
+    kmap[(unsigned char)sc].function = func;
+}
+
+#define RESET_SPECIAL(c) \
+  if (c != -1 && kmap[(unsigned char)c].type == ISFUNC)
+    kmap[(unsigned char)c].function = rl_insert;
+
+static void
+_rl_bind_tty_special_chars (kmap, ttybuff)
+     Keymap kmap;
+     TIOTYPE ttybuff;
+{
+  if (ttybuff.flags & SGTTY_SET)
+    {
+      SET_SPECIAL (ttybuff.sgttyb.sg_erase, rl_rubout);
+      SET_SPECIAL (ttybuff.sgttyb.sg_kill, rl_unix_line_discard);
+    }
+
+#  if defined (TIOCGLTC)
+  if (ttybuff.flags & LTCHARS_SET)
+    {
+      SET_SPECIAL (ttybuff.ltchars.t_werasc, rl_unix_word_rubout);
+      SET_SPECIAL (ttybuff.ltchars.t_lnextc, rl_quoted_insert);
+    }
+#  endif /* TIOCGLTC */
+}
+
+#else /* !NEW_TTY_DRIVER */
+static void
+set_special_char (kmap, tiop, sc, func)
+     Keymap kmap;
+     TIOTYPE *tiop;
+     int sc;
+     rl_command_func_t *func;
+{
+  unsigned char uc;
+
+  uc = tiop->c_cc[sc];
+  if (uc != (unsigned char)_POSIX_VDISABLE && kmap[uc].type == ISFUNC)
+    kmap[uc].function = func;
+}
+
+/* used later */
+#define RESET_SPECIAL(uc) \
+  if (uc != (unsigned char)_POSIX_VDISABLE && kmap[uc].type == ISFUNC) \
+    kmap[uc].function = rl_insert;
+
+static void
+_rl_bind_tty_special_chars (kmap, ttybuff)
+     Keymap kmap;
+     TIOTYPE ttybuff;
+{
+  SET_SPECIAL (VERASE, rl_rubout);
+  SET_SPECIAL (VKILL, rl_unix_line_discard);
+
+#  if defined (VLNEXT) && defined (TERMIOS_TTY_DRIVER)
+  SET_SPECIAL (VLNEXT, rl_quoted_insert);
+#  endif /* VLNEXT && TERMIOS_TTY_DRIVER */
+
+#  if defined (VWERASE) && defined (TERMIOS_TTY_DRIVER)
+  SET_SPECIAL (VWERASE, rl_unix_word_rubout);
+#  endif /* VWERASE && TERMIOS_TTY_DRIVER */
+}
+
+#endif /* !NEW_TTY_DRIVER */
+
 /* Set the system's default editing characters to their readline equivalents
    in KMAP.  Should be static, now that we have rl_tty_set_default_bindings. */
 void
@@ -781,63 +866,13 @@ rltty_set_default_bindings (kmap)
      Keymap kmap;
 {
   TIOTYPE ttybuff;
-  int tty = fileno (rl_instream);
+  int tty;
+  static int called = 0;
 
-#if defined (NEW_TTY_DRIVER)
-
-#define SET_SPECIAL(sc, func) \
-  do \
-    { \
-      int ic; \
-      ic = sc; \
-      if (ic != -1 && kmap[(unsigned char)ic].type == ISFUNC) \
-	kmap[(unsigned char)ic].function = func; \
-    } \
-  while (0)
+  tty = fileno (rl_instream);
 
   if (get_tty_settings (tty, &ttybuff) == 0)
-    {
-      if (ttybuff.flags & SGTTY_SET)
-	{
-	  SET_SPECIAL (ttybuff.sgttyb.sg_erase, rl_rubout);
-	  SET_SPECIAL (ttybuff.sgttyb.sg_kill, rl_unix_line_discard);
-	}
-
-#  if defined (TIOCGLTC)
-      if (ttybuff.flags & LTCHARS_SET)
-	{
-	  SET_SPECIAL (ttybuff.ltchars.t_werasc, rl_unix_word_rubout);
-	  SET_SPECIAL (ttybuff.ltchars.t_lnextc, rl_quoted_insert);
-	}
-#  endif /* TIOCGLTC */
-    }
-
-#else /* !NEW_TTY_DRIVER */
-
-#define SET_SPECIAL(sc, func) \
-  do \
-    { \
-      unsigned char uc; \
-      uc = ttybuff.c_cc[sc]; \
-      if (uc != (unsigned char)_POSIX_VDISABLE && kmap[uc].type == ISFUNC) \
-	kmap[uc].function = func; \
-    } \
-  while (0)
-
-  if (get_tty_settings (tty, &ttybuff) == 0)
-    {
-      SET_SPECIAL (VERASE, rl_rubout);
-      SET_SPECIAL (VKILL, rl_unix_line_discard);
-
-#  if defined (VLNEXT) && defined (TERMIOS_TTY_DRIVER)
-      SET_SPECIAL (VLNEXT, rl_quoted_insert);
-#  endif /* VLNEXT && TERMIOS_TTY_DRIVER */
-
-#  if defined (VWERASE) && defined (TERMIOS_TTY_DRIVER)
-      SET_SPECIAL (VWERASE, rl_unix_word_rubout);
-#  endif /* VWERASE && TERMIOS_TTY_DRIVER */
-    }
-#endif /* !NEW_TTY_DRIVER */
+    _rl_bind_tty_special_chars (kmap, ttybuff);
 }
 
 /* New public way to set the system default editing chars to their readline
@@ -847,6 +882,30 @@ rl_tty_set_default_bindings (kmap)
      Keymap kmap;
 {
   rltty_set_default_bindings (kmap);
+}
+
+/* Rebind all of the tty special chars that readline worries about back
+   to self-insert.  Call this before saving the current terminal special
+   chars with save_tty_chars().  This only works on POSIX termios or termio
+   systems. */
+void
+rl_tty_unset_default_bindings (kmap)
+     Keymap kmap;
+{
+  /* Don't bother before we've saved the tty special chars at least once. */
+  if (RL_ISSTATE(RL_STATE_TTYCSAVED) == 0)
+    return;
+
+  RESET_SPECIAL (_rl_tty_chars.t_erase);
+  RESET_SPECIAL (_rl_tty_chars.t_kill);
+
+#  if defined (VLNEXT) && defined (TERMIOS_TTY_DRIVER)
+  RESET_SPECIAL (_rl_tty_chars.t_lnext);
+#  endif /* VLNEXT && TERMIOS_TTY_DRIVER */
+
+#  if defined (VWERASE) && defined (TERMIOS_TTY_DRIVER)
+  RESET_SPECIAL (_rl_tty_chars.t_werase);
+#  endif /* VWERASE && TERMIOS_TTY_DRIVER */
 }
 
 #if defined (HANDLE_SIGNALS)

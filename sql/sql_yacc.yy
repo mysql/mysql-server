@@ -599,6 +599,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TRAILING
 %token  TRANSACTION_SYM
 %token  TRIGGER_SYM
+%token  TRIGGERS_SYM
 %token  TRIM
 %token  TRUE_SYM
 %token  TRUNCATE_SYM
@@ -1266,7 +1267,7 @@ create:
 	  }
 	  opt_view_list AS select_init check_option
 	  {}
-        | CREATE TRIGGER_SYM ident trg_action_time trg_event 
+        | CREATE TRIGGER_SYM sp_name trg_action_time trg_event 
           ON table_ident FOR_SYM EACH_SYM ROW_SYM
           {
             LEX *lex= Lex;
@@ -1285,6 +1286,7 @@ create:
             
             sp->m_type= TYPE_ENUM_TRIGGER;
             lex->sphead= sp;
+            lex->spname= $3;
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
               stored procedure, otherwise yylex will chop it into pieces
@@ -1295,7 +1297,7 @@ create:
             
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
-            lex->sphead->m_body_begin= lex->tok_start;
+            lex->sphead->m_body_begin= lex->ptr;
           }
           sp_proc_stmt
           {
@@ -1303,13 +1305,11 @@ create:
             sp_head *sp= lex->sphead;
             
             lex->sql_command= SQLCOM_CREATE_TRIGGER;
-            sp->init_strings(YYTHD, lex, NULL);
+            sp->init_strings(YYTHD, lex, $3);
             /* Restore flag if it was cleared above */
             if (sp->m_old_cmq)
               YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
             sp->restore_thd_mem_root(YYTHD);
-
-            lex->ident= $3;
 
             /*
               We have to do it after parsing trigger body, because some of
@@ -5919,19 +5919,11 @@ drop:
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
-        | DROP TRIGGER_SYM ident '.' ident
+        | DROP TRIGGER_SYM sp_name
           {
             LEX *lex= Lex;
-
             lex->sql_command= SQLCOM_DROP_TRIGGER;
-            /* QQ: Could we loosen lock type in certain cases ? */
-            if (!lex->select_lex.add_table_to_list(YYTHD,
-                                                   new Table_ident($3),
-                                                   (LEX_STRING*) 0,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_WRITE))
-              YYABORT;
-            lex->ident= $5;
+            lex->spname= $3;
           }
 	;
 
@@ -6294,6 +6286,15 @@ show_param:
              lex->orig_sql_command= SQLCOM_SHOW_TABLES;
              lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
+               YYABORT;
+           }
+         | opt_full TRIGGERS_SYM opt_db wild_and_where
+           {
+             LEX *lex= Lex;
+             lex->sql_command= SQLCOM_SELECT;
+             lex->orig_sql_command= SQLCOM_SHOW_TRIGGERS;
+             lex->select_lex.db= $3;
+             if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
                YYABORT;
            }
          | TABLE_SYM STATUS_SYM opt_db wild_and_where
@@ -7590,6 +7591,7 @@ keyword_sp:
 	| TEMPTABLE_SYM		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
+	| TRIGGERS_SYM		{}
 	| TIMESTAMP		{}
 	| TIMESTAMP_ADD		{}
 	| TIMESTAMP_DIFF	{}

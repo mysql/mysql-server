@@ -215,7 +215,14 @@ static handlerton innobase_hton = {
   innobase_xa_prepare,		/* prepare */
   innobase_xa_recover,		/* recover */
   innobase_commit_by_xid,	/* commit_by_xid */
-  innobase_rollback_by_xid	/* rollback_by_xid */
+  innobase_rollback_by_xid,     /* rollback_by_xid */
+  /*
+    For now when one opens a cursor, MySQL does not create an own
+    InnoDB consistent read view for it, and uses the view of the
+    currently active transaction. Therefore, cursors can not
+    survive COMMIT or ROLLBACK statements, which free this view.
+  */
+  HTON_CLOSE_CURSORS_AT_COMMIT
 };
 
 /*********************************************************************
@@ -764,6 +771,24 @@ check_trx_exists(
 
 	return(trx);
 }
+
+
+/*************************************************************************
+Construct ha_innobase handler. */
+
+ha_innobase::ha_innobase(TABLE *table_arg)
+  :handler(&innobase_hton, table_arg),
+  int_table_flags(HA_REC_NOT_IN_SEQ |
+                  HA_NULL_IN_KEY |
+                  HA_CAN_INDEX_BLOBS |
+                  HA_CAN_SQL_HANDLER |
+                  HA_NOT_EXACT_COUNT |
+                  HA_PRIMARY_KEY_IN_READ_INDEX |
+                  HA_TABLE_SCAN_ON_INDEX),
+  last_dup_key((uint) -1),
+  start_of_scan(0),
+  num_write_row(0)
+{}
 
 /*************************************************************************
 Updates the user_thd field in a handle and also allocates a new InnoDB

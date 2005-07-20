@@ -48,6 +48,11 @@ insert into t1 (i, ts) values
   (unix_timestamp('2003-03-30 01:59:59'),'2003-03-30 01:59:59'),
   (unix_timestamp('2003-03-30 02:30:00'),'2003-03-30 02:30:00'),
   (unix_timestamp('2003-03-30 03:00:00'),'2003-03-30 03:00:00');
+# Values around and in spring time-gap
+insert into t1 (i, ts) values
+  (unix_timestamp(20030330015959),20030330015959),
+  (unix_timestamp(20030330023000),20030330023000),
+  (unix_timestamp(20030330030000),20030330030000);
 # Normal value with DST
 insert into t1 (i, ts) values
   (unix_timestamp('2003-05-01 00:00:00'),'2003-05-01 00:00:00');
