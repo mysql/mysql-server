@@ -921,7 +921,6 @@ Backup::execUTIL_SEQUENCE_REF(Signal* signal)
   jamEntry();
   UtilSequenceRef * utilRef = (UtilSequenceRef*)signal->getDataPtr();
   ptr.i = utilRef->senderData;
-  ndbrequire(ptr.i == RNIL);
   c_backupPool.getPtr(ptr);
   ndbrequire(ptr.p->masterData.gsn == GSN_UTIL_SEQUENCE_REQ);
   sendBackupRef(signal, ptr, BackupRef::SequenceFailure);
@@ -2418,7 +2417,13 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
     jam();
     Uint32 tableId = ListTablesConf::getTableId(conf->tableData[i]);
     Uint32 tableType = ListTablesConf::getTableType(conf->tableData[i]);
+    Uint32 state= ListTablesConf::getTableState(conf->tableData[i]);
     if (!DictTabInfo::isTable(tableType) && !DictTabInfo::isIndex(tableType)){
+      jam();
+      continue;
+    }//if
+    if (state != DictTabInfo::StateOnline)
+    {
       jam();
       continue;
     }//if
@@ -2791,10 +2796,19 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
 
   TablePtr tmp = tabPtr;
   ptr.p->tables.next(tabPtr);
-  if(DictTabInfo::isIndex(tmp.p->tableType)){
+  if(DictTabInfo::isIndex(tmp.p->tableType))
+  {
+    jam();
     ptr.p->tables.release(tmp);
   }
-  
+  else
+  {
+    jam();
+    signal->theData[0] = tmp.p->tableId;
+    signal->theData[1] = 1; // lock
+    EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
+  }
+
   if(tabPtr.i == RNIL) {
     jam();
     
@@ -3575,7 +3589,7 @@ Backup::backupFragmentRef(Signal * signal, BackupFilePtr filePtr)
   ref->backupId = ptr.p->backupId;
   ref->backupPtr = ptr.i;
   ref->nodeId = getOwnNodeId();
-  ref->errorCode = ptr.p->errorCode;
+  ref->errorCode = filePtr.p->errorCode;
   sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_REF, signal,
 	     BackupFragmentRef::SignalLength, JBB);
 }
@@ -3836,6 +3850,8 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
        !buf.getWritePtr(&dst, trigPtr.p->maxRecordSize)) 
     {
       jam();
+      Uint32 save[TrigAttrInfo::StaticLength];
+      memcpy(save, signal->getDataPtr(), 4*TrigAttrInfo::StaticLength);
       BackupRecordPtr ptr;
       c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
       trigPtr.p->errorCode = AbortBackupOrd::LogBufferFull;
@@ -3846,6 +3862,8 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
       ord->senderData= ptr.i;
       sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD, signal, 
 		 AbortBackupOrd::SignalLength, JBB);
+
+      memcpy(signal->getDataPtrSend(), save, 4*TrigAttrInfo::StaticLength);
       return;
     }//if
         
@@ -3994,6 +4012,17 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
     gcp->StartGCP      = htonl(startGCP);
     gcp->StopGCP       = htonl(stopGCP - 1);
     filePtr.p->operation.dataBuffer.updateWritePtr(gcpSz);
+  }
+
+  {
+    TablePtr tabPtr;
+    for(ptr.p->tables.first(tabPtr); tabPtr.i != RNIL;
+	ptr.p->tables.next(tabPtr))
+    {
+      signal->theData[0] = tabPtr.p->tableId;
+      signal->theData[1] = 0; // unlock
+      EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
+    }
   }
   
   closeFiles(signal, ptr);
@@ -4338,6 +4367,11 @@ Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
       }//if
       tabPtr.p->triggerIds[j] = ILLEGAL_TRIGGER_ID;
     }//for
+    {
+      signal->theData[0] = tabPtr.p->tableId;
+      signal->theData[1] = 0; // unlock
+      EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
+    }
   }//for
 
   BackupFilePtr filePtr;
@@ -4352,9 +4386,6 @@ Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
   }//for
 
   ptr.p->files.release();
-  ptr.p->tables.release();
-  ptr.p->triggers.release();
-
   ptr.p->tables.release();
   ptr.p->triggers.release();
   ptr.p->pages.release();

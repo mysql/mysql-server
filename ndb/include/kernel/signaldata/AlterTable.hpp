@@ -128,7 +128,8 @@ public:
     RecordTooBig = 738,
     InvalidPrimaryKeySize  = 739,
     NullablePrimaryKey = 740,
-    UnsupportedChange = 741
+    UnsupportedChange = 741,
+    BackupInProgress = 762
   };
 
 private:
