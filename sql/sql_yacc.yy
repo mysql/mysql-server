@@ -528,6 +528,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	NOW_SYM
 %token	OLD_PASSWORD
 %token	PASSWORD
+%token  PARAM_MARKER
 %token	POINTFROMTEXT
 %token	POINT_SYM
 %token	POLYFROMTEXT
@@ -2458,7 +2459,7 @@ select_into:
 select_from:
 	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
-        | FROM DUAL_SYM opt_limit_clause
+        | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
              Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
@@ -4857,23 +4858,15 @@ text_string:
 	;
 
 param_marker:
-        '?'
+        PARAM_MARKER
         {
           THD *thd=YYTHD;
 	  LEX *lex= thd->lex;
-          if (thd->command == COM_PREPARE)
+          Item_param *item= new Item_param((uint) (lex->tok_start -
+                                                   (uchar *) thd->query));
+          if (!($$= item) || lex->param_list.push_back(item))
           {
-            Item_param *item= new Item_param((uint) (lex->tok_start -
-                                                     (uchar *) thd->query));
-            if (!($$= item) || lex->param_list.push_back(item))
-            {
-	      send_error(thd, ER_OUT_OF_RESOURCES);
-	      YYABORT;
-            }
-          }
-          else
-          {
-            yyerror(ER(ER_SYNTAX_ERROR));
+            send_error(thd, ER_OUT_OF_RESOURCES);
             YYABORT;
           }
         }

@@ -61,6 +61,18 @@ select * from mysql.time_zone_name;
 --error 1142
 select Name, convert_tz('2004-11-30 12:00:00', Name, 'UTC') from mysql.time_zone_name;
 
+#
+# Bug #9979: Use of CONVERT_TZ in multiple-table UPDATE causes bogus
+# privilege error
+#
+drop table t1, t2;
+create table t1 (a int, b datetime);
+create table t2 (a int, b varchar(40));
+update t1 set b = '2005-01-01 10:00';
+update t1 set b = convert_tz(b, 'UTC', 'UTC');
+update t1 join t2 on (t1.a = t2.a) set t1.b = '2005-01-01 10:00' where t2.b = 'foo';
+update t1 join t2 on (t1.a = t2.a) set t1.b = convert_tz('2005-01-01 10:00','UTC','UTC') where t2.b = 'foo';
+
 # Clean-up
 connection default;
 delete from mysql.user where user like 'mysqltest\_%';

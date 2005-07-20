@@ -1072,7 +1072,7 @@ JOIN::exec()
     else
     {
       result->send_fields(fields_list,1);
-      if (!having || having->val_int())
+      if (cond_value != Item::COND_FALSE && (!having || having->val_int()))
       {
 	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
                                           procedure->end_of_records())
@@ -1081,14 +1081,18 @@ JOIN::exec()
 	else
 	{
 	  error= (int) result->send_eof();
-	  send_records=1;
+	  send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
+                         thd->sent_row_count);
 	}
       }
       else
+      {
 	error=(int) result->send_eof();
+        send_records= 0;
+      }
     }
-    /* Single select (without union and limit) always returns 1 row */
-    thd->limit_found_rows= 1;
+    /* Single select (without union) always returns 0 or 1 row */
+    thd->limit_found_rows= send_records;
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
@@ -3508,7 +3512,23 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
       (where othertbl is a non-const table and othertbl.field may be NULL)
       and add them to conditions on correspoding tables (othertbl in this
       example).
-      
+
+      Exception from that is the case when referred_tab->join != join.
+      I.e. don't add NOT NULL constraints from any embedded subquery.
+      Consider this query:
+      SELECT A.f2 FROM t1 LEFT JOIN t2 A ON A.f2 = f1
+      WHERE A.f3=(SELECT MIN(f3) FROM  t2 C WHERE A.f4 = C.f4) OR A.f3 IS NULL;
+      Here condition A.f3 IS NOT NULL is going to be added to the WHERE
+      condition of the embedding query.
+      Another example:
+      SELECT * FROM t10, t11 WHERE (t10.a < 10 OR t10.a IS NULL)
+      AND t11.b <=> t10.b AND (t11.a = (SELECT MAX(a) FROM t12
+      WHERE t12.b = t10.a ));
+      Here condition t10.a IS NOT NULL is going to be added.
+      In both cases addition of NOT NULL condition will erroneously reject
+      some rows of the result set.
+      referred_tab->join != join constraint would disallow such additions.
+
       This optimization doesn't affect the choices that ref, range, or join
       optimizer make. This was intentional because this was added after 4.1
       was GA.
@@ -3536,14 +3556,27 @@ static void add_not_null_conds(JOIN *join)
         if (tab->ref.null_rejecting & (1 << keypart))
         {
           Item *item= tab->ref.items[keypart];
+          Item *notnull;
           DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)item;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
-          Item_func_isnotnull *notnull;
+          /*
+            For UPDATE queries such as:
+            UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
+            not_null_item is the t1.f1, but it's referred_tab is 0.
+          */
+          if (!referred_tab || referred_tab->join != join)
+            continue;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
-
-          notnull->quick_fix_field();
+          /*
+            We need to do full fix_fields() call here in order to have correct
+            notnull->const_item(). This is needed e.g. by test_quick_select 
+            when it is called from make_join_select after this function is 
+            called.
+          */
+          if (notnull->fix_fields(join->thd, join->tables_list, &notnull))
+            DBUG_VOID_RETURN;
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->table_name););
           add_cond_and_fix(&referred_tab->select_cond, notnull);
@@ -9330,7 +9363,7 @@ bool JOIN::rollup_init()
     ORDER *group_tmp;
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
-      if (item->eq(*group_tmp->item,0))
+      if (*group_tmp->item == item)
         item->maybe_null= 1;
     }
     if (item->type() == Item::FUNC_ITEM)
@@ -9452,7 +9485,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
-          if (item->eq(*group_tmp->item,0))
+          if (*group_tmp->item == item)
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be

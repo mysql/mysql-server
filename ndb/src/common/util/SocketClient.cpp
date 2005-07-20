@@ -57,6 +57,8 @@ SocketClient::init()
     return false;
   }
   
+  DBUG_PRINT("info",("NDB_SOCKET: %d", m_sockfd));
+
   return true;
 }
 
