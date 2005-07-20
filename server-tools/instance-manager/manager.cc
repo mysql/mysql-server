@@ -30,7 +30,9 @@
 #include <m_string.h>
 #include <signal.h>
 #include <thr_alarm.h>
+#ifndef __WIN__
 #include <sys/wait.h>
+#endif
 
 
 static int create_pid_file(const char *pid_file_name)
@@ -49,6 +51,61 @@ static int create_pid_file(const char *pid_file_name)
     }
   return 0;
 }
+
+#ifndef __WIN__
+void set_signals(sigset_t *mask)
+{
+  /* block signals */
+  sigemptyset(mask);
+  sigaddset(mask, SIGINT);
+  sigaddset(mask, SIGTERM);
+  sigaddset(mask, SIGPIPE);
+  sigaddset(mask, SIGHUP);
+  signal(SIGPIPE, SIG_IGN);
+
+  /*
+    We want this signal to be blocked in all theads but the signal
+    one. It is needed for the thr_alarm subsystem to work.
+  */
+  sigaddset(mask,THR_SERVER_ALARM);
+
+  /* all new threads will inherite this signal mask */
+  pthread_sigmask(SIG_BLOCK, mask, NULL);
+
+  /*
+     In our case the signal thread also implements functions of alarm thread.
+     Here we init alarm thread functionality. We suppose that we won't have
+     more then 10 alarms at the same time.
+  */
+  init_thr_alarm(10);
+}
+#else
+
+bool have_signal;
+
+void onsignal(int signo)
+{
+  have_signal = true;
+}
+
+void set_signals(sigset_t *set)
+{
+  signal(SIGINT, onsignal);
+  signal(SIGTERM, onsignal);
+  have_signal = false;
+}
+
+int my_sigwait(const sigset_t *set, int *sig)
+{
+//  MSG msg;
+  while (!have_signal)
+  {
+    Sleep(100);
+  }
+  return 0;
+}
+
+#endif
 
 
 /*
@@ -98,21 +155,8 @@ void manager(const Options &options)
   if (create_pid_file(options.pid_file_name))
     return;
 
-  /* block signals */
   sigset_t mask;
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGTERM);
-  sigaddset(&mask, SIGPIPE);
-  sigaddset(&mask, SIGHUP);
-  /*
-    We want this signal to be blocked in all theads but the signal
-    one. It is needed for the thr_alarm subsystem to work.
-  */
-  sigaddset(&mask,THR_SERVER_ALARM);
-
-  /* all new threads will inherite this signal mask */
-  pthread_sigmask(SIG_BLOCK, &mask, NULL);
+  set_signals(&mask);
 
   /* create the listener */
   {
@@ -166,12 +210,7 @@ void manager(const Options &options)
   bool shutdown_complete;
 
   shutdown_complete= FALSE;
-  /*
-     In our case the signal thread also implements functions of alarm thread.
-     Here we init alarm thread functionality. We suppose that we won't have
-     more then 10 alarms at the same time.
-  */
-  init_thr_alarm(10);
+
   /* init list of guarded instances */
   guardian_thread.lock();
 
@@ -185,8 +224,6 @@ void manager(const Options &options)
   */
   pthread_cond_signal(&guardian_thread.COND_guardian);
 
-  signal(SIGPIPE, SIG_IGN);
-
   while (!shutdown_complete)
   {
     int status= 0;
@@ -197,11 +234,11 @@ void manager(const Options &options)
       goto err;
     }
 
-    switch (signo) {
-      case THR_SERVER_ALARM:
-        process_alarm(signo);
-      break;
-      default:
+#ifndef __WIN__
+    if (THR_SERVER_ALARM == signo)
+      process_alarm(signo);
+    else
+#endif
       {
         if (!guardian_thread.is_stopped())
         {
@@ -215,16 +252,16 @@ void manager(const Options &options)
           shutdown_complete= TRUE;
         }
       }
-      break;
     }
-  }
 
 err:
   /* delete the pid file */
   my_delete(options.pid_file_name, MYF(0));
 
+#ifndef __WIN__
   /* free alarm structures */
   end_thr_alarm(1);
   /* don't pthread_exit to kill all threads who did not shut down in time */
+#endif
 }
 
