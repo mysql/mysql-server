@@ -1089,7 +1089,7 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   C2(hugoOps.execute_Commit(pNdb) == 0);
   C2(hugoOps.closeTransaction(pNdb) == 0);
 
-  Ndb ndb2("TEST_DB");
+  Ndb ndb2(&ctx->m_cluster_connection, "TEST_DB");
   C2(ndb2.init() == 0);
   C2(ndb2.waitUntilReady() == 0);
   HugoOperations hugoOps2(*pTab);  

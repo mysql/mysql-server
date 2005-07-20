@@ -449,8 +449,9 @@ HugoOperations::wait_async(Ndb* pNdb, int timeout)
   return -1;
 }
 
-HugoOperations::HugoOperations(const NdbDictionary::Table& _tab):
-  UtilTransactions(_tab),
+HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
+			       const NdbDictionary::Index* idx):
+  UtilTransactions(_tab, idx),
   calc(_tab)
 {
 }
