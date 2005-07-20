@@ -267,9 +267,9 @@ drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-c	decimal(4,3)	YES		NULL	
-d	double(4,3)	YES		NULL	
-f	float(4,3)	YES		NULL	
+c	decimal(3,3)	YES		NULL	
+d	double(3,3)	YES		NULL	
+f	float(3,3)	YES		NULL	
 drop table t1;
 SET @old_sql_mode= @@sql_mode, sql_mode= '';
 SET @old_sql_quote_show_create= @@sql_quote_show_create, sql_quote_show_create= OFF;
@@ -497,3 +497,18 @@ def			STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	63
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	field1	A	0	1000	NULL		BTREE	
 drop table t1;
+create table t1 (
+c1 int NOT NULL,
+c2 int NOT NULL,
+PRIMARY KEY USING HASH (c1),
+INDEX USING BTREE(c2)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY  USING HASH (`c1`),
+  KEY `c2` USING BTREE (`c2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;

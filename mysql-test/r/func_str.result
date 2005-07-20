@@ -861,3 +861,21 @@ trackname	artistname
 April In Paris Vernon Duke	Vernon Duke
 Autumn In New York	NULL
 DROP TABLE t1,t2,t3;
+create table t1 (b varchar(5));
+insert t1 values ('ab'), ('abc'), ('abcd'), ('abcde');
+select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1;
+b	substring(b,1)	substring(b,-1)	substring(b,-2)	substring(b,-3)	substring(b,-4)	substring(b,-5)
+ab	ab	b	ab			
+abc	abc	c	bc	abc		
+abcd	abcd	d	cd	bcd	abcd	
+abcde	abcde	e	de	cde	bcde	abcde
+select * from (select *,substring(b,1),substring(b,-1),substring(b,-2),substring(b,-3),substring(b,-4),substring(b,-5) from t1) t;
+b	substring(b,1)	substring(b,-1)	substring(b,-2)	substring(b,-3)	substring(b,-4)	substring(b,-5)
+ab	ab	b	ab			
+abc	abc	c	bc	abc		
+abcd	abcd	d	cd	bcd	abcd	
+abcde	abcde	e	de	cde	bcde	abcde
+drop table t1;
+select hex(29223372036854775809), hex(-29223372036854775809);
+hex(29223372036854775809)	hex(-29223372036854775809)
+FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF

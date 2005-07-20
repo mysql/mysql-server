@@ -3393,10 +3393,10 @@ static void run_query_display_metadata(MYSQL_FIELD *field, uint num_fields,
     int10_to_str((int) field->type, buff, 10);
     dynstr_append(ds, buff);
     dynstr_append_mem(ds, "\t", 1);
-    int10_to_str((int) field->length, buff, 10);
+    longlong10_to_str((unsigned int) field->length, buff, 10);
     dynstr_append(ds, buff);
     dynstr_append_mem(ds, "\t", 1);
-    int10_to_str((int) field->max_length, buff, 10);
+    longlong10_to_str((unsigned int) field->max_length, buff, 10);
     dynstr_append(ds, buff);
     dynstr_append_mem(ds, "\t", 1);
     dynstr_append_mem(ds, (char*) (IS_NOT_NULL(field->flags) ?

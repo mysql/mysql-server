@@ -145,7 +145,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
-  lex->leaf_tables_insert= lex->proc_table= lex->query_tables= 0;
+  lex->leaf_tables_insert= lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   lex->variables_used= 0;
   lex->select_lex.parent_lex= lex;
@@ -164,7 +164,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->current_select= &lex->select_lex;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
-  lex->sql_command=SQLCOM_END;
+  lex->sql_command= lex->orig_sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->sphead= NULL;
@@ -172,10 +172,9 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->proc_list.first= 0;
   lex->query_tables_own_last= 0;
 
-  if (lex->spfuns.records)
-    my_hash_reset(&lex->spfuns);
-  if (lex->spprocs.records)
-    my_hash_reset(&lex->spprocs);
+  if (lex->sroutines.records)
+    my_hash_reset(&lex->sroutines);
+  lex->sroutines_list.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -557,6 +556,15 @@ int yylex(void *arg, void *yythd)
 	lex->next_state= MY_LEX_START;	// Allow signed numbers
       if (c == ',')
 	lex->tok_start=lex->ptr;	// Let tok_start point at next item
+      /*
+        Check for a placeholder: it should not precede a possible identifier
+        because of binlogging: when a placeholder is replaced with
+        its value in a query for the binlog, the query must stay
+        grammatically correct.
+      */
+      else if (c == '?' && ((THD*) yythd)->command == COM_STMT_PREPARE &&
+               !ident_map[cs, yyPeek()])
+        return(PARAM_MARKER);
       return((int) c);
 
     case MY_LEX_IDENT_OR_NCHAR:
@@ -1572,6 +1580,28 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 
 /*
+  Initialize LEX object.
+
+  SYNOPSIS
+    st_lex::st_lex()
+
+  NOTE
+    LEX object initialized with this constructor can be used as part of
+    THD object for which one can safely call open_tables(), lock_tables()
+    and close_thread_tables() functions. But it is not yet ready for
+    statement parsing. On should use lex_start() function to prepare LEX
+    for this.
+*/
+
+st_lex::st_lex()
+  :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
+{
+  hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  sroutines_list.empty();
+}
+
+
+/*
   Check whether the merging algorithm can be used on this VIEW
 
   SYNOPSIS
@@ -1780,12 +1810,13 @@ uint8 st_lex::get_effective_with_check(st_table_list *view)
 
 void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
-  ulonglong select_limit_val;
+  ha_rows select_limit_val;
 
   DBUG_ASSERT(! thd->current_arena->is_stmt_prepare());
-  select_limit_val= sl->select_limit ? sl->select_limit->val_uint() :
-                                       HA_POS_ERROR;
-  offset_limit_cnt= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
+  select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
+                                                 HA_POS_ERROR);
+  offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
+                                                 ULL(0));
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
@@ -1975,10 +2006,8 @@ void st_lex::cleanup_after_one_table_open()
     select_lex.cut_subtree();
   }
   time_zone_tables_used= 0;
-  if (spfuns.records)
-    my_hash_reset(&spfuns);
-  if (spprocs.records)
-    my_hash_reset(&spprocs);
+  if (sroutines.records)
+    my_hash_reset(&sroutines);
 }
 
 

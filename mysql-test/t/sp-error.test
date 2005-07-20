@@ -387,6 +387,29 @@ drop procedure p|
 
 
 #
+# Let us test that we can access mysql.proc table for routines
+# definitions lookup without locking it explicitly.
+#
+create procedure p() begin end|
+lock table t1 read|
+# This should succeed
+call p()|
+unlock tables|
+drop procedure p|
+# Let us check restrictions which this ability puts on mysql.proc locking.
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+lock tables t1 read, mysql.proc write|
+--error ER_WRONG_LOCK_OF_SYSTEM_TABLE
+lock tables mysql.proc write, mysql.user write|
+# Locking for read should be OK
+lock tables t1 read, mysql.proc read|
+unlock tables|
+# You also should be able lock only mysql.proc for write
+lock tables mysql.proc write|
+unlock tables|
+
+
+#
 # BUG#1965
 #
 create procedure bug1965()
@@ -676,9 +699,7 @@ create procedure bug6600()
 # BUG#9566: explicit LOCK TABLE and store procedures result in illegal state
 #
 # We should not think that mysql.proc table does not exist if we are unable
-# to open it under LOCK TABLE or in prelocked mode. Probably this test
-# should be removed when Monty will allow access to mysql.proc without
-# locking it.
+# to open it under LOCK TABLE or in prelocked mode.
 #
 --disable_warnings
 drop procedure if exists bug9566|
@@ -688,9 +709,11 @@ begin
   select * from t1;
 end|
 lock table t1 read|
-# This should fail because we forgot to lock mysql.proc table explicitly
+# This should fail since we forgot to lock mysql.proc for writing
+# explicitly, and we can't open mysql.proc for _writing_ if there
+# are locked tables.
 --error 1100
-call bug9566()|
+alter procedure bug9566 comment 'Some comment'|
 unlock tables|
 # This should succeed
 drop procedure bug9566|
@@ -874,9 +897,9 @@ end|
 #
 # BUG#9529: Stored Procedures: No Warning on truncation of procedure name
 #           during creation.
-#
+# Note: When using utf8 for mysql.proc, this limit is much higher than before
 --error ER_TOO_LONG_IDENT
-create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890()
+create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123()
 begin
 end|
 
@@ -1025,4 +1048,27 @@ end|
 --error 1424
 call bug11394(2, 1)|
 drop procedure bug11394|
-delimiter |;
+delimiter ;|
+
+#
+# Bug#11834 "Re-execution of prepared statement with dropped function
+# crashes server". Also tests handling of prepared stmts which use
+# stored functions but does not require prelocking.
+#
+--disable_warnings
+drop function if exists bug11834_1;
+drop function if exists bug11834_2;
+--enable_warnings
+create function bug11834_1() returns int return 10;
+create function bug11834_2() returns int return bug11834_1();
+prepare stmt from "select bug11834_2()";
+execute stmt;
+# Re-execution of statement should not crash server.
+execute stmt;
+drop function bug11834_1;
+# Attempt to execute statement should return proper error and 
+# should not crash server.
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+deallocate prepare stmt;
+drop function bug11834_2;

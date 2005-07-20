@@ -601,12 +601,72 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
   /*
+    Allow conversion from and to "binary".
     Don't allow automatic conversion to non-Unicode charsets,
     as it potentially loses data.
   */
-  if (!(tocs->state & MY_CS_UNICODE))
+  if (collation.collation != &my_charset_bin &&
+      tocs != &my_charset_bin &&
+      !(tocs->state & MY_CS_UNICODE))
     return NULL; // safe conversion is not possible
   return new Item_func_conv_charset(this, tocs);
+}
+
+
+/*
+  Created mostly for mysql_prepare_table(). Important
+  when a string ENUM/SET column is described with a numeric default value:
+
+  CREATE TABLE t1(a SET('a') DEFAULT 1);
+
+  We cannot use generic Item::safe_charset_converter(), because
+  the latter returns a non-fixed Item, so val_str() crashes afterwards.
+  Override Item_num method, to return a fixed item.
+*/
+Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_string(s->ptr(), s->length(), s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+  }
+  return conv;
+}
+
+
+Item *Item_static_int_func::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_static_string_func(func_name, s->ptr(), s->length(),
+                                         s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+  }
+  return conv;
+}
+
+
+Item *Item_static_float_func::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  char buf[64];
+  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
+  s= val_str(&tmp);
+  if ((conv= new Item_static_string_func(func_name, s->ptr(), s->length(),
+                                         s->charset())))
+  {
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+  }
+  return conv;
 }
 
 
@@ -619,6 +679,33 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
   if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
                                              cstr.charset(),
                                              collation.derivation)))
+  {
+    /*
+      Safe conversion is not possible (or EOM).
+      We could not convert a string into the requested character set
+      without data loss. The target charset does not cover all the
+      characters from the string. Operation cannot be done correctly.
+    */
+    return NULL;
+  }
+  conv->str_value.copy();
+  /* Ensure that no one is going to change the result string */
+  conv->str_value.mark_as_const();
+  return conv;
+}
+
+
+Item *Item_static_string_func::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  uint conv_errors;
+  String tmp, cstr, *ostr= val_str(&tmp);
+  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  if (conv_errors ||
+      !(conv= new Item_static_string_func(func_name,
+                                          cstr.ptr(), cstr.length(),
+                                          cstr.charset(),
+                                          collation.derivation)))
   {
     /*
       Safe conversion is not possible (or EOM).
@@ -1701,6 +1788,7 @@ void Item_param::set_null()
   max_length= 0;
   decimals= 0;
   state= NULL_VALUE;
+  item_type= Item::NULL_ITEM;
   DBUG_VOID_RETURN;
 }
 
@@ -1941,6 +2029,7 @@ void Item_param::reset()
     to the binary log.
   */
   str_value.set_charset(&my_charset_bin);
+  collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   state= NO_VALUE;
   maybe_null= 1;
   null_value= 0;
@@ -2242,35 +2331,10 @@ bool Item_param::convert_str_value(THD *thd)
     */
     str_value_ptr.set(str_value.ptr(), str_value.length(),
                       str_value.charset());
+    /* Synchronize item charset with value charset */
+    collation.set(str_value.charset(), DERIVATION_COERCIBLE);
   }
   return rc;
-}
-
-bool Item_param::fix_fields(THD *thd, Item **ref)
-{
-  DBUG_ASSERT(fixed == 0);
-  SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
-
-  /*
-    Parameters in a subselect should mark the subselect as not constant
-    during prepare
-  */
-  if (state == NO_VALUE)
-  {
-    /*
-      SELECT_LEX_UNIT::item set only for subqueries, so test of it presence
-      can be barrier to stop before derived table SELECT or very outer SELECT
-    */
-    for (; cursel->master_unit()->item;
-         cursel= cursel->outer_select())
-    {
-      Item_subselect *subselect_item= cursel->master_unit()->item;
-      subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-      subselect_item->const_item_cache= 0;
-    }
-  }
-  fixed= 1;
-  return 0;
 }
 
 
@@ -3777,6 +3841,20 @@ bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
   return FALSE;
 }
 
+
+Item *Item_hex_string::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  String tmp, *str= val_str(&tmp);
+
+  if (!(conv= new Item_string(str->ptr(), str->length(), tocs)))
+    return NULL;
+  conv->str_value.copy();
+  conv->str_value.mark_as_const();
+  return conv;
+}
+
+
 /*
   bin item.
   In string context this is a binary string.
@@ -4499,6 +4577,35 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   return Item_direct_ref::fix_fields(thd, reference);
 }
 
+/*
+  Compare view field's name with item's name before call to referenced
+  item's eq()
+
+  SYNOPSIS
+    Item_direct_view_ref::eq()
+    item        item to compare with
+    binary_cmp  make binary comparison
+
+  DESCRIPTION
+    Consider queries:
+    create view v1 as select t1.f1 as f2, t1.f2 as f1 from t1;
+    select * from v1 order by f1;
+    In order to choose right field for sorting we need to compare
+    given item's name (f1) to view field's name prior to calling
+    referenced item's eq().
+
+  RETURN
+    TRUE    Referenced item is equal to given item
+    FALSE   otherwise
+*/
+
+
+bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
+{
+  Item *it= ((Item *) item)->real_item();
+  return (!it->name || !my_strcasecmp(system_charset_info, it->name,
+          field_name)) && ref && (*ref)->real_item()->eq(it, binary_cmp);
+}
 
 void Item_null_helper::print(String *str)
 {
@@ -5421,9 +5528,13 @@ void Item_type_holder::get_full_info(Item *item)
   if (fld_type == MYSQL_TYPE_ENUM ||
       fld_type == MYSQL_TYPE_SET)
   {
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        (((Item_sum*)item)->sum_func() == Item_sum::MAX_FUNC ||
+         ((Item_sum*)item)->sum_func() == Item_sum::MIN_FUNC))
+      item = ((Item_sum*)item)->args[0];
     /*
-      We can have enum/set type after merging only if we have one enum/set
-      field and number of NULL fields
+      We can have enum/set type after merging only if we have one enum|set
+      field (or MIN|MAX(enum|set field)) and number of NULL fields
     */
     DBUG_ASSERT((enum_set_typelib &&
                  get_real_type(item) == MYSQL_TYPE_NULL) ||

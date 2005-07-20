@@ -378,6 +378,9 @@ String *Item_func_des_encrypt::val_str(String *str)
 
   if (arg_count == 1)
   {
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     /* Protect against someone doing FLUSH DES_KEY_FILE */
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number=des_default_key];
@@ -388,6 +391,10 @@ String *Item_func_des_encrypt::val_str(String *str)
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
+
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
     VOID(pthread_mutex_unlock(&LOCK_des_key_file));
@@ -456,7 +463,6 @@ String *Item_func_des_decrypt::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
 #ifdef HAVE_OPENSSL
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
-  DES_key_schedule ks1, ks2, ks3;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
@@ -475,6 +481,10 @@ String *Item_func_des_decrypt::val_str(String *str)
     // Check if automatic key and that we have privilege to uncompress using it
     if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
       goto error;
+
+    /* Make sure LOCK_des_key_file was initialized. */
+    init_des_key_file();
+
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];
     VOID(pthread_mutex_unlock(&LOCK_des_key_file));
@@ -1056,7 +1066,8 @@ void Item_func_substr::fix_length_and_dec()
   collation.set(args[0]->collation);
   if (args[1]->const_item())
   {
-    int32 start=(int32) args[1]->val_int()-1;
+    int32 start= (int32) args[1]->val_int();
+    start= (int32)((start < 0) ? max_length + start : start - 1);
     if (start < 0 || start >= (int32) max_length)
       max_length=0; /* purecov: inspected */
     else
@@ -1541,9 +1552,11 @@ Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
   uint conv_errors;
   String tmp, cstr, *ostr= val_str(&tmp);
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
-                                             cstr.charset(),
-                                             collation.derivation)))
+  if (conv_errors ||
+      !(conv= new Item_static_string_func(fully_qualified_func_name(),
+                                          cstr.ptr(), cstr.length(),
+                                          cstr.charset(),
+                                          collation.derivation)))
   {
     return NULL;
   }
@@ -1573,13 +1586,24 @@ String *Item_func_user::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   THD          *thd=current_thd;
   CHARSET_INFO *cs= system_charset_info;
-  const char   *host= thd->host_or_ip;
+  const char   *host, *user;
   uint		res_length;
 
+  if (is_current)
+  {
+    user= thd->priv_user;
+    host= thd->priv_host;
+  }
+  else
+  {
+    user= thd->user;
+    host= thd->host_or_ip;
+  }
+
   // For system threads (e.g. replication SQL thread) user may be empty
-  if (!thd->user)
+  if (!user)
     return &my_empty_string;
-  res_length= (strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
+  res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
   if (str->alloc(res_length))
   {
@@ -1587,11 +1611,12 @@ String *Item_func_user::val_str(String *str)
     return 0;
   }
   res_length=cs->cset->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",
-			  thd->user, host);
+			        user, host);
   str->length(res_length);
   str->set_charset(cs);
   return str;
 }
+
 
 void Item_func_soundex::fix_length_and_dec()
 {
@@ -2093,7 +2118,7 @@ String *Item_func_rpad::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
-  if(args[2]->null_value || !pad_char_length)
+  if (args[2]->null_value || !pad_char_length)
     goto err;
   res_byte_length= res->length();	/* Must be done before alloc_buffer */
   if (!(res= alloc_buffer(res,str,&tmp_value,byte_count)))
@@ -2369,9 +2394,22 @@ String *Item_func_hex::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
-    /* Return hex of unsigned longlong value */
-    longlong dec= args[0]->val_int();
+    ulonglong dec;
     char ans[65],*ptr;
+    /* Return hex of unsigned longlong value */
+    if (args[0]->result_type() == REAL_RESULT ||
+        args[0]->result_type() == DECIMAL_RESULT)
+    {
+      double val= args[0]->val_real();
+      if ((val <= (double) LONGLONG_MIN) || 
+          (val >= (double) (ulonglong) ULONGLONG_MAX))
+        dec=  ~(longlong) 0;
+      else
+        dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));
+    }
+    else
+      dec= (ulonglong) args[0]->val_int();
+
     if ((null_value= args[0]->null_value))
       return 0;
     ptr= longlong2str(dec,ans,16);

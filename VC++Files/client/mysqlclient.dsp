@@ -451,10 +451,6 @@ SOURCE=..\mysys\my_symlink2.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\mysys\my_tempnam.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\libmysql\my_time.c
 # End Source File
 # Begin Source File

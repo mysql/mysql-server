@@ -542,10 +542,9 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
 
 bool close_thread_table(THD *thd, TABLE **table_ptr)
 {
-  DBUG_ENTER("close_thread_table");
-
   bool found_old_table= 0;
   TABLE *table= *table_ptr;
+  DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(table->file->inited == handler::NONE);
 
@@ -972,18 +971,34 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 }
 
 
-/******************************************************************************
-** open a table
-** Uses a cache of open tables to find a table not in use.
-** If refresh is a NULL pointer, then the is no version number checking and
-** the table is not put in the thread-open-list
-** If the return value is NULL and refresh is set then one must close
-** all tables and retry the open
-******************************************************************************/
+/*
+  Open a table.
+
+  SYNOPSIS
+    open_table()
+      thd         Thread context
+      table_list  Open first table in list
+      refresh     Pointer to memory that will be set to 1 if
+                  we need to close all tables and reopen them
+                  If this is a NULL pointer, then the is no version
+                  number checking and the table is not put in the
+                  thread-open-list
+      flags       Bitmap of flags to modify how open works:
+                    MYSQL_LOCK_IGNORE_FLUSH - Open table even if someone
+                    has done a flush or namelock on it.
+
+  IMPLEMENTATION
+    Uses a cache of open tables to find a table not in use.
+
+  RETURN
+    NULL  Open failed.  If refresh is set then one should close
+          all other tables and retry the open
+    #     Success. Pointer to TABLE object for open table.
+*/
 
 
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-		  bool *refresh)
+		  bool *refresh, uint flags)
 {
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
@@ -1026,6 +1041,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (thd->locked_tables || thd->prelocked_mode)
   {						// Using table locks
+    TABLE *best_table= 0;
+    int best_distance= INT_MIN, distance;
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
@@ -1034,10 +1051,36 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           table->query_id != thd->query_id && /* skip tables already used by this query */
           !(thd->prelocked_mode && table->query_id))
       {
-        table->query_id= thd->query_id;
-        DBUG_PRINT("info",("Using locked table"));
-	goto reset;
+        distance= ((int) table->reginfo.lock_type -
+                   (int) table_list->lock_type);
+        /*
+          Find a table that either has the exact lock type requested,
+          or has the best suitable lock. In case there is no locked
+          table that has an equal or higher lock than requested,
+          we still maitain the best_table to produce an error message
+          about wrong lock mode on the table. The best_table is changed
+          if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
+
+          distance <  0 - we have not enough high lock mode
+          distance >  0 - we have lock mode higher then we require
+          distance == 0 - we have lock mode exactly which we need
+        */
+        if (best_distance < 0 && distance > best_distance ||
+            distance >= 0 && distance < best_distance)
+        {
+          best_distance= distance;
+          best_table= table;
+          if (best_distance == 0)
+            break;
+        }
       }
+    }
+    if (best_table)
+    {
+      table= best_table;
+      table->query_id= thd->query_id;
+      DBUG_PRINT("info",("Using locked table"));
+      goto reset;
     }
     /*
       is it view?
@@ -1096,9 +1139,16 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     if (table->s->version != refresh_version)
     {
+      if (flags & MYSQL_LOCK_IGNORE_FLUSH)
+      {
+        /* Force close at once after usage */
+        thd->version= table->s->version;
+        continue;
+      }
+
       /*
-      ** There is a refresh in progress for this table
-      ** Wait until the table is freed or the thread is killed.
+        There is a refresh in progress for this table
+        Wait until the table is freed or the thread is killed.
       */
       close_old_data_files(thd,thd->open_tables,0,0);
       if (table->in_use != thd)
@@ -1681,6 +1731,15 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   if (error == 5)
     DBUG_RETURN(0);	// we have just opened VIEW
 
+  /*
+    We can't mark all tables in 'mysql' database as system since we don't
+    allow to lock such tables for writing with any other tables (even with
+    other system tables) and some privilege tables need this.
+  */
+  if (!my_strcasecmp(system_charset_info, db, "mysql") &&
+      !my_strcasecmp(system_charset_info, name, "proc"))
+    entry->s->system_table= 1;
+
   if (Table_triggers_list::check_n_load(thd, db, name, entry))
     goto err;
 
@@ -1802,16 +1861,13 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
     may be still zero for prelocked statement...
   */
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-      (thd->lex->spfuns.records || thd->lex->spprocs.records))
+      thd->lex->sroutines.records)
   {
-    TABLE_LIST **save_query_tables_last;
-
-    sp_cache_routines(thd, thd->lex);
-    save_query_tables_last= thd->lex->query_tables_last;
+    TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
 
-    if (sp_add_sp_tables_to_table_list(thd, thd->lex, thd->lex) ||
+    if (sp_cache_routines_and_add_tables(thd, thd->lex) ||
         *start)
     {
       query_tables_last_own= save_query_tables_last;
@@ -1835,7 +1891,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
     }
     (*counter)++;
     if (!tables->table &&
-	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh)))
+	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh, 0)))
     {
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
       if (tables->view)
@@ -1847,19 +1903,16 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
           and add tables used by them to table list.
         */
         if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-            (tables->view->spfuns.records || tables->view->spprocs.records))
+            tables->view->sroutines.records)
         {
-          // FIXME We should catch recursion for both views and funcs here
-          sp_cache_routines(thd, tables->view);
-
           /* We have at least one table in TL here */
           if (!query_tables_last_own)
             query_tables_last_own= thd->lex->query_tables_last;
-          sp_add_sp_tables_to_table_list(thd, thd->lex, tables->view);
+          sp_cache_routines_and_add_tables_for_view(thd, thd->lex,
+                                                    tables->view);
         }
         /* Cleanup hashes because destructo for this LEX is never called */
-        hash_free(&tables->view->spfuns);
-        hash_free(&tables->view->spprocs);
+        hash_free(&tables->view->sroutines);
 	continue;
       }
 
@@ -1914,9 +1967,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
         prelocking list.
         If we lock table for reading we won't update it so there is no need to
         process its triggers since they never will be activated.
-
-        FIXME Now we are simply turning on prelocking. Proper integration
-        and testing is to be done later.
       */
       if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
           tables->table->triggers &&
@@ -1924,6 +1974,8 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
       {
         if (!query_tables_last_own)
             query_tables_last_own= thd->lex->query_tables_last;
+        sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
+                                                      tables->table->triggers);
       }
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
     }
@@ -2010,7 +2062,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
-  while (!(table= open_table(thd, table_list, thd->mem_root, &refresh)) &&
+  while (!(table= open_table(thd, table_list, thd->mem_root, &refresh, 0)) &&
          refresh)
     ;
 
@@ -2407,9 +2459,11 @@ Field *view_ref_found= (Field*) 0x2;
     name			name of field
     item_name                   name of item if it will be created (VIEW)
     length			length of name
-    ref				expression substituted in VIEW should be
+    ref	[in/out]		expression substituted in VIEW should be
 				  passed using this reference (return
 				  view_ref_found)
+                                  (*ref != NULL) only if *ref contains
+                                  the item that we need to replace.
     check_grants_table		do check columns grants for table?
     check_grants_view		do check columns grants for view?
     allow_rowid			do allow finding of "_rowid" field?
@@ -2447,11 +2501,6 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
     {
       if (!my_strcasecmp(system_charset_info, field_it.name(), name))
       {
-        Item *item= field_it.create_item(thd);
-        if (!item)
-        {
-          DBUG_RETURN(0);
-        }
         if (table_list->schema_table_reformed)
         {
           /*
@@ -2470,6 +2519,19 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 			       name, length))
 	  DBUG_RETURN(WRONG_GRANT);
 #endif
+        Item *item= field_it.create_item(thd);
+        if (!item)
+        {
+          DBUG_RETURN(0);
+        }
+        /*
+          *ref != NULL means that *ref contains the item that we need to
+          replace. If the item was aliased by the user, set the alias to
+          the replacing item.
+         */
+        if (*ref && !(*ref)->is_autogenerated_name)
+          item->set_name((*ref)->name, (*ref)->name_length,
+                         system_charset_info);
         if (register_tree_change)
           thd->change_item_tree(ref, item);
         else
@@ -3501,6 +3563,12 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
             thd->dupp_field=field;
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
+        }
+        else
+        {
+          Item *item= ((Field_iterator_view *) iterator)->item();
+          item->walk(&Item::reset_query_id_processor,
+                     (byte *)(&thd->query_id));
         }
       }
       /*

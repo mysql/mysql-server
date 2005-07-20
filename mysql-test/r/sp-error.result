@@ -286,6 +286,19 @@ ERROR 42000: OUT or INOUT argument 2 for routine test.p is not a variable
 call p(42, @tmp_y, 43)|
 ERROR 42000: OUT or INOUT argument 3 for routine test.p is not a variable
 drop procedure p|
+create procedure p() begin end|
+lock table t1 read|
+call p()|
+unlock tables|
+drop procedure p|
+lock tables t1 read, mysql.proc write|
+ERROR HY000: You can't combine write-locking of system 'mysql.proc' table with other tables
+lock tables mysql.proc write, mysql.user write|
+ERROR HY000: You can't combine write-locking of system 'mysql.proc' table with other tables
+lock tables t1 read, mysql.proc read|
+unlock tables|
+lock tables mysql.proc write|
+unlock tables|
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;
@@ -477,7 +490,7 @@ begin
 select * from t1;
 end|
 lock table t1 read|
-call bug9566()|
+alter procedure bug9566 comment 'Some comment'|
 ERROR HY000: Table 'proc' was not locked with LOCK TABLES
 unlock tables|
 drop procedure bug9566|
@@ -604,10 +617,10 @@ flush tables;
 return 5;
 end|
 ERROR 0A000: FLUSH is not allowed in stored procedures
-create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890()
+create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123()
 begin
 end|
-ERROR 42000: Identifier name 'bug9529_90123456789012345678901234567890123456789012345678901234567890' is too long
+ERROR 42000: Identifier name 'bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890' is too long
 drop procedure if exists bug10969|
 create procedure bug10969()
 begin
@@ -705,3 +718,19 @@ end|
 call bug11394(2, 1)|
 ERROR HY000: Recursive stored routines are not allowed.
 drop procedure bug11394|
+drop function if exists bug11834_1;
+drop function if exists bug11834_2;
+create function bug11834_1() returns int return 10;
+create function bug11834_2() returns int return bug11834_1();
+prepare stmt from "select bug11834_2()";
+execute stmt;
+bug11834_2()
+10
+execute stmt;
+bug11834_2()
+10
+drop function bug11834_1;
+execute stmt;
+ERROR 42000: FUNCTION test.bug11834_1 does not exist
+deallocate prepare stmt;
+drop function bug11834_2;

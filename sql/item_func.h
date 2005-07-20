@@ -187,6 +187,7 @@ public:
   Item_real_func(Item *a,Item *b) :Item_func(a,b) {}
   Item_real_func(List<Item> &list) :Item_func(list) {}
   String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
     { DBUG_ASSERT(fixed == 1); return (longlong) val_real(); }
   enum Item_result result_type () const { return REAL_RESULT; }
@@ -1195,6 +1196,31 @@ public:
   void print(String *str);
   void set_null_value(CHARSET_INFO* cs);
   void set_value(const char *str, uint length, CHARSET_INFO* cs);
+};
+
+
+/* A system variable */
+
+class Item_func_get_system_var :public Item_func
+{
+  sys_var *var;
+  enum_var_type var_type;
+  LEX_STRING component;
+public:
+  Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
+                           LEX_STRING *component_arg, const char *name_arg,
+                           size_t name_len_arg);
+  bool fix_fields(THD *thd, Item **ref);
+  /*
+    Stubs for pure virtual methods. Should never be called: this
+    item is always substituted with a constant in fix_fields().
+  */
+  double val_real()         { DBUG_ASSERT(0); return 0.0; }
+  longlong val_int()        { DBUG_ASSERT(0); return 0; }
+  String* val_str(String*)  { DBUG_ASSERT(0); return 0; }
+  void fix_length_and_dec() { DBUG_ASSERT(0); }
+  /* TODO: fix to support views */
+  const char *func_name() const { return "get_system_var"; }
 };
 
 

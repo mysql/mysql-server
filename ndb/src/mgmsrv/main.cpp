@@ -96,15 +96,16 @@ read_and_execute(Ndb_mgmclient* com, const char * prompt, int _try_reconnect)
  * @struct  MgmGlobals
  * @brief   Global Variables used in the management server
  *****************************************************************************/
+
+/** Command line arguments  */
+static int opt_daemon;   // NOT bool, bool need not be int
+static int opt_non_interactive;
+static int opt_interactive;
+static const char * opt_config_filename= 0;
+  
 struct MgmGlobals {
   MgmGlobals();
   ~MgmGlobals();
-  
-  /** Command line arguments  */
-  int daemon;   // NOT bool, bool need not be int
-  int non_interactive;
-  int interactive;
-  const char * config_filename;
   
   /** Stuff found in environment or in local config  */
   NodeId localNodeId;
@@ -120,7 +121,7 @@ struct MgmGlobals {
 };
 
 int g_no_nodeid_checks= 0;
-static MgmGlobals glob;
+static MgmGlobals *glob= 0;
 
 /******************************************************************************
  * Function prototypes
@@ -144,14 +145,14 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgmd"),
   { "config-file", 'f', "Specify cluster configuration file",
-    (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
+    (gptr*) &opt_config_filename, (gptr*) &opt_config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
-    (gptr*) &glob.daemon, (gptr*) &glob.daemon, 0,
+    (gptr*) &opt_daemon, (gptr*) &opt_daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "interactive", OPT_INTERACTIVE,
     "Run interactive. Not supported but provided for testing purposes",
-    (gptr*) &glob.interactive, (gptr*) &glob.interactive, 0,
+    (gptr*) &opt_interactive, (gptr*) &opt_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-nodeid-checks", OPT_NO_NODEID_CHECKS,
     "Do not provide any node id checks", 
@@ -159,7 +160,7 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "nodaemon", OPT_NO_DAEMON,
     "Don't run as daemon, but don't read from stdin",
-    (gptr*) &glob.non_interactive, (gptr*) &glob.non_interactive, 0,
+    (gptr*) &opt_non_interactive, (gptr*) &opt_non_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -182,6 +183,7 @@ static void usage()
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
+  glob= new MgmGlobals;
 
   /**
    * OSE specific. Enable shared ownership of file system resources. 
@@ -205,40 +207,40 @@ int main(int argc, char** argv)
 			       ndb_std_get_one_option)))
     exit(ho_error);
 
-  if (glob.interactive ||
-      glob.non_interactive) {
-    glob.daemon= 0;
+  if (opt_interactive ||
+      opt_non_interactive) {
+    opt_daemon= 0;
   }
 
-  glob.socketServer = new SocketServer();
+  glob->socketServer = new SocketServer();
 
   MgmApiService * mapi = new MgmApiService();
 
-  glob.mgmObject = new MgmtSrvr(glob.socketServer,
-				glob.config_filename,
+  glob->mgmObject = new MgmtSrvr(glob->socketServer,
+				opt_config_filename,
 				opt_connect_str);
 
-  if (glob.mgmObject->init())
+  if (glob->mgmObject->init())
     goto error_end;
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
 
-  glob.localNodeId= glob.mgmObject->getOwnNodeId();
-  if (glob.localNodeId == 0) {
+  glob->localNodeId= glob->mgmObject->getOwnNodeId();
+  if (glob->localNodeId == 0) {
     goto error_end;
   }
 
-  glob.port= glob.mgmObject->getPort();
+  glob->port= glob->mgmObject->getPort();
 
-  if (glob.port == 0)
+  if (glob->port == 0)
     goto error_end;
 
-  glob.interface_name = 0;
-  glob.use_specific_ip = false;
+  glob->interface_name = 0;
+  glob->use_specific_ip = false;
 
-  if(!glob.use_specific_ip){
+  if(!glob->use_specific_ip){
     int count= 5; // no of retries for tryBind
-    while(!glob.socketServer->tryBind(glob.port, glob.interface_name)){
+    while(!glob->socketServer->tryBind(glob->port, glob->interface_name)){
       if (--count > 0) {
 	NdbSleep_MilliSleep(1000);
 	continue;
@@ -247,19 +249,20 @@ int main(int argc, char** argv)
 	       "Please check if the port is already used,\n"
 	       "(perhaps a ndb_mgmd is already running),\n"
 	       "and if you are executing on the correct computer", 
-	       (glob.interface_name ? glob.interface_name : "*"), glob.port);
+	       (glob->interface_name ? glob->interface_name : "*"), glob->port);
       goto error_end;
     }
-    free(glob.interface_name);
-    glob.interface_name = 0;
+    free(glob->interface_name);
+    glob->interface_name = 0;
   }
 
-  if(!glob.socketServer->setup(mapi, &glob.port, glob.interface_name)){
+  if(!glob->socketServer->setup(mapi, &glob->port, glob->interface_name))
+  {
     ndbout_c("Unable to setup management port: %d!\n"
 	     "Please check if the port is already used,\n"
 	     "(perhaps a ndb_mgmd is already running),\n"
 	     "and if you are executing on the correct computer", 
-	     glob.port);
+	     glob->port);
     delete mapi;
     goto error_end;
   }
@@ -267,12 +270,12 @@ int main(int argc, char** argv)
   /* Construct a fake connectstring to connect back to ourselves */
   char connect_str[20];
   if(!opt_connect_str) {
-    snprintf(connect_str,20,"localhost:%u",glob.mgmObject->getPort());
+    snprintf(connect_str,20,"localhost:%u",glob->mgmObject->getPort());
     opt_connect_str= connect_str;
   }
-  glob.mgmObject->set_connect_string(opt_connect_str);
+  glob->mgmObject->set_connect_string(opt_connect_str);
 
-  if(!glob.mgmObject->check_start()){
+  if(!glob->mgmObject->check_start()){
     ndbout_c("Unable to check start management server.");
     ndbout_c("Probably caused by illegal initial configuration file.");
     goto error_end;
@@ -283,7 +286,7 @@ int main(int argc, char** argv)
    * config info
    */
   int mgm_connect_result;
-  mgm_connect_result = glob.mgmObject->get_config_retriever()->
+  mgm_connect_result = glob->mgmObject->get_config_retriever()->
     do_connect(0,0,0);
 
   if(mgm_connect_result<0) {
@@ -292,11 +295,10 @@ int main(int argc, char** argv)
     ndbout_c("This is probably a bug.");
   }
   
-
-  if (glob.daemon) {
+  if (opt_daemon) {
     // Become a daemon
-    char *lockfile= NdbConfig_PidFileName(glob.localNodeId);
-    char *logfile=  NdbConfig_StdoutFileName(glob.localNodeId);
+    char *lockfile= NdbConfig_PidFileName(glob->localNodeId);
+    char *logfile=  NdbConfig_StdoutFileName(glob->localNodeId);
     NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
 
     if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
@@ -310,7 +312,7 @@ int main(int argc, char** argv)
 #endif
   {
     BaseString error_string;
-    if(!glob.mgmObject->start(error_string)){
+    if(!glob->mgmObject->start(error_string)){
       ndbout_c("Unable to start management server.");
       ndbout_c("Probably caused by illegal initial configuration file.");
       ndbout_c(error_string.c_str());
@@ -318,8 +320,8 @@ int main(int argc, char** argv)
     }
   }
 
-  //glob.mgmObject->saveConfig();
-  mapi->setMgm(glob.mgmObject);
+  //glob->mgmObject->saveConfig();
+  mapi->setMgm(glob->mgmObject);
 
   char msg[256];
   BaseString::snprintf(msg, sizeof(msg),
@@ -328,20 +330,20 @@ int main(int argc, char** argv)
   g_eventLogger.info(msg);
 
   BaseString::snprintf(msg, 256, "Id: %d, Command port: %d",
-	   glob.localNodeId, glob.port);
+	   glob->localNodeId, glob->port);
   ndbout_c(msg);
   g_eventLogger.info(msg);
   
   g_StopServer = false;
-  glob.socketServer->startServer();
+  glob->socketServer->startServer();
 
 #if ! defined NDB_OSE && ! defined NDB_SOFTOSE
-  if(glob.interactive) {
+  if(opt_interactive) {
     BaseString con_str;
-    if(glob.interface_name)
-      con_str.appfmt("host=%s:%d", glob.interface_name, glob.port);
+    if(glob->interface_name)
+      con_str.appfmt("host=%s:%d", glob->interface_name, glob->port);
     else 
-      con_str.appfmt("localhost:%d", glob.port);
+      con_str.appfmt("localhost:%d", glob->port);
     Ndb_mgmclient com(con_str.c_str(), 1);
     while(g_StopServer != true && read_and_execute(&com, "ndb_mgm> ", 1));
   } else 
@@ -352,22 +354,23 @@ int main(int argc, char** argv)
   }
   
   g_eventLogger.info("Shutting down server...");
-  glob.socketServer->stopServer();
-  glob.socketServer->stopSessions();
+  glob->socketServer->stopServer();
+  glob->mgmObject->get_config_retriever()->disconnect();
+  glob->socketServer->stopSessions(true);
   g_eventLogger.info("Shutdown complete");
+  delete glob;
+  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return 0;
  error_end:
+  delete glob;
+  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return 1;
 }
 
 MgmGlobals::MgmGlobals(){
   // Default values
   port = 0;
-  config_filename = NULL;
   interface_name = 0;
-  daemon = 1;
-  non_interactive = 0;
-  interactive = 0;
   socketServer = 0;
   mgmObject = 0;
 }

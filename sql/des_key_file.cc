@@ -22,7 +22,17 @@
 struct st_des_keyschedule des_keyschedule[10];
 uint   des_default_key;
 pthread_mutex_t LOCK_des_key_file;
-static int initialized;
+static int initialized= 0;
+
+void
+init_des_key_file()
+{
+  if (!initialized)
+  {
+    initialized=1;
+    pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
+  }
+}
 
 /*
  Function which loads DES keys from plaintext file into memory on MySQL
@@ -45,11 +55,7 @@ load_des_key_file(const char *file_name)
   DBUG_ENTER("load_des_key_file");
   DBUG_PRINT("enter",("name: %s",file_name));
 
-  if (!initialized)
-  {
-    initialized=1;
-    pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
-  }
+  init_des_key_file();
 
   VOID(pthread_mutex_lock(&LOCK_des_key_file));
   if ((file=my_open(file_name,O_RDONLY | O_BINARY ,MYF(MY_WME))) < 0 ||

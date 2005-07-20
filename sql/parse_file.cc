@@ -728,7 +728,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 					       sizeof(LEX_STRING))) ||
 		list->push_back(str, mem_root))
 	      goto list_err;
-	    if(!(ptr= parse_quoted_escaped_string(ptr, end, mem_root, str)))
+	    if (!(ptr= parse_quoted_escaped_string(ptr, end, mem_root, str)))
 	      goto list_err_w_message;
 	    switch (*ptr) {
 	    case '\n':

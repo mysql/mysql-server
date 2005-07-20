@@ -242,7 +242,7 @@ static void print_set_option(FILE* file, uint32 bits_changed, uint32 option,
   {
     if (*need_comma)
       fprintf(file,", ");
-    fprintf(file,"%s=%d", name, (bool)(flags & option));
+    fprintf(file,"%s=%d", name, test(flags & option));
     *need_comma= 1;
   }
 }

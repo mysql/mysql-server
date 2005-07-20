@@ -20,6 +20,7 @@
 #include "parse_file.h"
 #include "sp.h"
 #include "sp_head.h"
+#include "sp_cache.h"
 
 #define MD5_BUFF_LENGTH 33
 
@@ -140,6 +141,9 @@ bool mysql_create_view(THD *thd,
     res= TRUE;
     goto err;
   }
+
+  if (mode != VIEW_CREATE_NEW)
+    sp_cache_invalidate();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
@@ -1000,6 +1004,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if (my_delete(path, MYF(MY_WME)))
       goto err;
     query_cache_invalidate3(thd, view, 0);
+    sp_cache_invalidate();
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   send_ok(thd);

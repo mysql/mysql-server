@@ -45,7 +45,7 @@ int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str={0,0};
 
-#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
+#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 #define WARN_DEPRECATED(A,B)                                        \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
@@ -465,6 +465,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PACK_KEYS_SYM
 %token  PARTIAL
 %token  PASSWORD
+%token  PARAM_MARKER
 %token  PHASE_SYM
 %token  POINTFROMTEXT
 %token  POINT_SYM
@@ -676,7 +677,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        sp_opt_label BIN_NUM
+        sp_opt_label BIN_NUM label_ident
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -764,7 +765,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <udf_type> udf_func_type
 
-%type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword
+%type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword keyword_sp
 
 %type <lex_user> user grant_user
 
@@ -1531,7 +1532,7 @@ call:
 	    lex->sql_command= SQLCOM_CALL;
 	    lex->spname= $2;
 	    lex->value_list.empty();
-	    sp_add_to_hash(&lex->spprocs, $2);
+	    sp_add_used_routine(lex, YYTHD, $2, TYPE_ENUM_PROCEDURE);
 	  }
           '(' sp_cparam_list ')' {}
 	;
@@ -2053,7 +2054,7 @@ sp_proc_stmt:
 
 	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
-	| LEAVE_SYM IDENT
+	| LEAVE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp = lex->sphead;
@@ -2083,7 +2084,7 @@ sp_proc_stmt:
               sp->add_instr(i);
 	    }
 	  }
-	| ITERATE_SYM IDENT
+	| ITERATE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
@@ -2400,7 +2401,7 @@ sp_whens:
 	;
 
 sp_labeled_control:
-	  IDENT ':'
+	  label_ident ':'
 	  {
 	    LEX *lex= Lex;
 	    sp_pcontext *ctx= lex->spcont;
@@ -2439,7 +2440,7 @@ sp_labeled_control:
 
 sp_opt_label:
         /* Empty  */    { $$= null_lex_str; }
-        | IDENT         { $$= $1; }
+        | label_ident   { $$= $1; }
 	;
 
 sp_unlabeled_control:
@@ -4025,7 +4026,7 @@ select_into:
 select_from:
 	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
-        | FROM DUAL_SYM opt_limit_clause
+        | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
              and DUAL is system table without fields.
              Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
@@ -4226,9 +4227,25 @@ bool_pri:
 
 predicate:
 	 bit_expr IN_SYM '(' expr_list ')'
-	  { $4->push_front($1); $$= new Item_func_in(*$4); }
+	  { 
+            if ($4->elements == 1)
+              $$= new Item_func_eq($1, $4->head());
+            else
+            {
+              $4->push_front($1);
+              $$= new Item_func_in(*$4);
+            }
+          }
 	| bit_expr not IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= negate_expression(YYTHD, new Item_func_in(*$5)); }
+          {
+            if ($5->elements == 1)
+              $$= new Item_func_ne($1, $5->head());
+            else
+            {
+              $5->push_front($1);
+              $$= negate_expression(YYTHD, new Item_func_in(*$5));
+            }            
+          }
         | bit_expr IN_SYM in_subselect
 	  { $$= new Item_in_subselect($1, $3); }
 	| bit_expr not IN_SYM in_subselect
@@ -4695,7 +4712,7 @@ simple_expr:
 	    sp_name *name= new sp_name($1, $3);
 
 	    name->init_qname(YYTHD);
-	    sp_add_to_hash(&lex->spfuns, name);
+	    sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
 	    if ($5)
 	      $$= new Item_func_sp(&lex->current_select->context, name, *$5);
 	    else
@@ -4785,7 +4802,7 @@ simple_expr:
 	      LEX *lex= Lex;
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
-              sp_add_to_hash(&lex->spfuns, name);
+              sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
               if ($3)
                 $$= new Item_func_sp(&lex->current_select->context, name, *$3);
               else
@@ -4805,7 +4822,7 @@ simple_expr:
 	| UNIX_TIMESTAMP '(' expr ')'
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
-	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
+	  { $$= new Item_func_user(FALSE); Lex->safe_to_cache_query=0; }
 	| UTC_DATE_SYM optional_braces
 	  { $$= new Item_func_curdate_utc(); Lex->safe_to_cache_query=0;}
 	| UTC_TIME_SYM optional_braces
@@ -5674,7 +5691,7 @@ delete_limit_clause:
 
 ulong_num:
           NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-	| HEX_NUM       { int error; $$= (ulong) strtol($1.str, (char**) 0, 16); }
+	| HEX_NUM       { $$= (ulong) strtol($1.str, (char**) 0, 16); }
 	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
@@ -6933,23 +6950,15 @@ text_string:
 	;
 
 param_marker:
-        '?'
+        PARAM_MARKER
         {
           THD *thd=YYTHD;
 	  LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          Item_param *item= new Item_param((uint) (lex->tok_start -
+                                                   (uchar *) thd->query));
+          if (!($$= item) || lex->param_list.push_back(item))
           {
-            Item_param *item= new Item_param((uint) (lex->tok_start -
-                                                     (uchar *) thd->query));
-            if (!($$= item) || lex->param_list.push_back(item))
-            {
-	      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	      YYABORT;
-            }
-          }
-          else
-          {
-            yyerror(ER(ER_SYNTAX_ERROR));
+            my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
             YYABORT;
           }
         }
@@ -7295,6 +7304,16 @@ ident:
 	}
 	;
 
+label_ident:
+	IDENT_sys	    { $$=$1; }
+	| keyword_sp
+	{
+	  THD *thd= YYTHD;
+	  $$.str=    thd->strmake($1.str, $1.length);
+	  $$.length= $1.length;
+	}
+	;
+
 ident_or_text:
         ident                   { $$=$1;}
 	| TEXT_STRING_sys	{ $$=$1;}
@@ -7336,9 +7355,53 @@ user:
           }
 	};
 
-/* Keyword that we allow for identifiers */
-
+/* Keyword that we allow for identifiers (except SP labels) */
 keyword:
+	keyword_sp		{}
+	| ASCII_SYM		{}
+	| BACKUP_SYM		{}
+	| BEGIN_SYM		{}
+	| BYTE_SYM		{}
+	| CACHE_SYM		{}
+	| CHARSET		{}
+	| CHECKSUM_SYM		{}
+	| CLOSE_SYM		{}
+	| COMMENT_SYM		{}
+	| COMMIT_SYM		{}
+	| CONTAINS_SYM          {}
+        | DEALLOCATE_SYM        {}
+	| DO_SYM		{}
+	| END			{}
+	| EXECUTE_SYM		{}
+	| FLUSH_SYM		{}
+	| HANDLER_SYM		{}
+	| HELP_SYM		{}
+	| LANGUAGE_SYM          {}
+	| NO_SYM		{}
+	| OPEN_SYM		{}
+        | PREPARE_SYM           {}
+	| REPAIR		{}
+	| RESET_SYM		{}
+	| RESTORE_SYM		{}
+	| ROLLBACK_SYM		{}
+	| SAVEPOINT_SYM		{}
+	| SECURITY_SYM		{}
+	| SIGNED_SYM		{}
+	| SLAVE			{}
+	| START_SYM		{}
+	| STOP_SYM		{}
+	| TRUNCATE_SYM		{}
+	| UNICODE_SYM		{}
+        | XA_SYM                {}
+	;
+
+/*
+ * Keywords that we allow for labels in SPs.
+ * Anything that's the beginning of a statement or characteristics
+ * must be in keyword above, otherwise we get (harmful) shift/reduce
+ * conflicts.
+ */
+keyword_sp:
 	ACTION			{}
 	| ADDDATE_SYM		{}
 	| AFTER_SYM		{}
@@ -7346,61 +7409,46 @@ keyword:
 	| AGGREGATE_SYM		{}
 	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
-	| ASCII_SYM		{}
 	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
-	| BACKUP_SYM		{}
-	| BEGIN_SYM		{}
 	| BERKELEY_DB_SYM	{}
 	| BINLOG_SYM		{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
-	| BYTE_SYM		{}
 	| BTREE_SYM		{}
-	| CACHE_SYM		{}
 	| CASCADED              {}
 	| CHAIN_SYM		{}
 	| CHANGED		{}
-	| CHARSET		{}
-	| CHECKSUM_SYM		{}
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
-	| CLOSE_SYM		{}
 	| COLLATION_SYM		{}
         | COLUMNS               {}
-	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
-	| COMMIT_SYM		{}
 	| COMPACT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
-	| CONTAINS_SYM          {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
-        | DEALLOCATE_SYM        {}
 	| DEFINER_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
 	| DISCARD		{}
-	| DO_SYM		{}
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}
-	| END			{}
 	| ENUM			{}
 	| ENGINE_SYM		{}
 	| ENGINES_SYM		{}
 	| ERRORS		{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
-	| EXECUTE_SYM		{}
         | EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
@@ -7411,16 +7459,13 @@ keyword:
 	| FILE_SYM		{}
 	| FIRST_SYM		{}
 	| FIXED_SYM		{}
-	| FLUSH_SYM		{}
 	| FRAC_SECOND_SYM	{}
 	| GEOMETRY_SYM		{}
 	| GEOMETRYCOLLECTION	{}
 	| GET_FORMAT		{}
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
-	| HANDLER_SYM		{}
 	| HASH_SYM		{}
-	| HELP_SYM		{}
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
@@ -7432,7 +7477,6 @@ keyword:
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
 	| RELAY_THREAD		{}
-	| LANGUAGE_SYM          {}
 	| LAST_SYM		{}
 	| LEAVES                {}
 	| LEVEL_SYM		{}
@@ -7480,21 +7524,18 @@ keyword:
 	| NDBCLUSTER_SYM	{}
 	| NEXT_SYM		{}
 	| NEW_SYM		{}
-	| NO_SYM		{}
 	| NONE_SYM		{}
 	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
 	| ONE_SHOT_SYM		{}
         | ONE_SYM               {}
-	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
         | PHASE_SYM             {}
 	| POINT_SYM		{}
 	| POLYGON		{}
-        | PREPARE_SYM           {}
 	| PREV_SYM		{}
         | PRIVILEGES            {}
 	| PROCESS		{}
@@ -7512,41 +7553,31 @@ keyword:
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}
-	| REPAIR		{}
 	| REPEATABLE_SYM	{}
 	| REPLICATION		{}
-	| RESET_SYM		{}
 	| RESOURCES		{}
-	| RESTORE_SYM		{}
         | RESUME_SYM            {}
 	| RETURNS_SYM           {}
-	| ROLLBACK_SYM		{}
 	| ROLLUP_SYM		{}
 	| ROUTINE_SYM		{}
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
 	| RTREE_SYM		{}
-	| SAVEPOINT_SYM		{}
 	| SECOND_SYM		{}
-	| SECURITY_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}
-	| SIGNED_SYM		{}
 	| SIMPLE_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
-	| SLAVE			{}
 	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
 	| SQL_THREAD		{}
-	| START_SYM		{}
 	| STATUS_SYM		{}
-	| STOP_SYM		{}
 	| STORAGE_SYM		{}
 	| STRING_SYM		{}
 	| SUBDATE_SYM		{}
@@ -7559,7 +7590,6 @@ keyword:
 	| TEMPTABLE_SYM		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
-	| TRUNCATE_SYM		{}
 	| TIMESTAMP		{}
 	| TIMESTAMP_ADD		{}
 	| TIMESTAMP_DIFF	{}
@@ -7570,7 +7600,6 @@ keyword:
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNDEFINED_SYM		{}
-	| UNICODE_SYM		{}
 	| UNKNOWN_SYM		{}
 	| UNTIL_SYM		{}
 	| USER			{}
@@ -7582,7 +7611,6 @@ keyword:
 	| WEEK_SYM		{}
 	| WORK_SYM		{}
 	| X509_SYM		{}
-        | XA_SYM                {}
 	| YEAR_SYM		{}
 	;
 
@@ -7723,12 +7751,6 @@ sys_option_value:
               yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-            if (lex->query_tables)
-            {
-              my_message(ER_SP_SUBSELECT_NYI, ER(ER_SP_SUBSELECT_NYI),
-              MYF(0));
-              YYABORT;
-            }
             if ($4)
               it= $4;
             else
@@ -7743,7 +7765,8 @@ sys_option_value:
                                                   $2.base_name.str)) ||
                 !(i= new sp_instr_set_trigger_field(lex->sphead->
                                                     instructions(),
-                                                    lex->spcont, trg_fld, it)))
+                                                    lex->spcont, trg_fld,
+                                                    it, lex)))
               YYABORT;
 
             /*

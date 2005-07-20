@@ -27,7 +27,7 @@ parse_arguments() {
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
-      --machine)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
+      --machine=*)  MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
       --silent)   SILENT=1 ;;
       --with-ndbcluster) NDBCLUSTER=1 ;;
       *)
@@ -221,6 +221,7 @@ done
 $CP mysql-test/lib/*.pl  $BASE/mysql-test/lib
 $CP mysql-test/lib/*.sql $BASE/mysql-test/lib
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
+$CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \

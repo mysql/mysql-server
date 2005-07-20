@@ -153,7 +153,7 @@ c	varchar(64)	utf8_general_ci	NO				select,insert,update,references
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	11	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	NULL	NULL	NULL	int(11)			select,insert,update,references	
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -298,6 +298,9 @@ show create function sub2;
 Function	sql_mode	Create Function
 sub2		CREATE FUNCTION `test`.`sub2`(i int) RETURNS int(11)
 return i+1
+show function status like "sub2";
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER	
 drop function sub2;
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure
@@ -520,7 +523,7 @@ c	float(5,2)	NULL	NULL	5	2
 d	decimal(6,4)	NULL	NULL	6	4
 e	float	NULL	NULL	12	NULL
 f	decimal(6,3)	NULL	NULL	6	3
-g	int(11)	NULL	NULL	11	0
+g	int(11)	NULL	NULL	10	NULL
 h	double(10,3)	NULL	NULL	10	3
 i	double	NULL	NULL	22	NULL
 drop table t1;
@@ -674,7 +677,7 @@ Database	Table	In_use	Name_locked
 mysql	user	0	0
 show status where variable_name like "%database%";
 Variable_name	Value
-Com_show_databases	0
+Com_show_databases	3
 show variables where variable_name like "skip_show_databas";
 Variable_name	Value
 show global status like "Threads_running";
@@ -841,3 +844,26 @@ drop procedure p2;
 show create database information_schema;
 Database	Create Database
 information_schema	CREATE DATABASE `information_schema` /*!40100 DEFAULT CHARACTER SET utf8 */
+create table t1(f1 LONGBLOB, f2 LONGTEXT);
+select column_name,data_type,CHARACTER_OCTET_LENGTH,
+CHARACTER_MAXIMUM_LENGTH
+from information_schema.columns
+where table_name='t1';
+column_name	data_type	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
+f1	longblob	4294967295	4294967295
+f2	longtext	4294967295	4294967295
+drop table t1;
+create table t1(f1 tinyint, f2 SMALLINT, f3 mediumint, f4 int,
+f5 BIGINT, f6 BIT, f7 bit(64));
+select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
+from information_schema.columns
+where table_name='t1';
+column_name	NUMERIC_PRECISION	NUMERIC_SCALE
+f1	3	NULL
+f2	5	NULL
+f3	7	NULL
+f4	10	NULL
+f5	19	NULL
+f6	1	NULL
+f7	64	NULL
+drop table t1;
