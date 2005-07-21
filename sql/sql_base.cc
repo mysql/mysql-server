@@ -4148,7 +4148,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       else
         result= result || (flags & RTFC_OWNED_BY_THD_FLAG);
     }
-    while (unused_tables && !unused_tables->version)
+    while (unused_tables && !unused_tables->s->version)
       VOID(hash_delete(&open_cache,(byte*) unused_tables));
     if (result && (flags & RTFC_WAIT_OTHER_THREAD_FLAG))
     {
