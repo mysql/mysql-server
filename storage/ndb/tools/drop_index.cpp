@@ -35,7 +35,7 @@ static struct my_option my_long_options[] =
 static void usage()
 {
   char desc[] = 
-    "<indexname>+\n"\
+    "[<table> <index>]+\n"\
     "This program will drop index(es) in Ndb\n";
   ndb_std_print_version();
   my_print_help(my_long_options);
@@ -76,10 +76,10 @@ int main(int argc, char** argv){
   }
   
   int res = 0;
-  for(int i = 0; i<argc; i++){
-    ndbout << "Dropping index " <<  argv[i] << "...";
+  for(int i = 0; i+1<argc; i += 2){
+    ndbout << "Dropping index " << argv[i] << "/" << argv[i+1] << "...";
     int tmp;
-    if((tmp = MyNdb.getDictionary()->dropIndex(argv[i], 0)) != 0){
+    if((tmp = MyNdb.getDictionary()->dropIndex(argv[i+1], argv[i])) != 0){
       ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
       res = tmp;
     } else {
