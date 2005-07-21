@@ -253,7 +253,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
            MYI file and SPATIAL key *does have* additional sp_segs keysegs.
            We'd better delete them now
         */
-        keydef->keysegs-=sp_segs;
+        keydef->keysegs-=(sp_segs-1);
       }
 
       for (j=0, keyseg=keydef->seg ; (int) j < keydef->keysegs ;
