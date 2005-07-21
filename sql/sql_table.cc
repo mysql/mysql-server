@@ -228,26 +228,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       continue;					// removed temporary table
     }
 
-    abort_locked_tables(thd,db,table->real_name);
-    flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
-    remove_table_from_cache(thd,db,table->real_name,flags);
-    drop_locked_tables(thd,db,table->real_name);
-    if (thd->killed)
-      DBUG_RETURN(-1);
-    alias= (lower_case_table_names == 2) ? table->alias : table->real_name;
-    /* remove form file and isam files */
-    strxmov(path, mysql_data_home, "/", db, "/", alias, reg_ext, NullS);
-    (void) unpack_filename(path,path);
     error=0;
     if (!drop_temporary)
     {
       abort_locked_tables(thd,db,table->real_name);
-      while (remove_table_from_cache(thd,db,table->real_name) && !thd->killed)
-      {
-	dropping_tables++;
-	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-	dropping_tables--;
-      }
+      flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
+      remove_table_from_cache(thd,db,table->real_name,flags);
       drop_locked_tables(thd,db,table->real_name);
       if (thd->killed)
 	DBUG_RETURN(-1);
