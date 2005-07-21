@@ -344,6 +344,8 @@ ErrorBundle ErrorCodes[] = {
   { 743,  SE, "Unsupported character set in table or index" },
   { 744,  SE, "Character string is invalid for given character set" },
   { 745,  SE, "Distribution key not supported for char attribute (use binary attribute)" },
+  { 761,  SE, "Unable to drop table as backup is in progress" },
+  { 762,  SE, "Unable to alter table as backup is in progress" },
   { 241,  SE, "Invalid schema object version" },
   { 283,  SE, "Table is being dropped" },
   { 284,  SE, "Table not defined in transaction coordinator" },

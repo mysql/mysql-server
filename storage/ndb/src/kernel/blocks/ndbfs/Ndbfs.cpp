@@ -1006,6 +1006,30 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     }
     return;
   }
+
+  if(signal->theData[0] == 404)
+  {
+    ndbrequire(signal->getLength() == 2);
+    Uint32 file= signal->theData[1];
+    AsyncFile* openFile = theOpenFiles.find(file);
+    ndbrequire(openFile);
+    ndbout_c("File: %s %p", openFile->theFileName.c_str(), openFile);
+    Request* curr = openFile->m_current_request;
+    Request* last = openFile->m_last_request;
+    if(curr)
+      ndbout << "Current request: " << *curr << endl;
+    if(last)
+       ndbout << "Last request: " << *last << endl;
+
+    ndbout << "theReportTo " << *openFile->theReportTo << endl;
+    ndbout << "theMemoryChannelPtr" << *openFile->theMemoryChannelPtr << endl;
+
+    ndbout << "All files: " << endl;
+    for (unsigned i = 0; i < theFiles.size(); i++){
+      AsyncFile* file = theFiles[i];
+      ndbout_c("%2d (0x%x): %s", i,file, file->isOpen()?"OPEN":"CLOSED");
+    }
+  }
 }//Ndbfs::execDUMP_STATE_ORD()
 
 
@@ -1016,3 +1040,4 @@ template class Vector<AsyncFile*>;
 template class Vector<OpenFiles::OpenFileItem>;
 template class MemoryChannel<Request>;
 template class Pool<Request>;
+template NdbOut& operator<<(NdbOut&, const MemoryChannel<Request>&);
