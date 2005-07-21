@@ -103,7 +103,7 @@ public:
 
   NDBT_ResultRow& get_row(Uint32 idx) { return *rows[idx];}
 
-  int execute_async(Ndb*, ExecType, AbortOption = AbortOnError);
+  int execute_async(Ndb*, NdbTransaction::ExecType, NdbTransaction::AbortOption = NdbTransaction::AbortOnError);
   int wait_async(Ndb*, int timeout = -1);
 
 protected:
@@ -121,8 +121,8 @@ protected:
 
   int m_async_reply;
   int m_async_return;
-  friend void HugoOperations_async_callback(int, NdbConnection*, void*);
-  void callback(int res, NdbConnection*);
+  friend void HugoOperations_async_callback(int, NdbTransaction*, void*);
+  void callback(int res, NdbTransaction*);
 };
 
 #endif
