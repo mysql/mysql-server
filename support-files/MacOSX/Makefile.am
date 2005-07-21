@@ -28,12 +28,6 @@ EXTRA_DIST =	Info.plist.sh \
 		StartupItem.Info.plist \
 		StartupItem.postinstall
 
-pkgdata_DATA =	Info.plist \
-		Description.plist \
-		StartupParameters.plist \
-		postinstall \
-		preinstall
-
 CLEANFILES =	Info.plist \
 		Description.plist \
 		StartupParameters.plist \
