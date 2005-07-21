@@ -644,11 +644,6 @@ Set_option::Set_option(Instance_map *instance_map_arg,
   if ((instance= instance_map->find(name, len)))
   {
     instance_name= instance->options.instance_name;
-    if (instance_map->single_defaults_file_option != NULL)
-      single_defaults_file=
-        strchr(instance_map->single_defaults_file_option, '=') + 1;
-    else
-      single_defaults_file= NULL;
 
      /* add prefix for add_option */
     if ((option_len_arg < MAX_OPTION_LEN - 1) ||
@@ -696,12 +691,8 @@ int Set_option::correct_file(int skip)
 {
   int error;
 
-  if (single_defaults_file != NULL)
-    error= modify_defaults_file(single_defaults_file, option,
-                                option_value, instance_name, skip);
-  else
-    error= modify_defaults_file(Options::default_config_file, option,
-                                option_value, instance_name, skip);
+  error= modify_defaults_file(Options::config_file, option,
+                              option_value, instance_name, skip);
 
   switch (error)
   {

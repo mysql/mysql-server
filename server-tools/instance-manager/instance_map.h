@@ -64,8 +64,7 @@ public:
   int unlock();
   int init();
 
-  Instance_map(const char *default_mysqld_path_arg,
-               const char *single_defaults_file_option_arg);
+  Instance_map(const char *default_mysqld_path_arg);
   ~Instance_map();
 
   /* loads options from config files */
@@ -77,7 +76,6 @@ public:
 
 public:
   const char *mysqld_path;
-  const char *single_defaults_file_option;
   Guardian_thread *guardian;
 
 private:
