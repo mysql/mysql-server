@@ -22,6 +22,8 @@
 
 #include "buffer.h"
 #include "instance.h"
+#include "log.h"
+#include "options.h"
 
 #include <m_ctype.h>
 #include <mysql_com.h>
@@ -112,8 +114,9 @@ C_MODE_END
 
 
 Instance_map::Instance_map(const char *default_mysqld_path_arg,
-                           const char *first_option_arg):
-mysqld_path(default_mysqld_path_arg), first_option(first_option_arg)
+                           const char *single_defaults_file_option_arg):
+mysqld_path(default_mysqld_path_arg),
+single_defaults_file_option(single_defaults_file_option_arg)
 {
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
@@ -202,7 +205,8 @@ int Instance_map::complete_initialization()
       hash_free should handle it's deletion => goto err, not
       err_instance.
     */
-    if (instance->complete_initialization(this, mysqld_path, DEFAULT_SINGLE_INSTANCE))
+    if (instance->complete_initialization(this, mysqld_path,
+                                          DEFAULT_SINGLE_INSTANCE))
       goto err;
   }
   else
@@ -236,18 +240,25 @@ int Instance_map::load()
 
   /* the name of the program may be orbitrary here in fact */
   argv_options[0]= "mysqlmanager";
-  if (first_option != NULL)
+  if (single_defaults_file_option != NULL)
   {
     argc= 2;
-    argv_options[1]= first_option;
+    argv_options[1]= single_defaults_file_option;
     argv_options[2]= '\0';
   }
   else
     argv_options[1]= '\0';
 
-  if (my_search_option_files("my", &argc, (char ***) &argv, &args_used,
-                             process_option, (void*) this) ||
-      complete_initialization())
+  /*
+    If the routine failed, we'll simply fallback to defaults in
+    complete_initialization().
+  */
+  if (my_search_option_files(Options::default_config_file, &argc,
+                             (char ***) &argv, &args_used,
+                             process_option, (void*) this))
+    log_info("Falling back to compiled-in defaults");
+
+  if (complete_initialization())
     return 1;
 
   return 0;

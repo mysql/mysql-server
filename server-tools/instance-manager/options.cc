@@ -36,7 +36,8 @@ const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
-const char *Options::first_option= 0;           /* No default value */
+const char *Options::default_config_file= QUOTE(DEFAULT_CONFIG_FILE);
+const char *Options::single_defaults_file_option= 0; /* No default value */
 const char *Options::bind_address= 0;           /* No default value */
 const char *Options::user= 0;                   /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
@@ -204,31 +205,69 @@ C_MODE_END
 
 
 /*
-  - call load_defaults to load configuration file section
+  - Process argv of original program: get tid of --defaults-extra-file
+    and print a message if met there.
+  - call load_defaults to load configuration file section and save the pointer
+    for free_defaults.
   - call handle_options to assign defaults and command-line arguments
-  to the class members
-  if either of these function fail, exit the program
-  May not return.
+  to the class members.
+  if either of these function fail, return the error code.
 */
 
 int Options::load(int argc, char **argv)
 {
   int rc;
+  char **original_argv;
+  int original_argc;
+  char *original_argv_buff[1024];
+  int use_new_argv= 0;
 
-  if (argc >= 2)
+  saved_argv= argv;
+  original_argv= original_argv_buff;
+  original_argc= argc;
+
+  if (argc >= 2 && is_prefix(argv[1],"--defaults-file="))
   {
-    if (is_prefix(argv[1],"--defaults-file=") ||
-        is_prefix(argv[1],"--defaults-extra-file="))
-      Options::first_option= argv[1];
+    if (is_prefix(argv[1],"--defaults-file="))
+    {
+      /* set --defaults-file, so that we read only this file */
+      Options::single_defaults_file_option= argv[1];
+    }
+    if (is_prefix(argv[1],"--defaults-extra-file="))
+    {
+      int argv_pos= 1;
+
+      original_argv[0]= argv[0];
+      use_new_argv= 1;
+      /* skip --defaullts-extra-file */
+      while (++argv_pos != argc)
+        original_argv[argv_pos]=argv[argv_pos];
+      original_argv[argv_pos]= 0;
+      /* the log is not enabled yet */
+      fprintf(stderr, "--defaults-extra-file is not supported by IM."
+              " Skipping the option. \n");
+      original_argc--;
+    }
   }
 
-  /* config-file options are prepended to command-line ones */
-  load_defaults("my", default_groups, &argc, &argv);
-  Options::saved_argv= argv;
+  /* here load_defaults will save pointer to free allocated memory */
+  if (use_new_argv)
+    saved_argv= original_argv;
+  else
+    saved_argv= argv;
 
-  if ((rc= handle_options(&argc, &argv, my_long_options, get_one_option)) != 0)
-    return rc;
+  /* config-file options are prepended to command-line ones */
+  load_defaults(default_config_file, default_groups, &original_argc,
+                &saved_argv);
+
+  if ((rc= handle_options(&original_argc, &saved_argv, my_long_options,
+                          get_one_option)) != 0)
+    goto err;
+
   return 0;
+
+err:
+  return rc;
 }
 
 void Options::cleanup()
