@@ -4543,9 +4543,9 @@ int Field_timestamp::store(longlong nr)
   THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
-  long tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
-                                             MODE_NO_ZERO_DATE) |
-                               MODE_NO_ZERO_IN_DATE, &error);
+  longlong tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
+                                                 MODE_NO_ZERO_DATE) |
+                                   MODE_NO_ZERO_IN_DATE, &error);
   if (tmp < 0)
   {
     error= 2;
@@ -5389,7 +5389,7 @@ int Field_newdate::store(double nr)
 int Field_newdate::store(longlong nr)
 {
   TIME l_time;
-  long tmp;
+  longlong tmp;
   int error;
   if ((tmp= number_to_datetime(nr, &l_time,
                                (TIME_FUZZY_DATE |

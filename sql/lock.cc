@@ -350,20 +350,25 @@ void mysql_lock_abort(THD *thd, TABLE *table)
 
 /* Abort one thread / table combination */
 
-void mysql_lock_abort_for_thread(THD *thd, TABLE *table)
+bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
 {
   MYSQL_LOCK *locked;
   TABLE *write_lock_used;
+  bool result= FALSE;
   DBUG_ENTER("mysql_lock_abort_for_thread");
 
   if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
   {
     for (uint i=0; i < locked->lock_count; i++)
-      thr_abort_locks_for_thread(locked->locks[i]->lock,
-				 table->in_use->real_id);
+    {
+      bool found;
+      found= thr_abort_locks_for_thread(locked->locks[i]->lock,
+	         			 table->in_use->real_id);
+      result|= found;
+    }
     my_free((gptr) locked,MYF(0));
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(result);
 }
 
 
@@ -606,8 +611,14 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     my_free((gptr) table,MYF(0));
     DBUG_RETURN(-1);
   }
-  if (remove_table_from_cache(thd, db, table_list->table_name, 0))
-    DBUG_RETURN(1);					// Table is in use
+  
+  {
+    if (remove_table_from_cache(thd, db,
+                                table_list->table_name, RTFC_NO_FLAG))
+    {
+      DBUG_RETURN(1);				// Table is in use
+    }
+  }
   DBUG_RETURN(0);
 }
 
