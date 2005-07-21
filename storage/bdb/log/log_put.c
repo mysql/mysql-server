@@ -376,6 +376,9 @@ __log_put_next(dbenv, lsn, dbt, hdr, old_lsnp)
 		 * anyway.
 		 */
 		newfile = 1;
+
+		if (dbenv->db_noticecall != NULL)
+			dbenv->db_noticecall(dbenv, DB_NOTICE_LOGFILE_CHANGED);
 	}
 
 	/*
