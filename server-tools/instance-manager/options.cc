@@ -36,7 +36,7 @@ const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
-const char *Options::first_option= 0;           /* No default value */
+const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
 const char *Options::bind_address= 0;           /* No default value */
 const char *Options::user= 0;                   /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
@@ -143,7 +143,12 @@ static void usage()
   printf("Usage: %s [OPTIONS] \n", my_progname);
 
   my_print_help(my_long_options);
-  print_defaults("my", default_groups);
+  printf("\nThe following options may be given as the first argument:\n"
+  "--print-defaults        Print the program argument list and exit\n"
+  "--defaults-file=#       Only read manager configuration and instance\n"
+  "                        setings from the given file #. The same file\n"
+  "                        will be used to modify configuration of instances\n"
+  "                        with SET commands.\n");
   my_print_variables(my_long_options);
 }
 
@@ -204,31 +209,48 @@ C_MODE_END
 
 
 /*
-  - call load_defaults to load configuration file section
+  - Process argv of original program: get tid of --defaults-extra-file
+    and print a message if met there.
+  - call load_defaults to load configuration file section and save the pointer
+    for free_defaults.
   - call handle_options to assign defaults and command-line arguments
-  to the class members
-  if either of these function fail, exit the program
-  May not return.
+  to the class members.
+  if either of these function fail, return the error code.
 */
 
 int Options::load(int argc, char **argv)
 {
-  int rc;
+  saved_argv= argv;
 
   if (argc >= 2)
   {
-    if (is_prefix(argv[1],"--defaults-file=") ||
-        is_prefix(argv[1],"--defaults-extra-file="))
-      Options::first_option= argv[1];
+    if (is_prefix(argv[1], "--defaults-file="))
+    {
+      Options::config_file= strchr(argv[1], '=') + 1;
+    }
+    if (is_prefix(argv[1], "--defaults-extra-file=") ||
+        is_prefix(argv[1], "--no-defaults"))
+    {
+      /* the log is not enabled yet */
+      fprintf(stderr, "The --defaults-extra-file and --no-defaults options"
+                      " are not supported by\n"
+                      "Instance Manager. Program aborted.\n");
+      goto err;
+    }
   }
 
   /* config-file options are prepended to command-line ones */
-  load_defaults("my", default_groups, &argc, &argv);
-  Options::saved_argv= argv;
+  load_defaults(config_file, default_groups, &argc,
+                &saved_argv);
 
-  if ((rc= handle_options(&argc, &argv, my_long_options, get_one_option)) != 0)
-    return rc;
+  if ((handle_options(&argc, &saved_argv, my_long_options,
+                      get_one_option)) != 0)
+    goto err;
+
   return 0;
+
+err:
+  return 1;
 }
 
 void Options::cleanup()
