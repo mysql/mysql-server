@@ -65,7 +65,7 @@ public:
   int init();
 
   Instance_map(const char *default_mysqld_path_arg,
-               const char *first_option_arg);
+               const char *single_defaults_file_option_arg);
   ~Instance_map();
 
   /* loads options from config files */
@@ -77,10 +77,10 @@ public:
 
 public:
   const char *mysqld_path;
+  const char *single_defaults_file_option;
   Guardian_thread *guardian;
 
 private:
-  const char *first_option;
   enum { START_HASH_SIZE = 16 };
   pthread_mutex_t LOCK_instance_map;
   HASH hash;

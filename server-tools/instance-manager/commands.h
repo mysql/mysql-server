@@ -187,6 +187,7 @@ protected:
 public:
   const char *instance_name;
   uint instance_name_len;
+  const char *single_defaults_file;
   /* buffer for the option */
   enum { MAX_OPTION_LEN= 1024 };
   char option[MAX_OPTION_LEN];
