@@ -172,6 +172,8 @@ struct __db_dbt {
 	u_int32_t dlen;			/* RO: get/put record length. */
 	u_int32_t doff;			/* RO: get/put record offset. */
 
+	void	*app_private;		/* Application-private handle. */
+
 #define	DB_DBT_APPMALLOC	0x001	/* Callback allocated memory. */
 #define	DB_DBT_ISSET		0x002	/* Lower level calls set value. */
 #define	DB_DBT_MALLOC		0x004	/* Return in malloc'd memory. */
@@ -1734,6 +1736,10 @@ struct __db_qam_stat {
  *******************************************************/
 #define	DB_REGION_MAGIC	0x120897	/* Environment magic number. */
 
+typedef enum {
+	DB_NOTICE_LOGFILE_CHANGED
+} db_notices;
+
 /* Database Environment handle. */
 struct __db_env {
 	/*******************************************************
@@ -1751,6 +1757,7 @@ struct __db_env {
 					/* Other Callbacks. */
 	void (*db_feedback) __P((DB_ENV *, int, int));
 	void (*db_paniccall) __P((DB_ENV *, int));
+	void (*db_noticecall) __P((DB_ENV *, db_notices));
 
 					/* App-specified alloc functions. */
 	void *(*db_malloc) __P((size_t));
@@ -1925,6 +1932,7 @@ struct __db_env {
 	int  (*set_feedback) __P((DB_ENV *, void (*)(DB_ENV *, int, int)));
 	int  (*get_flags) __P((DB_ENV *, u_int32_t *));
 	int  (*set_flags) __P((DB_ENV *, u_int32_t, int));
+	void (*set_noticecall) __P((DB_ENV *, void (*)(DB_ENV *, db_notices)));
 	int  (*get_home) __P((DB_ENV *, const char **));
 	int  (*set_intermediate_dir) __P((DB_ENV *, int, u_int32_t));
 	int  (*get_open_flags) __P((DB_ENV *, u_int32_t *));
