@@ -156,6 +156,7 @@ __dbenv_init(dbenv)
 		dbenv->set_feedback = __dbcl_env_set_feedback;
 		dbenv->get_flags = __dbcl_env_get_flags;
 		dbenv->set_flags = __dbcl_env_flags;
+		dbenv->set_noticecall = __dbcl_env_noticecall;
 		dbenv->set_paniccall = __dbcl_env_paniccall;
 		dbenv->set_rpc_server = __dbcl_envrpcserver;
 		dbenv->get_shm_key = __dbcl_get_shm_key;
@@ -194,6 +195,7 @@ __dbenv_init(dbenv)
 		dbenv->get_flags = __dbenv_get_flags;
 		dbenv->set_flags = __dbenv_set_flags;
 		dbenv->set_intermediate_dir = __dbenv_set_intermediate_dir;
+		dbenv->set_noticecall = __dbenv_set_noticecall;
 		dbenv->set_paniccall = __dbenv_set_paniccall;
 		dbenv->set_rpc_server = __dbenv_set_rpc_server_noclnt;
 		dbenv->get_shm_key = __dbenv_get_shm_key;
@@ -806,6 +808,21 @@ __dbenv_set_msgfile(dbenv, msgfile)
 	FILE *msgfile;
 {
 	dbenv->db_msgfile = msgfile;
+}
+
+/*
+ * __dbenv_set_noticecall --
+ *	{DB_ENV,DB}->set_noticecall.
+ *
+ * PUBLIC: int  __dbenv_set_noticecall __P((DB_ENV *, void (*)(DB_ENV *, int)));
+ */
+int
+__dbenv_set_noticecall(dbenv, noticecall)
+	DB_ENV *dbenv;
+	void (*noticecall) __P((DB_ENV *, int));
+{
+	dbenv->db_noticecall = noticecall;
+	return (0);
 }
 
 /*
