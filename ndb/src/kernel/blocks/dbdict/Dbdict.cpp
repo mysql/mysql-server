@@ -2918,6 +2918,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   alterTabPtr.p->m_coordinatorRef = reference();
   alterTabPtr.p->m_fragmentsPtrI = RNIL;
   alterTabPtr.p->m_dihAddFragPtr = RNIL;
+  alterTabPtr.p->m_alterTableId = tablePtr.p->tableId;
 
   // Send prepare request to all alive nodes
   SimplePropertiesSectionWriter w(getSectionSegmentPool());
@@ -2951,7 +2952,7 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
   ndbrequire(c_opCreateTable.find(alterTabPtr, callbackData));
 
   TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, alterTabPtr.p->m_tablePtrI, true);
+  c_tableRecordPool.getPtr(tablePtr, alterTabPtr.p->m_alterTableId, true);
 
   Mutex mutex(signal, c_mutexMgr, alterTabPtr.p->m_startLcpMutex);
   mutex.unlock(); // ignore response
@@ -2969,6 +2970,10 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
     req->senderData = alterTabPtr.p->m_senderData;
     req->senderRef = alterTabPtr.p->m_senderRef;
     alterTableRef(signal, req, AlterTableRef::BackupInProgress);
+
+    c_tableRecordPool.getPtr(tablePtr, alterTabPtr.p->m_tablePtrI);  
+    releaseTableObject(tablePtr.i, false);
+
     c_opCreateTable.release(alterTabPtr);
     c_blockState = BS_IDLE;
     return;
