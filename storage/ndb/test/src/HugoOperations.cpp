@@ -409,13 +409,13 @@ int HugoOperations::execute_Rollback(Ndb* pNdb){
 }
 
 void
-HugoOperations_async_callback(int res, NdbConnection* pCon, void* ho)
+HugoOperations_async_callback(int res, NdbTransaction* pCon, void* ho)
 {
   ((HugoOperations*)ho)->callback(res, pCon);
 }
 
 void
-HugoOperations::callback(int res, NdbConnection* pCon)
+HugoOperations::callback(int res, NdbTransaction* pCon)
 {
   assert(pCon == pTrans);
   m_async_reply= 1;
@@ -423,7 +423,8 @@ HugoOperations::callback(int res, NdbConnection* pCon)
 }
 
 int 
-HugoOperations::execute_async(Ndb* pNdb, ExecType et, AbortOption eao){
+HugoOperations::execute_async(Ndb* pNdb, NdbTransaction::ExecType et, 
+			      NdbTransaction::AbortOption eao){
   
   m_async_reply= 0;
   pTrans->executeAsynchPrepare(et,
@@ -449,8 +450,9 @@ HugoOperations::wait_async(Ndb* pNdb, int timeout)
   return -1;
 }
 
-HugoOperations::HugoOperations(const NdbDictionary::Table& _tab):
-  UtilTransactions(_tab),
+HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
+			       const NdbDictionary::Index* idx):
+  UtilTransactions(_tab, idx),
   calc(_tab)
 {
 }
@@ -590,7 +592,7 @@ int HugoOperations::compareRecordToCopy(int numRecords ){
 
 void
 HugoOperations::refresh() {
-  NdbConnection* t = getTransaction(); 
+  NdbTransaction * t = getTransaction(); 
   if(t)
     t->refresh();
 }
