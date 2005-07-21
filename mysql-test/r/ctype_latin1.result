@@ -168,7 +168,7 @@ hex(a)	hex(@u:=convert(a using utf8))	hex(@l:=convert(@u using latin1))	a=@l
 7E	7E	7E	1
 7F	7F	7F	1
 80	E282AC	80	1
-81	3F	3F	0
+81	C281	81	1
 82	E2809A	82	1
 83	C692	83	1
 84	E2809E	84	1
@@ -180,10 +180,10 @@ hex(a)	hex(@u:=convert(a using utf8))	hex(@l:=convert(@u using latin1))	a=@l
 8A	C5A0	8A	1
 8B	E280B9	8B	1
 8C	C592	8C	1
-8D	3F	3F	0
+8D	C28D	8D	1
 8E	C5BD	8E	1
-8F	3F	3F	0
-90	3F	3F	0
+8F	C28F	8F	1
+90	C290	90	1
 91	E28098	91	1
 92	E28099	92	1
 93	E2809C	93	1
@@ -196,7 +196,7 @@ hex(a)	hex(@u:=convert(a using utf8))	hex(@l:=convert(@u using latin1))	a=@l
 9A	C5A1	9A	1
 9B	E280BA	9B	1
 9C	C593	9C	1
-9D	3F	3F	0
+9D	C29D	9D	1
 9E	C5BE	9E	1
 9F	C5B8	9F	1
 A0	C2A0	A0	1
