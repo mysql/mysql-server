@@ -1099,7 +1099,7 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   C2(hugoOps.execute_NoCommit(pNdb) == 0);
   C2(hugoOps2.startTransaction(&ndb2) == 0);
   C2(hugoOps2.pkWriteRecord(&ndb2, 0, 1) == 0);
-  C2(hugoOps2.execute_async(&ndb2, NoCommit) == 0);
+  C2(hugoOps2.execute_async(&ndb2, NdbTransaction::NoCommit) == 0);
   C2(hugoOps.execute_Commit(pNdb) == 0);
   C2(hugoOps2.wait_async(&ndb2) == 0);
   C2(hugoOps.closeTransaction(pNdb) == 0);
@@ -1110,7 +1110,7 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   C2(hugoOps.execute_NoCommit(pNdb) == 0);
   C2(hugoOps2.startTransaction(&ndb2) == 0);
   C2(hugoOps2.pkWriteRecord(&ndb2, 0, 1) == 0);
-  C2(hugoOps2.execute_async(&ndb2, NoCommit) == 0);
+  C2(hugoOps2.execute_async(&ndb2, NdbTransaction::NoCommit) == 0);
   C2(hugoOps.execute_Commit(pNdb) == 0);
   C2(hugoOps2.wait_async(&ndb2) == 0);
   C2(hugoOps.closeTransaction(pNdb) == 0);
