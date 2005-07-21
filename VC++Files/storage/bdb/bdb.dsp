@@ -49,7 +49,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"..\lib_debug\bdb.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_debug\bdb.lib"
 
 !ELSEIF  "$(CFG)" == "bdb - Win32 Max"
 
@@ -72,8 +72,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_debug\bdb.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\bdb.lib"
+# ADD BASE LIB32 /nologo /out:"..\..\lib_debug\bdb.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\bdb.lib"
 
 !ENDIF
 

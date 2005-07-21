@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "__NT__" /D "WIN32" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /GX /Z7 /Od /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /GX /Z7 /Od /I "../innobase/include" /I "../../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /FD /c
 # SUBTRACT CPP /Fr /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -51,8 +51,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\innobase-nt.lib"
-# ADD LIB32 /nologo /out:"..\lib_debug\innodb.lib"
+# ADD BASE LIB32 /nologo /out:"..\..\lib_release\innobase-nt.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_debug\innodb.lib"
 
 !ELSEIF  "$(CFG)" == "innobase - Win32 Release"
 
@@ -66,8 +66,8 @@ LIB32=xilink6.exe -lib
 # PROP Output_Dir "release"
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /D "NDEBUG" /FD /c
+# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /WX /Fr /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -75,8 +75,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\innodb.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\innodb.lib"
+# ADD BASE LIB32 /nologo /out:"..\..\lib_release\innodb.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\innodb.lib"
 
 !ELSEIF  "$(CFG)" == "innobase - Win32 nt"
 
@@ -90,8 +90,8 @@ LIB32=xilink6.exe -lib
 # PROP Output_Dir "nt"
 # PROP Intermediate_Dir "nt"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "NDEBUG" /D "MYSQL_SERVER" /D "_MBCS" /D MYSQL_SERVER_SUFFIX=-nt /FD /c
+# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "NDEBUG" /D "MYSQL_SERVER" /D "_MBCS" /D MYSQL_SERVER_SUFFIX=-nt /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -99,8 +99,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\innodb.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\innodb.lib"
+# ADD BASE LIB32 /nologo /out:"..\..\lib_release\innodb.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\innodb.lib"
 
 !ELSEIF  "$(CFG)" == "innobase - Win32 Max nt"
 
@@ -114,8 +114,8 @@ LIB32=xilink6.exe -lib
 # PROP Output_Dir "max_nt"
 # PROP Intermediate_Dir "max_nt"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "NDEBUG" /D "MYSQL_SERVER" /D "_MBCS" /D MYSQL_SERVER_SUFFIX=-nt-max /FD /c
+# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "NDEBUG" /D "MYSQL_SERVER" /D "_MBCS" /D MYSQL_SERVER_SUFFIX=-nt-max /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -123,8 +123,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\innodb.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\innodb.lib"
+# ADD BASE LIB32 /nologo /out:"..\..\lib_release\innodb.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\innodb.lib"
 
 !ENDIF
 
