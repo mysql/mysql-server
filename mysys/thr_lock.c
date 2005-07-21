@@ -966,9 +966,10 @@ void thr_abort_locks(THR_LOCK *lock)
   This is used to abort all locks for a specific thread
 */
 
-void thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
+bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
 {
   THR_LOCK_DATA *data;
+  bool found= FALSE;
   DBUG_ENTER("thr_abort_locks_for_thread");
 
   pthread_mutex_lock(&lock->mutex);
@@ -978,6 +979,7 @@ void thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
     {
       DBUG_PRINT("info",("Aborting read-wait lock"));
       data->type= TL_UNLOCK;			/* Mark killed */
+      found= TRUE;
       pthread_cond_signal(data->cond);
       data->cond= 0;				/* Removed from list */
 
@@ -993,6 +995,7 @@ void thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
     {
       DBUG_PRINT("info",("Aborting write-wait lock"));
       data->type= TL_UNLOCK;
+      found= TRUE;
       pthread_cond_signal(data->cond);
       data->cond= 0;
 
@@ -1003,7 +1006,7 @@ void thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
     }
   }
   pthread_mutex_unlock(&lock->mutex);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(found);
 }
 
 
