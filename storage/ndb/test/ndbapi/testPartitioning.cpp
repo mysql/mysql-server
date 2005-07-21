@@ -94,6 +94,15 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when)
       }
     }
   }
+
+  Uint32 linear_hash_ind = rand() & 1;
+  NdbDictionary::Table::FragmentType ftype;
+  if (linear_hash_ind)
+    ftype = NdbDictionary::Table::DistrKeyLin;
+  else
+    ftype = NdbDictionary::Table::DistrKeyHash;
+  tab.setFragmentType(ftype);
+
   ndbout << (NDBT_Table&)tab << endl;
 
   return 0;
