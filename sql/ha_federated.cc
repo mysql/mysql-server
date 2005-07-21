@@ -685,16 +685,19 @@ static handlerton federated_hton= {
   "FEDERATED",
   0,       /* slot */
   0,       /* savepoint size. */
-  0,       /* close_connection */
-  0,       /* savepoint */
-  0,       /* rollback to savepoint */
-  0,       /* release savepoint */
-  0,       /* commit */
-  0,       /* rollback */
-  0,       /* prepare */
-  0,       /* recover */
-  0,       /* commit_by_xid */
-  0,       /* rollback_by_xid */
+  NULL,    /* close_connection */
+  NULL,    /* savepoint */
+  NULL,    /* rollback to savepoint */
+  NULL,    /* release savepoint */
+  NULL,    /* commit */
+  NULL,    /* rollback */
+  NULL,    /* prepare */
+  NULL,    /* recover */
+  NULL,    /* commit_by_xid */
+  NULL,    /* rollback_by_xid */
+  NULL,    /* create_cursor_read_view */
+  NULL,    /* set_cursor_read_view */
+  NULL,    /* close_cursor_read_view */
   HTON_NO_FLAGS
 };
 

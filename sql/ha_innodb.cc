@@ -216,12 +216,9 @@ static handlerton innobase_hton = {
   innobase_xa_recover,		/* recover */
   innobase_commit_by_xid,	/* commit_by_xid */
   innobase_rollback_by_xid,     /* rollback_by_xid */
-  /*
-    For now when one opens a cursor, MySQL does not create an own
-    InnoDB consistent read view for it, and uses the view of the
-    currently active transaction. Therefore, cursors can not
-    survive COMMIT or ROLLBACK statements, which free this view.
-  */
+  NULL,
+  NULL,
+  NULL,
   HTON_CLOSE_CURSORS_AT_COMMIT
 };
 
