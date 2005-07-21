@@ -38,8 +38,7 @@ pkgdata_DATA =		my-small.cnf \
 			my-huge.cnf \
       my-innodb-heavy-4G.cnf \
 			mysql-log-rotate \
-			mysql-@VERSION@.spec \
-			MySQL-shared-compat.spec \
+			binary-configure \
 			ndb-config-2-node.ini
 
 pkgdata_SCRIPTS =	mysql.server
