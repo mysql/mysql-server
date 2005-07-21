@@ -106,7 +106,7 @@ To make maintaining easier please:
 
 <charset name="latin1">
   <family>Western</family>
-  <description>ISO 8859-1 West European</description>
+  <description>cp1252 West European</description>
   <alias>csisolatin1</alias>
   <alias>iso-8859-1</alias>
   <alias>iso-ir-100</alias>
