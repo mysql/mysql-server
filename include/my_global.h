@@ -78,6 +78,14 @@
 #endif
 #endif /* _WIN32... */
 
+/* Remove some things in embedded library */
+#ifdef EMBEDDED_LIBRARY
+/* No partition handler in embedded library */
+#ifdef HAVE_PARTITION_DB
+#undef HAVE_PARTITION_DB
+#endif
+#endif
+
 /* Some defines to avoid ifdefs in the code */
 #ifndef NETWARE_YIELD
 #define NETWARE_YIELD
