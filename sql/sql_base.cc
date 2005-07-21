@@ -292,7 +292,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=0;
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
-      if (remove_table_from_cache(thd, table->db, table->table_name, 1))
+      if (remove_table_from_cache(thd, table->db, table->table_name,
+                                  RTFC_OWNED_BY_THD_FLAG))
 	found=1;
     }
     if (!found)
@@ -4134,62 +4135,99 @@ void flush_tables()
 */
 
 bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
-			     bool return_if_owned_by_thd)
+                             uint flags)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
   TABLE *table;
-  bool result=0;
+  bool result=0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
-       table;
-       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+  for (;;)
   {
-    THD *in_use;
-    table->s->version= 0L;			/* Free when thread is ready */
-    if (!(in_use=table->in_use))
+    result= signalled= 0;
+
+    for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+         table;
+         table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
     {
-      DBUG_PRINT("info",("Table was not in use"));
-      relink_unused(table);
+      THD *in_use;
+      table->s->version=0L;		/* Free when thread is ready */
+      if (!(in_use=table->in_use))
+      {
+        DBUG_PRINT("info",("Table was not in use"));
+        relink_unused(table);
+      }
+      else if (in_use != thd)
+      {
+        in_use->some_tables_deleted=1;
+        if (table->db_stat)
+  	  result=1;
+        /* Kill delayed insert threads */
+        if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
+            ! in_use->killed)
+        {
+	  in_use->killed= THD::KILL_CONNECTION;
+	  pthread_mutex_lock(&in_use->mysys_var->mutex);
+	  if (in_use->mysys_var->current_cond)
+	  {
+	    pthread_mutex_lock(in_use->mysys_var->current_mutex);
+            signalled= 1;
+	    pthread_cond_broadcast(in_use->mysys_var->current_cond);
+	    pthread_mutex_unlock(in_use->mysys_var->current_mutex);
+	  }
+	  pthread_mutex_unlock(&in_use->mysys_var->mutex);
+        }
+        /*
+	  Now we must abort all tables locks used by this thread
+	  as the thread may be waiting to get a lock for another table
+        */
+        for (TABLE *thd_table= in_use->open_tables;
+	     thd_table ;
+	     thd_table= thd_table->next)
+        {
+	  if (thd_table->db_stat)		// If table is open
+	    signalled|= mysql_lock_abort_for_thread(thd, thd_table);
+        }
+      }
+      else
+        result= result || (flags & RTFC_OWNED_BY_THD_FLAG);
     }
-    else if (in_use != thd)
+    while (unused_tables && !unused_tables->s->version)
+      VOID(hash_delete(&open_cache,(byte*) unused_tables));
+    if (result && (flags & RTFC_WAIT_OTHER_THREAD_FLAG))
     {
-      in_use->some_tables_deleted=1;
-      if (table->db_stat)
-	result=1;
-      /* Kill delayed insert threads */
-      if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-          ! in_use->killed)
+      if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
-	in_use->killed= THD::KILL_CONNECTION;
-	pthread_mutex_lock(&in_use->mysys_var->mutex);
-	if (in_use->mysys_var->current_cond)
-	{
-	  pthread_mutex_lock(in_use->mysys_var->current_mutex);
-	  pthread_cond_broadcast(in_use->mysys_var->current_cond);
-	  pthread_mutex_unlock(in_use->mysys_var->current_mutex);
-	}
-	pthread_mutex_unlock(&in_use->mysys_var->mutex);
-      }
-      /*
-	Now we must abort all tables locks used by this thread
-	as the thread may be waiting to get a lock for another table
-      */
-      for (TABLE *thd_table= in_use->open_tables;
-	   thd_table ;
-	   thd_table= thd_table->next)
-      {
-	if (thd_table->db_stat)			// If table is open
-	  mysql_lock_abort_for_thread(thd, thd_table);
+        if (likely(signalled))
+        {
+          dropping_tables++;
+          (void) pthread_cond_wait(&COND_refresh, &LOCK_open);
+          dropping_tables--;
+          continue;
+        }
+        else
+        {
+          /*
+            It can happen that another thread has opened the
+            table but has not yet locked any table at all. Since
+            it can be locked waiting for a table that our thread
+            has done LOCK TABLE x WRITE on previously, we need to
+            ensure that the thread actually hears our signal
+            before we go to sleep. Thus we wait for a short time
+            and then we retry another loop in the
+            remove_table_from_cache routine.
+          */
+          pthread_mutex_unlock(&LOCK_open);
+          my_sleep(10);
+          pthread_mutex_lock(&LOCK_open);
+          continue;
+        }
       }
     }
-    else
-      result= result || return_if_owned_by_thd;
+    break;
   }
-  while (unused_tables && !unused_tables->s->version)
-    VOID(hash_delete(&open_cache,(byte*) unused_tables));
   DBUG_RETURN(result);
 }
 
