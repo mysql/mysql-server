@@ -6220,6 +6220,17 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           noOfFragments = 1;
           set_default_node_groups(signal, noOfFragments);
           break;
+        case DictTabInfo::DistrKeyHash:
+          jam();
+        case DictTabInfo::DistrKeyLin:
+          jam();
+          if (noOfFragments == 0)
+          {
+            jam();
+            noOfFragments = csystemnodes;
+            set_default_node_groups(signal, noOfFragments);
+          }
+          break;
         default:
           jam();
           if (noOfFragments == 0)
