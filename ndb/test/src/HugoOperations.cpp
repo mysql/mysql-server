@@ -267,6 +267,37 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
   return NDBT_OK;
 }
 
+int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
+					 int recordNo,
+					 int numRecords){
+  
+  int a, check;
+  for(int r=0; r < numRecords; r++){
+    NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    check = pOp->writeTuple();
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    // Define primary keys
+    for(a = 0; a<tab.getNoOfColumns(); a++){
+      if (tab.getColumn(a)->getPrimaryKey() == true){
+	if(equalForAttr(pOp, a, r+recordNo) != 0){
+	  ERR(pTrans->getNdbError());
+	  return NDBT_FAILED;
+	}
+      }
+    }
+  }
+  return NDBT_OK;
+}
+
 int HugoOperations::pkDeleteRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords){
@@ -419,7 +450,14 @@ HugoOperations::callback(int res, NdbTransaction* pCon)
 {
   assert(pCon == pTrans);
   m_async_reply= 1;
-  m_async_return= res;
+  if(res)
+  {
+    m_async_return = pCon->getNdbError().code;
+  }
+  else
+  {
+    m_async_return = 0;
+  }
 }
 
 int 
@@ -444,6 +482,8 @@ HugoOperations::wait_async(Ndb* pNdb, int timeout)
 
   if(m_async_reply)
   {
+    if(m_async_return)
+      ndbout << "ERROR: " << pNdb->getNdbError(m_async_return) << endl;
     return m_async_return;
   }
   ndbout_c("wait returned nothing...");
