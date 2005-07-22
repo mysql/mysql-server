@@ -29,6 +29,8 @@ public:
     m_print_log = false;
     m_print_data = false;
     m_print_meta = false;
+    m_logCount = 0;
+    m_dataCount = 0;  
   }
   
   virtual bool table(const TableS &);
