@@ -4849,16 +4849,16 @@ Uint32 Dbacc::executeNextOperation(Signal* signal)
   else if(operationRecPtr.p->operation == ZWRITE)
   {
     jam();
-    operationRecPtr.p->operation = ZINSERT;
+    operationRecPtr.p->operation = ZUPDATE;
     if (operationRecPtr.p->prevParallelQue != RNIL) {
       OperationrecPtr prevOpPtr;
       jam();
       prevOpPtr.i = operationRecPtr.p->prevParallelQue;
       ptrCheckGuard(prevOpPtr, coprecsize, operationrec);
-      if (prevOpPtr.p->operation != ZDELETE) 
+      if (prevOpPtr.p->operation == ZDELETE) 
       {
         jam();
-        operationRecPtr.p->operation = ZUPDATE;
+        operationRecPtr.p->operation = ZINSERT;
       }
     }
   }
