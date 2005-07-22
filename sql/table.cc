@@ -1238,7 +1238,8 @@ void append_unescaped(String *res, const char *pos, uint length)
 
 	/* Create a .frm file */
 
-File create_frm(register my_string name, uint reclength, uchar *fileinfo,
+File create_frm(register my_string name, const char *table, const char *db,
+                uint reclength, uchar *fileinfo,
 		HA_CREATE_INFO *create_info, uint keys)
 {
   register File file;
@@ -1263,7 +1264,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   */
   set_if_smaller(create_info->raid_chunks, 255);
 
-  if ((file= my_create(name, CREATE_MODE, create_flags, MYF(MY_WME))) >= 0)
+  if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
     bzero((char*) fileinfo,64);
     fileinfo[0]=(uchar) 254; fileinfo[1]= 1; fileinfo[2]= FRM_VER+3; // Header
@@ -1299,6 +1300,13 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
 	return(-1);
       }
     }
+  }
+  else
+  {
+    if (my_errno == ENOENT)
+      my_error(ER_BAD_DB_ERROR,MYF(0),db);
+    else
+      my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno);
   }
   return (file);
 } /* create_frm */
