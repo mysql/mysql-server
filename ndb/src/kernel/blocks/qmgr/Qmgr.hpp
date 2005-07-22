@@ -118,8 +118,7 @@ public:
   struct NodeRec {
     UintR ndynamicId;
     Phase phase;
-    UintR alarmCount;
-    
+
     QmgrState sendPrepFailReqStatus;
     QmgrState sendCommitFailReqStatus;
     QmgrState sendPresToStatus;
