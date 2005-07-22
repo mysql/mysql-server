@@ -61,11 +61,9 @@ public:
  
   enum ErrorCode {
     OK = 0
-    ,InvalidFragmentationType = 1301
-    ,InvalidNodeId = 1302
-    ,InvalidNodeType = 1303
-    ,InvalidPrimaryTable = 1304
-    ,InvalidNodeGroup = 1305
+    ,InvalidNodeGroup = 1307
+    ,InvalidFragmentationType = 1308
+    ,InvalidPrimaryTable = 1309
   };
  
 private:
