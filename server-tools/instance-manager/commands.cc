@@ -22,6 +22,7 @@
 #include "mysql_manager_error.h"
 #include "protocol.h"
 #include "buffer.h"
+#include "options.h"
 
 #include <m_string.h>
 #include <mysql.h>
@@ -643,6 +644,7 @@ Set_option::Set_option(Instance_map *instance_map_arg,
   if ((instance= instance_map->find(name, len)))
   {
     instance_name= instance->options.instance_name;
+
      /* add prefix for add_option */
     if ((option_len_arg < MAX_OPTION_LEN - 1) ||
         (option_value_len_arg < MAX_OPTION_LEN - 1))
@@ -689,15 +691,22 @@ int Set_option::correct_file(int skip)
 {
   int error;
 
-  error= modify_defaults_file("/etc/my.cnf", option,
-			      option_value, instance_name, skip);
-  if (error > 0)
-    return ER_OUT_OF_RESOURCES;
-  else if (error < 0)
-    return ER_ACCESS_OPTION_FILE;
+  error= modify_defaults_file(Options::config_file, option,
+                              option_value, instance_name, skip);
 
-  /* everything was fine */
-  return 0;
+  switch (error)
+  {
+  case 0:
+    return 0;                                   /* everything was fine */
+  case 1:
+    return ER_OUT_OF_RESOURCES;
+  case 2:
+    return ER_ACCESS_OPTION_FILE;
+  default:
+    DBUG_ASSERT(0);                           /* should never get here */
+  }
+
+  return 0;                                   /* keep compiler happy */
 }
 
 
