@@ -709,3 +709,48 @@ select * from v1;
 
 drop view v1, v2, v3;
 drop table t1;
+#
+# Test for dumping triggers
+#
+
+CREATE TABLE t1 (a int, b bigint default NULL);
+CREATE TABLE t2 (a int);
+delimiter |;
+create trigger trg1 before insert on t1 for each row
+begin
+  if new.a > 10 then
+    set new.a := 10;
+    set new.a := 11;
+  end if;
+end|
+create trigger trg2 before update on t1 for each row begin
+  if old.a % 2 = 0 then set new.b := 12; end if;
+end|
+create trigger trg3 after update on t1 for each row
+begin
+  if new.a = -1 then
+    set @fired:= "Yes";
+  end if;
+end|
+create trigger trg4 before insert on t2 for each row
+begin
+  if new.a > 10 then
+    set @fired:= "No";
+  end if;
+end|
+delimiter ;|
+--replace_column 6 '0000-00-00 00:00:00'
+show triggers like "t1";
+INSERT INTO t1 (a) VALUES (1),(2),(3),(22);
+update t1 set a = 4 where a=3;
+# Triggers should be dumped by default
+--exec $MYSQL_DUMP --skip-comments --databases test
+# Skip dumping triggers
+--exec $MYSQL_DUMP --skip-comments --databases --skip-triggers test
+# Dump and reload...
+--exec $MYSQL_DUMP --skip-comments --databases test > var/tmp/mysqldump.sql
+drop table t1;
+--exec $MYSQL test < var/tmp/mysqldump.sql
+# Check that tables have been reloaded
+show tables;
+DROP TABLE t1, t2;
