@@ -2912,8 +2912,6 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
       break;
     }
     
-    createTabPtr.p->key = ++c_opRecordSequence;
-    c_opCreateTable.add(createTabPtr);
     createTabPtr.p->m_errorCode = 0;
     createTabPtr.p->m_senderRef = senderRef;
     createTabPtr.p->m_senderData = senderData;
@@ -2922,11 +2920,12 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     createTabPtr.p->m_fragmentsPtrI = RNIL;
     createTabPtr.p->m_dihAddFragPtr = RNIL;
 
+    Uint32 key = c_opRecordSequence + 1;
     Uint32 *theData = signal->getDataPtrSend(), i;
     Uint16 *node_group= (Uint16*)&signal->theData[25];
     CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
     req->senderRef = reference();
-    req->senderData = createTabPtr.p->key;
+    req->senderData = key;
     req->primaryTableId = parseRecord.tablePtr.p->primaryTableId;
     req->noOfFragments = parseRecord.tablePtr.p->ngLen >> 1;
     req->fragmentationType = parseRecord.tablePtr.p->fragmentType;
@@ -2966,9 +2965,13 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     {
       jam();
       parseRecord.errorCode= signal->theData[0];
+      c_opCreateTable.release(createTabPtr);
+      releaseTableObject(parseRecord.tablePtr.i, true);
       break;
     }
-    
+    createTabPtr.p->key = key;
+    c_opRecordSequence++;
+    c_opCreateTable.add(createTabPtr);
     c_blockState = BS_CREATE_TAB;
     return;
   } while(0);
@@ -2976,8 +2979,8 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
   /**
    * Something went wrong
    */
-  releaseSections(signal);
 
+  releaseSections(signal);
   CreateTableRef * ref = (CreateTableRef*)signal->getDataPtrSend();
   ref->senderData = senderData;
   ref->senderRef = reference();
