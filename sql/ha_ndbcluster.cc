@@ -7498,4 +7498,27 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
   tab.setNodeGroupIds(&node_group, no_fragments);
   DBUG_VOID_RETURN;
 }
+
+
+bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
+					       uint table_changes)
+{
+  return COMPATIBLE_DATA_NO;
+
+  if (table_changes != IS_EQUAL_YES)
+    return COMPATIBLE_DATA_NO;
+  
+  /* Check that auto_increment value was not changed */
+  if ((info->used_fields & HA_CREATE_USED_AUTO) &&
+      info->auto_increment_value != 0)
+    return COMPATIBLE_DATA_NO;
+  
+  /* Check that row format didn't change */
+  if ((info->used_fields & HA_CREATE_USED_AUTO) &&
+      get_row_type() != info->row_type)
+    return COMPATIBLE_DATA_NO;
+
+  return COMPATIBLE_DATA_YES;
+}
+
 #endif /* HAVE_NDBCLUSTER_DB */
