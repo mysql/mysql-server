@@ -522,10 +522,11 @@ extern ibool	sync_order_checks_on;
 extern ibool	sync_initialized;
 
 /* Global list of database mutexes (not OS mutexes) created. */
-UT_LIST_BASE_NODE_T(mutex_t)  mutex_list;
+typedef UT_LIST_BASE_NODE_T(mutex_t)  ut_list_base_node_t;
+extern ut_list_base_node_t  mutex_list;
 
 /* Mutex protecting the mutex_list variable */
-mutex_t mutex_list_mutex;
+extern mutex_t mutex_list_mutex;
 
 
 #ifndef UNIV_NONINL
