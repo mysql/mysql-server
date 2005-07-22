@@ -2864,6 +2864,7 @@ part_func_max:
             YYABORT;
           }
           lex->part_info->defined_max_value= TRUE;
+          lex->part_info->curr_part_elem->range_value= LONGLONG_MAX;
         }
         | part_range_func
         {
