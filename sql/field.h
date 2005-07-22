@@ -185,6 +185,12 @@ public:
     return test(record[(uint) (null_ptr - (uchar*) table->record[0])] &
 		null_bit);
   }
+  inline bool is_null_in_record_with_offset(my_ptrdiff_t offset)
+  {
+    if (!null_ptr)
+      return 0;
+    return test(null_ptr[offset] & null_bit);
+  }
   inline void set_null(int row_offset=0)
     { if (null_ptr) null_ptr[row_offset]|= null_bit; }
   inline void set_notnull(int row_offset=0)
