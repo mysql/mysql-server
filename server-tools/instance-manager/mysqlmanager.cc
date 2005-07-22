@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
       if (set_user(options.user, user_info))
       {
         options.cleanup();
-        return 1;
+        goto err;
       }
   }
 
