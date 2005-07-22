@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2002
+ * Copyright (c) 2000-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestConstruct01.java,v 1.6 2002/01/23 14:29:51 bostic Exp $
+ * $Id: TestConstruct01.java,v 1.10 2004/01/28 03:36:34 bostic Exp $
  */
 
 /*
@@ -123,7 +123,7 @@ public class TestConstruct01
 	Dbt key = new Dbt(outbuf, 0, i);
 	Dbt data = new Dbt(outbuf, 0, i);
 
-	//DEBUGOUT("Put: " + (char)outbuf[0] + ": " + new String(outbuf));
+	//DEBUGOUT("Put: " + (char)outbuf[0] + ": " + new String(outbuf, 0, i));
 	db.put(null, key, data, Db.DB_NOOVERWRITE);
 
 	// Acquire a cursor for the table.
@@ -139,8 +139,10 @@ public class TestConstruct01
 
 	//DEBUGOUT("Dbc.get");
 	while (dbcp.get(readkey, readdata, Db.DB_NEXT) == 0) {
-	    String key_string = new String(readkey.get_data());
-	    String data_string = new String(readdata.get_data());
+	    String key_string =
+              new String(readkey.get_data(), 0, readkey.get_size());
+	    String data_string =
+              new String(readdata.get_data(), 0, readkey.get_size());
 	    //DEBUGOUT("Got: " + key_string + ": " + data_string);
 	    int len = key_string.length();
 	    if (len <= 0 || key_string.charAt(len-1) != 'x') {
@@ -179,6 +181,7 @@ public class TestConstruct01
 	    System.out.print(" expected more keys, bitmap is: " + expected + "\n");
 	    ERR("missing keys in database");
 	}
+
 	dbcp.close();
 	db.close(0);
     }
@@ -433,7 +436,7 @@ public class TestConstruct01
                 //
                 System.gc();
                 System.runFinalization();
-                VERBOSEOUT("gc complete");
+                VERBOSEOUT("gc complete, bytes free == " + Runtime.getRuntime().freeMemory());
             }
         }
 

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test067.tcl,v 11.19 2002/06/11 15:19:16 sue Exp $
+# $Id: test067.tcl,v 11.25 2004/09/22 18:01:06 bostic Exp $
 #
 # TEST	test067
 # TEST	Test of DB_CURRENT partial puts onto almost empty duplicate
@@ -27,18 +27,15 @@
 # TEST	The partial change does not change how data items sort, but the
 # TEST	record to be put isn't built yet, and that record supplied is the
 # TEST	one that's checked for ordering compatibility.
-proc test067 { method {ndups 1000} {tnum 67} args } {
+proc test067 { method {ndups 1000} {tnum "067"} args } {
 	source ./include.tcl
 	global alphabet
 	global errorCode
+	global is_je_test
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
-	    puts "\tTest0$tnum: skipping for method $method."
-	    return
-	}
 	set txn ""
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
@@ -46,10 +43,10 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -62,10 +59,20 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 		set testdir [get_home $env]
 	}
 
-	puts "Test0$tnum:\
+	cleanup $testdir $env
+	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
+	    puts "\tTest$tnum: skipping for method $method."
+	    return
+	}
+
+	puts "Test$tnum:\
 	    $method ($args) Partial puts on near-empty duplicate pages."
 
 	foreach dupopt { "-dup" "-dup -dupsort" } {
+		if { $is_je_test && $dupopt == "-dup" } {
+			continue
+		}
+
 		#
 		# Testdir might get reset from the env's home dir back
 		# to the default if this calls something that sources
@@ -80,7 +87,7 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 		    $omethod} $args $dupopt {$testfile}]
 		error_check_good db_open [is_valid_db $db] TRUE
 
-		puts "\tTest0$tnum.a ($dupopt): Put $ndups duplicates."
+		puts "\tTest$tnum.a ($dupopt): Put $ndups duplicates."
 
 		set key "key_test$tnum"
 
@@ -102,7 +109,7 @@ proc test067 { method {ndups 1000} {tnum 67} args } {
 
 		# Sync so we can inspect database if the next section bombs.
 		error_check_good db_sync [$db sync] 0
-		puts "\tTest0$tnum.b ($dupopt):\
+		puts "\tTest$tnum.b ($dupopt):\
 		    Deleting dups (last first), overwriting each."
 
 		if { $txnenv == 1 } {

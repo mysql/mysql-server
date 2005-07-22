@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: bt_method.c,v 11.38 2004/09/22 03:31:26 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: bt_method.c,v 11.29 2002/04/21 13:17:04 margo Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -20,15 +18,15 @@ static const char revid[] = "$Id: bt_method.c,v 11.29 2002/04/21 13:17:04 margo 
 #include "dbinc/btree.h"
 #include "dbinc/qam.h"
 
-static int __bam_set_bt_compare
-	       __P((DB *, int (*)(DB *, const DBT *, const DBT *)));
 static int __bam_set_bt_maxkey __P((DB *, u_int32_t));
 static int __bam_set_bt_minkey __P((DB *, u_int32_t));
 static int __bam_set_bt_prefix
 	       __P((DB *, size_t(*)(DB *, const DBT *, const DBT *)));
+static int __ram_get_re_delim __P((DB *, int *));
 static int __ram_set_re_delim __P((DB *, int));
 static int __ram_set_re_len __P((DB *, u_int32_t));
 static int __ram_set_re_pad __P((DB *, int));
+static int __ram_get_re_source __P((DB *, const char **));
 static int __ram_set_re_source __P((DB *, const char *));
 
 /*
@@ -55,6 +53,7 @@ __bam_db_create(dbp)
 
 	dbp->set_bt_compare = __bam_set_bt_compare;
 	dbp->set_bt_maxkey = __bam_set_bt_maxkey;
+	dbp->get_bt_minkey = __bam_get_bt_minkey;
 	dbp->set_bt_minkey = __bam_set_bt_minkey;
 	dbp->set_bt_prefix = __bam_set_bt_prefix;
 
@@ -62,9 +61,13 @@ __bam_db_create(dbp)
 	t->re_delim = '\n';
 	t->re_eof = 1;
 
+	dbp->get_re_delim = __ram_get_re_delim;
 	dbp->set_re_delim = __ram_set_re_delim;
+	dbp->get_re_len = __ram_get_re_len;
 	dbp->set_re_len = __ram_set_re_len;
+	dbp->get_re_pad = __ram_get_re_pad;
 	dbp->set_re_pad = __ram_set_re_pad;
+	dbp->get_re_source = __ram_get_re_source;
 	dbp->set_re_source = __ram_set_re_source;
 
 	return (0);
@@ -100,6 +103,37 @@ __bam_db_close(dbp)
 }
 
 /*
+ * __bam_map_flags --
+ *	Map Btree specific flags from public to the internal values.
+ *
+ * PUBLIC: void __bam_map_flags __P((DB *, u_int32_t *, u_int32_t *));
+ */
+void
+__bam_map_flags(dbp, inflagsp, outflagsp)
+	DB *dbp;
+	u_int32_t *inflagsp, *outflagsp;
+{
+	COMPQUIET(dbp, NULL);
+
+	if (FLD_ISSET(*inflagsp, DB_DUP)) {
+		FLD_SET(*outflagsp, DB_AM_DUP);
+		FLD_CLR(*inflagsp, DB_DUP);
+	}
+	if (FLD_ISSET(*inflagsp, DB_DUPSORT)) {
+		FLD_SET(*outflagsp, DB_AM_DUP | DB_AM_DUPSORT);
+		FLD_CLR(*inflagsp, DB_DUPSORT);
+	}
+	if (FLD_ISSET(*inflagsp, DB_RECNUM)) {
+		FLD_SET(*outflagsp, DB_AM_RECNUM);
+		FLD_CLR(*inflagsp, DB_RECNUM);
+	}
+	if (FLD_ISSET(*inflagsp, DB_REVSPLITOFF)) {
+		FLD_SET(*outflagsp, DB_AM_REVSPLITOFF);
+		FLD_CLR(*inflagsp, DB_REVSPLITOFF);
+	}
+}
+
+/*
  * __bam_set_flags --
  *	Set Btree specific flags.
  *
@@ -113,50 +147,31 @@ __bam_set_flags(dbp, flagsp)
 	u_int32_t flags;
 
 	flags = *flagsp;
-	if (LF_ISSET(DB_DUP | DB_DUPSORT | DB_RECNUM | DB_REVSPLITOFF)) {
+	if (LF_ISSET(DB_DUP | DB_DUPSORT | DB_RECNUM | DB_REVSPLITOFF))
 		DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_flags");
 
-		/*
-		 * The DB_DUP and DB_DUPSORT flags are shared by the Hash
-		 * and Btree access methods.
-		 */
-		if (LF_ISSET(DB_DUP | DB_DUPSORT))
-			DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE | DB_OK_HASH);
+	/*
+	 * The DB_DUP and DB_DUPSORT flags are shared by the Hash
+	 * and Btree access methods.
+	 */
+	if (LF_ISSET(DB_DUP | DB_DUPSORT))
+		DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE | DB_OK_HASH);
 
-		if (LF_ISSET(DB_RECNUM | DB_REVSPLITOFF))
-			DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
+	if (LF_ISSET(DB_RECNUM | DB_REVSPLITOFF))
+		DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
 
-		if (LF_ISSET(DB_DUP | DB_DUPSORT)) {
-			/* DB_DUP/DB_DUPSORT is incompatible with DB_RECNUM. */
-			if (F_ISSET(dbp, DB_AM_RECNUM))
-				goto incompat;
+	/* DB_DUP/DB_DUPSORT is incompatible with DB_RECNUM. */
+	if (LF_ISSET(DB_DUP | DB_DUPSORT) && F_ISSET(dbp, DB_AM_RECNUM))
+		goto incompat;
 
-			if (LF_ISSET(DB_DUPSORT)) {
-				if (dbp->dup_compare == NULL)
-					dbp->dup_compare = __bam_defcmp;
-				F_SET(dbp, DB_AM_DUPSORT);
-			}
+	/* DB_RECNUM is incompatible with DB_DUP/DB_DUPSORT. */
+	if (LF_ISSET(DB_RECNUM) && F_ISSET(dbp, DB_AM_DUP))
+		goto incompat;
 
-			F_SET(dbp, DB_AM_DUP);
-			LF_CLR(DB_DUP | DB_DUPSORT);
-		}
+	if (LF_ISSET(DB_DUPSORT) && dbp->dup_compare == NULL)
+		dbp->dup_compare = __bam_defcmp;
 
-		if (LF_ISSET(DB_RECNUM)) {
-			/* DB_RECNUM is incompatible with DB_DUP/DB_DUPSORT. */
-			if (F_ISSET(dbp, DB_AM_DUP))
-				goto incompat;
-
-			F_SET(dbp, DB_AM_RECNUM);
-			LF_CLR(DB_RECNUM);
-		}
-
-		if (LF_ISSET(DB_REVSPLITOFF)) {
-			F_SET(dbp, DB_AM_REVSPLITOFF);
-			LF_CLR(DB_REVSPLITOFF);
-		}
-
-		*flagsp = flags;
-	}
+	__bam_map_flags(dbp, flagsp, &dbp->flags);
 	return (0);
 
 incompat:
@@ -166,15 +181,18 @@ incompat:
 /*
  * __bam_set_bt_compare --
  *	Set the comparison function.
+ *
+ * PUBLIC: int __bam_set_bt_compare
+ * PUBLIC:         __P((DB *, int (*)(DB *, const DBT *, const DBT *)));
  */
-static int
+int
 __bam_set_bt_compare(dbp, func)
 	DB *dbp;
 	int (*func) __P((DB *, const DBT *, const DBT *));
 {
 	BTREE *t;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_bt_compare");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_bt_compare");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
 
 	t = dbp->bt_internal;
@@ -201,7 +219,7 @@ __bam_set_bt_maxkey(dbp, bt_maxkey)
 {
 	BTREE *t;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_bt_maxkey");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_bt_maxkey");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
 
 	t = dbp->bt_internal;
@@ -216,6 +234,26 @@ __bam_set_bt_maxkey(dbp, bt_maxkey)
 }
 
 /*
+ * __db_get_bt_minkey --
+ *	Get the minimum keys per page.
+ *
+ * PUBLIC: int __bam_get_bt_minkey __P((DB *, u_int32_t *));
+ */
+int
+__bam_get_bt_minkey(dbp, bt_minkeyp)
+	DB *dbp;
+	u_int32_t *bt_minkeyp;
+{
+	BTREE *t;
+
+	DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
+
+	t = dbp->bt_internal;
+	*bt_minkeyp = t->bt_minkey;
+	return (0);
+}
+
+/*
  * __bam_set_bt_minkey --
  *	Set the minimum keys per page.
  */
@@ -226,7 +264,7 @@ __bam_set_bt_minkey(dbp, bt_minkey)
 {
 	BTREE *t;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_bt_minkey");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_bt_minkey");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
 
 	t = dbp->bt_internal;
@@ -251,13 +289,36 @@ __bam_set_bt_prefix(dbp, func)
 {
 	BTREE *t;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_bt_prefix");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_bt_prefix");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
 
 	t = dbp->bt_internal;
 
 	t->bt_prefix = func;
 	return (0);
+}
+
+/*
+ * __ram_map_flags --
+ *	Map Recno specific flags from public to the internal values.
+ *
+ * PUBLIC: void __ram_map_flags __P((DB *, u_int32_t *, u_int32_t *));
+ */
+void
+__ram_map_flags(dbp, inflagsp, outflagsp)
+	DB *dbp;
+	u_int32_t *inflagsp, *outflagsp;
+{
+	COMPQUIET(dbp, NULL);
+
+	if (FLD_ISSET(*inflagsp, DB_RENUMBER)) {
+		FLD_SET(*outflagsp, DB_AM_RENUMBER);
+		FLD_CLR(*inflagsp, DB_RENUMBER);
+	}
+	if (FLD_ISSET(*inflagsp, DB_SNAPSHOT)) {
+		FLD_SET(*outflagsp, DB_AM_SNAPSHOT);
+		FLD_CLR(*inflagsp, DB_SNAPSHOT);
+	}
 }
 
 /*
@@ -276,21 +337,27 @@ __ram_set_flags(dbp, flagsp)
 	flags = *flagsp;
 	if (LF_ISSET(DB_RENUMBER | DB_SNAPSHOT)) {
 		DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_flags");
-
 		DB_ILLEGAL_METHOD(dbp, DB_OK_RECNO);
-
-		if (LF_ISSET(DB_RENUMBER)) {
-			F_SET(dbp, DB_AM_RENUMBER);
-			LF_CLR(DB_RENUMBER);
-		}
-
-		if (LF_ISSET(DB_SNAPSHOT)) {
-			F_SET(dbp, DB_AM_SNAPSHOT);
-			LF_CLR(DB_SNAPSHOT);
-		}
-
-		*flagsp = flags;
 	}
+
+	__ram_map_flags(dbp, flagsp, &dbp->flags);
+	return (0);
+}
+
+/*
+ * __db_get_re_delim --
+ *	Get the variable-length input record delimiter.
+ */
+static int
+__ram_get_re_delim(dbp, re_delimp)
+	DB *dbp;
+	int *re_delimp;
+{
+	BTREE *t;
+
+	DB_ILLEGAL_METHOD(dbp, DB_OK_RECNO);
+	t = dbp->bt_internal;
+	*re_delimp = t->re_delim;
 	return (0);
 }
 
@@ -305,13 +372,47 @@ __ram_set_re_delim(dbp, re_delim)
 {
 	BTREE *t;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_re_delim");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_re_delim");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_RECNO);
 
 	t = dbp->bt_internal;
 
 	t->re_delim = re_delim;
 	F_SET(dbp, DB_AM_DELIMITER);
+
+	return (0);
+}
+
+/*
+ * __db_get_re_len --
+ *	Get the variable-length input record length.
+ *
+ * PUBLIC: int __ram_get_re_len __P((DB *, u_int32_t *));
+ */
+int
+__ram_get_re_len(dbp, re_lenp)
+	DB *dbp;
+	u_int32_t *re_lenp;
+{
+	BTREE *t;
+	QUEUE *q;
+
+	DB_ILLEGAL_METHOD(dbp, DB_OK_QUEUE | DB_OK_RECNO);
+
+	/*
+	 * This has to work for all access methods, before or after opening the
+	 * database.  When the record length is set with __ram_set_re_len, the
+	 * value in both the BTREE and QUEUE structs will be correct.
+	 * Otherwise, this only makes sense after the database in opened, in
+	 * which case we know the type.
+	 */
+	if (dbp->type == DB_QUEUE) {
+		q = dbp->q_internal;
+		*re_lenp = q->re_len;
+	} else {
+		t = dbp->bt_internal;
+		*re_lenp = t->re_len;
+	}
 
 	return (0);
 }
@@ -328,7 +429,7 @@ __ram_set_re_len(dbp, re_len)
 	BTREE *t;
 	QUEUE *q;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_re_len");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_re_len");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_QUEUE | DB_OK_RECNO);
 
 	t = dbp->bt_internal;
@@ -338,6 +439,40 @@ __ram_set_re_len(dbp, re_len)
 	q->re_len = re_len;
 
 	F_SET(dbp, DB_AM_FIXEDLEN);
+
+	return (0);
+}
+
+/*
+ * __db_get_re_pad --
+ *	Get the fixed-length record pad character.
+ *
+ * PUBLIC: int __ram_get_re_pad __P((DB *, int *));
+ */
+int
+__ram_get_re_pad(dbp, re_padp)
+	DB *dbp;
+	int *re_padp;
+{
+	BTREE *t;
+	QUEUE *q;
+
+	DB_ILLEGAL_METHOD(dbp, DB_OK_QUEUE | DB_OK_RECNO);
+
+	/*
+	 * This has to work for all access methods, before or after opening the
+	 * database.  When the record length is set with __ram_set_re_pad, the
+	 * value in both the BTREE and QUEUE structs will be correct.
+	 * Otherwise, this only makes sense after the database in opened, in
+	 * which case we know the type.
+	 */
+	if (dbp->type == DB_QUEUE) {
+		q = dbp->q_internal;
+		*re_padp = q->re_pad;
+	} else {
+		t = dbp->bt_internal;
+		*re_padp = t->re_pad;
+	}
 
 	return (0);
 }
@@ -354,7 +489,7 @@ __ram_set_re_pad(dbp, re_pad)
 	BTREE *t;
 	QUEUE *q;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_re_pad");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_re_pad");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_QUEUE | DB_OK_RECNO);
 
 	t = dbp->bt_internal;
@@ -369,6 +504,24 @@ __ram_set_re_pad(dbp, re_pad)
 }
 
 /*
+ * __db_get_re_source --
+ *	Get the backing source file name.
+ */
+static int
+__ram_get_re_source(dbp, re_sourcep)
+	DB *dbp;
+	const char **re_sourcep;
+{
+	BTREE *t;
+
+	DB_ILLEGAL_METHOD(dbp, DB_OK_RECNO);
+
+	t = dbp->bt_internal;
+	*re_sourcep = t->re_source;
+	return (0);
+}
+
+/*
  * __ram_set_re_source --
  *	Set the backing source file name.
  */
@@ -379,7 +532,7 @@ __ram_set_re_source(dbp, re_source)
 {
 	BTREE *t;
 
-	DB_ILLEGAL_AFTER_OPEN(dbp, "set_re_source");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_re_source");
 	DB_ILLEGAL_METHOD(dbp, DB_OK_RECNO);
 
 	t = dbp->bt_internal;

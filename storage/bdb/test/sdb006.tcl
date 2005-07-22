@@ -1,11 +1,11 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb006.tcl,v 11.20 2002/06/20 19:01:02 sue Exp $
+# $Id: sdb006.tcl,v 11.23 2004/01/28 03:36:29 bostic Exp $
 #
-# TEST	subdb006
+# TEST	sdb006
 # TEST	Tests intra-subdb join
 # TEST
 # TEST	We'll test 2-way, 3-way, and 4-way joins and figure that if those work,
@@ -17,7 +17,7 @@
 # TEST	All of these are within a single database.
 #
 # We should test this on all btrees, all hash, and a combination thereof
-proc subdb006 {method {nentries 100} args } {
+proc sdb006 {method {nentries 100} args } {
 	source ./include.tcl
 	global rand_init
 

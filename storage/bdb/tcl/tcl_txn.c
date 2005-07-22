@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2001
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: tcl_txn.c,v 11.70 2004/10/27 16:48:32 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: tcl_txn.c,v 11.57 2002/08/06 06:21:36 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -48,7 +46,7 @@ _TxnInfoDelete(interp, txnip)
 		 * txn.  Remove its commands and info structure.
 		 */
 		nextp = LIST_NEXT(p, entries);
-		 if (p->i_parent == txnip && p->i_type == I_TXN) {
+		if (p->i_parent == txnip && p->i_type == I_TXN) {
 			_TxnInfoDelete(interp, p);
 			(void)Tcl_DeleteCommand(interp, p->i_name);
 			_DeleteInfo(p);
@@ -69,16 +67,22 @@ tcl_TxnCheckpoint(interp, objc, objv, envp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *envp;			/* Environment pointer */
 {
-	static char *txnckpopts[] = {
-		"-kbyte",	"-min",
+	static const char *txnckpopts[] = {
+		"-force",
+		"-kbyte",
+		"-min",
 		NULL
 	};
 	enum txnckpopts {
-		TXNCKP_KB,	TXNCKP_MIN
+		TXNCKP_FORCE,
+		TXNCKP_KB,
+		TXNCKP_MIN
 	};
+	u_int32_t flags;
 	int i, kb, min, optindex, result, ret;
 
 	result = TCL_OK;
+	flags = 0;
 	kb = min = 0;
 
 	/*
@@ -93,6 +97,9 @@ tcl_TxnCheckpoint(interp, objc, objv, envp)
 		}
 		i++;
 		switch ((enum txnckpopts)optindex) {
+		case TXNCKP_FORCE:
+			flags = DB_FORCE;
+			break;
 		case TXNCKP_KB:
 			if (i == objc) {
 				Tcl_WrongNumArgs(interp, 2, objv,
@@ -113,7 +120,7 @@ tcl_TxnCheckpoint(interp, objc, objv, envp)
 		}
 	}
 	_debug_check();
-	ret = envp->txn_checkpoint(envp, (u_int32_t)kb, (u_int32_t)min, 0);
+	ret = envp->txn_checkpoint(envp, (u_int32_t)kb, (u_int32_t)min, flags);
 	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
 	    "txn checkpoint");
 	return (result);
@@ -133,8 +140,9 @@ tcl_Txn(interp, objc, objv, envp, envip)
 	DB_ENV *envp;			/* Environment pointer */
 	DBTCL_INFO *envip;		/* Info pointer */
 {
-	static char *txnopts[] = {
-#if CONFIG_TEST
+	static const char *txnopts[] = {
+#ifdef CONFIG_TEST
+		"-degree_2",
 		"-dirty",
 		"-lock_timeout",
 		"-txn_timeout",
@@ -146,7 +154,8 @@ tcl_Txn(interp, objc, objv, envp, envip)
 		NULL
 	};
 	enum txnopts {
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
+		TXNDEGREE2,
 		TXNDIRTY,
 		TXN_LOCK_TIMEOUT,
 		TXN_TIMEOUT,
@@ -160,17 +169,24 @@ tcl_Txn(interp, objc, objv, envp, envip)
 	DB_TXN *parent;
 	DB_TXN *txn;
 	Tcl_Obj *res;
-	db_timeout_t lk_time, tx_time;
-	u_int32_t flag, lk_timeflag, tx_timeflag;
+	u_int32_t flag;
 	int i, optindex, result, ret;
 	char *arg, msg[MSG_SIZE], newname[MSG_SIZE];
+#ifdef CONFIG_TEST
+	db_timeout_t lk_time, tx_time;
+	u_int32_t lk_timeflag, tx_timeflag;
+#endif
 
 	result = TCL_OK;
 	memset(newname, 0, MSG_SIZE);
 
 	parent = NULL;
 	flag = 0;
+#ifdef CONFIG_TEST
+	COMPQUIET(tx_time, 0);
+	COMPQUIET(lk_time, 0);
 	lk_timeflag = tx_timeflag = 0;
+#endif
 	i = 2;
 	while (i < objc) {
 		if (Tcl_GetIndexFromObj(interp, objv[i],
@@ -180,6 +196,9 @@ tcl_Txn(interp, objc, objv, envp, envip)
 		i++;
 		switch ((enum txnopts)optindex) {
 #ifdef CONFIG_TEST
+		case TXNDEGREE2:
+			flag |= DB_DEGREE_2;
+			break;
 		case TXNDIRTY:
 			flag |= DB_DIRTY_READ;
 			break;
@@ -188,14 +207,13 @@ tcl_Txn(interp, objc, objv, envp, envip)
 			goto getit;
 		case TXN_TIMEOUT:
 			tx_timeflag = DB_SET_TXN_TIMEOUT;
-getit:
-			if (i >= objc) {
+getit:			if (i >= objc) {
 				Tcl_WrongNumArgs(interp, 2, objv,
 				    "?-txn_timestamp time?");
 				return (TCL_ERROR);
 			}
-			result = Tcl_GetLongFromObj(interp, objv[i++],
-			    (long *)(optindex == TXN_LOCK_TIMEOUT ?
+			result = Tcl_GetLongFromObj(interp, objv[i++], (long *)
+			    ((enum txnopts)optindex == TXN_LOCK_TIMEOUT ?
 			    &lk_time : &tx_time));
 			if (result != TCL_OK)
 				return (TCL_ERROR);
@@ -257,10 +275,11 @@ getit:
 		else
 			ip->i_parent = envip;
 		_SetInfoData(ip, txn);
-		Tcl_CreateObjCommand(interp, newname,
+		(void)Tcl_CreateObjCommand(interp, newname,
 		    (Tcl_ObjCmdProc *)txn_Cmd, (ClientData)txn, NULL);
-		res = Tcl_NewStringObj(newname, strlen(newname));
+		res = NewStringObj(newname, strlen(newname));
 		Tcl_SetObjResult(interp, res);
+#ifdef CONFIG_TEST
 		if (tx_timeflag != 0) {
 			ret = txn->set_timeout(txn, tx_time, tx_timeflag);
 			if (ret != 0) {
@@ -279,6 +298,7 @@ getit:
 				_DeleteInfo(ip);
 			}
 		}
+#endif
 	}
 	return (result);
 }
@@ -357,7 +377,7 @@ tcl_TxnStat(interp, objc, objv, envp)
 		}
 	Tcl_SetObjResult(interp, res);
 error:
-	free(sp);
+	__os_ufree(envp, sp);
 	return (result);
 }
 
@@ -405,8 +425,8 @@ txn_Cmd(clientData, interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *txncmds[] = {
-#if CONFIG_TEST
+	static const char *txncmds[] = {
+#ifdef CONFIG_TEST
 		"discard",
 		"id",
 		"prepare",
@@ -416,7 +436,7 @@ txn_Cmd(clientData, interp, objc, objv)
 		NULL
 	};
 	enum txncmds {
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 		TXNDISCARD,
 		TXNID,
 		TXNPREPARE,
@@ -428,7 +448,9 @@ txn_Cmd(clientData, interp, objc, objv)
 	DB_TXN *txnp;
 	Tcl_Obj *res;
 	int cmdindex, result, ret;
+#ifdef CONFIG_TEST
 	u_int8_t *gid;
+#endif
 
 	Tcl_ResetResult(interp);
 	txnp = (DB_TXN *)clientData;
@@ -453,7 +475,7 @@ txn_Cmd(clientData, interp, objc, objv)
 
 	res = NULL;
 	switch ((enum txncmds)cmdindex) {
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 	case TXNDISCARD:
 		if (objc != 2) {
 			Tcl_WrongNumArgs(interp, 1, objv, NULL);
@@ -473,8 +495,7 @@ txn_Cmd(clientData, interp, objc, objv)
 			return (TCL_ERROR);
 		}
 		_debug_check();
-		ret = txnp->id(txnp);
-		res = Tcl_NewIntObj(ret);
+		res = Tcl_NewIntObj((int)txnp->id(txnp));
 		break;
 	case TXNPREPARE:
 		if (objc != 3) {
@@ -533,7 +554,7 @@ tcl_TxnCommit(interp, objc, objv, txnp, txnip)
 	DB_TXN *txnp;			/* Transaction pointer */
 	DBTCL_INFO *txnip;		/* Info pointer */
 {
-	static char *commitopt[] = {
+	static const char *commitopt[] = {
 		"-nosync",
 		"-sync",
 		NULL
@@ -576,7 +597,7 @@ tcl_TxnCommit(interp, objc, objv, txnp, txnip)
 	return (result);
 }
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_TxnRecover --
  *
@@ -605,7 +626,7 @@ for (i = 0; i < count; i++) {						\
 	ip->i_parent = envip;						\
 	p = &prep[i];							\
 	_SetInfoData(ip, p->txn);					\
-	Tcl_CreateObjCommand(interp, newname,				\
+	(void)Tcl_CreateObjCommand(interp, newname,			\
 	    (Tcl_ObjCmdProc *)txn_Cmd, (ClientData)p->txn, NULL);	\
 	result = _SetListElem(interp, res, newname, strlen(newname),	\
 	    p->gid, DB_XIDDATASIZE);					\

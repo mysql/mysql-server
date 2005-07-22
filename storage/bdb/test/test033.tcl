@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test033.tcl,v 11.24 2002/08/08 15:38:11 bostic Exp $
+# $Id: test033.tcl,v 11.27 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test033
 # TEST	DB_GET_BOTH without comparison function
@@ -16,13 +16,13 @@
 # TEST
 # TEST	XXX
 # TEST	This does not work for rbtree.
-proc test033 { method {nentries 10000} {ndups 5} {tnum 33} args } {
+proc test033 { method {nentries 10000} {ndups 5} {tnum "033"} args } {
 	source ./include.tcl
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 	if { [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $method"
+		puts "Test$tnum skipping for method $method"
 		return
 	}
 
@@ -32,10 +32,10 @@ proc test033 { method {nentries 10000} {ndups 5} {tnum 33} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -53,7 +53,7 @@ proc test033 { method {nentries 10000} {ndups 5} {tnum 33} args } {
 		set testdir [get_home $env]
 	}
 
-	puts "Test0$tnum: $method ($args) $nentries small $ndups dup key/data pairs"
+	puts "Test$tnum: $method ($args) $nentries small $ndups dup key/data pairs"
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
@@ -82,7 +82,7 @@ proc test033 { method {nentries 10000} {ndups 5} {tnum 33} args } {
 	set dbc [eval {$db cursor} $txn]
 	error_check_good cursor_open [is_valid_cursor $dbc $db] TRUE
 
-	puts "\tTest0$tnum.a: Put/get loop."
+	puts "\tTest$tnum.a: Put/get loop."
 	# Here is the loop where we put and get each key/data pair
 	set count 0
 	set did [open $dict]
@@ -113,7 +113,7 @@ proc test033 { method {nentries 10000} {ndups 5} {tnum 33} args } {
 
 	close $did
 
-	puts "\tTest0$tnum.b: Verifying DB_GET_BOTH after creation."
+	puts "\tTest$tnum.b: Verifying DB_GET_BOTH after creation."
 	set count 0
 	set did [open $dict]
 	while { [gets $did str] != -1 && $count < $nentries } {

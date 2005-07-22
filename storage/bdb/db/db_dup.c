@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_dup.c,v 11.39 2004/02/18 21:34:37 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_dup.c,v 11.32 2002/08/08 03:57:47 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -20,7 +18,7 @@ static const char revid[] = "$Id: db_dup.c,v 11.32 2002/08/08 03:57:47 bostic Ex
 #include "db_int.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_shash.h"
-#include "dbinc/lock.h"
+#include "dbinc/mp.h"
 #include "dbinc/db_am.h"
 
 /*
@@ -163,119 +161,4 @@ __db_pitem(dbc, pagep, indx, nbytes, hdr, data)
 		memcpy(p + hdr->size, data->data, data->size);
 
 	return (0);
-}
-
-/*
- * __db_relink --
- *	Relink around a deleted page.
- *
- * PUBLIC: int __db_relink __P((DBC *, u_int32_t, PAGE *, PAGE **, int));
- */
-int
-__db_relink(dbc, add_rem, pagep, new_next, needlock)
-	DBC *dbc;
-	u_int32_t add_rem;
-	PAGE *pagep, **new_next;
-	int needlock;
-{
-	DB *dbp;
-	PAGE *np, *pp;
-	DB_LOCK npl, ppl;
-	DB_LSN *nlsnp, *plsnp, ret_lsn;
-	DB_MPOOLFILE *mpf;
-	int ret;
-
-	dbp = dbc->dbp;
-	np = pp = NULL;
-	LOCK_INIT(npl);
-	LOCK_INIT(ppl);
-	nlsnp = plsnp = NULL;
-	mpf = dbp->mpf;
-	ret = 0;
-
-	/*
-	 * Retrieve and lock the one/two pages.  For a remove, we may need
-	 * two pages (the before and after).  For an add, we only need one
-	 * because, the split took care of the prev.
-	 */
-	if (pagep->next_pgno != PGNO_INVALID) {
-		if (needlock && (ret = __db_lget(dbc,
-		    0, pagep->next_pgno, DB_LOCK_WRITE, 0, &npl)) != 0)
-			goto err;
-		if ((ret = mpf->get(mpf, &pagep->next_pgno, 0, &np)) != 0) {
-			__db_pgerr(dbp, pagep->next_pgno, ret);
-			goto err;
-		}
-		nlsnp = &np->lsn;
-	}
-	if (add_rem == DB_REM_PAGE && pagep->prev_pgno != PGNO_INVALID) {
-		if (needlock && (ret = __db_lget(dbc,
-		    0, pagep->prev_pgno, DB_LOCK_WRITE, 0, &ppl)) != 0)
-			goto err;
-		if ((ret = mpf->get(mpf, &pagep->prev_pgno, 0, &pp)) != 0) {
-			__db_pgerr(dbp, pagep->next_pgno, ret);
-			goto err;
-		}
-		plsnp = &pp->lsn;
-	}
-
-	/* Log the change. */
-	if (DBC_LOGGING(dbc)) {
-		if ((ret = __db_relink_log(dbp, dbc->txn, &ret_lsn, 0, add_rem,
-		    pagep->pgno, &pagep->lsn, pagep->prev_pgno, plsnp,
-		    pagep->next_pgno, nlsnp)) != 0)
-			goto err;
-	} else
-		LSN_NOT_LOGGED(ret_lsn);
-	if (np != NULL)
-		np->lsn = ret_lsn;
-	if (pp != NULL)
-		pp->lsn = ret_lsn;
-	if (add_rem == DB_REM_PAGE)
-		pagep->lsn = ret_lsn;
-
-	/*
-	 * Modify and release the two pages.
-	 *
-	 * !!!
-	 * The parameter new_next gets set to the page following the page we
-	 * are removing.  If there is no following page, then new_next gets
-	 * set to NULL.
-	 */
-	if (np != NULL) {
-		if (add_rem == DB_ADD_PAGE)
-			np->prev_pgno = pagep->pgno;
-		else
-			np->prev_pgno = pagep->prev_pgno;
-		if (new_next == NULL)
-			ret = mpf->put(mpf, np, DB_MPOOL_DIRTY);
-		else {
-			*new_next = np;
-			ret = mpf->set(mpf, np, DB_MPOOL_DIRTY);
-		}
-		if (ret != 0)
-			goto err;
-		if (needlock)
-			(void)__TLPUT(dbc, npl);
-	} else if (new_next != NULL)
-		*new_next = NULL;
-
-	if (pp != NULL) {
-		pp->next_pgno = pagep->next_pgno;
-		if ((ret = mpf->put(mpf, pp, DB_MPOOL_DIRTY)) != 0)
-			goto err;
-		if (needlock)
-			(void)__TLPUT(dbc, ppl);
-	}
-	return (0);
-
-err:	if (np != NULL)
-		(void)mpf->put(mpf, np, 0);
-	if (needlock)
-		(void)__TLPUT(dbc, npl);
-	if (pp != NULL)
-		(void)mpf->put(mpf, pp, 0);
-	if (needlock)
-		(void)__TLPUT(dbc, ppl);
-	return (ret);
 }

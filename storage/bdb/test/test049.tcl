@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test049.tcl,v 11.21 2002/05/22 15:42:53 sue Exp $
+# $Id: test049.tcl,v 11.24 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test049
 # TEST	Cursor operations on uninitialized cursors.
@@ -12,13 +12,13 @@ proc test049 { method args } {
 	global errorCode
 	source ./include.tcl
 
-	set tstn 049
+	set tnum 049
 	set renum [is_rrecno $method]
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	puts "\tTest$tstn: Test of cursor routines with uninitialized cursors."
+	puts "\tTest$tnum: Test of cursor routines with uninitialized cursors."
 
 	set key	"key"
 	set data	"data"
@@ -30,17 +30,17 @@ proc test049 { method args } {
 		set key ""
 	}
 
-	puts "\tTest$tstn.a: Create $method database."
+	puts "\tTest$tnum.a: Create $method database."
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tstn.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tstn.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -60,7 +60,7 @@ proc test049 { method args } {
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	set nkeys 10
-	puts "\tTest$tstn.b: Fill page with $nkeys small key/data pairs."
+	puts "\tTest$tnum.b: Fill page with $nkeys small key/data pairs."
 	for { set i 1 } { $i <= $nkeys } { incr i } {
 		if { $txnenv == 1 } {
 			set t [$env txn]
@@ -90,7 +90,7 @@ proc test049 { method args } {
 	set dbc_u [eval {$db cursor} $txn]
 	error_check_good db:cursor [is_valid_cursor $dbc_u $db] TRUE
 
-	puts "\tTest$tstn.c: Test dbc->get interfaces..."
+	puts "\tTest$tnum.c: Test dbc->get interfaces..."
 	set i 0
 	foreach flag { current first last next prev nextdup} {
 		puts "\t\t...dbc->get($flag)"
@@ -116,7 +116,7 @@ proc test049 { method args } {
 	catch {$dbc_u get -rmw -current } ret
 	error_check_good dbc_get:rmw [is_substr $errorCode EINVAL] 1
 
-	puts "\tTest$tstn.d: Test dbc->put interface..."
+	puts "\tTest$tnum.d: Test dbc->put interface..."
 	# partial...depends on another
 	foreach flag { after before current keyfirst keylast } {
 		puts "\t\t...dbc->put($flag)"
@@ -170,7 +170,7 @@ proc test049 { method args } {
 
 	# XXX dbc->dup, db->join (dbc->get join_item)
 	# dbc del
-	puts "\tTest$tstn.e: Test dbc->del interface."
+	puts "\tTest$tnum.e: Test dbc->del interface."
 	catch {$dbc_u del} ret
 	error_check_good dbc_del [is_substr $errorCode EINVAL] 1
 
@@ -180,5 +180,5 @@ proc test049 { method args } {
 	}
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest$tstn complete."
+	puts "\tTest$tnum complete."
 }

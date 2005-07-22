@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test026.tcl,v 11.20 2002/06/11 14:09:56 sue Exp $
+# $Id: test026.tcl,v 11.23 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test026
 # TEST	Small keys/medium data w/duplicates
@@ -13,7 +13,7 @@
 # TEST
 # TEST	Keyed delete test through cursor.  If ndups is small; this will
 # TEST	test on-page dups; if it's large, it will test off-page dups.
-proc test026 { method {nentries 2000} {ndups 5} {tnum 26} args} {
+proc test026 { method {nentries 2000} {ndups 5} {tnum "026"} args} {
 	source ./include.tcl
 
 	set args [convert_args $method $args]
@@ -21,7 +21,7 @@ proc test026 { method {nentries 2000} {ndups 5} {tnum 26} args} {
 
 	if { [is_record_based $method] == 1 || \
 	    [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $method"
+		puts "Test$tnum skipping for method $method"
 		return
 	}
 	# Create the database and open the dictionary
@@ -31,10 +31,10 @@ proc test026 { method {nentries 2000} {ndups 5} {tnum 26} args} {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -54,7 +54,7 @@ proc test026 { method {nentries 2000} {ndups 5} {tnum 26} args} {
 		set testdir [get_home $env]
 	}
 	cleanup $testdir $env
-	puts "Test0$tnum: $method ($args) $nentries keys\
+	puts "Test$tnum: $method ($args) $nentries keys\
 		with $ndups dups; cursor delete test"
 
 	set pflags ""
@@ -64,7 +64,7 @@ proc test026 { method {nentries 2000} {ndups 5} {tnum 26} args} {
 
 	# Here is the loop where we put and get each key/data pair
 
-	puts "\tTest0$tnum.a: Put loop"
+	puts "\tTest$tnum.a: Put loop"
 	set db [eval {berkdb_open -create \
 		-mode 0644} $args {$omethod -dup $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
@@ -103,7 +103,7 @@ proc test026 { method {nentries 2000} {ndups 5} {tnum 26} args} {
 	set dbc [eval {$db cursor} $txn]
 	error_check_good db_cursor [is_substr $dbc $db] 1
 
-	puts "\tTest0$tnum.b: Get/delete loop"
+	puts "\tTest$tnum.b: Get/delete loop"
 	set i 1
 	for { set ret [$dbc get -first] } {
 	    [string length $ret] != 0 } {
@@ -134,7 +134,7 @@ proc test026 { method {nentries 2000} {ndups 5} {tnum 26} args} {
 	}
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum.c: Verify empty file"
+	puts "\tTest$tnum.c: Verify empty file"
 	# Double check that file is now empty
 	set db [eval {berkdb_open} $args $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE

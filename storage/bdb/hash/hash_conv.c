@@ -1,14 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: hash_conv.c,v 11.16 2004/03/24 20:37:38 bostic Exp $
  */
-#include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: hash_conv.c,v 11.13 2002/08/06 05:34:35 bostic Exp $";
-#endif /* not lint */
+#include "db_config.h"
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -110,7 +109,7 @@ __ham_mswap(pg)
 	SWAP32(p);		/* h_charkey */
 	for (i = 0; i < NCACHED; ++i)
 		SWAP32(p);	/* spares */
-	p += 59 * sizeof(u_int32_t); /* unusued */
+	p += 59 * sizeof(u_int32_t); /* unused */
 	SWAP32(p);		/* crypto_magic */
 	return (0);
 }

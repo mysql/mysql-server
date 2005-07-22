@@ -97,7 +97,7 @@ umask(0) ;
     my $home = "./fred" ;
     ok 27, my $lexD = new LexDir($home);
 
-    ok 28, my $env = new BerkeleyDB::Env -Flags => DB_CREATE|DB_INIT_MPOOL,
+    ok 28, my $env = new BerkeleyDB::Env -Flags => DB_CREATE|DB_INIT_MPOOL,@StdErrFile,
     					 -Home => $home ;
 
     ok 29, my $db = new BerkeleyDB::Recno -Filename => $Dfile, 
@@ -465,7 +465,7 @@ umask(0) ;
 
     my $home = "./fred" ;
     ok 167, my $lexD = new LexDir($home);
-    ok 168, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 168, my $env = new BerkeleyDB::Env -Home => $home,@StdErrFile,
 				     -Flags => DB_CREATE|DB_INIT_TXN|
 					  	DB_INIT_MPOOL|DB_INIT_LOCK ;
     ok 169, my $txn = $env->txn_begin() ;
@@ -578,7 +578,7 @@ umask(0) ;
 
    require Exporter ;
    use BerkeleyDB;
-   @ISA=qw(BerkeleyDB::Recno);
+   @ISA=qw(BerkeleyDB BerkeleyDB::Recno);
    @EXPORT = @BerkeleyDB::EXPORT ;
 
    sub db_put { 

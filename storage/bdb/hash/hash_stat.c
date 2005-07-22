@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: hash_stat.c,v 11.66 2004/09/22 03:46:22 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: hash_stat.c,v 11.48 2002/08/06 06:11:28 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -19,24 +17,27 @@ static const char revid[] = "$Id: hash_stat.c,v 11.48 2002/08/06 06:11:28 bostic
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
 #include "dbinc/btree.h"
 #include "dbinc/hash.h"
+#include "dbinc/mp.h"
 
+#ifdef HAVE_STATISTICS
 static int __ham_stat_callback __P((DB *, PAGE *, void *, int *));
 
 /*
  * __ham_stat --
  *	Gather/print the hash statistics
  *
- * PUBLIC: int __ham_stat __P((DB *, void *, u_int32_t));
+ * PUBLIC: int __ham_stat __P((DBC *, void *, u_int32_t));
  */
 int
-__ham_stat(dbp, spp, flags)
-	DB *dbp;
+__ham_stat(dbc, spp, flags)
+	DBC *dbc;
 	void *spp;
 	u_int32_t flags;
 {
-	DBC *dbc;
+	DB *dbp;
 	DB_ENV *dbenv;
 	DB_HASH_STAT *sp;
 	DB_MPOOLFILE *mpf;
@@ -45,20 +46,12 @@ __ham_stat(dbp, spp, flags)
 	db_pgno_t pgno;
 	int ret;
 
+	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
-
-	PANIC_CHECK(dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->stat");
 
 	mpf = dbp->mpf;
 	sp = NULL;
 
-	/* Check for invalid flags. */
-	if ((ret = __db_statchk(dbp, flags)) != 0)
-		return (ret);
-
-	if ((ret = dbp->cursor(dbp, NULL, &dbc, 0)) != 0)
-		return (ret);
 	hcp = (HASH_CURSOR *)dbc->internal;
 
 	if ((ret = __ham_get_meta(dbc)) != 0)
@@ -86,11 +79,11 @@ __ham_stat(dbp, spp, flags)
 	    pgno != PGNO_INVALID;) {
 		++sp->hash_free;
 
-		if ((ret = mpf->get(mpf, &pgno, 0, &h)) != 0)
+		if ((ret = __memp_fget(mpf, &pgno, 0, &h)) != 0)
 			goto err;
 
 		pgno = h->next_pgno;
-		(void)mpf->put(mpf, h, 0);
+		(void)__memp_fput(mpf, h, 0);
 	}
 
 	/* Now traverse the rest of the table. */
@@ -107,10 +100,7 @@ __ham_stat(dbp, spp, flags)
 		hcp->hdr->dbmeta.record_count = sp->hash_ndata;
 	}
 
-done:
-	if ((ret = __ham_release_meta(dbc)) != 0)
-		goto err;
-	if ((ret = dbc->c_close(dbc)) != 0)
+done:	if ((ret = __ham_release_meta(dbc)) != 0)
 		goto err;
 
 	*(DB_HASH_STAT **)spp = sp;
@@ -118,12 +108,247 @@ done:
 
 err:	if (sp != NULL)
 		__os_ufree(dbenv, sp);
+
 	if (hcp->hdr != NULL)
 		(void)__ham_release_meta(dbc);
-	(void)dbc->c_close(dbc);
-	return (ret);
 
+	return (ret);
 }
+
+/*
+ * __ham_stat_print --
+ *	Display hash statistics.
+ *
+ * PUBLIC: int __ham_stat_print __P((DBC *, u_int32_t));
+ */
+int
+__ham_stat_print(dbc, flags)
+	DBC *dbc;
+	u_int32_t flags;
+{
+	static const FN fn[] = {
+		{ DB_HASH_DUP,		"duplicates" },
+		{ DB_HASH_SUBDB,	"multiple-databases" },
+		{ DB_HASH_DUPSORT,	"sorted duplicates" },
+		{ 0,			NULL }
+	};
+	DB *dbp;
+	DB_ENV *dbenv;
+	DB_HASH_STAT *sp;
+	int lorder, ret;
+	const char *s;
+
+	dbp = dbc->dbp;
+	dbenv = dbp->dbenv;
+
+	if ((ret = __ham_stat(dbc, &sp, 0)) != 0)
+		return (ret);
+
+	if (LF_ISSET(DB_STAT_ALL)) {
+		__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
+		__db_msg(dbenv, "Default Hash database information:");
+	}
+	__db_msg(dbenv, "%lx\tHash magic number", (u_long)sp->hash_magic);
+	__db_msg(dbenv,
+	    "%lu\tHash version number", (u_long)sp->hash_version);
+	(void)__db_get_lorder(dbp, &lorder);
+	switch (lorder) {
+	case 1234:
+		s = "Little-endian";
+		break;
+	case 4321:
+		s = "Big-endian";
+		break;
+	default:
+		s = "Unrecognized byte order";
+		break;
+	}
+	__db_msg(dbenv, "%s\tByte order", s);
+	__db_prflags(dbenv, NULL, sp->hash_metaflags, fn, NULL, "\tFlags");
+	__db_dl(dbenv,
+	    "Underlying database page size", (u_long)sp->hash_pagesize);
+	__db_dl(dbenv, "Specified fill factor", (u_long)sp->hash_ffactor);
+	__db_dl(dbenv,
+	    "Number of keys in the database", (u_long)sp->hash_nkeys);
+	__db_dl(dbenv,
+	    "Number of data items in the database", (u_long)sp->hash_ndata);
+
+	__db_dl(dbenv, "Number of hash buckets", (u_long)sp->hash_buckets);
+	__db_dl_pct(dbenv, "Number of bytes free on bucket pages",
+	    (u_long)sp->hash_bfree, DB_PCT_PG(
+	    sp->hash_bfree, sp->hash_buckets, sp->hash_pagesize), "ff");
+
+	__db_dl(dbenv,
+	    "Number of overflow pages", (u_long)sp->hash_bigpages);
+	__db_dl_pct(dbenv, "Number of bytes free in overflow pages",
+	    (u_long)sp->hash_big_bfree, DB_PCT_PG(
+	    sp->hash_big_bfree, sp->hash_bigpages, sp->hash_pagesize), "ff");
+
+	__db_dl(dbenv,
+	    "Number of bucket overflow pages", (u_long)sp->hash_overflows);
+	__db_dl_pct(dbenv,
+	    "Number of bytes free in bucket overflow pages",
+	    (u_long)sp->hash_ovfl_free, DB_PCT_PG(
+	    sp->hash_ovfl_free, sp->hash_overflows, sp->hash_pagesize), "ff");
+
+	__db_dl(dbenv, "Number of duplicate pages", (u_long)sp->hash_dup);
+	__db_dl_pct(dbenv, "Number of bytes free in duplicate pages",
+	    (u_long)sp->hash_dup_free, DB_PCT_PG(
+	    sp->hash_dup_free, sp->hash_dup, sp->hash_pagesize), "ff");
+
+	__db_dl(dbenv,
+	    "Number of pages on the free list", (u_long)sp->hash_free);
+
+	__os_ufree(dbenv, sp);
+
+	return (0);
+}
+
+static int
+__ham_stat_callback(dbp, pagep, cookie, putp)
+	DB *dbp;
+	PAGE *pagep;
+	void *cookie;
+	int *putp;
+{
+	DB_HASH_STAT *sp;
+	DB_BTREE_STAT bstat;
+	db_indx_t indx, len, off, tlen, top;
+	u_int8_t *hk;
+	int ret;
+
+	*putp = 0;
+	sp = cookie;
+
+	switch (pagep->type) {
+	case P_INVALID:
+		/*
+		 * Hash pages may be wholly zeroed;  this is not a bug.
+		 * Obviously such pages have no data, so we can just proceed.
+		 */
+		break;
+	case P_HASH:
+		/*
+		 * We count the buckets and the overflow pages
+		 * separately and tally their bytes separately
+		 * as well.  We need to figure out if this page
+		 * is a bucket.
+		 */
+		if (PREV_PGNO(pagep) == PGNO_INVALID)
+			sp->hash_bfree += P_FREESPACE(dbp, pagep);
+		else {
+			sp->hash_overflows++;
+			sp->hash_ovfl_free += P_FREESPACE(dbp, pagep);
+		}
+		top = NUM_ENT(pagep);
+		/* Correct for on-page duplicates and deleted items. */
+		for (indx = 0; indx < top; indx += P_INDX) {
+			switch (*H_PAIRDATA(dbp, pagep, indx)) {
+			case H_OFFDUP:
+				break;
+			case H_OFFPAGE:
+			case H_KEYDATA:
+				sp->hash_ndata++;
+				break;
+			case H_DUPLICATE:
+				tlen = LEN_HDATA(dbp, pagep, 0, indx);
+				hk = H_PAIRDATA(dbp, pagep, indx);
+				for (off = 0; off < tlen;
+				    off += len + 2 * sizeof(db_indx_t)) {
+					sp->hash_ndata++;
+					memcpy(&len,
+					    HKEYDATA_DATA(hk)
+					    + off, sizeof(db_indx_t));
+				}
+				break;
+			default:
+				return (__db_pgfmt(dbp->dbenv, PGNO(pagep)));
+			}
+		}
+		sp->hash_nkeys += H_NUMPAIRS(pagep);
+		break;
+	case P_IBTREE:
+	case P_IRECNO:
+	case P_LBTREE:
+	case P_LRECNO:
+	case P_LDUP:
+		/*
+		 * These are all btree pages; get a correct
+		 * cookie and call them.  Then add appropriate
+		 * fields into our stat structure.
+		 */
+		memset(&bstat, 0, sizeof(bstat));
+		if ((ret = __bam_stat_callback(dbp, pagep, &bstat, putp)) != 0)
+			return (ret);
+		sp->hash_dup++;
+		sp->hash_dup_free += bstat.bt_leaf_pgfree +
+		    bstat.bt_dup_pgfree + bstat.bt_int_pgfree;
+		sp->hash_ndata += bstat.bt_ndata;
+		break;
+	case P_OVERFLOW:
+		sp->hash_bigpages++;
+		sp->hash_big_bfree += P_OVFLSPACE(dbp, dbp->pgsize, pagep);
+		break;
+	default:
+		return (__db_pgfmt(dbp->dbenv, PGNO(pagep)));
+	}
+
+	return (0);
+}
+
+/*
+ * __ham_print_cursor --
+ *	Display the current cursor.
+ *
+ * PUBLIC: void __ham_print_cursor __P((DBC *));
+ */
+void
+__ham_print_cursor(dbc)
+	DBC *dbc;
+{
+	static const FN fn[] = {
+		{ H_CONTINUE,	"H_CONTINUE" },
+		{ H_DELETED,	"H_DELETED" },
+		{ H_DIRTY,	"H_DIRTY" },
+		{ H_DUPONLY,	"H_DUPONLY" },
+		{ H_EXPAND,	"H_EXPAND" },
+		{ H_ISDUP,	"H_ISDUP" },
+		{ H_NEXT_NODUP,	"H_NEXT_NODUP" },
+		{ H_NOMORE,	"H_NOMORE" },
+		{ H_OK,		"H_OK" },
+		{ 0,		NULL }
+	};
+	DB_ENV *dbenv;
+	HASH_CURSOR *cp;
+
+	dbenv = dbc->dbp->dbenv;
+	cp = (HASH_CURSOR *)dbc->internal;
+
+	STAT_ULONG("Bucket traversing", cp->bucket);
+	STAT_ULONG("Bucket locked", cp->lbucket);
+	STAT_ULONG("Duplicate set offset", cp->dup_off);
+	STAT_ULONG("Current duplicate length", cp->dup_len);
+	STAT_ULONG("Total duplicate set length", cp->dup_tlen);
+	STAT_ULONG("Bytes needed for add", cp->seek_size);
+	STAT_ULONG("Page on which we can insert", cp->seek_found_page);
+	STAT_ULONG("Order", cp->order);
+	__db_prflags(dbenv, NULL, cp->flags, fn, NULL, "\tInternal Flags");
+}
+
+#else /* !HAVE_STATISTICS */
+
+int
+__ham_stat(dbc, spp, flags)
+	DBC *dbc;
+	void *spp;
+	u_int32_t flags;
+{
+	COMPQUIET(spp, NULL);
+	COMPQUIET(flags, 0);
+
+	return (__db_stat_not_built(dbc->dbp->dbenv));
+}
+#endif
 
 /*
  * __ham_traverse
@@ -198,7 +423,7 @@ __ham_traverse(dbc, mode, callback, cookie, look_past_max)
 			/*
 			 * If we are cleaning up pages past the max_bucket,
 			 * then they may be on the free list and have their
-			 * next pointers set, but the should be ignored.  In
+			 * next pointers set, but they should be ignored.  In
 			 * fact, we really ought to just skip anybody who is
 			 * not a valid page.
 			 */
@@ -226,7 +451,7 @@ __ham_traverse(dbc, mode, callback, cookie, look_past_max)
 					    callback, cookie))
 					    != 0)
 						goto err;
-					if ((ret = opd->c_close(opd)) != 0)
+					if ((ret = __db_c_close(opd)) != 0)
 						return (ret);
 					opd = NULL;
 					break;
@@ -245,7 +470,13 @@ __ham_traverse(dbc, mode, callback, cookie, look_past_max)
 						goto err;
 					break;
 				case H_KEYDATA:
+				case H_DUPLICATE:
 					break;
+				default:
+					DB_ASSERT(0);
+					ret = EINVAL;
+					goto err;
+
 				}
 			}
 
@@ -262,111 +493,15 @@ __ham_traverse(dbc, mode, callback, cookie, look_past_max)
 		if (ret != 0)
 			goto err;
 
-		if (STD_LOCKING(dbc))
-			(void)dbp->dbenv->lock_put(dbp->dbenv, &hcp->lock);
-
 		if (hcp->page != NULL) {
-			if ((ret = mpf->put(mpf, hcp->page, 0)) != 0)
+			if ((ret = __memp_fput(mpf, hcp->page, 0)) != 0)
 				return (ret);
 			hcp->page = NULL;
 		}
 
 	}
 err:	if (opd != NULL &&
-	    (t_ret = opd->c_close(opd)) != 0 && ret == 0)
+	    (t_ret = __db_c_close(opd)) != 0 && ret == 0)
 		ret = t_ret;
 	return (ret);
-}
-
-static int
-__ham_stat_callback(dbp, pagep, cookie, putp)
-	DB *dbp;
-	PAGE *pagep;
-	void *cookie;
-	int *putp;
-{
-	DB_HASH_STAT *sp;
-	DB_BTREE_STAT bstat;
-	db_indx_t indx, len, off, tlen, top;
-	u_int8_t *hk;
-	int ret;
-
-	*putp = 0;
-	sp = cookie;
-
-	switch (pagep->type) {
-	case P_INVALID:
-		/*
-		 * Hash pages may be wholly zeroed;  this is not a bug.
-		 * Obviously such pages have no data, so we can just proceed.
-		 */
-		break;
-	case P_HASH:
-		/*
-		 * We count the buckets and the overflow pages
-		 * separately and tally their bytes separately
-		 * as well.  We need to figure out if this page
-		 * is a bucket.
-		 */
-		if (PREV_PGNO(pagep) == PGNO_INVALID)
-			sp->hash_bfree += P_FREESPACE(dbp, pagep);
-		else {
-			sp->hash_overflows++;
-			sp->hash_ovfl_free += P_FREESPACE(dbp, pagep);
-		}
-		top = NUM_ENT(pagep);
-		/* Correct for on-page duplicates and deleted items. */
-		for (indx = 0; indx < top; indx += P_INDX) {
-			switch (*H_PAIRDATA(dbp, pagep, indx)) {
-			case H_OFFDUP:
-			case H_OFFPAGE:
-				break;
-			case H_KEYDATA:
-				sp->hash_ndata++;
-				break;
-			case H_DUPLICATE:
-				tlen = LEN_HDATA(dbp, pagep, 0, indx);
-				hk = H_PAIRDATA(dbp, pagep, indx);
-				for (off = 0; off < tlen;
-				    off += len + 2 * sizeof (db_indx_t)) {
-					sp->hash_ndata++;
-					memcpy(&len,
-					    HKEYDATA_DATA(hk)
-					    + off, sizeof(db_indx_t));
-				}
-			}
-		}
-		sp->hash_nkeys += H_NUMPAIRS(pagep);
-		break;
-	case P_IBTREE:
-	case P_IRECNO:
-	case P_LBTREE:
-	case P_LRECNO:
-	case P_LDUP:
-		/*
-		 * These are all btree pages; get a correct
-		 * cookie and call them.  Then add appropriate
-		 * fields into our stat structure.
-		 */
-		memset(&bstat, 0, sizeof(bstat));
-		bstat.bt_dup_pgfree = 0;
-		bstat.bt_int_pgfree = 0;
-		bstat.bt_leaf_pgfree = 0;
-		bstat.bt_ndata = 0;
-		if ((ret = __bam_stat_callback(dbp, pagep, &bstat, putp)) != 0)
-			return (ret);
-		sp->hash_dup++;
-		sp->hash_dup_free += bstat.bt_leaf_pgfree +
-		    bstat.bt_dup_pgfree + bstat.bt_int_pgfree;
-		sp->hash_ndata += bstat.bt_ndata;
-		break;
-	case P_OVERFLOW:
-		sp->hash_bigpages++;
-		sp->hash_big_bfree += P_OVFLSPACE(dbp, dbp->pgsize, pagep);
-		break;
-	default:
-		return (__db_pgfmt(dbp->dbenv, pagep->pgno));
-	}
-
-	return (0);
 }

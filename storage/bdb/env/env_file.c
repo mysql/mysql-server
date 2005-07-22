@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2002
+ * Copyright (c) 2002-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: env_file.c,v 1.11 2004/03/24 20:51:38 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: env_file.c,v 1.5 2002/03/08 17:47:18 sue Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -20,7 +18,7 @@ static const char revid[] = "$Id: env_file.c,v 1.5 2002/03/08 17:47:18 sue Exp $
 #include "db_int.h"
 
 static int __db_overwrite_pass __P((DB_ENV *,
-	       const char *, DB_FH *, u_int32_t, u_int32_t, u_int32_t));
+	       const char *, DB_FH *, u_int32_t, u_int32_t, int));
 
 /*
  * __db_fileinit --
@@ -98,12 +96,11 @@ __db_overwrite(dbenv, path)
 	DB_ENV *dbenv;
 	const char *path;
 {
-	DB_FH fh, *fhp;
+	DB_FH *fhp;
 	u_int32_t mbytes, bytes;
 	int ret;
 
-	fhp = &fh;
-	if ((ret = __os_open(dbenv, path, DB_OSO_REGION, 0, fhp)) == 0 &&
+	if ((ret = __os_open(dbenv, path, DB_OSO_REGION, 0, &fhp)) == 0 &&
 	    (ret = __os_ioinfo(dbenv, path, fhp, &mbytes, &bytes, NULL)) == 0) {
 		/*
 		 * !!!
@@ -112,19 +109,19 @@ __db_overwrite(dbenv, path)
 		 * or logging filesystems will require operating system support.
 		 */
 		if ((ret = __db_overwrite_pass(
-		    dbenv, path, fhp, mbytes, bytes, 0xff)) != 0)
+		    dbenv, path, fhp, mbytes, bytes, 255)) != 0)
 			goto err;
 		if ((ret = __db_overwrite_pass(
-		    dbenv, path, fhp, mbytes, bytes, 0x00)) != 0)
+		    dbenv, path, fhp, mbytes, bytes, 0)) != 0)
 			goto err;
 		if ((ret = __db_overwrite_pass(
-		    dbenv, path, fhp, mbytes, bytes, 0xff)) != 0)
+		    dbenv, path, fhp, mbytes, bytes, 255)) != 0)
 			goto err;
 	} else
 		__db_err(dbenv, "%s: %s", path, db_strerror(ret));
 
-err:	if (F_ISSET(fhp, DB_FH_VALID))
-		__os_closehandle(dbenv, fhp);
+err:	if (fhp != NULL)
+		(void)__os_closehandle(dbenv, fhp);
 	return (ret);
 }
 
@@ -137,7 +134,8 @@ __db_overwrite_pass(dbenv, path, fhp, mbytes, bytes, pattern)
 	DB_ENV *dbenv;
 	const char *path;
 	DB_FH *fhp;
-	u_int32_t mbytes, bytes, pattern;
+	int pattern;
+	u_int32_t mbytes, bytes;
 {
 	size_t len, nw;
 	int i, ret;

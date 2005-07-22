@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test044.tcl,v 11.32 2002/07/16 20:53:04 bostic Exp $
+# $Id: test044.tcl,v 11.35 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test044
 # TEST	Small system integration tests
@@ -146,8 +146,10 @@ proc test044 { method {nprocs 5} {nfiles 10} {cont 0} args } {
 		}
 
 		# Check for test failure
-		set e [eval findfail [glob $testdir/test044.*.log]]
-		error_check_good "FAIL: error message(s) in log files" $e 0
+		set errstrings [eval findfail [glob $testdir/test044.*.log]]
+		foreach str $errstrings {
+			puts "FAIL: error message in log file: $str"
+		}
 
 		# Now run recovery
 		test044_verify $testdir $nfiles

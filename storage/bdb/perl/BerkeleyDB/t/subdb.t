@@ -15,7 +15,7 @@ use t::util ;
 BEGIN 
 {
     if ($BerkeleyDB::db_version < 3) {
-	print "1..0 # Skipping test, this needs Berkeley DB 3.x or better\n" ;
+	print "1..0 # Skip: this needs Berkeley DB 3.x or better\n" ;
 	exit 0 ;
     }
 }

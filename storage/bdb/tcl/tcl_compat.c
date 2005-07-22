@@ -1,17 +1,15 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2001
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: tcl_compat.c,v 11.46 2004/10/07 16:48:39 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: tcl_compat.c,v 11.39 2002/08/15 14:05:38 bostic Exp $";
-#endif /* not lint */
-
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -39,7 +37,7 @@ bdb_HCommand(interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *hcmds[] = {
+	static const char *hcmds[] = {
 		"hcreate",
 		"hdestroy",
 		"hsearch",
@@ -50,7 +48,7 @@ bdb_HCommand(interp, objc, objv)
 		HHDESTROY,
 		HHSEARCH
 	};
-	static char *srchacts[] = {
+	static const char *srchacts[] = {
 		"enter",
 		"find",
 		NULL
@@ -87,8 +85,9 @@ bdb_HCommand(interp, objc, objv)
 		result = Tcl_GetIntFromObj(interp, objv[2], &nelem);
 		if (result == TCL_OK) {
 			_debug_check();
-			ret = hcreate(nelem) == 0 ? 1: 0;
-			_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "hcreate");
+			ret = hcreate((size_t)nelem) == 0 ? 1: 0;
+			(void)_ReturnSetup(
+			    interp, ret, DB_RETOK_STD(ret), "hcreate");
 		}
 		break;
 	case HHSEARCH:
@@ -133,7 +132,7 @@ bdb_HCommand(interp, objc, objv)
 			return (TCL_ERROR);
 		}
 		_debug_check();
-		(void)hdestroy();
+		hdestroy();
 		res = Tcl_NewIntObj(0);
 		break;
 	}
@@ -162,7 +161,7 @@ bdb_NdbmOpen(interp, objc, objv, dbpp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DBM **dbpp;			/* Dbm pointer */
 {
-	static char *ndbopen[] = {
+	static const char *ndbopen[] = {
 		"-create",
 		"-mode",
 		"-rdonly",
@@ -178,14 +177,11 @@ bdb_NdbmOpen(interp, objc, objv, dbpp)
 		NDB_ENDARG
 	};
 
-	u_int32_t open_flags;
-	int endarg, i, mode, optindex, read_only, result, ret;
+	int endarg, i, mode, open_flags, optindex, read_only, result, ret;
 	char *arg, *db;
 
 	result = TCL_OK;
-	open_flags = 0;
-	endarg = mode = 0;
-	read_only = 0;
+	endarg = mode = open_flags = read_only = 0;
 
 	if (objc < 2) {
 		Tcl_WrongNumArgs(interp, 2, objv, "?args?");
@@ -237,7 +233,7 @@ bdb_NdbmOpen(interp, objc, objv, dbpp)
 		case NDB_ENDARG:
 			endarg = 1;
 			break;
-		} /* switch */
+		}
 
 		/*
 		 * If, at any time, parsing the args we get an error,
@@ -307,7 +303,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 	int flag;			/* Which db interface */
 	DBM *dbm;			/* DBM pointer */
 {
-	static char *dbmcmds[] = {
+	static const char *dbmcmds[] = {
 		"dbmclose",
 		"dbminit",
 		"delete",
@@ -326,7 +322,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 		DBMNEXT,
 		DBMSTORE
 	};
-	static char *stflag[] = {
+	static const char *stflag[] = {
 		"insert",	"replace",
 		NULL
 	};
@@ -341,6 +337,8 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 
 	result = TCL_OK;
 	freekey = freedata = 0;
+	dtmp = ktmp = NULL;
+
 	/*
 	 * Get the command name index from the object based on the cmds
 	 * defined above.  This SHOULD NOT fail because we already checked
@@ -367,7 +365,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    "Bad interface flag for command", TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "dbmclose");
+		(void)_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "dbmclose");
 		break;
 	case DBMINIT:
 		/*
@@ -385,7 +383,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "dbminit");
+		(void)_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "dbminit");
 		break;
 	case DBMFETCH:
 		/*
@@ -401,7 +399,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    DB_RETOK_STD(ret), "dbm fetch");
 			goto out;
 		}
-		key.dsize = size;
+		key.dsize = (int)size;
 		key.dptr = (char *)ktmp;
 		_debug_check();
 		if (flag == DBTCL_DBM)
@@ -415,10 +413,10 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			goto out;
 		}
 		if (data.dptr == NULL ||
-		    (ret = __os_malloc(NULL, data.dsize + 1, &t)) != 0)
+		    (ret = __os_malloc(NULL, (size_t)data.dsize + 1, &t)) != 0)
 			Tcl_SetResult(interp, "-1", TCL_STATIC);
 		else {
-			memcpy(t, data.dptr, data.dsize);
+			memcpy(t, data.dptr, (size_t)data.dsize);
 			t[data.dsize] = '\0';
 			Tcl_SetResult(interp, t, TCL_VOLATILE);
 			__os_free(NULL, t);
@@ -442,7 +440,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    DB_RETOK_STD(ret), "dbm fetch");
 			goto out;
 		}
-		key.dsize = size;
+		key.dsize = (int)size;
 		key.dptr = (char *)ktmp;
 		if ((ret = _CopyObjBytes(
 		    interp, objv[3], &dtmp, &size, &freedata)) != 0) {
@@ -450,7 +448,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    DB_RETOK_STD(ret), "dbm fetch");
 			goto out;
 		}
-		data.dsize = size;
+		data.dsize = (int)size;
 		data.dptr = (char *)dtmp;
 		_debug_check();
 		if (flag == DBTCL_DBM)
@@ -473,7 +471,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    "Bad interface flag for command", TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "store");
+		(void)_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "store");
 		break;
 	case DBMDELETE:
 		/*
@@ -489,7 +487,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    DB_RETOK_STD(ret), "dbm fetch");
 			goto out;
 		}
-		key.dsize = size;
+		key.dsize = (int)size;
 		key.dptr = (char *)ktmp;
 		_debug_check();
 		if (flag == DBTCL_DBM)
@@ -501,7 +499,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    "Bad interface flag for command", TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "delete");
+		(void)_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "delete");
 		break;
 	case DBMFIRST:
 		/*
@@ -522,10 +520,10 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			return (TCL_ERROR);
 		}
 		if (key.dptr == NULL ||
-		    (ret = __os_malloc(NULL, key.dsize + 1, &t)) != 0)
+		    (ret = __os_malloc(NULL, (size_t)key.dsize + 1, &t)) != 0)
 			Tcl_SetResult(interp, "-1", TCL_STATIC);
 		else {
-			memcpy(t, key.dptr, key.dsize);
+			memcpy(t, key.dptr, (size_t)key.dsize);
 			t[key.dsize] = '\0';
 			Tcl_SetResult(interp, t, TCL_VOLATILE);
 			__os_free(NULL, t);
@@ -547,7 +545,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 				    DB_RETOK_STD(ret), "dbm fetch");
 				goto out;
 			}
-			key.dsize = size;
+			key.dsize = (int)size;
 			key.dptr = (char *)ktmp;
 			data = nextkey(key);
 		} else if (flag == DBTCL_NDBM) {
@@ -562,21 +560,21 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			return (TCL_ERROR);
 		}
 		if (data.dptr == NULL ||
-		    (ret = __os_malloc(NULL, data.dsize + 1, &t)) != 0)
+		    (ret = __os_malloc(NULL, (size_t)data.dsize + 1, &t)) != 0)
 			Tcl_SetResult(interp, "-1", TCL_STATIC);
 		else {
-			memcpy(t, data.dptr, data.dsize);
+			memcpy(t, data.dptr, (size_t)data.dsize);
 			t[data.dsize] = '\0';
 			Tcl_SetResult(interp, t, TCL_VOLATILE);
 			__os_free(NULL, t);
 		}
 		break;
 	}
-out:
-	if (freedata)
-		(void)__os_free(NULL, dtmp);
-	if (freekey)
-		(void)__os_free(NULL, ktmp);
+
+out:	if (dtmp != NULL && freedata)
+		__os_free(NULL, dtmp);
+	if (ktmp != NULL && freekey)
+		__os_free(NULL, ktmp);
 	return (result);
 }
 
@@ -593,7 +591,7 @@ ndbm_Cmd(clientData, interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *ndbcmds[] = {
+	static const char *ndbcmds[] = {
 		"clearerr",
 		"close",
 		"delete",
@@ -677,8 +675,8 @@ ndbm_Cmd(clientData, interp, objc, objv)
 		_debug_check();
 		ret = dbm_clearerr(dbp);
 		if (ret)
-			_ReturnSetup(interp, ret, DB_RETOK_STD(ret),
-			    "clearerr");
+			(void)_ReturnSetup(
+			    interp, ret, DB_RETOK_STD(ret), "clearerr");
 		else
 			res = Tcl_NewIntObj(ret);
 		break;
@@ -717,7 +715,8 @@ ndbm_Cmd(clientData, interp, objc, objv)
 		_debug_check();
 		ret = dbm_error(dbp);
 		Tcl_SetErrno(ret);
-		Tcl_SetResult(interp, Tcl_PosixError(interp), TCL_STATIC);
+		Tcl_SetResult(interp,
+		    (char *)Tcl_PosixError(interp), TCL_STATIC);
 		break;
 	case NDBRDONLY:
 		/*
@@ -730,14 +729,16 @@ ndbm_Cmd(clientData, interp, objc, objv)
 		_debug_check();
 		ret = dbm_rdonly(dbp);
 		if (ret)
-			_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "rdonly");
+			(void)_ReturnSetup(
+			    interp, ret, DB_RETOK_STD(ret), "rdonly");
 		else
 			res = Tcl_NewIntObj(ret);
 		break;
 	}
+
 	/*
-	 * Only set result if we have a res.  Otherwise, lower
-	 * functions have already done so.
+	 * Only set result if we have a res.  Otherwise, lower functions have
+	 * already done so.
 	 */
 	if (result == TCL_OK && res)
 		Tcl_SetObjResult(interp, res);

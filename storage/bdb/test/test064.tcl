@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test064.tcl,v 11.13 2002/05/22 15:42:57 sue Exp $
+# $Id: test064.tcl,v 11.16 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test064
 # TEST	Test of DB->get_type
@@ -15,7 +15,7 @@ proc test064 { method args } {
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
-	set tnum 64
+	set tnum "064"
 
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
@@ -23,10 +23,10 @@ proc test064 { method args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -37,17 +37,17 @@ proc test064 { method args } {
 	}
 	cleanup $testdir $env
 
-	puts "Test0$tnum: $method ($args) DB->get_type test."
+	puts "Test$tnum: $method ($args) DB->get_type test."
 
 	# Create a test database.
-	puts "\tTest0$tnum.a: Creating test database of type $method."
+	puts "\tTest$tnum.a: Creating test database of type $method."
 	set db [eval {berkdb_open -create -mode 0644} \
 	    $omethod $args $testfile]
 	error_check_good db_create [is_valid_db $db] TRUE
 
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum.b: get_type after method specifier."
+	puts "\tTest$tnum.b: get_type after method specifier."
 
 	set db [eval {berkdb_open} $omethod $args {$testfile}]
 	error_check_good db_open [is_valid_db $db] TRUE
@@ -57,7 +57,7 @@ proc test064 { method args } {
 
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum.c: get_type after DB_UNKNOWN."
+	puts "\tTest$tnum.c: get_type after DB_UNKNOWN."
 
 	set db [eval {berkdb_open} $args $testfile]
 	error_check_good db_open [is_valid_db $db] TRUE

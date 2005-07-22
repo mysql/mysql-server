@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_shash.c,v 11.9 2004/03/20 16:18:51 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_shash.c,v 11.6 2002/03/01 17:22:16 ubell Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -75,13 +73,13 @@ static const struct {
  * __db_tablesize --
  *	Choose a size for the hash table.
  *
- * PUBLIC: int __db_tablesize __P((u_int32_t));
+ * PUBLIC: u_int32_t __db_tablesize __P((u_int32_t));
  */
-int
+u_int32_t
 __db_tablesize(n_buckets)
 	u_int32_t n_buckets;
 {
-	int i;
+	u_int i;
 
 	/*
 	 * We try to be clever about how big we make the hash tables.  Use a
@@ -93,15 +91,10 @@ __db_tablesize(n_buckets)
 	if (n_buckets < 32)
 		n_buckets = 32;
 
-	for (i = 0;; ++i) {
-		if (list[i].power == 0) {
-			--i;
-			break;
-		}
+	for (i = 0; i < sizeof(list)/sizeof(list[0]); ++i)
 		if (list[i].power >= n_buckets)
-			break;
-	}
-	return (list[i].prime);
+			return (list[i].prime);
+	return (list[--i].prime);
 }
 
 /*
