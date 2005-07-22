@@ -66,7 +66,7 @@ void Qmgr::execCM_HEARTBEAT(Signal* signal)
   jamEntry();
   hbNodePtr.i = signal->theData[0];
   ptrCheckGuard(hbNodePtr, MAX_NDB_NODES, nodeRec);
-  hbNodePtr.p->alarmCount = 0;
+  setNodeInfo(hbNodePtr.i).m_heartbeat_cnt= 0;
   return;
 }//Qmgr::execCM_HEARTBEAT()
 
@@ -1040,7 +1040,7 @@ void Qmgr::execCM_ADD(Signal* signal)
     jam();
     ndbrequire(addNodePtr.p->phase == ZSTARTING);
     addNodePtr.p->phase = ZRUNNING;
-    addNodePtr.p->alarmCount = 0;
+    setNodeInfo(addNodePtr.i).m_heartbeat_cnt= 0;
     c_clusterNodes.set(addNodePtr.i);
     findNeighbours(signal);
 
@@ -1078,7 +1078,7 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
    * NODES IN THE CLUSTER.
    */
   nodePtr.p->phase = ZRUNNING;
-  nodePtr.p->alarmCount = 0;
+  setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
   findNeighbours(signal);
   c_clusterNodes.set(nodePtr.i);
   c_start.reset();
@@ -1299,7 +1299,7 @@ void Qmgr::findNeighbours(Signal* signal)
        *---------------------------------------------------------------------*/
       fnNodePtr.i = cneighbourl;
       ptrCheckGuard(fnNodePtr, MAX_NDB_NODES, nodeRec);
-      fnNodePtr.p->alarmCount = 0;
+      setNodeInfo(fnNodePtr.i).m_heartbeat_cnt= 0;
     }//if
   }//if
 
@@ -1347,8 +1347,8 @@ void Qmgr::initData(Signal* signal)
     } else {
       nodePtr.p->phase = ZAPI_INACTIVE;
     }
-    
-    nodePtr.p->alarmCount = 0;
+
+    setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
     nodePtr.p->sendPrepFailReqStatus = Q_NOT_ACTIVE;
     nodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
     nodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
@@ -1550,18 +1550,18 @@ void Qmgr::checkHeartbeat(Signal* signal)
   }//if
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
   
-  nodePtr.p->alarmCount ++;
+  setNodeInfo(nodePtr.i).m_heartbeat_cnt++;
   ndbrequire(nodePtr.p->phase == ZRUNNING);
   ndbrequire(getNodeInfo(nodePtr.i).m_type == NodeInfo::DB);
 
-  if(nodePtr.p->alarmCount > 2){
+  if(getNodeInfo(nodePtr.i).m_heartbeat_cnt > 2){
     signal->theData[0] = NDB_LE_MissedHeartbeat;
     signal->theData[1] = nodePtr.i;
-    signal->theData[2] = nodePtr.p->alarmCount - 1;
+    signal->theData[2] = getNodeInfo(nodePtr.i).m_heartbeat_cnt - 1;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
   }
 
-  if (nodePtr.p->alarmCount > 4) {
+  if (getNodeInfo(nodePtr.i).m_heartbeat_cnt > 4) {
     jam();
     /**----------------------------------------------------------------------
      * OUR LEFT NEIGHBOUR HAVE KEPT QUIET FOR THREE CONSECUTIVE HEARTBEAT 
@@ -1593,16 +1593,16 @@ void Qmgr::apiHbHandlingLab(Signal* signal)
 
     if (TnodePtr.p->phase == ZAPI_ACTIVE){
       jam();
-      TnodePtr.p->alarmCount ++;
+      setNodeInfo(TnodePtr.i).m_heartbeat_cnt++;
       
-      if(TnodePtr.p->alarmCount > 2){
+      if(getNodeInfo(TnodePtr.i).m_heartbeat_cnt > 2){
 	signal->theData[0] = NDB_LE_MissedHeartbeat;
 	signal->theData[1] = nodeId;
-	signal->theData[2] = TnodePtr.p->alarmCount - 1;
+	signal->theData[2] = getNodeInfo(TnodePtr.i).m_heartbeat_cnt - 1;
 	sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
       }
       
-      if (TnodePtr.p->alarmCount > 4) {
+      if (getNodeInfo(TnodePtr.i).m_heartbeat_cnt > 4) {
         jam();
 	/*------------------------------------------------------------------*/
 	/* THE API NODE HAS NOT SENT ANY HEARTBEAT FOR THREE SECONDS. 
@@ -1634,16 +1634,17 @@ void Qmgr::checkStartInterface(Signal* signal)
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZFAIL_CLOSING) {
       jam();
-      nodePtr.p->alarmCount = nodePtr.p->alarmCount + 1;
+      setNodeInfo(nodePtr.i).m_heartbeat_cnt++;
       if (c_connectedNodes.get(nodePtr.i)){
         jam();
 	/*-------------------------------------------------------------------*/
 	// We need to ensure that the connection is not restored until it has 
 	// been disconnected for at least three seconds.
 	/*-------------------------------------------------------------------*/
-        nodePtr.p->alarmCount = 0;
+        setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
       }//if
-      if ((nodePtr.p->alarmCount > 3) && (nodePtr.p->failState == NORMAL)) {
+      if ((getNodeInfo(nodePtr.i).m_heartbeat_cnt > 3)
+	  && (nodePtr.p->failState == NORMAL)) {
 	/**------------------------------------------------------------------
 	 * WE HAVE DISCONNECTED THREE SECONDS AGO. WE ARE NOW READY TO 
 	 * CONNECT AGAIN AND ACCEPT NEW REGISTRATIONS FROM THIS NODE. 
@@ -1659,18 +1660,18 @@ void Qmgr::checkStartInterface(Signal* signal)
           nodePtr.p->phase = ZINIT;
         }//if
 
-        nodePtr.p->alarmCount = 0;
+        setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
         signal->theData[0] = 0;
         signal->theData[1] = nodePtr.i;
         sendSignal(CMVMI_REF, GSN_OPEN_COMREQ, signal, 2, JBA);
       } else {
-	if(((nodePtr.p->alarmCount + 1) % 60) == 0){
+	if(((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 60) == 0){
 	  char buf[100];
 	  BaseString::snprintf(buf, sizeof(buf), 
 		   "Failure handling of node %d has not completed in %d min."
 		   " - state = %d",
 		   nodePtr.i, 
-		   (nodePtr.p->alarmCount + 1)/60,
+		   (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
 		   nodePtr.p->failState);
 	  warningEvent(buf);
 	}
@@ -1718,7 +1719,7 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
    * WE ONLY NEED TO SET PARAMETERS TO ENABLE A NEW CONNECTION IN A FEW 
    * SECONDS. 
    *-------------------------------------------------------------------------*/
-  failedNodePtr.p->alarmCount = 0;
+  setNodeInfo(failedNodePtr.i).m_heartbeat_cnt= 0;
 
   CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
 
@@ -1871,7 +1872,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
       /*---------------------------------------------------------------------*/
       failedNodePtr.p->failState = NORMAL;
       failedNodePtr.p->phase = ZFAIL_CLOSING;
-      failedNodePtr.p->alarmCount = 0;
+      setNodeInfo(failedNodePtr.i).m_heartbeat_cnt= 0;
 
       CloseComReqConf * const closeCom = 
 	(CloseComReqConf *)&signal->theData[0];
@@ -1965,8 +1966,8 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   }
 
   setNodeInfo(apiNodePtr.i).m_version = version;
-   
-  apiNodePtr.p->alarmCount = 0;
+
+  setNodeInfo(apiNodePtr.i).m_heartbeat_cnt= 0;
 
   ApiRegConf * const apiRegConf = (ApiRegConf *)&signal->theData[0];
   apiRegConf->qmgrRef = reference();
@@ -2484,7 +2485,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
       ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
       nodePtr.p->phase = ZFAIL_CLOSING;
       nodePtr.p->failState = WAITING_FOR_NDB_FAILCONF;
-      nodePtr.p->alarmCount = 0;
+      setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
       c_clusterNodes.clear(nodePtr.i);
     }//for
     /*----------------------------------------------------------------------*/
@@ -2742,7 +2743,7 @@ void Qmgr::failReport(Signal* signal,
     failedNodePtr.p->sendPrepFailReqStatus = Q_NOT_ACTIVE;
     failedNodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
     failedNodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
-    failedNodePtr.p->alarmCount = 0;
+    setNodeInfo(failedNodePtr.i).m_heartbeat_cnt= 0;
     if (aSendFailRep == ZTRUE) {
       jam();
       if (failedNodePtr.i != getOwnNodeId()) {
