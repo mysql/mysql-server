@@ -195,7 +195,6 @@ public:
     
     Uint32 tableId;
     Uint32 schemaVersion;
-    Uint32 frag_mask;
     Uint32 tableType;
     Uint32 noOfNull;
     Uint32 noOfAttributes;
@@ -525,8 +524,6 @@ public:
   ArrayPool<Fragment> c_fragmentPool;
   ArrayPool<Node> c_nodePool;
   ArrayPool<TriggerRecord> c_triggerPool;
-
-  Uint32 calculate_frag_mask(Uint32);
 
   void checkFile(Signal*, BackupFilePtr);
   void checkScan(Signal*, BackupFilePtr);
