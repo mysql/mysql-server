@@ -378,6 +378,10 @@ ErrorBundle ErrorCodes[] = {
   { 1305, IE, "Backup definition not implemented" },
   { 1306, AE, "Backup not supported in diskless mode (change Diskless)" },
 
+  { 1307, AE, "Given NODEGROUP doesn't exist in this cluster" },
+  { 1308, IE, "Given fragmentType doesn't exist" },
+  { 1309, IE, "Primary Table in wrong state" },
+  
   { 1321, IE, "Backup aborted by application" },
   { 1322, IE, "Backup already completed" },
   { 1323, IE, "1323" },
