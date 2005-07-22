@@ -212,15 +212,16 @@ read_view_close_for_mysql(
 /*======================*/
 	trx_t*	trx)	/* in: trx which has a read view */
 {
-	ut_a(trx->read_view);
+	ut_a(trx->global_read_view);
 
 	mutex_enter(&kernel_mutex);
 
-	read_view_close(trx->read_view);
+	read_view_close(trx->global_read_view);
 
-	mem_heap_empty(trx->read_view_heap);
+	mem_heap_empty(trx->global_read_view_heap);
 
 	trx->read_view = NULL;
+	trx->global_read_view = NULL;
 
 	mutex_exit(&kernel_mutex);
 }
@@ -257,4 +258,138 @@ read_view_print(
 			(ulong) ut_dulint_get_high(read_view_get_nth_trx_id(view, i)),
 			(ulong) ut_dulint_get_low(read_view_get_nth_trx_id(view, i)));
 	}
+}
+
+/*************************************************************************
+Create a consistent cursor view for mysql to be used in cursors. In this 
+consistent read view modifications done by the creating transaction or future
+transactions are not visible. */
+
+cursor_view_t*
+read_cursor_view_create_for_mysql(
+/*==============================*/
+	trx_t*	cr_trx)	/* in: trx where cursor view is created */
+{
+	cursor_view_t*	curview;
+	read_view_t*	view;
+	mem_heap_t*	heap;
+	trx_t*		trx;
+	ulint		n;
+
+	ut_a(cr_trx);
+
+	/* Use larger heap than in trx_create when creating a read_view 
+	because cursors are quite long. */
+
+	heap = mem_heap_create(512);
+
+	curview = (cursor_view_t*) mem_heap_alloc(heap, sizeof(cursor_view_t));
+	curview->heap = heap;
+
+	mutex_enter(&kernel_mutex);
+
+	curview->read_view = read_view_create_low(
+				UT_LIST_GET_LEN(trx_sys->trx_list), 
+					curview->heap);
+
+	view = curview->read_view;
+	view->creator = cr_trx;
+
+	/* No future transactions should be visible in the view */
+
+  	view->low_limit_no = trx_sys->max_trx_id;
+	view->low_limit_id = view->low_limit_no;
+
+	view->can_be_too_old = FALSE;
+
+	n = 0;
+	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+
+	/* No active transaction should be visible, not even cr_trx !*/
+
+	while (trx) {
+                if (trx->conc_state == TRX_ACTIVE ||
+			trx->conc_state == TRX_PREPARED) {
+
+			read_view_set_nth_trx_id(view, n, trx->id);
+
+			n++;
+
+			/* NOTE that a transaction whose trx number is <
+			trx_sys->max_trx_id can still be active, if it is
+			in the middle of its commit! Note that when a
+			transaction starts, we initialize trx->no to
+			ut_dulint_max. */
+
+			if (ut_dulint_cmp(view->low_limit_no, trx->no) > 0) {
+
+				view->low_limit_no = trx->no;
+			}	
+		}
+
+		trx = UT_LIST_GET_NEXT(trx_list, trx);
+	}
+
+	view->n_trx_ids = n;		
+
+	if (n > 0) {
+		/* The last active transaction has the smallest id: */
+		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
+	} else {
+		view->up_limit_id = view->low_limit_id;
+	}
+
+	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
+	
+	mutex_exit(&kernel_mutex);
+
+	return(curview);
+}
+
+/*************************************************************************
+Close a given consistent cursor view for and restore global read view
+back to a transaction. */
+
+void
+read_cursor_view_close_for_mysql(
+/*=============================*/
+	trx_t*		trx,	/* in: trx */
+	cursor_view_t*	curview)/* in: cursor view to be closed */
+{
+	ut_a(curview);
+	ut_a(curview->read_view); 
+	ut_a(curview->heap);
+
+	mutex_enter(&kernel_mutex);
+
+	read_view_close(curview->read_view);
+	trx->read_view = trx->global_read_view;
+
+	mutex_exit(&kernel_mutex);
+
+	mem_heap_free(curview->heap);
+}
+	
+/*************************************************************************
+This function sets a given consistent cursor view to a transaction
+read view if given consistent cursor view is not null. Otherwice, function
+restores a global read view to a transaction read view. */
+
+void 
+read_cursor_set_for_mysql(
+/*======================*/
+	trx_t*		trx,	/* in: transaction where cursor is set */
+	cursor_view_t*	curview)/* in: consistent cursor view to be set */
+{
+	ut_a(trx);
+
+	mutex_enter(&kernel_mutex);
+
+	if (UNIV_LIKELY(curview != NULL)) {
+		trx->read_view = curview->read_view;
+	} else {
+		trx->read_view = trx->global_read_view;
+	}
+
+	mutex_exit(&kernel_mutex);
 }
