@@ -3099,4 +3099,28 @@ select @@sort_buffer_size|
 1000000
 set @@sort_buffer_size = @x|
 drop procedure bug9538|
+drop procedure if exists bug8692|
+create table t3 (c1 varchar(5), c2 char(5), c3 enum('one','two'), c4 text, c5 blob, c6 char(5), c7 varchar(5))|
+insert into t3 values ('', '', '', '', '', '', NULL)|
+Warnings:
+Warning	1265	Data truncated for column 'c3' at row 1
+create procedure bug8692()
+begin 
+declare v1 VARCHAR(10); 
+declare v2 VARCHAR(10); 
+declare v3 VARCHAR(10); 
+declare v4 VARCHAR(10); 
+declare v5 VARCHAR(10); 
+declare v6 VARCHAR(10); 
+declare v7 VARCHAR(10); 
+declare c8692 cursor for select c1,c2,c3,c4,c5,c6,c7 from t3; 
+open c8692; 
+fetch c8692 into v1,v2,v3,v4,v5,v6,v7;
+select v1, v2, v3, v4, v5, v6, v7;
+end|
+call bug8692()|
+v1	v2	v3	v4	v5	v6	v7
+						NULL
+drop procedure bug8692|
+drop table t3|
 drop table t1,t2;
