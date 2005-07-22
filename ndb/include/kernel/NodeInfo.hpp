@@ -41,6 +41,7 @@ public:
   Uint32 m_type;          ///< Node type
   Uint32 m_connectCount;  ///< No of times connected
   bool   m_connected;     ///< Node is connected
+  Uint32 m_heartbeat_cnt; ///< Missed heartbeats
   
   friend NdbOut & operator<<(NdbOut&, const NodeInfo&); 
 };
@@ -52,6 +53,7 @@ NodeInfo::NodeInfo(){
   m_signalVersion = 0;
   m_type = INVALID;
   m_connectCount = 0;
+  m_heartbeat_cnt= 0;
 }
 
 inline

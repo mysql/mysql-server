@@ -126,6 +126,10 @@ reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 error){
   //TransporterFacade::instance()->reportDisconnected(nodeId);
 }
 
+void
+transporter_recv_from(void * callbackObj, NodeId nodeId){
+  ((TransporterFacade*)(callbackObj))->hb_received(nodeId);
+}
 
 /****************************************************************************
  * 
