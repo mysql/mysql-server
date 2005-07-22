@@ -606,8 +606,12 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const my_string db);
 void flush_tables();
+#define RTFC_NO_FLAG                0x0000
+#define RTFC_OWNED_BY_THD_FLAG      0x0001
+#define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
+#define RTFC_CHECK_KILLED_FLAG      0x0004
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-			     bool return_if_owned_by_thd=0);
+                             uint flags);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 int fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors);
@@ -776,7 +780,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table);
-void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
+bool mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 bool lock_global_read_lock(THD *thd);
 void unlock_global_read_lock(THD *thd);

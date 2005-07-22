@@ -178,6 +178,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
+    uint flags;
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->real_name))
     {
@@ -186,12 +187,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
 
     abort_locked_tables(thd,db,table->real_name);
-    while (remove_table_from_cache(thd,db,table->real_name) && !thd->killed)
-    {
-      dropping_tables++;
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-      dropping_tables--;
-    }
+    flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
+    remove_table_from_cache(thd,db,table->real_name,flags);
     drop_locked_tables(thd,db,table->real_name);
     if (thd->killed)
       DBUG_RETURN(-1);
@@ -988,13 +985,8 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
   mysql_lock_abort(thd, table);			// end threads waiting on lock
 
   /* Wait until all there are no other threads that has this table open */
-  while (remove_table_from_cache(thd,table->table_cache_key,
-				 table->real_name))
-  {
-    dropping_tables++;
-    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-    dropping_tables--;
-  }
+  remove_table_from_cache(thd,table->table_cache_key,
+                          table->real_name, RTFC_WAIT_OTHER_THREAD_FLAG);
   DBUG_VOID_RETURN;
 }
 
@@ -1306,18 +1298,14 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     /* Close all instances of the table to allow repair to rename files */
     if (lock_type == TL_WRITE && table->table->version)
     {
+      uint flags;
       pthread_mutex_lock(&LOCK_open);
       const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 					      "Waiting to get writelock");
       mysql_lock_abort(thd,table->table);
-      while (remove_table_from_cache(thd, table->table->table_cache_key,
-				     table->table->real_name) &&
-	     ! thd->killed)
-      {
-	dropping_tables++;
-	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-	dropping_tables--;
-      }
+      flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
+      remove_table_from_cache(thd, table->table->table_cache_key,
+                              table->table->real_name, flags);
       thd->exit_cond(old_message);
       if (thd->killed)
 	goto err;
@@ -1384,7 +1372,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       pthread_mutex_lock(&LOCK_open);
       remove_table_from_cache(thd, table->table->table_cache_key,
-			      table->table->real_name);
+			      table->table->real_name, RTFC_NO_FLAG);
       pthread_mutex_unlock(&LOCK_open);
       /* May be something modified consequently we have to invalidate cache */
       query_cache_invalidate3(thd, table->table, 0);
@@ -2109,7 +2097,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (table)
     {
       VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Use new file
-      remove_table_from_cache(thd,db,table_name); // Mark all in-use copies old
+      remove_table_from_cache(thd,db,table_name,RTFC_NO_FLAG);
+                                                 // Mark in-use copies old
       mysql_lock_abort(thd,table);		 // end threads waiting on lock
     }
     VOID(quick_rm_table(old_db_type,db,old_name));

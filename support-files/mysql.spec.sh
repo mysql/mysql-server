@@ -1,7 +1,9 @@
 %define mysql_version		@VERSION@
 %define release			0
+%define license GPL
 %define mysqld_user		mysql
 %define server_suffix -standard
+%define mysqldatadir /var/lib/mysql
 
 # We don't package all files installed into the build root by intention -
 # See BUG#998 for details.
@@ -12,11 +14,9 @@
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
-Group(pt_BR):	Aplicações/Banco_de_Dados
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-License:	GPL
+License:	%{license}
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	Lenz Grimmer <build@mysql.com>
@@ -50,11 +50,8 @@ news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
 
 %package server
-Release: %{release}
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
-Group(pt_BR):	Aplicações/Banco_de_Dados
 Requires: fileutils sh-utils
 Provides:	msqlormysql mysql-server mysql MySQL
 Obsoletes:	MySQL mysql mysql-server
@@ -85,11 +82,8 @@ If you want to access and work with the database, you have to install
 package "MySQL-client" as well!
 
 %package client
-Release: %{release}
 Summary: MySQL - Client
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Cliente
-Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: mysql-client
 Provides: mysql-client
 
@@ -98,16 +92,11 @@ This package contains the standard MySQL clients and administration tools.
 
 %{see_base}
 
-%description client -l pt_BR
-Este pacote contém os clientes padrão para o MySQL.
 
 %package bench
-Release: %{release}
 Requires: %{name}-client perl-DBI perl
 Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
 Provides: mysql-bench
 Obsoletes: mysql-bench
 
@@ -116,15 +105,9 @@ This package contains MySQL benchmark scripts and data.
 
 %{see_base}
 
-%description bench -l pt_BR
-Este pacote contém medições de desempenho de scripts e dados do MySQL.
-
 %package devel
-Release: %{release}
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
 Provides: mysql-devel
 Obsoletes: mysql-devel
 
@@ -134,12 +117,7 @@ necessary to develop MySQL client applications.
 
 %{see_base}
 
-%description devel -l pt_BR
-Este pacote contém os arquivos de cabeçalho (header files) e bibliotecas 
-necessárias para desenvolver aplicações clientes do MySQL. 
-
 %package shared
-Release: %{release}
 Summary: MySQL - Shared libraries
 Group: Applications/Databases
 
@@ -148,12 +126,11 @@ This package contains the shared libraries (*.so*) which certain
 languages and applications need to dynamically load and use MySQL.
 
 %package Max
-Release: %{release}
 Summary: MySQL - server with Berkeley BD, RAID and UDF support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
-Requires: MySQL-server >= 4.0
+Requires: MySQL-server >= @MYSQL_BASE_VERSION@
 
 %description Max 
 Optional MySQL server binary that supports additional features like
@@ -164,12 +141,9 @@ the standard MySQL package.
 Please note that this is a dynamically linked binary!
 
 %package embedded
-Release: %{release}
 Requires: %{name}-devel
 Summary: MySQL - embedded library
 Group: Applications/Databases
-Summary(pt_BR): MySQL - Medições de desempenho
-Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: mysql-embedded
 
 %description embedded
@@ -216,7 +190,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --libdir=%{_libdir} \
             --sysconfdir=%{_sysconfdir} \
             --datadir=%{_datadir} \
-            --localstatedir=/var/lib/mysql \
+            --localstatedir=%{mysqldatadir} \
             --infodir=%{_infodir} \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
@@ -325,7 +299,7 @@ MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
-install -d $RBR/var/lib/mysql/mysql
+install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/{sql-bench,mysql-test}
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
@@ -377,7 +351,7 @@ then
 fi
 
 %post server
-mysql_datadir=/var/lib/mysql
+mysql_datadir=%{mysqldatadir}
 
 # Create data directory if needed
 if test ! -d $mysql_datadir; then mkdir -m755 $mysql_datadir; fi
@@ -395,19 +369,20 @@ then
 	/sbin/chkconfig --add mysql
 fi
 
-# Create a MySQL user. Do not report any problems if it already
-# exists. This is redhat specific and should be handled more portable
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" mysql 2> /dev/null || true 
+# Create a MySQL user and group. Do not report any problems if it already
+# exists.
+groupadd -r -c "MySQL server" %{mysqld_user} 2> /dev/null || true
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_user} %{mysqld_user} 2> /dev/null || true 
 
 # Change permissions so that the user that will run the MySQL daemon
 # owns all database files.
-chown -R mysql $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
 
 # Initiate databases
-mysql_install_db -IN-RPM --user=mysql
+%{_bindir}/mysql_install_db -IN-RPM --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
-chown -R mysql $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
 
 # Fix permissions for the permission database so that only the user
 # can read them.
@@ -587,6 +562,18 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jul 15 2005 Lenz Grimmer <lenz@mysql.com>
+
+- create a "mysql" user group and assign the mysql user account to that group
+  in the server postinstall section. (BUG 10984)
+
+* Wed Jun 01 2005 Lenz Grimmer <lenz@mysql.com>
+
+- use "mysqldatadir" variable instead of hard-coding the path multiple times
+- use the "mysqld_user" variable on all occasions a user name is referenced
+- removed (incomplete) Brazilian translations
+- removed redundant release tags from the subpackage descriptions
+
 * Wed May 25 2005 Joerg Bruehe <joerg@mysql.com>
 
 - Added a "make clean" between separate calls to "BuildMySQL".

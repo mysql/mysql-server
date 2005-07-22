@@ -32,9 +32,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_explain_log \
 			mysql_tableinfo \
-			mysqld_multi \
-			make_win_src_distribution \
-			make_win_binary_distribution
+			mysqld_multi
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
@@ -62,8 +60,6 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug
-
-pkgdata_DATA =		make_binary_distribution make_sharedlib_distribution
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
