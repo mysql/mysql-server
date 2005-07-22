@@ -1142,6 +1142,7 @@ class Item_uint :public Item_int
 public:
   Item_uint(const char *str_arg, uint length);
   Item_uint(uint32 i) :Item_int((ulonglong) i, 10) {}
+  Item_uint(ulong i) :Item_int((ulonglong) i, 10) {}
   Item_uint(const char *str_arg, longlong i, uint length);
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
