@@ -1660,3 +1660,25 @@ uint ha_myisam::checksum() const
   return (uint)file->s->state.checksum;
 }
 
+
+bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
+					   uint table_changes)
+{
+  uint options= table->s->db_options_in_use;
+
+  if (info->auto_increment_value != auto_increment_value ||
+      info->raid_type != raid_type ||
+      info->raid_chunks != raid_chunks ||
+      info->raid_chunksize != raid_chunksize ||
+      info->data_file_name != data_file_name ||
+      info->index_file_name != index_file_name ||
+      table_changes == IS_EQUAL_NO)
+    return COMPATIBLE_DATA_NO;
+
+  if ((options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
+		  HA_OPTION_DELAY_KEY_WRITE)) !=
+      (info->table_options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
+			      HA_OPTION_DELAY_KEY_WRITE)))
+    return COMPATIBLE_DATA_NO;
+  return COMPATIBLE_DATA_YES;
+}

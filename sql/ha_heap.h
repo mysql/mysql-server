@@ -103,6 +103,7 @@ public:
     HEAP_PTR ptr2=*(HEAP_PTR*)ref2;
     return ptr1 < ptr2? -1 : (ptr1 > ptr2? 1 : 0);
   }
+  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 private:
   void update_key_stats();
 };

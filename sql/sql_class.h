@@ -564,6 +564,7 @@ struct system_variables
   my_bool ndb_use_exact_count;
   my_bool ndb_use_transactions;
 #endif /* HAVE_NDBCLUSTER_DB */
+  my_bool old_alter_table;
   my_bool old_passwords;
   
   /* Only charset part of these variables is sensible */

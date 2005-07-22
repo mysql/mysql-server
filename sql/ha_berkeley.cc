@@ -2638,4 +2638,14 @@ int ha_berkeley::cmp_ref(const byte *ref1, const byte *ref2)
   return 0;
 }
 
+
+bool ha_berkeley::check_if_incompatible_data(HA_CREATE_INFO *info,
+					     uint table_changes)
+{
+  if (table_changes < IS_EQUAL_YES)
+    return COMPATIBLE_DATA_NO;
+  return COMPATIBLE_DATA_YES;
+}
+
+
 #endif /* HAVE_BERKELEY_DB */

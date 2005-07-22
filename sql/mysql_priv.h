@@ -391,6 +391,13 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 
 #define STRING_BUFFER_USUAL_SIZE 80
 
+/*
+  Some defines for exit codes for ::is_equal class functions.
+*/
+#define IS_EQUAL_NO 0
+#define IS_EQUAL_YES 1
+#define IS_EQUAL_PACK_LENGTH 2
+
 enum enum_parsing_place
 {
   NO_MATTER,
