@@ -954,6 +954,45 @@ char_length(a)	length(a)	a
 2	2	12
 2	4	ан
 drop table t1;
+set names utf8;
+select 'a\\' like 'a\\';
+'a\\' like 'a\\'
+1
+select 'aa\\' like 'a%\\';
+'aa\\' like 'a%\\'
+1
+create table t1 (a char(10), key(a)) character set utf8;
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%";
+a
+abc
+abcd
+select * from t1 where a like concat("abc","%");
+a
+abc
+abcd
+select * from t1 where a like "ABC%";
+a
+abc
+abcd
+select * from t1 where a like "test%";
+a
+test
+select * from t1 where a like "te_t";
+a
+test
+select * from t1 where a like "%a%";
+a
+a
+abc
+abcd
+select * from t1 where a like "%abcd%";
+a
+abcd
+select * from t1 where a like "%abc\d%";
+a
+abcd
+drop table t1;
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
