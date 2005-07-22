@@ -5427,8 +5427,8 @@ ER_RANGE_NOT_INCREASING_ERROR
         eng "VALUES LESS THAN value must be strictly increasing for each partition"
         swe "Värden i VALUES LESS THAN måste vara strikt växande för varje partition"
 ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
-        eng "VALUES %s value must be of same type as partition function"
-        swe "Värden i VALUES %s måste vara av samma typ som partitioneringsfunktionen"
+        eng "VALUES value must be of same type as partition function"
+        swe "Värden i VALUES måste vara av samma typ som partitioneringsfunktionen"
 ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR
         eng "Multiple definition of same constant in list partitioning"
         swe "Multipel definition av samma konstant i list partitionering"
