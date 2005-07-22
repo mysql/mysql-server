@@ -2888,7 +2888,7 @@ part_list_item:
         part_bit_expr
         {
           longlong *value_ptr;
-          if ((value_ptr= (longlong*)sql_alloc(sizeof(longlong))))
+          if (!(value_ptr= (longlong*)sql_alloc(sizeof(longlong))))
           {
             my_error(ER_OUTOFMEMORY, MYF(0), sizeof(longlong));
             YYABORT;
