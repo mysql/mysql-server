@@ -2858,8 +2858,6 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
   /**
    * Initialize table object
    */
-  tabPtr.p->frag_mask = RNIL;
-
   tabPtr.p->schemaVersion = tmpTab.TableVersion;
   tabPtr.p->noOfAttributes = tmpTab.NoOfAttributes;
   tabPtr.p->noOfNull = 0;
@@ -2952,7 +2950,6 @@ Backup::execDI_FCOUNTCONF(Signal* signal)
   ndbrequire(findTable(ptr, tabPtr, tableId));
   
   ndbrequire(tabPtr.p->fragments.seize(fragCount) != false);
-  tabPtr.p->frag_mask = calculate_frag_mask(fragCount);
   for(Uint32 i = 0; i<fragCount; i++) {
     jam();
     FragmentPtr fragPtr;
@@ -3769,15 +3766,6 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
  * Slave functionallity: Perform logging
  *
  ****************************************************************************/
-Uint32
-Backup::calculate_frag_mask(Uint32 count)
-{
-  Uint32 mask = 1;
-  while (mask < count) mask <<= 1;
-  mask -= 1;
-  return mask;
-}
-
 void
 Backup::execBACKUP_TRIG_REQ(Signal* signal)
 {
@@ -3794,14 +3782,6 @@ Backup::execBACKUP_TRIG_REQ(Signal* signal)
   jamEntry();
   c_triggerPool.getPtr(trigPtr, trigger_id);
   c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
-  frag_id = frag_id & tabPtr.p->frag_mask;
-  /*
-  At the moment the fragment identity known by TUP is the
-  actual fragment id but with possibly an extra bit set.
-  This is due to that ACC splits the fragment. Thus fragment id 5 can
-  here be either 5 or 13. Thus masking with 2 ** n - 1 where number of
-  fragments <= 2 ** n will always provide a correct fragment id.
-  */
   tabPtr.p->fragments.getPtr(fragPtr, frag_id);
   if (fragPtr.p->node != getOwnNodeId()) {
     jam();

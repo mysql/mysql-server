@@ -45,6 +45,10 @@ public:
 		    int recordNo,
 		    int numRecords = 1,
 		    int updatesValue = 0);
+
+  int pkWritePartialRecord(Ndb*,
+			   int recordNo,
+			   int numRecords = 1);
   
   int pkReadRecord(Ndb*,
 		   int recordNo,
