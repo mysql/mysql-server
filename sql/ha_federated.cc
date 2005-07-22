@@ -762,7 +762,6 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
     (*field)->move_field(-old_ptr);
   }
 
-  DBUG_DUMP("record", record, table->s->reclength);
   DBUG_RETURN(0);
 }
 
