@@ -141,6 +141,12 @@ sync_thread_t*	sync_thread_level_arrays;
 /* Mutex protecting sync_thread_level_arrays */
 mutex_t	sync_thread_mutex;
 
+/* Global list of database mutexes (not OS mutexes) created. */
+ut_list_base_node_t  mutex_list;
+
+/* Mutex protecting the mutex_list variable */
+mutex_t mutex_list_mutex;
+
 /* Latching order checks start when this is set TRUE */
 ibool	sync_order_checks_on	= FALSE;
 

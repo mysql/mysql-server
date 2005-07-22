@@ -34,6 +34,7 @@ liboptions_a_CXXFLAGS= $(CXXFLAGS) \
 	-DDEFAULT_MYSQLD_PATH="$(libexecdir)/mysqld$(EXEEXT)" \
 	-DDEFAULT_MONITORING_INTERVAL="20" \
 	-DDEFAULT_PORT="2273" \
+        -DDEFAULT_CONFIG_FILE="/etc/my.cnf" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
 liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
