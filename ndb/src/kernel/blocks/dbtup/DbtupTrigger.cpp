@@ -607,7 +607,7 @@ void Dbtup::executeTrigger(Signal* signal,
     for everybody else.
     */
     signal->theData[0] = trigPtr->triggerId;
-    signal->theData[1] = regOperPtr->fragId;
+    signal->theData[1] = regOperPtr->fragId >> 1; // send "real" frag id
     EXECUTE_DIRECT(BACKUP, GSN_BACKUP_TRIG_REQ, signal, 2);
     ljamEntry();
     if (signal->theData[0] == 0) {

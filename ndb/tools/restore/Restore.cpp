@@ -646,7 +646,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret)
   }
 
   info << "_____________________________________________________" << endl
-       << "Restoring data in table: " << m_currentTable->getTableName() 
+       << "Processing data in table: " << m_currentTable->getTableName() 
        << "(" << Header.TableId << ") fragment " 
        << Header.FragmentNo << endl;
   
