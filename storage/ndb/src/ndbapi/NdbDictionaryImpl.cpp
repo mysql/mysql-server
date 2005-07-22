@@ -505,19 +505,35 @@ NdbTableImpl::buildColumnHash(){
 Uint32
 NdbTableImpl::get_nodes(Uint32 hashValue, const Uint16 ** nodes) const
 {
-  if(m_replicaCount > 0)
+  Uint32 fragmentId;
+  if(m_replicaCount == 0)
+    return 0;
+  switch (m_fragmentType)
   {
-    Uint32 fragmentId = hashValue & m_hashValueMask;
-    if(fragmentId < m_hashpointerValue) 
+    case NdbDictionary::Object::FragAllSmall:
+    case NdbDictionary::Object::FragAllMedium:
+    case NdbDictionary::Object::FragAllLarge:
+    case NdbDictionary::Object::FragSingle:
+    case NdbDictionary::Object::DistrKeyLin:
     {
-      fragmentId = hashValue & ((m_hashValueMask << 1) + 1);
+      fragmentId = hashValue & m_hashValueMask;
+      if(fragmentId < m_hashpointerValue) 
+        fragmentId = hashValue & ((m_hashValueMask << 1) + 1);
+      break;
     }
-    Uint32 pos = fragmentId * m_replicaCount;
-    if(pos + m_replicaCount <= m_fragments.size())
+    case NdbDictionary::Object::DistrKeyHash:
     {
-      * nodes = m_fragments.getBase()+pos;
-      return m_replicaCount;
+      fragmentId = hashValue % m_fragmentCount;
+      break;
     }
+    default:
+      return 0;
+  }
+  Uint32 pos = fragmentId * m_replicaCount;
+  if (pos + m_replicaCount <= m_fragments.size())
+  {
+    *nodes = m_fragments.getBase()+pos;
+    return m_replicaCount;
   }
   return 0;
 }
