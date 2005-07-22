@@ -114,8 +114,7 @@ bool Protocol_cursor::write()
 
   for (; cur_field < fields_end; cur_field++, data_tmp++)
   {
-    if ((len= net_field_length((uchar **)&cp)) == 0 ||
-	len == NULL_LENGTH)
+    if ((len= net_field_length((uchar **)&cp)) == NULL_LENGTH)
     {
       *data_tmp= 0;
     }
