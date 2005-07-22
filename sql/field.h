@@ -29,6 +29,7 @@
 
 class Send_field;
 class Protocol;
+class create_field;
 struct st_cache_field;
 void field_conv(Field *to,Field *from);
 
@@ -315,6 +316,8 @@ public:
   int warn_if_overflow(int op_result);
   /* maximum possible display length */
   virtual uint32 max_length()= 0;
+
+  virtual uint is_equal(create_field *new_field);
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
@@ -355,6 +358,7 @@ public:
   bool eq_def(Field *field);
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
+  uint is_equal(create_field *new_field);
 };
 
 
@@ -379,6 +383,7 @@ public:
   uint32 max_length() { return field_length; }
   friend class create_field;
   my_decimal *val_decimal(my_decimal *);
+  uint is_equal(create_field *new_field);
 };
 
 
@@ -1097,6 +1102,7 @@ public:
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
+  uint is_equal(create_field *new_field);
 };
 
 
