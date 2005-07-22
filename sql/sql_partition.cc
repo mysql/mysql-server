@@ -250,16 +250,7 @@ static bool check_range_constants(partition_info *part_info)
   {
     part_def= it++;
     if ((i != (no_parts - 1)) || !part_info->defined_max_value)
-    {
-      if (likely(part_def->range_expr->result_type() == INT_RESULT))
-        part_range_value_int= part_def->range_expr->val_int(); 
-      else
-      {
-        my_error(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR, MYF(0),
-                 "LESS THAN");
-        goto end;
-      }
-    }
+      part_range_value_int= part_def->range_value; 
     else
       part_range_value_int= LONGLONG_MAX;
     if (likely(current_largest_int < part_range_value_int))
@@ -327,7 +318,7 @@ static int list_part_cmp(const void* a, const void* b)
 static bool check_list_constants(partition_info *part_info)
 {
   uint i, no_list_values= 0, no_parts, list_index= 0;
-  Item *list_expr;
+  longlong *list_value;
   bool not_first, result= TRUE;
   longlong curr_value, prev_value;
   partition_element* part_def;
@@ -342,8 +333,7 @@ static bool check_list_constants(partition_info *part_info)
 
     We use this number to allocate a properly sized array of structs
     to keep the partition id and the value to use in that partition.
-    In the second traversal we check that all Item trees are of the
-    same type (INT_RESULT) and assign them values in the struct array.
+    In the second traversal we assign them values in the struct array.
 
     Finally we sort the array of structs in order of values to enable
     a quick binary search for the proper value to discover the
@@ -357,7 +347,7 @@ static bool check_list_constants(partition_info *part_info)
   do
   {
     part_def= list_func_it++;
-    List_iterator<Item> list_val_it1(part_def->list_expr_list);
+    List_iterator<longlong> list_val_it1(part_def->list_val_list);
     while (list_val_it1++)
       no_list_values++;
   } while (++i < no_parts);
@@ -375,19 +365,11 @@ static bool check_list_constants(partition_info *part_info)
   do
   {
     part_def= list_func_it++;
-    List_iterator<Item> list_val_it2(part_def->list_expr_list);
-    while ((list_expr= list_val_it2++))
+    List_iterator<longlong> list_val_it2(part_def->list_val_list);
+    while ((list_value= list_val_it2++))
     {
-      if (likely(list_expr->result_type() == INT_RESULT))
-      {
-        part_info->list_array[list_index].list_value= list_expr->val_int();
-        part_info->list_array[list_index++].partition_id= i;
-      }
-      else
-      {
-        my_error(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR, MYF(0), "IN");
-        goto end;
-      }
+      part_info->list_array[list_index].list_value= *list_value;
+      part_info->list_array[list_index++].partition_id= i;
     }
   } while (++i < no_parts);
 
@@ -1820,10 +1802,10 @@ static int add_partition_values(File fptr, partition_info *part_info,
   if (part_info->part_type == RANGE_PARTITION)
   {
     err+= add_string(fptr, "VALUES LESS THAN ");
-    if (p_elem->range_expr)
+    if (p_elem->range_value != LONGLONG_MAX)
     {
       err+= add_begin_parenthesis(fptr);
-      err+= add_int(fptr,p_elem->range_expr->val_int());
+      err+= add_int(fptr, p_elem->range_value);
       err+= add_end_parenthesis(fptr);
     }
     else
@@ -1832,15 +1814,15 @@ static int add_partition_values(File fptr, partition_info *part_info,
   else if (part_info->part_type == LIST_PARTITION)
   {
     uint i;
-    List_iterator<Item> list_expr_it(p_elem->list_expr_list);
+    List_iterator<longlong> list_val_it(p_elem->list_val_list);
     err+= add_string(fptr, "VALUES IN ");
-    uint no_items= p_elem->list_expr_list.elements;
+    uint no_items= p_elem->list_val_list.elements;
     err+= add_begin_parenthesis(fptr);
     i= 0;
     do
     {
-      Item *list_expr= list_expr_it++;
-      err+= add_int(fptr, list_expr->val_int());
+      longlong *list_value= list_val_it++;
+      err+= add_int(fptr, *list_value);
       if (i != (no_items-1))
         err+= add_comma(fptr);
     } while (++i < no_items);

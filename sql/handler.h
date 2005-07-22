@@ -402,12 +402,12 @@ class Item;
 class partition_element :public Sql_alloc {
 public:
   List<partition_element> subpartitions;
-  List<Item> list_expr_list;
+  List<longlong> list_val_list;
   ulonglong part_max_rows;
   ulonglong part_min_rows;
   char *partition_name;
   char *tablespace_name;
-  Item* range_expr;
+  longlong range_value;
   char* part_comment;
   char* data_file_name;
   char* index_file_name;
@@ -416,12 +416,12 @@ public:
   
   partition_element()
   : part_max_rows(0), part_min_rows(0), partition_name(NULL),
-    tablespace_name(NULL), range_expr(NULL), part_comment(NULL),
+    tablespace_name(NULL), range_value(0), part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
     engine_type(DB_TYPE_UNKNOWN), nodegroup_id(UNDEF_NODEGROUP)
   {
     subpartitions.empty();
-    list_expr_list.empty();
+    list_val_list.empty();
   }
   ~partition_element() {}
 };
