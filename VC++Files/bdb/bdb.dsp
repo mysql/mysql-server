@@ -158,6 +158,26 @@ SOURCE=.\btree\btree_auto.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\crypto\aes_method.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\crypto\crypto.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\crypto\mersenne\mt19937db.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\crypto\rijndael\rijndael-alg-fst.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\crypto\rijndael\rijndael-api-fst.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\db\crdel_auto.c
 # End Source File
 # Begin Source File
@@ -238,6 +258,10 @@ SOURCE=.\db\db_overflow.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\db\db_ovfl_vrfy.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\db\db_pr.c
 # End Source File
 # Begin Source File
@@ -259,6 +283,18 @@ SOURCE=.\db\db_rename.c
 # Begin Source File
 
 SOURCE=.\db\db_ret.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\db\db_setid.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\db\db_setlsn.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\db\db_stati.c
 # End Source File
 # Begin Source File
 
@@ -306,6 +342,10 @@ SOURCE=.\dbreg\dbreg_rec.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\dbreg\dbreg_stat.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\dbreg\dbreg_util.c
 # End Source File
 # Begin Source File
@@ -327,6 +367,10 @@ SOURCE=.\env\env_recover.c
 # Begin Source File
 
 SOURCE=.\env\env_region.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\env\env_stat.c
 # End Source File
 # Begin Source File
 
@@ -418,6 +462,14 @@ SOURCE=.\lock\lock_deadlock.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\lock\lock_id.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\lock\lock_list.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\lock\lock_method.c
 # End Source File
 # Begin Source File
@@ -427,6 +479,10 @@ SOURCE=.\lock\lock_region.c
 # Begin Source File
 
 SOURCE=.\lock\lock_stat.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\lock\lock_timer.c
 # End Source File
 # Begin Source File
 
@@ -458,6 +514,10 @@ SOURCE=.\log\log_put.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\log\log_stat.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\mp\mp_alloc.c
 # End Source File
 # Begin Source File
@@ -467,6 +527,10 @@ SOURCE=.\mp\mp_bh.c
 # Begin Source File
 
 SOURCE=.\mp\mp_fget.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\mp\mp_fmethod.c
 # End Source File
 # Begin Source File
 
@@ -614,6 +678,10 @@ SOURCE=.\os\os_tmpdir.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\os_win32\os_truncate.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\os_win32\os_type.c
 # End Source File
 # Begin Source File
@@ -662,6 +730,14 @@ SOURCE=.\qam\qam_verify.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\rep\rep_auto.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rep\rep_backup.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\rep\rep_method.c
 # End Source File
 # Begin Source File
@@ -671,6 +747,10 @@ SOURCE=.\rep\rep_record.c
 # Begin Source File
 
 SOURCE=.\rep\rep_region.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\rep\rep_stat.c
 # End Source File
 # Begin Source File
 
