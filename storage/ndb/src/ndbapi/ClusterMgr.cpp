@@ -214,7 +214,7 @@ ClusterMgr::threadMain( ){
 	 * It is now time to send a new Heartbeat
 	 */
 	if (theNode.hbCounter >= theNode.hbFrequency) {
-	  theNode.hbSent++;
+	  theNode.m_info.m_heartbeat_cnt++;
 	  theNode.hbCounter = 0;
 	}
 
@@ -231,7 +231,7 @@ ClusterMgr::threadMain( ){
 	theFacade.sendSignalUnCond(&signal, nodeId);
       }//if
       
-      if (theNode.hbSent == 4 && theNode.hbFrequency > 0){
+      if (theNode.m_info.m_heartbeat_cnt == 4 && theNode.hbFrequency > 0){
 	reportNodeFailed(i);
       }//if
     }
@@ -337,7 +337,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
       node.compatible = ndbCompatible_api_ndb(NDB_VERSION,
 					      node.m_info.m_version);
   }
-  
+
   node.m_state = apiRegConf->nodeState;
   if (node.compatible && (node.m_state.startLevel == NodeState::SL_STARTED  ||
 			  node.m_state.startLevel == NodeState::SL_SINGLEUSER)){
@@ -345,7 +345,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   } else {
     set_node_alive(node, false);
   }//if
-  node.hbSent = 0;
+  node.m_info.m_heartbeat_cnt = 0;
   node.hbCounter = 0;
   if (node.m_info.m_type != NodeInfo::REP) {
     node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
@@ -414,7 +414,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
 
   Node & theNode = theNodes[nodeId];
   theNode.connected = true;
-  theNode.hbSent = 0;
+  theNode.m_info.m_heartbeat_cnt = 0;
   theNode.hbCounter = 0;
 
   /**

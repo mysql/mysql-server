@@ -918,6 +918,7 @@ TransporterRegistry::performReceive()
       NodeId remoteNodeId;
       Uint32 * readPtr;
       Uint32 sz = theOSEReceiver->getReceiveData(&remoteNodeId, &readPtr);
+      transporter_recv_from(callbackObj, remoteNodeId);
       Uint32 szUsed = unpack(readPtr,
 			     sz,
 			     remoteNodeId,
@@ -953,6 +954,7 @@ TransporterRegistry::performReceive()
 	  {
 	    Uint32 * ptr;
 	    Uint32 sz = t->getReceiveData(&ptr);
+	    transporter_recv_from(callbackObj, nodeId);
 	    Uint32 szUsed = unpack(ptr, sz, nodeId, ioStates[nodeId]);
 	    t->updateReceiveDataPtr(szUsed);
           }
@@ -976,6 +978,7 @@ TransporterRegistry::performReceive()
       {
 	Uint32 * readPtr, * eodPtr;
 	t->getReceivePtr(&readPtr, &eodPtr);
+	transporter_recv_from(callbackObj, nodeId);
 	Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
 	t->updateReceivePtr(newPtr);
       }
@@ -993,6 +996,7 @@ TransporterRegistry::performReceive()
       {
 	Uint32 * readPtr, * eodPtr;
 	t->getReceivePtr(&readPtr, &eodPtr);
+	transporter_recv_from(callbackObj, nodeId);
 	Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
 	t->updateReceivePtr(newPtr);
       }
