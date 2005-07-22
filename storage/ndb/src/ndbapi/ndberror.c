@@ -344,6 +344,9 @@ ErrorBundle ErrorCodes[] = {
   { 743,  SE, "Unsupported character set in table or index" },
   { 744,  SE, "Character string is invalid for given character set" },
   { 745,  SE, "Distribution key not supported for char attribute (use binary attribute)" },
+  { 747,  AE, "Given NODEGROUP doesn't exist in this cluster" },
+  { 748,  IE, "Given fragmentType doesn't exist" },
+  { 749,  IE, "Primary Table in wrong state" },
   { 761,  SE, "Unable to drop table as backup is in progress" },
   { 762,  SE, "Unable to alter table as backup is in progress" },
   { 241,  SE, "Invalid schema object version" },
@@ -378,10 +381,6 @@ ErrorBundle ErrorCodes[] = {
   { 1305, IE, "Backup definition not implemented" },
   { 1306, AE, "Backup not supported in diskless mode (change Diskless)" },
 
-  { 1307, AE, "Given NODEGROUP doesn't exist in this cluster" },
-  { 1308, IE, "Given fragmentType doesn't exist" },
-  { 1309, IE, "Primary Table in wrong state" },
-  
   { 1321, IE, "Backup aborted by application" },
   { 1322, IE, "Backup already completed" },
   { 1323, IE, "1323" },
