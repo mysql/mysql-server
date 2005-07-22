@@ -24,7 +24,7 @@ description: MySQL - fast and reliable SQL database
 # repository is commercial it can be an internal email address or "none"
 # to disable logging.
 # 
-logging:  logging@openlogging.org
+logging:  none
 # 
 # If this field is set, all checkins will appear to be made by this user,
 # in effect making this a single user package.  Single user packages are
@@ -73,3 +73,8 @@ hours:
 [nick:]checkout:get
 checkout:edit
 eoln:unix
+
+license: BKL5433d4e6925a06a150001200fff9b
+licsign1: YgAAAo0AAAADgAAAAEYUtZil1XCmH6z+LTlQMDJ+1ZeBLIgtHo1azUxQ8/8G1JuW
+licsign2: fxW3y9raSlpYVAleJSaBDKYiVtEuSdaUN2ILLo6Wc8TJmLl0aprUy7Lh/m/Sq/YC
+licsign3: 0H7qah3bdItuw7NGNSLfBzigbKOF6kPbU84VlAUhOqLR2e5Zf32SBZhtCYGA

@@ -65,6 +65,7 @@ inline int field_type2index (enum_field_types field_type)
           ((int)FIELDTYPE_TEAR_FROM) + (field_type - FIELDTYPE_TEAR_TO) - 1);
 }
 
+
 static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
 {
   /* MYSQL_TYPE_DECIMAL -> */
@@ -5920,6 +5921,26 @@ int Field_str::store(double nr)
 }
 
 
+uint Field::is_equal(create_field *new_field)
+{
+  return (new_field->sql_type == type());
+}
+
+
+uint Field_str::is_equal(create_field *new_field)
+{
+  if (((new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
+       !(flags & (BINCMP_FLAG | BINARY_FLAG))) ||
+      (!(new_field->flags & (BINCMP_FLAG | BINARY_FLAG)) &&
+	(flags & (BINCMP_FLAG | BINARY_FLAG))))
+    return 0; /* One of the fields is binary and the other one isn't */
+
+  return ((new_field->sql_type == type()) &&
+	  new_field->charset == field_charset &&
+	  new_field->length == max_length());
+}
+
+
 int Field_string::store(longlong nr)
 {
   char buff[64];
@@ -6673,6 +6694,22 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
     res->length_bytes= 2;
   }
   return res;
+}
+
+
+uint Field_varstring::is_equal(create_field *new_field)
+{
+  if (new_field->sql_type == type() &&
+      new_field->charset == field_charset)
+  {
+    if (new_field->length == max_length())
+      return IS_EQUAL_YES;
+    if (new_field->length > max_length() &&
+	((new_field->length <= 255 && max_length() <= 255) ||
+	 (new_field->length > 255 && max_length() > 255)))
+      return IS_EQUAL_PACK_LENGTH; // VARCHAR, longer variable length
+  }
+  return IS_EQUAL_NO;
 }
 
 
@@ -7774,6 +7811,17 @@ bool Field_num::eq_def(Field *field)
       dec != from_num->dec)
     return 0;
   return 1;
+}
+
+
+uint Field_num::is_equal(create_field *new_field)
+{
+  return ((new_field->sql_type == type()) &&
+	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
+							 UNSIGNED_FLAG)) &&
+	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
+	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
+	  (new_field->length >= max_length()));
 }
 
 

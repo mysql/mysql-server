@@ -214,6 +214,8 @@ class ha_innobase: public handler
         static ulonglong get_mysql_bin_log_pos();
         bool primary_key_is_clustered() { return true; }
         int cmp_ref(const byte *ref1, const byte *ref2);
+	bool ha_innobase::check_if_incompatible_data(HA_CREATE_INFO *info,
+						     uint table_changes);
 };
 
 extern struct show_var_st innodb_status_variables[];

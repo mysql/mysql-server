@@ -218,6 +218,9 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MAXGTRIDSIZE 64
 #define MAXBQUALSIZE 64
 
+#define COMPATIBLE_DATA_YES 0
+#define COMPATIBLE_DATA_NO  1
+
 struct xid_t {
   long formatID;
   long gtrid_length;
@@ -1005,6 +1008,9 @@ public:
      Pops the top if condition stack, if stack is not empty
  */
  virtual void cond_pop() { return; };
+ virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
+					 uint table_changes)
+ { return COMPATIBLE_DATA_NO; }
 };
 
 	/* Some extern variables used with handlers */
