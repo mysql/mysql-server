@@ -114,6 +114,9 @@ public:
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
+  // heart beat received from a node (e.g. a signal came)
+  void hb_received(NodeId n);
+
 private:
   /**
    * Send a signal unconditional of node status (used by ClusterMgr)
@@ -293,6 +296,12 @@ TransporterFacade::get_node_alive(NodeId n) const {
 
   const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
   return node.m_alive;
+}
+
+inline
+void
+TransporterFacade::hb_received(NodeId n) {
+  theClusterMgr->hb_received(n);
 }
 
 inline

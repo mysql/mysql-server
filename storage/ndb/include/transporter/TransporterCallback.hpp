@@ -341,5 +341,8 @@ enum TransporterError {
  */ 
 void 
 reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode); 
+
+void
+transporter_recv_from(void* callbackObj, NodeId node);
  
 #endif   
