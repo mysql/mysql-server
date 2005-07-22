@@ -86,7 +86,8 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
-                opt_complete_insert= 0, opt_drop_database= 0;
+                opt_complete_insert= 0, opt_drop_database= 0,
+                opt_dump_triggers= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static my_bool insert_pat_inited=0;
@@ -371,6 +372,9 @@ static struct my_option my_long_options[] =
    (gptr*) &path, (gptr*) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tables", OPT_TABLES, "Overrides option --databases (-B).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"triggers", '/0', "Dump triggers for each dumped table",
+     (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
+     NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.",
    (gptr*) &current_user, (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG,
@@ -1315,6 +1319,37 @@ static uint get_table_structure(char *table, char *db)
       fprintf(sql_file, "%s;\n", row[1]);
       check_io(sql_file);
       mysql_free_result(tableRes);
+      if (opt_dump_triggers &&
+          mysql_get_server_version(sock) >= 50009)
+      {
+        my_snprintf(query_buff, sizeof(query_buff),
+                    "SHOW TRIGGERS LIKE %s",
+                    quote_for_like(table, name_buff));
+
+
+        if (mysql_query_with_error_report(sock, &tableRes, query_buff))
+        {
+          if (path)
+            my_fclose(sql_file, MYF(MY_WME));
+          safe_exit(EX_MYSQLERR);
+          DBUG_RETURN(0);
+        }
+        if (mysql_num_rows(tableRes))
+          fprintf(sql_file, "\nDELIMITER //;\n");
+        while ((row=mysql_fetch_row(tableRes)))
+        {
+          fprintf(sql_file, "CREATE TRIGGER %s %s %s ON %s\n"
+                  "FOR EACH ROW%s//\n\n",
+                  quote_name(row[0], name_buff, 0),
+                  row[4],
+                  row[1],
+                  result_table,
+                  row[3]);
+        }
+        if (mysql_num_rows(tableRes))
+          fprintf(sql_file, "DELIMITER ;//");
+        mysql_free_result(tableRes);
+      }
     }
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
