@@ -317,7 +317,7 @@ main(int argc, char** argv)
   
   if (ga_restore || ga_print) 
   {
-    if (ga_restore) 
+    if(_restore_data || _print_data)
     {
       RestoreDataIterator dataIter(metaData, &free_data_callback);
       
@@ -364,7 +364,10 @@ main(int argc, char** argv)
       
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfTuples();
+    }
 
+    if(_restore_data || _print_log)
+    {
       RestoreLogIterator logIter(metaData);
       if (!logIter.readHeader())
       {
@@ -388,6 +391,10 @@ main(int argc, char** argv)
       logIter.validateFooter(); //not implemented
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfLogEntrys();
+    }
+    
+    if(_restore_data)
+    {
       for(i = 0; i<metaData.getNoOfTables(); i++)
       {
 	if (checkSysTable(metaData[i]->getTableName()))
