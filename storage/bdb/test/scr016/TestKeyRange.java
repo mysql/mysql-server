@@ -1,13 +1,15 @@
-/*NOTE: TestKeyRange is AccessExample changed to test Db.key_range.
- * See comments with ADDED for specific areas of change.
- */
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestKeyRange.java,v 1.4 2002/08/16 19:35:55 dda Exp $
+ * $Id: TestKeyRange.java,v 1.7 2004/01/28 03:36:34 bostic Exp $
+ */
+
+/*
+ * NOTE: TestKeyRange is AccessExample changed to test Db.key_range.
+ * See comments with ADDED for specific areas of change.
  */
 
 package com.sleepycat.test;
@@ -103,8 +105,8 @@ public class TestKeyRange
         // Create the database object.
         // There is no environment for this simple example.
         Db table = new Db(null, 0);
-        table.set_error_stream(System.err);
-        table.set_errpfx("TestKeyRange");
+        table.setErrorStream(System.err);
+        table.setErrorPrefix("TestKeyRange");
         table.open(null, FileName, null, Db.DB_BTREE, Db.DB_CREATE, 0644);
 
         //
@@ -143,7 +145,7 @@ public class TestKeyRange
 	    {
 		    if (count++ > 0) {
 			    DbKeyRange range = new DbKeyRange();
-			    table.key_range(null, key, range, 0);
+			    table.keyRange(null, key, range, 0);
 			    System.out.println("less: " + range.less);
 			    System.out.println("equal: " + range.equal);
 			    System.out.println("greater: " + range.greater);
@@ -180,24 +182,24 @@ public class TestKeyRange
     {
         StringDbt()
         {
-            set_flags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
+            setFlags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
         }
 
         StringDbt(String value)
         {
             setString(value);
-            set_flags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
+            setFlags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
         }
 
         void setString(String value)
         {
-            set_data(value.getBytes());
-            set_size(value.length());
+            setData(value.getBytes());
+            setSize(value.length());
         }
 
         String getString()
         {
-            return new String(get_data(), 0, get_size());
+            return new String(getData(), 0, getSize());
         }
     }
 }

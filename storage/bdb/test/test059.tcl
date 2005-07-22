@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test059.tcl,v 11.18 2002/06/11 15:10:16 sue Exp $
+# $Id: test059.tcl,v 11.20 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test059
 # TEST	Cursor ops work with a partial length of 0.

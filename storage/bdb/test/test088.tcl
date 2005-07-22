@@ -1,16 +1,18 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test088.tcl,v 11.12 2002/08/05 19:23:51 sandstro Exp $
+# $Id: test088.tcl,v 11.15 2004/05/13 18:51:44 mjc Exp $
 #
 # TEST	test088
 # TEST	Test of cursor stability across btree splits with very
 # TEST	deep trees (a variant of test048). [#2514]
 proc test088 { method args } {
-	global errorCode alphabet
 	source ./include.tcl
+	global alphabet
+	global errorCode
+	global is_je_test
 
 	set tstn 088
 	set args [convert_args $method $args]
@@ -119,7 +121,7 @@ proc test088 { method args } {
 
 	puts "\tTest$tstn.e: Make sure splits happened."
 	# XXX cannot execute stat in presence of txns and cursors.
-	if { $txnenv == 0 } {
+	if { $txnenv == 0 && !$is_je_test } {
 		error_check_bad stat:check-split [is_substr [$db stat] \
 						"{{Internal pages} 0}"] 1
 	}

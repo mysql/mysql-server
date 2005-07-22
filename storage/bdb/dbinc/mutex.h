@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mutex.h,v 11.71 2002/09/10 01:36:48 bostic Exp $
+ * $Id: mutex.h,v 11.100 2004/10/05 14:41:12 mjc Exp $
  */
 
 #ifndef _DB_MUTEX_H_
@@ -77,12 +77,34 @@
 #ifdef HAVE_MUTEX_AIX_CHECK_LOCK
 #include <sys/atomic_op.h>
 typedef int tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	sizeof(int)
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #define	MUTEX_INIT(x)	0
 #define	MUTEX_SET(x)	(!_check_lock(x, 0, 1))
 #define	MUTEX_UNSET(x)	_clear_lock(x, 0)
+#endif
+#endif
+
+/*********************************************************************
+ * Apple/Darwin library functions.
+ *********************************************************************/
+#ifdef HAVE_MUTEX_DARWIN_SPIN_LOCK_TRY
+typedef u_int32_t tsl_t;
+
+#ifndef	MUTEX_ALIGN
+#define	MUTEX_ALIGN	sizeof(int)
+#endif
+
+#ifdef LOAD_ACTUAL_MUTEX_CODE
+extern int _spin_lock_try(tsl_t *);
+extern void _spin_unlock(tsl_t *);
+#define	MUTEX_SET(tsl)          _spin_lock_try(tsl)
+#define	MUTEX_UNSET(tsl)        _spin_unlock(tsl)
+#define	MUTEX_INIT(tsl)         (MUTEX_UNSET(tsl), 0)
 #endif
 #endif
 
@@ -104,14 +126,17 @@ typedef int tsl_t;
 #define	MUTEX_NO_MALLOC_LOCKS
 #define	MUTEX_NO_SHMGET_LOCKS
 
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	16
+#define	HPUX_MUTEX_PAD	 8
+#endif
 #endif
 
 #if defined(HAVE_MUTEX_MSEM_INIT) || defined(HAVE_MUTEX_HPPA_MSEM_INIT)
 #include <sys/mman.h>
 typedef msemaphore tsl_t;
 
-#ifndef MUTEX_ALIGN
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	sizeof(int)
 #endif
 
@@ -128,7 +153,9 @@ typedef msemaphore tsl_t;
 #ifdef HAVE_MUTEX_PLAN9
 typedef Lock tsl_t;
 
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	sizeof(int)
+#endif
 
 #define	MUTEX_INIT(x)	(memset(x, 0, sizeof(Lock)), 0)
 #define	MUTEX_SET(x)	canlock(x)
@@ -159,7 +186,10 @@ typedef spinlock_t tsl_t;
 #ifdef HAVE_MUTEX_SEMA_INIT
 #include <synch.h>
 typedef sema_t tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	 sizeof(int)
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #define	MUTEX_DESTROY(x) sema_destroy(x)
@@ -175,7 +205,10 @@ typedef sema_t tsl_t;
 #ifdef HAVE_MUTEX_SGI_INIT_LOCK
 #include <abi_mutex.h>
 typedef abilock_t tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	sizeof(int)
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #define	MUTEX_INIT(x)	(init_lock(x) != 0)
@@ -194,7 +227,10 @@ typedef abilock_t tsl_t;
 #ifdef HAVE_MUTEX_SOLARIS_LOCK_TRY
 #include <sys/machlock.h>
 typedef lock_t tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	sizeof(int)
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #define	MUTEX_INIT(x)	0
@@ -209,8 +245,11 @@ typedef lock_t tsl_t;
 #ifdef HAVE_MUTEX_VMS
 #include <sys/mman.h>;
 #include <builtins.h>
-typedef unsigned char tsl_t;
+typedef volatile unsigned char tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN		sizeof(unsigned int)
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #ifdef __ALPHA
@@ -234,7 +273,10 @@ typedef unsigned char tsl_t;
 #ifdef HAVE_MUTEX_VXWORKS
 #include "taskLib.h"
 typedef SEM_ID tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN		sizeof(unsigned int)
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #define	MUTEX_SET(tsl)		(semTake((*tsl), WAIT_FOREVER) == OK)
@@ -249,8 +291,7 @@ typedef SEM_ID tsl_t;
  * trying to initialize the global lock at the same time.
  */
 #undef	DB_BEGIN_SINGLE_THREAD
-#define	DB_BEGIN_SINGLE_THREAD						\
-do {									\
+#define	DB_BEGIN_SINGLE_THREAD do {					\
 	if (DB_GLOBAL(db_global_init))					\
 		(void)semTake(DB_GLOBAL(db_global_lock), WAIT_FOREVER);	\
 	else {								\
@@ -283,7 +324,10 @@ do {									\
  *********************************************************************/
 #ifdef HAVE_MUTEX_WIN16
 typedef unsigned int tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN		sizeof(unsigned int)
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #define	MUTEX_INIT(x)		0
@@ -295,19 +339,34 @@ typedef unsigned int tsl_t;
 /*********************************************************************
  * Win32
  *********************************************************************/
-#ifdef HAVE_MUTEX_WIN32
+#if defined(HAVE_MUTEX_WIN32) || defined(HAVE_MUTEX_WIN32_GCC)
 #define	MUTEX_FIELDS							\
 	LONG tas;							\
 	LONG nwaiters;							\
-	union {								\
-		HANDLE event;	/* Windows event HANDLE for wakeups */	\
-		u_int32_t id;	/* ID used for shared mutexes */	\
-	} /* anonymous */;
+	u_int32_t id;	/* ID used for creating events */		\
 
 #if defined(LOAD_ACTUAL_MUTEX_CODE)
 #define	MUTEX_SET(tsl)		(!InterlockedExchange((PLONG)tsl, 1))
 #define	MUTEX_UNSET(tsl)	(*(tsl) = 0)
 #define	MUTEX_INIT(tsl)		MUTEX_UNSET(tsl)
+
+/*
+ * From Intel's performance tuning documentation (and see SR #6975):
+ * ftp://download.intel.com/design/perftool/cbts/appnotes/sse2/w_spinlock.pdf
+ *
+ * "For this reason, it is highly recommended that you insert the PAUSE
+ * instruction into all spin-wait code immediately. Using the PAUSE
+ * instruction does not affect the correctness of programs on existing
+ * platforms, and it improves performance on Pentium 4 processor platforms."
+ */
+#ifdef HAVE_MUTEX_WIN32
+#ifndef _WIN64
+#define	MUTEX_PAUSE		{__asm{_emit 0xf3}; __asm{_emit 0x90}}
+#endif
+#endif
+#ifdef HAVE_MUTEX_WIN32_GCC
+#define	MUTEX_PAUSE		asm volatile ("rep; nop" : : );
+#endif
 #endif
 #endif
 
@@ -318,9 +377,8 @@ typedef unsigned int tsl_t;
 typedef unsigned char tsl_t;
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
-/*
- * For gcc/68K, 0 is clear, 1 is set.
- */
+#define	MUTEX_SET_TEST	1		/* gcc/68K: 0 is clear, 1 is set. */
+
 #define	MUTEX_SET(tsl) ({						\
 	register tsl_t *__l = (tsl);					\
 	int __r;							\
@@ -342,14 +400,16 @@ typedef unsigned char tsl_t;
  *********************************************************************/
 #ifdef HAVE_MUTEX_ALPHA_GCC_ASSEMBLY
 typedef u_int32_t tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	4
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 /*
  * For gcc/alpha.  Should return 0 if could not acquire the lock, 1 if
  * lock was acquired properly.
  */
-#ifdef __GNUC__
 static inline int
 MUTEX_SET(tsl_t *tsl) {
 	register tsl_t *__l = tsl;
@@ -377,15 +437,27 @@ MUTEX_UNSET(tsl_t *tsl) {
 	asm volatile("	mb\n");
 	return *tsl = 0;
 }
-#endif
-
-#ifdef __DECC
-#include <alpha/builtins.h>
-#define	MUTEX_SET(tsl)		(__LOCK_LONG_RETRY((tsl), 1) != 0)
-#define	MUTEX_UNSET(tsl)	(*(tsl) = 0)
-#endif
 
 #define	MUTEX_INIT(tsl)		MUTEX_UNSET(tsl)
+#endif
+#endif
+
+/*********************************************************************
+ * Tru64/cc assembly.
+ *********************************************************************/
+#ifdef HAVE_MUTEX_TRU64_CC_ASSEMBLY
+typedef volatile u_int32_t tsl_t;
+
+#ifndef	MUTEX_ALIGN
+#define	MUTEX_ALIGN	4
+#endif
+
+#ifdef LOAD_ACTUAL_MUTEX_CODE
+#include <alpha/builtins.h>
+#define	MUTEX_SET(tsl)		(__LOCK_LONG_RETRY((tsl), 1) != 0)
+#define	MUTEX_UNSET(tsl)	(__UNLOCK_LONG(tsl))
+
+#define	MUTEX_INIT(tsl)		(MUTEX_UNSET(tsl), 0)
 #endif
 #endif
 
@@ -396,15 +468,15 @@ MUTEX_UNSET(tsl_t *tsl) {
 typedef unsigned char tsl_t;
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
-/*
- * For arm/gcc, 0 is clear, 1 is set.
- */
+#define	MUTEX_SET_TEST	1		/* gcc/arm: 0 is clear, 1 is set. */
+
 #define	MUTEX_SET(tsl) ({						\
 	int __r;							\
-	asm volatile("swpb %0, %1, [%2]"				\
-	    : "=r" (__r) 						\
-	    : "0" (1), "r" (tsl)					\
-	    : "memory"							\
+	asm volatile(							\
+		"swpb	%0, %1, [%2]\n\t"				\
+		"eor	%0, %0, #1\n\t"					\
+	    : "=&r" (__r)						\
+	    : "r" (1), "r" (tsl)					\
 	    );								\
 	__r & 1;							\
 })
@@ -419,7 +491,11 @@ typedef unsigned char tsl_t;
  *********************************************************************/
 #ifdef HAVE_MUTEX_HPPA_GCC_ASSEMBLY
 typedef u_int32_t tsl_t;
+
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	16
+#define	HPUX_MUTEX_PAD	 8
+#endif
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 /*
@@ -446,9 +522,8 @@ typedef u_int32_t tsl_t;
 typedef unsigned char tsl_t;
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
-/*
- * For gcc/ia64, 0 is clear, 1 is set.
- */
+#define	MUTEX_SET_TEST	1		/* gcc/ia64: 0 is clear, 1 is set. */
+
 #define	MUTEX_SET(tsl) ({						\
 	register tsl_t *__l = (tsl);					\
 	long __r;							\
@@ -468,8 +543,7 @@ typedef unsigned char tsl_t;
 /*********************************************************************
  * PowerPC/gcc assembly.
  *********************************************************************/
-#if defined(HAVE_MUTEX_PPC_GENERIC_GCC_ASSEMBLY) ||			\
-    (HAVE_MUTEX_PPC_APPLE_GCC_ASSEMBLY)
+#if defined(HAVE_MUTEX_PPC_GCC_ASSEMBLY)
 typedef u_int32_t tsl_t;
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
@@ -503,54 +577,56 @@ typedef u_int32_t tsl_t;
  *
  * 'set' mutexes have the value 1, like on Intel; the returned value from
  * MUTEX_SET() is 1 if the mutex previously had its low bit clear, 0 otherwise.
- *
- * Mutexes on Mac OS X work the same way as the standard PowerPC version, but
- * the assembler syntax is subtly different -- the standard PowerPC version
- * assembles but doesn't work correctly.  This version makes (unnecessary?)
- * use of a stupid linker trick: __db_mutex_tas_dummy is never called, but the
- * ___db_mutex_set label is used as a function name.
  */
-#ifdef HAVE_MUTEX_PPC_APPLE_GCC_ASSEMBLY
-extern int __db_mutex_set __P((volatile tsl_t *));
-void
-__db_mutex_tas_dummy()
-{
-	__asm__	__volatile__("		\n\
-	.globl 	___db_mutex_set		\n\
-___db_mutex_set:			\n\
-	lwarx	r5,0,r3			\n\
-	cmpwi 	r5,0			\n\
-	bne 	fail			\n\
-	addi 	r5,r5,1			\n\
-	stwcx. 	r5,0,r3			\n\
-	beq 	success			\n\
-fail:					\n\
-	li 	r3,0			\n\
-	blr 				\n\
-success:				\n\
-	li 	r3,1			\n\
-	blr");	
+#define	MUTEX_SET_TEST	1		/* gcc/ppc: 0 is clear, 1 is set. */
+
+static inline int
+MUTEX_SET(int *tsl)  {
+         int __r;
+         int __tmp = (int)tsl;
+    asm volatile (
+"0:                             \n\t"
+"       lwarx   %0,0,%2         \n\t"
+"       cmpwi   %0,0            \n\t"
+"       bne-    1f              \n\t"
+"       stwcx.  %2,0,%2         \n\t"
+"       isync                   \n\t"
+"       beq+    2f              \n\t"
+"       b       0b              \n\t"
+"1:                             \n\t"
+"       li      %1, 0           \n\t"
+"2:                             \n\t"
+         : "=&r" (__r), "=r" (tsl)
+         : "r" (__tmp)
+         : "cr0", "memory");
+         return (int)tsl;
 }
-#define	MUTEX_SET(tsl)  __db_mutex_set(tsl)
+
+static inline int
+MUTEX_UNSET(tsl_t *tsl) {
+         asm volatile("sync" : : : "memory");
+         return *tsl = 0;
+}
+#define	MUTEX_INIT(tsl)		MUTEX_UNSET(tsl)
 #endif
-#ifdef HAVE_MUTEX_PPC_GENERIC_GCC_ASSEMBLY
-#define	MUTEX_SET(tsl)	({		\
-	int __one = 1;			\
-	int __r;			\
-	tsl_t *__l = (tsl);		\
-	asm volatile ("			\
-0:					\
-	lwarx %0,0,%1;			\
-	cmpwi %0,0;			\
-	bne 1f;				\
-	stwcx. %2,0,%1;			\
-	bne- 0b;			\
-1:"					\
-	: "=&r" (__r)			\
-	: "r" (__l), "r" (__one));	\
-	!(__r & 1);			\
-})
 #endif
+
+/*********************************************************************
+ * OS/390 C
+ *********************************************************************/
+#ifdef HAVE_MUTEX_S390_CC_ASSEMBLY
+typedef int tsl_t;
+
+#ifndef	MUTEX_ALIGN
+#define	MUTEX_ALIGN	sizeof(int)
+#endif
+
+#ifdef LOAD_ACTUAL_MUTEX_CODE
+/*
+ * cs() is declared in <stdlib.h> but is built in to the compiler.
+ * Must use LANGLVL(EXTENDED) to get its declaration.
+ */
+#define	MUTEX_SET(tsl)		(!cs(&zero, (tsl), 1))
 #define	MUTEX_UNSET(tsl)	(*(tsl) = 0)
 #define	MUTEX_INIT(tsl)		MUTEX_UNSET(tsl)
 #endif
@@ -563,9 +639,8 @@ success:				\n\
 typedef int tsl_t;
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
-/*
- * For gcc/S390, 0 is clear, 1 is set.
- */
+#define	MUTEX_SET_TEST	1		/* gcc/S390: 0 is clear, 1 is set. */
+
 static inline int
 MUTEX_SET(tsl_t *tsl) {							\
 	register tsl_t *__l = (tsl);					\
@@ -595,9 +670,8 @@ typedef unsigned char tsl_t;
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 /*
  * UnixWare has threads in libthread, but OpenServer doesn't (yet).
- *
- * For cc/x86, 0 is clear, 1 is set.
  */
+#define	MUTEX_SET_TEST	1		/* cc/x86: 0 is clear, 1 is set. */
 
 #if defined(__USLC__)
 asm int
@@ -637,9 +711,9 @@ typedef unsigned char tsl_t;
  * so is functional there as well.  For v7, stbar may generate an illegal
  * instruction and we have no way to tell what we're running on.  Some
  * operating systems notice and skip this instruction in the fault handler.
- *
- * For gcc/sparc, 0 is clear, 1 is set.
  */
+#define	MUTEX_SET_TEST	1		/* gcc/sparc: 0 is clear, 1 is set. */
+
 #define	MUTEX_SET(tsl) ({						\
 	register tsl_t *__l = (tsl);					\
 	register tsl_t __r;						\
@@ -660,7 +734,10 @@ typedef unsigned char tsl_t;
 #ifdef HAVE_MUTEX_UTS_CC_ASSEMBLY
 typedef int tsl_t;
 
+#ifndef	MUTEX_ALIGN
 #define	MUTEX_ALIGN	sizeof(int)
+#endif
+
 #ifdef LOAD_ACTUAL_MUTEX_CODE
 #define	MUTEX_INIT(x)	0
 #define	MUTEX_SET(x)	(!uts_lock(x, 1))
@@ -675,9 +752,8 @@ typedef int tsl_t;
 typedef unsigned char tsl_t;
 
 #ifdef LOAD_ACTUAL_MUTEX_CODE
-/*
- * For gcc/x86, 0 is clear, 1 is set.
- */
+#define	MUTEX_SET_TEST	1		/* gcc/x86: 0 is clear, 1 is set. */
+
 #define	MUTEX_SET(tsl) ({						\
 	register tsl_t *__l = (tsl);					\
 	int __r;							\
@@ -690,6 +766,17 @@ typedef unsigned char tsl_t;
 
 #define	MUTEX_UNSET(tsl)	(*(tsl) = 0)
 #define	MUTEX_INIT(tsl)		MUTEX_UNSET(tsl)
+
+/*
+ * From Intel's performance tuning documentation (and see SR #6975):
+ * ftp://download.intel.com/design/perftool/cbts/appnotes/sse2/w_spinlock.pdf
+ *
+ * "For this reason, it is highly recommended that you insert the PAUSE
+ * instruction into all spin-wait code immediately. Using the PAUSE
+ * instruction does not affect the correctness of programs on existing
+ * platforms, and it improves performance on Pentium 4 processor platforms."
+ */
+#define	MUTEX_PAUSE		asm volatile ("rep; nop" : : );
 #endif
 #endif
 
@@ -717,33 +804,38 @@ typedef unsigned char tsl_t;
 
 /*
  * !!!
- * These defines are separated into the u_int8_t flags stored in the
- * mutex below, and the 32 bit flags passed to __db_mutex_setup.
- * But they must co-exist and not overlap.  Flags to __db_mutex_setup are:
+ * The flag arguments for __db_mutex_setup (and the underlying initialization
+ * function for the mutex type, for example, __db_tas_mutex_init), and flags
+ * stored in the DB_MUTEX structure are combined, and may not overlap.  Flags
+ * to __db_mutex_setup:
  *
- * MUTEX_ALLOC - Use when the mutex to initialize needs to be allocated.
- *    The 'ptr' arg to __db_mutex_setup should be a DB_MUTEX ** whenever
- *    you use this flag.  If this flag is not set, the 'ptr' arg is
- *    a DB_MUTEX *.
- * MUTEX_NO_RECORD - Explicitly do not record the mutex in the region.
- *    Otherwise the mutex will be recorded by default.  If you set
- *    this you need to understand why you don't need it recorded.  The
- *    *only* ones not recorded are those that are part of region structures
- *    that only get destroyed when the regions are destroyed.
- * MUTEX_NO_RLOCK - Explicitly do not lock the given region otherwise
- *    the region will be locked by default.
- * MUTEX_SELF_BLOCK - Set if self blocking mutex.
- * MUTEX_THREAD - Set if mutex is a thread-only mutex.
+ * MUTEX_ALLOC:
+ *	Use when the mutex to initialize needs to be allocated. The 'ptr'
+ *	arg to __db_mutex_setup should be a DB_MUTEX ** whenever you use
+ *	this flag.  If this flag is not set, the 'ptr' arg is a DB_MUTEX *.
+ * MUTEX_NO_RECORD:
+ *	Explicitly do not record the mutex in the region.  Otherwise the
+ *	mutex will be recorded by default.  If you set this you need to
+ *	understand why you don't need it recorded.  The *only* ones not
+ *	recorded are those that are part of region structures that only
+ *	get destroyed when the regions are destroyed.
+ * MUTEX_NO_RLOCK:
+ *	Explicitly do not lock the given region otherwise the region will
+ *	be locked by default.
+ * MUTEX_SELF_BLOCK:
+ *	Set if self blocking mutex.
+ * MUTEX_THREAD:
+ *	Set if mutex is a thread-only mutex.
  */
-#define	MUTEX_IGNORE		0x001	/* Ignore, no lock required. */
-#define	MUTEX_INITED		0x002	/* Mutex is successfully initialized */
-#define	MUTEX_MPOOL		0x004	/* Allocated from mpool. */
-#define	MUTEX_SELF_BLOCK	0x008	/* Must block self. */
-/* Flags only, may be larger than 0xff. */
-#define	MUTEX_ALLOC		0x00000100 /* Allocate and init a mutex */
-#define	MUTEX_NO_RECORD		0x00000200 /* Do not record lock */
-#define	MUTEX_NO_RLOCK		0x00000400 /* Do not acquire region lock */
-#define	MUTEX_THREAD		0x00000800 /* Thread-only mutex. */
+#define	MUTEX_ALLOC		0x0001	/* Allocate and init a mutex */
+#define	MUTEX_IGNORE		0x0002	/* Ignore, no lock required. */
+#define	MUTEX_INITED		0x0004	/* Mutex is successfully initialized */
+#define	MUTEX_LOGICAL_LOCK	0x0008	/* Mutex backs database lock. */
+#define	MUTEX_MPOOL		0x0010	/* Allocated from mpool. */
+#define	MUTEX_NO_RECORD		0x0020	/* Do not record lock */
+#define	MUTEX_NO_RLOCK		0x0040	/* Do not acquire region lock */
+#define	MUTEX_SELF_BLOCK	0x0080	/* Must block self. */
+#define	MUTEX_THREAD		0x0100	/* Thread-only mutex. */
 
 /* Mutex. */
 struct __mutex_t {
@@ -753,7 +845,6 @@ struct __mutex_t {
 #else
 	tsl_t	tas;			/* Test and set. */
 #endif
-	u_int32_t spins;		/* Spins before block. */
 	u_int32_t locked;		/* !0 if locked. */
 #else
 	u_int32_t off;			/* Byte offset to lock. */
@@ -766,9 +857,18 @@ struct __mutex_t {
 #ifdef HAVE_MUTEX_SYSTEM_RESOURCES
 	roff_t	  reg_off;		/* Shared lock info offset. */
 #endif
-
-	u_int8_t  flags;		/* MUTEX_XXX */
+	/*
+	 * Flags should be an unsigned integer even if it's not required by
+	 * the possible flags values, getting a single byte on some machines
+	 * is expensive, and the mutex structure is a MP hot spot.
+	 */
+	u_int32_t flags;		/* MUTEX_XXX */
 };
+
+/* Macro to clear mutex statistics. */
+#define	MUTEX_CLEAR(mp) {						\
+	(mp)->mutex_set_wait = (mp)->mutex_set_nowait = 0;		\
+}
 
 /* Redirect calls to the correct functions. */
 #ifdef HAVE_MUTEX_THREADS
@@ -779,7 +879,8 @@ struct __mutex_t {
 #define	__db_mutex_lock(a, b)		__db_pthread_mutex_lock(a, b)
 #define	__db_mutex_unlock(a, b)		__db_pthread_mutex_unlock(a, b)
 #define	__db_mutex_destroy(a)		__db_pthread_mutex_destroy(a)
-#elif defined(HAVE_MUTEX_WIN32)
+#else
+#if defined(HAVE_MUTEX_WIN32) || defined(HAVE_MUTEX_WIN32_GCC)
 #define	__db_mutex_init_int(a, b, c, d)	__db_win32_mutex_init(a, b, d)
 #define	__db_mutex_lock(a, b)		__db_win32_mutex_lock(a, b)
 #define	__db_mutex_unlock(a, b)		__db_win32_mutex_unlock(a, b)
@@ -789,6 +890,7 @@ struct __mutex_t {
 #define	__db_mutex_lock(a, b)		__db_tas_mutex_lock(a, b)
 #define	__db_mutex_unlock(a, b)		__db_tas_mutex_unlock(a, b)
 #define	__db_mutex_destroy(a)		__db_tas_mutex_destroy(a)
+#endif
 #endif
 #else
 #define	__db_mutex_init_int(a, b, c, d)	__db_fcntl_mutex_init(a, b, c)

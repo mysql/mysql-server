@@ -8,8 +8,9 @@ use constant IGNORE => 'ignore' ;
 
 %constants = (
 
+
 	#########
-	# 2.0.0
+	# 2.0.3
 	#########
 
 	DBM_INSERT                 => IGNORE,
@@ -92,10 +93,12 @@ use constant IGNORE => 'ignore' ;
 	DB_RDONLY                  => DEFINE,
 	DB_REGISTERED              => DEFINE,
 	DB_RE_MODIFIED             => IGNORE,
+	DB_SEQUENTIAL              => DEFINE,
 	DB_SET                     => DEFINE,
 	DB_SET_RANGE               => DEFINE,
 	DB_SNAPSHOT                => DEFINE,
 	DB_SWAPBYTES               => DEFINE,
+	DB_TEMPORARY               => DEFINE,
 	DB_TRUNCATE                => DEFINE,
 	DB_TXNMAGIC                => DEFINE,
 	DB_TXNVERSION              => DEFINE,
@@ -122,36 +125,29 @@ use constant IGNORE => 'ignore' ;
 	const                      => IGNORE,
 
 	# enum DBTYPE
-	DB_BTREE                   => '2.0.0',
-	DB_HASH                    => '2.0.0',
-	DB_RECNO                   => '2.0.0',
-	DB_UNKNOWN                 => '2.0.0',
+	DB_BTREE                   => '2.0.3',
+	DB_HASH                    => '2.0.3',
+	DB_RECNO                   => '2.0.3',
+	DB_UNKNOWN                 => '2.0.3',
 
 	# enum db_lockop_t
-	DB_LOCK_DUMP               => '2.0.0',
-	DB_LOCK_GET                => '2.0.0',
-	DB_LOCK_PUT                => '2.0.0',
-	DB_LOCK_PUT_ALL            => '2.0.0',
-	DB_LOCK_PUT_OBJ            => '2.0.0',
+	DB_LOCK_DUMP               => '2.0.3',
+	DB_LOCK_GET                => '2.0.3',
+	DB_LOCK_PUT                => '2.0.3',
+	DB_LOCK_PUT_ALL            => '2.0.3',
+	DB_LOCK_PUT_OBJ            => '2.0.3',
 
 	# enum db_lockmode_t
-	DB_LOCK_NG                 => IGNORE, # 2.0.0
-	DB_LOCK_READ               => IGNORE, # 2.0.0
-	DB_LOCK_WRITE              => IGNORE, # 2.0.0
-	DB_LOCK_IREAD              => IGNORE, # 2.0.0
-	DB_LOCK_IWRITE             => IGNORE, # 2.0.0
-	DB_LOCK_IWR                => IGNORE, # 2.0.0
+	DB_LOCK_NG                 => IGNORE, # 2.0.3
+	DB_LOCK_READ               => IGNORE, # 2.0.3
+	DB_LOCK_WRITE              => IGNORE, # 2.0.3
+	DB_LOCK_IREAD              => IGNORE, # 2.0.3
+	DB_LOCK_IWRITE             => IGNORE, # 2.0.3
+	DB_LOCK_IWR                => IGNORE, # 2.0.3
 
 	# enum ACTION
-	FIND                       => IGNORE, # 2.0.0
-	ENTER                      => IGNORE, # 2.0.0
-
-	#########
-	# 2.0.3
-	#########
-
-	DB_SEQUENTIAL              => DEFINE,
-	DB_TEMPORARY               => DEFINE,
+	FIND                       => IGNORE, # 2.0.3
+	ENTER                      => IGNORE, # 2.0.3
 
 	#########
 	# 2.1.0
@@ -199,22 +195,12 @@ use constant IGNORE => 'ignore' ;
 	DB_RE_SNAPSHOT             => IGNORE,
 
 	#########
-	# 2.3.1
-	#########
-
-	DB_GET_RECNO               => DEFINE,
-	DB_SET_RECNO               => DEFINE,
-
-	#########
-	# 2.3.3
+	# 2.3.10
 	#########
 
 	DB_APPEND                  => DEFINE,
-
-	#########
-	# 2.3.6
-	#########
-
+	DB_GET_RECNO               => DEFINE,
+	DB_SET_RECNO               => DEFINE,
 	DB_TXN_CKP                 => DEFINE,
 
 	#########
@@ -295,7 +281,7 @@ use constant IGNORE => 'ignore' ;
 	__UNUSED_4000              => IGNORE,
 
 	#########
-	# 2.5.2
+	# 2.5.9
 	#########
 
 	DBC_CONTINUE               => IGNORE,
@@ -303,19 +289,14 @@ use constant IGNORE => 'ignore' ;
 	DBC_RECOVER                => IGNORE,
 	DBC_RMW                    => IGNORE,
 	DB_DBM_ERROR               => IGNORE,
+	DB_DUPSORT                 => DEFINE,
 	DB_GET_BOTH                => DEFINE,
+	DB_JOIN_ITEM               => DEFINE,
 	DB_NEXT_DUP                => DEFINE,
 	DB_OPFLAGS_MASK            => DEFINE,
 	DB_RMW                     => DEFINE,
 	DB_RUNRECOVERY             => DEFINE,
 	dbmclose                   => IGNORE,
-
-	#########
-	# 2.5.9
-	#########
-
-	DB_DUPSORT                 => DEFINE,
-	DB_JOIN_ITEM               => DEFINE,
 
 	#########
 	# 2.6.4
@@ -409,7 +390,7 @@ use constant IGNORE => 'ignore' ;
 	DB_QUEUE                   => '3.0.55',
 
 	#########
-	# 3.1.12
+	# 3.1.14
 	#########
 
 	DBC_ACTIVE                 => IGNORE,
@@ -443,49 +424,34 @@ use constant IGNORE => 'ignore' ;
 	DB_VRFY_FLAGMASK           => DEFINE,
 
 	# enum db_recops
-	DB_TXN_ABORT               => '3.1.12',
-	DB_TXN_BACKWARD_ROLL       => '3.1.12',
-	DB_TXN_FORWARD_ROLL        => '3.1.12',
-	DB_TXN_OPENFILES           => '3.1.12',
+	DB_TXN_ABORT               => '3.1.14',
+	DB_TXN_BACKWARD_ROLL       => '3.1.14',
+	DB_TXN_FORWARD_ROLL        => '3.1.14',
+	DB_TXN_OPENFILES           => '3.1.14',
 
 	#########
-	# 3.2.3
+	# 3.2.9
 	#########
 
 	DBC_COMPENSATE             => IGNORE,
+	DB_ALREADY_ABORTED         => DEFINE,
 	DB_AM_VERIFYING            => IGNORE,
 	DB_CDB_ALLDB               => DEFINE,
+	DB_CONSUME_WAIT            => DEFINE,
 	DB_ENV_CDB_ALLDB           => DEFINE,
 	DB_EXTENT                  => DEFINE,
+	DB_JAVA_CALLBACK           => DEFINE,
 	DB_JOINENV                 => DEFINE,
 	DB_LOCK_SWITCH             => DEFINE,
 	DB_MPOOL_EXTENT            => DEFINE,
 	DB_REGION_MAGIC            => DEFINE,
-	DB_UNRESOLVED_CHILD        => DEFINE,
 	DB_VERIFY                  => DEFINE,
 
-	# enum db_notices
-	DB_NOTICE_LOGFILE_CHANGED  => IGNORE, # 3.2.3
-
-	#########
-	# 3.2.6
-	#########
-
-	DB_ALREADY_ABORTED         => DEFINE,
-	DB_CONSUME_WAIT            => DEFINE,
-	DB_JAVA_CALLBACK           => DEFINE,
-	DB_TEST_POSTEXTDELETE      => DEFINE,
-	DB_TEST_POSTEXTOPEN        => DEFINE,
-	DB_TEST_POSTEXTUNLINK      => DEFINE,
-	DB_TEST_PREEXTDELETE       => DEFINE,
-	DB_TEST_PREEXTOPEN         => DEFINE,
-	DB_TEST_PREEXTUNLINK       => DEFINE,
-
 	# enum db_lockmode_t
-	DB_LOCK_WAIT               => IGNORE, # 3.2.6
+	DB_LOCK_WAIT               => IGNORE, # 3.2.9
 
 	#########
-	# 3.3.4
+	# 3.3.11
 	#########
 
 	DBC_DIRTY_READ             => IGNORE,
@@ -508,35 +474,31 @@ use constant IGNORE => 'ignore' ;
 	DB_PAGE_NOTFOUND           => DEFINE,
 	DB_RPC_SERVERPROG          => DEFINE,
 	DB_RPC_SERVERVERS          => DEFINE,
-	DB_UPDATE_SECONDARY        => DEFINE,
-	DB_XIDDATASIZE             => DEFINE,
-
-	# enum db_recops
-	DB_TXN_POPENFILES          => '3.3.4',
-
-	# enum db_lockop_t
-	DB_LOCK_UPGRADE_WRITE      => '3.3.4',
-
-	# enum db_lockmode_t
-	DB_LOCK_DIRTY              => IGNORE, # 3.3.4
-	DB_LOCK_WWRITE             => IGNORE, # 3.3.4
-
-	#########
-	# 3.3.11
-	#########
-
 	DB_SECONDARY_BAD           => DEFINE,
 	DB_SURPRISE_KID            => DEFINE,
 	DB_TEST_POSTDESTROY        => DEFINE,
 	DB_TEST_PREDESTROY         => DEFINE,
+	DB_UPDATE_SECONDARY        => DEFINE,
+	DB_XIDDATASIZE             => DEFINE,
+
+	# enum db_recops
+	DB_TXN_POPENFILES          => '3.3.11',
+
+	# enum db_lockop_t
+	DB_LOCK_UPGRADE_WRITE      => '3.3.11',
+
+	# enum db_lockmode_t
+	DB_LOCK_DIRTY              => IGNORE, # 3.3.11
+	DB_LOCK_WWRITE             => IGNORE, # 3.3.11
 
 	#########
-	# 4.0.7
+	# 4.0.14
 	#########
 
 	DB_APPLY_LOGREG            => DEFINE,
-	DB_BROADCAST_EID           => DEFINE,
 	DB_CL_WRITER               => DEFINE,
+	DB_EID_BROADCAST           => DEFINE,
+	DB_EID_INVALID             => DEFINE,
 	DB_ENV_NOLOCKING           => DEFINE,
 	DB_ENV_NOPANIC             => DEFINE,
 	DB_ENV_REGION_INIT         => DEFINE,
@@ -545,7 +507,6 @@ use constant IGNORE => 'ignore' ;
 	DB_ENV_REP_MASTER          => DEFINE,
 	DB_ENV_YIELDCPU            => DEFINE,
 	DB_GET_BOTH_RANGE          => DEFINE,
-	DB_INVALID_EID             => DEFINE,
 	DB_LOCK_EXPIRE             => DEFINE,
 	DB_LOCK_FREE_LOCKER        => DEFINE,
 	DB_LOCK_SET_TIMEOUT        => DEFINE,
@@ -571,6 +532,7 @@ use constant IGNORE => 'ignore' ;
 	DB_SET_TXN_TIMEOUT         => DEFINE,
 	DB_STAT_CLEAR              => DEFINE,
 	DB_TIMEOUT                 => DEFINE,
+	DB_VERB_REPLICATION        => DEFINE,
 	DB_YIELDCPU                => DEFINE,
 	MP_FLUSH                   => IGNORE,
 	MP_OPEN_CALLED             => IGNORE,
@@ -587,26 +549,18 @@ use constant IGNORE => 'ignore' ;
 	TXN_SYNC                   => IGNORE,
 
 	# enum db_recops
-	DB_TXN_APPLY               => '4.0.7',
+	DB_TXN_APPLY               => '4.0.14',
 
 	# enum db_lockop_t
-	DB_LOCK_GET_TIMEOUT        => '4.0.7',
-	DB_LOCK_PUT_READ           => '4.0.7',
-	DB_LOCK_TIMEOUT            => '4.0.7',
+	DB_LOCK_GET_TIMEOUT        => '4.0.14',
+	DB_LOCK_PUT_READ           => '4.0.14',
+	DB_LOCK_TIMEOUT            => '4.0.14',
 
 	# enum db_status_t
-	DB_LSTAT_EXPIRED           => IGNORE, # 4.0.7
+	DB_LSTAT_EXPIRED           => IGNORE, # 4.0.14
 
 	#########
-	# 4.0.14
-	#########
-
-	DB_EID_BROADCAST           => DEFINE,
-	DB_EID_INVALID             => DEFINE,
-	DB_VERB_REPLICATION        => DEFINE,
-
-	#########
-	# 4.1.17
+	# 4.1.24
 	#########
 
 	DBC_OWN_LID                => IGNORE,
@@ -661,22 +615,97 @@ use constant IGNORE => 'ignore' ;
 	_DB_EXT_PROT_IN_           => IGNORE,
 
 	# enum db_lockop_t
-	DB_LOCK_TRADE              => '4.1.17',
+	DB_LOCK_TRADE              => '4.1.24',
 
 	# enum db_status_t
-	DB_LSTAT_NOTEXIST          => IGNORE, # 4.1.17
+	DB_LSTAT_NOTEXIST          => IGNORE, # 4.1.24
 
 	# enum DB_CACHE_PRIORITY
-	DB_PRIORITY_VERY_LOW       => '4.1.17',
-	DB_PRIORITY_LOW            => '4.1.17',
-	DB_PRIORITY_DEFAULT        => '4.1.17',
-	DB_PRIORITY_HIGH           => '4.1.17',
-	DB_PRIORITY_VERY_HIGH      => '4.1.17',
+	DB_PRIORITY_VERY_LOW       => '4.1.24',
+	DB_PRIORITY_LOW            => '4.1.24',
+	DB_PRIORITY_DEFAULT        => '4.1.24',
+	DB_PRIORITY_HIGH           => '4.1.24',
+	DB_PRIORITY_VERY_HIGH      => '4.1.24',
 
 	# enum db_recops
-	DB_TXN_BACKWARD_ALLOC      => '4.1.17',
-	DB_TXN_GETPGNOS            => '4.1.17',
-	DB_TXN_PRINT               => '4.1.17',
+	DB_TXN_BACKWARD_ALLOC      => '4.1.24',
+	DB_TXN_PRINT               => '4.1.24',
+
+	#########
+	# 4.2.50
+	#########
+
+	DB_AM_NOT_DURABLE          => IGNORE,
+	DB_AM_REPLICATION          => IGNORE,
+	DB_ARCH_REMOVE             => DEFINE,
+	DB_CHKSUM                  => DEFINE,
+	DB_ENV_LOG_AUTOREMOVE      => DEFINE,
+	DB_ENV_TIME_NOTGRANTED     => DEFINE,
+	DB_ENV_TXN_NOT_DURABLE     => DEFINE,
+	DB_FILEOPEN                => DEFINE,
+	DB_INIT_REP                => DEFINE,
+	DB_LOG_AUTOREMOVE          => DEFINE,
+	DB_LOG_CHKPNT              => DEFINE,
+	DB_LOG_COMMIT              => DEFINE,
+	DB_LOG_NOCOPY              => DEFINE,
+	DB_LOG_NOT_DURABLE         => DEFINE,
+	DB_LOG_PERM                => DEFINE,
+	DB_LOG_WRNOSYNC            => DEFINE,
+	DB_MPOOL_NOFILE            => DEFINE,
+	DB_MPOOL_UNLINK            => DEFINE,
+	DB_NO_AUTO_COMMIT          => DEFINE,
+	DB_REP_CREATE              => DEFINE,
+	DB_REP_HANDLE_DEAD         => DEFINE,
+	DB_REP_ISPERM              => DEFINE,
+	DB_REP_NOBUFFER            => DEFINE,
+	DB_REP_NOTPERM             => DEFINE,
+	DB_RPCCLIENT               => DEFINE,
+	DB_TIME_NOTGRANTED         => DEFINE,
+	DB_TXN_NOT_DURABLE         => DEFINE,
+	DB_debug_FLAG              => DEFINE,
+	DB_user_BEGIN              => DEFINE,
+	MP_FILEID_SET              => IGNORE,
+	TXN_RESTORED               => IGNORE,
+
+	#########
+	# 4.3.12
+	#########
+
+	DBC_DEGREE_2               => IGNORE,
+	DB_AM_INORDER              => IGNORE,
+	DB_BUFFER_SMALL            => DEFINE,
+	DB_DEGREE_2                => DEFINE,
+	DB_DSYNC_LOG               => DEFINE,
+	DB_DURABLE_UNKNOWN         => DEFINE,
+	DB_ENV_DSYNC_LOG           => DEFINE,
+	DB_ENV_LOG_INMEMORY        => DEFINE,
+	DB_INORDER                 => DEFINE,
+	DB_LOCK_ABORT              => DEFINE,
+	DB_LOCK_MAXWRITE           => DEFINE,
+	DB_LOG_BUFFER_FULL         => DEFINE,
+	DB_LOG_INMEMORY            => DEFINE,
+	DB_LOG_RESEND              => DEFINE,
+	DB_MPOOL_FREE              => DEFINE,
+	DB_REP_EGENCHG             => DEFINE,
+	DB_REP_LOGREADY            => DEFINE,
+	DB_REP_PAGEDONE            => DEFINE,
+	DB_REP_STARTUPDONE         => DEFINE,
+	DB_SEQUENCE_VERSION        => DEFINE,
+	DB_SEQ_DEC                 => DEFINE,
+	DB_SEQ_INC                 => DEFINE,
+	DB_SEQ_RANGE_SET           => DEFINE,
+	DB_SEQ_WRAP                => DEFINE,
+	DB_STAT_ALL                => DEFINE,
+	DB_STAT_LOCK_CONF          => DEFINE,
+	DB_STAT_LOCK_LOCKERS       => DEFINE,
+	DB_STAT_LOCK_OBJECTS       => DEFINE,
+	DB_STAT_LOCK_PARAMS        => DEFINE,
+	DB_STAT_MEMP_HASH          => DEFINE,
+	DB_STAT_SUBSYSTEM          => DEFINE,
+	DB_UNREF                   => DEFINE,
+	DB_VERSION_MISMATCH        => DEFINE,
+	TXN_DEADLOCK               => IGNORE,
+	TXN_DEGREE_2               => IGNORE,
 
 	) ;
 

@@ -1,13 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb010.tcl,v 11.14 2002/07/11 18:53:47 sandstro Exp $
+# $Id: sdb010.tcl,v 11.19 2004/10/18 17:34:17 carol Exp $
 #
-# TEST	subdb010
+# TEST	sdb010
 # TEST	Test DB->remove() method and DB->truncate() for subdbs
-proc subdb010 { method args } {
+proc sdb010 { method args } {
 	global errorCode
 	source ./include.tcl
 
@@ -25,25 +25,24 @@ proc subdb010 { method args } {
 	set envargs ""
 	set eindex [lsearch -exact $args "-env"]
 	#
-	# If we are using an env, then testfile should just be the db name.
-	# Otherwise it is the test directory and the name.
+	# If we are not given an env, create one.
 	if { $eindex == -1 } {
-		set testfile $testdir/subdb010.db
-		set tfpath $testfile
-		set env NULL
+		set env [berkdb_env -create -home $testdir -mode 0644] 
+		error_check_good env_open [is_valid_env $env] TRUE
 	} else {
-		set testfile subdb010.db
 		incr eindex
 		set env [lindex $args $eindex]
-		set envargs " -env $env "
-		set txnenv [is_txnenv $env]
-		if { $txnenv == 1 } {
-			append args " -auto_commit "
-			append envargs " -auto_commit "
-		}
-		set testdir [get_home $env]
-		set tfpath $testdir/$testfile
 	}
+	set testfile subdb010.db
+	set envargs " -env $env "
+	set txnenv [is_txnenv $env]
+	if { $txnenv == 1 } {
+		append args " -auto_commit "
+		append envargs " -auto_commit "
+	}
+	set testdir [get_home $env]
+	set tfpath $testdir/$testfile
+
 	cleanup $testdir $env
 
 	set txn ""
@@ -51,7 +50,7 @@ proc subdb010 { method args } {
 	set testdb2 DATABASE2
 
 	set db [eval {berkdb_open -create -mode 0644} $omethod \
-	    $args $testfile $testdb]
+	    $args $envargs $testfile $testdb]
 	error_check_good db_open [is_valid_db $db] TRUE
 	error_check_good db_close [$db close] 0
 
@@ -64,7 +63,8 @@ proc subdb010 { method args } {
 	error_check_good file_exists_after [file exists $tfpath] 1
 
 	# But database should not.
-	set ret [catch {eval berkdb_open $omethod $args $testfile $testdb} res]
+	set ret [catch {eval berkdb_open $omethod \
+	    $args $envargs $testfile $testdb} res]
 	error_check_bad open_failed ret 0
 	error_check_good open_failed_ret [is_substr $errorCode ENOENT] 1
 
@@ -77,7 +77,7 @@ proc subdb010 { method args } {
 	set data2 [pad_data $method data2]
 
 	set db [eval {berkdb_open -create -mode 0644} $omethod \
-	    $args {$testfile $testdb}]
+	    $args $envargs {$testfile $testdb}]
 	error_check_good db_open [is_valid_db $db] TRUE
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -90,7 +90,7 @@ proc subdb010 { method args } {
 	}
 
 	set db2 [eval {berkdb_open -create -mode 0644} $omethod \
-	    $args $testfile $testdb2]
+	    $args $envargs $testfile $testdb2]
 	error_check_good db_open [is_valid_db $db2] TRUE
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -110,7 +110,7 @@ proc subdb010 { method args } {
 	# Return value should be 1, the count of how many items were
 	# destroyed when we truncated.
 	set db [eval {berkdb_open -create -mode 0644} $omethod \
-	    $args $testfile $testdb]
+	    $args $envargs $testfile $testdb]
 	error_check_good db_open [is_valid_db $db] TRUE
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -124,7 +124,7 @@ proc subdb010 { method args } {
 	error_check_good db_close [$db close] 0
 
 	puts "\tSubdb010.d: check"
-	set db [eval {berkdb_open} $args {$testfile $testdb}]
+	set db [eval {berkdb_open} $args $envargs {$testfile $testdb}]
 	error_check_good db_open [is_valid_db $db] TRUE
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -140,7 +140,7 @@ proc subdb010 { method args } {
 		error_check_good txn [$t commit] 0
 	}
 
-	set db2 [eval {berkdb_open} $args {$testfile $testdb2}]
+	set db2 [eval {berkdb_open} $args $envargs {$testfile $testdb2}]
 	error_check_good db_open [is_valid_db $db2] TRUE
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -162,5 +162,9 @@ proc subdb010 { method args } {
 
 	error_check_good db_close [$db close] 0
 	error_check_good db_close [$db2 close] 0
-	puts "\tSubdb010 succeeded."
+
+	# If we created our env, close it.
+	if { $eindex == -1 } {
+		error_check_good env_close [$env close] 0
+	}
 }

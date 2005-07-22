@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: chk.rr,v 1.1 2002/04/19 15:13:05 bostic Exp $
+# $Id: chk.rr,v 1.5 2004/10/07 20:40:43 bostic Exp $
 
 d=../..
 
@@ -8,11 +8,16 @@ t1=__1
 
 # Check for DB_RUNRECOVERY being specified instead of a call to db_panic.
 egrep DB_RUNRECOVERY $d/*/*.c |
-    sed -e '/common\/db_err.c:/d' \
-        -e '/libdb_java\/java_util.c:/d' \
+    sed -e '/__db_panic(.*, DB_RUNRECOVERY)/d' \
+	-e '/case DB_RUNRECOVERY:/d' \
 	-e '/db_dispatch.c:.*if (ret == DB_RUNRECOVERY/d' \
+	-e '/db_err.c:/d' \
+	-e '/os_errno.c:.*evalue == DB_RUNRECOVERY/d' \
+	-e '/\/php_db4\//d' \
+	-e '/rep_backup.c:.*Panic the env and return DB_RUNRECOVERY/d' \
 	-e '/txn.c:.* \* DB_RUNRECOVERY and we need to/d' \
-	-e '/__db_panic(.*, DB_RUNRECOVERY)/d' > $t1
+	-e '/txn.c:.*returned DB_RUNRECOVERY and we need to/d' \
+	> $t1
 [ -s $t1 ] && {
 	echo "DB_RUNRECOVERY used; should be a call to db_panic."
 	cat $t1

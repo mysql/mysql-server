@@ -1,17 +1,19 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb011.tcl,v 11.9 2002/07/11 18:53:47 sandstro Exp $
+# $Id: sdb011.tcl,v 11.14 2004/01/28 03:36:29 bostic Exp $
 #
-# TEST	subdb011
+# TEST	sdb011
 # TEST	Test deleting Subdbs with overflow pages
 # TEST	Create 1 db with many large subdbs.
 # TEST	Test subdatabases with overflow pages.
-proc subdb011 { method {ndups 13} {nsubdbs 10} args} {
+proc sdb011 { method {ndups 13} {nsubdbs 10} args} {
 	global names
 	source ./include.tcl
+	global rand_init
+	error_check_good set_random_seed [berkdb srand $rand_init] 0
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
@@ -56,10 +58,6 @@ proc subdb011 { method {ndups 13} {nsubdbs 10} args} {
 
 	# Here is the loop where we put and get each key/data pair
 	set file_list [get_file_list]
-	if { $max_files != 0 && [llength $file_list] > $max_files } {
-		set fend [expr $max_files - 1]
-		set file_list [lrange $file_list 0 $fend]
-	}
 	set flen [llength $file_list]
 	puts "Subdb011: $method ($args) $ndups overflow dups with \
 	    $flen filename=key filecontents=data pairs"

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2002
+# Copyright (c) 2002-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test098.tcl,v 1.5 2002/07/11 20:38:36 sandstro Exp $
+# $Id: test098.tcl,v 1.7 2004/01/28 03:36:32 bostic Exp $
 #
 # TEST	test098
 # TEST	Test of DB_GET_RECNO and secondary indices.  Open a primary and

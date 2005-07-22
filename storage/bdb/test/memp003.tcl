@@ -1,15 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: memp003.tcl,v 11.46 2002/04/30 17:26:06 sue Exp $
+# $Id: memp003.tcl,v 11.51 2004/01/28 03:36:28 bostic Exp $
 #
-
 # TEST	memp003
 # TEST	Test reader-only/writer process combinations; we use the access methods
 # TEST	for testing.
 proc memp003 { } {
+	global rand_init
+	error_check_good set_random_seed [berkdb srand $rand_init] 0
 	#
 	# Multiple processes not supported by private memory so don't
 	# run memp003_body with -private.
@@ -42,7 +43,7 @@ proc memp003_body { flags } {
 	error_check_good dbenv [is_valid_env $dbenv] TRUE
 
 	# First open and create the file.
-	set db [berkdb_open -env $dbenv -create -truncate \
+	set db [berkdb_open -env $dbenv -create \
 	    -mode 0644 -pagesize $psize -btree $testfile]
 	error_check_good dbopen/RW [is_valid_db $db] TRUE
 

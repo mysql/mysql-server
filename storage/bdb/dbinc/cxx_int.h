@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_int.h,v 11.20 2002/01/11 15:52:23 bostic Exp $
+ * $Id: cxx_int.h,v 11.25 2004/09/22 22:20:31 mjc Exp $
  */
 
 #ifndef _CXX_INT_H_
@@ -30,27 +30,23 @@
 									   \
 	class _IMP_CLASS {};                                               \
 									   \
-	inline _WRAPPED_TYPE unwrap(_WRAPPER_CLASS *val)                   \
+	inline _WRAPPED_TYPE *unwrap(_WRAPPER_CLASS *val)                  \
 	{                                                                  \
 		if (!val) return (0);                                      \
-		return ((_WRAPPED_TYPE)((void *)(val->imp())));            \
+		return (val->get_##_WRAPPED_TYPE());                       \
 	}                                                                  \
 									   \
-	inline const _WRAPPED_TYPE unwrapConst(const _WRAPPER_CLASS *val)  \
+	inline const _WRAPPED_TYPE *unwrapConst(const _WRAPPER_CLASS *val) \
 	{                                                                  \
 		if (!val) return (0);                                      \
-		return ((const _WRAPPED_TYPE)((void *)(val->constimp()))); \
-	}                                                                  \
-									   \
-	inline _IMP_CLASS *wrap(_WRAPPED_TYPE val)                         \
-	{                                                                  \
-		return ((_IMP_CLASS*)((void *)val));                       \
+		return (val->get_const_##_WRAPPED_TYPE());                 \
 	}
 
-WRAPPED_CLASS(DbMpoolFile, DbMpoolFileImp, DB_MPOOLFILE*)
-WRAPPED_CLASS(Db, DbImp, DB*)
-WRAPPED_CLASS(DbEnv, DbEnvImp, DB_ENV*)
-WRAPPED_CLASS(DbTxn, DbTxnImp, DB_TXN*)
+WRAPPED_CLASS(Db, DbImp, DB)
+WRAPPED_CLASS(DbEnv, DbEnvImp, DB_ENV)
+WRAPPED_CLASS(DbMpoolFile, DbMpoolFileImp, DB_MPOOLFILE)
+WRAPPED_CLASS(DbSequence, DbSequenceImp, DB_SEQUENCE)
+WRAPPED_CLASS(DbTxn, DbTxnImp, DB_TXN)
 
 // A tristate integer value used by the DB_ERROR macro below.
 // We chose not to make this an enumerated type so it can
@@ -66,11 +62,11 @@ WRAPPED_CLASS(DbTxn, DbTxnImp, DB_TXN*)
 // the tristate values given above.  If UNKNOWN is specified,
 // the behavior is taken from the last initialized DbEnv.
 //
-#define	DB_ERROR(caller, ecode, policy) \
-    DbEnv::runtime_error(caller, ecode, policy)
+#define	DB_ERROR(env, caller, ecode, policy) \
+    DbEnv::runtime_error(env, caller, ecode, policy)
 
-#define	DB_ERROR_DBT(caller, dbt, policy) \
-    DbEnv::runtime_error_dbt(caller, dbt, policy)
+#define	DB_ERROR_DBT(env, caller, dbt, policy) \
+    DbEnv::runtime_error_dbt(env, caller, dbt, policy)
 
 #define	DB_OVERFLOWED_DBT(dbt) \
 	(F_ISSET(dbt, DB_DBT_USERMEM) && dbt->size > dbt->ulen)

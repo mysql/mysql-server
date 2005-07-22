@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hash.h,v 11.26 2002/03/27 04:34:54 bostic Exp $
+ * $Id: hash.h,v 11.28 2004/01/28 03:36:02 bostic Exp $
  */
 
 #ifndef	_DB_HASH_H_

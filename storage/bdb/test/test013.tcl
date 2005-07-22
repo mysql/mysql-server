@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test013.tcl,v 11.23 2002/05/22 15:42:46 sue Exp $
+# $Id: test013.tcl,v 11.26 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test013
 # TEST	Partial put test
@@ -18,7 +18,6 @@
 proc test013 { method {nentries 10000} args } {
 	global errorCode
 	global errorInfo
-	global fixed_pad
 	global fixed_len
 
 	source ./include.tcl

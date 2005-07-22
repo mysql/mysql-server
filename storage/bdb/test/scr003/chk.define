@@ -1,8 +1,9 @@
 #!/bin/sh -
 #
-# $Id: chk.define,v 1.21 2002/03/27 04:32:58 bostic Exp $
+# $Id: chk.define,v 1.25 2004/10/07 18:54:37 bostic Exp $
 #
 # Check to make sure that all #defines are actually used.
+# Check to make sure that all #defines start in column 1.
 
 d=../..
 
@@ -16,12 +17,20 @@ t1=__1
 t2=__2
 t3=__3
 
+find $d -name '*.c' -o -name '*.cpp' |
+    sed -e '/\/php_db4\//d' |
+    xargs egrep '^[	 ][	 ]*#' > $t1
+test -s $t1 && {
+	echo "FAIL: found #defines with leading white space:"
+	cat $t1
+	exit 1
+}
+
 egrep '^#define' $d/dbinc/*.h $d/dbinc/*.in |
-    sed -e '/db_185.in/d' -e '/xa.h/d' |
+    sed -e '/db_185.in/d' -e '/queue.h/d' -e '/xa.h/d' |
     awk '{print $2}' |
     sed -e '/^B_DELETE/d' \
 	-e '/^B_MAX/d' \
-	-e '/^CIRCLEQ_/d' \
 	-e '/^DB_BTREEOLDVER/d' \
 	-e '/^DB_HASHOLDVER/d' \
 	-e '/^DB_LOCKVERSION/d' \
@@ -31,10 +40,11 @@ egrep '^#define' $d/dbinc/*.h $d/dbinc/*.in |
 	-e '/^DB_UNUSED/d' \
 	-e '/^DEFINE_DB_CLASS/d' \
 	-e '/^HASH_UNUSED/d' \
-	-e '/^LIST_/d' \
+	-e '/^HPUX_MUTEX_PAD/d' \
 	-e '/^LOG_OP/d' \
 	-e '/^MINFILL/d' \
 	-e '/^MUTEX_FIELDS/d' \
+	-e '/^NAME_TO_SEQUENCE/d' \
 	-e '/^NCACHED2X/d' \
 	-e '/^NCACHED30/d' \
 	-e '/^PAIR_MASK/d' \
@@ -45,11 +55,10 @@ egrep '^#define' $d/dbinc/*.h $d/dbinc/*.in |
 	-e '/^QPAGE_CHKSUM/d' \
 	-e '/^QPAGE_NORMAL/d' \
 	-e '/^QPAGE_SEC/d' \
-	-e '/^SH_CIRCLEQ_/d' \
-	-e '/^SH_LIST_/d' \
-	-e '/^SH_TAILQ_/d' \
 	-e '/^SIZEOF_PAGE/d' \
 	-e '/^TAILQ_/d' \
+	-e '/^UINT64_FMT/d' \
+	-e '/^UINT64_MAX/d' \
 	-e '/^WRAPPED_CLASS/d' \
 	-e '/^__BIT_TYPES_DEFINED__/d' \
 	-e '/^__DBC_INTERNAL/d' \

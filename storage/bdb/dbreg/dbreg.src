@@ -1,17 +1,15 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: dbreg.src,v 10.22 2002/03/27 04:31:44 bostic Exp $
+ * $Id: dbreg.src,v 10.26 2004/06/17 17:35:17 bostic Exp $
  */
 
 PREFIX	__dbreg
 DBPRIVATE
 
-INCLUDE	#include "db_config.h"
-INCLUDE
 INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
@@ -25,7 +23,6 @@ INCLUDE #include "dbinc/db_page.h"
 INCLUDE #include "dbinc/db_dispatch.h"
 INCLUDE #include "dbinc/db_am.h"
 INCLUDE #include "dbinc/log.h"
-INCLUDE #include "dbinc/rep.h"
 INCLUDE #include "dbinc/txn.h"
 INCLUDE
 

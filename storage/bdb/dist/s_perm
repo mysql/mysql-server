@@ -1,14 +1,12 @@
 #!/bin/sh -
-#	$Id: s_perm,v 1.23 2002/09/09 15:03:06 bostic Exp $
+#	$Id: s_perm,v 1.31 2004/10/05 18:56:58 bostic Exp $
 
 d=..
 echo 'Updating Berkeley DB source tree permissions...'
 
-. ./RELEASE
-
 run()
 {
-	echo "	$1 ($2)"
+	#echo "	$1 ($2)"
 	if [ -f "$d/$1" ]; then
 		chmod "$2" "$d/$1"
 	else
@@ -24,9 +22,12 @@ run dist/configure 555
 run dist/install-sh 555
 run dist/s_all 555
 run dist/s_config 555
+run dist/s_crypto 555
 run dist/s_include 555
 run dist/s_java 555
-run dist/s_javah 555
+run dist/s_java_const 555
+run dist/s_java_stat 555
+run dist/s_java_swig 555
 run dist/s_perm 555
 run dist/s_readme 555
 run dist/s_recover 555
@@ -38,12 +39,13 @@ run dist/s_vxworks 555
 run dist/s_win32 555
 run dist/s_win32_dsp 555
 run dist/vx_buildcd 555
+run mod_db4/configure 555
 
 run perl/BerkeleyDB/dbinfo 555
 run perl/BerkeleyDB/mkpod 555
 
 for i in `cd $d && find build_vxworks \
     -name '*.wsp' -o -name '*.cdf' -o -name '*.wpj'`; do
-	echo "	$i (775)"
+	#echo "	$i (775)"
 	chmod 775 $d/$i
 done

@@ -1,16 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb012.tcl,v 1.3 2002/08/08 15:38:10 bostic Exp $
+# $Id: sdb012.tcl,v 1.6 2004/01/28 03:36:29 bostic Exp $
 #
-# TEST	subdb012
+# TEST	sdb012
 # TEST	Test subdbs with locking and transactions
 # TEST  Tests creating and removing subdbs while handles
 # TEST  are open works correctly, and in the face of txns.
 #
-proc subdb012 { method args } {
+proc sdb012 { method args } {
 	source ./include.tcl
 
 	set args [convert_args $method $args]

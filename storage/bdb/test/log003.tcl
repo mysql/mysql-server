@@ -1,17 +1,33 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: log003.tcl,v 11.28 2002/04/29 20:07:54 sue Exp $
+# $Id: log003.tcl,v 11.34 2004/09/22 18:01:05 bostic Exp $
 #
-
 # TEST	log003
 # TEST	Verify that log_flush is flushing records correctly.
 proc log003 { } {
+	global rand_init
+	error_check_good set_random_seed [berkdb srand $rand_init] 0
+
+	# Even though log_flush doesn't do anything for in-memory
+	# logging, we want to make sure calling it doesn't break
+	# anything.
+	foreach inmem { 1 0 } {
+		log003_body $inmem
+	}
+}
+
+proc log003_body { inmem } {
 	source ./include.tcl
 
-	puts "Log003: Verify log_flush behavior"
+	puts -nonewline "Log003: Verify log_flush behavior"
+	if { $inmem == 0 } {
+		puts " (on-disk logging)."
+	} else {
+		puts " (in-memory logging)."
+	}
 
 	set max [expr 1024 * 128]
 	env_cleanup $testdir
@@ -22,8 +38,12 @@ proc log003 { } {
 	foreach rec "$short_rec $long_rec $very_long_rec" {
 		puts "\tLog003.a: Verify flush on [string length $rec] byte rec"
 
-		set env [berkdb_env -log -home $testdir \
-				-create -mode 0644 -log_max $max]
+		set logargs ""
+		if { $inmem == 1 } {
+			set logargs "-log_inmemory -log_buffer [expr $max * 2]"
+		}
+		set env [eval {berkdb_env} -log -home $testdir -create \
+		    -mode 0644 $logargs -log_max $max]
 		error_check_good envopen [is_valid_env $env] TRUE
 
 		set lsn [$env log_put $rec]
@@ -59,11 +79,18 @@ proc log003 { } {
 		log_cleanup $testdir
 	}
 
+	if { $inmem == 1 } {
+		puts "Log003: Skipping remainder of test for in-memory logging."
+		return
+	}
+
 	foreach rec "$short_rec $long_rec $very_long_rec" {
 		puts "\tLog003.b: \
 		    Verify flush on non-last record [string length $rec]"
-		set env [berkdb_env \
-		    -create -log -home $testdir -mode 0644 -log_max $max]
+
+		set env [berkdb_env -log -home $testdir \
+		    -create -mode 0644 -log_max $max]
+
 		error_check_good envopen [is_valid_env $env] TRUE
 
 		# Put 10 random records
@@ -90,8 +117,7 @@ proc log003 { } {
 
 		# Now, we want to crash the region and recheck.  Closing the
 		# log does not flush any records, so we'll use a close to
-		# do the "crash"
-
+		# do the "crash".
 		#
 		# Now, close and remove the log region
 		error_check_good env:close:$env [$env close] 0
@@ -99,8 +125,8 @@ proc log003 { } {
 		error_check_good env:remove $ret 0
 
 		# Re-open the log and try to read the record.
-		set env [berkdb_env \
-		    -home $testdir -create -log -mode 0644 -log_max $max]
+		set env [berkdb_env -log -home $testdir \
+		    -create -mode 0644 -log_max $max]
 		error_check_good envopen [is_valid_env $env] TRUE
 
 		set logc [$env log_cursor]

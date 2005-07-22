@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: chk.vx_code,v 1.6 2002/03/27 20:20:25 bostic Exp $
+# $Id: chk.vx_code,v 1.7 2004/09/16 17:21:11 bostic Exp $
 #
 # Check to make sure the auto-generated utility code in the VxWorks build
 # directory compiles.
@@ -18,6 +18,9 @@ d=../..
 
 rm -f t.c t1.c t2.c
 
+F="$d/clib/getopt.c $d/common/util_arg.c $d/common/util_cache.c
+	$d/common/util_log.c $d/common/util_sig.c $d/*/*_autop.c"
+
 header()
 {
 	echo "int"
@@ -34,12 +37,7 @@ for i in db_archive db_checkpoint db_deadlock db_dump db_load \
     db_printlog db_recover db_stat db_upgrade db_verify dbdemo; do
 	echo "	compiling build_vxworks/$i"
 	(cat $d/build_vxworks/$i/$i.c; header $i) > t.c
-	if cc -Wall -I.. -I$d t.c \
-	    $d/clib/getopt.c \
-	    $d/common/util_arg.c \
-	    $d/common/util_cache.c \
-	    $d/common/util_log.c \
-	    $d/common/util_sig.c ../libdb.a -o t; then
+	if cc -Wall -I.. -I$d t.c $F ../libdb.a -o t; then
 		:
 	else
 		echo "FAIL: unable to compile $i"
@@ -53,12 +51,7 @@ done
 (cat t2.c t1.c; echo "return (0); }") > t.c
 
 echo "	compiling build_vxworks utility composite"
-if cc -Dlint -Wall -I.. -I$d t.c \
-    $d/clib/getopt.c \
-    $d/common/util_arg.c \
-    $d/common/util_cache.c \
-    $d/common/util_log.c \
-    $d/common/util_sig.c ../libdb.a -o t; then
+if cc -Dlint -Wall -I.. -I$d t.c $F ../libdb.a -o t; then
 	:
 else
 	echo "FAIL: unable to compile utility composite"

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db185_int.in,v 11.12 2002/01/11 15:51:51 bostic Exp $
+ * $Id: db185_int.in,v 11.14 2004/01/28 03:35:59 bostic Exp $
  */
 
 #ifndef _DB185_INT_H_
