@@ -810,6 +810,27 @@ alter table t1 modify a char(2) character set utf8;
 select char_length(a), length(a), a from t1 order by a;
 drop table t1;
 
+
+#
+# Bugs#11754: SET NAMES utf8 followed by SELECT "A\\" LIKE "A\\" returns 0
+#
+set names utf8;
+select 'a\\' like 'a\\';
+select 'aa\\' like 'a%\\';
+
+create table t1 (a char(10), key(a)) character set utf8;
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%";
+select * from t1 where a like concat("abc","%");
+select * from t1 where a like "ABC%";
+select * from t1 where a like "test%";
+select * from t1 where a like "te_t";
+select * from t1 where a like "%a%";
+select * from t1 where a like "%abcd%";
+select * from t1 where a like "%abc\d%";
+drop table t1;
+
+
 #
 # Bug#9557 MyISAM utf8 table crash
 #
