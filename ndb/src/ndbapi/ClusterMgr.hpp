@@ -73,12 +73,12 @@ public:
      */
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
-    Uint32 hbSent;      // # heartbeats sent (without answer)
   };
   
   const Node &  getNodeInfo(NodeId) const;
   Uint32        getNoOfConnectedNodes() const;
-  
+  void          hb_received(NodeId);
+
 private:
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
@@ -126,6 +126,12 @@ inline
 Uint32
 ClusterMgr::getNoOfConnectedNodes() const {
   return noOfConnectedNodes;
+}
+
+inline
+void
+ClusterMgr::hb_received(NodeId nodeId) {
+  theNodes[nodeId].m_info.m_heartbeat_cnt= 0;
 }
 
 /*****************************************************************************/
