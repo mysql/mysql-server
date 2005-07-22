@@ -1418,12 +1418,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->data_file_name= create_info->index_file_name= 0;
   create_info->table_options=db_options;
 
-  if (rea_create_table(thd, path, create_info, fields, key_count,
+  if (rea_create_table(thd, path, table_name, db,
+                       create_info, fields, key_count,
 		       key_info_buffer))
-  {
-    /* my_error(ER_CANT_CREATE_TABLE,MYF(0),table_name,my_errno); */
     goto end;
-  }
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     /* Open table and put in temporary table list */
@@ -2366,8 +2364,14 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /*
     Create a new table by copying from source table
   */
-  if (my_copy(src_path, dst_path, MYF(MY_WME|MY_DONT_OVERWRITE_FILE)))
+  if (my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE)))
+  {
+    if (my_errno == ENOENT)
+      my_error(ER_BAD_DB_ERROR,MYF(0),db);
+    else
+      my_error(ER_CANT_CREATE_FILE,MYF(0),dst_path,my_errno);
     goto err;
+  }
 
   /*
     As mysql_truncate don't work on a new table at this stage of
