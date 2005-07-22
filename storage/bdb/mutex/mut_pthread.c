@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: mut_pthread.c,v 11.62 2004/09/22 16:27:05 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: mut_pthread.c,v 11.53 2002/08/13 19:56:47 sue Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -31,26 +29,29 @@ static const char revid[] = "$Id: mut_pthread.c,v 11.53 2002/08/13 19:56:47 sue 
 #endif
 
 #ifdef HAVE_MUTEX_SOLARIS_LWP
+#define	pthread_cond_destroy(x)		0
 #define	pthread_cond_signal		_lwp_cond_signal
 #define	pthread_cond_wait		_lwp_cond_wait
+#define	pthread_mutex_destroy(x)	0
 #define	pthread_mutex_lock		_lwp_mutex_lock
 #define	pthread_mutex_trylock		_lwp_mutex_trylock
 #define	pthread_mutex_unlock		_lwp_mutex_unlock
 /*
+ * !!!
  * _lwp_self returns the LWP process ID which isn't a unique per-thread
  * identifier.  Use pthread_self instead, it appears to work even if we
  * are not a pthreads application.
  */
-#define	pthread_mutex_destroy(x)	0
 #endif
 #ifdef HAVE_MUTEX_UI_THREADS
+#define	pthread_cond_destroy(x)		cond_destroy
 #define	pthread_cond_signal		cond_signal
 #define	pthread_cond_wait		cond_wait
+#define	pthread_mutex_destroy		mutex_destroy
 #define	pthread_mutex_lock		mutex_lock
 #define	pthread_mutex_trylock		mutex_trylock
 #define	pthread_mutex_unlock		mutex_unlock
 #define	pthread_self			thr_self
-#define	pthread_mutex_destroy		mutex_destroy
 #endif
 
 #define	PTHREAD_UNLOCK_ATTEMPTS	5
@@ -73,7 +74,7 @@ __db_pthread_mutex_init(dbenv, mutexp, flags)
 	ret = 0;
 
 	/*
-	 * The only setting/checking of the MUTEX_MPOOL flags is in the mutex
+	 * The only setting/checking of the MUTEX_MPOOL flag is in the mutex
 	 * mutex allocation code (__db_mutex_alloc/free).  Preserve only that
 	 * flag.  This is safe because even if this flag was never explicitly
 	 * set, but happened to be set in memory, it will never be checked or
@@ -184,7 +185,6 @@ __db_pthread_mutex_init(dbenv, mutexp, flags)
 	}}
 #endif
 
-	mutexp->spins = __os_spin(dbenv);
 #ifdef HAVE_MUTEX_SYSTEM_RESOURCES
 	mutexp->reg_off = INVALID_ROFF;
 #endif
@@ -215,7 +215,7 @@ __db_pthread_mutex_lock(dbenv, mutexp)
 		return (0);
 
 	/* Attempt to acquire the resource for N spins. */
-	for (nspins = mutexp->spins; nspins > 0; --nspins)
+	for (nspins = dbenv->tas_spins; nspins > 0; --nspins)
 		if (pthread_mutex_trylock(&mutexp->mutex) == 0)
 			break;
 
@@ -271,11 +271,11 @@ __db_pthread_mutex_lock(dbenv, mutexp)
 		if (ret != 0)
 			goto err;
 	} else {
-		if (nspins == mutexp->spins)
+		if (nspins == dbenv->tas_spins)
 			++mutexp->mutex_set_nowait;
 		else if (nspins > 0) {
 			++mutexp->mutex_set_spin;
-			mutexp->mutex_set_spins += mutexp->spins - nspins;
+			mutexp->mutex_set_spins += dbenv->tas_spins - nspins;
 		} else
 			++mutexp->mutex_set_wait;
 #ifdef DIAGNOSTIC
@@ -350,12 +350,19 @@ int
 __db_pthread_mutex_destroy(mutexp)
 	DB_MUTEX *mutexp;
 {
-	int ret;
+	int ret, t_ret;
 
 	if (F_ISSET(mutexp, MUTEX_IGNORE))
 		return (0);
 
-	if ((ret = pthread_mutex_destroy(&mutexp->mutex)) != 0)
-		__db_err(NULL, "unable to destroy mutex: %s", strerror(ret));
+	ret = 0;
+	if (F_ISSET(mutexp, MUTEX_SELF_BLOCK) &&
+	    (ret = pthread_cond_destroy(&mutexp->cond)) != 0)
+		__db_err(NULL, "unable to destroy cond: %s", strerror(ret));
+	if ((t_ret = pthread_mutex_destroy(&mutexp->mutex)) != 0) {
+		__db_err(NULL, "unable to destroy mutex: %s", strerror(t_ret));
+		if (ret == 0)
+			ret = t_ret;
+	}
 	return (ret);
 }

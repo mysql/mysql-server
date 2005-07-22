@@ -7,7 +7,7 @@ public class CallbackTest
     {
         try {
             Db db = new Db(null, 0);
-            db.set_bt_compare(new BtreeCompare());
+            db.setBtreeCompare(new BtreeCompare());
             db.open(null, "test.db", "", Db.DB_BTREE, Db.DB_CREATE, 0666);
             StringDbt[] keys = new StringDbt[10];
             StringDbt[] datas = new StringDbt[10];
@@ -37,11 +37,11 @@ class BtreeCompare
     /* A weird comparator, for example.
      * In fact, it may not be legal, since it's not monotonically increasing.
      */
-    public int bt_compare(Db db, Dbt dbt1, Dbt dbt2)
+    public int compare(Db db, Dbt dbt1, Dbt dbt2)
     {
         System.out.println("compare function called");
-        byte b1[] = dbt1.get_data();
-        byte b2[] = dbt2.get_data();
+        byte b1[] = dbt1.getData();
+        byte b2[] = dbt2.getData();
         System.out.println("  " + (new String(b1)) + ", " + (new String(b2)));
         int len1 = b1.length;
         int len2 = b2.length;
@@ -61,23 +61,23 @@ class StringDbt extends Dbt
 {
     StringDbt()
     {
-        set_flags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
+        setFlags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
     }
 
     StringDbt(String value)
     {
         setString(value);
-        set_flags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
+        setFlags(Db.DB_DBT_MALLOC); // tell Db to allocate on retrieval
     }
 
     void setString(String value)
     {
-        set_data(value.getBytes());
-        set_size(value.length());
+        setData(value.getBytes());
+        setSize(value.length());
     }
 
     String getString()
     {
-        return new String(get_data(), 0, get_size());
+        return new String(getData(), 0, getSize());
     }
 }

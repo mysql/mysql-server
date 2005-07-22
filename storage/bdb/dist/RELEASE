@@ -1,28 +1,11 @@
-# $Id: RELEASE,v 11.123 2002/09/13 22:16:02 bostic Exp $
+# $Id: RELEASE,v 11.195 2004/11/09 01:30:41 bostic Exp $
 
 DB_VERSION_MAJOR=4
-DB_VERSION_MINOR=1
-DB_VERSION_PATCH=24
+DB_VERSION_MINOR=3
+DB_VERSION_PATCH=28
 DB_VERSION="$DB_VERSION_MAJOR.$DB_VERSION_MINOR.$DB_VERSION_PATCH"
 
 DB_VERSION_UNIQUE_NAME=`printf "_%d%03d" $DB_VERSION_MAJOR $DB_VERSION_MINOR`
 
 DB_RELEASE_DATE=`date "+%B %e, %Y"`
 DB_VERSION_STRING="Sleepycat Software: Berkeley DB $DB_VERSION: ($DB_RELEASE_DATE)"
-
-# this file is included by all s_* scripts, so it's the way to apply
-# hacks :)
-
-# bitkeeper doesn't like somebody to mess with permissions!
-chmod()
-{
-  echo "chmod $1 $2" >/dev/null
-}
-
-# useful trick to find auto-generated files
-#cmp()
-#{
-#  echo "==>> CMP $1 $2" >/dev/tty
-#  /usr/bin/cmp "$1" "$2"
-#}
-

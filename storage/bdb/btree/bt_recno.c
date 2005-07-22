@@ -1,21 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: bt_recno.c,v 11.117 2004/03/28 17:01:01 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: bt_recno.c,v 11.106 2002/08/16 04:56:30 ubell Exp $";
-#endif /* not lint */
-
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
-#include <limits.h>
-#include <stdio.h>
 #include <string.h>
 #endif
 
@@ -58,7 +54,7 @@ static int  __ram_update __P((DBC *, db_recno_t, int));
 	}								\
 }
 #define	CD_ISSET(cp)							\
-	(F_ISSET(cp, C_RENUMBER) && F_ISSET(cp, C_DELETED))
+	(F_ISSET(cp, C_RENUMBER) && F_ISSET(cp, C_DELETED) ? 1 : 0)
 
 /*
  * Macros for comparing the ordering of two cursors.
@@ -91,11 +87,13 @@ static int  __ram_update __P((DBC *, db_recno_t, int));
  * After a search, copy the found page into the cursor, discarding any
  * currently held lock.
  */
-#define	STACK_TO_CURSOR(cp) {						\
+#define	STACK_TO_CURSOR(cp, ret) {					\
+	int __t_ret;							\
 	(cp)->page = (cp)->csp->page;					\
 	(cp)->pgno = (cp)->csp->page->pgno;				\
 	(cp)->indx = (cp)->csp->indx;					\
-	(void)__TLPUT(dbc, (cp)->lock);					\
+	if ((__t_ret = __TLPUT(dbc, (cp)->lock)) != 0 && (ret) == 0)	\
+		ret = __t_ret;						\
 	(cp)->lock = (cp)->csp->lock;					\
 	(cp)->lock_mode = (cp)->csp->lock_mode;				\
 }
@@ -122,9 +120,6 @@ __ram_open(dbp, txn, name, base_pgno, flags)
 	COMPQUIET(name, NULL);
 	t = dbp->bt_internal;
 
-	/* Initialize the remaining fields/methods of the DB. */
-	dbp->stat = __bam_stat;
-
 	/* Start up the tree. */
 	if ((ret = __bam_read_root(dbp, txn, base_pgno, flags)) != 0)
 		return (ret);
@@ -143,7 +138,7 @@ __ram_open(dbp, txn, name, base_pgno, flags)
 	/* If we're snapshotting an underlying source file, do it now. */
 	if (F_ISSET(dbp, DB_AM_SNAPSHOT)) {
 		/* Allocate a cursor. */
-		if ((ret = dbp->cursor(dbp, NULL, &dbc, 0)) != 0)
+		if ((ret = __db_cursor(dbp, NULL, &dbc, 0)) != 0)
 			return (ret);
 
 		/* Do the snapshot. */
@@ -152,7 +147,7 @@ __ram_open(dbp, txn, name, base_pgno, flags)
 			ret = 0;
 
 		/* Discard the cursor. */
-		if ((t_ret = dbc->c_close(dbc)) != 0 && ret == 0)
+		if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
 			ret = t_ret;
 	}
 
@@ -209,7 +204,7 @@ __ram_c_del(dbc)
 	DB_LSN lsn;
 	DBT hdr, data;
 	EPG *epg;
-	int exact, ret, stack;
+	int exact, ret, stack, t_ret;
 
 	dbp = dbc->dbp;
 	cp = (BTREE_CURSOR *)dbc->internal;
@@ -240,7 +235,9 @@ __ram_c_del(dbc)
 	stack = 1;
 
 	/* Copy the page into the cursor. */
-	STACK_TO_CURSOR(cp);
+	STACK_TO_CURSOR(cp, ret);
+	if (ret != 0)
+		goto err;
 
 	/*
 	 * If re-numbering records, the on-page deleted flag can only mean
@@ -262,7 +259,8 @@ __ram_c_del(dbc)
 		/* Delete the item, adjust the counts, adjust the cursors. */
 		if ((ret = __bam_ditem(dbc, cp->page, cp->indx)) != 0)
 			goto err;
-		__bam_adjust(dbc, -1);
+		if ((ret = __bam_adjust(dbc, -1)) != 0)
+			goto err;
 		if (__ram_ca(dbc, CA_DELETE) > 0 &&
 		    CURADJ_LOG(dbc) && (ret = __bam_rcuradj_log(dbp, dbc->txn,
 		    &lsn, 0, CA_DELETE, cp->root, cp->recno, cp->order)) != 0)
@@ -325,8 +323,8 @@ __ram_c_del(dbc)
 
 	t->re_modified = 1;
 
-err:	if (stack)
-		__bam_stkrel(dbc, STK_CLRDBC);
+err:	if (stack && (t_ret = __bam_stkrel(dbc, STK_CLRDBC)) != 0 && ret == 0)
+		ret = t_ret;
 
 	return (ret);
 }
@@ -388,8 +386,13 @@ retry:	switch (flags) {
 		 * we have to avoid incrementing the record number so that we
 		 * return the right record by virtue of renumbering the tree.
 		 */
-		if (CD_ISSET(cp))
+		if (CD_ISSET(cp)) {
+			/*
+			 * Clear the flag, we've moved off the deleted record.
+			 */
+			CD_CLR(cp);
 			break;
+		}
 
 		if (cp->recno != RECNO_OOB) {
 			++cp->recno;
@@ -494,7 +497,9 @@ retry:	switch (flags) {
 		}
 
 		/* Copy the page into the cursor. */
-		STACK_TO_CURSOR(cp);
+		STACK_TO_CURSOR(cp, ret);
+		if (ret != 0)
+			goto err;
 
 		/*
 		 * If re-numbering records, the on-page deleted flag means this
@@ -607,9 +612,11 @@ __ram_c_put(dbc, key, data, flags, pgnop)
 				return (ret);
 			if (CURADJ_LOG(dbc) &&
 			    (ret = __bam_rcuradj_log(dbp, dbc->txn, &lsn, 0,
-			    CA_ICURRENT, cp->root, cp->recno, cp->order)))
+			    CA_ICURRENT, cp->root, cp->recno, cp->order)) != 0)
 				return (ret);
 			return (0);
+		default:
+			break;
 		}
 
 	/*
@@ -650,7 +657,9 @@ split:	if ((ret = __bam_rsearch(dbc, &cp->recno, S_INSERT, 1, &exact)) != 0)
 	DB_ASSERT(exact || CD_ISSET(cp));
 
 	/* Copy the page into the cursor. */
-	STACK_TO_CURSOR(cp);
+	STACK_TO_CURSOR(cp, ret);
+	if (ret != 0)
+		goto err;
 
 	ret = __bam_iitem(dbc, key, data, iiflags, 0);
 	t_ret = __bam_stkrel(dbc, STK_CLRDBC);
@@ -707,6 +716,8 @@ split:	if ((ret = __bam_rsearch(dbc, &cp->recno, S_INSERT, 1, &exact)) != 0)
 		    (ret = __bam_rcuradj_log(dbp, dbc->txn, &lsn, 0,
 		    CA_ICURRENT, cp->root, cp->recno, cp->order)) != 0)
 			goto err;
+		break;
+	default:
 		break;
 	}
 
@@ -983,7 +994,7 @@ __ram_source(dbp)
 	 * when it comes time to write the database back to the source.
 	 */
 	if ((t->re_fp = fopen(t->re_source, "r")) == NULL) {
-		ret = errno;
+		ret = __os_get_errno();
 		__db_err(dbp->dbenv, "%s: %s", t->re_source, db_strerror(ret));
 		return (ret);
 	}
@@ -1027,7 +1038,7 @@ __ram_writeback(dbp)
 	}
 
 	/* Allocate a cursor. */
-	if ((ret = dbp->cursor(dbp, NULL, &dbc, 0)) != 0)
+	if ((ret = __db_cursor(dbp, NULL, &dbc, 0)) != 0)
 		return (ret);
 
 	/*
@@ -1060,13 +1071,13 @@ __ram_writeback(dbp)
 	 */
 	if (t->re_fp != NULL) {
 		if (fclose(t->re_fp) != 0) {
-			ret = errno;
+			ret = __os_get_errno();
 			goto err;
 		}
 		t->re_fp = NULL;
 	}
 	if ((fp = fopen(t->re_source, "w")) == NULL) {
-		ret = errno;
+		ret = __os_get_errno();
 		__db_err(dbenv, "%s: %s", t->re_source, db_strerror(ret));
 		goto err;
 	}
@@ -1088,23 +1099,24 @@ __ram_writeback(dbp)
 	 * and the pad character if we're doing fixed-length records.
 	 */
 	delim = t->re_delim;
-	if (F_ISSET(dbp, DB_AM_FIXEDLEN)) {
-		if ((ret = __os_malloc(dbenv, t->re_len, &pad)) != 0)
-			goto err;
-		memset(pad, t->re_pad, t->re_len);
-	}
 	for (keyno = 1;; ++keyno) {
-		switch (ret = dbp->get(dbp, NULL, &key, &data, 0)) {
+		switch (ret = __db_get(dbp, NULL, &key, &data, 0)) {
 		case 0:
-			if (data.size != 0 && (u_int32_t)fwrite(
-			    data.data, 1, data.size, fp) != data.size)
+			if (data.size != 0 &&
+			    fwrite(data.data, 1, data.size, fp) != data.size)
 				goto write_err;
 			break;
 		case DB_KEYEMPTY:
-			if (F_ISSET(dbp, DB_AM_FIXEDLEN) &&
-			    (u_int32_t)fwrite(pad, 1, t->re_len, fp) !=
-			    t->re_len)
-				goto write_err;
+			if (F_ISSET(dbp, DB_AM_FIXEDLEN)) {
+				if (pad == NULL) {
+					if ((ret = __os_malloc(
+					    dbenv, t->re_len, &pad)) != 0)
+						goto err;
+					memset(pad, t->re_pad, t->re_len);
+				}
+				if (fwrite(pad, 1, t->re_len, fp) != t->re_len)
+					goto write_err;
+			}
 			break;
 		case DB_NOTFOUND:
 			ret = 0;
@@ -1114,8 +1126,8 @@ __ram_writeback(dbp)
 		}
 		if (!F_ISSET(dbp, DB_AM_FIXEDLEN) &&
 		    fwrite(&delim, 1, 1, fp) != 1) {
-write_err:		ret = errno;
-			__db_err(dbp->dbenv,
+write_err:		ret = __os_get_errno();
+			__db_err(dbenv,
 			    "%s: write failed to backing file: %s",
 			    t->re_source, strerror(ret));
 			goto err;
@@ -1125,13 +1137,14 @@ write_err:		ret = errno;
 err:
 done:	/* Close the file descriptor. */
 	if (fp != NULL && fclose(fp) != 0) {
+		t_ret = __os_get_errno();
 		if (ret == 0)
-			ret = errno;
-		__db_err(dbenv, "%s: %s", t->re_source, db_strerror(errno));
+			ret = t_ret;
+		__db_err(dbenv, "%s: %s", t->re_source, db_strerror(t_ret));
 	}
 
 	/* Discard the cursor. */
-	if ((t_ret = dbc->c_close(dbc)) != 0 && ret == 0)
+	if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
 		ret = t_ret;
 
 	/* Discard memory allocated to hold the data items. */
@@ -1259,7 +1272,7 @@ __ram_add(dbc, recnop, data, flags, bi_flags)
 	u_int32_t flags, bi_flags;
 {
 	BTREE_CURSOR *cp;
-	int exact, ret, stack;
+	int exact, ret, stack, t_ret;
 
 	cp = (BTREE_CURSOR *)dbc->internal;
 
@@ -1270,7 +1283,9 @@ retry:	/* Find the slot for insertion. */
 	stack = 1;
 
 	/* Copy the page into the cursor. */
-	STACK_TO_CURSOR(cp);
+	STACK_TO_CURSOR(cp, ret);
+	if (ret != 0)
+		goto err;
 
 	/*
 	 * The application may modify the data based on the selected record
@@ -1320,8 +1335,8 @@ retry:	/* Find the slot for insertion. */
 		goto err;
 	}
 
-err:	if (stack)
-		__bam_stkrel(dbc, STK_CLRDBC);
+err:	if (stack && (t_ret = __bam_stkrel(dbc, STK_CLRDBC)) != 0 && ret == 0)
+		ret = t_ret;
 
 	return (ret);
 }

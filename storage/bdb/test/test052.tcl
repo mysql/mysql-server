@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test052.tcl,v 11.16 2002/07/08 20:48:58 sandstro Exp $
+# $Id: test052.tcl,v 11.20 2004/09/20 17:06:16 sue Exp $
 #
 # TEST	test052
 # TEST	Renumbering record Recno test.
@@ -88,7 +88,7 @@ proc test052 { method args } {
 	}
 
 	puts "\tTest052: Deletes by key."
-	puts "\t  Test052.a: Get data with SET, then delete before cursor."
+	puts "\tTest052.a: Get data with SET, then delete before cursor."
 	# get key in middle of page, call this the nth set curr to it
 	set i [expr $nkeys/2]
 	set k $keys($i)
@@ -106,7 +106,7 @@ proc test052 { method args } {
 	error_check_good dbc:keys \
 	    [lindex [lindex [$dbc get -current] 0] 0] $keys([expr $nkeys/2 - 1])
 
-	puts "\t  Test052.b: Delete cursor item by key."
+	puts "\tTest052.b: Delete cursor item by key."
 	set i [expr $nkeys/2 ]
 
 	set ret [$dbc get -set $keys($i)]
@@ -129,7 +129,7 @@ proc test052 { method args } {
 	error_check_good dbc:getnext:keys \
 	    [lindex [lindex $ret 0] 0] $keys($i)
 
-	puts "\t  Test052.c: Delete item after cursor."
+	puts "\tTest052.c: Delete item after cursor."
 	# should be { keys($nkeys/2), darray($nkeys/2 + 2) }
 	set i [expr $nkeys/2]
 	# deleting data for key after current (key $nkeys/2 + 1)
@@ -144,18 +144,14 @@ proc test052 { method args } {
 	    $darray([expr $i + 2])
 
 	puts "\tTest052: Deletes by cursor."
-	puts "\t  Test052.d: Delete, do DB_NEXT."
+	puts "\tTest052.d: Delete, do DB_NEXT."
 	set i 1
 	set ret [$dbc get -first]
 	error_check_bad dbc_get:first [llength $ret] 0
 	error_check_good dbc_get:first [lindex [lindex $ret 0] 1] $darray($i)
 	error_check_good dbc_del [$dbc del] 0
 	set ret [$dbc get -current]
-	error_check_bad dbc_get:current [llength $ret] 0
-	error_check_good dbc:getcurrent:key \
-	    [llength [lindex [lindex $ret 0] 0]] 0
-	error_check_good dbc:getcurrent:data \
-	    [llength [lindex [lindex $ret 0] 1]] 0
+	error_check_good dbc_get:current [llength $ret] 0
 
 	set ret [$dbc get -next]
 	error_check_bad dbc_get:next [llength $ret] 0
@@ -167,14 +163,10 @@ proc test052 { method args } {
 	# Move one more forward, so we're not on the first item.
 	error_check_bad dbc:getnext [llength [$dbc get -next]] 0
 
-	puts "\t  Test052.e: Delete, do DB_PREV."
+	puts "\tTest052.e: Delete, do DB_PREV."
 	error_check_good dbc:del [$dbc del] 0
 	set ret [$dbc get -current]
-	error_check_bad dbc:get:curr [llength $ret] 0
-	error_check_good dbc:getcurrent:key \
-	    [llength [lindex [lindex $ret 0] 0]] 0
-	error_check_good dbc:getcurrent:data \
-	    [llength [lindex [lindex $ret 0] 1]] 0
+	error_check_good dbc:get:curr [llength $ret] 0
 
 	# next should now reference the record that was previously after
 	# old current
@@ -184,6 +176,7 @@ proc test052 { method args } {
 	    [lindex [lindex $ret 0] 1] $darray([expr $i + 3])
 	error_check_good dbc:get:next:keys \
 	    [lindex [lindex $ret 0] 0] $keys([expr $i + 1])
+
 
 	set ret [$dbc get -prev]
 	error_check_bad dbc:get:curr [llength $ret] 0
@@ -200,7 +193,7 @@ proc test052 { method args } {
 	error_check_good delfirst [$dbc del] 0
 
 	puts "\tTest052: Inserts."
-	puts "\t  Test052.g: Insert before (DB_BEFORE)."
+	puts "\tTest052.g: Insert before (DB_BEFORE)."
 	set i 1
 	set ret [$dbc get -first]
 	error_check_bad dbc:get:first [llength $ret] 0
@@ -227,7 +220,7 @@ proc test052 { method args } {
 	set ret [$dbc get -prev]
 	error_check_bad dbc_get:prev [llength $ret] 0
 
-	puts "\t  Test052.h: Insert by cursor after (DB_AFTER)."
+	puts "\tTest052.h: Insert by cursor after (DB_AFTER)."
 	set i [incr i]
 	set ret [$dbc put -after $darray($i)]
 	# should return new key, which should be $keys($i)
@@ -245,7 +238,7 @@ proc test052 { method args } {
 	error_check_good dbc:get:next:compare \
 	    $ret [list [list $keys([expr $i + 1]) $darray([expr $i + 2])]]
 
-	puts "\t  Test052.i: Insert (overwrite) current item (DB_CURRENT)."
+	puts "\tTest052.i: Insert (overwrite) current item (DB_CURRENT)."
 	set i 1
 	set ret [$dbc get -first]
 	error_check_bad dbc_get:first [llength $ret] 0

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdbscript.tcl,v 11.9 2002/01/11 15:53:36 bostic Exp $
+# $Id: sdbscript.tcl,v 11.11 2004/01/28 03:36:29 bostic Exp $
 #
 # Usage: subdbscript testfile subdbnumber factor
 # testfile: name of DB itself

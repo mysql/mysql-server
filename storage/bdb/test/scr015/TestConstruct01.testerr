@@ -1,4 +1,0 @@
-expected error: DbEnv::_destroy_check: open DbEnv object destroyed
-should have received error.
-expected error: DbEnv::_destroy_check: open DbEnv object destroyed
-should have received error.

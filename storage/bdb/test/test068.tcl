@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test068.tcl,v 11.17 2002/06/11 15:34:47 sue Exp $
+# $Id: test068.tcl,v 11.21 2004/05/13 18:51:43 mjc Exp $
 #
 # TEST	test068
 # TEST	Test of DB_BEFORE and DB_AFTER with partial puts.
@@ -13,8 +13,9 @@ proc test068 { method args } {
 	source ./include.tcl
 	global alphabet
 	global errorCode
+	global is_je_test
 
-	set tnum 68
+	set tnum "068"
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
@@ -26,10 +27,10 @@ proc test068 { method args } {
 	# Otherwise it is the test directory and the name.
 	set nkeys 1000
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -40,15 +41,15 @@ proc test068 { method args } {
 		set testdir [get_home $env]
 	}
 
-	puts "Test0$tnum:\
+	puts "Test$tnum:\
 	    $method ($args) Test of DB_BEFORE/DB_AFTER and partial puts."
 	if { [is_record_based $method] == 1 } {
-	    puts "\tTest0$tnum: skipping for method $method."
+	    puts "\tTest$tnum: skipping for method $method."
 	    return
 	}
 
 	# Create a list of $nkeys words to insert into db.
-	puts "\tTest0$tnum.a: Initialize word list."
+	puts "\tTest$tnum.a: Initialize word list."
 	set txn ""
 	set wordlist {}
 	set count 0
@@ -71,6 +72,10 @@ proc test068 { method args } {
 	}
 
 	foreach dupopt $dupoptlist {
+		if { $is_je_test && $dupopt == "-dup" } {
+			continue
+		}
+
 		#
 		# Testdir might be reset in the loop by some proc sourcing
 		# include.tcl.  Reset it to the env's home here, before
@@ -83,7 +88,7 @@ proc test068 { method args } {
 		    $omethod} $args $dupopt {$testfile}]
 		error_check_good db_open [is_valid_db $db] TRUE
 
-		puts "\tTest0$tnum.b ($dupopt): DB initialization: put loop."
+		puts "\tTest$tnum.b ($dupopt): DB initialization: put loop."
 		foreach word $wordlist {
 			if { $txnenv == 1 } {
 				set t [$env txn]
@@ -97,7 +102,7 @@ proc test068 { method args } {
 			}
 		}
 
-		puts "\tTest0$tnum.c ($dupopt): get loop."
+		puts "\tTest$tnum.c ($dupopt): get loop."
 		foreach word $wordlist {
 			# Make sure that the Nth word has been correctly
 			# inserted, and also that the Nth word is the
@@ -115,7 +120,7 @@ proc test068 { method args } {
 		set dbc [eval {$db cursor} $txn]
 		error_check_good cursor_open [is_valid_cursor $dbc $db] TRUE
 
-		puts "\tTest0$tnum.d ($dupopt): DBC->put w/ DB_AFTER."
+		puts "\tTest$tnum.d ($dupopt): DBC->put w/ DB_AFTER."
 
 		# Set cursor to the first key;  make sure it succeeds.
 		# With an unsorted wordlist, we can't be sure that the
@@ -135,15 +140,15 @@ proc test068 { method args } {
 			error_check_good dbc_put_after_fail $ret 1
 			error_check_good dbc_put_after_einval \
 				[is_substr $errorCode EINVAL] 1
-			puts "\tTest0$tnum ($dupopt): DB_AFTER returns EINVAL."
+			puts "\tTest$tnum ($dupopt): DB_AFTER returns EINVAL."
 			set errorCode "NONE"
 			set ret [catch {eval $dbc put -before \
 				{-partial [list 6 0]} "before"} res]
 			error_check_good dbc_put_before_fail $ret 1
 			error_check_good dbc_put_before_einval \
 				[is_substr $errorCode EINVAL] 1
-			puts "\tTest0$tnum ($dupopt): DB_BEFORE returns EINVAL."
-			puts "\tTest0$tnum ($dupopt): Correct error returns,\
+			puts "\tTest$tnum ($dupopt): DB_BEFORE returns EINVAL."
+			puts "\tTest$tnum ($dupopt): Correct error returns,\
 				skipping further test."
 			# continue with broad foreach
 			error_check_good dbc_close [$dbc close] 0
@@ -154,7 +159,7 @@ proc test068 { method args } {
 			continue
 		}
 
-		puts "\tTest0$tnum.e ($dupopt): DBC->put(DB_AFTER) loop."
+		puts "\tTest$tnum.e ($dupopt): DBC->put(DB_AFTER) loop."
 		foreach word $wordlist {
 			# set cursor to $word
 			set dbt [$dbc get -set $word]
@@ -165,7 +170,7 @@ proc test068 { method args } {
 			error_check_good dbc_put_after $ret 0
 		}
 
-		puts "\tTest0$tnum.f ($dupopt): DBC->put(DB_BEFORE) loop."
+		puts "\tTest$tnum.f ($dupopt): DBC->put(DB_BEFORE) loop."
 		foreach word $wordlist {
 			# set cursor to $word
 			set dbt [$dbc get -set $word]
@@ -182,7 +187,7 @@ proc test068 { method args } {
 		}
 
 		eval $db sync
-		puts "\tTest0$tnum.g ($dupopt): Verify correctness."
+		puts "\tTest$tnum.g ($dupopt): Verify correctness."
 
 		if { $txnenv == 1 } {
 			set t [$env txn]

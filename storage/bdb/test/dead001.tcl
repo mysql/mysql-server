@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: dead001.tcl,v 11.33 2002/09/05 17:23:05 sandstro Exp $
+# $Id: dead001.tcl,v 11.37 2004/01/28 03:36:26 bostic Exp $
 #
 # TEST	dead001
 # TEST	Use two different configurations to test deadlock detection among a
@@ -23,7 +23,7 @@ proc dead001 { { procs "2 4 10" } {tests "ring clump" } \
 	# Create the environment.
 	puts "\tDead$tnum.a: creating environment"
 	set env [berkdb_env -create \
-	     -mode 0644 -lock -txn_timeout $timeout -home $testdir]
+	     -mode 0644 -lock -lock_timeout $timeout -home $testdir]
 	error_check_good lock_env:open [is_valid_env $env] TRUE
 
 	foreach t $tests {
@@ -72,7 +72,7 @@ proc dead001 { { procs "2 4 10" } {tests "ring clump" } \
 				close $did
 			}
 			tclkill $dpid
-			puts "dead check..."
+			puts "\tDead$tnum: dead check..."
 			dead_check $t $n $timeout $dead $clean $other
 		}
 	}

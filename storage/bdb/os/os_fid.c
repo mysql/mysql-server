@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_fid.c,v 11.21 2004/07/06 13:55:48 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_fid.c,v 11.14 2002/08/26 14:37:38 margo Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -28,13 +26,9 @@ static const char revid[] = "$Id: os_fid.c,v 11.14 2002/08/26 14:37:38 margo Exp
 
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
-
-#define	SERIAL_INIT	0
-static u_int32_t fid_serial = SERIAL_INIT;
 
 /*
  * __os_fileid --
@@ -64,36 +58,15 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	memset(fidp, 0, DB_FILE_ID_LEN);
 
 	/* On POSIX/UNIX, use a dev/inode pair. */
-retry:
 #ifdef HAVE_VXWORKS
-	if (stat((char *)fname, &sb) != 0) {
+	RETRY_CHK((stat((char *)fname, &sb)), ret);
 #else
-	if (stat(fname, &sb) != 0) {
+	RETRY_CHK((stat(fname, &sb)), ret);
 #endif
-		if ((ret = __os_get_errno()) == EINTR)
-			goto retry;
+	if (ret != 0) {
 		__db_err(dbenv, "%s: %s", fname, strerror(ret));
 		return (ret);
 	}
-
-	/*
-	 * Initialize/increment the serial number we use to help avoid
-	 * fileid collisions.  Note that we don't bother with locking;
-	 * it's unpleasant to do from down in here, and if we race on
-	 * this no real harm will be done, since the finished fileid
-	 * has so many other components.
-	 *
-	 * We increment by 100000 on each call as a simple way of
-	 * randomizing;  simply incrementing seems potentially less useful
-	 * if pids are also simply incremented, since this is process-local
-	 * and we may be one of a set of processes starting up.  100000
-	 * pushes us out of pid space on most platforms, and has few
-	 * interesting properties in base 2.
-	 */
-	if (fid_serial == SERIAL_INIT)
-		__os_id(&fid_serial);
-	else
-		fid_serial += 100000;
 
 	/*
 	 * !!!
@@ -130,17 +103,35 @@ retry:
 		*fidp++ = *p++;
 
 	if (unique_okay) {
-		/*
-		 * We want the number of seconds, not the high-order 0 bits,
-		 * so convert the returned time_t to a (potentially) smaller
-		 * fixed-size type.
-		 */
-		tmp = (u_int32_t)time(NULL);
+		static u_int32_t fid_serial = 0;
+
+		/* Add in 32-bits of (hopefully) unique number. */
+		__os_unique_id(dbenv, &tmp);
 		for (p = (u_int8_t *)&tmp, i = sizeof(u_int32_t); i > 0; --i)
 			*fidp++ = *p++;
 
-		for (p = (u_int8_t *)&fid_serial, i = sizeof(u_int32_t);
-		    i > 0; --i)
+		/*
+		 * Initialize/increment the serial number we use to help
+		 * avoid fileid collisions.  Note we don't bother with
+		 * locking; it's unpleasant to do from down in here, and
+		 * if we race on this no real harm will be done, since the
+		 * finished fileid has so many other components.
+		 *
+		 * We increment by 100000 on each call as a simple way of
+		 * randomizing; simply incrementing seems potentially less
+		 * useful if pids are also simply incremented, since this
+		 * is process-local and we may be one of a set of processes
+		 * starting up.  100000 pushes us out of pid space on most
+		 * 32-bit platforms, and has few interesting properties in
+		 * base 2.
+		 */
+		if (fid_serial == 0)
+			__os_id(&fid_serial);
+		else
+			fid_serial += 100000;
+
+		for (p =
+		    (u_int8_t *)&fid_serial, i = sizeof(u_int32_t); i > 0; --i)
 			*fidp++ = *p++;
 	}
 

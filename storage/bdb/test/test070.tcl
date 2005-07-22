@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test070.tcl,v 11.27 2002/09/05 17:23:07 sandstro Exp $
+# $Id: test070.tcl,v 11.33 2004/02/17 16:29:07 dda Exp $
 #
 # TEST	test070
 # TEST	Test of DB_CONSUME (Four consumers, 1000 items.)
@@ -13,7 +13,7 @@
 # TEST	the consumers will each get 10000.
 # TEST	Then, verify that no record was lost or retrieved twice.
 proc test070 { method {nconsumers 4} {nproducers 2} \
-    {nitems 1000} {mode CONSUME } {start 0} {txn -txn} {tnum 70} args } {
+    {nitems 1000} {mode CONSUME } {start 0} {txn -txn} {tnum "070"} args } {
 	source ./include.tcl
 	global alphabet
 	global encrypt
@@ -24,29 +24,29 @@ proc test070 { method {nconsumers 4} {nproducers 2} \
 	if { $eindex != -1 } {
 		incr eindex
 		set env [lindex $args $eindex]
-		puts "Test0$tnum skipping for env $env"
+		puts "Test$tnum skipping for env $env"
 		return
 	}
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]
 	if { $encrypt != 0 } {
-		puts "Test0$tnum skipping for security"
+		puts "Test$tnum skipping for security"
 		return
 	}
 
-	puts "Test0$tnum: $method ($args) Test of DB_$mode flag to DB->get."
+	puts "Test$tnum: $method ($args) Test of DB_$mode flag to DB->get."
 	puts "\tUsing $txn environment."
 
 	error_check_good enough_consumers [expr $nconsumers > 0] 1
 	error_check_good enough_producers [expr $nproducers > 0] 1
 
 	if { [is_queue $method] != 1 } {
-		puts "\tSkipping Test0$tnum for method $method."
+		puts "\tSkipping Test$tnum for method $method."
 		return
 	}
 
 	env_cleanup $testdir
-	set testfile test0$tnum.db
+	set testfile test$tnum.db
 
 	# Create environment
 	set dbenv [eval {berkdb_env -create $txn -home } $testdir]
@@ -59,7 +59,7 @@ proc test070 { method {nconsumers 4} {nproducers 2} \
 
 	if { $start != 0 } {
 		error_check_good set_seed [$db put $start "consumer data"] 0
-		puts "\tStarting at $start."
+		puts "\tTest$tnum: starting at $start."
 	} else {
 		incr start
 	}
@@ -97,30 +97,24 @@ proc test070 { method {nconsumers 4} {nproducers 2} \
 
 	# Verify: slurp all record numbers into list, sort, and make
 	# sure each appears exactly once.
-	puts "\tTest0$tnum: Verifying results."
+	puts "\tTest$tnum: Verifying results."
 	set reclist {}
 	for { set ndx 0 } { $ndx < $nconsumers } { incr ndx } {
 		set input $consumerlog$ndx
 		set iid [open $input r]
 		while { [gets $iid str] != -1 } {
-			# Convert high ints to negative ints, to
-			# simulate Tcl's behavior on a 32-bit machine
-			# even if we're on a 64-bit one.
-			if { $str > 0x7fffffff } {
-				set str [expr $str - 1 - 0xffffffff]
-			}
 			lappend reclist $str
 		}
 		close $iid
 	}
-	set sortreclist [lsort -integer $reclist]
+	set sortreclist [lsort -command int32_compare $reclist]
 
 	set nitems [expr $start + $nitems]
-	for { set ndx $start } { $ndx < $nitems } { incr ndx } {
-		# Convert high ints to negative ints, to simulate
-		# 32-bit behavior on 64-bit platforms.
-		if { $ndx > 0x7fffffff } {
-			set cmp [expr $ndx - 1 - 0xffffffff]
+	for { set ndx $start } { $ndx < $nitems } { set ndx [expr $ndx + 1] } {
+		# Wrap if $ndx goes beyond 32 bits because our
+		# recno wrapped if it did.
+		if { $ndx > 0xffffffff } {
+			set cmp [expr $ndx - 0xffffffff]
 		} else {
 			set cmp [expr $ndx + 0]
 		}
@@ -138,5 +132,5 @@ proc test070 { method {nconsumers 4} {nproducers 2} \
 	error_check_good db_close [$db close] 0
 	error_check_good dbenv_close [$dbenv close] 0
 
-	puts "\tTest0$tnum completed successfully."
+	puts "\tTest$tnum completed successfully."
 }

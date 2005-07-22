@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recdscript.tcl,v 11.4 2002/01/11 15:53:32 bostic Exp $
+# $Id: recdscript.tcl,v 11.6 2004/01/28 03:36:29 bostic Exp $
 #
 # Recovery txn prepare script
 # Usage: recdscript op dir envcmd dbfile cmd

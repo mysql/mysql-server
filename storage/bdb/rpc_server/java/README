@@ -1,4 +1,7 @@
-Berkeley DB Java RPC server, copyright (C) 2002 Sleepycat Software
+Berkeley DB Java RPC server.
+
+Copyright (c) 2002-2004
+	Sleepycat Software.  All rights reserved.
 
 The Java implementation of the Berkeley DB RPC server is intended
 primarily for testing purposes.  It provides the same interface

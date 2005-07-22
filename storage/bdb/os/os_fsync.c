@@ -1,22 +1,20 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_fsync.c,v 11.22 2004/07/06 20:54:09 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_fsync.c,v 11.14 2002/07/12 18:56:50 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
 #include <fcntl.h>			/* XXX: Required by __hp3000s900 */
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -24,7 +22,7 @@ static const char revid[] = "$Id: os_fsync.c,v 11.14 2002/07/12 18:56:50 bostic 
 #ifdef	HAVE_VXWORKS
 #include "ioLib.h"
 
-#define	fsync(fd)	__vx_fsync(fd);
+#define	fsync(fd)	__vx_fsync(fd)
 
 int
 __vx_fsync(fd)
@@ -44,7 +42,7 @@ __vx_fsync(fd)
 #endif
 
 #ifdef __hp3000s900
-#define	fsync(fd)	__mpe_fsync(fd);
+#define	fsync(fd)	__mpe_fsync(fd)
 
 int
 __mpe_fsync(fd)
@@ -78,10 +76,17 @@ __os_fsync(dbenv, fhp)
 	if (F_ISSET(fhp, DB_FH_NOSYNC))
 		return (0);
 
-	do {
-		ret = DB_GLOBAL(j_fsync) != NULL ?
-		    DB_GLOBAL(j_fsync)(fhp->fd) : fsync(fhp->fd);
-	} while (ret != 0 && (ret = __os_get_errno()) == EINTR);
+	/* Check for illegal usage. */
+	DB_ASSERT(F_ISSET(fhp, DB_FH_OPENED) && fhp->fd != -1);
+
+	if (DB_GLOBAL(j_fsync) != NULL)
+		ret = DB_GLOBAL(j_fsync)(fhp->fd);
+	else
+#ifdef HAVE_FDATASYNC
+		RETRY_CHK((fdatasync(fhp->fd)), ret);
+#else
+		RETRY_CHK((fsync(fhp->fd)), ret);
+#endif
 
 	if (ret != 0)
 		__db_err(dbenv, "fsync %s", strerror(ret));

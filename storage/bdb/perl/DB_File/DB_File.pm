@@ -1,10 +1,10 @@
 # DB_File.pm -- Perl 5 interface to Berkeley DB 
 #
-# written by Paul Marquess (Paul.Marquess@btinternet.com)
-# last modified 1st September 2002
-# version 1.805
+# written by Paul Marquess (pmqs@cpan.org)
+# last modified 7th August 2004
+# version 1.810
 #
-#     Copyright (c) 1995-2002 Paul Marquess. All rights reserved.
+#     Copyright (c) 1995-2004 Paul Marquess. All rights reserved.
 #     This program is free software; you can redistribute it and/or
 #     modify it under the same terms as Perl itself.
 
@@ -165,7 +165,7 @@ our ($db_version, $use_XSLoader, $splice_end_array);
 use Carp;
 
 
-$VERSION = "1.805" ;
+$VERSION = "1.810" ;
 
 {
     local $SIG{__WARN__} = sub {$splice_end_array = "@_";};
@@ -266,7 +266,8 @@ sub tie_hash_or_array
     $arg[2] = O_CREAT()|O_RDWR() if @arg >=3 && ! defined $arg[2];
     $arg[3] = 0666               if @arg >=4 && ! defined $arg[3];
 
-    # make recno in Berkeley DB version 2 work like recno in version 1.
+    # make recno in Berkeley DB version 2 (or better) work like 
+    # recno in version 1.
     if ($db_version > 1 and defined $arg[4] and $arg[4] =~ /RECNO/ and 
 	$arg[1] and ! -e $arg[1]) {
 	open(FH, ">$arg[1]") or return undef ;
@@ -966,7 +967,7 @@ Duplicate keys are entirely defined by the comparison function.
 In the case-insensitive example above, the keys: 'KEY' and 'key'
 would be considered duplicates, and assigning to the second one
 would overwrite the first. If duplicates are allowed for (with the
-R_DUPS flag discussed below), only a single copy of duplicate keys
+R_DUP flag discussed below), only a single copy of duplicate keys
 is stored in the database --- so (again with example above) assigning
 three values to the keys: 'KEY', 'Key', and 'key' would leave just
 the first key: 'KEY' in the database with three values. For some
@@ -1362,7 +1363,7 @@ still have bval default to C<"\n"> for variable length records, and
 space for fixed length records.
 
 Also note that the bval option only allows you to specify a single byte
-as a delimeter.
+as a delimiter.
 
 =head2 A Simple Example
 
@@ -1454,7 +1455,7 @@ Returns the number of elements in the array.
 
 =item B<$X-E<gt>splice(offset, length, elements);>
 
-Returns a splice of the the array.
+Returns a splice of the array.
 
 =back
 
@@ -1821,7 +1822,7 @@ fix very easily.
     use DB_File ;
 
     my %hash ;
-    my $filename = "/tmp/filt" ;
+    my $filename = "filt" ;
     unlink $filename ;
 
     my $db = tie %hash, 'DB_File', $filename, O_CREAT|O_RDWR, 0666, $DB_HASH 
@@ -1863,7 +1864,7 @@ Here is a DBM Filter that does it:
     use strict ;
     use DB_File ;
     my %hash ;
-    my $filename = "/tmp/filt" ;
+    my $filename = "filt" ;
     unlink $filename ;
 
 
@@ -1894,8 +1895,8 @@ peril!
 
 The locking technique went like this. 
 
-    $db = tie(%db, 'DB_File', '/tmp/foo.db', O_CREAT|O_RDWR, 0666)
-        || die "dbcreat /tmp/foo.db $!";
+    $db = tie(%db, 'DB_File', 'foo.db', O_CREAT|O_RDWR, 0644)
+        || die "dbcreat foo.db $!";
     $fd = $db->fd;
     open(DB_FH, "+<&=$fd") || die "dup $!";
     flock (DB_FH, LOCK_EX) || die "flock: $!";
@@ -2233,7 +2234,7 @@ B<DB_File> comes with the standard Perl source distribution. Look in
 the directory F<ext/DB_File>. Given the amount of time between releases
 of Perl the version that ships with Perl is quite likely to be out of
 date, so the most recent version can always be found on CPAN (see
-L<perlmod/CPAN> for details), in the directory
+L<perlmodlib/CPAN> for details), in the directory
 F<modules/by-module/DB_File>.
 
 This version of B<DB_File> will work with either version 1.x, 2.x or
@@ -2252,7 +2253,7 @@ compile properly on IRIX 5.3.
 
 =head1 COPYRIGHT
 
-Copyright (c) 1995-2002 Paul Marquess. All rights reserved. This program
+Copyright (c) 1995-2004 Paul Marquess. All rights reserved. This program
 is free software; you can redistribute it and/or modify it under the
 same terms as Perl itself.
 
@@ -2278,14 +2279,14 @@ Berkeley DB authors or the author of DB_File. See L<"AUTHOR"> for details.
 
 =head1 SEE ALSO
 
-L<perl(1)>, L<dbopen(3)>, L<hash(3)>, L<recno(3)>, L<btree(3)>,
-L<dbmfilter>
+L<perl>, L<dbopen(3)>, L<hash(3)>, L<recno(3)>, L<btree(3)>,
+L<perldbmfilter>
 
 =head1 AUTHOR
 
 The DB_File interface was written by Paul Marquess
-E<lt>Paul.Marquess@btinternet.comE<gt>.
+E<lt>pmqs@cpan.orgE<gt>.
 Questions about the DB system itself may be addressed to
-E<lt>db@sleepycat.com<gt>.
+E<lt>db@sleepycat.comE<gt>.
 
 =cut

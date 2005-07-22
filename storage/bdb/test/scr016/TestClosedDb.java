@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestClosedDb.java,v 1.4 2002/01/23 14:29:51 bostic Exp $
+ * $Id: TestClosedDb.java,v 1.8 2004/01/28 03:36:34 bostic Exp $
  */
 
 /*
@@ -34,7 +34,7 @@ public class TestClosedDb
             Dbt goodkeydbt = new Dbt("key".getBytes());
             Dbt badkeydbt = new Dbt("badkey".getBytes());
             Dbt resultdbt = new Dbt();
-            resultdbt.set_flags(Db.DB_DBT_MALLOC);
+            resultdbt.setFlags(Db.DB_DBT_MALLOC);
 
             int ret;
 
@@ -45,8 +45,8 @@ public class TestClosedDb
                 db.get(null, goodkeydbt, resultdbt, 0);
                 System.out.println("Error - did not expect to get this far.");
             }
-            catch (DbException dbe) {
-                System.out.println("Got expected Db Exception: " + dbe);
+            catch (IllegalArgumentException dbe) {
+                System.out.println("Got expected exception: " + dbe);
             }
             System.out.println("finished test");
         }

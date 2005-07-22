@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: chk.proto,v 1.8 2002/03/27 04:32:59 bostic Exp $
+# $Id: chk.proto,v 1.10 2003/12/08 19:28:26 bostic Exp $
 #
 # Check to make sure that prototypes are actually needed.
 
@@ -26,13 +26,12 @@ egrep '__P' $d/dbinc_auto/*.h |
     -e '/__db_util_arg/d' \
     -e '/__ham_func2/d' \
     -e '/__ham_func3/d' \
-    -e '/_getpgnos/d' \
     -e '/_print$/d' \
     -e '/_read$/d' > $t1
 
 find $d -name '*.in' -o -name '*.[ch]' -o -name '*.cpp' > $t2
 for i in `cat $t1`; do
-	c=$(egrep -low $i $(cat $t2) | wc -l)
+	c=$(egrep -Hlw $i $(cat $t2) | wc -l)
 	echo "$i: $c"
 done | egrep ' 1$' > $t3
 

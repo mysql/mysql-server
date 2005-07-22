@@ -1,15 +1,16 @@
-/*NOTE: AccessExample changed to test Db.key_range.
- * We made a global change of /AccessExample/TestKeyRange/,
- * the only other changes are marked with comments that
- * are notated as 'ADDED'.
- */
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestKeyRange.cpp,v 1.4 2002/01/23 14:26:41 bostic Exp $
+ * $Id: TestKeyRange.cpp,v 1.6 2004/01/28 03:36:33 bostic Exp $
+ */
+
+/*
+ * NOTE: AccessExample changed to test Db.key_range.  We made a global
+ * change of /AccessExample/TestKeyRange/, the only other changes are
+ * marked with comments that are notated as 'ADDED'.
  */
 
 #ifndef NO_SYSTEM_INCLUDES

@@ -1,4 +1,4 @@
-<!--Copyright 1999-2002 by Sleepycat Software, Inc.-->
+<!--Copyright 1999-2004 by Sleepycat Software, Inc.-->
 <!--All rights reserved.-->
 <html>
 <head>
@@ -25,12 +25,15 @@ It returns either a 0 (for success), a DB error message or it throws a
 Tcl error with a system message.&nbsp; The arguments are:
 <ul>
 <li>
-<b>-kbyte </b>causes the checkpoint to occur only if <b><i>kb</i></b> kilobytes
-of log data has been written since the last checkpoint</li>
+<b>-force</b>causes the checkpoint to occur regardless of inactivity
+
+<li>
+<b>-kbyte</b>causes the checkpoint to occur only if <b><i>kb</i></b> kilobytes
+of log data has been written since the last checkpoint
 
 <li>
 <b>-min</b> causes the checkpoint to occur only if <b><i>min</i></b> minutes
-have passed since the last checkpoint</li>
+have passed since the last checkpoint
 </ul>
 
 <hr WIDTH="100%">

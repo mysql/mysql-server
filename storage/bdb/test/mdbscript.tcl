@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: mdbscript.tcl,v 11.29 2002/03/22 21:43:06 krinsky Exp $
+# $Id: mdbscript.tcl,v 11.33 2004/01/28 03:36:28 bostic Exp $
 #
 # Process script for the multi-process db tester.
 
@@ -96,7 +96,6 @@ error_check_good dbopen [is_valid_db $db] TRUE
 # Init globals (no data)
 set nkeys [db_init $db 0]
 puts "Initial number of keys: $nkeys"
-error_check_good db_init $nkeys $nentries
 tclsleep 5
 
 proc get_lock { k } {
@@ -122,6 +121,23 @@ proc get_lock { k } {
 		error_check_good get_lock [is_valid_lock $klock $dbenv] TRUE
 	}
 	return 0
+}
+
+# If we are renumbering, then each time we delete an item, the number of
+# items in the file is temporarily decreased, so the highest record numbers
+# do not exist.  To make sure this doesn't happen, we never generate the
+# highest few record numbers as keys.
+#
+# For record-based methods, record numbers begin at 1, while for other keys,
+# we begin at 0 to index into an array.
+proc rand_key { method nkeys renum procs} {
+	if { $renum == 1 } {
+		return [berkdb random_int 1 [expr $nkeys - $procs]]
+	} elseif { [is_record_based $method] == 1 } {
+		return [berkdb random_int 1 $nkeys]
+	} else {
+		return [berkdb random_int 0 [expr $nkeys - 1]]
+	}
 }
 
 # On each iteration we're going to randomly pick a key.

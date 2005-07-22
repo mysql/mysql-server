@@ -1,11 +1,11 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb007.tcl,v 11.20 2002/07/11 18:53:46 sandstro Exp $
+# $Id: sdb007.tcl,v 11.25 2004/09/22 18:01:06 bostic Exp $
 #
-# TEST	subdb007
+# TEST	sdb007
 # TEST	Tests page size difference errors between subdbs.
 # TEST  Test 3 different scenarios for page sizes.
 # TEST 	1.  Create/open with a default page size, 2nd subdb create with
@@ -15,8 +15,9 @@
 # TEST  3.  Create/open with specified page size, 2nd subdb create with
 # TEST      same specified size, should succeed.
 # TEST  (4th combo of using all defaults is a basic test, done elsewhere)
-proc subdb007 { method args } {
+proc sdb007 { method args } {
 	source ./include.tcl
+	global is_envmethod
 
 	set db2args [convert_args -btree $args]
 	set args [convert_args $method $args]
@@ -88,8 +89,14 @@ proc subdb007 { method args } {
 	set stat [catch {eval {berkdb_open_noerr -create -btree} \
 	    $db2args {-pagesize $pgsz2 $testfile $sub2}} ret]
 	error_check_good subdb:pgsz $stat 1
-	error_check_good subdb:fail [is_substr $ret \
-	    "Different pagesize specified"] 1
+	# We'll get a different error if running in an env,
+	# because the env won't have been opened with noerr.
+	# Skip the test for what the error is, just getting the
+	# error is enough.
+	if { $is_envmethod == 0 } {
+		error_check_good subdb:fail [is_substr $ret \
+		    "Different pagesize specified"] 1
+	}
 
 	set ret [eval {berkdb dbremove} $envargs {$testfile}]
 
@@ -112,8 +119,10 @@ proc subdb007 { method args } {
 	set stat [catch {eval {berkdb_open_noerr -create -btree} \
 	    $db2args {-pagesize $pgsz $testfile $sub2}} ret]
 	error_check_good subdb:pgsz $stat 1
-	error_check_good subdb:fail [is_substr $ret \
-	    "Different pagesize specified"] 1
+	if { $is_envmethod == 0 } {
+		error_check_good subdb:fail [is_substr $ret \
+		    "Different pagesize specified"] 1
+	}
 
 	set ret [eval {berkdb dbremove} $envargs {$testfile}]
 

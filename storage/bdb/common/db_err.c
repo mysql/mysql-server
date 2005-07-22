@@ -1,20 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_err.c,v 11.123 2004/09/22 03:07:50 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: db_err.c,v 11.80 2002/07/30 01:21:53 bostic Exp $";
-#endif /* not lint */
-
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #endif
@@ -26,6 +23,9 @@ static const char revid[] = "$Id: db_err.c,v 11.80 2002/07/30 01:21:53 bostic Ex
 #include "dbinc/lock.h"
 #include "dbinc/log.h"
 #include "dbinc/txn.h"
+
+static void __db_msgcall __P((const DB_ENV *, const char *, va_list));
+static void __db_msgfile __P((const DB_ENV *, const char *, va_list));
 
 /*
  * __db_fchk --
@@ -77,12 +77,29 @@ __db_ferr(dbenv, name, iscombo)
 }
 
 /*
+ * __db_fnl --
+ *	Common flag-needs-locking message.
+ *
+ * PUBLIC: int __db_fnl __P((const DB_ENV *, const char *));
+ */
+int
+__db_fnl(dbenv, name)
+	const DB_ENV *dbenv;
+	const char *name;
+{
+	__db_err(dbenv,
+    "%s: the DB_DIRTY_READ, DB_DEGREE_2 and DB_RMW flags require locking",
+	    name);
+	return (EINVAL);
+}
+
+/*
  * __db_pgerr --
  *	Error when unable to retrieve a specified page.
  *
- * PUBLIC: void __db_pgerr __P((DB *, db_pgno_t, int));
+ * PUBLIC: int __db_pgerr __P((DB *, db_pgno_t, int));
  */
-void
+int
 __db_pgerr(dbp, pgno, errval)
 	DB *dbp;
 	db_pgno_t pgno;
@@ -95,7 +112,7 @@ __db_pgerr(dbp, pgno, errval)
 	 */
 	__db_err(dbp->dbenv,
 	    "unable to create/retrieve page %lu", (u_long)pgno);
-	(void)__db_panic(dbp->dbenv, errval);
+	return (__db_panic(dbp->dbenv, errval));
 }
 
 /*
@@ -111,24 +128,6 @@ __db_pgfmt(dbenv, pgno)
 {
 	__db_err(dbenv, "page %lu: illegal page type or format", (u_long)pgno);
 	return (__db_panic(dbenv, EINVAL));
-}
-
-/*
- * __db_eopnotsup --
- *	Common operation not supported message.
- *
- * PUBLIC: int __db_eopnotsup __P((const DB_ENV *));
- */
-int
-__db_eopnotsup(dbenv)
-	const DB_ENV *dbenv;
-{
-	__db_err(dbenv, "operation not supported");
-#ifdef EOPNOTSUPP
-	return (EOPNOTSUPP);
-#else
-	return (EINVAL);
-#endif
 }
 
 #ifdef DIAGNOSTIC
@@ -167,7 +166,11 @@ int
 __db_panic_msg(dbenv)
 	DB_ENV *dbenv;
 {
-	__db_err(dbenv, "fatal region error detected; run recovery");
+	__db_err(dbenv, "PANIC: fatal region error detected; run recovery");
+
+	if (dbenv->db_paniccall != NULL)
+		dbenv->db_paniccall(dbenv, DB_RUNRECOVERY);
+
 	return (DB_RUNRECOVERY);
 }
 
@@ -184,8 +187,6 @@ __db_panic(dbenv, errval)
 {
 	if (dbenv != NULL) {
 		PANIC_SET(dbenv, 1);
-
-		dbenv->panic_errval = errval;
 
 		__db_err(dbenv, "PANIC: %s", db_strerror(errval));
 
@@ -222,10 +223,15 @@ char *
 db_strerror(error)
 	int error;
 {
+	char *p;
+
 	if (error == 0)
 		return ("Successful return: 0");
-	if (error > 0)
-		return (strerror(error));
+	if (error > 0) {
+		if ((p = strerror(error)) != NULL)
+			return (p);
+		goto unknown_err;
+	}
 
 	/*
 	 * !!!
@@ -235,6 +241,9 @@ db_strerror(error)
 	 * altered.
 	 */
 	switch (error) {
+	case DB_BUFFER_SMALL:
+		return
+		    ("DB_BUFFER_SMALL: User memory too small for return value");
 	case DB_DONOTINDEX:
 		return ("DB_DONOTINDEX: Secondary index callback returns null");
 	case DB_KEYEMPTY:
@@ -246,8 +255,10 @@ db_strerror(error)
 		    ("DB_LOCK_DEADLOCK: Locker killed to resolve a deadlock");
 	case DB_LOCK_NOTGRANTED:
 		return ("DB_LOCK_NOTGRANTED: Lock not granted");
+	case DB_LOG_BUFFER_FULL:
+		return ("DB_LOG_BUFFER_FULL: In-memory log buffer is full");
 	case DB_NOSERVER:
-		return ("DB_NOSERVER: Fatal error, no server");
+		return ("DB_NOSERVER: Fatal error, no RPC server");
 	case DB_NOSERVER_HOME:
 		return ("DB_NOSERVER_HOME: Home unrecognized at server");
 	case DB_NOSERVER_ID:
@@ -260,25 +271,38 @@ db_strerror(error)
 		return ("DB_PAGE_NOTFOUND: Requested page not found");
 	case DB_REP_DUPMASTER:
 		return ("DB_REP_DUPMASTER: A second master site appeared");
+	case DB_REP_HANDLE_DEAD:
+		return ("DB_REP_HANDLE_DEAD: Handle is no longer valid");
 	case DB_REP_HOLDELECTION:
 		return ("DB_REP_HOLDELECTION: Need to hold an election");
+	case DB_REP_ISPERM:
+		return ("DB_REP_ISPERM: Permanent record written");
 	case DB_REP_NEWMASTER:
 		return ("DB_REP_NEWMASTER: A new master has declared itself");
 	case DB_REP_NEWSITE:
 		return ("DB_REP_NEWSITE: A new site has entered the system");
-	case DB_REP_OUTDATED:
+	case DB_REP_NOTPERM:
+		return ("DB_REP_NOTPERM: Permanent log record not written");
+	case DB_REP_STARTUPDONE:
 		return
-		    ("DB_REP_OUTDATED: Insufficient logs on master to recover");
+	    ("DB_REP_STARTUPDONE: Client completed startup synchronization.");
 	case DB_REP_UNAVAIL:
 		return ("DB_REP_UNAVAIL: Unable to elect a master");
 	case DB_RUNRECOVERY:
 		return ("DB_RUNRECOVERY: Fatal error, run database recovery");
 	case DB_SECONDARY_BAD:
 		return
-	    ("DB_SECONDARY_BAD: Secondary index item missing from primary");
+	    ("DB_SECONDARY_BAD: Secondary index inconsistent with primary");
 	case DB_VERIFY_BAD:
 		return ("DB_VERIFY_BAD: Database verification failed");
-	default: {
+	case DB_VERSION_MISMATCH:
+		return
+	    ("DB_VERSION_MISMATCH: Database environment version mismatch");
+	default:
+		break;
+	}
+
+unknown_err: {
 		/*
 		 * !!!
 		 * Room for a 64-bit number + slop.  This buffer is only used
@@ -290,7 +314,6 @@ db_strerror(error)
 		(void)snprintf(ebuf, sizeof(ebuf), "Unknown error: %d", error);
 		return (ebuf);
 	}
-	}
 }
 
 /*
@@ -298,10 +321,11 @@ db_strerror(error)
  *	Standard DB error routine.  The same as errx, except we don't write
  *	to stderr if no output mechanism was specified.
  *
- * PUBLIC: void __db_err __P((const DB_ENV *, const char *, ...));
+ * PUBLIC: void __db_err __P((const DB_ENV *, const char *, ...))
+ * PUBLIC:    __attribute__ ((__format__ (__printf__, 2, 3)));
  */
 void
-#ifdef __STDC__
+#ifdef STDC_HEADERS
 __db_err(const DB_ENV *dbenv, const char *fmt, ...)
 #else
 __db_err(dbenv, fmt, va_alist)
@@ -328,34 +352,17 @@ __db_errcall(dbenv, error, error_set, fmt, ap)
 	va_list ap;
 {
 	char *p;
-	char errbuf[2048];	/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
+	char buf[2048];		/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
 
-	p = errbuf;
+	p = buf;
 	if (fmt != NULL)
-		p += vsnprintf(errbuf, sizeof(errbuf), fmt, ap);
+		p += vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (error_set)
 		p += snprintf(p,
-		    sizeof(errbuf) - (p - errbuf), ": %s", db_strerror(error));
-	/*
-	 * !!!
-	 * We're potentially manipulating strings handed us by the application,
-	 * and on systems without a real snprintf() the sprintf() calls could
-	 * have overflowed the buffer.  We can't do anything about it now, but
-	 * we don't want to return control to the application, we might have
-	 * overwritten the stack with a Trojan horse.  We're not trying to do
-	 * anything recoverable here because systems without snprintf support
-	 * are pretty rare anymore.
-	 */
-	if ((size_t)(p - errbuf) > sizeof(errbuf)) {
-		(void)fprintf(stderr,
-		    "Berkeley DB: error callback interface buffer overflow\n");
-		(void)fflush(stderr);
+		    sizeof(buf) - (size_t)(p - buf), ": %s",
+		    db_strerror(error));
 
-		abort();
-		/* NOTREACHED */
-	}
-
-	dbenv->db_errcall(dbenv->db_errpfx, errbuf);
+	dbenv->db_errcall(dbenv, dbenv->db_errpfx, buf);
 }
 
 /*
@@ -391,14 +398,120 @@ __db_errfile(dbenv, error, error_set, fmt, ap)
 }
 
 /*
+ * __db_msgadd --
+ *	Aggregate a set of strings into a buffer for the callback API.
+ *
+ * PUBLIC: void __db_msgadd __P((DB_ENV *, DB_MSGBUF *, const char *, ...))
+ * PUBLIC:    __attribute__ ((__format__ (__printf__, 3, 4)));
+ */
+void
+#ifdef STDC_HEADERS
+__db_msgadd(DB_ENV *dbenv, DB_MSGBUF *mbp, const char *fmt, ...)
+#else
+__db_msgadd(dbenv, mbp, fmt, va_alist)
+	DB_ENV *dbenv;
+	DB_MSGBUF *mbp;
+	const char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
+	size_t len, olen;
+	char buf[2048];		/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
+
+#ifdef STDC_HEADERS
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+	len = (size_t)vsnprintf(buf, sizeof(buf), fmt, ap);
+
+	va_end(ap);
+
+	/*
+	 * There's a heap buffer in the DB_ENV handle we use to aggregate the
+	 * message chunks.  We maintain a pointer to the buffer, the next slot
+	 * to be filled in in the buffer, and a total buffer length.
+	 */
+	olen = (size_t)(mbp->cur - mbp->buf);
+	if (olen + len >= mbp->len) {
+		if (__os_realloc(dbenv, mbp->len + len + 256, &mbp->buf))
+			return;
+		mbp->len += (len + 256);
+		mbp->cur = mbp->buf + olen;
+	}
+
+	memcpy(mbp->cur, buf, len + 1);
+	mbp->cur += len;
+}
+
+/*
+ * __db_msg --
+ *	Standard DB stat message routine.
+ *
+ * PUBLIC: void __db_msg __P((const DB_ENV *, const char *, ...))
+ * PUBLIC:    __attribute__ ((__format__ (__printf__, 2, 3)));
+ */
+void
+#ifdef STDC_HEADERS
+__db_msg(const DB_ENV *dbenv, const char *fmt, ...)
+#else
+__db_msg(dbenv, fmt, va_alist)
+	const DB_ENV *dbenv;
+	const char *fmt;
+	va_dcl
+#endif
+{
+	DB_REAL_MSG(dbenv, fmt);
+}
+
+/*
+ * __db_msgcall --
+ *	Do the message work for callback functions.
+ */
+static void
+__db_msgcall(dbenv, fmt, ap)
+	const DB_ENV *dbenv;
+	const char *fmt;
+	va_list ap;
+{
+	char buf[2048];		/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
+
+	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
+
+	dbenv->db_msgcall(dbenv, buf);
+}
+
+/*
+ * __db_msgfile --
+ *	Do the message work for FILE *s.
+ */
+static void
+__db_msgfile(dbenv, fmt, ap)
+	const DB_ENV *dbenv;
+	const char *fmt;
+	va_list ap;
+{
+	FILE *fp;
+
+	fp = dbenv == NULL ||
+	    dbenv->db_msgfile == NULL ? stdout : dbenv->db_msgfile;
+	(void)vfprintf(fp, fmt, ap);
+
+	(void)fprintf(fp, "\n");
+	(void)fflush(fp);
+}
+
+/*
  * __db_logmsg --
  *	Write information into the DB log.
  *
  * PUBLIC: void __db_logmsg __P((const DB_ENV *,
- * PUBLIC:     DB_TXN *, const char *, u_int32_t, const char *, ...));
+ * PUBLIC:     DB_TXN *, const char *, u_int32_t, const char *, ...))
+ * PUBLIC:    __attribute__ ((__format__ (__printf__, 5, 6)));
  */
 void
-#ifdef __STDC__
+#ifdef STDC_HEADERS
 __db_logmsg(const DB_ENV *dbenv,
     DB_TXN *txnid, const char *opname, u_int32_t flags, const char *fmt, ...)
 #else
@@ -418,7 +531,7 @@ __db_logmsg(dbenv, txnid, opname, flags, fmt, va_alist)
 	if (!LOGGING_ON(dbenv))
 		return;
 
-#ifdef __STDC__
+#ifdef STDC_HEADERS
 	va_start(ap, fmt);
 #else
 	va_start(ap);
@@ -429,17 +542,17 @@ __db_logmsg(dbenv, txnid, opname, flags, fmt, va_alist)
 
 	memset(&msgdbt, 0, sizeof(msgdbt));
 	msgdbt.data = __logbuf;
-	msgdbt.size = vsnprintf(__logbuf, sizeof(__logbuf), fmt, ap);
+	msgdbt.size = (u_int32_t)vsnprintf(__logbuf, sizeof(__logbuf), fmt, ap);
+
+	va_end(ap);
 
 	/*
 	 * XXX
 	 * Explicitly discard the const.  Otherwise, we have to const DB_ENV
 	 * references throughout the logging subsystem.
 	 */
-	__db_debug_log(
+	(void)__db_debug_log(
 	    (DB_ENV *)dbenv, txnid, &lsn, flags, &opdbt, -1, &msgdbt, NULL, 0);
-
-	va_end(ap);
 }
 
 /*
@@ -453,7 +566,7 @@ __db_unknown_flag(dbenv, routine, flag)
 	char *routine;
 	u_int32_t flag;
 {
-	__db_err(dbenv, "%s: Unknown flag: 0x%x", routine, flag);
+	__db_err(dbenv, "%s: Unknown flag: %#x", routine, (u_int)flag);
 	DB_ASSERT(0);
 	return (EINVAL);
 }
@@ -469,7 +582,9 @@ __db_unknown_type(dbenv, routine, type)
 	char *routine;
 	DBTYPE type;
 {
-	__db_err(dbenv, "%s: Unknown db type: 0x%x", routine, type);
+	__db_err(dbenv,
+	    "%s: Unexpected DB type: %s", routine, __db_dbtype_to_string(type));
+
 	DB_ASSERT(0);
 	return (EINVAL);
 }
@@ -488,6 +603,7 @@ __db_check_txn(dbp, txn, assoc_lid, read_op)
 	int read_op;
 {
 	DB_ENV *dbenv;
+	int isp, ret;
 
 	dbenv = dbp->dbenv;
 
@@ -522,8 +638,19 @@ __db_check_txn(dbp, txn, assoc_lid, read_op)
 		if (dbp->cur_lid >= TXN_MINIMUM)
 			goto open_err;
 	} else {
-		if (dbp->cur_lid >= TXN_MINIMUM && dbp->cur_lid != txn->txnid)
-			goto open_err;
+		if (F_ISSET(txn, TXN_DEADLOCK)) {
+			__db_err(dbenv,
+			    "Previous deadlock return not resolved");
+			return (EINVAL);
+		}
+		if (dbp->cur_lid >= TXN_MINIMUM &&
+		    dbp->cur_lid != txn->txnid) {
+			if ((ret = __lock_locker_is_parent(dbenv,
+			     dbp->cur_lid, txn->txnid, &isp)) != 0)
+				return (ret);
+			if (!isp)
+				goto open_err;
+		}
 
 		if (!TXN_ON(dbenv))
 			 return (__db_not_txn_env(dbenv));
@@ -575,5 +702,56 @@ __db_not_txn_env(dbenv)
 	DB_ENV *dbenv;
 {
 	__db_err(dbenv, "DB environment not configured for transactions");
+	return (EINVAL);
+}
+
+/*
+ * __db_rec_toobig --
+ *	Fixed record length exceeded error message.
+ *
+ * PUBLIC: int __db_rec_toobig __P((DB_ENV *, u_int32_t, u_int32_t));
+ */
+int
+__db_rec_toobig(dbenv, data_len, fixed_rec_len)
+	DB_ENV *dbenv;
+	u_int32_t data_len, fixed_rec_len;
+{
+	__db_err(dbenv, "%s: length of %lu larger than database's value of %lu",
+	    "Record length error", (u_long)data_len, (u_long)fixed_rec_len);
+	return (EINVAL);
+}
+
+/*
+ * __db_rec_repl --
+ *	Fixed record replacement length error message.
+ *
+ * PUBLIC: int __db_rec_repl __P((DB_ENV *, u_int32_t, u_int32_t));
+ */
+int
+__db_rec_repl(dbenv, data_size, data_dlen)
+	DB_ENV *dbenv;
+	u_int32_t data_size, data_dlen;
+{
+	__db_err(dbenv,
+	    "%s: replacement length %lu differs from replaced length %lu",
+	    "Record length error", (u_long)data_size, (u_long)data_dlen);
+	return (EINVAL);
+}
+
+/*
+ * __db_check_lsn --
+ *	Display the log sequence error message.
+ *
+ * PUBLIC: int __db_check_lsn __P((DB_ENV *, DB_LSN *, DB_LSN *));
+ */
+int
+__db_check_lsn(dbenv, lsn, prev)
+	DB_ENV *dbenv;
+	DB_LSN *lsn, *prev;
+{
+	__db_err(dbenv,
+	    "Log sequence error: page LSN %lu %lu; previous LSN %lu %lu",
+	    (u_long)(lsn)->file, (u_long)(lsn)->offset,
+	    (u_long)(prev)->file, (u_long)(prev)->offset);
 	return (EINVAL);
 }
