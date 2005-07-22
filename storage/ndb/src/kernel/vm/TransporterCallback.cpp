@@ -33,6 +33,7 @@
 #include <NdbOut.hpp>
 #include "DataBuffer.hpp"
 
+
 /**
  * The instance
  */
@@ -452,3 +453,8 @@ SignalLoggerManager::printSegmentedSection(FILE * output,
     putc('\n', output);
 }
 
+void
+transporter_recv_from(void * callbackObj, NodeId nodeId){
+  globalData.m_nodeInfo[nodeId].m_heartbeat_cnt= 0;
+  return;
+}
