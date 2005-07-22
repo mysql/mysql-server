@@ -1673,3 +1673,175 @@ a	b	c
 3	6	three
 drop view v1, v2, v3;
 drop table t1;
+CREATE TABLE t1 (a int, b bigint default NULL);
+CREATE TABLE t2 (a int);
+create trigger trg1 before insert on t1 for each row
+begin
+if new.a > 10 then
+set new.a := 10;
+set new.a := 11;
+end if;
+end|
+create trigger trg2 before update on t1 for each row begin
+if old.a % 2 = 0 then set new.b := 12; end if;
+end|
+create trigger trg3 after update on t1 for each row
+begin
+if new.a = -1 then
+set @fired:= "Yes";
+end if;
+end|
+create trigger trg4 before insert on t2 for each row
+begin
+if new.a > 10 then
+set @fired:= "No";
+end if;
+end|
+show triggers like "t1";
+Trigger	Event	Table	Statement	Timing	Created
+trg1	INSERT	t1	
+begin
+if new.a > 10 then
+set new.a := 10;
+set new.a := 11;
+end if;
+end	BEFORE	0000-00-00 00:00:00
+trg2	UPDATE	t1	 begin
+if old.a % 2 = 0 then set new.b := 12; end if;
+end	BEFORE	0000-00-00 00:00:00
+trg3	UPDATE	t1	
+begin
+if new.a = -1 then
+set @fired:= "Yes";
+end if;
+end	AFTER	0000-00-00 00:00:00
+INSERT INTO t1 (a) VALUES (1),(2),(3),(22);
+update t1 set a = 4 where a=3;
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `test`;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL,
+  `b` bigint(20) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DELIMITER //;
+CREATE TRIGGER `trg1` BEFORE INSERT ON `t1`
+FOR EACH ROW
+begin
+if new.a > 10 then
+set new.a := 10;
+set new.a := 11;
+end if;
+end//
+
+CREATE TRIGGER `trg2` BEFORE UPDATE ON `t1`
+FOR EACH ROW begin
+if old.a % 2 = 0 then set new.b := 12; end if;
+end//
+
+CREATE TRIGGER `trg3` AFTER UPDATE ON `t1`
+FOR EACH ROW
+begin
+if new.a = -1 then
+set @fired:= "Yes";
+end if;
+end//
+
+DELIMITER ;//
+
+/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
+LOCK TABLES `t1` WRITE;
+INSERT INTO `t1` VALUES (1,NULL),(2,NULL),(4,NULL),(11,NULL);
+UNLOCK TABLES;
+/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+DROP TABLE IF EXISTS `t2`;
+CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DELIMITER //;
+CREATE TRIGGER `trg4` BEFORE INSERT ON `t2`
+FOR EACH ROW
+begin
+if new.a > 10 then
+set @fired:= "No";
+end if;
+end//
+
+DELIMITER ;//
+
+/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
+LOCK TABLES `t2` WRITE;
+UNLOCK TABLES;
+/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `test`;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL,
+  `b` bigint(20) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
+LOCK TABLES `t1` WRITE;
+INSERT INTO `t1` VALUES (1,NULL),(2,NULL),(4,NULL),(11,NULL);
+UNLOCK TABLES;
+/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+DROP TABLE IF EXISTS `t2`;
+CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
+LOCK TABLES `t2` WRITE;
+UNLOCK TABLES;
+/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+drop table t1;
+show tables;
+Tables_in_test
+t1
+t2
+DROP TABLE t1, t2;
