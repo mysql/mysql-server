@@ -388,7 +388,6 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
 {
   struct st_my_thread_var *thread_var= my_thread_var;
   pthread_cond_t *cond= &thread_var->suspend;
-  struct timeval now;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
   my_bool can_deadlock= test(data->owner->info->n_cursors);
@@ -406,11 +405,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   data->cond= cond;
 
   if (can_deadlock)
-  {
-    gettimeofday(&now, 0);
-    wait_timeout.tv_sec= now.tv_sec + table_lock_wait_timeout;
-    wait_timeout.tv_nsec= now.tv_usec * 1000;
-  }
+    set_timespec(wait_timeout, table_lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
     int rc= can_deadlock ? pthread_cond_timedwait(cond, &data->lock->mutex,
