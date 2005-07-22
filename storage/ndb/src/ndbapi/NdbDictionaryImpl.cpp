@@ -510,20 +510,18 @@ NdbTableImpl::get_nodes(Uint32 hashValue, const Uint16 ** nodes) const
     return 0;
   switch (m_fragmentType)
   {
-    case AllNodesSmallTable:
-    case AllNodesMediumTable:
-    case AllNodesLargeTable:
-    case SingleFragment:
-    case DistrKeyLin:
+    case NdbDictionary::Object::FragAllSmall:
+    case NdbDictionary::Object::FragAllMedium:
+    case NdbDictionary::Object::FragAllLarge:
+    case NdbDictionary::Object::FragSingle:
+    case NdbDictionary::Object::DistrKeyLin:
     {
-      Uint32 fragmentId = hashValue & m_hashValueMask;
+      fragmentId = hashValue & m_hashValueMask;
       if(fragmentId < m_hashpointerValue) 
-      {
         fragmentId = hashValue & ((m_hashValueMask << 1) + 1);
-      }
       break;
     }
-    case DistrKeyHash:
+    case NdbDictionary::Object::DistrKeyHash:
     {
       fragmentId = hashValue % m_fragmentCount;
       break;
