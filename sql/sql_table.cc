@@ -1349,6 +1349,34 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
 
 /*
+  Set table default charset, if not set
+
+  SYNOPSIS
+    set_table_default_charset()
+    create_info        Table create information
+
+  DESCRIPTION
+    If the table character set was not given explicitely,
+    let's fetch the database default character set and
+    apply it to the table.
+*/
+
+static void set_table_default_charset(THD *thd,
+				      HA_CREATE_INFO *create_info, char *db)
+{
+  if (!create_info->default_table_charset)
+  {
+    HA_CREATE_INFO db_info;
+    char path[FN_REFLEN];
+    /* Abuse build_table_path() to build the path to the db.opt file */
+    build_table_path(path, sizeof(path), db, MY_DB_OPT_FILE, "");
+    load_db_opt(thd, path, &db_info);
+    create_info->default_table_charset= db_info.default_table_charset;
+  }
+}
+
+
+/*
   Extend long VARCHAR fields to blob & prepare field if it's a blob
 
   SYNOPSIS
@@ -1532,20 +1560,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   }
 #endif
 
-  /*
-    If the table character set was not given explicitely,
-    let's fetch the database default character set and
-    apply it to the table.
-  */
-  if (!create_info->default_table_charset)
-  {
-    HA_CREATE_INFO db_info;
-    char  path[FN_REFLEN];
-    /* Abuse build_table_path() to build the path to the db.opt file */
-    build_table_path(path, sizeof(path), db, MY_DB_OPT_FILE, "");
-    load_db_opt(thd, path, &db_info);
-    create_info->default_table_charset= db_info.default_table_charset;
-  }
+  set_table_default_charset(thd, create_info, (char*) db);
 
   if (mysql_prepare_table(thd, create_info, &fields,
 			  &keys, internal_tmp_table, &db_options, file,
@@ -3029,6 +3044,166 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
 #endif /* NOT_USED */
 
 
+
+#define ALTER_TABLE_DATA_CHANGED  1
+#define ALTER_TABLE_INDEX_CHANGED 2
+
+/*
+  SYNOPSIS
+    compare tables()
+    table       original table
+    create_list fields in new table
+    key_list    keys in new table
+    create_info create options in new table
+
+  DESCRIPTION
+    'table' (first argument) contains information of the original
+    table, which includes all corresponding parts that the new
+    table has in arguments create_list, key_list and create_info.
+
+    By comparing the changes between the original and new table
+    we can determine how much it has changed after ALTER TABLE
+    and whether we need to make a copy of the table, or just change
+    the .frm file.
+
+  RETURN VALUES
+    0 No copy needed
+    1 Data changes, copy needed
+    2 Index changes, copy needed   
+*/
+
+uint compare_tables(TABLE *table, List<create_field> *create_list,
+		    List<Key> *key_list, HA_CREATE_INFO *create_info,
+		    ALTER_INFO *alter_info, uint order_num)
+{
+  Field **f_ptr, *field;
+  uint changes= 0, tmp;
+  List_iterator_fast<create_field> new_field_it(*create_list);
+  create_field *new_field;
+
+  /*
+    Some very basic checks. If number of fields changes, or the
+    handler, we need to run full ALTER TABLE. In the future
+    new fields can be added and old dropped without copy, but
+    not yet.
+
+    Test also that engine was not given during ALTER TABLE, or
+    we are force to run regular alter table (copy).
+    E.g. ALTER TABLE tbl_name ENGINE=MyISAM.
+
+    For the following ones we also want to run regular alter table:
+    ALTER TABLE tbl_name ORDER BY ..
+    ALTER TABLE tbl_name CONVERT TO CHARACTER SET ..
+
+    At the moment we can't handle altering temporary tables without a copy.
+    We also test if OPTIMIZE TABLE was given and was mapped to alter table.
+    In that case we always do full copy.
+  */
+  if (table->s->fields != create_list->elements ||
+      table->s->db_type != create_info->db_type ||
+      table->s->tmp_table ||
+      create_info->used_fields & HA_CREATE_USED_ENGINE ||
+      create_info->used_fields & HA_CREATE_USED_CHARSET ||
+      create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
+      (alter_info->flags & ALTER_RECREATE) ||
+      order_num)
+    return ALTER_TABLE_DATA_CHANGED;
+
+  /*
+    Go through fields and check if the original ones are compatible
+    with new table.
+  */
+  for (f_ptr= table->field, new_field= new_field_it++;
+       (field= *f_ptr); f_ptr++, new_field= new_field_it++)
+  {
+    /* Make sure we have at least the default charset in use. */
+    if (!new_field->charset)
+      new_field->charset= create_info->default_table_charset;
+    
+    /* Check that NULL behavior is same for old and new fields */
+    if ((new_field->flags & NOT_NULL_FLAG) !=
+	(uint) (field->flags & NOT_NULL_FLAG))
+      return ALTER_TABLE_DATA_CHANGED;
+
+    /* Don't pack rows in old tables if the user has requested this. */
+    if (create_info->row_type == ROW_TYPE_DYNAMIC ||
+	(new_field->flags & BLOB_FLAG) ||
+	new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	create_info->row_type != ROW_TYPE_FIXED)
+      create_info->table_options|= HA_OPTION_PACK_RECORD;
+
+    /* Evaluate changes bitmap and send to check_if_incompatible_data() */
+    if (!(tmp= field->is_equal(new_field)))
+      return ALTER_TABLE_DATA_CHANGED;
+
+    changes|= tmp;
+  }
+  /* Check if changes are compatible with current handler without a copy */
+  if (table->file->check_if_incompatible_data(create_info, changes))
+    return ALTER_TABLE_DATA_CHANGED;
+
+  /*
+    Go through keys and check if the original ones are compatible
+    with new table.
+  */
+  KEY *table_key_info= table->key_info;
+  List_iterator_fast<Key> key_it(*key_list);
+  Key *key= key_it++;
+
+  /* Check if the number of key elements has changed */
+  if  (table->s->keys != key_list->elements)
+    return ALTER_TABLE_INDEX_CHANGED;
+
+  for (uint i= 0; i < table->s->keys; i++, table_key_info++, key= key_it++)
+  {
+    /*
+      Check that the key types are compatible between old and new tables.
+    */
+    if (table_key_info->algorithm != key->algorithm ||
+	((key->type == Key::PRIMARY || key->type == Key::UNIQUE) &&
+	 !(table_key_info->flags & HA_NOSAME)) ||
+	(!(key->type == Key::PRIMARY || key->type == Key::UNIQUE) &&
+	 (table_key_info->flags & HA_NOSAME)) ||
+	((key->type == Key::SPATIAL) &&
+	 !(table_key_info->flags & HA_SPATIAL)) ||
+	(!(key->type == Key::SPATIAL) &&
+	 (table_key_info->flags & HA_SPATIAL)) ||
+	((key->type == Key::FULLTEXT) &&
+	 !(table_key_info->flags & HA_FULLTEXT)) ||
+	(!(key->type == Key::FULLTEXT) &&
+	 (table_key_info->flags & HA_FULLTEXT)))
+      return ALTER_TABLE_INDEX_CHANGED;
+    
+    if  (table_key_info->key_parts != key->columns.elements)
+      return ALTER_TABLE_INDEX_CHANGED;
+
+    /*
+      Check that the key parts remain compatible between the old and
+      new tables.
+    */
+    KEY_PART_INFO *table_key_part= table_key_info->key_part;
+    List_iterator_fast<key_part_spec> key_part_it(key->columns);
+    key_part_spec *key_part= key_part_it++;
+    for (uint j= 0; j < table_key_info->key_parts; j++,
+	   table_key_part++, key_part= key_part_it++)
+    {
+      /*
+	Key definition has changed if we are using a different field or
+	if the used key length is different
+	(If key_part->length == 0 it means we are using the whole field)
+      */
+      if (strcmp(key_part->field_name, table_key_part->field->field_name) ||
+	  (key_part->length && key_part->length != table_key_part->length) ||
+	  (key_part->length == 0 && table_key_part->length !=
+	   table_key_part->field->pack_length()))
+	return ALTER_TABLE_INDEX_CHANGED;	
+    }
+  }
+
+  return 0; // Tables are compatible
+}
+
+
 /*
   Alter table
 */
@@ -3050,7 +3225,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
-  bool need_copy_table;
+  uint need_copy_table= 0;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -3282,8 +3457,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	def_it.remove();
       }
     }
-    else
-    {						// Use old field value
+    else // This field was not dropped and not changed, add it to the list
+    {	 // for the new table.   
       create_list.push_back(def=new create_field(field,field));
       alter_it.rewind();			// Change default if ALTER
       Alter_column *alter;
@@ -3495,17 +3670,22 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (table->s->tmp_table)
     create_info->options|=HA_LEX_CREATE_TMP_TABLE;
 
+  set_table_default_charset(thd, create_info, db);
+
+  if (thd->variables.old_alter_table)
+    need_copy_table= 1;
+  else
+    need_copy_table= compare_tables(table, &create_list, &key_list,
+				    create_info, alter_info, order_num);
+
   /*
     better have a negative test here, instead of positive, like
     alter_info->flags & ALTER_ADD_COLUMN|ALTER_ADD_INDEX|...
     so that ALTER TABLE won't break when somebody will add new flag
   */
-  need_copy_table= (alter_info->flags &
-                    ~(ALTER_CHANGE_COLUMN_DEFAULT|ALTER_OPTIONS) ||
-                    (create_info->used_fields &
-                     ~(HA_CREATE_USED_COMMENT|HA_CREATE_USED_PASSWORD)) ||
-                    table->s->tmp_table);
-  create_info->frm_only= !need_copy_table;
+
+  if (!need_copy_table)
+    create_info->frm_only= 1;
 
   /*
     Handling of symlinked tables:
@@ -3811,7 +3991,7 @@ end_temporary:
  err:
   DBUG_RETURN(TRUE);
 }
-
+/* mysql_alter_table */
 
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
@@ -4023,7 +4203,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
-  lex->alter_info.flags= ALTER_CHANGE_COLUMN;
+  lex->alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, lex->create_list,
                                 lex->key_list, 0, (ORDER *) 0,

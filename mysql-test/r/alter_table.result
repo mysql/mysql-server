@@ -537,3 +537,57 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 drop table t1;
+create table t1 (v varchar(32));
+insert into t1 values ('def'),('abc'),('hij'),('3r4f');
+select * from t1;
+v
+def
+abc
+hij
+3r4f
+alter table t1 change v v2 varchar(32);
+select * from t1;
+v2
+def
+abc
+hij
+3r4f
+alter table t1 change v2 v varchar(64);
+select * from t1;
+v
+def
+abc
+hij
+3r4f
+update t1 set v = 'lmn' where v = 'hij';
+select * from t1;
+v
+def
+abc
+lmn
+3r4f
+alter table t1 add i int auto_increment not null primary key first;
+select * from t1;
+i	v
+1	def
+2	abc
+3	lmn
+4	3r4f
+update t1 set i=5 where i=3;
+select * from t1;
+i	v
+1	def
+2	abc
+5	lmn
+4	3r4f
+alter table t1 change i i bigint;
+select * from t1;
+i	v
+1	def
+2	abc
+5	lmn
+4	3r4f
+alter table t1 add unique key (i, v);
+select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
+i	v
+4	3r4f
