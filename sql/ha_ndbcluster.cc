@@ -7503,6 +7503,11 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
 					       uint table_changes)
 {
+  /*
+    TODO: Remove the dummy return below, when cluster gets
+    signal from alter table when only .frm is changed. Cluster
+    needs it to manage the copies.
+  */
   return COMPATIBLE_DATA_NO;
 
   if (table_changes != IS_EQUAL_YES)
