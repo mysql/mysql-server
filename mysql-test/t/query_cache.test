@@ -616,6 +616,7 @@ set character_set_results=cp1251;
 SELECT a,'Â','â'='Â' FROM t1; 
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
+SET NAMES default;
 
 DROP TABLE t1;
 
@@ -711,9 +712,10 @@ repair table t1;
 show status like 'qcache_queries_in_cache';
 drop table t1;
 
+#
 # Bug #9549: Make sure cached queries that span more than one cache block
 # are handled properly in the embedded server.
-
+#
 # We just want a small query cache, so we can fragment it easily
 set GLOBAL query_cache_size=64*1024;
 # This actually gives us a usable cache size of about 48K
@@ -755,6 +757,8 @@ select a from t1;
 flush query cache;
 
 drop table t1, t2;
+set GLOBAL query_cache_size=1355776
+
 
 #
 # SP cursors and selects with query cache (BUG#9715)
@@ -788,4 +792,43 @@ drop procedure p1//
 drop table t1//
 delimiter ;//
 
+#
+# query in QC from normal execution and SP (BUG#6897)
+#
+flush query cache;
+reset query cache;
+flush status;
+delimiter //;
+create table t1 (s1 int)//
+create procedure f1 () begin
+select sql_cache * from t1;
+select sql_cache * from t1;
+end;//
+delimiter ;//
+call f1();
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+call f1();
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+call f1();
+select sql_cache * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+insert into t1 values (1);
+select sql_cache * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+call f1();
+call f1();
+select sql_cache * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop procedure f1;
+drop table t1;
 set GLOBAL query_cache_size=0;
