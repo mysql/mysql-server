@@ -28,6 +28,8 @@ public:
   UtilTransactions(Ndb* ndb, 
 		   const char * tableName, const char * indexName = 0);
   
+  int closeTransaction(Ndb*);
+  
   int clearTable(Ndb*, 
 		 int records = 0,
 		 int parallelism = 0);
