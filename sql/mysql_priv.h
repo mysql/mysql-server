@@ -526,6 +526,7 @@ struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
   unsigned int client_protocol_41:1;
+  unsigned int more_results_exists:1;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;
@@ -1245,10 +1246,13 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 void unireg_init(ulong options);
 void unireg_end(void);
 bool mysql_create_frm(THD *thd, my_string file_name,
+                      const char *table, const char* db,
 		      HA_CREATE_INFO *create_info,
 		      List<create_field> &create_field,
 		      uint key_count,KEY *key_info,handler *db_type);
-int rea_create_table(THD *thd, my_string file_name,HA_CREATE_INFO *create_info,
+int rea_create_table(THD *thd, my_string file_name,
+                     const char *table, const char* db,
+                     HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
 		     uint key_count,KEY *key_info);
 int format_number(uint inputflag,uint max_length,my_string pos,uint length,
@@ -1315,7 +1319,8 @@ ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
 void append_unescaped(String *res, const char *pos, uint length);
-int create_frm(THD *thd, char *name,uint reclength,uchar *fileinfo,
+int create_frm(THD *thd, char *name, const char *table, const char *db,
+               uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);

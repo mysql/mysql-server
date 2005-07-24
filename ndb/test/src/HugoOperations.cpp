@@ -53,11 +53,7 @@ HugoOperations::setTransactionId(Uint64 id){
 
 int HugoOperations::closeTransaction(Ndb* pNdb){
 
-  if (pTrans != NULL){
-    pNdb->closeTransaction(pTrans);
-    pTrans = NULL;
-  }
-  pTrans = NULL;
+  UtilTransactions::closeTransaction(pNdb);
 
   m_result_sets.clear();
   m_executed_result_sets.clear();
