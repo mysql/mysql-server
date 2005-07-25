@@ -629,3 +629,15 @@ ulonglong ha_heap::get_auto_increment()
   ha_heap::info(HA_STATUS_AUTO);
   return auto_increment_value;
 }
+
+
+bool ha_heap::check_if_incompatible_data(HA_CREATE_INFO *info,
+					 uint table_changes)
+{
+  /* Check that auto_increment value was not changed */
+  if ((table_changes != IS_EQUAL_YES &&
+       info->used_fields & HA_CREATE_USED_AUTO) &&
+      info->auto_increment_value != 0)
+    return COMPATIBLE_DATA_NO;
+  return COMPATIBLE_DATA_YES;
+}
