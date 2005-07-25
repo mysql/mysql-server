@@ -515,3 +515,14 @@ void ha_myisammrg::append_create_info(String *packet)
   }
   packet->append(')');
 }
+
+
+bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
+					      uint table_changes)
+{
+  /*
+    For myisammrg, we should always re-generate the mapping file as this
+    is trivial to do
+  */
+  return COMPATIBLE_DATA_NO;
+}

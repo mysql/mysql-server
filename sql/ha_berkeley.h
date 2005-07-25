@@ -152,6 +152,7 @@ class ha_berkeley: public handler
   uint8 table_cache_type() { return HA_CACHE_TBL_TRANSACT; }
   bool primary_key_is_clustered() { return true; }
   int cmp_ref(const byte *ref1, const byte *ref2);
+  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 };
 
 extern bool berkeley_shared_data;
