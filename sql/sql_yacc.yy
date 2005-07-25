@@ -73,6 +73,7 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
+  longlong longlong_number;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
@@ -716,6 +717,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <ulonglong_number>
 	ulonglong_num
 
+%type <longlong_number>
+        part_bit_expr
+
 %type <lock_type>
 	replace_lock_option opt_low_priority insert_lock_option load_data_lock
 
@@ -732,7 +736,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
         field_or_var limit_option
-        part_bit_expr part_func_expr
+        part_func_expr
 
 %type <item_num>
 	NUM_literal
@@ -2860,6 +2864,7 @@ part_func_max:
             YYABORT;
           }
           lex->part_info->defined_max_value= TRUE;
+          lex->part_info->curr_part_elem->range_value= LONGLONG_MAX;
         }
         | part_range_func
         {
@@ -2873,7 +2878,7 @@ part_func_max:
 part_range_func:
         '(' part_bit_expr ')' 
         {
-          Lex->part_info->curr_part_elem->range_expr= $2;
+          Lex->part_info->curr_part_elem->range_value= $2;
         };
 
 part_list_func:
@@ -2883,7 +2888,14 @@ part_list_func:
 part_list_item:
         part_bit_expr
         {
-          Lex->part_info->curr_part_elem->list_expr_list.push_back($1);
+          longlong *value_ptr;
+          if (!(value_ptr= (longlong*)sql_alloc(sizeof(longlong))))
+          {
+            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(longlong));
+            YYABORT;
+          }
+          *value_ptr= $1;
+          Lex->part_info->curr_part_elem->list_val_list.push_back(value_ptr);
         };
 
 part_bit_expr:
@@ -2892,6 +2904,7 @@ part_bit_expr:
           Item *part_expr= $1;
           bool not_corr_func;
           LEX *lex= Lex;
+          longlong item_value;
           Name_resolution_context *context= &lex->current_select->context;
           TABLE_LIST *save_list= context->table_list;
 
@@ -2900,13 +2913,18 @@ part_bit_expr:
           context->table_list= save_list;
           not_corr_func= !part_expr->const_item() ||
                          !lex->safe_to_cache_query;
-          lex->safe_to_cache_query= 1;
           if (not_corr_func)
           {
             yyerror(ER(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR));
             YYABORT;
           }
-          $$= part_expr; 
+          if (part_expr->result_type() != INT_RESULT)
+          {
+            yyerror(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
+            YYABORT;
+          }
+          item_value= part_expr->val_int();
+          $$= item_value; 
         }
 
 opt_sub_partition:

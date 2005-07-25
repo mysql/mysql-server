@@ -389,7 +389,7 @@ partitions 2
 #
 # Partition by range, inconsistent partition function and constants
 #
---error 1450
+--error 1064
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -702,7 +702,7 @@ partitions 2
 #
 # Partition by list, wrong constant result type (not INT)
 #
---error 1450
+--error 1064
 CREATE TABLE t1 (
 a int not null,
 b int not null,

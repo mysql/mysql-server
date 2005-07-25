@@ -4341,6 +4341,7 @@ enum options_mysqld
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
+  OPT_OLD_ALTER_TABLE,
   OPT_EXPIRE_LOGS_DAYS,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
@@ -4877,6 +4878,11 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_no_mix_types, (gptr*) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
+  {"old-alter-table", OPT_OLD_ALTER_TABLE,
+   "Use old, non-optimized alter table.",
+   (gptr*) &global_system_variables.old_alter_table,
+   (gptr*) &max_system_variables.old_alter_table, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for 4.0 and older clients).",
    (gptr*) &global_system_variables.old_passwords,
    (gptr*) &max_system_variables.old_passwords, 0, GET_BOOL, NO_ARG,
@@ -6069,6 +6075,7 @@ static void mysql_init_variables(void)
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
+  global_system_variables.old_alter_table= 0;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
