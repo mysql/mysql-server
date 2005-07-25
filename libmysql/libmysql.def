@@ -147,4 +147,6 @@ EXPORTS
 	mysql_slave_query
 	mysql_embedded
 	mysql_set_character_set
+	mysql_server_init
+	mysql_server_end
 	get_defaults_files
