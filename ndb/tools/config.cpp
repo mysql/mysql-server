@@ -317,8 +317,8 @@ parse_where(Vector<Match*>& where, int &argc, char**& argv)
   return 0;
 }
 
-template Vector<Apply*>;
-template Vector<Match*>;
+template class Vector<Apply*>;
+template class Vector<Match*>;
 
 static 
 int
