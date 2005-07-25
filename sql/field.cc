@@ -8462,7 +8462,10 @@ create_field::create_field(Field *old_field,Field *orig_field)
   def=0;
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       !old_field->is_real_null() &&
-      old_field->ptr && orig_field)
+      old_field->ptr && orig_field &&
+      (sql_type != FIELD_TYPE_TIMESTAMP ||                /* set def only if */
+       old_field->table->timestamp_field != old_field ||  /* timestamp field */ 
+       unireg_check == Field::TIMESTAMP_UN_FIELD))        /* has default val */
   {
     char buff[MAX_FIELD_WIDTH],*pos;
     String tmp(buff,sizeof(buff), charset), *res;
