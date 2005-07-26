@@ -8026,6 +8026,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool table_cant_handle_bit_fields,
                         uint convert_blob_length)
 {
+  Item *org_item= item;
+  if (item->real_item()->type() == Item::FIELD_ITEM)
+  {
+    item= item->real_item();
+    type= item->type();
+  }
   switch (type) {
   case Item::SUM_FUNC_ITEM:
   {
@@ -8038,30 +8044,22 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
   {
-    Item_field *field= (Item_field*) item;
-    if (table_cant_handle_bit_fields && field->field->type() == FIELD_TYPE_BIT)
-      return create_tmp_field_from_item(thd, item, table, copy_func,
-                                        modify_item, convert_blob_length);
-    return create_tmp_field_from_field(thd, (*from_field= field->field),
-                                       item->name, table,
-                                       modify_item ? (Item_field*) item : NULL,
-                                       convert_blob_length);
-  }
-  case Item::REF_ITEM:
-  {
-    Item *tmp_item;
-    if ((tmp_item= item->real_item())->type() == Item::FIELD_ITEM)
+    if (org_item->type() != Item::REF_ITEM ||
+        !((Item_ref *)org_item)->depended_from)
     {
-      Item_field *field= (Item_field*) tmp_item;
-      Field *new_field= create_tmp_field_from_field(thd, 
-                               (*from_field= field->field),
-                               item->name, table,
-                               NULL,
-                               convert_blob_length);
-      if (modify_item)
-        item->set_result_field(new_field);
-      return new_field;
+      Item_field *field= (Item_field*) item;
+      if (table_cant_handle_bit_fields && 
+          field->field->type() == FIELD_TYPE_BIT)
+        return create_tmp_field_from_item(thd, item, table, copy_func,
+                                          modify_item, convert_blob_length);
+      return create_tmp_field_from_field(thd, (*from_field= field->field),
+                                         item->name, table,
+                                         modify_item ? (Item_field*) item :
+                                                       NULL,
+                                         convert_blob_length);
     }
+    else
+      item= org_item;
   }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
@@ -8074,6 +8072,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REAL_ITEM:
   case Item::DECIMAL_ITEM:
   case Item::STRING_ITEM:
+  case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
@@ -10904,12 +10903,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   usable_keys.set_all();
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
-    if ((*tmp_order->item)->type() != Item::FIELD_ITEM)
+    if ((*tmp_order->item)->real_item()->type() != Item::FIELD_ITEM)
     {
       usable_keys.clear_all();
       DBUG_RETURN(0);
     }
-    usable_keys.intersect(((Item_field*) (*tmp_order->item))->
+    usable_keys.intersect(((Item_field*) (*tmp_order->item)->real_item())->
 			  field->part_of_sortkey);
     if (usable_keys.is_clear_all())
       DBUG_RETURN(0);					// No usable keys

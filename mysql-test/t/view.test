@@ -1862,4 +1862,28 @@ insert into t1 values('2005.01.01 12:0:0');
 create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
 select * from v1;
 drop view v1;
-drop table t1; 
+drop table t1;
+
+#
+# Test for bug #11412: query over a multitable view with GROUP_CONCAT
+#
+CREATE TABLE t1 (
+  aid int PRIMARY KEY,
+  fn varchar(20) NOT NULL,
+  ln varchar(20) NOT NULL
+);
+CREATE TABLE t2 (
+  aid int NOT NULL,
+  pid int NOT NULL
+);
+INSERT INTO t1 VALUES(1,'a','b'), (2,'c','d');
+INSERT INTO t2 values (1,1), (2,1), (2,2);
+
+CREATE VIEW v1 AS SELECT t1.*,t2.pid FROM t1,t2 WHERE t1.aid = t2.aid;
+
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM t1,t2 
+  WHERE t1.aid = t2.aid GROUP BY pid;
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM v1 GROUP BY pid;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
