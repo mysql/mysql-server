@@ -173,23 +173,9 @@ Ndb::NDB_connect(Uint32 tNode)
   tSignal->setData(theMyRef, 2);	// Set my block reference
   tNdbCon->Status(NdbTransaction::Connecting); // Set status to connecting
   Uint32 nodeSequence;
-  { // send and receive signal
-    Guard guard(tp->theMutexPtr);
-    nodeSequence = tp->getNodeSequence(tNode);
-    bool node_is_alive = tp->get_node_alive(tNode);
-    if (node_is_alive) { 
-      tReturnCode = tp->sendSignal(tSignal, tNode);  
-      releaseSignal(tSignal); 
-      if (tReturnCode != -1) {
-        theImpl->theWaiter.m_node = tNode;  
-        theImpl->theWaiter.m_state = WAIT_TC_SEIZE;  
-        tReturnCode = receiveResponse(); 
-      }//if
-    } else {
-      releaseSignal(tSignal);
-      tReturnCode = -1;
-    }//if
-  }
+  tReturnCode= sendRecSignal(tNode, WAIT_TC_SEIZE, tSignal,
+                             0, &nodeSequence);
+  releaseSignal(tSignal); 
   if ((tReturnCode == 0) && (tNdbCon->Status() == NdbTransaction::Connected)) {
     //************************************************
     // Send and receive was successful
