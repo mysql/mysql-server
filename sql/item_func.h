@@ -166,12 +166,22 @@ public:
   my_decimal *val_decimal(my_decimal *);
 
   bool agg_arg_collations(DTCollation &c, Item **items, uint nitems,
-                          uint flags= 0);
+                          uint flags= 0)
+  {
+    return agg_item_collations(c, func_name(), items, nitems, flags);
+  }
   bool agg_arg_collations_for_comparison(DTCollation &c,
                                          Item **items, uint nitems,
-                                         uint flags= 0);
+                                         uint flags= 0)
+  {
+    return agg_item_collations_for_comparison(c, func_name(),
+                                              items, nitems, flags);
+  }
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
-                        uint flags= 0);
+                        uint flags= 0)
+  {
+    return agg_item_charsets(c, func_name(), items, nitems, flags);
+  }
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
   void traverse_cond(Cond_traverser traverser,
