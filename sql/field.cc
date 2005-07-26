@@ -7846,7 +7846,10 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
   {
     set_rec_bits(0xff, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, field_length);
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    if (table->in_use->really_abort_on_warning())
+      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+    else
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   /* delta is >= -1 here */
@@ -8063,7 +8066,10 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
     memset(ptr, 0xff, field_length);
     if (bits)
       *ptr&= ((1 << bits) - 1); /* set first byte */
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    if (table->in_use->really_abort_on_warning())
+      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+    else
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   bzero(ptr, delta);
