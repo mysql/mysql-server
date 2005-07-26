@@ -17,7 +17,9 @@ Created 10/21/1995 Heikki Tuuri
 #include <time.h>
 #endif
 
+#ifdef UNIV_DO_FLUSH
 extern ibool	os_do_not_call_flush_at_each_write;
+#endif /* UNIV_DO_FLUSH */
 extern ibool	os_has_said_disk_full;
 extern ibool	os_aio_print_debug;
 
