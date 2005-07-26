@@ -1053,12 +1053,18 @@ static int convert_file(REPLACE *rep, my_string name)
   int error;
   FILE *in,*out;
   char dir_buff[FN_REFLEN], tempname[FN_REFLEN];
+  char link_name[FN_REFLEN], *org_name = name;
   File temp_file;
   DBUG_ENTER("convert_file");
 
-  if (!(in=my_fopen(name,O_RDONLY,MYF(MY_WME))))
+  /* check if name is a symlink */
+#ifdef HAVE_READLINK  
+  org_name= (!my_disable_symlinks && 
+             !my_readlink(link_name, name, MYF(0))) ? link_name : name;
+#endif
+  if (!(in= my_fopen(org_name,O_RDONLY,MYF(MY_WME))))
     DBUG_RETURN(1);
-  dirname_part(dir_buff,name);
+  dirname_part(dir_buff,org_name);
   if ((temp_file= create_temp_file(tempname, dir_buff, "PR", O_WRONLY,
                                    MYF(MY_WME))) < 0)
   {
@@ -1075,7 +1081,7 @@ static int convert_file(REPLACE *rep, my_string name)
   my_fclose(in,MYF(0)); my_fclose(out,MYF(0));
 
   if (updated && ! error)
-    my_redel(name,tempname,MYF(MY_WME | MY_LINK_WARNING));
+    my_redel(org_name,tempname,MYF(MY_WME | MY_LINK_WARNING));
   else
     my_delete(tempname,MYF(MY_WME));
   if (!silent && ! error)
