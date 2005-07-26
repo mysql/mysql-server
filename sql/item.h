@@ -767,6 +767,15 @@ public:
 };
 
 
+bool agg_item_collations(DTCollation &c, const char *name,
+                         Item **items, uint nitems, uint flags= 0);
+bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
+                                        Item **items, uint nitems,
+                                        uint flags= 0);
+bool agg_item_charsets(DTCollation &c, const char *name,
+                       Item **items, uint nitems, uint flags= 0);
+
+
 class Item_num: public Item
 {
 public:

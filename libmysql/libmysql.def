@@ -148,6 +148,7 @@ EXPORTS
 	mysql_embedded
 	mysql_server_init
 	mysql_server_end
+	get_defaults_files
 	mysql_set_character_set
 	mysql_get_character_set_info
 	get_defaults_options
