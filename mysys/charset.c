@@ -383,26 +383,28 @@ static my_bool init_available_charsets(myf myflags)
       while we may changing the cs_info_table
     */
     pthread_mutex_lock(&THR_LOCK_charset);
-
-    bzero(&all_charsets,sizeof(all_charsets));
-    init_compiled_charsets(myflags);
-    
-    /* Copy compiled charsets */
-    for (cs=all_charsets;
-	 cs < all_charsets+array_elements(all_charsets)-1 ;
-	 cs++)
+    if (!charset_initialized)
     {
-      if (*cs)
+      bzero(&all_charsets,sizeof(all_charsets));
+      init_compiled_charsets(myflags);
+      
+      /* Copy compiled charsets */
+      for (cs=all_charsets;
+           cs < all_charsets+array_elements(all_charsets)-1 ;
+           cs++)
       {
-        if (cs[0]->ctype)
-          if (init_state_maps(*cs))
-            *cs= NULL;
+        if (*cs)
+        {
+          if (cs[0]->ctype)
+            if (init_state_maps(*cs))
+              *cs= NULL;
+        }
       }
+      
+      strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
+      error= my_read_charset_file(fname,myflags);
+      charset_initialized=1;
     }
-    
-    strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
-    error= my_read_charset_file(fname,myflags);
-    charset_initialized=1;
     pthread_mutex_unlock(&THR_LOCK_charset);
   }
   return error;
