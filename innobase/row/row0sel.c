@@ -4083,6 +4083,11 @@ normal_return:
 	}
 
 func_exit:
+	/* Restore a global read view back to transaction. This forces
+	MySQL always to set cursor view before fetch if it is used. */
+
+	trx->read_view = trx->global_read_view;
+
 	trx->op_info = "";
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -4136,7 +4141,8 @@ row_search_check_if_query_cache_permitted(
 		    && !trx->read_view) {
 
 			trx->read_view = read_view_open_now(trx,
-						trx->read_view_heap);
+						trx->global_read_view_heap);
+			trx->global_read_view = trx->read_view;
 		}
 	}
 	

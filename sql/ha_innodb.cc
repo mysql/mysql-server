@@ -5879,7 +5879,7 @@ ha_innobase::start_stmt(
 	innobase_release_stat_resources(trx);
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-	    						&& trx->read_view) {
+	    					&& trx->global_read_view) {
 	    	/* At low transaction isolation levels we let
 		each consistent read set its own snapshot */
 
@@ -6100,7 +6100,7 @@ ha_innobase::external_lock(
 			}
 		} else {
 			if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-	    						&& trx->read_view) {
+	    					&& trx->global_read_view) {
 
 				/* At low transaction isolation levels we let
 				each consistent read set its own snapshot */
@@ -7128,6 +7128,47 @@ innobase_rollback_by_xid(
 	} else {
 		return(XAER_NOTA);
 	}
+}
+
+/***********************************************************************
+This function creates a consistent view for a cursor and start a transaction
+if it has not been started. This consistent view is then used inside of MySQL 
+when accesing records using a cursor. */
+
+void*
+innobase_create_cursor_view(void)
+/*=============================*/
+			/* out: Pointer to cursor view or NULL */
+{
+	return(read_cursor_view_create_for_mysql(
+					check_trx_exists(current_thd)));
+}
+
+/***********************************************************************
+This function closes the given consistent cursor view. Note that
+global read view is restored to a transaction and a transaction is
+started if it has not been started. */
+
+void
+innobase_close_cursor_view(
+/*=======================*/
+	void*	curview)/* in: Consistent read view to be closed */
+{
+	read_cursor_view_close_for_mysql(check_trx_exists(current_thd),
+						(cursor_view_t*) curview);
+}
+
+/***********************************************************************
+This function sets the given consistent cursor view to a transaction.
+If a transaction does not exist, transaction is started. */
+
+void
+innobase_set_cursor_view(
+/*=====================*/
+	void*	curview)/* in: Consistent cursor view to be closed */
+{
+	read_cursor_set_for_mysql(check_trx_exists(current_thd), 
+						(cursor_view_t*) curview);
 }
 
 #endif /* HAVE_INNOBASE_DB */
