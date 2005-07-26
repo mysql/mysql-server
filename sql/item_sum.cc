@@ -1925,6 +1925,10 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       maybe_null|= args[i]->maybe_null;
   }
 
+  if (agg_item_charsets(collation, func_name(),
+                        args, arg_count, MY_COLL_ALLOW_CONV))
+    return 1;
+
   result_field= 0;
   null_value= 1;
   max_length= group_concat_max_len;

@@ -260,7 +260,7 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
     pos+= (mblen= my_ismbchar(cs, pos, end)) ? mblen : 1;
     length--;
   }
-  return length ? end+2-start : pos-start;
+  return length ? (uint) (end + 2 - start) : (uint) (pos - start);
 }
 
 
@@ -282,7 +282,7 @@ uint my_well_formed_len_mb(CHARSET_INFO *cs, const char *b, const char *e,
     b+= mblen;
     pos--;
   }
-  return b - b_start;
+  return (uint) (b - b_start);
 }
 
 

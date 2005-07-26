@@ -2008,7 +2008,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return t_is_prefix ? t-te : ((se-s) - (te-t));
+  return t_is_prefix ? (int) (t-te) : (int) ((se-s) - (te-t));
 }
 
 
