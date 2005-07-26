@@ -2162,4 +2162,6 @@ select found_rows();
 select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
 select found_rows();
 
+#BUG#234321
+select 2+23;
 DROP TABLE t1;
