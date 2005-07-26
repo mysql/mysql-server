@@ -1258,3 +1258,10 @@ select * from t1;
 d
 2000-10-01
 drop table t1;
+set @@sql_mode='traditional';
+create table t1(a bit(2));
+insert into t1 values(b'101');
+ERROR 22001: Data too long for column 'a' at row 1
+select * from t1;
+a
+drop table t1;
