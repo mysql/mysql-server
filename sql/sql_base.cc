@@ -2403,8 +2403,14 @@ void flush_tables()
 
 
 /*
-** Mark all entries with the table as deleted to force an reopen of the table
-** Returns true if the table is in use by another thread
+  Mark all entries with the table as deleted to force an reopen of the table
+
+  PREREQUISITES
+    Lock on LOCK_open()
+
+  RETURN
+    0 If the table is NOT in use by another thread
+    1 If the table is NOT in use by another thread
 */
 
 bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
@@ -2415,6 +2421,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   TABLE *table;
   bool result=0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
+
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
@@ -2473,15 +2480,12 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
     {
       if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
+        dropping_tables++;
         if (likely(signalled))
-        {
-          dropping_tables++;
           (void) pthread_cond_wait(&COND_refresh, &LOCK_open);
-          dropping_tables--;
-          continue;
-        }
         else
         {
+          struct timespec abstime;
           /*
             It can happen that another thread has opened the
             table but has not yet locked any table at all. Since
@@ -2492,11 +2496,11 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
             and then we retry another loop in the
             remove_table_from_cache routine.
           */
-          pthread_mutex_unlock(&LOCK_open);
-          my_sleep(10);
-          pthread_mutex_lock(&LOCK_open);
-          continue;
+          set_timespec(abstime, 10);
+          pthread_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
         }
+        dropping_tables--;
+        continue;
       }
     }
     break;
