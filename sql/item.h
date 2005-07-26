@@ -1473,7 +1473,13 @@ public:
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
-  Field *get_tmp_table_field() { return result_field; }
+  Field *get_tmp_table_field()
+  { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
+  Item *get_tmp_table_item(THD *thd)
+  { 
+    return (result_field ? new Item_field(result_field) :
+                          (*ref)->get_tmp_table_item(thd));
+  }
   table_map used_tables() const		
   { 
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -1711,7 +1717,7 @@ class Cached_item_field :public Cached_item
 public:
   Cached_item_field(Item_field *item)
   {
-    field=item->field;
+    field= item->field;
     buff= (char*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);

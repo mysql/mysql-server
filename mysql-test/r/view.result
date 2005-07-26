@@ -2024,3 +2024,26 @@ f1	sb
 2005-01-01 12:00:00	2005-01-01 10:58:59
 drop view v1;
 drop table t1;
+CREATE TABLE t1 (
+aid int PRIMARY KEY,
+fn varchar(20) NOT NULL,
+ln varchar(20) NOT NULL
+);
+CREATE TABLE t2 (
+aid int NOT NULL,
+pid int NOT NULL
+);
+INSERT INTO t1 VALUES(1,'a','b'), (2,'c','d');
+INSERT INTO t2 values (1,1), (2,1), (2,2);
+CREATE VIEW v1 AS SELECT t1.*,t2.pid FROM t1,t2 WHERE t1.aid = t2.aid;
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM t1,t2 
+WHERE t1.aid = t2.aid GROUP BY pid;
+pid	GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1)
+1	a b,c d
+2	c d
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM v1 GROUP BY pid;
+pid	GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1)
+1	a b,c d
+2	c d
+DROP VIEW v1;
+DROP TABLE t1,t2;
