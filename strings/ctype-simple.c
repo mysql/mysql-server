@@ -1051,7 +1051,7 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
     if (*str == '.')
     {
       for(str++ ; str != end && *str == '0' ; str++);
-      return str-str0;
+      return (ulong) (str - str0);
     }
     return 0;
 
@@ -1061,7 +1061,7 @@ ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
       if (!my_isspace(cs,*str))
         break;
     }
-    return str-str0;
+    return (ulong) (str - str0);
   default:
     return 0;
   }
@@ -1078,14 +1078,14 @@ void my_fill_8bit(CHARSET_INFO *cs __attribute__((unused)),
 uint my_numchars_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *b, const char *e)
 {
-  return e-b;
+  return (uint) (e - b);
 }
 
 
 uint my_numcells_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *b, const char *e)
 {
-  return e-b;
+  return (uint) (e - b);
 }
 
 

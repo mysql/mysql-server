@@ -523,6 +523,170 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
   return 0;
 }
 
+/******************************/
+static
+void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
+           c1.collation->name,c1.derivation_name(),
+           c2.collation->name,c2.derivation_name(),
+           fname);
+}
+
+
+static
+void my_coll_agg_error(DTCollation &c1, DTCollation &c2, DTCollation &c3,
+                       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
+	   fname);
+}
+
+
+static
+void my_coll_agg_error(Item** args, uint count, const char *fname)
+{
+  if (count == 2)
+    my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
+  else if (count == 3)
+    my_coll_agg_error(args[0]->collation, args[1]->collation,
+                      args[2]->collation, fname);
+  else
+    my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
+}
+
+
+bool agg_item_collations(DTCollation &c, const char *fname,
+                         Item **av, uint count, uint flags)
+{
+  uint i;
+  c.set(av[0]->collation);
+  for (i= 1; i < count; i++)
+  {
+    if (c.aggregate(av[i]->collation, flags))
+    {
+      my_coll_agg_error(av, count, fname);
+      return TRUE;
+    }
+  }
+  if ((flags & MY_COLL_DISALLOW_NONE) &&
+      c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(av, count, fname);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
+                                        Item **av, uint count, uint flags)
+{
+  return (agg_item_collations(c, fname, av, count,
+                              flags | MY_COLL_DISALLOW_NONE));
+}
+
+
+/* 
+  Collect arguments' character sets together.
+  We allow to apply automatic character set conversion in some cases.
+  The conditions when conversion is possible are:
+  - arguments A and B have different charsets
+  - A wins according to coercibility rules
+    (i.e. a column is stronger than a string constant,
+     an explicit COLLATE clause is stronger than a column)
+  - character set of A is either superset for character set of B,
+    or B is a string constant which can be converted into the
+    character set of A without data loss.
+    
+  If all of the above is true, then it's possible to convert
+  B into the character set of A, and then compare according
+  to the collation of A.
+  
+  For functions with more than two arguments:
+
+    collect(A,B,C) ::= collect(collect(A,B),C)
+*/
+
+bool agg_item_charsets(DTCollation &coll, const char *fname,
+                       Item **args, uint nargs, uint flags)
+{
+  Item **arg, **last, *safe_args[2];
+  if (agg_item_collations(coll, fname, args, nargs, flags))
+    return TRUE;
+
+  /*
+    For better error reporting: save the first and the second argument.
+    We need this only if the the number of args is 3 or 2:
+    - for a longer argument list, "Illegal mix of collations"
+      doesn't display each argument's characteristics.
+    - if nargs is 1, then this error cannot happen.
+  */
+  if (nargs >=2 && nargs <= 3)
+  {
+    safe_args[0]= args[0];
+    safe_args[1]= args[1];
+  }
+
+  THD *thd= current_thd;
+  Item_arena *arena, backup;
+  bool res= FALSE;
+  /*
+    In case we're in statement prepare, create conversion item
+    in its memory: it will be reused on each execute.
+  */
+  arena= thd->change_arena_if_needed(&backup);
+
+  for (arg= args, last= args + nargs; arg < last; arg++)
+  {
+    Item* conv;
+    uint32 dummy_offset;
+    if (!String::needs_conversion(0, coll.collation,
+                                  (*arg)->collation.collation,
+                                  &dummy_offset))
+      continue;
+
+    if (!(conv= (*arg)->safe_charset_converter(coll.collation)))
+    {
+      if (nargs >=2 && nargs <= 3)
+      {
+        /* restore the original arguments for better error message */
+        args[0]= safe_args[0];
+        args[1]= safe_args[1];
+      }
+      my_coll_agg_error(args, nargs, fname);
+      res= TRUE;
+      break; // we cannot return here, we need to restore "arena".
+    }
+    conv->fix_fields(thd, 0, &conv);
+    /*
+      If in statement prepare, then we create a converter for two
+      constant items, do it once and then reuse it.
+      If we're in execution of a prepared statement, arena is NULL,
+      and the conv was created in runtime memory. This can be
+      the case only if the argument is a parameter marker ('?'),
+      because for all true constants the charset converter has already
+      been created in prepare. In this case register the change for
+      rollback.
+    */
+    if (arena)
+      *arg= conv;
+    else
+      thd->change_item_tree(arg, conv);
+  }
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+  return res;
+}
+
+
+
+
+/**********************************************/
+
 Item_field::Item_field(Field *f)
   :Item_ident(NullS, f->table_name, f->field_name)
 {
