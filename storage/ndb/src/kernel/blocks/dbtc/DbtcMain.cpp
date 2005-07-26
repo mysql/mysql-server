@@ -12549,7 +12549,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   AttributeBuffer::DataBufferIterator iter;
   Uint32 attrId = 0;
   Uint32 keyLength = 0;
-  Uint32 totalPrimaryKeyLength = 0;
+  Uint32 totalPrimaryKeyLength = 1; // fragment length
   Uint32 hops;
 
   indexTabPtr.i = indexData->indexId;
@@ -12604,7 +12604,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   }
   AttributeHeader pkAttrHeader(attrId, totalPrimaryKeyLength);
   Uint32 attributesLength = afterValues.getSize() + 
-    pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize() + 1;
+    pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize();
   
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLength);
   tcKeyReq->attrLen = attributesLength;
