@@ -213,7 +213,7 @@ static int my_strnncoll_cp932_internal(CHARSET_INFO *cs,
       uint a_char= cp932code(*a, *(a+1));
       uint b_char= cp932code(*b, *(b+1));
       if (a_char != b_char)
-	return a_char - b_char;
+	return (int) a_char - (int) b_char;
       a += 2;
       b += 2;
     } else
@@ -5449,7 +5449,7 @@ uint my_well_formed_len_cp932(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return b - b0;
+  return (uint) (b - b0);
 }
 
 
