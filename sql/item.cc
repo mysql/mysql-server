@@ -1191,7 +1191,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
   }
 
   THD *thd= current_thd;
-  Item_arena *arena, backup;
+  Query_arena *arena, backup;
   bool res= FALSE;
   /*
     In case we're in statement prepare, create conversion item
@@ -1220,7 +1220,8 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       res= TRUE;
       break; // we cannot return here, we need to restore "arena".
     }
-    conv->fix_fields(thd, 0, &conv);
+    if ((*arg)->type() == Item::FIELD_ITEM)
+      ((Item_field *)(*arg))->no_const_subst= 1;
     /*
       If in statement prepare, then we create a converter for two
       constant items, do it once and then reuse it.
@@ -1235,6 +1236,11 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
+    /*
+      We do not check conv->fixed, because Item_func_conv_charset which can
+      be return by safe_charset_converter can't be fixed at creation
+    */
+    conv->fix_fields(thd, arg);
   }
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);

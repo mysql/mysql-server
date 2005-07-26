@@ -458,7 +458,7 @@ create table t2 select group_concat(a) as a from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` longtext character set cp1250
+  `a` varchar(400) character set cp1250 default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select collation(group_concat(a,_koi8r'test')) from t1;
 collation(group_concat(a,_koi8r'test'))
