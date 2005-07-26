@@ -54,10 +54,19 @@ public:
   void wait(int waitTime);
   void nodeFail(Uint32 node);
   void signal(Uint32 state);
+  void cond_signal();
+  void set_poll_owner(bool poll_owner) { m_poll_owner= poll_owner; }
+  Uint32 get_state() { return m_state; }
+  void set_state(Uint32 state) { m_state= state; }
+  void set_node(Uint32 node) { m_node= node; }
+  Uint32 get_cond_wait_index() { return m_cond_wait_index; }
+  void set_cond_wait_index(Uint32 index) { m_cond_wait_index= index; }
 
   Uint32 m_node;
   Uint32 m_state;
   void * m_mutex;
+  bool m_poll_owner;
+  Uint32 m_cond_wait_index;
   struct NdbCondition * m_condition;  
 };
 
@@ -65,22 +74,8 @@ inline
 void
 NdbWaiter::wait(int waitTime)
 {
-  const bool forever = (waitTime == -1);
-  const NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
-  while (1) {
-    if (m_state == NO_WAIT || m_state == WAIT_NODE_FAILURE)
-      break;
-    if (forever) {
-      NdbCondition_Wait(m_condition, (NdbMutex*)m_mutex);
-    } else {
-      if (waitTime <= 0) {
-        m_state = WST_WAIT_TIMEOUT;
-        break;
-      }
-      NdbCondition_WaitTimeout(m_condition, (NdbMutex*)m_mutex, waitTime);
-      waitTime = maxTime - NdbTick_CurrentMillisecond();
-    }
-  }
+  assert(!m_poll_owner);
+  NdbCondition_WaitTimeout(m_condition, (NdbMutex*)m_mutex, waitTime);
 }
 
 inline
@@ -88,7 +83,8 @@ void
 NdbWaiter::nodeFail(Uint32 aNodeId){
   if (m_state != NO_WAIT && m_node == aNodeId){
     m_state = WAIT_NODE_FAILURE;
-    NdbCondition_Signal(m_condition);
+    if (!m_poll_owner)
+      NdbCondition_Signal(m_condition);
   }
 }
 
@@ -96,7 +92,14 @@ inline
 void 
 NdbWaiter::signal(Uint32 state){
   m_state = state;
-  NdbCondition_Signal(m_condition);
+  if (!m_poll_owner)
+    NdbCondition_Signal(m_condition);
 }
 
+inline
+void
+NdbWaiter::cond_signal()
+{
+  NdbCondition_Signal(m_condition);
+}
 #endif
