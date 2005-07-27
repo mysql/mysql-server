@@ -1279,6 +1279,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY  (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+set @@sql_mode='traditional';
 create table t1(a bit(2));
 insert into t1 values(b'101');
 ERROR 22001: Data too long for column 'a' at row 1
