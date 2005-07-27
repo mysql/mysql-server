@@ -215,7 +215,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return t_is_prefix ? t-te : ((se-s) - (te-t));
+  return t_is_prefix ? (int) (t - te) : (int) ((se - s) - (te - t));
 }
 
 /*
@@ -326,7 +326,7 @@ static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return (int) ( (se-s) - (te-t) );
 }
 
 
@@ -1349,7 +1349,7 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return t_is_prefix ? t-te : ((se-s) - (te-t));
+  return t_is_prefix ? (int) (t - te) : (int) ((se-s) - (te-t));
 }
 
 static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs, 
@@ -1494,7 +1494,7 @@ ulong my_scan_ucs2(CHARSET_INFO *cs __attribute__((unused)),
       if (str[0] != '\0' || str[1] != ' ')
         break;
     }
-    return str - str0;
+    return (ulong) (str - str0);
   default:
     return 0;
   }

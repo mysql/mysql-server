@@ -213,7 +213,7 @@ static int my_strnncoll_sjis_internal(CHARSET_INFO *cs,
       uint a_char= sjiscode(*a, *(a+1));
       uint b_char= sjiscode(*b, *(b+1));
       if (a_char != b_char)
-	return a_char - b_char;
+	return (int) a_char - (int) b_char;
       a += 2;
       b += 2;
     } else
@@ -4605,7 +4605,7 @@ uint my_well_formed_len_sjis(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return b - b0;
+  return (uint) (b - b0);
 }
 
 

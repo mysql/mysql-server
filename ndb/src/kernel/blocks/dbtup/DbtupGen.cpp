@@ -663,10 +663,12 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   initialiseRecordsLab(signal, 0, ref, senderData);
 
   clblPagesPerTick = 50;
-  //ndb_mgm_get_int_parameter(p, CFG_DB_, &clblPagesPerTick);
+  ndb_mgm_get_int_parameter(p, CFG_DB_LCP_DISC_PAGES_TUP_SR, 
+			    &clblPagesPerTick);
 
   clblPagesPerTickAfterSr = 50;
-  //ndb_mgm_get_int_parameter(p, CFG_DB_, &clblPagesPerTickAfterSr);
+  ndb_mgm_get_int_parameter(p, CFG_DB_LCP_DISC_PAGES_TUP, 
+			    &clblPagesPerTickAfterSr);
 
 }//Dbtup::execSIZEALT_REP()
 

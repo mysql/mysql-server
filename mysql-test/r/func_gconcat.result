@@ -445,6 +445,30 @@ group_concat(distinct b order by b)
 Warnings:
 Warning	1260	2 line(s) were cut by GROUP_CONCAT()
 drop table t1;
+create table t1 (a varchar(255) character set cp1250 collate cp1250_general_ci,
+b varchar(255) character set koi8r);
+insert into t1 values ('xxx','yyy');
+select collation(a) from t1;
+collation(a)
+cp1250_general_ci
+select collation(group_concat(a)) from t1;
+collation(group_concat(a))
+cp1250_general_ci
+create table t2 select group_concat(a) as a from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` longtext character set cp1250
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select collation(group_concat(a,_koi8r'test')) from t1;
+collation(group_concat(a,_koi8r'test'))
+cp1250_general_ci
+select collation(group_concat(a,_koi8r 0xC1C2)) from t1;
+ERROR HY000: Illegal mix of collations (cp1250_general_ci,IMPLICIT) and (koi8r_general_ci,COERCIBLE) for operation 'group_concat'
+select collation(group_concat(a,b)) from t1;
+ERROR HY000: Illegal mix of collations (cp1250_general_ci,IMPLICIT) and (koi8r_general_ci,IMPLICIT) for operation 'group_concat'
+drop table t1;
+drop table t2;
 CREATE TABLE t1 (id int);
 SELECT GROUP_CONCAT(id) AS gc FROM t1 HAVING gc IS NULL;
 gc
