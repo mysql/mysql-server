@@ -3645,7 +3645,7 @@ end_with_restore_list:
     if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
-    net_printf(thd, ER_CANT_OPEN_LIBRARY, lex->udf.dl, 0, "feature disabled");
+    net_printf_error(thd, ER_CANT_OPEN_LIBRARY, lex->udf.dl, 0, "feature disabled");
     res= TRUE;
 #endif
     break;
