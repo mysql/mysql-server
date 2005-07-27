@@ -1238,7 +1238,7 @@ void append_unescaped(String *res, const char *pos, uint length)
 
 	/* Create a .frm file */
 
-File create_frm(register my_string name, const char *table, const char *db,
+File create_frm(register my_string name,  const char *db, const char *table,
                 uint reclength, uchar *fileinfo,
 		HA_CREATE_INFO *create_info, uint keys)
 {
