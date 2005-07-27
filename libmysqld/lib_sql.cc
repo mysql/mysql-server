@@ -320,7 +320,8 @@ extern "C"
 
 static my_bool  org_my_init_done;
 my_bool         server_inited;
-char **		copy_arguments_ptr= 0; 
+char **		copy_arguments_ptr= 0;
+static FILE    *errorlog_file=0;
 
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
@@ -421,7 +422,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
       opt_error_log= 1;				// Too long file name
     else
     {
-      freopen(log_error_file, "a+", stderr);
+      errorlog_file= freopen(log_error_file, "a+", stderr);
     }
   }
 
@@ -626,6 +627,8 @@ void STDCALL mysql_server_end()
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
   clean_up(0);
+  if (errorlog_file)
+    fclose(errorlog_file);
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
     my_end(0);
