@@ -143,8 +143,8 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
   *errors=0;
 
   /* We always treat the loopback address as "localhost". */
-  if (in->s_addr == INADDR_LOOPBACK)
-    return (char *)my_localhost;
+  if (in->s_addr == htonl(INADDR_LOOPBACK))
+    DBUG_RETURN((char *)my_localhost);
 
   /* Check first if we have name in cache */
   if (!(specialflag & SPECIAL_NO_HOST_CACHE))
