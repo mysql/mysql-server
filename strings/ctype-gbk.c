@@ -9956,7 +9956,7 @@ uint my_well_formed_len_gbk(CHARSET_INFO *cs __attribute__((unused)),
       break;
     }
   }
-  return b - b0;
+  return (uint) (b - b0);
 }
 
 
