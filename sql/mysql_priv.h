@@ -1029,12 +1029,12 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 void unireg_init(ulong options);
 void unireg_end(void);
 bool mysql_create_frm(THD *thd, my_string file_name,
-                      const char *table, const char* db,
+                      const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
 		      List<create_field> &create_field,
 		      uint key_count,KEY *key_info,handler *db_type);
 int rea_create_table(THD *thd, my_string file_name,
-                     const char *table, const char* db,
+                     const char *db, const char *table,
                      HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
 		     uint key_count,KEY *key_info);
@@ -1107,7 +1107,7 @@ ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
 void append_unescaped(String *res, const char *pos, uint length);
-int create_frm(char *name, const char *table, const char *db,
+int create_frm(char *name,  const char *db, const char *table,
                uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
