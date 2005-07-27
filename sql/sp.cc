@@ -503,6 +503,11 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       ret= SP_BAD_IDENTIFIER;
       goto done;
     }
+    if (sp->m_body.length > table->field[MYSQL_PROC_FIELD_BODY]->field_length)
+    {
+      ret= SP_BODY_TOO_LONG;
+      goto done;
+    }
     table->field[MYSQL_PROC_FIELD_DB]->
       store(sp->m_db.str, sp->m_db.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_NAME]->
