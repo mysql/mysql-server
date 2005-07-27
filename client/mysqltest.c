@@ -66,7 +66,8 @@
 #ifndef WEXITSTATUS
 # define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
 #endif
-#define MAX_QUERY     131072
+/* MAX_QUERY is 256K -- there is a test in sp-big that is >128K */
+#define MAX_QUERY     (256*1024)
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
 #define PAD_SIZE	128
