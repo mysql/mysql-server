@@ -2079,6 +2079,10 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     reset_stmt_params(stmt);
   }
 
+  log_slow_statement(thd);
+  /* Prevent from second logging in the end of dispatch_command */
+  thd->enable_slow_log= FALSE;
+
   thd->set_statement(&stmt_backup);
   thd->lock_id= &thd->main_lock_id;
   thd->current_arena= thd;
