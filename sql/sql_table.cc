@@ -3287,6 +3287,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   uint need_copy_table= 0;
+#ifdef HAVE_PARTITION_DB
+  bool partition_changed= FALSE;
+#endif
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -3372,6 +3375,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
      We use the new partitioning. The new partitioning is already
      defined in the correct variable so no work is needed to
      accomplish this.
+     We do however need to update partition_changed to ensure that not
+     only the frm file is changed in the ALTER TABLE command.
 
    Case IIa:
      There was a partitioning before and there is no new one defined.
@@ -3390,27 +3395,34 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
      the old partitioning info and create a new table using the specified
      engine. This is the reason for the extra check if old and new engine
      is equal.
+     In this case the partition also is changed.
 
    Case III:
      There was no partitioning before altering the table, there is
      partitioning defined in the altered table. Use the new partitioning.
      No work needed since the partitioning info is already in the
      correct variable.
+     Also here partition has changed and thus a new table must be
+     created.
 
    Case IV:
      There was no partitioning before and no partitioning defined. Obviously
      no work needed.
   */
   if (table->s->part_info)
+  {
     if (!thd->lex->part_info &&
         create_info->db_type == old_db_type)
       thd->lex->part_info= table->s->part_info;
+  }
   if (thd->lex->part_info)
   {
     /*
       Need to cater for engine types that can handle partition without
       using the partition handler.
     */
+    if (thd->lex->part_info != table->s->part_info)
+      partition_changed= TRUE;
     thd->lex->part_info->default_engine_type= create_info->db_type;
     create_info->db_type= DB_TYPE_PARTITION_DB;
   }
@@ -3780,7 +3792,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   set_table_default_charset(thd, create_info, db);
 
+#ifdef HAVE_PARTITION_DB
+  if (thd->variables.old_alter_table || partition_changed)
+#else
   if (thd->variables.old_alter_table)
+#endif
     need_copy_table= 1;
   else
     need_copy_table= compare_tables(table, &create_list, &key_list,
