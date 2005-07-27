@@ -2600,6 +2600,50 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (my_dbopt_init())
     return 1;
 
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
+  if (!lower_case_table_names &&
+      (lower_case_file_system=
+       (test_if_case_insensitive(mysql_real_data_home) == 1)))
+  {
+    if (lower_case_table_names_used)
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_warning("\
+You have forced lower_case_table_names to 0 through a command-line \
+option, even though your file system '%s' is case insensitive.  This means \
+that you can corrupt a MyISAM table by accessing it with different cases. \
+You should consider changing lower_case_table_names to 1 or 2",
+			mysql_real_data_home);
+    }
+    else
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+      lower_case_table_names= 2;
+    }
+  }
+  else if (lower_case_table_names == 2 &&
+           !(lower_case_file_system=
+             (test_if_case_insensitive(mysql_real_data_home) == 1)))
+  {
+    if (global_system_variables.log_warnings)
+      sql_print_warning("lower_case_table_names was set to 2, even though your "
+                        "the file system '%s' is case sensitive.  Now setting "
+                        "lower_case_table_names to 0 to avoid future problems.",
+			mysql_real_data_home);
+    lower_case_table_names= 0;
+  }
+
+  /* Reset table_alias_charset, now that lower_case_table_names is set. */
+  table_alias_charset= (lower_case_table_names ?
+			files_charset_info :
+			&my_charset_bin);
+
   return 0;
 }
 
@@ -3076,50 +3120,6 @@ int main(int argc, char **argv)
 #endif
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
-
-  /*
-    Ensure that lower_case_table_names is set on system where we have case
-    insensitive names.  If this is not done the users MyISAM tables will
-    get corrupted if accesses with names of different case.
-  */
-  DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
-  if (!lower_case_table_names &&
-      (lower_case_file_system=
-       (test_if_case_insensitive(mysql_real_data_home) == 1)))
-  {
-    if (lower_case_table_names_used)
-    {
-      if (global_system_variables.log_warnings)
-	sql_print_warning("\
-You have forced lower_case_table_names to 0 through a command-line \
-option, even though your file system '%s' is case insensitive.  This means \
-that you can corrupt a MyISAM table by accessing it with different cases. \
-You should consider changing lower_case_table_names to 1 or 2",
-			mysql_real_data_home);
-    }
-    else
-    {
-      if (global_system_variables.log_warnings)
-	sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
-      lower_case_table_names= 2;
-    }
-  }
-  else if (lower_case_table_names == 2 &&
-           !(lower_case_file_system=
-             (test_if_case_insensitive(mysql_real_data_home) == 1)))
-  {
-    if (global_system_variables.log_warnings)
-      sql_print_warning("lower_case_table_names was set to 2, even though your "
-                        "the file system '%s' is case sensitive.  Now setting "
-                        "lower_case_table_names to 0 to avoid future problems.",
-			mysql_real_data_home);
-    lower_case_table_names= 0;
-  }
-
-  /* Reset table_alias_charset, now that lower_case_table_names is set. */
-  table_alias_charset= (lower_case_table_names ?
-			files_charset_info :
-			&my_charset_bin);
 
   select_thread=pthread_self();
   select_thread_in_use=1;
