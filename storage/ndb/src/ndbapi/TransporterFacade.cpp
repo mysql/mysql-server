@@ -1376,19 +1376,16 @@ void PollGuard::wait_for_input(int wait_time)
       receiving data we will check if all data is received, if not we
       poll again.
     */
-    if (t_poll_owner)
-    {
 #ifdef NDB_SHM_TRANSPORTER
-      /*
-        If shared memory transporters are used we need to set our sigmask
-        such that we wake up also on interrupts on the shared memory
-        interrupt signal.
-      */
-      NdbThread_set_shm_sigmask(FALSE);
+    /*
+      If shared memory transporters are used we need to set our sigmask
+      such that we wake up also on interrupts on the shared memory
+      interrupt signal.
+    */
+    NdbThread_set_shm_sigmask(FALSE);
 #endif
-      m_tp->set_poll_owner(m_waiter);
-      m_waiter->set_poll_owner(true);
-    }
+    m_tp->set_poll_owner(m_waiter);
+    m_waiter->set_poll_owner(true);
     m_tp->external_poll((Uint32)wait_time);
   }
 }
