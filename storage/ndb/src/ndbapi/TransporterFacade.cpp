@@ -462,7 +462,7 @@ void TransporterFacade::threadMainReceive(void)
 {
   theTransporterRegistry->startReceiving();
 #ifdef NDB_SHM_TRANSPORTER
-  NdbThread_set_shm_sigmask(true);
+  NdbThread_set_shm_sigmask(TRUE);
 #endif
   NdbMutex_Lock(theMutexPtr);
   theTransporterRegistry->update_connections();
@@ -1384,7 +1384,7 @@ void PollGuard::wait_for_input(int wait_time)
         such that we wake up also on interrupts on the shared memory
         interrupt signal.
       */
-      NdbThread_set_shm_sigmask(false);
+      NdbThread_set_shm_sigmask(FALSE);
 #endif
       m_tp->set_poll_owner(m_waiter);
       m_waiter->set_poll_owner(true);
@@ -1417,7 +1417,7 @@ void PollGuard::unlock_and_signal()
       If shared memory transporters are used we need to reset our sigmask
       since we are no longer the thread to receive interrupts.
     */
-    NdbThread_set_shm_sigmask(true);
+    NdbThread_set_shm_sigmask(TRUE);
 #endif
     m_waiter->set_poll_owner(false);
     t_signal_cond_waiter= m_tp->rem_last_from_cond_wait_queue();
