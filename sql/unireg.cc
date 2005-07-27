@@ -211,7 +211,7 @@ err3:
   Create a frm (table definition) file and the tables
 
   SYNOPSIS
-    mysql_create_frm()
+    rea_create_table()
     thd			Thread handler
     file_name		Name of file (including database and .frm)
     create_info		create info parameters
