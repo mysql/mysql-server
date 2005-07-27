@@ -38,7 +38,7 @@ struct NdbThread
 
 
 #ifdef NDB_SHM_TRANSPORTER
-void NdbThread_set_shm_sigmask(bool block)
+void NdbThread_set_shm_sigmask(my_bool block)
 {
   DBUG_ENTER("NdbThread_set_shm_sigmask");
   if (g_ndb_shm_signum)
@@ -64,7 +64,7 @@ ndb_thread_wrapper(void* _ss){
   {
     DBUG_ENTER("ndb_thread_wrapper");
 #ifdef NDB_SHM_TRANSPORTER
-    NdbThread_set_shm_sigmask(true);
+    NdbThread_set_shm_sigmask(TRUE);
 #endif
     {
       void *ret;

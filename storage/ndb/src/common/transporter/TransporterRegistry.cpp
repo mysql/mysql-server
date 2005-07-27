@@ -457,7 +457,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
      * Make sure to block g_ndb_shm_signum
      *   TransporterRegistry::init is run from "main" thread
      */
-    NdbThread_set_shm_sigmask(true);
+    NdbThread_set_shm_sigmask(TRUE);
   }
 
   if(config->shm.signum != g_ndb_shm_signum)
@@ -1487,7 +1487,7 @@ TransporterRegistry::startReceiving()
     DBUG_PRINT("info",("Install signal handler for signum %d",
 		       g_ndb_shm_signum));
     struct sigaction sa;
-    NdbThread_set_shm_sigmask(false);
+    NdbThread_set_shm_sigmask(FALSE);
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = shm_sig_handler;
     sa.sa_flags = 0;
