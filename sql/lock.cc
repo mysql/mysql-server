@@ -601,6 +601,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(-1);
   table->s= &table->share_not_to_be_used;
   memcpy((table->s->table_cache_key= (char*) (table+1)), key, key_length);
+  table->s->db= table->s->table_cache_key;
   table->s->key_length=key_length;
   table->in_use=thd;
   table->locked_by_name=1;
