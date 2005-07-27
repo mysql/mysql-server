@@ -54,6 +54,7 @@ my_col
 4
 execute s_t9 ;
 ERROR 42S02: Table 'mysqltest.t9' doesn't exist
+deallocate prepare s_t9;
 revoke all privileges on mysqltest.t1 from second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
@@ -75,7 +76,3 @@ commit ;
 show grants for second_user@localhost ;
 ERROR 42000: There is no such grant defined for user 'second_user' on host 'localhost'
 drop database mysqltest;
-prepare stmt4 from ' show full processlist ';
-execute stmt4;
-Id	User	Host	db	Command	Time	State	Info
-number	root	localhost	test	Execute	time	NULL	show full processlist
