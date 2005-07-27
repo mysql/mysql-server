@@ -137,3 +137,6 @@ select * from t1;
 round(1, 6)
 1.000000
 drop table t1;
+select abs(-2) * -2;
+abs(-2) * -2
+-4
