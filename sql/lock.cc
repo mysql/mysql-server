@@ -584,12 +584,9 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(-1);
   }
   
+  if (remove_table_from_cache(thd, db, table_list->real_name, RTFC_NO_FLAG))
   {
-    if (remove_table_from_cache(thd, db,
-                                table_list->real_name, RTFC_NO_FLAG))
-    {
-      DBUG_RETURN(1);				// Table is in use
-    }
+    DBUG_RETURN(1);				// Table is in use
   }
   DBUG_RETURN(0);
 }
