@@ -683,7 +683,7 @@ then
   c_p="$c_p   security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,"
   c_p="$c_p   param_list        blob DEFAULT '' NOT NULL,"
   c_p="$c_p   returns           char(64) DEFAULT '' NOT NULL,"
-  c_p="$c_p   body              blob DEFAULT '' NOT NULL,"
+  c_p="$c_p   body              longblob DEFAULT '' NOT NULL,"
   c_p="$c_p   definer           char(77) collate utf8_bin DEFAULT '' NOT NULL,"
   c_p="$c_p   created           timestamp,"
   c_p="$c_p   modified          timestamp,"
