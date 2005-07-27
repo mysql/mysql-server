@@ -506,6 +506,8 @@ void *create_embedded_thd(int client_flag, char *db)
 
 /* TODO - add init_connect command execution */
 
+  if (thd->variables.max_join_size == HA_POS_ERROR)
+    thd->options |= OPTION_BIG_SELECTS;
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
   thd->version=refresh_version;
