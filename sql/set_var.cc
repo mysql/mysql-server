@@ -3196,27 +3196,44 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
  Functions to handle sql_mode
 ****************************************************************************/
 
-byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
-				      LEX_STRING *base)
+/*
+  Make string representation of mode
+
+  SINOPSYS
+    thd       thread handler
+    val       sql_mode value
+    len       pointer on length of string
+*/
+
+byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd, ulong val,
+                                                         ulong *len)
 {
-  ulong val;
   char buff[256];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
 
   tmp.length(0);
-  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
-        thd->variables.*offset);
   for (uint i= 0; val; val>>= 1, i++)
   {
     if (val & 1)
     {
-      tmp.append(enum_names->type_names[i]);
+      tmp.append(sql_mode_typelib.type_names[i],
+                 sql_mode_typelib.type_lengths[i]);
       tmp.append(',');
     }
   }
   if (tmp.length())
     tmp.length(tmp.length() - 1);
+  *len= tmp.length();
   return (byte*) thd->strmake(tmp.ptr(), tmp.length());
+}
+
+byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
+				      LEX_STRING *base)
+{
+  ulong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+              thd->variables.*offset);
+  ulong length_unused;
+  return symbolic_mode_representation(thd, val, &length_unused);
 }
 
 

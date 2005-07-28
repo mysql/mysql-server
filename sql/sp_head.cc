@@ -574,6 +574,7 @@ sp_head::execute(THD *thd)
   sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
+  ulong save_sql_mode;
   Query_arena *old_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
@@ -626,6 +627,8 @@ sp_head::execute(THD *thd)
   old_query_id= thd->query_id;
   old_derived_tables= thd->derived_tables;
   thd->derived_tables= 0;
+  save_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode= m_sql_mode;
   /*
     It is also more efficient to save/restore current thd->lex once when
     do it in each instruction
@@ -715,6 +718,7 @@ sp_head::execute(THD *thd)
   thd->query_id= old_query_id;
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
+  thd->variables.sql_mode= save_sql_mode;
 
   thd->current_arena= old_arena;
   state= EXECUTED;
@@ -1245,8 +1249,6 @@ sp_head::show_create_procedure(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  ulong old_sql_mode;
-  sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
   bool full_access;
@@ -1258,19 +1260,13 @@ sp_head::show_create_procedure(THD *thd)
 
   if (check_show_routine_access(thd, this, &full_access))
     return 1;
-  
-  old_sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode= m_sql_mode;
-  sql_mode_var= find_sys_var("SQL_MODE", 8);
-  if (sql_mode_var)
-  {
-    sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen((char*) sql_mode_str);
-  }
 
+  sql_mode_str=
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
+                                                       m_sql_mode,
+                                                       &sql_mode_len);
   field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
-  if (sql_mode_var)
-    field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Create Procedure",
 					     max(buffer.length(), 1024)));
@@ -1282,15 +1278,13 @@ sp_head::show_create_procedure(THD *thd)
   }
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  if (sql_mode_var)
-    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
 
  done:
-  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
 
@@ -1326,7 +1320,6 @@ sp_head::show_create_function(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  ulong old_sql_mode;
   sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
@@ -1339,15 +1332,10 @@ sp_head::show_create_function(THD *thd)
   if (check_show_routine_access(thd, this, &full_access))
     return 1;
 
-  old_sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode= m_sql_mode;
-  sql_mode_var= find_sys_var("SQL_MODE", 8);
-  if (sql_mode_var)
-  {
-    sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen((char*) sql_mode_str);
-  }
-
+  sql_mode_str=
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
+                                                       m_sql_mode,
+                                                       &sql_mode_len);
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
   if (sql_mode_var)
     field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
@@ -1361,15 +1349,13 @@ sp_head::show_create_function(THD *thd)
   }
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  if (sql_mode_var)
-    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
 
  done:
-  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
 
