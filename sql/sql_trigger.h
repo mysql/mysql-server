@@ -60,6 +60,10 @@ public:
     It have to be public because we are using it directly from parser.
   */
   List<LEX_STRING>  definitions_list;
+  /*
+    List of sql modes for triggers
+  */
+  List<ulonglong> definition_modes_list;
 
   Table_triggers_list(TABLE *table_arg):
     record1_field(0), table(table_arg)
@@ -123,7 +127,8 @@ public:
   }
   bool get_trigger_info(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
-                        LEX_STRING *trigger_name, LEX_STRING *trigger_stmt);
+                        LEX_STRING *trigger_name, LEX_STRING *trigger_stmt,
+                        ulong *sql_mode);
 
   static bool check_n_load(THD *thd, const char *db, const char *table_name,
                            TABLE *table, bool names_only);
