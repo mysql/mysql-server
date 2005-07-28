@@ -2537,8 +2537,8 @@ row_sel_store_mysql_rec(
 			case DATA_CHAR:
 			case DATA_FIXBINARY:
 			case DATA_MYSQL:
-			        /* MySQL pads all non-BLOB and non-TEXT
-				string types with space ' ' */
+			        /* MySQL pads all string types (except
+				BLOB, TEXT and true VARCHAR) with space. */
 				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
 					/* Treat UCS2 as a special case. */
 					data = mysql_rec
