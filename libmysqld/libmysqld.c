@@ -1795,6 +1795,10 @@ mysql_get_client_info(void)
   return MYSQL_SERVER_VERSION;
 }
 
+ulong STDCALL mysql_get_client_version(void)
+{
+  return MYSQL_VERSION_ID;
+}
 
 int STDCALL
 mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
