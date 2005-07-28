@@ -2262,7 +2262,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   */
   (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
                                  ((*value)->type() == Item::FIELD_ITEM) &&
-                                 ((Item_field*)*value)->field->maybe_null();
+
+                        (((Item_field*)*value)->field->maybe_null() ||
+			 ((Item_field *)*value)->field->table->maybe_null);
   (*key_fields)++;
 }
 
@@ -6317,6 +6319,11 @@ join_read_always_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
+  {
+    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
+        return -1;
+  } 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
   if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
