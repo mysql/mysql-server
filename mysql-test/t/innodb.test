@@ -1230,6 +1230,8 @@ SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t
 DROP TABLE t2;
 DROP TABLE t1;
 
+# End of 4.1 tests
+
 #
 # range optimizer problem
 #
@@ -1367,7 +1369,6 @@ replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
 select * from t1;
 drop table t1;
-
 
 #
 # Test that update does not change internal auto-increment value

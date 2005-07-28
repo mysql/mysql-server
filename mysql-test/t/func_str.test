@@ -624,3 +624,5 @@ select lpad(i, 7, ' ') as t from t1;
 select rpad(i, 7, ' ') as t from t1;
 --disable_metadata
 drop table t1;
+
+# End of 4.1 tests

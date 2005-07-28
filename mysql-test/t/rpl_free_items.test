@@ -18,3 +18,5 @@ connection master;
 drop table t1;
 drop table t2;
 sync_slave_with_master;
+
+# End of 4.1 tests

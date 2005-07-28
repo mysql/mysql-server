@@ -36,3 +36,5 @@ insert delayed into t1 values (3,"this will give an","error");
 show status like 'not_flushed_delayed_rows';
 select * from t1;
 drop table t1;
+
+# End of 4.1 tests

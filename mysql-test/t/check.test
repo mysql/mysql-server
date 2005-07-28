@@ -22,6 +22,8 @@ connection con1;
 reap;
 drop table t1;
 
+# End of 4.1 tests
+
 #
 # Bug #9897  Views: 'Check Table' crashes MySQL, with a view and a table 
 # in the statement

@@ -348,7 +348,18 @@ void mysql_lock_abort(THD *thd, TABLE *table)
 }
 
 
-/* Abort one thread / table combination */
+/*
+  Abort one thread / table combination
+
+  SYNOPSIS
+    mysql_lock_abort_for_thread()
+    thd		Thread handler
+    table	Table that should be removed from lock queue
+
+  RETURN
+    0  Table was not locked by another thread
+    1  Table was locked by at least one other thread
+*/
 
 bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
 {
@@ -361,10 +372,9 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
   {
     for (uint i=0; i < locked->lock_count; i++)
     {
-      bool found;
-      found= thr_abort_locks_for_thread(locked->locks[i]->lock,
-	         			 table->in_use->real_id);
-      result|= found;
+      if (thr_abort_locks_for_thread(locked->locks[i]->lock,
+                                     table->in_use->real_id))
+        result= TRUE;
     }
     my_free((gptr) locked,MYF(0));
   }
@@ -613,14 +623,9 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(-1);
   }
   
-  {
-    if (remove_table_from_cache(thd, db,
-                                table_list->table_name, RTFC_NO_FLAG))
-    {
-      DBUG_RETURN(1);				// Table is in use
-    }
-  }
-  DBUG_RETURN(0);
+  /* Return 1 if table is in use */
+  DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->real_name,
+                                           RTFC_NO_FLAG)))
 }
 
 

@@ -48,3 +48,5 @@ select * from (select 1 union select 1) aaa;
 drop table t1;
 
 --disable_metadata
+
+# End of 4.1 tests

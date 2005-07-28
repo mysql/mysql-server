@@ -179,3 +179,5 @@ select rpad(c1,3,'ö'), rpad('ö',3,c1) from t1;
 # TODO
 #select case c1 when 'ß' then 'ß' when 'ö' then 'ö' else 'c' end from t1;
 #select export_set(5,c1,'ö'), export_set(5,'ö',c1) from t1;
+
+# End of 4.1 tests
