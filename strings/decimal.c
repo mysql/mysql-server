@@ -745,14 +745,17 @@ int decimal_shift(decimal_t *dec, int shift)
     new_point= ROUND_UP(new_point) - 1;
 
   if (new_point > end)
+  {
     do
     {
       dec->buf[new_point]=0;
-    }while (--new_point > end);
+    } while (--new_point > end);
+  }
   else
+  {
     for (; new_point < beg; new_point++)
       dec->buf[new_point]= 0;
-
+  }
   dec->intg= digits_int;
   dec->frac= digits_frac;
   return err;

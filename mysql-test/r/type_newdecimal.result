@@ -946,6 +946,13 @@ t1	CREATE TABLE `t1` (
   `sl` decimal(5,5) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (sl decimal(65, 30));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sl` decimal(65,30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 create table t1 (
 f1 decimal unsigned not null default 17.49, 
 f2 decimal unsigned not null default 17.68, 

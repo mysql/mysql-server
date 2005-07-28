@@ -588,6 +588,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
     ~0          The escaped string did not fit in the to buffer
     >=0         The length of the escaped string
 */
+
 ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
                               char *to, ulong to_length,
                               const char *from, ulong length)
@@ -702,6 +703,7 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
     ~0          The escaped string did not fit in the to buffer
     >=0         The length of the escaped string
 */
+
 ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
                               char *to, ulong to_length,
                               const char *from, ulong length)
@@ -714,7 +716,6 @@ ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 #endif
   for (end= from + length; from < end; from++)
   {
-    char escape= 0;
 #ifdef USE_MB
     int tmp_length;
     if (use_mb_flag && (tmp_length= my_ismbchar(charset_info, from, end)))
