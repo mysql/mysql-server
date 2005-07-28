@@ -627,14 +627,14 @@ void STDCALL mysql_server_end()
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
   clean_up(0);
+  /* If library called my_init(), free memory allocated by it */
+  if (!org_my_init_done)
+    my_end(0);
   if (errorlog_file)
   {
     fclose(errorlog_file);
     errorlog_file=0;
   }
-  /* If library called my_init(), free memory allocated by it */
-  if (!org_my_init_done)
-    my_end(0);
 }
 
 my_bool STDCALL mysql_thread_init()
