@@ -2524,11 +2524,19 @@ row_sel_store_mysql_rec(
 					(byte) (templ->mysql_null_bit_mask);
 			switch (templ->type) {
 			case DATA_VARCHAR:
-			case DATA_CHAR:
 			case DATA_BINARY:
+			case DATA_VARMYSQL:
+				if (templ->mysql_type
+				    == DATA_MYSQL_TRUE_VARCHAR) {
+					/* This is a >= 5.0.3 type
+					true VARCHAR.  Zero the field. */
+					pad_char = 0x00;
+					break;
+				}
+				/* Fall through */
+			case DATA_CHAR:
 			case DATA_FIXBINARY:
 			case DATA_MYSQL:
-			case DATA_VARMYSQL:
 			        /* MySQL pads all non-BLOB and non-TEXT
 				string types with space ' ' */
 				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
