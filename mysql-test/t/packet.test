@@ -31,3 +31,5 @@ set global net_buffer_length=default;
 set net_buffer_length=default;
 SELECT length("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") as len;
 select length(repeat('a',2000));
+
+# End of 4.1 tests

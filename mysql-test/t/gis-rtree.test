@@ -172,3 +172,5 @@ CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 --error 1105
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 drop table t1, t2;
+
+# End of 4.1 tests

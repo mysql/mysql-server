@@ -191,3 +191,5 @@ select * from t1 where id2 is null or id2 > 0;
 delete from t1 where id <=> NULL;
 select * from t1;
 drop table t1;
+
+# End of 4.1 tests

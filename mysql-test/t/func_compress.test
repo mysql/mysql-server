@@ -45,3 +45,4 @@ set @@max_allowed_packet=1048576*100;
 --replace_result "''" XXX "'1'" XXX
 eval select compress(repeat('aaaaaaaaaa', IF('$LOW_MEMORY', 10, 10000000))) is null;
 
+# End of 4.1 tests

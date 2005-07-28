@@ -80,3 +80,4 @@ commit;
 select t1.* from t1, t2, t3 where t3.state & 1 = 0 and t3.t1_id = t1.id and t3.t2_id = t2.id and t1.id = 1 order by t1.a asc;
 drop table t3,t2,t1;
 
+# End of 4.1 tests

@@ -32,3 +32,5 @@ select * from t1 order by pk1;
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
+
+# End of 4.1 tests

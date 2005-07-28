@@ -55,3 +55,5 @@ sync_with_master;
 delete from mysql.user where user=_binary'rpl_ignore_grant';
 delete from mysql.db where user=_binary'rpl_ignore_grant';
 flush privileges;
+
+# End of 4.1 tests

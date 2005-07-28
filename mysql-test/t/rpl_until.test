@@ -80,3 +80,5 @@ start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 
 start slave sql_thread;
 start slave until master_log_file='master-bin.000001', master_log_pos=561;
+
+# End of 4.1 tests

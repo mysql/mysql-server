@@ -81,3 +81,5 @@ SELECT DATE_FORMAT(day, '%Y%m%d') as date, DATE_FORMAT(day, '%d-%m-%Y')
 as date_formatted FROM t2 GROUP BY day ORDER BY day DESC LIMIT 2;
 
 drop table t2;
+
+# End of 4.1 tests

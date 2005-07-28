@@ -76,3 +76,5 @@ select * from t1;
 show create database test;
 
 drop table t1;
+
+# End of 4.1 tests
