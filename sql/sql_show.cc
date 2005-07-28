@@ -2983,9 +2983,13 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           const char *tname, LEX_STRING *trigger_name,
                           enum trg_event_type event,
                           enum trg_action_time_type timing,
-                          LEX_STRING *trigger_stmt)
+                          LEX_STRING *trigger_stmt,
+                          ulong sql_mode)
 {
   CHARSET_INFO *cs= system_charset_info;
+  byte *sql_mode_str;
+  ulong sql_mode_len;
+
   restore_record(table, s->default_values);
   table->field[1]->store(db, strlen(db), cs);
   table->field[2]->store(trigger_name->str, trigger_name->length, cs);
@@ -2999,6 +3003,12 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           trg_action_time_type_names[timing].length, cs);
   table->field[14]->store("OLD", 3, cs);
   table->field[15]->store("NEW", 3, cs);
+
+  sql_mode_str=
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
+                                                       sql_mode,
+                                                       &sql_mode_len);
+  table->field[17]->store(sql_mode_str, sql_mode_len, cs);
   return schema_table_store_record(thd, table);
 }
 
@@ -3031,13 +3041,16 @@ static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
       {
         LEX_STRING trigger_name;
         LEX_STRING trigger_stmt;
+        ulong sql_mode;
         if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
                                        (enum trg_action_time_type)timing,
-                                       &trigger_name, &trigger_stmt))
+                                       &trigger_name, &trigger_stmt,
+                                       &sql_mode))
           continue;
         if (store_trigger(thd, table, base_name, file_name, &trigger_name,
                          (enum trg_event_type) event,
-                         (enum trg_action_time_type) timing, &trigger_stmt))
+                         (enum trg_action_time_type) timing, &trigger_stmt,
+                         sql_mode))
           DBUG_RETURN(1);
       }
     }
@@ -3949,6 +3962,7 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Created"},
+  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, "sql_mode"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -4003,7 +4017,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_open_tables, make_old_format, 0, -1, -1, 1},
   {"STATUS", variables_fields_info, create_schema_table, fill_status, 
    make_old_format, 0, -1, -1, 1},
-  {"TRIGGERS", triggers_fields_info, create_schema_table, 
+  {"TRIGGERS", triggers_fields_info, create_schema_table,
    get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0},
   {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
    make_old_format, 0, -1, -1, 1},

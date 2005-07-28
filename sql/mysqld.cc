@@ -220,21 +220,58 @@ extern "C" int gethostname(char *name, int namelen);
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
-static const char *sql_mode_names[] =
+static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
   "NO_DIR_IN_CREATE",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
-  "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES", "STRICT_ALL_TABLES",
-  "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO",
+  "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
+  "STRICT_ALL_TABLES",
+  "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ALLOW_INVALID_DATES",
+  "ERROR_FOR_DIVISION_BY_ZERO",
   "TRADITIONAL", "NO_AUTO_CREATE_USER", "HIGH_NOT_PRECEDENCE",
   "NO_ENGINE_SUBSTITUTION",
   NullS
 };
+static const unsigned int sql_mode_names_len[]=
+{
+  /*REAL_AS_FLOAT*/               13,
+  /*PIPES_AS_CONCAT*/             15,
+  /*ANSI_QUOTES*/                 11,
+  /*IGNORE_SPACE*/                12,
+  /*?*/                           1,
+  /*ONLY_FULL_GROUP_BY*/          18,
+  /*NO_UNSIGNED_SUBTRACTION*/     23,
+  /*NO_DIR_IN_CREATE*/            16,
+  /*POSTGRESQL*/                  10,
+  /*ORACLE*/                      6,
+  /*MSSQL*/                       5,
+  /*DB2*/                         3,
+  /*MAXDB*/                       5,
+  /*NO_KEY_OPTIONS*/              14,
+  /*NO_TABLE_OPTIONS*/            16,
+  /*NO_FIELD_OPTIONS*/            16,
+  /*MYSQL323*/                    8,
+  /*MYSQL40*/                     7,
+  /*ANSI*/                        4,
+  /*NO_AUTO_VALUE_ON_ZERO*/       21,
+  /*NO_BACKSLASH_ESCAPES*/        20,
+  /*STRICT_TRANS_TABLES*/         19,
+  /*STRICT_ALL_TABLES*/           17,
+  /*NO_ZERO_IN_DATE*/             15,
+  /*NO_ZERO_DATE*/                12,
+  /*ALLOW_INVALID_DATES*/         19,
+  /*ERROR_FOR_DIVISION_BY_ZERO*/  26,
+  /*TRADITIONAL*/                 11,
+  /*NO_AUTO_CREATE_USER*/         19,
+  /*HIGH_NOT_PRECEDENCE*/         19,
+  /*NO_ENGINE_SUBSTITUTION*/      22
+};
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
-			    sql_mode_names, NULL };
+			    sql_mode_names,
+                            (unsigned int *)sql_mode_names_len };
 static const char *tc_heuristic_recover_names[]=
 {
   "COMMIT", "ROLLBACK", NullS
