@@ -3547,9 +3547,9 @@ bool check_grant_db(THD *thd,const char *db)
 {
   char helping [NAME_LEN+USERNAME_LENGTH+2];
   uint len;
-  bool error=1;
+  bool error= 1;
 
-  len  = (uint) (strmov(strmov(helping,thd->priv_user)+1,db)-helping)+ 1;
+  len= (uint) (strmov(strmov(helping,thd->priv_user)+1,db)-helping)+ 1;
   rw_rdlock(&LOCK_grant);
 
   for (uint idx=0 ; idx < column_priv_hash.records ; idx++)

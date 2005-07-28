@@ -564,8 +564,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
               alloc_root(&table->mem_root, triggers->sroutines_key.length)))
         DBUG_RETURN(1);
       triggers->sroutines_key.str[0]= TYPE_ENUM_TRIGGER;
-      strmov(strmov(strmov(triggers->sroutines_key.str+1, db), "."),
-             table_name);
+      strxmov(triggers->sroutines_key.str+1, db, ".", table_name, NullS);
 
       /*
         TODO: This could be avoided if there is no triggers

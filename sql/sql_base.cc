@@ -1043,26 +1043,26 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (thd->locked_tables || thd->prelocked_mode)
   {						// Using table locks
     TABLE *best_table= 0;
-    int best_distance= INT_MIN, distance;
+    int best_distance= INT_MIN;
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
           !memcmp(table->s->table_cache_key, key, key_length) &&
           !my_strcasecmp(system_charset_info, table->alias, alias) &&
-          table->query_id != thd->query_id && /* skip tables already used by this query */
+          table->query_id != thd->query_id && /* skip tables already used */
           !(thd->prelocked_mode && table->query_id))
       {
-        distance= ((int) table->reginfo.lock_type -
-                   (int) table_list->lock_type);
+        int distance= ((int) table->reginfo.lock_type -
+                       (int) table_list->lock_type);
         /*
           Find a table that either has the exact lock type requested,
           or has the best suitable lock. In case there is no locked
           table that has an equal or higher lock than requested,
-          we still maitain the best_table to produce an error message
-          about wrong lock mode on the table. The best_table is changed
+          we us the closest matching lock to be able to produce an error
+          message about wrong lock mode on the table. The best_table is changed
           if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
 
-          distance <  0 - we have not enough high lock mode
+          distance <  0 - No suitable lock found
           distance >  0 - we have lock mode higher then we require
           distance == 0 - we have lock mode exactly which we need
         */
@@ -1071,7 +1071,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         {
           best_distance= distance;
           best_table= table;
-          if (best_distance == 0)
+          if (best_distance == 0)               // Found perfect lock
             break;
         }
       }

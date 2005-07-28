@@ -2206,14 +2206,22 @@ my_bool mysql_reconnect(MYSQL *mysql)
   tmp_mysql.rpl_pivot = mysql->rpl_pivot;
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
-			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS) ||
-      mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
+			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
   {
     mysql->net.last_errno= tmp_mysql.net.last_errno;
     strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
+  if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
+  {
+    mysql_close(&tmp_mysql);
+    mysql->net.last_errno= tmp_mysql.net.last_errno;
+    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
+    strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
+    DBUG_RETURN(1);
+  }
+
   tmp_mysql.reconnect= 1;
   tmp_mysql.free_me= mysql->free_me;
 
