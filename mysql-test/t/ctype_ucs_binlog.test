@@ -17,4 +17,4 @@ show binlog events from 79;
 --exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
 drop table t2;
 
-
+# End of 4.1 tests

@@ -78,3 +78,4 @@ drop database rewrite;
 connection master;
 drop table t1;
 
+# End of 4.1 tests

@@ -100,3 +100,5 @@ insert into t1 select a from t1 on duplicate key update a=a+1 ;
 --error 1052
 insert ignore into t1 select a from t1 on duplicate key update a=t1.a+1 ;
 drop table t1;
+
+# End of 4.1 tests
