@@ -46,3 +46,5 @@ insert into t1 (a) values ('air'),
 
 select * from t1 where a like 'we_%';
 drop table t1;
+
+# End of 4.1 tests

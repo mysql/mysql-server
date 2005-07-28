@@ -1149,3 +1149,5 @@ SET collation_connection='ujis_japanese_ci';
 SET collation_connection='ujis_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
+
+# End of 4.1 tests

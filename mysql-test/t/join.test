@@ -325,3 +325,5 @@ select * from t1,t2 right join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
 select t1.i,t2.i,t3.i from t2 natural right join t3,t1 order by t1.i,t2.i,t3.i;
 select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
 drop table t1,t2,t3;
+
+# End of 4.1 tests

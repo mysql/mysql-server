@@ -156,6 +156,9 @@ select cast(concat('184467440','73709551615') as signed);
 select cast(repeat('1',20) as unsigned);
 select cast(repeat('1',20) as signed);
 
+# End of 4.1 tests
+
+
 #decimal-related additions
 select cast('1.2' as decimal(3,2));
 select 1e18 * cast('1.2' as decimal(3,2));

@@ -14,3 +14,4 @@ show status like 'Slave_open_temp_tables';
 connection default;
 drop database mysqltest;
 
+# End of 4.1 tests

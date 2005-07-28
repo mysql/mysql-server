@@ -35,3 +35,5 @@ DROP TABLE t1;
 SELECT CHAR(31) = '', '' = CHAR(31);
 # Extra test
 SELECT CHAR(30) = '', '' = CHAR(30);
+
+# End of 4.1 tests

@@ -514,3 +514,5 @@ create table test.t1 like x;
 --disable_warnings
 drop table if exists test.t1;
 --enable_warnings
+
+# End of 4.1 tests

@@ -4,7 +4,6 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
 drop database if exists mysqldump_test_db;
-drop database if exists db1;
 drop view if exists v1, v2, v3;
 --enable_warnings
 
@@ -135,15 +134,6 @@ insert into t1 values (1),(2),(3);
 drop table t1;
 
 #
-# dump of view
-#
-create table t1(a int);
-create view v1 as select * from t1;
---exec $MYSQL_DUMP --skip-comments test
-drop view v1;
-drop table t1;
-
-#
 # Bug #6101: create database problem
 #
 
@@ -195,15 +185,6 @@ DROP TABLE t2;
 CREATE TABLE t1 (`b` blob);
 INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 --exec $MYSQL_DUMP --skip-extended-insert --hex-blob test --skip-comments t1
-DROP TABLE t1;
-
-#
-# Bug #9756
-#
-
-CREATE TABLE t1 (a char(10));
-INSERT INTO t1 VALUES ('\'');
---exec $MYSQL_DUMP --skip-comments test t1
 DROP TABLE t1;
 
 #
@@ -564,29 +545,6 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
-
-#
-# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
-#
-
-create database db1;
-use db1;
-
-CREATE TABLE t2 (
-  a varchar(30) default NULL,
-  KEY a (a(5))
-);
-
-INSERT INTO t2 VALUES ('alfred');
-INSERT INTO t2 VALUES ('angie');
-INSERT INTO t2 VALUES ('bingo');
-INSERT INTO t2 VALUES ('waffle');
-INSERT INTO t2 VALUES ('lemon');
-create view v2 as select * from t2 where a like 'a%' with check option;
---exec $MYSQL_DUMP  --skip-comments db1
-drop table t2;
-drop view v2;
-drop database db1;
 #
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
@@ -677,6 +635,50 @@ insert into t1 values (NULL), (10), (20);
 insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thirty");
 --exec $MYSQL_DUMP  --skip-comments --xml --no-create-info test
 drop table t1, t2;
+
+# End of 4.1 tests
+
+#
+# dump of view
+#
+create table t1(a int);
+create view v1 as select * from t1;
+--exec $MYSQL_DUMP --skip-comments test
+drop view v1;
+drop table t1;
+
+#
+# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#
+
+create database mysqldump_test_db;
+use mysqldump_test_db;
+
+CREATE TABLE t2 (
+  a varchar(30) default NULL,
+  KEY a (a(5))
+);
+
+INSERT INTO t2 VALUES ('alfred');
+INSERT INTO t2 VALUES ('angie');
+INSERT INTO t2 VALUES ('bingo');
+INSERT INTO t2 VALUES ('waffle');
+INSERT INTO t2 VALUES ('lemon');
+create view v2 as select * from t2 where a like 'a%' with check option;
+--exec $MYSQL_DUMP  --skip-comments mysqldump_test_db
+drop table t2;
+drop view v2;
+drop database mysqldump_test_db;
+use test;
+
+#
+# Bug #9756
+#
+
+CREATE TABLE t1 (a char(10));
+INSERT INTO t1 VALUES ('\'');
+--exec $MYSQL_DUMP --skip-comments test t1
+DROP TABLE t1;
 
 #
 # Bug #10927 mysqldump: Can't reload dump with view that consist of other view

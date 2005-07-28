@@ -23,3 +23,5 @@ let $VERSION=`select version()`;
 --replace_column 2 # 5 #
 show binlog events;
 drop database `drop-temp+table-test`;
+
+# End of 4.1 tests

@@ -390,6 +390,8 @@ SET GLOBAL table_cache=-1;
 SHOW VARIABLES LIKE 'table_cache';
 SET GLOBAL table_cache=DEFAULT;
 
+# End of 4.1 tests
+
 #
 # Bug#6282 Packet error with SELECT INTO
 # 

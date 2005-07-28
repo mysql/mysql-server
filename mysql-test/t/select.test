@@ -2168,6 +2168,8 @@ select found_rows();
 
 DROP TABLE t1;
 
+# End of 4.1 tests
+
 #
 # Test case for bug 7098: substitution of a constant for a string field 
 #

@@ -246,3 +246,5 @@ replace into t1 values ('jonas % ');
 replace into t1 values ('jonas % ');
 select * from t1;
 drop table t1;
+
+# End of 4.1 tests
