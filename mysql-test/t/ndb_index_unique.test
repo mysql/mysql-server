@@ -308,3 +308,5 @@ INSERT INTO t1 (month, year, code) VALUES (5,2004,'12');
 select * from t1 where code = '12' and month = 4 and year = 2004 ;
 
 drop table t1;
+
+# End of 4.1 tests

@@ -111,3 +111,5 @@ commit ;
 show grants for second_user@localhost ;
 
 drop database mysqltest;
+
+# End of 4.1 tests

@@ -100,3 +100,5 @@ select "--- --position --" as "";
 
 # clean up
 drop table t1, t2;
+
+# End of 4.1 tests

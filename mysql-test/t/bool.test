@@ -48,3 +48,5 @@ select ifnull(A, 'N') as A, ifnull(B, 'N') as B, ifnull(not A, 'N') as nA, ifnul
 select ifnull(A=1, 'N') as A, ifnull(B=1, 'N') as B, ifnull(not (A=1), 'N') as nA, ifnull(not (B=1), 'N') as nB, ifnull((A=1) and (B=1), 'N') as AB, ifnull(not ((A=1) and (B=1)), 'N') as `n(AB)`, ifnull((not (A=1) or not (B=1)), 'N') as nAonB, ifnull((A=1) or (B=1), 'N') as AoB, ifnull(not((A=1) or (B=1)), 'N') as `n(AoB)`, ifnull(not (A=1) and not (B=1), 'N') as nAnB from t1;
 
 drop table t1;
+
+# End of 4.1 tests

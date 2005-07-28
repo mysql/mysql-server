@@ -94,3 +94,5 @@ select text1, length(text1) from t1 where text1='teststring' or text1 like 'test
 select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
 select concat('|', text1, '|') from t1 order by text1;
 drop table t1;
+
+# End of 4.1 tests

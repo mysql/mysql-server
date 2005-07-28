@@ -119,3 +119,5 @@ select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
 set session @honk=99;
 --error 1105
 set one_shot @honk=99;
+
+# End of 4.1 tests

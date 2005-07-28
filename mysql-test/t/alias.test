@@ -85,3 +85,5 @@ UPDATE t1 SET t1.xstatus_vor = Greatest(t1.xstatus_vor,1) WHERE t1.aufnr =
 ASC LIMIT 1;
 
 drop table t1;
+
+# End of 4.1 tests
