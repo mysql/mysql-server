@@ -578,6 +578,7 @@ select '------ Testing with illegal table names ------' as test_sequence ;
 --enable_query_log
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "\d-2-1.sql" 2>&1
+
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\t1" 2>&1
 

@@ -99,14 +99,15 @@ static void print_lock_error(int error, const char *);
     NULL on error.
 */
 
+static int thr_lock_errno_to_mysql[]=
+{ 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
+
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
 {
   MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
   int rc;
   /* Map the return value of thr_lock to an error from errmsg.txt */
-  const static int thr_lock_errno_to_mysql[]=
-  { 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
   DBUG_ENTER("mysql_lock_tables");
 
   for (;;)
@@ -624,8 +625,8 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   }
   
   /* Return 1 if table is in use */
-  DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->real_name,
-                                           RTFC_NO_FLAG)))
+  DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->table_name,
+                                           RTFC_NO_FLAG)));
 }
 
 
