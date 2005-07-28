@@ -167,3 +167,5 @@ set GLOBAL key_cache_block_size=2048;
 check table t1;
 
 drop table t1;
+
+# End of 4.1 tests

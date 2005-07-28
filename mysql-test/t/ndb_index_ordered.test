@@ -348,3 +348,5 @@ connection con1;
 select a from t1 where b = 2;
 show tables;
 drop table t1;
+
+# End of 4.1 tests

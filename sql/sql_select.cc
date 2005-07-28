@@ -1198,7 +1198,14 @@ JOIN::exec()
     {
       result->send_fields(fields_list,
                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-      if (cond_value != Item::COND_FALSE && (!having || having->val_int()))
+      /*
+        We have to test for 'conds' here as the WHERE may not be constant
+        even if we don't have any tables for prepared statements or if
+        conds uses something like 'rand()'.
+      */
+      if (cond_value != Item::COND_FALSE &&
+          (!conds || conds->val_int()) &&
+          (!having || having->val_int()))
       {
 	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
                                           procedure->end_of_records())

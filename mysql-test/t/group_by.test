@@ -592,6 +592,8 @@ SELECT n+1 AS n FROM t1 GROUP BY n;
 --enable_ps_protocol
 DROP TABLE t1;
 
+# End of 4.1 tests
+
 #
 # Bug#11211: Ambiguous column reference in GROUP BY.
 #

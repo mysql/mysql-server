@@ -97,3 +97,5 @@ sync_with_master;
 # memory they use is freed (it should) by mysqld before it terminates).
 # If they wouldn't be cleaned up, you would see some "still reachable" blocks in
 # Valgrind.
+
+# End of 4.1 tests

@@ -353,3 +353,5 @@ drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null, c varchar(20) not null, unique(b(10),c(10)));
 desc t1;
 drop table t1;
+
+# End of 4.1 tests

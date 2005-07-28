@@ -54,6 +54,7 @@ my_col
 4
 execute s_t9 ;
 ERROR 42S02: Table 'mysqltest.t9' doesn't exist
+deallocate prepare s_t9;
 revoke all privileges on mysqltest.t1 from second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
