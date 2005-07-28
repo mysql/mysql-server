@@ -691,7 +691,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   view_select= &lex->select_lex;
   view_select->select_number= ++thd->select_number;
   {
-    ulong options= thd->options;
+    ulong save_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
       + MODE_PIPES_AS_CONCAT          affect expression parsing
@@ -716,13 +716,13 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       ? MODE_NO_AUTO_VALUE_ON_ZERO    affect UPDATEs
       + MODE_NO_BACKSLASH_ESCAPES     affect expression parsing
     */
-    thd->options&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                     MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
+    thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+                                MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
     CHARSET_INFO *save_cs= thd->variables.character_set_client;
     thd->variables.character_set_client= system_charset_info;
     res= yyparse((void *)thd);
     thd->variables.character_set_client= save_cs;
-    thd->options= options;
+    thd->variables.sql_mode= save_mode;
   }
   if (!res && !thd->is_fatal_error)
   {
