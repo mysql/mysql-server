@@ -3378,7 +3378,7 @@ drop procedure avg|
 drop procedure if exists bug6129|
 --enable_warnings
 set @old_mode= @@sql_mode;
-set @@sql_mode= "";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
   select @@sql_mode|
 call bug6129()|

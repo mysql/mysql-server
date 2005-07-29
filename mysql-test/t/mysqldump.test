@@ -729,6 +729,7 @@ end|
 create trigger trg2 before update on t1 for each row begin
   if old.a % 2 = 0 then set new.b := 12; end if;
 end|
+set sql_mode="traditional"|
 create trigger trg3 after update on t1 for each row
 begin
   if new.a = -1 then
@@ -741,6 +742,7 @@ begin
     set @fired:= "No";
   end if;
 end|
+set sql_mode=default|
 delimiter ;|
 --replace_column 6 '0000-00-00 00:00:00'
 show triggers like "t1";
@@ -756,4 +758,6 @@ drop table t1;
 --exec $MYSQL test < var/tmp/mysqldump.sql
 # Check that tables have been reloaded
 show tables;
+--replace_column 6 #
+show triggers;
 DROP TABLE t1, t2;

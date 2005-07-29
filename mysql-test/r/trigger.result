@@ -595,3 +595,50 @@ update t1 set col2 = 4;
 ERROR 42000: FUNCTION test.bug5893 does not exist
 drop trigger t1_bu;
 drop table t1;
+set sql_mode='ansi';
+create table t1 ("t1 column" int);
+create trigger t1_bi before insert on t1 for each row set new."t1 column" = 5;
+set sql_mode=default;
+insert into t1 values (0);
+create trigger t1_af after insert on t1 for each row set @a=10;
+insert into t1 values (0);
+select * from t1;
+t1 column
+5
+5
+select @a;
+@a
+10
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+t1_af	INSERT	t1	 set @a=10	AFTER	#	
+select * from information_schema.triggers;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE
+NULL	test	t1_bi	INSERT	NULL	test	t1	0	NULL	set new."t1 column" = 5	ROW	BEFORE	NULL	NULL	OLD	NEW	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+NULL	test	t1_af	INSERT	NULL	test	t1	0	NULL	 set @a=10	ROW	AFTER	NULL	NULL	OLD	NEW	#	
+drop table t1;
+set sql_mode="traditional";
+create table t1 (a date);
+insert into t1 values ('2004-01-00');
+ERROR 22007: Incorrect date value: '2004-01-00' for column 'a' at row 1
+set sql_mode="";
+create trigger t1_bi before insert on t1 for each row set new.a = '2004-01-00';
+set sql_mode="traditional";
+insert into t1 values ('2004-01-01');
+select * from t1;
+a
+2004-01-00
+set sql_mode=default;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` date default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
+t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#	
+select * from information_schema.triggers;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE
+NULL	test	t1_bi	INSERT	NULL	test	t1	0	NULL	 set new.a = '2004-01-00'	ROW	BEFORE	NULL	NULL	OLD	NEW	#	
+drop table t1;
