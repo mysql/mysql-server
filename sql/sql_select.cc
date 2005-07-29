@@ -1842,6 +1842,7 @@ Cursor::fetch(ulong num_rows)
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   Query_arena backup_arena;
+  Engine_info *info;
   DBUG_ENTER("Cursor::fetch");
   DBUG_PRINT("enter",("rows: %lu", num_rows));
 
@@ -1856,7 +1857,7 @@ Cursor::fetch(ulong num_rows)
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &backup_arena);
 
-  for (Engine_info *info= ht_info; info->read_view ; info++)
+  for (info= ht_info; info->read_view ; info++)
     (info->ht->set_cursor_read_view)(info->read_view);
 
   join->fetch_limit+= num_rows;
@@ -1875,7 +1876,7 @@ Cursor::fetch(ulong num_rows)
   /* Grab free_list here to correctly free it in close */
   thd->restore_backup_item_arena(this, &backup_arena);
 
-  for (Engine_info *info= ht_info; info->read_view; info++)
+  for (info= ht_info; info->read_view; info++)
     (info->ht->set_cursor_read_view)(0);
 
   if (error == NESTED_LOOP_CURSOR_LIMIT)
