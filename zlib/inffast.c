@@ -1,5 +1,5 @@
 /* inffast.c -- fast decoding
- * Copyright (C) 1995-2003 Mark Adler
+ * Copyright (C) 1995-2004 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -19,7 +19,7 @@
    - none
    No measurable difference:
    - Pentium III (Anderson)
-   - 68060 (Nikl)
+   - M68060 (Nikl)
  */
 #ifdef POSTINC
 #  define OFF 0

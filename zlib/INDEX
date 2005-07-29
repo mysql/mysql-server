@@ -8,9 +8,12 @@ algorithm.txt   description of the (de)compression algorithm
 configure       configure script for Unix
 zconf.in.h      template for zconf.h (used by configure)
 
+amiga/          makefiles for Amiga SAS C
+as400/          makefiles for IBM AS/400
 msdos/          makefiles for MSDOS
 old/            makefiles for various architectures and zlib documentation
                 files that have not yet been updated for zlib 1.2.x
+projects/       projects for various Integrated Development Environments
 qnx/            makefiles for QNX
 win32/          makefiles for Windows
 
