@@ -1313,3 +1313,5 @@ INSERT INTO t1 VALUES (9410,9412);
 select period from t1;
 
 drop table if exists t1,t2,t3,t4;
+
+# End of 4.1 tests

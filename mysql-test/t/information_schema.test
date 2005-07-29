@@ -622,3 +622,14 @@ select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns
 where table_name='t1';
 drop table t1;
+
+#
+# Bug #12127 triggers do not show in info_schema before they are used if set to the database
+#
+create table t1 (f1 integer);
+create trigger tr1 after insert on t1 for each row set @test_var=42;
+use information_schema;
+select trigger_schema, trigger_name from triggers where
+trigger_name='tr1';
+use test;
+drop table t1;

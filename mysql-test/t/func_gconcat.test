@@ -310,6 +310,8 @@ select a, group_concat(b order by b) from t1 group by a with rollup;
 select a, group_concat(distinct b order by b) from t1 group by a with rollup;
 drop table t1;
 
+# End of 4.1 tests
+
 #
 # Bug #6475
 #

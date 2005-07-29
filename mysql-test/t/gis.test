@@ -371,3 +371,5 @@ insert into t1 values ("qwerty");
 insert into t1 values (pointfromtext('point(1,1)'));
 
 drop table t1;
+
+# End of 4.1 tests

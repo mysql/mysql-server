@@ -340,3 +340,5 @@ create table t1 (id int, dsc varchar(50));
 insert into t1 values (1, "line number one"), (2, "line number two"), (3, "line number three");
 select distinct id, IFNULL(dsc, '-') from t1;
 drop table t1;
+
+# End of 4.1 tests

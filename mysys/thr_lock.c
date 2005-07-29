@@ -1043,10 +1043,10 @@ void thr_abort_locks(THR_LOCK *lock)
   This is used to abort all locks for a specific thread
 */
 
-bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
+my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
 {
   THR_LOCK_DATA *data;
-  bool found= FALSE;
+  my_bool found= FALSE;
   DBUG_ENTER("thr_abort_locks_for_thread");
 
   pthread_mutex_lock(&lock->mutex);

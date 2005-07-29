@@ -3543,9 +3543,8 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   if (table_list->schema_table_reformed) // show command
   {
     SELECT_LEX *sel= lex->current_select;
-    uint i= 0;
     Item *item;
-    Field_translator *transl;
+    Field_translator *transl, *org_transl;
 
     if (table_list->field_translation)
     {
@@ -3566,16 +3565,17 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
     {
       DBUG_RETURN(1);
     }
-    while ((item= it++))
+    for (org_transl= transl; (item= it++); transl++)
     {
-      char *name= item->name;
-      transl[i].item= item;
-      if (!item->fixed && item->fix_fields(thd, &transl[i].item))
+      transl->item= item;
+      transl->name= item->name;
+      if (!item->fixed && item->fix_fields(thd, &transl->item))
+      {
         DBUG_RETURN(1);
-      transl[i++].name= name;
+      }
     }
-    table_list->field_translation= transl;
-    table_list->field_translation_end= transl + sel->item_list.elements;
+    table_list->field_translation= org_transl;
+    table_list->field_translation_end= transl;
   }
 
   DBUG_RETURN(0);

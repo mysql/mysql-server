@@ -14,3 +14,5 @@ connection slave1;
 stop slave sql_thread;
 connection slave;
 reap;
+
+# End of 4.1 tests

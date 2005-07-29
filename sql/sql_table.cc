@@ -229,7 +229,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
-    uint flags;
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->table_name))
     {
@@ -240,10 +239,11 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     error=0;
     if (!drop_temporary)
     {
-      abort_locked_tables(thd,db,table->table_name);
-      flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
-      remove_table_from_cache(thd,db,table->table_name,flags);
-      drop_locked_tables(thd,db,table->table_name);
+      abort_locked_tables(thd, db, table->table_name);
+      remove_table_from_cache(thd, db, table->table_name,
+	                      RTFC_WAIT_OTHER_THREAD_FLAG |
+			      RTFC_CHECK_KILLED_FLAG);
+      drop_locked_tables(thd, db, table->table_name);
       if (thd->killed)
       {
         thd->no_warnings_for_error= 0;
@@ -1620,7 +1620,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->data_file_name= create_info->index_file_name= 0;
   create_info->table_options=db_options;
 
-  if (rea_create_table(thd, path, table_name, db,
+  if (rea_create_table(thd, path, db, table_name,
                        create_info, fields, key_count,
 		       key_info_buffer))
     goto end;
@@ -2248,14 +2248,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     /* Close all instances of the table to allow repair to rename files */
     if (lock_type == TL_WRITE && table->table->s->version)
     {
-      uint flags;
       pthread_mutex_lock(&LOCK_open);
       const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 					      "Waiting to get writelock");
       mysql_lock_abort(thd,table->table);
-      flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
       remove_table_from_cache(thd, table->table->s->db,
-                              table->table->s->table_name, flags);
+                              table->table->s->table_name,
+                              RTFC_WAIT_OTHER_THREAD_FLAG |
+                              RTFC_CHECK_KILLED_FLAG);
       thd->exit_cond(old_message);
       if (thd->killed)
 	goto err;
@@ -3733,9 +3733,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (table)
     {
       VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Use new file
+      /* Mark in-use copies old */
       remove_table_from_cache(thd,db,table_name,RTFC_NO_FLAG);
-                                                 // Mark in-use copies old
-      mysql_lock_abort(thd,table);		 // end threads waiting on lock
+      /* end threads waiting on lock */
+      mysql_lock_abort(thd,table);
     }
     VOID(quick_rm_table(old_db_type,db,old_name));
     if (close_data_tables(thd,db,table_name) ||

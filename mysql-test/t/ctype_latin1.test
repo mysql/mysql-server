@@ -75,3 +75,5 @@ SET collation_connection='latin1_bin';
 --error 1064
 CREATE TABLE „a (a int);
 SELECT '„a' as str;
+
+# End of 4.1 tests
