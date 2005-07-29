@@ -1,7 +1,7 @@
 /* zlib.h -- interface of the 'zlib' general purpose compression library
-  version 1.2.1, November 17th, 2003
+  version 1.2.2, October 3rd, 2004
 
-  Copyright (C) 1995-2003 Jean-loup Gailly and Mark Adler
+  Copyright (C) 1995-2004 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -37,8 +37,8 @@
 extern "C" {
 #endif
 
-#define ZLIB_VERSION "1.2.1"
-#define ZLIB_VERNUM 0x1210
+#define ZLIB_VERSION "1.2.2"
+#define ZLIB_VERNUM 0x1220
 
 /*
      The 'zlib' compression library provides in-memory compression and
@@ -53,23 +53,21 @@ extern "C" {
   application must provide more input and/or consume the output
   (providing more output space) before each call.
 
-     The compressed data format used by the in-memory functions is the zlib
-  format, which is a zlib wrapper documented in RFC 1950, wrapped around a
-  deflate stream, which is itself documented in RFC 1951.
+     The compressed data format used by default by the in-memory functions is
+  the zlib format, which is a zlib wrapper documented in RFC 1950, wrapped
+  around a deflate stream, which is itself documented in RFC 1951.
 
      The library also supports reading and writing files in gzip (.gz) format
   with an interface similar to that of stdio using the functions that start
   with "gz".  The gzip format is different from the zlib format.  gzip is a
   gzip wrapper, documented in RFC 1952, wrapped around a deflate stream.
 
+     This library can optionally read and write gzip streams in memory as well.
+
      The zlib format was designed to be compact and fast for use in memory
   and on communications channels.  The gzip format was designed for single-
   file compression on file systems, has a larger header than zlib to maintain
   directory information, and uses a different, slower check method than zlib.
-
-     This library does not provide any functions to write gzip files in memory.
-  However such functions could be easily written using zlib's deflate function,
-  the documentation in the gzip RFC, and the examples in gzio.c.
 
      The library does not install any signal handler. The decoder checks
   the consistency of the compressed data, so the library should never
@@ -401,7 +399,7 @@ ZEXTERN int ZEXPORT inflate OF((z_streamp strm, int flush));
   because Z_BLOCK is used.
 
      If a preset dictionary is needed after this call (see inflateSetDictionary
-  below), inflate sets strm-adler to the adler32 checksum of the dictionary
+  below), inflate sets strm->adler to the adler32 checksum of the dictionary
   chosen by the compressor and returns Z_NEED_DICT; otherwise it sets
   strm->adler to the adler32 checksum of all output produced so far (that is,
   total_out bytes) and returns Z_OK, Z_STREAM_END or an error code as described
@@ -478,7 +476,8 @@ ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
    16 to windowBits to write a simple gzip header and trailer around the
    compressed data instead of a zlib wrapper. The gzip header will have no
    file name, no extra data, no comment, no modification time (set to zero),
-   no header crc, and the operating system will be set to 255 (unknown).
+   no header crc, and the operating system will be set to 255 (unknown).  If a
+   gzip stream is being written, strm->adler is a crc32 instead of an adler32.
 
      The memLevel parameter specifies how much memory should be allocated
    for the internal compression state. memLevel=1 uses minimum memory but
@@ -649,7 +648,8 @@ ZEXTERN int ZEXPORT inflateInit2 OF((z_streamp strm,
      windowBits can also be greater than 15 for optional gzip decoding. Add
    32 to windowBits to enable zlib and gzip decoding with automatic header
    detection, or add 16 to decode only the gzip format (the zlib format will
-   return a Z_DATA_ERROR).
+   return a Z_DATA_ERROR.  If a gzip stream is being decoded, strm->adler is
+   a crc32 instead of an adler32.
 
      inflateInit2 returns Z_OK if success, Z_MEM_ERROR if there was not enough
    memory, Z_STREAM_ERROR if a parameter is invalid (such as a negative
@@ -1189,7 +1189,7 @@ ZEXTERN int ZEXPORT inflateBackInit_ OF((z_stream FAR *strm, int windowBits,
     struct internal_state {int dummy;}; /* hack for buggy compilers */
 #endif
 
-ZEXTERN const char   * ZEXPORT zError           OF((int err));
+ZEXTERN const char   * ZEXPORT zError           OF((int));
 ZEXTERN int            ZEXPORT inflateSyncPoint OF((z_streamp z));
 ZEXTERN const uLongf * ZEXPORT get_crc_table    OF((void));
 

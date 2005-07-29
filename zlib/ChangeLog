@@ -6,6 +6,48 @@ in MySQL distribution. If you are working on porting MySQL to one of rare
 platforms, you might find worth looking at the original zlib distribution 
 and using appropriate Makefiles/project files from it.
 
+Changes in 1.2.2 (3 October 2004)
+- Update zlib.h comments on gzip in-memory processing
+- Set adler to 1 in inflateReset() to support Java test suite [Walles]
+- Add contrib/dotzlib [Ravn]
+- Update win32/DLL_FAQ.txt [Truta]
+- Update contrib/minizip [Vollant]
+- Move contrib/visual-basic.txt to old/ [Truta]
+- Fix assembler builds in projects/visualc6/ [Truta]
+
+Changes in 1.2.1.2 (9 September 2004)
+- Update INDEX file
+- Fix trees.c to update strm->data_type (no one ever noticed!)
+- Fix bug in error case in inflate.c, infback.c, and infback9.c [Brown]
+- Add "volatile" to crc table flag declaration (for DYNAMIC_CRC_TABLE)
+- Add limited multitasking protection to DYNAMIC_CRC_TABLE
+- Add NO_vsnprintf for VMS in zutil.h [Mozilla]
+- Don't declare strerror() under VMS [Mozilla]
+- Add comment to DYNAMIC_CRC_TABLE to use get_crc_table() to initialize
+- Update contrib/ada [Anisimkov]
+- Update contrib/minizip [Vollant]
+- Fix configure to not hardcode directories for Darwin [Peterson]
+- Fix gzio.c to not return error on empty files [Brown]
+- Fix indentation; update version in contrib/delphi/ZLib.pas and
+  contrib/pascal/zlibpas.pas [Truta]
+- Update mkasm.bat in contrib/masmx86 [Truta]
+- Update contrib/untgz [Truta]
+- Add projects/README.projects [Truta]
+- Add project for MS Visual C++ 6.0 in projects/visualc6 [Cadieux, Truta]
+- Update win32/DLL_FAQ.txt [Truta]
+- Update list of Z_PREFIX symbols in zconf.h [Randers-Pehrson, Truta]
+- Remove an unnecessary assignment to curr in inftrees.c [Truta]
+- Add OS/2 to exe builds in configure [Poltorak]
+- Remove err dummy parameter in zlib.h [Kientzle]
+
+Changes in 1.2.1.1 (9 January 2004)
+- Update email address in README
+- Several FAQ updates
+- Fix a big fat bug in inftrees.c that prevented decoding valid
+  dynamic blocks with only literals and no distance codes --
+  Thanks to "Hot Emu" for the bug report and sample file
+- Add a note to puff.c on no distance codes case.
+
 Changes in 1.2.1 (17 November 2003)
 - Remove a tab in contrib/gzappend/gzappend.c
 - Update some interfaces in contrib for new zlib functions
