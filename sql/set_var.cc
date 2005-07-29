@@ -1679,7 +1679,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(uint*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((int32) value);
+    return new Item_uint((uint32) value);
   }
   case SHOW_LONG:
   {
@@ -1687,7 +1687,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(ulong*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((int32) value);
+    return new Item_uint(value);
   }
   case SHOW_LONGLONG:
   {
