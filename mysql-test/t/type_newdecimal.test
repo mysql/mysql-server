@@ -1007,3 +1007,11 @@ insert into t1 (f1) values (1);
 select * from t1;
 drop table t1;
 
+#
+# Bug 12173 (show create table fails)
+#
+create table t1 (
+        f0 decimal (30,30) zerofill not null DEFAULT 0,
+        f1 decimal (0,0) zerofill not null default 0);
+show create table t1;
+drop table t1;
