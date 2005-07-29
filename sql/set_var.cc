@@ -3199,10 +3199,13 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
 /*
   Make string representation of mode
 
-  SINOPSYS
-    thd       thread handler
-    val       sql_mode value
-    len       pointer on length of string
+  SYNOPSIS
+    thd   in  thread handler
+    val   in  sql_mode value
+    len   out pointer on length of string
+
+  RETURN
+    pointer to string with sql_mode representation
 */
 
 byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd, ulong val,
