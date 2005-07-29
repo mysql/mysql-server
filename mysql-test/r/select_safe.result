@@ -60,9 +60,6 @@ a	b
 3	a
 4	a
 5	a
-SELECT @@MAX_SEEKS_FOR_KEY;
-@@MAX_SEEKS_FOR_KEY
-4294967295
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
