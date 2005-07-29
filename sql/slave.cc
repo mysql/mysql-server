@@ -2186,7 +2186,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 		    &my_charset_bin);
     protocol->store((ulonglong) mi->rli.group_relay_log_pos);
     protocol->store(mi->rli.group_master_log_name, &my_charset_bin);
-    protocol->store(mi->slave_running ? "Yes":"No", &my_charset_bin);
+    protocol->store(mi->slave_running == MYSQL_SLAVE_RUN_CONNECT
+        ? "Yes":"No", &my_charset_bin);
     protocol->store(mi->rli.slave_running ? "Yes":"No", &my_charset_bin);
     protocol->store(&replicate_do_db);
     protocol->store(&replicate_ignore_db);
@@ -3078,7 +3079,7 @@ slave_begin:
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
-  mi->slave_running = 1;
+  mi->slave_running = MYSQL_SLAVE_RUN_INIT;
   mi->abort_slave = 0;
   pthread_mutex_unlock(&mi->run_lock);
   pthread_cond_broadcast(&mi->start_cond);

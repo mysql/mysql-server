@@ -112,6 +112,7 @@ enum enum_binlog_formats {
 #define MYSQL_SLAVE_NOT_RUN         0
 #define MYSQL_SLAVE_RUN_NOT_CONNECT 1
 #define MYSQL_SLAVE_RUN_CONNECT     2
+#define MYSQL_SLAVE_RUN_INIT        3
 
 /****************************************************************************
 
