@@ -103,8 +103,6 @@ static const negated_function_mapping neg_map[]=
   {Item_func::LE_FUNC, Item_func::GT_FUNC},
   {Item_func::GT_FUNC, Item_func::LE_FUNC},
   {Item_func::GE_FUNC, Item_func::LT_FUNC},
-  {Item_func::LIKE_FUNC, Item_func::NOTLIKE_FUNC},
-  {Item_func::NOTLIKE_FUNC, Item_func::LIKE_FUNC},
   {Item_func::ISNULL_FUNC, Item_func::ISNOTNULL_FUNC},
   {Item_func::ISNOTNULL_FUNC, Item_func::ISNULL_FUNC},
   {Item_func::UNKNOWN_FUNC, Item_func::NOT_FUNC}

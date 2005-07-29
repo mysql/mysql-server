@@ -6568,17 +6568,6 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::FUNC_ITEM);
             break;
           }
-          case Item_func::NOTLIKE_FUNC:
-          {
-            DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
-            curr_cond->ndb_item= new Ndb_item(func_item->functype(),
-                                              func_item);      
-            context->expect(Item::STRING_ITEM);
-            context->expect(Item::FIELD_ITEM);
-            context->expect_field_result(STRING_RESULT);
-            context->expect(Item::FUNC_ITEM);
-            break;
-          }
           case Item_func::ISNULL_FUNC:
           {
             DBUG_PRINT("info", ("ISNULL_FUNC"));      
@@ -7165,25 +7154,6 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
                           field->get_field_no(), value->get_val(), 
                           value->pack_length()));
       if (filter->cmp(NdbScanFilter::COND_LIKE, 
-                      field->get_field_no(),
-                      value->get_val(),
-                      value->pack_length()) == -1)
-        DBUG_RETURN(1);
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
-    }
-    case Item_func::NOTLIKE_FUNC:
-    {
-      if (!value || !field) break;
-      if ((value->qualification.value_type != Item::STRING_ITEM) &&
-          (value->qualification.value_type != Item::VARBIN_ITEM))
-        break;
-      // Save value in right format for the field type
-      value->save_in_field(field);
-      DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
-                          field->get_field_no(), value->get_val(), 
-                          value->pack_length()));
-      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE, 
                       field->get_field_no(),
                       value->get_val(),
                       value->pack_length()) == -1)
