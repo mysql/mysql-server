@@ -34,3 +34,5 @@ save_master_pos;
 connection slave;
 sync_with_master;
 drop table mysqltest_foo,mysqltest_bar,t1;
+
+# End of 4.1 tests

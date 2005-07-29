@@ -1043,26 +1043,26 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (thd->locked_tables || thd->prelocked_mode)
   {						// Using table locks
     TABLE *best_table= 0;
-    int best_distance= INT_MIN, distance;
+    int best_distance= INT_MIN;
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
           !memcmp(table->s->table_cache_key, key, key_length) &&
           !my_strcasecmp(system_charset_info, table->alias, alias) &&
-          table->query_id != thd->query_id && /* skip tables already used by this query */
+          table->query_id != thd->query_id && /* skip tables already used */
           !(thd->prelocked_mode && table->query_id))
       {
-        distance= ((int) table->reginfo.lock_type -
-                   (int) table_list->lock_type);
+        int distance= ((int) table->reginfo.lock_type -
+                       (int) table_list->lock_type);
         /*
           Find a table that either has the exact lock type requested,
           or has the best suitable lock. In case there is no locked
           table that has an equal or higher lock than requested,
-          we still maitain the best_table to produce an error message
-          about wrong lock mode on the table. The best_table is changed
+          we us the closest matching lock to be able to produce an error
+          message about wrong lock mode on the table. The best_table is changed
           if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
 
-          distance <  0 - we have not enough high lock mode
+          distance <  0 - No suitable lock found
           distance >  0 - we have lock mode higher then we require
           distance == 0 - we have lock mode exactly which we need
         */
@@ -1071,7 +1071,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         {
           best_distance= distance;
           best_table= table;
-          if (best_distance == 0)
+          if (best_distance == 0)               // Found perfect lock
             break;
         }
       }
@@ -4082,6 +4082,9 @@ void flush_tables()
   The table will be closed (not stored in cache) by the current thread when
   close_thread_tables() is called.
 
+  PREREQUISITES
+    Lock on LOCK_open()
+
   RETURN
     0  This thread now have exclusive access to this table and no other thread
        can access the table until close_thread_tables() is called.
@@ -4096,6 +4099,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   TABLE *table;
   bool result=0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
+
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
@@ -4154,15 +4158,12 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
     {
       if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
+        dropping_tables++;
         if (likely(signalled))
-        {
-          dropping_tables++;
           (void) pthread_cond_wait(&COND_refresh, &LOCK_open);
-          dropping_tables--;
-          continue;
-        }
         else
         {
+          struct timespec abstime;
           /*
             It can happen that another thread has opened the
             table but has not yet locked any table at all. Since
@@ -4173,11 +4174,11 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
             and then we retry another loop in the
             remove_table_from_cache routine.
           */
-          pthread_mutex_unlock(&LOCK_open);
-          my_sleep(10);
-          pthread_mutex_lock(&LOCK_open);
-          continue;
+          set_timespec(abstime, 10);
+          pthread_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
         }
+        dropping_tables--;
+        continue;
       }
     }
     break;

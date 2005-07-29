@@ -1443,7 +1443,9 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
     Sroutine_hash_entry **last_cached_routine_ptr=
                             (Sroutine_hash_entry **)lex->sroutines_list.next;
     for (int i= 0; i < (int)TRG_EVENT_MAX; i++)
+    {
       for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
+      {
         if (triggers->bodies[i][j])
         {
           (void)triggers->bodies[i][j]->add_used_tables_to_table_list(thd,
@@ -1451,7 +1453,8 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
           sp_update_stmt_used_routines(thd, lex,
                                        &triggers->bodies[i][j]->m_sroutines);
         }
-
+      }
+    }
     (void)sp_cache_routines_and_add_tables_aux(thd, lex,
                                                *last_cached_routine_ptr);
   }

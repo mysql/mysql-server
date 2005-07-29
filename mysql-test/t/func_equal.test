@@ -33,3 +33,5 @@ select * from t1 where id <=>id;
 select * from t1 where value <=> value;
 select * from t1 where id <=> value or value<=>id;
 drop table t1,t2;
+
+# End of 4.1 tests

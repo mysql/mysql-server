@@ -93,3 +93,4 @@ HANDLER t1 READ `primary` = (1, 1000);
 HANDLER t1 READ `primary` PREV;
 DROP TABLE t1;
 
+# End of 4.1 tests

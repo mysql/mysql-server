@@ -1682,10 +1682,12 @@ static bool init_param_array(Prepared_statement *stmt)
 
 static void cleanup_stmt_and_thd_after_use(Statement *stmt, THD *thd)
 {
+  DBUG_ENTER("cleanup_stmt_and_thd_after_use");
   stmt->lex->unit.cleanup();
   cleanup_items(stmt->free_list);
   thd->rollback_item_tree_changes();
   thd->cleanup_after_query();
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1982,7 +1984,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute")))
     DBUG_VOID_RETURN;
 
-  DBUG_PRINT("exec_query:", ("%s", stmt->query));
+  DBUG_PRINT("exec_query", ("%s", stmt->query));
+  DBUG_PRINT("info",("stmt: %p", stmt));
 
   /* Check if we got an error when sending long data */
   if (stmt->state == Query_arena::ERROR)
@@ -2128,6 +2131,8 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     DBUG_VOID_RETURN;
   }
+
+  DBUG_PRINT("info",("stmt: %p", stmt));
 
   /* Must go before setting variables, as it clears thd->user_var_events */
   mysql_reset_thd_for_next_command(thd);
@@ -2449,19 +2454,26 @@ void Prepared_statement::setup_set_params()
 
 Prepared_statement::~Prepared_statement()
 {
+  DBUG_ENTER("Prepared_statement::~Prepared_statement");
+  DBUG_PRINT("enter",("stmt: %p  cursor: %p", this, cursor));
   if (cursor)
   {
     if (cursor->is_open())
     {
       cursor->close(FALSE);
-      free_items();
+      cleanup_items(free_list);
+      thd->rollback_item_tree_changes();
       free_root(cursor->mem_root, MYF(0));
     }
     cursor->Cursor::~Cursor();
   }
-  else
-    free_items();
+  /*
+    We have to call free on the items even if cleanup is called as some items,
+    like Item_param, don't free everything until free_items()
+  */
+  free_items();
   delete lex->result;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2473,6 +2485,9 @@ Query_arena::Type Prepared_statement::type() const
 
 void Prepared_statement::close_cursor()
 {
+  DBUG_ENTER("Prepared_statement::close_cursor");
+  DBUG_PRINT("enter",("stmt: %p", this));
+
   if (cursor && cursor->is_open())
   {
     thd->change_list= cursor->change_list;
@@ -2487,4 +2502,5 @@ void Prepared_statement::close_cursor()
     mysql_stmt_send_long_data() call.
   */
   reset_stmt_params(this);
+  DBUG_VOID_RETURN;
 }

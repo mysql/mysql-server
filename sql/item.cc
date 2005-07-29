@@ -2188,6 +2188,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
 
 void Item_param::reset()
 {
+  DBUG_ENTER("Item_param::reset");
   /* Shrink string buffer if it's bigger than max possible CHAR column */
   if (str_value.alloced_length() > MAX_CHAR_WIDTH)
     str_value.free();
@@ -2212,6 +2213,7 @@ void Item_param::reset()
     DBUG_ASSERTS(state != NO_VALUE) in all Item_param::get_*
     methods).
   */
+  DBUG_VOID_RETURN;
 }
 
 

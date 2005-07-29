@@ -6,3 +6,5 @@ GRANT ALL ON test.* TO mysqltest_1@'127.0.0.1/255.255.255.255';
 SHOW GRANTS FOR mysqltest_1@'127.0.0.1/255.255.255.255';
 REVOKE ALL ON test.* FROM mysqltest_1@'127.0.0.1/255.255.255.255';
 DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
+
+# End of 4.1 tests

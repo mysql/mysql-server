@@ -17,3 +17,5 @@ create table events(binlog int);
 insert into events values(1);
 select events.binlog from events;
 drop table events;
+
+# End of 4.1 tests
