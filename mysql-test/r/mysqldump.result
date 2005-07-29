@@ -1685,6 +1685,7 @@ end|
 create trigger trg2 before update on t1 for each row begin
 if old.a % 2 = 0 then set new.b := 12; end if;
 end|
+set sql_mode="traditional"|
 create trigger trg3 after update on t1 for each row
 begin
 if new.a = -1 then
@@ -1697,24 +1698,25 @@ if new.a > 10 then
 set @fired:= "No";
 end if;
 end|
+set sql_mode=default|
 show triggers like "t1";
-Trigger	Event	Table	Statement	Timing	Created
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
 trg1	INSERT	t1	
 begin
 if new.a > 10 then
 set new.a := 10;
 set new.a := 11;
 end if;
-end	BEFORE	0000-00-00 00:00:00
+end	BEFORE	0000-00-00 00:00:00	
 trg2	UPDATE	t1	 begin
 if old.a % 2 = 0 then set new.b := 12; end if;
-end	BEFORE	0000-00-00 00:00:00
+end	BEFORE	0000-00-00 00:00:00	
 trg3	UPDATE	t1	
 begin
 if new.a = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	0000-00-00 00:00:00
+end	AFTER	0000-00-00 00:00:00	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 INSERT INTO t1 (a) VALUES (1),(2),(3),(22);
 update t1 set a = 4 where a=3;
 
@@ -1736,30 +1738,32 @@ CREATE TABLE `t1` (
   `b` bigint(20) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
+/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;
 DELIMITER //;
-CREATE TRIGGER `trg1` BEFORE INSERT ON `t1`
-FOR EACH ROW
+/*!50003 SET SESSION SQL_MODE=""*/ //
+/*!50003 CREATE TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW
 begin
 if new.a > 10 then
 set new.a := 10;
 set new.a := 11;
 end if;
-end//
+end*/ //
 
-CREATE TRIGGER `trg2` BEFORE UPDATE ON `t1`
-FOR EACH ROW begin
+/*!50003 SET SESSION SQL_MODE=""*/ //
+/*!50003 CREATE TRIGGER `trg2` BEFORE UPDATE ON `t1` FOR EACH ROW begin
 if old.a % 2 = 0 then set new.b := 12; end if;
-end//
+end*/ //
 
-CREATE TRIGGER `trg3` AFTER UPDATE ON `t1`
-FOR EACH ROW
+/*!50003 SET SESSION SQL_MODE="STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER"*/ //
+/*!50003 CREATE TRIGGER `trg3` AFTER UPDATE ON `t1` FOR EACH ROW
 begin
 if new.a = -1 then
 set @fired:= "Yes";
 end if;
-end//
+end*/ //
 
 DELIMITER ;//
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;
 
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
 LOCK TABLES `t1` WRITE;
@@ -1771,16 +1775,18 @@ CREATE TABLE `t2` (
   `a` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
+/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;
 DELIMITER //;
-CREATE TRIGGER `trg4` BEFORE INSERT ON `t2`
-FOR EACH ROW
+/*!50003 SET SESSION SQL_MODE="STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER"*/ //
+/*!50003 CREATE TRIGGER `trg4` BEFORE INSERT ON `t2` FOR EACH ROW
 begin
 if new.a > 10 then
 set @fired:= "No";
 end if;
-end//
+end*/ //
 
 DELIMITER ;//
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;
 
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
 LOCK TABLES `t2` WRITE;
@@ -1844,4 +1850,28 @@ show tables;
 Tables_in_test
 t1
 t2
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
+trg1	INSERT	t1	
+begin
+if new.a > 10 then
+set new.a := 10;
+set new.a := 11;
+end if;
+end	BEFORE	#	
+trg2	UPDATE	t1	 begin
+if old.a % 2 = 0 then set new.b := 12; end if;
+end	BEFORE	#	
+trg3	UPDATE	t1	
+begin
+if new.a = -1 then
+set @fired:= "Yes";
+end if;
+end	AFTER	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+trg4	INSERT	t2	
+begin
+if new.a > 10 then
+set @fired:= "No";
+end if;
+end	BEFORE	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 DROP TABLE t1, t2;
