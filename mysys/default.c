@@ -1023,7 +1023,7 @@ static void init_default_directories()
           }
           else
           {
-            /' No parent directory (strange). Use current dir + '\' '*/
+            /* No parent directory (strange). Use current dir + '\' */
             last[1]= 0;
           }
           break;
