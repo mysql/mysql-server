@@ -455,6 +455,10 @@ int ZEXPORT gzread (file, buf, len)
                     s->z_err = Z_ERRNO;
                     break;
                 }
+                if (feof(s->file)) {        /* avoid error for empty file */
+                    s->z_err = Z_STREAM_END;
+                    break;
+                }
             }
             s->stream.next_in = s->inbuf;
         }

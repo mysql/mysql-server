@@ -52,7 +52,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo 
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:yes /debug /pdb:".\Debug\mysql_test_run_new.pdb" /pdbtype:sept /map:".\Debug\mysql_test_run_new.map" /subsystem:console 
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:yes /debug /pdb:".\Debug\mysql_test_run_new.pdb" /pdbtype:sept /map:".\Debug\mysql_test_run_new.map" /subsystem:console 
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib zlib.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:yes /libpath:"..\lib_debug\" /debug /pdb:".\Debug\mysql_test_run_new.pdb" /pdbtype:sept /map:".\Debug\mysql_test_run_new.map" /subsystem:console 
 
 !ELSEIF  "$(CFG)" == "mysql_test_run_new - Win32 Release"
 
@@ -77,7 +77,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo 
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:no /pdb:".\Release\mysql_test_run_new.pdb" /pdbtype:sept /subsystem:console 
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:no /pdb:".\Release\mysql_test_run_new.pdb" /pdbtype:sept /subsystem:console 
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib Ws2_32.lib zlib.lib /nologo /out:"..\mysql-test\mysql_test_run_new.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\Release\mysql_test_run_new.pdb" /pdbtype:sept /subsystem:console 
 
 !ENDIF
 
