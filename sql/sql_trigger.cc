@@ -520,6 +520,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
   char path_buff[FN_REFLEN];
   LEX_STRING path;
   File_parser *parser;
+  LEX_STRING save_db;
 
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
@@ -564,8 +565,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
               alloc_root(&table->mem_root, triggers->sroutines_key.length)))
         DBUG_RETURN(1);
       triggers->sroutines_key.str[0]= TYPE_ENUM_TRIGGER;
-      strmov(strmov(strmov(triggers->sroutines_key.str+1, db), "."),
-             table_name);
+      strxmov(triggers->sroutines_key.str+1, db, ".", table_name, NullS);
 
       /*
         TODO: This could be avoided if there is no triggers
@@ -581,6 +581,10 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       thd->lex= &lex;
 
+      save_db.str= thd->db;
+      save_db.length= thd->db_length;
+      thd->db_length= strlen(db);
+      thd->db= (char *) db;
       while ((trg_create_str= it++))
       {
         lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
@@ -623,6 +627,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         lex_end(&lex);
       }
+      thd->db= save_db.str;
+      thd->db_length= save_db.length;
       thd->lex= old_lex;
 
       DBUG_RETURN(0);
@@ -631,6 +637,8 @@ err_with_lex_cleanup:
       // QQ: anything else ?
       lex_end(&lex);
       thd->lex= old_lex;
+      thd->db= save_db.str;
+      thd->db_length= save_db.length;
       DBUG_RETURN(1);
     }
 

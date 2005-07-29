@@ -25,3 +25,5 @@ SELECT id FROM t1 GROUP BY id2;
 drop table t1;
 
 SET @@SQL_MODE="";
+
+# End of 4.1 tests

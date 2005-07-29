@@ -2209,7 +2209,7 @@ bool flush_error_log()
      On Windows is necessary a temporary file for to rename
      the current error file.
     */
-    strmov(strmov(err_temp, err_renamed),"-tmp");
+    strxmov(err_temp, err_renamed,"-tmp",NullS);
     (void) my_delete(err_temp, MYF(0)); 
     if (freopen(err_temp,"a+",stdout))
     {

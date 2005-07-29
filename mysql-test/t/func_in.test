@@ -102,6 +102,8 @@ insert into t1 values ('aa'), ('bb');
 select * from t1 where a in (NULL, 'aa');
 drop table t1;
 
+# End of 4.1 tests
+
 #
 # Bug #11885: WHERE condition with NOT IN (one element)          
 #             

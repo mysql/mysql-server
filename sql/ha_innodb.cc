@@ -216,10 +216,10 @@ static handlerton innobase_hton = {
   innobase_xa_recover,		/* recover */
   innobase_commit_by_xid,	/* commit_by_xid */
   innobase_rollback_by_xid,     /* rollback_by_xid */
-  NULL,
-  NULL,
-  NULL,
-  HTON_CLOSE_CURSORS_AT_COMMIT
+  innobase_create_cursor_view,
+  innobase_set_cursor_view,
+  innobase_close_cursor_view,
+  HTON_NO_FLAGS
 };
 
 /*********************************************************************
