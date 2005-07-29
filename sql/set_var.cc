@@ -1422,6 +1422,12 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
 
+#if SIZEOF_LONG != SIZEOF_LONGLONG
+  /* Avoid overflow on 32-bit platforms. */
+  if (tmp > ULONG_MAX)
+    tmp= ULONG_MAX;
+#endif
+
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
