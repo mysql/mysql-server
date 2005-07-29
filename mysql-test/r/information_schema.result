@@ -940,3 +940,12 @@ f5	19	NULL
 f6	1	NULL
 f7	64	NULL
 drop table t1;
+create table t1 (f1 integer);
+create trigger tr1 after insert on t1 for each row set @test_var=42;
+use information_schema;
+select trigger_schema, trigger_name from triggers where
+trigger_name='tr1';
+trigger_schema	trigger_name
+test	tr1
+use test;
+drop table t1;
