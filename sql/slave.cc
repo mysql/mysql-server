@@ -3079,7 +3079,7 @@ slave_begin:
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
-  mi->slave_running = MYSQL_SLAVE_RUN_INIT;
+  mi->slave_running = 1;
   mi->abort_slave = 0;
   pthread_mutex_unlock(&mi->run_lock);
   pthread_cond_broadcast(&mi->start_cond);
