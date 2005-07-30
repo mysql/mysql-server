@@ -27,8 +27,10 @@ enum file_opt_type {
   FILE_OPTIONS_REV,		/* Revision version number (ulonglong) */
   FILE_OPTIONS_TIMESTAMP,	/* timestamp (LEX_STRING have to be
 				   allocated with length 20 (19+1) */
-  FILE_OPTIONS_STRLIST          /* list of escaped strings
+  FILE_OPTIONS_STRLIST,         /* list of escaped strings
                                    (List<LEX_STRING>) */
+  FILE_OPTIONS_ULLLIST          /* list of ulonglong values
+                                   (List<ulonglong>) */
 };
 
 struct File_option
