@@ -72,12 +72,12 @@ select c from mysqltest.v4;
 c
 show columns from mysqltest.v1;
 Field	Type	Null	Key	Default	Extra
-c	bigint(20)	YES		NULL	
-d	bigint(20)	YES		NULL	
+c	bigint(12)	YES		NULL	
+d	bigint(12)	YES		NULL	
 show columns from mysqltest.v2;
 Field	Type	Null	Key	Default	Extra
-c	bigint(20)	YES		NULL	
-d	bigint(20)	YES		NULL	
+c	bigint(12)	YES		NULL	
+d	bigint(12)	YES		NULL	
 explain select c from mysqltest.v1;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create view mysqltest.v1;
