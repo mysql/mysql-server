@@ -617,7 +617,7 @@ drop table t1;
 set sql_mode='ansi';
 create table t1 ("t1 column" int);
 create trigger t1_bi before insert on t1 for each row set new."t1 column" = 5;
-set sql_mode=default;
+set sql_mode="";
 insert into t1 values (0);
 # create trigger with different sql_mode
 create trigger t1_af after insert on t1 for each row set @a=10;
@@ -626,8 +626,6 @@ select * from t1;
 select @a;
 --replace_column 6 #
 show triggers;
---replace_column 17 #
-select * from information_schema.triggers;
 drop table t1;
 # check that rigger preserve sql_mode during execution
 set sql_mode="traditional";
@@ -643,6 +641,4 @@ set sql_mode=default;
 show create table t1;
 --replace_column 6 #
 show triggers;
---replace_column 17 #
-select * from information_schema.triggers;
 drop table t1;

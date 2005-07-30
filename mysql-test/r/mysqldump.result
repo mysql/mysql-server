@@ -1543,13 +1543,13 @@ LOCK TABLES `t1` WRITE;
 UNLOCK TABLES;
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v1`;
-DROP VIEW IF EXISTS `v1`;
-CREATE TABLE `v1` (
+/*!50001 DROP VIEW IF EXISTS `v1`*/;
+/*!50001 CREATE TABLE `v1` (
   `a` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-DROP TABLE IF EXISTS `v1`;
-DROP VIEW IF EXISTS `v1`;
-CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP VIEW IF EXISTS `v1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`*/;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
@@ -1595,13 +1595,13 @@ INSERT INTO `t2` VALUES ('alfred'),('angie'),('bingo'),('waffle'),('lemon');
 UNLOCK TABLES;
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v2`;
-DROP VIEW IF EXISTS `v2`;
-CREATE TABLE `v2` (
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+/*!50001 CREATE TABLE `v2` (
   `a` varchar(30) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-DROP TABLE IF EXISTS `v2`;
-DROP VIEW IF EXISTS `v2`;
-CREATE ALGORITHM=UNDEFINED VIEW `mysqldump_test_db`.`v2` AS select `mysqldump_test_db`.`t2`.`a` AS `a` from `mysqldump_test_db`.`t2` where (`mysqldump_test_db`.`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED VIEW `mysqldump_test_db`.`v2` AS select `mysqldump_test_db`.`t2`.`a` AS `a` from `mysqldump_test_db`.`t2` where (`mysqldump_test_db`.`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION*/;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
