@@ -23,6 +23,7 @@ connection slave;
 stop slave;
 start slave;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
+--vertical_results
 show slave status;
 
 # end of 4.1 tests
