@@ -598,7 +598,7 @@ int ha_commit_trans(THD *thd, bool all)
   my_xid xid= thd->transaction.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
-  if (thd->transaction.in_sub_stmt)
+  if (thd->in_sub_stmt)
   {
     /*
       Since we don't support nested statement transactions in 5.0,
@@ -717,7 +717,7 @@ int ha_rollback_trans(THD *thd, bool all)
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   bool is_real_trans=all || thd->transaction.all.nht == 0;
   DBUG_ENTER("ha_rollback_trans");
-  if (thd->transaction.in_sub_stmt)
+  if (thd->in_sub_stmt)
   {
     /*
       If we are inside stored function or trigger we should not commit or

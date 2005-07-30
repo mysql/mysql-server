@@ -79,10 +79,13 @@ sp_show_status_function(THD *thd, const char *wild);
   Procedures for pre-caching of stored routines and building table list
   for prelocking.
 */
+bool sp_need_cache_routines(THD *thd, SQL_LIST *routines_list, 
+                            bool *need_skip_first);
 void sp_add_used_routine(LEX *lex, Query_arena *arena,
                          sp_name *rt, char rt_type);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
-bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex);
+bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex, 
+                                      bool first_no_prelock);
 void sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
                                                LEX *aux_lex);
 void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
