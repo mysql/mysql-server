@@ -7875,7 +7875,15 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
-    if (item->max_length > 255 && convert_blob_length)
+    enum enum_field_types type;
+    /*
+      DATE/TIME fields have STRING_RESULT result type. To preserve
+      type they needed to be handled separately.
+    */
+    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
+        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
+      new_field= item->tmp_table_field_from_field_type(table);
+    else if (item->max_length > 255 && convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
@@ -7981,6 +7989,20 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     if (table_cant_handle_bit_fields && field->field->type() == FIELD_TYPE_BIT)
       return create_tmp_field_from_item(thd, item, table, copy_func,
                                         modify_item, convert_blob_length);
+    /*
+      If item have to be able to store NULLs but underlaid field can't do it,
+      create_tmp_field_from_field() can't be used for tmp field creation.
+    */
+    if (field->maybe_null && !field->field->maybe_null())
+    {
+      Field *res= create_tmp_field_from_item(thd, item, table, NULL,
+                                       modify_item, convert_blob_length);
+      *from_field= field->field;
+      if (res && modify_item)
+        ((Item_field*)item)->result_field= res;
+      return res;
+    }
+
     return create_tmp_field_from_field(thd, (*from_field= field->field),
                                        item->name, table,
                                        modify_item ? (Item_field*) item : NULL,
