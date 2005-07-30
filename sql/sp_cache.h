@@ -22,6 +22,12 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+/*
+  Stored procedures/functions cache. This is used as follows:
+   * Each thread has its own cache.
+   * When SP is used it is always in some thread's cache.
+*/
+
 class sp_head;
 class sp_cache;
 
@@ -31,16 +37,20 @@ void sp_cache_init();
 /* Clear the cache *cp and set *cp to NULL */
 void sp_cache_clear(sp_cache **cp);
 
-/* Insert an SP to cache. If 'cp' points to NULL, it's set to a new cache */
+/* Insert an SP into cache. If 'cp' points to NULL, it's set to a new cache */
 void sp_cache_insert(sp_cache **cp, sp_head *sp);
 
 /* Lookup an SP in cache */
 sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
 
-/* Remove an SP from cache. Returns true if something was removed */
+/* 
+  Remove an SP from cache, and also bump the Cversion number so all other 
+  caches are invalidated. 
+  Returns true if something was removed.
+*/
 bool sp_cache_remove(sp_cache **cp, sp_name *name);
 
-/* Invalidate a cache */
+/* Invalidate all existing SP caches by bumping Cversion number. */
 void sp_cache_invalidate();
 
 
