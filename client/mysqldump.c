@@ -372,7 +372,7 @@ static struct my_option my_long_options[] =
    (gptr*) &path, (gptr*) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tables", OPT_TABLES, "Overrides option --databases (-B).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-   {"triggers", '/0', "Dump triggers for each dumped table",
+   {"triggers", OPT_TRIGGER, "Dump triggers for each dumped table",
      (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
      NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
@@ -1296,10 +1296,11 @@ static uint get_table_structure(char *table, char *db)
         row= mysql_fetch_row(tableRes);
 
         if (opt_drop)
-          fprintf(sql_file, "DROP VIEW IF EXISTS %s;\n",opt_quoted_table);
+          fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
+                  opt_quoted_table);
 
         /* Print CREATE statement but remove TEMPORARY */
-        fprintf(sql_file, "CREATE %s;\n", row[1]+17);
+        fprintf(sql_file, "/*!50001 CREATE %s*/;\n", row[1]+17);
         check_io(sql_file);
 
         mysql_free_result(tableRes);
@@ -1335,19 +1336,23 @@ static uint get_table_structure(char *table, char *db)
           DBUG_RETURN(0);
         }
         if (mysql_num_rows(tableRes))
-          fprintf(sql_file, "\nDELIMITER //;\n");
+          fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
+DELIMITER //;\n");
         while ((row=mysql_fetch_row(tableRes)))
         {
-          fprintf(sql_file, "CREATE TRIGGER %s %s %s ON %s\n"
-                  "FOR EACH ROW%s//\n\n",
-                  quote_name(row[0], name_buff, 0),
-                  row[4],
-                  row[1],
+          fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/ //\n\
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s*/ //\n\n",
+                  row[6], /* sql_mode */
+                  quote_name(row[0], name_buff, 0), /* Trigger */
+                  row[4], /* Timing */
+                  row[1], /* Event */
                   result_table,
-                  row[3]);
+                  row[3] /* Statement */);
         }
         if (mysql_num_rows(tableRes))
-          fprintf(sql_file, "DELIMITER ;//");
+          fprintf(sql_file,
+                  "DELIMITER ;//\n\
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;");
         mysql_free_result(tableRes);
       }
     }
@@ -2957,13 +2962,15 @@ static my_bool get_view_structure(char *table, char* db)
   }
   if (opt_drop)
   {
-    fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", opt_quoted_table);
-    fprintf(sql_file, "DROP VIEW IF EXISTS %s;\n", opt_quoted_table);
+    fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n",
+            opt_quoted_table);
+    fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
+            opt_quoted_table);
     check_io(sql_file);
   }
 
   row= mysql_fetch_row(table_res);
-  fprintf(sql_file, "%s;\n", row[1]);
+  fprintf(sql_file, "/*!50001 %s*/;\n", row[1]);
   check_io(sql_file);
   mysql_free_result(table_res);
 
