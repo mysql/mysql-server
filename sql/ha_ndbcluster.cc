@@ -6350,12 +6350,14 @@ void ndb_serialize_cond(const Item *item, void *arg)
             // result type
             if (context->expecting(Item::FIELD_ITEM) &&
                 (context->expecting_field_result(field->result_type()) ||
-                 // Date and year can be written as strings
+                 // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
                    type == MYSQL_TYPE_DATE || 
                    type == MYSQL_TYPE_YEAR ||
                    type == MYSQL_TYPE_DATETIME)
-                  ? context->expecting_field_result(STRING_RESULT) : true)) &&
+                  ? (context->expecting_field_result(STRING_RESULT) ||
+                     context->expecting_field_result(INT_RESULT))
+                  : true)) &&
                 // Bit fields no yet supported in scan filter
                 type != MYSQL_TYPE_BIT)
             {
@@ -6423,8 +6425,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             }
             else
             {
-              DBUG_PRINT("info", ("Was not expecting field of type %u",
-                                  field->result_type()));
+              DBUG_PRINT("info", ("Was not expecting field of type %u(%u)",
+                                  field->result_type(), type));
               context->supported= FALSE;
             }
           }
