@@ -417,6 +417,9 @@ a	a	b	b
 2	NULL	NULL	NULL
 3	3	1	NULL
 4	NULL	NULL	NULL
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+4
 SHOW STATUS LIKE "handler_read%";
 Variable_name	Value
 Handler_read_first	0
@@ -425,7 +428,4 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	5
-SELECT FOUND_ROWS();
-FOUND_ROWS()
-4
 DROP TABLE t1,t2,t3,t4;
