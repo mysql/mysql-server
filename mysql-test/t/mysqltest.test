@@ -324,3 +324,14 @@ let $message= . Here comes a very very long message that
               .      - consists of several lines;
 --source include/show_msg80.inc
 
+#
+# Test --enable_parsning / disable_parsning
+#
+--disable_query_log
+--disable_parsing
+# The following will not enable query logging
+--enable_query_log
+select "this will not be executed";
+--enable_parsing
+select "this will be executed";
+--enable_query_log

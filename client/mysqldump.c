@@ -372,7 +372,7 @@ static struct my_option my_long_options[] =
    (gptr*) &path, (gptr*) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tables", OPT_TABLES, "Overrides option --databases (-B).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-   {"triggers", '/0', "Dump triggers for each dumped table",
+   {"triggers", OPT_TRIGGERS, "Dump triggers for each dumped table",
      (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
      NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
@@ -424,6 +424,7 @@ void check_io(FILE *file)
   if (ferror(file))
   {
     fprintf(stderr, "%s: Got errno %d on write\n", my_progname, errno);
+    ignore_errors= 0; /* We can't ignore this error */
     safe_exit(EX_EOF);
   }
 }
@@ -2610,7 +2611,7 @@ static int do_show_master_status(MYSQL *mysql_con)
     {
       /* SHOW MASTER STATUS reports nothing and --force is not enabled */
       my_printf_error(0, "Error: Binlogging on server not active", 
-		      MYF(0), mysql_error(mysql_con));
+		      MYF(0));
       mysql_free_result(master);
       return 1;
     }
@@ -2979,11 +2980,12 @@ static my_bool get_view_structure(char *table, char* db)
 
 int main(int argc, char **argv)
 {
+  MY_INIT("mysqldump");
+
   compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
   bzero((char*) &ignore_table, sizeof(ignore_table));
 
-  MY_INIT("mysqldump");
   if (get_options(&argc, &argv))
   {
     my_end(0);

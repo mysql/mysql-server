@@ -226,7 +226,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
 
 
   /* Trigger must be in the same schema as target table. */
-  if (my_strcasecmp(system_charset_info, table->s->db,
+  if (my_strcasecmp(table_alias_charset, table->s->db,
                     lex->spname->m_db.str ? lex->spname->m_db.str :
                                             thd->db))
   {
@@ -396,7 +396,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
   {
     it_def++;
 
-    if (my_strcasecmp(system_charset_info, lex->spname->m_name.str,
+    if (my_strcasecmp(table_alias_charset, lex->spname->m_name.str,
                       name->str) == 0)
     {
       /*
@@ -541,8 +541,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
   if ((parser= sql_parse_prepare(&path, &table->mem_root, 1)))
   {
-    if (!strncmp(triggers_file_type.str, parser->type()->str,
-                 parser->type()->length))
+    if (is_equal(&triggers_file_type, parser->type()))
     {
       Table_triggers_list *triggers=
         new (&table->mem_root) Table_triggers_list(table);
@@ -601,7 +600,8 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         triggers->bodies[lex.trg_chistics.event]
                              [lex.trg_chistics.action_time]= lex.sphead;
-        if (triggers->names_list.push_back(&lex.sphead->m_name, &table->mem_root))
+        if (triggers->names_list.push_back(&lex.sphead->m_name,
+                                           &table->mem_root))
             goto err_with_lex_cleanup;
 
         if (names_only)
@@ -615,8 +615,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           in old/new versions of row in trigger to Field objects in table being
           opened.
 
-          We ignore errors here, because if even something is wrong we still will
-          be willing to open table to perform some operations (e.g. SELECT)...
+          We ignore errors here, because if even something is wrong we still
+          will be willing to open table to perform some operations
+          (e.g. SELECT)...
           Anyway some things can be checked only during trigger execution.
         */
         for (Item_trigger_field *trg_field=
@@ -647,7 +648,7 @@ err_with_lex_cleanup:
       be merged into .FRM anyway.
     */
     my_error(ER_WRONG_OBJECT, MYF(0),
-             table_name, triggers_file_ext, "TRIGGER");
+             table_name, triggers_file_ext+1, "TRIGGER");
     DBUG_RETURN(1);
   }
 
@@ -726,10 +727,9 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   if (!(parser= sql_parse_prepare(&path, thd->mem_root, 1)))
     DBUG_RETURN(0);
 
-  if (strncmp(trigname_file_type.str, parser->type()->str,
-              parser->type()->length))
+  if (!is_equal(&trigname_file_type, parser->type()))
   {
-    my_error(ER_WRONG_OBJECT, MYF(0), trig->m_name.str, trigname_file_ext,
+    my_error(ER_WRONG_OBJECT, MYF(0), trig->m_name.str, trigname_file_ext+1,
              "TRIGGERNAME");
     DBUG_RETURN(0);
   }
