@@ -1986,6 +1986,7 @@ bool Item_func_group_concat::setup(THD *thd)
   }
   
   count_field_types(tmp_table_param,all_fields,0);
+  tmp_table_param->need_const= 1;
   if (table)
   {
     /*
