@@ -523,6 +523,10 @@ bool THD::store_globals()
     if this is the slave SQL thread.
   */
   variables.pseudo_thread_id= thread_id;
+  /*
+    We have to call thr_lock_info_init() again here as THD may have been
+    created in another thread
+  */
   thr_lock_info_init(&lock_info);
   return 0;
 }

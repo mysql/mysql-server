@@ -37,7 +37,7 @@ public:
     falls into spring time-gap (or lefts it untouched otherwise).
   */
   virtual my_time_t TIME_to_gmt_sec(const TIME *t, 
-                                    bool *in_dst_time_gap) const = 0;
+                                    my_bool *in_dst_time_gap) const = 0;
   /*
     Converts time in my_time_t representation to local time in
     broken down TIME representation.
