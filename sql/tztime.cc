@@ -880,12 +880,12 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
     0 in case of error.
 */
 static my_time_t
-TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp, bool *in_dst_time_gap)
+TIME_to_gmt_sec(const TIME *t, const TIME_ZONE_INFO *sp,
+                my_bool *in_dst_time_gap)
 {
   my_time_t local_t;
   uint saved_seconds;
   uint i;
-
   DBUG_ENTER("TIME_to_gmt_sec");
 
   /* We need this for correct leap seconds handling */
@@ -962,7 +962,7 @@ class Time_zone_system : public Time_zone
 {
 public:
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
-                                    bool *in_dst_time_gap) const;
+                                    my_bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 };
@@ -994,7 +994,7 @@ public:
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_system::TIME_to_gmt_sec(const TIME *t, bool *in_dst_time_gap) const
+Time_zone_system::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 {
   long not_used;
   return my_system_gmt_sec(t, &not_used, in_dst_time_gap);
@@ -1055,7 +1055,7 @@ class Time_zone_utc : public Time_zone
 {
 public:
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
-                                    bool *in_dst_time_gap) const;
+                                    my_bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 };
@@ -1081,7 +1081,7 @@ public:
     0
 */
 my_time_t
-Time_zone_utc::TIME_to_gmt_sec(const TIME *t, bool *in_dst_time_gap) const
+Time_zone_utc::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 {
   /* Should be never called */
   DBUG_ASSERT(0);
@@ -1144,7 +1144,7 @@ class Time_zone_db : public Time_zone
 public:
   Time_zone_db(TIME_ZONE_INFO *tz_info_arg, const String * tz_name_arg);
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
-                                    bool *in_dst_time_gap) const;
+                                    my_bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 private:
@@ -1193,7 +1193,7 @@ Time_zone_db::Time_zone_db(TIME_ZONE_INFO *tz_info_arg,
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_db::TIME_to_gmt_sec(const TIME *t, bool *in_dst_time_gap) const
+Time_zone_db::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 {
   return ::TIME_to_gmt_sec(t, tz_info, in_dst_time_gap);
 }
@@ -1240,7 +1240,7 @@ class Time_zone_offset : public Time_zone
 public:
   Time_zone_offset(long tz_offset_arg);
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
-                                    bool *in_dst_time_gap) const;
+                                    my_bool *in_dst_time_gap) const;
   virtual void   gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
   /*
@@ -1292,7 +1292,7 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_offset::TIME_to_gmt_sec(const TIME *t, bool *in_dst_time_gap) const
+Time_zone_offset::TIME_to_gmt_sec(const TIME *t, my_bool *in_dst_time_gap) const
 {
   return sec_since_epoch(t->year, t->month, t->day,
                          t->hour, t->minute, t->second) -
@@ -2549,8 +2549,6 @@ main(int argc, char **argv)
   time_t t, t1, t2;
   char fullname[FN_REFLEN+1];
   char *str_end;
-  long not_used;
-  bool not_used_2;
   MEM_ROOT tz_storage;
 
   MY_INIT(argv[0]);
@@ -2660,14 +2658,21 @@ main(int argc, char **argv)
     dates.
   */
   for (time_tmp.year= 1980; time_tmp.year < 2010; time_tmp.year++)
+  {
     for (time_tmp.month= 1; time_tmp.month < 13; time_tmp.month++)
+    {
       for (time_tmp.day= 1;
            time_tmp.day < mon_lengths[isleap(time_tmp.year)][time_tmp.month-1];
            time_tmp.day++)
+      {
         for (time_tmp.hour= 0; time_tmp.hour < 24; time_tmp.hour++)
+        {
           for (time_tmp.minute= 0; time_tmp.minute < 60; time_tmp.minute+= 5)
+          {
             for (time_tmp.second=0; time_tmp.second<60; time_tmp.second+=25)
             {
+              long not_used;
+              my_bool not_used_2;
               t= (time_t)my_system_gmt_sec(&time_tmp, &not_used, &not_used_2);
               t1= (time_t)TIME_to_gmt_sec(&time_tmp, &tz_info, &not_used_2);
               if (t != t1)
@@ -2699,6 +2704,11 @@ main(int argc, char **argv)
                 return 1;
               }
             }
+          }
+        }
+      }
+    }
+  }
 
   printf("TIME_to_gmt_sec = my_system_gmt_sec for test range\n");
 

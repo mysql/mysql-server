@@ -4468,7 +4468,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   my_time_t tmp= 0;
   int error;
   bool have_smth_to_conv;
-  bool in_dst_time_gap;
+  my_bool in_dst_time_gap;
   THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
@@ -4539,14 +4539,14 @@ int Field_timestamp::store(longlong nr)
   TIME l_time;
   my_time_t timestamp= 0;
   int error;
-  bool in_dst_time_gap;
+  my_bool in_dst_time_gap;
   THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   longlong tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
                                                  MODE_NO_ZERO_DATE) |
                                    MODE_NO_ZERO_IN_DATE, &error);
-  if (tmp < 0)
+  if (tmp == LL(-1))
   {
     error= 2;
   }
@@ -5215,7 +5215,7 @@ int Field_date::store(longlong nr)
                                            MODE_NO_ZERO_DATE |
                                            MODE_INVALID_DATES))), &error);
 
-  if (nr < 0)
+  if (nr == LL(-1))
   {
     nr= 0;
     error= 2;
@@ -5391,12 +5391,12 @@ int Field_newdate::store(longlong nr)
   TIME l_time;
   longlong tmp;
   int error;
-  if ((tmp= number_to_datetime(nr, &l_time,
-                               (TIME_FUZZY_DATE |
-                                (table->in_use->variables.sql_mode &
-                                 (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                                  MODE_INVALID_DATES))),
-                               &error) < 0))
+  if (number_to_datetime(nr, &l_time,
+                         (TIME_FUZZY_DATE |
+                          (table->in_use->variables.sql_mode &
+                           (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                            MODE_INVALID_DATES))),
+                         &error) == LL(-1))
   {
     tmp= 0L;
     error= 2;
@@ -5593,7 +5593,7 @@ int Field_datetime::store(longlong nr)
                                            MODE_NO_ZERO_DATE |
                                            MODE_INVALID_DATES))), &error);
 
-  if (nr < 0)
+  if (nr == LL(-1))
   {
     nr= 0;
     error= 2;
