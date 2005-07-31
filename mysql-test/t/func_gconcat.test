@@ -310,8 +310,6 @@ select a, group_concat(b order by b) from t1 group by a with rollup;
 select a, group_concat(distinct b order by b) from t1 group by a with rollup;
 drop table t1;
 
-# End of 4.1 tests
-
 #
 # Bug #6475
 #
@@ -319,3 +317,37 @@ create table t1 (a char(3), b char(20), primary key (a, b));
 insert into t1 values ('ABW', 'Dutch'), ('ABW', 'English');
 select group_concat(a) from t1 group by b;
 drop table t1;
+#
+# Bug #12095: GROUP_CONCAT for one row table 
+#
+
+CREATE TABLE t1 (
+  aID smallint(5) unsigned NOT NULL auto_increment,
+  sometitle varchar(255) NOT NULL default '',
+  bID smallint(5) unsigned NOT NULL,
+  PRIMARY KEY  (aID),
+  UNIQUE KEY sometitle (sometitle)
+);
+INSERT INTO t1 SET sometitle = 'title1', bID = 1;
+INSERT INTO t1 SET sometitle = 'title2', bID = 1;
+
+CREATE TABLE t2 (
+  bID smallint(5) unsigned NOT NULL auto_increment,
+  somename varchar(255) NOT NULL default '',
+  PRIMARY KEY  (bID),
+  UNIQUE KEY somename (somename)
+);
+INSERT INTO t2 SET somename = 'test';
+
+SELECT COUNT(*), GROUP_CONCAT(DISTINCT t2.somename SEPARATOR ' |')
+  FROM t1 JOIN t2 ON t1.bID = t2.bID;
+INSERT INTO t2 SET somename = 'test2';
+SELECT COUNT(*), GROUP_CONCAT(DISTINCT t2.somename SEPARATOR ' |')
+  FROM t1 JOIN t2 ON t1.bID = t2.bID;
+DELETE FROM t2 WHERE somename = 'test2';
+SELECT COUNT(*), GROUP_CONCAT(DISTINCT t2.somename SEPARATOR ' |')
+  FROM t1 JOIN t2 ON t1.bID = t2.bID;
+
+DROP TABLE t1,t2;
+
+# End of 4.1 tests
