@@ -3037,6 +3037,7 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   count_field_types(tmp_table_param,all_fields,0);
+  tmp_table_param->need_const= 1;
   DBUG_ASSERT(table == 0);
   /*
     We have to create a temporary table to get descriptions of fields
