@@ -1426,6 +1426,12 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   if ((ulong) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
+#if SIZEOF_LONG == 4
+  /* Avoid overflows on 32 bit systems */
+  if (tmp > (ulonglong) ~(ulong) 0)
+    tmp= ((ulonglong) ~(ulong) 0);
+#endif
+
   if (option_limits)
     tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
@@ -1679,7 +1685,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(uint*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((uint32) value);
+    return new Item_uint((ulonglong) value);
   }
   case SHOW_LONG:
   {
@@ -1687,7 +1693,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(ulong*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint(value);
+    return new Item_uint((ulonglong) value);
   }
   case SHOW_LONGLONG:
   {
