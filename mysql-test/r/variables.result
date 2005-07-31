@@ -530,6 +530,10 @@ select @@max_heap_table_size > 0;
 @@max_heap_table_size > 0
 1
 set global max_heap_table_size= 4294967296;
-select @@global.max_heap_table_size > 0;
-@@global.max_heap_table_size > 0
+select @@max_heap_table_size > 0;
+@@max_heap_table_size > 0
+1
+set @@max_heap_table_size= 4294967296;
+select @@max_heap_table_size > 0;
+@@max_heap_table_size > 0
 1

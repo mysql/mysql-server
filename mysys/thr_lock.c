@@ -509,7 +509,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	(*lock->read.last)=data;		/* Add to running FIFO */
 	data->prev=lock->read.last;
 	lock->read.last= &data->next;
-	if ((int) lock_type == (int) TL_READ_NO_INSERT)
+	if (lock_type == TL_READ_NO_INSERT)
 	  lock->read_no_write_count++;
 	check_locks(lock,"read lock with old write lock",0);
 	if (lock->get_status)
@@ -535,14 +535,14 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
       lock->read.last= &data->next;
       if (lock->get_status)
 	(*lock->get_status)(data->status_param, 0);
-      if ((int) lock_type == (int) TL_READ_NO_INSERT)
+      if (lock_type == TL_READ_NO_INSERT)
 	lock->read_no_write_count++;
       check_locks(lock,"read lock with no write locks",0);
       statistic_increment(locks_immediate,&THR_LOCK_lock);
       goto end;
     }
     /*
-      We're here if there is an active write lock  or no write
+      We're here if there is an active write lock or no write
       lock but a high priority write waiting in the write_wait queue.
       In the latter case we should yield the lock to the writer.
     */
