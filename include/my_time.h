@@ -60,8 +60,8 @@ ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *time);
 ulonglong TIME_to_ulonglong(const MYSQL_TIME *time);
 
 
-bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
-                 int *was_cut);
+my_bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
+                    int *was_cut);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
@@ -69,7 +69,8 @@ uint calc_days_in_year(uint year);
 void init_time(void);
 
 my_time_t 
-my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap);
+my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
+                  my_bool *in_dst_time_gap);
 
 void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
 
