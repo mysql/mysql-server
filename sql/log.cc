@@ -58,7 +58,11 @@ static handlerton binlog_hton = {
   binlog_prepare,
   NULL,                         /* recover */
   NULL,                         /* commit_by_xid */
-  NULL                          /* rollback_by_xid */
+  NULL,                         /* rollback_by_xid */
+  NULL,                         /* create_cursor_read_view */
+  NULL,                         /* set_cursor_read_view */
+  NULL,    			/* close_cursor_read_view */
+  HTON_NO_FLAGS
 };
 
 /*
