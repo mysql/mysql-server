@@ -1070,7 +1070,7 @@ longlong Item_func_year::val_int()
 longlong Item_func_unix_timestamp::val_int()
 {
   TIME ltime;
-  bool not_used;
+  my_bool not_used;
   
   DBUG_ASSERT(fixed == 1);
   if (arg_count == 0)
@@ -1798,7 +1798,6 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
                                     uint fuzzy_date __attribute__((unused)))
 {
   my_time_t my_time_tmp;
-  bool not_used;
   String str;
 
   if (!from_tz_cached)
@@ -1824,6 +1823,7 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
       ltime->year==TIMESTAMP_MAX_YEAR && ltime->month==1 && ltime->day==1 ||
       ltime->year==TIMESTAMP_MIN_YEAR && ltime->month==12 && ltime->day==31)
   {
+    my_bool not_used;
     my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
     if (my_time_tmp >= TIMESTAMP_MIN_VALUE && my_time_tmp <= TIMESTAMP_MAX_VALUE)
       to_tz->gmt_sec_to_TIME(ltime, my_time_tmp);

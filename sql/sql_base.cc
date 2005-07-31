@@ -4258,7 +4258,7 @@ open_new_frm(const char *path, const char *alias,
 
   if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
   {
-    if (!strncmp("VIEW", parser->type()->str, parser->type()->length))
+    if (is_equal(&view_type, parser->type()))
     {
       if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
       {
@@ -4280,4 +4280,10 @@ open_new_frm(const char *path, const char *alias,
 err:
   bzero(outparam, sizeof(TABLE));	// do not run repair
   DBUG_RETURN(1);
+}
+
+
+bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
+{
+  return a->length == b->length && !strncmp(a->str, b->str, a->length);
 }
