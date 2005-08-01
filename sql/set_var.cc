@@ -1422,15 +1422,15 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
 
-#if SIZEOF_LONG != SIZEOF_LONGLONG
-  /* Avoid overflow on 32-bit platforms. */
-  if (tmp > ULONG_MAX)
-    tmp= ULONG_MAX;
-#endif
-
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
+
+#if SIZEOF_LONG == 4
+  /* Avoid overflows on 32 bit systems */
+  if (tmp > (ulonglong) ~(ulong) 0)
+    tmp= ((ulonglong) ~(ulong) 0);
+#endif
 
   if (option_limits)
     tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
@@ -1685,7 +1685,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(uint*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((uint32) value);
+    return new Item_uint((ulonglong) value);
   }
   case SHOW_LONG:
   {
@@ -1693,7 +1693,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(ulong*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint(value);
+    return new Item_uint((ulonglong) value);
   }
   case SHOW_LONGLONG:
   {
@@ -3219,6 +3219,7 @@ byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd, ulong val,
 {
   char buff[256];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
+  ulong length;
 
   tmp.length(0);
   for (uint i= 0; val; val>>= 1, i++)
@@ -3230,11 +3231,13 @@ byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd, ulong val,
       tmp.append(',');
     }
   }
-  if (tmp.length())
-    tmp.length(tmp.length() - 1);
-  *len= tmp.length();
-  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
+
+  if ((length= tmp.length()))
+    length--;
+  *len= length;
+  return (byte*) thd->strmake(tmp.ptr(), length);
 }
+
 
 byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
 				      LEX_STRING *base)
@@ -3253,6 +3256,7 @@ void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
   else
     thd->variables.*offset= global_system_variables.*offset;
 }
+
 
 void fix_sql_mode_var(THD *thd, enum_var_type type)
 {
