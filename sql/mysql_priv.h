@@ -823,8 +823,6 @@ bool mysqld_show_column_types(THD *thd);
 bool mysqld_help (THD *thd, const char *text);
 void calc_sum_of_all_status(STATUS_VAR *to);
 
-
-
 /* information schema */
 extern LEX_STRING information_schema_name;
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
@@ -952,6 +950,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const char *db);
 void flush_tables();
+bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* bits for last argument to remove_table_from_cache() */
 #define RTFC_NO_FLAG                0x0000
@@ -1191,6 +1190,7 @@ extern TABLE *unused_tables;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 extern const char* any_db;
 extern struct my_option my_long_options[];
+extern const LEX_STRING view_type;
 
 /* optional things, have_* variables */
 
@@ -1273,7 +1273,7 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *not_exist);
 bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
                                          TIME *l_time, uint flags);

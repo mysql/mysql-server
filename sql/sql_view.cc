@@ -24,6 +24,8 @@
 
 #define MD5_BUFF_LENGTH 33
 
+const LEX_STRING view_type= { (char*) STRING_WITH_LEN("VIEW") };
+
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
 
@@ -431,7 +433,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_STRING}
 };
 
-static LEX_STRING view_file_type[]= {{(char*)"VIEW", 4}};
+static LEX_STRING view_file_type[]= {{(char*) STRING_WITH_LEN("VIEW") }};
 
 
 /*
@@ -470,7 +472,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     thd->variables.sql_mode|= sql_mode;
   }
   str.append('\0');
-  DBUG_PRINT("VIEW", ("View: %s", str.ptr()));
+  DBUG_PRINT("info", ("View: %s", str.ptr()));
 
   /* print file name */
   (void) my_snprintf(dir_buff, FN_REFLEN, "%s/%s/",
@@ -507,8 +509,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       if (!(parser= sql_parse_prepare(&path, thd->mem_root, 0)))
 	DBUG_RETURN(1);
 
-      if (!parser->ok() ||
-          strncmp("VIEW", parser->type()->str, parser->type()->length))
+      if (!parser->ok() || !is_equal(&view_type, parser->type()))
       {
         my_error(ER_WRONG_OBJECT, MYF(0),
                  (view->db ? view->db : thd->db), view->table_name, "VIEW");
