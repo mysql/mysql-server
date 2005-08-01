@@ -6353,12 +6353,14 @@ void ndb_serialize_cond(const Item *item, void *arg)
             // result type
             if (context->expecting(Item::FIELD_ITEM) &&
                 (context->expecting_field_result(field->result_type()) ||
-                 // Date and year can be written as strings
+                 // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
                    type == MYSQL_TYPE_DATE || 
                    type == MYSQL_TYPE_YEAR ||
                    type == MYSQL_TYPE_DATETIME)
-                  ? context->expecting_field_result(STRING_RESULT) : true)) &&
+                  ? (context->expecting_field_result(STRING_RESULT) ||
+                     context->expecting_field_result(INT_RESULT))
+                  : true)) &&
                 // Bit fields no yet supported in scan filter
                 type != MYSQL_TYPE_BIT)
             {
@@ -6426,8 +6428,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             }
             else
             {
-              DBUG_PRINT("info", ("Was not expecting field of type %u",
-                                  field->result_type()));
+              DBUG_PRINT("info", ("Was not expecting field of type %u(%u)",
+                                  field->result_type(), type));
               context->supported= FALSE;
             }
           }
@@ -7010,7 +7012,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
     switch ((negated) ? 
             Ndb_item::negate(cond->ndb_item->qualification.function_type)
             : cond->ndb_item->qualification.function_type) {
-    case Item_func::EQ_FUNC:
+    case NDB_EQ_FUNC:
     {
       if (!value || !field) break;
       // Save value in right format for the field type
@@ -7024,7 +7026,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case Item_func::NE_FUNC:
+    case NDB_NE_FUNC:
     {
       if (!value || !field) break;
       // Save value in right format for the field type
@@ -7038,7 +7040,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case Item_func::LT_FUNC:
+    case NDB_LT_FUNC:
     {
       if (!value || !field) break;
       // Save value in right format for the field type
@@ -7064,7 +7066,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case Item_func::LE_FUNC:
+    case NDB_LE_FUNC:
     {
       if (!value || !field) break;
       // Save value in right format for the field type
@@ -7090,7 +7092,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case Item_func::GE_FUNC:
+    case NDB_GE_FUNC:
     {
       if (!value || !field) break;
       // Save value in right format for the field type
@@ -7116,7 +7118,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case Item_func::GT_FUNC:
+    case NDB_GT_FUNC:
     {
       if (!value || !field) break;
       // Save value in right format for the field type
@@ -7142,7 +7144,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case Item_func::LIKE_FUNC:
+    case NDB_LIKE_FUNC:
     {
       if (!value || !field) break;
       if ((value->qualification.value_type != Item::STRING_ITEM) &&
@@ -7161,7 +7163,26 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
-    case Item_func::ISNULL_FUNC:
+    case NDB_NOTLIKE_FUNC:
+    {
+      if (!value || !field) break;
+      if ((value->qualification.value_type != Item::STRING_ITEM) &&
+          (value->qualification.value_type != Item::VARBIN_ITEM))
+          break;
+      // Save value in right format for the field type
+      value->save_in_field(field);
+      DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
+                          field->get_field_no(), value->get_val(), 
+                          value->pack_length()));
+      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE, 
+                      field->get_field_no(),
+                      value->get_val(),
+                      value->pack_length()) == -1)
+        DBUG_RETURN(1);
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
+    }
+    case NDB_ISNULL_FUNC:
       if (!field)
         break;
       DBUG_PRINT("info", ("Generating ISNULL filter"));
@@ -7169,7 +7190,7 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
         DBUG_RETURN(1);
       cond= cond->next->next;
       DBUG_RETURN(0);
-    case Item_func::ISNOTNULL_FUNC:
+    case NDB_ISNOTNULL_FUNC:
     {
       if (!field)
         break;
@@ -7206,7 +7227,7 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
     case NDB_FUNCTION:
     {
       switch (cond->ndb_item->qualification.function_type) {
-      case Item_func::COND_AND_FUNC:
+      case NDB_COND_AND_FUNC:
       {
         level++;
         DBUG_PRINT("info", ("Generating %s group %u", (negated)?"NAND":"AND",
@@ -7218,7 +7239,7 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         cond= cond->next;
         break;
       }
-      case Item_func::COND_OR_FUNC:
+      case NDB_COND_OR_FUNC:
       {
         level++;
         DBUG_PRINT("info", ("Generating %s group %u", (negated)?"NOR":"OR",
@@ -7230,7 +7251,7 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
         cond= cond->next;
         break;
       }
-      case Item_func::NOT_FUNC:
+      case NDB_NOT_FUNC:
       {
         DBUG_PRINT("info", ("Generating negated query"));
         cond= cond->next;
@@ -7273,8 +7294,8 @@ ha_ndbcluster::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
     switch (cond->ndb_item->type) {
     case NDB_FUNCTION:
       switch (cond->ndb_item->qualification.function_type) {
-      case Item_func::COND_AND_FUNC:
-      case Item_func::COND_OR_FUNC:
+      case NDB_COND_AND_FUNC:
+      case NDB_COND_OR_FUNC:
         simple_cond= FALSE;
         break;
       default:
