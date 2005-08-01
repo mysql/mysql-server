@@ -72,10 +72,28 @@ typedef enum ndb_item_type {
   NDB_END_COND = 3 // End marker for condition group
 } NDB_ITEM_TYPE;
 
+typedef enum ndb_func_type {
+  NDB_EQ_FUNC = 0,
+  NDB_NE_FUNC = 1,
+  NDB_LT_FUNC = 2,
+  NDB_LE_FUNC = 3,
+  NDB_GT_FUNC = 4,
+  NDB_GE_FUNC = 5,
+  NDB_ISNULL_FUNC = 6,
+  NDB_ISNOTNULL_FUNC = 7,
+  NDB_LIKE_FUNC = 8,
+  NDB_NOTLIKE_FUNC = 9,
+  NDB_NOT_FUNC = 10,
+  NDB_UNKNOWN_FUNC = 11,
+  NDB_COND_AND_FUNC = 12,
+  NDB_COND_OR_FUNC = 13,
+  NDB_UNSUPPORTED_FUNC = 14
+} NDB_FUNC_TYPE;
+
 typedef union ndb_item_qualification {
   Item::Type value_type; 
-  enum_field_types field_type;       // Instead of Item::FIELD_ITEM
-  Item_func::Functype function_type; // Instead of Item::FUNC_ITEM
+  enum_field_types field_type; // Instead of Item::FIELD_ITEM
+  NDB_FUNC_TYPE function_type; // Instead of Item::FUNC_ITEM
 } NDB_ITEM_QUALIFICATION;
 
 typedef struct ndb_item_field_value {
@@ -91,21 +109,31 @@ typedef union ndb_item_value {
 
 struct negated_function_mapping
 {
-  Item_func::Functype pos_fun;
-  Item_func::Functype neg_fun;
+  NDB_FUNC_TYPE pos_fun;
+  NDB_FUNC_TYPE neg_fun;
 };
 
+/*
+  Define what functions can be negated in condition pushdown.
+  Note, these HAVE to be in the same order as in definition enum
+*/
 static const negated_function_mapping neg_map[]= 
 {
-  {Item_func::EQ_FUNC, Item_func::NE_FUNC},
-  {Item_func::NE_FUNC, Item_func::EQ_FUNC},
-  {Item_func::LT_FUNC, Item_func::GE_FUNC},
-  {Item_func::LE_FUNC, Item_func::GT_FUNC},
-  {Item_func::GT_FUNC, Item_func::LE_FUNC},
-  {Item_func::GE_FUNC, Item_func::LT_FUNC},
-  {Item_func::ISNULL_FUNC, Item_func::ISNOTNULL_FUNC},
-  {Item_func::ISNOTNULL_FUNC, Item_func::ISNULL_FUNC},
-  {Item_func::UNKNOWN_FUNC, Item_func::NOT_FUNC}
+  {NDB_EQ_FUNC, NDB_NE_FUNC},
+  {NDB_NE_FUNC, NDB_EQ_FUNC},
+  {NDB_LT_FUNC, NDB_GE_FUNC},
+  {NDB_LE_FUNC, NDB_GT_FUNC},
+  {NDB_GT_FUNC, NDB_LE_FUNC},
+  {NDB_GE_FUNC, NDB_LT_FUNC},
+  {NDB_ISNULL_FUNC, NDB_ISNOTNULL_FUNC},
+  {NDB_ISNOTNULL_FUNC, NDB_ISNULL_FUNC},
+  {NDB_LIKE_FUNC, NDB_NOTLIKE_FUNC},
+  {NDB_NOTLIKE_FUNC, NDB_LIKE_FUNC},
+  {NDB_NOT_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_UNKNOWN_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_COND_AND_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_COND_OR_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC}
 };
   
 /*
@@ -160,14 +188,14 @@ class Ndb_item {
   Ndb_item(Item_func::Functype func_type, const Item *item_value) 
     : type(NDB_FUNCTION)
   {
-    qualification.function_type= func_type;
+    qualification.function_type= item_func_to_ndb_func(func_type);
     value.item= item_value;
     value.arg_count= ((Item_func *) item_value)->argument_count();
   };
   Ndb_item(Item_func::Functype func_type, uint no_args) 
     : type(NDB_FUNCTION)
   {
-    qualification.function_type= func_type;
+    qualification.function_type= item_func_to_ndb_func(func_type);
     value.arg_count= no_args;
   };
   ~Ndb_item()
@@ -229,13 +257,30 @@ class Ndb_item {
       ((Item *)item)->save_in_field(field, false);
   };
 
-  static Item_func::Functype negate(Item_func::Functype fun)
+  static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun)
   {
-    uint i;
-    for (i=0; 
-         fun != neg_map[i].pos_fun &&
-           neg_map[i].pos_fun != Item_func::UNKNOWN_FUNC;
-         i++);
+    switch (fun) {
+    case (Item_func::EQ_FUNC): { return NDB_EQ_FUNC; }
+    case (Item_func::NE_FUNC): { return NDB_NE_FUNC; }
+    case (Item_func::LT_FUNC): { return NDB_LT_FUNC; }
+    case (Item_func::LE_FUNC): { return NDB_LE_FUNC; }
+    case (Item_func::GT_FUNC): { return NDB_GT_FUNC; }
+    case (Item_func::GE_FUNC): { return NDB_GE_FUNC; }
+    case (Item_func::ISNULL_FUNC): { return NDB_ISNULL_FUNC; }
+    case (Item_func::ISNOTNULL_FUNC): { return NDB_ISNOTNULL_FUNC; }
+    case (Item_func::LIKE_FUNC): { return NDB_LIKE_FUNC; }
+    case (Item_func::NOT_FUNC): { return NDB_NOT_FUNC; }
+    case (Item_func::UNKNOWN_FUNC): { return NDB_UNKNOWN_FUNC; }
+    case (Item_func::COND_AND_FUNC): { return NDB_COND_AND_FUNC; }
+    case (Item_func::COND_OR_FUNC): { return NDB_COND_OR_FUNC; }
+    default: { return NDB_UNSUPPORTED_FUNC; }
+    }
+  };
+
+  static NDB_FUNC_TYPE negate(NDB_FUNC_TYPE fun)
+  {
+    uint i= (uint) fun;
+    DBUG_ASSERT(fun == neg_map[i].pos_fun);
     return  neg_map[i].neg_fun;
   };
 
