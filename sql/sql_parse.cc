@@ -4198,6 +4198,8 @@ void create_select_for_variable(const char *var_name)
   THD *thd;
   LEX *lex;
   LEX_STRING tmp, null_lex_string;
+  Item *var;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *end;
   DBUG_ENTER("create_select_for_variable");
 
   thd= current_thd;
@@ -4207,8 +4209,14 @@ void create_select_for_variable(const char *var_name)
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
   bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
-  add_item_to_list(thd, get_system_var(thd, OPT_SESSION, tmp,
-				       null_lex_string));
+  /*
+    We set the name of Item to @@session.var_name because that then is used
+    as the column name in the output.
+  */
+  var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string);
+  end= strxmov(buff, "@@session.", var_name, NullS);
+  var->set_name(buff, end-buff, system_charset_info);
+  add_item_to_list(thd, var);
   DBUG_VOID_RETURN;
 }
 
