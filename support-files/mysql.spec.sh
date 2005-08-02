@@ -29,7 +29,6 @@ Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql
 URL:		http://www.mysql.com/
 Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
-Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
 Obsoletes:	mysql
@@ -60,7 +59,7 @@ documentation and the manual for more information.
 %package server
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Requires: fileutils sh-utils
+Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
 Provides:	msqlormysql mysql-server mysql MySQL
 Obsoletes:	MySQL mysql mysql-server
 
@@ -669,6 +668,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue Aug 02 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Fixed the Requires: tag for the server RPM (BUG 12233)
+
 * Fri Jul 15 2005 Lenz Grimmer <lenz@mysql.com>
 
 - create a "mysql" user group and assign the mysql user account to that group
