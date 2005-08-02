@@ -2632,7 +2632,11 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
       the temporary table, not the original field
     */
     Field *field= (*field_item)->get_tmp_table_field();
-    if (field)
+    /* 
+      If field_item is a const item then either get_tp_table_field returns 0
+      or it is an item over a const table. 
+    */
+    if (field && !(*field_item)->const_item())
     {
       int res;
       uint offset= field->offset() - table->s->null_bytes;
@@ -2666,8 +2670,11 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
       the temporary table, not the original field
     */
     Field *field= item->get_tmp_table_field();
-    /* If the item is a constant, there is no tmp table field */
-    if (field)
+    /* 
+      If item is a const item then either get_tp_table_field returns 0
+      or it is an item over a const table. 
+    */
+    if (field && !item->const_item())
     {
       int res;
       uint offset= field->offset() - table->s->null_bytes;
@@ -3037,7 +3044,6 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   count_field_types(tmp_table_param,all_fields,0);
-  tmp_table_param->need_const= 1;
   DBUG_ASSERT(table == 0);
   /*
     We have to create a temporary table to get descriptions of fields
