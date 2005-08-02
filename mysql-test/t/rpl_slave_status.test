@@ -1,0 +1,29 @@
+# Test case for BUG #10780
+source include/master-slave.inc
+connection master;
+grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+connection slave;
+stop slave;
+change master to master_user='rpl',master_password='rpl';
+start slave;
+connection master;
+--disable_warnings
+drop table if exists t1;
+--enable_warning
+create table t1 (n int);
+insert into t1 values (1);
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+connection master;
+delete from mysql.user where user='rpl';
+flush privileges;
+connection slave;
+stop slave;
+start slave;
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--vertical_results
+show slave status;
+
+# end of 4.1 tests
