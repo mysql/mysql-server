@@ -775,6 +775,60 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 }
 
 
+/*
+  Issue correct error message in case we found 2 duplicate tables which
+  prevent some update operation
+
+  SYNOPSIS
+    update_non_unique_table_error()
+    update      table which we try to update
+    operation   name of update operation
+    duplicate   duplicate table which we found
+
+  NOTE:
+    here we hide view underlying tables if we have them
+*/
+
+void update_non_unique_table_error(TABLE_LIST *update,
+                                   const char *operation,
+                                   TABLE_LIST *duplicate)
+{
+  update= update->top_table();
+  duplicate= duplicate->top_table();
+  if (!update->view || !duplicate->view ||
+      update->view == duplicate->view ||
+      update->view_name.length != duplicate->view_name.length ||
+      update->view_db.length != duplicate->view_db.length ||
+      my_strcasecmp(table_alias_charset,
+                    update->view_name.str, duplicate->view_name.str) != 0 ||
+      my_strcasecmp(table_alias_charset,
+                    update->view_db.str, duplicate->view_db.str) != 0)
+  {
+    /*
+      it is not the same view repeated (but it can be parts of the same copy
+      of view), so we have to hide underlying tables.
+    */
+    if (update->view)
+    {
+      if (update->view == duplicate->view)
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), update->alias, operation);
+      else
+        my_error(ER_VIEW_PREVENT_UPDATE, MYF(0),
+                 (duplicate->view ? duplicate->alias : update->alias),
+                 operation, update->alias);
+      return;
+    }
+    if (duplicate->view)
+    {
+      my_error(ER_VIEW_PREVENT_UPDATE, MYF(0), duplicate->alias, operation,
+               update->alias);
+      return;
+    }
+  }
+  my_error(ER_UPDATE_TABLE_USED, MYF(0), update->alias);
+}
+
+
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
@@ -3212,9 +3266,7 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
   {
     TABLE *table= table_list->table;
     if (first_select_table &&
-        (table_list->belong_to_view ?
-         table_list->belong_to_view :
-         table_list) == first_select_table)
+        table_list->top_table() == first_select_table)
     {
       /* new counting for SELECT of INSERT ... SELECT command */
       first_select_table= 0;

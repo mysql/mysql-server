@@ -778,10 +778,14 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   if (!table)
     table= table_list->table;
 
-  if (!select_insert && unique_table(table_list, table_list->next_global))
+  if (!select_insert)
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
-    DBUG_RETURN(TRUE);
+    TABLE_LIST *duplicate;
+    if ((duplicate= unique_table(table_list, table_list->next_global)))
+    {
+      update_non_unique_table_error(table_list, "INSERT", duplicate);
+      DBUG_RETURN(TRUE);
+    }
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);

@@ -459,6 +459,8 @@ typedef struct st_table_list
                           st_table_list *view);
   bool set_insert_values(MEM_ROOT *mem_root);
   st_table_list *find_underlying_table(TABLE *table);
+  inline st_table_list *top_table()
+    { return belong_to_view ? belong_to_view : this; }
 } TABLE_LIST;
 
 class Item;
