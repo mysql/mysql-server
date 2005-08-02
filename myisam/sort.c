@@ -589,7 +589,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 	     !my_b_read(&sinfo->tempfile_for_exceptions,(byte*)&key_length,
 			sizeof(key_length)))
       {
-        byte ft_buf[HA_FT_MAXLEN + HA_FT_WLEN + 10];
+        byte ft_buf[HA_FT_MAXBYTELEN + HA_FT_WLEN + 10];
         if (key_length > sizeof(ft_buf) ||
             my_b_read(&sinfo->tempfile_for_exceptions, (byte*)ft_buf,
                       (uint)key_length) ||
