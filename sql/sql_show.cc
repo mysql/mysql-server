@@ -3008,7 +3008,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
     sys_var_thd_sql_mode::symbolic_mode_representation(thd,
                                                        sql_mode,
                                                        &sql_mode_len);
-  table->field[17]->store(sql_mode_str, sql_mode_len, cs);
+  table->field[17]->store((const char*)sql_mode_str, sql_mode_len, cs);
   return schema_table_store_record(thd, table);
 }
 
