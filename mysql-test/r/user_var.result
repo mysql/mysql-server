@@ -224,3 +224,27 @@ t1	CREATE TABLE `t1` (
   `@first_var` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+select @@local.max_allowed_packet;
+@@local.max_allowed_packet
+#
+select @@session.max_allowed_packet;
+@@session.max_allowed_packet
+#
+select @@global.max_allowed_packet;
+@@global.max_allowed_packet
+#
+select @@max_allowed_packet;
+@@max_allowed_packet
+#
+select @@Max_Allowed_Packet;
+@@Max_Allowed_Packet
+#
+select @@version;
+@@version
+#
+select @@global.version;
+@@global.version
+#
+select @@session.VERSION;
+@@session.VERSION
+#
