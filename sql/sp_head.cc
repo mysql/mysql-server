@@ -1320,7 +1320,6 @@ sp_head::show_create_function(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
   bool full_access;
@@ -1337,8 +1336,7 @@ sp_head::show_create_function(THD *thd)
                                                        m_sql_mode,
                                                        &sql_mode_len);
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
-  if (sql_mode_var)
-    field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   field_list.push_back(new Item_empty_string("Create Function",
 					     max(buffer.length(),1024)));
   if (protocol->send_fields(&field_list,

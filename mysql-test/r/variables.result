@@ -92,7 +92,7 @@ Variable_name	Value
 max_join_size	HA_POS_ERROR
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
-@@session.max_join_size	@@global.max_join_size
+@@local.max_join_size	@@global.max_join_size
 1000	2000
 select @@identity,  length(@@version)>0;
 @@identity	length(@@version)>0
@@ -428,23 +428,23 @@ Variable_name	Value
 myisam_max_sort_file_size	MAX_FILE_SIZE
 set global myisam_max_sort_file_size=default;
 select @@global.max_user_connections,@@local.max_join_size;
-@@global.max_user_connections	@@session.max_join_size
+@@global.max_user_connections	@@local.max_join_size
 100	200
 set @svc=@@global.max_user_connections, @svj=@@local.max_join_size;
 select @@global.max_user_connections,@@local.max_join_size;
-@@global.max_user_connections	@@session.max_join_size
+@@global.max_user_connections	@@local.max_join_size
 100	200
 set @@global.max_user_connections=111,@@local.max_join_size=222;
 select @@global.max_user_connections,@@local.max_join_size;
-@@global.max_user_connections	@@session.max_join_size
+@@global.max_user_connections	@@local.max_join_size
 111	222
 set @@global.max_user_connections=@@local.max_join_size,@@local.max_join_size=@@global.max_user_connections;
 select @@global.max_user_connections,@@local.max_join_size;
-@@global.max_user_connections	@@session.max_join_size
+@@global.max_user_connections	@@local.max_join_size
 222	111
 set @@global.max_user_connections=@svc, @@local.max_join_size=@svj;
 select @@global.max_user_connections,@@local.max_join_size;
-@@global.max_user_connections	@@session.max_join_size
+@@global.max_user_connections	@@local.max_join_size
 100	200
 set @a=1, @b=2;
 set @a=@b, @b=@a;
