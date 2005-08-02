@@ -548,6 +548,10 @@ SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\str_alloc.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\thr_mutex.c
 # End Source File
 # Begin Source File
