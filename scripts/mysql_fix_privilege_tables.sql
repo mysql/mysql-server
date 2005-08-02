@@ -426,7 +426,7 @@ CREATE TABLE IF NOT EXISTS proc (
   security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
   param_list        blob DEFAULT '' NOT NULL,
   returns           char(64) DEFAULT '' NOT NULL,
-  body              blob DEFAULT '' NOT NULL,
+  body              longblob DEFAULT '' NOT NULL,
   definer           char(77) collate utf8_bin DEFAULT '' NOT NULL,
   created           timestamp,
   modified          timestamp,
@@ -477,6 +477,7 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                              'READS_SQL_DATA',
                              'MODIFIES_SQL_DATA'
                             ) DEFAULT 'CONTAINS_SQL' NOT NULL,
+                 MODIFY body longblob DEFAULT '' NOT NULL,
                  MODIFY sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',

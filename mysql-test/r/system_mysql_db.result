@@ -172,7 +172,7 @@ proc	CREATE TABLE `proc` (
   `security_type` enum('INVOKER','DEFINER') NOT NULL default 'DEFINER',
   `param_list` blob NOT NULL,
   `returns` char(64) NOT NULL default '',
-  `body` blob NOT NULL,
+  `body` longblob NOT NULL,
   `definer` char(77) character set utf8 collate utf8_bin NOT NULL default '',
   `created` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `modified` timestamp NOT NULL default '0000-00-00 00:00:00',
