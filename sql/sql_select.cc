@@ -5201,8 +5201,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	param->using_indirect_summary_function=1;
 	continue;
       }
-      if (item->const_item() && (int) hidden_field_count <= 0 &&
-          !param->need_const)
+      if (item->const_item() && (int) hidden_field_count <= 0)
         continue; // We don't have to store this
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
