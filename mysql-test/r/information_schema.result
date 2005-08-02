@@ -689,7 +689,7 @@ show variables where variable_name like "skip_show_databas";
 Variable_name	Value
 show global status like "Threads_running";
 Variable_name	Value
-Threads_running	1
+Threads_running	#
 create table t1(f1 int);
 create table t2(f2 int);
 create view v1 as select * from t1, t2;
