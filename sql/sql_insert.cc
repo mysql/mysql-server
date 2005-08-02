@@ -1088,7 +1088,9 @@ ok_or_after_trg_err:
 
 err:
   info->last_errno= error;
-  thd->lex->current_select->no_error= 0;        // Give error
+  /* current_select is NULL if this is a delayed insert */
+  if (thd->lex->current_select)
+    thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
 
 before_trg_err:
