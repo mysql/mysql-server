@@ -1577,7 +1577,11 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
       the temporary table, not the original field
     */
     Field *field= (*field_item)->get_tmp_table_field();
-    if (field)
+    /* 
+      If field_item is a const item then either get_tp_table_field returns 0
+      or it is an item over a const table. 
+    */
+    if (field && !(*field_item)->const_item())
     {
       int res;
       uint offset= field->offset();
@@ -1610,7 +1614,11 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
       the temporary table, not the original field
     */
     Field *field= item->get_tmp_table_field();
-    if (field)
+    /* 
+      If item is a const item then either get_tp_table_field returns 0
+      or it is an item over a const table. 
+    */
+    if (field && !item->const_item())
     {
       int res;
       uint offset= field->offset();
@@ -1986,7 +1994,6 @@ bool Item_func_group_concat::setup(THD *thd)
   }
   
   count_field_types(tmp_table_param,all_fields,0);
-  tmp_table_param->need_const= 1;
   if (table)
   {
     /*
