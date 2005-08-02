@@ -136,7 +136,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
 				   USER_RESOURCES *mqh)
 {
-  int return_val=0;
+  int return_val= 0;
   uint temp_len, user_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
@@ -144,7 +144,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
 
-  user_len=strlen(user);
+  user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
@@ -156,25 +156,23 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 			 MYF(MY_WME)))))
     {
       send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
     uc->user_len= user_len;
-    uc->host=uc->user + uc->user_len +  1;
-    uc->len = temp_len;
-    uc->connections = 1;
-    uc->questions=uc->updates=uc->conn_per_hour=0;
-    uc->user_resources=*mqh;
-    if (max_user_connections && mqh->connections > max_user_connections)
-      uc->user_resources.connections = max_user_connections;
-    uc->intime=thd->thr_create_time;
+    uc->host= uc->user + uc->user_len +  1;
+    uc->len= temp_len;
+    uc->connections= 0;
+    uc->questions= uc->updates= uc->conn_per_hour=0;
+    uc->user_resources= *mqh;
+    uc->intime= thd->thr_create_time;
     if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
       my_free((char*) uc,0);
       send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
   }
