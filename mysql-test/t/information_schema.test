@@ -411,6 +411,8 @@ show variables where variable_name like "skip_show_databas";
 #
 # Bug #7981:SHOW GLOBAL STATUS crashes server
 #
+# We don't actually care about the value, just that it doesn't crash.
+--replace_column 2 #
 show global status like "Threads_running";
 
 #
