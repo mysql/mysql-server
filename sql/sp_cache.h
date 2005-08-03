@@ -25,8 +25,8 @@
 /*
   Stored procedures/functions cache. This is used as follows:
    * Each thread has its own cache.
-   * Each sp_head object is put into its thread cache after creation and is
-     removed from there on its deletion.
+   * Each sp_head object is put into its thread cache before it is used, and 
+     then remains in the cache until deleted.
 */
 
 class sp_head;
