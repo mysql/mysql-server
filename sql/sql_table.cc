@@ -2629,6 +2629,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     }
   }
 
+  /* 
+     create like should be not allowed for Views, Triggers, ... 
+  */
+  if (mysql_frm_type(src_path) != FRMTYPE_TABLE)
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "a table");
+    goto err;
+  }
+
   /*
     Validate the destination table
 
