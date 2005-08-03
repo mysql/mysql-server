@@ -606,14 +606,13 @@ struct trx_struct{
 					/* memory heap for the global read 
 					view */
 	read_view_t*	global_read_view;
-					/* consistent read view used in the
-					transaction is stored here if
-					transaction is using a consistent
-					read view associated to a cursor */
+					/* consistent read view associated
+					to a transaction or NULL */
 	read_view_t*	read_view;	/* consistent read view used in the
 					transaction or NULL, this read view
-					can be normal read view associated
-					to a transaction or read view
+					if defined can be normal read view 
+					associated to a transaction (i.e. 
+					same as global_read_view) or read view
 					associated to a cursor */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t) 

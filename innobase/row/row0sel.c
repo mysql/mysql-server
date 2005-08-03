@@ -3100,6 +3100,13 @@ row_search_for_mysql(
 "http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
+
+		/* Restore a global read view back to a transaction. This 
+		forces MySQL always to set a cursor view before fetch from
+		a cursor. */
+
+		trx->read_view = trx->global_read_view;
+
 		return(DB_ERROR);
 	}
 
@@ -4091,8 +4098,9 @@ normal_return:
 	}
 
 func_exit:
-	/* Restore a global read view back to transaction. This forces
-	MySQL always to set cursor view before fetch if it is used. */
+	/* Restore a global read view back to a transaction. This 
+	forces MySQL always to set a cursor view before fetch from
+	a cursor. */
 
 	trx->read_view = trx->global_read_view;
 

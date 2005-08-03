@@ -538,7 +538,7 @@ innobase_mysql_prepare_print_arbitrary_thd(void)
 }
 
 /*****************************************************************
-Relases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
 NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
 function! */
 extern "C"
@@ -1700,7 +1700,7 @@ innobase_store_binlog_offset_and_flush_log(
         /* Commits the mini-transaction */
         mtr_commit(&mtr);
 
-	/* Syncronous flush of the log buffer to disk */
+	/* Synchronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
 #endif
@@ -2132,15 +2132,34 @@ innobase_savepoint(
 
 /*********************************************************************
 Frees a possible InnoDB trx object associated with the current THD. */
-
-static int
+static
+int
 innobase_close_connection(
 /*======================*/
 			/* out: 0 or error number */
 	THD*	thd)	/* in: handle to the MySQL thread of the user
 			whose resources should be free'd */
 {
-        trx_free_for_mysql((trx_t*)thd->ha_data[innobase_hton.slot]);
+	trx_t*	trx;
+
+	trx = (trx_t*)thd->ha_data[innobase_hton.slot];
+
+	ut_a(trx);
+
+	if (trx->conc_state != TRX_NOT_STARTED) {
+		ut_print_timestamp(stderr);
+
+		fprintf(stderr,
+"  InnoDB: Warning: MySQL is closing a connection"
+"InnoDB: that has an active InnoDB transaction. We roll back that\n"
+"InnoDB: transaction. %lu row modifications to roll back.\n",
+			(ulong)ut_dulint_get_low(trx->undo_no));
+	}
+
+	innobase_rollback_trx(trx);
+
+        trx_free_for_mysql(trx);
+
 	return(0);
 }
 
@@ -2834,7 +2853,7 @@ ha_innobase::store_key_val_for_row(
 
 			/* All indexes on BLOB and TEXT are column prefix
 			indexes, and we may need to truncate the data to be
-			stored in the kay value: */
+			stored in the key value: */
 
 			if (blob_len > key_part->length) {
 			        blob_len = key_part->length;
@@ -7117,7 +7136,7 @@ int
 innobase_rollback_by_xid(
 /*=====================*/
 			/* out: 0 or error number */
-	XID	*xid)	/* in: X/Open XA transaction idenfification */
+	XID	*xid)	/* in: X/Open XA transaction identification */
 {
 	trx_t*	trx;
 
@@ -7131,9 +7150,10 @@ innobase_rollback_by_xid(
 }
 
 /***********************************************************************
-This function creates a consistent view for a cursor and start a transaction
-if it has not been started. This consistent view is then used inside of MySQL 
-when accesing records using a cursor. */
+Create a consistent view for a cursor based on current transaction
+which is created if the corresponding MySQL thread still lacks one.
+This consistent view is then used inside of MySQL when accessing records 
+using a cursor. */
 
 void*
 innobase_create_cursor_view(void)
@@ -7145,9 +7165,9 @@ innobase_create_cursor_view(void)
 }
 
 /***********************************************************************
-This function closes the given consistent cursor view. Note that
-global read view is restored to a transaction and a transaction is
-started if it has not been started. */
+Close the given consistent cursor view of a transaction and restore
+global read view to a transaction read view. Transaction is created if the 
+corresponding MySQL thread still lacks one. */
 
 void
 innobase_close_cursor_view(
@@ -7159,13 +7179,15 @@ innobase_close_cursor_view(
 }
 
 /***********************************************************************
-This function sets the given consistent cursor view to a transaction.
-If a transaction does not exist, transaction is started. */
+Set the given consistent cursor view to a transaction which is created 
+if the corresponding MySQL thread still lacks one. If the given 
+consistent cursor view is NULL global read view of a transaction is
+restored to a transaction read view. */
 
 void
 innobase_set_cursor_view(
 /*=====================*/
-	void*	curview)/* in: Consistent cursor view to be closed */
+	void*	curview)/* in: Consistent cursor view to be set */
 {
 	read_cursor_set_for_mysql(check_trx_exists(current_thd), 
 						(cursor_view_t*) curview);
