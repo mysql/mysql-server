@@ -1176,40 +1176,39 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first)
 
 
 /*
-  Check if routines in routines_list require sp_cache_routines_and_add_tables
-  call.
+  Check if
+   - current statement (the one in thd->lex) needs table prelocking
+   - first routine in thd->lex->sroutines_list needs to execute its body in
+     prelocked mode.
 
   SYNOPSIS
-    sp_need_cache_routines()
-      thd
-      routines 
-      need_skip_first  OUT TRUE - don't do prelocking for the 1st element in 
-                                  routines list.
-                           FALSE- otherwise
+    sp_get_prelocking_info()
+      thd                  Current thread, thd->lex is the statement to be
+                           checked.
+      need_prelocking      OUT TRUE  - prelocked mode should be activated
+                                       before executing the statement
+                               FALSE - Don't activate prelocking 
+      first_no_prelocking  OUT TRUE  - Tables used by first routine in
+                                       thd->lex->sroutines_list should be
+                                       prelocked.
+                               FALSE - Otherwise.
   NOTES 
     This function assumes that for any "CALL proc(...)" statement routines_list 
     will have 'proc' as first element (it may have several, consider e.g.
     "proc(sp_func(...)))". This property is currently guaranted by the parser.
-
-  RETURN
-    TRUE  Need to sp_cache_routines_and_add_tables call for this statement.
-    FALSE Otherwise.
 */
 
-bool sp_need_cache_routines(THD *thd, SQL_LIST *routines_list, bool *need_skip_first)
+void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
+                            bool *first_no_prelocking)
 {
   Sroutine_hash_entry *routine;
-  routine= (Sroutine_hash_entry*)routines_list->first;
+  routine= (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
 
-  *need_skip_first= FALSE;
-  if (!routine)
-    return FALSE;
+  DBUG_ASSERT(routine);
+  bool first_is_procedure= (routine->key.str[0] == TYPE_ENUM_PROCEDURE);
 
-  if (routine->key.str[0] != TYPE_ENUM_PROCEDURE)
-    return TRUE;
-
-  *need_skip_first= TRUE;
-  return TRUE;
+  *first_no_prelocking= first_is_procedure;
+  *need_prelocking= !first_is_procedure || test(routine->next);
 }
 
 
