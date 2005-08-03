@@ -1,4 +1,4 @@
-drop database if exists testdb;
+drop database if exists mysqltest;
 drop table if exists t1, t2, t3, t4;
 drop procedure if exists sp1;
 drop procedure if exists sp2;
@@ -7,8 +7,8 @@ drop procedure if exists sp4;
 drop function if exists f1;
 drop function if exists f2;
 drop function if exists f3;
-create database testdb;
-use testdb//
+create database mysqltest;
+use mysqltest//
 create procedure sp1 () 
 begin
 drop table if exists t1;
@@ -17,7 +17,7 @@ end;
 //
 select database();
 database()
-testdb
+mysqltest
 call sp1();
 my-col
 1
@@ -25,12 +25,12 @@ Warnings:
 Note	1051	Unknown table 't1'
 select database();
 database()
-testdb
+mysqltest
 use test;
 select database();
 database()
 test
-call testdb.sp1();
+call mysqltest.sp1();
 my-col
 1
 Warnings:
@@ -38,8 +38,8 @@ Note	1051	Unknown table 't1'
 select database();
 database()
 test
-drop procedure testdb.sp1;
-drop database testdb;
+drop procedure mysqltest.sp1;
+drop database mysqltest;
 create procedure sp1() 
 begin 
 create table t1 (a int); 
@@ -95,13 +95,15 @@ create temporary table t1 (a int);
 insert into t1 values(1);
 call sp1();
 select 't1', a from t1;
-select 't2', b from t2;
+select 't2', a from t2;
 drop table t1;
 drop table t2;
 end//
 call sp2();
 t1	a
 t1	1
+t2	a
+t2	1
 drop procedure sp1;
 drop procedure sp2;
 create table t1 (a int);
@@ -138,21 +140,15 @@ end //
 call sp4();
 a
 1
-1
-1
 2
 a
 1
-1
 2
 a
-1
 1
 2
 a
 5
-drop temporary table t1;
-drop temporary table t2;
 drop procedure sp1;
 drop procedure sp2;
 drop procedure sp3;

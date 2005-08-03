@@ -921,7 +921,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     /* 
       Okay, got values for all arguments. Close tables that might be used by 
-      arguments evaluation.
+      arguments evaluation. If arguments evaluation required prelocking mode, 
+      we'll leave it here.
     */
     if (!thd->in_sub_stmt)
       close_thread_tables(thd, 0, 0, 0);
@@ -1492,8 +1493,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
            instruction if it is not really used.
   */
 
-  bool collect_prelocking_tail= FALSE;
-
   if (thd->prelocked_mode == NON_PRELOCKED)
   {
     /*
@@ -1510,14 +1509,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       */
       *lex_query_tables_own_last= prelocking_tables;
       m_lex->mark_as_requiring_prelocking(lex_query_tables_own_last);
-    }
-    else
-    {
-      /* 
-        Let open_tables_calculate list of tables that this statement needs
-        to have prelocked.
-      */
-      collect_prelocking_tail= TRUE;
     }
   }
     
@@ -1539,34 +1530,25 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   thd->proc_info="closing tables";
   close_thread_tables(thd);
 
-  if (thd->prelocked_mode == NON_PRELOCKED)
+  if (m_lex->query_tables_own_last)
   {
-    if (!lex_query_tables_own_last)
-      lex_query_tables_own_last= thd->lex->query_tables_own_last;
-      
-    if (lex_query_tables_own_last)
-    {
-      if (collect_prelocking_tail)
-      {
-        /*
-          This is the first time this statement has entered/left prelocked
-          mode on its own. open_tables() has calculated the set of tables this
-          statement needs to have prelocked and added them to the end of
-          m_lex->query_tables(->next_global)*.
-          Save this "tail" for subsequent calls (and restore original list 
-          below)
-        */
-        lex_query_tables_own_last= m_lex->query_tables_own_last;
-        prelocking_tables= *lex_query_tables_own_last;
-      }
-      /*
-        The table list now has list of tables that need to be prelocked
-        when this statement executes, chop it off, and mark this statement 
-        as not requiring prelocking.
-      */
-      *lex_query_tables_own_last= NULL;
-      m_lex->mark_as_requiring_prelocking(NULL);
-    }
+    /*
+      We've entered and left prelocking mode when executing statement
+      stored in m_lex. 
+      m_lex->query_tables(->next_global)* list now has a 'tail' - a list
+      of tables that are added for prelocking. (If this is the first
+      execution, the 'tail' was added by open_tables(), otherwise we've
+      attached it above in this function).
+      Now we'll save the 'tail', and detach it.
+    */
+    DBUG_ASSERT(!lex_query_tables_own_last ||
+                lex_query_tables_own_last == m_lex->query_tables_own_last &&
+                prelocking_tables == *(m_lex->query_tables_own_last));
+
+    lex_query_tables_own_last= m_lex->query_tables_own_last;
+    prelocking_tables= *lex_query_tables_own_last;
+    *lex_query_tables_own_last= NULL;
+    m_lex->mark_as_requiring_prelocking(NULL);
   }
   thd->rollback_item_tree_changes();
 

@@ -1865,23 +1865,21 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
           document new prelocked behavior.
   */
   
-  if (!thd->prelocked_mode && !thd->lex->requires_prelocking())
+  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() && 
+      thd->lex->sroutines_list.elements)
   {
-    bool first_no_prelocking;
-    if (sp_need_cache_routines(thd, &thd->lex->sroutines_list,
-                               &first_no_prelocking))
+    bool first_no_prelocking, need_prelocking;
+    TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
+
+    DBUG_ASSERT(thd->lex->query_tables == *start);
+    sp_get_prelocking_info(thd, &need_prelocking, &first_no_prelocking);
+
+    if ((sp_cache_routines_and_add_tables(thd, thd->lex,
+                                         first_no_prelocking) ||
+        *start) && need_prelocking)
     {
-      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
-
-      DBUG_ASSERT(thd->lex->query_tables == *start);
-
-      if (sp_cache_routines_and_add_tables(thd, thd->lex,
-                                           first_no_prelocking) ||
-          *start)
-      {
-        query_tables_last_own= save_query_tables_last;
-        *start= thd->lex->query_tables;
-      }
+      query_tables_last_own= save_query_tables_last;
+      *start= thd->lex->query_tables;
     }
   }
 
@@ -1917,8 +1915,9 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
           2) Tables used by all stored routines that this statement invokes on
              execution.
           We need to know where the bound between these two parts is. If we've
-          just opened the last table in part #1, and it added tables after
-          itself, adjust the boundary pointer accordingly.
+          just opened a view, which was the last table in part #1, and it
+          has added its base tables after itself, adjust the boundary pointer
+          accordingly.
         */
         if (query_tables_last_own &&
             query_tables_last_own == &(tables->next_global) &&
