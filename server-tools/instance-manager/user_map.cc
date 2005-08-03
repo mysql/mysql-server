@@ -62,8 +62,8 @@ int User::init(const char *line)
   /* assume that newline characater is present */
   if (password[strlen(password)-2] == '\r')
   {
-    password[strlen(password)-2] = '\n';
-    password[strlen(password)-1] = 0;
+    password[strlen(password)-2]= '\n';
+    password[strlen(password)-1]= 0;
   }
   if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + 1)
     goto err;

@@ -25,8 +25,7 @@ void IMService::Run()
   ReportStatus((DWORD)SERVICE_START_PENDING);
 
   // init goes here
-
-	ReportStatus((DWORD)SERVICE_RUNNING);
+  ReportStatus((DWORD)SERVICE_RUNNING);
 
   // wait for main loop to terminate
 }
@@ -38,7 +37,7 @@ void IMService::Log(const char *msg)
 
 int HandleServiceOptions(Options options) 
 {
-  int ret_val = 0;
+  int ret_val= 0;
 
   IMService winService;
 
@@ -47,23 +46,23 @@ int HandleServiceOptions(Options options)
     if (winService.IsInstalled())
       log_info("Service is already installed\n");
     else if (winService.Install())
-		  log_info("Service installed successfully\n");
+      log_info("Service installed successfully\n");
     else
     {
-	    log_info("Service failed to install\n");
-      ret_val = -1;
+      log_info("Service failed to install\n");
+      ret_val= -1;
     }
   }
   else if (options.remove_service)
   {
     if (! winService.IsInstalled())
       log_info("Service is not installed\n");
-	  else if (winService.Remove())
-		  log_info("Service removed successfully\n");
+    else if (winService.Remove())
+      log_info("Service removed successfully\n");
     else 
     {
-	    log_info("Service failed to remove\n");
-      ret_val = -1;
+      log_info("Service failed to remove\n");
+      ret_val= -1;
     }
   }
   else
