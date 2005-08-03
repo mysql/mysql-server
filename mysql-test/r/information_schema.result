@@ -545,7 +545,7 @@ proc	is_deterministic	enum('YES','NO')
 proc	security_type	enum('INVOKER','DEFINER')
 proc	param_list	blob
 proc	returns	char(64)
-proc	body	blob
+proc	body	longblob
 proc	definer	char(77)
 proc	created	timestamp
 proc	modified	timestamp
