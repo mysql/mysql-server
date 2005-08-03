@@ -27,6 +27,7 @@
 
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -124,7 +125,7 @@ static bool end_active_trans(THD *thd)
 {
   int error=0;
   DBUG_ENTER("end_active_trans");
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
@@ -147,11 +148,7 @@ static bool end_active_trans(THD *thd)
 static bool begin_trans(THD *thd)
 {
   int error=0;
-  /*
-    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
-        stored routines as SQL2003 suggests?
-  */
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     return 1;
@@ -1340,11 +1337,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   int res= 0;
   DBUG_ENTER("end_trans");
 
-  /*
-    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
-        stored routines as SQL2003 suggests?
-  */
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
@@ -4135,9 +4128,8 @@ end_with_restore_list:
        goto error;
 
       /*
-        By this moment all needed SPs should be in cache so no need
-        to look into DB. Moreover we may be unable to do it becuase
-        we may don't have read lock on mysql.proc
+        By this moment all needed SPs should be in cache so no need to look 
+        into DB. 
       */
       if (!(sp= sp_find_procedure(thd, lex->spname, TRUE)))
       {
@@ -4202,7 +4194,7 @@ end_with_restore_list:
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
-	thd->row_count_func= 0;
+        thd->row_count_func= 0;
         tmp_disable_binlog(thd); /* don't binlog the substatements */
 	res= sp->execute_procedure(thd, &lex->value_list);
         reenable_binlog(thd);
