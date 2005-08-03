@@ -883,7 +883,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       octx= new sp_rcontext(csize, hmax, cmax);
       tmp_octx= TRUE;
     }
+
+    /* Evaluate SP arguments (i.e. get the values passed as parameters) */
     // QQ: Should do type checking?
+    DBUG_PRINT("info",(" %.*s: eval args", m_name.length, m_name.str));
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
       sp_pvar_t *pvar= m_pcont->find_pvar(i);
@@ -920,6 +923,15 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
     }
 
+    /* 
+      Okay, got values for all arguments. Close tables that might be used by 
+      arguments evaluation. If arguments evaluation required prelocking mode, 
+      we'll leave it here.
+    */
+    if (!thd->in_sub_stmt)
+      close_thread_tables(thd, 0, 0, 0);
+
+    DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
     // The rest of the frame are local variables which are all IN.
     // Default all variables to null (those with default clauses will
     // be set by an set instruction).
@@ -1464,8 +1476,27 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
            implemented at the same time as ability not to store LEX for
            instruction if it is not really used.
   */
-  reinit_stmt_before_use(thd, m_lex);
 
+  if (thd->prelocked_mode == NON_PRELOCKED)
+  {
+    /*
+      This statement will enter/leave prelocked mode on its own.
+      Entering prelocked mode changes table list and related members
+      of LEX, so we'll need to restore them.
+    */
+    if (lex_query_tables_own_last)
+    {
+      /*
+        We've already entered/left prelocked mode with this statement.
+        Attach the list of tables that need to be prelocked and mark m_lex
+        as having such list attached.
+      */
+      *lex_query_tables_own_last= prelocking_tables;
+      m_lex->mark_as_requiring_prelocking(lex_query_tables_own_last);
+    }
+  }
+    
+  reinit_stmt_before_use(thd, m_lex);
   /*
     If requested check whenever we have access to tables in LEX's table list
     and open and lock them before executing instructtions core function.
@@ -1483,6 +1514,26 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   thd->proc_info="closing tables";
   close_thread_tables(thd);
 
+  if (m_lex->query_tables_own_last)
+  {
+    /*
+      We've entered and left prelocking mode when executing statement
+      stored in m_lex. 
+      m_lex->query_tables(->next_global)* list now has a 'tail' - a list
+      of tables that are added for prelocking. (If this is the first
+      execution, the 'tail' was added by open_tables(), otherwise we've
+      attached it above in this function).
+      Now we'll save the 'tail', and detach it.
+    */
+    DBUG_ASSERT(!lex_query_tables_own_last ||
+                lex_query_tables_own_last == m_lex->query_tables_own_last &&
+                prelocking_tables == *(m_lex->query_tables_own_last));
+
+    lex_query_tables_own_last= m_lex->query_tables_own_last;
+    prelocking_tables= *lex_query_tables_own_last;
+    *lex_query_tables_own_last= NULL;
+    m_lex->mark_as_requiring_prelocking(NULL);
+  }
   thd->rollback_item_tree_changes();
 
   /*
