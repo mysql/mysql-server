@@ -119,7 +119,7 @@ int Instance::start()
 #ifndef __WIN__
 int Instance::launch_and_wait()
 {
-  pid_t pid = fork();
+  pid_t pid= fork();
 
   switch (pid)
   {
@@ -160,21 +160,21 @@ int Instance::launch_and_wait()
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
 
-    ZeroMemory( &si, sizeof(si) );
+    ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
-    ZeroMemory( &pi, sizeof(pi) );
+    ZeroMemory(&pi, sizeof(pi));
 
-    int cmdlen = 0;
-    for (int i=1; options.argv[i] != 0; i++)
-      cmdlen += strlen(options.argv[i]) + 1;
+    int cmdlen= 0;
+    for (int i= 1; options.argv[i] != 0; i++)
+      cmdlen+= strlen(options.argv[i]) + 1;
     cmdlen++;  // we have to add a single space for CreateProcess (read the docs)
 
-    char *cmdline = NULL;
+    char *cmdline= NULL;
     if (cmdlen > 0)
     {
-      cmdline = new char[cmdlen];
-      cmdline[0] = 0;
-      for (int i=1; options.argv[i] != 0; i++)
+      cmdline= new char[cmdlen];
+      cmdline[0]= 0;
+      for (int i= 1; options.argv[i] != 0; i++)
       {
         strcat(cmdline, " ");
         strcat(cmdline, options.argv[i]);
@@ -182,16 +182,16 @@ int Instance::launch_and_wait()
     }
 
     // Start the child process. 
-    BOOL result = CreateProcess(options.mysqld_path,    // file to execute 
-        cmdline,                            // Command line. 
-        NULL,                               // Process handle not inheritable. 
-        NULL,                               // Thread handle not inheritable. 
-        FALSE,                              // Set handle inheritance to FALSE. 
-        0,                                  // No creation flags. 
-        NULL,                               // Use parent's environment block. 
-        NULL,                               // Use parent's starting directory. 
-        &si,                                // Pointer to STARTUPINFO structure.
-        &pi );                              // Pointer to PROCESS_INFORMATION structure.
+    BOOL result= CreateProcess(options.mysqld_path,    // file to execute 
+                 cmdline,    // Command line. 
+                 NULL,       // Process handle not inheritable. 
+                 NULL,       // Thread handle not inheritable. 
+                 FALSE,      // Set handle inheritance to FALSE. 
+                 0,          // No creation flags. 
+                 NULL,       // Use parent's environment block. 
+                 NULL,       // Use parent's starting directory. 
+                 &si,        // Pointer to STARTUPINFO structure.
+                 &pi );      // Pointer to PROCESS_INFORMATION structure.
     delete cmdline;
     if (! result)
       return -1;
@@ -203,8 +203,8 @@ int Instance::launch_and_wait()
     ::GetExitCodeProcess(pi.hProcess, &exitcode);
 
     // Close process and thread handles. 
-    CloseHandle( pi.hProcess );
-    CloseHandle( pi.hThread );
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
 
     return exitcode;
 }
@@ -215,7 +215,7 @@ void Instance::fork_and_monitor()
 {
   log_info("starting instance %s", options.instance_name);
   
-  int result = launch_and_wait();
+  int result= launch_and_wait();
   if (result == -1) return;
 
   /* set instance state to crashed */
@@ -371,48 +371,48 @@ err:
 BOOL SafeTerminateProcess(HANDLE hProcess, UINT uExitCode)
 {
   DWORD dwTID, dwCode, dwErr = 0;
-  HANDLE hProcessDup = INVALID_HANDLE_VALUE;
-  HANDLE hRT = NULL;
-  HINSTANCE hKernel = GetModuleHandle("Kernel32");
-  BOOL bSuccess = FALSE;
+  HANDLE hProcessDup= INVALID_HANDLE_VALUE;
+  HANDLE hRT= NULL;
+  HINSTANCE hKernel= GetModuleHandle("Kernel32");
+  BOOL bSuccess= FALSE;
 
-  BOOL bDup = DuplicateHandle(GetCurrentProcess(),
-    hProcess, GetCurrentProcess(), &hProcessDup, PROCESS_ALL_ACCESS, FALSE, 0);
+  BOOL bDup= DuplicateHandle(GetCurrentProcess(),
+                             hProcess, GetCurrentProcess(), &hProcessDup, 
+                             PROCESS_ALL_ACCESS, FALSE, 0);
 
   // Detect the special case where the process is
   // already dead...
-  if ( GetExitCodeProcess((bDup) ? hProcessDup : hProcess, &dwCode) &&
-    (dwCode == STILL_ACTIVE) )
+  if (GetExitCodeProcess((bDup) ? hProcessDup : hProcess, &dwCode) &&
+    (dwCode == STILL_ACTIVE))
   {
       FARPROC pfnExitProc;
 
-      pfnExitProc = GetProcAddress(hKernel, "ExitProcess");
+      pfnExitProc= GetProcAddress(hKernel, "ExitProcess");
 
-      hRT = CreateRemoteThread((bDup) ? hProcessDup : hProcess, NULL, 0,
-        (LPTHREAD_START_ROUTINE)pfnExitProc, (PVOID)uExitCode, 0, &dwTID);
+      hRT= CreateRemoteThread((bDup) ? hProcessDup : hProcess, NULL, 0,
+                              (LPTHREAD_START_ROUTINE)pfnExitProc, 
+                              (PVOID)uExitCode, 0, &dwTID);
 
-      if ( hRT == NULL )
-          dwErr = GetLastError();
+      if (hRT == NULL)
+          dwErr= GetLastError();
   }
   else
-  {
-      dwErr = ERROR_PROCESS_ABORTED;
-  }
+      dwErr= ERROR_PROCESS_ABORTED;
 
-  if ( hRT )
+  if (hRT)
   {
       // Must wait process to terminate to
       // guarantee that it has exited...
       WaitForSingleObject((bDup) ? hProcessDup : hProcess, INFINITE);
 
       CloseHandle(hRT);
-      bSuccess = TRUE;
+      bSuccess= TRUE;
   }
 
-  if ( bDup )
+  if (bDup)
       CloseHandle(hProcessDup);
 
-  if ( !bSuccess )
+  if (!bSuccess)
       SetLastError(dwErr);
 
   return bSuccess;
@@ -420,7 +420,7 @@ BOOL SafeTerminateProcess(HANDLE hProcess, UINT uExitCode)
 
 int kill(pid_t pid, int signum)
 {
-  HANDLE processhandle = ::OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+  HANDLE processhandle= ::OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
   if (signum == SIGTERM)
     ::SafeTerminateProcess(processhandle, 0);
   else

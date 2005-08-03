@@ -85,14 +85,14 @@ bool have_signal;
 
 void onsignal(int signo)
 {
-  have_signal = true;
+  have_signal= true;
 }
 
 void set_signals(sigset_t *set)
 {
   signal(SIGINT, onsignal);
   signal(SIGTERM, onsignal);
-  have_signal = false;
+  have_signal= false;
 }
 
 int my_sigwait(const sigset_t *set, int *sig)

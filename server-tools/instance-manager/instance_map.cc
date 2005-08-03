@@ -256,8 +256,8 @@ int Instance_map::load()
   else
     argv_options[1]= '\0';
 
-  if (my_search_option_files(Options::config_file, &argc, (char ***) &argv, &args_used,
-                             process_option, (void*) this) ||
+  if (my_search_option_files(Options::config_file, &argc, (char ***) &argv, 
+                             &args_used, process_option, (void*) this) ||
       complete_initialization())
     return 1;
 
