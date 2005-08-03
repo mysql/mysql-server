@@ -22,15 +22,12 @@ use test;
 # t3 and up are created and dropped when needed.
 #
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2,t3,t4;
 --enable_warnings
 create table t1 (
 	id   char(16) not null default '',
         data int not null
 );
---disable_warnings
-drop table if exists t2;
---enable_warnings
 create table t2 (
 	s   char(16),
         i   int,
@@ -150,9 +147,6 @@ drop procedure setcontext|
 
 
 # Set things to null
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( d date, i int, f double, s varchar(32) )|
 
 --disable_warnings
@@ -686,9 +680,6 @@ begin
 end|
 
 delete from t1|
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( s char(16), d int)|
 call into_test4()|
 select * from t3|
@@ -744,14 +735,9 @@ begin
   insert into test.t3 values (concat(x, "2"), y+2);
 end|
 
---disable_warnings
-drop table if exists t3|
---enable_warnings
 call create_select("cs", 90)|
 select * from t1, t3|
---disable_warnings
-drop table if exists t3|
---enable_warnings
+drop table t3|
 delete from t1|
 drop procedure create_select|
 
@@ -925,9 +911,6 @@ drop procedure hndlr3|
 # Variables might be uninitialized when using handlers
 # (Otherwise the compiler can detect if a variable is not set, but
 #  not in this case.)
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( id   char(16), data int )|
 
 --disable_warnings
@@ -980,9 +963,6 @@ call cur1()|
 select * from t1|
 drop procedure cur1|
 
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( s char(16), i int )|
 
 --disable_warnings
@@ -1619,9 +1599,6 @@ insert into t1 values ("foo", 3), ("bar", 2), ("zip", 5), ("zap", 1)|
 select t1max()|
 drop function t1max|
 
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (
   v char(16) not null primary key,
   c int unsigned not null
@@ -1755,9 +1732,6 @@ drop procedure bug1656|
 #
 # BUG#1862
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3(a int)|
 
 --disable_warnings
@@ -2018,9 +1992,6 @@ drop procedure bug2776_2|
 #
 # BUG#2780
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (s1 smallint)|
 
 insert into t3 values (123456789012)|
@@ -2094,9 +2065,6 @@ drop table t3, t4|
 #
 # BUG#2656
 #
---disable_warnings
-drop table if exists t3, t4|
---enable_warnings
 
 create table t3 ( 
   OrderID  int not null,
@@ -2184,8 +2152,6 @@ drop procedure bug3426|
 # BUG#3448
 #
 --disable_warnings
-drop table if exists t3, t4|
-
 create table t3 (
   a int primary key, 
   ach char(1)
@@ -2217,9 +2183,6 @@ drop table t3, t4|
 #
 # BUG#3734
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (
   id int unsigned auto_increment not null primary key,
   title VARCHAR(200),
@@ -2395,9 +2358,6 @@ drop procedure bug3843|
 #
 # BUG#3368
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( s1 char(10) )|
 insert into t3 values ('a'), ('b')|
 
@@ -2417,9 +2377,6 @@ drop table t3|
 #
 # BUG#4579
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (f1 int, f2 int)|
 insert into t3 values (1,1)|
 
@@ -2454,7 +2411,6 @@ drop table t3|
 # BUG#2773: Function's data type ignored in stored procedures
 #
 --disable_warnings
-drop table if exists t3|
 drop procedure if exists bug2773|
 --enable_warnings
 
@@ -2483,10 +2439,6 @@ drop function bug3788|
 #
 # BUG#4726
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
- 
 create table t3 (f1 int, f2 int, f3 int)|
 insert into t3 values (1,1,1)|
 
@@ -2517,29 +2469,24 @@ drop table t3|
 # BUG#4318
 #
 #QQ Don't know if HANDLER commands can work with SPs, or at all...
---disable_parsing
---disable_warnings
-drop table if exists t3|
---enable_warnings
- 
-create table t3 (s1 int)|
-insert into t3 values (3), (4)|
-
---disable_warnings
-drop procedure if exists bug4318|
---enable_warnings
-create procedure bug4318()
-  handler t3 read next|
-
-handler t3 open|
-# Expect no results, as tables are closed, but there shouldn't be any errors
-call bug4318()|
-call bug4318()|
-handler t3 close|
-
-drop procedure bug4318|
-drop table t3|
---enable_parsing
+# 
+#create table t3 (s1 int)|
+#insert into t3 values (3), (4)|
+#
+#--disable_warnings
+#drop procedure if exists bug4318|
+#--enable_warnings
+#create procedure bug4318()
+#  handler t3 read next|
+#
+#handler t3 open|
+## Expect no results, as tables are closed, but there shouldn't be any errors
+#call bug4318()|
+#call bug4318()|
+#handler t3 close|
+#
+#drop procedure bug4318|
+#drop table t3|
 
 #
 # BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
@@ -2604,10 +2551,6 @@ drop procedure bug4902_2|
 #
 # BUG#4904
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
-
 --disable_warnings
 drop procedure if exists bug4904|
 --enable_warnings
@@ -2861,7 +2804,6 @@ drop procedure bug3583|
 # BUG#4905: Stored procedure doesn't clear for "Rows affected"
 #
 --disable_warnings
-drop table if exists t3|
 drop procedure if exists bug4905|
 --enable_warnings
 
@@ -2961,9 +2903,6 @@ drop procedure bug8540|
 #
 # BUG#6642: Stored procedure crash if expression with set function
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (s1 int)|
 
 --disable_warnings
@@ -3051,9 +2990,6 @@ drop table t3|
 # BUG#8116: calling simple stored procedure twice in a row results
 #           in server crash
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (  userid bigint(20) not null default 0 )|
 
 --disable_warnings
@@ -3296,7 +3232,6 @@ delete from t1|
 drop procedure if exists bug6900|
 drop procedure if exists bug9074|
 drop procedure if exists bug6900_9074|
-drop table if exists t3|
 --enable_warnings
 
 create table t3 (w char unique, x char)|
@@ -3825,26 +3760,27 @@ drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
-create procedure bug6063()
-  l‚bel: begin end|
-call bug6063()|
-# QQ Known bug: this will not show the label correctly.
-show create procedure bug6063|
-
-set character set utf8|
-create procedure bug7088_1()
-  label1: begin end label1|
-create procedure bug7088_2()
-  l√§bel1: begin end|
-call bug7088_1()|
-call bug7088_2()|
-set character set default|
-show create procedure bug7088_1|
-show create procedure bug7088_2|
-
-drop procedure bug6063|
-drop procedure bug7088_1|
-drop procedure bug7088_2|
+# psergey: temporarily disabled until Bar fixes BUG#11986
+# create procedure bug6063()
+#   l‚bel: begin end|
+# call bug6063()|
+# # QQ Known bug: this will not show the label correctly.
+# show create procedure bug6063|
+# 
+# set character set utf8|
+# create procedure bug7088_1()
+#   label1: begin end label1|
+# create procedure bug7088_2()
+#   l√§bel1: begin end|
+# call bug7088_1()|
+# call bug7088_2()|
+# set character set default|
+# show create procedure bug7088_1|
+# show create procedure bug7088_2|
+# 
+# drop procedure bug6063|
+# drop procedure bug7088_1|
+# drop procedure bug7088_2|
 
 #
 # BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
