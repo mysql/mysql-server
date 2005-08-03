@@ -30,9 +30,9 @@
 #define QUOTE2(x) #x
 #define QUOTE(x) QUOTE2(x)
 
-const char *default_password_file_name = QUOTE(DEFAULT_PASSWORD_FILE_NAME);
-const char *default_log_file_name = QUOTE(DEFAULT_LOG_FILE_NAME);
-char default_config_file[FN_REFLEN] = "/etc/my.cnf";
+const char *default_password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
+const char *default_log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
+char default_config_file[FN_REFLEN]= "/etc/my.cnf";
 
 #ifndef __WIN__
 char Options::run_as_service;
@@ -52,7 +52,7 @@ uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
 /* just to declare */
 char **Options::saved_argv;
-const char *Options::config_file = NULL;
+const char *Options::config_file= NULL;
 
 /*
   List of options, accepted by the instance manager.
@@ -236,33 +236,34 @@ C_MODE_END
 int Options::load(int argc, char **argv)
 {
   int rc;
-  char** argv_ptr = argv;
+  char **argv_ptr= argv;
 
 #ifdef __WIN__
   setup_windows_defaults(*argv);
 #endif
 
-  config_file=NULL;
+  config_file= NULL;
   if (argc >= 2)
   {
-	  if (is_prefix(argv[1], "--defaults-file="))
-		  config_file=argv[1];
+    if (is_prefix(argv[1], "--defaults-file="))
+      config_file=argv[1];
     if (is_prefix(argv[1],"--defaults-file=") ||
         is_prefix(argv[1],"--defaults-extra-file="))
       Options::first_option= argv[1];
   }
 
-	// we were not given a config file on the command line so we
-  // set have to construct a new argv array
-	if (config_file == NULL)
-	{
+  /* 
+     we were not given a config file on the command line so we
+     default to our compiled in default
+  */
+  if (config_file == NULL)
+  {
 #ifdef __WIN__
-    ::GetModuleFileName(NULL, default_config_file, sizeof(default_config_file));
-    char *filename = strstr(default_config_file, "mysqlmanager.exe");
-    strcpy(filename, "my.ini");
+    ::GetModuleFileName(NULL, default_config_file, sizeof(default_config_file));    char *filename= strrchr(default_config_file, "\\");
+    strcpy(filename, "\\my.ini");
 #endif
-    config_file = default_config_file;
-	}
+    config_file= default_config_file;
+  }
 
   /* config-file options are prepended to command-line ones */
   load_defaults(config_file, default_groups, &argc, &argv);
@@ -281,7 +282,6 @@ void Options::cleanup()
 {
   /* free_defaults returns nothing */
   free_defaults(Options::saved_argv);
-
 #ifdef __WIN__
   free((char*)default_password_file_name);
 #endif
@@ -291,11 +291,11 @@ void Options::cleanup()
 
 char* change_extension(const char *src, const char *newext)
 {
-  char *dot = (char*)strrchr(src, '.');
+  char *dot= (char*)strrchr(src, '.');
   if (!dot) return (char*)src;
   
-  int newlen = dot-src+strlen(newext)+1;
-  char *temp = (char*)malloc(newlen);
+  int newlen= dot-src+strlen(newext)+1;
+  char *temp= (char*)malloc(newlen);
   bzero(temp, newlen);
   strncpy(temp, src, dot-src+1);
   strcat(temp, newext);
@@ -304,8 +304,10 @@ char* change_extension(const char *src, const char *newext)
 
 void Options::setup_windows_defaults(const char *progname)
 {
-  Options::password_file_name = default_password_file_name = change_extension(progname, "passwd");
-  Options::log_file_name = default_log_file_name = change_extension(progname, "log");
+  Options::password_file_name= default_password_file_name = 
+    change_extension(progname, "passwd");
+  Options::log_file_name= default_log_file_name = 
+    change_extension(progname, "log");
 }
 
 #endif

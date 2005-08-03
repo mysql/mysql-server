@@ -59,15 +59,15 @@ private:
   int   create_unix_socket(struct sockaddr_un &unix_socket_address);
 };
 
-const int LISTEN_BACK_LOG_SIZE = 5;         // standard backlog size
+const int LISTEN_BACK_LOG_SIZE= 5;         // standard backlog size
 
 Listener_thread::Listener_thread(const Listener_thread_args &args) :
   Listener_thread_args(args.thread_registry, args.options, args.user_map,
                        args.instance_map)
   ,total_connection_count(0)
   ,thread_info(pthread_self())
+  ,num_sockets(0)
 {
-  num_sockets= 0;
 }
 
 
@@ -116,11 +116,11 @@ void Listener_thread::run()
 #endif
 
   /* II. Listen sockets and spawn childs */
-  for (int i=0; i < num_sockets; i++)
-    n = max(n, sockets[i]);
+  for (int i= 0; i < num_sockets; i++)
+    n= max(n, sockets[i]);
   n++;
 
-  while (thread_registry.is_shutdown() == false)
+  while (!thread_registry.is_shutdown())
   {
     fd_set read_fds_arg= read_fds;
 
@@ -140,7 +140,7 @@ void Listener_thread::run()
       }
 
 
-    for (int socket_index=0; socket_index < num_sockets; socket_index++)
+    for (int socket_index= 0; socket_index < num_sockets; socket_index++)
     {
       /* Assuming that rc > 0 as we asked to wait forever */
       if (FD_ISSET(sockets[socket_index], &read_fds_arg))
@@ -149,8 +149,8 @@ void Listener_thread::run()
         /* accept may return -1 (failure or spurious wakeup) */
         if (client_fd >= 0)                    // connection established
         {
-          Vio *vio = vio_new(client_fd, socket_index==0?VIO_TYPE_SOCKET:VIO_TYPE_TCPIP, 
-            socket_index==0?1:0);
+          Vio *vio = vio_new(client_fd, socket_index==0?VIO_TYPE_SOCKET:
+                             VIO_TYPE_TCPIP, socket_index==0?1:0);
           if (vio != 0)
             handle_new_mysql_connection(vio);
           else
@@ -167,7 +167,7 @@ void Listener_thread::run()
 
   log_info("Listener_thread::run(): shutdown requested, exiting...");
 
-  for (int i=0; i < num_sockets; i++)
+  for (int i= 0; i < num_sockets; i++)
     close(sockets[i]);
 
 #ifndef __WIN__
@@ -179,6 +179,10 @@ void Listener_thread::run()
   return;
 
 err:
+  // we have to close the ip sockets in case of error
+  for (int i= 0; i < num_sockets; i++)
+    close(sockets[i]);
+
   thread_registry.unregister_thread(&thread_info);
   thread_registry.request_shutdown();
   my_thread_end();
@@ -191,7 +195,7 @@ void set_non_blocking(int socket)
   int flags= fcntl(socket, F_GETFL, 0);
   fcntl(socket, F_SETFL, flags | O_NONBLOCK);
 #else
-  u_long arg = 1;
+  u_long arg= 1;
   ioctlsocket(socket, FIONBIO, &arg);
 #endif
 }
@@ -245,7 +249,7 @@ int Listener_thread::create_tcp_socket()
     log_error("Listener_thread::run(): bind(ip socket) failed, '%s'",
               strerror(errno));
     close(ip_socket);
-   return -1;
+    return -1;
   }
 
   if (listen(ip_socket, LISTEN_BACK_LOG_SIZE))
@@ -263,7 +267,7 @@ int Listener_thread::create_tcp_socket()
   set_no_inherit(ip_socket);
 
   FD_SET(ip_socket, &read_fds);
-  sockets[num_sockets++] = ip_socket;
+  sockets[num_sockets++]= ip_socket;
   log_info("accepting connections on ip socket");
   return 0;
 }

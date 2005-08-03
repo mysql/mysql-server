@@ -691,7 +691,7 @@ int Set_option::correct_file(int skip)
   int error;
 
   error= modify_defaults_file(Options::config_file, option,
-			      option_value, instance_name, skip);
+                              option_value, instance_name, skip);
   if (error > 0)
     return ER_OUT_OF_RESOURCES;
   else if (error < 0)
