@@ -1,5 +1,13 @@
+#
+# Tests of prelocking-free execution of stored procedures.
+# Currently two properties of prelocking-free SP execution are checked:
+#  - It is possible to execute DDL statements in prelocking-free stored
+#    procedure
+#  - The same procedure can be called in prelocking-free mode and 
+#    in prelocked mode (from within a function).
+
 --disable_warnings
-drop database if exists testdb;
+drop database if exists mysqltest;
 drop table if exists t1, t2, t3, t4;
 drop procedure if exists sp1;
 drop procedure if exists sp2;
@@ -12,9 +20,9 @@ drop function if exists f3;
 
 # BUG#8072 
 
-create database testdb;
+create database mysqltest;
 delimiter //;
-use testdb//
+use mysqltest//
 create procedure sp1 () 
 begin
   drop table if exists t1;
@@ -29,11 +37,11 @@ select database();
 
 use test;
 select database();
-call testdb.sp1();
+call mysqltest.sp1();
 select database();
 
-drop procedure testdb.sp1;
-drop database testdb;
+drop procedure mysqltest.sp1;
+drop database mysqltest;
 
 # BUG#8766
 
@@ -96,7 +104,7 @@ begin
   insert into t1 values(1);
   call sp1();
   select 't1', a from t1;
-  select 't2', b from t2;
+  select 't2', a from t2;
   drop table t1;
   drop table t2;
 end//
@@ -151,8 +159,6 @@ end //
 delimiter ;//
 call sp4();
 
-drop temporary table t1;
-drop temporary table t2;
 drop procedure sp1;
 drop procedure sp2;
 drop procedure sp3;
