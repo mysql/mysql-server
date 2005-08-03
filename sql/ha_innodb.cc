@@ -2153,7 +2153,7 @@ innobase_close_connection(
 "  InnoDB: Warning: MySQL is closing a connection"
 "InnoDB: that has an active InnoDB transaction. We roll back that\n"
 "InnoDB: transaction. %lu row modifications to roll back.\n",
-			(ulong)ut_dulint_get_low(trx->undo_no));
+			(ulong)trx->undo_no.low);
 	}
 
 	innobase_rollback_trx(trx);
