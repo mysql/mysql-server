@@ -990,7 +990,7 @@ bool make_global_read_lock_block_commit(THD *thd)
     make_global_read_lock_block_commit(), do nothing.
   */
   if (thd->global_read_lock != GOT_GLOBAL_READ_LOCK)
-    DBUG_RETURN(1);
+    DBUG_RETURN(0);
   pthread_mutex_lock(&LOCK_global_read_lock);
   /* increment this BEFORE waiting on cond (otherwise race cond) */
   global_read_lock_blocks_commit++;
