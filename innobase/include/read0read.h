@@ -68,7 +68,6 @@ void
 read_view_print(
 /*============*/
 	read_view_t*	view);	/* in: read view */
-
 /*************************************************************************
 Create a consistent cursor view for mysql to be used in cursors. In this 
 consistent read view modifications done by the creating transaction or future
@@ -78,10 +77,9 @@ cursor_view_t*
 read_cursor_view_create_for_mysql(
 /*==============================*/
 	trx_t*		cr_trx);/* in: trx where cursor view is created */
-
 /*************************************************************************
-Close a given consistent cursor view for and restore global read view
-back to a transaction. */
+Close a given consistent cursor view for mysql and restore global read view
+back to a transaction read view. */
 
 void
 read_cursor_view_close_for_mysql(
@@ -90,7 +88,7 @@ read_cursor_view_close_for_mysql(
 	cursor_view_t*	curview);	/* in: cursor view to be closed */
 /*************************************************************************
 This function sets a given consistent cursor view to a transaction
-read view if given consistent cursor view is not null. Otherwice, function
+read view if given consistent cursor view is not NULL. Otherwise, function
 restores a global read view to a transaction read view. */
 
 void 
