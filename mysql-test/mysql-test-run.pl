@@ -287,6 +287,7 @@ sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
 sub kill_and_cleanup ();
+sub ndbcluster_support ();
 sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
@@ -319,6 +320,12 @@ sub main () {
   initial_setup();
   command_line_setup();
   executable_setup();
+  
+  if (! $opt_skip_ndbcluster and ! $opt_with_ndbcluster)
+  {
+    $opt_with_ndbcluster= ndbcluster_support();
+  }
+
   environment_setup();
   signal_setup();
 
@@ -1026,6 +1033,23 @@ sub kill_and_cleanup () {
 #
 ##############################################################################
 
+sub ndbcluster_support () {
+
+  # check ndbcluster support by testing using a switch
+  # that is only available in that case
+  if ( mtr_run($exe_mysqld,
+	       ["--no-defaults",
+	        "--ndb-use-exact-count",
+	        "--help"],
+	       "", "/dev/null", "/dev/null", "") != 0 )
+  {
+    mtr_report("No ndbcluster support");
+    return 0;
+  }
+  mtr_report("Has ndbcluster support");
+  return 1;
+}
+
 # FIXME why is there a different start below?!
 
 sub ndbcluster_install () {
@@ -1663,19 +1687,26 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $type eq 'master' )
   {
+    my $id= $idx > 0 ? $idx + 101 : 1;
+
     mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
                 $opt_vardir, $sidx);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $master->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
                 $master->[$idx]->{'path_myport'});
-    mtr_add_arg($args, "%s--server-id=1", $prefix);
+    mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
     mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:50M", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
+
+    if ( $idx > 0 )
+    {
+      mtr_add_arg($args, "%s--skip-innodb", $prefix);
+    }
 
     if ( $opt_skip_ndbcluster )
     {
@@ -1686,7 +1717,7 @@ sub mysqld_arguments ($$$$$) {
   if ( $type eq 'slave' )
   {
     my $slave_server_id=  2 + $idx;
-    my $slave_rpl_rank= $idx > 0 ? 2 : $slave_server_id;
+    my $slave_rpl_rank= $slave_server_id;
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
