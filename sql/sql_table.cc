@@ -2634,7 +2634,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   */
   if (mysql_frm_type(src_path) != FRMTYPE_TABLE)
   {
-    my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "a table");
+    my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
     goto err;
   }
 
