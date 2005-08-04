@@ -21,7 +21,7 @@
 #include "options.h"
 
 #include "priv.h"
-
+#include "port.h"
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <m_string.h>
@@ -30,15 +30,25 @@
 #define QUOTE2(x) #x
 #define QUOTE(x) QUOTE2(x)
 
+const char *default_password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
+const char *default_log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
+char default_config_file[FN_REFLEN]= "/etc/my.cnf";
+
+#ifndef __WIN__
 char Options::run_as_service;
-const char *Options::log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
+const char *Options::user= 0;                   /* No default value */
+const char *Options::config_file= NULL;
+#else
+char Options::install_as_service;
+char Options::remove_service;
+const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
+#endif
+const char *Options::log_file_name= default_log_file_name;
 const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
-const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
+const char *Options::password_file_name= default_password_file_name;
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
-const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
 const char *Options::bind_address= 0;           /* No default value */
-const char *Options::user= 0;                   /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
 /* just to declare */
@@ -55,8 +65,13 @@ enum options {
   OPT_SOCKET,
   OPT_PASSWORD_FILE,
   OPT_MYSQLD_PATH,
+#ifndef __WIN__
   OPT_RUN_AS_SERVICE,
   OPT_USER,
+#else
+  OPT_INSTALL_SERVICE,
+  OPT_REMOVE_SERVICE,
+#endif
   OPT_MONITORING_INTERVAL,
   OPT_PORT,
   OPT_BIND_ADDRESS
@@ -107,7 +122,14 @@ static struct my_option my_long_options[] =
                    (gptr *) &Options::monitoring_interval,
                    0, GET_UINT, REQUIRED_ARG, DEFAULT_MONITORING_INTERVAL,
                    0, 0, 0, 0, 0 },
-
+#ifdef __WIN__
+  { "install", OPT_INSTALL_SERVICE, "Install as system service.", 
+    (gptr *) &Options::install_as_service, (gptr*) &Options::install_as_service, 
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "remove", OPT_REMOVE_SERVICE, "Remove system service.", 
+  (gptr *)&Options::remove_service, (gptr*) &Options::remove_service, 
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
+#else
   { "run-as-service", OPT_RUN_AS_SERVICE,
     "Daemonize and start angel process.", (gptr *) &Options::run_as_service,
     0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
@@ -116,7 +138,7 @@ static struct my_option my_long_options[] =
                    (gptr *) &Options::user,
                    (gptr *) &Options::user,
                    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
+#endif
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
@@ -221,7 +243,7 @@ C_MODE_END
 int Options::load(int argc, char **argv)
 {
   saved_argv= argv;
-
+  
   if (argc >= 2)
   {
     if (is_prefix(argv[1], "--defaults-file="))
@@ -238,6 +260,22 @@ int Options::load(int argc, char **argv)
       goto err;
     }
   }
+
+#ifdef __WIN__
+  setup_windows_defaults(*argv);
+  
+  /* 
+     On Windows, there are two possibilities.  Either we are given
+     a defaults file on the command line or we use the my.ini file
+     that is in our app dir
+  */
+  if (Options::config_file == NULL)
+  {
+    ::GetModuleFileName(NULL, default_config_file, sizeof(default_config_file));    char *filename= strrchr(default_config_file, "\\");
+    strcpy(filename, "\\my.ini");
+    Options::config_file= default_config_file;
+  }
+#endif
 
   /* config-file options are prepended to command-line ones */
   load_defaults(config_file, default_groups, &argc,
@@ -257,4 +295,32 @@ void Options::cleanup()
 {
   /* free_defaults returns nothing */
   free_defaults(Options::saved_argv);
+#ifdef __WIN__
+  free((char*)default_password_file_name);
+#endif
 }
+
+#ifdef __WIN__
+
+char* change_extension(const char *src, const char *newext)
+{
+  char *dot= (char*)strrchr(src, '.');
+  if (!dot) return (char*)src;
+  
+  int newlen= dot-src+strlen(newext)+1;
+  char *temp= (char*)malloc(newlen);
+  bzero(temp, newlen);
+  strncpy(temp, src, dot-src+1);
+  strcat(temp, newext);
+  return temp;
+}
+
+void Options::setup_windows_defaults(const char *progname)
+{
+  Options::password_file_name= default_password_file_name = 
+    change_extension(progname, "passwd");
+  Options::log_file_name= default_log_file_name = 
+    change_extension(progname, "log");
+}
+
+#endif

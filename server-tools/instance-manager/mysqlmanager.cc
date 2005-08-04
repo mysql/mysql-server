@@ -23,12 +23,16 @@
 #include <my_sys.h>
 #include <string.h>
 #include <signal.h>
+#ifndef __WIN__
 #include <pwd.h>
 #include <grp.h>
 #include <sys/wait.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#ifdef __WIN__
+#include "windowsservice.h"
+#endif
 
 /*
   Few notes about Instance Manager architecture:
@@ -55,10 +59,14 @@
 */
 
 static void init_environment(char *progname);
+#ifndef __WIN__
 static void daemonize(const char *log_file_name);
 static void angel(const Options &options);
 static struct passwd *check_user(const char *user);
 static int set_user(const char *user, struct passwd *user_info);
+#else
+int HandleServiceOptions(Options options);
+#endif
 
 
 /*
@@ -78,6 +86,7 @@ int main(int argc, char *argv[])
   if (options.load(argc, argv))
     goto err;
 
+#ifndef __WIN__
   if ((user_info= check_user(options.user)))
   {
       if (set_user(options.user, user_info))
@@ -94,6 +103,12 @@ int main(int argc, char *argv[])
     /* forks again, and returns only in child: parent becomes angel */
     angel(options);
   }
+#else
+#ifdef NDEBUG
+  return HandleServiceOptions(options);
+#endif
+#endif
+
   manager(options);
   options.cleanup();
   my_end(0);
@@ -105,11 +120,11 @@ err:
 
 /******************* Auxilary functions implementation **********************/
 
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
 /* Change to run as another user if started with --user */
 
 static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   struct passwd *user_info;
   uid_t user_id= geteuid();
 
@@ -150,7 +165,6 @@ static struct passwd *check_user(const char *user)
 
 err:
   log_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n", user);
-#endif
   return NULL;
 }
 
@@ -172,7 +186,7 @@ static int set_user(const char *user, struct passwd *user_info)
   }
   return 0;
 }
-
+#endif
 
 
 /*
@@ -188,6 +202,7 @@ static void init_environment(char *progname)
 }
 
 
+#ifndef __WIN__
 /*
   Become a UNIX service
   SYNOPSYS
@@ -342,3 +357,4 @@ spawn:
   }
 }
 
+#endif
