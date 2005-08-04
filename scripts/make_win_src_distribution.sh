@@ -202,7 +202,7 @@ copy_dir_files()
     for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.dsp *.dsw \
              README INSTALL* LICENSE AUTHORS NEWS ChangeLog \
              *.inc *.test *.result *.pem Moscow_leap des_key_file \
-             *.dat *.000001 *.require *.opt
+             *.vcproj *.sln *.dat *.000001 *.require *.opt
     do
       if [ -f $i ]
       then
@@ -343,7 +343,9 @@ mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
 # Search the tree for plain text files and adapt the line end marker
 #
 find $BASE \( -name "*.dsp" -o -name "*.dsw" -o -name "*.cnf" -o -name "*.ini" \
-           -o -name COPYING -o -name ChangeLog -o -name EXCEPTIONS-CLIENT -o -name "INSTALL*" -o -name LICENSE -o -name "README*" \) -type f -print \
+           -o -name COPYING -o -name ChangeLog -o -name EXCEPTIONS-CLIENT 
+           -o -name "INSTALL*" -o -name LICENSE -o -name "README*" 
+           -o -name "*.vcproj" -o -name "*.sln" \) -type f -print \
 | while read v
   do
     unix_to_dos $v
