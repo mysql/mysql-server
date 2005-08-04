@@ -189,6 +189,13 @@ void STDCALL mysql_server_end()
   finish_client_errs();
   free_charsets();
   mysql_client_init= org_my_init_done= 0;
+#ifdef EMBEDDED_SERVER
+  if (stderror_file)
+  {
+    fclose(stderror_file);
+    stderror_file= 0;
+  }
+#endif
 }
 
 static MYSQL_PARAMETERS mysql_internal_parameters=
