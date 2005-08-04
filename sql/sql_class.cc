@@ -174,7 +174,7 @@ THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
    Open_tables_state(),
    lock_id(&main_lock_id),
-   user_time(0), global_read_lock(0), is_fatal_error(0),
+   user_time(0), in_sub_stmt(FALSE), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
