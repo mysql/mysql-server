@@ -1181,6 +1181,43 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first)
 
 
 /*
+  Check if
+   - current statement (the one in thd->lex) needs table prelocking
+   - first routine in thd->lex->sroutines_list needs to execute its body in
+     prelocked mode.
+
+  SYNOPSIS
+    sp_get_prelocking_info()
+      thd                  Current thread, thd->lex is the statement to be
+                           checked.
+      need_prelocking      OUT TRUE  - prelocked mode should be activated
+                                       before executing the statement
+                               FALSE - Don't activate prelocking 
+      first_no_prelocking  OUT TRUE  - Tables used by first routine in
+                                       thd->lex->sroutines_list should be
+                                       prelocked.
+                               FALSE - Otherwise.
+  NOTES 
+    This function assumes that for any "CALL proc(...)" statement routines_list 
+    will have 'proc' as first element (it may have several, consider e.g.
+    "proc(sp_func(...)))". This property is currently guaranted by the parser.
+*/
+
+void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
+                            bool *first_no_prelocking)
+{
+  Sroutine_hash_entry *routine;
+  routine= (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+
+  DBUG_ASSERT(routine);
+  bool first_is_procedure= (routine->key.str[0] == TYPE_ENUM_PROCEDURE);
+
+  *first_no_prelocking= first_is_procedure;
+  *need_prelocking= !first_is_procedure || test(routine->next);
+}
+
+
+/*
   Auxilary function that adds new element to the set of stored routines
   used by statement.
 
@@ -1317,11 +1354,13 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
 
   SYNOPSIS
     sp_cache_routines_and_add_tables_aux()
-      thd   - thread context
-      lex   - LEX representing statement
-      start - first routine from the list of routines to be cached
-              (this list defines mentioned sub-set).
-
+      thd              - thread context
+      lex              - LEX representing statement
+      start            - first routine from the list of routines to be cached
+                         (this list defines mentioned sub-set).
+      first_no_prelock - If true, don't add tables or cache routines used by
+                         the body of the first routine (i.e. *start)
+                         will be executed in non-prelocked mode.
   NOTE
     If some function is missing this won't be reported here.
     Instead this fact will be discovered during query execution.
@@ -1333,10 +1372,11 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
 
 static bool
 sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
-                                     Sroutine_hash_entry *start)
+                                     Sroutine_hash_entry *start, 
+                                     bool first_no_prelock)
 {
   bool result= FALSE;
-
+  bool first= TRUE;
   DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
 
   for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
@@ -1372,9 +1412,13 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
     }
     if (sp)
     {
-      sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
-      result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+      if (!(first && first_no_prelock))
+      {
+        sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
+        result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+      }
     }
+    first= FALSE;
   }
   DBUG_RETURN(result);
 }
@@ -1387,20 +1431,22 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
 
   SYNOPSIS
     sp_cache_routines_and_add_tables()
-      thd   - thread context
-      lex   - LEX representing statement
-
+      thd              - thread context
+      lex              - LEX representing statement
+      first_no_prelock - If true, don't add tables or cache routines used by
+                         the body of the first routine (i.e. *start)
+                         
   RETURN VALUE
     TRUE  - some tables were added
     FALSE - no tables were added.
 */
 
 bool
-sp_cache_routines_and_add_tables(THD *thd, LEX *lex)
+sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
 {
-
   return sp_cache_routines_and_add_tables_aux(thd, lex,
-           (Sroutine_hash_entry *)lex->sroutines_list.first);
+           (Sroutine_hash_entry *)lex->sroutines_list.first,
+           first_no_prelock);
 }
 
 
@@ -1422,8 +1468,8 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
   Sroutine_hash_entry **last_cached_routine_ptr=
                           (Sroutine_hash_entry **)lex->sroutines_list.next;
   sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines);
-  (void)sp_cache_routines_and_add_tables_aux(thd, lex,
-                                             *last_cached_routine_ptr);
+  (void)sp_cache_routines_and_add_tables_aux(thd, lex, 
+                                             *last_cached_routine_ptr, FALSE);
 }
 
 
@@ -1461,7 +1507,8 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
       }
     }
     (void)sp_cache_routines_and_add_tables_aux(thd, lex,
-                                               *last_cached_routine_ptr);
+                                               *last_cached_routine_ptr, 
+                                               FALSE);
   }
 }
 
