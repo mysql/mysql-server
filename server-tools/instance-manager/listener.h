@@ -31,7 +31,7 @@ pthread_handler_decl(listener, arg);
 C_MODE_END
 
 class Thread_registry;
-class Options;
+struct Options;
 class User_map;
 class Instance_map;
 
