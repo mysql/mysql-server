@@ -2008,6 +2008,7 @@ void st_lex::cleanup_after_one_table_open()
   time_zone_tables_used= 0;
   if (sroutines.records)
     my_hash_reset(&sroutines);
+  sroutines_list.empty();
 }
 
 
