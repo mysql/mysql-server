@@ -102,4 +102,14 @@ insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
 select * from t1;
 drop table t1;
 
+#
+# Bug #7308: ISO-8601 date format not handled correctly
+#
+create table t1 (dt datetime);
+insert into t1 values ("20010101T010101");
+insert into t1 values ("2001-01-01T01:01:01");
+insert into t1 values ("2001-1-1T1:01:01");
+select * from t1;
+drop table t1;
+
 # End of 4.1 tests
