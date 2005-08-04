@@ -447,6 +447,7 @@ Le_creator le_creator;
 
 FILE *bootstrap_file;
 int bootstrap_error;
+FILE *stderror_file=0;
 
 I_List<i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
@@ -2878,7 +2879,7 @@ server.");
 #ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
 #endif
-	freopen(log_error_file, "a+", stderr);
+	stderror_file= freopen(log_error_file, "a+", stderr);
     }
   }
 
