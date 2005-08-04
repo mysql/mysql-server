@@ -300,7 +300,7 @@ BuildMySQL "--enable-shared \
 		--with-innodb \
 		--with-ndbcluster \
 		--with-raid \
-		--with-archive \
+		--with-archive-storage-engine \
 		--with-csv-storage-engine \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
@@ -668,6 +668,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Fixed enabling the Archive storage engine in the Max binary
+
 * Tue Aug 02 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Fixed the Requires: tag for the server RPM (BUG 12233)
