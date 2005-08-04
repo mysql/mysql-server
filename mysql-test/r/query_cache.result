@@ -941,24 +941,24 @@ KEY `date` (`date`)
 ) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ('20050326');
 INSERT INTO t1 VALUES ('20050325');
-SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 0:0:0';
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 invalid';
 COUNT(*)
 0
 Warnings:
-Warning	1292	Incorrect datetime value: '20050327 0:0:0' for column 'date' at row 1
-Warning	1292	Incorrect datetime value: '20050327 0:0:0' for column 'date' at row 1
-SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050328 0:0:0';
+Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
+Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050328 invalid';
 COUNT(*)
 0
 Warnings:
-Warning	1292	Incorrect datetime value: '20050328 0:0:0' for column 'date' at row 1
-Warning	1292	Incorrect datetime value: '20050328 0:0:0' for column 'date' at row 1
-SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 0:0:0';
+Warning	1292	Incorrect datetime value: '20050328 invalid' for column 'date' at row 1
+Warning	1292	Incorrect datetime value: '20050328 invalid' for column 'date' at row 1
+SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 invalid';
 COUNT(*)
 0
 Warnings:
-Warning	1292	Incorrect datetime value: '20050327 0:0:0' for column 'date' at row 1
-Warning	1292	Incorrect datetime value: '20050327 0:0:0' for column 'date' at row 1
+Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
+Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
