@@ -78,3 +78,5 @@ from t1;
 select time_stamp>@now from t1;
 
 drop table t1;
+
+# End of 4.1 tests

@@ -124,3 +124,5 @@ connection default;
 REVOKE ALL ON mysqltest_1.t1 FROM mysqltest_1@'127.0.0.0/255.0.0.0';
 drop table mysqltest_1.t1;
 drop database mysqltest_1;
+
+# End of 4.1 tests

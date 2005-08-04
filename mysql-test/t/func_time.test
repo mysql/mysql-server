@@ -314,3 +314,5 @@ DROP TABLE t1;
 select last_day('2005-00-00');
 select last_day('2005-00-01');
 select last_day('2005-01-00');
+
+# End of 4.1 tests

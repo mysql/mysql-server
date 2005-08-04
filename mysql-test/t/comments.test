@@ -17,3 +17,5 @@ select 1 --2
 select 1 # The rest of the row will be ignored
 ;
 /* line with only comment */;
+
+# End of 4.1 tests

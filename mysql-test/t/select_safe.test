@@ -87,3 +87,5 @@ select * from (select 1 union select 2 union select 3) x;
 drop table t1;
 
 SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, SQL_MAX_JOIN_SIZE=DEFAULT;
+
+# End of 4.1 tests

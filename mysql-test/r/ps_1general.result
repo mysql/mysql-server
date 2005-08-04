@@ -332,7 +332,7 @@ execute stmt1 ;
 ERROR 42S02: Unknown table 't5'
 prepare stmt1 from ' SELECT @@version ' ;
 execute stmt1 ;
-@@VERSION
+@@version
 <version>
 prepare stmt_do from ' do @var:=  (1 in (select a from t1)) ' ;
 prepare stmt_set from ' set @var= (1 in (select a from t1)) ' ;

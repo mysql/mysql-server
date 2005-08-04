@@ -35,3 +35,5 @@ select 0xfg;
 create table t1 select 1 as x, 2 as xx;
 select x,xx from t1;
 drop table t1;
+
+# End of 4.1 tests
