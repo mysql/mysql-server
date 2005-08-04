@@ -1856,6 +1856,15 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 #
+# Bug #11335 View redefines column types
+#
+create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
+create view v1 as select * from t1;
+desc v1;
+drop view v1;
+drop table t1;
+
+#
 # Bug #11760 Typo in Item_func_add_time::print() results in NULLs returned
 #             subtime() in view
 create table t1(f1 datetime);
