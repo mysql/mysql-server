@@ -605,3 +605,5 @@ insert into t1 (datavalue) select datavalue from t1 where counter < 100;
 select * from t1 order by counter;
 
 drop table t1;
+
+# End of 4.1 tests

@@ -107,3 +107,5 @@ show slave status;
 
 --error 1220
 show binlog events in 'slave-bin.000005' from 4;
+
+# End of 4.1 tests

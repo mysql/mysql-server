@@ -17,3 +17,5 @@ explain select * from t1 where str <> default(str);
 #insert into t2 select select default(str), default(strnull), default(intg), default(rel) from t1;
 
 drop table t1;
+
+# End of 4.1 tests

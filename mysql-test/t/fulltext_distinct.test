@@ -42,3 +42,5 @@ WHERE MATCH (t1.value) AGAINST ('baz333' IN BOOLEAN MODE)
 AND t1.id = t2.id_t1;
 
 DROP TABLE t1, t2;
+
+# End of 4.1 tests

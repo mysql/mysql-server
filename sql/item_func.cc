@@ -765,10 +765,7 @@ void Item_func_abs::fix_length_and_dec()
   max_length=args[0]->max_length;
   hybrid_type= REAL_RESULT;
   if (args[0]->result_type() == INT_RESULT)
-  {
     hybrid_type= INT_RESULT;
-    unsigned_flag= 1;
-  }
 }
 
 
@@ -3255,7 +3252,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 
   if (component.str == 0 &&
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
-    return new Item_string("@@VERSION", server_version,
+    return new Item_string(NULL, server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info, DERIVATION_SYSCONST);
 
@@ -3282,28 +3279,10 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   }
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 
-  buff[0]='@';
-  buff[1]='@';
-  pos=buff+2;
-  if (var_type == OPT_SESSION)
-    pos=strmov(pos,"session.");
-  else if (var_type == OPT_GLOBAL)
-    pos=strmov(pos,"global.");
-  
   set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
-  set_if_smaller(base_name->length, MAX_SYS_VAR_LENGTH);
-
-  if (component_name->str)
-  {
-    memcpy(pos, component_name->str, component_name->length);
-    pos+= component_name->length;
-    *pos++= '.';
-  }
-  memcpy(pos, base_name->str, base_name->length);
-  pos+= base_name->length;
 
   return new Item_func_get_system_var(var, var_type, component_name,
-                                      buff, pos - buff);
+                                      NULL, 0);
 }
 
 

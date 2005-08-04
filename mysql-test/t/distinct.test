@@ -332,3 +332,5 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES ('1',1,0);
 SELECT DISTINCT html,SUM(out)/(SUM(rin)+1) as 'prod' FROM t1 GROUP BY rin;
 drop table t1;
+
+# End of 4.1 tests

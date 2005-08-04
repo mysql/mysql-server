@@ -42,3 +42,5 @@ SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi' IN BOOLEAN MODE)
 as x FROM t2, t1 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
 
 drop table t1, t2;
+
+# End of 4.1 tests

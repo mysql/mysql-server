@@ -36,3 +36,4 @@ sync_with_master;
 --replace_column 1 # 33 #
 show slave status;
 
+# End of 4.1 tests
