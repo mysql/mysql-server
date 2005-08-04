@@ -1,0 +1,39 @@
+# test case for BUG#4680 -- if there are extra files in the db directory
+# dropping the db on the master causes replication problems
+
+-- source include/master-slave.inc
+connection master;
+
+--disable_warnings
+drop database if exists d1;
+--enable_warnings
+create database d1;
+create table d1.t1 (n int);
+insert into d1.t1 values (1);
+select * from d1.t1 into outfile 'd1/f1.txt';
+create table d1.t2 (n int);
+create table d1.t3 (n int);
+--error 1010
+drop database d1;
+use d1;
+show tables;
+use test;
+create table t1 (n int);
+insert into t1 values (1234);
+sync_slave_with_master;
+
+connection slave;
+use d1;
+show tables;
+use test;
+select * from t1;
+
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+#cleanup
+connection slave;
+stop slave;
+system rm -rf var/master-data/d1;
+

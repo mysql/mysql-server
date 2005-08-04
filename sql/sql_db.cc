@@ -31,7 +31,7 @@ static TYPELIB deletable_extentions=
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
-				 uint level);
+				 uint level, List<String> *dropped_tables);
 
 /* Database options hash */
 static HASH dboptions;
@@ -584,6 +584,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   int error= 0;
   char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
   MY_DIR *dirp;
+  List<String> dropped_tables;
   uint length;
   DBUG_ENTER("mysql_rm_db");
 
@@ -621,8 +622,10 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
+    
     error= -1;
-    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0)) >= 0)
+    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
+          &dropped_tables)) >= 0)
     {
       ha_drop_database(path);
       query_cache_invalidate1(db);
@@ -672,6 +675,37 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     send_ok(thd, (ulong) deleted);
     thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
+  else if (!dropped_tables.is_empty() && mysql_bin_log.is_open())
+  {
+     List_iterator<String> it(dropped_tables);
+     String* dropped_table;
+     int q_len= 11; /* drop table */ 
+     int db_len= strlen(db);
+     
+     for (;(dropped_table= it++);)
+     {
+       q_len += dropped_table->length() + 2 + db_len;
+     }
+     q_len--; /* no last comma */
+     
+     char* query= thd->alloc(q_len);
+     if (!query)
+       goto exit; /* not much else we can do */
+     char* p= strmov(query,"drop table ");  
+     it.rewind();
+     
+     for (;(dropped_table= it++);)
+     {
+       p= strmov(p,db);
+       *p++ = '.';
+       p= strnmov(p,dropped_table->ptr(),dropped_table->length());
+       *p++ = ',';
+     }
+     *--p= 0;
+     Query_log_event qinfo(thd, query, q_len, 0, 0);
+     qinfo.error_code= 0;
+     mysql_bin_log.write(&qinfo);
+  }
 
 exit:
   start_waiting_global_read_lock(thd);
@@ -716,7 +750,7 @@ exit2:
 */
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
-				 const char *org_path, uint level)
+				 const char *org_path, uint level, List<String> *dropped_tables)
 {
   long deleted=0;
   ulong found_other_files=0;
@@ -758,7 +792,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
-	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
+	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1,0)) < 0)
 	  goto err;
 	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
 	    !(dir= new (thd->mem_root) String(copy_of_path, length,
@@ -805,7 +839,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     }
   }
   if (thd->killed ||
-      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
+      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 
+           1,dropped_tables)))
     goto err;
 
   /* Remove RAID directories */
