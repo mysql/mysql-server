@@ -260,3 +260,14 @@ CREATE TABLE t1 ( a TEXT, FULLTEXT (a) );
 INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
 SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
 DROP TABLE t1;
+
+#
+# BUG#11684 - repair crashes mysql when table has fulltext index
+#
+
+CREATE TABLE t1 (a VARCHAR(30), FULLTEXT(a));
+INSERT INTO t1 VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+DROP TABLE t1;
