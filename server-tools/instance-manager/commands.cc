@@ -470,7 +470,7 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
       size_t buff_size;
       int read_len;
       /* calculate buffer size */
-      struct stat file_stat;
+      MY_STAT file_stat;
 
       /* my_fstat doesn't use the flag parameter */
       if (my_fstat(fd, &file_stat, MYF(0)))
@@ -482,7 +482,7 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
       read_len= my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
 
       char *bf= (char*) malloc(sizeof(char)*buff_size);
-      if ((read_len= my_read(fd, bf, buff_size, MYF(0))) < 0)
+      if ((read_len= my_read(fd, (byte*)bf, buff_size, MYF(0))) < 0)
         return ER_READ_FILE;
       store_to_protocol_packet(&send_buff, (char*) bf, &position, read_len);
       close(fd);
@@ -605,7 +605,7 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
           store_to_protocol_packet(&send_buff, "", &position);
           store_to_protocol_packet(&send_buff, (char*) "0", &position);
         }
-        else if (S_ISREG(file_stat.st_mode))
+        else if (MY_S_ISREG(file_stat.st_mode))
         {
           store_to_protocol_packet(&send_buff,
                                    (char*) log_files->value,
@@ -693,7 +693,6 @@ int Set_option::correct_file(int skip)
 
   error= modify_defaults_file(Options::config_file, option,
                               option_value, instance_name, skip);
-
   switch (error)
   {
   case 0:
