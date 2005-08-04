@@ -71,10 +71,10 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 		      const char* p_thread_name,
                       NDB_THREAD_PRIO thread_prio)
 {
-  DBUG_ENTER("NdbThread_Create");
   struct NdbThread* tmpThread;
   int result;
   pthread_attr_t thread_attr;
+  DBUG_ENTER("NdbThread_Create");
 
   (void)thread_prio; /* remove warning for unused parameter */
 
