@@ -2007,17 +2007,6 @@ A
 B
 DROP VIEW v1;
 DROP TABLE t1;
-create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
-create view v1 as select * from t1;
-desc v1;
-Field	Type	Null	Key	Default	Extra
-f1	tinyint(1)	YES		NULL	
-f2	char(1)	YES		NULL	
-f3	varchar(1)	YES		NULL	
-f4	geometry	YES		NULL	
-f5	datetime	YES		NULL	
-drop view v1;
-drop table t1;
 CREATE TABLE t1 ( bug_table_seq   INTEGER NOT NULL);
 CREATE OR REPLACE VIEW v1 AS SELECT * from t1;
 DROP PROCEDURE IF EXISTS p1;
@@ -2032,6 +2021,17 @@ CALL p1();
 DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;
+create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
+create view v1 as select * from t1;
+desc v1;
+Field	Type	Null	Key	Default	Extra
+f1	tinyint(1)	YES		NULL	
+f2	char(1)	YES		NULL	
+f3	varchar(1)	YES		NULL	
+f4	geometry	YES		NULL	
+f5	datetime	YES		NULL	
+drop view v1;
+drop table t1;
 create table t1(f1 datetime);
 insert into t1 values('2005.01.01 12:0:0');
 create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
