@@ -135,3 +135,4 @@ order by
 
 drop table t1,t2,t3;
 
+# End of 4.1 tests

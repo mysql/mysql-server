@@ -384,4 +384,4 @@ INSERT t1 (i, c) VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
 select max(i) from t1 where c = '';
 drop table t1;
 
-
+# End of 4.1 tests

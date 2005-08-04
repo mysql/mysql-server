@@ -73,3 +73,5 @@ delete from t2 using t1,t2 where t1.a=t2.a;
 --error 1099
 delete t2 from t1,t2 where t1.a=t2.a;
 drop table t1,t2;
+
+# End of 4.1 tests

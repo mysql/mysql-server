@@ -155,3 +155,5 @@ select * from t1 limit 0;
 select * from t1 limit 1, 0;
 select * from t1 limit 0, 0;
 drop table t1;
+
+# End of 4.1 tests

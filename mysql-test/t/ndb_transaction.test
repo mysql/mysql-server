@@ -295,4 +295,4 @@ select count(*) from t2;
 drop table test.t1, t2;
 drop database mysqltest;
 
-
+# End of 4.1 tests

@@ -503,3 +503,5 @@ create table t10 (
 insert into t10 values (1, 'kalle');
 
 --exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test `$NDB_TOOLS_DIR/ndb_show_tables --no-defaults | grep BLOB` >> $NDB_TOOLS_OUTPUT 2>&1 || true
+
+# End of 4.1 tests

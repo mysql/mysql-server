@@ -129,3 +129,5 @@ create temporary table t3 (f int);
 sync_with_master;
 
 # The server will now close done
+
+# End of 4.1 tests

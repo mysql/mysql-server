@@ -35,3 +35,4 @@ select hex("hello");
 select hex(des_decrypt(des_encrypt("hello",4),'password2'));
 select hex(des_decrypt(des_encrypt("hello","hidden")));
 
+# End of 4.1 tests

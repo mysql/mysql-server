@@ -2163,3 +2163,5 @@ select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
 select found_rows();
 
 DROP TABLE t1;
+
+# End of 4.1 tests

@@ -245,3 +245,5 @@ update t1 set b=repeat('a',256);
 update t1 set i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0;
 check table t1;
 drop table t1;
+
+# End of 4.1 tests

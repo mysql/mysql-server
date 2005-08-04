@@ -775,3 +775,5 @@ show status like "Qcache_hits";
 drop table t1;
 
 set GLOBAL query_cache_size=0;
+
+# End of 4.1 tests
