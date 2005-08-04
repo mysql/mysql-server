@@ -207,7 +207,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   {
     /* Found date in internal format (only numbers like YYYYMMDD) */
     year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
-    field_length=year_length-1;
+    field_length= year_length;
     is_internal_format= 1;
     format_position= internal_format_positions;
   }
@@ -237,6 +237,8 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         start_loop= 5;                         /* Start with first date part */
       }
     }
+
+    field_length= format_position[0] == 0 ? 4 : 2;
   }
 
   /*
@@ -261,7 +263,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     const char *start= str;
     ulong tmp_value= (uint) (uchar) (*str++ - '0');
     while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
-           (!is_internal_format || field_length--))
+           --field_length)
     {
       tmp_value=tmp_value*10 + (ulong) (uchar) (*str - '0');
       str++;
@@ -275,8 +277,8 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     date[i]=tmp_value;
     not_zero_date|= tmp_value;
 
-    /* Length-1 of next field */
-    field_length= format_position[i+1] == 0 ? 3 : 1;
+    /* Length of next field */
+    field_length= format_position[i+1] == 0 ? 4 : 2;
 
     if ((last_field_pos= str) == end)
     {
@@ -294,7 +296,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
       if (*str == '.')                          /* Followed by part seconds */
       {
         str++;
-        field_length= 5;                        /* 5 digits after first (=6) */
+        field_length= 6;                        /* 6 digits */
       }
       continue;
 
