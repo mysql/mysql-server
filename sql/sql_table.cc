@@ -156,7 +156,8 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
 int mysql_rm_table_part2_with_lock(THD *thd,
 				   TABLE_LIST *tables, bool if_exists,
-				   bool drop_temporary, bool dont_log_query)
+				   bool drop_temporary, bool dont_log_query,
+           List<String>* dropped_tables)
 {
   int error;
   thd->mysys_var->current_mutex= &LOCK_open;
@@ -165,6 +166,23 @@ int mysql_rm_table_part2_with_lock(THD *thd,
 
   error=mysql_rm_table_part2(thd,tables, if_exists, drop_temporary,
 			     dont_log_query);
+  /*
+    For now we assume that if we got success all the tables in the list 
+    were actually dropped, otherwise, assume none were dropped.
+    TODO: fix it to work with a partial drop - extremely rare case, but
+    can happen.
+  */         
+  if (!error && dropped_tables)
+  {         
+    TABLE_LIST* tbl;
+    
+    for (tbl= tables; tbl; tbl= tbl->next)
+    {
+      String *dropped_table= new (thd->mem_root) 
+         String(tbl->real_name,&my_charset_latin1);
+      dropped_tables->push_back(dropped_table); 
+    } 
+  }        
 
   pthread_mutex_unlock(&LOCK_open);
 

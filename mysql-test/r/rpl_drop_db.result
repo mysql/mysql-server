@@ -1,0 +1,30 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists d1;
+create database d1;
+create table d1.t1 (n int);
+insert into d1.t1 values (1);
+select * from d1.t1 into outfile 'd1/f1.txt';
+create table d1.t2 (n int);
+create table d1.t3 (n int);
+drop database d1;
+ERROR HY000: Error dropping database (can't rmdir './d1/', errno: 17)
+use d1;
+show tables;
+Tables_in_d1
+use test;
+create table t1 (n int);
+insert into t1 values (1234);
+use d1;
+show tables;
+Tables_in_d1
+use test;
+select * from t1;
+n
+1234
+drop table t1;
+stop slave;
