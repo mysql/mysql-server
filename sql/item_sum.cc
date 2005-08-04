@@ -321,6 +321,22 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
       field->flags&= ~NOT_NULL_FLAG;
     return field;
   }
+  /*
+    DATE/TIME fields have STRING_RESULT result types.
+    In order to preserve field type, it's needed to handle DATE/TIME
+    fields creations separately.
+  */
+  switch (args[0]->field_type()) {
+  case MYSQL_TYPE_DATE:
+    return new Field_date(maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_TIME:
+    return new Field_time(maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    return new Field_datetime(maybe_null, name, table, collation.collation);
+  default:
+    break;
+  }
   return Item_sum::create_tmp_field(group, table, convert_blob_length);
 }
 

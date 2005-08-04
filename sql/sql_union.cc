@@ -235,7 +235,13 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     if ((res= (res || thd_arg->is_fatal_error)))
       goto err;
-    if (sl == first_select)
+    /*
+      Use items list of underlaid select for derived tables to preserve
+      information about fields lengths and exact types
+    */
+    if (!is_union)
+      types= first_select_in_union()->item_list;
+    else if (sl == first_select)
     {
       /*
         We need to create an empty table object. It is used
