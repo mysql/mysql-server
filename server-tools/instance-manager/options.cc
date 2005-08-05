@@ -111,22 +111,23 @@ static struct my_option my_long_options[] =
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "default-mysqld-path", OPT_MYSQLD_PATH, "Where to look for MySQL"
-                                            " Server binary.",
-    (gptr *) &Options::default_mysqld_path, (gptr *) &Options::default_mysqld_path,
+    " Server binary.",
+    (gptr *) &Options::default_mysqld_path,
+    (gptr *) &Options::default_mysqld_path,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor instances"
-                                            " in seconds.",
-                   (gptr *) &Options::monitoring_interval,
-                   (gptr *) &Options::monitoring_interval,
-                   0, GET_UINT, REQUIRED_ARG, DEFAULT_MONITORING_INTERVAL,
-                   0, 0, 0, 0, 0 },
+  { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor"
+    " instances in seconds.",
+    (gptr *) &Options::monitoring_interval,
+    (gptr *) &Options::monitoring_interval,
+    0, GET_UINT, REQUIRED_ARG, DEFAULT_MONITORING_INTERVAL,
+    0, 0, 0, 0, 0 },
 #ifdef __WIN__
-  { "install", OPT_INSTALL_SERVICE, "Install as system service.", 
-    (gptr *) &Options::install_as_service, (gptr*) &Options::install_as_service, 
+  { "install", OPT_INSTALL_SERVICE, "Install as system service.",
+    (gptr *) &Options::install_as_service, (gptr*) &Options::install_as_service,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
-  { "remove", OPT_REMOVE_SERVICE, "Remove system service.", 
-  (gptr *)&Options::remove_service, (gptr*) &Options::remove_service, 
+  { "remove", OPT_REMOVE_SERVICE, "Remove system service.",
+    (gptr *)&Options::remove_service, (gptr*) &Options::remove_service,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
 #else
   { "run-as-service", OPT_RUN_AS_SERVICE,
@@ -134,12 +135,12 @@ static struct my_option my_long_options[] =
     0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
 
   { "user", OPT_USER, "Username to start mysqlmanager",
-                   (gptr *) &Options::user,
-                   (gptr *) &Options::user,
-                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    (gptr *) &Options::user,
+    (gptr *) &Options::user,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
@@ -242,7 +243,7 @@ C_MODE_END
 int Options::load(int argc, char **argv)
 {
   saved_argv= argv;
-  
+
   if (argc >= 2)
   {
     if (is_prefix(argv[1], "--defaults-file="))
@@ -254,19 +255,19 @@ int Options::load(int argc, char **argv)
     {
       /* the log is not enabled yet */
       fprintf(stderr, "The --defaults-extra-file and --no-defaults options"
-                      " are not supported by\n"
-                      "Instance Manager. Program aborted.\n");
+              " are not supported by\n"
+              "Instance Manager. Program aborted.\n");
       goto err;
     }
   }
 
 #ifdef __WIN__
   setup_windows_defaults(*argv);
-  
-  /* 
-     On Windows, there are two possibilities.  Either we are given
-     a defaults file on the command line or we use the my.ini file
-     that is in our app dir
+
+  /*
+    On Windows, there are two possibilities.  Either we are given
+    a defaults file on the command line or we use the my.ini file
+    that is in our app dir
   */
   if (Options::config_file == NULL)
   {
@@ -274,7 +275,7 @@ int Options::load(int argc, char **argv)
     static const char default_win_config_file_name[]= "\\my.ini";
 
     if (!GetModuleFileName(NULL, windows_config_file,
-                                 sizeof(windows_config_file)))
+                           sizeof(windows_config_file)))
       goto err;
 
     filename= strrchr(windows_config_file, "\\");
@@ -316,7 +317,7 @@ char* change_extension(const char *src, const char *newext)
 {
   char *dot= (char*)strrchr(src, '.');
   if (!dot) return (char*)src;
-  
+
   int newlen= dot-src+strlen(newext)+1;
   char *temp= (char*)malloc(newlen);
   bzero(temp, newlen);
@@ -327,9 +328,9 @@ char* change_extension(const char *src, const char *newext)
 
 void Options::setup_windows_defaults(const char *progname)
 {
-  Options::password_file_name= default_password_file_name = 
+  Options::password_file_name= default_password_file_name=
     change_extension(progname, "passwd");
-  Options::log_file_name= default_log_file_name = 
+  Options::log_file_name= default_log_file_name=
     change_extension(progname, "log");
 }
 
