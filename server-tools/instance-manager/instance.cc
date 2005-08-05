@@ -57,12 +57,12 @@ C_MODE_END
 
 void Instance::remove_pid()
 {
-    int pid;
-    if ((pid= options.get_pid()) != 0)          /* check the pidfile */
-      if (options.unlink_pidfile())             /* remove stalled pidfile */
-        log_error("cannot remove pidfile for instance %i, this might be \
-                  since IM lacks permmissions or hasn't found the pidifle",
-                  options.instance_name);
+  int pid;
+  if ((pid= options.get_pid()) != 0)          /* check the pidfile */
+    if (options.unlink_pidfile())             /* remove stalled pidfile */
+      log_error("cannot remove pidfile for instance %i, this might be \
+                since IM lacks permmissions or hasn't found the pidifle",
+                options.instance_name);
 }
 
 /*
@@ -121,16 +121,15 @@ int Instance::launch_and_wait()
 {
   pid_t pid= fork();
 
-  switch (pid)
-  {
-    case 0:
-      execv(options.mysqld_path, options.argv);
-      /* exec never returns */
-      exit(1);
-    case -1:
-      log_info("cannot fork() to start instance %s", options.instance_name);
-      return -1;
-    default:
+  switch (pid) {
+  case 0:
+    execv(options.mysqld_path, options.argv);
+    /* exec never returns */
+    exit(1);
+  case -1:
+    log_info("cannot fork() to start instance %s", options.instance_name);
+    return -1;
+  default:
     /*
       Here we wait for the child created. This process differs for systems
       running LinuxThreads and POSIX Threads compliant systems. This is because
@@ -157,56 +156,56 @@ int Instance::launch_and_wait()
 #else
 int Instance::launch_and_wait()
 {
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
 
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
+  ZeroMemory(&si, sizeof(si));
+  si.cb= sizeof(si);
+  ZeroMemory(&pi, sizeof(pi));
 
-    int cmdlen= 0;
+  int cmdlen= 0;
+  for (int i= 1; options.argv[i] != 0; i++)
+    cmdlen+= strlen(options.argv[i]) + 1;
+  cmdlen++;  // we have to add a single space for CreateProcess (read the docs)
+
+  char *cmdline= NULL;
+  if (cmdlen > 0)
+  {
+    cmdline= new char[cmdlen];
+    cmdline[0]= 0;
     for (int i= 1; options.argv[i] != 0; i++)
-      cmdlen+= strlen(options.argv[i]) + 1;
-    cmdlen++;  // we have to add a single space for CreateProcess (read the docs)
-
-    char *cmdline= NULL;
-    if (cmdlen > 0)
     {
-      cmdline= new char[cmdlen];
-      cmdline[0]= 0;
-      for (int i= 1; options.argv[i] != 0; i++)
-      {
-        strcat(cmdline, " ");
-        strcat(cmdline, options.argv[i]);
-      }
+      strcat(cmdline, " ");
+      strcat(cmdline, options.argv[i]);
     }
+  }
 
-    // Start the child process. 
-    BOOL result= CreateProcess(options.mysqld_path,    // file to execute 
-                 cmdline,    // Command line. 
-                 NULL,       // Process handle not inheritable. 
-                 NULL,       // Thread handle not inheritable. 
-                 FALSE,      // Set handle inheritance to FALSE. 
-                 0,          // No creation flags. 
-                 NULL,       // Use parent's environment block. 
-                 NULL,       // Use parent's starting directory. 
-                 &si,        // Pointer to STARTUPINFO structure.
-                 &pi );      // Pointer to PROCESS_INFORMATION structure.
-    delete cmdline;
-    if (! result)
-      return -1;
-    
-    // Wait until child process exits.
-    WaitForSingleObject(pi.hProcess, INFINITE);
+  // Start the child process.
+  BOOL result= CreateProcess(options.mysqld_path,    // file to execute
+                             cmdline,    // Command line.
+                             NULL,       // Process handle not inheritable.
+                             NULL,       // Thread handle not inheritable.
+                             FALSE,      // Set handle inheritance to FALSE.
+                             0,          // No creation flags.
+                             NULL,       // Use parent's environment block.
+                             NULL,       // Use parent's starting directory.
+                             &si,        // Pointer to STARTUPINFO structure.
+                             &pi );      // Pointer to PROCESS_INFORMATION structure.
+  delete cmdline;
+  if (! result)
+    return -1;
 
-    DWORD exitcode;
-    ::GetExitCodeProcess(pi.hProcess, &exitcode);
+  // Wait until child process exits.
+  WaitForSingleObject(pi.hProcess, INFINITE);
 
-    // Close process and thread handles. 
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
+  DWORD exitcode;
+  ::GetExitCodeProcess(pi.hProcess, &exitcode);
 
-    return exitcode;
+  // Close process and thread handles.
+  CloseHandle(pi.hProcess);
+  CloseHandle(pi.hThread);
+
+  return exitcode;
 }
 #endif
 
@@ -214,9 +213,9 @@ int Instance::launch_and_wait()
 void Instance::fork_and_monitor()
 {
   log_info("starting instance %s", options.instance_name);
-  
-  int result= launch_and_wait();
-  if (result == -1) return;
+
+  if (launch_and_wait())
+    return;                                     /* error is logged */
 
   /* set instance state to crashed */
   pthread_mutex_lock(&LOCK_instance);
@@ -233,9 +232,6 @@ void Instance::fork_and_monitor()
   pthread_cond_signal(&instance_map->guardian->COND_guardian);
   /* thread exits */
   return;
-
-  /* we should never end up here */
-  DBUG_ASSERT(0);
 }
 
 
@@ -268,9 +264,9 @@ bool Instance::is_running()
   MYSQL mysql;
   uint port= 0;
   const char *socket= NULL;
-  const char *password= "check_connection";
-  const char *username= "MySQL_Instance_Manager";
-  const char *access_denied_message= "Access denied for user";
+  static const char *password= "check_connection";
+  static const char *username= "MySQL_Instance_Manager";
+  static const char *access_denied_message= "Access denied for user";
   bool return_val;
 
   if (options.mysqld_port)
@@ -299,15 +295,8 @@ bool Instance::is_running()
     return_val= TRUE;                           /* server is alive */
   }
   else
-  {
-    if (!strncmp(access_denied_message, mysql_error(&mysql),
-                 sizeof(access_denied_message)-1))
-    {
-      return_val= TRUE;
-    }
-    else
-      return_val= FALSE;
-  }
+    return_val= test(!strncmp(access_denied_message, mysql_error(&mysql),
+                              sizeof(access_denied_message) - 1));
 
   mysql_close(&mysql);
   pthread_mutex_unlock(&LOCK_instance);
@@ -370,53 +359,53 @@ err:
 
 BOOL SafeTerminateProcess(HANDLE hProcess, UINT uExitCode)
 {
-  DWORD dwTID, dwCode, dwErr = 0;
+  DWORD dwTID, dwCode, dwErr= 0;
   HANDLE hProcessDup= INVALID_HANDLE_VALUE;
   HANDLE hRT= NULL;
   HINSTANCE hKernel= GetModuleHandle("Kernel32");
   BOOL bSuccess= FALSE;
 
   BOOL bDup= DuplicateHandle(GetCurrentProcess(),
-                             hProcess, GetCurrentProcess(), &hProcessDup, 
+                             hProcess, GetCurrentProcess(), &hProcessDup,
                              PROCESS_ALL_ACCESS, FALSE, 0);
 
   // Detect the special case where the process is
   // already dead...
   if (GetExitCodeProcess((bDup) ? hProcessDup : hProcess, &dwCode) &&
-    (dwCode == STILL_ACTIVE))
+      (dwCode == STILL_ACTIVE))
   {
-      FARPROC pfnExitProc;
+    FARPROC pfnExitProc;
 
-      pfnExitProc= GetProcAddress(hKernel, "ExitProcess");
+    pfnExitProc= GetProcAddress(hKernel, "ExitProcess");
 
-      hRT= CreateRemoteThread((bDup) ? hProcessDup : hProcess, NULL, 0,
-                              (LPTHREAD_START_ROUTINE)pfnExitProc, 
-                              (PVOID)uExitCode, 0, &dwTID);
+    hRT= CreateRemoteThread((bDup) ? hProcessDup : hProcess, NULL, 0,
+                            (LPTHREAD_START_ROUTINE)pfnExitProc,
+                            (PVOID)uExitCode, 0, &dwTID);
 
-      if (hRT == NULL)
-          dwErr= GetLastError();
+    if (hRT == NULL)
+      dwErr= GetLastError();
   }
   else
-      dwErr= ERROR_PROCESS_ABORTED;
+    dwErr= ERROR_PROCESS_ABORTED;
 
   if (hRT)
   {
-      // Must wait process to terminate to
-      // guarantee that it has exited...
-      WaitForSingleObject((bDup) ? hProcessDup : hProcess, INFINITE);
+    // Must wait process to terminate to
+    // guarantee that it has exited...
+    WaitForSingleObject((bDup) ? hProcessDup : hProcess, INFINITE);
 
-      CloseHandle(hRT);
-      bSuccess= TRUE;
+    CloseHandle(hRT);
+    bSuccess= TRUE;
   }
 
   if (bDup)
-      CloseHandle(hProcessDup);
+    CloseHandle(hProcessDup);
 
   if (!bSuccess)
-      SetLastError(dwErr);
+    SetLastError(dwErr);
 
   return bSuccess;
-} 
+}
 
 int kill(pid_t pid, int signum)
 {

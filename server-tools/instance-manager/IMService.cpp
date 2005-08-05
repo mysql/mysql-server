@@ -5,8 +5,8 @@
 
 IMService::IMService(void)
 {
-  serviceName = "MySqlManager";
-  displayName = "MySQL Manager";
+  serviceName= "MySqlManager";
+  displayName= "MySQL Manager";
 }
 
 IMService::~IMService(void)
@@ -35,13 +35,13 @@ void IMService::Log(const char *msg)
   log_info(msg);
 }
 
-int HandleServiceOptions(Options options) 
+int HandleServiceOptions(Options options)
 {
   int ret_val= 0;
 
   IMService winService;
 
-  if (options.install_as_service) 
+  if (options.install_as_service)
   {
     if (winService.IsInstalled())
       log_info("Service is already installed\n");
@@ -59,7 +59,7 @@ int HandleServiceOptions(Options options)
       log_info("Service is not installed\n");
     else if (winService.Remove())
       log_info("Service removed successfully\n");
-    else 
+    else
     {
       log_info("Service failed to remove\n");
       ret_val= -1;
@@ -69,4 +69,3 @@ int HandleServiceOptions(Options options)
     return (int)winService.Init();
   return ret_val;
 }
-

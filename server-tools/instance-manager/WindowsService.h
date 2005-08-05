@@ -3,7 +3,7 @@
 class WindowsService
 {
 protected:
-  bool	                inited;
+  bool                  inited;
   const char            *serviceName;
   const char            *displayName;
   const char            *username;
@@ -23,11 +23,11 @@ public:
   BOOL  Init();
   BOOL  IsInstalled();
   void  SetAcceptedControls(DWORD acceptedControls);
-  void  Debug(bool debugFlag) { debugging = debugFlag; }
+  void  Debug(bool debugFlag) { debugging= debugFlag; }
 
 public:
-  static void WINAPI	ServiceMain(DWORD argc, LPTSTR *argv);
-  static void WINAPI	ControlHandler(DWORD CtrlType);
+  static void WINAPI    ServiceMain(DWORD argc, LPTSTR *argv);
+  static void WINAPI    ControlHandler(DWORD CtrlType);
 
 protected:
   virtual void Run()= 0;
@@ -41,4 +41,3 @@ protected:
   void HandleControlCode(DWORD opcode);
   void RegisterAndRun(DWORD argc, LPTSTR *argv);
 };
-

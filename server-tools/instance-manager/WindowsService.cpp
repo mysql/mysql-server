@@ -4,9 +4,9 @@
 
 static WindowsService *gService;
 
-WindowsService::WindowsService(void) : 
-  statusCheckpoint(0), 
-  serviceName(NULL), 
+WindowsService::WindowsService(void) :
+  statusCheckpoint(0),
+  serviceName(NULL),
   inited(false),
   dwAcceptedControls(SERVICE_ACCEPT_STOP)
 {
@@ -32,14 +32,14 @@ BOOL WindowsService::Install()
   GetModuleFileName(NULL, szFilePath, sizeof(szFilePath));
 
   // open a connection to the SCM
-  if (!(scm= OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE))) 
+  if (!(scm= OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE)))
     return false;
 
   newService= CreateService(scm, serviceName, displayName,
-                             SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, 
-                             SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, 
-                             szFilePath, NULL, NULL, NULL, username, 
-                             password);
+                            SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
+                            SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
+                            szFilePath, NULL, NULL, NULL, username,
+                            password);
 
   if (newService)
   {
@@ -68,7 +68,7 @@ BOOL WindowsService::Init()
 
 BOOL WindowsService::Remove()
 {
-  bool	ret_val= false;
+  bool  ret_val= false;
 
   if (! IsInstalled())
     return true;
@@ -81,7 +81,7 @@ BOOL WindowsService::Remove()
   SC_HANDLE service= OpenService(scm, serviceName, DELETE);
   if (service)
   {
-    if (DeleteService(service)) 
+    if (DeleteService(service))
       ret_val= true;
     DWORD dw= ::GetLastError();
     CloseServiceHandle(service);
@@ -112,18 +112,18 @@ void WindowsService::SetAcceptedControls(DWORD acceptedControls)
 }
 
 
-BOOL WindowsService::ReportStatus(DWORD currentState, DWORD waitHint, 
+BOOL WindowsService::ReportStatus(DWORD currentState, DWORD waitHint,
                                   DWORD dwError)
 {
   if(debugging) return TRUE;
 
   if(currentState == SERVICE_START_PENDING)
-      status.dwControlsAccepted= 0;
+    status.dwControlsAccepted= 0;
   else
-      status.dwControlsAccepted= dwAcceptedControls;
+    status.dwControlsAccepted= dwAcceptedControls;
 
   status.dwCurrentState= currentState;
-  status.dwWin32ExitCode= dwError != 0 ? 
+  status.dwWin32ExitCode= dwError != 0 ?
     ERROR_SERVICE_SPECIFIC_ERROR : NO_ERROR;
   status.dwWaitHint= waitHint;
   status.dwServiceSpecificExitCode= dwError;
@@ -155,35 +155,34 @@ void WindowsService::RegisterAndRun(DWORD argc, LPTSTR *argv)
 void WindowsService::HandleControlCode(DWORD opcode)
 {
   // Handle the requested control code.
-  switch(opcode)
-  {
-    case SERVICE_CONTROL_STOP:
-      // Stop the service.
-      status.dwCurrentState= SERVICE_STOP_PENDING;
-      Stop();
-      break;
+  switch(opcode) {
+  case SERVICE_CONTROL_STOP:
+    // Stop the service.
+    status.dwCurrentState= SERVICE_STOP_PENDING;
+    Stop();
+    break;
 
-    case SERVICE_CONTROL_PAUSE:
-      status.dwCurrentState= SERVICE_PAUSE_PENDING;
-      Pause();
-      break;
+  case SERVICE_CONTROL_PAUSE:
+    status.dwCurrentState= SERVICE_PAUSE_PENDING;
+    Pause();
+    break;
 
-    case SERVICE_CONTROL_CONTINUE:
-      status.dwCurrentState= SERVICE_CONTINUE_PENDING;
-      Continue();
-      break;
+  case SERVICE_CONTROL_CONTINUE:
+    status.dwCurrentState= SERVICE_CONTINUE_PENDING;
+    Continue();
+    break;
 
-    case SERVICE_CONTROL_SHUTDOWN:
-      Shutdown();
-      break;
+  case SERVICE_CONTROL_SHUTDOWN:
+    Shutdown();
+    break;
 
-    case SERVICE_CONTROL_INTERROGATE:
-      ReportStatus(status.dwCurrentState);
-      break;
+  case SERVICE_CONTROL_INTERROGATE:
+    ReportStatus(status.dwCurrentState);
+    break;
 
-    default:
-      // invalid control code
-      break;
+  default:
+    // invalid control code
+    break;
   }
 }
 
@@ -201,5 +200,3 @@ void WINAPI WindowsService::ControlHandler(DWORD opcode)
 
   return gService->HandleControlCode(opcode);
 }
-
-
