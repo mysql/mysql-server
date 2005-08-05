@@ -504,7 +504,7 @@ comment='Procedure privileges';
 
 
 CREATE TABLE proc (
-  db                char(64) binary DEFAULT '' NOT NULL,
+  db                char(64) collate utf8_bin DEFAULT '' NOT NULL,
   name              char(64) DEFAULT '' NOT NULL,
   type              enum('FUNCTION','PROCEDURE') NOT NULL,
   specific_name     char(64) DEFAULT '' NOT NULL,
@@ -519,7 +519,7 @@ CREATE TABLE proc (
   param_list        blob DEFAULT '' NOT NULL,
   returns           char(64) DEFAULT '' NOT NULL,
   body              blob DEFAULT '' NOT NULL,
-  definer           char(77) binary DEFAULT '' NOT NULL,
+  definer           char(77) collate utf8_bin DEFAULT '' NOT NULL,
   created           timestamp,
   modified          timestamp,
   sql_mode          set(
@@ -554,6 +554,6 @@ CREATE TABLE proc (
                         'NO_AUTO_CREATE_USER',
                         'HIGH_NOT_PRECEDENCE'
                     ) DEFAULT '' NOT NULL,
-  comment           char(64) binary DEFAULT '' NOT NULL,
+  comment           char(64) collate utf8_bin DEFAULT '' NOT NULL,
   PRIMARY KEY (db,name,type)
-) comment='Stored Procedures';
+) character set utf8 comment='Stored Procedures';

@@ -122,6 +122,9 @@ SELECT 'case+union+test'
 UNION 
 SELECT CASE '1' WHEN '2' THEN 'BUG' ELSE 'nobug' END;
 
+# End of 4.1 tests
+
+
 #
 # Tests for bug #9939: conversion of the arguments for COALESCE and IFNULL
 #

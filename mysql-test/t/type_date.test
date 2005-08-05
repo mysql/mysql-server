@@ -114,3 +114,5 @@ CREATE TABLE t1 (y YEAR);
 INSERT INTO t1 VALUES ('abc');
 SELECT * FROM t1;
 DROP TABLE t1;
+
+# End of 4.1 tests

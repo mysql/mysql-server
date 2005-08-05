@@ -41,3 +41,5 @@ sync_with_master;
 
 # If the machine is so fast that slave syncs before OPTIMIZE
 # starts, this test wil demonstrate nothing but will pass.
+
+# End of 4.1 tests

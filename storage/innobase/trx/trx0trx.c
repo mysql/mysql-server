@@ -159,7 +159,8 @@ trx_create(
 
 	trx->auto_inc_lock = NULL;
 	
-	trx->read_view_heap = mem_heap_create(256);
+	trx->global_read_view_heap = mem_heap_create(256);
+	trx->global_read_view = NULL;
 	trx->read_view = NULL;
 
 	/* Set X/Open XA transaction identification to NULL */
@@ -318,9 +319,11 @@ trx_free(
 
 	ut_a(UT_LIST_GET_LEN(trx->trx_locks) == 0);
 
-	if (trx->read_view_heap) {
-		mem_heap_free(trx->read_view_heap);
+	if (trx->global_read_view_heap) {
+		mem_heap_free(trx->global_read_view_heap);
 	}
+
+	trx->global_read_view = NULL;
 
 	ut_a(trx->read_view == NULL);
 	
@@ -830,12 +833,13 @@ trx_commit_off_kernel(
 
 	lock_release_off_kernel(trx);
 
-	if (trx->read_view) {
-		read_view_close(trx->read_view);
-
-		mem_heap_empty(trx->read_view_heap);
-		trx->read_view = NULL;
+	if (trx->global_read_view) {
+		read_view_close(trx->global_read_view);
+		mem_heap_empty(trx->global_read_view_heap);
+		trx->global_read_view = NULL;
 	}
+
+	trx->read_view = NULL;
 
 	if (must_flush_log) {
 
@@ -964,7 +968,9 @@ trx_assign_read_view(
 	mutex_enter(&kernel_mutex);
 
 	if (!trx->read_view) {
-		trx->read_view = read_view_open_now(trx, trx->read_view_heap);
+		trx->read_view = read_view_open_now(trx,
+					trx->global_read_view_heap);
+		trx->global_read_view = trx->read_view;
 	}
 
 	mutex_exit(&kernel_mutex);

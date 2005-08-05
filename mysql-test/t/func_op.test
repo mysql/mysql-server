@@ -16,3 +16,5 @@ select  1 | -1,  1 ^ -1,  1 & -1;
 select  0 | -1,  0 ^ -1,  0 & -1;
 select -1 >> 0, -1 << 0;
 select -1 >> 1, -1 << 1;
+
+# End of 4.1 tests

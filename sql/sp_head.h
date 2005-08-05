@@ -121,7 +121,7 @@ public:
   uchar *m_tmp_query;		// Temporary pointer to sub query string
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
-  ulong m_sql_mode;		// For SHOW CREATE
+  ulong m_sql_mode;		// For SHOW CREATE and execution
   LEX_STRING m_qname;		// db.name
   LEX_STRING m_db;
   LEX_STRING m_name;
@@ -282,6 +282,10 @@ private:
   /*
     Multi-set representing optimized list of tables to be locked by this
     routine. Does not include tables which are used by invoked routines.
+
+    Note: for prelocking-free SPs this multiset is constructed too.
+    We do so because the same instance of sp_head may be called both
+    in prelocked mode and in non-prelocked mode.
   */
   HASH m_sptabs;
 
@@ -383,7 +387,8 @@ class sp_lex_keeper
 public:
 
   sp_lex_keeper(LEX *lex, bool lex_resp)
-    : m_lex(lex), m_lex_resp(lex_resp)
+    : m_lex(lex), m_lex_resp(lex_resp), 
+      lex_query_tables_own_last(NULL)
   {
     lex->sp_lex_in_use= TRUE;
   }
@@ -418,6 +423,25 @@ private:
     for LEX deletion.
   */
   bool m_lex_resp;
+
+  /*
+    Support for being able to execute this statement in two modes:
+    a) inside prelocked mode set by the calling procedure or its ancestor.
+    b) outside of prelocked mode, when this statement enters/leaves
+       prelocked mode itself.
+  */
+  
+  /*
+    List of additional tables this statement needs to lock when it
+    enters/leaves prelocked mode on its own.
+  */
+  TABLE_LIST *prelocking_tables;
+
+  /*
+    The value m_lex->query_tables_own_last should be set to this when the
+    statement enters/leaves prelocked mode on its own.
+  */
+  TABLE_LIST **lex_query_tables_own_last;
 };
 
 

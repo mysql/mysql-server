@@ -96,7 +96,7 @@ my_bool my_init(void)
 #endif
   {
     DBUG_ENTER("my_init");
-    DBUG_PROCESS(my_progname ? my_progname : (char*) "unknown");
+    DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
     if (!home_dir)
     {					/* Don't initialize twice */
       my_win_init();

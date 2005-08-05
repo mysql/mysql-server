@@ -351,7 +351,8 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
     buf0=&tmp;
   }
 
-  intg_len= fixed_precision ? fixed_intg : (intg ? intg : 1);
+  if (!(intg_len= fixed_precision ? fixed_intg : intg))
+    intg_len= 1;
   frac_len= fixed_precision ? fixed_decimals : frac;
   len= from->sign + intg_len + test(frac) + frac_len;
   if (fixed_precision)
@@ -745,14 +746,17 @@ int decimal_shift(decimal_t *dec, int shift)
     new_point= ROUND_UP(new_point) - 1;
 
   if (new_point > end)
+  {
     do
     {
       dec->buf[new_point]=0;
-    }while (--new_point > end);
+    } while (--new_point > end);
+  }
   else
+  {
     for (; new_point < beg; new_point++)
       dec->buf[new_point]= 0;
-
+  }
   dec->intg= digits_int;
   dec->frac= digits_frac;
   return err;

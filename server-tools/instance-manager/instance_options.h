@@ -19,6 +19,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include "parse.h"
+#include "port.h"
 
 #ifdef __GNUC__
 #pragma interface

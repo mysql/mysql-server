@@ -56,6 +56,8 @@ static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
     mysql_create_frm()
     thd			Thread handler
     file_name		Name of file (including database and .frm)
+    db                  Name of database
+    table               Name of table
     create_info		create info parameters
     create_fields	Fields to create
     keys		number of keys to create
@@ -68,6 +70,7 @@ static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
 */
 
 bool mysql_create_frm(THD *thd, my_string file_name,
+                      const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
 		      List<create_field> &create_fields,
 		      uint keys, KEY *key_info,
@@ -119,7 +122,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   }
   reclength=uint2korr(forminfo+266);
 
-  if ((file=create_frm(thd, file_name, reclength, fileinfo,
+  if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
   {
     my_free((gptr) screen_buff,MYF(0));
@@ -235,6 +238,8 @@ err3:
     rea_create_table()
     thd			Thread handler
     file_name		Name of file (including database and .frm)
+    db                  Name of database
+    table               Name of table
     create_info		create info parameters
     create_fields	Fields to create
     keys		number of keys to create
@@ -246,13 +251,14 @@ err3:
 */
 
 int rea_create_table(THD *thd, my_string file_name,
+                     const char *db, const char *table,
 		     HA_CREATE_INFO *create_info,
 		     List<create_field> &create_fields,
 		     uint keys, KEY *key_info, handler *file)
 {
   DBUG_ENTER("rea_create_table");
 
-  if (mysql_create_frm(thd, file_name, create_info,
+  if (mysql_create_frm(thd, file_name, db, table, create_info,
                        create_fields, keys, key_info, file))
     DBUG_RETURN(1);
   if (file->create_handler_files(file_name))

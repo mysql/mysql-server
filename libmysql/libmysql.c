@@ -189,6 +189,13 @@ void STDCALL mysql_server_end()
   finish_client_errs();
   free_charsets();
   mysql_client_init= org_my_init_done= 0;
+#ifdef EMBEDDED_SERVER
+  if (stderror_file)
+  {
+    fclose(stderror_file);
+    stderror_file= 0;
+  }
+#endif
 }
 
 static MYSQL_PARAMETERS mysql_internal_parameters=
@@ -1599,13 +1606,8 @@ mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
 			 ulong length)
 {
   if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
-  {
     return escape_quotes_for_mysql(mysql->charset, to, 0, from, length);
-  }
-  else
-  {
-    return escape_string_for_mysql(mysql->charset, to, 0, from, length);
-  }
+  return escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
 

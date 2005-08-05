@@ -35,6 +35,8 @@ save_master_pos;
 connection slave;
 sync_with_master;
 
+# End of 4.1 tests
+
 #
 # Now let us test how well we replicate LOAD DATA LOCAL in situation when
 # we met duplicates in tables to which we are adding rows.

@@ -17,17 +17,23 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <sys/types.h>
+#ifdef __WIN__
+#include "port.h"
+#else
 #include <unistd.h>
+#endif
 
 
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 extern pid_t manager_pid;
 
+#ifndef __WIN__
 /*
   This flag is set if mysqlmanager has detected that it is running on the
   system using LinuxThreads
 */
 extern bool linuxthreads;
+#endif
 
 extern const char mysqlmanager_version[];
 extern const int mysqlmanager_version_length;
