@@ -47,6 +47,7 @@ public:
   ~Listener_thread();
   void run();
 private:
+  static const int LISTEN_BACK_LOG_SIZE= 5;     /* standard backlog size */
   ulong total_connection_count;
   Thread_info thread_info;
 
@@ -59,7 +60,6 @@ private:
   int   create_unix_socket(struct sockaddr_un &unix_socket_address);
 };
 
-const int LISTEN_BACK_LOG_SIZE= 5;         // standard backlog size
 
 Listener_thread::Listener_thread(const Listener_thread_args &args) :
   Listener_thread_args(args.thread_registry, args.options, args.user_map,
@@ -88,13 +88,14 @@ Listener_thread::~Listener_thread()
 
 void Listener_thread::run()
 {
+  int n= 0;
+
+#ifndef __WIN__
   /* we use this var to check whether we are running on LinuxThreads */
   pid_t thread_pid;
-  int n;
 
   thread_pid= getpid();
 
-#ifndef __WIN__
   struct sockaddr_un unix_socket_address;
   /* set global variable */
   linuxthreads= (thread_pid != manager_pid);
@@ -205,7 +206,6 @@ void set_no_inherit(int socket)
 #ifndef __WIN__
   int flags= fcntl(socket, F_GETFD, 0);
   fcntl(socket, F_SETFD, flags | FD_CLOEXEC);
-#else
 #endif
 }
 

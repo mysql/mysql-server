@@ -32,17 +32,16 @@
 
 const char *default_password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *default_log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
-char default_config_file[FN_REFLEN]= "/etc/my.cnf";
+#ifdef __WIN__
+char windows_config_file[FN_REFLEN];
 
-#ifndef __WIN__
-char Options::run_as_service;
-const char *Options::user= 0;                   /* No default value */
-const char *Options::config_file= NULL;
-#else
 char Options::install_as_service;
 char Options::remove_service;
-const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
+#else
+char Options::run_as_service;
+const char *Options::user= 0;                   /* No default value */
 #endif
+const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
 const char *Options::log_file_name= default_log_file_name;
 const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
@@ -271,9 +270,20 @@ int Options::load(int argc, char **argv)
   */
   if (Options::config_file == NULL)
   {
-    ::GetModuleFileName(NULL, default_config_file, sizeof(default_config_file));    char *filename= strrchr(default_config_file, "\\");
-    strcpy(filename, "\\my.ini");
-    Options::config_file= default_config_file;
+    char *filename;
+    static const char default_win_config_file_name[]= "\\my.ini";
+
+    if (!GetModuleFileName(NULL, windows_config_file,
+                                 sizeof(windows_config_file)))
+      goto err;
+
+    filename= strrchr(windows_config_file, "\\");
+    /*
+      Don't check for the overflow as strlen("\\my.ini") is less
+      then strlen("mysqlmanager") (the binary name)
+    */
+    strcpy(filename, default_win_config_file_name);
+    Options::config_file= windows_config_file;
   }
 #endif
 
