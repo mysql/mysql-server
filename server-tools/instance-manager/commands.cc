@@ -471,6 +471,7 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
       int read_len;
       /* calculate buffer size */
       MY_STAT file_stat;
+      Buffer read_buff;
 
       /* my_fstat doesn't use the flag parameter */
       if (my_fstat(fd, &file_stat, MYF(0)))
@@ -478,13 +479,16 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
 
       buff_size= (size - offset);
 
+      read_buff.reserve(0, buff_size);
+
       /* read in one chunk */
       read_len= my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
 
-      char *bf= (char*) malloc(sizeof(char)*buff_size);
-      if ((read_len= my_read(fd, (byte*)bf, buff_size, MYF(0))) < 0)
+      if ((read_len= my_read(fd, (byte*) read_buff.buffer,
+                             buff_size, MYF(0))) < 0)
         return ER_READ_FILE;
-      store_to_protocol_packet(&send_buff, (char*) bf, &position, read_len);
+      store_to_protocol_packet(&send_buff, read_buff.buffer,
+                               &position, read_len);
       close(fd);
     }
     else
