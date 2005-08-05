@@ -16,7 +16,7 @@
 
 #include <my_global.h>
 #include "priv.h"
-#include "port.h"
+#include "portability.h"
 
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 pid_t manager_pid;
