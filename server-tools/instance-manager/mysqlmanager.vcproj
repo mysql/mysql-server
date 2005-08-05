@@ -271,7 +271,7 @@
 				RelativePath=".\parse_output.h">
 			</File>
 			<File
-				RelativePath=".\port.h">
+				RelativePath=".\portability.h">
 			</File>
 			<File
 				RelativePath=".\priv.h">
