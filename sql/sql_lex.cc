@@ -564,7 +564,7 @@ int yylex(void *arg, void *yythd)
         grammatically correct.
       */
       else if (c == '?' && ((THD*) yythd)->command == COM_STMT_PREPARE &&
-               !ident_map[cs, yyPeek()])
+               !ident_map[yyPeek()])
         return(PARAM_MARKER);
       return((int) c);
 
@@ -2009,6 +2009,7 @@ void st_lex::cleanup_after_one_table_open()
   time_zone_tables_used= 0;
   if (sroutines.records)
     my_hash_reset(&sroutines);
+  sroutines_list.empty();
 }
 
 

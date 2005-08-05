@@ -25,3 +25,4 @@ set global ft_boolean_syntax='@ -><()~*:""@|';
 set global ft_boolean_syntax='+ -><()~*:""@!|';
 drop table t1;
 
+# End of 4.1 tests

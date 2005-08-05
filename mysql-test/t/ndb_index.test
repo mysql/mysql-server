@@ -126,5 +126,6 @@ select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessno
 select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67' and customer_id='kllopmn';
 select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67' and customer_id='foo';
 
-
 drop table t1;
+
+# End of 4.1 tests

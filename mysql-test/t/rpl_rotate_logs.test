@@ -153,3 +153,4 @@ connection master;
 drop table if exists t1,t2,t3,t4;
 sync_slave_with_master;
 
+# End of 4.1 tests

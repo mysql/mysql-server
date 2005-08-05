@@ -600,6 +600,10 @@ SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\str_alloc.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\table.cpp
 # End Source File
 # Begin Source File

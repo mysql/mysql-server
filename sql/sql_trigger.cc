@@ -32,8 +32,12 @@ const char * const triggers_file_ext= ".TRG";
 */
 static File_option triggers_file_parameters[]=
 {
-  {{(char*)"triggers", 8}, offsetof(class Table_triggers_list, definitions_list),
-   FILE_OPTIONS_STRLIST},
+  {{(char*)"triggers", 8},
+    offsetof(class Table_triggers_list, definitions_list),
+    FILE_OPTIONS_STRLIST},
+  {{(char*)"sql_modes", 13},
+    offsetof(class Table_triggers_list, definition_modes_list),
+    FILE_OPTIONS_ULLLIST},
   {{0, 0}, 0, FILE_OPTIONS_STRING}
 };
 
@@ -127,12 +131,13 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DBUG_RETURN(TRUE);
 
   /*
-    We do not allow creation of triggers on views or temporary tables.
-    We have to do this check here and not in
-    Table_triggers_list::create_trigger() because we want to avoid messing
-    with table cash for views and temporary tables.
+    We do not allow creation of triggers on temporary tables. We also don't
+    allow creation of triggers on views but fulfilment of this restriction
+    is guaranteed by open_ltable(). It is better to have this check here
+    than do it in Table_triggers_list::create_trigger() and mess with table
+    cache.
   */
-  if (tables->view || table->s->tmp_table != NO_TMP_TABLE)
+  if (table->s->tmp_table != NO_TMP_TABLE)
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     DBUG_RETURN(TRUE);
@@ -221,12 +226,13 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
        trigname_path[FN_REFLEN];
   LEX_STRING dir, file, trigname_file;
   LEX_STRING *trg_def, *name;
+  ulonglong *trg_sql_mode;
   Item_trigger_field *trg_field;
   struct st_trigname trigname;
 
 
   /* Trigger must be in the same schema as target table. */
-  if (my_strcasecmp(system_charset_info, table->s->db,
+  if (my_strcasecmp(table_alias_charset, table->s->db,
                     lex->spname->m_db.str ? lex->spname->m_db.str :
                                             thd->db))
   {
@@ -307,11 +313,15 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables)
   */
   if (!(trg_def= (LEX_STRING *)alloc_root(&table->mem_root,
                                           sizeof(LEX_STRING))) ||
-      definitions_list.push_back(trg_def, &table->mem_root))
+      definitions_list.push_back(trg_def, &table->mem_root) ||
+      !(trg_sql_mode= (ulonglong*)alloc_root(&table->mem_root,
+                                             sizeof(ulonglong))) ||
+      definition_modes_list.push_back(trg_sql_mode, &table->mem_root))
     goto err_with_cleanup;
 
   trg_def->str= thd->query;
   trg_def->length= thd->query_length;
+  *trg_sql_mode= thd->variables.sql_mode;
 
   if (!sql_create_definition_file(&dir, &file, &triggers_file_type,
                                   (gptr)this, triggers_file_parameters, 3))
@@ -390,13 +400,15 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
   LEX_STRING *name;
   List_iterator_fast<LEX_STRING> it_name(names_list);
   List_iterator<LEX_STRING>      it_def(definitions_list);
+  List_iterator<ulonglong>       it_mod(definition_modes_list);
   char path[FN_REFLEN];
 
   while ((name= it_name++))
   {
     it_def++;
+    it_mod++;
 
-    if (my_strcasecmp(system_charset_info, lex->spname->m_name.str,
+    if (my_strcasecmp(table_alias_charset, lex->spname->m_name.str,
                       name->str) == 0)
     {
       /*
@@ -404,6 +416,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
         clean trigger removing since table will be reopened anyway.
       */
       it_def.remove();
+      it_mod.remove();
 
       if (definitions_list.is_empty())
       {
@@ -520,6 +533,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
   char path_buff[FN_REFLEN];
   LEX_STRING path;
   File_parser *parser;
+  LEX_STRING save_db;
 
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
@@ -540,8 +554,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
   if ((parser= sql_parse_prepare(&path, &table->mem_root, 1)))
   {
-    if (!strncmp(triggers_file_type.str, parser->type()->str,
-                 parser->type()->length))
+    if (is_equal(&triggers_file_type, parser->type()))
     {
       Table_triggers_list *triggers=
         new (&table->mem_root) Table_triggers_list(table);
@@ -549,10 +562,48 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       if (!triggers)
         DBUG_RETURN(1);
 
+      /*
+        We don't have sql_modes in old versions of .TRG file, so we should
+        initialize list for safety.
+      */
+      triggers->definition_modes_list.empty();
+
       if (parser->parse((gptr)triggers, &table->mem_root,
-                        triggers_file_parameters, 1))
+                        triggers_file_parameters, 2))
         DBUG_RETURN(1);
 
+      List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
+      LEX_STRING *trg_create_str, *trg_name_str;
+      ulonglong *trg_sql_mode;
+
+      if (triggers->definition_modes_list.is_empty() &&
+          !triggers->definitions_list.is_empty())
+      {
+        /*
+          It is old file format => we should fill list of sql_modes.
+
+          We use one mode (current) for all triggers, because we have not
+          information about mode in old format.
+        */
+        if (!(trg_sql_mode= (ulonglong*)alloc_root(&table->mem_root,
+                                                   sizeof(ulonglong))))
+        {
+          DBUG_RETURN(1); // EOM
+        }
+        *trg_sql_mode= global_system_variables.sql_mode;
+        while ((trg_create_str= it++))
+        {
+          if (triggers->definition_modes_list.push_back(trg_sql_mode,
+                                                        &table->mem_root))
+          {
+            DBUG_RETURN(1); // EOM
+          }
+        }
+        it.rewind();
+      }
+
+      DBUG_ASSERT(triggers->definition_modes_list.elements ==
+                  triggers->definitions_list.elements);
       table->triggers= triggers;
 
       /*
@@ -564,8 +615,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
               alloc_root(&table->mem_root, triggers->sroutines_key.length)))
         DBUG_RETURN(1);
       triggers->sroutines_key.str[0]= TYPE_ENUM_TRIGGER;
-      strmov(strmov(strmov(triggers->sroutines_key.str+1, db), "."),
-             table_name);
+      strxmov(triggers->sroutines_key.str+1, db, ".", table_name, NullS);
 
       /*
         TODO: This could be avoided if there is no triggers
@@ -574,15 +624,21 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       if (!names_only && triggers->prepare_record1_accessors(table))
         DBUG_RETURN(1);
 
-      List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
-      LEX_STRING *trg_create_str, *trg_name_str;
       char *trg_name_buff;
+      List_iterator_fast<ulonglong> itm(triggers->definition_modes_list);
       LEX *old_lex= thd->lex, lex;
+      ulong save_sql_mode= thd->variables.sql_mode;
 
       thd->lex= &lex;
 
+      save_db.str= thd->db;
+      save_db.length= thd->db_length;
+      thd->db_length= strlen(db);
+      thd->db= (char *) db;
       while ((trg_create_str= it++))
       {
+        trg_sql_mode= itm++;
+        thd->variables.sql_mode= (ulong)*trg_sql_mode;
         lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
 
         if (yyparse((void *)thd) || thd->is_fatal_error)
@@ -595,9 +651,11 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           goto err_with_lex_cleanup;
         }
 
+        lex.sphead->m_sql_mode= *trg_sql_mode;
         triggers->bodies[lex.trg_chistics.event]
                              [lex.trg_chistics.action_time]= lex.sphead;
-        if (triggers->names_list.push_back(&lex.sphead->m_name, &table->mem_root))
+        if (triggers->names_list.push_back(&lex.sphead->m_name,
+                                           &table->mem_root))
             goto err_with_lex_cleanup;
 
         if (names_only)
@@ -611,8 +669,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           in old/new versions of row in trigger to Field objects in table being
           opened.
 
-          We ignore errors here, because if even something is wrong we still will
-          be willing to open table to perform some operations (e.g. SELECT)...
+          We ignore errors here, because if even something is wrong we still
+          will be willing to open table to perform some operations (e.g.
+          SELECT)...
           Anyway some things can be checked only during trigger execution.
         */
         for (Item_trigger_field *trg_field=
@@ -623,7 +682,10 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         lex_end(&lex);
       }
+      thd->db= save_db.str;
+      thd->db_length= save_db.length;
       thd->lex= old_lex;
+      thd->variables.sql_mode= save_sql_mode;
 
       DBUG_RETURN(0);
 
@@ -631,6 +693,9 @@ err_with_lex_cleanup:
       // QQ: anything else ?
       lex_end(&lex);
       thd->lex= old_lex;
+      thd->variables.sql_mode= save_sql_mode;
+      thd->db= save_db.str;
+      thd->db_length= save_db.length;
       DBUG_RETURN(1);
     }
 
@@ -639,7 +704,7 @@ err_with_lex_cleanup:
       be merged into .FRM anyway.
     */
     my_error(ER_WRONG_OBJECT, MYF(0),
-             table_name, triggers_file_ext, "TRIGGER");
+             table_name, triggers_file_ext+1, "TRIGGER");
     DBUG_RETURN(1);
   }
 
@@ -657,6 +722,7 @@ err_with_lex_cleanup:
       time_type - trigger action time
       name      - returns name of trigger
       stmt      - returns statement of trigger
+      sql_mode  - returns sql_mode of trigger
 
   RETURN VALUE
     False - success
@@ -666,7 +732,8 @@ err_with_lex_cleanup:
 bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
                                            trg_action_time_type time_type,
                                            LEX_STRING *trigger_name,
-                                           LEX_STRING *trigger_stmt)
+                                           LEX_STRING *trigger_stmt,
+                                           ulong *sql_mode)
 {
   sp_head *body;
   DBUG_ENTER("get_trigger_info");
@@ -674,6 +741,7 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
   {
     *trigger_name= body->m_name;
     *trigger_stmt= body->m_body;
+    *sql_mode= body->m_sql_mode;
     DBUG_RETURN(0);
   }
   DBUG_RETURN(1);
@@ -718,10 +786,9 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   if (!(parser= sql_parse_prepare(&path, thd->mem_root, 1)))
     DBUG_RETURN(0);
 
-  if (strncmp(trigname_file_type.str, parser->type()->str,
-              parser->type()->length))
+  if (!is_equal(&trigname_file_type, parser->type()))
   {
-    my_error(ER_WRONG_OBJECT, MYF(0), trig->m_name.str, trigname_file_ext,
+    my_error(ER_WRONG_OBJECT, MYF(0), trig->m_name.str, trigname_file_ext+1,
              "TRIGGERNAME");
     DBUG_RETURN(0);
   }

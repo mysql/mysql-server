@@ -29,6 +29,7 @@
 #define SP_INTERNAL_ERROR    -7
 #define SP_NO_DB_ERROR       -8
 #define SP_BAD_IDENTIFIER    -9
+#define SP_BODY_TOO_LONG    -10
 
 /* Drop all routines in database 'db' */
 int
@@ -79,10 +80,13 @@ sp_show_status_function(THD *thd, const char *wild);
   Procedures for pre-caching of stored routines and building table list
   for prelocking.
 */
+void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
+                            bool *first_no_prelocking);
 void sp_add_used_routine(LEX *lex, Query_arena *arena,
                          sp_name *rt, char rt_type);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
-bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex);
+bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex, 
+                                      bool first_no_prelock);
 void sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
                                                LEX *aux_lex);
 void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,

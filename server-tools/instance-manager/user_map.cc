@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef __GNUC__
-#pragma interface 
+#pragma interface
 #endif
 
 #include "user_map.h"
@@ -24,6 +24,12 @@
 #include <m_string.h>
 
 #include "log.h"
+
+#ifdef __WIN__
+#define NEWLINE_LEN 2
+#else
+#define NEWLINE_LEN 1
+#endif
 
 struct User
 {
@@ -59,7 +65,7 @@ int User::init(const char *line)
     goto err;
 
   /* assume that newline characater is present */
-  if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + 1)
+  if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + NEWLINE_LEN)
     goto err;
 
   memcpy(user, name_begin, user_length);
@@ -95,7 +101,7 @@ C_MODE_END
 
 int User_map::init()
 {
-  enum { START_HASH_SIZE = 16 };
+  enum { START_HASH_SIZE= 16 };
   if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
       get_user_key, delete_user, 0))
     return 1;

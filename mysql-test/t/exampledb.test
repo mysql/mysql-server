@@ -14,3 +14,5 @@ CREATE TABLE t1 (
 ) ENGINE=example;
 
 drop table t1;
+
+# End of 4.1 tests

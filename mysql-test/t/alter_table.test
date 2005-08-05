@@ -361,6 +361,8 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 drop table t1;
 
+# End of 4.1 tests
+
 #
 # Some additional tests for new, faster alter table.
 # Note that most of the whole alter table code is being

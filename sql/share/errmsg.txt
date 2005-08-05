@@ -5462,3 +5462,11 @@ ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
 ER_NO_PARTS_ERROR
         eng "Number of %s = 0 is not an allowed value"
         swe "Antal %s = 0 är inte ett tillåten värde"
+ER_CANT_CREATE_FEDERATED_TABLE  
+	eng "Can't create federated table. Foreign data src error : '%-.64s'"
+ER_TRG_IN_WRONG_SCHEMA  
+	eng "Trigger in wrong schema"
+ER_STACK_OVERRUN_NEED_MORE
+	eng "Thread stack overrun:  %ld bytes used of a %ld byte stack, and %ld bytes needed.  Use 'mysqld -O thread_stack=#' to specify a bigger stack."
+ER_TOO_LONG_BODY 42000 S1009
+	eng "Routine body for '%-.100s' is too long"

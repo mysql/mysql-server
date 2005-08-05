@@ -27,6 +27,7 @@
 #include <thr_alarm.h>
 
 
+#ifndef __WIN__
 /* Kick-off signal handler */
 
 enum { THREAD_KICK_OFF_SIGNAL= SIGUSR2 };
@@ -34,7 +35,7 @@ enum { THREAD_KICK_OFF_SIGNAL= SIGUSR2 };
 static void handle_signal(int __attribute__((unused)) sig_no)
 {
 }
-
+#endif
 
 /*
   TODO: think about moving signal information (now it's shutdown_in_progress)
@@ -76,12 +77,13 @@ Thread_registry::~Thread_registry()
 
 void Thread_registry::register_thread(Thread_info *info)
 {
+#ifndef __WIN__
   struct sigaction sa;
   sa.sa_handler= handle_signal;
   sa.sa_flags= 0;
   sigemptyset(&sa.sa_mask);
   sigaction(THREAD_KICK_OFF_SIGNAL, &sa, 0);
-
+#endif
   info->current_cond= 0;
 
   pthread_mutex_lock(&LOCK_thread_registry);
@@ -156,6 +158,7 @@ void Thread_registry::deliver_shutdown()
   pthread_mutex_lock(&LOCK_thread_registry);
   shutdown_in_progress= true;
 
+#ifndef __WIN__
   /* to stop reading from the network we need to flush alarm queue */
   end_thr_alarm(0);
   /*
@@ -163,6 +166,8 @@ void Thread_registry::deliver_shutdown()
     stopped alarm processing.
   */
   process_alarm(THR_SERVER_ALARM);
+#endif
+
   for (info= head.next; info != &head; info= info->next)
   {
     pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
