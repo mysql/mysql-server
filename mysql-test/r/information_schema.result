@@ -33,22 +33,22 @@ create table mysqltest.t4(a int);
 create view v1 (c) as select table_name from information_schema.TABLES;
 select * from v1;
 c
-SCHEMATA
-TABLES
-COLUMNS
 CHARACTER_SETS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
+COLUMNS
+COLUMN_PRIVILEGES
+KEY_COLUMN_USAGE
 ROUTINES
+SCHEMATA
+SCHEMA_PRIVILEGES
 STATISTICS
+TABLES
+TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
+TRIGGERS
 VIEWS
 USER_PRIVILEGES
-SCHEMA_PRIVILEGES
-TABLE_PRIVILEGES
-COLUMN_PRIVILEGES
-TABLE_CONSTRAINTS
-KEY_COLUMN_USAGE
-TRIGGERS
 columns_priv
 db
 func
@@ -76,8 +76,8 @@ inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -94,8 +94,8 @@ left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -112,8 +112,8 @@ right join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -577,13 +577,13 @@ select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables 
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
-SCHEMATA	TEMPORARY	MEMORY
-TABLES	TEMPORARY	MEMORY
+CHARACTER_SETS	TEMPORARY	MEMORY
+COLLATIONS	TEMPORARY	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
-TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
 TRIGGERS
 create database information_schema;
 ERROR HY000: Can't create database 'information_schema'; database exists
@@ -591,8 +591,8 @@ use information_schema;
 show full tables like "T%";
 Tables_in_information_schema (T%)	Table_type
 TABLES	TEMPORARY
-TABLE_PRIVILEGES	TEMPORARY
 TABLE_CONSTRAINTS	TEMPORARY
+TABLE_PRIVILEGES	TEMPORARY
 TRIGGERS	TEMPORARY
 create table t1(a int);
 ERROR 42S02: Unknown table 't1' in information_schema
@@ -603,8 +603,8 @@ use information_schema;
 show tables like "T%";
 Tables_in_information_schema (T%)
 TABLES
-TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
 TRIGGERS
 select table_name from tables where table_name='user';
 table_name
@@ -710,18 +710,18 @@ table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
-information_schema	VIEWS	VIEW_DEFINITION
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	TRIGGERS	SQL_MODE
+information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
 table_name	column_name	data_type
+ROUTINES	CREATED	datetime
+ROUTINES	LAST_ALTERED	datetime
 TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
-ROUTINES	CREATED	datetime
-ROUTINES	LAST_ALTERED	datetime
 TRIGGERS	CREATED	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS 
@@ -756,14 +756,14 @@ grant select on test.* to mysqltest_4@localhost;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
-TABLES	TABLE_NAME	select
 COLUMNS	TABLE_NAME	select
-STATISTICS	TABLE_NAME	select
-VIEWS	TABLE_NAME	select
-TABLE_PRIVILEGES	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
-TABLE_CONSTRAINTS	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
+STATISTICS	TABLE_NAME	select
+TABLES	TABLE_NAME	select
+TABLE_CONSTRAINTS	TABLE_NAME	select
+TABLE_PRIVILEGES	TABLE_NAME	select
+VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
