@@ -1204,6 +1204,7 @@ public:
   int  store(longlong nr);
   int  store_decimal(const my_decimal *);
   void get_key_image(char *buff,uint length,imagetype type);
+  uint size_of() const { return sizeof(*this); }
 };
 #endif /*HAVE_SPATIAL*/
 
