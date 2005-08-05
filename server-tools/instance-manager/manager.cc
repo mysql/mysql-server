@@ -97,7 +97,6 @@ void set_signals(sigset_t *set)
 
 int my_sigwait(const sigset_t *set, int *sig)
 {
-//  MSG msg;
   while (!have_signal)
   {
     Sleep(100);

@@ -137,25 +137,15 @@ Instance_map::~Instance_map()
 }
 
 
-int Instance_map::lock()
+void Instance_map::lock()
 {
-#ifdef __WIN__
   pthread_mutex_lock(&LOCK_instance_map);
-  return 0;
-#else
-  return pthread_mutex_lock(&LOCK_instance_map);
-#endif
 }
 
 
-int Instance_map::unlock()
+void Instance_map::unlock()
 {
-#ifdef __WIN__
   pthread_mutex_unlock(&LOCK_instance_map);
-  return 0;
-#else
-  return pthread_mutex_unlock(&LOCK_instance_map);
-#endif
 }
 
 

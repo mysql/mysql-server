@@ -424,23 +424,13 @@ int Guardian_thread::stop_instances(bool stop_instances_arg)
 }
 
 
-int Guardian_thread::lock()
+void Guardian_thread::lock()
 {
-#ifdef __WIN__
   pthread_mutex_lock(&LOCK_guardian); 
-  return 0;
-#else
-  return pthread_mutex_lock(&LOCK_guardian);
-#endif
 }
 
 
-int Guardian_thread::unlock()
+void Guardian_thread::unlock()
 {
-#ifdef __WIN__
   pthread_mutex_unlock(&LOCK_guardian);
-  return 0;
-#else
-  return pthread_mutex_unlock(&LOCK_guardian);
-#endif
 }
