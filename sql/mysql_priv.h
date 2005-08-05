@@ -1450,6 +1450,12 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->status= STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->s->keys_in_use;
   table->maybe_null= table_list->outer_join;
+  TABLE_LIST *embedding= table_list->embedding;
+  while (!table->maybe_null && embedding)
+  {
+    table->maybe_null= embedding->outer_join;
+    embedding= embedding->embedding;
+  }
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
