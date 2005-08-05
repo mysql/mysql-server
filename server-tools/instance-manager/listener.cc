@@ -150,8 +150,9 @@ void Listener_thread::run()
         /* accept may return -1 (failure or spurious wakeup) */
         if (client_fd >= 0)                    // connection established
         {
-          Vio *vio= vio_new(client_fd, socket_index==0?VIO_TYPE_SOCKET:
-                            VIO_TYPE_TCPIP, socket_index==0?1:0);
+          Vio *vio= vio_new(client_fd, socket_index == 0 ?
+                            VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
+                            socket_index == 0 ? 1 : 0);
           if (vio != 0)
             handle_new_mysql_connection(vio);
           else
@@ -273,8 +274,8 @@ int Listener_thread::create_tcp_socket()
 }
 
 #ifndef __WIN__
-int Listener_thread::create_unix_socket(struct sockaddr_un
-                                        &unix_socket_address)
+int Listener_thread::
+create_unix_socket(struct sockaddr_un &unix_socket_address)
 {
   int unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
   if (unix_socket == INVALID_SOCKET)
