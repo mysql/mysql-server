@@ -388,7 +388,6 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
 {
   struct st_my_thread_var *thread_var= my_thread_var;
   pthread_cond_t *cond= &thread_var->suspend;
-  struct timeval now;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
   my_bool can_deadlock= test(data->owner->info->n_cursors);
@@ -406,11 +405,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   data->cond= cond;
 
   if (can_deadlock)
-  {
-    gettimeofday(&now, 0);
-    wait_timeout.tv_sec= now.tv_sec + table_lock_wait_timeout;
-    wait_timeout.tv_nsec= now.tv_usec * 1000;
-  }
+    set_timespec(wait_timeout, table_lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
     int rc= can_deadlock ? pthread_cond_timedwait(cond, &data->lock->mutex,
@@ -514,7 +509,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
 	(*lock->read.last)=data;		/* Add to running FIFO */
 	data->prev=lock->read.last;
 	lock->read.last= &data->next;
-	if ((int) lock_type == (int) TL_READ_NO_INSERT)
+	if (lock_type == TL_READ_NO_INSERT)
 	  lock->read_no_write_count++;
 	check_locks(lock,"read lock with old write lock",0);
 	if (lock->get_status)
@@ -540,14 +535,14 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
       lock->read.last= &data->next;
       if (lock->get_status)
 	(*lock->get_status)(data->status_param, 0);
-      if ((int) lock_type == (int) TL_READ_NO_INSERT)
+      if (lock_type == TL_READ_NO_INSERT)
 	lock->read_no_write_count++;
       check_locks(lock,"read lock with no write locks",0);
       statistic_increment(locks_immediate,&THR_LOCK_lock);
       goto end;
     }
     /*
-      We're here if there is an active write lock  or no write
+      We're here if there is an active write lock or no write
       lock but a high priority write waiting in the write_wait queue.
       In the latter case we should yield the lock to the writer.
     */
@@ -1048,10 +1043,10 @@ void thr_abort_locks(THR_LOCK *lock)
   This is used to abort all locks for a specific thread
 */
 
-bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
+my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
 {
   THR_LOCK_DATA *data;
-  bool found= FALSE;
+  my_bool found= FALSE;
   DBUG_ENTER("thr_abort_locks_for_thread");
 
   pthread_mutex_lock(&lock->mutex);

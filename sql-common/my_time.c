@@ -60,11 +60,11 @@ uint calc_days_in_year(uint year)
 
   SYNOPSIS
     check_date()
-      ltime         - Date to check.
-      not_zero_date - ltime is not the zero date
-      flags         - flags to check
-      was_cut       - set to whether the value was truncated
-
+      ltime          Date to check.
+      not_zero_date  ltime is not the zero date
+      flags          flags to check
+      was_cut        set to 2 if value was truncated.
+		     NOTE: This is not touched if value was not truncated
   NOTES
     Here we assume that year and month is ok !
     If month is 0 we allow any date. (This only happens if we allow zero
@@ -75,10 +75,9 @@ uint calc_days_in_year(uint year)
     1  error
 */
 
-bool check_date(const MYSQL_TIME *ltime, bool not_zero_date, ulong flags,
-                int *was_cut)
+static my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
+                          ulong flags, int *was_cut)
 {
-
   if (not_zero_date)
   {
     if ((((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
@@ -165,11 +164,11 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
   uint add_hours= 0, start_loop;
   ulong not_zero_date, allow_space;
-  bool is_internal_format;
+  my_bool is_internal_format;
   const char *pos, *last_field_pos;
   const char *end=str+length;
   const uchar *format_position;
-  bool found_delimitier= 0, found_space= 0;
+  my_bool found_delimitier= 0, found_space= 0;
   uint frac_pos, frac_len;
   DBUG_ENTER("str_to_datetime");
   DBUG_PRINT("ENTER",("str: %.*s",length,str));
@@ -208,7 +207,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   {
     /* Found date in internal format (only numbers like YYYYMMDD) */
     year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
-    field_length=year_length-1;
+    field_length= year_length;
     is_internal_format= 1;
     format_position= internal_format_positions;
   }
@@ -238,6 +237,8 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         start_loop= 5;                         /* Start with first date part */
       }
     }
+
+    field_length= format_position[0] == 0 ? 4 : 2;
   }
 
   /*
@@ -262,7 +263,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     const char *start= str;
     ulong tmp_value= (uint) (uchar) (*str++ - '0');
     while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
-           (!is_internal_format || field_length--))
+           --field_length)
     {
       tmp_value=tmp_value*10 + (ulong) (uchar) (*str - '0');
       str++;
@@ -276,8 +277,8 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     date[i]=tmp_value;
     not_zero_date|= tmp_value;
 
-    /* Length-1 of next field */
-    field_length= format_position[i+1] == 0 ? 3 : 1;
+    /* Length of next field */
+    field_length= format_position[i+1] == 0 ? 4 : 2;
 
     if ((last_field_pos= str) == end)
     {
@@ -295,7 +296,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
       if (*str == '.')                          /* Followed by part seconds */
       {
         str++;
-        field_length= 5;                        /* 5 digits after first (=6) */
+        field_length= 6;                        /* 6 digits */
       }
       continue;
 
@@ -472,12 +473,12 @@ err:
      1  error
 */
 
-bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
-                 int *was_cut)
+my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
+                    int *was_cut)
 {
   long date[5],value;
   const char *end=str+length, *end_of_days;
-  bool found_days,found_hours;
+  my_bool found_days,found_hours;
   uint state;
 
   l_time->neg=0;
@@ -644,7 +645,7 @@ void init_time(void)
   time_t seconds;
   struct tm *l_time,tm_tmp;
   MYSQL_TIME my_time;
-  bool not_used;
+  my_bool not_used;
 
   seconds= (time_t) time((time_t*) 0);
   localtime_r(&seconds,&tm_tmp);
@@ -710,7 +711,8 @@ long calc_daynr(uint year,uint month,uint day)
     Time in UTC seconds since Unix Epoch representation.
 */
 my_time_t 
-my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
+my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
+                  my_bool *in_dst_time_gap)
 {
   uint loop;
   time_t tmp;
@@ -961,11 +963,10 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     return nr;
 
   /* Don't want to have was_cut get set if NO_ZERO_DATE was violated. */
-  if (!nr && flags & TIME_NO_ZERO_DATE)
+  if (!nr && (flags & TIME_NO_ZERO_DATE))
     return LL(-1);
 
  err:
-
   *was_cut= 1;
   return LL(-1);
 }

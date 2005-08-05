@@ -44,3 +44,5 @@ connection master;
 DROP TABLE t4;
 --enable_query_log
 sync_slave_with_master;
+
+# End of 4.1 tests

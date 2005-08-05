@@ -35,3 +35,5 @@ connection con1;
 reap;
 show status like 'Table_lock%';
 drop table t1;
+
+# End of 4.1 tests

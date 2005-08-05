@@ -1194,7 +1194,14 @@ JOIN::exec()
     {
       result->send_fields(fields_list,
                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-      if (cond_value != Item::COND_FALSE && (!having || having->val_int()))
+      /*
+        We have to test for 'conds' here as the WHERE may not be constant
+        even if we don't have any tables for prepared statements or if
+        conds uses something like 'rand()'.
+      */
+      if (cond_value != Item::COND_FALSE &&
+          (!conds || conds->val_int()) &&
+          (!having || having->val_int()))
       {
 	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
                                           procedure->end_of_records())
@@ -1767,7 +1774,7 @@ Cursor::init_from_thd(THD *thd)
   for (handlerton **pht= thd->transaction.stmt.ht; *pht; pht++)
   {
     const handlerton *ht= *pht;
-    close_at_commit|= (ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
+    close_at_commit|= test(ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
     if (ht->create_cursor_read_view)
     {
       info->ht= ht;
@@ -1854,6 +1861,7 @@ Cursor::fetch(ulong num_rows)
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   Query_arena backup_arena;
+  Engine_info *info;
   DBUG_ENTER("Cursor::fetch");
   DBUG_PRINT("enter",("rows: %lu", num_rows));
 
@@ -1868,7 +1876,7 @@ Cursor::fetch(ulong num_rows)
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &backup_arena);
 
-  for (Engine_info *info= ht_info; info->read_view ; info++)
+  for (info= ht_info; info->read_view ; info++)
     (info->ht->set_cursor_read_view)(info->read_view);
 
   join->fetch_limit+= num_rows;
@@ -1887,7 +1895,7 @@ Cursor::fetch(ulong num_rows)
   /* Grab free_list here to correctly free it in close */
   thd->restore_backup_item_arena(this, &backup_arena);
 
-  for (Engine_info *info= ht_info; info->read_view; info++)
+  for (info= ht_info; info->read_view; info++)
     (info->ht->set_cursor_read_view)(0);
 
   if (error == NESTED_LOOP_CURSOR_LIMIT)
@@ -2762,9 +2770,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
-                                 ((*value)->type() == Item::FIELD_ITEM) &&
-                                 ((Item_field*)*value)->field->maybe_null();
+  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC) &&
+                                  ((*value)->type() == Item::FIELD_ITEM) &&
+                                  ((Item_field*)*value)->field->maybe_null());
   (*key_fields)++;
 }
 
@@ -7951,7 +7959,15 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
-    if (item->max_length > 255 && convert_blob_length)
+    enum enum_field_types type;
+    /*
+      DATE/TIME fields have STRING_RESULT result type. To preserve
+      type they needed to be handled separately.
+    */
+    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
+        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
+      new_field= item->tmp_table_field_from_field_type(table);
+    else if (item->max_length > 255 && convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
@@ -8041,6 +8057,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool table_cant_handle_bit_fields,
                         uint convert_blob_length)
 {
+  if (type != Item::FIELD_ITEM &&
+      item->real_item()->type() == Item::FIELD_ITEM &&
+      (item->type() != Item::REF_ITEM ||
+       !((Item_ref *) item)->depended_from))
+  {
+    item= item->real_item();
+    type= Item::FIELD_ITEM;
+  }
   switch (type) {
   case Item::SUM_FUNC_ITEM:
   {
@@ -8054,30 +8078,31 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
-    if (table_cant_handle_bit_fields && field->field->type() == FIELD_TYPE_BIT)
+    /*
+      If item have to be able to store NULLs but underlaid field can't do it,
+      create_tmp_field_from_field() can't be used for tmp field creation.
+    */
+    if (field->maybe_null && !field->field->maybe_null())
+    {
+      Field *res= create_tmp_field_from_item(thd, item, table, NULL,
+                                       modify_item, convert_blob_length);
+      *from_field= field->field;
+      if (res && modify_item)
+        ((Item_field*)item)->result_field= res;
+      return res;
+    }
+
+    if (table_cant_handle_bit_fields && 
+        field->field->type() == FIELD_TYPE_BIT)
       return create_tmp_field_from_item(thd, item, table, copy_func,
                                         modify_item, convert_blob_length);
     return create_tmp_field_from_field(thd, (*from_field= field->field),
                                        item->name, table,
-                                       modify_item ? (Item_field*) item : NULL,
+                                       modify_item ? (Item_field*) item :
+                                       NULL,
                                        convert_blob_length);
   }
-  case Item::REF_ITEM:
-  {
-    Item *tmp_item;
-    if ((tmp_item= item->real_item())->type() == Item::FIELD_ITEM)
-    {
-      Item_field *field= (Item_field*) tmp_item;
-      Field *new_field= create_tmp_field_from_field(thd, 
-                               (*from_field= field->field),
-                               item->name, table,
-                               NULL,
-                               convert_blob_length);
-      if (modify_item)
-        item->set_result_field(new_field);
-      return new_field;
-    }
-  }
+  /* Fall through */
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
@@ -8089,6 +8114,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REAL_ITEM:
   case Item::DECIMAL_ITEM:
   case Item::STRING_ITEM:
+  case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
@@ -9881,6 +9907,11 @@ join_read_always_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
+  {
+    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
+        return -1;
+  } 
   if (!table->file->inited)
   {
     table->file->ha_index_init(tab->ref.key, tab->sorted);
@@ -10936,13 +10967,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   usable_keys.set_all();
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
-    if ((*tmp_order->item)->type() != Item::FIELD_ITEM)
+    Item *item= (*tmp_order->item)->real_item();
+    if (item->type() != Item::FIELD_ITEM)
     {
       usable_keys.clear_all();
       DBUG_RETURN(0);
     }
-    usable_keys.intersect(((Item_field*) (*tmp_order->item))->
-			  field->part_of_sortkey);
+    usable_keys.intersect(((Item_field*) item)->field->part_of_sortkey);
     if (usable_keys.is_clear_all())
       DBUG_RETURN(0);					// No usable keys
   }

@@ -321,6 +321,22 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
       field->flags&= ~NOT_NULL_FLAG;
     return field;
   }
+  /*
+    DATE/TIME fields have STRING_RESULT result types.
+    In order to preserve field type, it's needed to handle DATE/TIME
+    fields creations separately.
+  */
+  switch (args[0]->field_type()) {
+  case MYSQL_TYPE_DATE:
+    return new Field_date(maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_TIME:
+    return new Field_time(maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    return new Field_datetime(maybe_null, name, table, collation.collation);
+  default:
+    break;
+  }
   return Item_sum::create_tmp_field(group, table, convert_blob_length);
 }
 
@@ -2632,7 +2648,11 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
       the temporary table, not the original field
     */
     Field *field= (*field_item)->get_tmp_table_field();
-    if (field)
+    /* 
+      If field_item is a const item then either get_tp_table_field returns 0
+      or it is an item over a const table. 
+    */
+    if (field && !(*field_item)->const_item())
     {
       int res;
       uint offset= field->offset() - table->s->null_bytes;
@@ -2666,8 +2686,11 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
       the temporary table, not the original field
     */
     Field *field= item->get_tmp_table_field();
-    /* If the item is a constant, there is no tmp table field */
-    if (field)
+    /* 
+      If item is a const item then either get_tp_table_field returns 0
+      or it is an item over a const table. 
+    */
+    if (field && !item->const_item())
     {
       int res;
       uint offset= field->offset() - table->s->null_bytes;
@@ -2975,6 +2998,10 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
     if (i < arg_count_field)
       maybe_null|= args[i]->maybe_null;
   }
+
+  if (agg_item_charsets(collation, func_name(),
+                        args, arg_count, MY_COLL_ALLOW_CONV))
+    return 1;
 
   result_field= 0;
   null_value= 1;

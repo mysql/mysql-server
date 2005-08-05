@@ -28,6 +28,7 @@
 
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -125,7 +126,7 @@ static bool end_active_trans(THD *thd)
 {
   int error=0;
   DBUG_ENTER("end_active_trans");
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
@@ -148,11 +149,7 @@ static bool end_active_trans(THD *thd)
 static bool begin_trans(THD *thd)
 {
   int error=0;
-  /*
-    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
-        stored routines as SQL2003 suggests?
-  */
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     return 1;
@@ -197,7 +194,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
 				   USER_RESOURCES *mqh)
 {
-  int return_val=0;
+  int return_val= 0;
   uint temp_len, user_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
@@ -205,7 +202,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
 
-  user_len=strlen(user);
+  user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
@@ -217,21 +214,21 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 			 MYF(MY_WME)))))
     {
       net_send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
     uc->host= uc->user + user_len +  1;
-    uc->len = temp_len;
+    uc->len= temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
-    uc->user_resources=*mqh;
-    uc->intime=thd->thr_create_time;
+    uc->user_resources= *mqh;
+    uc->intime= thd->thr_create_time;
     if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
       my_free((char*) uc,0);
       net_send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
   }
@@ -1344,11 +1341,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   int res= 0;
   DBUG_ENTER("end_trans");
 
-  /*
-    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
-        stored routines as SQL2003 suggests?
-  */
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
@@ -3649,6 +3642,7 @@ end_with_restore_list:
     if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
+    net_printf_error(thd, ER_CANT_OPEN_LIBRARY, lex->udf.dl, 0, "feature disabled");
     res= TRUE;
 #endif
     break;
@@ -4110,6 +4104,12 @@ end_with_restore_list:
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
+    case SP_BODY_TOO_LONG:
+      my_error(ER_TOO_LONG_BODY, MYF(0), name);
+      lex->unit.cleanup();
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
     default:
       my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
       lex->unit.cleanup();
@@ -4132,9 +4132,8 @@ end_with_restore_list:
        goto error;
 
       /*
-        By this moment all needed SPs should be in cache so no need
-        to look into DB. Moreover we may be unable to do it becuase
-        we may don't have read lock on mysql.proc
+        By this moment all needed SPs should be in cache so no need to look 
+        into DB. 
       */
       if (!(sp= sp_find_procedure(thd, lex->spname, TRUE)))
       {
@@ -4199,7 +4198,7 @@ end_with_restore_list:
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
-	thd->row_count_func= 0;
+        thd->row_count_func= 0;
         tmp_disable_binlog(thd); /* don't binlog the substatements */
 	res= sp->execute_procedure(thd, &lex->value_list);
         reenable_binlog(thd);
@@ -5091,8 +5090,9 @@ bool check_stack_overrun(THD *thd, long margin,
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
       (long) (thread_stack - margin))
   {
-    sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
-    my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));
+    sprintf(errbuff[0],ER(ER_STACK_OVERRUN_NEED_MORE),
+            stack_used,thread_stack,margin);
+    my_message(ER_STACK_OVERRUN_NEED_MORE,errbuff[0],MYF(0));
     thd->fatal_error();
     return 1;
   }
@@ -5307,6 +5307,8 @@ void create_select_for_variable(const char *var_name)
   THD *thd;
   LEX *lex;
   LEX_STRING tmp, null_lex_string;
+  Item *var;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *end;
   DBUG_ENTER("create_select_for_variable");
 
   thd= current_thd;
@@ -5316,8 +5318,14 @@ void create_select_for_variable(const char *var_name)
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
   bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
-  add_item_to_list(thd, get_system_var(thd, OPT_SESSION, tmp,
-				       null_lex_string));
+  /*
+    We set the name of Item to @@session.var_name because that then is used
+    as the column name in the output.
+  */
+  var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string);
+  end= strxmov(buff, "@@session.", var_name, NullS);
+  var->set_name(buff, end-buff, system_charset_info);
+  add_item_to_list(thd, var);
   DBUG_VOID_RETURN;
 }
 

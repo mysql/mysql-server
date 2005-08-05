@@ -1776,6 +1776,15 @@ buf_page_create(
 	buf_flush_free_margin();
 
 	frame = block->frame;
+
+	/* Reset to zero the file flush lsn field in the page; if the first
+	page of an ibdata file is 'created' in this function into the buffer
+	pool then we lose the original contents of the file flush lsn stamp.
+	Then InnoDB could in a crash recovery print a big, false, corruption
+	warning if the stamp contains an lsn bigger than the ib_logfile lsn. */
+
+	memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
+
 #ifdef UNIV_DEBUG
 	buf_dbg_counter++;
 

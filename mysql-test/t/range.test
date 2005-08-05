@@ -490,6 +490,8 @@ SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 1' OR ARG1 != ' 2');
 SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 2' OR ARG1 != ' 1');
 drop table t1;
 
+# End of 4.1 tests
+
 #
 # Test for optimization request #10561: to use keys for
 # NOT IN (c1,...,cn) and NOT BETWEEN c1 AND c2

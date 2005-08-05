@@ -29,7 +29,6 @@ Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql
 URL:		http://www.mysql.com/
 Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
-Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
 Obsoletes:	mysql
@@ -60,7 +59,7 @@ documentation and the manual for more information.
 %package server
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Requires: fileutils sh-utils
+Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
 Provides:	msqlormysql mysql-server mysql MySQL
 Obsoletes:	MySQL mysql mysql-server
 
@@ -300,7 +299,7 @@ BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
-		--with-archive \
+		--with-archive-storage-engine \
 		--with-csv-storage-engine \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
@@ -349,6 +348,7 @@ BuildMySQL "--disable-shared \
 %if %{STATIC_BUILD}
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
+		--with-zlib-dir=bundled \
 		$USE_OTHER_LIBC_DIR \
 %endif
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
@@ -442,7 +442,7 @@ fi
 
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
-groupadd -r -c "MySQL server" %{mysqld_user} 2> /dev/null || true
+groupadd -r %{mysqld_user} 2> /dev/null || true
 useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_user} %{mysqld_user} 2> /dev/null || true 
 
 # Change permissions so that the user that will run the MySQL daemon
@@ -667,6 +667,16 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Fixed the creation of the mysql user group account in the postinstall
+  section (BUG 12348)
+- Fixed enabling the Archive storage engine in the Max binary
+
+* Tue Aug 02 2005 Lenz Grimmer <lenz@mysql.com>
+
+- Fixed the Requires: tag for the server RPM (BUG 12233)
+
 * Fri Jul 15 2005 Lenz Grimmer <lenz@mysql.com>
 
 - create a "mysql" user group and assign the mysql user account to that group
