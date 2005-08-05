@@ -108,11 +108,11 @@ void Listener_thread::run()
   FD_ZERO(&read_fds);
 
   /* I. prepare 'listen' sockets */
-  if (create_tcp_socket()) 
+  if (create_tcp_socket())
     goto err;
 
 #ifndef __WIN__
-  if (create_unix_socket(unix_socket_address)) 
+  if (create_unix_socket(unix_socket_address))
     goto err;
 #endif
 
@@ -133,12 +133,12 @@ void Listener_thread::run()
     int rc= select(n, &read_fds_arg, 0, 0, 0);
 
 
-      if (rc == -1 && errno != EINTR)
-      {
-        log_error("Listener_thread::run(): select() failed, %s",
-                  strerror(errno));
-        continue;
-      }
+    if (rc == -1 && errno != EINTR)
+    {
+      log_error("Listener_thread::run(): select() failed, %s",
+                strerror(errno));
+      continue;
+    }
 
 
     for (int socket_index= 0; socket_index < num_sockets; socket_index++)
@@ -150,8 +150,8 @@ void Listener_thread::run()
         /* accept may return -1 (failure or spurious wakeup) */
         if (client_fd >= 0)                    // connection established
         {
-          Vio *vio = vio_new(client_fd, socket_index==0?VIO_TYPE_SOCKET:
-                             VIO_TYPE_TCPIP, socket_index==0?1:0);
+          Vio *vio= vio_new(client_fd, socket_index==0?VIO_TYPE_SOCKET:
+                            VIO_TYPE_TCPIP, socket_index==0?1:0);
           if (vio != 0)
             handle_new_mysql_connection(vio);
           else
@@ -212,7 +212,7 @@ void set_no_inherit(int socket)
 int Listener_thread::create_tcp_socket()
 {
   /* value to be set by setsockopt */
-  int arg= 1;                        
+  int arg= 1;
 
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
   if (ip_socket == INVALID_SOCKET)
@@ -236,11 +236,11 @@ int Listener_thread::create_tcp_socket()
   uint im_port= options.port_number;
 
   ip_socket_address.sin_family= AF_INET;
-  ip_socket_address.sin_addr.s_addr = im_bind_addr;
+  ip_socket_address.sin_addr.s_addr= im_bind_addr;
 
 
   ip_socket_address.sin_port= (unsigned short)
-                              htons((unsigned short) im_port);
+    htons((unsigned short) im_port);
 
   setsockopt(ip_socket, SOL_SOCKET, SO_REUSEADDR, (char*) &arg, sizeof(arg));
   if (bind(ip_socket, (struct sockaddr *) &ip_socket_address,
@@ -273,8 +273,8 @@ int Listener_thread::create_tcp_socket()
 }
 
 #ifndef __WIN__
-int Listener_thread::create_unix_socket(
-			struct sockaddr_un &unix_socket_address)
+int Listener_thread::create_unix_socket(struct sockaddr_un
+                                        &unix_socket_address)
 {
   int unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
   if (unix_socket == INVALID_SOCKET)
@@ -297,20 +297,20 @@ int Listener_thread::create_unix_socket(
   */
   mode_t old_mask= umask(0);
   if (bind(unix_socket, (struct sockaddr *) &unix_socket_address,
-            sizeof(unix_socket_address)))
+           sizeof(unix_socket_address)))
   {
     log_error("Listener_thread::run(): bind(unix socket) failed, "
-                "socket file name is '%s', error '%s'",
-                unix_socket_address.sun_path, strerror(errno));
+              "socket file name is '%s', error '%s'",
+              unix_socket_address.sun_path, strerror(errno));
     close(unix_socket);
     return -1;
   }
-  
+
   umask(old_mask);
-  
+
   if (listen(unix_socket, LISTEN_BACK_LOG_SIZE))
   {
-    log_error("Listener_thread::run(): listen(unix socket) failed, %s", 
+    log_error("Listener_thread::run(): listen(unix socket) failed, %s",
               strerror(errno));
     close(unix_socket);
     return -1;
@@ -322,8 +322,9 @@ int Listener_thread::create_unix_socket(
   /* make sure that instances won't be listening our sockets */
   set_no_inherit(unix_socket);
 
-  log_info("accepting connections on unix socket %s", unix_socket_address.sun_path);
-  sockets[num_sockets++] = unix_socket;
+  log_info("accepting connections on unix socket %s",
+           unix_socket_address.sun_path);
+  sockets[num_sockets++]= unix_socket;
   FD_SET(unix_socket, &read_fds);
   return 0;
 }

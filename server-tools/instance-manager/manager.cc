@@ -238,20 +238,20 @@ void manager(const Options &options)
       process_alarm(signo);
     else
 #endif
+    {
+      if (!guardian_thread.is_stopped())
       {
-        if (!guardian_thread.is_stopped())
-        {
-          bool stop_instances= true;
-          guardian_thread.request_shutdown(stop_instances);
-          pthread_cond_signal(&guardian_thread.COND_guardian);
-        }
-        else
-        {
-          thread_registry.deliver_shutdown();
-          shutdown_complete= TRUE;
-        }
+        bool stop_instances= true;
+        guardian_thread.request_shutdown(stop_instances);
+        pthread_cond_signal(&guardian_thread.COND_guardian);
+      }
+      else
+      {
+        thread_registry.deliver_shutdown();
+        shutdown_complete= TRUE;
       }
     }
+  }
 
 err:
   /* delete the pid file */

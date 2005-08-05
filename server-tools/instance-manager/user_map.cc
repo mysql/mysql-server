@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef __GNUC__
-#pragma interface 
+#pragma interface
 #endif
 
 #include "user_map.h"
@@ -24,6 +24,12 @@
 #include <m_string.h>
 
 #include "log.h"
+
+#ifdef __WIN__
+#define NEWLINE_LEN 2
+#else
+#define NEWLINE_LEN 1
+#endif
 
 struct User
 {
@@ -36,8 +42,7 @@ struct User
 
 int User::init(const char *line)
 {
-  const char *name_begin, *name_end;
-  char *password;
+  const char *name_begin, *name_end, *password;
 
   if (line[0] == '\'' || line[0] == '"')
   {
@@ -45,7 +50,7 @@ int User::init(const char *line)
     name_end= strchr(name_begin, line[0]);
     if (name_end == 0 || name_end[1] != ':')
       goto err;
-    password= (char*)(name_end + 2);
+    password= name_end + 2;
   }
   else
   {
@@ -53,19 +58,14 @@ int User::init(const char *line)
     name_end= strchr(name_begin, ':');
     if (name_end == 0)
       goto err;
-    password= (char*)(name_end + 1);
+    password= name_end + 1;
   }
   user_length= name_end - name_begin;
   if (user_length > USERNAME_LENGTH)
     goto err;
 
   /* assume that newline characater is present */
-  if (password[strlen(password)-2] == '\r')
-  {
-    password[strlen(password)-2]= '\n';
-    password[strlen(password)-1]= 0;
-  }
-  if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + 1)
+  if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + NEWLINE_LEN)
     goto err;
 
   memcpy(user, name_begin, user_length);
@@ -101,7 +101,7 @@ C_MODE_END
 
 int User_map::init()
 {
-  enum { START_HASH_SIZE = 16 };
+  enum { START_HASH_SIZE= 16 };
   if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
       get_user_key, delete_user, 0))
     return 1;
