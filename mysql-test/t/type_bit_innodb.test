@@ -20,7 +20,7 @@ select 0 + b'1000000000000001';
 drop table if exists t1;
 --enable_warnings
 
---error 1074
+--error 1438
 create table t1 (a bit(65)) engine=innodb;
 
 create table t1 (a bit(0)) engine=innodb;
