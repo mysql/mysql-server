@@ -993,6 +993,15 @@ select * from t1 where a like "%abc\d%";
 a
 abcd
 drop table t1;
+set names utf8;
+create table t1 (a char(3), b varchar(10));
+insert into t1 values ('bar','kostja');
+prepare my_stmt from "select * from t1 where a=?";
+set @a:='bar';
+execute my_stmt using @a;
+a	b
+bar	kostja
+drop table t1;
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
