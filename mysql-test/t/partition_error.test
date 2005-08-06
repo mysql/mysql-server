@@ -17,7 +17,7 @@ partitions 3
 #
 # Partition by key list, number of partitions defined, no partition defined
 #
---error 1448
+--error ER_PARTITIONS_MUST_BE_DEFINED_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -29,7 +29,7 @@ partitions 2;
 #
 # Partition by key list, wrong result type
 #
---error 1447
+--error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -74,7 +74,7 @@ partitions 3
 #
 # Partition by key, invalid field in field list
 #
---error 1444
+--error ER_FIELD_NOT_FOUND_PART_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -103,7 +103,7 @@ partitions 3
 #
 # Partition by hash, invalid result type
 #
---error 1447
+--error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -170,7 +170,7 @@ partitions 2
 #
 # Partition by hash, values less than error
 #
---error 1437
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -184,7 +184,7 @@ partitions 2
 #
 # Partition by hash, values in error
 #
---error 1437
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -198,7 +198,7 @@ partitions 2
 #
 # Partition by hash, values in error
 #
---error 1437
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -212,7 +212,7 @@ partitions 2
 #
 # Subpartition by key, no partitions defined, single field
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -224,7 +224,7 @@ subpartition by key (b);
 #
 # Subpartition by key, no partitions defined, list of fields
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -236,7 +236,7 @@ subpartition by key (a, b);
 #
 # Subpartition by hash, no partitions defined
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -248,7 +248,7 @@ subpartition by hash (a+b);
 #
 # Subpartition by key, no partitions defined, single field
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -260,7 +260,7 @@ subpartition by key (b);
 #
 # Subpartition by key, no partitions defined, list of fields
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -272,7 +272,7 @@ subpartition by key (a, b);
 #
 # Subpartition by hash, no partitions defined
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -296,7 +296,7 @@ subpartition by hash (rand(a+b));
 #
 # Subpartition by hash, wrong subpartition function
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -324,7 +324,7 @@ subpartition by key (a+b)
 #
 # Subpartition by hash, no partitions defined, wrong subpartition function
 #
---error 1444
+--error ER_FIELD_NOT_FOUND_PART_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -338,7 +338,7 @@ subpartition by key (a,d)
 #
 # Subpartition by hash, no partitions defined, wrong subpartition function
 #
---error 1456
+--error ER_SUBPARTITION_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -364,7 +364,7 @@ subpartition by hash (a+d)
 #
 # Partition by range, no partition => error
 #
---error 1448
+--error ER_PARTITIONS_MUST_BE_DEFINED_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -403,7 +403,7 @@ partitions 2
 #
 # Partition by range, constant partition function not allowed
 #
---error 1442
+--error ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -417,7 +417,7 @@ partitions 2
 # 
 # Partition by range, no values less than definition
 # 
---error 1436
+--error ER_PARTITION_REQUIRES_VALUES_ERROR
 CREATE TABLE t1 ( 
 a int not null,
 b int not null,
@@ -431,7 +431,7 @@ partitions 2
 #
 # Partition by range, no values in definition allowed
 #
---error 1437
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -445,7 +445,7 @@ partitions 2
 #
 # Partition by range, values in error
 #
---error 1437
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -501,7 +501,7 @@ partitions 2
 #
 # Partition by range, not increasing ranges
 #
---error 1449
+--error ER_RANGE_NOT_INCREASING_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -515,7 +515,7 @@ partitions 2
 #
 # Partition by range, wrong result type of partition function
 #
---error 1447
+--error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -607,7 +607,7 @@ subpartition by list (a+b)
 #
 # Partition by list, no partition => error
 #
---error 1448
+--error ER_PARTITIONS_MUST_BE_DEFINED_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -618,7 +618,7 @@ partition by list (a);
 #
 # Partition by list, constant partition function not allowed
 #
---error 1442
+--error ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -646,7 +646,7 @@ partitions 2
 # 
 # Partition by list, no values in definition
 # 
---error 1436
+--error ER_PARTITION_REQUIRES_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -660,7 +660,7 @@ partitions 2
 #
 # Partition by list, values less than error
 #
---error 1437
+--error ER_PARTITION_WRONG_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -674,7 +674,7 @@ partitions 2
 #
 # Partition by list, no values in definition
 #
---error 1436
+--error ER_PARTITION_REQUIRES_VALUES_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -688,7 +688,7 @@ partitions 2
 #
 # Partition by list, duplicate values
 #
---error 1451
+--error ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
