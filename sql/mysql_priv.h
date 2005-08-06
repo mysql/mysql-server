@@ -215,6 +215,12 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
    in the user query has requested */
 #define SELECT_ALL			(1L << 29)
 
+/* 
+  Force the used temporary table to be a MyISAM table (because we will use
+  fulltext functions when reading from it.
+*/
+#define TMP_TABLE_FORCE_MYISAM          (1L << 30) 
+
 /* If set to 0, then the thread will ignore all warnings with level notes.
    Set by executing SET SQL_NOTES=1 */
 #define OPTION_SQL_NOTES                (1L << 31)
