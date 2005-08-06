@@ -393,6 +393,10 @@ struct sql_ex_info
 #define OPTIONS_WRITTEN_TO_BIN_LOG (OPTION_AUTO_IS_NULL | \
 OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
 
+#if OPTIONS_WRITTEN_TO_BIN_LOG != ((1L << 14) | (1L << 26) | (1L << 27))
+#error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
+#endif
+
 enum Log_event_type
 {
   /*
