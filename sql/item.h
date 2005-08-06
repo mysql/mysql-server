@@ -617,6 +617,7 @@ public:
     basic_const_item returned TRUE.
   */
   Item *new_item();
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   /*
     Implement by-value equality evaluation if parameter value
     is set and is a basic constant (integer, real or string).
