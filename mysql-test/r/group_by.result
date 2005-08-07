@@ -756,6 +756,13 @@ INSERT INTO t1 VALUES (1);
 SELECT n+1 AS n FROM t1 GROUP BY n;
 n
 2
+create table t1 (f1 date);
+insert into t1 values('2005-06-06');
+insert into t1 values('2005-06-06');
+select date(left(f1+0,8)) from t1 group by 1;
+date(left(f1+0,8))
+2005-06-06
+drop table t1;
 Warnings:
 Warning	1052	Column 'n' in group statement is ambiguous
 DROP TABLE t1;
