@@ -132,8 +132,6 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
     options_tmp&= ~OPTION_FOUND_ROWS;
   else if (found_rows_for_union && !thd->lex->describe)
     options_tmp|= OPTION_FOUND_ROWS;
-  fake_select_lex->ftfunc_list_alloc.empty();
-  fake_select_lex->ftfunc_list= &fake_select_lex->ftfunc_list_alloc;
   fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					   (byte **)
 					   &result_table_list.next);
@@ -302,7 +300,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     /*
       Force the temporary table to be a MyISAM table if we're going to use
       fullext functions (MATCH ... AGAINST .. IN BOOLEAN MODE) when reading
-      from it.
+      from it (this should be removed in 5.2 when fulltext search is moved 
+      out of MyISAM).
     */
     if (global_parameters->ftfunc_list->elements)
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
