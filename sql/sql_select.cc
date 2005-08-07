@@ -8359,7 +8359,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES)
+      OPTION_BIG_TABLES ||(select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
