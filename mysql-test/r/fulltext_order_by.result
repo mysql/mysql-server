@@ -163,6 +163,10 @@ text	id	betreff
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc' in boolean mode) desc;
 id	betreff
+(select b.id, b.betreff from t3 b) union 
+(select b.id, b.betreff from t3 b) 
+order by match(betreff) against ('+abc') desc;
+ERROR HY000: Can't find FULLTEXT index matching the column list
 select distinct b.id, b.betreff from t3 b 
 order by match(betreff) against ('+abc' in boolean mode) desc;
 id	betreff
