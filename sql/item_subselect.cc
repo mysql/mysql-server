@@ -1070,15 +1070,20 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     List_iterator_fast<Item> li(select_lex->item_list);
     for (uint i= 0; i < n; i++)
     {
+      Item *func;
       DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->el(i)->cols()))
         DBUG_RETURN(RES_ERROR);
-      Item *func= new Item_ref_null_helper(&select_lex->context,
-                                           this,
-                                           select_lex->ref_pointer_array+i,
-                                           (char *) "<no matter>",
-                                           (char *) "<list ref>");
+      if (join->having || select_lex->with_sum_func ||
+          select_lex->group_list.elements)
+        func= new Item_ref_null_helper(&select_lex->context,
+                                       this,
+				       select_lex->ref_pointer_array+i,
+				       (char *) "<no matter>",
+				       (char *) "<list ref>");
+      else
+        func= li++;
       func=
 	eq_creator.create(new Item_direct_ref(&select_lex->context,
                                               (*optimizer->get_cache())->
