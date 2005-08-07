@@ -543,18 +543,22 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!table->insert_values)
       DBUG_RETURN(-1);
   }
-  if ((values && check_insert_fields(thd, table, fields, *values)) ||
-      setup_tables(insert_table_list) ||
-      (values && setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0)) ||
-      (duplic == DUP_UPDATE &&
-       (check_update_fields(thd, table, insert_table_list, update_fields) ||
-        setup_fields(thd, 0, dup_table_list, update_values, 1, 0, 0))))
+  if (setup_tables(insert_table_list))
     DBUG_RETURN(-1);
-  if (values && find_real_table_in_list(table_list->next, table_list->db,
-                                        table_list->real_name))
+  if (values)
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    DBUG_RETURN(-1);
+    if (check_insert_fields(thd, table, fields, *values) ||
+        setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
+        (duplic == DUP_UPDATE &&
+         (check_update_fields(thd, table, insert_table_list, update_fields) ||
+          setup_fields(thd, 0, dup_table_list, update_values, 1, 0, 0))))
+      DBUG_RETURN(-1);
+    if (find_real_table_in_list(table_list->next, table_list->db,
+                                                  table_list->real_name))
+    {
+      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+      DBUG_RETURN(-1);
+    }
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
@@ -1601,6 +1605,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   int res;
   LEX *lex= thd->lex;
   SELECT_LEX *lex_current_select_save= lex->current_select;
+  bool lex_select_no_error= lex->select_lex.no_error;
   DBUG_ENTER("select_insert::prepare");
 
   unit= u;
@@ -1608,10 +1613,19 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     Since table in which we are going to insert is added to the first
     select, LEX::current_select should point to the first select while
     we are fixing fields from insert list.
+    Since these checks may cause the query to fail, we don't want the
+    error messages to be converted into warnings, must force no_error=0
   */
   lex->current_select= &lex->select_lex;
-  res= check_insert_fields(thd, table, *fields, values);
+  lex->select_lex.no_error= 0;
+  res=
+    check_insert_fields(thd, table, *fields, values) ||
+    setup_fields(thd, 0, insert_table_list, values, 0, 0, 0) ||
+    (info.handle_duplicates == DUP_UPDATE &&
+     (check_update_fields(thd, table, insert_table_list, *info.update_fields) ||
+      setup_fields(thd, 0, dup_table_list, *info.update_values, 1, 0, 0)));
   lex->current_select= lex_current_select_save;
+  lex->select_lex.no_error= lex_select_no_error;
   if (res)
     DBUG_RETURN(1);
 
