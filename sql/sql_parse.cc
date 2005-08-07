@@ -6450,6 +6450,23 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if ((options & REFRESH_READ_LOCK) && thd)
     {
       /*
+        We must not try to aspire a global read lock if we have a write
+        locked table. This would lead to a deadlock when trying to
+        reopen (and re-lock) the table after the flush.
+      */
+      if (thd->locked_tables)
+      {
+        THR_LOCK_DATA **lock_p= thd->locked_tables->locks;
+        THR_LOCK_DATA **end_p= lock_p + thd->locked_tables->lock_count;
+
+        for (; lock_p < end_p; lock_p++)
+          if ((*lock_p)->type == TL_WRITE)
+          {
+            my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+            return 1;
+          }
+      }
+      /*
 	Writing to the binlog could cause deadlocks, as we don't log
 	UNLOCK TABLES
       */
