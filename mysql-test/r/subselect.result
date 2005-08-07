@@ -932,7 +932,7 @@ ROW(1, 1, 'a') IN (select a,b,c from t1)
 1
 select ROW(1, 2, 'a') IN (select a,b,c from t1);
 ROW(1, 2, 'a') IN (select a,b,c from t1)
-NULL
+0
 select ROW(1, 1, 'a') IN (select b,a,c from t1);
 ROW(1, 1, 'a') IN (select b,a,c from t1)
 1
@@ -950,7 +950,7 @@ ROW(1, 1, 'a') IN (select a,b,c from t1 where c='b' or c='a')
 1
 select ROW(1, 2, 'a') IN (select a,b,c from t1 where c='b' or c='a');
 ROW(1, 2, 'a') IN (select a,b,c from t1 where c='b' or c='a')
-NULL
+0
 select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
 ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a')
 1
@@ -2727,3 +2727,18 @@ select * from (select max(fld) from t1) as foo;
 max(fld)
 1
 drop table t1;
+CREATE TABLE t1 (one int, two int, flag char(1));
+CREATE TABLE t2 (one int, two int, flag char(1));
+INSERT INTO t1 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
+INSERT INTO t2 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
+SELECT * FROM t1
+WHERE ROW(one,two) IN (SELECT DISTINCT one,two FROM t2 WHERE flag = 'N');
+one	two	flag
+5	6	N
+7	8	N
+SELECT * FROM t1
+WHERE ROW(one,two) IN (SELECT DISTINCT one,two FROM t1 WHERE flag = 'N');
+one	two	flag
+5	6	N
+7	8	N
+DROP TABLE t1,t2;
