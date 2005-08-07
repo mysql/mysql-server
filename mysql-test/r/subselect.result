@@ -2754,7 +2754,6 @@ one	two	flag
 5	6	N
 7	8	N
 DROP TABLE t1,t2;
-drop table t1;
 create table t1 (df decimal(5,1));
 insert into t1 values(1.1);
 insert into t1 values(2.2);
