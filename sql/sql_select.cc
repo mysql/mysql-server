@@ -1016,7 +1016,7 @@ JOIN::optimize()
 			    group_list : (ORDER*) 0),
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
-			   select_options,
+			   select_options & ~TMP_TABLE_FORCE_MYISAM,
 			   (order == 0 || skip_sort_order) ? select_limit :
 			   HA_POS_ERROR,
 			   (char *) "")))
@@ -1396,7 +1396,8 @@ JOIN::exec()
 						(ORDER*) 0,
 						curr_join->select_distinct && 
 						!curr_join->group_list,
-						1, curr_join->select_options,
+						1, curr_join->select_options
+                                                & ~TMP_TABLE_FORCE_MYISAM,
 						HA_POS_ERROR,
 						(char *) "")))
 	  DBUG_VOID_RETURN;
@@ -8381,7 +8382,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES)
+      OPTION_BIG_TABLES ||(select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
