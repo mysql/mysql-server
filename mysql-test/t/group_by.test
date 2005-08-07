@@ -575,6 +575,11 @@ CREATE TABLE t1 (id varchar(20) NOT NULL);
 INSERT INTO t1 VALUES ('trans1'), ('trans2');
 CREATE TABLE t2 (id varchar(20) NOT NULL, err_comment blob NOT NULL);
 INSERT INTO t2 VALUES ('trans1', 'a problem');
+SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS comment
+  FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY comment;
+
+DROP TABLE t1, t2;
+
 
 #
 # Bug #12266 GROUP BY expression on DATE column produces result with
@@ -585,11 +590,6 @@ insert into t1 values('2005-06-06');
 insert into t1 values('2005-06-06'); 
 select date(left(f1+0,8)) from t1 group by 1;
 drop table t1;
-
-SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS comment
-  FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY comment;
-
-DROP TABLE t1, t2;
 
 #
 # Test for bug #11414: crash on Windows for a simple GROUP BY query 
