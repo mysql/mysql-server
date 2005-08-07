@@ -1,5 +1,5 @@
 --disable_warnings
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1,t2,t3;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -117,8 +117,6 @@ where
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
 
--- todo psergey: fix
---error 1214 
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
