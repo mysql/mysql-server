@@ -1016,7 +1016,7 @@ JOIN::optimize()
 			    group_list : (ORDER*) 0),
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
-			   select_options,
+			   select_options & ~TMP_TABLE_FORCE_MYISAM,
 			   (order == 0 || skip_sort_order) ? select_limit :
 			   HA_POS_ERROR,
 			   (char *) "")))
@@ -1396,7 +1396,8 @@ JOIN::exec()
 						(ORDER*) 0,
 						curr_join->select_distinct && 
 						!curr_join->group_list,
-						1, curr_join->select_options,
+						1, curr_join->select_options
+                                                & ~TMP_TABLE_FORCE_MYISAM,
 						HA_POS_ERROR,
 						(char *) "")))
 	  DBUG_VOID_RETURN;

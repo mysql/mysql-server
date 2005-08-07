@@ -606,6 +606,6 @@ create database mysqltest;
 use mysqltest;
 create view v1 as select 'foo' from dual;
 create table t1 like v1;
-ERROR HY000: 'mysqltest.v1' is not a table
+ERROR HY000: 'mysqltest.v1' is not BASE TABLE
 drop view v1;
 drop database mysqltest;
