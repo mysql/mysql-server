@@ -296,8 +296,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
     }
     
-    ulong create_options= first_select_in_union()->options | thd_arg->options |
-                          TMP_TABLE_ALL_COLUMNS;
+    ulong create_options= (first_select_in_union()->options | thd_arg->options |
+                          TMP_TABLE_ALL_COLUMNS) & ~TMP_TABLE_FORCE_MYISAM;
     /*
       Force the temporary table to be a MyISAM table if we're going to use
       fullext functions (MATCH ... AGAINST .. IN BOOLEAN MODE) when reading
@@ -310,7 +310,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
 				  (ORDER*) 0, (bool) union_distinct, 1, 
-                                  create_options, HA_POS_ERROR, 
+                                  create_options, HA_POS_ERROR,
                                   (char *) tmp_table_alias)))
       goto err;
     table->file->extra(HA_EXTRA_WRITE_CACHE);

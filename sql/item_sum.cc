@@ -2275,7 +2275,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
   DBUG_ASSERT(table == 0);
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
-				select_lex->options | thd->options,
+				(select_lex->options | thd->options) & 
+                                ~TMP_TABLE_FORCE_MYISAM,
 				HA_POS_ERROR, (char*)"")))
     return TRUE;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
@@ -3057,7 +3058,8 @@ bool Item_func_group_concat::setup(THD *thd)
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
                                 (ORDER*) 0, 0, TRUE,
-                                select_lex->options | thd->options,
+                                (select_lex->options | thd->options) & 
+                                ~TMP_TABLE_FORCE_MYISAM,
                                 HA_POS_ERROR, (char*) "")))
     DBUG_RETURN(TRUE);
   table->file->extra(HA_EXTRA_NO_ROWS);
