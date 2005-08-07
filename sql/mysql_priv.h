@@ -256,6 +256,13 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_WARNINGS         (1L << 13)      // THD, user
 #define OPTION_AUTO_IS_NULL     (1L << 14)      // THD, user, binlog
 #define OPTION_FOUND_COMMENT    (1L << 15)      // SELECT, intern, parser
+/* 
+  Force the used temporary table to be a MyISAM table (because we will use
+  fulltext functions when reading from it. This uses the same constant as
+  OPTION_FOUND_COMMENT because we've run out of bits and these two values 
+  are not used together.
+*/
+#define TMP_TABLE_FORCE_MYISAM          (1L << 15)
 #define OPTION_SAFE_UPDATES     (1L << 16)      // THD, user
 #define OPTION_BUFFER_RESULT    (1L << 17)      // SELECT, user
 #define OPTION_BIN_LOG          (1L << 18)      // THD, user

@@ -714,6 +714,12 @@ public:
   {
     return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
   }  
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length= 10;
+    maybe_null= 1;
+  }
 };
 
 
