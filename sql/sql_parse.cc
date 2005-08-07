@@ -2877,7 +2877,8 @@ unsent_create_error:
                                     lex->field_list, 0,
 				    lex->update_list, lex->value_list,
 				    lex->duplicates)) &&
-        (result= new select_insert(insert_table, &lex->field_list,
+        (result= new select_insert(insert_table, first_local_table,
+				   &dup_tables, &lex->field_list,
 				   &lex->update_list, &lex->value_list,
                                    lex->duplicates, lex->ignore)))
     {
