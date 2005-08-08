@@ -9745,18 +9745,19 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       table->file->extra(HA_EXTRA_KEYREAD);
       tab->index= tab->ref.key;
     }
-    if ((error=join_read_const(tab)))
+    error=join_read_const(tab);
+    if (table->key_read)
+    {
+      table->key_read=0;
+      table->file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    if (error)
     {
       tab->info="unique row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
-    }
-    if (table->key_read)
-    {
-      table->key_read=0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
   if (*tab->on_expr_ref && !table->null_row)
