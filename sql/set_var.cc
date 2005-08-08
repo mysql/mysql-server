@@ -2293,7 +2293,12 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   if (!tmp)					// Zero size means delete
   {
     if (key_cache == dflt_key_cache)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_CANT_DROP_DEFAULT_KEYCACHE,
+                          ER(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE));
       goto end;					// Ignore default key cache
+    }
 
     if (key_cache->key_cache_inited)		// If initied
     {

@@ -70,4 +70,35 @@ insert into t1 values (345);
 select * from t1;
 drop table t1;
 
+#
+# Bug#9459 - deadlock with flush with lock, and lock table write
+#
+create table t1 (c1 int);
+lock table t1 write;
+# Cannot get the global read lock with write locked tables.
+--error 1192
+flush tables with read lock;
+lock table t1 read;
+# Can get the global read lock with read locked tables.
+flush tables with read lock;
+--error 1223
+lock table t1 write;
+lock table t1 read;
+--error 1223
+lock table t1 write;
+# Release all table locks and the global read lock.
+unlock tables;
+create table t2 (c1 int);
+create table t3 (c1 int);
+lock table t1 read, t2 read, t3 write;
+# Cannot get the global read lock with write locked tables.
+--error 1192
+flush tables with read lock;
+lock table t1 read, t2 read, t3 read;
+# Can get the global read lock with read locked tables.
+flush tables with read lock;
+# Release all table locks and the global read lock.
+unlock tables;
+drop table t1, t2, t3;
+
 # End of 4.1 tests
