@@ -88,6 +88,7 @@ class Prepared_statement: public Statement
 {
 public:
   THD *thd;
+  Protocol *protocol;
   Item_param **param_array;
   uint param_count;
   uint last_errno;
@@ -2021,6 +2022,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
       stmt->lex->result= &cursor->result;
+      stmt->protocol= &cursor->protocol;
       thd->lock_id= &cursor->lock_id;
     }
   }
@@ -2055,7 +2057,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   }
   mysql_log.write(thd, thd->command, "[%lu] %s", stmt->id, thd->query);
 
-  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
+  thd->protocol= stmt->protocol;                // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
   mysql_execute_command(thd);
@@ -2247,7 +2249,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
 
-  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
+  thd->protocol= stmt->protocol;                // Switch to binary protocol
   cursor->fetch(num_rows);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
@@ -2419,6 +2421,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
              thd_arg->variables.query_alloc_block_size,
              thd_arg->variables.query_prealloc_size),
   thd(thd_arg),
+  protocol(&thd_arg->protocol_prep),
   param_array(0),
   param_count(0),
   last_errno(0)
