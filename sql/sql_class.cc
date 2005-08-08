@@ -157,8 +157,8 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-Open_tables_state::Open_tables_state()
-  :version(refresh_version)
+Open_tables_state::Open_tables_state(ulong version_arg)
+  :version(version_arg)
 {
   reset_open_tables_state();
 }
@@ -172,7 +172,7 @@ Open_tables_state::Open_tables_state()
 
 THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
-   Open_tables_state(),
+   Open_tables_state(refresh_version),
    user_time(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
@@ -1789,31 +1789,26 @@ void THD::set_status_var_init()
   access to mysql.proc table to find definitions of stored routines.
 ****************************************************************************/
 
-bool THD::push_open_tables_state()
+void THD::reset_n_backup_open_tables_state(Open_tables_state *backup)
 {
-  Open_tables_state *state;
-  DBUG_ENTER("push_open_table_state");
-  /* Currently we only push things one level */
-  DBUG_ASSERT(open_state_list.elements == 0);
-
-  if (!(state= (Open_tables_state*) alloc(sizeof(*state))))
-    DBUG_RETURN(1);                             // Fatal error is set
-  /* Store state for currently open tables */
-  state->set_open_tables_state(this);
-  if (open_state_list.push_back(state, mem_root))
-    DBUG_RETURN(1);                             // Fatal error is set
+  DBUG_ENTER("reset_n_backup_open_tables_state");
+  backup->set_open_tables_state(this);
   reset_open_tables_state();
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
-void THD::pop_open_tables_state()
-{
-  Open_tables_state *state;
-  DBUG_ENTER("pop_open_table_state");
-  /* Currently we only push things one level */
-  DBUG_ASSERT(open_state_list.elements == 1);
 
-  state= open_state_list.pop();
-  set_open_tables_state(state);
+void THD::restore_backup_open_tables_state(Open_tables_state *backup)
+{
+  DBUG_ENTER("restore_backup_open_tables_state");
+  /*
+    Before we will throw away current open tables state we want
+    to be sure that it was properly cleaned up.
+  */
+  DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
+              handler_tables == 0 && derived_tables == 0 &&
+              lock == 0 && locked_tables == 0 &&
+              prelocked_mode == NON_PRELOCKED);
+  set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
