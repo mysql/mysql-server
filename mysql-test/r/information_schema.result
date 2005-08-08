@@ -577,8 +577,8 @@ select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables 
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
-SCHEMATA	TEMPORARY	MEMORY
-TABLES	TEMPORARY	MEMORY
+SCHEMATA	SYSTEM VIEW	MEMORY
+TABLES	SYSTEM VIEW	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
@@ -590,10 +590,10 @@ ERROR HY000: Can't create database 'information_schema'; database exists
 use information_schema;
 show full tables like "T%";
 Tables_in_information_schema (T%)	Table_type
-TABLES	TEMPORARY
-TABLE_PRIVILEGES	TEMPORARY
-TABLE_CONSTRAINTS	TEMPORARY
-TRIGGERS	TEMPORARY
+TABLES	SYSTEM VIEW
+TABLE_PRIVILEGES	SYSTEM VIEW
+TABLE_CONSTRAINTS	SYSTEM VIEW
+TRIGGERS	SYSTEM VIEW
 create table t1(a int);
 ERROR 42S02: Unknown table 't1' in information_schema
 use test;
