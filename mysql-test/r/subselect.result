@@ -2757,3 +2757,9 @@ one	two	test
 5	6	1
 7	8	1
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a char(5), b char(5));
+INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
+SELECT * FROM t1 WHERE (a,b) IN (('aaa','aaa'), ('aaa','bbb'));
+a	b
+aaa	aaa
+DROP TABLE t1;
