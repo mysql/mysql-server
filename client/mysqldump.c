@@ -2370,7 +2370,7 @@ static int do_show_master_status(MYSQL *mysql_con)
     {
       /* SHOW MASTER STATUS reports nothing and --force is not enabled */
       my_printf_error(0, "Error: Binlogging on server not active", 
-		      MYF(0), mysql_error(mysql_con));
+		      MYF(0));
       mysql_free_result(master);
       return 1;
     }
