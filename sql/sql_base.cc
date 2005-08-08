@@ -401,8 +401,7 @@ static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
     upper level) and will leave prelocked mode if needed.
 */
 
-void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived, 
-                         TABLE *stopper)
+void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 {
   bool found_old_table;
   prelocked_mode_type prelocked_mode= thd->prelocked_mode;
@@ -508,7 +507,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
 
  found_old_table= 0;
-  while (thd->open_tables != stopper)
+  while (thd->open_tables)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
   thd->some_tables_deleted=0;
 
@@ -1771,6 +1770,9 @@ err:
     thd - thread handler
     start - list of tables in/out
     counter - number of opened tables will be return using this parameter
+    flags   - bitmap of flags to modify how the tables will be open:
+              MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
+              done a flush or namelock on it.
 
   NOTE
     Unless we are already in prelocked mode, this function will also precache
@@ -1788,7 +1790,7 @@ err:
     -1 - error
 */
 
-int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
+int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 {
   TABLE_LIST *tables;
   bool refresh;
@@ -1863,7 +1865,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
     }
     (*counter)++;
     if (!tables->table &&
-	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh, 0)))
+	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags)))
     {
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
       if (tables->view)
@@ -2089,7 +2091,8 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("simple_open_n_lock_tables");
   uint counter;
-  if (open_tables(thd, &tables, &counter) || lock_tables(thd, tables, counter))
+  if (open_tables(thd, &tables, &counter, 0) ||
+      lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -2116,7 +2119,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   uint counter;
   DBUG_ENTER("open_and_lock_tables");
-  if (open_tables(thd, &tables, &counter) ||
+  if (open_tables(thd, &tables, &counter, 0) ||
       lock_tables(thd, tables, counter) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
@@ -2133,6 +2136,9 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     open_normal_and_derived_tables
     thd		- thread handler
     tables	- list of tables for open
+    flags       - bitmap of flags to modify how the tables will be open:
+                  MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
+                  done a flush or namelock on it.
 
   RETURN
     FALSE - ok
@@ -2143,12 +2149,12 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     data from the tables.
 */
 
-bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
+bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
 {
   uint counter;
   DBUG_ENTER("open_normal_and_derived_tables");
   DBUG_ASSERT(!thd->fill_derived_tables());
-  if (open_tables(thd, &tables, &counter) ||
+  if (open_tables(thd, &tables, &counter, flags) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE); /* purecov: inspected */
   DBUG_RETURN(0);
