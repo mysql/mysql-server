@@ -285,6 +285,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     List_iterator_fast<Item> tp(types);
     Item_arena *arena= thd->current_arena;
     Item *type;
+    ulong create_options;
+
     while ((type= tp++))
     {
       if (type->result_type() == STRING_RESULT &&
@@ -295,8 +297,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
     }
     
-    ulong create_options= first_select_in_union()->options | thd_arg->options |
-                          TMP_TABLE_ALL_COLUMNS;
+    create_options= (first_select_in_union()->options | thd_arg->options |
+                     TMP_TABLE_ALL_COLUMNS);
     /*
       Force the temporary table to be a MyISAM table if we're going to use
       fullext functions (MATCH ... AGAINST .. IN BOOLEAN MODE) when reading
