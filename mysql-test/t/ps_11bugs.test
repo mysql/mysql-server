@@ -129,3 +129,4 @@ drop table t1, t2;
 
 # end of bug#1676
 
+# End of 4.1 tests

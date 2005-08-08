@@ -25,9 +25,9 @@
 
 Cached_item *new_Cached_item(THD *thd, Item *item)
 {
-  if (item->type() == Item::FIELD_ITEM &&
-      !(((Item_field *) item)->field->flags & BLOB_FLAG))
-    return new Cached_item_field((Item_field *) item);
+  if (item->real_item()->type() == Item::FIELD_ITEM &&
+      !(((Item_field *) (item->real_item()))->field->flags & BLOB_FLAG))
+    return new Cached_item_field((Item_field *) (item->real_item()));
   switch (item->result_type()) {
   case STRING_RESULT:
     return new Cached_item_str(thd, (Item_field *) item);

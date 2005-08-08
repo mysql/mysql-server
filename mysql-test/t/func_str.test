@@ -613,3 +613,16 @@ drop table t1;
 # Bug #9854  hex() and out of range handling
 #
 select hex(29223372036854775809), hex(-29223372036854775809);
+
+#
+# Bug #11311: Incorrect length returned from LPAD() and RPAD()
+#
+create table t1 (i int);
+insert into t1 values (1000000000),(1);
+--enable_metadata
+select lpad(i, 7, ' ') as t from t1;
+select rpad(i, 7, ' ') as t from t1;
+--disable_metadata
+drop table t1;
+
+# End of 4.1 tests

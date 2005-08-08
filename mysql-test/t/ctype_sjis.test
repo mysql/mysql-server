@@ -77,3 +77,5 @@ SET collation_connection='sjis_bin';
 --character_set sjis
 SET NAMES sjis;
 SELECT HEX('ç≤ìëÅ@\å\') FROM DUAL;
+
+# End of 4.1 tests

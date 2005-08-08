@@ -574,6 +574,7 @@ sp_head::execute(THD *thd)
   sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
+  ulong save_sql_mode;
   Query_arena *old_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
@@ -626,6 +627,8 @@ sp_head::execute(THD *thd)
   old_query_id= thd->query_id;
   old_derived_tables= thd->derived_tables;
   thd->derived_tables= 0;
+  save_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode= m_sql_mode;
   /*
     It is also more efficient to save/restore current thd->lex once when
     do it in each instruction
@@ -715,6 +718,7 @@ sp_head::execute(THD *thd)
   thd->query_id= old_query_id;
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
+  thd->variables.sql_mode= save_sql_mode;
 
   thd->current_arena= old_arena;
   state= EXECUTED;
@@ -879,7 +883,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       octx= new sp_rcontext(csize, hmax, cmax);
       tmp_octx= TRUE;
     }
+
+    /* Evaluate SP arguments (i.e. get the values passed as parameters) */
     // QQ: Should do type checking?
+    DBUG_PRINT("info",(" %.*s: eval args", m_name.length, m_name.str));
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
       sp_pvar_t *pvar= m_pcont->find_pvar(i);
@@ -916,6 +923,15 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
     }
 
+    /* 
+      Okay, got values for all arguments. Close tables that might be used by 
+      arguments evaluation. If arguments evaluation required prelocking mode, 
+      we'll leave it here.
+    */
+    if (!thd->in_sub_stmt)
+      close_thread_tables(thd, 0, 0, 0);
+
+    DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
     // The rest of the frame are local variables which are all IN.
     // Default all variables to null (those with default clauses will
     // be set by an set instruction).
@@ -1245,8 +1261,6 @@ sp_head::show_create_procedure(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  ulong old_sql_mode;
-  sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
   bool full_access;
@@ -1258,19 +1272,13 @@ sp_head::show_create_procedure(THD *thd)
 
   if (check_show_routine_access(thd, this, &full_access))
     return 1;
-  
-  old_sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode= m_sql_mode;
-  sql_mode_var= find_sys_var("SQL_MODE", 8);
-  if (sql_mode_var)
-  {
-    sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen((char*) sql_mode_str);
-  }
 
+  sql_mode_str=
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
+                                                       m_sql_mode,
+                                                       &sql_mode_len);
   field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
-  if (sql_mode_var)
-    field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Create Procedure",
 					     max(buffer.length(), 1024)));
@@ -1282,15 +1290,13 @@ sp_head::show_create_procedure(THD *thd)
   }
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  if (sql_mode_var)
-    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
 
  done:
-  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
 
@@ -1326,8 +1332,6 @@ sp_head::show_create_function(THD *thd)
   String buffer(buff, sizeof(buff), system_charset_info);
   int res;
   List<Item> field_list;
-  ulong old_sql_mode;
-  sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
   bool full_access;
@@ -1339,18 +1343,12 @@ sp_head::show_create_function(THD *thd)
   if (check_show_routine_access(thd, this, &full_access))
     return 1;
 
-  old_sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode= m_sql_mode;
-  sql_mode_var= find_sys_var("SQL_MODE", 8);
-  if (sql_mode_var)
-  {
-    sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen((char*) sql_mode_str);
-  }
-
+  sql_mode_str=
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
+                                                       m_sql_mode,
+                                                       &sql_mode_len);
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
-  if (sql_mode_var)
-    field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+  field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   field_list.push_back(new Item_empty_string("Create Function",
 					     max(buffer.length(),1024)));
   if (protocol->send_fields(&field_list,
@@ -1361,15 +1359,13 @@ sp_head::show_create_function(THD *thd)
   }
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
-  if (sql_mode_var)
-    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+  protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
 
  done:
-  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
 
@@ -1480,8 +1476,27 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
            implemented at the same time as ability not to store LEX for
            instruction if it is not really used.
   */
-  reinit_stmt_before_use(thd, m_lex);
 
+  if (thd->prelocked_mode == NON_PRELOCKED)
+  {
+    /*
+      This statement will enter/leave prelocked mode on its own.
+      Entering prelocked mode changes table list and related members
+      of LEX, so we'll need to restore them.
+    */
+    if (lex_query_tables_own_last)
+    {
+      /*
+        We've already entered/left prelocked mode with this statement.
+        Attach the list of tables that need to be prelocked and mark m_lex
+        as having such list attached.
+      */
+      *lex_query_tables_own_last= prelocking_tables;
+      m_lex->mark_as_requiring_prelocking(lex_query_tables_own_last);
+    }
+  }
+    
+  reinit_stmt_before_use(thd, m_lex);
   /*
     If requested check whenever we have access to tables in LEX's table list
     and open and lock them before executing instructtions core function.
@@ -1499,6 +1514,26 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   thd->proc_info="closing tables";
   close_thread_tables(thd);
 
+  if (m_lex->query_tables_own_last)
+  {
+    /*
+      We've entered and left prelocking mode when executing statement
+      stored in m_lex. 
+      m_lex->query_tables(->next_global)* list now has a 'tail' - a list
+      of tables that are added for prelocking. (If this is the first
+      execution, the 'tail' was added by open_tables(), otherwise we've
+      attached it above in this function).
+      Now we'll save the 'tail', and detach it.
+    */
+    DBUG_ASSERT(!lex_query_tables_own_last ||
+                lex_query_tables_own_last == m_lex->query_tables_own_last &&
+                prelocking_tables == *(m_lex->query_tables_own_last));
+
+    lex_query_tables_own_last= m_lex->query_tables_own_last;
+    prelocking_tables= *lex_query_tables_own_last;
+    *lex_query_tables_own_last= NULL;
+    m_lex->mark_as_requiring_prelocking(NULL);
+  }
   thd->rollback_item_tree_changes();
 
   /*

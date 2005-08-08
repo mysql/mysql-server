@@ -36,6 +36,27 @@ struct NdbThread
   void * object;
 };
 
+
+#ifdef NDB_SHM_TRANSPORTER
+void NdbThread_set_shm_sigmask(my_bool block)
+{
+  DBUG_ENTER("NdbThread_set_shm_sigmask");
+  if (g_ndb_shm_signum)
+  {
+    sigset_t mask;
+    DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
+    sigemptyset(&mask);
+    sigaddset(&mask, g_ndb_shm_signum);
+    if (block)
+      pthread_sigmask(SIG_BLOCK, &mask, 0);
+    else
+      pthread_sigmask(SIG_UNBLOCK, &mask, 0);
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
+
 static
 void*
 ndb_thread_wrapper(void* _ss){
@@ -43,14 +64,7 @@ ndb_thread_wrapper(void* _ss){
   {
     DBUG_ENTER("ndb_thread_wrapper");
 #ifdef NDB_SHM_TRANSPORTER
-    if (g_ndb_shm_signum)
-    {
-      sigset_t mask;
-      DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
-      sigemptyset(&mask);
-      sigaddset(&mask, g_ndb_shm_signum);
-      pthread_sigmask(SIG_BLOCK, &mask, 0);
-    }
+    NdbThread_set_shm_sigmask(TRUE);
 #endif
     {
       void *ret;

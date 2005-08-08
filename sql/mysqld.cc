@@ -221,21 +221,58 @@ extern "C" int gethostname(char *name, int namelen);
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
-static const char *sql_mode_names[] =
+static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
   "NO_DIR_IN_CREATE",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
-  "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES", "STRICT_ALL_TABLES",
-  "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO",
+  "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
+  "STRICT_ALL_TABLES",
+  "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ALLOW_INVALID_DATES",
+  "ERROR_FOR_DIVISION_BY_ZERO",
   "TRADITIONAL", "NO_AUTO_CREATE_USER", "HIGH_NOT_PRECEDENCE",
   "NO_ENGINE_SUBSTITUTION",
   NullS
 };
+static const unsigned int sql_mode_names_len[]=
+{
+  /*REAL_AS_FLOAT*/               13,
+  /*PIPES_AS_CONCAT*/             15,
+  /*ANSI_QUOTES*/                 11,
+  /*IGNORE_SPACE*/                12,
+  /*?*/                           1,
+  /*ONLY_FULL_GROUP_BY*/          18,
+  /*NO_UNSIGNED_SUBTRACTION*/     23,
+  /*NO_DIR_IN_CREATE*/            16,
+  /*POSTGRESQL*/                  10,
+  /*ORACLE*/                      6,
+  /*MSSQL*/                       5,
+  /*DB2*/                         3,
+  /*MAXDB*/                       5,
+  /*NO_KEY_OPTIONS*/              14,
+  /*NO_TABLE_OPTIONS*/            16,
+  /*NO_FIELD_OPTIONS*/            16,
+  /*MYSQL323*/                    8,
+  /*MYSQL40*/                     7,
+  /*ANSI*/                        4,
+  /*NO_AUTO_VALUE_ON_ZERO*/       21,
+  /*NO_BACKSLASH_ESCAPES*/        20,
+  /*STRICT_TRANS_TABLES*/         19,
+  /*STRICT_ALL_TABLES*/           17,
+  /*NO_ZERO_IN_DATE*/             15,
+  /*NO_ZERO_DATE*/                12,
+  /*ALLOW_INVALID_DATES*/         19,
+  /*ERROR_FOR_DIVISION_BY_ZERO*/  26,
+  /*TRADITIONAL*/                 11,
+  /*NO_AUTO_CREATE_USER*/         19,
+  /*HIGH_NOT_PRECEDENCE*/         19,
+  /*NO_ENGINE_SUBSTITUTION*/      22
+};
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
-			    sql_mode_names, NULL };
+			    sql_mode_names,
+                            (unsigned int *)sql_mode_names_len };
 static const char *tc_heuristic_recover_names[]=
 {
   "COMMIT", "ROLLBACK", NullS
@@ -412,6 +449,7 @@ Le_creator le_creator;
 
 FILE *bootstrap_file;
 int bootstrap_error;
+FILE *stderror_file=0;
 
 I_List<THD> threads;
 I_List<NAMED_LIST> key_caches;
@@ -2317,6 +2355,19 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
   DBUG_RETURN(0);
 }
 
+
+static void *my_str_malloc_mysqld(size_t size)
+{
+  return my_malloc(size, MYF(MY_FAE));
+}
+
+
+static void my_str_free_mysqld(void *ptr)
+{
+  my_free((gptr)ptr, MYF(MY_FAE));
+}
+
+
 #ifdef __WIN__
 
 struct utsname
@@ -2598,6 +2649,50 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (my_dbopt_init())
     return 1;
 
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
+  if (!lower_case_table_names &&
+      (lower_case_file_system=
+       (test_if_case_insensitive(mysql_real_data_home) == 1)))
+  {
+    if (lower_case_table_names_used)
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_warning("\
+You have forced lower_case_table_names to 0 through a command-line \
+option, even though your file system '%s' is case insensitive.  This means \
+that you can corrupt a MyISAM table by accessing it with different cases. \
+You should consider changing lower_case_table_names to 1 or 2",
+			mysql_real_data_home);
+    }
+    else
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+      lower_case_table_names= 2;
+    }
+  }
+  else if (lower_case_table_names == 2 &&
+           !(lower_case_file_system=
+             (test_if_case_insensitive(mysql_real_data_home) == 1)))
+  {
+    if (global_system_variables.log_warnings)
+      sql_print_warning("lower_case_table_names was set to 2, even though your "
+                        "the file system '%s' is case sensitive.  Now setting "
+                        "lower_case_table_names to 0 to avoid future problems.",
+			mysql_real_data_home);
+    lower_case_table_names= 0;
+  }
+
+  /* Reset table_alias_charset, now that lower_case_table_names is set. */
+  table_alias_charset= (lower_case_table_names ?
+			files_charset_info :
+			&my_charset_bin);
+
   return 0;
 }
 
@@ -2782,7 +2877,7 @@ server.");
 #ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
 #endif
-	freopen(log_error_file, "a+", stderr);
+	stderror_file= freopen(log_error_file, "a+", stderr);
     }
   }
 
@@ -3084,50 +3179,6 @@ int main(int argc, char **argv)
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
-  /*
-    Ensure that lower_case_table_names is set on system where we have case
-    insensitive names.  If this is not done the users MyISAM tables will
-    get corrupted if accesses with names of different case.
-  */
-  DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
-  if (!lower_case_table_names &&
-      (lower_case_file_system=
-       (test_if_case_insensitive(mysql_real_data_home) == 1)))
-  {
-    if (lower_case_table_names_used)
-    {
-      if (global_system_variables.log_warnings)
-	sql_print_warning("\
-You have forced lower_case_table_names to 0 through a command-line \
-option, even though your file system '%s' is case insensitive.  This means \
-that you can corrupt a MyISAM table by accessing it with different cases. \
-You should consider changing lower_case_table_names to 1 or 2",
-			mysql_real_data_home);
-    }
-    else
-    {
-      if (global_system_variables.log_warnings)
-	sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
-      lower_case_table_names= 2;
-    }
-  }
-  else if (lower_case_table_names == 2 &&
-           !(lower_case_file_system=
-             (test_if_case_insensitive(mysql_real_data_home) == 1)))
-  {
-    if (global_system_variables.log_warnings)
-      sql_print_warning("lower_case_table_names was set to 2, even though your "
-                        "the file system '%s' is case sensitive.  Now setting "
-                        "lower_case_table_names to 0 to avoid future problems.",
-			mysql_real_data_home);
-    lower_case_table_names= 0;
-  }
-
-  /* Reset table_alias_charset, now that lower_case_table_names is set. */
-  table_alias_charset= (lower_case_table_names ?
-			files_charset_info :
-			&my_charset_bin);
-
   select_thread=pthread_self();
   select_thread_in_use=1;
   init_ssl();
@@ -3183,10 +3234,16 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
 
   /*
+   Initialize my_str_malloc() and my_str_free()
+  */
+  my_str_malloc= &my_str_malloc_mysqld;
+  my_str_free= &my_str_free_mysqld;
+
+  /*
     init signals & alarm
     After this we can't quit by a simple unireg_abort
   */
-  error_handler_hook = my_message_sql;
+  error_handler_hook= my_message_sql;
   start_signal_handler();				// Creates pidfile
   if (acl_init((THD *)0, opt_noacl) || 
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))

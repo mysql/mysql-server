@@ -101,3 +101,6 @@ table_id
 Record-02
 handler t1 close;
 drop table t1;
+FLUSH TABLES WITH READ LOCK ;
+FLUSH TABLES WITH READ LOCK ;
+UNLOCK TABLES;

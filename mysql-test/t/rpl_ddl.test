@@ -348,3 +348,5 @@ DROP DATABASE IF EXISTS mysqltest1;
 DROP DATABASE IF EXISTS mysqltest2;
 DROP DATABASE IF EXISTS mysqltest3;
 --enable_warnings
+
+# End of 4.1 tests

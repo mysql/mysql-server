@@ -843,6 +843,8 @@ insert into t1 values (_utf8 0x5b);
 select hex(a) from t1;
 drop table t1;
 
+# End of 4.1 tests
+
 #
 # Test for bug #11484: wrong results for a DISTINCT varchar column in uft8. 
 #

@@ -68,6 +68,8 @@ explain extended select degrees(pi()),radians(360);
 --error 1054
 select rand(rand);
 
+# End of 4.1 tests
+
 #
 # Bug #8459 (FORMAT returns incorrect result)
 #
@@ -91,3 +93,18 @@ select round(150, 2);
 select ceil(0.09);
 select ceil(0.000000000000000009);
 
+#
+# Bug #9837: problem with round()
+#
+
+create table t1 select round(1, 6);
+show create table t1;
+select * from t1;
+drop table t1;
+
+#
+# Bug #11402: abs() forces rest of calculation to unsigned
+#
+select abs(-2) * -2;
+
+# End of 4.1 tests

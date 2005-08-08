@@ -91,3 +91,5 @@ connection master;
 # test that the absence of relay logs does not make a master crash
 flush logs;
 show master status;
+
+# End of 4.1 tests

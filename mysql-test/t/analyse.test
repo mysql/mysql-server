@@ -48,6 +48,8 @@ insert into t1 values ('abc'),('abc\'def\\hij\"klm\0opq'),('\''),('\"'),('\\'),(
 select * from t1 procedure analyse();
 drop table t1;
 
+# End of 4.1 tests
+
 #decimal-related test
 
 create table t1 (df decimal(5,1));

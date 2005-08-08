@@ -332,6 +332,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   const Uint32 tFirstData = *tDataPtr;
   const Uint32 tLen = aSignal->getLength();
   void * tFirstDataPtr;
+  NdbWaiter *t_waiter;
 
   /*
     In order to support 64 bit processes in the application we need to use
@@ -470,7 +471,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
 #endif
       return;
-      break;
+      return;
     }
   case GSN_TCKEYREF:
     {
@@ -677,12 +678,12 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_LIST_TABLES_CONF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
-    break;
+    return;
     
   case GSN_SUB_META_DATA:
   case GSN_SUB_REMOVE_CONF:
   case GSN_SUB_REMOVE_REF:
-    break; // ignore these signals
+    return; // ignore these signals
   case GSN_SUB_GCP_COMPLETE_REP:
   case GSN_SUB_START_CONF:
   case GSN_SUB_START_REF:
@@ -691,7 +692,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_SUB_STOP_REF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
-    break;
+    return;
 
   case GSN_DIHNDBTAMPER:
     {
@@ -833,11 +834,32 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   } 
   default:
     goto InvalidSignal;
-  }//switch
-  
-  if (theImpl->theWaiter.m_state == NO_WAIT) {
-    // Wake up the thread waiting for response
-    NdbCondition_Signal(theImpl->theWaiter.m_condition);
+  }//swich
+
+  t_waiter= &theImpl->theWaiter;
+  if (t_waiter->get_state() == NO_WAIT && tWaitState != NO_WAIT)
+  {
+    /*
+      If our waiter object is the owner of the "poll rights", then we
+      can simply return, we will return from this routine to the
+      place where external_poll was called. From there it will move
+      the "poll ownership" to a new thread if available.
+
+      If our waiter object doesn't own the "poll rights", then we must
+      signal the thread from where this waiter object called
+      its conditional wait. This will wake up this thread so that it
+      can continue its work.
+    */
+    TransporterFacade *tp= TransporterFacade::instance();
+    if (tp->get_poll_owner() != t_waiter)
+    {
+      /*
+         Wake up the thread waiting for response and remove it from queue
+         of objects waiting for receive completion
+      */
+      tp->remove_from_cond_wait_queue(t_waiter);
+      t_waiter->cond_signal();
+    }
   }//if
   return;
 
@@ -892,7 +914,19 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     if ((theMinNoOfEventsToWakeUp != 0) &&
         (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
       theMinNoOfEventsToWakeUp = 0;
-      NdbCondition_Signal(theImpl->theWaiter.m_condition);
+      TransporterFacade *tp = TransporterFacade::instance();
+      NdbWaiter *t_waiter= &theImpl->theWaiter;
+      if (tp->get_poll_owner() != t_waiter) {
+        /*
+          When we come here, this is executed by the thread owning the "poll
+          rights". This thread is not where our waiter object belongs.
+          Thus we wake up the thread owning this waiter object but first
+          we must remove it from the conditional wait queue so that we
+          don't assign it as poll owner later on.
+        */
+        tp->remove_from_cond_wait_queue(t_waiter);
+        t_waiter->cond_signal();
+      }
       return;
     }//if
   } else {
@@ -1151,7 +1185,8 @@ Remark:   First send all prepared operations and then check if there are any
 ******************************************************************************/
 void	
 Ndb::waitCompletedTransactions(int aMilliSecondsToWait, 
-			       int noOfEventsToWaitFor)
+			       int noOfEventsToWaitFor,
+                               PollGuard *poll_guard)
 {
   theImpl->theWaiter.m_state = NO_WAIT; 
   /**
@@ -1160,22 +1195,24 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
    * (see ReportFailure)
    */
   int waitTime = aMilliSecondsToWait;
-  NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + (NDB_TICKS)waitTime;
+  NDB_TICKS currTime = NdbTick_CurrentMillisecond();
+  NDB_TICKS maxTime = currTime + (NDB_TICKS)waitTime;
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   do {
     if (waitTime < 1000) waitTime = 1000;
-    NdbCondition_WaitTimeout(theImpl->theWaiter.m_condition,
-			     (NdbMutex*)theImpl->theWaiter.m_mutex,
-			     waitTime);
+    poll_guard->wait_for_input(waitTime);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
     }//if
     theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
     waitTime = (int)(maxTime - NdbTick_CurrentMillisecond());
   } while (waitTime > 0);
-  return;
 }//Ndb::waitCompletedTransactions()
 
+void Ndb::cond_signal()
+{
+  NdbCondition_Signal(theImpl->theWaiter.m_condition);
+}
 /*****************************************************************************
 void sendPreparedTransactions(int forceSend = 0);
 
@@ -1203,28 +1240,39 @@ Remark:   First send all prepared operations and then check if there are any
 int	
 Ndb::sendPollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup, int forceSend)
 {
+  /*
+    The PollGuard has an implicit call of unlock_and_signal through the
+    ~PollGuard method. This method is called implicitly by the compiler
+    in all places where the object is out of context due to a return,
+    break, continue or simply end of statement block
+  */
+  PollGuard pg(TransporterFacade::instance(), &theImpl->theWaiter,
+               theNdbBlockNumber);
+  sendPrepTrans(forceSend);
+  return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
+}
+
+int
+Ndb::poll_trans(int aMillisecondNumber, int minNoOfEventsToWakeup,
+                PollGuard *pg)
+{
   NdbTransaction* tConArray[1024];
   Uint32         tNoCompletedTransactions;
-
-  //theCurrentConnectCounter = 0;
-  //theCurrentConnectIndex++;
-  TransporterFacade::instance()->lock_mutex();
-  sendPrepTrans(forceSend);
   if ((minNoOfEventsToWakeup <= 0) ||
       ((Uint32)minNoOfEventsToWakeup > theNoOfSentTransactions)) {
     minNoOfEventsToWakeup = theNoOfSentTransactions;
   }//if
   if ((theNoOfCompletedTransactions < (Uint32)minNoOfEventsToWakeup) &&
       (aMillisecondNumber > 0)) {
-    waitCompletedTransactions(aMillisecondNumber, minNoOfEventsToWakeup);
+    waitCompletedTransactions(aMillisecondNumber, minNoOfEventsToWakeup, pg);
     tNoCompletedTransactions = pollCompleted(tConArray);
   } else {
     tNoCompletedTransactions = pollCompleted(tConArray);
   }//if
-  TransporterFacade::instance()->unlock_mutex();
+  pg->unlock_and_signal();
   reportCallback(tConArray, tNoCompletedTransactions);
   return tNoCompletedTransactions;
-}//Ndb::sendPollNdb()
+}
 
 /*****************************************************************************
 int pollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup);
@@ -1236,67 +1284,23 @@ Remark:   Check if there are any transactions already completed. Wait for not
 int	
 Ndb::pollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup)
 {
-  NdbTransaction* tConArray[1024];
-  Uint32         tNoCompletedTransactions;
-
-  //theCurrentConnectCounter = 0;
-  //theCurrentConnectIndex++;
-  TransporterFacade::instance()->lock_mutex();
-  if ((minNoOfEventsToWakeup == 0) ||
-      ((Uint32)minNoOfEventsToWakeup > theNoOfSentTransactions)) {
-    minNoOfEventsToWakeup = theNoOfSentTransactions;
-  }//if
-  if ((theNoOfCompletedTransactions < (Uint32)minNoOfEventsToWakeup) &&
-      (aMillisecondNumber > 0)) {
-    waitCompletedTransactions(aMillisecondNumber, minNoOfEventsToWakeup);
-    tNoCompletedTransactions = pollCompleted(tConArray);
-  } else {
-    tNoCompletedTransactions = pollCompleted(tConArray);
-  }//if
-  TransporterFacade::instance()->unlock_mutex();
-  reportCallback(tConArray, tNoCompletedTransactions);
-  return tNoCompletedTransactions;
-}//Ndb::sendPollNdbWithoutWait()
-
-/*****************************************************************************
-int receiveOptimisedResponse();
-
-Return:  0 - Response received
-        -1 - Timeout occured waiting for response
-        -2 - Node failure interupted wait for response
-
-******************************************************************************/
-int	
-Ndb::receiveResponse(int waitTime){
-  int tResultCode;
-  TransporterFacade::instance()->checkForceSend(theNdbBlockNumber);
-  
-  theImpl->theWaiter.wait(waitTime);
-  
-  if(theImpl->theWaiter.m_state == NO_WAIT) {
-    tResultCode = 0;
-  } else {
-
-#ifdef VM_TRACE
-    ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
-    ndbout << theImpl->theWaiter.m_state << endl;
-#endif
-
-    if (theImpl->theWaiter.m_state == WAIT_NODE_FAILURE){
-      tResultCode = -2;
-    } else {
-      tResultCode = -1;
-    }
-    theImpl->theWaiter.m_state = NO_WAIT;
-  }
-  return tResultCode;
-}//Ndb::receiveResponse()
+  /*
+    The PollGuard has an implicit call of unlock_and_signal through the
+    ~PollGuard method. This method is called implicitly by the compiler
+    in all places where the object is out of context due to a return,
+    break, continue or simply end of statement block
+  */
+  PollGuard pg(TransporterFacade::instance(), &theImpl->theWaiter,
+               theNdbBlockNumber);
+  return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
+}
 
 int
 Ndb::sendRecSignal(Uint16 node_id,
 		   Uint32 aWaitState,
 		   NdbApiSignal* aSignal,
-                   Uint32 conn_seq)
+                   Uint32 conn_seq,
+                   Uint32 *ret_conn_seq)
 {
   /*
   In most situations 0 is returned.
@@ -1309,19 +1313,28 @@ Ndb::sendRecSignal(Uint16 node_id,
   */
 
   int return_code;
+  Uint32 read_conn_seq;
   TransporterFacade* tp = TransporterFacade::instance();
-  Uint32 send_size = 1; // Always sends one signal only 
-  tp->lock_mutex();
+  Uint32 send_size = 1; // Always sends one signal only
   // Protected area
+  /*
+    The PollGuard has an implicit call of unlock_and_signal through the
+    ~PollGuard method. This method is called implicitly by the compiler
+    in all places where the object is out of context due to a return,
+    break, continue or simply end of statement block
+  */
+  PollGuard poll_guard(tp,&theImpl->theWaiter,theNdbBlockNumber);
+  read_conn_seq= tp->getNodeSequence(node_id);
+  if (ret_conn_seq)
+    *ret_conn_seq= read_conn_seq;
   if ((tp->get_node_alive(node_id)) &&
-      ((tp->getNodeSequence(node_id) == conn_seq) ||
+      ((read_conn_seq == conn_seq) ||
        (conn_seq == 0))) {
     if (tp->check_send_size(node_id, send_size)) {
       return_code = tp->sendSignal(aSignal, node_id);
       if (return_code != -1) {
-        theImpl->theWaiter.m_node = node_id;
-        theImpl->theWaiter.m_state = aWaitState;
-        return_code = receiveResponse();
+        return poll_guard.wait_n_unlock(WAITFOR_RESPONSE_TIMEOUT,node_id,
+                                         aWaitState, false);
       } else {
 	return_code = -3;
       }
@@ -1330,16 +1343,15 @@ Ndb::sendRecSignal(Uint16 node_id,
     }//if
   } else {
     if ((tp->get_node_stopping(node_id)) &&
-        ((tp->getNodeSequence(node_id) == conn_seq) ||
+        ((read_conn_seq == conn_seq) ||
          (conn_seq == 0))) {
       return_code = -5;
     } else {
       return_code = -2;
     }//if
   }//if
-  tp->unlock_mutex();
-  // End of protected area
   return return_code;
+  // End of protected area
 }//Ndb::sendRecSignal()
 
 void

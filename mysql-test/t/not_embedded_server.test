@@ -1,0 +1,18 @@
+#
+# Here we collect tests that doesn't work with the embedded server
+#
+
+-- source include/not_embedded.inc
+
+#
+# Show full process list with prepare
+# To not show other connections, this must be the first test and we must
+# have a server restart before this one
+#
+
+prepare stmt1 from ' show full processlist ';
+--replace_column 1 number 6 time 3 localhost
+execute stmt1;
+deallocate prepare stmt1;
+
+# End of 4.1 tests

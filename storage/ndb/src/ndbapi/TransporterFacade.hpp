@@ -34,6 +34,7 @@ class ConfigRetriever;
 
 class Ndb;
 class NdbApiSignal;
+class NdbWaiter;
 
 typedef void (* ExecuteFunction)(void *, NdbApiSignal *, LinearSectionPtr ptr[3]);
 typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
@@ -47,6 +48,11 @@ extern "C" {
 class TransporterFacade
 {
 public:
+  /**
+   * Max number of Ndb objects.  
+   * (Ndb objects should not be shared by different threads.)
+   */
+  STATIC_CONST( MAX_NO_THREADS = 4711 );
   TransporterFacade();
   virtual ~TransporterFacade();
   bool init(Uint32, const ndb_mgm_configuration *);
@@ -114,10 +120,44 @@ public:
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
+/*
+  When a thread has sent its signals and is ready to wait for reception
+  of these it does normally always wait on a conditional mutex and
+  the actual reception is handled by the receiver thread in the NDB API.
+  With the below new methods and variables each thread has the possibility
+  of becoming owner of the "right" to poll for signals. Effectually this
+  means that the thread acts temporarily as a receiver thread.
+  For the thread that succeeds in grabbing this "ownership" it will avoid
+  a number of expensive calls to conditional mutex and even more expensive
+  context switches to wake up.
+  When an owner of the poll "right" has completed its own task it is likely
+  that there are others still waiting. In this case we pick one of the
+  threads as new owner of the poll "right". Since we want to switch owner
+  as seldom as possible we always pick the last thread which is likely to
+  be the last to complete its reception.
+*/
+  void external_poll(Uint32 wait_time);
+  NdbWaiter* get_poll_owner(void) const { return poll_owner; }
+  void set_poll_owner(NdbWaiter* new_owner) { poll_owner= new_owner; }
+  Uint32 put_in_cond_wait_queue(NdbWaiter *aWaiter);
+  void remove_from_cond_wait_queue(NdbWaiter *aWaiter);
+  NdbWaiter* rem_last_from_cond_wait_queue();
   // heart beat received from a node (e.g. a signal came)
   void hb_received(NodeId n);
 
 private:
+  void init_cond_wait_queue();
+  struct CondWaitQueueElement {
+    NdbWaiter *cond_wait_object;
+    Uint32 next_cond_wait;
+    Uint32 prev_cond_wait;
+  };
+  NdbWaiter *poll_owner;
+  CondWaitQueueElement cond_wait_array[MAX_NO_THREADS];
+  Uint32 first_in_cond_wait;
+  Uint32 first_free_cond_wait;
+  Uint32 last_in_cond_wait;
+  /* End poll owner stuff */
   /**
    * Send a signal unconditional of node status (used by ClusterMgr)
    */
@@ -172,12 +212,6 @@ private:
   /**
    * Block number handling
    */
-public:
-  /**
-   * Max number of Ndb objects.  
-   * (Ndb objects should not be shared by different threads.)
-   */
-  STATIC_CONST( MAX_NO_THREADS = 4711 );
 private:
 
   struct ThreadData {
@@ -243,6 +277,24 @@ private:
 
 public:
   GlobalDictCache m_globalDictCache;
+};
+
+class PollGuard
+{
+  public:
+  PollGuard(TransporterFacade *tp, NdbWaiter *aWaiter, Uint32 block_no);
+  ~PollGuard() { unlock_and_signal(); }
+  int wait_n_unlock(int wait_time, NodeId nodeId, Uint32 state,
+                    bool forceSend= false);
+  int wait_for_input_in_loop(int wait_time, bool forceSend);
+  void wait_for_input(int wait_time);
+  int wait_scan(int wait_time, NodeId nodeId, bool forceSend);
+  void unlock_and_signal();
+  private:
+  TransporterFacade *m_tp;
+  NdbWaiter *m_waiter;
+  Uint32 m_block_no;
+  bool m_locked;
 };
 
 inline

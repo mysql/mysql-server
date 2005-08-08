@@ -2524,13 +2524,21 @@ row_sel_store_mysql_rec(
 					(byte) (templ->mysql_null_bit_mask);
 			switch (templ->type) {
 			case DATA_VARCHAR:
-			case DATA_CHAR:
 			case DATA_BINARY:
+			case DATA_VARMYSQL:
+				if (templ->mysql_type
+				    == DATA_MYSQL_TRUE_VARCHAR) {
+					/* This is a >= 5.0.3 type
+					true VARCHAR.  Zero the field. */
+					pad_char = 0x00;
+					break;
+				}
+				/* Fall through */
+			case DATA_CHAR:
 			case DATA_FIXBINARY:
 			case DATA_MYSQL:
-			case DATA_VARMYSQL:
-			        /* MySQL pads all non-BLOB and non-TEXT
-				string types with space ' ' */
+			        /* MySQL pads all string types (except
+				BLOB, TEXT and true VARCHAR) with space. */
 				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
 					/* Treat UCS2 as a special case. */
 					data = mysql_rec
@@ -3092,6 +3100,13 @@ row_search_for_mysql(
 "http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
+
+		/* Restore a global read view back to a transaction. This 
+		forces MySQL always to set a cursor view before fetch from
+		a cursor. */
+
+		trx->read_view = trx->global_read_view;
+
 		return(DB_ERROR);
 	}
 
@@ -4083,6 +4098,12 @@ normal_return:
 	}
 
 func_exit:
+	/* Restore a global read view back to a transaction. This 
+	forces MySQL always to set a cursor view before fetch from
+	a cursor. */
+
+	trx->read_view = trx->global_read_view;
+
 	trx->op_info = "";
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -4136,7 +4157,8 @@ row_search_check_if_query_cache_permitted(
 		    && !trx->read_view) {
 
 			trx->read_view = read_view_open_now(trx,
-						trx->read_view_heap);
+						trx->global_read_view_heap);
+			trx->global_read_view = trx->read_view;
 		}
 	}
 	

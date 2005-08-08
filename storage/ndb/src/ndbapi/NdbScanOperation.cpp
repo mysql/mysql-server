@@ -460,13 +460,20 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   
   Uint32 nodeId = theNdbCon->theDBnode;
   TransporterFacade* tp = TransporterFacade::instance();
-  Guard guard(tp->theMutexPtr);
+  /*
+    The PollGuard has an implicit call of unlock_and_signal through the
+    ~PollGuard method. This method is called implicitly by the compiler
+    in all places where the object is out of context due to a return,
+    break, continue or simply end of statement block
+  */
+  PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
+                       theNdb->theNdbBlockNumber);
   if(theError.code)
     return -1;
 
   Uint32 seq = theNdbCon->theNodeSequence;
-  if(seq == tp->getNodeSequence(nodeId) && send_next_scan(idx, false,
-							  forceSend) == 0){
+  if(seq == tp->getNodeSequence(nodeId) && send_next_scan(idx, false) == 0)
+  {
       
     idx = m_current_api_receiver;
     last = m_api_receivers_count;
@@ -495,10 +502,9 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
 	/**
 	 * No completed...
 	 */
-	theNdb->theImpl->theWaiter.m_node = nodeId;
-	theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-	int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
-	if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
+        int ret_code= poll_guard.wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
+                                           forceSend);
+	if (ret_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	  continue;
 	} else {
 	  idx = last;
@@ -557,8 +563,8 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
 }
 
 int
-NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag,
-				 bool forceSend){  
+NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
+{
   if(cnt > 0){
     NdbApiSignal tSignal(theNdb->theMyRef);
     tSignal.setSignal(GSN_SCAN_NEXTREQ);
@@ -605,9 +611,6 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag,
 	ret = tp->sendSignal(&tSignal, nodeId);
       }
     }
-    
-    if (!ret) checkForceSend(forceSend);
-
     m_sent_receivers_count = last + sent;
     m_api_receivers_count -= cnt;
     m_current_api_receiver = 0;
@@ -615,15 +618,6 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag,
     return ret;
   }
   return 0;
-}
-
-void NdbScanOperation::checkForceSend(bool forceSend)
-{
-  if (forceSend) {
-    TransporterFacade::instance()->forceSend(theNdb->theNdbBlockNumber);
-  } else {
-    TransporterFacade::instance()->checkForceSend(theNdb->theNdbBlockNumber);
-  }//if
 }
 
 int 
@@ -661,9 +655,15 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
 	       m_sent_receivers_count);
     
     TransporterFacade* tp = TransporterFacade::instance();
-    Guard guard(tp->theMutexPtr);
-    close_impl(tp, forceSend);
-    
+    /*
+      The PollGuard has an implicit call of unlock_and_signal through the
+      ~PollGuard method. This method is called implicitly by the compiler
+      in all places where the object is out of context due to a return,
+      break, continue or simply end of statement block
+    */
+    PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
+                         theNdb->theNdbBlockNumber);
+    close_impl(tp, forceSend, &poll_guard);
   }
 
   NdbConnection* tCon = theNdbCon;
@@ -1338,20 +1338,26 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
     if(fetchAllowed){
       if(DEBUG_NEXT_RESULT) ndbout_c("performing fetch...");
       TransporterFacade* tp = TransporterFacade::instance();
-      Guard guard(tp->theMutexPtr);
+      /*
+        The PollGuard has an implicit call of unlock_and_signal through the
+        ~PollGuard method. This method is called implicitly by the compiler
+        in all places where the object is out of context due to a return,
+        break, continue or simply end of statement block
+      */
+      PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
+                           theNdb->theNdbBlockNumber);
       if(theError.code)
 	return -1;
       Uint32 seq = theNdbCon->theNodeSequence;
       Uint32 nodeId = theNdbCon->theDBnode;
       if(seq == tp->getNodeSequence(nodeId) &&
-	 !send_next_scan_ordered(s_idx, forceSend)){
+	 !send_next_scan_ordered(s_idx)){
 	Uint32 tmp = m_sent_receivers_count;
 	s_idx = m_current_api_receiver; 
 	while(m_sent_receivers_count > 0 && !theError.code){
-	  theNdb->theImpl->theWaiter.m_node = nodeId;
-	  theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
-	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
+          int ret_code= poll_guard.wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
+                                             forceSend);
+	  if (ret_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	    continue;
 	  }
 	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
@@ -1438,7 +1444,8 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 }
 
 int
-NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx, bool forceSend){  
+NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
+{
   if(idx == theParallelism)
     return 0;
   
@@ -1476,12 +1483,13 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx, bool forceSend){
   TransporterFacade * tp = TransporterFacade::instance();
   tSignal.setLength(4+1);
   int ret= tp->sendSignal(&tSignal, nodeId);
-  if (!ret) checkForceSend(forceSend);
   return ret;
 }
 
 int
-NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
+NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
+                             PollGuard *poll_guard)
+{
   Uint32 seq = theNdbCon->theNodeSequence;
   Uint32 nodeId = theNdbCon->theDBnode;
   
@@ -1496,9 +1504,8 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
    */
   while(theError.code == 0 && m_sent_receivers_count)
   {
-    theNdb->theImpl->theWaiter.m_node = nodeId;
-    theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-    int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+    int return_code= poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
+                                           false);
     switch(return_code){
     case 0:
       break;
@@ -1555,7 +1562,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
   }
   
   // Send close scan
-  if(send_next_scan(api+conf, true, forceSend) == -1)
+  if(send_next_scan(api+conf, true) == -1)
   {
     theNdbCon->theReleaseOnClose = true;
     return -1;
@@ -1566,9 +1573,8 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
    */
   while(m_sent_receivers_count+m_api_receivers_count+m_conf_receivers_count)
   {
-    theNdb->theImpl->theWaiter.m_node = nodeId;
-    theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-    int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+    int return_code= poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
+                                           forceSend);
     switch(return_code){
     case 0:
       break;
@@ -1608,12 +1614,19 @@ NdbScanOperation::restart(bool forceSend)
 {
   
   TransporterFacade* tp = TransporterFacade::instance();
-  Guard guard(tp->theMutexPtr);
+  /*
+    The PollGuard has an implicit call of unlock_and_signal through the
+    ~PollGuard method. This method is called implicitly by the compiler
+    in all places where the object is out of context due to a return,
+    break, continue or simply end of statement block
+  */
+  PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
+                       theNdb->theNdbBlockNumber);
   Uint32 nodeId = theNdbCon->theDBnode;
   
   {
     int res;
-    if((res= close_impl(tp, forceSend)))
+    if((res= close_impl(tp, forceSend, &poll_guard)))
     {
       return res;
     }
@@ -1627,7 +1640,6 @@ NdbScanOperation::restart(bool forceSend)
   theError.code = 0;
   if (doSendScan(nodeId) == -1)
     return -1;
-  
   return 0;
 }
 
@@ -1637,8 +1649,15 @@ NdbIndexScanOperation::reset_bounds(bool forceSend){
   
   {
     TransporterFacade* tp = TransporterFacade::instance();
-    Guard guard(tp->theMutexPtr);
-    res= close_impl(tp, forceSend);
+    /*
+      The PollGuard has an implicit call of unlock_and_signal through the
+      ~PollGuard method. This method is called implicitly by the compiler
+      in all places where the object is out of context due to a return,
+      break, continue or simply end of statement block
+    */
+    PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
+                         theNdb->theNdbBlockNumber);
+    res= close_impl(tp, forceSend, &poll_guard);
   }
 
   if(!res)

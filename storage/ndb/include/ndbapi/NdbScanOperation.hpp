@@ -21,6 +21,7 @@
 
 class NdbBlob;
 class NdbResultSet;
+class PollGuard;
 
 /**
  * @class NdbScanOperation
@@ -183,7 +184,8 @@ protected:
   int nextResultImpl(bool fetchAllowed = true, bool forceSend = false);
   virtual void release();
   
-  int close_impl(class TransporterFacade*, bool forceSend = false);
+  int close_impl(class TransporterFacade*, bool forceSend,
+                 PollGuard *poll_guard);
 
   // Overloaded methods from NdbCursorOperation
   int executeCursor(int ProcessorId);
@@ -192,7 +194,6 @@ protected:
   int init(const NdbTableImpl* tab, NdbTransaction*);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
   int doSend(int ProcessorId);
-  void checkForceSend(bool forceSend);
 
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
@@ -234,7 +235,7 @@ protected:
   Uint32 m_sent_receivers_count;  // NOTE needs mutex to access
   NdbReceiver** m_sent_receivers; // receive thread puts them here
   
-  int send_next_scan(Uint32 cnt, bool close, bool forceSend = false);
+  int send_next_scan(Uint32 cnt, bool close);
   void receiver_delivered(NdbReceiver*);
   void receiver_completed(NdbReceiver*);
   void execCLOSE_SCAN_REP();
