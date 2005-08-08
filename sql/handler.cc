@@ -1660,7 +1660,7 @@ void handler::print_error(int error, myf errflag)
   }
   case HA_ERR_NULL_IN_SPATIAL:
     textno= ER_UNKNOWN_ERROR;
-    DBUG_VOID_RETURN;
+    break;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
     break;
@@ -1683,8 +1683,8 @@ void handler::print_error(int error, myf errflag)
     textno=ER_CRASHED_ON_REPAIR;
     break;
   case HA_ERR_OUT_OF_MEM:
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), errflag);
-    DBUG_VOID_RETURN;
+    textno=ER_OUT_OF_RESOURCES;
+    break;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
     break;
@@ -1695,10 +1695,8 @@ void handler::print_error(int error, myf errflag)
     textno=ER_UNSUPPORTED_EXTENSION;
     break;
   case HA_ERR_RECORD_FILE_FULL:
-    textno=ER_RECORD_FILE_FULL;
-    break;
   case HA_ERR_INDEX_FILE_FULL:
-    textno= errno;
+    textno=ER_RECORD_FILE_FULL;
     break;
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;
