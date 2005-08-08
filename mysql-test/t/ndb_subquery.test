@@ -38,8 +38,11 @@ drop table t2;
 # bug#5367
 ##########
 
-###
+# End of 4.1 tests
+
+#
 # bug#11205
+#
 create table t1 (p int not null primary key, u int not null) engine=ndb;
 insert into t1 values (1,1),(2,2),(3,3);
 

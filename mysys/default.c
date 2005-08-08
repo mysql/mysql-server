@@ -917,6 +917,7 @@ typedef UINT (WINAPI *GET_SYSTEM_WINDOWS_DIRECTORY)(LPSTR, UINT);
 
 static uint my_get_system_windows_directory(char *buffer, uint size)
 {
+  uint count;
   GET_SYSTEM_WINDOWS_DIRECTORY
     func_ptr= (GET_SYSTEM_WINDOWS_DIRECTORY)
               GetProcAddress(GetModuleHandle("kernel32.dll"),
@@ -924,22 +925,19 @@ static uint my_get_system_windows_directory(char *buffer, uint size)
 
   if (func_ptr)
     return func_ptr(buffer, size);
-  else
-  {
-    /*
-      Windows NT 4.0 Terminal Server Edition:  
-      To retrieve the shared Windows directory, call GetSystemDirectory and
-      trim the "System32" element from the end of the returned path.
-     */
-    UINT count= GetSystemDirectory(buffer, size);
 
-    if (count > 8 && stricmp(buffer+(count-8), "\\System32") == 0)
-    {
-      count-= 8;
-      buffer[count] = '\0';
-    }
-    return count;
+  /*
+    Windows NT 4.0 Terminal Server Edition:  
+    To retrieve the shared Windows directory, call GetSystemDirectory and
+    trim the "System32" element from the end of the returned path.
+  */
+  count= GetSystemDirectory(buffer, size);
+  if (count > 8 && stricmp(buffer+(count-8), "\\System32") == 0)
+  {
+    count-= 8;
+    buffer[count] = '\0';
   }
+  return count;
 }
 #endif
 
@@ -952,7 +950,7 @@ static uint my_get_system_windows_directory(char *buffer, uint size)
     2. GetWindowsDirectory()
     3. GetSystemWindowsDirectory()
     4. getenv(DEFAULT_HOME_ENV)
-    5. Direcotry above where the executable is located
+    5. Directory above where the executable is located
     6. ""
 
   On Novell NetWare, this is:
@@ -1011,25 +1009,27 @@ static void init_default_directories()
       Look for the second-to-last \ in the filename, but hang on
       to a pointer after the last \ in case we're in the root of
       a drive.
-     */
+    */
     for ( ; end > config_dir; end--)
     {
       if (*end == FN_LIBCHAR)
       {
         if (last)
+        {
+          if (end != config_dir)
+          {
+            /* Keep the last '\' as this works both with D:\ and a directory */
+            end[1]= 0;
+          }
+          else
+          {
+            /* No parent directory (strange). Use current dir + '\' */
+            last[1]= 0;
+          }
           break;
+        }
         last= end;
       }
-    }
-
-    if (last)
-    {                                                            
-      if (end != config_dir && end[-1] == FN_DEVCHAR) /* Ended up with D:\ */
-        end[1]= 0; /* Keep one \ */
-      else if (end != config_dir)
-        end[0]= 0; 
-      else
-        last[1]= 0;
     }
     *ptr++= (char *)&config_dir;
   }

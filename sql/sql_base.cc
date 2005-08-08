@@ -391,6 +391,8 @@ static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
 			LOCK_open
     skip_derived	Set to 1 (0 = default) if we should not free derived
 			tables.
+    stopper             When closing tables from thd->open_tables(->next)*, 
+                        don't close/remove tables starting from stopper.
 
   IMPLEMENTATION
     Unlocks tables and frees derived tables.
@@ -474,6 +476,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
       We are in prelocked mode, so we have to leave it now with doing
       implicit UNLOCK TABLES if need.
     */
+    DBUG_PRINT("info",("thd->prelocked_mode= NON_PRELOCKED"));
     thd->prelocked_mode= NON_PRELOCKED;
 
     if (prelocked_mode == PRELOCKED_UNDER_LOCK_TABLES)
@@ -1043,26 +1046,26 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (thd->locked_tables || thd->prelocked_mode)
   {						// Using table locks
     TABLE *best_table= 0;
-    int best_distance= INT_MIN, distance;
+    int best_distance= INT_MIN;
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
           !memcmp(table->s->table_cache_key, key, key_length) &&
           !my_strcasecmp(system_charset_info, table->alias, alias) &&
-          table->query_id != thd->query_id && /* skip tables already used by this query */
+          table->query_id != thd->query_id && /* skip tables already used */
           !(thd->prelocked_mode && table->query_id))
       {
-        distance= ((int) table->reginfo.lock_type -
-                   (int) table_list->lock_type);
+        int distance= ((int) table->reginfo.lock_type -
+                       (int) table_list->lock_type);
         /*
           Find a table that either has the exact lock type requested,
           or has the best suitable lock. In case there is no locked
           table that has an equal or higher lock than requested,
-          we still maitain the best_table to produce an error message
-          about wrong lock mode on the table. The best_table is changed
+          we us the closest matching lock to be able to produce an error
+          message about wrong lock mode on the table. The best_table is changed
           if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
 
-          distance <  0 - we have not enough high lock mode
+          distance <  0 - No suitable lock found
           distance >  0 - we have lock mode higher then we require
           distance == 0 - we have lock mode exactly which we need
         */
@@ -1071,7 +1074,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         {
           best_distance= distance;
           best_table= table;
-          if (best_distance == 0)
+          if (best_distance == 0)               // Found perfect lock
             break;
         }
       }
@@ -1792,6 +1795,7 @@ err:
   DBUG_RETURN(1);
 }
 
+
 /*
   Open all tables in list
 
@@ -1843,10 +1847,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
     statement for which table list for prelocking is already built, let
     us cache routines and try to build such table list.
 
-    NOTE: If we want queries with functions to work under explicit
-    LOCK TABLES we have to additionaly lock mysql.proc table in it.
-    At least until Monty will fix SP loading :)
-
     NOTE: We can't delay prelocking until we will met some sub-statement
     which really uses tables, since this will imply that we have to restore
     its table list to be able execute it in some other context.
@@ -1860,16 +1860,23 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
     mode we will have some locked tables, because queries which use only
     derived/information schema tables and views possible. Thus "counter"
     may be still zero for prelocked statement...
+
+    NOTE: The above notes may be out of date. Please wait for psergey to 
+          document new prelocked behavior.
   */
-  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-      thd->lex->sroutines.records)
+  
+  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() && 
+      thd->lex->sroutines_list.elements)
   {
+    bool first_no_prelocking, need_prelocking;
     TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
+    sp_get_prelocking_info(thd, &need_prelocking, &first_no_prelocking);
 
-    if (sp_cache_routines_and_add_tables(thd, thd->lex) ||
-        *start)
+    if ((sp_cache_routines_and_add_tables(thd, thd->lex,
+                                         first_no_prelocking) ||
+        *start) && need_prelocking)
     {
       query_tables_last_own= save_query_tables_last;
       *start= thd->lex->query_tables;
@@ -1891,14 +1898,32 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter)
       DBUG_RETURN(-1);
     }
     (*counter)++;
+    
     if (!tables->table &&
 	!(tables->table= open_table(thd, tables, &new_frm_mem, &refresh, 0)))
     {
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
+
       if (tables->view)
       {
         /* VIEW placeholder */
 	(*counter)--;
+
+        /* 
+          tables->next_global list consists of two parts:
+          1) Query tables and underlying tables of views.
+          2) Tables used by all stored routines that this statement invokes on
+             execution.
+          We need to know where the bound between these two parts is. If we've
+          just opened a view, which was the last table in part #1, and it
+          has added its base tables after itself, adjust the boundary pointer
+          accordingly.
+        */
+        if (query_tables_last_own &&
+            query_tables_last_own == &(tables->next_global) &&
+            tables->view->query_tables)
+          query_tables_last_own= tables->view->query_tables_last;
+        
         /*
           Again if needed we have to get cache all routines used by this view
           and add tables used by them to table list.
@@ -2323,6 +2348,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
         and was marked as occupied during open_tables() as free for reuse.
       */
       mark_real_tables_as_free_for_reuse(first_not_own);
+      DBUG_PRINT("info",("prelocked_mode= PRELOCKED"));
       thd->prelocked_mode= PRELOCKED;
     }
   }
@@ -2346,6 +2372,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
     if (thd->lex->requires_prelocking())
     {
       mark_real_tables_as_free_for_reuse(first_not_own);
+      DBUG_PRINT("info", ("thd->prelocked_mode= PRELOCKED_UNDER_LOCK_TABLES"));
       thd->prelocked_mode= PRELOCKED_UNDER_LOCK_TABLES;
     }
   }
@@ -4128,6 +4155,9 @@ void flush_tables()
   The table will be closed (not stored in cache) by the current thread when
   close_thread_tables() is called.
 
+  PREREQUISITES
+    Lock on LOCK_open()
+
   RETURN
     0  This thread now have exclusive access to this table and no other thread
        can access the table until close_thread_tables() is called.
@@ -4142,6 +4172,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   TABLE *table;
   bool result=0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
+
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
@@ -4200,15 +4231,12 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
     {
       if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
+        dropping_tables++;
         if (likely(signalled))
-        {
-          dropping_tables++;
           (void) pthread_cond_wait(&COND_refresh, &LOCK_open);
-          dropping_tables--;
-          continue;
-        }
         else
         {
+          struct timespec abstime;
           /*
             It can happen that another thread has opened the
             table but has not yet locked any table at all. Since
@@ -4219,11 +4247,11 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
             and then we retry another loop in the
             remove_table_from_cache routine.
           */
-          pthread_mutex_unlock(&LOCK_open);
-          my_sleep(10);
-          pthread_mutex_lock(&LOCK_open);
-          continue;
+          set_timespec(abstime, 10);
+          pthread_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
         }
+        dropping_tables--;
+        continue;
       }
     }
     break;
@@ -4303,7 +4331,7 @@ open_new_frm(const char *path, const char *alias,
 
   if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
   {
-    if (!strncmp("VIEW", parser->type()->str, parser->type()->length))
+    if (is_equal(&view_type, parser->type()))
     {
       if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
       {
@@ -4325,4 +4353,10 @@ open_new_frm(const char *path, const char *alias,
 err:
   bzero(outparam, sizeof(TABLE));	// do not run repair
   DBUG_RETURN(1);
+}
+
+
+bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
+{
+  return a->length == b->length && !strncmp(a->str, b->str, a->length);
 }

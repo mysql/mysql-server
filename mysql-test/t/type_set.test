@@ -37,3 +37,5 @@ INSERT INTO t1 VALUES ('ae,oe,ue,ss');
 SELECT c FROM t1 ORDER BY c;
 SELECT c FROM t1 ORDER BY concat(c);
 DROP TABLE t1;
+
+# End of 4.1 tests

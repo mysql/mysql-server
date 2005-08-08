@@ -5384,6 +5384,10 @@ ER_CANT_CREATE_FEDERATED_TABLE
         eng "Can't create federated table. Foreign data src error : '%-.64s'"
 ER_TRG_IN_WRONG_SCHEMA
         eng "Trigger in wrong schema"
+ER_STACK_OVERRUN_NEED_MORE
+	eng "Thread stack overrun:  %ld bytes used of a %ld byte stack, and %ld bytes needed.  Use 'mysqld -O thread_stack=#' to specify a bigger stack."
+ER_TOO_LONG_BODY 42000 S1009
+	eng "Routine body for '%-.100s' is too long"
 ER_PARTITION_REQUIRES_VALUES_ERROR
         eng "%s PARTITIONING requires definition of VALUES %s for each partition"
         swe "%s PARTITIONering kräver definition av VALUES %s för varje partition"

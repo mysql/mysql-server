@@ -37,6 +37,14 @@ typedef size_t NDB_THREAD_STACKSIZE;
 
 struct NdbThread;
 
+/*
+  Method to block/unblock thread from receiving KILL signal with
+  signum set in g_ndb_shm_signum in a portable manner.
+*/
+#ifdef NDB_SHM_TRANSPORTER
+void NdbThread_set_shm_sigmask(bool block);
+#endif
+
 /**
  * Create a thread
  *

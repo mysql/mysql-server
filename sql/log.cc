@@ -59,7 +59,11 @@ static handlerton binlog_hton = {
   binlog_prepare,
   NULL,                         /* recover */
   NULL,                         /* commit_by_xid */
-  NULL                          /* rollback_by_xid */
+  NULL,                         /* rollback_by_xid */
+  NULL,                         /* create_cursor_read_view */
+  NULL,                         /* set_cursor_read_view */
+  NULL,    			/* close_cursor_read_view */
+  HTON_NO_FLAGS
 };
 
 /*
@@ -2211,7 +2215,7 @@ bool flush_error_log()
      On Windows is necessary a temporary file for to rename
      the current error file.
     */
-    strmov(strmov(err_temp, err_renamed),"-tmp");
+    strxmov(err_temp, err_renamed,"-tmp",NullS);
     (void) my_delete(err_temp, MYF(0)); 
     if (freopen(err_temp,"a+",stdout))
     {

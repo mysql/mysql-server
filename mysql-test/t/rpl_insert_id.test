@@ -74,6 +74,4 @@ SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 sync_slave_with_master;
 
-
-
-
+# End of 4.1 tests

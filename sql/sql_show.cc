@@ -3005,9 +3005,13 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           const char *tname, LEX_STRING *trigger_name,
                           enum trg_event_type event,
                           enum trg_action_time_type timing,
-                          LEX_STRING *trigger_stmt)
+                          LEX_STRING *trigger_stmt,
+                          ulong sql_mode)
 {
   CHARSET_INFO *cs= system_charset_info;
+  byte *sql_mode_str;
+  ulong sql_mode_len;
+
   restore_record(table, s->default_values);
   table->field[1]->store(db, strlen(db), cs);
   table->field[2]->store(trigger_name->str, trigger_name->length, cs);
@@ -3021,6 +3025,12 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           trg_action_time_type_names[timing].length, cs);
   table->field[14]->store("OLD", 3, cs);
   table->field[15]->store("NEW", 3, cs);
+
+  sql_mode_str=
+    sys_var_thd_sql_mode::symbolic_mode_representation(thd,
+                                                       sql_mode,
+                                                       &sql_mode_len);
+  table->field[17]->store((const char*)sql_mode_str, sql_mode_len, cs);
   return schema_table_store_record(thd, table);
 }
 
@@ -3053,13 +3063,16 @@ static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
       {
         LEX_STRING trigger_name;
         LEX_STRING trigger_stmt;
+        ulong sql_mode;
         if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
                                        (enum trg_action_time_type)timing,
-                                       &trigger_name, &trigger_stmt))
+                                       &trigger_name, &trigger_stmt,
+                                       &sql_mode))
           continue;
         if (store_trigger(thd, table, base_name, file_name, &trigger_name,
                          (enum trg_event_type) event,
-                         (enum trg_action_time_type) timing, &trigger_stmt))
+                         (enum trg_action_time_type) timing, &trigger_stmt,
+                         sql_mode))
           DBUG_RETURN(1);
       }
     }
@@ -3565,9 +3578,8 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   if (table_list->schema_table_reformed) // show command
   {
     SELECT_LEX *sel= lex->current_select;
-    uint i= 0;
     Item *item;
-    Field_translator *transl;
+    Field_translator *transl, *org_transl;
 
     if (table_list->field_translation)
     {
@@ -3588,16 +3600,17 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
     {
       DBUG_RETURN(1);
     }
-    while ((item= it++))
+    for (org_transl= transl; (item= it++); transl++)
     {
-      char *name= item->name;
-      transl[i].item= item;
-      if (!item->fixed && item->fix_fields(thd, &transl[i].item))
+      transl->item= item;
+      transl->name= item->name;
+      if (!item->fixed && item->fix_fields(thd, &transl->item))
+      {
         DBUG_RETURN(1);
-      transl[i++].name= name;
+      }
     }
-    table_list->field_translation= transl;
-    table_list->field_translation_end= transl + sel->item_list.elements;
+    table_list->field_translation= org_transl;
+    table_list->field_translation_end= transl;
   }
 
   DBUG_RETURN(0);
@@ -3971,6 +3984,7 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Created"},
+  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, "sql_mode"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3989,46 +4003,46 @@ ST_FIELD_INFO variables_fields_info[]=
 
 ST_SCHEMA_TABLE schema_tables[]=
 {
-  {"SCHEMATA", schema_fields_info, create_schema_table,
-   fill_schema_shemata, make_schemata_old_format, 0, 1, -1, 0},
-  {"TABLES", tables_fields_info, create_schema_table, 
-   get_all_tables, make_old_format, get_schema_tables_record, 1, 2, 0},
-  {"COLUMNS", columns_fields_info, create_schema_table, 
-   get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2, 0},
   {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
    fill_schema_charsets, make_character_sets_old_format, 0, -1, -1, 0},
   {"COLLATIONS", collation_fields_info, create_schema_table, 
    fill_schema_collation, make_old_format, 0, -1, -1, 0},
   {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
    create_schema_table, fill_schema_coll_charset_app, 0, 0, -1, -1, 0},
+  {"COLUMNS", columns_fields_info, create_schema_table, 
+   get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2, 0},
+  {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
+    fill_schema_column_privileges, 0, 0, -1, -1, 0},
+  {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
+    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
+  {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
+   fill_open_tables, make_old_format, 0, -1, -1, 1},
   {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
+  {"SCHEMATA", schema_fields_info, create_schema_table,
+   fill_schema_shemata, make_schemata_old_format, 0, 1, -1, 0},
+  {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
+    fill_schema_schema_privileges, 0, 0, -1, -1, 0},
   {"STATISTICS", stat_fields_info, create_schema_table, 
     get_all_tables, make_old_format, get_schema_stat_record, 1, 2, 0},
+  {"STATUS", variables_fields_info, create_schema_table, fill_status, 
+   make_old_format, 0, -1, -1, 1},
+  {"TABLES", tables_fields_info, create_schema_table, 
+   get_all_tables, make_old_format, get_schema_tables_record, 1, 2, 0},
+  {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
+    get_all_tables, 0, get_schema_constraints_record, 3, 4, 0},
+  {"TABLE_NAMES", table_names_fields_info, create_schema_table,
+   get_all_tables, make_table_names_old_format, 0, 1, 2, 1},
+  {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
+    fill_schema_table_privileges, 0, 0, -1, -1, 0},
+  {"TRIGGERS", triggers_fields_info, create_schema_table,
+   get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0},
+  {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
+   make_old_format, 0, -1, -1, 1},
   {"VIEWS", view_fields_info, create_schema_table, 
     get_all_tables, 0, get_schema_views_record, 1, 2, 0},
   {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table, 
     fill_schema_user_privileges, 0, 0, -1, -1, 0},
-  {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
-    fill_schema_schema_privileges, 0, 0, -1, -1, 0},
-  {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
-    fill_schema_table_privileges, 0, 0, -1, -1, 0},
-  {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
-    fill_schema_column_privileges, 0, 0, -1, -1, 0},
-  {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
-    get_all_tables, 0, get_schema_constraints_record, 3, 4, 0},
-  {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
-  {"TABLE_NAMES", table_names_fields_info, create_schema_table,
-   get_all_tables, make_table_names_old_format, 0, 1, 2, 1},
-  {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
-   fill_open_tables, make_old_format, 0, -1, -1, 1},
-  {"STATUS", variables_fields_info, create_schema_table, fill_status, 
-   make_old_format, 0, -1, -1, 1},
-  {"TRIGGERS", triggers_fields_info, create_schema_table, 
-   get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0},
-  {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
-   make_old_format, 0, -1, -1, 1},
   {0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 

@@ -3,7 +3,10 @@
 # RENAME TABLE work with MERGE tables on the slave.
 # Test of FLUSH NO_WRITE_TO_BINLOG by the way.
 #
-source include/master-slave.inc;
+--source include/master-slave.inc
+# Skipped on Windows because it can't handle a table underlying an open
+# merge table getting renamed.
+--source include/not_windows.inc
 
 create table t1 (a int);
 insert into t1 values (10);
@@ -35,3 +38,5 @@ sync_with_master;
 select * from t3;
 # Note that all this confusion may cause warnings 'table xx is open on rename'
 # in the .err files; these are not fatal and are not reported by mysql-test-run.
+
+# End of 4.1 tests

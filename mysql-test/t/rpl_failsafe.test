@@ -20,3 +20,5 @@ start slave;
 sync_with_master;
 show variables like 'rpl_recovery_rank';
 show status like 'Rpl_status';
+
+# End of 4.1 tests

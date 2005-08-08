@@ -86,6 +86,9 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theFirstTransId= 0;
   theMyRef= 0;
 
+  cond_wait_index = TransporterFacade::MAX_NO_THREADS;
+  cond_signal_ndb = NULL;
+
   fullyQualifiedNames = true;
 
 #ifdef POORMANSPURIFY
@@ -217,6 +220,8 @@ NdbWaiter::NdbWaiter(){
   m_node = 0;
   m_state = NO_WAIT;
   m_mutex = 0;
+  m_poll_owner= false;
+  m_cond_wait_index= TransporterFacade::MAX_NO_THREADS;
   m_condition = NdbCondition_Create();
 }
 

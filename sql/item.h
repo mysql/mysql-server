@@ -767,6 +767,15 @@ public:
 };
 
 
+bool agg_item_collations(DTCollation &c, const char *name,
+                         Item **items, uint nitems, uint flags= 0);
+bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
+                                        Item **items, uint nitems,
+                                        uint flags= 0);
+bool agg_item_charsets(DTCollation &c, const char *name,
+                       Item **items, uint nitems, uint flags= 0);
+
+
 class Item_num: public Item
 {
 public:
@@ -1141,7 +1150,7 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length);
-  Item_uint(uint32 i) :Item_int((ulonglong) i, 10) {}
+  Item_uint(ulonglong i) :Item_int((ulonglong) i, 10) {}
   Item_uint(const char *str_arg, longlong i, uint length);
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
@@ -1464,7 +1473,13 @@ public:
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
-  Field *get_tmp_table_field() { return result_field; }
+  Field *get_tmp_table_field()
+  { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
+  Item *get_tmp_table_item(THD *thd)
+  { 
+    return (result_field ? new Item_field(result_field) :
+                          (*ref)->get_tmp_table_item(thd));
+  }
   table_map used_tables() const		
   { 
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -1702,7 +1717,7 @@ class Cached_item_field :public Cached_item
 public:
   Cached_item_field(Item_field *item)
   {
-    field=item->field;
+    field= item->field;
     buff= (char*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);

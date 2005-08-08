@@ -450,26 +450,159 @@ runReceiveResponse_C(void * me)
   return 0;
 }
 
+/*
+  The receiver thread is changed to only wake up once every 10 milliseconds
+  to poll. It will first check that nobody owns the poll "right" before
+  polling. This means that methods using the receiveResponse and
+  sendRecSignal will have a slightly longer response time if they are
+  executed without any parallel key lookups. Currently also scans are
+  affected but this is to be fixed.
+*/
 void TransporterFacade::threadMainReceive(void)
 {
   theTransporterRegistry->startReceiving();
+#ifdef NDB_SHM_TRANSPORTER
+  NdbThread_set_shm_sigmask(TRUE);
+#endif
   NdbMutex_Lock(theMutexPtr);
   theTransporterRegistry->update_connections();
   NdbMutex_Unlock(theMutexPtr);
   while(!theStopReceive) {
     for(int i = 0; i<10; i++){
-      const int res = theTransporterRegistry->pollReceive(10);
-      if(res > 0){
-        NdbMutex_Lock(theMutexPtr);
-        theTransporterRegistry->performReceive();
-        NdbMutex_Unlock(theMutexPtr);
+      NdbSleep_MilliSleep(10);
+      NdbMutex_Lock(theMutexPtr);
+      if (poll_owner == NULL) {
+        const int res = theTransporterRegistry->pollReceive(0);
+        if(res > 0)
+          theTransporterRegistry->performReceive();
       }
+      NdbMutex_Unlock(theMutexPtr);
     }
     NdbMutex_Lock(theMutexPtr);
     theTransporterRegistry->update_connections();
     NdbMutex_Unlock(theMutexPtr);
   }//while
   theTransporterRegistry->stopReceiving();
+}
+/*
+  This method is called by worker thread that owns the poll "rights".
+  It waits for events and if something arrives it takes care of it
+  and returns to caller. It will quickly come back here if not all
+  data was received for the worker thread.
+*/
+void TransporterFacade::external_poll(Uint32 wait_time)
+{
+  NdbMutex_Unlock(theMutexPtr);
+  const int res = theTransporterRegistry->pollReceive(wait_time);
+  NdbMutex_Lock(theMutexPtr);
+  if (res > 0) {
+    theTransporterRegistry->performReceive();
+  }
+}
+
+/*
+  This Ndb object didn't get hold of the poll "right" and will wait on a
+  conditional mutex wait instead. It is put into the conditional wait
+  queue so that it is accessible to take over the poll "right" if needed.
+  The method gets a free entry in the free list and puts it first in the
+  doubly linked list. Finally it assigns the ndb object reference to the
+  entry.
+*/
+Uint32 TransporterFacade::put_in_cond_wait_queue(NdbWaiter *aWaiter)
+{
+  /*
+   Get first free entry
+  */
+  Uint32 index = first_free_cond_wait;
+  assert(index < MAX_NO_THREADS);
+  first_free_cond_wait = cond_wait_array[index].next_cond_wait;
+
+  /*
+   Put in doubly linked list
+  */
+  cond_wait_array[index].next_cond_wait = MAX_NO_THREADS;
+  cond_wait_array[index].prev_cond_wait = last_in_cond_wait;
+  if (last_in_cond_wait == MAX_NO_THREADS) {
+    first_in_cond_wait = index;
+  } else
+    cond_wait_array[last_in_cond_wait].next_cond_wait = index;
+  last_in_cond_wait = index;
+
+  cond_wait_array[index].cond_wait_object = aWaiter;
+  aWaiter->set_cond_wait_index(index);
+  return index;
+}
+
+/*
+  Somebody is about to signal the thread to wake it up, it could also
+  be that it woke up on a timeout and found himself still in the list.
+  Removes the entry from the doubly linked list.
+  Inserts the entry into the free list.
+  NULLifies the ndb object reference entry and sets the index in the
+  Ndb object to NIL (=MAX_NO_THREADS)
+*/
+void TransporterFacade::remove_from_cond_wait_queue(NdbWaiter *aWaiter)
+{
+  Uint32 index = aWaiter->get_cond_wait_index();
+  assert(index < MAX_NO_THREADS &&
+         cond_wait_array[index].cond_wait_object == aWaiter);
+  /*
+   Remove from doubly linked list
+  */
+  Uint32 prev_elem, next_elem;
+  prev_elem = cond_wait_array[index].prev_cond_wait;
+  next_elem = cond_wait_array[index].next_cond_wait;
+  if (prev_elem != MAX_NO_THREADS)
+    cond_wait_array[prev_elem].next_cond_wait = next_elem;
+  else
+    first_in_cond_wait = next_elem;
+  if (next_elem != MAX_NO_THREADS)
+    cond_wait_array[next_elem].prev_cond_wait = prev_elem;
+  else
+    last_in_cond_wait = prev_elem;
+  /*
+   Insert into free list
+  */
+  cond_wait_array[index].next_cond_wait = first_free_cond_wait;
+  cond_wait_array[index].prev_cond_wait = MAX_NO_THREADS;
+  first_free_cond_wait = index;
+
+  cond_wait_array[index].cond_wait_object = NULL;
+  aWaiter->set_cond_wait_index(MAX_NO_THREADS);
+}
+
+/*
+  Get the latest Ndb object from the conditional wait queue
+  and also remove it from the list.
+*/
+NdbWaiter* TransporterFacade::rem_last_from_cond_wait_queue()
+{
+  NdbWaiter *tWaiter;
+  Uint32 index = last_in_cond_wait;
+  if (last_in_cond_wait == MAX_NO_THREADS)
+    return NULL;
+  tWaiter = cond_wait_array[index].cond_wait_object;
+  remove_from_cond_wait_queue(tWaiter);
+  return tWaiter;
+}
+
+void TransporterFacade::init_cond_wait_queue()
+{
+  Uint32 i;
+  /*
+   Initialise the doubly linked list as empty
+  */
+  first_in_cond_wait = MAX_NO_THREADS;
+  last_in_cond_wait = MAX_NO_THREADS;
+  /*
+   Initialise free list
+  */
+  first_free_cond_wait = 0;
+  for (i = 0; i < MAX_NO_THREADS; i++) {
+    cond_wait_array[i].cond_wait_object = NULL;
+    cond_wait_array[i].next_cond_wait = i+1;
+    cond_wait_array[i].prev_cond_wait = MAX_NO_THREADS;
+  }
 }
 
 TransporterFacade::TransporterFacade() :
@@ -480,7 +613,8 @@ TransporterFacade::TransporterFacade() :
   m_fragmented_signal_id(0)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
-
+  init_cond_wait_queue();
+  poll_owner = NULL;
   theOwnId = 0;
 
   theMutexPtr = NdbMutex_Create();
@@ -1117,6 +1251,181 @@ TransporterFacade::ThreadData::close(int number){
   m_objectExecute[number] = oe;
   m_statusFunction[number] = 0;
   return 0;
+}
+
+PollGuard::PollGuard(TransporterFacade *tp, NdbWaiter *aWaiter,
+                     Uint32 block_no)
+{
+  m_tp= tp;
+  m_waiter= aWaiter;
+  m_locked= true;
+  m_block_no= block_no;
+  tp->lock_mutex();
+}
+
+/*
+  This is a common routine for possibly forcing the send of buffered signals
+  and receiving response the thread is waiting for. It is designed to be
+  useful from:
+  1) PK, UK lookups using the asynchronous interface
+     This routine uses the wait_for_input routine instead since it has
+     special end conditions due to the asynchronous nature of its usage.
+  2) Scans
+  3) dictSignal
+  It uses a NdbWaiter object to wait on the events and this object is
+  linked into the conditional wait queue. Thus this object contains
+  a reference to its place in the queue.
+
+  It replaces the method receiveResponse previously used on the Ndb object
+*/
+int PollGuard::wait_n_unlock(int wait_time, NodeId nodeId, Uint32 state,
+                             bool forceSend)
+{
+  int ret_val;
+  m_waiter->set_node(nodeId);
+  m_waiter->set_state(state);
+  ret_val= wait_for_input_in_loop(wait_time, forceSend);
+  unlock_and_signal();
+  return ret_val;
+}
+
+int PollGuard::wait_scan(int wait_time, NodeId nodeId, bool forceSend)
+{
+  m_waiter->set_node(nodeId);
+  m_waiter->set_state(WAIT_SCAN);
+  return wait_for_input_in_loop(wait_time, forceSend);
+}
+
+int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
+{
+  int ret_val, response_time;
+  if (forceSend)
+    m_tp->forceSend(m_block_no);
+  else
+    m_tp->checkForceSend(m_block_no);
+  if (wait_time == -1) //Means wait forever
+    response_time= WAITFOR_RESPONSE_TIMEOUT;
+  else
+    response_time= wait_time;
+  NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
+  NDB_TICKS max_time = curr_time + (NDB_TICKS)wait_time;
+  do
+  {
+    wait_for_input(response_time);
+    Uint32 state= m_waiter->get_state();
+    if (state == NO_WAIT)
+    {
+      return 0;
+    }
+    else if (state == WAIT_NODE_FAILURE)
+    {
+      ret_val= -2;
+      break;
+    }
+    if (wait_time == -1)
+    {
+#ifdef VM_TRACE
+      ndbout << "Waited WAITFOR_RESPONSE_TIMEOUT, continuing wait" << endl;
+#endif
+      continue;
+    }
+    wait_time= max_time - NdbTick_CurrentMillisecond();
+    if (wait_time <= 0)
+    {
+#ifdef VM_TRACE
+      ndbout << "Time-out state is " << m_waiter->get_state() << endl;
+#endif
+      m_waiter->set_state(WST_WAIT_TIMEOUT);
+      ret_val= -1;
+      break;
+    }
+  } while (1);
+#ifdef VM_TRACE
+  ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
+  ndbout << m_waiter->get_state() << endl;
+#endif
+  m_waiter->set_state(NO_WAIT);
+  return ret_val;
+}
+
+void PollGuard::wait_for_input(int wait_time)
+{
+  NdbWaiter *t_poll_owner= m_tp->get_poll_owner();
+  if (t_poll_owner != NULL && t_poll_owner != m_waiter)
+  {
+    /*
+      We didn't get hold of the poll "right". We will sleep on a
+      conditional mutex until the thread owning the poll "right"
+      will wake us up after all data is received. If no data arrives
+      we will wake up eventually due to the timeout.
+      After receiving all data we take the object out of the cond wait
+      queue if it hasn't happened already. It is usually already out of the
+      queue but at time-out it could be that the object is still there.
+    */
+    Uint32 cond_wait_index= m_tp->put_in_cond_wait_queue(m_waiter);
+    m_waiter->wait(wait_time);
+    if (m_waiter->get_cond_wait_index() != TransporterFacade::MAX_NO_THREADS)
+    {
+      m_tp->remove_from_cond_wait_queue(m_waiter);
+    }
+  }
+  else
+  {
+    /*
+      We got the poll "right" and we poll until data is received. After
+      receiving data we will check if all data is received, if not we
+      poll again.
+    */
+#ifdef NDB_SHM_TRANSPORTER
+    /*
+      If shared memory transporters are used we need to set our sigmask
+      such that we wake up also on interrupts on the shared memory
+      interrupt signal.
+    */
+    NdbThread_set_shm_sigmask(FALSE);
+#endif
+    m_tp->set_poll_owner(m_waiter);
+    m_waiter->set_poll_owner(true);
+    m_tp->external_poll((Uint32)wait_time);
+  }
+}
+
+void PollGuard::unlock_and_signal()
+{
+  NdbWaiter *t_signal_cond_waiter= 0;
+  if (!m_locked)
+    return;
+  /*
+   When completing the poll for this thread we must return the poll
+   ownership if we own it. We will give it to the last thread that
+   came here (the most recent) which is likely to be the one also
+   last to complete. We will remove that thread from the conditional
+   wait queue and set him as the new owner of the poll "right".
+   We will wait however with the signal until we have unlocked the
+   mutex for performance reasons.
+   See Stevens book on Unix NetworkProgramming: The Sockets Networking
+   API Volume 1 Third Edition on page 703-704 for a discussion on this
+   subject.
+  */
+  if (m_tp->get_poll_owner() == m_waiter)
+  {
+#ifdef NDB_SHM_TRANSPORTER
+    /*
+      If shared memory transporters are used we need to reset our sigmask
+      since we are no longer the thread to receive interrupts.
+    */
+    NdbThread_set_shm_sigmask(TRUE);
+#endif
+    m_waiter->set_poll_owner(false);
+    t_signal_cond_waiter= m_tp->rem_last_from_cond_wait_queue();
+    m_tp->set_poll_owner(t_signal_cond_waiter);
+    if (t_signal_cond_waiter)
+      t_signal_cond_waiter->set_poll_owner(true);
+  }
+  m_tp->unlock_mutex();
+  if (t_signal_cond_waiter)
+    t_signal_cond_waiter->cond_signal();
+  m_locked=false;
 }
 
 template class Vector<NodeStatusFunction>;

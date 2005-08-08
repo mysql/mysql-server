@@ -984,6 +984,8 @@ class BaseString;
 class NdbEventOperation;
 class NdbBlob;
 class NdbReceiver;
+class TransporterFacade;
+class PollGuard;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
@@ -1462,7 +1464,12 @@ public:
 /*****************************************************************************
  *	These are service routines used by the other classes in the NDBAPI.
  ****************************************************************************/
+ Uint32 get_cond_wait_index() { return cond_wait_index; }
+ void set_cond_wait_index(Uint32 index) { cond_wait_index = index; }
 private:
+  Uint32 cond_wait_index;
+  Ndb *cond_signal_ndb;
+  void cond_signal();
   
   void setup(Ndb_cluster_connection *ndb_cluster_connection,
 	     const char* aCatalogName, const char* aSchemaName);
@@ -1513,13 +1520,11 @@ private:
   // synchronous and asynchronous interface
   void handleReceivedSignal(NdbApiSignal* anApiSignal, struct LinearSectionPtr ptr[3]);
   
-  // Receive response signals
-  int			receiveResponse(int waitTime = WAITFOR_RESPONSE_TIMEOUT);
-
   int			sendRecSignal(Uint16 aNodeId,
 				      Uint32 aWaitState,
 				      NdbApiSignal* aSignal,
-                                      Uint32 nodeSequence);
+                                      Uint32 nodeSequence,
+                                      Uint32 *ret_conn_seq= 0);
   
   // Sets Restart GCI in Ndb object
   void			RestartGCI(int aRestartGCI);
@@ -1576,7 +1581,9 @@ private:
   Uint32  pollCompleted(NdbTransaction** aCopyArray);
   void    sendPrepTrans(int forceSend);
   void    reportCallback(NdbTransaction** aCopyArray, Uint32 aNoOfComplTrans);
-  void    waitCompletedTransactions(int milliSecs, int noOfEventsToWaitFor);
+  int     poll_trans(int milliSecs, int noOfEventsToWaitFor, PollGuard *pg);
+  void    waitCompletedTransactions(int milliSecs, int noOfEventsToWaitFor,
+		                    PollGuard *pg);
   void    completedTransaction(NdbTransaction* aTransaction);
   void    completedScanTransaction(NdbTransaction* aTransaction);
 

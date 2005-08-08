@@ -354,3 +354,28 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a int not null primary key, b varchar(20) not null unique);
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI		
+b	varchar(20)	NO	UNI		
+drop table t1;
+create table t1 (a int not null primary key, b int not null unique);
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI		
+b	int(11)	NO	UNI		
+drop table t1;
+create table t1 (a int not null primary key, b varchar(20) not null, unique (b(10)));
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI		
+b	varchar(20)	NO	UNI		
+drop table t1;
+create table t1 (a int not null primary key, b varchar(20) not null, c varchar(20) not null, unique(b(10),c(10)));
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI		
+b	varchar(20)	NO	MUL		
+c	varchar(20)	NO			
+drop table t1;

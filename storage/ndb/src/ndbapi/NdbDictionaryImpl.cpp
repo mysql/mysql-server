@@ -989,7 +989,13 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
     m_buffer.clear();
 
     // Protected area
-    m_transporter->lock_mutex();
+    /*
+      The PollGuard has an implicit call of unlock_and_signal through the
+      ~PollGuard method. This method is called implicitly by the compiler
+      in all places where the object is out of context due to a return,
+      break, continue or simply end of statement block
+    */
+    PollGuard poll_guard(m_transporter, &m_waiter, refToBlock(m_reference));
     Uint32 aNodeId;
     if (useMasterNodeId) {
       if ((m_masterNodeId == 0) ||
@@ -1002,7 +1008,6 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
     }
     if(aNodeId == 0){
       m_error.code= 4009;
-      m_transporter->unlock_mutex();
       DBUG_RETURN(-1);
     }
     {
@@ -1023,21 +1028,15 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
 	r = m_transporter->sendSignal(signal, aNodeId);
       }
       if(r != 0){
-	m_transporter->unlock_mutex();
 	continue;
       }
     }
     
     m_error.code= 0;
-    
-    m_waiter.m_node = aNodeId;
-    m_waiter.m_state = wst;
-
-    m_waiter.wait(theWait);
-    m_transporter->unlock_mutex();    
+    int ret_val= poll_guard.wait_n_unlock(theWait, aNodeId, wst);
     // End of Protected area  
     
-    if(m_waiter.m_state == NO_WAIT && m_error.code == 0){
+    if(ret_val == 0 && m_error.code == 0){
       // Normal return
       DBUG_RETURN(0);
     }
@@ -1045,7 +1044,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
     /**
      * Handle error codes
      */
-    if(m_waiter.m_state == WAIT_NODE_FAILURE)
+    if(ret_val == -2) //WAIT_NODE_FAILURE
       continue;
 
     if(m_waiter.m_state == WST_WAIT_TIMEOUT)
@@ -3166,26 +3165,28 @@ NdbDictInterface::listObjects(NdbApiSignal* signal)
   for (Uint32 i = 0; i < RETRIES; i++) {
     m_buffer.clear();
     // begin protected
-    m_transporter->lock_mutex();
+    /*
+      The PollGuard has an implicit call of unlock_and_signal through the
+      ~PollGuard method. This method is called implicitly by the compiler
+      in all places where the object is out of context due to a return,
+      break, continue or simply end of statement block
+    */
+    PollGuard poll_guard(m_transporter, &m_waiter, refToBlock(m_reference));
     Uint16 aNodeId = m_transporter->get_an_alive_node();
     if (aNodeId == 0) {
       m_error.code= 4009;
-      m_transporter->unlock_mutex();
       return -1;
     }
     if (m_transporter->sendSignal(signal, aNodeId) != 0) {
-      m_transporter->unlock_mutex();
       continue;
     }
     m_error.code= 0;
-    m_waiter.m_node = aNodeId;
-    m_waiter.m_state = WAIT_LIST_TABLES_CONF;
-    m_waiter.wait(WAITFOR_RESPONSE_TIMEOUT);
-    m_transporter->unlock_mutex();    
+    int ret_val= poll_guard.wait_n_unlock(WAITFOR_RESPONSE_TIMEOUT,
+                                          aNodeId, WAIT_LIST_TABLES_CONF);
     // end protected
-    if (m_waiter.m_state == NO_WAIT && m_error.code == 0)
+    if (ret_val == 0 && m_error.code == 0)
       return 0;
-    if (m_waiter.m_state == WAIT_NODE_FAILURE)
+    if (ret_val == -2) //WAIT_NODE_FAILURE
       continue;
     return -1;
   }

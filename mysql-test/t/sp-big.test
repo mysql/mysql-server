@@ -1,0 +1,33 @@
+#
+# Bug #11602: SP with very large body not handled well
+#
+
+--disable_warnings
+drop procedure if exists test.longprocedure;
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+
+let $body=`select repeat('select count(*) into out1 from t1;\n', 3072)`;
+
+delimiter //;
+--disable_query_log
+eval select length('$body') as length//
+eval create procedure test.longprocedure (out out1 int) deterministic
+begin
+  $body
+end//
+--enable_query_log
+
+delimiter ;//
+
+# this is larger than the length above, because it includes the 'begin' and
+# 'end' bits and some whitespace
+select length(routine_definition) from information_schema.routines where routine_schema = 'test' and routine_name = 'longprocedure';
+
+call test.longprocedure(@value); select @value;
+
+drop procedure test.longprocedure;
+drop table t1;

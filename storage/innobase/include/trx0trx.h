@@ -602,8 +602,18 @@ struct trx_struct{
 	UT_LIST_BASE_NODE_T(lock_t) 
 			trx_locks;	/* locks reserved by the transaction */
 	/*------------------------------*/
-	mem_heap_t*	read_view_heap;	/* memory heap for the read view */
-	read_view_t*	read_view;	/* consistent read view or NULL */
+	mem_heap_t*	global_read_view_heap;	
+					/* memory heap for the global read 
+					view */
+	read_view_t*	global_read_view;
+					/* consistent read view associated
+					to a transaction or NULL */
+	read_view_t*	read_view;	/* consistent read view used in the
+					transaction or NULL, this read view
+					if defined can be normal read view 
+					associated to a transaction (i.e. 
+					same as global_read_view) or read view
+					associated to a cursor */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t) 
 			trx_savepoints;	/* savepoints set with SAVEPOINT ...,

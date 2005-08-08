@@ -1141,6 +1141,10 @@ public:
   thr_lock_type update_lock_default;
   delayed_insert *di;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
+  
+  /* TRUE if we are inside of trigger or stored function. */
+  bool in_sub_stmt;
+  
   /* container for handler's private per-connection data */
   void *ha_data[MAX_HA];
   struct st_transactions {
@@ -1148,8 +1152,6 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
-    /* TRUE if we are inside of trigger or stored function. */
-    bool in_sub_stmt;
     XID  xid;                           // transaction identifier
     enum xa_states xa_state;            // used by external XA only
     /*
@@ -1719,8 +1721,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0), convert_blob_length(0),
-    schema_table(0)
+     group_length(0), group_null_parts(0), convert_blob_length(0),
+     schema_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {

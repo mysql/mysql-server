@@ -166,6 +166,25 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     }
     break;
   }
+  case FILE_OPTIONS_ULLLIST:
+  {
+    List_iterator_fast<ulonglong> it(*((List<ulonglong>*)
+                                       (base + parameter->offset)));
+    bool first= 1;
+    ulonglong *val;
+    while ((val= it++))
+    {
+      num.set(*val, &my_charset_bin);
+      // We need ' ' after string to detect list continuation
+      if ((!first && my_b_append(file, (const byte *)" ", 1)) ||
+          my_b_append(file, (const byte *)num.ptr(), num.length()))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      first= 0;
+    }
+    break;
+  }
   default:
     DBUG_ASSERT(0); // never should happened
   }
@@ -615,6 +634,8 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
   char *eol;
   LEX_STRING *str;
   List<LEX_STRING> *list;
+  ulonglong *num;
+  List<ulonglong> *nlist;
   DBUG_ENTER("File_parser::parse");
 
   while (ptr < end && found < required)
@@ -719,7 +740,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	case FILE_OPTIONS_STRLIST:
 	{
           list= (List<LEX_STRING>*)(base + parameter->offset);
-	    
+
 	  list->empty();
 	  // list parsing
 	  while (ptr < end)
@@ -741,17 +762,56 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	      goto list_err_w_message;
 	    }
 	  }
-      end_of_list:
+
+end_of_list:
 	  if (*(ptr++) != '\n')
 	    goto list_err;
 	  break;
 
-      list_err_w_message:
+list_err_w_message:
 	  my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                    parameter->name.str, line);
-      list_err:
+list_err:
 	  DBUG_RETURN(TRUE);
 	}
+        case FILE_OPTIONS_ULLLIST:
+        {
+          nlist= (List<ulonglong>*)(base + parameter->offset);
+          nlist->empty();
+          // list parsing
+          while (ptr < end)
+          {
+            int not_used;
+            char *num_end= end;
+            if (!(num= (ulonglong*)alloc_root(mem_root, sizeof(ulonglong))) ||
+                nlist->push_back(num, mem_root))
+              goto nlist_err;
+            *num= my_strtoll10(ptr, &num_end, &not_used);
+            ptr= num_end;
+            switch (*ptr) {
+            case '\n':
+              goto end_of_nlist;
+            case ' ':
+              // we cant go over buffer bounds, because we have \0 at the end
+              ptr++;
+              break;
+            default:
+              goto nlist_err_w_message;
+            }
+          }
+
+end_of_nlist:
+          if (*(ptr++) != '\n')
+            goto nlist_err;
+          break;
+
+nlist_err_w_message:
+          my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
+                   parameter->name.str, line);
+nlist_err:
+          DBUG_RETURN(TRUE);
+
+        }
 	default:
 	  DBUG_ASSERT(0); // never should happened
 	}

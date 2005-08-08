@@ -37,7 +37,7 @@ Note	1051	Unknown table 't1'
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
-Got one of the listed errors
+ERROR 42000: Unknown database 'not_existing_database'
 create table `a/a` (a int);
 ERROR 42000: Incorrect table name 'a/a'
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
@@ -358,7 +358,7 @@ create table t3 like t1;
 create table t3 like mysqltest.t3;
 ERROR 42S01: Table 't3' already exists
 create table non_existing_database.t1 like t1;
-Got one of the listed errors
+ERROR 42000: Unknown database 'non_existing_database'
 create table t3 like non_existing_table;
 ERROR 42S02: Unknown table 'non_existing_table'
 create temporary table t3 like t1;
@@ -602,3 +602,10 @@ drop database mysqltest;
 create table test.t1 like x;
 ERROR 42000: Incorrect database name 'NULL'
 drop table if exists test.t1;
+create database mysqltest;
+use mysqltest;
+create view v1 as select 'foo' from dual;
+create table t1 like v1;
+ERROR HY000: 'mysqltest.v1' is not BASE TABLE
+drop view v1;
+drop database mysqltest;

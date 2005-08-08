@@ -1833,6 +1833,16 @@ innobase_shutdown_for_mysql(void)
 	srv_free();
 	os_sync_free();
 
+	/* Check that all read views are closed except read view owned
+	by a purge. */
+
+	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
+	        fprintf(stderr,
+"InnoDB: Error: all read views were not closed before shutdown:\n"
+"InnoDB: %lu read views open \n",
+		UT_LIST_GET_LEN(trx_sys->view_list) - 1);
+	}
+
 	/* 5. Free all allocated memory and the os_fast_mutex created in
 	ut0mem.c */
 
