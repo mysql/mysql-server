@@ -455,14 +455,18 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
        ; // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             derivation < dt.derivation &&
-             collation->state & MY_CS_UNICODE)
+             collation->state & MY_CS_UNICODE &&
+             (derivation < dt.derivation ||
+             (derivation == dt.derivation &&
+             !(dt.collation->state & MY_CS_UNICODE))))
     {
       // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             dt.derivation < derivation &&
-             dt.collation->state & MY_CS_UNICODE)
+             dt.collation->state & MY_CS_UNICODE &&
+             (dt.derivation < derivation ||
+              (dt.derivation == derivation &&
+             !(collation->state & MY_CS_UNICODE))))
     {
       set(dt);
     }
