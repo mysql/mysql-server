@@ -1715,6 +1715,7 @@ JOIN::destroy()
 Cursor::Cursor(THD *thd)
   :Query_arena(&main_mem_root, INITIALIZED),
    join(0), unit(0),
+   protocol(thd),
    close_at_commit(FALSE)
 {
   /* We will overwrite it at open anyway. */
