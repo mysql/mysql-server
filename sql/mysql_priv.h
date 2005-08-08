@@ -482,8 +482,7 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
-void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0,
-                         TABLE *stopper= 0);
+void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 bool check_one_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
@@ -924,10 +923,10 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_refresh(THD *thd);
-int open_tables(THD *thd, TABLE_LIST **tables, uint *counter);
+int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
-bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables);
+bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
