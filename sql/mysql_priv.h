@@ -256,6 +256,13 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_WARNINGS         (1L << 13)      // THD, user
 #define OPTION_AUTO_IS_NULL     (1L << 14)      // THD, user, binlog
 #define OPTION_FOUND_COMMENT    (1L << 15)      // SELECT, intern, parser
+/* 
+  Force the used temporary table to be a MyISAM table (because we will use
+  fulltext functions when reading from it. This uses the same constant as
+  OPTION_FOUND_COMMENT because we've run out of bits and these two values 
+  are not used together.
+*/
+#define TMP_TABLE_FORCE_MYISAM          (1L << 15)
 #define OPTION_SAFE_UPDATES     (1L << 16)      // THD, user
 #define OPTION_BUFFER_RESULT    (1L << 17)      // SELECT, user
 #define OPTION_BIN_LOG          (1L << 18)      // THD, user
@@ -1450,6 +1457,12 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->status= STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->s->keys_in_use;
   table->maybe_null= table_list->outer_join;
+  TABLE_LIST *embedding= table_list->embedding;
+  while (!table->maybe_null && embedding)
+  {
+    table->maybe_null= embedding->outer_join;
+    embedding= embedding->embedding;
+  }
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;

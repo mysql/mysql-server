@@ -3319,7 +3319,8 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
                                 (select_lex->options | thd->options |
-                                 TMP_TABLE_ALL_COLUMNS),
+                                 TMP_TABLE_ALL_COLUMNS) &
+                                ~TMP_TABLE_FORCE_MYISAM,
                                 HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
   table_list->schema_table_param= tmp_table_param;
