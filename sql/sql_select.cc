@@ -2260,11 +2260,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
+  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC) &&
                                  ((*value)->type() == Item::FIELD_ITEM) &&
-
-                        (((Item_field*)*value)->field->maybe_null() ||
-			 ((Item_field *)*value)->field->table->maybe_null);
+                                  ((Item_field*)*value)->field->maybe_null());
   (*key_fields)++;
 }
 
