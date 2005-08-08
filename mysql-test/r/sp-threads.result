@@ -35,7 +35,7 @@ lock tables t2 write;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	test	Sleep	#		NULL
-#	root	localhost	test	Query	#	Locked	call bug9486()
+#	root	localhost	test	Query	#	Locked	update t1, t2 set val= 1 where id1=id2
 #	root	localhost	test	Query	#	NULL	show processlist
 unlock tables;
 drop procedure bug9486;

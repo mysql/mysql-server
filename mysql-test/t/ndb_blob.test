@@ -404,3 +404,5 @@ Proper fix: Set inline bytes to multiple of mbmaxlen and
 validate it (after the 8 byte length).');
 select * from t1;
 drop table t1;
+
+# End of 4.1 tests

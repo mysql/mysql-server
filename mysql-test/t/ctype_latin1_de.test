@@ -133,6 +133,8 @@ ALTER TABLE t1 ADD KEY ifword(col1);
 SELECT * FROM t1 WHERE col1='ß' ORDER BY col1, BINARY col1;
 DROP TABLE t1;
 
+# End of 4.1 tests
+
 #
 # Bug#9509
 #

@@ -95,10 +95,11 @@ reap;
 connection locker;
 drop table t1;
 
+# End of 4.1 tests
 
 #
 # BUG#9998 - MySQL client hangs on USE "database"
-
+#
 create table t1(a int);
 lock tables t1 write;
 connection reader;

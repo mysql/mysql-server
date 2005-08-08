@@ -317,8 +317,8 @@ parse_where(Vector<Match*>& where, int &argc, char**& argv)
   return 0;
 }
 
-template Vector<Apply*>;
-template Vector<Match*>;
+template class Vector<Apply*>;
+template class Vector<Match*>;
 
 static 
 int
@@ -359,7 +359,7 @@ Match::eval(NdbMgmHandle h, const Iter& iter)
   } 
   else if(iter.get(m_key, &val64) == 0)
   {
-    if(atoll(m_value.c_str()) != val64)
+    if(strtoll(m_value.c_str(), (char **)NULL, 10) != val64)
       return 0;
   }
   else if(iter.get(m_key, &valc) == 0)

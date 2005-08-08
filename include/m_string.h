@@ -88,6 +88,13 @@
 extern "C" {
 #endif
 
+/*
+  my_str_malloc() and my_str_free() are assigned to implementations in
+  strings/alloc.c, but can be overridden in the calling program.
+ */
+extern void *(*my_str_malloc)(size_t);
+extern void (*my_str_free)(void *);
+
 #if defined(HAVE_STPCPY) && !defined(HAVE_mit_thread)
 #define strmov(A,B) stpcpy((A),(B))
 #ifndef stpcpy

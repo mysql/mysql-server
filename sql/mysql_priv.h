@@ -533,6 +533,7 @@ struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
   unsigned int client_protocol_41:1;
+  unsigned int more_results_exists:1;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;
@@ -844,8 +845,6 @@ bool mysqld_show_column_types(THD *thd);
 bool mysqld_help (THD *thd, const char *text);
 void calc_sum_of_all_status(STATUS_VAR *to);
 
-
-
 /* information schema */
 extern LEX_STRING information_schema_name;
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
@@ -973,12 +972,16 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const char *db);
 void flush_tables();
+bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
+
+/* bits for last argument to remove_table_from_cache() */
 #define RTFC_NO_FLAG                0x0000
 #define RTFC_OWNED_BY_THD_FLAG      0x0001
 #define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
 #define RTFC_CHECK_KILLED_FLAG      0x0004
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
+
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
@@ -1176,6 +1179,7 @@ extern uint opt_large_page_size;
 extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
 extern int bootstrap_error;
+extern FILE *stderror_file;
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
@@ -1209,6 +1213,7 @@ extern HASH open_cache;
 extern TABLE *unused_tables;
 extern const char* any_db;
 extern struct my_option my_long_options[];
+extern const LEX_STRING view_type;
 
 /* optional things, have_* variables */
 
@@ -1268,10 +1273,13 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 void unireg_init(ulong options);
 void unireg_end(void);
 bool mysql_create_frm(THD *thd, my_string file_name,
+                      const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
 		      List<create_field> &create_field,
 		      uint key_count,KEY *key_info,handler *db_type);
-int rea_create_table(THD *thd, my_string file_name,HA_CREATE_INFO *create_info,
+int rea_create_table(THD *thd, my_string file_name,
+                     const char *db, const char *table,
+                     HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
 		     uint key_count,KEY *key_info, handler *file);
 int format_number(uint inputflag,uint max_length,my_string pos,uint length,
@@ -1289,7 +1297,7 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *not_exist);
 bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
                                          TIME *l_time, uint flags);
@@ -1338,7 +1346,8 @@ ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
 void append_unescaped(String *res, const char *pos, uint length);
-int create_frm(THD *thd, char *name,uint reclength,uchar *fileinfo,
+int create_frm(THD *thd, char *name, const char *db, const char *table,
+               uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);

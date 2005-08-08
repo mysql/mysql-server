@@ -68,7 +68,34 @@ void
 read_view_print(
 /*============*/
 	read_view_t*	view);	/* in: read view */
+/*************************************************************************
+Create a consistent cursor view for mysql to be used in cursors. In this 
+consistent read view modifications done by the creating transaction or future
+transactions are not visible. */
 
+cursor_view_t*
+read_cursor_view_create_for_mysql(
+/*==============================*/
+	trx_t*		cr_trx);/* in: trx where cursor view is created */
+/*************************************************************************
+Close a given consistent cursor view for mysql and restore global read view
+back to a transaction read view. */
+
+void
+read_cursor_view_close_for_mysql(
+/*=============================*/
+	trx_t*		trx,		/* in: trx */
+	cursor_view_t*	curview);	/* in: cursor view to be closed */
+/*************************************************************************
+This function sets a given consistent cursor view to a transaction
+read view if given consistent cursor view is not NULL. Otherwise, function
+restores a global read view to a transaction read view. */
+
+void 
+read_cursor_set_for_mysql(
+/*======================*/
+	trx_t*		trx,	/* in: transaction where cursor is set */
+	cursor_view_t*	curview);/* in: consistent cursor view to be set */
 
 /* Read view lists the trx ids of those transactions for which a consistent
 read should not see the modifications to the database. */
@@ -98,6 +125,17 @@ struct read_view_struct{
 				NULL if used in purge */
 	UT_LIST_NODE_T(read_view_t) view_list;
 				/* List of read views in trx_sys */
+};
+
+/* Implement InnoDB framework to support consistent read views in
+cursors. This struct holds both heap where consistent read view
+is allocated and pointer to a read view. */
+
+struct cursor_view_struct{
+	mem_heap_t*	heap;
+				/* Memory heap for the cursor view */
+	read_view_t*	read_view;	
+				/* Consistent read view of the cursor*/
 };
 
 #ifndef UNIV_NONINL

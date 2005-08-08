@@ -149,3 +149,5 @@ drop table test.t1,mysqltest.t1,mysqltest.t2;
 drop database mysqltest;
 
 set GLOBAL query_cache_size=default;
+
+# End of 4.1 tests

@@ -3,6 +3,8 @@ source include/master-slave.inc;
 set global slave_net_timeout=100;
 set global sql_slave_skip_counter=100;
 
+# End of 4.1 tests
+
 # BUG #7800: Add various-slave related variables to SHOW VARIABLES
 show variables like 'slave_compressed_protocol';
 --replace_column 2 SLAVE_LOAD_TMPDIR

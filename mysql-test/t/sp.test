@@ -22,15 +22,12 @@ use test;
 # t3 and up are created and dropped when needed.
 #
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2,t3,t4;
 --enable_warnings
 create table t1 (
 	id   char(16) not null default '',
         data int not null
 );
---disable_warnings
-drop table if exists t2;
---enable_warnings
 create table t2 (
 	s   char(16),
         i   int,
@@ -150,9 +147,6 @@ drop procedure setcontext|
 
 
 # Set things to null
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( d date, i int, f double, s varchar(32) )|
 
 --disable_warnings
@@ -686,9 +680,6 @@ begin
 end|
 
 delete from t1|
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( s char(16), d int)|
 call into_test4()|
 select * from t3|
@@ -744,14 +735,9 @@ begin
   insert into test.t3 values (concat(x, "2"), y+2);
 end|
 
---disable_warnings
-drop table if exists t3|
---enable_warnings
 call create_select("cs", 90)|
 select * from t1, t3|
---disable_warnings
-drop table if exists t3|
---enable_warnings
+drop table t3|
 delete from t1|
 drop procedure create_select|
 
@@ -925,9 +911,6 @@ drop procedure hndlr3|
 # Variables might be uninitialized when using handlers
 # (Otherwise the compiler can detect if a variable is not set, but
 #  not in this case.)
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( id   char(16), data int )|
 
 --disable_warnings
@@ -980,9 +963,6 @@ call cur1()|
 select * from t1|
 drop procedure cur1|
 
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( s char(16), i int )|
 
 --disable_warnings
@@ -1232,12 +1212,14 @@ begin
 end|
 select f5(1)|
 # This should generate an error about insuficient number of tables locked
-# Nuw this crash server, comented until bug#11394 fix
-#--error 1100
-#select f5(2)|
+# Now this crash server
+--disable_parsing until bug#11394 fix
+--error 1100
+select f5(2)|
 # But now it simply miserably fails because we are trying to use the same
 # lex on the next iteration :/ It should generate some error too...
-# select f5(3)|
+select f5(3)|
+--enable_parsing
 
 # OTOH this should work 
 create function f6() returns int
@@ -1285,9 +1267,11 @@ create function f1() returns int
   return (select sum(data) from t1) + (select sum(data) from v1)|
 # This queries will crash server because we can't use LEX in
 # reenterable fashion yet. Patch disabling recursion will heal this.
-#select f1()|
-#select * from v1|
-#select * from v2|
+--disable_parsing
+select f1()|
+select * from v1|
+select * from v2|
+--enable_parsing
 # Back to the normal cases
 drop function f1|
 create function f1() returns int
@@ -1499,54 +1483,55 @@ show procedure status like '%p%'|
 #
 # This part of test is disabled until we implement support for
 # recursive stored procedures.
-#--disable_warnings
-#drop table if exists fib|
-#--enable_warnings
-#create table fib ( f bigint unsigned not null )|
-#
-## We deliberately do it the awkward way, fetching the last two
-## values from the table, in order to exercise various statements
-## and table accesses at each turn.
-#--disable_warnings
-#drop procedure if exists fib|
-#--enable_warnings
-#create procedure fib(n int unsigned)
-#begin
-#  if n > 1 then
-#    begin
-#      declare x, y bigint unsigned;
-#      declare c cursor for select f from fib order by f desc limit 2;
-#
-#      open c;
-#      fetch c into y;
-#      fetch c into x;
-#      close c;
-#      insert into fib values (x+y);
-#      call fib(n-1);
-#    end;
-#  end if;
-#end|
-#
-## Minimum test: recursion of 3 levels
-#
-#insert into fib values (0), (1)|
-#
-#call fib(3)|
-#
-#select * from fib order by f asc|
-#
-#delete from fib|
-#
-## Original test: 20 levels (may run into memory limits!)
-#
-#insert into fib values (0), (1)|
-#
-#call fib(20)|
-#
-#select * from fib order by f asc|
-#drop table fib|
-#drop procedure fib|
+--disable_parsing
+--disable_warnings
+drop table if exists fib|
+--enable_warnings
+create table fib ( f bigint unsigned not null )|
 
+# We deliberately do it the awkward way, fetching the last two
+# values from the table, in order to exercise various statements
+# and table accesses at each turn.
+--disable_warnings
+drop procedure if exists fib|
+--enable_warnings
+create procedure fib(n int unsigned)
+begin
+  if n > 1 then
+    begin
+      declare x, y bigint unsigned;
+      declare c cursor for select f from fib order by f desc limit 2;
+
+      open c;
+      fetch c into y;
+      fetch c into x;
+      close c;
+      insert into fib values (x+y);
+      call fib(n-1);
+    end;
+  end if;
+end|
+
+# Minimum test: recursion of 3 levels
+
+insert into fib values (0), (1)|
+
+call fib(3)|
+
+select * from fib order by f asc|
+
+delete from fib|
+
+# Original test: 20 levels (may run into memory limits!)
+
+insert into fib values (0), (1)|
+
+call fib(20)|
+
+select * from fib order by f asc|
+drop table fib|
+drop procedure fib|
+--enable_parsing
 
 #
 # Comment & suid
@@ -1614,9 +1599,6 @@ insert into t1 values ("foo", 3), ("bar", 2), ("zip", 5), ("zap", 1)|
 select t1max()|
 drop function t1max|
 
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (
   v char(16) not null primary key,
   c int unsigned not null
@@ -1750,9 +1732,6 @@ drop procedure bug1656|
 #
 # BUG#1862
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3(a int)|
 
 --disable_warnings
@@ -1830,49 +1809,51 @@ drop procedure bug2260|
 # FIXME: Other solution would be to use preopened proc table
 #        instead of opening it anew.
 # 
-#--disable_warnings
-#drop procedure if exists bug2267_1|
-#--enable_warnings
-#create procedure bug2267_1()
-#begin
-#  show procedure status;
-#end|
-#
-#--disable_warnings
-#drop procedure if exists bug2267_2|
-#--enable_warnings
-#create procedure bug2267_2()
-#begin
-#  show function status;
-#end|
-#
-#--disable_warnings
-#drop procedure if exists bug2267_3|
-#--enable_warnings
-#create procedure bug2267_3()
-#begin
-#  show create procedure bug2267_1;
-#end|
-#
-#--disable_warnings
-#drop procedure if exists bug2267_4|
-#--enable_warnings
-#create procedure bug2267_4()
-#begin
-#  show create function fac;
-#end|
-#
-#--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-#call bug2267_1()|
-#--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-#call bug2267_2()|
-#call bug2267_3()|
-#call bug2267_4()|
-#
-#drop procedure bug2267_1|
-#drop procedure bug2267_2|
-#drop procedure bug2267_3|
-#drop procedure bug2267_4|
+--disable_parsing
+--disable_warnings
+drop procedure if exists bug2267_1|
+--enable_warnings
+create procedure bug2267_1()
+begin
+  show procedure status;
+end|
+
+--disable_warnings
+drop procedure if exists bug2267_2|
+--enable_warnings
+create procedure bug2267_2()
+begin
+  show function status;
+end|
+
+--disable_warnings
+drop procedure if exists bug2267_3|
+--enable_warnings
+create procedure bug2267_3()
+begin
+  show create procedure bug2267_1;
+end|
+
+--disable_warnings
+drop procedure if exists bug2267_4|
+--enable_warnings
+create procedure bug2267_4()
+begin
+  show create function fac;
+end|
+
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+call bug2267_1()|
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+call bug2267_2()|
+call bug2267_3()|
+call bug2267_4()|
+
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
+--enable_parsing
 
 #
 # BUG#2227
@@ -1901,23 +1882,25 @@ drop procedure bug2227|
 # QQ For this reason we can't run this test any more (i.e., if we modify
 # QQ it, it's no longer a test case for the bug), but we keep it here
 # QQ anyway, for tracability.
-#--disable_warnings
-#drop procedure if exists bug2614|
-#--enable_warnings
-#create procedure bug2614()
-#begin
-#  drop temporary table if exists t3;
-#  create temporary table t3 (id int default '0' not null);
-#  insert into t3 select 12;
-#  insert into t3 select * from t3;
-#end|
-#
-#--disable_warnings
-#call bug2614()|
-#--enable_warnings
-#call bug2614()|
-#drop temporary table t3|
-#drop procedure bug2614|
+--disable_parsing
+--disable_warnings
+drop procedure if exists bug2614|
+--enable_warnings
+create procedure bug2614()
+begin
+  drop temporary table if exists t3;
+  create temporary table t3 (id int default '0' not null);
+  insert into t3 select 12;
+  insert into t3 select * from t3;
+end|
+
+--disable_warnings
+call bug2614()|
+--enable_warnings
+call bug2614()|
+drop temporary table t3|
+drop procedure bug2614|
+--enable_parsing
 
 #
 # BUG#2674
@@ -2009,9 +1992,6 @@ drop procedure bug2776_2|
 #
 # BUG#2780
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (s1 smallint)|
 
 insert into t3 values (123456789012)|
@@ -2085,9 +2065,6 @@ drop table t3, t4|
 #
 # BUG#2656
 #
---disable_warnings
-drop table if exists t3, t4|
---enable_warnings
 
 create table t3 ( 
   OrderID  int not null,
@@ -2175,8 +2152,6 @@ drop procedure bug3426|
 # BUG#3448
 #
 --disable_warnings
-drop table if exists t3, t4|
-
 create table t3 (
   a int primary key, 
   ach char(1)
@@ -2208,9 +2183,6 @@ drop table t3, t4|
 #
 # BUG#3734
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (
   id int unsigned auto_increment not null primary key,
   title VARCHAR(200),
@@ -2386,9 +2358,6 @@ drop procedure bug3843|
 #
 # BUG#3368
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( s1 char(10) )|
 insert into t3 values ('a'), ('b')|
 
@@ -2408,9 +2377,6 @@ drop table t3|
 #
 # BUG#4579
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (f1 int, f2 int)|
 insert into t3 values (1,1)|
 
@@ -2445,7 +2411,6 @@ drop table t3|
 # BUG#2773: Function's data type ignored in stored procedures
 #
 --disable_warnings
-drop table if exists t3|
 drop procedure if exists bug2773|
 --enable_warnings
 
@@ -2474,10 +2439,6 @@ drop function bug3788|
 #
 # BUG#4726
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
- 
 create table t3 (f1 int, f2 int, f3 int)|
 insert into t3 values (1,1,1)|
 
@@ -2508,9 +2469,6 @@ drop table t3|
 # BUG#4318
 #
 #QQ Don't know if HANDLER commands can work with SPs, or at all...
-#--disable_warnings
-#drop table if exists t3|
-#--enable_warnings
 # 
 #create table t3 (s1 int)|
 #insert into t3 values (3), (4)|
@@ -2563,11 +2521,13 @@ begin
   show variables like 'foo';
   show warnings;
 end|
-#show binlog events;
-#show storage engines;
-#show master status;
-#show slave hosts;
-#show slave status;
+--disable_parsing
+show binlog events;
+show storage engines;
+show master status;
+show slave hosts;
+show slave status;
+--enable_parsing
 
 call bug4902()|
 call bug4902()|
@@ -2591,10 +2551,6 @@ drop procedure bug4902_2|
 #
 # BUG#4904
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
-
 --disable_warnings
 drop procedure if exists bug4904|
 --enable_warnings
@@ -2848,7 +2804,6 @@ drop procedure bug3583|
 # BUG#4905: Stored procedure doesn't clear for "Rows affected"
 #
 --disable_warnings
-drop table if exists t3|
 drop procedure if exists bug4905|
 --enable_warnings
 
@@ -2948,9 +2903,6 @@ drop procedure bug8540|
 #
 # BUG#6642: Stored procedure crash if expression with set function
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (s1 int)|
 
 --disable_warnings
@@ -3038,9 +2990,6 @@ drop table t3|
 # BUG#8116: calling simple stored procedure twice in a row results
 #           in server crash
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (  userid bigint(20) not null default 0 )|
 
 --disable_warnings
@@ -3283,7 +3232,6 @@ delete from t1|
 drop procedure if exists bug6900|
 drop procedure if exists bug9074|
 drop procedure if exists bug6900_9074|
-drop table if exists t3|
 --enable_warnings
 
 create table t3 (w char unique, x char)|
@@ -3378,7 +3326,7 @@ drop procedure avg|
 drop procedure if exists bug6129|
 --enable_warnings
 set @old_mode= @@sql_mode;
-set @@sql_mode= "";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
   select @@sql_mode|
 call bug6129()|
@@ -3812,26 +3760,27 @@ drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
-create procedure bug6063()
-  l‚bel: begin end|
-call bug6063()|
-# QQ Known bug: this will not show the label correctly.
-show create procedure bug6063|
-
-set character set utf8|
-create procedure bug7088_1()
-  label1: begin end label1|
-create procedure bug7088_2()
-  l√§bel1: begin end|
-call bug7088_1()|
-call bug7088_2()|
-set character set default|
-show create procedure bug7088_1|
-show create procedure bug7088_2|
-
-drop procedure bug6063|
-drop procedure bug7088_1|
-drop procedure bug7088_2|
+# psergey: temporarily disabled until Bar fixes BUG#11986
+# create procedure bug6063()
+#   l‚bel: begin end|
+# call bug6063()|
+# # QQ Known bug: this will not show the label correctly.
+# show create procedure bug6063|
+# 
+# set character set utf8|
+# create procedure bug7088_1()
+#   label1: begin end label1|
+# create procedure bug7088_2()
+#   l√§bel1: begin end|
+# call bug7088_1()|
+# call bug7088_2()|
+# set character set default|
+# show create procedure bug7088_1|
+# show create procedure bug7088_2|
+# 
+# drop procedure bug6063|
+# drop procedure bug7088_1|
+# drop procedure bug7088_2|
 
 #
 # BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
@@ -3877,13 +3826,40 @@ drop procedure bug9538|
 
 
 #
+# BUG#8692: Cursor fetch of empty string
+#
+--disable_warnings
+drop procedure if exists bug8692|
+--enable_warnings
+create table t3 (c1 varchar(5), c2 char(5), c3 enum('one','two'), c4 text, c5 blob, c6 char(5), c7 varchar(5))|
+insert into t3 values ('', '', '', '', '', '', NULL)|
+
+create procedure bug8692()
+begin 
+    declare v1 VARCHAR(10); 
+    declare v2 VARCHAR(10); 
+    declare v3 VARCHAR(10); 
+    declare v4 VARCHAR(10); 
+    declare v5 VARCHAR(10); 
+    declare v6 VARCHAR(10); 
+    declare v7 VARCHAR(10); 
+    declare c8692 cursor for select c1,c2,c3,c4,c5,c6,c7 from t3; 
+    open c8692; 
+    fetch c8692 into v1,v2,v3,v4,v5,v6,v7;
+    select v1, v2, v3, v4, v5, v6, v7;
+end|
+
+call bug8692()|
+drop procedure bug8692|
+drop table t3|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
 #drop procedure if exists bugNNNN|
 #--enable_warnings
 #create procedure bugNNNN...
-
 
 # Add bugs above this line. Use existing tables t1 and t2 when
 # practical, or create table t3, t4 etc temporarily (and drop them).

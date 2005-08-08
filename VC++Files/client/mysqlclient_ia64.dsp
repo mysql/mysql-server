@@ -155,7 +155,7 @@ SOURCE="..\strings\ctype-czech.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\strings\ctype-cp963.c"
+SOURCE="..\strings\ctype-cp932.c"
 # End Source File
 # Begin Source File
 
@@ -545,6 +545,10 @@ SOURCE=..\strings\strxmov.c
 # Begin Source File
 
 SOURCE=..\strings\strxnmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\str_alloc.c
 # End Source File
 # Begin Source File
 

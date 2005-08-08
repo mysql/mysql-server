@@ -152,3 +152,16 @@ ceil(0.09)
 select ceil(0.000000000000000009);
 ceil(0.000000000000000009)
 1
+create table t1 select round(1, 6);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `round(1, 6)` decimal(7,6) NOT NULL default '0.000000'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1;
+round(1, 6)
+1.000000
+drop table t1;
+select abs(-2) * -2;
+abs(-2) * -2
+-4

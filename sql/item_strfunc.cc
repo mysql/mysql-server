@@ -2076,7 +2076,6 @@ void Item_func_rpad::fix_length_and_dec()
   {
     ulonglong length= ((ulonglong) args[1]->val_int() *
                        collation.collation->mbmaxlen);
-    length= max((ulonglong) args[0]->max_length, length);
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;
@@ -2164,7 +2163,6 @@ void Item_func_lpad::fix_length_and_dec()
   {
     ulonglong length= ((ulonglong) args[1]->val_int() *
                        collation.collation->mbmaxlen);
-    length= max((ulonglong) args[0]->max_length, length);
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;

@@ -36,3 +36,14 @@ insert delayed into t1 values (3,"this will give an","error");
 show status like 'not_flushed_delayed_rows';
 select * from t1;
 drop table t1;
+
+# End of 4.1 tests
+
+#
+# Bug #12226: Crash when a delayed insert fails due to a duplicate key
+#
+create table t1 (a int not null primary key);
+insert into t1 values (1);
+insert delayed into t1 values (1);
+select * from t1;
+drop table t1;

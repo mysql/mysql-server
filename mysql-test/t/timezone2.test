@@ -220,3 +220,5 @@ select convert_tz('2005-01-14 17:00:00', 'UTC', custTimeZone) from (select 'UTC'
 create table t1 select convert_tz(NULL, NULL, NULL);
 select * from t1;
 drop table t1;
+
+# End of 4.1 tests

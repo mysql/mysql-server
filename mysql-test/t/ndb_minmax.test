@@ -62,6 +62,4 @@ select MAX(c) from t2;
 select * from t2 order by a;
 drop table t2;
 
-
-
-
+# End of 4.1 tests

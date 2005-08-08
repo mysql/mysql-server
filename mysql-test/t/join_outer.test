@@ -662,6 +662,8 @@ select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by t1.a;
 drop table t1, t2;
 set group_concat_max_len=default;
 
+# End of 4.1 tests
+
 #
 # BUG#10162 - ON is merged with WHERE, left join is convered to a regular join
 #
@@ -706,8 +708,5 @@ CREATE TABLE t1 (c11 int);
 CREATE TABLE t2 (c21 int);
 INSERT INTO t1 VALUES (30), (40), (50);
 INSERT INTO t2 VALUES (300), (400), (500);
-
 SELECT * FROM t1 LEFT JOIN t2 ON (c11=c21 AND c21=30) WHERE c11=40;
-
 DROP TABLE t1, t2;
-

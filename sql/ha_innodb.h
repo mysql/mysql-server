@@ -314,7 +314,7 @@ which is in the prepared state */
 
 int innobase_rollback_by_xid(
 			/* out: 0 or error number */
-	XID	*xid);	/* in : X/Open XA Transaction Idenfification */
+	XID	*xid);	/* in : X/Open XA Transaction Identification */
 
 
 int innobase_xa_end(THD *thd);
@@ -322,3 +322,35 @@ int innobase_xa_end(THD *thd);
 
 int innobase_repl_report_sent_binlog(THD *thd, char *log_file_name,
                                my_off_t end_offset);
+
+/***********************************************************************
+Create a consistent view for a cursor based on current transaction
+which is created if the corresponding MySQL thread still lacks one.
+This consistent view is then used inside of MySQL when accessing records 
+using a cursor. */
+
+void*
+innobase_create_cursor_view(void);
+/*=============================*/
+				/* out: Pointer to cursor view or NULL */
+
+/***********************************************************************
+Close the given consistent cursor view of a transaction and restore
+global read view to a transaction read view. Transaction is created if the 
+corresponding MySQL thread still lacks one. */
+
+void
+innobase_close_cursor_view(
+/*=======================*/
+	void*	curview);	/* in: Consistent read view to be closed */
+
+/***********************************************************************
+Set the given consistent cursor view to a transaction which is created 
+if the corresponding MySQL thread still lacks one. If the given 
+consistent cursor view is NULL global read view of a transaction is
+restored to a transaction read view. */
+
+void
+innobase_set_cursor_view(
+/*=====================*/
+	void*	curview);	/* in: Consistent read view to be closed */
