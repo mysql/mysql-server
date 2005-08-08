@@ -986,13 +986,11 @@ int
 sp_drop_procedure(THD *thd, sp_name *name)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_drop_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_proc_cache, name);
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
@@ -1002,13 +1000,11 @@ int
 sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_proc_cache, name);
   ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, chistics);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
@@ -1099,13 +1095,11 @@ int
 sp_drop_function(THD *thd, sp_name *name)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_drop_function");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_func_cache, name);
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
@@ -1115,13 +1109,11 @@ int
 sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_func_cache, name);
   ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, chistics);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }

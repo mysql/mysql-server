@@ -73,6 +73,7 @@ Long data handling:
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -1729,6 +1730,8 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   DBUG_ENTER("mysql_stmt_prepare");
 
   DBUG_PRINT("prep_query", ("%s", packet));
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
 
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -1978,6 +1981,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_execute");
 
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
   statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);
