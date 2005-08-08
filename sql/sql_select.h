@@ -396,6 +396,7 @@ class Cursor: public Sql_alloc, public Query_arena
   };
   Engine_info ht_info[MAX_HA];
 public:
+  Protocol_prep protocol;
   Item_change_list change_list;
   select_send result;
   THR_LOCK_OWNER lock_id;
