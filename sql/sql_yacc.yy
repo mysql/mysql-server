@@ -7817,7 +7817,7 @@ sys_option_value:
         | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
 	{
 	  LEX *lex=Lex;
-          if (!$1)
+          if ($1)
             lex->option_type= (enum_var_type)$1;
 	  lex->var_list.push_back(new set_var(lex->option_type,
                                               find_sys_var("tx_isolation"),
