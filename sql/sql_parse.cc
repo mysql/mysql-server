@@ -5819,7 +5819,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
         new_field->length= 1;
       if (new_field->length > MAX_BIT_FIELD_LENGTH)
       {
-        my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), field_name,
+        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), field_name,
                  MAX_BIT_FIELD_LENGTH);
         DBUG_RETURN(NULL);
       }
@@ -5838,7 +5838,10 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
         type != MYSQL_TYPE_STRING &&
         type != MYSQL_TYPE_VARCHAR && type != FIELD_TYPE_GEOMETRY)))
   {
-    my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0),
+    my_error((type == MYSQL_TYPE_VAR_STRING || type == MYSQL_TYPE_VARCHAR ||
+              type == MYSQL_TYPE_STRING) ?  ER_TOO_BIG_FIELDLENGTH :
+             ER_TOO_BIG_DISPLAYWIDTH,
+             MYF(0),
              field_name, max_field_charlength); /* purecov: inspected */
     DBUG_RETURN(NULL);
   }
