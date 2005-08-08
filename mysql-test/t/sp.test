@@ -2542,9 +2542,9 @@ create procedure bug4902_2()
 begin
   show processlist;
 end|
---replace_column 1 # 6 #
+--replace_column 1 # 6 # 3 localhost
 call bug4902_2()|
---replace_column 1 # 6 #
+--replace_column 1 # 6 # 3 localhost
 call bug4902_2()|
 drop procedure bug4902_2|
 
