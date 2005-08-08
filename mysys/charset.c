@@ -637,3 +637,29 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
   *to= 0;
   return (ulong) (to - to_start);
 }
+
+
+#ifdef BACKSLASH_MBTAIL
+static CHARSET_INFO *fs_cset_cache= NULL;
+
+CHARSET_INFO *fs_character_set()
+{
+  if (!fs_cset_cache)
+  {
+    char buf[10]= "cp";
+    GetLocaleInfo(LOCALE_SYSTEM_DEFAULT, LOCALE_IDEFAULTANSICODEPAGE,
+                  buf+2, sizeof(buf)-3);
+    /*
+      We cannot call get_charset_by_name here
+      because fs_character_set() is executed before
+      LOCK_THD_charset mutex initialization, which
+      is used inside get_charset_by_name.
+      As we're now interested in cp932 only,
+      let's just detect it using strcmp().
+    */
+    fs_cset_cache= !strcmp(buf, "cp932") ?
+                   &my_charset_cp932_japanese_ci : &my_charset_bin;
+  }
+  return fs_cset_cache;
+}
+#endif
