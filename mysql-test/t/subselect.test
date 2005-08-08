@@ -1770,4 +1770,15 @@ SELECT * FROM t1
 
 DROP TABLE t1,t2;
 
+#
+# Bug #12392: where cond with IN predicate for rows and NULL values in table 
+#
+
+CREATE TABLE t1 (a char(5), b char(5));
+INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
+
+SELECT * FROM t1 WHERE (a,b) IN (('aaa','aaa'), ('aaa','bbb'));
+
+DROP TABLE t1;
+
 # End of 4.1 tests
