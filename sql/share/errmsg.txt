@@ -5391,3 +5391,5 @@ ER_TOO_LONG_BODY 42000 S1009
 ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 	eng "Cannot drop default keycache"
         ger "Der Default-Keycache kann nicht gelöscht werden"
+ER_TOO_BIG_DISPLAYWIDTH 42000 S1009
+	eng "Display width out of range for column '%-.64s' (max = %d)"
