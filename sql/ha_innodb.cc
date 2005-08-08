@@ -2150,7 +2150,7 @@ innobase_close_connection(
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  InnoDB: Warning: MySQL is closing a connection"
+"  InnoDB: Warning: MySQL is closing a connection\n"
 "InnoDB: that has an active InnoDB transaction. We roll back that\n"
 "InnoDB: transaction. %lu row modifications to roll back.\n",
 			(ulong)trx->undo_no.low);
