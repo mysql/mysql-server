@@ -1768,6 +1768,10 @@ SELECT * FROM t1
 SELECT * FROM t1
   WHERE ROW(one,two) IN (SELECT DISTINCT one,two FROM t1 WHERE flag = 'N');
 
+insert into t2 values (null,null,'N');
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N') as 'test' from t1;
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N' group by one,two) as 'test' from t1;
+
 DROP TABLE t1,t2;
 
 # End of 4.1 tests

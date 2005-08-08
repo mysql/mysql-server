@@ -137,7 +137,9 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     If length= 8 or >= 14 then year is of format YYYY.
     (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
   */
-  for (pos=str; pos != end && my_isdigit(&my_charset_latin1,*pos) ; pos++)
+  for (pos=str;
+       pos != end && (my_isdigit(&my_charset_latin1,*pos) || *pos == 'T');
+       pos++)
     ;
 
   digits= (uint) (pos-str);
@@ -203,7 +205,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     const char *start= str;
     ulong tmp_value= (uint) (uchar) (*str++ - '0');
     while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
-           --field_length)
+           (!is_internal_format || --field_length))
     {
       tmp_value=tmp_value*10 + (ulong) (uchar) (*str - '0');
       str++;

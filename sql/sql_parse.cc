@@ -4211,10 +4211,12 @@ void create_select_for_variable(const char *var_name)
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.
   */
-  var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string);
-  end= strxmov(buff, "@@session.", var_name, NullS);
-  var->set_name(buff, end-buff, system_charset_info);
-  add_item_to_list(thd, var);
+  if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
+  {
+    end= strxmov(buff, "@@session.", var_name, NullS);
+    var->set_name(buff, end-buff, system_charset_info);
+    add_item_to_list(thd, var);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -5038,11 +5040,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         THR_LOCK_DATA **end_p= lock_p + thd->locked_tables->lock_count;
 
         for (; lock_p < end_p; lock_p++)
+        {
           if ((*lock_p)->type == TL_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
           }
+        }
       }
       /*
 	Writing to the binlog could cause deadlocks, as we don't log
