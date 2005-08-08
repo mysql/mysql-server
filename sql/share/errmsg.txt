@@ -5388,3 +5388,6 @@ ER_STACK_OVERRUN_NEED_MORE
 	eng "Thread stack overrun:  %ld bytes used of a %ld byte stack, and %ld bytes needed.  Use 'mysqld -O thread_stack=#' to specify a bigger stack."
 ER_TOO_LONG_BODY 42000 S1009
 	eng "Routine body for '%-.100s' is too long"
+ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+	eng "Cannot drop default keycache"
+        ger "Der Default-Keycache kann nicht gelöscht werden"
