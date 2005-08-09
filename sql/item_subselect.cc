@@ -1271,6 +1271,14 @@ void Item_allany_subselect::print(String *str)
 }
 
 
+void subselect_engine::set_thd(THD *thd_arg)
+{
+  thd= thd_arg;
+  if (result)
+    result->set_thd(thd_arg);
+}
+
+
 subselect_single_select_engine::
 subselect_single_select_engine(st_select_lex *select,
 			       select_subselect *result,
