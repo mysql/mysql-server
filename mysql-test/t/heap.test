@@ -443,6 +443,7 @@ drop table t1;
 #
 create table t1 (c char(10)) engine=memory;
 create table t2 (c varchar(10)) engine=memory;
+--replace_column 8 #
 show table status like 't_';
 drop table t1, t2;
 
