@@ -788,6 +788,11 @@ extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
                                      const char *from, ulong length);
+#ifdef __WIN__
+#define BACKSLASH_MBTAIL
+/* File system character set */
+extern CHARSET_INFO *fs_character_set(void);
+#endif
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
