@@ -4060,8 +4060,8 @@ end_with_restore_list:
     name= thd->strdup(name); 
     db= thd->strmake(lex->sphead->m_db.str, lex->sphead->m_db.length);
     res= (result= lex->sphead->create(thd));
-    switch (result) {
-    case SP_OK:
+    if (result == SP_OK)
+    {
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
@@ -4081,33 +4081,26 @@ end_with_restore_list:
       }
 #endif
       send_ok(thd);
-      break;
-    case SP_WRITE_ROW_FAILED:
-      my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    case SP_NO_DB_ERROR:
-      my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    case SP_BAD_IDENTIFIER:
-      my_error(ER_TOO_LONG_IDENT, MYF(0), name);
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    case SP_BODY_TOO_LONG:
-      my_error(ER_TOO_LONG_BODY, MYF(0), name);
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    default:
-      my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
+    }
+    else
+    {
+      switch (result) {
+      case SP_WRITE_ROW_FAILED:
+	my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
+	break;
+      case SP_NO_DB_ERROR:
+	my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
+	break;
+      case SP_BAD_IDENTIFIER:
+	my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+	break;
+      case SP_BODY_TOO_LONG:
+	my_error(ER_TOO_LONG_BODY, MYF(0), name);
+	break;
+      default:
+	my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
+	break;
+      }
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
