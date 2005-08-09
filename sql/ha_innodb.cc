@@ -2146,15 +2146,12 @@ innobase_close_connection(
 
 	ut_a(trx);
 
-	if (trx->conc_state != TRX_NOT_STARTED) {
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-"  InnoDB: Warning: MySQL is closing a connection\n"
-"InnoDB: that has an active InnoDB transaction. We roll back that\n"
-"InnoDB: transaction. %lu row modifications to roll back.\n",
-			(ulong)trx->undo_no.low);
-	}
+	if (trx->conc_state != TRX_NOT_STARTED &&
+            global_system_variables.log_warnings)
+          sql_print_warning("MySQL is closing a connection that has an active "
+                            "InnoDB transaction.  %lu row modifications will "
+                            "roll back.",
+                            (ulong)trx->undo_no.low);
 
 	innobase_rollback_trx(trx);
 
