@@ -296,19 +296,19 @@ void Options::setup_windows_defaults()
   if (!GetModuleFileName(NULL, default_password_file_name,
                          sizeof(default_password_file_name)))
     return -1;
-  char *filename = strstr(default_password_file_name, ".exe");
+  char *filename= strstr(default_password_file_name, ".exe");
   strcpy(filename, ".passwd");
   
   if (!GetModuleFileName(NULL, default_log_file_name,
                          sizeof(default_log_file_name)))
     return -1;
-  filename = strstr(default_log_file_name, ".exe");
+  filename= strstr(default_log_file_name, ".exe");
   strcpy(filename, ".log");
 
   if (!GetModuleFileName(NULL, windows_config_file,
                          sizeof(windows_config_file)))
     return -1;
-  char *slash = strrchr(windows_config_file, '\\');
+  char *slash= strrchr(windows_config_file, '\\');
   strcpy(slash, "\\my.ini");
   return 0;
 }
