@@ -191,3 +191,9 @@ ERROR 23000: Column 'a' in field list is ambiguous
 insert ignore into t1 select a from t1 on duplicate key update a=t1.a+1 ;
 ERROR 23000: Column 't1.a' in field list is ambiguous
 drop table t1;
+CREATE TABLE t1 (
+a BIGINT(20) NOT NULL DEFAULT 0,
+PRIMARY KEY  (a)
+) ENGINE=MyISAM;
+INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a) ;
+DROP TABLE t1;
