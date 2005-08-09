@@ -2731,6 +2731,9 @@
 			</FileConfiguration>
 		</File>
 		<File
+			RelativePath="..\strings\str_alloc.c">
+		</File>
+		<File
 			RelativePath="..\strings\strcend.c">
 			<FileConfiguration
 				Name="Release|Win32">
