@@ -111,6 +111,11 @@ void sp_cache_clear(sp_cache **cp)
     sp_cache_insert()
       cp  The cache to put routine into
       sp  Routine to insert.
+      
+  TODO: Perhaps it will be more straightforward if in case we returned an 
+        error from this function when we couldn't allocate sp_cache. (right
+        now failure to put routine into cache will cause a 'SP not found'
+        error to be reported at some later time)
 */
 
 void sp_cache_insert(sp_cache **cp, sp_head *sp)
@@ -124,11 +129,13 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp)
     pthread_mutex_lock(&Cversion_lock); // LOCK
     v= Cversion;
     pthread_mutex_unlock(&Cversion_lock); // UNLOCK
-    c->version= v;
+    if (c)
+      c->version= v;
   }
   if (c)
   {
-    DBUG_PRINT("info",("sp_cache: inserting: %*s", sp->m_qname.length, sp->m_qname.str));
+    DBUG_PRINT("info",("sp_cache: inserting: %*s", sp->m_qname.length, 
+                       sp->m_qname.str));
     c->insert(sp);
     if (*cp == NULL)
       *cp= c;
