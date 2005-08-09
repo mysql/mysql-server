@@ -6852,8 +6852,8 @@ ha_innobase::cmp_ref(
 			return(result);
 		}
 
-		ref1 += key_part->length;
-		ref2 += key_part->length;
+		ref1 += key_part->store_length;
+		ref2 += key_part->store_length;
 	}
 
 	return(0);
