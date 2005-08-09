@@ -820,7 +820,7 @@ bool mysql_multi_update(THD *thd,
   if (mysql_multi_update_prepare(thd))
     DBUG_RETURN(TRUE);
 
-  if (!(result= new multi_update(thd, table_list,
+  if (!(result= new multi_update(table_list,
 				 thd->lex->select_lex.leaf_tables,
 				 fields, values,
 				 handle_duplicates, ignore)))
@@ -846,13 +846,13 @@ bool mysql_multi_update(THD *thd,
 }
 
 
-multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
+multi_update::multi_update(TABLE_LIST *table_list,
 			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
 			   enum enum_duplicates handle_duplicates_arg,
                            bool ignore_arg)
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
-   thd(thd_arg), tmp_tables(0), updated(0), found(0), fields(field_list),
+   tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
    handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(0),
    transactional_tables(1), ignore(ignore_arg)
