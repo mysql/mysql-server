@@ -1009,7 +1009,13 @@ public:
   ulong	version;
   uint current_tablenr;
 
-  Open_tables_state();
+  /*
+    This constructor serves for creation of Open_tables_state instances
+    which are used as backup storage.
+  */
+  Open_tables_state() {};
+
+  Open_tables_state(ulong version_arg);
 
   void set_open_tables_state(Open_tables_state *state)
   {
@@ -1231,7 +1237,6 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
-  List	     <Open_tables_state> open_state_list;
   /*
     Id of current query. Statement can be reused to execute several queries
     query_id is global in context of the whole MySQL server.
@@ -1487,8 +1492,8 @@ public:
   void set_status_var_init();
   bool is_context_analysis_only()
     { return current_arena->is_stmt_prepare() || lex->view_prepare_mode; }
-  bool push_open_tables_state();
-  void pop_open_tables_state();
+  void reset_n_backup_open_tables_state(Open_tables_state *backup);
+  void restore_backup_open_tables_state(Open_tables_state *backup);
 };
 
 

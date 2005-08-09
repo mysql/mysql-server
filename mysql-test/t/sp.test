@@ -3854,6 +3854,20 @@ drop procedure bug8692|
 drop table t3|
 
 #
+# Bug#10055 "Using stored function with information_schema causes empty
+#            result set"
+#
+--disable_warnings
+drop function if exists bug10055|
+--enable_warnings
+create function bug10055(v char(255)) returns char(255) return lower(v)|
+# This select should not crash server and should return all fields in t1
+select t.column_name, bug10055(t.column_name)
+from information_schema.columns as t
+where t.table_schema = 'test' and t.table_name = 't1'|
+drop function bug10055|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

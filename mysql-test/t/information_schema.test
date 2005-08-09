@@ -5,7 +5,7 @@
 # show databases
 
 --disable_warnings
-DROP TABLE IF EXISTS t0,t1,t2;
+DROP TABLE IF EXISTS t0,t1,t2,t3,t5;
 --enable_warnings
 
 
@@ -30,6 +30,8 @@ create table mysqltest.t1(a int, b VARCHAR(30), KEY string_data (b));
 create table test.t2(a int);
 create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
+create table t5 (id int auto_increment primary key);
+insert into t5 values (10);
 create view v1 (c) as select table_name from information_schema.TABLES;
 select * from v1;
 
@@ -76,7 +78,7 @@ where table_schema = 'mysqltest' and table_name = 'v1';
 connection default;
 
 drop view v1, mysqltest.v1;
-drop tables mysqltest.t4, mysqltest.t1, t2, t3;
+drop tables mysqltest.t4, mysqltest.t1, t2, t3, t5;
 drop database mysqltest;
 
 # Test for information_schema.CHARACTER_SETS &
