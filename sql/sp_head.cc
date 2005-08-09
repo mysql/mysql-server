@@ -929,7 +929,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
-      close_thread_tables(thd, 0, 0, 0);
+      close_thread_tables(thd, 0, 0);
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
     // The rest of the frame are local variables which are all IN.
