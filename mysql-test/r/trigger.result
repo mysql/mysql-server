@@ -635,3 +635,16 @@ show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode
 t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#	
 drop table t1;
+create table t1 (id int, data int, username varchar(16));
+insert into t1 (id, data) values (1, 0);
+create trigger t1_whoupdated before update on t1 for each row
+begin
+declare user varchar(32);
+declare i int;
+select user() into user;
+set NEW.username = user;
+select count(*) from ((select 1) union (select 2)) as d1 into i;
+end|
+update t1 set data = 1;
+update t1 set data = 2;
+drop table t1;
