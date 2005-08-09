@@ -66,6 +66,6 @@ int HandleServiceOptions(Options options)
     }
   }
   else
-    ret_val= winService.Init() ? 0 : 1;
+    ret_val= !winService.Init();
   return ret_val;
 }
