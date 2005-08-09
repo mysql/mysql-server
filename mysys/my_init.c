@@ -395,7 +395,7 @@ static void netware_init()
     }
 
     /* Parse program name and change to base format */
-    name= my_progname;
+    name= (char*) my_progname;
     for (; *name; name++)
     {
       if (*name == '\\')
