@@ -59,9 +59,9 @@ int User::init(const char *line)
   if (user_length > USERNAME_LENGTH)
     goto err;
 
-  /* 
-    assume that newline characater is present 
-    we support reading password files that end in \n or \r\n on 
+  /*
+    assume that newline characater is present
+    we support reading password files that end in \n or \r\n on
     either platform.
   */
   if (password[strlen(password)-2] == '\r')
