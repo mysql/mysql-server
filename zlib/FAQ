@@ -148,13 +148,6 @@ The lastest zlib FAQ is at http://www.gzip.org/zlib/zlib_faq.html
     format using deflateInit2(). You can also request that inflate decode
     the gzip format using inflateInit2(). Read zlib.h for more details.
 
-    Note that you cannot specify special gzip header contents (e.g. a file
-    name or modification date), nor will inflate tell you what was in the
-    gzip header. If you need to customize the header or see what's in it,
-    you can use the raw deflate and inflate operations and the crc32()
-    function and roll your own gzip encoding and decoding. Read the gzip
-    RFC 1952 for details of the header and trailer format.
-
 21. Is zlib thread-safe?
 
     Yes. However any library routines that zlib uses and any application-
@@ -295,20 +288,29 @@ The lastest zlib FAQ is at http://www.gzip.org/zlib/zlib_faq.html
     were downright silly. So now, we simply make sure that the code always
     works.
 
-36. Will zlib read the (insert any ancient or arcane format here) compressed
+36. Valgrind (or some similar memory access checker) says that deflate is
+    performing a conditional jump that depends on an uninitialized value.
+    Isn't that a bug?
+
+    No.  That is intentional for performance reasons, and the output of
+    deflate is not affected.  This only started showing up recently since
+    zlib 1.2.x uses malloc() by default for allocations, whereas earlier
+    versions used calloc(), which zeros out the allocated memory.
+
+37. Will zlib read the (insert any ancient or arcane format here) compressed
     data format?
 
     Probably not. Look in the comp.compression FAQ for pointers to various
     formats and associated software.
 
-37. How can I encrypt/decrypt zip files with zlib?
+38. How can I encrypt/decrypt zip files with zlib?
 
     zlib doesn't support encryption. The original PKZIP encryption is very weak
     and can be broken with freely available programs. To get strong encryption,
     use GnuPG, http://www.gnupg.org/ , which already includes zlib compression.
     For PKZIP compatible "encryption", look at http://www.info-zip.org/
 
-38. What's the difference between the "gzip" and "deflate" HTTP 1.1 encodings?
+39. What's the difference between the "gzip" and "deflate" HTTP 1.1 encodings?
 
     "gzip" is the gzip format, and "deflate" is the zlib format. They should
     probably have called the second one "zlib" instead to avoid confusion
@@ -324,14 +326,14 @@ The lastest zlib FAQ is at http://www.gzip.org/zlib/zlib_faq.html
 
     Bottom line: use the gzip format for HTTP 1.1 encoding.
 
-39. Does zlib support the new "Deflate64" format introduced by PKWare?
+40. Does zlib support the new "Deflate64" format introduced by PKWare?
 
     No. PKWare has apparently decided to keep that format proprietary, since
     they have not documented it as they have previous compression formats.
     In any case, the compression improvements are so modest compared to other
     more modern approaches, that it's not worth the effort to implement.
 
-40. Can you please sign these lengthy legal documents and fax them back to us
+41. Can you please sign these lengthy legal documents and fax them back to us
     so that we can use your software in our product?
 
     No. Go away. Shoo.
