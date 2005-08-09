@@ -1394,3 +1394,13 @@ SELECT GRADE  FROM t1 WHERE GRADE > 160 AND GRADE < 300;
 SELECT GRADE  FROM t1 WHERE GRADE= 151;
 DROP TABLE t1;
 
+#
+# Bug #12340 multitable delete deletes only one record
+#
+create table t1 (f1 varchar(10), f2 varchar(10), primary key (f1,f2)) engine=innodb;
+create table t2 (f3 varchar(10), f4 varchar(10), key (f4)) engine=innodb;
+insert into t2 values ('aa','cc');
+insert into t1 values ('aa','bb'),('aa','cc');
+delete t1 from t1,t2 where f1=f3 and f4='cc';
+select * from t1;
+drop table t1,t2;
