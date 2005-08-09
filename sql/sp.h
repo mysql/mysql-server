@@ -94,6 +94,13 @@ void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 
 extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
 
+/*
+  Routines which allow open/lock and close mysql.proc table even when
+  we already have some tables open and locked.
+*/
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
+void close_proc_table(THD *thd, Open_tables_state *backup);
+
 //
 // Utilities...
 //

@@ -3076,4 +3076,13 @@ v1	v2	v3	v4	v5	v6	v7
 						NULL
 drop procedure bug8692|
 drop table t3|
+drop function if exists bug10055|
+create function bug10055(v char(255)) returns char(255) return lower(v)|
+select t.column_name, bug10055(t.column_name)
+from information_schema.columns as t
+where t.table_schema = 'test' and t.table_name = 't1'|
+column_name	bug10055(t.column_name)
+id	id
+data	data
+drop function bug10055|
 drop table t1,t2;
