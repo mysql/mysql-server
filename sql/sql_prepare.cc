@@ -928,7 +928,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_normal_and_derived_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     goto error;
 
   if ((values= its++))
@@ -1008,7 +1008,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (update_precheck(thd, table_list))
     goto error;
 
-  if (open_tables(thd, &table_list, &table_count))
+  if (open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
   if (table_list->multitable_view)

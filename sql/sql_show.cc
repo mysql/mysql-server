@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
 #include "repl_failsafe.h"
+#include "sp.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include <my_dir.h>
@@ -352,7 +353,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   thd->lex->view_prepare_mode= TRUE;
 
   /* Only one table for now, but VIEW can involve several tables */
-  if (open_normal_and_derived_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
   {
     DBUG_RETURN(TRUE);
   }
@@ -551,7 +552,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
-  if (open_normal_and_derived_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_VOID_RETURN;
   table= table_list->table;
 
@@ -1936,6 +1937,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX *old_all_select_lex= lex->all_selects_list;
+  TABLE_LIST **save_query_tables_last= lex->query_tables_last;
+  enum_sql_command save_sql_command= lex->sql_command;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
@@ -1944,40 +1947,49 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   uint len;
   bool with_i_schema;
   enum enum_schema_tables schema_table_idx;
-  thr_lock_type lock_type;
   List<char> bases;
   List_iterator_fast<char> it(bases);
   COND *partial_cond; 
   uint derived_tables= lex->derived_tables; 
   int error= 1;
+  Open_tables_state open_tables_state_backup;
   DBUG_ENTER("get_all_tables");
 
   LINT_INIT(end);
   LINT_INIT(len);
 
+  /*
+    Let us set fake sql_command so views won't try to merge
+    themselves into main statement.
+  */
+  lex->sql_command= SQLCOM_SHOW_FIELDS;
+
+  /*
+    We should not introduce deadlocks even if we already have some
+    tables open and locked, since we won't lock tables which we will
+    open and will ignore possible name-locks for these tables.
+  */
+  thd->reset_n_backup_open_tables_state(&open_tables_state_backup);
+
   if (lsel)
   {
-    TABLE *old_open_tables= thd->open_tables;
     TABLE_LIST *show_table_list= (TABLE_LIST*) lsel->table_list.first;
     bool res;
 
     lex->all_selects_list= lsel;
-    res= open_normal_and_derived_tables(thd, show_table_list);
+    res= open_normal_and_derived_tables(thd, show_table_list,
+                                        MYSQL_LOCK_IGNORE_FLUSH);
     if (schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
                                     show_table_list->alias))
       goto err;
-    close_thread_tables(thd, 0, 0, old_open_tables);
+    close_thread_tables(thd);
     show_table_list->table= 0;
     error= 0;
     goto err;
   }
 
   schema_table_idx= get_schema_table_idx(schema_table);
-  lock_type= TL_UNLOCK;
-
-  if (schema_table_idx == SCH_TABLES)
-    lock_type= TL_READ;
 
   if (make_db_list(thd, &bases, &idx_field_vals,
                    &with_i_schema, 0))
@@ -2060,19 +2072,18 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           else
           {
             int res;
-            TABLE *old_open_tables= thd->open_tables;
             if (make_table_list(thd, &sel, base_name, file_name))
               goto err;
             TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
-            show_table_list->lock_type= lock_type;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
-            res= open_normal_and_derived_tables(thd, show_table_list);
+            res= open_normal_and_derived_tables(thd, show_table_list,
+                                                MYSQL_LOCK_IGNORE_FLUSH);
             if (schema_table->process_table(thd, show_table_list, table,
                                             res, base_name,
                                             show_table_list->alias))
               goto err;
-            close_thread_tables(thd, 0, 0, old_open_tables);
+            close_thread_tables(thd);
           }
         }
       }
@@ -2086,8 +2097,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   error= 0;
 err:
+  thd->restore_backup_open_tables_state(&open_tables_state_backup);
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
+  lex->query_tables_last= save_query_tables_last;
+  *save_query_tables_last= 0;
+  lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
 }
 
@@ -2192,7 +2207,8 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     TABLE_SHARE *share= show_table->s;
     handler *file= show_table->file;
 
-    file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
+    file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO |
+               HA_STATUS_NO_LOCK);
     if (share->tmp_table == TMP_TABLE)
       table->field[3]->store("TEMPORARY", 9, cs);
     else
@@ -2248,13 +2264,8 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     table->field[12]->store((longlong) file->delete_length);
     if (show_table->found_next_number_field)
     {
-      show_table->next_number_field=show_table->found_next_number_field;
-      show_table->next_number_field->reset();
-      file->update_auto_increment();
-      table->field[13]->store((longlong) show_table->
-                              next_number_field->val_int());
+      table->field[13]->store((longlong) file->auto_increment_value);
       table->field[13]->set_notnull();
-      show_table->next_number_field=0;
     }
     if (file->create_time)
     {
@@ -2727,12 +2738,14 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE_LIST proc_tables;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   int res= 0;
-  TABLE *table= tables->table, *old_open_tables= thd->open_tables;
+  TABLE *table= tables->table;
   bool full_access;
   char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  Open_tables_state open_tables_state_backup;
   DBUG_ENTER("fill_schema_proc");
 
   strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
+  /* We use this TABLE_LIST instance only for checking of privileges. */
   bzero((char*) &proc_tables,sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
   proc_tables.db_length= 5;
@@ -2740,7 +2753,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
   full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, 1);
-  if (!(proc_table= open_ltable(thd, &proc_tables, TL_READ)))
+  if (!(proc_table= open_proc_table_for_read(thd, &open_tables_state_backup)))
   {
     DBUG_RETURN(1);
   }
@@ -2766,7 +2779,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
 
 err:
   proc_table->file->ha_index_end();
-  close_thread_tables(thd, 0, 0, old_open_tables);
+  close_proc_table(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
 
@@ -3664,11 +3677,6 @@ bool get_schema_tables_result(JOIN *join)
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_derived_tables())
     {
-      TABLE_LIST **query_tables_last= lex->query_tables_last;
-      TABLE *old_derived_tables= thd->derived_tables;
-      MYSQL_LOCK *sql_lock= thd->lock;
-      lex->sql_command= SQLCOM_SHOW_FIELDS;
-      DBUG_ASSERT(!*query_tables_last);
       if (&lex->unit != lex->current_select->master_unit()) // is subselect
       {
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
@@ -3679,16 +3687,9 @@ bool get_schema_tables_result(JOIN *join)
       else
         table_list->table->file->records= 0;
 
-      thd->derived_tables= 0;
-      thd->lock=0;
       if (table_list->schema_table->fill_table(thd, table_list,
                                                tab->select_cond))
         result= 1;
-      thd->lock= sql_lock;
-      lex->sql_command= SQLCOM_SELECT;
-      thd->derived_tables= old_derived_tables;
-      lex->query_tables_last= query_tables_last;
-      *query_tables_last= 0;
     }
   }
   thd->no_warnings_for_error= 0;

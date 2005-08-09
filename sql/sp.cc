@@ -68,13 +68,16 @@ bool mysql_proc_table_exists= 1;
 
   SYNOPSIS
     close_proc_table()
-      thd  Thread context
+      thd     Thread context
+      backup  Pointer to Open_tables_state instance which holds
+              information about tables which were open before we
+              decided to access mysql.proc.
 */
 
-static void close_proc_table(THD *thd)
+void close_proc_table(THD *thd, Open_tables_state *backup)
 {
   close_thread_tables(thd);
-  thd->pop_open_tables_state();
+  thd->restore_backup_open_tables_state(backup);
 }
 
 
@@ -83,7 +86,10 @@ static void close_proc_table(THD *thd)
 
   SYNOPSIS
     open_proc_table_for_read()
-      thd  Thread context
+      thd     Thread context
+      backup  Pointer to Open_tables_state instance where information about
+              currently open tables will be saved, and from which will be
+              restored when we will end work with mysql.proc.
 
   NOTES
     Thanks to restrictions which we put on opening and locking of
@@ -97,11 +103,10 @@ static void close_proc_table(THD *thd)
     #	Pointer to TABLE object of mysql.proc
 */
 
-static TABLE *open_proc_table_for_read(THD *thd)
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 {
   TABLE_LIST tables;
   TABLE *table;
-  bool old_open_tables= thd->open_tables != 0;
   bool refresh;
   DBUG_ENTER("open_proc_table");
 
@@ -112,8 +117,7 @@ static TABLE *open_proc_table_for_read(THD *thd)
   if (!mysql_proc_table_exists)
     DBUG_RETURN(0);
 
-  if (thd->push_open_tables_state())
-    DBUG_RETURN(0);
+  thd->reset_n_backup_open_tables_state(backup);
 
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
@@ -121,7 +125,7 @@ static TABLE *open_proc_table_for_read(THD *thd)
   if (!(table= open_table(thd, &tables, thd->mem_root, &refresh,
                           MYSQL_LOCK_IGNORE_FLUSH)))
   {
-    thd->pop_open_tables_state();
+    thd->restore_backup_open_tables_state(backup);
     mysql_proc_table_exists= 0;
     DBUG_RETURN(0);
   }
@@ -130,15 +134,13 @@ static TABLE *open_proc_table_for_read(THD *thd)
 
   table->reginfo.lock_type= TL_READ;
   /*
-    If we have other tables opened, we have to ensure we are not blocked
-    by a flush tables or global read lock, as this could lead to a deadlock
+    We have to ensure we are not blocked by a flush tables, as this
+    could lead to a deadlock if we have other tables opened.
   */
   if (!(thd->lock= mysql_lock_tables(thd, &table, 1,
-                                     old_open_tables ?
-                                     (MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
-                                      MYSQL_LOCK_IGNORE_FLUSH) : 0)))
+                                     MYSQL_LOCK_IGNORE_FLUSH)))
   {
-    close_proc_table(thd);
+    close_proc_table(thd, backup);
     DBUG_RETURN(0);
   }
   DBUG_RETURN(table);
@@ -271,12 +273,13 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   ulong sql_mode;
+  Open_tables_state open_tables_state_backup;
   DBUG_ENTER("db_find_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
   *sphp= 0;                                     // In case of errors
-  if (!(table= open_proc_table_for_read(thd)))
+  if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
@@ -371,7 +374,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   chistics.comment.str= ptr;
   chistics.comment.length= length;
 
-  close_proc_table(thd);
+  close_proc_table(thd, &open_tables_state_backup);
   table= 0;
 
   {
@@ -449,7 +452,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 
  done:
   if (table)
-    close_proc_table(thd);
+    close_proc_table(thd, &open_tables_state_backup);
   DBUG_RETURN(ret);
 }
 
