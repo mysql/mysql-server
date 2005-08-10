@@ -2146,6 +2146,15 @@ innobase_close_connection(
 
 	ut_a(trx);
 
+        if (trx->active_trans == 0
+	    && trx->conc_state != TRX_NOT_STARTED) {
+	    
+	        fprintf(stderr,
+"InnoDB: Error: trx->active_trans == 0\n"
+"InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
+	}
+
+
 	if (trx->conc_state != TRX_NOT_STARTED &&
             global_system_variables.log_warnings)
           sql_print_warning("MySQL is closing a connection that has an active "

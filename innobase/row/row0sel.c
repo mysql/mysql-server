@@ -3101,12 +3101,6 @@ row_search_for_mysql(
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 
-		/* Restore a global read view back to a transaction. This 
-		forces MySQL always to set a cursor view before fetch from
-		a cursor. */
-
-		trx->read_view = trx->global_read_view;
-
 		return(DB_ERROR);
 	}
 
@@ -4098,12 +4092,6 @@ normal_return:
 	}
 
 func_exit:
-	/* Restore a global read view back to a transaction. This 
-	forces MySQL always to set a cursor view before fetch from
-	a cursor. */
-
-	trx->read_view = trx->global_read_view;
-
 	trx->op_info = "";
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
