@@ -110,6 +110,7 @@ public:
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
   enum enum_field_types m_returns; // For FUNCTIONs only
+  Field::geometry_type m_geom_returns;
   CHARSET_INFO *m_returns_cs;	// For FUNCTIONs only
   TYPELIB *m_returns_typelib;	// For FUNCTIONs only
   uint m_returns_len;		// For FUNCTIONs only

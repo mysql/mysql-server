@@ -1437,7 +1437,7 @@ create_function_tail:
             sp_prepare_create_field(YYTHD, new_field);
 
 	    if (prepare_create_field(new_field, &unused1, &unused2, &unused2,
-				     0))
+				     HA_CAN_GEOMETRY))
 	      YYABORT;
 
 	    sp->m_returns= new_field->sql_type;
@@ -1445,6 +1445,7 @@ create_function_tail:
 	    sp->m_returns_len= new_field->length;
 	    sp->m_returns_pack= new_field->pack_flag;
             sp->m_returns_typelib= new_field->interval;
+            sp->m_geom_returns= new_field->geom_type;
             new_field->interval= NULL;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
