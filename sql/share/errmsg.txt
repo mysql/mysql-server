@@ -5137,8 +5137,8 @@ ER_SP_CANT_ALTER
 	eng "Failed to ALTER %s %s"
 ER_SP_SUBSELECT_NYI 0A000 
 	eng "Subselect value not supported"
-ER_SP_NO_USE 42000 
-	eng "USE is not allowed in a stored procedure"
+ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 0A000
+        eng "%s is not allowed in stored function or trigger"
 ER_SP_VARCOND_AFTER_CURSHNDLR 42000 
 	eng "Variable or condition declaration after cursor or handler declaration"
 ER_SP_CURSOR_AFTER_HANDLER 42000 
