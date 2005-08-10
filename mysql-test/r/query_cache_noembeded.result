@@ -1,0 +1,18 @@
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+flush status;
+CREATE TABLE t1 ( a INT NOT NULL PRIMARY KEY AUTO_INCREMENT ) ENGINE =
+MyISAM;
+LOCK TABLE t1 READ LOCAL;
+INSERT INTO t1 VALUES (), (), ();
+SELECT * FROM t1;
+a
+SELECT * FROM t1;
+a
+1
+2
+3
+SELECT * FROM t1;
+a
+drop table t1;
+set GLOBAL query_cache_size=default;

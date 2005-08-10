@@ -739,7 +739,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   TABLE_COUNTER_TYPE local_tables;
   ulong tot_length;
   DBUG_ENTER("Query_cache::store_query");
-  if (query_cache_size == 0)
+  if (query_cache_size == 0 || thd->locked_tables)
     DBUG_VOID_RETURN;
 
   if ((local_tables= is_cacheable(thd, thd->query_length,
@@ -750,7 +750,10 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
+    {
+      STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_VOID_RETURN;
+    }
     DUMP(this);
 
     /* Key is query + database + flag */
@@ -874,7 +877,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   byte flags;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
-  if (query_cache_size == 0 ||
+  if (query_cache_size == 0 || thd->locked_tables ||
       /*
 	it is not possible to check has_transactions() function of handler
 	because tables not opened yet
