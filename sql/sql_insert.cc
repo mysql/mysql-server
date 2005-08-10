@@ -808,11 +808,11 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
   table_list->next_local= 0;
   select_lex->context.resolve_in_table_list_only(table_list);
-  if ((values && check_insert_fields(thd, table_list, fields, *values,
-                                     !insert_into_view)) ||
-      (values && setup_fields(thd, 0, *values, 0, 0, 0)))
-    res= TRUE;
-  else if (duplic == DUP_UPDATE)
+  if (values &&
+      !(res= check_insert_fields(thd, table_list, fields, *values,
+                                     !insert_into_view) ||
+             setup_fields(thd, 0, *values, 0, 0, 0)) &&
+      duplic == DUP_UPDATE)
   {
     select_lex->no_wrap_view_item= TRUE;
     res= check_update_fields(thd, table_list, update_fields);
@@ -2089,7 +2089,26 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   */
   lex->current_select= &lex->select_lex;
   res= check_insert_fields(thd, table_list, *fields, values,
-                           !insert_into_view);
+                           !insert_into_view) ||
+       setup_fields(thd, 0, values, 0, 0, 0);
+  if (info.handle_duplicates == DUP_UPDATE)
+  {
+    TABLE_LIST *save_next_local= table_list->next_local;
+    table_list->next_local= 0;
+    lex->select_lex.context.resolve_in_table_list_only(table_list);
+    lex->select_lex.no_wrap_view_item= TRUE;
+    res= res || check_update_fields(thd, table_list, *info.update_fields);
+    lex->select_lex.no_wrap_view_item= FALSE;
+
+    /*
+      When we are not using GROUP BY we can refer to other tables in the
+      ON DUPLICATE KEY part
+    */       
+    if (!lex->select_lex.group_list.elements)
+      table_list->next_local= save_next_local;
+    res= res || setup_fields(thd, 0, *info.update_values, 1, 0, 0);
+    table_list->next_local= save_next_local;
+  }
   lex->current_select= lex_current_select_save;
   if (res)
     DBUG_RETURN(1);
