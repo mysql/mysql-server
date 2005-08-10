@@ -1127,7 +1127,8 @@ void thr_print_locks(void)
 
   pthread_mutex_lock(&THR_LOCK_lock);
   puts("Current locks:");
-  for (list=thr_lock_thread_list ; list && count++ < MAX_THREADS ; list=rest(list))
+  for (list= thr_lock_thread_list; list && count++ < MAX_THREADS;
+       list= list_rest(list))
   {
     THR_LOCK *lock=(THR_LOCK*) list->data;
     VOID(pthread_mutex_lock(&lock->mutex));
