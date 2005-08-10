@@ -1,0 +1,33 @@
+-- source include/have_query_cache.inc
+-- source include/not_embedded.inc
+
+#
+# Tests with query cache
+#
+set GLOBAL query_cache_size=1355776;
+
+# Reset query cache variables.
+
+reset query cache;
+flush status;
+
+#
+# do not use QC if tables locked (BUG#12385)
+#
+connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connection root;
+CREATE TABLE t1 ( a INT NOT NULL PRIMARY KEY AUTO_INCREMENT ) ENGINE =
+MyISAM;
+LOCK TABLE t1 READ LOCAL;
+connect (root2,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connection root2;
+INSERT INTO t1 VALUES (), (), ();
+connection root;
+SELECT * FROM t1;
+connection root2;
+SELECT * FROM t1;
+connection root;
+SELECT * FROM t1;
+drop table t1;
+
+set GLOBAL query_cache_size=default;
