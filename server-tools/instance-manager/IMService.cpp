@@ -50,7 +50,7 @@ int HandleServiceOptions(Options options)
     else
     {
       log_info("Service failed to install");
-      ret_val= -1;
+      ret_val= 1;
     }
   }
   else if (options.remove_service)
@@ -62,10 +62,10 @@ int HandleServiceOptions(Options options)
     else
     {
       log_info("Service failed to remove");
-      ret_val= -1;
+      ret_val= 1;
     }
   }
   else
-    return (int)winService.Init();
+    ret_val= !winService.Init();
   return ret_val;
 }
