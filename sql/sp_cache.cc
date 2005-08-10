@@ -122,19 +122,15 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp)
 {
   sp_cache *c= *cp;
 
-  if (! c)
+  if (!c && (c= new sp_cache()))
   {
-    ulong v;
-    c= new sp_cache();
     pthread_mutex_lock(&Cversion_lock); // LOCK
-    v= Cversion;
+    c->version= Cversion;
     pthread_mutex_unlock(&Cversion_lock); // UNLOCK
-    if (c)
-      c->version= v;
   }
   if (c)
   {
-    DBUG_PRINT("info",("sp_cache: inserting: %*s", sp->m_qname.length, 
+    DBUG_PRINT("info",("sp_cache: inserting: %*s", sp->m_qname.length,
                        sp->m_qname.str));
     c->insert(sp);
     if (*cp == NULL)
