@@ -2,6 +2,7 @@ drop table if exists t1, t2, t3;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
+drop procedure if exists p1;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:=1;
 set @a:=0;
@@ -634,4 +635,19 @@ t1	CREATE TABLE `t1` (
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode
 t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#	
+drop table t1;
+create table t1 (id int);
+create trigger t1_ai after insert on t1 for each row flush tables;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush privileges;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create procedure p1() flush tables;
+create trigger t1_ai after insert on t1 for each row call p1();
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush privileges;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
 drop table t1;
