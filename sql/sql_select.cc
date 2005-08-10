@@ -1090,9 +1090,10 @@ JOIN::optimize()
 	  order=0;
       }
     }
-    
-    if (thd->lex->subqueries)
+
+    if (select_lex->uncacheable && !is_top_level_join())
     {
+      /* If this join belongs to an uncacheable subquery */
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
       error= 0;				// Ensure that tmp_join.error= 0
@@ -1636,9 +1637,7 @@ JOIN::exec()
   curr_join->fields= curr_fields_list;
   curr_join->procedure= procedure;
 
-  if (unit == &thd->lex->unit &&
-      (unit->fake_select_lex == 0 || select_lex == unit->fake_select_lex) &&
-      thd->cursor && tables != const_tables)
+  if (is_top_level_join() && thd->cursor && tables != const_tables)
   {
     /*
       We are here if this is JOIN::exec for the last select of the main unit

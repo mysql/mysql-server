@@ -366,6 +366,11 @@ class JOIN :public Sql_alloc
 	    !group_list);
   }
   bool change_result(select_result *result);
+  bool is_top_level_join() const
+  {
+    return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
+                                        select_lex == unit->fake_select_lex));
+  }
 };
 
 
