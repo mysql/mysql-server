@@ -5340,11 +5340,12 @@ void mysql_init_multi_delete(LEX *lex)
 void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
-
   mysql_init_query(thd, (uchar*) inBuf, length);
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
+    sp_cache_flush_obsolete(&thd->sp_proc_cache);
+    sp_cache_flush_obsolete(&thd->sp_func_cache);
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

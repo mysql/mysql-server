@@ -1880,6 +1880,8 @@ test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or f
 test.v6	check	status	OK
 drop view v1, v2, v3, v4, v5, v6;
 drop table t2;
+drop function if exists f1;
+drop function if exists f2;
 CREATE TABLE t1 (col1 time);
 CREATE TABLE t2 (col1 time);
 CREATE TABLE t3 (col1 time);
