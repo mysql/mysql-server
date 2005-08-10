@@ -78,7 +78,7 @@ select * from (select * from t1) x;
 
 set local  max_join_size=1;
 --error 1104
-select * from (select * from t1 a, t1 b) x;
+select * from (select a.a as aa, b.a as ba from t1 a, t1 b) x;
 
 set local  max_join_size=1;
 --error 1104
