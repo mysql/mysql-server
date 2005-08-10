@@ -1960,7 +1960,7 @@ sp_proc_stmt:
 	    }
 	    if (lex->sql_command == SQLCOM_CHANGE_DB)
 	    { /* "USE db" doesn't work in a procedure */
-	      my_message(ER_SP_NO_USE, ER(ER_SP_NO_USE), MYF(0));
+	      my_error(ER_SP_BADSTATEMENT, MYF(0), "USE");
 	      YYABORT;
 	    }
 	    /*
@@ -6642,9 +6642,14 @@ flush:
 	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
-	  if (lex->sphead && lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+	  if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
 	  {
-	    my_error(ER_SP_BADSTATEMENT, MYF(0), "FLUSH");
+            /*
+              Note that both FLUSH TABLES and FLUSH PRIVILEGES will break
+              execution in prelocked mode. So it is better to disable
+              FLUSH in stored functions and triggers completely.
+            */
+            my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
 	    YYABORT;
 	  }
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;

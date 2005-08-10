@@ -334,7 +334,7 @@ begin
 end|
 
 # USE is not allowed
---error 1336
+--error ER_SP_BADSTATEMENT 
 create procedure u()
   use sptmp|
 
@@ -885,7 +885,7 @@ create procedure bug10537()
 --disable_warnings
 drop function if exists bug8409|
 --enable_warnings
---error ER_SP_BADSTATEMENT
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function bug8409()
   returns int
 begin
