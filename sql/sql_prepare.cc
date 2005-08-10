@@ -73,6 +73,7 @@ Long data handling:
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -1783,6 +1784,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex= thd->lex;
   lex->safe_to_cache_query= 0;
 
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
+
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          thd->net.report_error || init_param_array(stmt);
   /*
@@ -2060,6 +2064,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   thd->protocol= stmt->protocol;                // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
   mysql_execute_command(thd);
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
