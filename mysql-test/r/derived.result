@@ -111,7 +111,7 @@ a	b
 1	a
 2	b
 3	c
-explain select * from (select * from t1,t2 where t1.a=t2.a) t1;
+explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
 2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
@@ -363,3 +363,8 @@ a
 3
 3
 drop table t1, t2, t3;
+create table t1 (a int);
+create table t2 (a int);
+select * from (select * from t1,t2) foo;
+ERROR 42S21: Duplicate column name 'a'
+drop table t1,t2;
