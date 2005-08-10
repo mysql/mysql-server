@@ -2867,7 +2867,16 @@ void ha_ndbcluster::info(uint flag)
     errkey= m_dupkey;
   }
   if (flag & HA_STATUS_AUTO)
+  {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
+    if (m_table)
+    {
+      Ndb *ndb= get_ndb();
+      
+      auto_increment_value= 
+        ndb->readAutoIncrementValue((const NDBTAB *) m_table);
+    }
+  }
   DBUG_VOID_RETURN;
 }
 
