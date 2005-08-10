@@ -46,7 +46,7 @@ class sp_cache;
     sp_cache_insert();
     sp_cache_invalidate();
   
-  2.2 When not holding any sp_head* pointers (at query end):
+  2.2 When not holding any sp_head* pointers:
     sp_cache_flush_obsolete();
   
   3. Before thread exit:

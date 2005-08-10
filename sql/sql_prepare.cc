@@ -1730,8 +1730,6 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   DBUG_ENTER("mysql_stmt_prepare");
 
   DBUG_PRINT("prep_query", ("%s", packet));
-  sp_cache_flush_obsolete(&thd->sp_proc_cache);
-  sp_cache_flush_obsolete(&thd->sp_func_cache);
 
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -1784,6 +1782,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   mysql_reset_errors(thd, 0);
   lex= thd->lex;
   lex->safe_to_cache_query= 0;
+
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          thd->net.report_error || init_param_array(stmt);
@@ -1981,8 +1982,6 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_execute");
 
-  sp_cache_flush_obsolete(&thd->sp_proc_cache);
-  sp_cache_flush_obsolete(&thd->sp_func_cache);
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
   statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);
@@ -2063,6 +2062,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
   mysql_execute_command(thd);
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
