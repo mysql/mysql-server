@@ -1,4 +1,4 @@
-source include/have_openssl_1.inc;
+source include/have_openssl.inc;
 source include/master-slave.inc;
 
 # We don't test all types of ssl auth params here since it's a bit hard 
@@ -7,7 +7,7 @@ source include/master-slave.inc;
 # creating replication user for whom ssl auth is required
 # preparing playground
 connection master;
-grant replication slave on *.* to replssl@'%' require ssl;
+grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
 save_master_pos;
 
