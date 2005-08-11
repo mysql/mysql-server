@@ -866,6 +866,11 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
                                      char *to, ulong to_length,
                                      const char *from, ulong length);
+#ifdef __WIN__
+#define BACKSLASH_MBTAIL
+/* File system character set */
+extern CHARSET_INFO *fs_character_set(void);
+#endif
 extern ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
                                      char *to, ulong to_length,
                                      const char *from, ulong length);
