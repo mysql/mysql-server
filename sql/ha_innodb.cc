@@ -48,6 +48,10 @@ have disables the InnoDB inlining in this file. */
 pthread_mutex_t innobase_share_mutex, /* to protect innobase_open_files */
                 prepare_commit_mutex; /* to force correct commit order in
 				      binlog */
+ulong commit_threads= 0;
+pthread_mutex_t commit_threads_m;
+pthread_cond_t commit_cond;
+pthread_mutex_t commit_cond_m;
 bool innodb_inited= 0;
 
 /*-----------------------------------------------------------------*/
@@ -1367,6 +1371,9 @@ innobase_init(void)
 			 		(hash_get_key) innobase_get_key, 0, 0);
         pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
         pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
+        pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
+        pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
+        pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
 
 	/* If this is a replication slave and we needed to do a crash recovery,
@@ -1416,6 +1423,9 @@ innobase_end(void)
 						MYF(MY_ALLOW_ZERO_PTR));
                 pthread_mutex_destroy(&innobase_share_mutex);
                 pthread_mutex_destroy(&prepare_commit_mutex);
+                pthread_mutex_destroy(&commit_threads_m);
+                pthread_mutex_destroy(&commit_cond_m);
+                pthread_cond_destroy(&commit_cond);
 	}
 
   	DBUG_RETURN(err);
@@ -1542,8 +1552,10 @@ innobase_commit(
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
-
+        if (trx->has_search_latch) {
+                          trx_search_latch_release_if_reserved(trx);
+        }
+        
         /* The flag trx->active_trans is set to 1 in
 
 	1. ::external_lock(),
@@ -1575,18 +1587,43 @@ innobase_commit(
 
                 /* We need current binlog position for ibbackup to work.
                 Note, the position is current because of prepare_commit_mutex */
+retry:
+                if (srv_commit_concurrency > 0)
+                {
+                  pthread_mutex_lock(&commit_cond_m);
+                  commit_threads++;
+                  if (commit_threads > srv_commit_concurrency)
+                  {
+                    commit_threads--;
+                    pthread_cond_wait(&commit_cond, &commit_cond_m);
+                    pthread_mutex_unlock(&commit_cond_m);
+                    goto retry;
+                  }
+                  else
+                    pthread_mutex_unlock(&commit_cond_m);
+                }
+                
                 trx->mysql_log_file_name = mysql_bin_log.get_log_fname();
                 trx->mysql_log_offset =
                         (ib_longlong)mysql_bin_log.get_log_file()->pos_in_file;
 
 		innobase_commit_low(trx);
 
+                if (srv_commit_concurrency > 0)
+                {
+                  pthread_mutex_lock(&commit_cond_m);
+                  commit_threads--;
+                  pthread_cond_signal(&commit_cond);
+                  pthread_mutex_unlock(&commit_cond_m);
+                }
+                
                 if (trx->active_trans == 2) {
 
                         pthread_mutex_unlock(&prepare_commit_mutex);
                 }
+               
                 trx->active_trans = 0;
-
+               
 	} else {
 	        /* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -1606,7 +1643,11 @@ innobase_commit(
 
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
+        if (trx->declared_to_be_inside_innodb) {
+                          /* Release our possible ticket in the FIFO */
 
+                          srv_conc_force_exit_innodb(trx);
+        }
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(0);
