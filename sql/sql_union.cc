@@ -289,6 +289,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     List_iterator_fast<Item> tp(types);
     Query_arena *arena= thd->current_arena;
     Item *type;
+    ulong create_options;
 
     while ((type= tp++))
     {
