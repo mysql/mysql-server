@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# postinstall - this script will be executed after the MySQL PKG
+# postfligh - this script will be executed after the MySQL PKG
 # installation has been performed.
 #
 # This script will install the MySQL privilege tables using the
