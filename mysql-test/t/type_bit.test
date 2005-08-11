@@ -16,7 +16,7 @@ select 0 + b'1111111111111111';
 select 0 + b'1000000000000001';
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 --error 1439
