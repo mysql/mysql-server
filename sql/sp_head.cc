@@ -678,12 +678,14 @@ sp_head::execute(THD *thd)
       cleanup_items(i->free_list);
     i->state= Query_arena::EXECUTED;
 
-    // Check if an exception has occurred and a handler has been found
-    // Note: We havo to check even if ret==0, since warnings (and some
-    //       errors don't return a non-zero value.
-    //       We also have to check even if thd->killed != 0, since some
-    //       errors return with this even when a handler has been found
-    //       (e.g. "bad data").
+    /*
+      Check if an exception has occurred and a handler has been found
+      Note: We havo to check even if ret==0, since warnings (and some
+      errors don't return a non-zero value.
+      We also have to check even if thd->killed != 0, since some
+      errors return with this even when a handler has been found
+      (e.g. "bad data").
+    */
     if (ctx)
     {
       uint hf;
@@ -759,8 +761,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
   if (argcount != params)
   {
-    // Need to use my_printf_error here, or it will not terminate the
-    // invoking query properly.
+    /*
+      Need to use my_printf_error here, or it will not terminate the
+      invoking query properly.
+    */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
              "FUNCTION", m_qname.str, params, argcount);
     DBUG_RETURN(-1);
@@ -784,9 +788,11 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
       DBUG_RETURN(-1);
     }
   }
-  // The rest of the frame are local variables which are all IN.
-  // Default all variables to null (those with default clauses will
-  // be set by an set instruction).
+  /*
+    The rest of the frame are local variables which are all IN.
+    Default all variables to null (those with default clauses will
+    be set by an set instruction).
+  */
   {
     Item_null *nit= NULL;	// Re-use this, and only create if needed
     for (; i < csize ; i++)
@@ -803,9 +809,11 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
   ret= execute(thd);
 
-  // Partially restore context now.
-  // We still need the call mem root and free list for processing
-  // of the result.
+  /*
+    Partially restore context now.
+    We still need the call mem root and free list for processing
+    of the result.
+  */
   thd->restore_backup_item_arena(&call_arena, &backup_arena);
 
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
@@ -932,9 +940,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       close_thread_tables(thd, 0, 0, 0);
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
-    // The rest of the frame are local variables which are all IN.
-    // Default all variables to null (those with default clauses will
-    // be set by an set instruction).
+    /*
+      The rest of the frame are local variables which are all IN.
+      Default all variables to null (those with default clauses will
+      be set by an set instruction).
+    */
     for (; i < csize ; i++)
     {
       if (! nit)
@@ -956,8 +966,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     List_iterator<Item> li(*args);
     Item *it;
 
-    // Copy back all OUT or INOUT values to the previous frame, or
-    // set global user variables
+    /*
+      Copy back all OUT or INOUT values to the previous frame, or
+      set global user variables
+    */
     for (uint i = 0 ; (it= li++) && i < params ; i++)
     {
       sp_pvar_t *pvar= m_pcont->find_pvar(i);
@@ -987,8 +999,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	    octx->set_item(offset, copy);
 	  if (orig && copy == orig)
 	  {
-	    // A reused item slot, where the constructor put it in the
-	    // free_list, so we have to restore the list.
+	    /*
+              A reused item slot, where the constructor put it in the
+              free_list, so we have to restore the list.
+            */
 	    thd->free_list= o_free_list;
 	    copy->next= o_item_next;
 	  }
@@ -1420,8 +1434,6 @@ sp_head::opt_mark(uint ip)
     ip= i->opt_mark(this);
 }
 
-// ------------------------------------------------------------------
-
 
 /*
   Prepare LEX and thread for execution of instruction, if requested open
@@ -1513,6 +1525,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   thd->proc_info="closing tables";
   close_thread_tables(thd);
+  thd->proc_info= 0;
 
   if (m_lex->query_tables_own_last)
   {
@@ -1549,9 +1562,10 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 }
 
 
-//
-// sp_instr
-//
+/*
+  sp_instr class functions
+*/
+
 int sp_instr::exec_core(THD *thd, uint *nextp)
 {
   DBUG_ASSERT(0);
@@ -1559,9 +1573,10 @@ int sp_instr::exec_core(THD *thd, uint *nextp)
 }
 
 
-//
-// sp_instr_stmt
-//
+/*
+  sp_instr_stmt class functions
+*/
+
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
@@ -1606,9 +1621,11 @@ sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   return res;
 }
 
-//
-// sp_instr_set
-//
+
+/*
+  sp_instr_set class functions
+*/
+
 int
 sp_instr_set::execute(THD *thd, uint *nextp)
 {
@@ -1617,6 +1634,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 
   DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
 }
+
 
 int
 sp_instr_set::exec_core(THD *thd, uint *nextp)
@@ -1638,9 +1656,10 @@ sp_instr_set::print(String *str)
 }
 
 
-//
-// sp_instr_set_trigger_field
-//
+/*
+  sp_instr_set_trigger_field class functions
+*/
+
 int
 sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 {
@@ -1671,9 +1690,11 @@ sp_instr_set_trigger_field::print(String *str)
   value->print(str);
 }
 
-//
-// sp_instr_jump
-//
+
+/*
+ sp_instr_jump class functions
+*/
+
 int
 sp_instr_jump::execute(THD *thd, uint *nextp)
 {
@@ -1732,9 +1753,10 @@ sp_instr_jump::opt_move(uint dst, List<sp_instr> *bp)
   m_ip= dst;
 }
 
-//
-// sp_instr_jump_if
-//
+
+/*
+  sp_instr_jump_if class functions
+*/
 
 int
 sp_instr_jump_if::execute(THD *thd, uint *nextp)
@@ -1790,9 +1812,11 @@ sp_instr_jump_if::opt_mark(sp_head *sp)
   return m_ip+1;
 }
 
-//
-// sp_instr_jump_if_not
-//
+
+/*
+  sp_instr_jump_if_not class functions
+*/
+
 int
 sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
@@ -1823,6 +1847,7 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
   return res;
 }
 
+
 void
 sp_instr_jump_if_not::print(String *str)
 {
@@ -1832,6 +1857,7 @@ sp_instr_jump_if_not::print(String *str)
   str->append(' ');
   m_expr->print(str);
 }
+
 
 uint
 sp_instr_jump_if_not::opt_mark(sp_head *sp)
@@ -1848,9 +1874,10 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
   return m_ip+1;
 }
 
-//
-// sp_instr_freturn
-//
+
+/*
+  sp_instr_freturn class functions
+*/
 
 int
 sp_instr_freturn::execute(THD *thd, uint *nextp)
@@ -1889,9 +1916,10 @@ sp_instr_freturn::print(String *str)
   m_value->print(str);
 }
 
-//
-// sp_instr_hpush_jump
-//
+/*
+  sp_instr_hpush_jump class functions
+*/
+
 int
 sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
@@ -1935,9 +1963,11 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp)
   return m_ip+1;
 }
 
-//
-// sp_instr_hpop
-//
+
+/*
+  sp_instr_hpop class functions
+*/
+
 int
 sp_instr_hpop::execute(THD *thd, uint *nextp)
 {
@@ -1962,9 +1992,10 @@ sp_instr_hpop::backpatch(uint dest, sp_pcontext *dst_ctx)
 }
 
 
-//
-// sp_instr_hreturn
-//
+/*
+  sp_instr_hreturn class functions
+*/
+
 int
 sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
@@ -1980,6 +2011,7 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+
 void
 sp_instr_hreturn::print(String *str)
 {
@@ -1989,6 +2021,7 @@ sp_instr_hreturn::print(String *str)
   if (m_dest)
     str->qs_append(m_dest);
 }
+
 
 uint
 sp_instr_hreturn::opt_mark(sp_head *sp)
@@ -2003,9 +2036,10 @@ sp_instr_hreturn::opt_mark(sp_head *sp)
 }
 
 
-//
-// sp_instr_cpush
-//
+/*
+  sp_instr_cpush class functions
+*/
+
 int
 sp_instr_cpush::execute(THD *thd, uint *nextp)
 {
@@ -2015,15 +2049,18 @@ sp_instr_cpush::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+
 void
 sp_instr_cpush::print(String *str)
 {
   str->append("cpush");
 }
 
-//
-// sp_instr_cpop
-//
+
+/*
+  sp_instr_cpop class functions
+*/
+
 int
 sp_instr_cpop::execute(THD *thd, uint *nextp)
 {
@@ -2032,6 +2069,7 @@ sp_instr_cpop::execute(THD *thd, uint *nextp)
   *nextp= m_ip+1;
   DBUG_RETURN(0);
 }
+
 
 void
 sp_instr_cpop::print(String *str)
@@ -2047,9 +2085,11 @@ sp_instr_cpop::backpatch(uint dest, sp_pcontext *dst_ctx)
   m_count= m_ctx->diff_cursors(dst_ctx);
 }
 
-//
-// sp_instr_copen
-//
+
+/*
+  sp_instr_copen class functions
+*/
+
 int
 sp_instr_copen::execute(THD *thd, uint *nextp)
 {
@@ -2117,9 +2157,11 @@ sp_instr_copen::print(String *str)
   str->qs_append(m_cursor);
 }
 
-//
-// sp_instr_cclose
-//
+
+/*
+  sp_instr_cclose class functions
+*/
+
 int
 sp_instr_cclose::execute(THD *thd, uint *nextp)
 {
@@ -2135,6 +2177,7 @@ sp_instr_cclose::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+
 void
 sp_instr_cclose::print(String *str)
 {
@@ -2143,9 +2186,11 @@ sp_instr_cclose::print(String *str)
   str->qs_append(m_cursor);
 }
 
-//
-// sp_instr_cfetch
-//
+
+/*
+  sp_instr_cfetch class functions
+*/
+
 int
 sp_instr_cfetch::execute(THD *thd, uint *nextp)
 {
@@ -2160,6 +2205,7 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
   *nextp= m_ip+1;
   DBUG_RETURN(res);
 }
+
 
 void
 sp_instr_cfetch::print(String *str)
@@ -2178,9 +2224,11 @@ sp_instr_cfetch::print(String *str)
   }
 }
 
-//
-// sp_instr_error
-//
+
+/*
+  sp_instr_error class functions
+*/
+
 int
 sp_instr_error::execute(THD *thd, uint *nextp)
 {
@@ -2191,6 +2239,7 @@ sp_instr_error::execute(THD *thd, uint *nextp)
   DBUG_RETURN(-1);
 }
 
+
 void
 sp_instr_error::print(String *str)
 {
@@ -2199,12 +2248,12 @@ sp_instr_error::print(String *str)
   str->qs_append(m_errcode);
 }
 
+
 /* ------------------------------------------------------------------ */
 
-
-//
-// Security context swapping
-//
+/*
+  Security context swapping
+*/
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 void
@@ -2453,11 +2502,12 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   DBUG_RETURN(result);
 }
 
+
 /*
- * Simple function for adding an explicetly named (systems) table to
- * the global table list, e.g. "mysql", "proc".
- *
- */
+  Simple function for adding an explicetly named (systems) table to
+  the global table list, e.g. "mysql", "proc".
+*/
+
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
