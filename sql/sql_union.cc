@@ -301,8 +301,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
     }
     
-    ulong create_options= (first_select_in_union()->options | thd_arg->options |
-                          TMP_TABLE_ALL_COLUMNS) & ~TMP_TABLE_FORCE_MYISAM;
+    create_options= (first_select_in_union()->options | thd_arg->options |
+                     TMP_TABLE_ALL_COLUMNS) & ~TMP_TABLE_FORCE_MYISAM;
     /*
       Force the temporary table to be a MyISAM table if we're going to use
       fullext functions (MATCH ... AGAINST .. IN BOOLEAN MODE) when reading

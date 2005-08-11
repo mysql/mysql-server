@@ -52,7 +52,7 @@ t
 truncate table t1;
 insert into t1 values("2003-0303 12:13:14");
 Warnings:
-Warning	1264	Data truncated; out of range for column 't' at row 1
+Warning	1264	Out of range value adjusted for column 't' at row 1
 select * from t1;
 t
 0000-00-00 00:00:00
