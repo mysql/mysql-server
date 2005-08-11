@@ -2753,7 +2753,28 @@ WHERE ROW(one,two) IN (SELECT DISTINCT one,two FROM t1 WHERE flag = 'N');
 one	two	flag
 5	6	N
 7	8	N
+insert into t2 values (null,null,'N');
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N') as 'test' from t1;
+one	two	test
+1	2	0
+2	3	0
+3	4	0
+5	6	1
+7	8	1
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N' group by one,two) as 'test' from t1;
+one	two	test
+1	2	NULL
+2	3	NULL
+3	4	NULL
+5	6	1
+7	8	1
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a char(5), b char(5));
+INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
+SELECT * FROM t1 WHERE (a,b) IN (('aaa','aaa'), ('aaa','bbb'));
+a	b
+aaa	aaa
+DROP TABLE t1;
 create table t1 (df decimal(5,1));
 insert into t1 values(1.1);
 insert into t1 values(2.2);

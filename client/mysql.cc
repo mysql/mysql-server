@@ -1598,11 +1598,8 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       mysql_free_result(fields);
     }
     else
-    {
-      tee_fprintf(stdout,
-		  "Didn't find any fields in table '%s'\n",table_row[0]);
       field_names[i]= 0;
-    }
+
     i++;
   }
   mysql_free_result(tables);

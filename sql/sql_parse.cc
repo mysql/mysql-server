@@ -3318,7 +3318,7 @@ end_with_restore_list:
     if ((res= mysql_multi_delete_prepare(thd)))
       goto error;
 
-    if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
+    if (!thd->is_fatal_error && (result= new multi_delete(aux_tables,
 							  lex->table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
@@ -5311,10 +5311,12 @@ void create_select_for_variable(const char *var_name)
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.
   */
-  var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string);
-  end= strxmov(buff, "@@session.", var_name, NullS);
-  var->set_name(buff, end-buff, system_charset_info);
-  add_item_to_list(thd, var);
+  if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
+  {
+    end= strxmov(buff, "@@session.", var_name, NullS);
+    var->set_name(buff, end-buff, system_charset_info);
+    add_item_to_list(thd, var);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -5340,11 +5342,12 @@ void mysql_init_multi_delete(LEX *lex)
 void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
-
   mysql_init_query(thd, (uchar*) inBuf, length);
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
+    sp_cache_flush_obsolete(&thd->sp_proc_cache);
+    sp_cache_flush_obsolete(&thd->sp_func_cache);
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -6463,11 +6466,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         THR_LOCK_DATA **end_p= lock_p + thd->locked_tables->lock_count;
 
         for (; lock_p < end_p; lock_p++)
+        {
           if ((*lock_p)->type == TL_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
           }
+        }
       }
       /*
 	Writing to the binlog could cause deadlocks, as we don't log

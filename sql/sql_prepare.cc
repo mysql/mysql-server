@@ -73,6 +73,7 @@ Long data handling:
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -1783,6 +1784,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex= thd->lex;
   lex->safe_to_cache_query= 0;
 
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
+
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          thd->net.report_error || init_param_array(stmt);
   /*
@@ -1851,6 +1855,13 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
 
+  /*
+    We have to update "thd" pointer in LEX, all its units and in LEX::result,
+    since statements which belong to trigger body are associated with TABLE
+    object and because of this can be used in different threads.
+  */
+  lex->thd= thd;
+
   if (lex->empty_field_list_on_rset)
   {
     lex->empty_field_list_on_rset= 0;
@@ -1889,6 +1900,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       unit->types.empty();
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
+      unit->set_thd(thd);
     }
   }
 
@@ -1927,7 +1939,10 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     lex->select_lex.leaf_tables= lex->leaf_tables_insert;
 
   if (lex->result)
+  {
     lex->result->cleanup();
+    lex->result->set_thd(thd);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -2060,6 +2075,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   thd->protocol= stmt->protocol;                // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
   mysql_execute_command(thd);
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);

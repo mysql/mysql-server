@@ -25,94 +25,39 @@
 /*
   Stored procedures/functions cache. This is used as follows:
    * Each thread has its own cache.
-   * Each sp_head object is put into its thread cache before it is used, and 
+   * Each sp_head object is put into its thread cache before it is used, and
      then remains in the cache until deleted.
 */
 
 class sp_head;
 class sp_cache;
 
-/* Initialize the SP caching once at startup */
-void sp_cache_init();
-
-/* Clear the cache *cp and set *cp to NULL */
-void sp_cache_clear(sp_cache **cp);
-
-/* Insert an SP into cache. If 'cp' points to NULL, it's set to a new cache */
-void sp_cache_insert(sp_cache **cp, sp_head *sp);
-
-/* Lookup an SP in cache */
-sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
-
-/* 
-  Remove an SP from cache, and also bump the Cversion number so all other 
-  caches are invalidated. 
-  Returns true if something was removed.
-*/
-bool sp_cache_remove(sp_cache **cp, sp_name *name);
-
-/* Invalidate all existing SP caches by bumping Cversion number. */
-void sp_cache_invalidate();
-
-
 /*
- *
- * The cache class. Don't use this directly, use the C API above
- *
- */
+  Cache usage scenarios:
+  1. Application-wide init:
+    sp_cache_init();
 
-class sp_cache
-{
-public:
+  2. SP execution in thread:
+  2.1 While holding sp_head* pointers:
+  
+    // look up a routine in the cache (no checks if it is up to date or not)
+    sp_cache_lookup(); 
+    
+    sp_cache_insert();
+    sp_cache_invalidate();
+  
+  2.2 When not holding any sp_head* pointers:
+    sp_cache_flush_obsolete();
+  
+  3. Before thread exit:
+    sp_cache_clear();
+*/
 
-  ulong version;
-
-  sp_cache();
-
-  ~sp_cache();
-
-  void
-  init();
-
-  void
-  cleanup();
-
-  inline void
-  insert(sp_head *sp)
-  {
-    my_hash_insert(&m_hashtable, (const byte *)sp);
-  }
-
-  inline sp_head *
-  lookup(char *name, uint namelen)
-  {
-    return (sp_head *)hash_search(&m_hashtable, (const byte *)name, namelen);
-  }
-
-  inline bool
-  remove(char *name, uint namelen)
-  {
-    sp_head *sp= lookup(name, namelen);
-
-    if (sp)
-    {
-      hash_delete(&m_hashtable, (byte *)sp);
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  inline void
-  remove_all()
-  {
-    cleanup();
-    init();
-  }
-
-private:
-
-  HASH m_hashtable;
-
-}; // class sp_cache
+void sp_cache_init();
+void sp_cache_clear(sp_cache **cp);
+void sp_cache_insert(sp_cache **cp, sp_head *sp);
+sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
+void sp_cache_invalidate();
+void sp_cache_flush_obsolete(sp_cache **cp);
 
 #endif /* _SP_CACHE_H_ */
