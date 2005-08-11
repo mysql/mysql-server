@@ -1921,8 +1921,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
           has added its base tables after itself, adjust the boundary pointer
           accordingly.
         */
-        if (query_tables_last_own &&
-            query_tables_last_own == &(tables->next_global) &&
+        if (query_tables_last_own == &(tables->next_global) &&
             tables->view->query_tables)
           query_tables_last_own= tables->view->query_tables_last;
         
