@@ -1908,7 +1908,8 @@ static void check_data_home(const char *path)
 static void sig_reload(int signo)
 {
  // Flush everything
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, NULL);
+  bool not_used;
+  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, &not_used);
   signal(signo, SIG_ACK);
 }
 
@@ -2267,12 +2268,13 @@ static void *signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
+        bool not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
-			     (TABLE_LIST*) 0, NULL); // Flush logs
+			     (TABLE_LIST*) 0, &not_used); // Flush logs
       }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
