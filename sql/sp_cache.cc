@@ -22,13 +22,14 @@
 #include "sp_head.h"
 
 static pthread_mutex_t Cversion_lock;
-static ulong Cversion = 0;
+static ulong volatile Cversion = 0;
 
 void
 sp_cache_init()
 {
   pthread_mutex_init(&Cversion_lock, MY_MUTEX_INIT_FAST);
 }
+
 
 void
 sp_cache_clear(sp_cache **cp)
@@ -42,32 +43,30 @@ sp_cache_clear(sp_cache **cp)
   }
 }
 
+
 void
 sp_cache_insert(sp_cache **cp, sp_head *sp)
 {
   sp_cache *c= *cp;
+  ulong v;
 
   if (! c)
-    c= new sp_cache();
-  if (c)
   {
-    ulong v;
-
-    pthread_mutex_lock(&Cversion_lock); // LOCK
-    v= Cversion;
-    pthread_mutex_unlock(&Cversion_lock); // UNLOCK
-
-    if (c->version < v)
-    {
-      if (*cp)
-	c->remove_all();
-      c->version= v;
-    }
-    c->insert(sp);
-    if (*cp == NULL)
-      *cp= c;
+    if (!(c= new sp_cache()))
+      return;                                   // End of memory error
   }
+
+  v= Cversion;		/* No need to lock when reading long variable */
+  if (c->version < v)
+  {
+    if (*cp)
+      c->remove_all();
+    c->version= v;
+  }
+  c->insert(sp);
+  *cp= c;                                       // Update *cp if it was NULL
 }
+
 
 sp_head *
 sp_cache_lookup(sp_cache **cp, sp_name *name)
@@ -78,10 +77,8 @@ sp_cache_lookup(sp_cache **cp, sp_name *name)
   if (! c)
     return NULL;
 
-  pthread_mutex_lock(&Cversion_lock); // LOCK
-  v= Cversion;
-  pthread_mutex_unlock(&Cversion_lock); // UNLOCK
-
+  
+  v= Cversion;		/* No need to lock when reading long variable */
   if (c->version < v)
   {
     c->remove_all();
@@ -90,6 +87,7 @@ sp_cache_lookup(sp_cache **cp, sp_name *name)
   }
   return c->lookup(name->m_qname.str, name->m_qname.length);
 }
+
 
 bool
 sp_cache_remove(sp_cache **cp, sp_name *name)
@@ -114,13 +112,13 @@ sp_cache_remove(sp_cache **cp, sp_name *name)
   return found;
 }
 
+
 void
 sp_cache_invalidate()
 {
-  pthread_mutex_lock(&Cversion_lock); // LOCK
-  Cversion++;
-  pthread_mutex_unlock(&Cversion_lock); // UNLOCK
+  thread_safe_increment(Cversion, &Cversion_lock); // UNLOCK
 }
+
 
 static byte *
 hash_get_key_for_sp_head(const byte *ptr, uint *plen,
@@ -132,6 +130,7 @@ hash_get_key_for_sp_head(const byte *ptr, uint *plen,
   return (byte*) sp->m_qname.str;
 }
 
+
 static void
 hash_free_sp_head(void *p)
 {
@@ -140,15 +139,18 @@ hash_free_sp_head(void *p)
   delete sp;
 }
 
+
 sp_cache::sp_cache()
 {
   init();
 }
 
+
 sp_cache::~sp_cache()
 {
   hash_free(&m_hashtable);
 }
+
 
 void
 sp_cache::init()
@@ -157,6 +159,7 @@ sp_cache::init()
 	    hash_get_key_for_sp_head, hash_free_sp_head, 0);
   version= 0;
 }
+
 
 void
 sp_cache::cleanup()
