@@ -1855,6 +1855,13 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
 
+  /*
+    We have to update "thd" pointer in LEX, all its units and in LEX::result,
+    since statements which belong to trigger body are associated with TABLE
+    object and because of this can be used in different threads.
+  */
+  lex->thd= thd;
+
   if (lex->empty_field_list_on_rset)
   {
     lex->empty_field_list_on_rset= 0;
@@ -1893,6 +1900,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       unit->types.empty();
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
+      unit->set_thd(thd);
     }
   }
 
@@ -1931,7 +1939,10 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     lex->select_lex.leaf_tables= lex->leaf_tables_insert;
 
   if (lex->result)
+  {
     lex->result->cleanup();
+    lex->result->set_thd(thd);
+  }
 
   DBUG_VOID_RETURN;
 }

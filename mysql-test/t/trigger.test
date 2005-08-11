@@ -662,3 +662,26 @@ create procedure p1() flush privileges;
 insert into t1 values (0);
 drop procedure p1;
 drop table t1;
+
+# Test for bug #11973 "SELECT .. INTO var_name; in trigger cause
+#                      crash on update"
+create table t1 (id int, data int, username varchar(16));
+insert into t1 (id, data) values (1, 0);
+delimiter |;
+create trigger t1_whoupdated before update on t1 for each row
+begin
+  declare user varchar(32);
+  declare i int;
+  select user() into user;
+  set NEW.username = user;
+  select count(*) from ((select 1) union (select 2)) as d1 into i;
+end|
+delimiter ;|
+update t1 set data = 1;
+
+connect (addconroot, localhost, root,,);
+connection addconroot;
+update t1 set data = 2;
+
+connection default;
+drop table t1;
