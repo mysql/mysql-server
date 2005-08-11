@@ -3318,7 +3318,7 @@ end_with_restore_list:
     if ((res= mysql_multi_delete_prepare(thd)))
       goto error;
 
-    if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
+    if (!thd->is_fatal_error && (result= new multi_delete(aux_tables,
 							  lex->table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
