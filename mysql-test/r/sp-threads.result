@@ -37,6 +37,7 @@ Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	test	Sleep	#		NULL
 #	root	localhost	test	Query	#	Locked	update t1, t2 set val= 1 where id1=id2
 #	root	localhost	test	Query	#	NULL	show processlist
+#	root	localhost	test	Sleep	#		NULL
 unlock tables;
 drop procedure bug9486;
 drop table t1, t2;
@@ -64,3 +65,27 @@ insert into t1 (select f from v1);
 drop function bug11554;
 drop table t1;
 drop view v1;
+drop procedure if exists p1;
+drop procedure if exists p2;
+create table t1 (s1 int)|
+create procedure p1() select * from t1|
+create procedure p2()
+begin
+insert into t1 values (1);
+call p1();
+select * from t1;
+end|
+use test;
+lock table t1 write;
+ call p2();
+use test;
+drop procedure p1;
+create procedure p1() select * from t1;
+unlock tables;
+s1
+1
+s1
+1
+drop procedure p1;
+drop procedure p2;
+drop table t1;

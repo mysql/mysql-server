@@ -458,6 +458,7 @@ public:
   inline bool is_prepared() { return prepared; }
   bool change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values);
+  void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();

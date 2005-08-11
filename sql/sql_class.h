@@ -1565,6 +1565,7 @@ public:
     statement/stored procedure.
   */
   virtual void cleanup();
+  void set_thd(THD *thd_arg) { thd= thd_arg; }
 };
 
 
@@ -1920,14 +1921,13 @@ class multi_delete :public select_result_interceptor
 {
   TABLE_LIST *delete_tables, *table_being_deleted;
   Unique **tempfiles;
-  THD *thd;
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
   bool do_delete, transactional_tables, normal_tables, delete_while_scanning;
 
 public:
-  multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
+  multi_delete(TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -1943,7 +1943,6 @@ class multi_update :public select_result_interceptor
   TABLE_LIST *all_tables; /* query/update command tables */
   TABLE_LIST *leaves;     /* list of leves of join table tree */
   TABLE_LIST *update_tables, *table_being_updated;
-  THD *thd;
   TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
   ha_rows updated, found;
@@ -1955,7 +1954,7 @@ class multi_update :public select_result_interceptor
   bool do_update, trans_safe, transactional_tables, ignore;
 
 public:
-  multi_update(THD *thd_arg, TABLE_LIST *ut, TABLE_LIST *leaves_list,
+  multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
 	       List<Item> *fields, List<Item> *values,
 	       enum_duplicates handle_duplicates, bool ignore);
   ~multi_update();
