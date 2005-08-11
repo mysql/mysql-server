@@ -3181,6 +3181,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
+  bool save_set_query_id= thd->set_query_id;
   List_iterator<Item> it(fields);
   DBUG_ENTER("setup_fields");
 
@@ -3208,6 +3209,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (!item->fixed && item->fix_fields(thd, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
     {
+      thd->set_query_id= save_set_query_id;
       DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (ref)
@@ -3215,8 +3217,9 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
-    thd->used_tables|=item->used_tables();
+    thd->used_tables|= item->used_tables();
   }
+  thd->set_query_id= save_set_query_id;
   DBUG_RETURN(test(thd->net.report_error));
 }
 
