@@ -7195,7 +7195,7 @@ static void test_prepare_grant()
 
   }
 }
-#endif
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Test a crash when invalid/corrupted .frm is used in the

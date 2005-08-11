@@ -762,7 +762,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   TABLE_COUNTER_TYPE local_tables;
   ulong tot_length;
   DBUG_ENTER("Query_cache::store_query");
-  if (query_cache_size == 0)
+  if (query_cache_size == 0 || thd->locked_tables)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
@@ -936,8 +936,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_query_flags flags;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
-  if (query_cache_size == 0 || thd->variables.query_cache_type == 0)
-
+  if (query_cache_size == 0 || thd->locked_tables ||
+      thd->variables.query_cache_type == 0)
     goto err;
 
   /* Check that we haven't forgot to reset the query cache variables */
