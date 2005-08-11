@@ -2468,25 +2468,26 @@ drop table t3|
 #
 # BUG#4318
 #
-#QQ Don't know if HANDLER commands can work with SPs, or at all...
-# 
-#create table t3 (s1 int)|
-#insert into t3 values (3), (4)|
-#
-#--disable_warnings
-#drop procedure if exists bug4318|
-#--enable_warnings
-#create procedure bug4318()
-#  handler t3 read next|
-#
-#handler t3 open|
-## Expect no results, as tables are closed, but there shouldn't be any errors
-#call bug4318()|
-#call bug4318()|
-#handler t3 close|
-#
-#drop procedure bug4318|
-#drop table t3|
+
+--disable_parsing Don't know if HANDLER commands can work with SPs, or at all..
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+
+--disable_warnings
+drop procedure if exists bug4318|
+--enable_warnings
+create procedure bug4318()
+  handler t3 read next|
+
+handler t3 open|
+# Expect no results, as tables are closed, but there shouldn't be any errors
+call bug4318()|
+call bug4318()|
+handler t3 close|
+
+drop procedure bug4318|
+drop table t3|
+--enable_parsing
 
 #
 # BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
@@ -2834,26 +2835,27 @@ drop table t3|
 #
 # BUG#6022: Stored procedure shutdown problem with self-calling function.
 #
-# This part of test is disabled until we implement support for
-# recursive stored functions.
-#--disable_warnings
-#drop function if exists bug6022|
-#--enable_warnings
-#
-#--disable_warnings
-#drop function if exists bug6022|
-#--enable_warnings
-#create function bug6022(x int) returns int
-#begin
-#  if x < 0 then
-#    return 0;
-#  else
-#    return bug6022(x-1);
-#  end if;
-#end|
-#
-#select bug6022(5)|
-#drop function bug6022|
+
+--disable_parsing until we implement support for recursive stored functions.
+--disable_warnings
+drop function if exists bug6022|
+--enable_warnings
+
+--disable_warnings
+drop function if exists bug6022|
+--enable_warnings
+create function bug6022(x int) returns int
+begin
+  if x < 0 then
+    return 0;
+  else
+    return bug6022(x-1);
+  end if;
+end|
+
+select bug6022(5)|
+drop function bug6022|
+--enable_parsing
 
 #
 # BUG#6029: Stored procedure specific handlers should have priority
@@ -3760,27 +3762,28 @@ drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
-# psergey: temporarily disabled until Bar fixes BUG#11986
-# create procedure bug6063()
-#   lâbel: begin end|
-# call bug6063()|
-# # QQ Known bug: this will not show the label correctly.
-# show create procedure bug6063|
-# 
-# set character set utf8|
-# create procedure bug7088_1()
-#   label1: begin end label1|
-# create procedure bug7088_2()
-#   lÃ¤bel1: begin end|
-# call bug7088_1()|
-# call bug7088_2()|
-# set character set default|
-# show create procedure bug7088_1|
-# show create procedure bug7088_2|
-# 
-# drop procedure bug6063|
-# drop procedure bug7088_1|
-# drop procedure bug7088_2|
+--disable_parsing temporarily disabled until Bar fixes BUG#11986
+create procedure bug6063()
+  lâbel: begin end|
+call bug6063()|
+# QQ Known bug: this will not show the label correctly.
+show create procedure bug6063|
+
+set character set utf8|
+create procedure bug7088_1()
+  label1: begin end label1|
+create procedure bug7088_2()
+  lÃ¤bel1: begin end|
+call bug7088_1()|
+call bug7088_2()|
+set character set default|
+show create procedure bug7088_1|
+show create procedure bug7088_2|
+
+drop procedure bug6063|
+drop procedure bug7088_1|
+drop procedure bug7088_2|
+--enable_parsing
 
 #
 # BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
