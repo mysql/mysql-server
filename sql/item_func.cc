@@ -3259,6 +3259,17 @@ void Item_func_benchmark::print(String *str)
   str->append(')');
 }
 
+/* This function is just used to create tests with time gaps */
+
+longlong Item_func_sleep::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  double time= args[0]->val_real();
+  my_sleep((ulong)time*1000000L);
+  return 0;
+}
+
+
 #define extra_size sizeof(double)
 
 static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
