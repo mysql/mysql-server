@@ -1187,7 +1187,7 @@ String *Item_func_substr_index::val_str(String *str)
       }
     }
     else
-    {					// Start counting at end
+    {
       /*
         Negative index, start counting at the end
       */
