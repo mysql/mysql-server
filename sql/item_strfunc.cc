@@ -1562,6 +1562,7 @@ Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
     return NULL;
   }
   conv->str_value.copy();
+  conv->str_value.shrink_to_length();
   return conv;
 }
 
