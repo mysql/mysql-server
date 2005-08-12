@@ -996,8 +996,9 @@ err:
 
   SYNOPSIS
     mysql_change_db()
-    thd		Thread handler
-    name	Databasename
+    thd			Thread handler
+    name		Databasename
+    no_access_check	True= don't do access check
 
   DESCRIPTION
     Becasue the database name may have been given directly from the
@@ -1009,15 +1010,16 @@ err:
     replication slave SQL thread (for that thread, setting of thd->db is done
     in ::exec_event() methods of log_event.cc).
 
-    This function does not send the error message to the client, if that
-    should be sent to the client, call net_send_error after this function 
+    This function does not send anything, including error messages to the
+    client, if that should be sent to the client, call net_send_error after
+    this function.
 
   RETURN VALUES
     0	ok
     1	error
 */
 
-bool mysql_change_db(THD *thd, const char *name)
+bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 {
   int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
@@ -1053,23 +1055,25 @@ bool mysql_change_db(THD *thd, const char *name)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (test_all_bits(thd->master_access,DB_ACLS))
-    db_access=DB_ACLS;
-  else
-    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-		thd->master_access);
-  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
-  {
-    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             thd->priv_user,
-             thd->priv_host,
-             dbname);
-    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-		    thd->priv_user,
-		    thd->priv_host,
-		    dbname);
-    my_free(dbname,MYF(0));
-    DBUG_RETURN(1);
+  if (!no_access_check) {
+    if (test_all_bits(thd->master_access,DB_ACLS))
+      db_access=DB_ACLS;
+    else
+      db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
+                  thd->master_access);
+    if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+    {
+      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+               thd->priv_user,
+               thd->priv_host,
+               dbname);
+      mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+                      thd->priv_user,
+                      thd->priv_host,
+                      dbname);
+      my_free(dbname,MYF(0));
+      DBUG_RETURN(1);
+    }
   }
 #endif
   (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
@@ -1083,12 +1087,12 @@ bool mysql_change_db(THD *thd, const char *name)
     DBUG_RETURN(1);
   }
 end:
-  send_ok(thd);
   x_free(thd->db);
   thd->db=dbname;				// THD::~THD will free this
   thd->db_length=db_length;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->db_access=db_access;
+  if (!no_access_check)
+    thd->db_access=db_access;
 #endif
   if (schema_db)
   {

@@ -236,3 +236,16 @@ drop procedure bug7291_2;
 drop procedure bug7291_0;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
 drop user user1@localhost;
+drop database if exists mysqltest_1;
+create database mysqltest_1;
+create procedure mysqltest_1.p1()
+begin
+select 1 from dual;
+end//
+grant usage on *.* to mysqltest_1@localhost;
+call mysqltest_1.p1();
+ERROR 42000: execute command denied to user 'mysqltest_1'@'localhost' for routine 'mysqltest_1.p1'
+drop procedure mysqltest_1.p1;
+drop database mysqltest_1;
+revoke usage on *.* from mysqltest_1@localhost;
+drop user mysqltest_1@localhost;
