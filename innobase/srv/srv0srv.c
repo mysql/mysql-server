@@ -999,7 +999,7 @@ retry:
 		fputs(
 "  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
 "InnoDB: it already is declared.\n", stderr);
-		trx_print(stderr, trx);
+		trx_print(stderr, trx, 0);
 		putc('\n', stderr);
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
