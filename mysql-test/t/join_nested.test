@@ -130,15 +130,13 @@ SELECT t8.a,t8.b
 
 EXPLAIN EXTENDED
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
-  FROM t6,
-       t7 
+  FROM (t6, t7)
        LEFT JOIN 
        t8
        ON t7.b=t8.b AND t6.b < 10;
 
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
-  FROM t6,
-       t7 
+  FROM (t6, t7)
        LEFT JOIN 
        t8
        ON t7.b=t8.b AND t6.b < 10;
@@ -150,8 +148,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 
        LEFT JOIN 
        ( 
-         t6,
-         t7 
+         (t6, t7)
          LEFT JOIN 
          t8
          ON t7.b=t8.b AND t6.b < 10
@@ -162,8 +159,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 
        LEFT JOIN 
        ( 
-         t6,
-         t7 
+         (t6, t7)
          LEFT JOIN 
          t8
          ON t7.b=t8.b AND t6.b < 10
@@ -186,8 +182,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5 
        LEFT JOIN 
        ( 
-         t6,
-         t7 
+         (t6, t7)
          LEFT JOIN 
          t8
          ON t7.b=t8.b AND t6.b < 10
@@ -203,8 +198,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5 
        LEFT JOIN 
        ( 
-         t6,
-         t7 
+         (t6, t7)
          LEFT JOIN 
          t8
          ON t7.b=t8.b AND t6.b < 10
@@ -228,8 +222,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -252,8 +245,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -281,8 +273,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -308,8 +299,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -336,8 +326,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -375,8 +364,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -452,7 +440,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
     WHERE t1.a <= 2;
 
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-  FROM t1, t3, t4 
+  FROM t1, (t3, t4)
        RIGHT JOIN              
        t2
        ON t3.a=1 AND t2.b=t4.b
@@ -460,7 +448,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 
 EXPLAIN EXTENDED
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-  FROM t1, t3, t4
+  FROM t1, (t3, t4)
        RIGHT JOIN
        t2
        ON t3.a=1 AND t2.b=t4.b
@@ -470,13 +458,13 @@ CREATE INDEX idx_b ON t2(b);
 
 EXPLAIN EXTENDED
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-  FROM t3,t4 
+  FROM (t3,t4)
        LEFT JOIN              
        (t1,t2)
        ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-  FROM t3,t4 
+  FROM (t3,t4)
        LEFT JOIN              
        (t1,t2)
        ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
@@ -494,8 +482,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -534,8 +521,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -573,8 +559,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -613,8 +598,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -649,8 +633,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t5 
          LEFT JOIN 
          ( 
-           t6,
-           t7 
+           (t6, t7)
            LEFT JOIN 
            t8
            ON t7.b=t8.b AND t6.b < 10
@@ -695,7 +678,7 @@ SELECT t2.a,t2.b,t3.a1,t3.b
   FROM t2 LEFT JOIN t3 ON t2.b=t3.b
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
 
-SELECT t2.a,t2.b,t3.a1,t3.b
+SELECT *
   FROM t2 NATURAL LEFT JOIN t3
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
 
