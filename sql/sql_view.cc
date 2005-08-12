@@ -1110,7 +1110,10 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     for (Field_translator *fld= trans; fld < end_of_trans; fld++)
     {
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
+      {
+        thd->set_query_id= save_set_query_id;        
         return TRUE;
+      }
     }
     thd->set_query_id= save_set_query_id;
   }
