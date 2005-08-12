@@ -2943,8 +2943,8 @@ end_with_restore_list:
   */
   if (thd->locked_tables || thd->active_transaction())
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION, ER(ER_LOCK_OR_ACTIVE_TRANSACTION),
-               MYF(0));
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
     goto error;
   }
   {
@@ -6465,11 +6465,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         THR_LOCK_DATA **end_p= lock_p + thd->locked_tables->lock_count;
 
         for (; lock_p < end_p; lock_p++)
+        {
           if ((*lock_p)->type == TL_WRITE)
           {
             my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
             return 1;
           }
+        }
       }
       /*
 	Writing to the binlog could cause deadlocks, as we don't log

@@ -1016,7 +1016,7 @@ JOIN::optimize()
 			    group_list : (ORDER*) 0),
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
-			   select_options & ~TMP_TABLE_FORCE_MYISAM,
+			   select_options,
 			   (order == 0 || skip_sort_order) ? select_limit :
 			   HA_POS_ERROR,
 			   (char *) "")))
@@ -1287,7 +1287,15 @@ JOIN::exec()
   if (need_tmp)
   {
     if (tmp_join)
+    {
+      /*
+        We are in a non cacheable sub query. Get the saved join structure
+        after optimization.
+        (curr_join may have been modified during last exection and we need
+        to reset it)
+      */
       curr_join= tmp_join;
+    }
     curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
@@ -1397,8 +1405,7 @@ JOIN::exec()
 						(ORDER*) 0,
 						curr_join->select_distinct && 
 						!curr_join->group_list,
-						1, curr_join->select_options
-                                                & ~TMP_TABLE_FORCE_MYISAM,
+						1, curr_join->select_options,
 						HA_POS_ERROR,
 						(char *) "")))
 	  DBUG_VOID_RETURN;
@@ -8128,7 +8135,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 ulong select_options, ha_rows rows_limit,
+		 ulonglong select_options, ha_rows rows_limit,
 		 char *table_alias)
 {
   TABLE *table;
@@ -8382,7 +8389,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES ||(select_options & TMP_TABLE_FORCE_MYISAM))
+      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
     if (group &&

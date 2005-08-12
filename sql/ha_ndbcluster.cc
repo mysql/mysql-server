@@ -6997,6 +6997,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       break;
     Ndb_item *a= cond->next->ndb_item;
     Ndb_item *b, *field, *value= NULL;
+    LINT_INIT(field);
+
     switch (cond->ndb_item->argument_count()) {
     case 1:
       field= 
