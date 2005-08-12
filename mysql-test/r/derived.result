@@ -149,8 +149,8 @@ SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 (SELECT * FROM (SELECT 1 as a) as a )
 1
 select * from (select 1 as a) b  left join (select 2 as a) c using(a);
-a	a
-1	NULL
+a
+1
 SELECT * FROM (SELECT 1 UNION SELECT a) b;
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;

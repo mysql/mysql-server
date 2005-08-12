@@ -696,7 +696,7 @@ CREATE TABLE `t1` (
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
--- error 1109
+-- error 1054
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
 select * from t1;
 drop table t1;
@@ -1005,7 +1005,7 @@ create table t2 (s1 int);
 select * from t1 where (select count(*) from t2 where t1.s2) = 1;
 -- error 1054
 select * from t1 where (select count(*) from t2 group by t1.s2) = 1;
--- error 1109
+-- error 1054
 select count(*) from t2 group by t1.s2;
 drop table t1, t2;
 
@@ -1132,8 +1132,8 @@ CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1);
-SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
-SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY t1.id;
+SELECT id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
+SELECT id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY id;
 DROP TABLE t1,t2;
 
 #
