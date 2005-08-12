@@ -2017,7 +2017,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   */
   bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
   if (!thd->active_transaction())
-    thd->transaction.xid.null();
+    thd->transaction.xid_state.xid.null();
 
   /* report error issued during command execution */
   if (thd->killed_errno() && !thd->net.report_error)
@@ -4502,14 +4502,15 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_XA_START:
-    if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
+    if (thd->transaction.xid_state.xa_state == XA_IDLE &&
+        thd->lex->xa_opt == XA_RESUME)
     {
-      if (! thd->transaction.xid.eq(thd->lex->xid))
+      if (! thd->transaction.xid_state.xid.eq(thd->lex->xid))
       {
         my_error(ER_XAER_NOTA, MYF(0));
         break;
       }
-      thd->transaction.xa_state=XA_ACTIVE;
+      thd->transaction.xid_state.xa_state=XA_ACTIVE;
       send_ok(thd);
       break;
     }
@@ -4518,10 +4519,10 @@ end_with_restore_list:
       my_error(ER_XAER_INVAL, MYF(0));
       break;
     }
-    if (thd->transaction.xa_state != XA_NOTR)
+    if (thd->transaction.xid_state.xa_state != XA_NOTR)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
     if (thd->active_transaction() || thd->locked_tables)
@@ -4529,9 +4530,15 @@ end_with_restore_list:
       my_error(ER_XAER_OUTSIDE, MYF(0));
       break;
     }
-    DBUG_ASSERT(thd->transaction.xid.is_null());
-    thd->transaction.xa_state=XA_ACTIVE;
-    thd->transaction.xid.set(thd->lex->xid);
+    if (xid_cache_search(thd->lex->xid))
+    {
+      my_error(ER_XAER_DUPID, MYF(0));
+      break;
+    }
+    DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
+    thd->transaction.xid_state.xa_state=XA_ACTIVE;
+    thd->transaction.xid_state.xid.set(thd->lex->xid);
+    xid_cache_insert(&thd->transaction.xid_state);
     thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -4544,28 +4551,28 @@ end_with_restore_list:
       my_error(ER_XAER_INVAL, MYF(0));
       break;
     }
-    if (thd->transaction.xa_state != XA_ACTIVE)
+    if (thd->transaction.xid_state.xa_state != XA_ACTIVE)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
     }
-    thd->transaction.xa_state=XA_IDLE;
+    thd->transaction.xid_state.xa_state=XA_IDLE;
     send_ok(thd);
     break;
   case SQLCOM_XA_PREPARE:
-    if (thd->transaction.xa_state != XA_IDLE)
+    if (thd->transaction.xid_state.xa_state != XA_IDLE)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4573,22 +4580,28 @@ end_with_restore_list:
     if (ha_prepare(thd))
     {
       my_error(ER_XA_RBROLLBACK, MYF(0));
-      thd->transaction.xa_state=XA_NOTR;
+      xid_cache_delete(&thd->transaction.xid_state);
+      thd->transaction.xid_state.xa_state=XA_NOTR;
       break;
     }
-    thd->transaction.xa_state=XA_PREPARED;
+    thd->transaction.xid_state.xa_state=XA_PREPARED;
     send_ok(thd);
     break;
   case SQLCOM_XA_COMMIT:
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 1)))
+      XID_STATE *xs=xid_cache_search(thd->lex->xid);
+      if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
       else
+      {
+        ha_commit_or_rollback_by_xid(thd->lex->xid, 1);
+        xid_cache_delete(xs);
         send_ok(thd);
+      }
       break;
     }
-    if (thd->transaction.xa_state == XA_IDLE &&
+    if (thd->transaction.xid_state.xa_state == XA_IDLE &&
         thd->lex->xa_opt == XA_ONE_PHASE)
     {
       int r;
@@ -4597,7 +4610,7 @@ end_with_restore_list:
       else
         send_ok(thd);
     }
-    else if (thd->transaction.xa_state == XA_PREPARED &&
+    else if (thd->transaction.xid_state.xa_state == XA_PREPARED &&
              thd->lex->xa_opt == XA_NONE)
     {
       if (wait_if_global_read_lock(thd, 0, 0))
@@ -4617,27 +4630,33 @@ end_with_restore_list:
     else
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    thd->transaction.xa_state=XA_NOTR;
+    xid_cache_delete(&thd->transaction.xid_state);
+    thd->transaction.xid_state.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_ROLLBACK:
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 0)))
+      XID_STATE *xs=xid_cache_search(thd->lex->xid);
+      if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
       else
+      {
+        ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+        xid_cache_delete(xs);
         send_ok(thd);
+      }
       break;
     }
-    if (thd->transaction.xa_state != XA_IDLE &&
-        thd->transaction.xa_state != XA_PREPARED)
+    if (thd->transaction.xid_state.xa_state != XA_IDLE &&
+        thd->transaction.xid_state.xa_state != XA_PREPARED)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
     if (ha_rollback(thd))
@@ -4646,7 +4665,8 @@ end_with_restore_list:
       send_ok(thd);
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    thd->transaction.xa_state=XA_NOTR;
+    xid_cache_delete(&thd->transaction.xid_state);
+    thd->transaction.xid_state.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
     res= mysql_xa_recover(thd);
