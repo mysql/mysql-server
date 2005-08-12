@@ -112,8 +112,4 @@ int
 sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddbmax,
 	      bool no_access_check, bool *dbchangedp);
 
-// Like mysql_change_db() but handles empty db name and the  send_ok() problem.
-int
-sp_change_db(THD *thd, char *db, bool no_access_check);
-
 #endif /* _SP_H_ */

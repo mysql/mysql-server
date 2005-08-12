@@ -275,7 +275,7 @@ int check_user(THD *thd, enum enum_server_command command,
   {
     thd->db= 0;
     thd->db_length= 0;
-    if (mysql_change_db(thd, db))
+    if (mysql_change_db(thd, db, FALSE))
     {
       /* Send the error to the client */
       net_send_error(thd);
@@ -284,8 +284,7 @@ int check_user(THD *thd, enum enum_server_command command,
       DBUG_RETURN(-1);
     }
   }
-  else
-    send_ok(thd);
+  send_ok(thd);
   DBUG_RETURN(0);
 #else
 
@@ -410,7 +409,7 @@ int check_user(THD *thd, enum enum_server_command command,
       /* Change database if necessary */
       if (db && db[0])
       {
-        if (mysql_change_db(thd, db))
+        if (mysql_change_db(thd, db, FALSE))
         {
           /* Send error to the client */
           net_send_error(thd);
@@ -419,8 +418,7 @@ int check_user(THD *thd, enum enum_server_command command,
           DBUG_RETURN(-1);
         }
       }
-      else
-	send_ok(thd);
+      send_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
       /* Ready to handle queries */
       DBUG_RETURN(0);
@@ -1514,8 +1512,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, strlen(packet), thd->charset());
-    if (!mysql_change_db(thd, tmp.str))
+    if (!mysql_change_db(thd, tmp.str, FALSE))
+    {
       mysql_log.write(thd,command,"%s",thd->db);
+      send_ok(thd);
+    }
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -3407,7 +3408,8 @@ end_with_restore_list:
     }
 #endif
   case SQLCOM_CHANGE_DB:
-    mysql_change_db(thd,select_lex->db);
+    if (!mysql_change_db(thd,select_lex->db,FALSE))
+      send_ok(thd);
     break;
 
   case SQLCOM_LOAD:
