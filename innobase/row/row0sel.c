@@ -2685,7 +2685,7 @@ row_sel_get_clust_rec_for_mysql(
 				"InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
-			trx_print(stderr, trx);
+			trx_print(stderr, trx, 600);
 
 			fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
@@ -3128,7 +3128,7 @@ row_search_for_mysql(
 "InnoDB: Error: MySQL is trying to perform a SELECT\n"
 "InnoDB: but it has not locked any tables in ::external_lock()!\n",
                       stderr);
-		trx_print(stderr, trx);
+		trx_print(stderr, trx, 600);
                 fputc('\n', stderr);
 	}
 
@@ -3455,7 +3455,7 @@ shortcut_fails_too_big_rec:
 			fputs(
 "InnoDB: Error: MySQL is trying to perform a consistent read\n"
 "InnoDB: but the read view is not assigned!\n", stderr);
-			trx_print(stderr, trx);
+			trx_print(stderr, trx, 600);
                         fputc('\n', stderr);
 			ut_a(0);
 		}
