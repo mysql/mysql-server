@@ -351,8 +351,6 @@ public:
   inline uint32 get_open_count() { return open_count; }
 };
 
-/* character conversion tables */
-
 
 typedef struct st_copy_info {
   ha_rows records;
@@ -564,11 +562,11 @@ struct system_variables
   my_bool ndb_use_transactions;
 #endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_passwords;
-  
+
   /* Only charset part of these variables is sensible */
-  CHARSET_INFO 	*character_set_client;
+  CHARSET_INFO  *character_set_client;
   CHARSET_INFO  *character_set_results;
-  
+
   /* Both charset and collation parts of these variables are important */
   CHARSET_INFO	*collation_server;
   CHARSET_INFO	*collation_database;
@@ -631,7 +629,7 @@ typedef struct system_status_var
   ulong filesort_range_count;
   ulong filesort_rows;
   ulong filesort_scan_count;
-  /* Ppepared statements and binary protocol */
+  /* Prepared statements and binary protocol */
   ulong com_stmt_prepare;
   ulong com_stmt_execute;
   ulong com_stmt_send_long_data;
@@ -656,8 +654,8 @@ void free_tmp_table(THD *thd, TABLE *entry);
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
 #define INIT_ARENA_DBUG_INFO is_backup_arena= 0
-#else 
-#define INIT_ARENA_DBUG_INFO  
+#else
+#define INIT_ARENA_DBUG_INFO
 #endif
 
 
@@ -925,6 +923,22 @@ struct st_savepoint {
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
 extern const char *xa_state_names[];
 
+typedef struct st_xid_state {
+  /* For now, this is only used to catch duplicated external xids */
+  XID  xid;                           // transaction identifier
+  enum xa_states xa_state;            // used by external XA only
+  bool in_thd;
+} XID_STATE;
+
+extern pthread_mutex_t LOCK_xid_cache;
+extern HASH xid_cache;
+bool xid_cache_init(void);
+void xid_cache_free(void);
+XID_STATE *xid_cache_search(XID *xid);
+bool xid_cache_insert(XID *xid, enum xa_states xa_state);
+bool xid_cache_insert(XID_STATE *xid_state);
+void xid_cache_delete(XID_STATE *xid_state);
+
 /*
   A registry for item tree transformations performed during
   query optimization. We register only those changes which require
@@ -946,7 +960,7 @@ enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
 
 
 /*
-  Class that holds information about tables which were open and locked
+  Class that holds information about tables which were opened and locked
   by the thread. It is also used to save/restore this information in
   push_open_tables_state()/pop_open_tables_state().
 */
@@ -1068,7 +1082,7 @@ public:
                                         // the lock_id of a cursor.
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
   /* all prepared statements and cursors of this connection */
-  Statement_map stmt_map; 
+  Statement_map stmt_map;
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
@@ -1138,10 +1152,10 @@ public:
   thr_lock_type update_lock_default;
   delayed_insert *di;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
-  
+
   /* TRUE if we are inside of trigger or stored function. */
   bool in_sub_stmt;
-  
+
   /* container for handler's private per-connection data */
   void *ha_data[MAX_HA];
   struct st_transactions {
@@ -1149,8 +1163,7 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
-    XID  xid;                           // transaction identifier
-    enum xa_states xa_state;            // used by external XA only
+    XID_STATE xid_state;
     /*
        Tables changed in transaction (that must be invalidated in query cache).
        List contain only transactional tables, that not invalidated in query
@@ -1170,7 +1183,7 @@ public:
     st_transactions()
     {
       bzero((char*)this, sizeof(*this));
-      xid.null();
+      xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
 #endif

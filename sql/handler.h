@@ -227,11 +227,11 @@ struct xid_t {
   char data[XIDDATASIZE];  // not \0-terminated !
 
   bool eq(struct xid_t *xid)
-  { return !memcmp(this, xid, sizeof(long)*3+gtrid_length+bqual_length); }
+  { return !memcmp(this, xid, length()); }
   bool eq(long g, long b, const char *d)
   { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
   void set(struct xid_t *xid)
-  { memcpy(this, xid, sizeof(long)*3+xid->gtrid_length+xid->bqual_length); }
+  { memcpy(this, xid, xid->length()); }
   void set(long f, const char *g, long gl, const char *b, long bl)
   {
     formatID= f;
@@ -269,6 +269,11 @@ struct xid_t {
            !memcmp(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id)) &&
            !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
            quick_get_my_xid() : 0;
+  }
+  uint length()
+  {
+    return sizeof(formatID)+sizeof(gtrid_length)+sizeof(bqual_length)+
+           gtrid_length+bqual_length;
   }
 };
 typedef struct xid_t XID;

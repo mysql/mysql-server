@@ -323,7 +323,8 @@ void THD::init_for_queries()
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
 #endif
-  transaction.xid.null();
+  transaction.xid_state.xid.null();
+  transaction.xid_state.in_thd=1;
 }
 
 
@@ -358,9 +359,15 @@ void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
-  if (transaction.xa_state != XA_PREPARED)
+  if (transaction.xid_state.xa_state == XA_PREPARED)
+  {
+#error xid_state in the cache should be replaced by the allocated value
+  }
 #endif
+  {
     ha_rollback(this);
+    xid_cache_delete(&transaction.xid_state);
+  }
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
@@ -1836,3 +1843,81 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
+
+pthread_mutex_t LOCK_xid_cache;
+HASH xid_cache;
+
+static byte *xid_get_hash_key(const byte *ptr,uint *length,
+                                  my_bool not_used __attribute__((unused)))
+{
+  *length=((XID_STATE*)ptr)->xid.length();
+  return (byte *)&((XID_STATE*)ptr)->xid;
+}
+
+static void xid_free_hash (void *ptr)
+{
+  if (!((XID_STATE*)ptr)->in_thd)
+    my_free((byte *)ptr, MYF(0));
+}
+
+bool xid_cache_init()
+{
+  pthread_mutex_init(&LOCK_xid_cache, MY_MUTEX_INIT_FAST);
+  hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
+            xid_get_hash_key, xid_free_hash, 0) != 0;
+}
+
+void xid_cache_free()
+{
+  if (hash_inited(&xid_cache))
+  {
+    hash_free(&xid_cache);
+    pthread_mutex_destroy(&LOCK_xid_cache);
+  }
+}
+
+XID_STATE *xid_cache_search(XID *xid)
+{
+  pthread_mutex_lock(&LOCK_xid_cache);
+  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, (byte *)xid, xid->length());
+  pthread_mutex_unlock(&LOCK_xid_cache);
+  return res;
+}
+
+bool xid_cache_insert(XID *xid, enum xa_states xa_state)
+{
+  XID_STATE *xs;
+  my_bool res;
+  pthread_mutex_lock(&LOCK_xid_cache);
+  if (hash_search(&xid_cache, (byte *)xid, xid->length()))
+    res=0;
+  else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
+    res=1;
+  else
+  {
+    xs->xa_state=xa_state;
+    xs->xid.set(xid);
+    xs->in_thd=0;
+    res=my_hash_insert(&xid_cache, (byte*)xs);
+  }
+  pthread_mutex_unlock(&LOCK_xid_cache);
+  return res;
+}
+
+bool xid_cache_insert(XID_STATE *xid_state)
+{
+  pthread_mutex_lock(&LOCK_xid_cache);
+  DBUG_ASSERT(hash_search(&xid_cache, (byte *)&xid_state->xid,
+                          xid_state->xid.length())==0);
+  my_bool res=my_hash_insert(&xid_cache, (byte*)xid_state);
+  pthread_mutex_unlock(&LOCK_xid_cache);
+  return res;
+}
+
+void xid_cache_delete(XID_STATE *xid_state)
+{
+  pthread_mutex_lock(&LOCK_xid_cache);
+  hash_delete(&xid_cache, (byte *)xid_state);
+  pthread_mutex_unlock(&LOCK_xid_cache);
+}
+
