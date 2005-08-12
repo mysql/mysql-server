@@ -3660,6 +3660,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     arena= 0;                                   // For easier test
 
   thd->set_query_id=1;
+  select_lex->cond_count= 0;
 
   for (table= tables; table; table= table->next_local)
   {
@@ -3667,7 +3668,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       goto err_no_arena;
   }
 
-  select_lex->cond_count= 0;
   if (*conds)
   {
     thd->where="where clause";
