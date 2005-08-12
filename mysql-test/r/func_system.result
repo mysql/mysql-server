@@ -68,6 +68,21 @@ drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL
 1	0	NULL
+create table t1 (c1 char(5)) character set=latin1;
+insert into t1 values('row 1');
+insert into t1 values('row 2');
+insert into t1 values('row 3');
+select concat(user(), '--', c1) from t1;
+concat(user(), '--', c1)
+root@localhost--row 1
+root@localhost--row 2
+root@localhost--row 3
+select concat(database(), '--', c1) from t1;
+concat(database(), '--', c1)
+test--row 1
+test--row 2
+test--row 3
+drop table t1;
 create table t1 (a char(10)) character set latin1;
 select * from t1 where a=version();
 a
