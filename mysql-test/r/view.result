@@ -2079,3 +2079,16 @@ id	f
 2	foo2
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (pk int PRIMARY KEY, b int);
+CREATE TABLE t2 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t3 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t4 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t5 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE VIEW v1 AS
+SELECT t1.pk as a FROM t1,t2,t3,t4,t5
+WHERE t1.b IS NULL AND
+t1.pk=t2.fk AND t2.pk=t3.fk AND t3.pk=t4.fk AND t4.pk=t5.fk;
+SELECT a FROM v1;
+a
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4,t5;
