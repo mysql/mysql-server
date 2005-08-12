@@ -130,6 +130,7 @@ AC_PROG_MAKE_SET
 # Hack for OS X/Darwin and Metrowerks CodeWarrior
 AC_ARG_WITH(darwin-mwcc,
 [  --with-darwin-mwcc      Use Metrowerks CodeWarrior wrappers on OS X/Darwin],[
+ if [ "with_darwin_mwcc" = yes ] ; then
   builddir=`pwd`
   ccwrapper="$builddir/support-files/MacOSX/mwcc-wrapper"
   arwrapper="$builddir/support-files/MacOSX/mwar-wrapper"
@@ -141,7 +142,7 @@ AC_ARG_WITH(darwin-mwcc,
   export CC CXX LD AR RANLIB
   AC_SUBST(AR)
   AC_SUBST(RANLIB)
-  with_darwin_mwcc=yes
+ fi
 ])
 
 AM_CONDITIONAL(DARWIN_MWCC, test x$with_darwin_mwcc = xyes)
