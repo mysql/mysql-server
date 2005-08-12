@@ -811,7 +811,7 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *fields,
                         List<Item> *values,
                         COND *conds,
-                        ulong options,
+                        ulonglong options,
                         enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {

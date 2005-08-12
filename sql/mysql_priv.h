@@ -256,13 +256,6 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_WARNINGS         (1L << 13)      // THD, user
 #define OPTION_AUTO_IS_NULL     (1L << 14)      // THD, user, binlog
 #define OPTION_FOUND_COMMENT    (1L << 15)      // SELECT, intern, parser
-/* 
-  Force the used temporary table to be a MyISAM table (because we will use
-  fulltext functions when reading from it. This uses the same constant as
-  OPTION_FOUND_COMMENT because we've run out of bits and these two values 
-  are not used together.
-*/
-#define TMP_TABLE_FORCE_MYISAM          (1L << 15)
 #define OPTION_SAFE_UPDATES     (1L << 16)      // THD, user
 #define OPTION_BUFFER_RESULT    (1L << 17)      // SELECT, user
 #define OPTION_BIN_LOG          (1L << 18)      // THD, user
@@ -291,6 +284,11 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_SETUP_TABLES_DONE        (1L << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
 #define OPTION_SQL_NOTES                (1L << 31) // THD, user
+/* 
+  Force the used temporary table to be a MyISAM table (because we will use
+  fulltext functions when reading from it.
+*/
+#define TMP_TABLE_FORCE_MYISAM          (LL(1) << 32)
 
 /*
   Maximum length of time zone name that we support
@@ -726,7 +724,7 @@ int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 enum enum_duplicates handle_duplicates, bool ignore);
 bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
                         List<Item> *fields, List<Item> *values,
-                        COND *conds, ulong options,
+                        COND *conds, ulonglong options,
                         enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
 bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
@@ -742,7 +740,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
-                  ha_rows rows, ulong options);
+                  ha_rows rows, ulonglong options);
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
@@ -1107,6 +1105,7 @@ extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
 extern double log_10[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
+extern ulonglong thd_startup_options;
 extern ulong refresh_version,flush_version, thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
@@ -1116,7 +1115,7 @@ extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
-extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
+extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout, slave_trans_retries;

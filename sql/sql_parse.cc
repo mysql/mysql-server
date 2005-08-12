@@ -1863,17 +1863,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #endif
   case COM_REFRESH:
-    {
-      statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
-			  &LOCK_status);
-      ulong options= (ulong) (uchar) packet[0];
-      if (check_global_access(thd,RELOAD_ACL))
-	break;
-      mysql_log.write(thd,command,NullS);
-      if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, NULL))
-        send_ok(thd);
+  {
+    bool not_used;
+    statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
+                        &LOCK_status);
+    ulong options= (ulong) (uchar) packet[0];
+    if (check_global_access(thd,RELOAD_ACL))
       break;
-    }
+    mysql_log.write(thd,command,NullS);
+    if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+      send_ok(thd);
+    break;
+  }
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
@@ -2942,8 +2943,8 @@ end_with_restore_list:
   */
   if (thd->locked_tables || thd->active_transaction())
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION, ER(ER_LOCK_OR_ACTIVE_TRANSACTION),
-               MYF(0));
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
     goto error;
   }
   {
@@ -3822,13 +3823,13 @@ end_with_restore_list:
     lex->no_write_to_binlog= 1;
   case SQLCOM_FLUSH:
   {
+    bool write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, all_tables))
       goto error;
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
       binlog or not.
     */
-    bool write_to_binlog;
     if (!reload_acl_and_cache(thd, lex->type, first_table, &write_to_binlog))
     {
       /*
@@ -6379,13 +6380,13 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
     tables              Tables to flush (if any)
     write_to_binlog     Depending on 'options', it may be very bad to write the
                         query to the binlog (e.g. FLUSH SLAVE); this is a
-                        pointer where, if it is not NULL, reload_acl_and_cache()
-                        will put 0 if it thinks we really should not write to
-                        the binlog. Otherwise it will put 1.
+                        pointer where reload_acl_and_cache() will put 0 if
+                        it thinks we really should not write to the binlog.
+                        Otherwise it will put 1.
 
   RETURN
     0	 ok
-    !=0  error
+    !=0  error.  thd->killed or thd->net.report_error is set
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
@@ -6480,10 +6481,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       */
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
-	return 1;
+	return 1;                               // Killed
       result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
                                  tables);
-      if (make_global_read_lock_block_commit(thd))
+      if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
         unlock_global_read_lock(thd);
@@ -6505,7 +6506,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   {
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
+    {
       result=1;
+      thd->fatal_error();                       // Ensure client get error
+    }
   }
 #endif
 #ifdef OPENSSL
@@ -6527,8 +6531,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL);
- if (write_to_binlog)
-   *write_to_binlog= tmp_write_to_binlog;
+ *write_to_binlog= tmp_write_to_binlog;
  return result;
 }
 
