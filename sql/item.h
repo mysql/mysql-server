@@ -254,6 +254,19 @@ struct Name_resolution_context
     name resolution of different parts of the statement.
   */
   TABLE_LIST *table_list;
+  /*
+    In most cases the two table references below replace 'table_list' above
+    for the purpose of name resolution. The first and last name resolution
+    table references allow us to search only in a sub-tree of the nested
+    join tree in a FROM clause. This is needed for NATURAL JOIN, JOIN ... USING
+    and JOIN ... ON. 
+  */
+  TABLE_LIST *first_name_resolution_table;
+  /*
+    Last table to search in the list of leaf table references that begins
+    with first_name_resolution_table.
+  */
+  TABLE_LIST *last_name_resolution_table;
 
   /*
     SELECT_LEX item belong to, in case of merged VIEW it can differ from
@@ -293,11 +306,13 @@ struct Name_resolution_context
   {
     resolve_in_select_list= FALSE;
     error_processor= &dummy_error_processor;
+    first_name_resolution_table= NULL;
+    last_name_resolution_table= NULL;
   }
 
   void resolve_in_table_list_only(TABLE_LIST *tables)
   {
-    table_list= tables;
+    table_list= first_name_resolution_table= tables;
     resolve_in_select_list= FALSE;
   }
 
@@ -657,7 +672,8 @@ public:
     current value and pointer passed via parameter otherwise.
   */
   virtual Item **this_item_addr(THD *thd, Item **addr) { return addr; }
-  virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
+  /* For SPs mostly. */
+  virtual Item *this_const_item() const { return const_cast<Item*>(this); }
 
   // Row emulation
   virtual uint cols() { return 1; }
@@ -828,6 +844,10 @@ public:
   void print(String *str);
   virtual bool change_context_processor(byte *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
+  friend bool insert_fields(THD *thd, Name_resolution_context *context,
+                            const char *db_name,
+                            const char *table_name, List_iterator<Item> *it,
+                            bool any_privileges);
 };
 
 class Item_equal;
@@ -1129,7 +1149,8 @@ public:
   void cleanup() {}
   void print(String *str);
   Item_num *neg() { value= -value; return this; }
-  uint decimal_precision() const { return (uint)(max_length - test(value < 0)); }
+  uint decimal_precision() const
+  { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
 };
 
@@ -1647,7 +1668,9 @@ public:
   longlong val_int()
   {
     int err;
-    return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),10, (char**) 0,&err); 
+    return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),
+                                            str_value.length(),10, (char**) 0,
+                                            &err); 
   }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);

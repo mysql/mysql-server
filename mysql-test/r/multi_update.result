@@ -135,16 +135,16 @@ create table t1 (n numeric(10));
 create table t2 (n numeric(10));
 insert into t2 values (1),(2),(4),(8),(16),(32);
 select * from t2 left outer join t1  using (n);
-n	n
-1	NULL
-2	NULL
-4	NULL
-8	NULL
-16	NULL
-32	NULL
+n
+1
+2
+4
+8
+16
+32
 delete  t1,t2 from t2 left outer join t1  using (n);
 select * from t2 left outer join t1  using (n);
-n	n
+n
 drop table t1,t2 ;
 create table t1 (n int(10) not null primary key, d int(10));
 create table t2 (n int(10) not null primary key, d int(10));
