@@ -664,7 +664,7 @@ insert into t1 select t2.a from t2 group by t2.a on duplicate key update a= a + 
 insert into t1 select t2.a from t2 on duplicate key update a= a + t2.b;
 ERROR 23000: Column 'a' in field list is ambiguous
 insert into t1 select t2.a from t2 on duplicate key update t2.a= a + t2.b;
-ERROR 42S02: Unknown table 't2' in field list
+ERROR 42S22: Unknown column 't2.a' in 'field list'
 insert into t1 select t2.a from t2 group by t2.a on duplicate key update a= t1.a + t2.b;
-ERROR 42S02: Unknown table 't2' in field list
+ERROR 42S22: Unknown column 't2.b' in 'field list'
 drop table t1,t2,t3;

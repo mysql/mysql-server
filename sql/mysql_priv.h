@@ -767,23 +767,24 @@ extern Field *view_ref_found;
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,
                                   IGNORE_EXCEPT_NON_UNIQUE};
-Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-			    Item **ref,
-                            find_item_error_report_type report_error,
-                            bool check_privileges,
-                            bool register_tree_change);
 Field *
-find_field_in_table(THD *thd, TABLE_LIST *table_list,
-                    const char *name, const char *item_name,
-                    uint length, Item **ref,
-                    bool check_grants_table, bool check_grants_view,
-                    bool allow_rowid,
-                    uint *cached_field_index_ptr,
-                    bool register_tree_change);
+find_field_in_tables(THD *thd, Item_ident *item,
+                     TABLE_LIST *first_table, TABLE_LIST *last_table,
+                     Item **ref, find_item_error_report_type report_error,
+                     bool check_privileges, bool register_tree_change);
 Field *
-find_field_in_real_table(THD *thd, TABLE *table, const char *name,
-                         uint length, bool check_grants, bool allow_rowid,
-                         uint *cached_field_index_ptr);
+find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
+                        const char *name, const char *item_name,
+                        const char *table_name, const char *db_name,
+                        uint length, Item **ref,
+                        bool check_grants_table, bool check_grants_view,
+                        bool allow_rowid,
+                        uint *cached_field_index_ptr,
+                        bool register_tree_change, TABLE_LIST **actual_table);
+Field *
+find_field_in_table(THD *thd, TABLE *table, const char *name,
+                    uint length, bool check_grants, bool allow_rowid,
+                    uint *cached_field_index_ptr);
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock
@@ -890,8 +891,10 @@ create_field * new_create_field(THD *thd, char *field_name, enum_field_types typ
 				uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc);
+Name_resolution_context *make_join_on_context(THD *thd, TABLE_LIST *left_op,
+                                              TABLE_LIST *right_op);
 void add_join_on(TABLE_LIST *b,Item *expr);
-void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
+void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields);
 bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
@@ -908,8 +911,8 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
 bool setup_tables(THD *thd, Name_resolution_context *context,
-                  TABLE_LIST *tables, Item **conds,
-		  TABLE_LIST **leaves, bool select_insert);
+                  List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
+                  Item **conds, TABLE_LIST **leaves, bool select_insert);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array,

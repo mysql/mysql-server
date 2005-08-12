@@ -126,7 +126,7 @@ group by
 a.text, b.id, b.betreff
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42S02: Unknown table 'b' in order clause
+ERROR 42S22: Unknown column 'b.betreff' in 'order clause'
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -142,7 +142,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42S02: Unknown table 'b' in order clause
+ERROR 42S22: Unknown column 'b.betreff' in 'order clause'
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join

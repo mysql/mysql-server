@@ -338,7 +338,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables(thd, &select_lex->context,
+       setup_tables(thd, &select_lex->context, join_list,
                     tables_list, &conds, &select_lex->leaf_tables,
                     FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
@@ -11904,13 +11904,14 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
 
   SYNOPSIS
     find_order_in_list()
-    thd		      	Pointer to current thread structure
-    ref_pointer_array   All select, group and order by fields
-    tables              List of tables to search in (usually FROM clause)
-    order               Column reference to be resolved
-    fields              List of fields to search in (usually SELECT list)
-    all_fields          All select, group and order by fields
-    is_group_field      True if order is a GROUP field, false if ORDER by field
+    thd		      [in]     Pointer to current thread structure
+    ref_pointer_array [in/out] All select, group and order by fields
+    tables            [in]     List of tables to search in (usually FROM clause)
+    order             [in]     Column reference to be resolved
+    fields            [in]     List of fields to search in (usually SELECT list)
+    all_fields        [in/out] All select, group and order by fields
+    is_group_field    [in]     True if order is a GROUP field, false if
+                               ORDER by field
 
   DESCRIPTION
     Given a column reference (represented by 'order') from a GROUP BY or ORDER
@@ -11986,7 +11987,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
         order_item_type == Item::REF_ITEM)
     {
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
-                                       &view_ref, IGNORE_ERRORS, TRUE,
+                                       NULL, &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
       if (!from_field)
         from_field= (Field*) not_found_field;

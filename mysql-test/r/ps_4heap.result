@@ -520,56 +520,56 @@ a	?	a
 drop table if exists t2 ;
 create table t2 as select * from t1 ;
 set @query1= 'SELECT * FROM t2 join t1 on (t1.a=t2.a) order by t2.a ' ;
-set @query2= 'SELECT * FROM t2 natural join t1 order by t2.a ' ;
-set @query3= 'SELECT * FROM t2 join t1 using(a) order by t2.a ' ;
+set @query2= 'SELECT * FROM t2 natural join t1 order by a ' ;
+set @query3= 'SELECT * FROM t2 join t1 using(a) order by a ' ;
 set @query4= 'SELECT * FROM t2 left join t1 on(t1.a=t2.a) order by t2.a ' ;
-set @query5= 'SELECT * FROM t2 natural left join t1 order by t2.a ' ;
-set @query6= 'SELECT * FROM t2 left join t1 using(a) order by t2.a ' ;
+set @query5= 'SELECT * FROM t2 natural left join t1 order by a ' ;
+set @query6= 'SELECT * FROM t2 left join t1 using(a) order by a ' ;
 set @query7= 'SELECT * FROM t2 right join t1 on(t1.a=t2.a) order by t2.a ' ;
-set @query8= 'SELECT * FROM t2 natural right join t1 order by t2.a ' ;
-set @query9= 'SELECT * FROM t2 right join t1 using(a) order by t2.a ' ;
+set @query8= 'SELECT * FROM t2 natural right join t1 order by a ' ;
+set @query9= 'SELECT * FROM t2 right join t1 using(a) order by a ' ;
 the join statement is:
-SELECT * FROM t2 right join t1 using(a) order by t2.a 
+SELECT * FROM t2 right join t1 using(a) order by a 
 prepare stmt1 from @query9  ;
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 the join statement is:
-SELECT * FROM t2 natural right join t1 order by t2.a 
+SELECT * FROM t2 natural right join t1 order by a 
 prepare stmt1 from @query8 ;
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b
+1	one
+2	two
+3	three
+4	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b
+1	one
+2	two
+3	three
+4	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b
+1	one
+2	two
+3	three
+4	four
 the join statement is:
 SELECT * FROM t2 right join t1 on(t1.a=t2.a) order by t2.a 
 prepare stmt1 from @query7 ;
@@ -592,47 +592,47 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 left join t1 using(a) order by t2.a 
+SELECT * FROM t2 left join t1 using(a) order by a 
 prepare stmt1 from @query6 ;
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 the join statement is:
-SELECT * FROM t2 natural left join t1 order by t2.a 
+SELECT * FROM t2 natural left join t1 order by a 
 prepare stmt1 from @query5 ;
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b
+1	one
+2	two
+3	three
+4	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b
+1	one
+2	two
+3	three
+4	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b
+1	one
+2	two
+3	three
+4	four
 the join statement is:
 SELECT * FROM t2 left join t1 on(t1.a=t2.a) order by t2.a 
 prepare stmt1 from @query4 ;
@@ -655,28 +655,28 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 join t1 using(a) order by t2.a 
+SELECT * FROM t2 join t1 using(a) order by a 
 prepare stmt1 from @query3 ;
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 execute stmt1 ;
-a	b	a	b
-1	one	1	one
-2	two	2	two
-3	three	3	three
-4	four	4	four
+a	b	b
+1	one	one
+2	two	two
+3	three	three
+4	four	four
 the join statement is:
-SELECT * FROM t2 natural join t1 order by t2.a 
+SELECT * FROM t2 natural join t1 order by a 
 prepare stmt1 from @query2 ;
 execute stmt1 ;
 a	b
