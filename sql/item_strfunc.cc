@@ -1570,7 +1570,7 @@ Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
     return NULL;
   }
   conv->str_value.copy();
-  conv->str_value.shrink_to_length();
+  conv->str_value.mark_as_const();
   return conv;
 }
 
