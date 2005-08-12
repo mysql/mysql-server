@@ -150,6 +150,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables(thd, &thd->lex->select_lex.context,
+                   &thd->lex->select_lex.top_join_list,
                    table_list, &unused_conds,
 		   &thd->lex->select_lex.leaf_tables, FALSE))
      DBUG_RETURN(-1);

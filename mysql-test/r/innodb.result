@@ -750,7 +750,7 @@ drop table t1;
 set @a:=now();
 CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) engine=innodb;
 insert into t1 (a) values(1),(2),(3);
-select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
+select a from t1 natural join t1 as t2 where b >= @a order by a;
 a
 1
 2
@@ -1377,7 +1377,7 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-ERROR 42S02: Unknown table 't1' in where clause
+ERROR 42S22: Unknown column 't1.id' in 'where clause'
 drop table t3,t2,t1;
 create table t1(
 id int primary key,
