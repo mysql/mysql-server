@@ -958,8 +958,6 @@ int ha_berkeley::write_row(byte * record)
   {
     DB_TXN *sub_trans = transaction;
     /* Don't use sub transactions in temporary tables */
-    ulong thd_options= (table->s->tmp_table == NO_TMP_TABLE ?
-                        table->in_use->options : 0);
     for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
     {
       key_map changed_keys(0);
@@ -1070,7 +1068,7 @@ int ha_berkeley::key_cmp(uint keynr, const byte * old_row,
 int ha_berkeley::update_primary_key(DB_TXN *trans, bool primary_key_changed,
 				    const byte * old_row, DBT *old_key,
 				    const byte * new_row, DBT *new_key,
-				    ulong thd_options, bool local_using_ignore)
+                                    bool local_using_ignore)
 {
   DBT row;
   int error;
@@ -1119,8 +1117,7 @@ int ha_berkeley::update_primary_key(DB_TXN *trans, bool primary_key_changed,
 int ha_berkeley::restore_keys(DB_TXN *trans, key_map *changed_keys,
 			      uint primary_key,
 			      const byte *old_row, DBT *old_key,
-			      const byte *new_row, DBT *new_key,
-			      ulong thd_options)
+			      const byte *new_row, DBT *new_key)
 {
   int error;
   DBT tmp_key;
@@ -1130,7 +1127,7 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map *changed_keys,
   /* Restore the old primary key, and the old row, but don't ignore
      duplicate key failure */
   if ((error=update_primary_key(trans, TRUE, new_row, new_key,
-				old_row, old_key, thd_options, FALSE)))
+				old_row, old_key, FALSE)))
     goto err; /* purecov: inspected */
 
   /* Remove the new key, and put back the old key
@@ -1167,8 +1164,6 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   DBT prim_key, key, old_prim_key;
   int error;
   DB_TXN *sub_trans;
-  ulong thd_options= (table->s->tmp_table == NO_TMP_TABLE ?
-                      table->in_use->options : 0);
   bool primary_key_changed;
   DBUG_ENTER("update_row");
   LINT_INIT(error);
@@ -1204,7 +1199,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
     if (!(error=update_primary_key(sub_trans, primary_key_changed,
 				   old_row, &old_prim_key,
 				   new_row, &prim_key,
-				   thd_options, using_ignore)))
+				   using_ignore)))
     {
       // Update all other keys
       for (uint keynr=0 ; keynr < table->s->keys ; keynr++)
@@ -1239,8 +1234,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	int new_error = 0;
         if (!changed_keys.is_clear_all())
 	  new_error=restore_keys(transaction, &changed_keys, primary_key,
-				 old_row, &old_prim_key, new_row, &prim_key,
-				 thd_options);
+				 old_row, &old_prim_key, new_row, &prim_key);
 	if (new_error)
 	{
           /* This shouldn't happen */
@@ -1342,8 +1336,6 @@ int ha_berkeley::delete_row(const byte * record)
   int error;
   DBT row, prim_key;
   key_map keys= table->s->keys_in_use;
-  ulong thd_options= (table->s->tmp_table == NO_TMP_TABLE ?
-                      table->in_use->options : 0);
   DBUG_ENTER("delete_row");
   statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
 
