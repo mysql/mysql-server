@@ -602,7 +602,7 @@ row_ins_foreign_report_err(
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
-	trx_print(ef, trx);
+	trx_print(ef, trx, 600);
 
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, foreign->foreign_table_name);
@@ -653,7 +653,7 @@ row_ins_foreign_report_add_err(
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
-	trx_print(ef, trx);
+	trx_print(ef, trx, 600);
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(":\n", ef);
@@ -1228,7 +1228,7 @@ run_again:
 			rewind(ef);
 			ut_print_timestamp(ef);
 			fputs(" Transaction:\n", ef);
-			trx_print(ef, trx);
+			trx_print(ef, trx, 600);
 			fputs("Foreign key constraint fails for table ", ef);
 			ut_print_name(ef, trx, foreign->foreign_table_name);
 			fputs(":\n", ef);
