@@ -1246,7 +1246,8 @@ public:
     update auto-updatable fields (like auto_increment and timestamp).
   */
   query_id_t query_id, warn_id;
-  ulong	     options, thread_id, col_access;
+  ulonglong  options;
+  ulong      thread_id, col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
@@ -1498,7 +1499,7 @@ public:
 
 
 #define tmp_disable_binlog(A)       \
-  {ulong tmp_disable_binlog__save_options= (A)->options; \
+  {ulonglong tmp_disable_binlog__save_options= (A)->options; \
   (A)->options&= ~OPTION_BIN_LOG
 
 #define reenable_binlog(A)   (A)->options= tmp_disable_binlog__save_options;}

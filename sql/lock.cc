@@ -849,10 +849,6 @@ static void print_lock_error(int error, const char *table)
   So in this exceptional case the COMMIT should not be blocked by the FLUSH
   TABLES WITH READ LOCK.
 
-  TODO in MySQL 5.x: make_global_read_lock_block_commit() should be
-  killable. Normally CPU does not spend a long time in this function (COMMITs
-  are quite fast), but it would still be nice.
-
 ****************************************************************************/
 
 volatile uint global_read_lock=0;
@@ -1003,7 +999,7 @@ bool make_global_read_lock_block_commit(THD *thd)
     pthread_cond_wait(&COND_refresh, &LOCK_global_read_lock);
   DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
                   protect_against_global_read_lock--;);
-  if (error= thd->killed)
+  if ((error= test(thd->killed)))
     global_read_lock_blocks_commit--; // undo what we did
   else
     thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;

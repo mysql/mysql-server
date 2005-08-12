@@ -39,12 +39,11 @@ void unireg_init(ulong options)
 #endif
 
   VOID(strmov(reg_ext,".frm"));
-  specialflag=SPECIAL_SAME_DB_NAME;
+  specialflag=SPECIAL_SAME_DB_NAME | options;  /* Set options from argv */
   /* Make a tab of powers of 10 */
   for (i=0,nr=1.0; i < array_elements(log_10) ; i++)
   {					/* It's used by filesort... */
     log_10[i]= nr ; nr*= 10.0;
   }
-  specialflag|=options;			/* Set options from argv */
   DBUG_VOID_RETURN;
 }

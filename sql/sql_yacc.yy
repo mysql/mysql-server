@@ -7752,7 +7752,8 @@ sys_option_value:
             /* We are in trigger and assigning value to field of new row */
             Item *it;
             Item_trigger_field *trg_fld;
-            sp_instr_set_trigger_field *i;
+            sp_instr_set_trigger_field *sp_fld;
+	    LINT_INIT(sp_fld);
             if ($1)
             {
               yyerror(ER(ER_SYNTAX_ERROR));
@@ -7770,10 +7771,11 @@ sys_option_value:
                                                   context,
                                                   Item_trigger_field::NEW_ROW,
                                                   $2.base_name.str)) ||
-                !(i= new sp_instr_set_trigger_field(lex->sphead->
-                                                    instructions(),
-                                                    lex->spcont, trg_fld,
-                                                    it, lex)))
+                !(sp_fld= new sp_instr_set_trigger_field(lex->sphead->
+                          	                         instructions(),
+                                	                 lex->spcont,
+							 trg_fld,
+                                        	         it, lex)))
               YYABORT;
 
             /*
@@ -7783,7 +7785,7 @@ sys_option_value:
             lex->trg_table_fields.link_in_list((byte *)trg_fld,
                                     (byte **)&trg_fld->next_trg_field);
 
-            lex->sphead->add_instr(i);
+            lex->sphead->add_instr(sp_fld);
           }
           else if ($2.var)
           { /* System variable */
@@ -7797,7 +7799,7 @@ sys_option_value:
             /* An SP local variable */
             sp_pcontext *ctx= lex->spcont;
             sp_pvar_t *spv;
-            sp_instr_set *i;
+            sp_instr_set *sp_set;
             Item *it;
             if ($1)
             {
@@ -7813,9 +7815,9 @@ sys_option_value:
               it= spv->dflt;
             else
               it= new Item_null();
-            i= new sp_instr_set(lex->sphead->instructions(), ctx,
-                                spv->offset, it, spv->type, lex, TRUE);
-            lex->sphead->add_instr(i);
+            sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
+                                     spv->offset, it, spv->type, lex, TRUE);
+            lex->sphead->add_instr(sp_set);
             spv->isset= TRUE;
           }
         }
