@@ -387,8 +387,8 @@ uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint tc_heuristic_recover= 0;
 uint volatile thread_count, thread_running;
-ulong back_log, connect_timeout, concurrency;
-ulong server_id, thd_startup_options;
+ulonglong thd_startup_options;
+ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
@@ -1908,7 +1908,8 @@ static void check_data_home(const char *path)
 static void sig_reload(int signo)
 {
  // Flush everything
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, NULL);
+  bool not_used;
+  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, &not_used);
   signal(signo, SIG_ACK);
 }
 
@@ -2267,12 +2268,13 @@ static void *signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
+        bool not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
-			     (TABLE_LIST*) 0, NULL); // Flush logs
+			     (TABLE_LIST*) 0, &not_used); // Flush logs
       }
       break;
 #ifdef USE_ONE_SIGNAL_HAND

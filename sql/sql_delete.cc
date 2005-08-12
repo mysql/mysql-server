@@ -30,7 +30,7 @@
 #include "sql_trigger.h"
 
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows limit, ulong options)
+                  SQL_LIST *order, ha_rows limit, ulonglong options)
 {
   int		error;
   TABLE		*table;
@@ -807,7 +807,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       ha_enable_transaction(thd, FALSE);
       mysql_init_select(thd->lex);
       error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
-			  HA_POS_ERROR, 0);
+			  HA_POS_ERROR, LL(0));
       ha_enable_transaction(thd, TRUE);
       thd->options= save_options;
       DBUG_RETURN(error);

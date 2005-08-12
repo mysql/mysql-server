@@ -142,8 +142,7 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 				  unit->types, (ORDER*) 0,
 				  FALSE, 1,
 				  (first_select->options | thd->options |
-				   TMP_TABLE_ALL_COLUMNS) &
-                                   ~TMP_TABLE_FORCE_MYISAM,
+				   TMP_TABLE_ALL_COLUMNS),
 				  HA_POS_ERROR,
 				  orig_table_list->alias)))
     {
