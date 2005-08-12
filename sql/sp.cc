@@ -427,7 +427,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       LEX *newlex= thd->lex;
       sp_head *sp= newlex->sphead;
 
-      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
 	goto done;
       if (sp)
       {
@@ -438,7 +438,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     }
     else
     {
-      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
 	goto done;
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *)definer, (uint)strlen(definer),
@@ -594,7 +594,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 done:
   close_thread_tables(thd);
   if (dbchanged)
-    (void)sp_change_db(thd, olddb, 1);
+    (void)mysql_change_db(thd, olddb, 1);
   DBUG_RETURN(ret);
 }
 
@@ -1612,112 +1612,10 @@ sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
   }
   else
   {
-    int ret= sp_change_db(thd, newdb, no_access_check);
+    int ret= mysql_change_db(thd, newdb, no_access_check);
 
     if (! ret)
       *dbchangedp= TRUE;
     DBUG_RETURN(ret);
   }
-}
-
-/*
-  Change database.
-
-  SYNOPSIS
-    sp_change_db()
-    thd		    Thread handler
-    name	    Database name
-    empty_is_ok     True= it's ok with "" as name
-    no_access_check True= don't do access check
-
-  DESCRIPTION
-    This is the same as mysql_change_db(), but with some extra
-    arguments for Stored Procedure usage; doing implicit "use" 
-    when executing an SP in a different database.
-    We also use different error routines, since this might be
-    invoked from a function when executing a query or statement.
-    Note: We would have prefered to reuse mysql_change_db(), but
-      the error handling in particular made that too awkward, so
-      we (reluctantly) have a "copy" here.
-
-  RETURN VALUES
-    0	ok
-    1	error
-*/
-
-int
-sp_change_db(THD *thd, char *name, bool no_access_check)
-{
-  int length, db_length;
-  char *dbname=my_strdup((char*) name,MYF(MY_WME));
-  char	path[FN_REFLEN];
-  HA_CREATE_INFO create;
-  DBUG_ENTER("sp_change_db");
-  DBUG_PRINT("enter", ("db: %s, no_access_check: %d", name, no_access_check));
-
-  db_length= (!dbname ? 0 : strip_sp(dbname));
-  if (dbname && db_length)
-  {
-    if ((db_length > NAME_LEN) || check_db_name(dbname))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
-      x_free(dbname);
-      DBUG_RETURN(1);
-    }
-  }
-
-  if (dbname && db_length)
-  {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (! no_access_check)
-    {
-      ulong db_access;
-
-      if (test_all_bits(thd->master_access,DB_ACLS))
-	db_access=DB_ACLS;
-      else
-	db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-		    thd->master_access);  
-      if (!(db_access & DB_ACLS) &&
-	  (!grant_option || check_grant_db(thd,dbname)))
-      {
-	my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->priv_user,
-                 thd->priv_host,
-                 dbname);
-	mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-			thd->priv_user,
-			thd->priv_host,
-			dbname);
-	my_free(dbname,MYF(0));
-	DBUG_RETURN(1);
-      }
-    }
-#endif
-    (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
-    length=unpack_dirname(path,path);		// Convert if not unix
-    if (length && path[length-1] == FN_LIBCHAR)
-      path[length-1]=0;				// remove ending '\'
-    if (access(path,F_OK))
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-      my_free(dbname,MYF(0));
-      DBUG_RETURN(1);
-    }
-  }
-
-  x_free(thd->db);
-  thd->db=dbname;				// THD::~THD will free this
-  thd->db_length=db_length;
-
-  if (dbname && db_length)
-  {
-    strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
-    load_db_opt(thd, path, &create);
-    thd->db_charset= create.default_table_charset ?
-      create.default_table_charset :
-      thd->variables.collation_server;
-    thd->variables.collation_database= thd->db_charset;
-  }
-  DBUG_RETURN(0);
 }
