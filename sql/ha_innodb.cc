@@ -7032,7 +7032,7 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-        trx->xid=thd->transaction.xid;
+        trx->xid=thd->transaction.xid_state.xid;
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch

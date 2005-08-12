@@ -501,7 +501,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   */
   bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
   if (!thd->active_transaction())
-    thd->transaction.xid.null();
+    thd->transaction.xid_state.xid.null();
 
   /* VOID(pthread_sigmask(SIG_SETMASK,&thd->block_signals,NULL)); */
   if (!lock_in_use)
