@@ -2134,6 +2134,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     {
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       sel= new SELECT_LEX();
+      /* 'parent_lex' is used in init_query() so it must be before it. */
+      sel->parent_lex= lex;
       sel->init_query();
       if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
                                  (List<String> *) 0, (List<String> *) 0))
@@ -3237,19 +3239,26 @@ end_with_restore_list:
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
-      select_lex->table_list.first= (byte*)first_table->next_local;
-
+      TABLE_LIST *second_table= first_table->next_local;
+      select_lex->table_list.first= (byte*) second_table;
+      select_lex->context.table_list= second_table;
+      select_lex->context.first_name_resolution_table= second_table;
       res= mysql_insert_select_prepare(thd);
-      lex->select_lex.context.table_list= first_table->next_local;
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
                                              &lex->update_list,
                                              &lex->value_list,
                                              lex->duplicates, lex->ignore)))
       {
-        /* Skip first table, which is the table we are inserting in */
+        /*
+          Skip first table, which is the table we are inserting in.
+          Below we set context.table_list again because the call above to
+          mysql_insert_select_prepare() calls resolve_in_table_list_only(),
+          which in turn resets context.table_list and
+          context.first_name_resolution_table.
+        */
         select_lex->context.table_list= first_table->next_local;
-
+        select_lex->context.first_name_resolution_table= first_table->next_local;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
         delete result;
       }
@@ -5195,9 +5204,9 @@ mysql_new_select(LEX *lex, bool move_down)
   if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
     DBUG_RETURN(1);
   select_lex->select_number= ++thd->select_number;
+  select_lex->parent_lex= lex; /* Used in init_query. */
   select_lex->init_query();
   select_lex->init_select();
-  select_lex->parent_lex= lex;
   /*
     Don't evaluate this subquery during statement prepare even if
     it's a constant one. The flag is switched off in the end of
@@ -5255,6 +5264,7 @@ mysql_new_select(LEX *lex, bool move_down)
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;
+      fake->parent_lex= lex; /* Used in init_query. */
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
       fake->select_limit= 0;
@@ -5263,6 +5273,11 @@ mysql_new_select(LEX *lex, bool move_down)
       /* allow item list resolving in fake select for ORDER BY */
       fake->context.resolve_in_select_list= TRUE;
       fake->context.select_lex= fake;
+      /*
+        Remove the name resolution context of the fake select from the
+        context stack.
+       */
+      lex->pop_context();
     }
     select_lex->context.outer_context= outer_context;
   }
@@ -5956,6 +5971,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
+  TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
@@ -6051,8 +6067,29 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
       }
     }
   }
-  /* Link table in local list (list for current select) */
+  /* Store the table reference preceding the current one. */
+  if (table_list.elements > 0)
+  {
+    previous_table_ref= (TABLE_LIST*) table_list.next;
+    DBUG_ASSERT(previous_table_ref);
+  }
+  /*
+    Link the current table reference in a local list (list for current select).
+    Notice that as a side effect here we set the next_local field of the
+    previous table reference to 'ptr'. Here we also add one element to the
+    list 'table_list'.
+  */
   table_list.link_in_list((byte*) ptr, (byte**) &ptr->next_local);
+  /*
+    Set next_name_resolution_table of the previous table reference to point to
+    the current table reference. In effect the list
+    TABLE_LIST::next_name_resolution_table coincides with
+    TABLE_LIST::next_local. Later this may be changed in
+    store_top_level_join_columns() for NATURAL/USING joins.
+   */
+  if (table_list.elements > 1)
+    previous_table_ref->next_name_resolution_table= ptr;
+  ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
   DBUG_RETURN(ptr);
@@ -6181,48 +6218,23 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
     table->join_list= embedded_list;
     table->embedding= ptr;
     embedded_list->push_back(table);
+    if (table->natural_join)
+    {
+      ptr->is_natural_join= TRUE;
+      /*
+        If this is a JOIN ... USING, move the list of joined fields to the
+        table reference that describes the join.
+      */
+      if (table->join_using_fields)
+      {
+        ptr->join_using_fields= table->join_using_fields;
+        table->join_using_fields= NULL;
+      }
+    }
   }
   join_list->push_front(ptr);
   nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
   DBUG_RETURN(ptr);
-}
-
-
-/*
-  Save names for a join with using clause
-
-  SYNOPSIS
-    save_names_for_using_list
-    tab1      left table in join
-    tab2      right table in join
-
-  DESCRIPTION
-    The function saves the full names of the tables in st_select_lex
-    to be able to build later an on expression to replace the using clause.
-
-  RETURN VALUE
-    None
-*/
-
-void st_select_lex::save_names_for_using_list(TABLE_LIST *tab1,
-                                              TABLE_LIST *tab2)
-{
-  while (tab1->nested_join)
-  {
-    tab1= tab1->nested_join->join_list.head();
-  }
-  db1= tab1->db;
-  table1= tab1->alias;
-  while (tab2->nested_join)
-  {
-    TABLE_LIST *next;
-    List_iterator_fast<TABLE_LIST> it(tab2->nested_join->join_list);
-    tab2= it++;
-    while ((next= it++))
-      tab2= next;
-  }
-  db2= tab2->db;
-  table2= tab2->alias;
 }
 
 
@@ -6329,16 +6341,71 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 }
 
 
-void add_join_on(TABLE_LIST *b,Item *expr)
+/*
+  Create a new name resolution context for a JOIN ... ON clause.
+
+  SYNOPSIS
+    make_join_on_context()
+    thd       pointer to current thread
+    left_op   lefto operand of the JOIN
+    right_op  rigth operand of the JOIN
+
+  DESCRIPTION
+    Create a new name resolution context for a JOIN ... ON clause,
+    and set the first and last leaves of the list of table references
+    to be used for name resolution.
+
+  RETURN
+    A new context if all is OK
+    NULL - if a memory allocation error occured
+*/
+
+Name_resolution_context *
+make_join_on_context(THD *thd, TABLE_LIST *left_op, TABLE_LIST *right_op)
+{
+  Name_resolution_context *on_context;
+  if (!(on_context= (Name_resolution_context*)
+        thd->calloc(sizeof(Name_resolution_context))))
+    return NULL;
+  on_context->init();
+  on_context->first_name_resolution_table=
+    left_op->first_leaf_for_name_resolution();
+  on_context->last_name_resolution_table=
+    right_op->last_leaf_for_name_resolution();
+  return on_context;
+}
+
+
+/*
+  Add an ON condition to the second operand of a JOIN ... ON.
+
+  SYNOPSIS
+    add_join_on
+    b     the second operand of a JOIN ... ON
+    expr  the condition to be added to the ON clause
+
+  DESCRIPTION
+    Add an ON condition to the right operand of a JOIN ... ON clause.
+
+  RETURN
+    FALSE  if there was some error
+    TRUE   if all is OK
+*/
+
+void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
     if (!b->on_expr)
-      b->on_expr=expr;
+      b->on_expr= expr;
     else
     {
-      /* This only happens if you have both a right and left join */
-      b->on_expr=new Item_cond_and(b->on_expr,expr);
+      /*
+        If called from the parser, this happens if you have both a
+        right and left join. If called later, it happens if we add more
+        than one condition to the ON clause.
+      */
+      b->on_expr= new Item_cond_and(b->on_expr,expr);
     }
     b->on_expr->top_level_item();
   }
@@ -6346,27 +6413,48 @@ void add_join_on(TABLE_LIST *b,Item *expr)
 
 
 /*
-  Mark that we have a NATURAL JOIN between two tables
+  Mark that there is a NATURAL JOIN or JOIN ... USING between two
+  tables.
 
   SYNOPSIS
     add_join_natural()
-    a			Table to do normal join with
-    b			Do normal join with this table
-
+    a			Left join argument
+    b			Right join argument
+    using_fields        Field names from USING clause
+  
   IMPLEMENTATION
-    This function just marks that table b should be joined with a.
-    The function setup_cond() will create in b->on_expr a list
-    of equal condition between all fields of the same name.
+    This function marks that table b should be joined with a either via
+    a NATURAL JOIN or via JOIN ... USING. Both join types are special
+    cases of each other, so we treat them together. The function
+    setup_conds() creates a list of equal condition between all fields
+    of the same name for NATURAL JOIN or the fields in 'using_fields'
+    for JOIN ... USING. The list of equality conditions is stored
+    either in b->on_expr, or in JOIN::conds, depending on whether there
+    was an outer join.
 
+  EXAMPLE
     SELECT * FROM t1 NATURAL LEFT JOIN t2
      <=>
     SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
+
+    SELECT * FROM t1 NATURAL JOIN t2 WHERE <some_cond>
+     <=>
+    SELECT * FROM t1, t2 WHERE (t1.i=t2.i and t1.j=t2.j and <some_cond>)
+
+    SELECT * FROM t1 JOIN t2 USING(j) WHERE <some_cond>
+     <=>
+    SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
+
+  RETURN
+    None
 */
 
-void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
+void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields)
 {
-  b->natural_join=a;
+  b->natural_join= a;
+  b->join_using_fields= using_fields;
 }
+
 
 /*
   Reload/resets privileges and the different caches.

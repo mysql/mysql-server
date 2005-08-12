@@ -153,7 +153,7 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
   List<Item>	all_fields(select_lex->item_list);
 
 
-  if (setup_tables(lex->thd, &select_lex->context,
+  if (setup_tables(lex->thd, &select_lex->context, &select_lex->top_join_list,
                    (TABLE_LIST *)select_lex->table_list.first
                    &select_lex->where, &select_lex->leaf_tables, FALSE) ||
       setup_fields(lex->thd, 0, select_lex->item_list, 1, &all_fields,1) ||
