@@ -2809,19 +2809,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
 Warnings:
-Note	1003	select test.t1.one AS `one`,test.t1.two AS `two`,<in_optimizer>((test.t1.one,test.t1.two),<exists>(select test.t2.one AS `one`,test.t2.two AS `two` from test.t2 where ((test.t2.flag = _latin1'0') and ((<cache>(test.t1.one) = test.t2.one) or isnull(test.t2.one)) and ((<cache>(test.t1.two) = test.t2.two) or isnull(test.t2.two))) having (<is_not_null_test>(test.t2.one) and <is_not_null_test>(test.t2.two)))) AS `test` from test.t1
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where ((`test`.`t2`.`flag` = _latin1'0') and ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)) and ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`))) having (<is_not_null_test>(`test`.`t2`.`one`) and <is_not_null_test>(`test`.`t2`.`two`)))) AS `test` from `test`.`t1`
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
 Warnings:
-Note	1003	select test.t1.one AS `one`,test.t1.two AS `two` from test.t1 where <in_optimizer>((test.t1.one,test.t1.two),<exists>(select test.t2.one AS `one`,test.t2.two AS `two` from test.t2 where ((test.t2.flag = _latin1'N') and (<cache>(test.t1.one) = test.t2.one) and (<cache>(test.t1.two) = test.t2.two))))
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where ((`test`.`t2`.`flag` = _latin1'N') and (<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) and (<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`))))
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select test.t1.one AS `one`,test.t1.two AS `two`,<in_optimizer>((test.t1.one,test.t1.two),<exists>(select test.t2.one AS `one`,test.t2.two AS `two` from test.t2 where (test.t2.flag = _latin1'0') group by test.t2.one,test.t2.two having (((<cache>(test.t1.one) = test.t2.one) or isnull(test.t2.one)) and ((<cache>(test.t1.two) = test.t2.two) or isnull(test.t2.two)) and <is_not_null_test>(test.t2.one) and <is_not_null_test>(test.t2.two)))) AS `test` from test.t1
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where (`test`.`t2`.`flag` = _latin1'0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)) and ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)) and <is_not_null_test>(`test`.`t2`.`one`) and <is_not_null_test>(`test`.`t2`.`two`)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
