@@ -31,7 +31,7 @@ xa end 'testa','testb';
 connect (con1,localhost,,,);
 connection con1;
 
---error 1438
+--error 1440
 xa start 'testa','testb';
 
 #        gtrid [ , bqual [ , formatID ] ]
