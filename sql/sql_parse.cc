@@ -2316,11 +2316,16 @@ mysql_execute_command(THD *thd)
     /*
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated.
-      Exception is DROP TEMPORARY TABLE IF EXISTS: we always execute it
-      (otherwise we have stale files on slave caused by exclusion of one tmp
-      table).
+
+      Exceptions are:
+
+      - SET: we always execute it (e.g., SET ONE_SHOT TIME_ZONE = 'XYZ')
+
+      - DROP TEMPORARY TABLE IF EXISTS: we always execute it (otherwise we
+        have stale files on slave caused by exclusion of one tmp table).
     */
-    if (!(lex->sql_command == SQLCOM_DROP_TABLE &&
+    if (lex->sql_command != SQLCOM_SET_OPTION &&
+        !(lex->sql_command == SQLCOM_DROP_TABLE &&
           lex->drop_temporary && lex->drop_if_exists) &&
         all_tables_not_ok(thd, all_tables))
     {
