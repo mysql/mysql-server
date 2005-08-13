@@ -1720,8 +1720,6 @@ void st_table_list::set_ancestor()
         */
         tbl->ancestor->set_ancestor();
       }
-      if (tbl->multitable_view)
-        multitable_view= TRUE;
     } while ((tbl= tbl->next_local));
 
     if (!multitable_view)
