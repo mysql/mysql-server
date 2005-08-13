@@ -1439,7 +1439,8 @@ JOIN::exec()
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables);
-	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
+	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
+                                         "having after sort"););
       }
     }
     {
