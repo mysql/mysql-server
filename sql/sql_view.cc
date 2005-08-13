@@ -844,6 +844,9 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
                                                          view_tables);
       lex->select_lex.context.outer_context= 0;
       lex->select_lex.context.select_lex= table->select_lex;
+      lex->select_lex.select_n_having_items+=
+        table->select_lex->select_n_having_items;
+
       /* do not check privileges & hide errors for view underlyings */
       for (SELECT_LEX *sl= lex->all_selects_list;
            sl;
@@ -864,7 +867,11 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
       {
         if (view_tables->next_local)
+        {
           table->multitable_view= TRUE;
+          if (table->belong_to_view)
+           table->belong_to_view->multitable_view= TRUE;
+        }
         /* make nested join structure for view tables */
         NESTED_JOIN *nested_join;
         if (!(nested_join= table->nested_join=
