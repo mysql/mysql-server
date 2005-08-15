@@ -75,7 +75,7 @@ enum enum_used_fields
 
   RETURN VALUES
     0           all ok
-    1           one of the fileds didn't finded
+    1           one of the fileds was not found
 */
 
 static bool init_fields(THD *thd, TABLE_LIST *tables,
@@ -90,7 +90,7 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     Item_field *field= new Item_field(context,
                                       "mysql", find_fields->table_name,
                                       find_fields->field_name);
-    if (!(find_fields->field= find_field_in_tables(thd, field, tables,
+    if (!(find_fields->field= find_field_in_tables(thd, field, tables, NULL,
 						   0, REPORT_ALL_ERRORS, 1,
                                                    TRUE)))
       DBUG_RETURN(1);
@@ -631,12 +631,15 @@ bool mysqld_help(THD *thd, const char *mask)
   tables[0].alias= tables[0].table_name= (char*) "help_topic";
   tables[0].lock_type= TL_READ;
   tables[0].next_global= tables[0].next_local= &tables[1];
+  tables[0].next_name_resolution_table= tables[0].next_local;
   tables[1].alias= tables[1].table_name= (char*) "help_category";
   tables[1].lock_type= TL_READ;
   tables[1].next_global= tables[1].next_local= &tables[2];
+  tables[1].next_name_resolution_table= tables[1].next_local;
   tables[2].alias= tables[2].table_name= (char*) "help_relation";
   tables[2].lock_type= TL_READ;
   tables[2].next_global= tables[2].next_local= &tables[3];
+  tables[2].next_name_resolution_table= tables[2].next_local;
   tables[3].alias= tables[3].table_name= (char*) "help_keyword";
   tables[3].lock_type= TL_READ;
   tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
@@ -655,6 +658,7 @@ bool mysqld_help(THD *thd, const char *mask)
     tables do not contain VIEWs => we can pass 0 as conds
   */
   setup_tables(thd, &thd->lex->select_lex.context,
+               &thd->lex->select_lex.top_join_list,
                tables, 0, &leaves, FALSE);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))

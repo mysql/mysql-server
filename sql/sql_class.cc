@@ -174,7 +174,7 @@ THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
    Open_tables_state(refresh_version),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(FALSE), global_read_lock(0), is_fatal_error(0),
+   user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
@@ -323,7 +323,8 @@ void THD::init_for_queries()
                       variables.trans_alloc_block_size,
                       variables.trans_prealloc_size);
 #endif
-  transaction.xid.null();
+  transaction.xid_state.xid.null();
+  transaction.xid_state.in_thd=1;
 }
 
 
@@ -358,9 +359,15 @@ void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
-  if (transaction.xa_state != XA_PREPARED)
+  if (transaction.xid_state.xa_state == XA_PREPARED)
+  {
+#error xid_state in the cache should be replaced by the allocated value
+  }
 #endif
+  {
     ha_rollback(this);
+    xid_cache_delete(&transaction.xid_state);
+  }
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
@@ -1836,3 +1843,172 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
+
+
+
+/****************************************************************************
+  Handling of statement states in functions and triggers.
+
+  This is used to ensure that the function/trigger gets a clean state
+  to work with and does not cause any side effects of the calling statement.
+
+  It also allows most stored functions and triggers to replicate even
+  if they are used items that would normally be stored in the binary
+  replication (like last_insert_id() etc...)
+
+  The following things is done
+  - Disable binary logging for the duration of the statement
+  - Disable multi-result-sets for the duration of the statement
+  - Value of last_insert_id() is reset and restored
+  - Value set by 'SET INSERT_ID=#' is reset and restored
+  - Value for found_rows() is reset and restored
+  - examined_row_count is added to the total
+  - cuted_fields is added to the total
+
+  NOTES:
+    Seed for random() is saved for the first! usage of RAND()
+    We reset examined_row_count and cuted_fields and add these to the
+    result to ensure that if we have a bug that would reset these within
+    a function, we are not loosing any rows from the main statement.
+****************************************************************************/
+
+void THD::reset_sub_statement_state(Sub_statement_state *backup,
+                                    uint new_state)
+{
+  backup->options=         options;
+  backup->in_sub_stmt=     in_sub_stmt;
+  backup->no_send_ok=      net.no_send_ok;
+  backup->enable_slow_log= enable_slow_log;
+  backup->last_insert_id=  last_insert_id;
+  backup->next_insert_id=  next_insert_id;
+  backup->insert_id_used=  insert_id_used;
+  backup->limit_found_rows= limit_found_rows;
+  backup->examined_row_count= examined_row_count;
+  backup->sent_row_count=   sent_row_count;
+  backup->cuted_fields=     cuted_fields;
+  backup->client_capabilities= client_capabilities;
+
+  options&= ~OPTION_BIN_LOG;
+  /* Disable result sets */
+  client_capabilities &= ~CLIENT_MULTI_RESULTS;
+  in_sub_stmt|= new_state;
+  last_insert_id= 0;
+  next_insert_id= 0;
+  insert_id_used= 0;
+  examined_row_count= 0;
+  sent_row_count= 0;
+  cuted_fields= 0;
+
+#ifndef EMBEDDED_LIBRARY
+  /* Surpress OK packets in case if we will execute statements */
+  net.no_send_ok= TRUE;
+#endif
+}
+
+
+void THD::restore_sub_statement_state(Sub_statement_state *backup)
+{
+  options=          backup->options;
+  in_sub_stmt=      backup->in_sub_stmt;
+  net.no_send_ok=   backup->no_send_ok;
+  enable_slow_log=  backup->enable_slow_log;
+  last_insert_id=   backup->last_insert_id;
+  next_insert_id=   backup->next_insert_id;
+  insert_id_used=   backup->insert_id_used;
+  limit_found_rows= backup->limit_found_rows;
+  sent_row_count=   backup->sent_row_count;
+  client_capabilities= backup->client_capabilities;
+
+  /*
+    The following is added to the old values as we are interested in the
+    total complexity of the query
+  */
+  examined_row_count+= backup->examined_row_count;
+  cuted_fields+=       backup->cuted_fields;
+}
+
+
+/***************************************************************************
+  Handling of XA id cacheing
+***************************************************************************/
+
+pthread_mutex_t LOCK_xid_cache;
+HASH xid_cache;
+
+static byte *xid_get_hash_key(const byte *ptr,uint *length,
+                                  my_bool not_used __attribute__((unused)))
+{
+  *length=((XID_STATE*)ptr)->xid.length();
+  return (byte *)&((XID_STATE*)ptr)->xid;
+}
+
+static void xid_free_hash (void *ptr)
+{
+  if (!((XID_STATE*)ptr)->in_thd)
+    my_free((byte *)ptr, MYF(0));
+}
+
+bool xid_cache_init()
+{
+  pthread_mutex_init(&LOCK_xid_cache, MY_MUTEX_INIT_FAST);
+  return hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
+                   xid_get_hash_key, xid_free_hash, 0) != 0;
+}
+
+void xid_cache_free()
+{
+  if (hash_inited(&xid_cache))
+  {
+    hash_free(&xid_cache);
+    pthread_mutex_destroy(&LOCK_xid_cache);
+  }
+}
+
+XID_STATE *xid_cache_search(XID *xid)
+{
+  pthread_mutex_lock(&LOCK_xid_cache);
+  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, (byte *)xid, xid->length());
+  pthread_mutex_unlock(&LOCK_xid_cache);
+  return res;
+}
+
+
+bool xid_cache_insert(XID *xid, enum xa_states xa_state)
+{
+  XID_STATE *xs;
+  my_bool res;
+  pthread_mutex_lock(&LOCK_xid_cache);
+  if (hash_search(&xid_cache, (byte *)xid, xid->length()))
+    res=0;
+  else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
+    res=1;
+  else
+  {
+    xs->xa_state=xa_state;
+    xs->xid.set(xid);
+    xs->in_thd=0;
+    res=my_hash_insert(&xid_cache, (byte*)xs);
+  }
+  pthread_mutex_unlock(&LOCK_xid_cache);
+  return res;
+}
+
+
+bool xid_cache_insert(XID_STATE *xid_state)
+{
+  pthread_mutex_lock(&LOCK_xid_cache);
+  DBUG_ASSERT(hash_search(&xid_cache, (byte *)&xid_state->xid,
+                          xid_state->xid.length())==0);
+  my_bool res=my_hash_insert(&xid_cache, (byte*)xid_state);
+  pthread_mutex_unlock(&LOCK_xid_cache);
+  return res;
+}
+
+
+void xid_cache_delete(XID_STATE *xid_state)
+{
+  pthread_mutex_lock(&LOCK_xid_cache);
+  hash_delete(&xid_cache, (byte *)xid_state);
+  pthread_mutex_unlock(&LOCK_xid_cache);
+}
+

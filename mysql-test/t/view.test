@@ -1901,3 +1901,44 @@ SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM v1 GROUP BY pid;
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+#
+# Test for bug #12382: SELECT * FROM view after INSERT command
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, f varchar(255));
+CREATE VIEW v1 AS SELECT id, f FROM t1 WHERE id <= 2;
+INSERT INTO t1 VALUES (2, 'foo2');
+INSERT INTO t1 VALUES (1, 'foo1');
+
+SELECT * FROM v1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Test for bug #12470: crash for a simple select from a view defined
+#                      as a join over 5 tables
+
+CREATE TABLE t1 (pk int PRIMARY KEY, b int);
+CREATE TABLE t2 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t3 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t4 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t5 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE VIEW v1 AS
+  SELECT t1.pk as a FROM t1,t2,t3,t4,t5
+    WHERE t1.b IS NULL AND
+          t1.pk=t2.fk AND t2.pk=t3.fk AND t3.pk=t4.fk AND t4.pk=t5.fk;
+
+SELECT a FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4,t5;
+
+#
+# Bug #12298 Typo in  function name results in erroneous view being created.
+#
+create view v1 as select timestampdiff(day,'1997-01-01 00:00:00','1997-01-02 00:00:00') as f1;
+select * from v1;
+drop view v1;

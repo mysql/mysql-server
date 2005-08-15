@@ -639,3 +639,13 @@ select trigger_schema, trigger_name from triggers where
 trigger_name='tr1';
 use test;
 drop table t1;
+
+#
+# Bug#12518 COLUMN_DEFAULT has wrong value if NOT NULL is set
+#
+create table t1 (a int not null, b int);
+use information_schema;
+select column_name, column_default from columns
+  where table_schema='test' and table_name='t1';
+use test;
+drop table t1;

@@ -46,3 +46,12 @@ drop table t1;
 create table t1 as select uuid(), length(uuid());
 show create table t1;
 drop table t1;
+
+# Bug #6760: Add SLEEP() function
+create table t1 (a timestamp default '2005-05-05 01:01:01',
+                 b timestamp default '2005-05-05 01:01:01');
+insert into t1 set a = now();
+select sleep(3);
+update t1 set b = now();
+select timediff(b, a) >= '00:00:03' from t1;
+drop table t1;

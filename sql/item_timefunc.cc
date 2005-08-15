@@ -1938,7 +1938,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
     daynr= calc_daynr(ltime->year,ltime->month,1) + days;
     /* Day number from year 0 to 9999-12-31 */
     if ((ulonglong) daynr >= MAX_DAY_NUMBER)
-      goto null_date;
+      goto invalid_date;
     get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
                         &ltime->day);
     break;
@@ -1949,13 +1949,13 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
              sign * (long) interval.day);
     /* Daynumber from year 0 to 9999-12-31 */
     if ((ulong) period >= MAX_DAY_NUMBER)
-      goto null_date;
+      goto invalid_date;
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
   case INTERVAL_YEAR:
     ltime->year+= sign * (long) interval.year;
     if ((ulong) ltime->year >= 10000L)
-      goto null_date;
+      goto invalid_date;
     if (ltime->month == 2 && ltime->day == 29 &&
 	calc_days_in_year(ltime->year) != 366)
       ltime->day=28;				// Was leap-year
@@ -1966,7 +1966,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
     period= (ltime->year*12 + sign * (long) interval.year*12 +
 	     ltime->month-1 + sign * (long) interval.month);
     if ((ulong) period >= 120000L)
-      goto null_date;
+      goto invalid_date;
     ltime->year= (uint) (period / 12);
     ltime->month= (uint) (period % 12L)+1;
     /* Adjust day if the new month doesn't have enough days */
@@ -1982,6 +1982,11 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   }
   return 0;					// Ok
 
+invalid_date:
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                      ER_DATETIME_FUNCTION_OVERFLOW,
+                      ER(ER_DATETIME_FUNCTION_OVERFLOW),
+                      "datetime");
  null_date:
   return (null_value=1);
 }
