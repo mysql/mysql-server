@@ -1873,6 +1873,9 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
       Allocate rand structure once: we must use thd->current_arena
       to create rand in proper mem_root if it's a prepared statement or
       stored procedure.
+
+      No need to send a Rand log event if seed was given eg: RAND(seed),
+      as it will be replicated in the query as such.
     */
     if (!rand && !(rand= (struct rand_struct*)
                    thd->current_arena->alloc(sizeof(*rand))))
@@ -1895,16 +1898,16 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
   else
   {
     /*
-      No need to send a Rand log event if seed was given eg: RAND(seed),
-      as it will be replicated in the query as such.
-
       Save the seed only the first time RAND() is used in the query
       Once events are forwarded rather than recreated,
       the following can be skipped if inside the slave thread
     */
-    thd->rand_used=1;
-    thd->rand_saved_seed1=thd->rand.seed1;
-    thd->rand_saved_seed2=thd->rand.seed2;
+    if (!thd->rand_used)
+    {
+      thd->rand_used= 1;
+      thd->rand_saved_seed1= thd->rand.seed1;
+      thd->rand_saved_seed2= thd->rand.seed2;
+    }
     rand= &thd->rand;
   }
   return FALSE;
@@ -4665,10 +4668,9 @@ Item_func_sp::execute(Item **itp)
 {
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
-  ulong old_client_capabilites;
   int res= -1;
-  bool save_in_sub_stmt= thd->in_sub_stmt;
-  my_bool save_no_send_ok;
+  Sub_statement_state statement_state;
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
@@ -4679,38 +4681,21 @@ Item_func_sp::execute(Item **itp)
     goto error;
   }
 
-  old_client_capabilites= thd->client_capabilities;
-  thd->client_capabilities &= ~CLIENT_MULTI_RESULTS;
-
-#ifndef EMBEDDED_LIBRARY
-  save_no_send_ok= thd->net.no_send_ok;
-  thd->net.no_send_ok= TRUE;
-#endif
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error_check;
+    goto error;
   sp_change_security_context(thd, m_sp, &save_ctx);
   if (save_ctx.changed && 
       check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
     goto error_check_ctx;
 #endif
-  /*
-    Like for SPs, we don't binlog the substatements. If the statement which
-    called this function is an update statement, it will be binlogged; but if
-    it's not (e.g. SELECT myfunc()) it won't be binlogged (documented known
-    problem).
-  */
 
-  tmp_disable_binlog(thd); /* don't binlog the substatements */
-  thd->in_sub_stmt= TRUE;
-
+  thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
   res= m_sp->execute_function(thd, args, arg_count, itp);
+  thd->restore_sub_statement_state(&statement_state);
 
-  thd->in_sub_stmt= save_in_sub_stmt;
-  reenable_binlog(thd);
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
        m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -4722,15 +4707,6 @@ Item_func_sp::execute(Item **itp)
 error_check_ctx:
   sp_restore_security_context(thd, m_sp, &save_ctx);
 #endif
-
-  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
-
-error_check:
-#ifndef EMBEDDED_LIBRARY
-  thd->net.no_send_ok= save_no_send_ok;
-#endif
-
-  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
 
 error:
   DBUG_RETURN(res);

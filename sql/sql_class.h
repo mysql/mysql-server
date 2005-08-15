@@ -1031,6 +1031,27 @@ public:
 };
 
 
+/* class to save context when executing a function or trigger */
+
+/* Defines used for Sub_statement_state::in_sub_stmt */
+
+#define SUB_STMT_TRIGGER 1
+#define SUB_STMT_FUNCTION 2
+
+class Sub_statement_state
+{
+public:
+  ulonglong options;
+  ulonglong last_insert_id, next_insert_id;
+  ulonglong limit_found_rows;
+  ha_rows    cuted_fields, sent_row_count, examined_row_count;
+  ulong client_capabilities;
+  uint in_sub_stmt;
+  bool enable_slow_log, insert_id_used;
+  my_bool no_send_ok;
+};
+
+
 /*
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
@@ -1137,10 +1158,9 @@ public:
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
   delayed_insert *di;
-  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
   
-  /* TRUE if we are inside of trigger or stored function. */
-  bool in_sub_stmt;
+  /* <> 0 if we are inside of trigger or stored function. */
+  uint in_sub_stmt;
   
   /* container for handler's private per-connection data */
   void *ha_data[MAX_HA];
@@ -1223,6 +1243,8 @@ public:
   */
   ulonglong  current_insert_id;
   ulonglong  limit_found_rows;
+  ulonglong  options;           /* Bitmap of states */
+  longlong   row_count_func;	/* For the ROW_COUNT() function */
   ha_rows    cuted_fields,
              sent_row_count, examined_row_count;
   table_map  used_tables;
@@ -1246,7 +1268,6 @@ public:
     update auto-updatable fields (like auto_increment and timestamp).
   */
   query_id_t query_id, warn_id;
-  ulonglong  options;
   ulong      thread_id, col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
@@ -1287,7 +1308,8 @@ public:
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
-  longlong   row_count_func;	/* For the ROW_COUNT() function */
+  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
+
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
@@ -1495,6 +1517,8 @@ public:
     { return current_arena->is_stmt_prepare() || lex->view_prepare_mode; }
   void reset_n_backup_open_tables_state(Open_tables_state *backup);
   void restore_backup_open_tables_state(Open_tables_state *backup);
+  void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
+  void restore_sub_statement_state(Sub_statement_state *backup);
 };
 
 

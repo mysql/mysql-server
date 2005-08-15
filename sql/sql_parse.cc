@@ -1101,11 +1101,11 @@ pthread_handler_decl(handle_one_connection,arg)
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
       if (thd->query_error)
 	thd->killed= THD::KILL_CONNECTION;
+      thd->proc_info=0;
+      thd->set_time();
+      thd->init_for_queries();
     }
 
-    thd->proc_info=0;
-    thd->set_time();
-    thd->init_for_queries();
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
     {
@@ -1464,6 +1464,7 @@ bool do_command(THD *thd)
 
 /*
    Perform one connection-level (COM_XXXX) command.
+
   SYNOPSIS
     dispatch_command()
     thd             connection handle
@@ -2044,7 +2045,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 void log_slow_statement(THD *thd)
 {
-  time_t start_of_query=thd->start_time;
+  time_t start_of_query;
+
+  /*
+    The following should never be true with our current code base,
+    but better to keep this here so we don't accidently try to log a
+    statement in a trigger or stored function
+  */
+  if (unlikely(thd->in_sub_stmt))
+    return;                                     // Don't set time for sub stmt
+
+  start_of_query= thd->start_time;
   thd->end_time();				// Set start time
 
   /*
@@ -5157,10 +5168,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   thd->free_list= 0;
   thd->select_number= 1;
-  thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
-  thd->sent_row_count= thd->examined_row_count= 0;
-  thd->is_fatal_error= thd->rand_used= thd->time_zone_used= 0;
+  thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
                           SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -5168,6 +5177,12 @@ void mysql_reset_thd_for_next_command(THD *thd)
   if (opt_bin_log)
     reset_dynamic(&thd->user_var_events);
   thd->clear_error();
+  if (!thd->in_sub_stmt)
+  {
+    thd->total_warn_count=0;			// Warnings for this query
+    thd->rand_used= 0;
+    thd->sent_row_count= thd->examined_row_count= 0;
+  }
   DBUG_VOID_RETURN;
 }
 

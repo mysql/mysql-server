@@ -1311,6 +1311,12 @@ create:
               YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
             sp->restore_thd_mem_root(YYTHD);
 
+	    if (sp->m_multi_results)
+	    {
+	      my_error(ER_SP_NO_RETSET, MYF(0), "trigger");
+	      YYABORT;
+	    }
+
             /*
               We have to do it after parsing trigger body, because some of
               sp_proc_stmt alternatives are not saving/restoring LEX, so
@@ -1463,8 +1469,7 @@ create_function_tail:
 
 	    if (sp->m_multi_results)
 	    {
-	      my_message(ER_SP_NO_RETSET_IN_FUNC, ER(ER_SP_NO_RETSET_IN_FUNC),
-	                 MYF(0));
+	      my_error(ER_SP_NO_RETSET, MYF(0), "function");
 	      YYABORT;
 	    }
 	    if (sp->check_backpatch(YYTHD))

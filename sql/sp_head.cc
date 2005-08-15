@@ -659,7 +659,9 @@ sp_head::execute(THD *thd)
     if (i == NULL)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
-    thd->set_time();		// Make current_time() et al work
+    /* Don't change NOW() in FUNCTION or TRIGGER */
+    if (!thd->in_sub_stmt)
+      thd->set_time();		// Make current_time() et al work
     /*
       We have to set thd->current_arena before executing the instruction
       to store in the instruction free_list all new items, created
@@ -690,8 +692,7 @@ sp_head::execute(THD *thd)
     {
       uint hf;
 
-      switch (ctx->found_handler(&hip, &hf))
-      {
+      switch (ctx->found_handler(&hip, &hf)) {
       case SP_HANDLER_NONE:
 	break;
       case SP_HANDLER_CONTINUE:
