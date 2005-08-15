@@ -229,6 +229,7 @@ drop table t1;
 
 #
 # Bug #9489: problem with hash indexes
+# Bug #10802: Index is not used if table using BDB engine on HP-UX
 #
 
 create table t1(a int, b varchar(12), key ba(b, a));
