@@ -1050,6 +1050,7 @@ void clean_up(bool print_message)
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
   if (tc_log)
     tc_log->close();
+  xid_cache_free();
   delete_elements(&key_caches, (void (*)(const char*, gptr)) free_key_cache);
   multi_keycache_free();
   end_thr_alarm(1);			/* Free allocated memory */
@@ -2922,6 +2923,11 @@ server.");
     using_update_log=1;
   }
 
+  if (xid_cache_init())
+  {
+    sql_print_error("Out of memory");
+    unireg_abort(1);
+  }
   if (ha_init())
   {
     sql_print_error("Can't init databases");

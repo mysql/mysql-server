@@ -2142,7 +2142,7 @@ ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
     end_pos=end_range.less+end_range.equal;
   rows=(end_pos-start_pos)*records;
   DBUG_PRINT("exit",("rows: %g",rows));
-  DBUG_RETURN(rows <= 1.0 ? (ha_rows) 1 : (ha_rows) rows);
+  DBUG_RETURN((ha_rows)(rows <= 1.0 ? 1 : rows));
 }
 
 
