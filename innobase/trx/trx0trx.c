@@ -30,8 +30,9 @@ Created 3/26/1996 Heikki Tuuri
 copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
 
 void innobase_mysql_print_thd(
-	FILE* f,
-	void* thd);
+	FILE*	f,
+	void*	thd,
+	uint	max_query_len);
 
 /* Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
@@ -262,7 +263,7 @@ trx_free(
 		fputs(
 "  InnoDB: Error: Freeing a trx which is declared to be processing\n"
 "InnoDB: inside InnoDB.\n", stderr);
-		trx_print(stderr, trx);
+		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
 	}
 
@@ -277,7 +278,7 @@ trx_free(
 			(ulong)trx->n_mysql_tables_in_use,
 			(ulong)trx->mysql_n_tables_locked);
 
-		trx_print(stderr, trx);		
+		trx_print(stderr, trx, 600);
 
 		ut_print_buf(stderr, (byte*)trx, sizeof(trx_t));
 	}
@@ -1651,16 +1652,18 @@ trx_mark_sql_stat_end(
 }
 
 /**************************************************************************
-Prints info about a transaction to the standard output. The caller must
-own the kernel mutex and must have called
-innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL or
-InnoDB cannot meanwhile change the info printed here. */
+Prints info about a transaction to the given file. The caller must own the
+kernel mutex and must have called
+innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL
+or InnoDB cannot meanwhile change the info printed here. */
 
 void
 trx_print(
 /*======*/
-	FILE*	f,	/* in: output stream */
-	trx_t*	trx)	/* in: transaction */
+	FILE*	f,		/* in: output stream */
+	trx_t*	trx,		/* in: transaction */
+	uint	max_query_len)	/* in: max query length to print, or 0 to
+				   use the default max length */
 {
 	ibool	newline;
 
@@ -1755,7 +1758,7 @@ trx_print(
 	}
 
   	if (trx->mysql_thd != NULL) {
-		innobase_mysql_print_thd(f, trx->mysql_thd);
+		innobase_mysql_print_thd(f, trx->mysql_thd, max_query_len);
   	}  
 }
 

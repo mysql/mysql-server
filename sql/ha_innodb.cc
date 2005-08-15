@@ -554,19 +554,20 @@ innobase_mysql_end_print_arbitrary_thd(void)
 }
 
 /*****************************************************************
-Prints info of a THD object (== user session thread) to the
-standard output. NOTE that /mysql/innobase/trx/trx0trx.c must contain
-the prototype for this function! */
+Prints info of a THD object (== user session thread) to the given file.
+NOTE that /mysql/innobase/trx/trx0trx.c must contain the prototype for
+this function! */
 extern "C"
 void
 innobase_mysql_print_thd(
 /*=====================*/
-	FILE*   f,	/* in: output stream */
-        void*   input_thd)/* in: pointer to a MySQL THD object */
+	FILE*   f,		/* in: output stream */
+	void*   input_thd,	/* in: pointer to a MySQL THD object */
+	uint	max_query_len)	/* in: max query length to print, or 0 to
+				   use the default max length */
 {
 	const THD*	thd;
 	const char*	s;
-	char		buf[301];
 
         thd = (const THD*) input_thd;
 
@@ -593,25 +594,47 @@ innobase_mysql_print_thd(
 	}
 
 	if ((s = thd->query)) {
-		/* determine the length of the query string */
-		uint32 i, len;
-		
-		len = thd->query_length;
+		/* 3100 is chosen because currently 3000 is the maximum
+		   max_query_len we ever give this. */
+		char	buf[3100];
+		uint	len;
 
-		if (len > 300) {
-			len = 300;	/* ADDITIONAL SAFETY: print at most
-					300 chars to reduce the probability of
-					a seg fault if there is a race in
-					thd->query_length in MySQL; after
-					May 14, 2004 probably no race any more,
-					but better be safe */
+		/* If buf is too small, we dynamically allocate storage
+		   in this. */
+		char*	dyn_str = NULL;
+
+		/* Points to buf or dyn_str. */
+		char*	str = buf;
+		
+		if (max_query_len == 0)
+		{
+			/* ADDITIONAL SAFETY: the default is to print at
+			   most 300 chars to reduce the probability of a
+			   seg fault if there is a race in
+			   thd->query_length in MySQL; after May 14, 2004
+			   probably no race any more, but better be
+			   safe */
+			max_query_len = 300;
+		}
+		
+		len = min(thd->query_length, max_query_len);
+
+		if (len > (sizeof(buf) - 1))
+		{
+			dyn_str = my_malloc(len + 1, MYF(0));
+			str = dyn_str;
 		}
 
-                /* Use strmake to reduce the timeframe
-                   for a race, compared to fwrite() */
-		i= (uint) (strmake(buf, s, len) - buf);
+                /* Use strmake to reduce the timeframe for a race,
+                   compared to fwrite() */
+		len = (uint) (strmake(str, s, len) - str);
 		putc('\n', f);
-		fwrite(buf, 1, i, f);
+		fwrite(str, 1, len, f);
+
+		if (dyn_str)
+		{
+			my_free(dyn_str, MYF(0));
+		}
 	}
 
 	putc('\n', f);
@@ -7009,7 +7032,7 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-        trx->xid=thd->transaction.xid;
+        trx->xid=thd->transaction.xid_state.xid;
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch

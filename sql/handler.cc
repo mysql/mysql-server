@@ -547,8 +547,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   trans->ht[trans->nht++]=ht_arg;
   DBUG_ASSERT(*ht == ht_arg);
   trans->no_2pc|=(ht_arg->prepare==0);
-  if (thd->transaction.xid.is_null())
-    thd->transaction.xid.set(thd->query_id);
+  if (thd->transaction.xid_state.xid.is_null())
+    thd->transaction.xid_state.xid.set(thd->query_id);
   DBUG_VOID_RETURN;
 }
 
@@ -595,7 +595,7 @@ int ha_commit_trans(THD *thd, bool all)
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
   bool is_real_trans= all || thd->transaction.all.nht == 0;
   handlerton **ht= trans->ht;
-  my_xid xid= thd->transaction.xid.get_my_xid();
+  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
   if (thd->in_sub_stmt)
@@ -695,7 +695,7 @@ int ha_commit_one_phase(THD *thd, bool all)
     trans->nht=0;
     trans->no_2pc=0;
     if (is_real_trans)
-      thd->transaction.xid.null();
+      thd->transaction.xid_state.xid.null();
     if (all)
     {
 #ifdef HAVE_QUERY_CACHE
@@ -751,7 +751,7 @@ int ha_rollback_trans(THD *thd, bool all)
     trans->nht=0;
     trans->no_2pc=0;
     if (is_real_trans)
-      thd->transaction.xid.null();
+      thd->transaction.xid_state.xid.null();
     if (all)
     {
       thd->variables.tx_isolation=thd->session_tx_isolation;
@@ -945,6 +945,7 @@ int ha_recover(HASH *commit_list)
           char buf[XIDDATASIZE*4+6]; // see xid_to_str
           sql_print_information("ignore xid %s", xid_to_str(buf, list+i));
 #endif
+          xid_cache_insert(list+i, XA_PREPARED);
           found_foreign_xids++;
           continue;
         }
@@ -1008,10 +1009,8 @@ bool mysql_xa_recover(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
-  handlerton **ht= handlertons, **end_ht=ht+total_ha;
-  bool error=TRUE;
-  int len, got;
-  XID *list=0;
+  int i=0;
+  XID_STATE *xs;
   DBUG_ENTER("mysql_xa_recover");
 
   field_list.push_back(new Item_int("formatID",0,11));
@@ -1021,48 +1020,30 @@ bool mysql_xa_recover(THD *thd)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  for (len= MAX_XID_LIST_SIZE ; list==0 && len > MIN_XID_LIST_SIZE; len/=2)
-  {
-    list=(XID *)my_malloc(len*sizeof(XID), MYF(0));
-  }
-  if (!list)
-  {
-    my_error(ER_OUTOFMEMORY, MYF(0), len);
     DBUG_RETURN(1);
-  }
 
-  for ( ; ht < end_ht ; ht++)
+  pthread_mutex_lock(&LOCK_xid_cache);
+  while (xs=(XID_STATE*)hash_element(&xid_cache, i++))
   {
-    if (!(*ht)->recover)
-      continue;
-    while ((got=(*(*ht)->recover)(list, len)) > 0 )
+    if (xs->xa_state==XA_PREPARED)
     {
-      XID *xid, *end;
-      for (xid=list, end=list+got; xid < end; xid++)
+      protocol->prepare_for_resend();
+      protocol->store_longlong((longlong)xs->xid.formatID, FALSE);
+      protocol->store_longlong((longlong)xs->xid.gtrid_length, FALSE);
+      protocol->store_longlong((longlong)xs->xid.bqual_length, FALSE);
+      protocol->store(xs->xid.data, xs->xid.gtrid_length+xs->xid.bqual_length,
+                      &my_charset_bin);
+      if (protocol->write())
       {
-        if (xid->get_my_xid())
-          continue; // skip "our" xids
-        protocol->prepare_for_resend();
-        protocol->store_longlong((longlong)xid->formatID, FALSE);
-        protocol->store_longlong((longlong)xid->gtrid_length, FALSE);
-        protocol->store_longlong((longlong)xid->bqual_length, FALSE);
-        protocol->store(xid->data, xid->gtrid_length+xid->bqual_length,
-                        &my_charset_bin);
-        if (protocol->write())
-          goto err;
+        pthread_mutex_unlock(&LOCK_xid_cache);
+        DBUG_RETURN(1);
       }
-      if (got < len)
-        break;
     }
   }
 
-  error=FALSE;
+  pthread_mutex_unlock(&LOCK_xid_cache);
   send_eof(thd);
-err:
-  my_free((gptr)list, MYF(0));
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 /*
@@ -1660,7 +1641,7 @@ void handler::print_error(int error, myf errflag)
   }
   case HA_ERR_NULL_IN_SPATIAL:
     textno= ER_UNKNOWN_ERROR;
-    DBUG_VOID_RETURN;
+    break;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
     break;
@@ -1683,8 +1664,8 @@ void handler::print_error(int error, myf errflag)
     textno=ER_CRASHED_ON_REPAIR;
     break;
   case HA_ERR_OUT_OF_MEM:
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), errflag);
-    DBUG_VOID_RETURN;
+    textno=ER_OUT_OF_RESOURCES;
+    break;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
     break;
@@ -1695,10 +1676,8 @@ void handler::print_error(int error, myf errflag)
     textno=ER_UNSUPPORTED_EXTENSION;
     break;
   case HA_ERR_RECORD_FILE_FULL:
-    textno=ER_RECORD_FILE_FULL;
-    break;
   case HA_ERR_INDEX_FILE_FULL:
-    textno= errno;
+    textno=ER_RECORD_FILE_FULL;
     break;
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;

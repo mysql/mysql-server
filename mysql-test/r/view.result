@@ -2092,3 +2092,8 @@ SELECT a FROM v1;
 a
 DROP VIEW v1;
 DROP TABLE t1,t2,t3,t4,t5;
+create view v1 as select timestampdiff(day,'1997-01-01 00:00:00','1997-01-02 00:00:00') as f1;
+select * from v1;
+f1
+1
+drop view v1;
