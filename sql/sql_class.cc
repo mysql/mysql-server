@@ -1863,8 +1863,8 @@ static void xid_free_hash (void *ptr)
 bool xid_cache_init()
 {
   pthread_mutex_init(&LOCK_xid_cache, MY_MUTEX_INIT_FAST);
-  hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
-            xid_get_hash_key, xid_free_hash, 0) != 0;
+  return hash_init(&xid_cache, &my_charset_bin, 100, 0, 0,
+                   xid_get_hash_key, xid_free_hash, 0) != 0;
 }
 
 void xid_cache_free()
