@@ -87,6 +87,7 @@ insert into t1 set a = now();
 select a=b && a=c from t1;
 let $time=`select a from t1`;
 
+save_master_pos;
 connection slave;
 sync_with_master;
 --disable_query_log
