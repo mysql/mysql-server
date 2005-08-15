@@ -958,3 +958,12 @@ trigger_schema	trigger_name
 test	tr1
 use test;
 drop table t1;
+create table t1 (a int not null, b int);
+use information_schema;
+select column_name, column_default from columns
+where table_schema='test' and table_name='t1';
+column_name	column_default
+a	NULL
+b	NULL
+use test;
+drop table t1;
