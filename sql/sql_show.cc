@@ -2462,6 +2462,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         table->field[5]->set_notnull();
       }
       else if (field->unireg_check == Field::NEXT_NUMBER ||
+               lex->orig_sql_command != SQLCOM_SHOW_FIELDS ||
                field->maybe_null())
         table->field[5]->set_null();                // Null as default
       else
