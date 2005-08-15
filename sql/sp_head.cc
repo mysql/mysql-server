@@ -737,7 +737,7 @@ sp_head::execute(THD *thd)
   if (dbchanged)
   {
     if (! thd->killed)
-      ret= sp_change_db(thd, olddb, 0);
+      ret= mysql_change_db(thd, olddb, 0);
   }
   m_is_invoked= FALSE;
   DBUG_RETURN(ret);

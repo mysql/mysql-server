@@ -247,9 +247,13 @@ date_add("1997-12-31 23:59:59",INTERVAL -100000 DAY)
 select date_add("1997-12-31 23:59:59",INTERVAL 100000 MONTH);
 date_add("1997-12-31 23:59:59",INTERVAL 100000 MONTH)
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 select date_add("1997-12-31 23:59:59",INTERVAL -100000 YEAR);
 date_add("1997-12-31 23:59:59",INTERVAL -100000 YEAR)
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 select date_add("1997-12-31 23:59:59",INTERVAL "10000:1" MINUTE_SECOND);
 date_add("1997-12-31 23:59:59",INTERVAL "10000:1" MINUTE_SECOND)
 1998-01-07 22:40:00
@@ -301,6 +305,8 @@ NULL
 select date_add("9999-12-31 23:59:59",INTERVAL 1 SECOND);
 date_add("9999-12-31 23:59:59",INTERVAL 1 SECOND)
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 select date_sub("0000-00-00 00:00:00",INTERVAL 1 SECOND);
 date_sub("0000-00-00 00:00:00",INTERVAL 1 SECOND)
 NULL
@@ -375,15 +381,23 @@ SELECT "1900-01-01 00:00:00" + INTERVAL 1<<20 HOUR;
 SELECT "1900-01-01 00:00:00" + INTERVAL 1<<38 SECOND;
 "1900-01-01 00:00:00" + INTERVAL 1<<38 SECOND
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT "1900-01-01 00:00:00" + INTERVAL 1<<33 MINUTE;
 "1900-01-01 00:00:00" + INTERVAL 1<<33 MINUTE
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT "1900-01-01 00:00:00" + INTERVAL 1<<30 HOUR;
 "1900-01-01 00:00:00" + INTERVAL 1<<30 HOUR
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT "1900-01-01 00:00:00" + INTERVAL "1000000000:214748364700" MINUTE_SECOND;
 "1900-01-01 00:00:00" + INTERVAL "1000000000:214748364700" MINUTE_SECOND
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 create table t1 (ctime varchar(20));
 insert into t1 values ('2001-01-12 12:23:40');
 select ctime, hour(ctime) from t1;
