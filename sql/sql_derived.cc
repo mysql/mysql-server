@@ -125,6 +125,11 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     if ((res= unit->prepare(thd, derived_result, 0, orig_table_list->alias)))
       goto exit;
 
+    if (check_duplicate_names(unit->types, 0))
+    {
+      res= -1;
+      goto exit;
+    }
 
     derived_result->tmp_table_param.init();
     derived_result->tmp_table_param.field_count= unit->types.elements;
