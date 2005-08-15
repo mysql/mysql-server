@@ -338,7 +338,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables(thd, &select_lex->context,
+       setup_tables(thd, &select_lex->context, join_list,
                     tables_list, &conds, &select_lex->leaf_tables,
                     FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
@@ -1016,7 +1016,7 @@ JOIN::optimize()
 			    group_list : (ORDER*) 0),
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
-			   select_options & ~TMP_TABLE_FORCE_MYISAM,
+			   select_options,
 			   (order == 0 || skip_sort_order) ? select_limit :
 			   HA_POS_ERROR,
 			   (char *) "")))
@@ -1287,7 +1287,15 @@ JOIN::exec()
   if (need_tmp)
   {
     if (tmp_join)
+    {
+      /*
+        We are in a non cacheable sub query. Get the saved join structure
+        after optimization.
+        (curr_join may have been modified during last exection and we need
+        to reset it)
+      */
       curr_join= tmp_join;
+    }
     curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
@@ -1397,8 +1405,7 @@ JOIN::exec()
 						(ORDER*) 0,
 						curr_join->select_distinct && 
 						!curr_join->group_list,
-						1, curr_join->select_options
-                                                & ~TMP_TABLE_FORCE_MYISAM,
+						1, curr_join->select_options,
 						HA_POS_ERROR,
 						(char *) "")))
 	  DBUG_VOID_RETURN;
@@ -1576,7 +1583,8 @@ JOIN::exec()
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables);
-	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
+	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
+                                         "having after sort"););
       }
     }
     {
@@ -8128,7 +8136,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 ulong select_options, ha_rows rows_limit,
+		 ulonglong select_options, ha_rows rows_limit,
 		 char *table_alias)
 {
   TABLE *table;
@@ -8382,7 +8390,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES ||(select_options & TMP_TABLE_FORCE_MYISAM))
+      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
@@ -11904,13 +11912,14 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
 
   SYNOPSIS
     find_order_in_list()
-    thd		      	Pointer to current thread structure
-    ref_pointer_array   All select, group and order by fields
-    tables              List of tables to search in (usually FROM clause)
-    order               Column reference to be resolved
-    fields              List of fields to search in (usually SELECT list)
-    all_fields          All select, group and order by fields
-    is_group_field      True if order is a GROUP field, false if ORDER by field
+    thd		      [in]     Pointer to current thread structure
+    ref_pointer_array [in/out] All select, group and order by fields
+    tables            [in]     List of tables to search in (usually FROM clause)
+    order             [in]     Column reference to be resolved
+    fields            [in]     List of fields to search in (usually SELECT list)
+    all_fields        [in/out] All select, group and order by fields
+    is_group_field    [in]     True if order is a GROUP field, false if
+                               ORDER by field
 
   DESCRIPTION
     Given a column reference (represented by 'order') from a GROUP BY or ORDER
@@ -11986,7 +11995,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
         order_item_type == Item::REF_ITEM)
     {
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
-                                       &view_ref, IGNORE_ERRORS, TRUE,
+                                       NULL, &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
       if (!from_field)
         from_field= (Field*) not_found_field;

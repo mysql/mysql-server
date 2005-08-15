@@ -665,6 +665,7 @@ drop table t1;
 
 # Test for bug #11973 "SELECT .. INTO var_name; in trigger cause
 #                      crash on update"
+
 create table t1 (id int, data int, username varchar(16));
 insert into t1 (id, data) values (1, 0);
 delimiter |;
@@ -684,4 +685,47 @@ connection addconroot;
 update t1 set data = 2;
 
 connection default;
+disconnect addconroot;
+drop table t1;
+
+#
+# #11587 Trigger causes lost connection error
+#
+
+create table t1 (c1 int, c2 datetime);
+delimiter |;
+--error ER_SP_NO_RETSET
+create trigger tr1 before insert on t1 for each row 
+begin 
+  set new.c2= '2004-04-01';
+  select 'hello';
+end|
+delimiter ;|
+
+insert into t1 (c1) values (1),(2),(3);
+select * from t1;
+
+--disable_warnings
+drop procedure if exists bug11587;
+--enable_warnings
+
+delimiter |;
+create procedure bug11587(x char(16))
+begin
+  select "hello";
+  select "hello again";
+end|
+
+create trigger tr1 before insert on t1 for each row 
+begin 
+  call bug11587();
+  set new.c2= '2004-04-02';
+end|
+delimiter ;|
+
+--error 1312
+insert into t1 (c1) values (4),(5),(6);
+select * from t1;
+
+drop procedure bug11587;
 drop table t1;

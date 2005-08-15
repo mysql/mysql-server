@@ -370,7 +370,7 @@ static void display_table_locks(void)
 
   VOID(my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO),open_cache.records + 20,50));
   VOID(pthread_mutex_lock(&THR_LOCK_lock));
-  for (list=thr_lock_thread_list ; list ; list=rest(list))
+  for (list= thr_lock_thread_list; list; list= list_rest(list))
   {
     THR_LOCK *lock=(THR_LOCK*) list->data;
 

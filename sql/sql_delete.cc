@@ -30,7 +30,7 @@
 #include "sql_trigger.h"
 
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows limit, ulong options)
+                  SQL_LIST *order, ha_rows limit, ulonglong options)
 {
   int		error;
   TABLE		*table;
@@ -301,6 +301,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   DBUG_ENTER("mysql_prepare_delete");
 
   if (setup_tables(thd, &thd->lex->select_lex.context,
+                   &thd->lex->select_lex.top_join_list,
                    table_list, conds, &select_lex->leaf_tables,
                    FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
@@ -359,6 +360,7 @@ bool mysql_multi_delete_prepare(THD *thd)
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
   if (setup_tables(thd, &thd->lex->select_lex.context,
+                   &thd->lex->select_lex.top_join_list,
                    lex->query_tables, &lex->select_lex.where,
                    &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
@@ -807,7 +809,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       ha_enable_transaction(thd, FALSE);
       mysql_init_select(thd->lex);
       error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
-			  HA_POS_ERROR, 0);
+			  HA_POS_ERROR, LL(0));
       ha_enable_transaction(thd, TRUE);
       thd->options= save_options;
       DBUG_RETURN(error);

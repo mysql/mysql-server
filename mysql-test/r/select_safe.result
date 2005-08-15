@@ -84,7 +84,7 @@ set local  max_join_size=8;
 select * from (select * from t1) x;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
 set local  max_join_size=1;
-select * from (select * from t1 a, t1 b) x;
+select * from (select a.a as aa, b.a as ba from t1 a, t1 b) x;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
 set local  max_join_size=1;
 select * from (select 1 union select 2 union select 3) x;

@@ -664,3 +664,36 @@ end|
 update t1 set data = 1;
 update t1 set data = 2;
 drop table t1;
+create table t1 (c1 int, c2 datetime);
+create trigger tr1 before insert on t1 for each row 
+begin 
+set new.c2= '2004-04-01';
+select 'hello';
+end|
+ERROR 0A000: Not allowed to return a result set from a trigger
+insert into t1 (c1) values (1),(2),(3);
+select * from t1;
+c1	c2
+1	NULL
+2	NULL
+3	NULL
+drop procedure if exists bug11587;
+create procedure bug11587(x char(16))
+begin
+select "hello";
+select "hello again";
+end|
+create trigger tr1 before insert on t1 for each row 
+begin 
+call bug11587();
+set new.c2= '2004-04-02';
+end|
+insert into t1 (c1) values (4),(5),(6);
+ERROR 0A000: PROCEDURE test.bug11587 can't return a result set in the given context
+select * from t1;
+c1	c2
+1	NULL
+2	NULL
+3	NULL
+drop procedure bug11587;
+drop table t1;
