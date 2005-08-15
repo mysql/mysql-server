@@ -5208,11 +5208,11 @@ void mysql_reset_thd_for_next_command(THD *thd)
                           SERVER_QUERY_NO_INDEX_USED |
                           SERVER_QUERY_NO_GOOD_INDEX_USED);
   thd->tmp_table_used= 0;
-  if (opt_bin_log)
-    reset_dynamic(&thd->user_var_events);
-  thd->clear_error();
   if (!thd->in_sub_stmt)
   {
+    if (opt_bin_log)
+      reset_dynamic(&thd->user_var_events);
+    thd->clear_error();
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
