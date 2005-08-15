@@ -56,10 +56,10 @@ insert into t1 values (date_add('2000-01-04', INTERVAL NULL DAY));
 set sql_mode='';
 insert into t1 (d) select date_sub('2000-01-01', INTERVAL 2001 YEAR);
 Warnings:
-Warning	1437	Datetime function: datetime field overflow
+Warning	1441	Datetime function: datetime field overflow
 insert into t1 (d) select date_add('2000-01-01',interval 8000 year);
 Warnings:
-Warning	1437	Datetime function: datetime field overflow
+Warning	1441	Datetime function: datetime field overflow
 insert into t1 values (date_add(NULL, INTERVAL 1 DAY));
 insert into t1 values (date_add('2000-01-04', INTERVAL NULL DAY));
 select * from t1;
