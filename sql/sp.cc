@@ -789,6 +789,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     */
     thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
     setup_tables(thd, &thd->lex->select_lex.context,
+                 &thd->lex->select_lex.top_join_list,
                  &tables, 0, &leaves, FALSE);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
@@ -798,7 +799,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
                                         "mysql", "proc",
 					used_field->field_name);
       if (!field ||
-          !(used_field->field= find_field_in_tables(thd, field, &tables,
+          !(used_field->field= find_field_in_tables(thd, field, &tables, NULL,
 						    0, REPORT_ALL_ERRORS, 1,
                                                     TRUE)))
       {

@@ -2072,6 +2072,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           else
           {
             int res;
+            /*
+              Set the parent lex of 'sel' because it is needed by sel.init_query()
+              which is called inside make_table_list.
+            */
+            sel.parent_lex= lex;
             if (make_table_list(thd, &sel, base_name, file_name))
               goto err;
             TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;

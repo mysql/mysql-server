@@ -20,19 +20,25 @@
 EXTRA_DIST =	Info.plist.sh \
 		Description.plist.sh \
 		StartupParameters.plist.sh \
-		postinstall.sh \
-		preinstall.sh \
+		postflight.sh \
+		preflight.sh \
 		ReadMe.txt \
 		MySQLCOM \
 		StartupItem.Description.plist \
 		StartupItem.Info.plist \
 		StartupItem.postinstall
 
+noinst_DATA = Info.plist \
+		Description.plist \
+		StartupParameters.plist \
+		postflight \
+		preflight
+
 CLEANFILES =	Info.plist \
 		Description.plist \
 		StartupParameters.plist \
-		postinstall \
-		preinstall
+		postflight \
+		preflight
 
 SUFFIXES = .sh
 
@@ -41,6 +47,7 @@ SUFFIXES = .sh
 	@SED@ \
 		-e 's!@''prefix''@!$(prefix)!g' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
+	  -e 's!@''MYSQL_NO_DASH_VERSION''@!@MYSQL_NO_DASH_VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 		-e 's!@''MYSQLD_USER''@!@MYSQLD_USER@!' \
 	$< > $@-t
