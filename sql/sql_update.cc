@@ -555,7 +555,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(thd, &select_lex->context,
+  if (setup_tables(thd, &select_lex->context, &select_lex->top_join_list,
                    table_list, conds, &select_lex->leaf_tables,
                    FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
@@ -643,6 +643,7 @@ bool mysql_multi_update_prepare(THD *thd)
   */
 
   if (setup_tables(thd, &lex->select_lex.context,
+                   &lex->select_lex.top_join_list,
                    table_list, &lex->select_lex.where,
                    &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
@@ -761,6 +762,7 @@ bool mysql_multi_update_prepare(THD *thd)
       tbl->cleanup_items();
 
     if (setup_tables(thd, &lex->select_lex.context,
+                     &lex->select_lex.top_join_list,
                      table_list, &lex->select_lex.where,
                      &lex->select_lex.leaf_tables, FALSE) ||
         setup_fields_with_no_wrap(thd, 0, *fields, 1, 0, 0))
@@ -811,7 +813,7 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *fields,
                         List<Item> *values,
                         COND *conds,
-                        ulong options,
+                        ulonglong options,
                         enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {

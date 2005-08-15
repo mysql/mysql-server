@@ -874,6 +874,7 @@ public:
   }
 };
 
+
 class Item_func_benchmark :public Item_int_func
 {
   ulong loop_count;
@@ -886,6 +887,16 @@ public:
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
   void print(String *str);
 };
+
+
+class Item_func_sleep :public Item_int_func
+{
+public:
+  Item_func_sleep(Item *a) :Item_int_func(a) {}
+  const char *func_name() const { return "sleep"; }
+  longlong val_int();
+};
+
 
 
 #ifdef HAVE_DLOPEN

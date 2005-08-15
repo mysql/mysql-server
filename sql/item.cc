@@ -3071,7 +3071,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       expression to 'reference', i.e. it substitute that expression instead
       of this Item_field
     */
-    if ((from_field= find_field_in_tables(thd, this, context->table_list,
+    if ((from_field= find_field_in_tables(thd, this,
+                                          context->first_name_resolution_table,
+                                          context->last_name_resolution_table,
                                           reference,
                                           IGNORE_EXCEPT_NON_UNIQUE,
                                           !any_privileges &&
@@ -3080,13 +3082,13 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 	not_found_field)
     {
       /*
-        If there is an outer contexts (outer selects, but current select is
+        If there are outer contexts (outer selects, but current select is
         not derived table or view) try to resolve this reference in the
         outer contexts.
 
         We treat each subselect as a separate namespace, so that different
-        subselects may contain columns with the same names. The subselects are
-         searched starting from the innermost.
+        subselects may contain columns with the same names. The subselects
+        are searched starting from the innermost.
       */
       Name_resolution_context *last_checked_context= context;
       Item **ref= (Item **) not_found_item;
@@ -3115,7 +3117,10 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
              (!select->with_sum_func &&
               select->group_list.elements == 0)) &&
             (from_field= find_field_in_tables(thd, this,
-                                              outer_context->table_list,
+                                              outer_context->
+                                                first_name_resolution_table,
+                                              outer_context->
+                                                last_name_resolution_table,
                                               reference,
                                               IGNORE_EXCEPT_NON_UNIQUE,
                                               outer_context->
@@ -3190,7 +3195,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 	else
 	{
           /* Call find_field_in_tables only to report the error */
-	  find_field_in_tables(thd, this, context->table_list,
+	  find_field_in_tables(thd, this,
+                               context->first_name_resolution_table,
+                               context->last_name_resolution_table,
                                reference, REPORT_ALL_ERRORS,
                                !any_privileges &&
                                context->check_privileges, TRUE);
@@ -4358,7 +4365,10 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             expression instead of this Item_ref
           */
           from_field= find_field_in_tables(thd, this,
-                                           outer_context->table_list,
+                                           outer_context->
+                                             first_name_resolution_table,
+                                           outer_context->
+                                             last_name_resolution_table,
                                            reference,
                                            IGNORE_EXCEPT_NON_UNIQUE,
                                            outer_context->check_privileges,
@@ -4977,9 +4987,8 @@ void Item_trigger_field::setup_field(THD *thd, TABLE *table)
     Try to find field by its name and if it will be found
     set field_idx properly.
   */
-  (void)find_field_in_real_table(thd, table, field_name,
-                                 (uint) strlen(field_name),
-                                 0, 0, &field_idx);
+  (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
+                            0, 0, &field_idx);
   thd->set_query_id= save_set_query_id;
   triggers= table->triggers;
 }

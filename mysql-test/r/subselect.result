@@ -1200,7 +1200,7 @@ INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
-ERROR 42S02: Unknown table 't' in field list
+ERROR 42S22: Unknown column 't.i' in 'field list'
 select * from t1;
 i
 1
@@ -1638,7 +1638,7 @@ ERROR 42S22: Unknown column 't1.s2' in 'where clause'
 select * from t1 where (select count(*) from t2 group by t1.s2) = 1;
 ERROR 42S22: Unknown column 't1.s2' in 'group statement'
 select count(*) from t2 group by t1.s2;
-ERROR 42S02: Unknown table 't1' in group statement
+ERROR 42S22: Unknown column 't1.s2' in 'group statement'
 drop table t1, t2;
 CREATE TABLE t1(COLA FLOAT NOT NULL,COLB FLOAT NOT NULL,COLC VARCHAR(20) DEFAULT NULL,PRIMARY KEY (COLA, COLB));
 CREATE TABLE t2(COLA FLOAT NOT NULL,COLB FLOAT NOT NULL,COLC CHAR(1) NOT NULL,PRIMARY KEY (COLA));
@@ -1789,11 +1789,11 @@ CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1);
-SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
+SELECT id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
 id	c
 1	1
 2	0
-SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY t1.id;
+SELECT id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY id;
 id	c
 1	1
 2	0
@@ -2754,13 +2754,26 @@ one	two	flag
 5	6	N
 7	8	N
 insert into t2 values (null,null,'N');
+insert into t2 values (null,3,'0');
+insert into t2 values (null,5,'0');
+insert into t2 values (10,null,'0');
+insert into t1 values (10,3,'0');
+insert into t1 values (10,5,'0');
+insert into t1 values (10,10,'0');
 SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N') as 'test' from t1;
 one	two	test
-1	2	0
-2	3	0
-3	4	0
+1	2	NULL
+2	3	NULL
+3	4	NULL
 5	6	1
 7	8	1
+10	3	NULL
+10	5	NULL
+10	10	NULL
+SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
+one	two
+5	6
+7	8
 SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N' group by one,two) as 'test' from t1;
 one	two	test
 1	2	NULL
@@ -2768,6 +2781,47 @@ one	two	test
 3	4	NULL
 5	6	1
 7	8	1
+10	3	NULL
+10	5	NULL
+10	10	NULL
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
+one	two	test
+1	2	0
+2	3	NULL
+3	4	0
+5	6	0
+7	8	0
+10	3	NULL
+10	5	NULL
+10	10	NULL
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
+one	two	test
+1	2	0
+2	3	NULL
+3	4	0
+5	6	0
+7	8	0
+10	3	NULL
+10	5	NULL
+10	10	NULL
+explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where ((`test`.`t2`.`flag` = _latin1'0') and ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)) and ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`))) having (<is_not_null_test>(`test`.`t2`.`one`) and <is_not_null_test>(`test`.`t2`.`two`)))) AS `test` from `test`.`t1`
+explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where ((`test`.`t2`.`flag` = _latin1'N') and (<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) and (<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`))))
+explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where (`test`.`t2`.`flag` = _latin1'0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)) and ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)) and <is_not_null_test>(`test`.`t2`.`one`) and <is_not_null_test>(`test`.`t2`.`two`)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');

@@ -83,6 +83,7 @@ Item *create_func_sec_to_time(Item* a);
 Item *create_func_sign(Item* a);
 Item *create_func_sin(Item* a);
 Item *create_func_sha(Item* a);
+Item *create_func_sleep(Item* a);
 Item *create_func_soundex(Item* a);
 Item *create_func_space(Item *);
 Item *create_func_sqrt(Item* a);

@@ -695,14 +695,22 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 	  else
 	    error=my_rename(new_name,org_name,MYF(MY_WME));
 	  if (!error)
+          {
 	    VOID(my_copystat(temp_name,org_name,MYF(MY_COPYTIME)));
+            if (tmp_dir[0])
+              VOID(my_delete(new_name,MYF(MY_WME)));
+          }
 	}
       }
       else
       {
 	if (tmp_dir[0])
+        {
 	  error=my_copy(new_name,org_name,
 			MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_COPYTIME));
+          if (!error)
+            VOID(my_delete(new_name,MYF(MY_WME)));
+        }
 	else
 	  error=my_redel(org_name,new_name,MYF(MY_WME | MY_COPYTIME));
       }

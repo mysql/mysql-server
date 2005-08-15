@@ -2072,6 +2072,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           else
           {
             int res;
+            /*
+              Set the parent lex of 'sel' because it is needed by sel.init_query()
+              which is called inside make_table_list.
+            */
+            sel.parent_lex= lex;
             if (make_table_list(thd, &sel, base_name, file_name))
               goto err;
             TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
@@ -2457,6 +2462,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         table->field[5]->set_notnull();
       }
       else if (field->unireg_check == Field::NEXT_NUMBER ||
+               lex->orig_sql_command != SQLCOM_SHOW_FIELDS ||
                field->maybe_null())
         table->field[5]->set_null();                // Null as default
       else
@@ -3332,8 +3338,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
                                 (select_lex->options | thd->options |
-                                 TMP_TABLE_ALL_COLUMNS) &
-                                ~TMP_TABLE_FORCE_MYISAM,
+                                 TMP_TABLE_ALL_COLUMNS),
                                 HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
   table_list->schema_table_param= tmp_table_param;

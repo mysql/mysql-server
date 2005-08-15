@@ -717,7 +717,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	bool_term bool_factor bool_test bool_pri 
 	predicate bit_expr bit_term bit_factor value_expr term factor
 	table_wild simple_expr udf_expr
-	using_list expr_or_default set_expr_or_default interval_expr
+	expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
 	signed_literal now_or_signed_literal opt_escape
@@ -739,7 +739,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	key_alg opt_btree_or_rtree
 
 %type <string_list>
-	key_usage_list
+	key_usage_list using_list
 
 %type <key_part>
 	key_part
@@ -1311,6 +1311,12 @@ create:
               YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
             sp->restore_thd_mem_root(YYTHD);
 
+	    if (sp->m_multi_results)
+	    {
+	      my_error(ER_SP_NO_RETSET, MYF(0), "trigger");
+	      YYABORT;
+	    }
+
             /*
               We have to do it after parsing trigger body, because some of
               sp_proc_stmt alternatives are not saving/restoring LEX, so
@@ -1463,8 +1469,7 @@ create_function_tail:
 
 	    if (sp->m_multi_results)
 	    {
-	      my_message(ER_SP_NO_RETSET_IN_FUNC, ER(ER_SP_NO_RETSET_IN_FUNC),
-	                 MYF(0));
+	      my_error(ER_SP_NO_RETSET, MYF(0), "function");
 	      YYABORT;
 	    }
 	    if (sp->check_backpatch(YYTHD))
@@ -4420,10 +4425,10 @@ simple_expr:
 	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name->str);
 	      YYABORT;
 	    }
-	    $$= new Item_default_value(&Select->context, $3);
+	    $$= new Item_default_value(Lex->current_context(), $3);
 	  }
 	| VALUES '(' simple_ident ')'
-	  { $$= new Item_insert_value(&Select->context, $3); }
+	  { $$= new Item_insert_value(Lex->current_context(), $3); }
 	| FUNC_ARG0 '(' ')'
 	  {
 	    if (!$1.symbol->create_func)
@@ -4714,9 +4719,9 @@ simple_expr:
 	    name->init_qname(YYTHD);
 	    sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
 	    if ($5)
-	      $$= new Item_func_sp(&lex->current_select->context, name, *$5);
+	      $$= new Item_func_sp(Lex->current_context(), name, *$5);
 	    else
-	      $$= new Item_func_sp(&lex->current_select->context, name);
+	      $$= new Item_func_sp(Lex->current_context(), name);
 	    lex->safe_to_cache_query=0;
 	  }
 	| IDENT_sys '(' udf_expr_list ')'
@@ -4804,9 +4809,9 @@ simple_expr:
 
               sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
               if ($3)
-                $$= new Item_func_sp(&lex->current_select->context, name, *$3);
+                $$= new Item_func_sp(Lex->current_context(), name, *$3);
               else
-                $$= new Item_func_sp(&lex->current_select->context, name);
+                $$= new Item_func_sp(Lex->current_context(), name);
 	      lex->safe_to_cache_query=0;
 	    }
           }
@@ -5010,7 +5015,7 @@ sum_expr:
 	  {
             SELECT_LEX *sel= Select;
 	    sel->in_sum_expr--;
-	    $$=new Item_func_group_concat(&sel->context, $3, $5,
+	    $$=new Item_func_group_concat(Lex->current_context(), $3, $5,
                                           sel->gorder_list, $7);
 	    $5->empty();
 	  };
@@ -5146,68 +5151,116 @@ join_table:
         table_ref normal_join table_ref { YYERROR_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
 	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
-	| table_ref normal_join table_ref ON expr
-	  { YYERROR_UNLESS($1 && ($$=$3)); add_join_on($3,$5); }
-        | table_ref STRAIGHT_JOIN table_factor ON expr
-          { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; add_join_on($3,$5); }
+	| table_ref normal_join table_ref
+          ON
+          {
+            YYERROR_UNLESS($1 && ($$=$3));
+            /* Change the current name resolution context to a local context. */
+            Name_resolution_context *on_context;
+            if (!(on_context= make_join_on_context(YYTHD,$1,$3)))
+              YYABORT;
+            Lex->push_context(on_context);
+          }
+          expr
+	  {
+            add_join_on($3,$6);
+            Lex->pop_context();
+          }
+        | table_ref STRAIGHT_JOIN table_factor
+          ON
+          {
+            YYERROR_UNLESS($1 && ($$=$3));
+            /* Change the current name resolution context to a local context. */
+            Name_resolution_context *on_context;
+            if (!(on_context= make_join_on_context(YYTHD,$1,$3)))
+              YYABORT;
+            Lex->push_context(on_context);
+          }
+          expr
+          {
+            $3->straight=1;
+            add_join_on($3,$6);
+            Lex->pop_context();
+          }
 	| table_ref normal_join table_ref
 	  USING
 	  {
 	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $3);
-            sel->save_names_for_using_list($1, $3);
 	  }
 	  '(' using_list ')'
-	  { add_join_on($3,$7); $$=$3; }
-
-	| table_ref LEFT opt_outer JOIN_SYM table_ref ON expr
-	  { YYERROR_UNLESS($1 && $5); add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
+          { add_join_natural($1,$3,$7); $$=$3; }
+	| table_ref LEFT opt_outer JOIN_SYM table_ref
+          ON
+          {
+            /* Change the current name resolution context to a local context. */
+            Name_resolution_context *on_context;
+            if (!(on_context= make_join_on_context(YYTHD,$1,$5)))
+              YYABORT;
+            Lex->push_context(on_context);
+          }
+          expr
+	  {
+            YYERROR_UNLESS($1 && $5);
+            add_join_on($5,$8);
+            Lex->pop_context();
+            $5->outer_join|=JOIN_TYPE_LEFT;
+            $$=$5;
+          }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
-            sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
-	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
+          { add_join_natural($1,$5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && $6);
-	    add_join_natural($1,$6);
+ 	    add_join_natural($1,$6,NULL);
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
-	| table_ref RIGHT opt_outer JOIN_SYM table_ref ON expr
+	| table_ref RIGHT opt_outer JOIN_SYM table_ref
+          ON
+          {
+            /* Change the current name resolution context to a local context. */
+            Name_resolution_context *on_context;
+            if (!(on_context= make_join_on_context(YYTHD,$1,$5)))
+              YYABORT;
+            Lex->push_context(on_context);
+          }
+          expr
           {
 	    LEX *lex= Lex;
             YYERROR_UNLESS($1 && $5);
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
-            add_join_on($$, $7);
+            add_join_on($$, $8);
+            Lex->pop_context();
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
             YYERROR_UNLESS($1 && $5);
-            sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
           {
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
-            add_join_on($$, $9);
+            add_join_natural($$,$5,$9);
           }
 	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
             YYERROR_UNLESS($1 && $6);
-	    add_join_natural($6,$1);
+	    add_join_natural($6,$1,NULL);
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
 	  }
 	| table_ref NATURAL JOIN_SYM table_factor
-	  { YYERROR_UNLESS($1 && ($$=$4)); add_join_natural($1,$4); };
+	  { YYERROR_UNLESS($1 && ($$=$4)); add_join_natural($1,$4,NULL); };
 
 
 normal_join:
@@ -5235,8 +5288,23 @@ table_factor:
 	    YYABORT;
           sel->add_joined_table($$);
 	}
-	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref ON expr '}'
-	  { YYERROR_UNLESS($3 && $7); add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
+	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref
+          ON
+          {
+            /* Change the current name resolution context to a local context. */
+            Name_resolution_context *on_context;
+            if (!(on_context= make_join_on_context(YYTHD,$3,$7)))
+              YYABORT;
+            Lex->push_context(on_context);
+          }
+          expr '}'
+	  {
+            YYERROR_UNLESS($3 && $7);
+            add_join_on($7,$10);
+            Lex->pop_context();
+            $7->outer_join|=JOIN_TYPE_LEFT;
+            $$=$7;
+          }
 	| select_derived_init get_select_lex select_derived2
           {
             LEX *lex= Lex;
@@ -5290,6 +5358,7 @@ table_factor:
 
 	      YYABORT;
             sel->add_joined_table($$);
+            lex->pop_context();
           }
 	  else
           if ($4 || $6)
@@ -5429,32 +5498,18 @@ key_usage_list2:
 using_list:
 	ident
 	  {
-	    SELECT_LEX *sel= Select;
-	    if (!($$= new Item_func_eq(new Item_field(&sel->context,
-                                                      sel->db1, sel->table1,
-						      $1.str),
-				       new Item_field(&sel->context,
-                                                      sel->db2, sel->table2,
-						      $1.str))))
+            if (!($$= new List<String>))
 	      YYABORT;
+            $$->push_back(new (YYTHD->mem_root)
+                              String((const char *) $1.str, $1.length,
+                                      system_charset_info));
 	  }
 	| using_list ',' ident
 	  {
-	    SELECT_LEX *sel= Select;
-	    if (!($$=
-                  new Item_cond_and(new
-                                    Item_func_eq(new
-                                                 Item_field(&sel->context,
-                                                            sel->db1,
-                                                            sel->table1,
-                                                            $3.str),
-                                                 new
-                                                 Item_field(&sel->context,
-                                                            sel->db2,
-                                                            sel->table2,
-                                                            $3.str)),
-                                    $1)))
-	      YYABORT;
+            $1->push_back(new (YYTHD->mem_root)
+                              String((const char *) $3.str, $3.length,
+                                      system_charset_info));
+            $$= $1;
 	  };
 
 interval:
@@ -6095,7 +6150,7 @@ values:
 
 expr_or_default:
 	expr	  { $$= $1;}
-	| DEFAULT {$$= new Item_default_value(&Select->context); }
+	| DEFAULT {$$= new Item_default_value(Lex->current_context()); }
 	;
 
 opt_insert_update:
@@ -7056,13 +7111,13 @@ table_wild:
 	ident '.' '*'
 	{
           SELECT_LEX *sel= Select;
-	  $$ = new Item_field(&sel->context, NullS, $1.str, "*");
+	  $$ = new Item_field(Lex->current_context(), NullS, $1.str, "*");
 	  sel->with_wild++;
 	}
 	| ident '.' ident '.' '*'
 	{
           SELECT_LEX *sel= Select;
-	  $$ = new Item_field(&sel->context, (YYTHD->client_capabilities &
+	  $$ = new Item_field(Lex->current_context(), (YYTHD->client_capabilities &
                              CLIENT_NO_SCHEMA ? NullS : $1.str),
                              $3.str,"*");
 	  sel->with_wild++;
@@ -7090,8 +7145,8 @@ simple_ident:
 	    SELECT_LEX *sel=Select;
 	    $$= (sel->parsing_place != IN_HAVING ||
 	         sel->get_in_sum_expr() > 0) ?
-                 (Item*) new Item_field(&sel->context, NullS, NullS, $1.str) :
-	         (Item*) new Item_ref(&sel->context, NullS, NullS, $1.str);
+                 (Item*) new Item_field(Lex->current_context(), NullS, NullS, $1.str) :
+	         (Item*) new Item_ref(Lex->current_context(), NullS, NullS, $1.str);
 	  }
         }
         | simple_ident_q { $$= $1; }
@@ -7103,8 +7158,8 @@ simple_ident_nospvar:
 	  SELECT_LEX *sel=Select;
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
-              (Item*) new Item_field(&sel->context, NullS, NullS, $1.str) :
-	      (Item*) new Item_ref(&sel->context, NullS, NullS, $1.str);
+              (Item*) new Item_field(Lex->current_context(), NullS, NullS, $1.str) :
+	      (Item*) new Item_ref(Lex->current_context(), NullS, NullS, $1.str);
 	}
 	| simple_ident_q { $$= $1; }
 	;
@@ -7141,7 +7196,7 @@ simple_ident_q:
               YYABORT;
             }
 
-            if (!(trg_fld= new Item_trigger_field(&lex->current_select->context,
+            if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   new_row ?
                                                   Item_trigger_field::NEW_ROW:
                                                   Item_trigger_field::OLD_ROW,
@@ -7167,8 +7222,8 @@ simple_ident_q:
 	    }
 	    $$= (sel->parsing_place != IN_HAVING ||
 	         sel->get_in_sum_expr() > 0) ?
-	        (Item*) new Item_field(&sel->context, NullS, $1.str, $3.str) :
-	        (Item*) new Item_ref(&sel->context, NullS, $1.str, $3.str);
+	        (Item*) new Item_field(Lex->current_context(), NullS, $1.str, $3.str) :
+	        (Item*) new Item_ref(Lex->current_context(), NullS, $1.str, $3.str);
           }
         }
 	| '.' ident '.' ident
@@ -7183,8 +7238,8 @@ simple_ident_q:
 	  }
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
-	      (Item*) new Item_field(&sel->context, NullS, $2.str, $4.str) :
-              (Item*) new Item_ref(&sel->context, NullS, $2.str, $4.str);
+	      (Item*) new Item_field(Lex->current_context(), NullS, $2.str, $4.str) :
+              (Item*) new Item_ref(Lex->current_context(), NullS, $2.str, $4.str);
 	}
 	| ident '.' ident '.' ident
 	{
@@ -7198,11 +7253,11 @@ simple_ident_q:
 	  }
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
-	      (Item*) new Item_field(&sel->context,
+	      (Item*) new Item_field(Lex->current_context(),
                                      (YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
 				     $3.str, $5.str) :
-	      (Item*) new Item_ref(&sel->context,
+	      (Item*) new Item_ref(Lex->current_context(),
                                    (YYTHD->client_capabilities &
 				    CLIENT_NO_SCHEMA ? NullS : $1.str),
                                    $3.str, $5.str);
@@ -7752,7 +7807,8 @@ sys_option_value:
             /* We are in trigger and assigning value to field of new row */
             Item *it;
             Item_trigger_field *trg_fld;
-            sp_instr_set_trigger_field *i;
+            sp_instr_set_trigger_field *sp_fld;
+	    LINT_INIT(sp_fld);
             if ($1)
             {
               yyerror(ER(ER_SYNTAX_ERROR));
@@ -7766,14 +7822,14 @@ sys_option_value:
               it= new Item_null();
             }
 
-            if (!(trg_fld= new Item_trigger_field(&lex->current_select->
-                                                  context,
+            if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   Item_trigger_field::NEW_ROW,
                                                   $2.base_name.str)) ||
-                !(i= new sp_instr_set_trigger_field(lex->sphead->
-                                                    instructions(),
-                                                    lex->spcont, trg_fld,
-                                                    it, lex)))
+                !(sp_fld= new sp_instr_set_trigger_field(lex->sphead->
+                          	                         instructions(),
+                                	                 lex->spcont,
+							 trg_fld,
+                                        	         it, lex)))
               YYABORT;
 
             /*
@@ -7783,7 +7839,7 @@ sys_option_value:
             lex->trg_table_fields.link_in_list((byte *)trg_fld,
                                     (byte **)&trg_fld->next_trg_field);
 
-            lex->sphead->add_instr(i);
+            lex->sphead->add_instr(sp_fld);
           }
           else if ($2.var)
           { /* System variable */
@@ -7797,7 +7853,7 @@ sys_option_value:
             /* An SP local variable */
             sp_pcontext *ctx= lex->spcont;
             sp_pvar_t *spv;
-            sp_instr_set *i;
+            sp_instr_set *sp_set;
             Item *it;
             if ($1)
             {
@@ -7813,9 +7869,9 @@ sys_option_value:
               it= spv->dflt;
             else
               it= new Item_null();
-            i= new sp_instr_set(lex->sphead->instructions(), ctx,
-                                spv->offset, it, spv->type, lex, TRUE);
-            lex->sphead->add_instr(i);
+            sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
+                                     spv->offset, it, spv->type, lex, TRUE);
+            lex->sphead->add_instr(sp_set);
             spv->isset= TRUE;
           }
         }
@@ -8623,7 +8679,12 @@ union_list:
             lex->current_select->master_unit()->union_distinct=
                                                       lex->current_select;
 	}
-	select_init {}
+	select_init
+        {
+          /* Remove from the name resolution context stack the context of the
+             last select in the union. */
+          Lex->pop_context();
+        }
 	;
 
 union_opt:
@@ -8727,6 +8788,7 @@ subselect_end:
 	')'
 	{
 	  LEX *lex=Lex;
+          lex->pop_context();
 	  lex->current_select = lex->current_select->return_after_parsing();
 	};
 

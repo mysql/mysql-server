@@ -36,7 +36,16 @@ grp	a	c	id	a	c	d
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
 NULL	NULL	NULL	4	7	D	7
-select t1.*,t2.* from t1 left join t2 using (a);
+select * from t1 left join t2 using (a);
+a	grp	c	id	c	d
+1	1	a	1	a	1
+2	2	b	NULL	NULL	NULL
+3	2	c	NULL	NULL	NULL
+4	3	E	3	A	4
+5	3	C	3	B	5
+6	3	D	3	C	6
+NULL	NULL		NULL	NULL	NULL
+select t1.*,t2.* from t1 left join t2 on t1.a=t2.a;
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
 2	2	b	NULL	NULL	NULL	NULL
@@ -45,40 +54,34 @@ grp	a	c	id	a	c	d
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
 NULL	NULL		NULL	NULL	NULL	NULL
-select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
-grp	a	c	id	a	c	d
-1	1	a	1	1	a	1
-3	4	E	3	4	A	4
-3	5	C	3	5	B	5
-3	6	D	3	6	C	6
-select t1.*,t2.* from t1 left join t2 using (a,c);
-grp	a	c	id	a	c	d
-1	1	a	1	1	a	1
-2	2	b	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL
-3	4	E	NULL	NULL	NULL	NULL
-3	5	C	NULL	NULL	NULL	NULL
-3	6	D	NULL	NULL	NULL	NULL
-NULL	NULL		NULL	NULL	NULL	NULL
-select t1.*,t2.* from t1 left join t2 using (c);
-grp	a	c	id	a	c	d
-1	1	a	1	1	a	1
-1	1	a	3	4	A	4
-2	2	b	3	5	B	5
-2	3	c	3	6	C	6
-3	4	E	NULL	NULL	NULL	NULL
-3	5	C	3	6	C	6
-3	6	D	4	7	D	7
-NULL	NULL		NULL	NULL	NULL	NULL
-select t1.*,t2.* from t1 natural left outer join t2;
-grp	a	c	id	a	c	d
-1	1	a	1	1	a	1
-2	2	b	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL
-3	4	E	NULL	NULL	NULL	NULL
-3	5	C	NULL	NULL	NULL	NULL
-3	6	D	NULL	NULL	NULL	NULL
-NULL	NULL		NULL	NULL	NULL	NULL
+select * from t1 left join t2 using (a,c);
+a	c	grp	id	d
+1	a	1	1	1
+2	b	2	NULL	NULL
+3	c	2	NULL	NULL
+4	E	3	NULL	NULL
+5	C	3	NULL	NULL
+6	D	3	NULL	NULL
+NULL		NULL	NULL	NULL
+select * from t1 left join t2 using (c);
+c	grp	a	id	a	d
+a	1	1	1	1	1
+a	1	1	3	4	4
+b	2	2	3	5	5
+c	2	3	3	6	6
+E	3	4	NULL	NULL	NULL
+C	3	5	3	6	6
+D	3	6	4	7	7
+	NULL	NULL	NULL	NULL	NULL
+select * from t1 natural left outer join t2;
+a	c	grp	id	d
+1	a	1	1	1
+2	b	2	NULL	NULL
+3	c	2	NULL	NULL
+4	E	3	NULL	NULL
+5	C	3	NULL	NULL
+6	D	3	NULL	NULL
+NULL		NULL	NULL	NULL
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id=3;
 grp	a	c	id	a	c	d
 3	4	E	3	4	A	4
@@ -106,26 +109,26 @@ grp	a	c	id	a	c	d	a
 3	6	D	3	6	C	6	6
 NULL	NULL		NULL	NULL	NULL	NULL	NULL
 explain select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
-ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
+ERROR 42S22: Unknown column 't3.a' in 'on clause'
 select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
-ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
+ERROR 42S22: Unknown column 't3.a' in 'on clause'
 select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
-ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
-select t1.*,t2.* from t1 inner join t2 using (a);
-grp	a	c	id	a	c	d
-1	1	a	1	1	a	1
-3	4	E	3	4	A	4
-3	5	C	3	5	B	5
-3	6	D	3	6	C	6
+ERROR 42S22: Unknown column 't3.a' in 'on clause'
+select * from t1 inner join t2 using (a);
+a	grp	c	id	c	d
+1	1	a	1	a	1
+4	3	E	3	A	4
+5	3	C	3	B	5
+6	3	D	3	C	6
 select t1.*,t2.* from t1 inner join t2 on (t1.a=t2.a);
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
-select t1.*,t2.* from t1 natural join t2;
-grp	a	c	id	d
-1	1	a	1	1
+select * from t1 natural join t2;
+a	c	grp	id	d
+1	a	1	1	1
 drop table t1,t2;
 CREATE TABLE t1 (
 usr_id INT unsigned NOT NULL,
@@ -400,7 +403,7 @@ insert into t3 values (1);
 insert into t4 values (1,1);
 insert into t5 values (1,1);
 explain select * from t3 left join t4 on t4.seq_1_id = t2.t2_id left join t1 on t1.t1_id = t4.seq_0_id left join t5 on t5.seq_0_id = t1.t1_id left join t2 on t2.t2_id = t5.seq_1_id where t3.t3_id = 23;
-ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
+ERROR 42S22: Unknown column 't2.t2_id' in 'on clause'
 drop table t1,t2,t3,t4,t5;
 create table t1 (n int, m int, o int, key(n));
 create table t2 (n int not null, m int, o int, primary key(n));
@@ -432,7 +435,7 @@ INSERT INTO t2 VALUES (3,'z');
 SELECT t2.id2 FROM t2 LEFT OUTER JOIN t1 ON t1.id2 = t2.id2 WHERE id1 IS NULL;
 id2
 3
-SELECT t2.id2 FROM t2 NATURAL LEFT OUTER JOIN t1 WHERE id1 IS NULL;
+SELECT id2 FROM t2 NATURAL LEFT OUTER JOIN t1 WHERE id1 IS NULL;
 id2
 3
 drop table t1,t2;
@@ -461,10 +464,10 @@ count	color
 15	white
 7	green
 select * from t2 natural join t1;
-count	color	name
-10	green	lime
-7	green	lime
-5	black	grape
+color	count	name
+green	10	lime
+green	7	lime
+black	5	grape
 select t2.count, t1.name from t2 natural join t1;
 count	name
 10	lime
@@ -647,16 +650,15 @@ insert into t1 values(1),(2);
 insert into t2 values(2),(3);
 insert into t3 values(2),(4);
 select * from t1 natural left join t2 natural left join t3;
-i	i	i
-1	NULL	NULL
-2	2	2
-select * from t1 natural left join t2 where (t2.i is not null)=0;
-i	i
-1	NULL
-select * from t1 natural left join t2 where (t2.i is not null) is not null;
-i	i
-1	NULL
-2	2
+i
+1
+2
+select * from t1 natural left join t2 where (i is not null)=0;
+i
+select * from t1 natural left join t2 where (i is not null) is not null;
+i
+1
+2
 drop table t1,t2,t3;
 create table t1 (f1 integer,f2 integer,f3 integer);
 create table t2 (f2 integer,f4 integer);
@@ -664,7 +666,7 @@ create table t3 (f3 integer,f5 integer);
 select * from t1
 left outer join t2 using (f2)
 left outer join t3 using (f3);
-ERROR 42S22: Unknown column 'test.t2.f3' in 'on clause'
+f3	f2	f1	f4	f5
 drop table t1,t2,t3;
 create table t1 (a1 int, a2 int);
 create table t2 (b1 int not null, b2 int);
@@ -929,13 +931,13 @@ create table t1 (a int, b varchar(20));
 create table t2 (a int, c varchar(20));
 insert into t1 values (1,"aaaaaaaaaa"),(2,"bbbbbbbbbb");
 insert into t2 values (1,"cccccccccc"),(2,"dddddddddd");
-select group_concat(t1.b,t2.c) from t1 left join t2 using(a) group by t1.a;
+select group_concat(t1.b,t2.c) from t1 left join t2 using(a) group by a;
 group_concat(t1.b,t2.c)
 aaaaa
 bbbbb
 Warnings:
 Warning	1260	2 line(s) were cut by GROUP_CONCAT()
-select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by t1.a;
+select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by a;
 group_concat(t1.b,t2.c)
 aaaaa
 bbbbb
