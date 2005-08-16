@@ -2513,6 +2513,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         {
           table->field[10]->store((longlong) field->max_length() - 1);
           table->field[10]->set_notnull();
+          table->field[11]->store((longlong) 0);
+          table->field[11]->set_notnull();
           break;
         }
         case FIELD_TYPE_BIT:
