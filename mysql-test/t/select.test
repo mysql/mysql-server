@@ -2350,3 +2350,14 @@ DROP TABLE t1,t2;
 #
 
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
+
+#
+# BUG #12595
+#
+CREATE TABLE BUG_12595(a varchar(100));
+INSERT INTO BUG_12595 VALUES ('hakan%'), ('hakank'), ("ha%an");
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
+-- error 1210
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha%%an' ESCAPE '%';
+DROP TABLE BUG_12595;
