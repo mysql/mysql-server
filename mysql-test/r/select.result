@@ -2739,3 +2739,12 @@ DROP TABLE t1,t2;
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
 x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
 16	16	2	2
+create table t1 (f1 varchar(6) default NULL, f2 int(6) primary key not null);
+create table t2 (f3 varchar(5) not null, f4 varchar(5) not null, UNIQUE KEY UKEY (f3,f4));
+insert into t1 values (" 2", 2);
+insert into t2 values (" 2", " one "),(" 2", " two ");
+select * from t1 left join t2 on f1 = f3;
+f1	f2	f3	f4
+ 2	2	 2	 one 
+ 2	2	 2	 two 
+drop table t1,t2;
