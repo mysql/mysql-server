@@ -939,6 +939,13 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 #endif /* set_timespec */
 
+#define set_timespec_nsec(ABSTIME,NSEC) \
+{\
+  ulonglong now= my_getsystime(); \
+  (ABSTIME).tv_sec= (now / ULL(10000000)) + (NSEC / ULL(1000000000)); \
+  (ABSTIME).tv_nsec= (now % ULL(10000000)) * 100 + (NSEC % ULL(1000000000)); \
+}
+
 /*
   Define-funktions for reading and storing in machine independent format
   (low byte first)
