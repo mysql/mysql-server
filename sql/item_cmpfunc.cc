@@ -2799,7 +2799,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       return TRUE;
     }
     escape= escape_str ? *(escape_str->ptr()) : '\\';
-    
+
     /*
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.
