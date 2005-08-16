@@ -962,7 +962,13 @@ int do_source(struct st_query* q)
     *p++= 0;
     check_eol_junk(p);
   }
+  /* If this file has already been sourced, dont source it again.
+     It's already available in the q_lines cache */
+  if (parser.current_line < (parser.read_lines - 1))
+    return 0;
   return open_file(name);
+
+
 }
 
 
@@ -2378,7 +2384,7 @@ int read_query(struct st_query** q_ptr)
     DBUG_PRINT("warning",("too long query"));
     DBUG_RETURN(1);
   }
-   DBUG_PRINT("info", ("query: %s", read_query_buf));
+  DBUG_PRINT("info", ("query: %s", read_query_buf));
   if (*p == '#')
   {
     q->type = Q_COMMENT;
