@@ -2833,3 +2833,4 @@ a
 2
 3
 4
+DROP TABLE t1,t2,t3;
