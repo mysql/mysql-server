@@ -129,12 +129,11 @@ static void check_unused(void)
     #		Pointer to list of names of open tables.
 */
 
-OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
+OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 {
   int result = 0;
   OPEN_TABLE_LIST **start_list, *open_list;
   TABLE_LIST table_list;
-  char name[NAME_LEN*2];
   DBUG_ENTER("list_open_tables");
 
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -151,10 +150,12 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     DBUG_ASSERT(share->table_name != 0);
     if ((!share->table_name))			// To be removed
       continue;					// Shouldn't happen
+    if (db && my_strcasecmp(system_charset_info, db, share->table_cache_key))
+      continue;
+
     if (wild)
     {
-      strxmov(name,share->table_cache_key,".",share->table_name,NullS);
-      if (wild_compare(name,wild,0))
+      if (wild_compare(share->table_name,wild,0))
 	continue;
     }
 
