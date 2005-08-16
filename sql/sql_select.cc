@@ -984,7 +984,7 @@ JOIN::reinit()
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
   
-  if (setup_tables(tables_list))
+  if (!optimized && setup_tables(tables_list))
     DBUG_RETURN(1);
   
   /* Reset of sum functions */
