@@ -1812,4 +1812,6 @@ SELECT * FROM t1
   WHERE t1.a NOT IN (SELECT a FROM t2 LEFT JOIN t3 ON t2.b=t3.b
                        WHERE t3.b IS NOT NULL OR t2.a > 10);
 
+DROP TABLE t1,t2,t3;
+
 # End of 4.1 tests
