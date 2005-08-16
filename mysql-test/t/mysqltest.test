@@ -524,6 +524,49 @@ echo $1;
 --exec echo "source var/tmp/error.sql;" | $MYSQL_TEST 2>&1
 
 
+# Test execution of source in a while loop
+--exec echo "echo here is the sourced script;" > var/tmp/sourced.sql
+--disable_query_log
+let $outer= 2; # Number of outer loops
+while ($outer)
+{
+  eval SELECT '$outer = outer loop variable after while' AS "";
+
+  --source var/tmp/sourced.sql
+
+  eval SELECT '$outer = outer loop variable before dec' AS "";
+  dec $outer;
+  eval SELECT '$outer = outer loop variable after dec' AS "";
+}
+
+let $outer= 2; # Number of outer loops
+while ($outer)
+{
+  eval SELECT '$outer = outer loop variable after while' AS "";
+
+  echo here is the sourced script;
+
+  eval SELECT '$outer = outer loop variable before dec' AS "";
+  dec $outer;
+  eval SELECT '$outer = outer loop variable after dec' AS "";
+}
+
+
+# Test execution of source in a while loop
+--exec echo "--source var/tmp/sourced.sql" > var/tmp/sourced1.sql
+--disable_abort_on_error
+# Sourcing of a file within while loop, sourced file will
+# source other file
+let $num= 9;
+while ($num)
+{
+   SELECT 'In loop' AS "";
+   --source var/tmp/sourced1.sql
+   dec $num;
+}
+--enable_abort_on_error;
+--enable_query_log
+
 # ----------------------------------------------------------------------------
 # Test sleep command
 # ----------------------------------------------------------------------------
