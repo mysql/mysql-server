@@ -95,6 +95,8 @@ int Ndb_getInAddr(struct in_addr * dst, const char *address);
 int NDB_CLOSE_SOCKET(int fd);
 #endif
 
+int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
+
 #ifdef	__cplusplus
 }
 #endif
