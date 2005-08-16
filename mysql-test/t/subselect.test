@@ -1796,4 +1796,20 @@ SELECT * FROM t1 WHERE (a,b) IN (('aaa','aaa'), ('aaa','bbb'));
 
 DROP TABLE t1;
 
+#
+# Bug #11479: subquery over left join with an empty inner table 
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int, b int);
+CREATE TABLE t3 (b int NOT NULL);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (1,10), (3,30);
+
+SELECT * FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+  WHERE t3.b IS NOT NULL OR t2.a > 10;
+SELECT * FROM t1
+  WHERE t1.a NOT IN (SELECT a FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+                       WHERE t3.b IS NOT NULL OR t2.a > 10);
+
 # End of 4.1 tests
