@@ -3189,7 +3189,8 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   OPEN_TABLE_LIST *open_list;
-  if (!(open_list=list_open_tables(thd,wild)) && thd->is_fatal_error)
+  if (!(open_list=list_open_tables(thd,thd->lex->select_lex.db, wild))
+            && thd->is_fatal_error)
     DBUG_RETURN(1);
 
   for (; open_list ; open_list=open_list->next)
