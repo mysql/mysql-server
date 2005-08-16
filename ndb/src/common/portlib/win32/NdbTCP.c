@@ -37,3 +37,35 @@ Ndb_getInAddr(struct in_addr * dst, const char *address)
     return -1;
 }
 
+int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
+{
+  fd_set readfds, writefds, errorfds;
+  struct timeval tv= {0,0};
+  int s_err;
+  int s_err_size= sizeof(s_err);
+
+  FD_ZERO(&readfds);
+  FD_ZERO(&writefds);
+  FD_ZERO(&errorfds);
+
+  FD_SET(sock, &readfds);
+  FD_SET(sock, &writefds);
+  FD_SET(sock, &errorfds);
+
+  if(select(1, &readfds, &writefds, &errorfds, &t)==SOCKET_ERROR)
+    return 1;
+
+  if(FD_ISSET(sock,&errorfds))
+    return 1;
+
+  s_err=0;
+  if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+    return(1);
+
+  if (s_err)
+  {                                             /* getsockopt could succeed */
+    return(1);                                 /* but return an error... */
+  }
+
+  return 0;
+}

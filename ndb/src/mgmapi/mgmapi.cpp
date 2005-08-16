@@ -360,19 +360,12 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 extern "C"
 int ndb_mgm_is_connected(NdbMgmHandle handle)
 {
-  struct pollfd pfd[1];
-  int r;
-
   if(!handle)
     return 0;
 
   if(handle->connected)
   {
-    pfd[0].fd= handle->socket;
-    pfd[0].events= POLLHUP | POLLIN | POLLOUT | POLLNVAL;
-    pfd[0].revents= 0;
-    r= poll(pfd,1,0);
-    if(pfd[0].revents & POLLHUP)
+    if(Ndb_check_socket_hup(handle->socket))
     {
       handle->connected= 0;
       NDB_CLOSE_SOCKET(handle->socket);
