@@ -752,6 +752,7 @@ sub mtr_ping_mysqld_server () {
 #
 ##############################################################################
 
+# FIXME check that the pidfile contains the expected pid!
 
 sub sleep_until_file_created ($$$) {
   my $pidfile= shift;
@@ -762,7 +763,7 @@ sub sleep_until_file_created ($$$) {
   {
     if ( -r $pidfile )
     {
-      return 1;
+      return $pid;
     }
 
     # Check if it died after the fork() was successful 
