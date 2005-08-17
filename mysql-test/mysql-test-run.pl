@@ -90,6 +90,7 @@ use strict;
 
 require "lib/mtr_cases.pl";
 require "lib/mtr_process.pl";
+require "lib/mtr_timer.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
@@ -137,6 +138,7 @@ our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
 our $glob_scriptname=             undef;
+our $glob_timers=                 undef;
 our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_embedded_server=    0;
@@ -232,8 +234,10 @@ our $opt_skip_test;
 our $opt_sleep;
 our $opt_ps_protocol;
 
-our $opt_sleep_time_after_restart= 1;
+our $opt_sleep_time_after_restart=  1;
 our $opt_sleep_time_for_delete=    10;
+our $opt_testcase_timeout=          5; # 5 min max
+our $opt_suite_timeout=           120; # 2 hours max
 
 our $opt_socket;
 
@@ -435,6 +439,8 @@ sub initial_setup () {
 
   $path_my_basedir=
     $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
+
+  $glob_timers= mtr_init_timers();
 }
 
 
@@ -530,6 +536,8 @@ sub command_line_setup () {
              'vardir=s'                 => \$opt_vardir,
              'verbose'                  => \$opt_verbose,
              'wait-timeout=i'           => \$opt_wait_timeout,
+             'testcase-timeout=i'       => \$opt_testcase_timeout,
+             'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
              'with-openssl'             => \$opt_with_openssl,
 
@@ -1197,6 +1205,8 @@ sub run_suite () {
 
   mtr_report("Finding  Tests in the '$suite' suite");
 
+  mtr_timer_start($glob_timers,"suite", 60 * $opt_suite_timeout);
+
   my $tests= collect_test_cases($suite);
 
   mtr_report("Starting Tests in the '$suite' suite");
@@ -1205,7 +1215,9 @@ sub run_suite () {
 
   foreach my $tinfo ( @$tests )
   {
+    mtr_timer_start($glob_timers,"testcase", 60 * $opt_testcase_timeout);
     run_testcase($tinfo);
+    mtr_timer_stop($glob_timers,"testcase");
   }
 
   mtr_print_line();
@@ -1226,6 +1238,8 @@ sub run_suite () {
   }
 
   mtr_report_stats($tests);
+
+  mtr_timer_stop($glob_timers,"suite");
 }
 
 
@@ -1523,6 +1537,11 @@ sub run_testcase ($) {
       # Testcase itself tell us to skip this one
       mtr_report_test_skipped($tinfo);
     }
+    elsif ( $res == 63 )
+    {
+      $tinfo->{'timeout'}= 1;           # Mark as timeout
+      report_failure_and_restart($tinfo);
+    }
     else
     {
       # Test case failed, if in control mysqltest returns 1
@@ -1656,8 +1675,6 @@ sub mysqld_arguments ($$$$$) {
   my $idx=               shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
-
-#  print STDERR Dumper($extra_opt);
 
   my $sidx= "";                 # Index as string, 0 is empty string
   if ( $idx > 0 )
@@ -2262,6 +2279,10 @@ Misc options
   help                  Get this help text
   unified-diff | udiff  When presenting differences, use unified diff
 
+  testcase-timeout=MINUTES Max test case run time (default 5)
+  suite-timeout=MINUTES    Max test suite run time (default 120)
+
+
 Options not yet described, or that I want to look into more
 
   big-test              
@@ -2281,4 +2302,5 @@ Options not yet described, or that I want to look into more
 
 HERE
   mtr_exit(1);
+
 }
