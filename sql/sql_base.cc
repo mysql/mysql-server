@@ -3793,7 +3793,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
      if (cur_table_ref->nested_join &&
          store_top_level_join_columns(thd, cur_table_ref,
                                       cur_left_neighbor, cur_right_neighbor))
-         DBUG_RETURN(TRUE);      cur_right_neighbor= cur_table_ref;
+         DBUG_RETURN(TRUE);
+     cur_right_neighbor= cur_table_ref;
     }
   }
 
