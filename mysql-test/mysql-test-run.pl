@@ -341,7 +341,6 @@ sub main () {
 
   if ( ! $glob_use_running_server )
   {
-
     if ( $opt_start_dirty )
     {
       kill_running_server();
@@ -356,7 +355,7 @@ sub main () {
     }
   }
 
-  if ( $opt_start_and_exit or $opt_start_dirty )
+  if ( $opt_start_dirty )
   {
     if ( ndbcluster_start() )
     {
@@ -371,16 +370,13 @@ sub main () {
       mtr_error("Can't start the mysqld server");
     }
   }
+  elsif ( $opt_bench )
+  {
+    run_benchmarks(shift);      # Shift what? Extra arguments?!
+  }
   else
   {
-    if ( $opt_bench )
-    {
-      run_benchmarks(shift);      # Shift what? Extra arguments?!
-    }
-    else
-    {
-      run_tests();
-    }
+    run_tests();
   }
 
   mtr_exit(0);
@@ -1491,6 +1487,16 @@ sub run_testcase ($) {
   }
 
   # ----------------------------------------------------------------------
+  # If --start-and-exit given, stop here to let user manually run tests
+  # ----------------------------------------------------------------------
+
+  if ( $opt_start_and_exit )
+  {
+    mtr_report("\nServers started, exiting");
+    exit(0);
+  }
+
+  # ----------------------------------------------------------------------
   # Run the test case
   # ----------------------------------------------------------------------
 
@@ -2248,7 +2254,8 @@ Misc options
   script-debug          Debug this script itself
   compress              Use the compressed protocol between client and server
   timer                 Show test case execution time
-  start-and-exit        Only initiate and start the "mysqld" servers
+  start-and-exit        Only initiate and start the "mysqld" servers, use the startup
+                        settings for the specified test case if any
   start-dirty           Only start the "mysqld" servers without initiation
   fast                  Don't try to cleanup from earlier runs
   reorder               Reorder tests to get less server restarts
