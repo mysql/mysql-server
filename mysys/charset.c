@@ -679,5 +679,5 @@ char *bare_str_to_hex(char *to, const char *from, uint len)
     p[1]= _dig_vec_upper[tmp & 15];
   }
   *p= 0;
-  return p; // pointer to end 0 of 'to'
+  return p; /* pointer to end 0 of 'to' */
 }
