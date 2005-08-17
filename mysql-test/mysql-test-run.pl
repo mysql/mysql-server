@@ -414,7 +414,7 @@ sub initial_setup () {
     $opt_source_dist=  1;
   }
 
-  $glob_hostname=  mtr_full_hostname();
+  $glob_hostname=  mtr_short_hostname();
 
   # 'basedir' is always parent of "mysql-test" directory
   $glob_mysql_test_dir=  cwd();
