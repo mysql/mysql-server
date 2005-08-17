@@ -244,7 +244,7 @@ contains the sum of the following flag and the locally stored len. */
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
 /* Some macros to improve branch prediction and reduce cache misses */
-#if defined(__GNUC__) && (__GNUC__ > 2)
+#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
 /* Tell the compiler that 'expr' probably evaluates to 'constant'. */
 # define UNIV_EXPECT(expr,constant) __builtin_expect(expr, constant)
 /* Tell the compiler that a pointer is likely to be NULL */
