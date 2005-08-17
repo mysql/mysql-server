@@ -210,6 +210,7 @@ sub spawn_parent_impl {
       # normally from running a test case?
 
       my $exit_value= -1;
+      my $saved_exit_value;
       my $ret_pid;                      # What waitpid() returns
 
       while ( ($ret_pid= waitpid(-1,0)) != -1 )
@@ -218,6 +219,24 @@ sub spawn_parent_impl {
         # status info first before $? is lost,
         # but not $exit_value, this is flagged from
         # 
+
+        my $timer_name= mtr_timer_timeout($::glob_timers, $ret_pid);
+        if ( $timer_name )
+        {
+          if ( $timer_name eq "suite" )
+          {
+            # We give up here
+            # FIXME we should only give up the suite, not all of the run?
+            print STDERR "\n";
+            mtr_error("Test suite timeout");
+          }
+          elsif ( $timer_name eq "testcase" )
+          {
+            $saved_exit_value=  63;       # Mark as timeout
+            kill(9, $pid);                # Kill mysqltest
+            next;                         # Go on and catch the termination
+          }
+        }
 
         if ( $ret_pid == $pid )
         {
@@ -270,7 +289,7 @@ sub spawn_parent_impl {
         }
       }
 
-      return $exit_value;
+      return $saved_exit_value || $exit_value;
     }
   }
   else
