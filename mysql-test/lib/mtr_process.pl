@@ -331,7 +331,7 @@ sub mtr_kill_leftovers () {
                });
   }
 
-  mtr_mysqladmin_shutdown(\@args);
+  mtr_mysqladmin_shutdown(\@args, 20);
 
   # We now have tried to terminate nice. We have waited for the listen
   # port to be free, but can't really tell if the mysqld process died
@@ -441,7 +441,8 @@ sub mtr_stop_mysqld_servers ($) {
   # First try nice normal shutdown using 'mysqladmin'
   # ----------------------------------------------------------------------
 
-  mtr_mysqladmin_shutdown($spec);
+  # Shutdown time must be high as slave may be in reconnect
+  mtr_mysqladmin_shutdown($spec, 70);
 
   # ----------------------------------------------------------------------
   # We loop with waitpid() nonblocking to see how many of the ones we
@@ -591,8 +592,9 @@ sub mtr_stop_mysqld_servers ($) {
 #
 ##############################################################################
 
-sub mtr_mysqladmin_shutdown () {
+sub mtr_mysqladmin_shutdown {
   my $spec= shift;
+  my $adm_shutdown_tmo= shift;
 
   my %mysql_admin_pids;
   my @to_kill_specs;
@@ -631,7 +633,7 @@ sub mtr_mysqladmin_shutdown () {
       mtr_add_arg($args, "--protocol=tcp"); # Needed if no --socket
     }
     mtr_add_arg($args, "--connect_timeout=5");
-    mtr_add_arg($args, "--shutdown_timeout=20");
+    mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
     mtr_add_arg($args, "shutdown");
     # We don't wait for termination of mysqladmin
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
@@ -808,11 +810,15 @@ sub sleep_until_file_created ($$$) {
 # FIXME something is wrong, we sometimes terminate with "Hangup" written
 # to tty, and no STDERR output telling us why.
 
+# FIXME for some readon, setting HUP to 'IGNORE' will cause exit() to
+# write out "Hangup", and maybe loose some output. We insert a sleep...
+
 sub mtr_exit ($) {
   my $code= shift;
 #  cluck("Called mtr_exit()");
   local $SIG{HUP} = 'IGNORE';
   kill('HUP', -$$);
+  sleep 2;
   exit($code);
 }
 
