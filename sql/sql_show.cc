@@ -264,8 +264,14 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 
   bzero((char*) &table_list,sizeof(table_list));
 
-  if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
+  if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
+  {
+    if (my_errno == ENOENT)
+      my_error(ER_BAD_DB_ERROR, MYF(ME_BELL+ME_WAITTANG), db);
+    else
+      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path, my_errno);
     DBUG_RETURN(-1);
+  }
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
