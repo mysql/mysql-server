@@ -650,6 +650,15 @@ public:
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
   virtual ulonglong get_auto_increment();
   virtual void restore_auto_increment();
+
+  /* This is called after TRUNCATE is emulated by doing a 'DELETE FROM t',
+     in which case we need a separate operation for resetting the table's
+     auto-increment counter. HA_ERR_WRONG_COMMAND is returned by storage
+     engines that have no need for this, i.e. those that can always do a
+     fast TRUNCATE. */
+  virtual int reset_auto_increment()
+  { return HA_ERR_WRONG_COMMAND; }
+
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
 
   /* admin commands - called from mysql_admin_table */
