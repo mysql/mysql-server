@@ -3790,10 +3790,29 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     {
       TABLE_LIST *cur_table_ref= cur_left_neighbor;
       cur_left_neighbor= nested_it++;
-     if (cur_table_ref->nested_join &&
-         store_top_level_join_columns(thd, cur_table_ref,
-                                      cur_left_neighbor, cur_right_neighbor))
-         DBUG_RETURN(TRUE);
+      /*
+        The order of RIGHT JOIN operands is reversed in 'join list' to
+        transform it into a LEFT JOIN. However, in this procedure we need
+        the join operands in their lexical order, so below we reverse the
+        join operands. Notice that this happens only in the first loop, and
+        not in the second one, as in the second loop cur_left_neighbor == NULL.
+        This is the correct behavior, because the second loop
+        sets cur_table_ref reference correctly after the join operands are
+        swapped in the first loop.
+      */
+      if (cur_left_neighbor &&
+          cur_table_ref->outer_join & JOIN_TYPE_RIGHT)
+      {
+        DBUG_ASSERT(cur_table_ref);
+        /* This can happen only for JOIN ... ON. */
+        DBUG_ASSERT(table_ref->nested_join->join_list.elements == 2);
+        swap_variables(TABLE_LIST*, cur_left_neighbor, cur_table_ref);
+      }
+
+      if (cur_table_ref->nested_join &&
+          store_top_level_join_columns(thd, cur_table_ref,
+                                       cur_left_neighbor, cur_right_neighbor))
+        DBUG_RETURN(TRUE);
      cur_right_neighbor= cur_table_ref;
     }
   }
