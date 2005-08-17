@@ -185,10 +185,6 @@ sub spawn_parent_impl {
 
   if ( $mode eq 'run' or $mode eq 'test' )
   {
-    my $exit_value= -1;
-#    my $signal_num=  0;
-#    my $dumped_core= 0;
-
     if ( $mode eq 'run' )
     {
       # Simple run of command, we wait for it to return
@@ -199,12 +195,7 @@ sub spawn_parent_impl {
         mtr_error("$path ($pid) got lost somehow");
       }
 
-      $exit_value=  $?;
-#      $exit_value=  $? >> 8;
-#      $signal_num=  $? & 127;
-#      $dumped_core= $? & 128;
-
-      return $exit_value;
+      return mtr_process_exit_status($?);
     }
     else
     {
@@ -218,6 +209,7 @@ sub spawn_parent_impl {
       # FIXME is this as it should be? Can't mysqld terminate
       # normally from running a test case?
 
+      my $exit_value= -1;
       my $ret_pid;                      # What waitpid() returns
 
       while ( ($ret_pid= waitpid(-1,0)) != -1 )
@@ -230,10 +222,7 @@ sub spawn_parent_impl {
         if ( $ret_pid == $pid )
         {
           # We got termination of mysqltest, we are done
-          $exit_value=  $?;
-#          $exit_value=  $? >> 8;
-#          $signal_num=  $? & 127;
-#          $dumped_core= $? & 128;
+          $exit_value= mtr_process_exit_status($?);
           last;
         }
 
@@ -291,6 +280,23 @@ sub spawn_parent_impl {
   }
 }
 
+
+# ----------------------------------------------------------------------
+# We try to emulate how an Unix shell calculates the exit code
+# ----------------------------------------------------------------------
+
+sub mtr_process_exit_status {
+  my $raw_status= shift;
+
+  if ( $raw_status & 127 )
+  {
+    return ($raw_status & 127) + 128;  # Signal num + 128
+  }
+  else
+  {
+    return $raw_status >> 8;           # Exit code
+  }
+}
 
 
 ##############################################################################
