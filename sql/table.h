@@ -374,7 +374,7 @@ struct Field_translator
   Field (for tables), or a Field_translator (for views).
 */
 
-class Natural_join_column
+class Natural_join_column: public Sql_alloc
 {
 public:
   Field_translator *view_field;  /* Column reference of merge view. */

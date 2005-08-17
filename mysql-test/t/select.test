@@ -1850,10 +1850,8 @@ select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
 select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
 # right join on
-# TODO: WL#2486 - there is a problem in the order of tables in RIGHT JOIN
-#       check how we set next_name_resolution_table
-# select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
-# select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
+select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # right [outer] joing using
 select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
 select * from t1 right outer join (t1 as t2 left join t1 as t3 using (a)) using ( a );
