@@ -601,7 +601,7 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
         param->set_param_func(param, &read_pos, data_end - read_pos);
       }
     }
-    res= param->query_val_str(&str);
+    res= param->query_val_str(&str, thd);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
@@ -749,7 +749,7 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
                               client_param->buffer_length);
       }
     }
-    res= param->query_val_str(&str);
+    res= param->query_val_str(&str, thd);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
