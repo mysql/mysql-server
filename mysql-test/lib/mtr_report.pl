@@ -10,7 +10,6 @@ sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
 sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
-sub mtr_report_test_disabled($);
 
 sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
