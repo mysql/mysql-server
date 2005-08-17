@@ -90,6 +90,9 @@ case "$cpu_family--$model_name" in
   *Athlon*)
     cpu_arg="athlon";
     ;;
+  *Opteron*)
+    cpu_arg="opteron";
+    ;;
 
   # Intel ia64
   *Itanium*)
@@ -146,6 +149,9 @@ case "$cc_ver--$cc_verno" in
           ;;
         ppc-*)
 		  check_cpu_args='-mcpu=$cpu_arg -mtune=$cpu_arg'
+          ;;
+        x86_64-*)
+		  check_cpu_args='-mtune=$cpu_arg'
           ;;
         *)
           check_cpu_cflags=""
