@@ -447,7 +447,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool drop_temporary, bool log_query);
 int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 				   bool if_exists, bool drop_temporary,
-				   bool log_query);
+				   bool log_query, List<String> *dropped_tables);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
