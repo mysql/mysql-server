@@ -62,10 +62,19 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [ndb_debug="$withval"],
               [ndb_debug="default"])
   AC_ARG_WITH([ndb-ccflags],
-              [
-  --with-ndb-ccflags    Extra CC options for ndb compile],
-              [ndb_cxxflags_fix="$ndb_cxxflags_fix $withval"],
-              [ndb_cxxflags_fix=$ndb_cxxflags_fix])
+              AC_HELP_STRING([--with-ndb-ccflags=CFLAGS],
+                           [Extra CFLAGS for ndb compile]),
+              [ndb_ccflags=${withval}],
+              [ndb_ccflags=""])
+
+    case "$ndb_ccflags" in
+    "yes")
+        AC_MSG_RESULT([The --ndb-ccflags option requires a parameter (passed to CC for ndb compilation)])
+        ;;
+    *)
+        ndb_cxxflags_fix="$ndb_cxxflags_fix $ndb_ccflags"
+    ;;
+  esac
 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
