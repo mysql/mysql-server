@@ -67,7 +67,7 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include <mysql_priv.h>
+#include "../mysql_priv.h"
 
 #ifdef HAVE_EXAMPLE_DB
 #include "ha_example.h"
