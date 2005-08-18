@@ -3266,10 +3266,36 @@ void Item_func_benchmark::print(String *str)
 
 longlong Item_func_sleep::val_int()
 {
+  THD *thd= current_thd;
+  struct timespec abstime;
+  pthread_cond_t cond;
+  int error= 0;
+
   DBUG_ASSERT(fixed == 1);
+
   double time= args[0]->val_real();
-  my_sleep((ulong)time*1000000L);
-  return 0;
+  set_timespec_nsec(abstime, (ulonglong)(time * ULL(1000000000)));
+
+  pthread_cond_init(&cond, NULL);
+  pthread_mutex_lock(&LOCK_user_locks);
+
+  thd->mysys_var->current_mutex= &LOCK_user_locks;
+  thd->mysys_var->current_cond=  &cond;
+
+  while (!thd->killed &&
+         (error= pthread_cond_timedwait(&cond, &LOCK_user_locks,
+                                        &abstime) != ETIMEDOUT) &&
+         error != EINVAL) ;
+
+  pthread_mutex_lock(&thd->mysys_var->mutex);
+  thd->mysys_var->current_mutex= 0;
+  thd->mysys_var->current_cond=  0;
+  pthread_mutex_unlock(&thd->mysys_var->mutex);
+
+  pthread_mutex_unlock(&LOCK_user_locks);
+  pthread_cond_destroy(&cond);
+
+  return (error == ETIMEDOUT) ? 0 : 1;
 }
 
 
