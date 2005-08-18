@@ -2541,7 +2541,7 @@ void Field_iterator_table_ref::set_field_iterator()
                   table_ref->table->s->fields)));
     field_it= &natural_join_it;
     DBUG_PRINT("info",("field_it for '%s' is Field_iterator_natural_join",
-                       table_ref->table_name));
+                       table_ref->alias));
   }
   /* This is a merge view, so use field_translation. */
   else if (table_ref->field_translation)
@@ -2550,7 +2550,7 @@ void Field_iterator_table_ref::set_field_iterator()
                 table_ref->effective_algorithm == VIEW_ALGORITHM_MERGE);
     field_it= &view_field_it;
     DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_view",
-                        table_ref->table_name));
+                        table_ref->alias));
   }
   /* This is a base table or stored view. */
   else
@@ -2558,7 +2558,7 @@ void Field_iterator_table_ref::set_field_iterator()
     DBUG_ASSERT(table_ref->table || table_ref->view);
     field_it= &table_field_it;
     DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_table",
-                        table_ref->table_name));
+                        table_ref->alias));
   }
   field_it->set(table_ref);
   DBUG_VOID_RETURN;
