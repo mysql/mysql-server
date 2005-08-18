@@ -3085,4 +3085,19 @@ column_name	bug10055(t.column_name)
 id	id
 data	data
 drop function bug10055|
+drop function if exists f_bug11247|
+drop procedure if exists p_bug11247|
+create function f_bug11247(param int)
+returns int
+return param + 1|
+create procedure p_bug11247(lim int)
+begin
+declare v int default 0;
+while v < lim do
+set v= f_bug11247(v);
+end while;
+end|
+call p_bug11247(10)|
+drop function f_bug11247|
+drop procedure p_bug11247|
 drop table t1,t2;
