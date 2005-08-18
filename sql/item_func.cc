@@ -3269,7 +3269,7 @@ longlong Item_func_sleep::val_int()
   THD *thd= current_thd;
   struct timespec abstime;
   pthread_cond_t cond;
-  int error= 0;
+  int error;
 
   DBUG_ASSERT(fixed == 1);
 
@@ -3284,7 +3284,7 @@ longlong Item_func_sleep::val_int()
 
   while (!thd->killed &&
          (error= pthread_cond_timedwait(&cond, &LOCK_user_locks,
-                                        &abstime) != ETIMEDOUT) &&
+                                        &abstime)) != ETIMEDOUT &&
          error != EINVAL) ;
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
