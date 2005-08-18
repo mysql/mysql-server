@@ -1046,35 +1046,61 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
+    bool check_if_used= thd->prelocked_mode &&
+                        ((int) table_list->lock_type >=
+                         (int) TL_WRITE_ALLOW_WRITE);
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
-          !memcmp(table->s->table_cache_key, key, key_length) &&
-          !my_strcasecmp(system_charset_info, table->alias, alias) &&
-          table->query_id != thd->query_id && /* skip tables already used */
-          !(thd->prelocked_mode && table->query_id))
+          !memcmp(table->s->table_cache_key, key, key_length))
       {
-        int distance= ((int) table->reginfo.lock_type -
-                       (int) table_list->lock_type);
-        /*
-          Find a table that either has the exact lock type requested,
-          or has the best suitable lock. In case there is no locked
-          table that has an equal or higher lock than requested,
-          we us the closest matching lock to be able to produce an error
-          message about wrong lock mode on the table. The best_table is changed
-          if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
-
-          distance <  0 - No suitable lock found
-          distance >  0 - we have lock mode higher then we require
-          distance == 0 - we have lock mode exactly which we need
-        */
-        if (best_distance < 0 && distance > best_distance ||
-            distance >= 0 && distance < best_distance)
+        if (check_if_used && table->query_id &&
+            table->query_id != thd->query_id)
         {
-          best_distance= distance;
-          best_table= table;
-          if (best_distance == 0)               // Found perfect lock
-            break;
+          /*
+            If we are in stored function or trigger we should ensure that
+            we won't change table that is already used by calling statement.
+            So if we are opening table for writing, we should check that it
+            is not already open by some calling stamement.
+          */
+          my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
+                   table->s->table_name);
+          DBUG_RETURN(0);
+        }
+        if (!my_strcasecmp(system_charset_info, table->alias, alias) &&
+            table->query_id != thd->query_id && /* skip tables already used */
+            !(thd->prelocked_mode && table->query_id))
+        {
+          int distance= ((int) table->reginfo.lock_type -
+                         (int) table_list->lock_type);
+          /*
+            Find a table that either has the exact lock type requested,
+            or has the best suitable lock. In case there is no locked
+            table that has an equal or higher lock than requested,
+            we us the closest matching lock to be able to produce an error
+            message about wrong lock mode on the table. The best_table
+            is changed if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
+
+            distance <  0 - No suitable lock found
+            distance >  0 - we have lock mode higher then we require
+            distance == 0 - we have lock mode exactly which we need
+          */
+          if (best_distance < 0 && distance > best_distance ||
+              distance >= 0 && distance < best_distance)
+          {
+            best_distance= distance;
+            best_table= table;
+            if (best_distance == 0 && !check_if_used)
+            {
+              /*
+                If we have found perfect match and we don't need to check that
+                table is not used by one of calling statements (assuming that
+                we are inside of function or trigger) we can finish iterating
+                through open tables list.
+              */
+              break;
+            }
+          }
         }
       }
     }

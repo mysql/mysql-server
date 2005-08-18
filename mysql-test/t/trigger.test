@@ -685,3 +685,39 @@ update t1 set data = 2;
 
 connection default;
 drop table t1;
+
+# Test for bug #11896 "Partial locking in case of recursive trigger
+# definitions". Recursion in triggers should not be allowed.
+# We also should not allow to change tables which are used in
+# statements invoking this trigger.
+create table t1 (f1 integer);
+create table t2 (f2 integer);
+create trigger t1_ai after insert on t1
+  for each row insert into t2 values (new.f1+1);
+create trigger t2_ai after insert on t2
+  for each row insert into t1 values (new.f2+1);
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+insert into t1 values (1);
+select * from t1;
+select * from t2;
+drop trigger t1_ai;
+drop trigger t2_ai;
+create trigger t1_bu before update on t1
+  for each row insert into t1 values (2);
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+update t1 set f1= 10;
+select * from t1;
+drop trigger t1_bu;
+create trigger t1_bu before update on t1
+  for each row delete from t1 where f1=new.f1;
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+update t1 set f1= 10;
+select * from t1;
+drop trigger t1_bu;
+# This should work tough
+create trigger t1_bi before insert on t1
+  for each row set new.f1=(select sum(f1) from t1);
+insert into t1 values (3);
+select * from t1;
+drop trigger t1_bi;
+drop tables t1, t2;
