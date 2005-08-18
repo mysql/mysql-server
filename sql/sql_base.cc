@@ -129,12 +129,11 @@ static void check_unused(void)
     #		Pointer to list of names of open tables.
 */
 
-OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
+OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 {
   int result = 0;
   OPEN_TABLE_LIST **start_list, *open_list;
   TABLE_LIST table_list;
-  char name[NAME_LEN*2];
   DBUG_ENTER("list_open_tables");
 
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -151,10 +150,12 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     DBUG_ASSERT(share->table_name != 0);
     if ((!share->table_name))			// To be removed
       continue;					// Shouldn't happen
+    if (db && my_strcasecmp(system_charset_info, db, share->table_cache_key))
+      continue;
+
     if (wild)
     {
-      strxmov(name,share->table_cache_key,".",share->table_name,NullS);
-      if (wild_compare(name,wild,0))
+      if (wild_compare(share->table_name,wild,0))
 	continue;
     }
 
@@ -2599,30 +2600,35 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
                                NATURAL/USING joins
 
   RETURN
-    - Pointer to the found Field
-    - NULL if the field was not found
-    - WRONG_GRANT if no access rights to the found field
+    NULL        if the field was not found
+    WRONG_GRANT if no access rights to the found field
+    #           Pointer to the found Field
 */
 
 static Field *
 find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
                            const char *table_name, const char *db_name,
                            uint length, Item **ref, bool check_grants,
-                           bool register_tree_change, TABLE_LIST **actual_table)
+                           bool register_tree_change,
+                           TABLE_LIST **actual_table)
 {
-  DBUG_ENTER("find_field_in_natural_join");
-  DBUG_PRINT("enter", ("natural join, field name: '%s', ref 0x%lx",
-		       name, (ulong) ref));
-  DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   List_iterator_fast<Natural_join_column>
     field_it(*(table_ref->join_columns));
-  Natural_join_column *nj_col= NULL;
-  Field *found_field= NULL;
+  Natural_join_column *nj_col;
+  Field *found_field;
+  DBUG_ENTER("find_field_in_natural_join");
+  DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
+		       name, (ulong) ref));
+  DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
+  DBUG_ASSERT(*actual_table == NULL);
 
-  *actual_table= NULL;
+  LINT_INIT(found_field);
 
-  while ((nj_col= field_it++))
+  for (;;)
   {
+    if (!(nj_col= field_it++))
+      DBUG_RETURN(NULL);
+
     if (table_name)
     {
       /*
@@ -2639,7 +2645,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       if (db_name && db_name[0])
       {
         const char *cur_db_name= nj_col->db_name();
-        if (cur_db_name && cur_db_name && strcmp(db_name, cur_db_name))
+        if (cur_db_name && strcmp(db_name, cur_db_name))
           continue;
       }
     }
@@ -2647,9 +2653,6 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
     if (!my_strcasecmp(system_charset_info, nj_col->name(), name))
       break;
   }
-
-  if (!nj_col)
-    DBUG_RETURN(NULL);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_grants && nj_col->check_grants(thd, name, length))
@@ -2667,13 +2670,14 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       DBUG_RETURN(NULL);
     DBUG_ASSERT(nj_col->table_field == NULL);
     if (nj_col->table_ref->schema_table_reformed)
+    {
       /*
         Translation table items are always Item_fields and fixed
         already('mysql_schema_table' function). So we can return
         ->field. It is used only for 'show & where' commands.
       */
       DBUG_RETURN(((Item_field*) (nj_col->view_field->item))->field);
-
+    }
     if (register_tree_change)
       thd->change_item_tree(ref, item);
     else
@@ -2709,8 +2713,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
                                 lookup for fields in prepared tables)
 
   RETURN
-    0			field is not found
-    #			pointer to field
+    0	field is not found
+    #	pointer to field
 */
 
 Field *
@@ -2718,10 +2722,10 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
                     bool check_grants, bool allow_rowid,
                     uint *cached_field_index_ptr)
 {
-  DBUG_ENTER("find_field_in_table");
-  DBUG_PRINT("enter", ("table: '%s', field name: '%s'", table->alias, name));
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
+  DBUG_ENTER("find_field_in_table");
+  DBUG_PRINT("enter", ("table: '%s', field name: '%s'", table->alias, name));
 
   /* We assume here that table->field < NO_CACHED_FIELD_INDEX = UINT_MAX */
   if (cached_field_index < table->s->fields &&
@@ -2759,7 +2763,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
   if (check_grants && check_grant_column(thd, &table->grant,
 					 table->s->db,
 					 table->s->table_name, name, length))
-    DBUG_RETURN(WRONG_GRANT);
+    field= WRONG_GRANT;
 #endif
   DBUG_RETURN(field);
 }
@@ -2818,22 +2822,23 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     simply compare the qualifying table and database names with the ones of
     'table_list' because each field in such a join may originate from a
     different table.
-    TODO: Ensure that db and tables->db always points to something !
+    TODO: Ensure that table_name, db_name and tables->db always points to
+          something !
   */
   if (!table_list->is_natural_join &&
-      (table_name && table_name[0] &&
-       my_strcasecmp(table_alias_charset, table_list->alias, table_name) ||
+      table_name && table_name[0] &&
+      (my_strcasecmp(table_alias_charset, table_list->alias, table_name) ||
        (db_name && db_name[0] && table_list->db && table_list->db[0] &&
         strcmp(db_name, table_list->db))))
     DBUG_RETURN(0);
 
+  *actual_table= NULL;
   if (table_list->field_translation)
   {
     if ((fld= find_field_in_view(thd, table_list, name, item_name, length,
-                                 ref, check_grants_view, register_tree_change)))
+                                 ref, check_grants_view,
+                                 register_tree_change)))
       *actual_table= table_list;
-    else
-      *actual_table= NULL;
   }
   else if (table_list->is_natural_join)
     fld= find_field_in_natural_join(thd, table_list, name, table_name,
@@ -2847,8 +2852,6 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                   check_grants_table, allow_rowid,
                                   cached_field_index_ptr)))
       *actual_table= table_list;
-    else
-      *actual_table= NULL;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* check for views with temporary table algorithm */
     if (check_grants_view && table_list->view &&
@@ -2857,7 +2860,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                            table_list->view_db.str,
                            table_list->view_name.str,
                            name, length))
-    DBUG_RETURN(WRONG_GRANT);
+    fld= WRONG_GRANT;
 #endif
   }
 
@@ -2981,18 +2984,15 @@ find_field_in_tables(THD *thd, Item_ident *item,
     db= name_buff;
   }
 
+  if (last_table)
+    last_table= last_table->next_name_resolution_table;
+
   /* The field we search for is qualified with a table name and optional db. */
   if (table_name && table_name[0])
   {
-    bool found_table=0;
-    for ( ;
-         (cur_table &&
-          (last_table ?
-           (cur_table != last_table->next_name_resolution_table) : TRUE));
+    for (; cur_table != last_table ;
          cur_table= cur_table->next_name_resolution_table)
     {
-      DBUG_ASSERT(cur_table);
-      found_table= 1;
       Field *cur_field= find_field_in_table_ref(thd, cur_table, name,
                                                 item->name, table_name,
                                                 db, length, ref,
@@ -3001,8 +3001,8 @@ find_field_in_tables(THD *thd, Item_ident *item,
                                                       want_privilege) &&
                                                  check_privileges),
                                                 (test(cur_table->grant.
-                                                      want_privilege)
-                                                 && check_privileges),
+                                                      want_privilege) &&
+                                                 check_privileges),
                                                 1, &(item->cached_field_index),
                                                 register_tree_change,
                                                 &actual_table);
@@ -3031,8 +3031,12 @@ find_field_in_tables(THD *thd, Item_ident *item,
     }
     if (found)
       return found;
-    if (!found_table && (report_error == REPORT_ALL_ERRORS ||
-                         report_error == REPORT_EXCEPT_NON_UNIQUE))
+    /*
+      If there were no tables to search, we wouldn't go through the loop and
+      cur_table wouldn't be updated by the loop increment part.
+    */
+    if (cur_table == first_table && (report_error == REPORT_ALL_ERRORS ||
+                                     report_error == REPORT_EXCEPT_NON_UNIQUE))
     {
       char buff[NAME_LEN*2+1];
       if (db && db[0])
@@ -3053,13 +3057,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
 
   /* The field we search for is not qualified. */
   allow_rowid= cur_table && !cur_table->next_local;
-  for ( ;
-        (cur_table &&
-         (last_table ?
-          (cur_table != last_table->next_name_resolution_table) : TRUE));
-        cur_table= cur_table->next_name_resolution_table)
+  for (; cur_table != last_table ;
+       cur_table= cur_table->next_name_resolution_table)
   {
-    DBUG_ASSERT(cur_table);
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, item->name,
                                               NULL, NULL, length, ref,
                                               (cur_table->table &&
@@ -3358,20 +3358,21 @@ test_if_string_in_list(const char *find, List<String> *str_list)
     is resolved only the supplied 'table_ref'.
 
   RETURN
-    FALSE - if all OK
-    TRUE  - otherwise
+    FALSE  if all OK
+    TRUE   otherwise
 */
 
 static bool
 set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
 {
   Name_resolution_context *context;
+
   if (!(context= (Name_resolution_context*)
         thd->calloc(sizeof(Name_resolution_context))))
     return TRUE;
   context->init();
-  context->first_name_resolution_table= table_ref;
-  context->last_name_resolution_table=  table_ref;
+  context->first_name_resolution_table=
+    context->last_name_resolution_table= table_ref;
   item->context= context;
   return FALSE;
 }
@@ -3404,8 +3405,8 @@ set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
     called for the previous level of NATURAL/USING joins.
 
   RETURN
-    TRUE  - if error when some common column is non-unique, or out of memory
-    FALSE - if OK
+    TRUE   error when some common column is non-unique, or out of memory
+    FALSE  OK
 */
 
 static bool
@@ -3414,16 +3415,16 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  const char *field_name_1, *field_name_2;
-  *found_using_fields= 0;
-  bool add_columns= TRUE;
+  const char *field_name_1;
   Query_arena *arena, backup;
+  bool add_columns= TRUE;
   bool result= TRUE;
 
   DBUG_ENTER("mark_common_columns");
-  DBUG_PRINT("info", ("operand_1: %s, operand_2: %s",
+  DBUG_PRINT("info", ("operand_1: %s  operand_2: %s",
                       table_ref_1->alias, table_ref_2->alias));
 
+  *found_using_fields= 0;
   arena= thd->change_arena_if_needed(&backup);
 
   /*
@@ -3446,25 +3447,31 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
   {
     bool is_created_1;
+    bool found= FALSE;
     if (!(nj_col_1= it_1.get_or_create_column_ref(thd, &is_created_1)))
       goto err;
     field_name_1= nj_col_1->name();
-    bool found= FALSE;
 
     /* If nj_col_1 was just created add it to the list of join columns. */
     if (is_created_1)
       table_ref_1->join_columns->push_back(nj_col_1);
 
-    /* Find a field with the same name in table_ref_2. */
+    /*
+      Find a field with the same name in table_ref_2.
+
+      Note that for the second loop, it_2.set() will iterate over
+      table_ref_2->join_columns and not generate any new elements or
+      lists.
+    */
     nj_col_2= NULL;
-    field_name_2= NULL;
     for (it_2.set(table_ref_2); !it_2.end_of_fields(); it_2.next())
     {
       bool is_created_2;
       Natural_join_column *cur_nj_col_2;
+      const char *cur_field_name_2;
       if (!(cur_nj_col_2= it_2.get_or_create_column_ref(thd, &is_created_2)))
         goto err;
-      const char *cur_field_name_2= cur_nj_col_2->name();
+      cur_field_name_2= cur_nj_col_2->name();
 
       /* If nj_col_1 was just created add it to the list of join columns. */
       if (add_columns && is_created_2)
@@ -3479,14 +3486,14 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
           goto err;
         }
         nj_col_2= cur_nj_col_2;
-        field_name_2= cur_field_name_2;
         found= TRUE;
       }
     }
+    /* Force it_2.set() to use table_ref_2->join_columns. */
     table_ref_2->is_join_columns_complete= TRUE;
     add_columns= FALSE;
     if (!found)
-      continue;
+      continue;                                 // No matching field
 
     /*
       field_1 and field_2 have the same names. Check if they are in the USING
@@ -3495,8 +3502,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     */
     if (nj_col_2 &&
         (!using_fields ||
-         (using_fields &&
-          test_if_string_in_list(field_name_1, using_fields))))
+          test_if_string_in_list(field_name_1, using_fields)))
     {
       Item *item_1=   nj_col_1->create_item(thd);
       Item *item_2=   nj_col_2->create_item(thd);
@@ -3504,12 +3510,17 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Name_resolution_context *context_1, *context_2;
+      Item_func_eq *eq_cond;
+
       DBUG_PRINT("info", ("new equi-join condition:  %s.%s = %s.%s",
                           table_ref_1->alias, field_1->field_name,
                           table_ref_2->alias, field_2->field_name));
 
+      if (!item_1 || !item_2)
+        goto err;                               // out of memory
+
       /*
-        The first assert guarantees that the two created items are of
+        The following assert checks that the two created items are of
         type Item_ident.
       */
       DBUG_ASSERT(!thd->lex->current_select->no_wrap_view_item);
@@ -3534,24 +3545,21 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         resolution of these items, and to enable proper name resolution of
         the items during the execute phase of PS.
       */
-      if (set_new_item_local_context(thd, item_ident_1, table_ref_1))
-        goto err;
-      if (set_new_item_local_context(thd, item_ident_2, table_ref_2))
+      if (set_new_item_local_context(thd, item_ident_1, table_ref_1) ||
+          set_new_item_local_context(thd, item_ident_2, table_ref_2))
         goto err;
 
-      Item_func_eq *eq_cond= new Item_func_eq(item_ident_1, item_ident_2);
-      if (!eq_cond)
-        goto err; /* Out of memory. */
+      if (!(eq_cond= new Item_func_eq(item_ident_1, item_ident_2)))
+        goto err;                               /* Out of memory. */
 
       /*
         Add the new equi-join condition to the ON clause. Notice that
         fix_fields() is applied to all ON conditions in setup_conds()
         so we don't do it here.
        */
-      if (table_ref_1->outer_join & JOIN_TYPE_RIGHT)
-        add_join_on(table_ref_1, eq_cond);
-      else
-        add_join_on(table_ref_2, eq_cond);
+      add_join_on((table_ref_1->outer_join & JOIN_TYPE_RIGHT ?
+                   table_ref_1 : table_ref_2),
+                  eq_cond);
 
       nj_col_1->is_common= nj_col_2->is_common= TRUE;
       nj_col_1->is_coalesced= nj_col_2->is_coalesced= TRUE;
@@ -3623,8 +3631,8 @@ err:
     for the join that is being processed.
 
   RETURN
-    TRUE  - if error when some common column is ambiguous
-    FALSE - if OK
+    TRUE    error: Some common column is ambiguous
+    FALSE   OK
 */
 
 static bool
@@ -3639,16 +3647,15 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
   bool is_created;
   Query_arena *arena, backup;
   bool result= TRUE;
-
+  List<Natural_join_column> *non_join_columns;
   DBUG_ENTER("store_natural_using_join_columns");
+
+  DBUG_ASSERT(!natural_using_join->join_columns);
 
   arena= thd->change_arena_if_needed(&backup);
 
-  List<Natural_join_column> *non_join_columns;
-  if (!(non_join_columns= new List<Natural_join_column>))
-    goto err;
-  DBUG_ASSERT(!natural_using_join->join_columns);
-  if (!(natural_using_join->join_columns= new List<Natural_join_column>))
+  if (!(non_join_columns= new List<Natural_join_column>) ||
+      !(natural_using_join->join_columns= new List<Natural_join_column>))
     goto err;
 
   /* Append the columns of the first join operand. */
@@ -3656,6 +3663,10 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
   {
     if (!(nj_col_1= it_1.get_or_create_column_ref(thd, &is_created)))
       goto err;
+    /*
+      The following assert checks that mark_common_columns() was run and
+      we created the list table_ref_1->join_columns.
+    */
     DBUG_ASSERT(!is_created);
     if (nj_col_1->is_common)
     {
@@ -3678,23 +3689,23 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
     List_iterator_fast<String> using_fields_it(*using_fields);
     while ((using_field_name= using_fields_it++))
     {
-      const char *using_field_name_ptr= using_field_name->ptr();
+      const char *using_field_name_ptr= using_field_name->c_ptr();
       List_iterator_fast<Natural_join_column>
         it(*(natural_using_join->join_columns));
       Natural_join_column *common_field;
-      bool found= FALSE;
-      while ((common_field= it++))
+
+      for (;;)
       {
+        /* If reached the end of fields, and none was found, report error. */
+        if (!(common_field= it++))
+        {
+          my_error(ER_BAD_FIELD_ERROR, MYF(0), using_field_name_ptr,
+                   current_thd->where);
+          goto err;
+        }
         if (!my_strcasecmp(system_charset_info,
                            common_field->name(), using_field_name_ptr))
-          found= TRUE;
-      }
-      if (!found)
-      {
-        my_error(ER_BAD_FIELD_ERROR, MYF(0), using_field_name_ptr,
-                 current_thd->where);
-        delete non_join_columns;
-        goto err;
+          break;                                // Found match
       }
     }
   }
@@ -3704,21 +3715,23 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
   {
     if (!(nj_col_2= it_2.get_or_create_column_ref(thd, &is_created)))
       goto err;
+    /*
+      The following assert checks that mark_common_columns() was run and
+      we created the list table_ref_2->join_columns.
+    */
     DBUG_ASSERT(!is_created);
     if (!nj_col_2->is_common)
       non_join_columns->push_back(nj_col_2);
     else
+    {
       /* Reset the common columns for the next call to mark_common_columns. */
       nj_col_2->is_common= FALSE;
-
+    }
   }
 
   if (non_join_columns->elements > 0)
     natural_using_join->join_columns->concat(non_join_columns);
-  else
-    delete non_join_columns;
   natural_using_join->is_join_columns_complete= TRUE;
-
 
   result= FALSE;
 
@@ -3727,6 +3740,7 @@ err:
     thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(result);
 }
+
 
 /*
   Precompute and store the row types of the top-most NATURAL/USING joins.
@@ -3754,8 +3768,8 @@ err:
     from the right to the left in the FROM clause.
 
   RETURN
-    TRUE  - if error
-    FALSE - if OK
+    TRUE   Error
+    FALSE  OK
 */
 
 static bool
@@ -3764,22 +3778,42 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
                              TABLE_LIST *right_neighbor)
 {
   DBUG_ENTER("store_top_level_join_columns");
+
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join)
   {
     List_iterator_fast<TABLE_LIST> nested_it(table_ref->nested_join->join_list);
-    TABLE_LIST *cur_table_ref;
     TABLE_LIST *cur_left_neighbor= nested_it++;
     TABLE_LIST *cur_right_neighbor= NULL;
+
     while (cur_left_neighbor)
     {
-      cur_table_ref= cur_left_neighbor;
+      TABLE_LIST *cur_table_ref= cur_left_neighbor;
       cur_left_neighbor= nested_it++;
+      /*
+        The order of RIGHT JOIN operands is reversed in 'join list' to
+        transform it into a LEFT JOIN. However, in this procedure we need
+        the join operands in their lexical order, so below we reverse the
+        join operands. Notice that this happens only in the first loop, and
+        not in the second one, as in the second loop cur_left_neighbor == NULL.
+        This is the correct behavior, because the second loop
+        sets cur_table_ref reference correctly after the join operands are
+        swapped in the first loop.
+      */
+      if (cur_left_neighbor &&
+          cur_table_ref->outer_join & JOIN_TYPE_RIGHT)
+      {
+        DBUG_ASSERT(cur_table_ref);
+        /* This can happen only for JOIN ... ON. */
+        DBUG_ASSERT(table_ref->nested_join->join_list.elements == 2);
+        swap_variables(TABLE_LIST*, cur_left_neighbor, cur_table_ref);
+      }
+
       if (cur_table_ref->nested_join &&
           store_top_level_join_columns(thd, cur_table_ref,
                                        cur_left_neighbor, cur_right_neighbor))
-          DBUG_RETURN(TRUE);
-      cur_right_neighbor= cur_table_ref;
+        DBUG_RETURN(TRUE);
+     cur_right_neighbor= cur_table_ref;
     }
   }
 
@@ -3799,8 +3833,6 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
      */
     TABLE_LIST *table_ref_2= operand_it++; /* Second NATURAL join operand.*/
     TABLE_LIST *table_ref_1= operand_it++; /* First NATURAL join operand. */
-    TABLE_LIST *last_leaf_on_the_left= NULL;
-    TABLE_LIST *first_leaf_on_the_right= NULL;
     List<String> *using_fields= table_ref->join_using_fields;
     uint found_using_fields;
 
@@ -3837,11 +3869,13 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor)
     {
+      TABLE_LIST *last_leaf_on_the_left;
       last_leaf_on_the_left= left_neighbor->last_leaf_for_name_resolution();
       last_leaf_on_the_left->next_name_resolution_table= table_ref;
     }
     if (right_neighbor)
     {
+      TABLE_LIST *first_leaf_on_the_right;
       first_leaf_on_the_right= right_neighbor->first_leaf_for_name_resolution();
       table_ref->next_name_resolution_table= first_leaf_on_the_right;
     }
@@ -3873,10 +3907,11 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     to the left in the FROM clause.
 
   RETURN
-    TRUE  - if error
-    FALSE - if OK
+    TRUE   Error
+    FALSE  OK
 */
-static bool setup_natural_join_row_types(THD *thd, List<TABLE_LIST> *from_clause,
+static bool setup_natural_join_row_types(THD *thd,
+                                         List<TABLE_LIST> *from_clause,
                                          Name_resolution_context *context)
 {
   thd->where= "from clause";
@@ -3890,11 +3925,12 @@ static bool setup_natural_join_row_types(THD *thd, List<TABLE_LIST> *from_clause
   List_iterator_fast<TABLE_LIST> table_ref_it(*from_clause);
   TABLE_LIST *table_ref; /* Current table reference. */
   /* Table reference to the left of the current. */
-  TABLE_LIST *left_neighbor= table_ref_it++;
+  TABLE_LIST *left_neighbor;
   /* Table reference to the right of the current. */
   TABLE_LIST *right_neighbor= NULL;
 
-  while (left_neighbor)
+  /* Note that tables in the list are in reversed order */
+  for (left_neighbor= table_ref_it++; left_neighbor ; )
   {
     table_ref= left_neighbor;
     left_neighbor= table_ref_it++;
@@ -3913,7 +3949,7 @@ static bool setup_natural_join_row_types(THD *thd, List<TABLE_LIST> *from_clause
   /*
     Store the top-most, left-most NATURAL/USING join, so that we start
     the search from that one instead of context->table_list. At this point
-    right_neigbor points to the left-most top-level table reference in the
+    right_neighbor points to the left-most top-level table reference in the
     FROM clause.
   */
   DBUG_ASSERT(right_neighbor);
@@ -4248,8 +4284,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 		          for all columns
                         1 If any privilege is ok
   RETURN
-    0	ok
-        'it' is updated to point at last inserted
+    0	ok     'it' is updated to point at last inserted
     1	error.  Error message is generated but not sent to client
 */
 
@@ -4262,8 +4297,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   bool found;
   char name_buff[NAME_LEN+1];
   DBUG_ENTER("insert_fields");
-  DBUG_PRINT("arena", ("insert_fields: current arena: 0x%lx",
-                       (ulong)thd->current_arena));
+  DBUG_PRINT("arena", ("current arena: 0x%lx", (ulong)thd->current_arena));
 
   if (db_name && lower_case_table_names)
   {
@@ -4296,8 +4330,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     */
     if (!tables->is_natural_join)
     {
-      if (table_name && my_strcasecmp(table_alias_charset, table_name, tables->alias)
-          ||
+      if (table_name && my_strcasecmp(table_alias_charset, table_name,
+                                      tables->alias) ||
           (db_name && strcmp(tables->db,db_name)))
         continue;
     }
@@ -4311,7 +4345,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     {
       field_iterator.set(tables);
       if (check_grant_all_columns(thd, SELECT_ACL, field_iterator.grant(),
-                                  field_iterator.db_name(), field_iterator.table_name(),
+                                  field_iterator.db_name(),
+                                  field_iterator.table_name(),
                                   &field_iterator))
         DBUG_RETURN(TRUE);
     }
@@ -4335,21 +4370,19 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
     for (; !field_iterator.end_of_fields(); field_iterator.next())
     {
-      Item *not_used_item;
-      uint not_used_field_index= NO_CACHED_FIELD_INDEX;
-      const char *field_name= field_iterator.name();
       Item *item;
 
-      /* If this is a column of a NATURAL/USING join, and the star was qualified
-         with a table (and database) name, check if the column is not a coalesced
-         one, and if not, that is belongs to the same table.
+      /*
+        If this is a column of a NATURAL/USING join, and the star was
+        qualified with a table (and database) name, check if the
+        column is not a coalesced one, and if not, that is belongs to
+        the same table.
       */
       if (tables->is_natural_join && table_name)
       {
-        if (field_iterator.is_coalesced()
-            ||
-            my_strcasecmp(table_alias_charset, table_name, field_iterator.table_name())
-            ||
+        if (field_iterator.is_coalesced() ||
+            my_strcasecmp(table_alias_charset, table_name,
+                          field_iterator.table_name()) ||
             (db_name && strcmp(db_name, field_iterator.db_name())))
           continue;
       }
@@ -4359,8 +4392,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
       if (!found)
       {
-        it->replace(item); /* Replace '*' with the first found item. */
         found= TRUE;
+        it->replace(item); /* Replace '*' with the first found item. */
       }
       else
         it->after(item);   /* Add 'item' to the SELECT list. */
@@ -4370,8 +4403,9 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         Set privilege information for the fields of newly created views.
         We have that (any_priviliges == TRUE) if and only if we are creating
         a view. In the time of view creation we can't use the MERGE algorithm,
-        therefore if 'tables' is itself a view, it is represented by a temporary
-        table. Thus in this case we can be sure that 'item' is an Item_field.
+        therefore if 'tables' is itself a view, it is represented by a
+        temporary table. Thus in this case we can be sure that 'item' is an
+        Item_field.
       */
       if (any_privileges)
       {
@@ -4380,6 +4414,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
         Item_field *fld= (Item_field*) item;
         const char *table_name= field_iterator.table_name();
+
         if (!tables->schema_table && 
             !(fld->have_privileges=
               (get_column_grant(thd, field_iterator.grant(),
@@ -4413,11 +4448,12 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           bool is_created;
           TABLE *field_table;
           /*
-            In this case we are shure that the column ref will not be created
+            In this case we are sure that the column ref will not be created
             because it was already created and stored with the natural join.
-           */
+          */
           Natural_join_column *nj_col;
-          if (!(nj_col= field_iterator.get_or_create_column_ref(thd, &is_created)))
+          if (!(nj_col= field_iterator.get_or_create_column_ref(thd,
+                                                                &is_created)))
             DBUG_RETURN(TRUE);
           DBUG_ASSERT(nj_col->table_field && !is_created);
           field_table= nj_col->table_ref->table;
@@ -4449,9 +4485,9 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     DBUG_RETURN(FALSE);
 
   /*
-    TODO: in the case when we skipped all columns because there was a qualified
-    '*', and all columns were coalesced, we have to give a more meaningful message
-    than ER_BAD_TABLE_ERROR.
+    TODO: in the case when we skipped all columns because there was a
+    qualified '*', and all columns were coalesced, we have to give a more
+    meaningful message than ER_BAD_TABLE_ERROR.
   */
   if (!table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
