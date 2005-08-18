@@ -1886,8 +1886,6 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
     
     // Suma will not send response to this for now, later...
     sendSignal(SUMA_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
-   // Grep will not send response to this for now, later...
-    sendSignal(GREP_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
     return;
   }//if
   if (TstartNode_or_blockref == numberToRef(BACKUP, getOwnNodeId())){

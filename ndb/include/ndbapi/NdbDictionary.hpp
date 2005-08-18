@@ -77,9 +77,10 @@ public:
                               ///< changes to take effect
       Retrieved,              ///< The object exist and has been read 
                               ///< into main memory from NDB Kernel
-      Invalid                 ///< The object has been invalidated
+      Invalid,                ///< The object has been invalidated
                               ///< and should not be used
-      
+      Altered                 ///< Table has been altered in NDB kernel
+                              ///< but is still valid for usage
     };
 
     /**
