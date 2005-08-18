@@ -5194,7 +5194,7 @@ ER_VIEW_SELECT_VARIABLE
 	rus "View SELECT содержит переменную или параметр"
 	ukr "View SELECT ма╓ зминну або параметер"
 ER_VIEW_SELECT_TMPTABLE  
-	eng "View's SELECT contains a temporary table '%-.64s'"
+	eng "View's SELECT refers to a temporary table '%-.64s'"
 	rus "View SELECT содержит ссылку на временную таблицу '%-.64s'"
 	ukr "View SELECT використову╓ тимчасову таблицю '%-.64s'"
 ER_VIEW_WRONG_LIST  
