@@ -2756,14 +2756,3 @@ DROP TABLE t1,t2;
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
 x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
 16	16	2	2
-CREATE TABLE BUG_12595(a varchar(100));
-INSERT INTO BUG_12595 VALUES ('hakan%'), ('hakank'), ("ha%an");
-SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
-a
-hakan%
-SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
-ERROR HY000: Incorrect arguments to ESCAPE
-SELECT * FROM BUG_12595 WHERE a LIKE 'ha%%an' ESCAPE '%';
-a
-ha%an
-DROP TABLE BUG_12595;
