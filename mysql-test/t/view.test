@@ -1942,3 +1942,15 @@ DROP TABLE t1,t2,t3,t4,t5;
 create view v1 as select timestampdiff(day,'1997-01-01 00:00:00','1997-01-02 00:00:00') as f1;
 select * from v1;
 drop view v1;
+
+#
+# Bug #10624 Views with multiple UNION and UNION ALL produce incorrect results
+#
+create table t1 (f1 int);
+create table t2 (f1 int);
+insert into t1 values (1);
+insert into t2 values (2);
+create view v1 as select * from t1 union select * from t2 union all select * from t2;
+select * from v1;
+drop view v1;
+drop table t1,t2;
