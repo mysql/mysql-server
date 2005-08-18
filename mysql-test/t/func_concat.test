@@ -52,3 +52,4 @@ select 'a' union select concat('a', -0.0);
 --replace_result a-0.0000 a0.0000
 select 'a' union select concat('a', -0.0000);
 
+# End of 4.1 tests

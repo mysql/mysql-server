@@ -35,10 +35,13 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqld_multi \
 			mysql_create_system_tables
 
+noinst_SCRIPTS =	make_binary_distribution \
+			make_sharedlib_distribution \
+			make_win_src_distribution
+
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
 			make_win_src_distribution.sh \
-			make_win_binary_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
@@ -147,5 +150,3 @@ SUFFIXES = .sh
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
-all: make_win_src_distribution make_binary_distribution make_sharedlib_distribution

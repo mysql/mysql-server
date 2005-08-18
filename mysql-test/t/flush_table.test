@@ -72,3 +72,12 @@ handler t1 read next limit 1;
 handler t1 read next limit 1;
 handler t1 close;
 drop table t1;
+
+#
+# Bug #11934 Two sequential FLUSH TABLES WITH READ LOCK hangs client
+#
+FLUSH TABLES WITH READ LOCK ;
+FLUSH TABLES WITH READ LOCK ;
+UNLOCK TABLES;
+
+# End of 4.1 tests

@@ -7,7 +7,7 @@ source include/master-slave.inc;
 # creating replication user for whom ssl auth is required
 # preparing playground
 connection master;
-grant replication slave on *.* to replssl@'%' require ssl;
+grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
 save_master_pos;
 
@@ -60,3 +60,5 @@ sync_with_master;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
+
+# End of 4.1 tests

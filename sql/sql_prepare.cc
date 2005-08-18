@@ -73,6 +73,7 @@ Long data handling:
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -88,6 +89,7 @@ class Prepared_statement: public Statement
 {
 public:
   THD *thd;
+  Protocol *protocol;
   Item_param **param_array;
   uint param_count;
   uint last_errno;
@@ -927,7 +929,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_normal_and_derived_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     goto error;
 
   if ((values= its++))
@@ -1007,7 +1009,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (update_precheck(thd, table_list))
     goto error;
 
-  if (open_tables(thd, &table_list, &table_count))
+  if (open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
   if (table_list->multitable_view)
@@ -1682,10 +1684,12 @@ static bool init_param_array(Prepared_statement *stmt)
 
 static void cleanup_stmt_and_thd_after_use(Statement *stmt, THD *thd)
 {
+  DBUG_ENTER("cleanup_stmt_and_thd_after_use");
   stmt->lex->unit.cleanup();
   cleanup_items(stmt->free_list);
   thd->rollback_item_tree_changes();
   thd->cleanup_after_query();
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1780,6 +1784,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex= thd->lex;
   lex->safe_to_cache_query= 0;
 
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
+
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          thd->net.report_error || init_param_array(stmt);
   /*
@@ -1848,6 +1855,13 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
 
+  /*
+    We have to update "thd" pointer in LEX, all its units and in LEX::result,
+    since statements which belong to trigger body are associated with TABLE
+    object and because of this can be used in different threads.
+  */
+  lex->thd= thd;
+
   if (lex->empty_field_list_on_rset)
   {
     lex->empty_field_list_on_rset= 0;
@@ -1886,6 +1900,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       unit->types.empty();
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
+      unit->set_thd(thd);
     }
   }
 
@@ -1924,7 +1939,10 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     lex->select_lex.leaf_tables= lex->leaf_tables_insert;
 
   if (lex->result)
+  {
     lex->result->cleanup();
+    lex->result->set_thd(thd);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -1982,7 +2000,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute")))
     DBUG_VOID_RETURN;
 
-  DBUG_PRINT("exec_query:", ("%s", stmt->query));
+  DBUG_PRINT("exec_query", ("%s", stmt->query));
+  DBUG_PRINT("info",("stmt: %p", stmt));
 
   /* Check if we got an error when sending long data */
   if (stmt->state == Query_arena::ERROR)
@@ -2018,6 +2037,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
       stmt->lex->result= &cursor->result;
+      stmt->protocol= &cursor->protocol;
       thd->lock_id= &cursor->lock_id;
     }
   }
@@ -2052,9 +2072,11 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   }
   mysql_log.write(thd, thd->command, "[%lu] %s", stmt->id, thd->query);
 
-  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
+  thd->protocol= stmt->protocol;                // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
   mysql_execute_command(thd);
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
@@ -2078,6 +2100,10 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     cleanup_stmt_and_thd_after_use(stmt, thd);
     reset_stmt_params(stmt);
   }
+
+  log_slow_statement(thd);
+  /* Prevent from second logging in the end of dispatch_command */
+  thd->enable_slow_log= FALSE;
 
   thd->set_statement(&stmt_backup);
   thd->lock_id= &thd->main_lock_id;
@@ -2124,6 +2150,8 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     DBUG_VOID_RETURN;
   }
+
+  DBUG_PRINT("info",("stmt: %p", stmt));
 
   /* Must go before setting variables, as it clears thd->user_var_events */
   mysql_reset_thd_for_next_command(thd);
@@ -2238,7 +2266,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
 
-  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
+  thd->protocol= stmt->protocol;                // Switch to binary protocol
   cursor->fetch(num_rows);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
@@ -2410,6 +2438,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
              thd_arg->variables.query_alloc_block_size,
              thd_arg->variables.query_prealloc_size),
   thd(thd_arg),
+  protocol(&thd_arg->protocol_prep),
   param_array(0),
   param_count(0),
   last_errno(0)
@@ -2445,19 +2474,26 @@ void Prepared_statement::setup_set_params()
 
 Prepared_statement::~Prepared_statement()
 {
+  DBUG_ENTER("Prepared_statement::~Prepared_statement");
+  DBUG_PRINT("enter",("stmt: %p  cursor: %p", this, cursor));
   if (cursor)
   {
     if (cursor->is_open())
     {
       cursor->close(FALSE);
-      free_items();
+      cleanup_items(free_list);
+      thd->rollback_item_tree_changes();
       free_root(cursor->mem_root, MYF(0));
     }
     cursor->Cursor::~Cursor();
   }
-  else
-    free_items();
+  /*
+    We have to call free on the items even if cleanup is called as some items,
+    like Item_param, don't free everything until free_items()
+  */
+  free_items();
   delete lex->result;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2469,6 +2505,9 @@ Query_arena::Type Prepared_statement::type() const
 
 void Prepared_statement::close_cursor()
 {
+  DBUG_ENTER("Prepared_statement::close_cursor");
+  DBUG_PRINT("enter",("stmt: %p", this));
+
   if (cursor && cursor->is_open())
   {
     thd->change_list= cursor->change_list;
@@ -2483,4 +2522,5 @@ void Prepared_statement::close_cursor()
     mysql_stmt_send_long_data() call.
   */
   reset_stmt_params(this);
+  DBUG_VOID_RETURN;
 }

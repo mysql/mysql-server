@@ -17,7 +17,7 @@
 #include <my_global.h>
 
 #include "log.h"
-
+#include "portability.h"
 #include <stdarg.h>
 #include <m_string.h>
 #include <my_sys.h>

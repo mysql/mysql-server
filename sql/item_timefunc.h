@@ -714,6 +714,12 @@ public:
   {
     return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
   }  
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length= 10;
+    maybe_null= 1;
+  }
 };
 
 
@@ -854,7 +860,7 @@ class Item_func_timestamp_diff :public Item_int_func
 public:
   Item_func_timestamp_diff(Item *a,Item *b,interval_type type_arg)
     :Item_int_func(a,b), int_type(type_arg) {}
-  const char *func_name() const { return "timestamp_diff"; }
+  const char *func_name() const { return "timestampdiff"; }
   longlong val_int();
   void fix_length_and_dec()
   {

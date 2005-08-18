@@ -287,6 +287,7 @@ select 3 from t1 ;
 #
 #select 3 from t1 ;
 
+# End of 4.1 tests
 
 #
 # Bug #10251: Identifiers containing quotes not handled correctly
@@ -295,8 +296,6 @@ select 1 as `a'b`, 2 as `a"b`;
 
 # Test escaping of quotes
 select 'aaa\\','aa''a',"aa""a";
-
-
 
 #
 # Check of include/show_msg.inc and include/show_msg80.inc
@@ -325,3 +324,14 @@ let $message= . Here comes a very very long message that
               .      - consists of several lines;
 --source include/show_msg80.inc
 
+#
+# Test --enable_parsning / disable_parsning
+#
+--disable_query_log
+--disable_parsing
+# The following will not enable query logging
+--enable_query_log
+select "this will not be executed";
+--enable_parsing
+select "this will be executed";
+--enable_query_log

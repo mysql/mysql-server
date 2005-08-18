@@ -1037,7 +1037,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-#define C2(x) { int _x= (x); if(_x == 0) return NDBT_FAILED; }
+#define C2(x) { int _x= (x); if(_x == 0){ ndbout << "line: " << __LINE__ << endl;  return NDBT_FAILED;} }
 
 int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
@@ -1046,7 +1046,6 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*pTab);
 
   Ndb* pNdb = GETNDB(step);
-
   C2(hugoOps.startTransaction(pNdb) == 0);
   C2(hugoOps.pkInsertRecord(pNdb, 0, 1) == 0);
   C2(hugoOps.execute_NoCommit(pNdb) == 0);
@@ -1098,7 +1097,7 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   C2(hugoOps.pkInsertRecord(pNdb, 0, 1) == 0);
   C2(hugoOps.execute_NoCommit(pNdb) == 0);
   C2(hugoOps2.startTransaction(&ndb2) == 0);
-  C2(hugoOps2.pkWriteRecord(&ndb2, 0, 1) == 0);
+  C2(hugoOps2.pkWritePartialRecord(&ndb2, 0) == 0);
   C2(hugoOps2.execute_async(&ndb2, NdbTransaction::NoCommit) == 0);
   C2(hugoOps.execute_Commit(pNdb) == 0);
   C2(hugoOps2.wait_async(&ndb2) == 0);
@@ -1113,6 +1112,29 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   C2(hugoOps2.execute_async(&ndb2, NdbTransaction::NoCommit) == 0);
   C2(hugoOps.execute_Commit(pNdb) == 0);
   C2(hugoOps2.wait_async(&ndb2) == 0);
+  C2(hugoOps2.execute_Commit(pNdb) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
+  C2(hugoOps2.closeTransaction(&ndb2) == 0);  
+
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkUpdateRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps2.startTransaction(&ndb2) == 0);
+  C2(hugoOps2.pkWritePartialRecord(&ndb2, 0) == 0);
+  C2(hugoOps2.execute_async(&ndb2, NdbTransaction::NoCommit) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps2.wait_async(&ndb2) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
+  C2(hugoOps2.closeTransaction(&ndb2) == 0);  
+
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkDeleteRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_NoCommit(pNdb) == 0);
+  C2(hugoOps2.startTransaction(&ndb2) == 0);
+  C2(hugoOps2.pkWritePartialRecord(&ndb2, 0) == 0);
+  C2(hugoOps2.execute_async(&ndb2, NdbTransaction::NoCommit) == 0);
+  C2(hugoOps.execute_Commit(pNdb) == 0);
+  C2(hugoOps2.wait_async(&ndb2) != 0);
   C2(hugoOps.closeTransaction(pNdb) == 0);
   C2(hugoOps2.closeTransaction(&ndb2) == 0);  
 

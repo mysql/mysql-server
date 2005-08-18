@@ -124,6 +124,9 @@ uint cleanup_dirname(register my_string to, const char *from)
   reg4 my_string start;
   char parent[5],				/* for "FN_PARENTDIR" */
        buff[FN_REFLEN+1],*end_parentdir;
+#ifdef BACKSLASH_MBTAIL
+  CHARSET_INFO *fs= fs_character_set();
+#endif
   DBUG_ENTER("cleanup_dirname");
   DBUG_PRINT("enter",("from: '%s'",from));
 
@@ -141,6 +144,15 @@ uint cleanup_dirname(register my_string to, const char *from)
   length=(uint) (strmov(parent+1,FN_PARENTDIR)-parent);
   for (pos=start ; (*pos= *from_ptr++) != 0 ; pos++)
   {
+#ifdef BACKSLASH_MBTAIL
+    uint l;
+    if (use_mb(fs) && (l= my_ismbchar(fs, from_ptr - 1, from_ptr + 2)))
+    {
+      for (l-- ; l ; *++pos= *from_ptr++, l--);
+      start= pos + 1; /* Don't look inside multi-byte char */
+      continue;
+    }
+#endif
     if (*pos == '/')
       *pos = FN_LIBCHAR;
     if (*pos == FN_LIBCHAR)

@@ -432,7 +432,7 @@ int main(int argc,char *argv[])
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
 #ifdef HAVE_READLINE
-  initialize_readline(my_progname);
+  initialize_readline((char*) my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
     /* read-history from file, default ~/.mysql_history*/
@@ -624,7 +624,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
    (gptr*) &current_prompt, (gptr*) &current_prompt, 0, GET_STR_ALLOC,
@@ -1598,11 +1598,8 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       mysql_free_result(fields);
     }
     else
-    {
-      tee_fprintf(stdout,
-		  "Didn't find any fields in table '%s'\n",table_row[0]);
       field_names[i]= 0;
-    }
+
     i++;
   }
   mysql_free_result(tables);

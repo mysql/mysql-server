@@ -32,3 +32,10 @@ a	b
 3	d
 4	e
 drop table t1;
+create table t1 (a int not null primary key);
+insert into t1 values (1);
+insert delayed into t1 values (1);
+select * from t1;
+a
+1
+drop table t1;

@@ -55,3 +55,5 @@ connection slave;
 # SQL slave thread should not have stopped (because table of the killed
 # query is in the ignore list).
 sync_with_master;
+
+# End of 4.1 tests

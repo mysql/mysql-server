@@ -1016,14 +1016,18 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
        ; // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             derivation < dt.derivation &&
-             collation->state & MY_CS_UNICODE)
+             collation->state & MY_CS_UNICODE &&
+             (derivation < dt.derivation ||
+             (derivation == dt.derivation &&
+             !(dt.collation->state & MY_CS_UNICODE))))
     {
       // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             dt.derivation < derivation &&
-             dt.collation->state & MY_CS_UNICODE)
+             dt.collation->state & MY_CS_UNICODE &&
+             (dt.derivation < derivation ||
+              (dt.derivation == derivation &&
+             !(collation->state & MY_CS_UNICODE))))
     {
       set(dt);
     }
@@ -1081,6 +1085,176 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
   }
   return 0;
 }
+
+/******************************/
+static
+void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
+           c1.collation->name,c1.derivation_name(),
+           c2.collation->name,c2.derivation_name(),
+           fname);
+}
+
+
+static
+void my_coll_agg_error(DTCollation &c1, DTCollation &c2, DTCollation &c3,
+                       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
+	   fname);
+}
+
+
+static
+void my_coll_agg_error(Item** args, uint count, const char *fname)
+{
+  if (count == 2)
+    my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
+  else if (count == 3)
+    my_coll_agg_error(args[0]->collation, args[1]->collation,
+                      args[2]->collation, fname);
+  else
+    my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
+}
+
+
+bool agg_item_collations(DTCollation &c, const char *fname,
+                         Item **av, uint count, uint flags)
+{
+  uint i;
+  c.set(av[0]->collation);
+  for (i= 1; i < count; i++)
+  {
+    if (c.aggregate(av[i]->collation, flags))
+    {
+      my_coll_agg_error(av, count, fname);
+      return TRUE;
+    }
+  }
+  if ((flags & MY_COLL_DISALLOW_NONE) &&
+      c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(av, count, fname);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
+                                        Item **av, uint count, uint flags)
+{
+  return (agg_item_collations(c, fname, av, count,
+                              flags | MY_COLL_DISALLOW_NONE));
+}
+
+
+/* 
+  Collect arguments' character sets together.
+  We allow to apply automatic character set conversion in some cases.
+  The conditions when conversion is possible are:
+  - arguments A and B have different charsets
+  - A wins according to coercibility rules
+    (i.e. a column is stronger than a string constant,
+     an explicit COLLATE clause is stronger than a column)
+  - character set of A is either superset for character set of B,
+    or B is a string constant which can be converted into the
+    character set of A without data loss.
+    
+  If all of the above is true, then it's possible to convert
+  B into the character set of A, and then compare according
+  to the collation of A.
+  
+  For functions with more than two arguments:
+
+    collect(A,B,C) ::= collect(collect(A,B),C)
+*/
+
+bool agg_item_charsets(DTCollation &coll, const char *fname,
+                       Item **args, uint nargs, uint flags)
+{
+  Item **arg, **last, *safe_args[2];
+  if (agg_item_collations(coll, fname, args, nargs, flags))
+    return TRUE;
+
+  /*
+    For better error reporting: save the first and the second argument.
+    We need this only if the the number of args is 3 or 2:
+    - for a longer argument list, "Illegal mix of collations"
+      doesn't display each argument's characteristics.
+    - if nargs is 1, then this error cannot happen.
+  */
+  if (nargs >=2 && nargs <= 3)
+  {
+    safe_args[0]= args[0];
+    safe_args[1]= args[1];
+  }
+
+  THD *thd= current_thd;
+  Query_arena *arena, backup;
+  bool res= FALSE;
+  /*
+    In case we're in statement prepare, create conversion item
+    in its memory: it will be reused on each execute.
+  */
+  arena= thd->change_arena_if_needed(&backup);
+
+  for (arg= args, last= args + nargs; arg < last; arg++)
+  {
+    Item* conv;
+    uint32 dummy_offset;
+    if (!String::needs_conversion(0, coll.collation,
+                                  (*arg)->collation.collation,
+                                  &dummy_offset))
+      continue;
+
+    if (!(conv= (*arg)->safe_charset_converter(coll.collation)))
+    {
+      if (nargs >=2 && nargs <= 3)
+      {
+        /* restore the original arguments for better error message */
+        args[0]= safe_args[0];
+        args[1]= safe_args[1];
+      }
+      my_coll_agg_error(args, nargs, fname);
+      res= TRUE;
+      break; // we cannot return here, we need to restore "arena".
+    }
+    if ((*arg)->type() == Item::FIELD_ITEM)
+      ((Item_field *)(*arg))->no_const_subst= 1;
+    /*
+      If in statement prepare, then we create a converter for two
+      constant items, do it once and then reuse it.
+      If we're in execution of a prepared statement, arena is NULL,
+      and the conv was created in runtime memory. This can be
+      the case only if the argument is a parameter marker ('?'),
+      because for all true constants the charset converter has already
+      been created in prepare. In this case register the change for
+      rollback.
+    */
+    if (arena)
+      *arg= conv;
+    else
+      thd->change_item_tree(arg, conv);
+    /*
+      We do not check conv->fixed, because Item_func_conv_charset which can
+      be return by safe_charset_converter can't be fixed at creation
+    */
+    conv->fix_fields(thd, arg);
+  }
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+  return res;
+}
+
+
+
+
+/**********************************************/
 
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
@@ -2018,6 +2192,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
 
 void Item_param::reset()
 {
+  DBUG_ENTER("Item_param::reset");
   /* Shrink string buffer if it's bigger than max possible CHAR column */
   if (str_value.alloced_length() > MAX_CHAR_WIDTH)
     str_value.free();
@@ -2042,6 +2217,7 @@ void Item_param::reset()
     DBUG_ASSERTS(state != NO_VALUE) in all Item_param::get_*
     methods).
   */
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2895,7 +3071,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       expression to 'reference', i.e. it substitute that expression instead
       of this Item_field
     */
-    if ((from_field= find_field_in_tables(thd, this, context->table_list,
+    if ((from_field= find_field_in_tables(thd, this,
+                                          context->first_name_resolution_table,
+                                          context->last_name_resolution_table,
                                           reference,
                                           IGNORE_EXCEPT_NON_UNIQUE,
                                           !any_privileges &&
@@ -2904,13 +3082,13 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 	not_found_field)
     {
       /*
-        If there is an outer contexts (outer selects, but current select is
+        If there are outer contexts (outer selects, but current select is
         not derived table or view) try to resolve this reference in the
         outer contexts.
 
         We treat each subselect as a separate namespace, so that different
-        subselects may contain columns with the same names. The subselects are
-         searched starting from the innermost.
+        subselects may contain columns with the same names. The subselects
+        are searched starting from the innermost.
       */
       Name_resolution_context *last_checked_context= context;
       Item **ref= (Item **) not_found_item;
@@ -2939,7 +3117,10 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
              (!select->with_sum_func &&
               select->group_list.elements == 0)) &&
             (from_field= find_field_in_tables(thd, this,
-                                              outer_context->table_list,
+                                              outer_context->
+                                                first_name_resolution_table,
+                                              outer_context->
+                                                last_name_resolution_table,
                                               reference,
                                               IGNORE_EXCEPT_NON_UNIQUE,
                                               outer_context->
@@ -3014,7 +3195,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 	else
 	{
           /* Call find_field_in_tables only to report the error */
-	  find_field_in_tables(thd, this, context->table_list,
+	  find_field_in_tables(thd, this,
+                               context->first_name_resolution_table,
+                               context->last_name_resolution_table,
                                reference, REPORT_ALL_ERRORS,
                                !any_privileges &&
                                context->check_privileges, TRUE);
@@ -4182,7 +4365,10 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             expression instead of this Item_ref
           */
           from_field= find_field_in_tables(thd, this,
-                                           outer_context->table_list,
+                                           outer_context->
+                                             first_name_resolution_table,
+                                           outer_context->
+                                             last_name_resolution_table,
                                            reference,
                                            IGNORE_EXCEPT_NON_UNIQUE,
                                            outer_context->check_privileges,
@@ -4801,9 +4987,8 @@ void Item_trigger_field::setup_field(THD *thd, TABLE *table)
     Try to find field by its name and if it will be found
     set field_idx properly.
   */
-  (void)find_field_in_real_table(thd, table, field_name,
-                                 (uint) strlen(field_name),
-                                 0, 0, &field_idx);
+  (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
+                            0, 0, &field_idx);
   thd->set_query_id= save_set_query_id;
   triggers= table->triggers;
 }

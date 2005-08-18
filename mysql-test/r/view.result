@@ -566,7 +566,7 @@ select * from v1;
 col1
 describe v1;
 Field	Type	Null	Key	Default	Extra
-col1	varchar(2)	YES		NULL	
+col1	char(2)	YES		NULL	
 drop view v1;
 drop table `t1a``b`;
 create table t1 (col1 char(5),col2 char(5));
@@ -581,6 +581,11 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
+drop procedure if exists p1;
+create procedure p1 () begin declare v int; create view v1 as select v; end;//
+call p1();
+ERROR HY000: View's SELECT contains a variable or parameter
+drop procedure p1;
 create table t1 (col1 int,col2 char(22));
 insert into t1 values(5,'Hello, world of views');
 create view v1 as select * from t1;
@@ -1875,6 +1880,8 @@ test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or f
 test.v6	check	status	OK
 drop view v1, v2, v3, v4, v5, v6;
 drop table t2;
+drop function if exists f1;
+drop function if exists f2;
 CREATE TABLE t1 (col1 time);
 CREATE TABLE t2 (col1 time);
 CREATE TABLE t3 (col1 time);
@@ -2016,6 +2023,17 @@ CALL p1();
 DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;
+create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
+create view v1 as select * from t1;
+desc v1;
+Field	Type	Null	Key	Default	Extra
+f1	tinyint(1)	YES		NULL	
+f2	char(1)	YES		NULL	
+f3	varchar(1)	YES		NULL	
+f4	geometry	YES		NULL	
+f5	datetime	YES		NULL	
+drop view v1;
+drop table t1;
 create table t1(f1 datetime);
 insert into t1 values('2005.01.01 12:0:0');
 create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
@@ -2024,3 +2042,58 @@ f1	sb
 2005-01-01 12:00:00	2005-01-01 10:58:59
 drop view v1;
 drop table t1;
+CREATE TABLE t1 (
+aid int PRIMARY KEY,
+fn varchar(20) NOT NULL,
+ln varchar(20) NOT NULL
+);
+CREATE TABLE t2 (
+aid int NOT NULL,
+pid int NOT NULL
+);
+INSERT INTO t1 VALUES(1,'a','b'), (2,'c','d');
+INSERT INTO t2 values (1,1), (2,1), (2,2);
+CREATE VIEW v1 AS SELECT t1.*,t2.pid FROM t1,t2 WHERE t1.aid = t2.aid;
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM t1,t2 
+WHERE t1.aid = t2.aid GROUP BY pid;
+pid	GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1)
+1	a b,c d
+2	c d
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM v1 GROUP BY pid;
+pid	GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1)
+1	a b,c d
+2	c d
+DROP VIEW v1;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (id int PRIMARY KEY, f varchar(255));
+CREATE VIEW v1 AS SELECT id, f FROM t1 WHERE id <= 2;
+INSERT INTO t1 VALUES (2, 'foo2');
+INSERT INTO t1 VALUES (1, 'foo1');
+SELECT * FROM v1;
+id	f
+1	foo1
+2	foo2
+SELECT * FROM v1;
+id	f
+1	foo1
+2	foo2
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (pk int PRIMARY KEY, b int);
+CREATE TABLE t2 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t3 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t4 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t5 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE VIEW v1 AS
+SELECT t1.pk as a FROM t1,t2,t3,t4,t5
+WHERE t1.b IS NULL AND
+t1.pk=t2.fk AND t2.pk=t3.fk AND t3.pk=t4.fk AND t4.pk=t5.fk;
+SELECT a FROM v1;
+a
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4,t5;
+create view v1 as select timestampdiff(day,'1997-01-01 00:00:00','1997-01-02 00:00:00') as f1;
+select * from v1;
+f1
+1
+drop view v1;

@@ -75,6 +75,8 @@ static int get_charset_number(const char *charset_name)
 char *mdup(const char *src, uint len)
 {
   char *dst=(char*)malloc(len);
+  if (!dst)
+    exit(1);
   memcpy(dst,src,len);
   return dst;
 }

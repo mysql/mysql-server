@@ -307,18 +307,18 @@ create table t1 ( id integer unsigned not null primary key );
 create table t2 ( id integer unsigned not null primary key );
 insert into t1 values (1), (2);
 insert into t2 values (1);
-select  t1.id as id_A,  t2.id as id_B from t1 left join t2 using ( id );
+select  t1.id as id_A,  t2.id as id_B from t1 left join t2 on (t1.id = t2.id);
 id_A	id_B
 1	1
 2	NULL
 create table t3 (id_A integer unsigned not null, id_B integer unsigned null  );
-insert into t3 select t1.id as id_A,  t2.id as id_B from t1 left join t2 using ( id );
+insert into t3 select t1.id as id_A,  t2.id as id_B from t1 left join t2 on (t1.id = t2.id);
 select * from t3;
 id_A	id_B
 1	1
 2	NULL
 drop table t3;
-create table t3 select t1.id as id_A,  t2.id as id_B from t1 left join t2 using ( id );
+create table t3 select t1.id as id_A,  t2.id as id_B from t1 left join t2 on (t1.id = t2.id);
 select * from t3;
 id_A	id_B
 1	1

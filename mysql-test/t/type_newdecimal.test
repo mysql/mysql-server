@@ -986,6 +986,10 @@ create table t1 (sl decimal(0,30));
 create table t1 (sl decimal(5, 5));
 show create table t1;
 drop table t1;
+# Test limits
+create table t1 (sl decimal(65, 30));
+show create table t1;
+drop table t1;
 
 #
 # Bug 11557 (DEFAULT values rounded improperly
@@ -1003,3 +1007,11 @@ insert into t1 (f1) values (1);
 select * from t1;
 drop table t1;
 
+#
+# Bug 12173 (show create table fails)
+#
+create table t1 (
+        f0 decimal (30,30) zerofill not null DEFAULT 0,
+        f1 decimal (0,0) zerofill not null default 0);
+show create table t1;
+drop table t1;

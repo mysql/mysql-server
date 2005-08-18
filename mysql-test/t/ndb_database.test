@@ -48,3 +48,5 @@ show tables;
 drop table if exists t1;
 drop database if exists mysqltest;
 --enable_warnings
+
+# End of 4.1 tests

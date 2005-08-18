@@ -4468,7 +4468,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   my_time_t tmp= 0;
   int error;
   bool have_smth_to_conv;
-  bool in_dst_time_gap;
+  my_bool in_dst_time_gap;
   THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
@@ -4539,14 +4539,14 @@ int Field_timestamp::store(longlong nr)
   TIME l_time;
   my_time_t timestamp= 0;
   int error;
-  bool in_dst_time_gap;
+  my_bool in_dst_time_gap;
   THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   longlong tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
                                                  MODE_NO_ZERO_DATE) |
                                    MODE_NO_ZERO_IN_DATE, &error);
-  if (tmp < 0)
+  if (tmp == LL(-1))
   {
     error= 2;
   }
@@ -5215,7 +5215,7 @@ int Field_date::store(longlong nr)
                                            MODE_NO_ZERO_DATE |
                                            MODE_INVALID_DATES))), &error);
 
-  if (nr < 0)
+  if (nr == LL(-1))
   {
     nr= 0;
     error= 2;
@@ -5391,12 +5391,12 @@ int Field_newdate::store(longlong nr)
   TIME l_time;
   longlong tmp;
   int error;
-  if ((tmp= number_to_datetime(nr, &l_time,
-                               (TIME_FUZZY_DATE |
-                                (table->in_use->variables.sql_mode &
-                                 (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                                  MODE_INVALID_DATES))),
-                               &error) < 0))
+  if (number_to_datetime(nr, &l_time,
+                         (TIME_FUZZY_DATE |
+                          (table->in_use->variables.sql_mode &
+                           (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                            MODE_INVALID_DATES))),
+                         &error) == LL(-1))
   {
     tmp= 0L;
     error= 2;
@@ -5593,7 +5593,7 @@ int Field_datetime::store(longlong nr)
                                            MODE_NO_ZERO_DATE |
                                            MODE_INVALID_DATES))), &error);
 
-  if (nr < 0)
+  if (nr == LL(-1))
   {
     nr= 0;
     error= 2;
@@ -7846,7 +7846,10 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
   {
     set_rec_bits(0xff, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, field_length);
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    if (table->in_use->really_abort_on_warning())
+      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+    else
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   /* delta is >= -1 here */
@@ -8063,7 +8066,10 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
     memset(ptr, 0xff, field_length);
     if (bits)
       *ptr&= ((1 << bits) - 1); /* set first byte */
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    if (table->in_use->really_abort_on_warning())
+      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+    else
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   bzero(ptr, delta);
@@ -8462,7 +8468,10 @@ create_field::create_field(Field *old_field,Field *orig_field)
   def=0;
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       !old_field->is_real_null() &&
-      old_field->ptr && orig_field)
+      old_field->ptr && orig_field &&
+      (sql_type != FIELD_TYPE_TIMESTAMP ||                /* set def only if */
+       old_field->table->timestamp_field != old_field ||  /* timestamp field */ 
+       unireg_check == Field::TIMESTAMP_UN_FIELD))        /* has default val */
   {
     char buff[MAX_FIELD_WIDTH],*pos;
     String tmp(buff,sizeof(buff), charset), *res;

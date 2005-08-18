@@ -247,7 +247,7 @@ end|
 ERROR 42000: Duplicate cursor: c
 create procedure u()
 use sptmp|
-ERROR 42000: USE is not allowed in a stored procedure
+ERROR 0A000: USE is not allowed in stored procedures
 create procedure p()
 begin
 declare c cursor for select * from t1;
@@ -616,7 +616,7 @@ begin
 flush tables;
 return 5;
 end|
-ERROR 0A000: FLUSH is not allowed in stored procedures
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123()
 begin
 end|

@@ -7,6 +7,7 @@ drop table if exists t1, t2, t3;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
+drop procedure if exists p1;
 --enable_warnings
 
 create table t1 (i int);
@@ -609,4 +610,122 @@ drop function bug5893;
 update t1 set col2 = 4;
 # This should not crash server too.
 drop trigger t1_bu;
+drop table t1;
+
+#
+# storing and restoring parsing modes for triggers (BUG#5891)
+#
+set sql_mode='ansi';
+create table t1 ("t1 column" int);
+create trigger t1_bi before insert on t1 for each row set new."t1 column" = 5;
+set sql_mode="";
+insert into t1 values (0);
+# create trigger with different sql_mode
+create trigger t1_af after insert on t1 for each row set @a=10;
+insert into t1 values (0);
+select * from t1;
+select @a;
+--replace_column 6 #
+show triggers;
+drop table t1;
+# check that rigger preserve sql_mode during execution
+set sql_mode="traditional";
+create table t1 (a date);
+-- error 1292
+insert into t1 values ('2004-01-00');
+set sql_mode="";
+create trigger t1_bi before insert on t1 for each row set new.a = '2004-01-00';
+set sql_mode="traditional";
+insert into t1 values ('2004-01-01');
+select * from t1;
+set sql_mode=default;
+show create table t1;
+--replace_column 6 #
+show triggers;
+drop table t1;
+
+# Test for bug #12280 "Triggers: crash if flush tables"
+# FLUSH TABLES and FLUSH PRIVILEGES should be disallowed inside
+# of functions and triggers.
+create table t1 (id int);
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush tables;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush privileges;
+create procedure p1() flush tables;
+create trigger t1_ai after insert on t1 for each row call p1();
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+drop procedure p1;
+create procedure p1() flush privileges;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+drop procedure p1;
+drop table t1;
+
+# Test for bug #11973 "SELECT .. INTO var_name; in trigger cause
+#                      crash on update"
+
+create table t1 (id int, data int, username varchar(16));
+insert into t1 (id, data) values (1, 0);
+delimiter |;
+create trigger t1_whoupdated before update on t1 for each row
+begin
+  declare user varchar(32);
+  declare i int;
+  select user() into user;
+  set NEW.username = user;
+  select count(*) from ((select 1) union (select 2)) as d1 into i;
+end|
+delimiter ;|
+update t1 set data = 1;
+
+connect (addconroot, localhost, root,,);
+connection addconroot;
+update t1 set data = 2;
+
+connection default;
+disconnect addconroot;
+drop table t1;
+
+#
+# #11587 Trigger causes lost connection error
+#
+
+create table t1 (c1 int, c2 datetime);
+delimiter |;
+--error ER_SP_NO_RETSET
+create trigger tr1 before insert on t1 for each row 
+begin 
+  set new.c2= '2004-04-01';
+  select 'hello';
+end|
+delimiter ;|
+
+insert into t1 (c1) values (1),(2),(3);
+select * from t1;
+
+--disable_warnings
+drop procedure if exists bug11587;
+--enable_warnings
+
+delimiter |;
+create procedure bug11587(x char(16))
+begin
+  select "hello";
+  select "hello again";
+end|
+
+create trigger tr1 before insert on t1 for each row 
+begin 
+  call bug11587();
+  set new.c2= '2004-04-02';
+end|
+delimiter ;|
+
+--error 1312
+insert into t1 (c1) values (4),(5),(6);
+select * from t1;
+
+drop procedure bug11587;
 drop table t1;

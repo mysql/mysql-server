@@ -147,10 +147,11 @@ insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
 
-# WL #2486 should enable these tests
-#select * from t1 natural left join v1;
-#select * from v2 natural left join t1;
-#select * from v2 natural left join v1;
+--disable_parsing WL #2486 should enable these tests
+select * from t1 natural left join v1;
+select * from v2 natural left join t1;
+select * from v2 natural left join v1;
+--enable_parsing
 
 drop view v1, v2;
 drop table t1;
@@ -490,15 +491,15 @@ create view v1 (a,a) as select 'a','a';
 #
 # SP variables inside view test
 #
-# QQ This can't be tested with the new table locking for functions,
-# QQ since views created in an SP can't be used within the same SP
-# QQ (just as for tables). Instead it fails with error 1146.
-#delimiter //;
-#create procedure p1 () begin declare v int; create view v1 as select v; end;//
-#delimiter ;//
-#-- error 1351
-#call p1();
-#drop procedure p1;
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+delimiter //;
+create procedure p1 () begin declare v int; create view v1 as select v; end;//
+delimiter ;//
+-- error 1351
+call p1();
+drop procedure p1;
 
 #
 # updatablity should be transitive
@@ -1710,6 +1711,10 @@ CHECK TABLE v1, v2, v3, v4, v5, v6;
 drop view v1, v2, v3, v4, v5, v6;
 drop table t2;
 
+--disable_warnings
+drop function if exists f1;
+drop function if exists f2;
+--enable_warnings
 CREATE TABLE t1 (col1 time);
 CREATE TABLE t2 (col1 time);
 CREATE TABLE t3 (col1 time);
@@ -1855,6 +1860,15 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 #
+# Bug #11335 View redefines column types
+#
+create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
+create view v1 as select * from t1;
+desc v1;
+drop view v1;
+drop table t1;
+
+#
 # Bug #11760 Typo in Item_func_add_time::print() results in NULLs returned
 #             subtime() in view
 create table t1(f1 datetime);
@@ -1862,4 +1876,69 @@ insert into t1 values('2005.01.01 12:0:0');
 create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
 select * from v1;
 drop view v1;
-drop table t1; 
+drop table t1;
+
+#
+# Test for bug #11412: query over a multitable view with GROUP_CONCAT
+#
+CREATE TABLE t1 (
+  aid int PRIMARY KEY,
+  fn varchar(20) NOT NULL,
+  ln varchar(20) NOT NULL
+);
+CREATE TABLE t2 (
+  aid int NOT NULL,
+  pid int NOT NULL
+);
+INSERT INTO t1 VALUES(1,'a','b'), (2,'c','d');
+INSERT INTO t2 values (1,1), (2,1), (2,2);
+
+CREATE VIEW v1 AS SELECT t1.*,t2.pid FROM t1,t2 WHERE t1.aid = t2.aid;
+
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM t1,t2 
+  WHERE t1.aid = t2.aid GROUP BY pid;
+SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM v1 GROUP BY pid;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+#
+# Test for bug #12382: SELECT * FROM view after INSERT command
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, f varchar(255));
+CREATE VIEW v1 AS SELECT id, f FROM t1 WHERE id <= 2;
+INSERT INTO t1 VALUES (2, 'foo2');
+INSERT INTO t1 VALUES (1, 'foo1');
+
+SELECT * FROM v1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Test for bug #12470: crash for a simple select from a view defined
+#                      as a join over 5 tables
+
+CREATE TABLE t1 (pk int PRIMARY KEY, b int);
+CREATE TABLE t2 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t3 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t4 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t5 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE VIEW v1 AS
+  SELECT t1.pk as a FROM t1,t2,t3,t4,t5
+    WHERE t1.b IS NULL AND
+          t1.pk=t2.fk AND t2.pk=t3.fk AND t3.pk=t4.fk AND t4.pk=t5.fk;
+
+SELECT a FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4,t5;
+
+#
+# Bug #12298 Typo in  function name results in erroneous view being created.
+#
+create view v1 as select timestampdiff(day,'1997-01-01 00:00:00','1997-01-02 00:00:00') as f1;
+select * from v1;
+drop view v1;

@@ -209,3 +209,5 @@ SET CHARACTER SET 'binary';
 SELECT * FROM t1;
 SELECT min(comment),count(*) FROM t1 GROUP BY ucs2_f;
 DROP TABLE t1;
+
+# End of 4.1 tests

@@ -13,3 +13,5 @@ select City from t1 where (select
 intersects(GeomFromText(AsText(Location)),GeomFromText('Polygon((2 50, 2.5
 50, 2.5 47, 2 47, 2 50))'))=0);
 drop table t1;
+
+# End of 4.1 tests

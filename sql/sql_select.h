@@ -202,7 +202,7 @@ class JOIN :public Sql_alloc
   Item	    *having;
   Item      *tmp_having; // To store having when processed temporary table
   Item      *having_history; // Store having for explain
-  uint	    select_options;
+  ulonglong  select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
   MYSQL_LOCK *lock;
@@ -258,14 +258,14 @@ class JOIN :public Sql_alloc
   bool union_part; // this subselect is part of union 
   bool optimized; // flag to avoid double optimization in EXPLAIN
 
-  JOIN(THD *thd_arg, List<Item> &fields_arg, ulong select_options_arg,
+  JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
     :fields_list(fields_arg)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
   
-  void init(THD *thd_arg, List<Item> &fields_arg, ulong select_options_arg,
+  void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
   {
     join_tab= join_tab_save= 0;
@@ -366,6 +366,11 @@ class JOIN :public Sql_alloc
 	    !group_list);
   }
   bool change_result(select_result *result);
+  bool is_top_level_join() const
+  {
+    return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
+                                        select_lex == unit->fake_select_lex));
+  }
 };
 
 
@@ -396,6 +401,7 @@ class Cursor: public Sql_alloc, public Query_arena
   };
   Engine_info ht_info[MAX_HA];
 public:
+  Protocol_prep protocol;
   Item_change_list change_list;
   select_send result;
   THR_LOCK_OWNER lock_id;
@@ -431,7 +437,7 @@ void TEST_join(JOIN *join);
 bool store_val_in_field(Field *field,Item *val);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
-			ulong select_options, ha_rows rows_limit,
+			ulonglong select_options, ha_rows rows_limit,
 			char* alias);
 TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list);
 void free_tmp_table(THD *thd, TABLE *entry);

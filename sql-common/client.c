@@ -713,8 +713,9 @@ void free_old_query(MYSQL *mysql)
   if (mysql->fields)
     free_root(&mysql->field_alloc,MYF(0));
   init_alloc_root(&mysql->field_alloc,8192,0); /* Assume rowlength < 8192 */
-  mysql->fields=0;
-  mysql->field_count=0;				/* For API */
+  mysql->fields= 0;
+  mysql->field_count= 0;			/* For API */
+  mysql->info= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2206,14 +2207,22 @@ my_bool mysql_reconnect(MYSQL *mysql)
   tmp_mysql.rpl_pivot = mysql->rpl_pivot;
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
-			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS) ||
-      mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
+			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
   {
     mysql->net.last_errno= tmp_mysql.net.last_errno;
     strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
+  if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
+  {
+    mysql_close(&tmp_mysql);
+    mysql->net.last_errno= tmp_mysql.net.last_errno;
+    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
+    strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
+    DBUG_RETURN(1);
+  }
+
   tmp_mysql.reconnect= 1;
   tmp_mysql.free_me= mysql->free_me;
 

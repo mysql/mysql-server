@@ -123,6 +123,7 @@ group by a.id, a.description
 having (a.description is not null) and (c=0);
 drop table t1,t2,t3;
 
+# End of 4.1 tests
 
 #
 # Tests for WL#1972 CORRECT EVALUATION OF COLUMN REFERENCES IN THE HAVING CLAUSE
@@ -232,7 +233,6 @@ where t1.col2 in
        group by t2.col1, t2.col2 having col_t1 <= 10)
 group by col_t1
 having col_t1 <= 20;
-
 
 #
 # nested HAVING clauses

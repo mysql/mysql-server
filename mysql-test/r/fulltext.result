@@ -221,14 +221,14 @@ select t1.id FROM t2 as ttxt,t1,t1 as ticket2
 WHERE ticket2.id = ttxt.ticket AND t1.id = ticket2.ticket and
 match(ttxt.inhalt) against ('foobar');
 id
-select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON
-ticket2.id = ttxt.ticket
-WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
+select ticket2.id FROM t2 as ttxt,t2 INNER JOIN t1 as ticket2 ON
+ticket2.id = t2.ticket
+WHERE ticket2.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
 id
 INSERT INTO t1 VALUES (3,3);
-select t1.id FROM t2 as ttxt,t1
-INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ticket
-WHERE t1.id = ticket2.ticket and
+select ticket2.id FROM t2 as ttxt,t2
+INNER JOIN t1 as ticket2 ON ticket2.id = t2.ticket
+WHERE ticket2.id = ticket2.ticket and
 match(ttxt.inhalt) against ('foobar');
 id
 3
@@ -337,8 +337,8 @@ insert into t2 values (1, 1, 'xxfoo');
 insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
-t1_id	name	t2_id	t1_id	name
-1	data1	1	1	xxfoo
+t1_id	name	t2_id	name
+1	data1	1	xxfoo
 select * from t2 where match name against ('*a*b*c*d*e*f*' in boolean mode);
 t2_id	t1_id	name
 drop table t1,t2;
@@ -421,4 +421,12 @@ INSERT INTO t1 VALUES('Mit freundlichem Grüß aus Osnabrück');
 SELECT COUNT(*) FROM t1 WHERE MATCH(t) AGAINST ('"osnabrück"' IN BOOLEAN MODE);
 COUNT(*)
 1
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(30), FULLTEXT(a));
+INSERT INTO t1 VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SET myisam_repair_threads=@@global.myisam_repair_threads;
 DROP TABLE t1;

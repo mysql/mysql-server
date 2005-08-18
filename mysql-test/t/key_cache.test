@@ -167,3 +167,12 @@ set GLOBAL key_cache_block_size=2048;
 check table t1;
 
 drop table t1;
+
+#
+# Bug#10473 - Can't set 'key_buffer_size' system variable to ZERO
+# (One cannot drop the default key cache.)
+#
+set @@global.key_buffer_size=0;
+select @@global.key_buffer_size;
+
+# End of 4.1 tests

@@ -762,7 +762,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   TABLE_COUNTER_TYPE local_tables;
   ulong tot_length;
   DBUG_ENTER("Query_cache::store_query");
-  if (query_cache_size == 0)
+  if (query_cache_size == 0 || thd->locked_tables)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
@@ -774,10 +774,11 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     Query_cache_query_flags flags;
     // fill all gaps between fields with 0 to get repeatable key
     bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
-    flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
-			     1 : 0);
-    flags.client_protocol_41= (thd->client_capabilities & CLIENT_PROTOCOL_41 ?
-			     1 : 0);
+    flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
+    flags.client_protocol_41= test(thd->client_capabilities &
+                                   CLIENT_PROTOCOL_41);
+    flags.more_results_exists= test(thd->server_status &
+                                    SERVER_MORE_RESULTS_EXISTS);
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
@@ -791,6 +792,20 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.sql_mode= thd->variables.sql_mode;
     flags.max_sort_length= thd->variables.max_sort_length;
     flags.group_concat_max_len= thd->variables.group_concat_max_len;
+    DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, \
+CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
+sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
+                          (int)flags.client_long_flag,
+                          (int)flags.client_protocol_41,
+                          (int)flags.more_results_exists,
+                          flags.character_set_client_num,
+                          flags.character_set_results_num,
+                          flags.collation_connection_num,
+                          flags.limit,
+                          (ulong)flags.time_zone,
+                          flags.sql_mode,
+                          flags.max_sort_length,
+                          flags.group_concat_max_len));
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -921,8 +936,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_query_flags flags;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
-  if (query_cache_size == 0 || thd->variables.query_cache_type == 0)
-
+  if (query_cache_size == 0 || thd->locked_tables ||
+      thd->variables.query_cache_type == 0)
     goto err;
 
   /* Check that we haven't forgot to reset the query cache variables */
@@ -973,10 +988,11 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
   // fill all gaps between fields with 0 to get repeatable key
   bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
-  flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
-			   1 : 0);
-  flags.client_protocol_41= (thd->client_capabilities & CLIENT_PROTOCOL_41 ?
-                           1 : 0);
+  flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
+  flags.client_protocol_41= test(thd->client_capabilities &
+                                 CLIENT_PROTOCOL_41);
+  flags.more_results_exists= test(thd->server_status &
+                                  SERVER_MORE_RESULTS_EXISTS);
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
     (thd->variables.character_set_results ?
@@ -988,6 +1004,20 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.sql_mode= thd->variables.sql_mode;
   flags.max_sort_length= thd->variables.max_sort_length;
   flags.group_concat_max_len= thd->variables.group_concat_max_len;
+  DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, \
+CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
+sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
+                          (int)flags.client_long_flag,
+                          (int)flags.client_protocol_41,
+                          (int)flags.more_results_exists,
+                          flags.character_set_client_num,
+                          flags.character_set_results_num,
+                          flags.collation_connection_num,
+                          flags.limit,
+                          (ulong)flags.time_zone,
+                          flags.sql_mode,
+                          flags.max_sort_length,
+                          flags.group_concat_max_len));
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,

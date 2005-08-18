@@ -28,13 +28,18 @@
 
 struct Options
 {
+#ifdef __WIN__
+  static char install_as_service;
+  static char remove_service;
+#else
   static char run_as_service;        /* handle_options doesn't support bool */
+  static const char *user;
+#endif
   static const char *log_file_name;
   static const char *pid_file_name;
   static const char *socket_file_name;
   static const char *password_file_name;
   static const char *default_mysqld_path;
-  static const char *user;
   /* the option which should be passed to process_default_option_files */
   static uint monitoring_interval;
   static uint port_number;
@@ -44,8 +49,11 @@ struct Options
   /* argv pointer returned by load_defaults() to be used by free_defaults() */
   static char **saved_argv;
 
-  static int load(int argc, char **argv);
+  int load(int argc, char **argv);
   void cleanup();
+#ifdef __WIN__
+  int setup_windows_defaults(const char *progname);
+#endif
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_OPTIONS_H

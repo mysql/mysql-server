@@ -170,3 +170,5 @@ sync_with_master;
 # These has to be droped on slave as they are not replicated
 drop database mysqltest2;
 drop database mysqltest3;
+
+# End of 4.1 tests
