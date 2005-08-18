@@ -41,8 +41,8 @@ RSC=rc.exe
 # PROP Output_Dir ".\Debug"
 # PROP Intermediate_Dir ".\Debug"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\Debug/mysql_test_run_new.pch" /Fo".\Debug/" /Fd".\Debug/" /GZ /c /GX 
-# ADD CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\Debug/mysql_test_run_new.pch" /Fo".\Debug/" /Fd".\Debug/" /GZ /c /GX 
+# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\Debug/mysql_test_run_new.pch" /Fo".\Debug/" /Fd".\Debug/" /GZ /FD /c /GX 
+# ADD CPP /nologo /MTd /I "../include" /I "../" /Z7 /W3 /Od /G6 /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /Fp".\Debug/mysql_test_run_new.pch" /Fo".\Debug/" /Fd".\Debug/" /GZ /FD /c /GX 
 # ADD BASE MTL /nologo /tlb".\Debug\mysql_test_run_new.tlb" /win32 
 # ADD MTL /nologo /tlb".\Debug\mysql_test_run_new.tlb" /win32 
 # ADD BASE RSC /l 1033 
@@ -66,8 +66,8 @@ LINK32=link.exe
 # PROP Output_Dir ".\Release"
 # PROP Intermediate_Dir ".\Release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_test_run_new.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
-# ADD CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_test_run_new.pch" /Fo".\Release/" /Fd".\Release/" /c /GX 
+# ADD BASE CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_test_run_new.pch" /Fo".\Release/" /Fd".\Release/" /FD /c /GX 
+# ADD CPP /nologo /MTd /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /D "__WIN__" /D "_WIN32" /GF /Gy /Fp".\Release/mysql_test_run_new.pch" /Fo".\Release/" /Fd".\Release/" /FD /c /GX 
 # ADD BASE MTL /nologo /tlb".\Release\mysql_test_run_new.tlb" /win32 
 # ADD MTL /nologo /tlb".\Release\mysql_test_run_new.tlb" /win32 
 # ADD BASE RSC /l 1033 
