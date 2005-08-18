@@ -30,7 +30,6 @@
 #include <Backup.hpp>
 #include <DbUtil.hpp>
 #include <Suma.hpp>
-#include <Grep.hpp>
 #include <Dbtux.hpp>
 #include <NdbEnv.h>
 
@@ -97,13 +96,14 @@ SimBlockList::load(const Configuration & conf){
   theList[11] = NEW_BLOCK(Backup)(conf);
   theList[12] = NEW_BLOCK(DbUtil)(conf);
   theList[13] = NEW_BLOCK(Suma)(conf);
-  theList[14] = NEW_BLOCK(Grep)(conf);
+  theList[14] = 0; //NEW_BLOCK(Grep)(conf);
   theList[15] = NEW_BLOCK(Dbtux)(conf);
 
   // Metadata common part shared by block instances
   ptrMetaDataCommon = new MetaData::Common(*dbdict, *dbdih);
   for (int i = 0; i < noOfBlocks; i++)
-    theList[i]->setMetaDataCommon(ptrMetaDataCommon);
+    if(theList[i])
+      theList[i]->setMetaDataCommon(ptrMetaDataCommon);
 }
 
 void

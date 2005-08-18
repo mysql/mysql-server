@@ -179,8 +179,24 @@ a	b	c
 2	two	two
 alter table t1 drop index c;
 select * from t1 where b = 'two';
-ERROR HY000: Table definition has changed, please retry transaction
+a	b	c
+2	two	two
 select * from t1 where b = 'two';
 a	b	c
 2	two	two
 drop table t1;
+create table t3 (a int primary key) engine=ndbcluster;
+begin;
+insert into t3 values (1);
+alter table t3 rename t4;
+delete from t3;
+insert into t3 values (1);
+commit;
+select * from t3;
+ERROR HY000: Can't lock file (errno: 155)
+select * from t4;
+a
+1
+drop table t4;
+show tables;
+Tables_in_test
