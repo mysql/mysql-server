@@ -306,9 +306,11 @@ bool mysql_create_view(THD *thd,
 
   /*
     check that tables are not temporary  and this VIEW do not used in query
-    (it is possible with ALTERing VIEW)
-  */
-  for (tbl= tables; tbl; tbl= tbl->next_global)
+    (it is possible with ALTERing VIEW).
+    open_and_lock_tables can change the value of tables,
+    e.g. it may happen if before the function call tables was equal to 0. 
+  */ 
+  for (tbl= tables= lex->query_tables; tbl; tbl= tbl->next_global)
   {
     /* is this table temporary and is not view? */
     if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->view &&

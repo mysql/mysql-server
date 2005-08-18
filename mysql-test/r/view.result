@@ -6,7 +6,7 @@ create view v1 (c,d) as select a,b from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 create temporary table t1 (a int, b int);
 create view v1 (c) as select b+1 from t1;
-ERROR HY000: View's SELECT contains a temporary table 't1'
+ERROR HY000: View's SELECT refers to a temporary table 't1'
 drop table t1;
 create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
@@ -2097,3 +2097,9 @@ select * from v1;
 f1
 1
 drop view v1;
+CREATE TEMPORARY TABLE t1 (a int);
+CREATE FUNCTION f1 () RETURNS int RETURN (SELECT COUNT(*) FROM t1);
+CREATE VIEW v1 AS SELECT f1();
+ERROR HY000: View's SELECT refers to a temporary table 't1'
+DROP FUNCTION f1;
+DROP TABLE t1;
