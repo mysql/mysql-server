@@ -8681,8 +8681,10 @@ union_list:
 	}
 	select_init
         {
-          /* Remove from the name resolution context stack the context of the
-             last select in the union. */
+          /*
+	    Remove from the name resolution context stack the context of the
+            last select in the union.
+	  */
           Lex->pop_context();
         }
 	;
