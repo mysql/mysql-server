@@ -1,10 +1,9 @@
 use test;
-drop table if exists t1;
+drop table if exists t1,t2,t3,t4;
 create table t1 (
 id   char(16) not null default '',
 data int not null
 );
-drop table if exists t2;
 create table t2 (
 s   char(16),
 i   int,
@@ -85,7 +84,6 @@ foo	1
 kaka	3
 delete from t1|
 drop procedure setcontext|
-drop table if exists t3|
 create table t3 ( d date, i int, f double, s varchar(32) )|
 drop procedure if exists nullset|
 create procedure nullset()
@@ -521,7 +519,6 @@ select data into x from test.t1 limit 1;
 insert into test.t3 values ("into4", x);
 end|
 delete from t1|
-drop table if exists t3|
 create table t3 ( s char(16), d int)|
 call into_test4()|
 Warnings:
@@ -565,13 +562,12 @@ insert into test.t1 values (x, y);
 create temporary table test.t3 select * from test.t1;
 insert into test.t3 values (concat(x, "2"), y+2);
 end|
-drop table if exists t3|
 call create_select("cs", 90)|
 select * from t1, t3|
 id	data	id	data
 cs	90	cs	90
 cs	90	cs2	92
-drop table if exists t3|
+drop table t3|
 delete from t1|
 drop procedure create_select|
 drop function if exists e|
@@ -702,7 +698,6 @@ id	data
 hndlr3	13
 delete from t1|
 drop procedure hndlr3|
-drop table if exists t3|
 create table t3 ( id   char(16), data int )|
 drop procedure if exists hndlr4|
 create procedure hndlr4()
@@ -745,7 +740,6 @@ foo	40
 bar	15
 zap	663
 drop procedure cur1|
-drop table if exists t3|
 create table t3 ( s char(16), i int )|
 drop procedure if exists cur2|
 create procedure cur2()
@@ -1309,7 +1303,6 @@ select t1max()|
 t1max()
 5
 drop function t1max|
-drop table if exists t3|
 create table t3 (
 v char(16) not null primary key,
 c int unsigned not null
@@ -1430,7 +1423,6 @@ select @1, @2|
 2	NULL
 drop table t70|
 drop procedure bug1656|
-drop table if exists t3|
 create table t3(a int)|
 drop procedure if exists bug1862|
 create procedure bug1862()
@@ -1555,7 +1547,6 @@ select @x|
 42
 drop procedure bug2776_1|
 drop procedure bug2776_2|
-drop table if exists t3|
 create table t3 (s1 smallint)|
 insert into t3 values (123456789012)|
 Warnings:
@@ -1616,7 +1607,6 @@ f1	rc	t3
 drop procedure bug1863|
 drop temporary table temp_t1;
 drop table t3, t4|
-drop table if exists t3, t4|
 create table t3 ( 
 OrderID  int not null,
 MarketID int,
@@ -1694,7 +1684,6 @@ select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
 @i	time
 2	01-01-1970 03:16:40
 drop procedure bug3426|
-drop table if exists t3, t4|
 create table t3 (
 a int primary key, 
 ach char(1)
@@ -1724,7 +1713,6 @@ a	ach	b	bch
 1	a	1	b
 drop procedure bug3448|
 drop table t3, t4|
-drop table if exists t3|
 create table t3 (
 id int unsigned auto_increment not null primary key,
 title VARCHAR(200),
@@ -1873,7 +1861,6 @@ select 1+2|
 1+2
 3
 drop procedure bug3843|
-drop table if exists t3|
 create table t3 ( s1 char(10) )|
 insert into t3 values ('a'), ('b')|
 drop procedure if exists bug3368|
@@ -1889,7 +1876,6 @@ group_concat(v)
 yz,yz
 drop procedure bug3368|
 drop table t3|
-drop table if exists t3|
 create table t3 (f1 int, f2 int)|
 insert into t3 values (1,1)|
 drop procedure if exists bug4579_1|
@@ -1914,7 +1900,6 @@ Warning	1329	No data to FETCH
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
-drop table if exists t3|
 drop procedure if exists bug2773|
 create function bug2773() returns int return null|
 create table t3 as select bug2773()|
@@ -1936,7 +1921,6 @@ select bug3788()|
 bug3788()
 5
 drop function bug3788|
-drop table if exists t3|
 create table t3 (f1 int, f2 int, f3 int)|
 insert into t3 values (1,1,1)|
 drop procedure if exists bug4726|
@@ -2097,7 +2081,6 @@ call bug4902_2()|
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	test	Query	#	NULL	show processlist
 drop procedure bug4902_2|
-drop table if exists t3|
 drop procedure if exists bug4904|
 create procedure bug4904()
 begin
@@ -2286,7 +2269,6 @@ flush status|
 flush query cache|
 delete from t1|
 drop procedure bug3583|
-drop table if exists t3|
 drop procedure if exists bug4905|
 create table t3 (s1 int,primary key (s1))|
 drop procedure if exists bug4905|
@@ -2344,7 +2326,6 @@ call bug8540()|
 y	z
 1	1
 drop procedure bug8540|
-drop table if exists t3|
 create table t3 (s1 int)|
 drop procedure if exists bug6642|
 create procedure bug6642()
@@ -2427,7 +2408,6 @@ call bug7992_2()|
 drop procedure bug7992_1|
 drop procedure bug7992_2|
 drop table t3|
-drop table if exists t3|
 create table t3 (  userid bigint(20) not null default 0 )|
 drop procedure if exists bug8116|
 create procedure bug8116(in _userid int)
@@ -2588,7 +2568,6 @@ delete from t1|
 drop procedure if exists bug6900|
 drop procedure if exists bug9074|
 drop procedure if exists bug6900_9074|
-drop table if exists t3|
 create table t3 (w char unique, x char)|
 insert into t3 values ('a', 'b')|
 create procedure bug6900()
@@ -2658,20 +2637,20 @@ call avg ()|
 drop procedure avg|
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
-set @@sql_mode= "";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
 select @@sql_mode|
 call bug6129()|
 @@sql_mode
-
+ERROR_FOR_DIVISION_BY_ZERO
 set @@sql_mode= "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO"|
 call bug6129()|
 @@sql_mode
-NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO
+ERROR_FOR_DIVISION_BY_ZERO
 set @@sql_mode= "NO_ZERO_IN_DATE"|
 call bug6129()|
 @@sql_mode
-NO_ZERO_IN_DATE
+ERROR_FOR_DIVISION_BY_ZERO
 set @@sql_mode=@old_mode;
 drop procedure bug6129|
 drop procedure if exists bug9856|
@@ -3042,32 +3021,6 @@ drop procedure bug11529|
 drop procedure if exists bug6063|
 drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
-create procedure bug6063()
-l‚bel: begin end|
-call bug6063()|
-show create procedure bug6063|
-Procedure	sql_mode	Create Procedure
-bug6063		CREATE PROCEDURE `test`.`bug6063`()
-l?bel: begin end
-set character set utf8|
-create procedure bug7088_1()
-label1: begin end label1|
-create procedure bug7088_2()
-l√§bel1: begin end|
-call bug7088_1()|
-call bug7088_2()|
-set character set default|
-show create procedure bug7088_1|
-Procedure	sql_mode	Create Procedure
-bug7088_1		CREATE PROCEDURE `test`.`bug7088_1`()
-label1: begin end label1
-show create procedure bug7088_2|
-Procedure	sql_mode	Create Procedure
-bug7088_2		CREATE PROCEDURE `test`.`bug7088_2`()
-l‰bel1: begin end
-drop procedure bug6063|
-drop procedure bug7088_1|
-drop procedure bug7088_2|
 drop procedure if exists bug9565_sub|
 drop procedure if exists bug9565|
 create procedure bug9565_sub()
@@ -3099,4 +3052,52 @@ select @@sort_buffer_size|
 1000000
 set @@sort_buffer_size = @x|
 drop procedure bug9538|
+drop procedure if exists bug8692|
+create table t3 (c1 varchar(5), c2 char(5), c3 enum('one','two'), c4 text, c5 blob, c6 char(5), c7 varchar(5))|
+insert into t3 values ('', '', '', '', '', '', NULL)|
+Warnings:
+Warning	1265	Data truncated for column 'c3' at row 1
+create procedure bug8692()
+begin 
+declare v1 VARCHAR(10); 
+declare v2 VARCHAR(10); 
+declare v3 VARCHAR(10); 
+declare v4 VARCHAR(10); 
+declare v5 VARCHAR(10); 
+declare v6 VARCHAR(10); 
+declare v7 VARCHAR(10); 
+declare c8692 cursor for select c1,c2,c3,c4,c5,c6,c7 from t3; 
+open c8692; 
+fetch c8692 into v1,v2,v3,v4,v5,v6,v7;
+select v1, v2, v3, v4, v5, v6, v7;
+end|
+call bug8692()|
+v1	v2	v3	v4	v5	v6	v7
+						NULL
+drop procedure bug8692|
+drop table t3|
+drop function if exists bug10055|
+create function bug10055(v char(255)) returns char(255) return lower(v)|
+select t.column_name, bug10055(t.column_name)
+from information_schema.columns as t
+where t.table_schema = 'test' and t.table_name = 't1'|
+column_name	bug10055(t.column_name)
+id	id
+data	data
+drop function bug10055|
+drop function if exists f_bug11247|
+drop procedure if exists p_bug11247|
+create function f_bug11247(param int)
+returns int
+return param + 1|
+create procedure p_bug11247(lim int)
+begin
+declare v int default 0;
+while v < lim do
+set v= f_bug11247(v);
+end while;
+end|
+call p_bug11247(10)|
+drop function f_bug11247|
+drop procedure p_bug11247|
 drop table t1,t2;

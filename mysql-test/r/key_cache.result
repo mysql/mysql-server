@@ -23,13 +23,13 @@ SELECT @@global.default.key_buffer_size;
 @@global.default.key_buffer_size
 16777216
 SELECT @@global.default.`key_buffer_size`;
-@@global.default.key_buffer_size
+@@global.default.`key_buffer_size`
 16777216
 SELECT @@global.`default`.`key_buffer_size`;
-@@global.default.key_buffer_size
+@@global.`default`.`key_buffer_size`
 16777216
 SELECT @@`default`.key_buffer_size;
-@@default.key_buffer_size
+@@`default`.key_buffer_size
 16777216
 SELECT @@small.key_buffer_size;
 @@small.key_buffer_size
@@ -289,3 +289,9 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+set @@global.key_buffer_size=0;
+Warnings:
+Warning	1438	Cannot drop default keycache
+select @@global.key_buffer_size;
+@@global.key_buffer_size
+2097152

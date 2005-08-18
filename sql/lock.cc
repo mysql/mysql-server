@@ -99,14 +99,15 @@ static void print_lock_error(int error, const char *);
     NULL on error.
 */
 
+static int thr_lock_errno_to_mysql[]=
+{ 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
+
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
 {
   MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
   int rc;
   /* Map the return value of thr_lock to an error from errmsg.txt */
-  const static int thr_lock_errno_to_mysql[]=
-  { 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
   DBUG_ENTER("mysql_lock_tables");
 
   for (;;)
@@ -348,7 +349,18 @@ void mysql_lock_abort(THD *thd, TABLE *table)
 }
 
 
-/* Abort one thread / table combination */
+/*
+  Abort one thread / table combination
+
+  SYNOPSIS
+    mysql_lock_abort_for_thread()
+    thd		Thread handler
+    table	Table that should be removed from lock queue
+
+  RETURN
+    0  Table was not locked by another thread
+    1  Table was locked by at least one other thread
+*/
 
 bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
 {
@@ -361,10 +373,9 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
   {
     for (uint i=0; i < locked->lock_count; i++)
     {
-      bool found;
-      found= thr_abort_locks_for_thread(locked->locks[i]->lock,
-	         			 table->in_use->real_id);
-      result|= found;
+      if (thr_abort_locks_for_thread(locked->locks[i]->lock,
+                                     table->in_use->real_id))
+        result= TRUE;
     }
     my_free((gptr) locked,MYF(0));
   }
@@ -601,6 +612,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(-1);
   table->s= &table->share_not_to_be_used;
   memcpy((table->s->table_cache_key= (char*) (table+1)), key, key_length);
+  table->s->db= table->s->table_cache_key;
   table->s->key_length=key_length;
   table->in_use=thd;
   table->locked_by_name=1;
@@ -612,14 +624,9 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(-1);
   }
   
-  {
-    if (remove_table_from_cache(thd, db,
-                                table_list->table_name, RTFC_NO_FLAG))
-    {
-      DBUG_RETURN(1);				// Table is in use
-    }
-  }
-  DBUG_RETURN(0);
+  /* Return 1 if table is in use */
+  DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->table_name,
+                                           RTFC_NO_FLAG)));
 }
 
 
@@ -842,10 +849,6 @@ static void print_lock_error(int error, const char *table)
   So in this exceptional case the COMMIT should not be blocked by the FLUSH
   TABLES WITH READ LOCK.
 
-  TODO in MySQL 5.x: make_global_read_lock_block_commit() should be
-  killable. Normally CPU does not spend a long time in this function (COMMITs
-  are quite fast), but it would still be nice.
-
 ****************************************************************************/
 
 volatile uint global_read_lock=0;
@@ -983,7 +986,7 @@ bool make_global_read_lock_block_commit(THD *thd)
     make_global_read_lock_block_commit(), do nothing.
   */
   if (thd->global_read_lock != GOT_GLOBAL_READ_LOCK)
-    DBUG_RETURN(1);
+    DBUG_RETURN(0);
   pthread_mutex_lock(&LOCK_global_read_lock);
   /* increment this BEFORE waiting on cond (otherwise race cond) */
   global_read_lock_blocks_commit++;
@@ -996,7 +999,7 @@ bool make_global_read_lock_block_commit(THD *thd)
     pthread_cond_wait(&COND_refresh, &LOCK_global_read_lock);
   DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
                   protect_against_global_read_lock--;);
-  if (error= thd->killed)
+  if ((error= test(thd->killed)))
     global_read_lock_blocks_commit--; // undo what we did
   else
     thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;

@@ -411,6 +411,8 @@ sys_var_long_ptr  sys_innodb_thread_sleep_delay("innodb_thread_sleep_delay",
                                                 &srv_thread_sleep_delay);
 sys_var_long_ptr  sys_innodb_thread_concurrency("innodb_thread_concurrency",
                                                 &srv_thread_concurrency);
+sys_var_long_ptr  sys_innodb_commit_concurrency("innodb_commit_concurrency",
+                                                &srv_commit_concurrency);
 #endif
 
 /* Condition pushdown to storage engine */
@@ -708,6 +710,7 @@ sys_var *sys_variables[]=
   &sys_innodb_concurrency_tickets,
   &sys_innodb_thread_sleep_delay,
   &sys_innodb_thread_concurrency,
+  &sys_innodb_commit_concurrency,
 #endif  
   &sys_trust_routine_creators,
   &sys_engine_condition_pushdown,
@@ -828,6 +831,7 @@ struct show_var_st init_vars[]= {
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
+  {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
@@ -1426,6 +1430,12 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   if ((ulong) tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
+#if SIZEOF_LONG == 4
+  /* Avoid overflows on 32 bit systems */
+  if (tmp > (ulonglong) ~(ulong) 0)
+    tmp= ((ulonglong) ~(ulong) 0);
+#endif
+
   if (option_limits)
     tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
@@ -1679,7 +1689,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(uint*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((int32) value);
+    return new Item_uint((ulonglong) value);
   }
   case SHOW_LONG:
   {
@@ -1687,7 +1697,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     pthread_mutex_lock(&LOCK_global_system_variables);
     value= *(ulong*) value_ptr(thd, var_type, base);
     pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((int32) value);
+    return new Item_uint((ulonglong) value);
   }
   case SHOW_LONGLONG:
   {
@@ -2287,7 +2297,12 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   if (!tmp)					// Zero size means delete
   {
     if (key_cache == dflt_key_cache)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_CANT_DROP_DEFAULT_KEYCACHE,
+                          ER(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE));
       goto end;					// Ignore default key cache
+    }
 
     if (key_cache->key_cache_inited)		// If initied
     {
@@ -3196,27 +3211,50 @@ bool sys_var_thd_table_type::update(THD *thd, set_var *var)
  Functions to handle sql_mode
 ****************************************************************************/
 
-byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
-				      LEX_STRING *base)
+/*
+  Make string representation of mode
+
+  SYNOPSIS
+    thd   in  thread handler
+    val   in  sql_mode value
+    len   out pointer on length of string
+
+  RETURN
+    pointer to string with sql_mode representation
+*/
+
+byte *sys_var_thd_sql_mode::symbolic_mode_representation(THD *thd, ulong val,
+                                                         ulong *len)
 {
-  ulong val;
   char buff[256];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
+  ulong length;
 
   tmp.length(0);
-  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
-        thd->variables.*offset);
   for (uint i= 0; val; val>>= 1, i++)
   {
     if (val & 1)
     {
-      tmp.append(enum_names->type_names[i]);
+      tmp.append(sql_mode_typelib.type_names[i],
+                 sql_mode_typelib.type_lengths[i]);
       tmp.append(',');
     }
   }
-  if (tmp.length())
-    tmp.length(tmp.length() - 1);
-  return (byte*) thd->strmake(tmp.ptr(), tmp.length());
+
+  if ((length= tmp.length()))
+    length--;
+  *len= length;
+  return (byte*) thd->strmake(tmp.ptr(), length);
+}
+
+
+byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
+				      LEX_STRING *base)
+{
+  ulong val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+              thd->variables.*offset);
+  ulong length_unused;
+  return symbolic_mode_representation(thd, val, &length_unused);
 }
 
 
@@ -3227,6 +3265,7 @@ void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
   else
     thd->variables.*offset= global_system_variables.*offset;
 }
+
 
 void fix_sql_mode_var(THD *thd, enum_var_type type)
 {

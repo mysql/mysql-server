@@ -183,6 +183,30 @@ set session @honk=99;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@honk=99' at line 1
 set one_shot @honk=99;
 ERROR HY000: The 'SET ONE_SHOT' syntax is reserved for purposes internal to the MySQL server
+select @@local.max_allowed_packet;
+@@local.max_allowed_packet
+#
+select @@session.max_allowed_packet;
+@@session.max_allowed_packet
+#
+select @@global.max_allowed_packet;
+@@global.max_allowed_packet
+#
+select @@max_allowed_packet;
+@@max_allowed_packet
+#
+select @@Max_Allowed_Packet;
+@@Max_Allowed_Packet
+#
+select @@version;
+@@version
+#
+select @@global.version;
+@@global.version
+#
+select @@session.VERSION;
+@@session.VERSION
+#
 set @first_var= NULL;
 create table t1 select @first_var;
 show create table t1;

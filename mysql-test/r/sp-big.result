@@ -1,0 +1,15 @@
+drop procedure if exists test.longprocedure;
+drop table if exists t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+length
+107520
+select length(routine_definition) from information_schema.routines where routine_schema = 'test' and routine_name = 'longprocedure';
+length(routine_definition)
+107530
+call test.longprocedure(@value);
+select @value;
+@value
+3
+drop procedure test.longprocedure;
+drop table t1;

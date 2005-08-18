@@ -36,7 +36,7 @@ extern void list_free(LIST *root,unsigned int free_data);
 extern unsigned int list_length(LIST *);
 extern int list_walk(LIST *,list_walk_action action,gptr argument);
 
-#define rest(a) ((a)->next)
+#define list_rest(a) ((a)->next)
 #define list_push(a,b) (a)=list_cons((b),(a))
 #define list_pop(A) {LIST *old=(A); (A)=list_delete(old,old) ; my_free((gptr) old,MYF(MY_FAE)); }
 

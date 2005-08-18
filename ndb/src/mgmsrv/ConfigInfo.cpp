@@ -915,7 +915,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    KEY_INTERNAL,
+    CFG_DB_LCP_DISC_PAGES_TUP_SR,
     "NoOfDiskPagesToDiskDuringRestartTUP",
     DB_TOKEN,
     "?",
@@ -927,7 +927,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    KEY_INTERNAL,
+    CFG_DB_LCP_DISC_PAGES_TUP,
     "NoOfDiskPagesToDiskAfterRestartTUP",
     DB_TOKEN,
     "?",
@@ -939,7 +939,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    KEY_INTERNAL,
+    CFG_DB_LCP_DISC_PAGES_ACC_SR,
     "NoOfDiskPagesToDiskDuringRestartACC",
     DB_TOKEN,
     "?",
@@ -951,7 +951,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    KEY_INTERNAL,
+    CFG_DB_LCP_DISC_PAGES_ACC,
     "NoOfDiskPagesToDiskAfterRestartACC",
     DB_TOKEN,
     "?",

@@ -61,6 +61,9 @@ private:
   */
   pthread_cond_t COND_instance_stopped;
   Instance_map *instance_map;
+
+  void  remove_pid();
+  int   launch_and_wait();
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_H */

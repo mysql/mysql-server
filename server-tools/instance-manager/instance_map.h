@@ -60,8 +60,8 @@ public:
   Instance *find(const char *name, uint name_len);
 
   int flush_instances();
-  int lock();
-  int unlock();
+  void lock();
+  void unlock();
   int init();
 
   Instance_map(const char *default_mysqld_path_arg);

@@ -97,8 +97,9 @@ trx_doublewrite_init(
 
 	/* Since we now start to use the doublewrite buffer, no need to call
 	fsync() after every write to a data file */
-
+#ifdef UNIV_DO_FLUSH
 	os_do_not_call_flush_at_each_write = TRUE;
+#endif /* UNIV_DO_FLUSH */
 
 	mutex_create(&(trx_doublewrite->mutex));
 	mutex_set_level(&(trx_doublewrite->mutex), SYNC_DOUBLEWRITE);

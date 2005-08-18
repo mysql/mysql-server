@@ -113,3 +113,5 @@ select * from t1;
 commit;
 
 drop table t1, t2;
+
+# End of 4.1 tests

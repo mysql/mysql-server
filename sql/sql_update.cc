@@ -138,7 +138,7 @@ int mysql_update(THD *thd,
 
   LINT_INIT(timestamp_query_id);
 
-  if (open_tables(thd, &table_list, &table_count))
+  if (open_tables(thd, &table_list, &table_count, 0))
     DBUG_RETURN(1);
 
   if (table_list->multitable_view)
@@ -555,7 +555,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(thd, &select_lex->context,
+  if (setup_tables(thd, &select_lex->context, &select_lex->top_join_list,
                    table_list, conds, &select_lex->leaf_tables,
                    FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
@@ -632,7 +632,8 @@ bool mysql_multi_update_prepare(THD *thd)
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
   /* open tables and create derived ones, but do not lock and fill them */
-  if ((original_multiupdate && open_tables(thd, &table_list, & table_count)) ||
+  if ((original_multiupdate &&
+       open_tables(thd, &table_list, &table_count, 0)) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
   /*
@@ -642,6 +643,7 @@ bool mysql_multi_update_prepare(THD *thd)
   */
 
   if (setup_tables(thd, &lex->select_lex.context,
+                   &lex->select_lex.top_join_list,
                    table_list, &lex->select_lex.where,
                    &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
@@ -760,6 +762,7 @@ bool mysql_multi_update_prepare(THD *thd)
       tbl->cleanup_items();
 
     if (setup_tables(thd, &lex->select_lex.context,
+                     &lex->select_lex.top_join_list,
                      table_list, &lex->select_lex.where,
                      &lex->select_lex.leaf_tables, FALSE) ||
         setup_fields_with_no_wrap(thd, 0, *fields, 1, 0, 0))
@@ -810,7 +813,7 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *fields,
                         List<Item> *values,
                         COND *conds,
-                        ulong options,
+                        ulonglong options,
                         enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
@@ -820,7 +823,7 @@ bool mysql_multi_update(THD *thd,
   if (mysql_multi_update_prepare(thd))
     DBUG_RETURN(TRUE);
 
-  if (!(result= new multi_update(thd, table_list,
+  if (!(result= new multi_update(table_list,
 				 thd->lex->select_lex.leaf_tables,
 				 fields, values,
 				 handle_duplicates, ignore)))
@@ -846,13 +849,13 @@ bool mysql_multi_update(THD *thd,
 }
 
 
-multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
+multi_update::multi_update(TABLE_LIST *table_list,
 			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
 			   enum enum_duplicates handle_duplicates_arg,
                            bool ignore_arg)
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
-   thd(thd_arg), tmp_tables(0), updated(0), found(0), fields(field_list),
+   tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
    handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(0),
    transactional_tables(1), ignore(ignore_arg)

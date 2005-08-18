@@ -68,13 +68,16 @@ bool mysql_proc_table_exists= 1;
 
   SYNOPSIS
     close_proc_table()
-      thd  Thread context
+      thd     Thread context
+      backup  Pointer to Open_tables_state instance which holds
+              information about tables which were open before we
+              decided to access mysql.proc.
 */
 
-static void close_proc_table(THD *thd)
+void close_proc_table(THD *thd, Open_tables_state *backup)
 {
   close_thread_tables(thd);
-  thd->pop_open_tables_state();
+  thd->restore_backup_open_tables_state(backup);
 }
 
 
@@ -83,7 +86,10 @@ static void close_proc_table(THD *thd)
 
   SYNOPSIS
     open_proc_table_for_read()
-      thd  Thread context
+      thd     Thread context
+      backup  Pointer to Open_tables_state instance where information about
+              currently open tables will be saved, and from which will be
+              restored when we will end work with mysql.proc.
 
   NOTES
     Thanks to restrictions which we put on opening and locking of
@@ -97,11 +103,10 @@ static void close_proc_table(THD *thd)
     #	Pointer to TABLE object of mysql.proc
 */
 
-static TABLE *open_proc_table_for_read(THD *thd)
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 {
   TABLE_LIST tables;
   TABLE *table;
-  bool old_open_tables= thd->open_tables != 0;
   bool refresh;
   DBUG_ENTER("open_proc_table");
 
@@ -112,8 +117,7 @@ static TABLE *open_proc_table_for_read(THD *thd)
   if (!mysql_proc_table_exists)
     DBUG_RETURN(0);
 
-  if (thd->push_open_tables_state())
-    DBUG_RETURN(0);
+  thd->reset_n_backup_open_tables_state(backup);
 
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
@@ -121,7 +125,7 @@ static TABLE *open_proc_table_for_read(THD *thd)
   if (!(table= open_table(thd, &tables, thd->mem_root, &refresh,
                           MYSQL_LOCK_IGNORE_FLUSH)))
   {
-    thd->pop_open_tables_state();
+    thd->restore_backup_open_tables_state(backup);
     mysql_proc_table_exists= 0;
     DBUG_RETURN(0);
   }
@@ -130,15 +134,13 @@ static TABLE *open_proc_table_for_read(THD *thd)
 
   table->reginfo.lock_type= TL_READ;
   /*
-    If we have other tables opened, we have to ensure we are not blocked
-    by a flush tables or global read lock, as this could lead to a deadlock
+    We have to ensure we are not blocked by a flush tables, as this
+    could lead to a deadlock if we have other tables opened.
   */
   if (!(thd->lock= mysql_lock_tables(thd, &table, 1,
-                                     old_open_tables ?
-                                     (MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
-                                      MYSQL_LOCK_IGNORE_FLUSH) : 0)))
+                                     MYSQL_LOCK_IGNORE_FLUSH)))
   {
-    close_proc_table(thd);
+    close_proc_table(thd, backup);
     DBUG_RETURN(0);
   }
   DBUG_RETURN(table);
@@ -271,12 +273,13 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   ulong sql_mode;
+  Open_tables_state open_tables_state_backup;
   DBUG_ENTER("db_find_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
 
   *sphp= 0;                                     // In case of errors
-  if (!(table= open_proc_table_for_read(thd)))
+  if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
@@ -371,7 +374,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   chistics.comment.str= ptr;
   chistics.comment.length= length;
 
-  close_proc_table(thd);
+  close_proc_table(thd, &open_tables_state_backup);
   table= 0;
 
   {
@@ -424,7 +427,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       LEX *newlex= thd->lex;
       sp_head *sp= newlex->sphead;
 
-      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
 	goto done;
       if (sp)
       {
@@ -435,7 +438,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     }
     else
     {
-      if (dbchanged && (ret= sp_change_db(thd, olddb, 1)))
+      if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
 	goto done;
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *)definer, (uint)strlen(definer),
@@ -449,7 +452,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 
  done:
   if (table)
-    close_proc_table(thd);
+    close_proc_table(thd, &open_tables_state_backup);
   DBUG_RETURN(ret);
 }
 
@@ -501,6 +504,11 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     if (sp->m_name.length > table->field[MYSQL_PROC_FIELD_NAME]->field_length)
     {
       ret= SP_BAD_IDENTIFIER;
+      goto done;
+    }
+    if (sp->m_body.length > table->field[MYSQL_PROC_FIELD_BODY]->field_length)
+    {
+      ret= SP_BODY_TOO_LONG;
       goto done;
     }
     table->field[MYSQL_PROC_FIELD_DB]->
@@ -586,7 +594,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 done:
   close_thread_tables(thd);
   if (dbchanged)
-    (void)sp_change_db(thd, olddb, 1);
+    (void)mysql_change_db(thd, olddb, 1);
   DBUG_RETURN(ret);
 }
 
@@ -781,6 +789,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     */
     thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
     setup_tables(thd, &thd->lex->select_lex.context,
+                 &thd->lex->select_lex.top_join_list,
                  &tables, 0, &leaves, FALSE);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
@@ -790,7 +799,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
                                         "mysql", "proc",
 					used_field->field_name);
       if (!field ||
-          !(used_field->field= find_field_in_tables(thd, field, &tables,
+          !(used_field->field= find_field_in_tables(thd, field, &tables, NULL,
 						    0, REPORT_ALL_ERRORS, 1,
                                                     TRUE)))
       {
@@ -981,13 +990,11 @@ int
 sp_drop_procedure(THD *thd, sp_name *name)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_drop_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_proc_cache, name);
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
@@ -997,13 +1004,11 @@ int
 sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_proc_cache, name);
   ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, chistics);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
@@ -1094,13 +1099,11 @@ int
 sp_drop_function(THD *thd, sp_name *name)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_drop_function");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_func_cache, name);
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
@@ -1110,13 +1113,11 @@ int
 sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
-  bool found;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  found= sp_cache_remove(&thd->sp_func_cache, name);
   ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, chistics);
-  if (!found && !ret)
+  if (!ret)
     sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
@@ -1172,6 +1173,43 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first)
   Sroutine_hash_entry *rn= (Sroutine_hash_entry *)ptr;
   *plen= rn->key.length;
   return (byte *)rn->key.str;
+}
+
+
+/*
+  Check if
+   - current statement (the one in thd->lex) needs table prelocking
+   - first routine in thd->lex->sroutines_list needs to execute its body in
+     prelocked mode.
+
+  SYNOPSIS
+    sp_get_prelocking_info()
+      thd                  Current thread, thd->lex is the statement to be
+                           checked.
+      need_prelocking      OUT TRUE  - prelocked mode should be activated
+                                       before executing the statement
+                               FALSE - Don't activate prelocking 
+      first_no_prelocking  OUT TRUE  - Tables used by first routine in
+                                       thd->lex->sroutines_list should be
+                                       prelocked.
+                               FALSE - Otherwise.
+  NOTES 
+    This function assumes that for any "CALL proc(...)" statement routines_list 
+    will have 'proc' as first element (it may have several, consider e.g.
+    "proc(sp_func(...)))". This property is currently guaranted by the parser.
+*/
+
+void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
+                            bool *first_no_prelocking)
+{
+  Sroutine_hash_entry *routine;
+  routine= (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+
+  DBUG_ASSERT(routine);
+  bool first_is_procedure= (routine->key.str[0] == TYPE_ENUM_PROCEDURE);
+
+  *first_no_prelocking= first_is_procedure;
+  *need_prelocking= !first_is_procedure || test(routine->next);
 }
 
 
@@ -1312,11 +1350,13 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
 
   SYNOPSIS
     sp_cache_routines_and_add_tables_aux()
-      thd   - thread context
-      lex   - LEX representing statement
-      start - first routine from the list of routines to be cached
-              (this list defines mentioned sub-set).
-
+      thd              - thread context
+      lex              - LEX representing statement
+      start            - first routine from the list of routines to be cached
+                         (this list defines mentioned sub-set).
+      first_no_prelock - If true, don't add tables or cache routines used by
+                         the body of the first routine (i.e. *start)
+                         will be executed in non-prelocked mode.
   NOTE
     If some function is missing this won't be reported here.
     Instead this fact will be discovered during query execution.
@@ -1328,10 +1368,11 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
 
 static bool
 sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
-                                     Sroutine_hash_entry *start)
+                                     Sroutine_hash_entry *start, 
+                                     bool first_no_prelock)
 {
   bool result= FALSE;
-
+  bool first= TRUE;
   DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
 
   for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
@@ -1367,9 +1408,13 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
     }
     if (sp)
     {
-      sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
-      result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+      if (!(first && first_no_prelock))
+      {
+        sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
+        result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+      }
     }
+    first= FALSE;
   }
   DBUG_RETURN(result);
 }
@@ -1382,20 +1427,22 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
 
   SYNOPSIS
     sp_cache_routines_and_add_tables()
-      thd   - thread context
-      lex   - LEX representing statement
-
+      thd              - thread context
+      lex              - LEX representing statement
+      first_no_prelock - If true, don't add tables or cache routines used by
+                         the body of the first routine (i.e. *start)
+                         
   RETURN VALUE
     TRUE  - some tables were added
     FALSE - no tables were added.
 */
 
 bool
-sp_cache_routines_and_add_tables(THD *thd, LEX *lex)
+sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
 {
-
   return sp_cache_routines_and_add_tables_aux(thd, lex,
-           (Sroutine_hash_entry *)lex->sroutines_list.first);
+           (Sroutine_hash_entry *)lex->sroutines_list.first,
+           first_no_prelock);
 }
 
 
@@ -1417,8 +1464,8 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
   Sroutine_hash_entry **last_cached_routine_ptr=
                           (Sroutine_hash_entry **)lex->sroutines_list.next;
   sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines);
-  (void)sp_cache_routines_and_add_tables_aux(thd, lex,
-                                             *last_cached_routine_ptr);
+  (void)sp_cache_routines_and_add_tables_aux(thd, lex, 
+                                             *last_cached_routine_ptr, FALSE);
 }
 
 
@@ -1443,7 +1490,9 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
     Sroutine_hash_entry **last_cached_routine_ptr=
                             (Sroutine_hash_entry **)lex->sroutines_list.next;
     for (int i= 0; i < (int)TRG_EVENT_MAX; i++)
+    {
       for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
+      {
         if (triggers->bodies[i][j])
         {
           (void)triggers->bodies[i][j]->add_used_tables_to_table_list(thd,
@@ -1451,9 +1500,11 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
           sp_update_stmt_used_routines(thd, lex,
                                        &triggers->bodies[i][j]->m_sroutines);
         }
-
+      }
+    }
     (void)sp_cache_routines_and_add_tables_aux(thd, lex,
-                                               *last_cached_routine_ptr);
+                                               *last_cached_routine_ptr, 
+                                               FALSE);
   }
 }
 
@@ -1562,112 +1613,10 @@ sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
   }
   else
   {
-    int ret= sp_change_db(thd, newdb, no_access_check);
+    int ret= mysql_change_db(thd, newdb, no_access_check);
 
     if (! ret)
       *dbchangedp= TRUE;
     DBUG_RETURN(ret);
   }
-}
-
-/*
-  Change database.
-
-  SYNOPSIS
-    sp_change_db()
-    thd		    Thread handler
-    name	    Database name
-    empty_is_ok     True= it's ok with "" as name
-    no_access_check True= don't do access check
-
-  DESCRIPTION
-    This is the same as mysql_change_db(), but with some extra
-    arguments for Stored Procedure usage; doing implicit "use" 
-    when executing an SP in a different database.
-    We also use different error routines, since this might be
-    invoked from a function when executing a query or statement.
-    Note: We would have prefered to reuse mysql_change_db(), but
-      the error handling in particular made that too awkward, so
-      we (reluctantly) have a "copy" here.
-
-  RETURN VALUES
-    0	ok
-    1	error
-*/
-
-int
-sp_change_db(THD *thd, char *name, bool no_access_check)
-{
-  int length, db_length;
-  char *dbname=my_strdup((char*) name,MYF(MY_WME));
-  char	path[FN_REFLEN];
-  HA_CREATE_INFO create;
-  DBUG_ENTER("sp_change_db");
-  DBUG_PRINT("enter", ("db: %s, no_access_check: %d", name, no_access_check));
-
-  db_length= (!dbname ? 0 : strip_sp(dbname));
-  if (dbname && db_length)
-  {
-    if ((db_length > NAME_LEN) || check_db_name(dbname))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
-      x_free(dbname);
-      DBUG_RETURN(1);
-    }
-  }
-
-  if (dbname && db_length)
-  {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (! no_access_check)
-    {
-      ulong db_access;
-
-      if (test_all_bits(thd->master_access,DB_ACLS))
-	db_access=DB_ACLS;
-      else
-	db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-		    thd->master_access);  
-      if (!(db_access & DB_ACLS) &&
-	  (!grant_option || check_grant_db(thd,dbname)))
-      {
-	my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->priv_user,
-                 thd->priv_host,
-                 dbname);
-	mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-			thd->priv_user,
-			thd->priv_host,
-			dbname);
-	my_free(dbname,MYF(0));
-	DBUG_RETURN(1);
-      }
-    }
-#endif
-    (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
-    length=unpack_dirname(path,path);		// Convert if not unix
-    if (length && path[length-1] == FN_LIBCHAR)
-      path[length-1]=0;				// remove ending '\'
-    if (access(path,F_OK))
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-      my_free(dbname,MYF(0));
-      DBUG_RETURN(1);
-    }
-  }
-
-  x_free(thd->db);
-  thd->db=dbname;				// THD::~THD will free this
-  thd->db_length=db_length;
-
-  if (dbname && db_length)
-  {
-    strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
-    load_db_opt(thd, path, &create);
-    thd->db_charset= create.default_table_charset ?
-      create.default_table_charset :
-      thd->variables.collation_server;
-    thd->variables.collation_database= thd->db_charset;
-  }
-  DBUG_RETURN(0);
 }

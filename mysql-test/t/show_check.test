@@ -385,3 +385,23 @@ create table t1 (
 );
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+# End of 4.1 tests
+#
+# BUG 12183 -  SHOW OPEN TABLES behavior doesn't match grammar
+# First we close all open tables with FLUSH tables and then we open some.
+CREATE TABLE txt1(a int);
+CREATE TABLE tyt2(a int);
+CREATE TABLE urkunde(a int);
+FLUSH TABLES;
+SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone_name, txt1, tyt2, urkunde LIMIT 0;
+SHOW OPEN TABLES;
+SHOW OPEN TABLES FROM mysql;
+SHOW OPEN TABLES FROM mysql LIKE 'u%';
+SHOW OPEN TABLES LIKE 't%';
+SHOW OPEN TABLES LIKE '%o%';
+FLUSH TABLES;
+SHOW OPEN TABLES;
+DROP TABLE txt1;
+DROP TABLE tyt2;
+DROP TABLE urkunde;

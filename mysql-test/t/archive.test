@@ -1333,3 +1333,5 @@ INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily',''
 # Cleanup, test is over
 #
 drop table t1, t2, t4;
+
+# End of 4.1 tests

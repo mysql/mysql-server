@@ -1,0 +1,242 @@
+#
+# Tests of prelocking-free execution of stored procedures.
+# Currently two properties of prelocking-free SP execution are checked:
+#  - It is possible to execute DDL statements in prelocking-free stored
+#    procedure
+#  - The same procedure can be called in prelocking-free mode and 
+#    in prelocked mode (from within a function).
+
+--disable_warnings
+drop database if exists mysqltest;
+drop table if exists t1, t2, t3, t4;
+drop procedure if exists sp1;
+drop procedure if exists sp2;
+drop procedure if exists sp3;
+drop procedure if exists sp4;
+drop function if exists f1;
+drop function if exists f2;
+drop function if exists f3;
+--enable_warnings
+
+# BUG#8072 
+
+create database mysqltest;
+delimiter //;
+use mysqltest//
+create procedure sp1 () 
+begin
+  drop table if exists t1;
+  select 1 as "my-col";
+end;
+//
+delimiter ;//
+
+select database();
+call sp1();
+select database();
+
+use test;
+select database();
+call mysqltest.sp1();
+select database();
+
+drop procedure mysqltest.sp1;
+drop database mysqltest;
+
+# BUG#8766
+
+delimiter //;
+create procedure sp1() 
+begin 
+  create table t1 (a int); 
+  insert into t1 values (10); 
+end//
+
+create procedure sp2()
+begin
+  create table t2(a int);
+  insert into t2 values(1);
+  call sp1();
+end//
+
+create function f1() returns int
+begin 
+  return (select max(a) from t1);
+end//
+
+create procedure sp3()
+begin 
+  call sp1();
+  select 'func', f1();
+end//
+
+delimiter ;//
+
+call sp1();
+select 't1',a from t1;
+
+drop table t1;
+call sp2();
+select 't1',a from t1;
+select 't2',a from t2;
+drop table t1, t2;
+
+call sp3();
+select 't1',a from t1;
+
+drop table t1;
+
+drop procedure sp1;
+drop procedure sp2;
+drop procedure sp3;
+drop function f1;
+
+delimiter //;
+create procedure sp1()
+begin
+  create temporary table t2(a int);
+  insert into t2 select * from t1;
+end//
+
+create procedure sp2()
+begin
+  create temporary table t1 (a int);
+  insert into t1 values(1);
+  call sp1();
+  select 't1', a from t1;
+  select 't2', a from t2;
+  drop table t1;
+  drop table t2;
+end//
+
+delimiter ;//
+call sp2();
+
+drop procedure sp1;
+drop procedure sp2;
+
+# Miscelaneous tests
+create table t1 (a int);
+insert into t1 values(1),(2);
+create table t2 as select * from t1;
+create table t3 as select * from t1;
+create table t4 as select * from t1;
+delimiter //;
+create procedure sp1(a int)
+begin
+  select a;
+end //
+
+create function f1() returns int
+begin
+  return (select max(a) from t1);
+end //
+
+delimiter ;//
+
+CALL sp1(f1());
+
+#############
+delimiter //;
+create procedure sp2(a int)
+begin
+  select * from t3;
+  select a;
+end //
+
+create procedure sp3()
+begin 
+  select * from t1;
+  call sp2(5);
+end //
+
+create procedure sp4()
+begin 
+  select * from t2;
+  call sp3();
+end //
+
+delimiter ;//
+call sp4();
+
+drop procedure sp1;
+drop procedure sp2;
+drop procedure sp3;
+drop procedure sp4;
+drop function f1;
+
+# Test that prelocking state restoration works with cursors
+--disable_warnings
+drop view if exists v1;
+--enable_warnings
+delimiter //;
+
+create function f1(ab int) returns int
+begin
+  declare i int;
+  set i= (select max(a) from t1 where a < ab) ;
+  return i;
+end //
+
+create function f2(ab int) returns int
+begin
+  declare i int;
+  set i= (select max(a) from t2 where a < ab) ;
+  return i;
+end //
+
+create view v1 as 
+  select t3.a as x, t4.a as y, f2(3) as z
+  from t3, t4 where t3.a = t4.a //
+
+create procedure sp1()
+begin
+  declare a int;
+  set a= (select f1(4) + count(*) A from t1, v1);
+end //
+
+
+create function f3() returns int
+begin
+  call sp1();
+  return 1;
+end //
+
+call sp1() //
+
+select f3() //
+select f3() //
+
+call sp1() //
+
+---------------
+drop procedure sp1//
+drop function f3//
+
+create procedure sp1() 
+begin 
+  declare x int;
+  declare c cursor for select f1(3) + count(*) from v1;
+  open c;
+  fetch c into x;
+end;//
+
+create function f3() returns int
+begin
+  call sp1();
+  return 1;
+end //
+
+call sp1() //
+call sp1() //
+
+select f3() //
+call sp1() //
+
+delimiter ;//
+drop table t1,t2,t3;
+drop function f1;
+drop function f2;
+drop function f3;
+drop procedure sp1;
+

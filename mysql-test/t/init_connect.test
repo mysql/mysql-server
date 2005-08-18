@@ -32,3 +32,5 @@ connection con5;
 select @a;
 connection con0;
 drop table t1;
+
+# End of 4.1 tests

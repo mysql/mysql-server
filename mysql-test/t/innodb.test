@@ -440,7 +440,7 @@ drop table t1;
 set @a:=now();
 CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) engine=innodb;
 insert into t1 (a) values(1),(2),(3);
-select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
+select a from t1 natural join t1 as t2 where b >= @a order by a;
 update t1 set a=5 where a=1;
 select a from t1;
 drop table t1;
@@ -981,7 +981,7 @@ insert into `t3`values ( 1 ) ;
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 --error 1217
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1109
+--error 1054
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 drop table t3,t2,t1;
 
@@ -1230,6 +1230,8 @@ SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t
 DROP TABLE t2;
 DROP TABLE t1;
 
+# End of 4.1 tests
+
 #
 # range optimizer problem
 #
@@ -1368,7 +1370,6 @@ insert into t1 (val) values ('1'),('2');
 select * from t1;
 drop table t1;
 
-
 #
 # Test that update does not change internal auto-increment value
 #
@@ -1393,3 +1394,13 @@ SELECT GRADE  FROM t1 WHERE GRADE > 160 AND GRADE < 300;
 SELECT GRADE  FROM t1 WHERE GRADE= 151;
 DROP TABLE t1;
 
+#
+# Bug #12340 multitable delete deletes only one record
+#
+create table t1 (f1 varchar(10), f2 varchar(10), primary key (f1,f2)) engine=innodb;
+create table t2 (f3 varchar(10), f4 varchar(10), key (f4)) engine=innodb;
+insert into t2 values ('aa','cc');
+insert into t1 values ('aa','bb'),('aa','cc');
+delete t1 from t1,t2 where f1=f3 and f4='cc';
+select * from t1;
+drop table t1,t2;

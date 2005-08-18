@@ -7,3 +7,5 @@
 # Bug #11643: des_encrypt() causes server to die
 #
 select des_encrypt('hello');
+
+# End of 4.1 tests

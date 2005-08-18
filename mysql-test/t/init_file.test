@@ -5,3 +5,5 @@
 # See mysql-test/std_data/init_file.dat and
 # mysql-test/t/init_file-master.opt for the actual test
 # 
+
+# End of 4.1 tests

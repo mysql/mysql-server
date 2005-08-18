@@ -203,7 +203,7 @@ int send_fields(struct st_net *net, LIST *fields)
     position+= 12;
     if (my_net_write(net, send_buff.buffer, (uint) position+1))
       goto err;
-    tmp= rest(tmp);
+    tmp= list_rest(tmp);
   }
 
   if (my_net_write(net, eof_buff, 1))

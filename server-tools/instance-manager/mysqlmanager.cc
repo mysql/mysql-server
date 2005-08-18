@@ -23,12 +23,16 @@
 #include <my_sys.h>
 #include <string.h>
 #include <signal.h>
+#ifndef __WIN__
 #include <pwd.h>
 #include <grp.h>
 #include <sys/wait.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#ifdef __WIN__
+#include "windowsservice.h"
+#endif
 
 /*
   Few notes about Instance Manager architecture:
@@ -55,10 +59,14 @@
 */
 
 static void init_environment(char *progname);
+#ifndef __WIN__
 static void daemonize(const char *log_file_name);
 static void angel(const Options &options);
 static struct passwd *check_user(const char *user);
 static int set_user(const char *user, struct passwd *user_info);
+#else
+int HandleServiceOptions(Options options);
+#endif
 
 
 /*
@@ -71,6 +79,7 @@ static int set_user(const char *user, struct passwd *user_info);
 
 int main(int argc, char *argv[])
 {
+  int return_value= 1;
   init_environment(argv[0]);
   Options options;
   struct passwd *user_info;
@@ -78,13 +87,11 @@ int main(int argc, char *argv[])
   if (options.load(argc, argv))
     goto err;
 
+#ifndef __WIN__
   if ((user_info= check_user(options.user)))
   {
       if (set_user(options.user, user_info))
-      {
-        options.cleanup();
         goto err;
-      }
   }
 
   if (options.run_as_service)
@@ -94,22 +101,29 @@ int main(int argc, char *argv[])
     /* forks again, and returns only in child: parent becomes angel */
     angel(options);
   }
+#else
+#ifdef NDEBUG
+  return_value= HandleServiceOptions(options);
+  goto err;   /* this is not always an error but we reuse the label */
+#endif
+#endif
+
   manager(options);
+  return_value= 0;
+
+err:
   options.cleanup();
   my_end(0);
-  return 0;
-err:
-  my_end(0);
-  return 1;
+  return return_value;
 }
 
 /******************* Auxilary functions implementation **********************/
 
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
 /* Change to run as another user if started with --user */
 
 static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   struct passwd *user_info;
   uid_t user_id= geteuid();
 
@@ -150,7 +164,6 @@ static struct passwd *check_user(const char *user)
 
 err:
   log_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n", user);
-#endif
   return NULL;
 }
 
@@ -172,7 +185,7 @@ static int set_user(const char *user, struct passwd *user_info)
   }
   return 0;
 }
-
+#endif
 
 
 /*
@@ -188,6 +201,7 @@ static void init_environment(char *progname)
 }
 
 
+#ifndef __WIN__
 /*
   Become a UNIX service
   SYNOPSYS
@@ -342,3 +356,4 @@ spawn:
   }
 }
 
+#endif

@@ -828,3 +828,5 @@ execute stmt;
 set @@tx_isolation=default;
 execute stmt;
 deallocate prepare stmt;
+
+# End of 4.1 tests

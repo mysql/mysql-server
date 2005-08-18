@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t0,t1,t2;
+DROP TABLE IF EXISTS t0,t1,t2,t3,t5;
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -30,25 +30,27 @@ create table mysqltest.t1(a int, b VARCHAR(30), KEY string_data (b));
 create table test.t2(a int);
 create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
+create table t5 (id int auto_increment primary key);
+insert into t5 values (10);
 create view v1 (c) as select table_name from information_schema.TABLES;
 select * from v1;
 c
-SCHEMATA
-TABLES
-COLUMNS
 CHARACTER_SETS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
+COLUMNS
+COLUMN_PRIVILEGES
+KEY_COLUMN_USAGE
 ROUTINES
+SCHEMATA
+SCHEMA_PRIVILEGES
 STATISTICS
+TABLES
+TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
+TRIGGERS
 VIEWS
 USER_PRIVILEGES
-SCHEMA_PRIVILEGES
-TABLE_PRIVILEGES
-COLUMN_PRIVILEGES
-TABLE_CONSTRAINTS
-KEY_COLUMN_USAGE
-TRIGGERS
 columns_priv
 db
 func
@@ -70,14 +72,15 @@ t1
 t4
 t2
 t3
+t5
 v1
 select c,table_name from v1 
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -89,13 +92,14 @@ t1	t1
 t4	t4
 t2	t2
 t3	t3
+t5	t5
 select c,table_name from v1 
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -107,13 +111,14 @@ t1	t1
 t4	t4
 t2	t2
 t3	t3
+t5	t5
 select c, v2.table_name from v1
 right join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -125,6 +130,7 @@ t1	t1
 t4	t4
 t2	t2
 t3	t3
+t5	t5
 select table_name from information_schema.TABLES
 where table_schema = "mysqltest" and table_name like "t%";
 table_name
@@ -140,10 +146,12 @@ show tables like 't%';
 Tables_in_test (t%)
 t2
 t3
+t5
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t2	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
 t3	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t5	MyISAM	10	Fixed	1	7	7	#	2048	0	11	#	#	NULL	latin1_swedish_ci	NULL		
 v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
 show full columns from t3 like "a%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
@@ -157,7 +165,7 @@ c	varchar(64)	utf8_general_ci	NO				select,insert,update,references
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	NULL	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -177,7 +185,7 @@ where table_schema = 'mysqltest' and table_name = 'v1';
 table_name	column_name	privileges
 v1	c	select
 drop view v1, mysqltest.v1;
-drop tables mysqltest.t4, mysqltest.t1, t2, t3;
+drop tables mysqltest.t4, mysqltest.t1, t2, t3, t5;
 drop database mysqltest;
 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like 'latin1%';
@@ -527,7 +535,7 @@ c	float(5,2)	NULL	NULL	5	2
 d	decimal(6,4)	NULL	NULL	6	4
 e	float	NULL	NULL	12	NULL
 f	decimal(6,3)	NULL	NULL	6	3
-g	int(11)	NULL	NULL	10	NULL
+g	int(11)	NULL	NULL	10	0
 h	double(10,3)	NULL	NULL	10	3
 i	double	NULL	NULL	22	NULL
 drop table t1;
@@ -545,7 +553,7 @@ proc	is_deterministic	enum('YES','NO')
 proc	security_type	enum('INVOKER','DEFINER')
 proc	param_list	blob
 proc	returns	char(64)
-proc	body	blob
+proc	body	longblob
 proc	definer	char(77)
 proc	created	timestamp
 proc	modified	timestamp
@@ -577,13 +585,13 @@ select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables 
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
-SCHEMATA	TEMPORARY	MEMORY
-TABLES	TEMPORARY	MEMORY
+CHARACTER_SETS	TEMPORARY	MEMORY
+COLLATIONS	TEMPORARY	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
-TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
 TRIGGERS
 create database information_schema;
 ERROR HY000: Can't create database 'information_schema'; database exists
@@ -591,8 +599,8 @@ use information_schema;
 show full tables like "T%";
 Tables_in_information_schema (T%)	Table_type
 TABLES	TEMPORARY
-TABLE_PRIVILEGES	TEMPORARY
 TABLE_CONSTRAINTS	TEMPORARY
+TABLE_PRIVILEGES	TEMPORARY
 TRIGGERS	TEMPORARY
 create table t1(a int);
 ERROR 42S02: Unknown table 't1' in information_schema
@@ -603,8 +611,8 @@ use information_schema;
 show tables like "T%";
 Tables_in_information_schema (T%)
 TABLES
-TABLE_PRIVILEGES
 TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
 TRIGGERS
 select table_name from tables where table_name='user';
 table_name
@@ -689,7 +697,7 @@ show variables where variable_name like "skip_show_databas";
 Variable_name	Value
 show global status like "Threads_running";
 Variable_name	Value
-Threads_running	1
+Threads_running	#
 create table t1(f1 int);
 create table t2(f2 int);
 create view v1 as select * from t1, t2;
@@ -710,17 +718,18 @@ table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
-information_schema	VIEWS	VIEW_DEFINITION
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
+information_schema	TRIGGERS	SQL_MODE
+information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
 table_name	column_name	data_type
+ROUTINES	CREATED	datetime
+ROUTINES	LAST_ALTERED	datetime
 TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
-ROUTINES	CREATED	datetime
-ROUTINES	LAST_ALTERED	datetime
 TRIGGERS	CREATED	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS 
@@ -755,14 +764,14 @@ grant select on test.* to mysqltest_4@localhost;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
-TABLES	TABLE_NAME	select
 COLUMNS	TABLE_NAME	select
-STATISTICS	TABLE_NAME	select
-VIEWS	TABLE_NAME	select
-TABLE_PRIVILEGES	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
-TABLE_CONSTRAINTS	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
+STATISTICS	TABLE_NAME	select
+TABLES	TABLE_NAME	select
+TABLE_CONSTRAINTS	TABLE_NAME	select
+TABLE_PRIVILEGES	TABLE_NAME	select
+VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -790,45 +799,45 @@ set @fired:= "Yes";
 end if;
 end|
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
 trg1	INSERT	t1	
 begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	BEFORE	NULL
+end	BEFORE	NULL	
 trg2	UPDATE	t1	
 begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	BEFORE	NULL
+end	BEFORE	NULL	
 trg3	UPDATE	t1	
 begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	NULL
+end	AFTER	NULL	
 select * from information_schema.triggers;
-TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE
 NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	
 begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL	
 NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	
 begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL	
 NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	
 begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	ROW	AFTER	NULL	NULL	OLD	NEW	NULL
+end	ROW	AFTER	NULL	NULL	OLD	NEW	NULL	
 drop trigger trg1;
 drop trigger trg2;
 drop trigger trg3;
@@ -932,11 +941,29 @@ select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns
 where table_name='t1';
 column_name	NUMERIC_PRECISION	NUMERIC_SCALE
-f1	3	NULL
-f2	5	NULL
-f3	7	NULL
-f4	10	NULL
-f5	19	NULL
+f1	3	0
+f2	5	0
+f3	7	0
+f4	10	0
+f5	19	0
 f6	1	NULL
 f7	64	NULL
+drop table t1;
+create table t1 (f1 integer);
+create trigger tr1 after insert on t1 for each row set @test_var=42;
+use information_schema;
+select trigger_schema, trigger_name from triggers where
+trigger_name='tr1';
+trigger_schema	trigger_name
+test	tr1
+use test;
+drop table t1;
+create table t1 (a int not null, b int);
+use information_schema;
+select column_name, column_default from columns
+where table_schema='test' and table_name='t1';
+column_name	column_default
+a	NULL
+b	NULL
+use test;
 drop table t1;

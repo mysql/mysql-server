@@ -2524,13 +2524,21 @@ row_sel_store_mysql_rec(
 					(byte) (templ->mysql_null_bit_mask);
 			switch (templ->type) {
 			case DATA_VARCHAR:
-			case DATA_CHAR:
 			case DATA_BINARY:
+			case DATA_VARMYSQL:
+				if (templ->mysql_type
+				    == DATA_MYSQL_TRUE_VARCHAR) {
+					/* This is a >= 5.0.3 type
+					true VARCHAR.  Zero the field. */
+					pad_char = 0x00;
+					break;
+				}
+				/* Fall through */
+			case DATA_CHAR:
 			case DATA_FIXBINARY:
 			case DATA_MYSQL:
-			case DATA_VARMYSQL:
-			        /* MySQL pads all non-BLOB and non-TEXT
-				string types with space ' ' */
+			        /* MySQL pads all string types (except
+				BLOB, TEXT and true VARCHAR) with space. */
 				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
 					/* Treat UCS2 as a special case. */
 					data = mysql_rec
@@ -2677,7 +2685,7 @@ row_sel_get_clust_rec_for_mysql(
 				"InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
-			trx_print(stderr, trx);
+			trx_print(stderr, trx, 600);
 
 			fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
@@ -3092,6 +3100,7 @@ row_search_for_mysql(
 "http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
+
 		return(DB_ERROR);
 	}
 
@@ -3119,7 +3128,7 @@ row_search_for_mysql(
 "InnoDB: Error: MySQL is trying to perform a SELECT\n"
 "InnoDB: but it has not locked any tables in ::external_lock()!\n",
                       stderr);
-		trx_print(stderr, trx);
+		trx_print(stderr, trx, 600);
                 fputc('\n', stderr);
 	}
 
@@ -3446,7 +3455,7 @@ shortcut_fails_too_big_rec:
 			fputs(
 "InnoDB: Error: MySQL is trying to perform a consistent read\n"
 "InnoDB: but the read view is not assigned!\n", stderr);
-			trx_print(stderr, trx);
+			trx_print(stderr, trx, 600);
                         fputc('\n', stderr);
 			ut_a(0);
 		}
@@ -4136,7 +4145,8 @@ row_search_check_if_query_cache_permitted(
 		    && !trx->read_view) {
 
 			trx->read_view = read_view_open_now(trx,
-						trx->read_view_heap);
+						trx->global_read_view_heap);
+			trx->global_read_view = trx->read_view;
 		}
 	}
 	

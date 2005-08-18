@@ -157,3 +157,5 @@ select "--- to-last-log --" as "";
 select "--- end of test --" as "";
 --enable_query_log
 drop table t1;
+
+# End of 4.1 tests

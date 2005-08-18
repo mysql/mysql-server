@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "2.4"
+#define MTEST_VERSION "2.5"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -66,7 +66,8 @@
 #ifndef WEXITSTATUS
 # define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
 #endif
-#define MAX_QUERY     131072
+/* MAX_QUERY is 256K -- there is a test in sp-big that is >128K */
+#define MAX_QUERY     (256*1024)
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
 #define PAD_SIZE	128
@@ -151,6 +152,7 @@ const char* user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 static int port = 0;
 static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
 static my_bool tty_password= 0, ps_protocol= 0, ps_protocol_enabled= 0;
+static int parsing_disabled= 0;
 static uint start_lineno, *lineno;
 const char* manager_user="root",*manager_host=0;
 char *manager_pass=0;
@@ -308,6 +310,7 @@ Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
 Q_EXIT,
 Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
 Q_IF,
+Q_DISABLE_PARSING, Q_ENABLE_PARSING,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -399,6 +402,8 @@ const char *command_names[]=
   "disable_reconnect",
   "enable_reconnect",
   "if",
+  "disable_parsing",
+  "enable_parsing",
   0
 };
 
@@ -2141,7 +2146,7 @@ int read_line(char* buf, int size)
       }
       break;
     case R_LINE_START:
-      if (c == '#' || c == '-')
+      if (c == '#' || c == '-' || parsing_disabled)
       {
 	state = R_COMMENT;
       }
@@ -2268,18 +2273,22 @@ int read_query(struct st_query** q_ptr)
     /* This goto is to avoid losing the "expected error" info. */
     goto end;
   }
-  memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
-	 sizeof(global_expected_errno));
-  q->expected_errors= global_expected_errors;
-  q->abort_on_error= (global_expected_errors == 0 && abort_on_error);
-  bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
-  global_expected_errors=0;
+  if (!parsing_disabled)
+  {
+    memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
+           sizeof(global_expected_errno));
+    q->expected_errors= global_expected_errors;
+    q->abort_on_error= (global_expected_errors == 0 && abort_on_error);
+    bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
+    global_expected_errors=0;
+  }
+
   if (p[0] == '-' && p[1] == '-')
   {
     q->type= Q_COMMENT_WITH_COMMAND;
     p+= 2;					/* To calculate first word */
   }
-  else
+  else if (!parsing_disabled)
   {
     if (*p == '!')
     {
@@ -2772,6 +2781,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
     if (!disable_result_log)
     {
       ulong affected_rows;    /* Ok to be undef if 'disable_info' is set */
+      LINT_INIT(affected_rows);
 
       if (res)
       {
@@ -3586,20 +3596,29 @@ void get_query_type(struct st_query* q)
   uint type;
   DBUG_ENTER("get_query_type");
 
-  if (*q->query == '}')
+  if (!parsing_disabled && *q->query == '}')
   {
     q->type = Q_END_BLOCK;
     DBUG_VOID_RETURN;
   }
   if (q->type != Q_COMMENT_WITH_COMMAND)
-    q->type = Q_QUERY;
+    q->type= parsing_disabled ? Q_COMMENT : Q_QUERY;
 
   save=q->query[q->first_word_len];
   q->query[q->first_word_len]=0;
   type=find_type(q->query, &command_typelib, 1+2);
   q->query[q->first_word_len]=save;
   if (type > 0)
+  {
     q->type=(enum enum_commands) type;		/* Found command */
+    /*
+      If queries are disabled, only recognize
+      --enable-queries and --disable-queries
+    */
+    if (parsing_disabled && q->type != Q_ENABLE_PARSING &&
+        q->type != Q_DISABLE_PARSING)
+      q->type= Q_COMMENT;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -3962,6 +3981,17 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_RECONNECT:
         cur_con->mysql.reconnect= 1;
+        break;
+      case Q_DISABLE_PARSING:
+        parsing_disabled++;
+        break;
+      case Q_ENABLE_PARSING:
+        /*
+          Ensure we don't get parsing_disabled < 0 as this would accidently
+          disable code we don't want to have disabled
+        */
+        if (parsing_disabled > 0)
+          parsing_disabled--;
         break;
 
       case Q_EXIT:

@@ -48,3 +48,5 @@ select old_password('idkfa');
 select old_password(' i 	 d k f a ');
 
 explain extended select password('idkfa '), old_password('idkfa');
+
+# End of 4.1 tests

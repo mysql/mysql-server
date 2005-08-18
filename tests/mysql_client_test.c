@@ -7195,7 +7195,7 @@ static void test_prepare_grant()
 
   }
 }
-#endif
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Test a crash when invalid/corrupted .frm is used in the
@@ -11801,8 +11801,8 @@ static void test_bug6046()
 
   stmt= mysql_stmt_init(mysql);
 
-  stmt_text= "SELECT t1.a FROM t1 NATURAL JOIN t1 as X1 "
-             "WHERE t1.b > ? ORDER BY t1.a";
+  stmt_text= "SELECT a FROM t1 NATURAL JOIN t1 as X1 "
+             "WHERE b > ? ORDER BY a";
 
   rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
   check_execute(stmt, rc);
@@ -13893,10 +13893,10 @@ static void test_bug12001()
   MYSQL *mysql_local;
   MYSQL_RES *result;
   const char *query= "DROP TABLE IF EXISTS test_table;"
-                     "CREATE TABLE test_table(id INT);" 
-                     "INSERT INTO test_table VALUES(10);" 
-                     "UPDATE test_table SET id=20 WHERE id=10;" 
-                     "SELECT * FROM test_table;" 
+                     "CREATE TABLE test_table(id INT);"
+                     "INSERT INTO test_table VALUES(10);"
+                     "UPDATE test_table SET id=20 WHERE id=10;"
+                     "SELECT * FROM test_table;"
                      "INSERT INTO non_existent_table VALUES(11);";
   int rc, res;
 
@@ -13911,7 +13911,9 @@ static void test_bug12001()
   /* Create connection that supports multi statements */
   if (!mysql_real_connect(mysql_local, opt_host, opt_user,
                            opt_password, current_db, opt_port,
-                           opt_unix_socket, CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS)) {
+                           opt_unix_socket, CLIENT_MULTI_STATEMENTS |
+                           CLIENT_MULTI_RESULTS))
+  {
     fprintf(stdout, "\n mysql_real_connect() failed");
     exit(1);
   }
@@ -13919,17 +13921,322 @@ static void test_bug12001()
   rc= mysql_query(mysql_local, query);
   myquery(rc);
 
-  do {
-    if (mysql_field_count(mysql_local) && (result= mysql_use_result(mysql_local)))  {
-      mysql_free_result(result);	
+  do
+  {
+    if (mysql_field_count(mysql_local) &&
+        (result= mysql_use_result(mysql_local)))
+    {
+      mysql_free_result(result);
     }
-  } while (!(res= mysql_next_result(mysql_local))); 
-  
+  }
+  while (!(res= mysql_next_result(mysql_local)));
+
   rc= mysql_query(mysql_local, "DROP TABLE IF EXISTS test_table");
   myquery(rc);
 
   mysql_close(mysql_local);
   DIE_UNLESS(res==1);
+}
+
+
+/* Bug#11909: wrong metadata if fetching from two cursors */
+
+static void test_bug11909()
+{
+  MYSQL_STMT *stmt1, *stmt2;
+  MYSQL_BIND bind[7];
+  int rc;
+  char firstname[20], midinit[20], lastname[20], workdept[20];
+  ulong firstname_len, midinit_len, lastname_len, workdept_len;
+  uint32 empno;
+  double salary;
+  float bonus;
+  const char *stmt_text;
+
+  myheader("test_bug11909");
+
+  stmt_text= "drop table if exists t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "create table t1 ("
+    "  empno int(11) not null, firstname varchar(20) not null,"
+    "  midinit varchar(20) not null, lastname varchar(20) not null,"
+    "  workdept varchar(6) not null, salary double not null,"
+    "  bonus float not null, primary key (empno)"
+    ") default charset=latin1 collate=latin1_bin";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "insert into t1 values "
+    "(10, 'CHRISTINE', 'I', 'HAAS',     'A00', 52750, 1000), "
+    "(20, 'MICHAEL',   'L', 'THOMPSON', 'B01', 41250, 800),"
+    "(30, 'SALLY',     'A', 'KWAN',     'C01', 38250, 800),"
+    "(50, 'JOHN',      'B', 'GEYER',    'E01', 40175, 800), "
+    "(60, 'IRVING',    'F', 'STERN',    'D11', 32250, 500)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  /* ****** Begin of trace ****** */
+
+  stmt1= open_cursor("SELECT empno, firstname, midinit, lastname,"
+                     "workdept, salary, bonus FROM t1");
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (void*) &empno;
+
+  bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
+  bind[1].buffer= (void*) firstname;
+  bind[1].buffer_length= sizeof(firstname);
+  bind[1].length= &firstname_len;
+
+  bind[2].buffer_type= MYSQL_TYPE_VAR_STRING;
+  bind[2].buffer= (void*) midinit;
+  bind[2].buffer_length= sizeof(midinit);
+  bind[2].length= &midinit_len;
+
+  bind[3].buffer_type= MYSQL_TYPE_VAR_STRING;
+  bind[3].buffer= (void*) lastname;
+  bind[3].buffer_length= sizeof(lastname);
+  bind[3].length= &lastname_len;
+
+  bind[4].buffer_type= MYSQL_TYPE_VAR_STRING;
+  bind[4].buffer= (void*) workdept;
+  bind[4].buffer_length= sizeof(workdept);
+  bind[4].length= &workdept_len;
+
+  bind[5].buffer_type= MYSQL_TYPE_DOUBLE;
+  bind[5].buffer= (void*) &salary;
+
+  bind[6].buffer_type= MYSQL_TYPE_FLOAT;
+  bind[6].buffer= (void*) &bonus;
+  rc= mysql_stmt_bind_result(stmt1, bind);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_execute(stmt1);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_fetch(stmt1);
+  DIE_UNLESS(rc == 0);
+  DIE_UNLESS(empno == 10);
+  DIE_UNLESS(strcmp(firstname, "CHRISTINE") == 0);
+  DIE_UNLESS(strcmp(midinit, "I") == 0);
+  DIE_UNLESS(strcmp(lastname, "HAAS") == 0);
+  DIE_UNLESS(strcmp(workdept, "A00") == 0);
+  DIE_UNLESS(salary == (double) 52750.0);
+  DIE_UNLESS(bonus == (float) 1000.0);
+
+  stmt2= open_cursor("SELECT empno, firstname FROM t1");
+  rc= mysql_stmt_bind_result(stmt2, bind);
+  check_execute(stmt2, rc);
+
+  rc= mysql_stmt_execute(stmt2);
+  check_execute(stmt2, rc);
+
+  rc= mysql_stmt_fetch(stmt2);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(empno == 10);
+  DIE_UNLESS(strcmp(firstname, "CHRISTINE") == 0);
+
+  rc= mysql_stmt_reset(stmt2);
+  check_execute(stmt2, rc);
+
+  /* ERROR: next statement should return 0 */
+
+  rc= mysql_stmt_fetch(stmt1);
+  DIE_UNLESS(rc == 0);
+
+  mysql_stmt_close(stmt1);
+  mysql_stmt_close(stmt2);
+  rc= mysql_rollback(mysql);
+  myquery(rc);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+/* Cursors: opening a cursor to a compilicated query with ORDER BY */
+
+static void test_bug11901()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  int rc;
+  char workdept[20];
+  ulong workdept_len;
+  uint32 empno;
+  const char *stmt_text;
+
+  myheader("test_bug11901");
+
+  stmt_text= "drop table if exists t1, t2";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "create table t1 ("
+    "  empno int(11) not null, firstname varchar(20) not null,"
+    "  midinit varchar(20) not null, lastname varchar(20) not null,"
+    "  workdept varchar(6) not null, salary double not null,"
+    "  bonus float not null, primary key (empno), "
+    " unique key (workdept, empno) "
+    ") default charset=latin1 collate=latin1_bin";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "insert into t1 values "
+     "(10,  'CHRISTINE', 'I', 'HAAS',      'A00', 52750, 1000),"
+     "(20,  'MICHAEL',   'L', 'THOMPSON',  'B01', 41250, 800), "
+     "(30,  'SALLY',     'A', 'KWAN',      'C01', 38250, 800), "
+     "(50,  'JOHN',      'B', 'GEYER',     'E01', 40175, 800), "
+     "(60,  'IRVING',    'F', 'STERN',     'D11', 32250, 500), "
+     "(70,  'EVA',       'D', 'PULASKI',   'D21', 36170, 700), "
+     "(90,  'EILEEN',    'W', 'HENDERSON', 'E11', 29750, 600), "
+     "(100, 'THEODORE',  'Q', 'SPENSER',   'E21', 26150, 500), "
+     "(110, 'VINCENZO',  'G', 'LUCCHESSI', 'A00', 46500, 900), "
+     "(120, 'SEAN',      '',  'O\\'CONNELL', 'A00', 29250, 600), "
+     "(130, 'DOLORES',   'M', 'QUINTANA',  'C01', 23800, 500), "
+     "(140, 'HEATHER',   'A', 'NICHOLLS',  'C01', 28420, 600), "
+     "(150, 'BRUCE',     '',  'ADAMSON',   'D11', 25280, 500), "
+     "(160, 'ELIZABETH', 'R', 'PIANKA',    'D11', 22250, 400), "
+     "(170, 'MASATOSHI', 'J', 'YOSHIMURA', 'D11', 24680, 500), "
+     "(180, 'MARILYN',   'S', 'SCOUTTEN',  'D11', 21340, 500), "
+     "(190, 'JAMES',     'H', 'WALKER',    'D11', 20450, 400), "
+     "(200, 'DAVID',     '',  'BROWN',     'D11', 27740, 600), "
+     "(210, 'WILLIAM',   'T', 'JONES',     'D11', 18270, 400), "
+     "(220, 'JENNIFER',  'K', 'LUTZ',      'D11', 29840, 600), "
+     "(230, 'JAMES',     'J', 'JEFFERSON', 'D21', 22180, 400), "
+     "(240, 'SALVATORE', 'M', 'MARINO',    'D21', 28760, 600), "
+     "(250, 'DANIEL',    'S', 'SMITH',     'D21', 19180, 400), "
+     "(260, 'SYBIL',     'P', 'JOHNSON',   'D21', 17250, 300), "
+     "(270, 'MARIA',     'L', 'PEREZ',     'D21', 27380, 500), "
+     "(280, 'ETHEL',     'R', 'SCHNEIDER', 'E11', 26250, 500), "
+     "(290, 'JOHN',      'R', 'PARKER',    'E11', 15340, 300), "
+     "(300, 'PHILIP',    'X', 'SMITH',     'E11', 17750, 400), "
+     "(310, 'MAUDE',     'F', 'SETRIGHT',  'E11', 15900, 300), "
+     "(320, 'RAMLAL',    'V', 'MEHTA',     'E21', 19950, 400), "
+     "(330, 'WING',      '',  'LEE',       'E21', 25370, 500), "
+     "(340, 'JASON',     'R', 'GOUNOT',    'E21', 23840, 500)";
+
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "create table t2 ("
+    " deptno varchar(6) not null, deptname varchar(20) not null,"
+    " mgrno int(11) not null, location varchar(20) not null,"
+    " admrdept varchar(6) not null, refcntd int(11) not null,"
+    " refcntu int(11) not null, primary key (deptno)"
+    ") default charset=latin1 collate=latin1_bin";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "insert into t2 values "
+    "('A00', 'SPIFFY COMPUTER SERV', 10, '', 'A00', 0, 0), "
+    "('B01', 'PLANNING',             20, '', 'A00', 0, 0), "
+    "('C01', 'INFORMATION CENTER',   30, '', 'A00', 0, 0), "
+    "('D01', 'DEVELOPMENT CENTER',   0,  '', 'A00', 0, 0),"
+    "('D11', 'MANUFACTURING SYSTEM', 60, '', 'D01', 0, 0), "
+    "('D21', 'ADMINISTRATION SYSTE', 70, '', 'D01', 0, 0), "
+    "('E01', 'SUPPORT SERVICES',     50, '', 'A00', 0, 0), "
+    "('E11', 'OPERATIONS',           90, '', 'E01', 0, 0), "
+    "('E21', 'SOFTWARE SUPPORT',     100,'', 'E01', 0, 0)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  /* ****** Begin of trace ****** */
+
+  stmt= open_cursor("select t1.empno, t1.workdept "
+                    "from (t1 left join t2 on t2.deptno = t1.workdept) "
+                    "where t2.deptno in "
+                    "   (select t2.deptno "
+                    "    from (t1 left join t2 on t2.deptno = t1.workdept) "
+                    "    where t1.empno = ?) "
+                    "order by 1");
+  bzero(bind, sizeof(bind));
+
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= &empno;
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
+  bind[1].buffer= (void*) workdept;
+  bind[1].buffer_length= sizeof(workdept);
+  bind[1].length= &workdept_len;
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  empno= 10;
+  /* ERROR: next statement causes a server crash */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1, t2");
+  myquery(rc);
+}
+
+/* Bug#12243: multiple cursors, crash in a fetch after commit. */
+
+static void test_bug12243()
+{
+  MYSQL_STMT *stmt1, *stmt2;
+  int rc;
+  const char *stmt_text;
+  ulong type;
+
+  myheader("test_bug12243");
+
+  if (! have_innodb)
+  {
+    if (!opt_silent)
+      printf("This test requires InnoDB.\n");
+    return;
+  }
+
+  /* create tables */
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (a int) engine=InnoDB");
+  rc= mysql_query(mysql, "insert into t1 (a) values (1), (2)");
+  myquery(rc);
+  mysql_autocommit(mysql, FALSE);
+  /* create statement */
+  stmt1= mysql_stmt_init(mysql);
+  stmt2= mysql_stmt_init(mysql);
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  mysql_stmt_attr_set(stmt1, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  mysql_stmt_attr_set(stmt2, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+
+  stmt_text= "select a from t1";
+
+  rc= mysql_stmt_prepare(stmt1, stmt_text, strlen(stmt_text));
+  check_execute(stmt1, rc);
+  rc= mysql_stmt_execute(stmt1);
+  check_execute(stmt1, rc);
+  rc= mysql_stmt_fetch(stmt1);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_prepare(stmt2, stmt_text, strlen(stmt_text));
+  check_execute(stmt2, rc);
+  rc= mysql_stmt_execute(stmt2);
+  check_execute(stmt2, rc);
+  rc= mysql_stmt_fetch(stmt2);
+  check_execute(stmt2, rc);
+
+  rc= mysql_stmt_close(stmt1);
+  check_execute(stmt1, rc);
+  rc= mysql_commit(mysql);
+  myquery(rc);
+  rc= mysql_stmt_fetch(stmt2);
+  check_execute(stmt2, rc);
+
+  mysql_stmt_close(stmt2);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+  mysql_autocommit(mysql, TRUE);                /* restore default */
 }
 
 /*
@@ -14178,6 +14485,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11037", test_bug11037 },
   { "test_bug10760", test_bug10760 },
   { "test_bug12001", test_bug12001 },
+  { "test_bug11909", test_bug11909 },
+  { "test_bug11901", test_bug11901 },
+  { "test_bug12243", test_bug12243 },
   { 0, 0 }
 };
 

@@ -1,7 +1,6 @@
 # Can't test grants with embedded server
 -- source include/not_embedded.inc
 
-
 let $type= 'MYISAM' ;
 
 ################ GRANT/REVOKE/DROP affecting a parallel session ################
@@ -80,6 +79,7 @@ execute s_t1 ;
 ######## Question 2: The table t9 does not exist. ########
 --error 1146
 execute s_t9 ;
+deallocate prepare s_t9;
 
 
 #### revoke the access rights to t1
@@ -112,8 +112,11 @@ show grants for second_user@localhost ;
 
 drop database mysqltest;
 
+# End of 4.1 tests
 
-## grant/revoke + drop user
+#
+# grant/revoke + drop user
+#
 --error 1295
 prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
 identified by ''looser'' ';
@@ -126,11 +129,3 @@ revoke all privileges on test.t1 from drop_user@localhost ;
 --error 1295
 prepare stmt3 from ' drop user drop_user@localhost ';
 drop user drop_user@localhost;
-
-# This test must be the last one, otherwise it may produce extra
-# rows in the processlist under high load.
-# Tested here simply so it is not tested with embedded server
-prepare stmt4 from ' show full processlist ';
---replace_column 1 number 6 time 3 localhost
-execute stmt4;
-deallocate prepare stmt4;

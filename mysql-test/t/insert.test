@@ -151,6 +151,12 @@ insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@val
 drop table t1;
 --enable_ps_protocol
 
+# End of 4.1 tests
+
+#
+# Test automatic result buffering with INSERT INTO t1 ... SELECT ... FROM t1
+#
+
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
