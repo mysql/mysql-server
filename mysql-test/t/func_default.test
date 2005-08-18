@@ -18,6 +18,8 @@ explain select * from t1 where str <> default(str);
 
 drop table t1;
 
+# End of 4.1 tests
+
 #
 # Bug #11314 (HAVING DEFAULT() hangs)
 #

@@ -36,3 +36,5 @@ while ($1)
   dec $1;
 }
 DROP TABLE t1;
+
+# End of 4.1 tests

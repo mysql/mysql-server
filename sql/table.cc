@@ -702,10 +702,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
             key_part->key_part_flag|= HA_BIT_PART;
 
 	  if (i == 0 && key != primary_key)
-	    field->flags |=
-	      ((keyinfo->flags & HA_NOSAME) &&
-	       field->key_length() ==
-	       keyinfo->key_length ? UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
+	    field->flags |= ((keyinfo->flags & HA_NOSAME) &&
+                             (keyinfo->key_parts == 1)) ?
+                            UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG;
 	  if (i == 0)
 	    field->key_start.set_bit(key);
 	  if (field->key_length() == key_part->length &&
@@ -1343,8 +1342,9 @@ void append_unescaped(String *res, const char *pos, uint length)
 
 	/* Create a .frm file */
 
-File create_frm(THD *thd, register my_string name, uint reclength,
-		uchar *fileinfo, HA_CREATE_INFO *create_info, uint keys)
+File create_frm(THD *thd, my_string name, const char *db,
+                const char *table, uint reclength, uchar *fileinfo,
+		HA_CREATE_INFO *create_info, uint keys)
 {
   register File file;
   ulong length;
@@ -1367,7 +1367,7 @@ File create_frm(THD *thd, register my_string name, uint reclength,
   */
   set_if_smaller(create_info->raid_chunks, 255);
 
-  if ((file= my_create(name, CREATE_MODE, create_flags, MYF(MY_WME))) >= 0)
+  if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
     uint key_length, tmp_key_length;
     uint tmp;
@@ -1413,6 +1413,13 @@ File create_frm(THD *thd, register my_string name, uint reclength,
 	return(-1);
       }
     }
+  }
+  else
+  {
+    if (my_errno == ENOENT)
+      my_error(ER_BAD_DB_ERROR,MYF(0),db);
+    else
+      my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno);
   }
   return (file);
 } /* create_frm */
@@ -1713,8 +1720,6 @@ void st_table_list::set_ancestor()
         */
         tbl->ancestor->set_ancestor();
       }
-      if (tbl->multitable_view)
-        multitable_view= TRUE;
     } while ((tbl= tbl->next_local));
 
     if (!multitable_view)
@@ -2140,8 +2145,291 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
 }
 
 
+/*
+  Test if this is a leaf with respect to name resolution.
+
+  SYNOPSIS
+    st_table_list::is_leaf_for_name_resolution()
+
+  DESCRIPTION
+    A table reference is a leaf with respect to name resolution if
+    it is either a leaf node in a nested join tree (table, view,
+    schema table, subquery), or an inner node that represents a
+    NATURAL/USING join, or a nested join with materialized join
+    columns.
+
+  RETURN
+    TRUE if a leaf, FALSE otherwise.
+*/
+bool st_table_list::is_leaf_for_name_resolution()
+{
+  return (view || is_natural_join || is_join_columns_complete ||
+          !nested_join);
+}
+
+
+/*
+  Retrieve the first (left-most) leaf in a nested join tree with
+  respect to name resolution.
+
+  SYNOPSIS
+    st_table_list::first_leaf_for_name_resolution()
+
+  DESCRIPTION
+    Given that 'this' is a nested table reference, recursively walk
+    down the left-most children of 'this' until we reach a leaf
+    table reference with respect to name resolution.
+
+  IMPLEMENTATION
+    The left-most child of a nested table reference is the last element
+    in the list of children because the children are inserted in
+    reverse order.
+
+  RETURN
+    If 'this' is a nested table reference - the left-most child of
+      the tree rooted in 'this',
+    else return 'this'
+*/
+
+TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
+{
+  TABLE_LIST *cur_table_ref;
+  NESTED_JOIN *cur_nested_join;
+  LINT_INIT(cur_table_ref);
+
+  if (is_leaf_for_name_resolution())
+    return this;
+  DBUG_ASSERT(nested_join);
+
+  for (cur_nested_join= nested_join;
+       cur_nested_join;
+       cur_nested_join= cur_table_ref->nested_join)
+  {
+    List_iterator_fast<TABLE_LIST> it(cur_nested_join->join_list);
+    cur_table_ref= it++;
+    /*
+      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
+      order, thus the first operand is already at the front of the list.
+    */
+    if (!(cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
+    {
+      TABLE_LIST *next;
+      while ((next= it++))
+        cur_table_ref= next;
+    }
+    if (cur_table_ref->is_leaf_for_name_resolution())
+      break;
+  }
+  return cur_table_ref;
+}
+
+
+/*
+  Retrieve the last (right-most) leaf in a nested join tree with
+  respect to name resolution.
+
+  SYNOPSIS
+    st_table_list::last_leaf_for_name_resolution()
+
+  DESCRIPTION
+    Given that 'this' is a nested table reference, recursively walk
+    down the right-most children of 'this' until we reach a leaf
+    table reference with respect to name resolution.
+
+  IMPLEMENTATION
+    The right-most child of a nested table reference is the first
+    element in the list of children because the children are inserted
+    in reverse order.
+
+  RETURN
+    - If 'this' is a nested table reference - the right-most child of
+      the tree rooted in 'this',
+    - else - 'this'
+*/
+
+TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
+{
+  TABLE_LIST *cur_table_ref= this;
+  NESTED_JOIN *cur_nested_join;
+
+  if (is_leaf_for_name_resolution())
+    return this;
+  DBUG_ASSERT(nested_join);
+
+  for (cur_nested_join= nested_join;
+       cur_nested_join;
+       cur_nested_join= cur_table_ref->nested_join)
+  {
+    /*
+      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
+      order, thus the last operand is in the end of the list.
+    */
+    if ((cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
+    {
+      List_iterator_fast<TABLE_LIST> it(cur_nested_join->join_list);
+      TABLE_LIST *next;
+      cur_table_ref= it++;
+      while ((next= it++))
+        cur_table_ref= next;
+    }
+    else
+      cur_table_ref= cur_nested_join->join_list.head();
+    if (cur_table_ref->is_leaf_for_name_resolution())
+      break;
+  }
+  return cur_table_ref;
+}
+
+
+Natural_join_column::Natural_join_column(Field_translator *field_param,
+                                         TABLE_LIST *tab)
+{
+  DBUG_ASSERT(tab->field_translation);
+  view_field= field_param;
+  table_field= NULL;
+  table_ref= tab;
+  is_common= FALSE;
+  is_coalesced= FALSE;
+}
+
+
+Natural_join_column::Natural_join_column(Field *field_param,
+                                         TABLE_LIST *tab)
+{
+  table_field= field_param;
+  view_field= NULL;
+  table_ref= tab;
+  is_common= FALSE;
+  is_coalesced= FALSE;
+}
+
+
+const char *Natural_join_column::name()
+{
+  if (view_field)
+  {
+    DBUG_ASSERT(table_field == NULL);
+    return view_field->name;
+  }
+
+  return table_field->field_name;
+}
+
+
+Item *Natural_join_column::create_item(THD *thd)
+{
+  if (view_field)
+  {
+    DBUG_ASSERT(table_field == NULL);
+    return create_view_field(thd, table_ref, &view_field->item,
+                             view_field->name);
+  }
+  return new Item_field(thd, &thd->lex->current_select->context, table_field);
+}
+
+
+Field *Natural_join_column::field()
+{
+  if (view_field)
+  {
+    DBUG_ASSERT(table_field == NULL);
+    return NULL;
+  }
+  return table_field;
+}
+
+
+const char *Natural_join_column::table_name()
+{
+  return table_ref->alias;
+  /*
+    TODO:
+    I think that it is sufficient to return just
+    table->alias, which is correctly set to either
+    the view name, the table name, or the alias to
+    the table reference (view or stored table).
+  */
+#ifdef NOT_YET
+  if (view_field)
+    return table_ref->view_name.str;
+
+  DBUG_ASSERT(!strcmp(table_ref->table_name,
+                      table_ref->table->s->table_name));
+  return table_ref->table_name;
+}
+#endif
+}
+
+
+const char *Natural_join_column::db_name()
+{
+  if (view_field)
+    return table_ref->view_db.str;
+
+  DBUG_ASSERT(!strcmp(table_ref->db,
+                      table_ref->table->s->db));
+  return table_ref->db;
+}
+
+
+GRANT_INFO *Natural_join_column::grant()
+{
+  if (view_field)
+    return &(table_ref->grant);
+  return &(table_ref->table->grant);
+}
+
+
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+/*
+  Check the access rights for the current join column.
+  columns.
+
+  SYNOPSIS
+    Natural_join_column::check_grants()
+
+  DESCRIPTION
+    Check the access rights to a column from a natural join in a generic
+    way that hides the heterogeneity of the column representation - whether
+    it is a view or a stored table colum.
+
+  RETURN
+    FALSE  The column can be accessed
+    TRUE   There are no access rights to all equivalent columns
+*/
+
+bool
+Natural_join_column::check_grants(THD *thd, const char *name, uint length)
+{
+  GRANT_INFO *grant;
+  const char *db_name;
+  const char *table_name;
+
+  if (view_field)
+  {
+    DBUG_ASSERT(table_field == NULL);
+    grant= &(table_ref->grant);
+    db_name= table_ref->view_db.str;
+    table_name= table_ref->view_name.str;
+  }
+  else
+  {
+    DBUG_ASSERT(table_field && view_field == NULL);
+    grant= &(table_ref->table->grant);
+    db_name= table_ref->table->s->db;
+    table_name= table_ref->table->s->table_name;
+  }
+
+  return check_grant_column(thd, grant, db_name, table_name, name, length);
+}
+#endif
+
+
 void Field_iterator_view::set(TABLE_LIST *table)
 {
+  DBUG_ASSERT(table->field_translation);
   view= table;
   ptr= table->field_translation;
   array_end= table->field_translation_end;
@@ -2208,6 +2496,183 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                        field_ref, view->view_name.str,
                                        name);
   DBUG_RETURN(item);
+}
+
+
+void Field_iterator_natural_join::set(TABLE_LIST *table_ref)
+{
+  DBUG_ASSERT(table_ref->join_columns);
+  delete column_ref_it;
+
+  /*
+    TODO: try not to allocate new iterator every time. If we have to,
+    then check for out of memory condition.
+  */
+  column_ref_it= new List_iterator_fast<Natural_join_column>
+                     (*(table_ref->join_columns));
+  cur_column_ref= (*column_ref_it)++;
+}
+
+
+void Field_iterator_table_ref::set_field_iterator()
+{
+  DBUG_ENTER("Field_iterator_table_ref::set_field_iterator");
+  /*
+    If the table reference we are iterating over is a natural join, or it is
+    an operand of a natural join, and TABLE_LIST::join_columns contains all
+    the columns of the join operand, then we pick the columns from
+    TABLE_LIST::join_columns, instead of the  orginial container of the
+    columns of the join operator.
+  */
+  if (table_ref->is_join_columns_complete)
+  {
+    /* Necesary, but insufficient conditions. */
+    DBUG_ASSERT(table_ref->is_natural_join ||
+                table_ref->nested_join ||
+                table_ref->join_columns &&
+                /* This is a merge view. */
+                ((table_ref->field_translation &&
+                  table_ref->join_columns->elements ==
+                  (ulong)(table_ref->field_translation_end -
+                          table_ref->field_translation)) ||
+                 /* This is stored table or a tmptable view. */
+                 (!table_ref->field_translation &&
+                  table_ref->join_columns->elements ==
+                  table_ref->table->s->fields)));
+    field_it= &natural_join_it;
+    DBUG_PRINT("info",("field_it for '%s' is Field_iterator_natural_join",
+                       table_ref->table_name));
+  }
+  /* This is a merge view, so use field_translation. */
+  else if (table_ref->field_translation)
+  {
+    DBUG_ASSERT(table_ref->view &&
+                table_ref->effective_algorithm == VIEW_ALGORITHM_MERGE);
+    field_it= &view_field_it;
+    DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_view",
+                        table_ref->table_name));
+  }
+  /* This is a base table or stored view. */
+  else
+  {
+    DBUG_ASSERT(table_ref->table || table_ref->view);
+    field_it= &table_field_it;
+    DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_table",
+                        table_ref->table_name));
+  }
+  field_it->set(table_ref);
+  DBUG_VOID_RETURN;
+}
+
+
+void Field_iterator_table_ref::set(TABLE_LIST *table)
+{
+  DBUG_ASSERT(table);
+  first_leaf= table->first_leaf_for_name_resolution();
+  last_leaf=  table->last_leaf_for_name_resolution();
+  DBUG_ASSERT(first_leaf && last_leaf);
+  table_ref= first_leaf;
+  set_field_iterator();
+}
+
+
+void Field_iterator_table_ref::next()
+{
+  /* Move to the next field in the current table reference. */
+  field_it->next();
+  /*
+    If all fields of the current table reference are exhausted, move to
+    the next leaf table reference.
+  */
+  if (field_it->end_of_fields() && table_ref != last_leaf)
+  {
+    table_ref= table_ref->next_name_resolution_table;
+    DBUG_ASSERT(table_ref);
+    set_field_iterator();
+  }
+}
+
+
+const char *Field_iterator_table_ref::table_name()
+{
+  if (table_ref->view)
+    return table_ref->view_name.str;
+  else if (table_ref->is_natural_join)
+    return natural_join_it.column_ref()->table_name();
+
+  DBUG_ASSERT(!strcmp(table_ref->table_name,
+                      table_ref->table->s->table_name));
+  return table_ref->table_name;
+}
+
+
+const char *Field_iterator_table_ref::db_name()
+{
+  if (table_ref->view)
+    return table_ref->view_db.str;
+  else if (table_ref->is_natural_join)
+    return natural_join_it.column_ref()->db_name();
+
+  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db));
+  return table_ref->db;
+}
+
+
+GRANT_INFO *Field_iterator_table_ref::grant()
+{
+  if (table_ref->view)
+    return &(table_ref->grant);
+  else if (table_ref->is_natural_join)
+    return natural_join_it.column_ref()->grant();
+  return &(table_ref->table->grant);
+}
+
+
+bool Field_iterator_table_ref::is_coalesced()
+{
+  if (table_ref->is_natural_join)
+    return natural_join_it.column_ref()->is_coalesced;
+  return FALSE;
+}
+
+/*
+  Create new or return existing column reference to a column of a
+  natural/using join.
+
+  SYNOPSIS
+    Field_iterator_table_ref::get_or_create_column_ref()
+    thd         [in]  pointer to current thread
+    is_created  [out] set to TRUE if the column was created,
+                      FALSE if we return an already created colum
+
+  DESCRIPTION
+    TODO
+
+  RETURN
+    #     Pointer to a column of a natural join (or its operand)
+    NULL  No memory to allocate the column
+*/
+
+Natural_join_column *
+Field_iterator_table_ref::get_or_create_column_ref(THD *thd, bool *is_created)
+{
+  Natural_join_column *nj_col;
+
+  *is_created= TRUE;
+  if (field_it == &table_field_it)
+    return new Natural_join_column(table_field_it.field(), table_ref);
+  if (field_it == &view_field_it)
+    return new Natural_join_column(view_field_it.field_translator(),
+                                   table_ref);
+
+  /*
+    This is NATURAL join, we already have created a column reference,
+    so just return it.
+  */
+  *is_created= FALSE;
+  nj_col= natural_join_it.column_ref();
+  DBUG_ASSERT(nj_col);
+  return nj_col;
 }
 
 

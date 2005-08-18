@@ -1903,6 +1903,8 @@ in_row::~in_row()
 byte *in_row::get_value(Item *item)
 {
   tmp.store_value(item);
+  if (item->is_null())
+    return 0;
   return (byte *)&tmp;
 }
 
@@ -2790,8 +2792,14 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&tmp_value1);
+    /* ESCAPE must be 1 char in length.*/
+    if (escape_str && escape_str->numchars() != 1)
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
+      return TRUE;
+    }
     escape= escape_str ? *(escape_str->ptr()) : '\\';
- 
+
     /*
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.

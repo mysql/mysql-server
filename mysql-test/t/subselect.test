@@ -696,7 +696,7 @@ CREATE TABLE `t1` (
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
--- error 1109
+-- error 1054
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
 select * from t1;
 drop table t1;
@@ -1005,7 +1005,7 @@ create table t2 (s1 int);
 select * from t1 where (select count(*) from t2 where t1.s2) = 1;
 -- error 1054
 select * from t1 where (select count(*) from t2 group by t1.s2) = 1;
--- error 1109
+-- error 1054
 select count(*) from t2 group by t1.s2;
 drop table t1, t2;
 
@@ -1132,8 +1132,8 @@ CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1);
-SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
-SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY t1.id;
+SELECT id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
+SELECT id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY id;
 DROP TABLE t1,t2;
 
 #
@@ -1726,7 +1726,100 @@ select (select a from t1) = (1,2);
 select (1,2,3) = (select * from t1);
 -- error 1241
 select (select * from t1) = (1,2,3);
+drop table t1
+
+#
+# Item_int_with_ref check (BUG#10020)
+#
+CREATE TABLE `t1` (
+  `itemid` bigint(20) unsigned NOT NULL auto_increment,
+  `sessionid` bigint(20) unsigned default NULL,
+  `time` int(10) unsigned NOT NULL default '0',
+  `type` set('A','D','E','F','G','I','L','N','U') collate latin1_general_ci NOT
+NULL default '',
+  `data` text collate latin1_general_ci NOT NULL,
+  PRIMARY KEY  (`itemid`)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO `t1` VALUES (1, 1, 1, 'D', '');
+CREATE TABLE `t2` (
+  `sessionid` bigint(20) unsigned NOT NULL auto_increment,
+  `pid` int(10) unsigned NOT NULL default '0',
+  `date` int(10) unsigned NOT NULL default '0',
+  `ip` varchar(15) collate latin1_general_ci NOT NULL default '',
+  PRIMARY KEY  (`sessionid`)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO `t2` VALUES (1, 1, 1, '10.10.10.1');
+SELECT s.ip, count( e.itemid ) FROM `t1` e JOIN t2 s ON s.sessionid = e.sessionid WHERE e.sessionid = ( SELECT sessionid FROM t2 ORDER BY sessionid DESC LIMIT 1 ) GROUP BY s.ip HAVING count( e.itemid ) >0 LIMIT 0 , 30;
+drop tables t1,t2;
+
+# BUG#11821 : Select from subselect using aggregate function on an enum
+# segfaults:
+create table t1 (fld enum('0','1'));
+insert into t1 values ('1');
+select * from (select max(fld) from t1) as foo;
 drop table t1;
+
+#
+# Bug #11867: queries with ROW(,elems>) IN (SELECT DISTINCT <cols> FROM ...)
+#
+
+CREATE TABLE t1 (one int, two int, flag char(1));
+CREATE TABLE t2 (one int, two int, flag char(1));
+INSERT INTO t1 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
+INSERT INTO t2 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
+
+SELECT * FROM t1
+  WHERE ROW(one,two) IN (SELECT DISTINCT one,two FROM t2 WHERE flag = 'N');
+SELECT * FROM t1
+  WHERE ROW(one,two) IN (SELECT DISTINCT one,two FROM t1 WHERE flag = 'N');
+
+insert into t2 values (null,null,'N');
+insert into t2 values (null,3,'0');
+insert into t2 values (null,5,'0');
+insert into t2 values (10,null,'0');
+insert into t1 values (10,3,'0');
+insert into t1 values (10,5,'0');
+insert into t1 values (10,10,'0');
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N') as 'test' from t1;
+SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N' group by one,two) as 'test' from t1;
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
+SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
+explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
+explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
+explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
+DROP TABLE t1,t2;
+
+#
+# Bug #12392: where cond with IN predicate for rows and NULL values in table 
+#
+
+CREATE TABLE t1 (a char(5), b char(5));
+INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
+
+SELECT * FROM t1 WHERE (a,b) IN (('aaa','aaa'), ('aaa','bbb'));
+
+DROP TABLE t1;
+
+#
+# Bug #11479: subquery over left join with an empty inner table 
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int, b int);
+CREATE TABLE t3 (b int NOT NULL);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (1,10), (3,30);
+
+SELECT * FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+  WHERE t3.b IS NOT NULL OR t2.a > 10;
+SELECT * FROM t1
+  WHERE t1.a NOT IN (SELECT a FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+                       WHERE t3.b IS NOT NULL OR t2.a > 10);
+
+DROP TABLE t1,t2,t3;
+
+# End of 4.1 tests
 
 #
 #decimal-related tests
@@ -1866,4 +1959,5 @@ create table t1 (fld enum('0','1'));
 insert into t1 values ('1');
 select * from (select max(fld) from t1) as foo;
 drop table t1;
+
 

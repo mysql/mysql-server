@@ -40,3 +40,28 @@ having mts < DATE_SUB(NOW(),INTERVAL 3 MONTH);
 select visitor_id,max(ts) as mts from t1 group by visitor_id
 having DATE_ADD(mts,INTERVAL 3 MONTH) < NOW();
 drop table t1;
+
+#
+# Bug #10627: Invalid date turned to NULL from date_sub/date_add in
+# traditional mode
+#
+set sql_mode='traditional';
+create table t1 (d date);
+--error S22008
+insert into t1 (d) select date_sub('2000-01-01', INTERVAL 2001 YEAR);
+--error S22008
+insert into t1 (d) select date_add('2000-01-01',interval 8000 year);
+# No warnings/errors from the next two
+insert into t1 values (date_add(NULL, INTERVAL 1 DAY));
+insert into t1 values (date_add('2000-01-04', INTERVAL NULL DAY));
+set sql_mode='';
+# These will all work now, and we'll end up with some NULL entries in the
+# table and some warnings.
+insert into t1 (d) select date_sub('2000-01-01', INTERVAL 2001 YEAR);
+insert into t1 (d) select date_add('2000-01-01',interval 8000 year);
+insert into t1 values (date_add(NULL, INTERVAL 1 DAY));
+insert into t1 values (date_add('2000-01-04', INTERVAL NULL DAY));
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests

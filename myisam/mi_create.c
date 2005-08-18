@@ -251,9 +251,11 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
         /*
            called by myisamchk - i.e. table structure was taken from
            MYI file and SPATIAL key *does have* additional sp_segs keysegs.
-           We'd better delete them now
+           keydef->seg here points right at the GEOMETRY segment,
+           so we only need to decrease keydef->keysegs.
+           (see recreate_table() in mi_check.c)
         */
-        keydef->keysegs-=(sp_segs-1);
+        keydef->keysegs-=sp_segs-1;
       }
 
       for (j=0, keyseg=keydef->seg ; (int) j < keydef->keysegs ;

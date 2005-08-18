@@ -48,3 +48,17 @@ select * from (select 1 union select 1) aaa;
 drop table t1;
 
 --disable_metadata
+
+#
+# Bug #11688: Bad mysql_info() results in multi-results
+#
+--enable_info
+delimiter //;
+create table t1 (i int);
+insert into t1 values (1),(2),(3);
+select * from t1 where i = 2;
+drop table t1;//
+delimiter ;//
+--disable_info
+
+# End of 4.1 tests

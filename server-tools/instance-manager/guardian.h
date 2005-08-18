@@ -100,8 +100,8 @@ public:
   int stop_guard(Instance *instance);
   /* Returns true if guardian thread is stopped */
   int is_stopped();
-  int lock();
-  int unlock();
+  void lock();
+  void unlock();
 
 public:
   pthread_cond_t COND_guardian;

@@ -5,7 +5,7 @@
 # show databases
 
 --disable_warnings
-DROP TABLE IF EXISTS t0,t1,t2;
+DROP TABLE IF EXISTS t0,t1,t2,t3,t5;
 --enable_warnings
 
 
@@ -30,6 +30,8 @@ create table mysqltest.t1(a int, b VARCHAR(30), KEY string_data (b));
 create table test.t2(a int);
 create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
+create table t5 (id int auto_increment primary key);
+insert into t5 values (10);
 create view v1 (c) as select table_name from information_schema.TABLES;
 select * from v1;
 
@@ -76,7 +78,7 @@ where table_schema = 'mysqltest' and table_name = 'v1';
 connection default;
 
 drop view v1, mysqltest.v1;
-drop tables mysqltest.t4, mysqltest.t1, t2, t3;
+drop tables mysqltest.t4, mysqltest.t1, t2, t3, t5;
 drop database mysqltest;
 
 # Test for information_schema.CHARACTER_SETS &
@@ -249,25 +251,27 @@ flush privileges;
 
 # QQ This results in NULLs instead of the version numbers when
 # QQ a LOCK TABLES is in effect when selecting from
-# QQ information_schema.tables. Until this bug has been fixed,
-# QQ this test is disabled /pem
-#delimiter //;
-#create procedure px5 ()
-#begin
-#declare v int;
-#declare c cursor for select version from
-#information_schema.tables where table_schema <> 'information_schema';
-#open c;
-#fetch c into v;
-#select v;
-#close c;
-#end;//
-#
-#call px5()//
-#call px5()//
-#delimiter ;//
-#select sql_mode from information_schema.ROUTINES;
-#drop procedure px5;
+# QQ information_schema.tables.
+
+--disable_parsing until bug is fixes
+delimiter //;
+create procedure px5 ()
+begin
+declare v int;
+declare c cursor for select version from
+information_schema.tables where table_schema <> 'information_schema';
+open c;
+fetch c into v;
+select v;
+close c;
+end;//
+
+call px5()//
+call px5()//
+delimiter ;//
+select sql_mode from information_schema.ROUTINES;
+drop procedure px5;
+--enable_parsing
 
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
@@ -409,6 +413,8 @@ show variables where variable_name like "skip_show_databas";
 #
 # Bug #7981:SHOW GLOBAL STATUS crashes server
 #
+# We don't actually care about the value, just that it doesn't crash.
+--replace_column 2 #
 show global status like "Threads_running";
 
 #
@@ -609,6 +615,7 @@ show create database information_schema;
 
 #
 # Bug #11057 information_schema: columns table has some questionable contents
+# Bug #12301 information_schema: NUMERIC_SCALE must be 0 for integer columns
 #
 create table t1(f1 LONGBLOB, f2 LONGTEXT);
 select column_name,data_type,CHARACTER_OCTET_LENGTH,
@@ -621,4 +628,25 @@ create table t1(f1 tinyint, f2 SMALLINT, f3 mediumint, f4 int,
 select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns
 where table_name='t1';
+drop table t1;
+
+#
+# Bug #12127 triggers do not show in info_schema before they are used if set to the database
+#
+create table t1 (f1 integer);
+create trigger tr1 after insert on t1 for each row set @test_var=42;
+use information_schema;
+select trigger_schema, trigger_name from triggers where
+trigger_name='tr1';
+use test;
+drop table t1;
+
+#
+# Bug#12518 COLUMN_DEFAULT has wrong value if NOT NULL is set
+#
+create table t1 (a int not null, b int);
+use information_schema;
+select column_name, column_default from columns
+  where table_schema='test' and table_name='t1';
+use test;
 drop table t1;

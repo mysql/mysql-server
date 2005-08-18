@@ -1,0 +1,32 @@
+-- source include/have_gbk.inc
+
+#
+# Tests with the gbk character set
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+SET @test_character_set= 'gbk';
+SET @test_collation= 'gbk_chinese_ci';
+-- source include/ctype_common.inc
+
+SET NAMES gbk;
+SET collation_connection='gbk_chinese_ci';
+-- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
+SET collation_connection='gbk_bin';
+-- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
+
+#
+# Bug#11987 mysql will truncate the text when
+# the text contain GBK char:"0xA3A0" and "0xA1"
+#
+SET NAMES gbk;
+CREATE TABLE t1 (a text) character set gbk;
+INSERT INTO t1 VALUES (0xA3A0),(0xA1A1);
+SELECT hex(a) FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+# End of 4.1 tests

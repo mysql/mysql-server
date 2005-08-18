@@ -223,8 +223,7 @@ a	b
 1	2
 EXPLAIN EXTENDED
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
-FROM t6,
-t7 
+FROM (t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10;
@@ -235,8 +234,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t7`.`b` = `test`.`t8`.`b`) and (`test`.`t6`.`b` < 10))) where 1
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
-FROM t6,
-t7 
+FROM (t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10;
@@ -260,8 +258,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 FROM t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -279,8 +276,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 FROM t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -312,8 +308,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -357,8 +352,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -397,8 +391,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -470,8 +463,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -537,8 +529,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -575,8 +566,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -625,8 +615,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -679,8 +668,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -825,44 +813,38 @@ a	b	a	b	a	b	a	b
 1	3	5	3	NULL	NULL	NULL	NULL
 2	2	5	3	NULL	NULL	NULL	NULL
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-FROM t1, t3, t4 
+FROM t1, (t3, t4)
 RIGHT JOIN              
 t2
 ON t3.a=1 AND t2.b=t4.b
 WHERE t1.a <= 2;
 a	b	a	b	a	b	a	b
-1	3	3	3	1	2	NULL	NULL
-1	3	3	3	2	2	NULL	NULL
-2	2	3	3	1	2	NULL	NULL
-2	2	3	3	2	2	NULL	NULL
+1	3	3	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
 1	3	4	2	1	2	3	2
 1	3	4	2	1	2	4	2
-1	3	4	2	2	2	NULL	NULL
 2	2	4	2	1	2	3	2
 2	2	4	2	1	2	4	2
-2	2	4	2	2	2	NULL	NULL
-1	3	5	3	1	2	NULL	NULL
-1	3	5	3	2	2	NULL	NULL
-2	2	5	3	1	2	NULL	NULL
-2	2	5	3	2	2	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	5	3	NULL	NULL	NULL	NULL
 EXPLAIN EXTENDED
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-FROM t1, t3, t4
+FROM t1, (t3, t4)
 RIGHT JOIN
 t2
 ON t3.a=1 AND t2.b=t4.b
 WHERE t1.a <= 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t1` join `test`.`t3` join `test`.`t2` left join `test`.`t4` on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) where (`test`.`t1`.`a` <= 2)
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t1` join `test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) where (`test`.`t1`.`a` <= 2)
 CREATE INDEX idx_b ON t2(b);
 EXPLAIN EXTENDED
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-FROM t3,t4 
+FROM (t3,t4)
 LEFT JOIN              
 (t1,t2)
 ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
@@ -874,7 +856,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t3` join `test`.`t4` left join (`test`.`t1` join `test`.`t2`) on(((`test`.`t3`.`a` = 1) and (`test`.`t3`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`b` = `test`.`t4`.`b`))) where 1
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
-FROM t3,t4 
+FROM (t3,t4)
 LEFT JOIN              
 (t1,t2)
 ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
@@ -900,8 +882,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -951,8 +932,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -1001,8 +981,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -1052,8 +1031,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -1100,8 +1078,7 @@ ON t3.a=1 AND t2.b=t4.b,
 t5 
 LEFT JOIN 
 ( 
-t6,
-t7 
+(t6, t7)
 LEFT JOIN 
 t8
 ON t7.b=t8.b AND t6.b < 10
@@ -1176,13 +1153,13 @@ a	b	a1	b
 4	2	1	2
 4	2	2	2
 5	3	NULL	NULL
-SELECT t2.a,t2.b,t3.a1,t3.b
+SELECT *
 FROM t2 NATURAL LEFT JOIN t3
 WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
-a	b	a1	b
-4	2	1	2
-4	2	2	2
-5	3	NULL	NULL
+b	a	c	a1	c1
+2	4	0	1	0
+2	4	0	2	0
+3	5	0	NULL	NULL
 DROP TABLE t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
@@ -1343,3 +1320,58 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	
 DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (goods int(12) NOT NULL, price varchar(128) NOT NULL);
+INSERT INTO t1 VALUES (23, 2340), (26, 9900);
+CREATE TABLE t2 (goods int(12), name varchar(50), shop char(2));
+INSERT INTO t2 VALUES (23, 'as300', 'fr'), (26, 'as600', 'fr');
+create table t3 (groupid int(12) NOT NULL, goodsid int(12) NOT NULL);
+INSERT INTO t3 VALUES (3,23), (6,26);
+CREATE TABLE t4 (groupid int(12));
+INSERT INTO t4 VALUES (1), (2), (3), (4), (5), (6);
+SELECT * FROM
+(SELECT DISTINCT gl.groupid, gp.price
+FROM t4 gl 
+LEFT JOIN
+(t3 g INNER JOIN t2 p ON g.goodsid = p.goods 
+INNER JOIN t1 gp ON p.goods = gp.goods)
+ON gl.groupid = g.groupid and p.shop = 'fr') t;
+groupid	price
+1	NULL
+2	NULL
+3	2340
+4	NULL
+5	NULL
+6	9900
+CREATE VIEW v1 AS
+SELECT g.groupid groupid, p.goods goods,  
+p.name name, p.shop shop, 
+gp.price price
+FROM t3 g INNER JOIN t2 p ON g.goodsid = p.goods
+INNER JOIN t1 gp on p.goods = gp.goods;
+CREATE VIEW v2 AS
+SELECT DISTINCT g.groupid, fr.price
+FROM t4 g
+LEFT JOIN
+v1 fr on g.groupid = fr.groupid and fr.shop = 'fr';
+SELECT * FROM v2;
+groupid	price
+1	NULL
+2	NULL
+3	2340
+4	NULL
+5	NULL
+6	9900
+SELECT * FROM 
+(SELECT DISTINCT g.groupid, fr.price
+FROM t4 g
+LEFT JOIN
+v1 fr on g.groupid = fr.groupid and fr.shop = 'fr') t;
+groupid	price
+1	NULL
+2	NULL
+3	2340
+4	NULL
+5	NULL
+6	9900
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3,t4;

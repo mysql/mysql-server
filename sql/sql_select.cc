@@ -338,7 +338,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables(thd, &select_lex->context,
+       setup_tables(thd, &select_lex->context, join_list,
                     tables_list, &conds, &select_lex->leaf_tables,
                     FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
@@ -1090,9 +1090,10 @@ JOIN::optimize()
 	  order=0;
       }
     }
-    
-    if (thd->lex->subqueries)
+
+    if (select_lex->uncacheable && !is_top_level_join())
     {
+      /* If this join belongs to an uncacheable subquery */
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
       error= 0;				// Ensure that tmp_join.error= 0
@@ -1198,7 +1199,14 @@ JOIN::exec()
     {
       result->send_fields(fields_list,
                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-      if (cond_value != Item::COND_FALSE && (!having || having->val_int()))
+      /*
+        We have to test for 'conds' here as the WHERE may not be constant
+        even if we don't have any tables for prepared statements or if
+        conds uses something like 'rand()'.
+      */
+      if (cond_value != Item::COND_FALSE &&
+          (!conds || conds->val_int()) &&
+          (!having || having->val_int()))
       {
 	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
                                           procedure->end_of_records())
@@ -1279,7 +1287,15 @@ JOIN::exec()
   if (need_tmp)
   {
     if (tmp_join)
+    {
+      /*
+        We are in a non cacheable sub query. Get the saved join structure
+        after optimization.
+        (curr_join may have been modified during last exection and we need
+        to reset it)
+      */
       curr_join= tmp_join;
+    }
     curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
@@ -1567,7 +1583,8 @@ JOIN::exec()
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables);
-	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
+	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
+                                         "having after sort"););
       }
     }
     {
@@ -1628,9 +1645,7 @@ JOIN::exec()
   curr_join->fields= curr_fields_list;
   curr_join->procedure= procedure;
 
-  if (unit == &thd->lex->unit &&
-      (unit->fake_select_lex == 0 || select_lex == unit->fake_select_lex) &&
-      thd->cursor && tables != const_tables)
+  if (is_top_level_join() && thd->cursor && tables != const_tables)
   {
     /*
       We are here if this is JOIN::exec for the last select of the main unit
@@ -1707,6 +1722,7 @@ JOIN::destroy()
 Cursor::Cursor(THD *thd)
   :Query_arena(&main_mem_root, INITIALIZED),
    join(0), unit(0),
+   protocol(thd),
    close_at_commit(FALSE)
 {
   /* We will overwrite it at open anyway. */
@@ -1755,7 +1771,7 @@ Cursor::init_from_thd(THD *thd)
   for (handlerton **pht= thd->transaction.stmt.ht; *pht; pht++)
   {
     const handlerton *ht= *pht;
-    close_at_commit|= (ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
+    close_at_commit|= test(ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
     if (ht->create_cursor_read_view)
     {
       info->ht= ht;
@@ -1842,6 +1858,7 @@ Cursor::fetch(ulong num_rows)
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   Query_arena backup_arena;
+  Engine_info *info;
   DBUG_ENTER("Cursor::fetch");
   DBUG_PRINT("enter",("rows: %lu", num_rows));
 
@@ -1856,7 +1873,7 @@ Cursor::fetch(ulong num_rows)
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &backup_arena);
 
-  for (Engine_info *info= ht_info; info->read_view ; info++)
+  for (info= ht_info; info->read_view ; info++)
     (info->ht->set_cursor_read_view)(info->read_view);
 
   join->fetch_limit+= num_rows;
@@ -1875,7 +1892,7 @@ Cursor::fetch(ulong num_rows)
   /* Grab free_list here to correctly free it in close */
   thd->restore_backup_item_arena(this, &backup_arena);
 
-  for (Engine_info *info= ht_info; info->read_view; info++)
+  for (info= ht_info; info->read_view; info++)
     (info->ht->set_cursor_read_view)(0);
 
   if (error == NESTED_LOOP_CURSOR_LIMIT)
@@ -2750,9 +2767,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
-                                 ((*value)->type() == Item::FIELD_ITEM) &&
-                                 ((Item_field*)*value)->field->maybe_null();
+  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC) &&
+                                  ((*value)->type() == Item::FIELD_ITEM) &&
+                                  ((Item_field*)*value)->field->maybe_null());
   (*key_fields)++;
 }
 
@@ -7936,7 +7953,15 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
-    if (item->max_length > 255 && convert_blob_length)
+    enum enum_field_types type;
+    /*
+      DATE/TIME fields have STRING_RESULT result type. To preserve
+      type they needed to be handled separately.
+    */
+    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
+        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
+      new_field= item->tmp_table_field_from_field_type(table);
+    else if (item->max_length > 255 && convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
@@ -8026,6 +8051,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool table_cant_handle_bit_fields,
                         uint convert_blob_length)
 {
+  if (type != Item::FIELD_ITEM &&
+      item->real_item()->type() == Item::FIELD_ITEM &&
+      (item->type() != Item::REF_ITEM ||
+       !((Item_ref *) item)->depended_from))
+  {
+    item= item->real_item();
+    type= Item::FIELD_ITEM;
+  }
   switch (type) {
   case Item::SUM_FUNC_ITEM:
   {
@@ -8039,30 +8072,31 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
-    if (table_cant_handle_bit_fields && field->field->type() == FIELD_TYPE_BIT)
+    /*
+      If item have to be able to store NULLs but underlaid field can't do it,
+      create_tmp_field_from_field() can't be used for tmp field creation.
+    */
+    if (field->maybe_null && !field->field->maybe_null())
+    {
+      Field *res= create_tmp_field_from_item(thd, item, table, NULL,
+                                       modify_item, convert_blob_length);
+      *from_field= field->field;
+      if (res && modify_item)
+        ((Item_field*)item)->result_field= res;
+      return res;
+    }
+
+    if (table_cant_handle_bit_fields && 
+        field->field->type() == FIELD_TYPE_BIT)
       return create_tmp_field_from_item(thd, item, table, copy_func,
                                         modify_item, convert_blob_length);
     return create_tmp_field_from_field(thd, (*from_field= field->field),
                                        item->name, table,
-                                       modify_item ? (Item_field*) item : NULL,
+                                       modify_item ? (Item_field*) item :
+                                       NULL,
                                        convert_blob_length);
   }
-  case Item::REF_ITEM:
-  {
-    Item *tmp_item;
-    if ((tmp_item= item->real_item())->type() == Item::FIELD_ITEM)
-    {
-      Item_field *field= (Item_field*) tmp_item;
-      Field *new_field= create_tmp_field_from_field(thd, 
-                               (*from_field= field->field),
-                               item->name, table,
-                               NULL,
-                               convert_blob_length);
-      if (modify_item)
-        item->set_result_field(new_field);
-      return new_field;
-    }
-  }
+  /* Fall through */
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
@@ -8074,6 +8108,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REAL_ITEM:
   case Item::DECIMAL_ITEM:
   case Item::STRING_ITEM:
+  case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
@@ -8101,7 +8136,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 ulong select_options, ha_rows rows_limit,
+		 ulonglong select_options, ha_rows rows_limit,
 		 char *table_alias)
 {
   TABLE *table;
@@ -8355,7 +8390,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES)
+      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
@@ -9718,18 +9753,19 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       table->file->extra(HA_EXTRA_KEYREAD);
       tab->index= tab->ref.key;
     }
-    if ((error=join_read_const(tab)))
+    error=join_read_const(tab);
+    if (table->key_read)
+    {
+      table->key_read=0;
+      table->file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    if (error)
     {
       tab->info="unique row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
-    }
-    if (table->key_read)
-    {
-      table->key_read=0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
   if (*tab->on_expr_ref && !table->null_row)
@@ -9851,6 +9887,11 @@ join_read_always_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
+  {
+    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
+        return -1;
+  } 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
   if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
@@ -10904,13 +10945,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   usable_keys.set_all();
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
-    if ((*tmp_order->item)->type() != Item::FIELD_ITEM)
+    Item *item= (*tmp_order->item)->real_item();
+    if (item->type() != Item::FIELD_ITEM)
     {
       usable_keys.clear_all();
       DBUG_RETURN(0);
     }
-    usable_keys.intersect(((Item_field*) (*tmp_order->item))->
-			  field->part_of_sortkey);
+    usable_keys.intersect(((Item_field*) item)->field->part_of_sortkey);
     if (usable_keys.is_clear_all())
       DBUG_RETURN(0);					// No usable keys
   }
@@ -11871,13 +11912,14 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
 
   SYNOPSIS
     find_order_in_list()
-    thd		      	Pointer to current thread structure
-    ref_pointer_array   All select, group and order by fields
-    tables              List of tables to search in (usually FROM clause)
-    order               Column reference to be resolved
-    fields              List of fields to search in (usually SELECT list)
-    all_fields          All select, group and order by fields
-    is_group_field      True if order is a GROUP field, false if ORDER by field
+    thd		      [in]     Pointer to current thread structure
+    ref_pointer_array [in/out] All select, group and order by fields
+    tables            [in]     List of tables to search in (usually FROM clause)
+    order             [in]     Column reference to be resolved
+    fields            [in]     List of fields to search in (usually SELECT list)
+    all_fields        [in/out] All select, group and order by fields
+    is_group_field    [in]     True if order is a GROUP field, false if
+                               ORDER by field
 
   DESCRIPTION
     Given a column reference (represented by 'order') from a GROUP BY or ORDER
@@ -11953,7 +11995,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
         order_item_type == Item::REF_ITEM)
     {
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
-                                       &view_ref, IGNORE_ERRORS, TRUE,
+                                       NULL, &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
       if (!from_field)
         from_field= (Field*) not_found_field;

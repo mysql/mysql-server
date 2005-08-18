@@ -734,6 +734,7 @@ static SYMBOL sql_functions[] = {
   { "SIN",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_sin)},
   { "SHA",              F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_sha)},
   { "SHA1",             F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_sha)},
+  { "SLEEP",            F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_sleep)},
   { "SOUNDEX",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_soundex)},
   { "SPACE",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_space)},
   { "SQRT",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_sqrt)},

@@ -2638,10 +2638,11 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       while ((column = column_iter++))
       {
         uint unused_field_idx= NO_CACHED_FIELD_INDEX;
-        Field *f=find_field_in_table(thd, table_list, column->column.ptr(),
-                                     column->column.ptr(),
-                                     column->column.length(), 0, 1, 1, 0,
-                                     &unused_field_idx, FALSE);
+        TABLE_LIST *dummy;
+        Field *f=find_field_in_table_ref(thd, table_list, column->column.ptr(),
+                                         column->column.ptr(), NULL, NULL,
+                                         column->column.length(), 0, 1, 1, 0,
+                                         &unused_field_idx, FALSE, &dummy);
         if (f == (Field*)0)
         {
           my_error(ER_BAD_FIELD_ERROR, MYF(0),
@@ -3547,9 +3548,9 @@ bool check_grant_db(THD *thd,const char *db)
 {
   char helping [NAME_LEN+USERNAME_LENGTH+2];
   uint len;
-  bool error=1;
+  bool error= 1;
 
-  len  = (uint) (strmov(strmov(helping,thd->priv_user)+1,db)-helping)+ 1;
+  len= (uint) (strmov(strmov(helping,thd->priv_user)+1,db)-helping)+ 1;
   rw_rdlock(&LOCK_grant);
 
   for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
@@ -3694,6 +3695,24 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   return privilege;
 }
 
+
+/*
+  Determine the access priviliges for a field.
+
+  SYNOPSIS
+    get_column_grant()
+    thd         thread handler
+    grant       grants table descriptor
+    db_name     name of database that the field belongs to
+    table_name  name of table that the field belongs to
+    field_name  name of field
+
+  DESCRIPTION
+    The procedure may also modify: grant->grant_table and grant->version.
+
+  RETURN
+    The access priviliges for the field db_name.table_name.field_name
+*/
 
 ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,

@@ -218,7 +218,7 @@ extern int errno;			/* declare errno */
 #endif					/* #ifndef errno */
 extern char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 extern char *home_dir;			/* Home directory for user */
-extern char *my_progname;		/* program-name (printed in errors) */
+extern const char *my_progname;		/* program-name (printed in errors) */
 extern char NEAR curr_dir[];		/* Current directory for user */
 extern int (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
@@ -866,6 +866,11 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
                                      char *to, ulong to_length,
                                      const char *from, ulong length);
+#ifdef __WIN__
+#define BACKSLASH_MBTAIL
+/* File system character set */
+extern CHARSET_INFO *fs_character_set(void);
+#endif
 extern ulong escape_quotes_for_mysql(CHARSET_INFO *charset_info,
                                      char *to, ulong to_length,
                                      const char *from, ulong length);

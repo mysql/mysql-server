@@ -96,3 +96,4 @@ DROP TABLE t1;
 #
 select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
 
+# End of 4.1 tests

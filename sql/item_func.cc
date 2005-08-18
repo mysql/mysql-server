@@ -42,73 +42,6 @@ bool check_reserved_words(LEX_STRING *name)
 }
 
 
-static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
-			      const char *fname)
-{
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
-           c1.collation->name, c1.derivation_name(),
-           c2.collation->name, c2.derivation_name(),
-           fname);
-}
-
-static void my_coll_agg_error(DTCollation &c1,
-			       DTCollation &c2,
-			       DTCollation &c3,
-			       const char *fname)
-{
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS, MYF(0),
-           c1.collation->name, c1.derivation_name(),
-           c2.collation->name, c2.derivation_name(),
-           c3.collation->name, c3.derivation_name(),
-           fname);
-}
-
-
-static void my_coll_agg_error(Item** args, uint count, const char *fname)
-{
-  if (count == 2)
-    my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
-  else if (count == 3)
-    my_coll_agg_error(args[0]->collation,
-		      args[1]->collation,
-		      args[2]->collation,
-		      fname);
-  else
-    my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), fname);
-}
-
-
-bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
-                                   uint flags)
-{
-  uint i;
-  c.set(av[0]->collation);
-  for (i= 1; i < count; i++)
-  {
-    if (c.aggregate(av[i]->collation, flags))
-    {
-      my_coll_agg_error(av, count, func_name());
-      return TRUE;
-    }
-  }
-  if ((flags & MY_COLL_DISALLOW_NONE) &&
-      c.derivation == DERIVATION_NONE)
-  {
-    my_coll_agg_error(av, count, func_name());
-    return TRUE;
-  }
-  return FALSE;
-}
-
-
-bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
-						  Item **av, uint count,
-                                                  uint flags)
-{
-  return (agg_arg_collations(c, av, count, flags | MY_COLL_DISALLOW_NONE));
-}
-
-
 /* return TRUE if item is a constant */
 
 bool
@@ -116,107 +49,6 @@ eval_const_cond(COND *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
-
-
-
-/* 
-  Collect arguments' character sets together.
-  We allow to apply automatic character set conversion in some cases.
-  The conditions when conversion is possible are:
-  - arguments A and B have different charsets
-  - A wins according to coercibility rules
-    (i.e. a column is stronger than a string constant,
-     an explicit COLLATE clause is stronger than a column)
-  - character set of A is either superset for character set of B,
-    or B is a string constant which can be converted into the
-    character set of A without data loss.
-    
-  If all of the above is true, then it's possible to convert
-  B into the character set of A, and then compare according
-  to the collation of A.
-  
-  For functions with more than two arguments:
-
-    collect(A,B,C) ::= collect(collect(A,B),C)
-*/
-
-bool Item_func::agg_arg_charsets(DTCollation &coll,
-                                 Item **args, uint nargs, uint flags)
-{
-  Item **arg, **last, *safe_args[2];
-  if (agg_arg_collations(coll, args, nargs, flags))
-    return TRUE;
-
-  /*
-    For better error reporting: save the first and the second argument.
-    We need this only if the the number of args is 3 or 2:
-    - for a longer argument list, "Illegal mix of collations"
-      doesn't display each argument's characteristics.
-    - if nargs is 1, then this error cannot happen.
-  */
-  if (nargs >=2 && nargs <= 3)
-  {
-    safe_args[0]= args[0];
-    safe_args[1]= args[1];
-  }
-
-  THD *thd= current_thd;
-  Query_arena *arena, backup;
-  bool res= FALSE;
-  /*
-    In case we're in statement prepare, create conversion item
-    in its memory: it will be reused on each execute.
-  */
-  arena= thd->change_arena_if_needed(&backup);
-
-  for (arg= args, last= args + nargs; arg < last; arg++)
-  {
-    Item* conv;
-    uint32 dummy_offset;
-    if (!String::needs_conversion(0, coll.collation,
-                                  (*arg)->collation.collation,
-                                  &dummy_offset))
-      continue;
-
-    if (!(conv= (*arg)->safe_charset_converter(coll.collation)))
-    {
-      if (nargs >=2 && nargs <= 3)
-      {
-        /* restore the original arguments for better error message */
-        args[0]= safe_args[0];
-        args[1]= safe_args[1];
-      }
-      my_coll_agg_error(args, nargs, func_name());
-      res= TRUE;
-      break; // we cannot return here, we need to restore "arena".
-    }
-    if ((*arg)->type() == FIELD_ITEM)
-      ((Item_field *)(*arg))->no_const_subst= 1;
-    /*
-      If in statement prepare, then we create a converter for two
-      constant items, do it once and then reuse it.
-      If we're in execution of a prepared statement, arena is NULL,
-      and the conv was created in runtime memory. This can be
-      the case only if the argument is a parameter marker ('?'),
-      because for all true constants the charset converter has already
-      been created in prepare. In this case register the change for
-      rollback.
-    */
-    if (arena)
-      *arg= conv;
-    else
-      thd->change_item_tree(arg, conv);
-    /*
-      We do not check conv->fixed, because Item_func_conv_charset which can
-      be return by safe_charset_converter can't be fixed at creation
-    */
-    conv->fix_fields(thd, arg);
-  }
-  if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
-  return res;
-}
-
 
 
 void Item_func::set_arguments(List<Item> &list)
@@ -1536,8 +1368,6 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value)
 void Item_func_abs::fix_length_and_dec()
 {
   Item_func_num1::fix_length_and_dec();
-  if (hybrid_type == INT_RESULT)
-    unsigned_flag= 1;
 }
 
 
@@ -2043,6 +1873,9 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
       Allocate rand structure once: we must use thd->current_arena
       to create rand in proper mem_root if it's a prepared statement or
       stored procedure.
+
+      No need to send a Rand log event if seed was given eg: RAND(seed),
+      as it will be replicated in the query as such.
     */
     if (!rand && !(rand= (struct rand_struct*)
                    thd->current_arena->alloc(sizeof(*rand))))
@@ -2065,16 +1898,16 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
   else
   {
     /*
-      No need to send a Rand log event if seed was given eg: RAND(seed),
-      as it will be replicated in the query as such.
-
       Save the seed only the first time RAND() is used in the query
       Once events are forwarded rather than recreated,
       the following can be skipped if inside the slave thread
     */
-    thd->rand_used=1;
-    thd->rand_saved_seed1=thd->rand.seed1;
-    thd->rand_saved_seed2=thd->rand.seed2;
+    if (!thd->rand_used)
+    {
+      thd->rand_used= 1;
+      thd->rand_saved_seed1= thd->rand.seed1;
+      thd->rand_saved_seed2= thd->rand.seed2;
+    }
     rand= &thd->rand;
   }
   return FALSE;
@@ -3429,6 +3262,17 @@ void Item_func_benchmark::print(String *str)
   str->append(')');
 }
 
+/* This function is just used to create tests with time gaps */
+
+longlong Item_func_sleep::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  double time= args[0]->val_real();
+  my_sleep((ulong)time*1000000L);
+  return 0;
+}
+
+
 #define extra_size sizeof(double)
 
 static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
@@ -4605,7 +4449,7 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 
   if (component.str == 0 &&
       !my_strcasecmp(system_charset_info, name.str, "VERSION"))
-    return new Item_string("@@VERSION", server_version,
+    return new Item_string(NULL, server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info, DERIVATION_SYSCONST);
 
@@ -4632,28 +4476,10 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   }
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 
-  buff[0]='@';
-  buff[1]='@';
-  pos=buff+2;
-  if (var_type == OPT_SESSION)
-    pos=strmov(pos,"session.");
-  else if (var_type == OPT_GLOBAL)
-    pos=strmov(pos,"global.");
-  
   set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
-  set_if_smaller(base_name->length, MAX_SYS_VAR_LENGTH);
-
-  if (component_name->str)
-  {
-    memcpy(pos, component_name->str, component_name->length);
-    pos+= component_name->length;
-    *pos++= '.';
-  }
-  memcpy(pos, base_name->str, base_name->length);
-  pos+= base_name->length;
 
   return new Item_func_get_system_var(var, var_type, component_name,
-                                      buff, pos - buff);
+                                      NULL, 0);
 }
 
 
@@ -4842,10 +4668,9 @@ Item_func_sp::execute(Item **itp)
 {
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
-  ulong old_client_capabilites;
   int res= -1;
-  bool save_in_sub_stmt= thd->transaction.in_sub_stmt;
-  my_bool save_no_send_ok;
+  Sub_statement_state statement_state;
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   st_sp_security_context save_ctx;
 #endif
@@ -4856,38 +4681,21 @@ Item_func_sp::execute(Item **itp)
     goto error;
   }
 
-  old_client_capabilites= thd->client_capabilities;
-  thd->client_capabilities &= ~CLIENT_MULTI_RESULTS;
-
-#ifndef EMBEDDED_LIBRARY
-  save_no_send_ok= thd->net.no_send_ok;
-  thd->net.no_send_ok= TRUE;
-#endif
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error_check;
+    goto error;
   sp_change_security_context(thd, m_sp, &save_ctx);
   if (save_ctx.changed && 
       check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
     goto error_check_ctx;
 #endif
-  /*
-    Like for SPs, we don't binlog the substatements. If the statement which
-    called this function is an update statement, it will be binlogged; but if
-    it's not (e.g. SELECT myfunc()) it won't be binlogged (documented known
-    problem).
-  */
 
-  tmp_disable_binlog(thd); /* don't binlog the substatements */
-  thd->transaction.in_sub_stmt= TRUE;
-
+  thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
   res= m_sp->execute_function(thd, args, arg_count, itp);
+  thd->restore_sub_statement_state(&statement_state);
 
-  thd->transaction.in_sub_stmt= save_in_sub_stmt;
-  reenable_binlog(thd);
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
        m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -4899,15 +4707,6 @@ Item_func_sp::execute(Item **itp)
 error_check_ctx:
   sp_restore_security_context(thd, m_sp, &save_ctx);
 #endif
-
-  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
-
-error_check:
-#ifndef EMBEDDED_LIBRARY
-  thd->net.no_send_ok= save_no_send_ok;
-#endif
-
-  thd->client_capabilities|= old_client_capabilites &  CLIENT_MULTI_RESULTS;
 
 error:
   DBUG_RETURN(res);

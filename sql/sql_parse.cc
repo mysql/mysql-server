@@ -27,6 +27,7 @@
 
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -124,7 +125,7 @@ static bool end_active_trans(THD *thd)
 {
   int error=0;
   DBUG_ENTER("end_active_trans");
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
@@ -147,11 +148,7 @@ static bool end_active_trans(THD *thd)
 static bool begin_trans(THD *thd)
 {
   int error=0;
-  /*
-    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
-        stored routines as SQL2003 suggests?
-  */
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     return 1;
@@ -193,7 +190,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
 				   USER_RESOURCES *mqh)
 {
-  int return_val=0;
+  int return_val= 0;
   uint temp_len, user_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
@@ -201,7 +198,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
 
-  user_len=strlen(user);
+  user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
@@ -213,21 +210,21 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 			 MYF(MY_WME)))))
     {
       net_send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
     uc->host= uc->user + user_len +  1;
-    uc->len = temp_len;
+    uc->len= temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
-    uc->user_resources=*mqh;
-    uc->intime=thd->thr_create_time;
+    uc->user_resources= *mqh;
+    uc->intime= thd->thr_create_time;
     if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
       my_free((char*) uc,0);
       net_send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
   }
@@ -278,7 +275,7 @@ int check_user(THD *thd, enum enum_server_command command,
   {
     thd->db= 0;
     thd->db_length= 0;
-    if (mysql_change_db(thd, db))
+    if (mysql_change_db(thd, db, FALSE))
     {
       /* Send the error to the client */
       net_send_error(thd);
@@ -287,8 +284,7 @@ int check_user(THD *thd, enum enum_server_command command,
       DBUG_RETURN(-1);
     }
   }
-  else
-    send_ok(thd);
+  send_ok(thd);
   DBUG_RETURN(0);
 #else
 
@@ -413,7 +409,7 @@ int check_user(THD *thd, enum enum_server_command command,
       /* Change database if necessary */
       if (db && db[0])
       {
-        if (mysql_change_db(thd, db))
+        if (mysql_change_db(thd, db, FALSE))
         {
           /* Send error to the client */
           net_send_error(thd);
@@ -422,8 +418,7 @@ int check_user(THD *thd, enum enum_server_command command,
           DBUG_RETURN(-1);
         }
       }
-      else
-	send_ok(thd);
+      send_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
       /* Ready to handle queries */
       DBUG_RETURN(0);
@@ -1104,11 +1099,11 @@ pthread_handler_decl(handle_one_connection,arg)
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
       if (thd->query_error)
 	thd->killed= THD::KILL_CONNECTION;
+      thd->proc_info=0;
+      thd->set_time();
+      thd->init_for_queries();
     }
 
-    thd->proc_info=0;
-    thd->set_time();
-    thd->init_for_queries();
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
     {
@@ -1340,11 +1335,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   int res= 0;
   DBUG_ENTER("end_trans");
 
-  /*
-    QQ: May be it is better to simply prohibit COMMIT and ROLLBACK in
-        stored routines as SQL2003 suggests?
-  */
-  if (unlikely(thd->transaction.in_sub_stmt))
+  if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
@@ -1471,6 +1462,7 @@ bool do_command(THD *thd)
 
 /*
    Perform one connection-level (COM_XXXX) command.
+
   SYNOPSIS
     dispatch_command()
     thd             connection handle
@@ -1521,8 +1513,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, strlen(packet), thd->charset());
-    if (!mysql_change_db(thd, tmp.str))
+    if (!mysql_change_db(thd, tmp.str, FALSE))
+    {
       mysql_log.write(thd,command,"%s",thd->db);
+      send_ok(thd);
+    }
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -1870,17 +1865,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #endif
   case COM_REFRESH:
-    {
-      statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
-			  &LOCK_status);
-      ulong options= (ulong) (uchar) packet[0];
-      if (check_global_access(thd,RELOAD_ACL))
-	break;
-      mysql_log.write(thd,command,NullS);
-      if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, NULL))
-        send_ok(thd);
+  {
+    bool not_used;
+    statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
+                        &LOCK_status);
+    ulong options= (ulong) (uchar) packet[0];
+    if (check_global_access(thd,RELOAD_ACL))
       break;
-    }
+    mysql_log.write(thd,command,NullS);
+    if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+      send_ok(thd);
+    break;
+  }
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
@@ -2024,7 +2020,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   */
   bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
   if (!thd->active_transaction())
-    thd->transaction.xid.null();
+    thd->transaction.xid_state.xid.null();
 
   /* report error issued during command execution */
   if (thd->killed_errno() && !thd->net.report_error)
@@ -2050,7 +2046,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 void log_slow_statement(THD *thd)
 {
-  time_t start_of_query=thd->start_time;
+  time_t start_of_query;
+
+  /*
+    The following should never be true with our current code base,
+    but better to keep this here so we don't accidently try to log a
+    statement in a trigger or stored function
+  */
+  if (unlikely(thd->in_sub_stmt))
+    return;                                     // Don't set time for sub stmt
+
+  start_of_query= thd->start_time;
   thd->end_time();				// Set start time
 
   /*
@@ -2141,6 +2147,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     {
       TABLE_LIST **query_tables_last= lex->query_tables_last;
       sel= new SELECT_LEX();
+      /* 'parent_lex' is used in init_query() so it must be before it. */
+      sel->parent_lex= lex;
       sel->init_query();
       if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, 
                                  (List<String> *) 0, (List<String> *) 0))
@@ -2949,8 +2957,8 @@ end_with_restore_list:
   */
   if (thd->locked_tables || thd->active_transaction())
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION, ER(ER_LOCK_OR_ACTIVE_TRANSACTION),
-               MYF(0));
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
     goto error;
   }
   {
@@ -3244,19 +3252,26 @@ end_with_restore_list:
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
-      select_lex->table_list.first= (byte*)first_table->next_local;
-
+      TABLE_LIST *second_table= first_table->next_local;
+      select_lex->table_list.first= (byte*) second_table;
+      select_lex->context.table_list= 
+        select_lex->context.first_name_resolution_table= second_table;
       res= mysql_insert_select_prepare(thd);
-      lex->select_lex.context.table_list= first_table->next_local;
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
                                              &lex->update_list,
                                              &lex->value_list,
                                              lex->duplicates, lex->ignore)))
       {
-        /* Skip first table, which is the table we are inserting in */
-        select_lex->context.table_list= first_table->next_local;
-
+        /*
+          Skip first table, which is the table we are inserting in.
+          Below we set context.table_list again because the call above to
+          mysql_insert_select_prepare() calls resolve_in_table_list_only(),
+          which in turn resets context.table_list and
+          context.first_name_resolution_table.
+        */
+        select_lex->context.table_list= 
+          select_lex->context.first_name_resolution_table= second_table;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
         delete result;
       }
@@ -3325,7 +3340,7 @@ end_with_restore_list:
     if ((res= mysql_multi_delete_prepare(thd)))
       goto error;
 
-    if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
+    if (!thd->is_fatal_error && (result= new multi_delete(aux_tables,
 							  lex->table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
@@ -3414,7 +3429,8 @@ end_with_restore_list:
     }
 #endif
   case SQLCOM_CHANGE_DB:
-    mysql_change_db(thd,select_lex->db);
+    if (!mysql_change_db(thd,select_lex->db,FALSE))
+      send_ok(thd);
     break;
 
   case SQLCOM_LOAD:
@@ -3645,6 +3661,7 @@ end_with_restore_list:
     if (!(res = mysql_create_function(thd, &lex->udf)))
       send_ok(thd);
 #else
+    my_error(ER_CANT_OPEN_LIBRARY, MYF(0), lex->udf.dl, 0, "feature disabled");
     res= TRUE;
 #endif
     break;
@@ -3828,13 +3845,13 @@ end_with_restore_list:
     lex->no_write_to_binlog= 1;
   case SQLCOM_FLUSH:
   {
+    bool write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, all_tables))
       goto error;
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
       binlog or not.
     */
-    bool write_to_binlog;
     if (!reload_acl_and_cache(thd, lex->type, first_table, &write_to_binlog))
     {
       /*
@@ -4066,8 +4083,8 @@ end_with_restore_list:
     name= thd->strdup(name); 
     db= thd->strmake(lex->sphead->m_db.str, lex->sphead->m_db.length);
     res= (result= lex->sphead->create(thd));
-    switch (result) {
-    case SP_OK:
+    if (result == SP_OK)
+    {
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
@@ -4087,27 +4104,26 @@ end_with_restore_list:
       }
 #endif
       send_ok(thd);
-      break;
-    case SP_WRITE_ROW_FAILED:
-      my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    case SP_NO_DB_ERROR:
-      my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    case SP_BAD_IDENTIFIER:
-      my_error(ER_TOO_LONG_IDENT, MYF(0), name);
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    default:
-      my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
+    }
+    else
+    {
+      switch (result) {
+      case SP_WRITE_ROW_FAILED:
+	my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
+	break;
+      case SP_NO_DB_ERROR:
+	my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
+	break;
+      case SP_BAD_IDENTIFIER:
+	my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+	break;
+      case SP_BODY_TOO_LONG:
+	my_error(ER_TOO_LONG_BODY, MYF(0), name);
+	break;
+      default:
+	my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
+	break;
+      }
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
@@ -4128,9 +4144,8 @@ end_with_restore_list:
        goto error;
 
       /*
-        By this moment all needed SPs should be in cache so no need
-        to look into DB. Moreover we may be unable to do it becuase
-        we may don't have read lock on mysql.proc
+        By this moment all needed SPs should be in cache so no need to look 
+        into DB. 
       */
       if (!(sp= sp_find_procedure(thd, lex->spname, TRUE)))
       {
@@ -4195,7 +4210,7 @@ end_with_restore_list:
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
-	thd->row_count_func= 0;
+        thd->row_count_func= 0;
         tmp_disable_binlog(thd); /* don't binlog the substatements */
 	res= sp->execute_procedure(thd, &lex->value_list);
         reenable_binlog(thd);
@@ -4503,14 +4518,15 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_XA_START:
-    if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
+    if (thd->transaction.xid_state.xa_state == XA_IDLE &&
+        thd->lex->xa_opt == XA_RESUME)
     {
-      if (! thd->transaction.xid.eq(thd->lex->xid))
+      if (! thd->transaction.xid_state.xid.eq(thd->lex->xid))
       {
         my_error(ER_XAER_NOTA, MYF(0));
         break;
       }
-      thd->transaction.xa_state=XA_ACTIVE;
+      thd->transaction.xid_state.xa_state=XA_ACTIVE;
       send_ok(thd);
       break;
     }
@@ -4519,10 +4535,10 @@ end_with_restore_list:
       my_error(ER_XAER_INVAL, MYF(0));
       break;
     }
-    if (thd->transaction.xa_state != XA_NOTR)
+    if (thd->transaction.xid_state.xa_state != XA_NOTR)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
     if (thd->active_transaction() || thd->locked_tables)
@@ -4530,9 +4546,15 @@ end_with_restore_list:
       my_error(ER_XAER_OUTSIDE, MYF(0));
       break;
     }
-    DBUG_ASSERT(thd->transaction.xid.is_null());
-    thd->transaction.xa_state=XA_ACTIVE;
-    thd->transaction.xid.set(thd->lex->xid);
+    if (xid_cache_search(thd->lex->xid))
+    {
+      my_error(ER_XAER_DUPID, MYF(0));
+      break;
+    }
+    DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
+    thd->transaction.xid_state.xa_state=XA_ACTIVE;
+    thd->transaction.xid_state.xid.set(thd->lex->xid);
+    xid_cache_insert(&thd->transaction.xid_state);
     thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -4545,28 +4567,28 @@ end_with_restore_list:
       my_error(ER_XAER_INVAL, MYF(0));
       break;
     }
-    if (thd->transaction.xa_state != XA_ACTIVE)
+    if (thd->transaction.xid_state.xa_state != XA_ACTIVE)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
     }
-    thd->transaction.xa_state=XA_IDLE;
+    thd->transaction.xid_state.xa_state=XA_IDLE;
     send_ok(thd);
     break;
   case SQLCOM_XA_PREPARE:
-    if (thd->transaction.xa_state != XA_IDLE)
+    if (thd->transaction.xid_state.xa_state != XA_IDLE)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4574,22 +4596,28 @@ end_with_restore_list:
     if (ha_prepare(thd))
     {
       my_error(ER_XA_RBROLLBACK, MYF(0));
-      thd->transaction.xa_state=XA_NOTR;
+      xid_cache_delete(&thd->transaction.xid_state);
+      thd->transaction.xid_state.xa_state=XA_NOTR;
       break;
     }
-    thd->transaction.xa_state=XA_PREPARED;
+    thd->transaction.xid_state.xa_state=XA_PREPARED;
     send_ok(thd);
     break;
   case SQLCOM_XA_COMMIT:
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 1)))
+      XID_STATE *xs=xid_cache_search(thd->lex->xid);
+      if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
       else
+      {
+        ha_commit_or_rollback_by_xid(thd->lex->xid, 1);
+        xid_cache_delete(xs);
         send_ok(thd);
+      }
       break;
     }
-    if (thd->transaction.xa_state == XA_IDLE &&
+    if (thd->transaction.xid_state.xa_state == XA_IDLE &&
         thd->lex->xa_opt == XA_ONE_PHASE)
     {
       int r;
@@ -4598,7 +4626,7 @@ end_with_restore_list:
       else
         send_ok(thd);
     }
-    else if (thd->transaction.xa_state == XA_PREPARED &&
+    else if (thd->transaction.xid_state.xa_state == XA_PREPARED &&
              thd->lex->xa_opt == XA_NONE)
     {
       if (wait_if_global_read_lock(thd, 0, 0))
@@ -4618,27 +4646,33 @@ end_with_restore_list:
     else
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    thd->transaction.xa_state=XA_NOTR;
+    xid_cache_delete(&thd->transaction.xid_state);
+    thd->transaction.xid_state.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_ROLLBACK:
-    if (!thd->transaction.xid.eq(thd->lex->xid))
+    if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 0)))
+      XID_STATE *xs=xid_cache_search(thd->lex->xid);
+      if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
       else
+      {
+        ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+        xid_cache_delete(xs);
         send_ok(thd);
+      }
       break;
     }
-    if (thd->transaction.xa_state != XA_IDLE &&
-        thd->transaction.xa_state != XA_PREPARED)
+    if (thd->transaction.xid_state.xa_state != XA_IDLE &&
+        thd->transaction.xid_state.xa_state != XA_PREPARED)
     {
       my_error(ER_XAER_RMFAIL, MYF(0),
-               xa_state_names[thd->transaction.xa_state]);
+               xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
     if (ha_rollback(thd))
@@ -4647,7 +4681,8 @@ end_with_restore_list:
       send_ok(thd);
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    thd->transaction.xa_state=XA_NOTR;
+    xid_cache_delete(&thd->transaction.xid_state);
+    thd->transaction.xid_state.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
     res= mysql_xa_recover(thd);
@@ -5087,8 +5122,9 @@ bool check_stack_overrun(THD *thd, long margin,
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
       (long) (thread_stack - margin))
   {
-    sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
-    my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));
+    sprintf(errbuff[0],ER(ER_STACK_OVERRUN_NEED_MORE),
+            stack_used,thread_stack,margin);
+    my_message(ER_STACK_OVERRUN_NEED_MORE,errbuff[0],MYF(0));
     thd->fatal_error();
     return 1;
   }
@@ -5163,17 +5199,21 @@ void mysql_reset_thd_for_next_command(THD *thd)
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   thd->free_list= 0;
   thd->select_number= 1;
-  thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
-  thd->sent_row_count= thd->examined_row_count= 0;
-  thd->is_fatal_error= thd->rand_used= thd->time_zone_used= 0;
+  thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
                           SERVER_QUERY_NO_GOOD_INDEX_USED);
   thd->tmp_table_used= 0;
-  if (opt_bin_log)
-    reset_dynamic(&thd->user_var_events);
-  thd->clear_error();
+  if (!thd->in_sub_stmt)
+  {
+    if (opt_bin_log)
+      reset_dynamic(&thd->user_var_events);
+    thd->clear_error();
+    thd->total_warn_count=0;			// Warnings for this query
+    thd->rand_used= 0;
+    thd->sent_row_count= thd->examined_row_count= 0;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -5202,9 +5242,9 @@ mysql_new_select(LEX *lex, bool move_down)
   if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
     DBUG_RETURN(1);
   select_lex->select_number= ++thd->select_number;
+  select_lex->parent_lex= lex; /* Used in init_query. */
   select_lex->init_query();
   select_lex->init_select();
-  select_lex->parent_lex= lex;
   /*
     Don't evaluate this subquery during statement prepare even if
     it's a constant one. The flag is switched off in the end of
@@ -5262,6 +5302,7 @@ mysql_new_select(LEX *lex, bool move_down)
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;
+      fake->parent_lex= lex; /* Used in init_query. */
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
       fake->select_limit= 0;
@@ -5270,6 +5311,11 @@ mysql_new_select(LEX *lex, bool move_down)
       /* allow item list resolving in fake select for ORDER BY */
       fake->context.resolve_in_select_list= TRUE;
       fake->context.select_lex= fake;
+      /*
+        Remove the name resolution context of the fake select from the
+        context stack.
+       */
+      lex->pop_context();
     }
     select_lex->context.outer_context= outer_context;
   }
@@ -5303,6 +5349,8 @@ void create_select_for_variable(const char *var_name)
   THD *thd;
   LEX *lex;
   LEX_STRING tmp, null_lex_string;
+  Item *var;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *end;
   DBUG_ENTER("create_select_for_variable");
 
   thd= current_thd;
@@ -5312,8 +5360,16 @@ void create_select_for_variable(const char *var_name)
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
   bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
-  add_item_to_list(thd, get_system_var(thd, OPT_SESSION, tmp,
-				       null_lex_string));
+  /*
+    We set the name of Item to @@session.var_name because that then is used
+    as the column name in the output.
+  */
+  if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
+  {
+    end= strxmov(buff, "@@session.", var_name, NullS);
+    var->set_name(buff, end-buff, system_charset_info);
+    add_item_to_list(thd, var);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -5339,11 +5395,12 @@ void mysql_init_multi_delete(LEX *lex)
 void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
-
   mysql_init_query(thd, (uchar*) inBuf, length);
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
+    sp_cache_flush_obsolete(&thd->sp_proc_cache);
+    sp_cache_flush_obsolete(&thd->sp_func_cache);
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -5811,7 +5868,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
         new_field->length= 1;
       if (new_field->length > MAX_BIT_FIELD_LENGTH)
       {
-        my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), field_name,
+        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), field_name,
                  MAX_BIT_FIELD_LENGTH);
         DBUG_RETURN(NULL);
       }
@@ -5830,7 +5887,10 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
         type != MYSQL_TYPE_STRING &&
         type != MYSQL_TYPE_VARCHAR && type != FIELD_TYPE_GEOMETRY)))
   {
-    my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0),
+    my_error((type == MYSQL_TYPE_VAR_STRING || type == MYSQL_TYPE_VARCHAR ||
+              type == MYSQL_TYPE_STRING) ?  ER_TOO_BIG_FIELDLENGTH :
+             ER_TOO_BIG_DISPLAYWIDTH,
+             MYF(0),
              field_name, max_field_charlength); /* purecov: inspected */
     DBUG_RETURN(NULL);
   }
@@ -5949,9 +6009,11 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
+  TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
+  LINT_INIT(previous_table_ref);
 
   if (!table)
     DBUG_RETURN(0);				// End of memory
@@ -6044,8 +6106,34 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
       }
     }
   }
-  /* Link table in local list (list for current select) */
+  /* Store the table reference preceding the current one. */
+  if (table_list.elements > 0)
+  {
+    /*
+      table_list.next points to the last inserted TABLE_LIST->next_local'
+      element
+    */
+    previous_table_ref= (TABLE_LIST*) (table_list.next -
+                                       offsetof(TABLE_LIST, next_local));
+    DBUG_ASSERT(previous_table_ref);
+    /*
+      Set next_name_resolution_table of the previous table reference to point
+      to the current table reference. In effect the list
+      TABLE_LIST::next_name_resolution_table coincides with
+      TABLE_LIST::next_local. Later this may be changed in
+      store_top_level_join_columns() for NATURAL/USING joins.
+    */
+    previous_table_ref->next_name_resolution_table= ptr;
+  }
+
+  /*
+    Link the current table reference in a local list (list for current select).
+    Notice that as a side effect here we set the next_local field of the
+    previous table reference to 'ptr'. Here we also add one element to the
+    list 'table_list'.
+  */
   table_list.link_in_list((byte*) ptr, (byte**) &ptr->next_local);
+  ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
   DBUG_RETURN(ptr);
@@ -6079,10 +6167,12 @@ bool st_select_lex::init_nested_join(THD *thd)
   NESTED_JOIN *nested_join;
   DBUG_ENTER("init_nested_join");
 
-  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
-      !(nested_join= ptr->nested_join=
-                    (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
+                                       sizeof(NESTED_JOIN))))
     DBUG_RETURN(1);
+  nested_join= ptr->nested_join=
+    ((NESTED_JOIN*) ((byte*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+
   join_list->push_front(ptr);
   ptr->embedding= embedding;
   ptr->join_list= join_list;
@@ -6150,72 +6240,52 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
     The function nest last join operation as if it was enclosed in braces.
 
   RETURN VALUE
-    Pointer to TABLE_LIST element created for the new nested join, if success
-    0, otherwise
+    0  Error
+    #  Pointer to TABLE_LIST element created for the new nested join
+
 */
 
 TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 {
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
+  List<TABLE_LIST> *embedded_list;
   DBUG_ENTER("nest_last_join");
 
-  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
-      !(nested_join= ptr->nested_join=
-                    (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
+                                       sizeof(NESTED_JOIN))))
     DBUG_RETURN(0);
+  nested_join= ptr->nested_join=
+    ((NESTED_JOIN*) ((byte*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+
   ptr->embedding= embedding;
   ptr->join_list= join_list;
-  List<TABLE_LIST> *embedded_list= &nested_join->join_list;
+  embedded_list= &nested_join->join_list;
   embedded_list->empty();
-  for (int i=0; i < 2; i++)
+
+  for (uint i=0; i < 2; i++)
   {
     TABLE_LIST *table= join_list->pop();
     table->join_list= embedded_list;
     table->embedding= ptr;
     embedded_list->push_back(table);
+    if (table->natural_join)
+    {
+      ptr->is_natural_join= TRUE;
+      /*
+        If this is a JOIN ... USING, move the list of joined fields to the
+        table reference that describes the join.
+      */
+      if (table->join_using_fields)
+      {
+        ptr->join_using_fields= table->join_using_fields;
+        table->join_using_fields= NULL;
+      }
+    }
   }
   join_list->push_front(ptr);
   nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
   DBUG_RETURN(ptr);
-}
-
-
-/*
-  Save names for a join with using clause
-
-  SYNOPSIS
-    save_names_for_using_list
-    tab1      left table in join
-    tab2      right table in join
-
-  DESCRIPTION
-    The function saves the full names of the tables in st_select_lex
-    to be able to build later an on expression to replace the using clause.
-
-  RETURN VALUE
-    None
-*/
-
-void st_select_lex::save_names_for_using_list(TABLE_LIST *tab1,
-                                              TABLE_LIST *tab2)
-{
-  while (tab1->nested_join)
-  {
-    tab1= tab1->nested_join->join_list.head();
-  }
-  db1= tab1->db;
-  table1= tab1->alias;
-  while (tab2->nested_join)
-  {
-    TABLE_LIST *next;
-    List_iterator_fast<TABLE_LIST> it(tab2->nested_join->join_list);
-    tab2= it++;
-    while ((next= it++))
-      tab2= next;
-  }
-  db2= tab2->db;
-  table2= tab2->alias;
 }
 
 
@@ -6322,16 +6392,71 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 }
 
 
-void add_join_on(TABLE_LIST *b,Item *expr)
+/*
+  Create a new name resolution context for a JOIN ... ON clause.
+
+  SYNOPSIS
+    make_join_on_context()
+    thd       pointer to current thread
+    left_op   lefto operand of the JOIN
+    right_op  rigth operand of the JOIN
+
+  DESCRIPTION
+    Create a new name resolution context for a JOIN ... ON clause,
+    and set the first and last leaves of the list of table references
+    to be used for name resolution.
+
+  RETURN
+    A new context if all is OK
+    NULL - if a memory allocation error occured
+*/
+
+Name_resolution_context *
+make_join_on_context(THD *thd, TABLE_LIST *left_op, TABLE_LIST *right_op)
+{
+  Name_resolution_context *on_context;
+  if (!(on_context= (Name_resolution_context*)
+        thd->calloc(sizeof(Name_resolution_context))))
+    return NULL;
+  on_context->init();
+  on_context->first_name_resolution_table=
+    left_op->first_leaf_for_name_resolution();
+  on_context->last_name_resolution_table=
+    right_op->last_leaf_for_name_resolution();
+  return on_context;
+}
+
+
+/*
+  Add an ON condition to the second operand of a JOIN ... ON.
+
+  SYNOPSIS
+    add_join_on
+    b     the second operand of a JOIN ... ON
+    expr  the condition to be added to the ON clause
+
+  DESCRIPTION
+    Add an ON condition to the right operand of a JOIN ... ON clause.
+
+  RETURN
+    FALSE  if there was some error
+    TRUE   if all is OK
+*/
+
+void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
     if (!b->on_expr)
-      b->on_expr=expr;
+      b->on_expr= expr;
     else
     {
-      /* This only happens if you have both a right and left join */
-      b->on_expr=new Item_cond_and(b->on_expr,expr);
+      /*
+        If called from the parser, this happens if you have both a
+        right and left join. If called later, it happens if we add more
+        than one condition to the ON clause.
+      */
+      b->on_expr= new Item_cond_and(b->on_expr,expr);
     }
     b->on_expr->top_level_item();
   }
@@ -6339,27 +6464,48 @@ void add_join_on(TABLE_LIST *b,Item *expr)
 
 
 /*
-  Mark that we have a NATURAL JOIN between two tables
+  Mark that there is a NATURAL JOIN or JOIN ... USING between two
+  tables.
 
   SYNOPSIS
     add_join_natural()
-    a			Table to do normal join with
-    b			Do normal join with this table
-
+    a			Left join argument
+    b			Right join argument
+    using_fields        Field names from USING clause
+  
   IMPLEMENTATION
-    This function just marks that table b should be joined with a.
-    The function setup_cond() will create in b->on_expr a list
-    of equal condition between all fields of the same name.
+    This function marks that table b should be joined with a either via
+    a NATURAL JOIN or via JOIN ... USING. Both join types are special
+    cases of each other, so we treat them together. The function
+    setup_conds() creates a list of equal condition between all fields
+    of the same name for NATURAL JOIN or the fields in 'using_fields'
+    for JOIN ... USING. The list of equality conditions is stored
+    either in b->on_expr, or in JOIN::conds, depending on whether there
+    was an outer join.
 
+  EXAMPLE
     SELECT * FROM t1 NATURAL LEFT JOIN t2
      <=>
     SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
+
+    SELECT * FROM t1 NATURAL JOIN t2 WHERE <some_cond>
+     <=>
+    SELECT * FROM t1, t2 WHERE (t1.i=t2.i and t1.j=t2.j and <some_cond>)
+
+    SELECT * FROM t1 JOIN t2 USING(j) WHERE <some_cond>
+     <=>
+    SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
+
+  RETURN
+    None
 */
 
-void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
+void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields)
 {
-  b->natural_join=a;
+  b->natural_join= a;
+  b->join_using_fields= using_fields;
 }
+
 
 /*
   Reload/resets privileges and the different caches.
@@ -6372,13 +6518,13 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
     tables              Tables to flush (if any)
     write_to_binlog     Depending on 'options', it may be very bad to write the
                         query to the binlog (e.g. FLUSH SLAVE); this is a
-                        pointer where, if it is not NULL, reload_acl_and_cache()
-                        will put 0 if it thinks we really should not write to
-                        the binlog. Otherwise it will put 1.
+                        pointer where reload_acl_and_cache() will put 0 if
+                        it thinks we really should not write to the binlog.
+                        Otherwise it will put 1.
 
   RETURN
     0	 ok
-    !=0  error
+    !=0  error.  thd->killed or thd->net.report_error is set
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
@@ -6387,6 +6533,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   bool result=0;
   select_errors=0;				/* Write if more errors */
   bool tmp_write_to_binlog= 1;
+
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
+    return 1;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
@@ -6442,15 +6595,34 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if ((options & REFRESH_READ_LOCK) && thd)
     {
       /*
+        We must not try to aspire a global read lock if we have a write
+        locked table. This would lead to a deadlock when trying to
+        reopen (and re-lock) the table after the flush.
+      */
+      if (thd->locked_tables)
+      {
+        THR_LOCK_DATA **lock_p= thd->locked_tables->locks;
+        THR_LOCK_DATA **end_p= lock_p + thd->locked_tables->lock_count;
+
+        for (; lock_p < end_p; lock_p++)
+        {
+          if ((*lock_p)->type == TL_WRITE)
+          {
+            my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+            return 1;
+          }
+        }
+      }
+      /*
 	Writing to the binlog could cause deadlocks, as we don't log
 	UNLOCK TABLES
       */
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
-	return 1;
+	return 1;                               // Killed
       result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
                                  tables);
-      if (make_global_read_lock_block_commit(thd))
+      if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
         unlock_global_read_lock(thd);
@@ -6472,7 +6644,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   {
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
+    {
       result=1;
+      thd->fatal_error();                       // Ensure client get error
+    }
   }
 #endif
 #ifdef OPENSSL
@@ -6494,8 +6669,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL);
- if (write_to_binlog)
-   *write_to_binlog= tmp_write_to_binlog;
+ *write_to_binlog= tmp_write_to_binlog;
  return result;
 }
 

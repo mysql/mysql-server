@@ -25,11 +25,11 @@
 #include "instance.h"
 #include "mysql_manager_error.h"
 #include "log.h"
+#include "portability.h"
 
 #include <string.h>
 #include <sys/types.h>
 #include <signal.h>
-
 
 
 
@@ -424,13 +424,13 @@ int Guardian_thread::stop_instances(bool stop_instances_arg)
 }
 
 
-int Guardian_thread::lock()
+void Guardian_thread::lock()
 {
-  return pthread_mutex_lock(&LOCK_guardian);
+  pthread_mutex_lock(&LOCK_guardian); 
 }
 
 
-int Guardian_thread::unlock()
+void Guardian_thread::unlock()
 {
-  return pthread_mutex_unlock(&LOCK_guardian);
+  pthread_mutex_unlock(&LOCK_guardian);
 }

@@ -58,7 +58,7 @@ LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
   }
   else // repeated message
   {
-    if (now < m_last_log_time+m_max_repeat_frequency)
+    if (now < (time_t) (m_last_log_time+m_max_repeat_frequency))
     {
       m_count_repeated_messages++;
       m_now= now;

@@ -77,6 +77,8 @@ show create database test;
 
 drop table t1;
 
+# End of 4.1 tests
+
 # FLUSH TABLES WITH READ LOCK should block writes to binlog too
 connection con1;
 create table t1 (a int) engine=innodb;

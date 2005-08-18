@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef __GNUC__
-#pragma interface 
+#pragma interface
 #endif
 
 #include "user_map.h"
@@ -37,6 +37,7 @@ struct User
 int User::init(const char *line)
 {
   const char *name_begin, *name_end, *password;
+  int line_ending_len= 1;
 
   if (line[0] == '\'' || line[0] == '"')
   {
@@ -58,8 +59,14 @@ int User::init(const char *line)
   if (user_length > USERNAME_LENGTH)
     goto err;
 
-  /* assume that newline characater is present */
-  if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + 1)
+  /*
+    assume that newline characater is present
+    we support reading password files that end in \n or \r\n on
+    either platform.
+  */
+  if (password[strlen(password)-2] == '\r')
+    line_ending_len= 2;
+  if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + line_ending_len)
     goto err;
 
   memcpy(user, name_begin, user_length);
@@ -95,7 +102,7 @@ C_MODE_END
 
 int User_map::init()
 {
-  enum { START_HASH_SIZE = 16 };
+  enum { START_HASH_SIZE= 16 };
   if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
       get_user_key, delete_user, 0))
     return 1;

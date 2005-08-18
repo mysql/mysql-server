@@ -96,7 +96,7 @@ my_bool my_init(void)
 #endif
   {
     DBUG_ENTER("my_init");
-    DBUG_PROCESS(my_progname ? my_progname : (char*) "unknown");
+    DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
     if (!home_dir)
     {					/* Don't initialize twice */
       my_win_init();
@@ -395,7 +395,7 @@ static void netware_init()
     }
 
     /* Parse program name and change to base format */
-    name= my_progname;
+    name= (char*) my_progname;
     for (; *name; name++)
     {
       if (*name == '\\')
