@@ -32,7 +32,6 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
     m_hfound(-1), m_ccount(0)
 {
-  callers_mem_root= NULL;
   in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
@@ -47,17 +46,18 @@ sp_rcontext::set_item_eval(THD *thd, uint idx, Item **item_addr,
 			   enum_field_types type)
 {
   extern Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
-				 Item *reuse);
+				 Item *reuse, bool use_callers_arena);
   Item *it;
   Item *reuse_it;
   Item *old_item_next;
-  Item *old_free_list= thd->free_list;
+  /* sp_eval_func_item will use callers_arena */
+  Item *old_free_list= thd->spcont->callers_arena->free_list;
   int res;
   LINT_INIT(old_item_next);
 
   if ((reuse_it= get_item(idx)))
     old_item_next= reuse_it->next;
-  it= sp_eval_func_item(thd, item_addr, type, reuse_it);
+  it= sp_eval_func_item(thd, item_addr, type, reuse_it, TRUE);
   if (! it)
     res= -1;
   else
@@ -67,7 +67,7 @@ sp_rcontext::set_item_eval(THD *thd, uint idx, Item **item_addr,
     {
       // A reused item slot, where the constructor put it in the free_list,
       // so we have to restore the list.
-      thd->free_list= old_free_list;
+      thd->spcont->callers_arena->free_list= old_free_list;
       it->next= old_item_next;
     }
     set_item(idx, it);
