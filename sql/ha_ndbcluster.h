@@ -584,8 +584,8 @@ static void set_tabname(const char *pathname, char *tabname);
                                      qc_engine_callback *engine_callback,
                                      ulonglong *engine_data);
 
-  bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
-						 uint table_changes);
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+				  uint table_changes);
 
 private:
   int alter_table_name(const char *to);
