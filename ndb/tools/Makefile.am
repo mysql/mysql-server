@@ -32,7 +32,7 @@ ndb_restore_SOURCES = restore/restore_main.cpp \
                       restore/consumer_printer.cpp \
                       restore/Restore.cpp
 
-ndb_config_SOURCES = config.cpp \
+ndb_config_SOURCES = ndb_config.cpp \
 	../src/mgmsrv/Config.cpp \
 	../src/mgmsrv/ConfigInfo.cpp \
 	../src/mgmsrv/InitConfigFileParser.cpp

@@ -1052,7 +1052,8 @@ innobase_start_or_create_for_mysql(void)
 
 	        fprintf(stderr,
 "InnoDB: Error: You have specified innodb_buffer_pool_awe_mem_mb\n"
-"InnoDB: in my.cnf, but AWE can only be used in Windows 2000 and later.\n");
+"InnoDB: in my.cnf, but AWE can only be used in Windows 2000 and later.\n"
+"InnoDB: To use AWE, InnoDB must be compiled with __WIN2000__ defined.\n");
 
 	        return(DB_ERROR);
 	}
