@@ -891,8 +891,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (select_lex->group_list.elements == 0)
     {
       context->table_list->next_local=       save_next_local;
+      /* first_name_resolution_table was set by resolve_in_table_list_only() */
       context->first_name_resolution_table->
-               next_name_resolution_table=   save_next_local;
+        next_name_resolution_table=          save_next_local;
     }
     if (!res)
       res= setup_fields(thd, 0, update_values, 1, 0, 0);
@@ -2199,8 +2200,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     if (lex->select_lex.group_list.elements == 0)
     {
       context->table_list->next_local=       save_next_local;
+      /* first_name_resolution_table was set by resolve_in_table_list_only() */
       context->first_name_resolution_table->
-               next_name_resolution_table=   save_next_local;
+        next_name_resolution_table=          save_next_local;
     }
     res= res || setup_fields(thd, 0, *info.update_values, 1, 0, 0);
 

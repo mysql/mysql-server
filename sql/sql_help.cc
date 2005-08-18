@@ -623,38 +623,37 @@ bool mysqld_help(THD *thd, const char *mask)
   Protocol *protocol= thd->protocol;
   SQL_SELECT *select;
   st_find_field used_fields[array_elements(init_used_fields)];
-  DBUG_ENTER("mysqld_help");
-
   TABLE_LIST *leaves= 0;
   TABLE_LIST tables[4];
-  bzero((gptr)tables,sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "help_topic";
-  tables[0].lock_type= TL_READ;
-  tables[0].next_global= tables[0].next_local= &tables[1];
-  tables[0].next_name_resolution_table= tables[0].next_local;
-  tables[1].alias= tables[1].table_name= (char*) "help_category";
-  tables[1].lock_type= TL_READ;
-  tables[1].next_global= tables[1].next_local= &tables[2];
-  tables[1].next_name_resolution_table= tables[1].next_local;
-  tables[2].alias= tables[2].table_name= (char*) "help_relation";
-  tables[2].lock_type= TL_READ;
-  tables[2].next_global= tables[2].next_local= &tables[3];
-  tables[2].next_name_resolution_table= tables[2].next_local;
-  tables[3].alias= tables[3].table_name= (char*) "help_keyword";
-  tables[3].lock_type= TL_READ;
-  tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
-
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
   int count_topics, count_categories, error;
   uint mlen= strlen(mask);
+  size_t i;
   MEM_ROOT *mem_root= thd->mem_root;
+  DBUG_ENTER("mysqld_help");
+
+  bzero((gptr)tables,sizeof(tables));
+  tables[0].alias= tables[0].table_name= (char*) "help_topic";
+  tables[0].lock_type= TL_READ;
+  tables[0].next_global= tables[0].next_local= 
+    tables[0].next_name_resolution_table= &tables[1];
+  tables[1].alias= tables[1].table_name= (char*) "help_category";
+  tables[1].lock_type= TL_READ;
+  tables[1].next_global= tables[1].next_local= 
+    tables[1].next_name_resolution_table= &tables[2];
+  tables[2].alias= tables[2].table_name= (char*) "help_relation";
+  tables[2].lock_type= TL_READ;
+  tables[2].next_global= tables[2].next_local= 
+    tables[2].next_name_resolution_table= &tables[3];
+  tables[3].alias= tables[3].table_name= (char*) "help_keyword";
+  tables[3].lock_type= TL_READ;
+  tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
 
   if (open_and_lock_tables(thd, tables))
     goto error;
   /*
     Init tables and fields to be usable from items
-
     tables do not contain VIEWs => we can pass 0 as conds
   */
   setup_tables(thd, &thd->lex->select_lex.context,
@@ -663,7 +662,6 @@ bool mysqld_help(THD *thd, const char *mask)
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
     goto error;
-  size_t i;
   for (i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
     tables[i].table->file->init_table_handle_for_HANDLER();
 
