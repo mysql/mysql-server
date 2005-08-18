@@ -3289,7 +3289,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("info", ("Table schema version: %d", 
                           tab->getObjectVersion()));
       // Check if thread has stale local cache
-      if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
+      // New transaction must not use old tables... (trans != 0)
+      // Running might...
+      if ((trans && tab->getObjectStatus() != NdbDictionary::Object::Retrieved)
+	  || tab->getObjectStatus() == NdbDictionary::Object::Invalid)
       {
         invalidate_dictionary_cache(FALSE);
         if (!(tab= dict->getTable(m_tabname, &tab_info)))

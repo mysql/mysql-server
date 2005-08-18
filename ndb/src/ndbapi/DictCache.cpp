@@ -21,6 +21,9 @@
 #include <NdbCondition.h>
 #include <NdbSleep.h>
 
+static NdbTableImpl f_invalid_table;
+static NdbTableImpl f_altered_table;
+
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
 {
@@ -203,21 +206,41 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
   
   TableVersion & ver = vers->back();
   if(ver.m_status != RETREIVING || 
-     ver.m_impl != 0 || 
+     !(ver.m_impl == 0 || 
+       ver.m_impl == &f_invalid_table || ver.m_impl == &f_altered_table) || 
      ver.m_version != 0 || 
      ver.m_refCount == 0){
     abort();
   }
   
-  if(tab == 0){
+  if(tab == 0)
+  {
     DBUG_PRINT("info", ("No table found in db"));
     vers->erase(sz - 1);
-  } else {
+  } 
+  else if (ver.m_impl == 0) {
     ver.m_impl = tab;
     ver.m_version = tab->m_version;
     ver.m_status = OK;
+  } 
+  else if (ver.m_impl == &f_invalid_table) 
+  {
+    ver.m_impl = tab;
+    ver.m_version = tab->m_version;
+    ver.m_status = DROPPED;
+    ver.m_impl->m_status = NdbDictionary::Object::Invalid;    
   }
-  
+  else if(ver.m_impl == &f_altered_table)
+  {
+    ver.m_impl = tab;
+    ver.m_version = tab->m_version;
+    ver.m_status = DROPPED;
+    ver.m_impl->m_status = NdbDictionary::Object::Altered;    
+  }
+  else
+  {
+    abort();
+  }
   NdbCondition_Broadcast(m_waitForTableCondition);
   DBUG_RETURN(tab);
 } 
@@ -323,6 +346,47 @@ GlobalDictCache::release(NdbTableImpl * tab)
   }
   
   abort();
+}
+
+void
+GlobalDictCache::alter_table_rep(const char * name, 
+				 Uint32 tableId, 
+				 Uint32 tableVersion,
+				 bool altered)
+{
+  const Uint32 len = strlen(name);
+  Vector<TableVersion> * vers = 
+    m_tableHash.getData(name, len);
+  
+  if(vers == 0)
+  {
+    return;
+  }
+
+  const Uint32 sz = vers->size();
+  if(sz == 0)
+  {
+    return;
+  }
+  
+  for(Uint32 i = 0; i < sz; i++)
+  {
+    TableVersion & ver = (* vers)[i];
+    if(ver.m_version == tableVersion && ver.m_impl && 
+       ver.m_impl->m_tableId == tableId)
+    {
+      ver.m_status = DROPPED;
+      ver.m_impl->m_status = altered ? 
+	NdbDictionary::Object::Altered : NdbDictionary::Object::Invalid;
+      return;
+    }
+
+    if(i == sz - 1 && ver.m_status == RETREIVING)
+    {
+      ver.m_impl = altered ? &f_altered_table : &f_invalid_table;
+      return;
+    } 
+  }
 }
 
 template class Vector<GlobalDictCache::TableVersion>;
