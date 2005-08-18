@@ -2251,7 +2251,6 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
 {
   TABLE_LIST *cur_table_ref= this;
   NESTED_JOIN *cur_nested_join;
-  LINT_INIT(cur_table_ref);
 
   if (is_leaf_for_name_resolution())
     return this;
