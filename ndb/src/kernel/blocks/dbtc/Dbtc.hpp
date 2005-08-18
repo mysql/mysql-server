@@ -958,7 +958,8 @@ public:
     Uint8 storedTable;
     
     bool checkTable(Uint32 schemaVersion) const {
-      return enabled && !dropping && (schemaVersion == currentSchemaVersion);
+      return enabled && !dropping && 
+	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion));
     }
     
     Uint32 getErrorCode(Uint32 schemaVersion) const;
