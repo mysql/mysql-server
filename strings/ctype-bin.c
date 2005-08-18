@@ -514,6 +514,7 @@ CHARSET_INFO my_charset_bin =
     1,				/* mbmaxlen      */
     0,				/* min_sort_char */
     255,			/* max_sort_char */
+    0,                          /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_binary_handler
 };

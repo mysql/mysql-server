@@ -788,6 +788,7 @@ extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
                                      const char *from, ulong length);
+extern char *bare_str_to_hex(char *to, const char *from, uint len);
 #ifdef __WIN__
 #define BACKSLASH_MBTAIL
 /* File system character set */

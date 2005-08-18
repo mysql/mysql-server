@@ -1443,7 +1443,7 @@ String *Item_param::val_str(String* str)
   and avoid one more memcpy/alloc between str and log string.
 */
 
-const String *Item_param::query_val_str(String* str) const
+const String *Item_param::query_val_str(String* str, THD *thd) const
 {
   switch (state) {
   case INT_VALUE:
@@ -1482,10 +1482,18 @@ const String *Item_param::query_val_str(String* str) const
 
       buf= str->c_ptr_quick();
       ptr= buf;
-      *ptr++= '\'';
-      ptr+= escape_string_for_mysql(str_value.charset(), ptr,
-                                    str_value.ptr(), str_value.length());
-      *ptr++= '\'';
+      if (thd->charset()->escape_with_backslash_is_dangerous)
+      {
+        ptr= strmov(ptr, "x\'");
+        ptr= bare_str_to_hex(ptr, str_value.ptr(), str_value.length());
+      }
+      else
+      {
+        *ptr++= '\'';
+        ptr+= escape_string_for_mysql(str_value.charset(), ptr,
+                                      str_value.ptr(), str_value.length());
+      }
+      *ptr++='\'';
       str->length(ptr - buf);
       break;
     }
