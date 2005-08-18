@@ -3258,8 +3258,8 @@ end_with_restore_list:
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= (byte*) second_table;
-      select_lex->context.table_list= second_table;
-      select_lex->context.first_name_resolution_table= second_table;
+      select_lex->context.table_list= 
+        select_lex->context.first_name_resolution_table= second_table;
       res= mysql_insert_select_prepare(thd);
       if (!res && (result= new select_insert(first_table, first_table->table,
                                              &lex->field_list,
@@ -3274,8 +3274,8 @@ end_with_restore_list:
           which in turn resets context.table_list and
           context.first_name_resolution_table.
         */
-        select_lex->context.table_list= first_table->next_local;
-        select_lex->context.first_name_resolution_table= first_table->next_local;
+        select_lex->context.table_list= 
+          select_lex->context.first_name_resolution_table= second_table;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
         delete result;
       }
@@ -6016,6 +6016,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   char *alias_str;
   LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
+  LINT_INIT(previous_table_ref);
 
   if (!table)
     DBUG_RETURN(0);				// End of memory
@@ -6111,9 +6112,23 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   /* Store the table reference preceding the current one. */
   if (table_list.elements > 0)
   {
-    previous_table_ref= (TABLE_LIST*) table_list.next;
+    /*
+      table_list.next points to the last inserted TABLE_LIST->next_local'
+      element
+    */
+    previous_table_ref= (TABLE_LIST*) (table_list.next -
+                                       offsetof(TABLE_LIST, next_local));
     DBUG_ASSERT(previous_table_ref);
+    /*
+      Set next_name_resolution_table of the previous table reference to point
+      to the current table reference. In effect the list
+      TABLE_LIST::next_name_resolution_table coincides with
+      TABLE_LIST::next_local. Later this may be changed in
+      store_top_level_join_columns() for NATURAL/USING joins.
+    */
+    previous_table_ref->next_name_resolution_table= ptr;
   }
+
   /*
     Link the current table reference in a local list (list for current select).
     Notice that as a side effect here we set the next_local field of the
@@ -6121,15 +6136,6 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     list 'table_list'.
   */
   table_list.link_in_list((byte*) ptr, (byte**) &ptr->next_local);
-  /*
-    Set next_name_resolution_table of the previous table reference to point to
-    the current table reference. In effect the list
-    TABLE_LIST::next_name_resolution_table coincides with
-    TABLE_LIST::next_local. Later this may be changed in
-    store_top_level_join_columns() for NATURAL/USING joins.
-   */
-  if (table_list.elements > 1)
-    previous_table_ref->next_name_resolution_table= ptr;
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
@@ -6164,10 +6170,12 @@ bool st_select_lex::init_nested_join(THD *thd)
   NESTED_JOIN *nested_join;
   DBUG_ENTER("init_nested_join");
 
-  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
-      !(nested_join= ptr->nested_join=
-                    (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
+                                       sizeof(NESTED_JOIN))))
     DBUG_RETURN(1);
+  nested_join= ptr->nested_join=
+    ((NESTED_JOIN*) ((byte*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+
   join_list->push_front(ptr);
   ptr->embedding= embedding;
   ptr->join_list= join_list;
@@ -6235,25 +6243,30 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
     The function nest last join operation as if it was enclosed in braces.
 
   RETURN VALUE
-    Pointer to TABLE_LIST element created for the new nested join, if success
-    0, otherwise
+    0  Error
+    #  Pointer to TABLE_LIST element created for the new nested join
+
 */
 
 TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 {
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
+  List<TABLE_LIST> *embedded_list;
   DBUG_ENTER("nest_last_join");
 
-  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
-      !(nested_join= ptr->nested_join=
-                    (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
+                                       sizeof(NESTED_JOIN))))
     DBUG_RETURN(0);
+  nested_join= ptr->nested_join=
+    ((NESTED_JOIN*) ((byte*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+
   ptr->embedding= embedding;
   ptr->join_list= join_list;
-  List<TABLE_LIST> *embedded_list= &nested_join->join_list;
+  embedded_list= &nested_join->join_list;
   embedded_list->empty();
-  for (int i=0; i < 2; i++)
+
+  for (uint i=0; i < 2; i++)
   {
     TABLE_LIST *table= join_list->pop();
     table->join_list= embedded_list;
