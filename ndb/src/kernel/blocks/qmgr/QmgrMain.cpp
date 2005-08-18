@@ -34,6 +34,7 @@
 #include <signaldata/BlockCommitOrd.hpp>
 #include <signaldata/FailRep.hpp>
 #include <signaldata/DisconnectRep.hpp>
+#include <signaldata/ApiBroadcast.hpp>
 
 #include <ndb_version.h>
 
@@ -1702,16 +1703,6 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
 
-  /**
-   * GREP also need the information that an API node 
-   * (actually a REP node) has failed.
-   *
-   * GREP does however NOT send a CONF on this signal, i.e.
-   * the API_FAILREQ signal to GREP is like a REP signal 
-   * (i.e. without any confirmation).
-   */
-  sendSignal(GREP_REF, GSN_API_FAILREQ, signal, 2, JBA);
-  
   /**-------------------------------------------------------------------------
    * THE OTHER NODE WAS AN API NODE. THE COMMUNICATION LINK IS ALREADY 
    * BROKEN AND THUS NO ACTION IS NEEDED TO BREAK THE CONNECTION. 
@@ -3925,3 +3916,30 @@ void Qmgr::execSET_VAR_REQ(Signal* signal)
   }// switch
 #endif
 }//execSET_VAR_REQ()
+
+void
+Qmgr::execAPI_BROADCAST_REP(Signal* signal)
+{
+  jamEntry();
+  ApiBroadcastRep api= *(const ApiBroadcastRep*)signal->getDataPtr();
+
+  Uint32 len = signal->getLength() - ApiBroadcastRep::SignalLength;
+  memmove(signal->theData, signal->theData+ApiBroadcastRep::SignalLength, 
+	  4*len);
+  
+  NodeBitmask mask;
+  NodeRecPtr nodePtr;
+  for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
+  {
+    jam();
+    ptrAss(nodePtr, nodeRec);
+    if (nodePtr.p->phase == ZAPI_ACTIVE && 
+	getNodeInfo(nodePtr.i).m_version >= api.minVersion)
+    {
+      mask.set(nodePtr.i);
+    }
+  }
+  
+  NodeReceiverGroup rg(API_CLUSTERMGR, mask);
+  sendSignal(rg, api.gsn, signal, len, JBB); // forward sections
+}
