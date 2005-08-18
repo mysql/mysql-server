@@ -1867,8 +1867,8 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     */
     if ((*link_to_local= test(select_lex.table_list.first)))
     {
-      select_lex.context.table_list= first->next_local;
-      select_lex.context.first_name_resolution_table= first->next_local;
+      select_lex.context.table_list= 
+        select_lex.context.first_name_resolution_table= first->next_local;
       select_lex.table_list.first= (byte*) (first->next_local);
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
