@@ -512,3 +512,46 @@ t1	CREATE TABLE `t1` (
   KEY `c2` USING BTREE (`c2`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+CREATE TABLE txt1(a int);
+CREATE TABLE tyt2(a int);
+CREATE TABLE urkunde(a int);
+FLUSH TABLES;
+SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone_name, txt1, tyt2, urkunde LIMIT 0;
+1
+SHOW OPEN TABLES;
+Database	Table	In_use	Name_locked
+mysql	db	0	0
+test	urkunde	0	0
+mysql	time_zone	0	0
+mysql	user	0	0
+test	txt1	0	0
+mysql	proc	0	0
+test	tyt2	0	0
+mysql	time_zone_name	0	0
+SHOW OPEN TABLES FROM mysql;
+Database	Table	In_use	Name_locked
+mysql	db	0	0
+mysql	time_zone	0	0
+mysql	user	0	0
+mysql	proc	0	0
+mysql	time_zone_name	0	0
+SHOW OPEN TABLES FROM mysql LIKE 'u%';
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+SHOW OPEN TABLES LIKE 't%';
+Database	Table	In_use	Name_locked
+mysql	time_zone	0	0
+test	txt1	0	0
+test	tyt2	0	0
+mysql	time_zone_name	0	0
+SHOW OPEN TABLES LIKE '%o%';
+Database	Table	In_use	Name_locked
+mysql	time_zone	0	0
+mysql	proc	0	0
+mysql	time_zone_name	0	0
+FLUSH TABLES;
+SHOW OPEN TABLES;
+Database	Table	In_use	Name_locked
+DROP TABLE txt1;
+DROP TABLE tyt2;
+DROP TABLE urkunde;

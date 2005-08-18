@@ -165,7 +165,7 @@ c	varchar(64)	utf8_general_ci	NO				select,insert,update,references
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	NULL	NULL	NULL	int(11)			select,insert,update,references	
+NULL	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -535,7 +535,7 @@ c	float(5,2)	NULL	NULL	5	2
 d	decimal(6,4)	NULL	NULL	6	4
 e	float	NULL	NULL	12	NULL
 f	decimal(6,3)	NULL	NULL	6	3
-g	int(11)	NULL	NULL	10	NULL
+g	int(11)	NULL	NULL	10	0
 h	double(10,3)	NULL	NULL	10	3
 i	double	NULL	NULL	22	NULL
 drop table t1;
@@ -941,11 +941,11 @@ select column_name, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns
 where table_name='t1';
 column_name	NUMERIC_PRECISION	NUMERIC_SCALE
-f1	3	NULL
-f2	5	NULL
-f3	7	NULL
-f4	10	NULL
-f5	19	NULL
+f1	3	0
+f2	5	0
+f3	7	0
+f4	10	0
+f5	19	0
 f6	1	NULL
 f7	64	NULL
 drop table t1;
