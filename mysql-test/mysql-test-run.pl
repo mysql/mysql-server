@@ -2043,6 +2043,7 @@ sub run_mysqltest ($) {
   my $tinfo=       shift;
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
+                         "--port=$master->[0]->{'path_myport'} " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
   if ( $opt_debug )
   {
@@ -2051,6 +2052,7 @@ sub run_mysqltest ($) {
   }
 
   my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
+                         "--port=$master->[0]->{'path_myport'} " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
   if ( $opt_debug )
   {
