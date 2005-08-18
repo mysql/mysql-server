@@ -14,25 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef API_BROADCAST_HPP
+#define API_BROADCAST_HPP
 
-#include <BlockNumbers.h>
+#include "SignalData.hpp"
 
-const BlockName BlockNames[] = {
-  { "CMVMI", CMVMI },
-  { "DBACC", DBACC },
-  { "DBDICT", DBDICT },
-  { "DBDIH", DBDIH },
-  { "DBLQH", DBLQH },
-  { "DBTC", DBTC },
-  { "DBTUP", DBTUP },
-  { "NDBFS", NDBFS },
-  { "NDBCNTR", NDBCNTR },
-  { "QMGR", QMGR },
-  { "TRIX", TRIX },
-  { "BACKUP", BACKUP },
-  { "DBUTIL", DBUTIL },
-  { "SUMA", SUMA },
-  { "DBTUX", DBTUX }
+struct ApiBroadcastRep
+{
+  STATIC_CONST( SignalLength = 2 );
+  
+  Uint32 gsn;
+  Uint32 minVersion;
+  Uint32 theData[1];
 };
-                                                                       
-const BlockNumber NO_OF_BLOCK_NAMES = sizeof(BlockNames) / sizeof(BlockName);
+
+#endif
