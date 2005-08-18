@@ -981,7 +981,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           bool ignore_errors,
                                           Table_triggers_list *triggers,
                                           enum trg_event_type event);
-OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
+OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 
 inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                              const char *db_name,
