@@ -664,3 +664,44 @@ end|
 update t1 set data = 1;
 update t1 set data = 2;
 drop table t1;
+create table t1 (f1 integer);
+create table t2 (f2 integer);
+create trigger t1_ai after insert on t1
+for each row insert into t2 values (new.f1+1);
+create trigger t2_ai after insert on t2
+for each row insert into t1 values (new.f2+1);
+insert into t1 values (1);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+select * from t1;
+f1
+1
+select * from t2;
+f2
+2
+drop trigger t1_ai;
+drop trigger t2_ai;
+create trigger t1_bu before update on t1
+for each row insert into t1 values (2);
+update t1 set f1= 10;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+select * from t1;
+f1
+1
+drop trigger t1_bu;
+create trigger t1_bu before update on t1
+for each row delete from t1 where f1=new.f1;
+update t1 set f1= 10;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+select * from t1;
+f1
+1
+drop trigger t1_bu;
+create trigger t1_bi before insert on t1
+for each row set new.f1=(select sum(f1) from t1);
+insert into t1 values (3);
+select * from t1;
+f1
+1
+1
+drop trigger t1_bi;
+drop tables t1, t2;
