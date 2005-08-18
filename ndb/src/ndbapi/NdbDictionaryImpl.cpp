@@ -1439,25 +1439,22 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
   const char * originalExternalName = externalName.c_str();
 
   DBUG_ENTER("NdbDictionaryImpl::alterTable");
-  if(!get_local_table_info(originalInternalName, false)){
+  Ndb_local_table_info * local = 0;
+  if((local= get_local_table_info(originalInternalName, false)) == 0)
+  {
     m_error.code = 709;
     DBUG_RETURN(-1);
   }
+
   // Alter the table
   int ret = m_receiver.alterTable(m_ndb, impl);
   if(ret == 0){
     // Remove cached information and let it be refreshed at next access
-    if (m_localHash.get(originalInternalName) != NULL) {
-      m_localHash.drop(originalInternalName);
-      m_globalHash->lock();
-      NdbTableImpl * cachedImpl = m_globalHash->get(originalInternalName);
-      // If in local cache it must be in global
-      if (!cachedImpl)
-	abort();
-      cachedImpl->m_status = NdbDictionary::Object::Invalid;
-      m_globalHash->drop(cachedImpl);
-      m_globalHash->unlock();
-    }
+    m_globalHash->lock();
+    local->m_table_impl->m_status = NdbDictionary::Object::Invalid;
+    m_globalHash->drop(local->m_table_impl);
+    m_globalHash->unlock();
+    m_localHash.drop(originalInternalName);
   }
   DBUG_RETURN(ret);
 }

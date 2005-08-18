@@ -58,7 +58,8 @@ print(const char * filename, const SchemaFile * file){
     SchemaFile::TableEntry te = file->TableEntries[i];
     if(te.m_tableState != SchemaFile::INIT){
       ndbout << "Table " << i << ": State = " << te.m_tableState 
-	     << " version = " << te.m_tableVersion
+	     << " version = " << table_version_major(te.m_tableVersion) <<
+	     << "(" << table_version_minor(te.m_tableVersion) << ")"
              << " type = " << te.m_tableType
 	     << " noOfPages = " << te.m_noOfPages
 	     << " gcp: " << te.m_gcp << endl;
