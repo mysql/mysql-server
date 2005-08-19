@@ -17,6 +17,19 @@ create table d1.t3 (n int);
 drop database d1;
 use d1;
 show tables;
+
+# test the branch of the code that deals with the query buffer overflow
+
+let $1=1000;
+while ($1)
+{
+  eval create table d1.t$1(n int);
+  dec $1;
+}
+--error 1010
+drop database d1;
+use d1;
+show tables;
 use test;
 create table t1 (n int);
 insert into t1 values (1234);
