@@ -207,7 +207,7 @@ static inline int read_str(char * &buf, char *buf_end, char * &str,
 /*
   Transforms a string into "" or its expression in 0x... form.
 */
-static char *str_to_hex(char *to, char *from, uint len)
+char *str_to_hex(char *to, const char *from, uint len)
 {
   char *p= to;
   if (len)
