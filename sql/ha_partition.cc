@@ -270,6 +270,28 @@ int ha_partition::ha_initialise()
                 MODULE meta data changes
 ****************************************************************************/
 /*
+  This method is used to calculate the partition name, service routine to
+  the del_ren_cre_table method.
+*/
+
+static void create_partition_name(char *out, const char *in1, const char *in2)
+{
+  strxmov(out, in1, "_", in2, NullS);
+}
+
+/*
+  This method is used to calculate the partition name, service routine to
+  the del_ren_cre_table method.
+*/
+
+static void create_subpartition_name(char *out, const char *in1,
+                                     const char *in2, const char *in3)
+{
+  strxmov(out, in1, "_", in2, "_", in3, NullS);
+}
+
+
+/*
   Used to delete a table. By the time delete_table() has been called all
   opened references to this table will have been closed (and your globally
   shared references released. The variable name will just be the name of
@@ -326,6 +348,12 @@ int ha_partition::rename_table(const char *from, const char *to)
 int ha_partition::create_handler_files(const char *name)
 {
   DBUG_ENTER("ha_partition::create_handler_files()");
+
+  /*
+    We need to update total number of parts since we might write the handler
+    file as part of a partition management command
+  */
+  m_tot_parts= get_tot_partitions(m_part_info);
   if (create_handler_file(name))
   {
     my_error(ER_CANT_CREATE_HANDLER_FILE, MYF(0));
@@ -362,6 +390,49 @@ int ha_partition::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 }
 
+int ha_partition::drop_partitions(const char *path)
+{
+  List_iterator<partition_element> part_it(m_part_info->partitions);
+  char part_name_buff[FN_REFLEN];
+  uint no_parts= m_part_info->no_parts;
+  uint no_subparts= m_part_info->no_subparts, i= 0;
+  int error= 1;
+  DBUG_ENTER("ha_partition::drop_partitions()");
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    if (part_elem->part_state == PART_IS_DROPPED)
+    {
+      /*
+        This part is to be dropped, meaning the part or all its subparts.
+      */
+      if (is_sub_partitioned(m_part_info))
+      {
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        uint j= 0, part;
+        do
+        {
+          partition_element *sub_elem= sub_it++;
+          create_subpartition_name(part_name_buff, path,
+                                   part_elem->partition_name,
+                                   sub_elem->partition_name);
+          part= i * no_subparts + j;
+          DBUG_PRINT("info", ("Drop subpartition %s", part_name_buff));
+          error= m_file[part]->delete_table((const char *) part_name_buff);
+        } while (++j < no_subparts);
+      }
+      else
+      {
+        create_partition_name(part_name_buff, path,
+                              part_elem->partition_name);
+        DBUG_PRINT("info", ("Drop partition %s", part_name_buff));
+        error= m_file[i]->delete_table((const char *) part_name_buff);
+      }
+    }
+  } while (++i < no_parts);
+  DBUG_RETURN(error);
+}
 
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
@@ -374,16 +445,6 @@ char *ha_partition::update_table_comment(const char *comment)
   return (char*) comment;                       // Nothing to change
 }
 
-
-/*
-  This method is used to calculate the partition name, service routine to
-  the del_ren_cre_table method.
-*/
-
-static void create_partition_name(char *out, const char *in1, const char *in2)
-{
-  strxmov(out, in1, "_", in2, NullS);
-}
 
 
 /*
