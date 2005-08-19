@@ -58,7 +58,7 @@ SELECT (1,2,3)=(1,NULL,3);
 NULL
 SELECT (1,2,3)=(1,NULL,0);
 (1,2,3)=(1,NULL,0)
-NULL
+0
 SELECT ROW(1,2,3)=ROW(1,2,3);
 ROW(1,2,3)=ROW(1,2,3)
 1
@@ -174,4 +174,10 @@ ROW(2,10) <=> ROW(3,4)
 0
 SELECT ROW(NULL,10) <=> ROW(3,NULL);
 ROW(NULL,10) <=> ROW(3,NULL)
+0
+SELECT ROW(1,1,1) = ROW(1,1,1) as `1`, ROW(1,1,1) = ROW(1,2,1) as `0`, ROW(1,NULL,1) = ROW(2,2,1) as `0`, ROW(1,NULL,1) = ROW(1,2,2) as `0`, ROW(1,NULL,1) = ROW(1,2,1) as `null` ;
+1	0	0	0	null
+1	0	0	0	NULL
+select row(NULL,1)=(2,0);
+row(NULL,1)=(2,0)
 0

@@ -964,6 +964,13 @@ btr_search_drop_page_hash_index(
 	heap = NULL;
 	offsets = NULL;
 
+	if (block->index == NULL) {
+
+		mem_analyze_corruption((byte*)block);
+
+		ut_a(block->index != NULL);
+	}
+
 	while (!page_rec_is_supremum(rec)) {
 		/* FIXME: in a mixed tree, not all records may have enough
 		ordering fields: */
