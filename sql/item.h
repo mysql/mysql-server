@@ -237,7 +237,7 @@ void view_error_processor(THD *thd, void *data);
   structure before and after INSERT/CREATE and its SELECT to make correct
   field name resolution.
 */
-struct Name_resolution_context
+struct Name_resolution_context: Sql_alloc
 {
   /*
     The name resolution context to search in when an Item cannot be

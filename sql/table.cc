@@ -2296,6 +2296,7 @@ Natural_join_column::Natural_join_column(Field_translator *field_param,
 Natural_join_column::Natural_join_column(Field *field_param,
                                          TABLE_LIST *tab)
 {
+  DBUG_ASSERT(tab->table == field_param->table);
   table_field= field_param;
   view_field= NULL;
   table_ref= tab;
@@ -2514,6 +2515,18 @@ void Field_iterator_natural_join::set(TABLE_LIST *table_ref)
 }
 
 
+void Field_iterator_natural_join::next()
+{
+  cur_column_ref= (*column_ref_it)++;
+  DBUG_ASSERT(cur_column_ref ?
+              (cur_column_ref->table_field ?
+               cur_column_ref->table_ref->table ==
+               cur_column_ref->table_field->table :
+               TRUE) :
+              TRUE);
+}
+
+
 void Field_iterator_table_ref::set_field_iterator()
 {
   DBUG_ENTER("Field_iterator_table_ref::set_field_iterator");
@@ -2660,18 +2673,31 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, bool *is_created)
 
   *is_created= TRUE;
   if (field_it == &table_field_it)
-    return new Natural_join_column(table_field_it.field(), table_ref);
-  if (field_it == &view_field_it)
-    return new Natural_join_column(view_field_it.field_translator(),
-                                   table_ref);
-
-  /*
-    This is NATURAL join, we already have created a column reference,
-    so just return it.
-  */
-  *is_created= FALSE;
-  nj_col= natural_join_it.column_ref();
-  DBUG_ASSERT(nj_col);
+  {
+    /* The field belongs to a stored table. */
+    Field *field= table_field_it.field();
+    nj_col= new Natural_join_column(field, table_ref);
+  }
+  else if (field_it == &view_field_it)
+  {
+    /* The field belongs to a merge view or information schema table. */
+    Field_translator *translated_field= view_field_it.field_translator();
+    nj_col= new Natural_join_column(translated_field, table_ref);
+  }
+  else
+  {
+    /*
+      The field belongs to a NATURAL join, therefore the column reference was
+      already created via one of the two constructor calls above. In this case
+      we just return the already created column reference.
+    */
+    *is_created= FALSE;
+    nj_col= natural_join_it.column_ref();
+    DBUG_ASSERT(nj_col);
+  }
+  DBUG_ASSERT(nj_col->table_field ?
+              nj_col->table_ref->table == nj_col->table_field->table :
+              TRUE);
   return nj_col;
 }
 
