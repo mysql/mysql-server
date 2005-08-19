@@ -41,7 +41,8 @@ public:
   /* send a signal to the instance */
   void kill_instance(int signo);
   int is_crashed();
-  void fork_and_monitor();
+  void set_crash_flag_n_wake_all();
+  Instance_map *Instance::get_map();
 
 public:
   enum { DEFAULT_SHUTDOWN_DELAY= 35 };
@@ -63,7 +64,6 @@ private:
   Instance_map *instance_map;
 
   void  remove_pid();
-  int   launch_and_wait();
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_H */
