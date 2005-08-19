@@ -555,3 +555,5 @@ Database	Table	In_use	Name_locked
 DROP TABLE txt1;
 DROP TABLE tyt2;
 DROP TABLE urkunde;
+SHOW TABLES FROM non_existing_database;
+ERROR 42000: Unknown database 'non_existing_database'
