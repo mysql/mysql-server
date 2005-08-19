@@ -532,6 +532,7 @@ public:
     struct CONVERSION_INFO
     {
       CHARSET_INFO *character_set_client;
+      CHARSET_INFO *character_set_of_placeholder;
       /*
         This points at character set of connection if conversion
         to it is required (i. e. if placeholder typecode is not BLOB).
@@ -591,7 +592,7 @@ public:
   */
   void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 
-  const String *query_val_str(String *str, THD *thd) const;
+  const String *query_val_str(String *str) const;
 
   bool convert_str_value(THD *thd);
 
