@@ -49,7 +49,8 @@ typedef struct st_grant_info
   ulong want_privilege;
 } GRANT_INFO;
 
-enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};
+enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
+                     SYSTEM_TMP_TABLE=3};
 
 enum frm_type_enum
 {
