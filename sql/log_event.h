@@ -1582,5 +1582,5 @@ public:
   bool is_valid() const { return 1; }
 };
 #endif
-
+char *str_to_hex(char *to, const char *from, uint len);
 #endif /* _log_event_h */
