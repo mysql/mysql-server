@@ -8517,9 +8517,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
   li.rewind();
   while ((item=li++))
   {
-    if (item->const_item() || item->with_sum_func)
-      continue;
-    if (!item->marker)
+    if (!item->const_item() && !item->with_sum_func && !item->marker)
     {
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
