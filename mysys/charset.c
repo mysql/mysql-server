@@ -663,21 +663,3 @@ CHARSET_INFO *fs_character_set()
   return fs_cset_cache;
 }
 #endif
-
-/*
-  Transforms a string into hex form.
- */
-char *bare_str_to_hex(char *to, const char *from, uint len)
-{
-  char *p= to;
-  uint i;
-  for (i= 0; i < len; i++, p+= 2)
-  {
-    /* val[i] is char. Casting to uchar helps greatly if val[i] < 0 */
-    uint tmp= (uint) (uchar) from[i];
-    p[0]= _dig_vec_upper[tmp >> 4];
-    p[1]= _dig_vec_upper[tmp & 15];
-  }
-  *p= 0;
-  return p; // pointer to end 0 of 'to'
-}

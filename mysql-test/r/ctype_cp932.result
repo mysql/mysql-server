@@ -8576,6 +8576,20 @@ FC4B
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+CREATE TABLE t1(f1 blob);
+PREPARE stmt1 FROM 'INSERT INTO t1 VALUES(?)';
+SET @var1= x'8300';
+EXECUTE stmt1 USING @var1;
+SHOW BINLOG EVENTS FROM 27642;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	27642	Query	1	27642	use `test`; CREATE TABLE t1(f1 blob)
+master-bin.000001	27701	Query	1	27701	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=95,COLLATION_CONNECTION=95,COLLATION_DATABASE=95,COLLATION_SERVER=8
+master-bin.000001	27837	User var	1	27837	@`var1`=_binary 0x8300 COLLATE binary
+master-bin.000001	27876	Query	1	27876	use `test`; INSERT INTO t1 VALUES(@'var1')
+SELECT HEX(f1) FROM t1;
+HEX(f1)
+8300
+DROP table t1;
 SET collation_connection='cp932_japanese_ci';
 create table t1 select repeat('a',4000) a;
 delete from t1;
