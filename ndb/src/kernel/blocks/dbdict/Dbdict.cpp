@@ -77,6 +77,7 @@
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/CreateTab.hpp>
 #include <NdbSleep.h>
+#include <signaldata/ApiBroadcast.hpp>
 
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
@@ -90,6 +91,27 @@
 
 #define DIV(x,y) (((x)+(y)-1)/(y))
 #include <ndb_version.h>
+
+static
+Uint32
+alter_table_inc_schema_version(Uint32 old)
+{
+   return (old & 0x00FFFFFF) + ((old + 0x1000000) & 0xFF000000);
+}
+
+static
+Uint32
+alter_table_dec_schema_version(Uint32 old)
+{
+  return (old & 0x00FFFFFF) + ((old - 0x1000000) & 0xFF000000);
+}
+
+static
+Uint32
+create_table_inc_schema_version(Uint32 old)
+{
+  return (old + 0x00000001) & 0x00FFFFFF;
+}
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -604,7 +626,7 @@ void Dbdict::openTableFile(Signal* signal,
     jam();
     fsOpenReq->fileFlags = FsOpenReq::OM_READONLY;
   }//if
-  ndbrequire(tablePtr.p->tableVersion < ZNIL);
+
   fsOpenReq->fileNumber[3] = 0; // Initialise before byte changes
   FsOpenReq::setVersion(fsOpenReq->fileNumber, 1);
   FsOpenReq::setSuffix(fsOpenReq->fileNumber, FsOpenReq::S_TABLELIST);
@@ -794,7 +816,7 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   case SchemaFile::ADD_STARTED:
     jam();
     ok = true;
-    ndbrequire((oldVersion + 1) == newVersion);
+    ndbrequire(create_table_inc_schema_version(oldVersion) == newVersion);
     ndbrequire(oldState == SchemaFile::INIT ||
 	       oldState == SchemaFile::DROP_TABLE_COMMITTED);
     break;
@@ -807,7 +829,7 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   case SchemaFile::ALTER_TABLE_COMMITTED:
     jam();
     ok = true;
-    ndbrequire((oldVersion + 1) == newVersion);
+    ndbrequire(alter_table_inc_schema_version(oldVersion) == newVersion);
     ndbrequire(oldState == SchemaFile::TABLE_ADD_COMMITTED ||
 	       oldState == SchemaFile::ALTER_TABLE_COMMITTED);
     break;
@@ -2982,6 +3004,21 @@ Dbdict::execBACKUP_FRAGMENT_REQ(Signal* signal)
   }
 }
 
+bool
+Dbdict::check_ndb_versions() const
+{
+  Uint32 node = 0;
+  Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
+  while((node = c_aliveNodes.find(node + 1)) != BitmaskImpl::NotFound)
+  {
+    if(getNodeInfo(node).m_version != version)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 void
 Dbdict::execALTER_TABLE_REQ(Signal* signal)
 {
@@ -3016,6 +3053,13 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   if(c_blockState != BS_IDLE){
     jam();
     alterTableRef(signal, req, AlterTableRef::Busy);
+    return;
+  }
+
+  if (!check_ndb_versions())
+  {
+    jam();
+    alterTableRef(signal, req, AlterTableRef::IncompatibleVersions);
     return;
   }
   
@@ -3168,7 +3212,7 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
   lreq->clientData = alterTabPtr.p->m_senderData;
   lreq->changeMask = alterTabPtr.p->m_changeMask;
   lreq->tableId = tablePtr.p->tableId;
-  lreq->tableVersion = tablePtr.p->tableVersion + 1;
+  lreq->tableVersion = alter_table_inc_schema_version(tablePtr.p->tableVersion);
   lreq->gci = tablePtr.p->gciTableCreated;
   lreq->requestType = AlterTabReq::AlterTablePrepare;
   
@@ -3248,6 +3292,14 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
     alterTabRef(signal, req, AlterTableRef::Busy);
     return;
   }
+
+  if (!check_ndb_versions())
+  {
+    jam();
+    alterTabRef(signal, req, AlterTableRef::IncompatibleVersions);
+    return;
+  }
+
   alterTabPtr.p->m_alterTableId = tableId;
   alterTabPtr.p->m_coordinatorRef = senderRef;
   
@@ -3290,7 +3342,7 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
     }
     ndbrequire(ok);
 
-    if(tablePtr.p->tableVersion + 1 != tableVersion){
+    if(alter_table_inc_schema_version(tablePtr.p->tableVersion) != tableVersion){
       jam();
       alterTabRef(signal, req, AlterTableRef::InvalidTableVersion);
       return;
@@ -3775,7 +3827,7 @@ void Dbdict::revertAlterTable(Signal * signal,
     // Restore name
     strcpy(tablePtr.p->tableName, alterTabPtrP->previousTableName);
     // Revert schema version
-    tablePtr.p->tableVersion = tablePtr.p->tableVersion - 1;
+    tablePtr.p->tableVersion = alter_table_dec_schema_version(tablePtr.p->tableVersion);
     // Put it back
 #ifdef VM_TRACE
     ndbrequire(!c_tableRecordHash.find(tmp, * tablePtr.p));
@@ -3835,6 +3887,27 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   conf->requestType = AlterTabReq::AlterTableCommit;
   sendSignal(coordinatorRef, GSN_ALTER_TAB_CONF, signal, 
 	       AlterTabConf::SignalLength, JBB);
+
+
+  {
+    ApiBroadcastRep* api= (ApiBroadcastRep*)signal->getDataPtrSend();
+    api->gsn = GSN_ALTER_TABLE_REP;
+    api->minVersion = MAKE_VERSION(4,1,15);
+
+    AlterTableRep* rep = (AlterTableRep*)api->theData;
+    rep->tableId = tabPtr.p->tableId;
+    rep->tableVersion = alter_table_dec_schema_version(tabPtr.p->tableVersion);
+    rep->changeType = AlterTableRep::CT_ALTERED;
+    
+    LinearSectionPtr ptr[3];
+    ptr[0].p = (Uint32*)alterTabPtr.p->previousTableName;
+    ptr[0].sz = (sizeof(alterTabPtr.p->previousTableName) + 3) >> 2;
+    
+    sendSignal(QMGR_REF, GSN_API_BROADCAST_REP, signal, 
+	       ApiBroadcastRep::SignalLength + AlterTableRep::SignalLength,
+	       JBB, ptr,1);
+  }
+
   if(coordinatorRef != reference()) {
     jam();
     // Release resources
@@ -3886,7 +3959,7 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
   SchemaFile::TableEntry * tabEntry = getTableEntry(xsf, tabPtr.i);
 
-  tabPtr.p->tableVersion = tabEntry->m_tableVersion + 1;
+  tabPtr.p->tableVersion = create_table_inc_schema_version(tabEntry->m_tableVersion);
 
   /**
    * Pack
@@ -3915,7 +3988,7 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
 
   req->gci = 0;
   req->tableId = tabPtr.i;
-  req->tableVersion = tabEntry->m_tableVersion + 1;
+  req->tableVersion = create_table_inc_schema_version(tabEntry->m_tableVersion);
   
   sendFragmentedSignal(rg, GSN_CREATE_TAB_REQ, signal, 
 		       CreateTabReq::SignalLength, JBB);
