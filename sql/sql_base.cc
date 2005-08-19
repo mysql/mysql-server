@@ -2688,6 +2688,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   {
     /* This is a base table. */
     DBUG_ASSERT(nj_col->view_field == NULL);
+    DBUG_ASSERT(nj_col->table_ref->table == nj_col->table_field->table);
     found_field= nj_col->table_field;
     update_field_dependencies(thd, found_field, nj_col->table_ref->table);
   }
@@ -3366,9 +3367,7 @@ static bool
 set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
 {
   Name_resolution_context *context;
-
-  if (!(context= (Name_resolution_context*)
-        thd->calloc(sizeof(Name_resolution_context))))
+  if (!(context= new Name_resolution_context))
     return TRUE;
   context->init();
   context->first_name_resolution_table=
@@ -3509,7 +3508,6 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Field *field_1= nj_col_1->field();
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
-      Name_resolution_context *context_1, *context_2;
       Item_func_eq *eq_cond;
 
       DBUG_PRINT("info", ("new equi-join condition:  %s.%s = %s.%s",
@@ -3545,8 +3543,8 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         resolution of these items, and to enable proper name resolution of
         the items during the execute phase of PS.
       */
-      if (set_new_item_local_context(thd, item_ident_1, table_ref_1) ||
-          set_new_item_local_context(thd, item_ident_2, table_ref_2))
+      if (set_new_item_local_context(thd, item_ident_1, nj_col_1->table_ref) ||
+          set_new_item_local_context(thd, item_ident_2, nj_col_2->table_ref))
         goto err;
 
       if (!(eq_cond= new Item_func_eq(item_ident_1, item_ident_2)))
@@ -4336,7 +4334,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         continue;
     }
 
-    bool view;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Ensure that we have access rights to all fields to be inserted. */
     if (!((table && (table->grant.privilege & SELECT_ACL) ||

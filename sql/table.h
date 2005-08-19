@@ -698,7 +698,7 @@ public:
   Field_iterator_natural_join() :column_ref_it(NULL), cur_column_ref(NULL) {}
   ~Field_iterator_natural_join() { delete column_ref_it; }
   void set(TABLE_LIST *table);
-  void next() { cur_column_ref= (*column_ref_it)++; }
+  void next();
   bool end_of_fields() { return !cur_column_ref; }
   const char *name() { return cur_column_ref->name(); }
   Item *create_item(THD *thd) { return cur_column_ref->create_item(thd); }
