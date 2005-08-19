@@ -103,6 +103,10 @@
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
 
+/* bits in alter_table_flags */
+#define HA_ONLINE_ADD_EMPTY_PARTITION 1
+#define HA_ONLINE_DROP_PARTITION 2
+
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
 #define HA_KEY_SWITCH_ALL          1
@@ -399,6 +403,16 @@ enum partition_type {
   LIST_PARTITION
 };
 
+enum partition_state {
+  PART_NORMAL= 0,
+  PART_IS_DROPPED= 1,
+  PART_TO_BE_DROPPED= 2,
+  PART_DROPPING= 3,
+  PART_IS_ADDED= 4,
+  PART_ADDING= 5,
+  PART_ADDED= 6
+};
+
 #define UNDEF_NODEGROUP 65535
 class Item;
 
@@ -415,13 +429,15 @@ public:
   char* data_file_name;
   char* index_file_name;
   enum db_type engine_type;
+  enum partition_state part_state;
   uint16 nodegroup_id;
   
   partition_element()
   : part_max_rows(0), part_min_rows(0), partition_name(NULL),
     tablespace_name(NULL), range_value(0), part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
-    engine_type(DB_TYPE_UNKNOWN), nodegroup_id(UNDEF_NODEGROUP)
+    engine_type(DB_TYPE_UNKNOWN),part_state(PART_NORMAL),
+    nodegroup_id(UNDEF_NODEGROUP)
   {
     subpartitions.empty();
     list_val_list.empty();
@@ -447,6 +463,7 @@ public:
    * Here comes a set of definitions needed for partitioned table handlers.
    */
   List<partition_element> partitions;
+  List<partition_element> temp_partitions;
 
   List<char> part_field_list;
   List<char> subpart_field_list;
@@ -492,7 +509,6 @@ public:
   uint part_func_len;
   uint subpart_func_len;
 
-  uint no_full_parts;
   uint no_parts;
   uint no_subparts;
   uint count_curr_parts;
@@ -529,7 +545,7 @@ public:
     part_result_type(INT_RESULT),
     part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
     part_info_len(0), part_func_len(0), subpart_func_len(0),
-    no_full_parts(0), no_parts(0), no_subparts(0),
+    no_parts(0), no_subparts(0),
     count_curr_parts(0), count_curr_subparts(0), part_error_code(0),
     no_list_values(0), no_part_fields(0), no_subpart_fields(0),
     no_full_part_fields(0), linear_hash_mask(0),
@@ -543,6 +559,7 @@ public:
     all_fields_in_SPF.clear_all();
     some_fields_in_PF.clear_all();
     partitions.empty();
+    temp_partitions.empty();
     part_field_list.empty();
     subpart_field_list.empty();
   }
@@ -634,6 +651,13 @@ typedef struct st_ha_check_opt
 
 
 #ifdef HAVE_PARTITION_DB
+bool is_partition_in_list(char *part_name, List<char> list_part_names);
+bool is_partitions_in_table(partition_info *new_part_info,
+                            partition_info *old_part_info);
+bool set_up_defaults_for_partitioning(partition_info *part_info,
+                                      handler *file,
+                                      ulonglong max_rows,
+                                      uint start_no);
 handler *get_ha_partition(partition_info *part_info);
 int get_parts_for_update(const byte *old_data, byte *new_data,
                          const byte *rec0, partition_info *part_info,
@@ -1138,6 +1162,20 @@ public:
   virtual char *update_table_comment(const char * comment)
   { return (char*) comment;}
   virtual void append_create_info(String *packet) {}
+  /*
+    SYNOPSIS
+      is_fk_defined_on_table_or_index()
+      index            Index to check if foreign key uses it
+    RETURN VALUE
+       TRUE            Foreign key defined on table or index
+       FALSE           No foreign key defined
+    DESCRIPTION
+      If index == MAX_KEY then a check for table is made and if index <
+      MAX_KEY then a check is made if the table has foreign keys and if
+      a foreign key uses this index (and thus the index cannot be dropped).
+  */
+  virtual bool is_fk_defined_on_table_or_index(uint index)
+  { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
   /* used in ALTER TABLE; 1 if changing storage engine is allowed */
@@ -1153,6 +1191,7 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
+  virtual ulong alter_table_flags(void) const { return 0; }
 #ifdef HAVE_PARTITION_DB
   virtual ulong partition_flags(void) const { return 0;}
   virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
@@ -1198,6 +1237,19 @@ public:
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
   virtual int create_handler_files(const char *name) { return FALSE;}
 
+  /*
+    SYNOPSIS
+      drop_partitions()
+      path                        Complete path of db and table name
+    RETURN VALUE
+      TRUE                        Failure
+      FALSE                       Success
+    DESCRIPTION
+      Drop a partition, during this operation no other activity is ongoing
+      in this server on the table.
+  */
+  virtual int drop_partitions(const char *path)
+  { return HA_ERR_WRONG_COMMAND; }
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
   virtual THR_LOCK_DATA **store_lock(THD *thd,

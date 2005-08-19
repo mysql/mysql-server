@@ -166,6 +166,7 @@ public:
   virtual int create_handler_files(const char *name);
   virtual void update_create_info(HA_CREATE_INFO * create_info);
   virtual char *update_table_comment(const char *comment);
+  virtual int drop_partitions(const char *path);
 private:
   /*
     delete_table, rename_table and create uses very similar logic which
@@ -633,6 +634,11 @@ public:
     index scan module.
     (NDB)
   */
+  virtual ulong alter_table_flags(void) const
+  {
+    //return HA_ONLINE_ADD_EMPTY_PARTITION + HA_ONLINE_DROP_PARTITION;
+    return HA_ONLINE_DROP_PARTITION;
+  }
   virtual ulong table_flags() const
   { return m_table_flags; }
   /*

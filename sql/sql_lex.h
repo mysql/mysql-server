@@ -650,6 +650,10 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_CONVERT          1024
 #define ALTER_FORCE		2048
 #define ALTER_RECREATE          4096
+#define ALTER_ADD_PARTITION     8192
+#define ALTER_DROP_PARTITION    16384
+#define ALTER_COALESCE_PARTITION 32768
+#define ALTER_REORGANISE_PARTITION   65536
 
 typedef struct st_alter_info
 {
@@ -658,9 +662,17 @@ typedef struct st_alter_info
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
+  List<char>                  partition_names;
+  uint                        no_parts;
 
   st_alter_info(){clear();}
-  void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
+  void clear()
+  {
+    keys_onoff= LEAVE_AS_IS;
+    tablespace_op= NO_TABLESPACE_OP;
+    no_parts= 0;
+    partition_names.empty();
+  }
   void reset(){drop_list.empty();alter_list.empty();clear();}
 } ALTER_INFO;
 

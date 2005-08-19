@@ -512,6 +512,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RELEASE_SYM
 %token  RELOAD
 %token  RENAME
+%token  REORGANISE_SYM
 %token  REPAIR
 %token  REPEATABLE_SYM
 %token  REPEAT_SYM
@@ -2618,7 +2619,15 @@ opt_partitioning:
 
 partitioning:
         PARTITION_SYM
-        { Lex->part_info= new partition_info(); }
+        {
+          LEX *lex= Lex;
+          lex->part_info= new partition_info();
+          if (!lex->part_info)
+          {
+            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
+            YYABORT;
+          }
+        }
         partition
         ;
 
@@ -2633,6 +2642,11 @@ partition_entry:
               partition info string into part_info data structure.
             */
             lex->part_info= new partition_info();
+            if (!lex->part_info)
+            {
+              my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
+              YYABORT;
+            }
           }
           else
           {
@@ -2640,10 +2654,12 @@ partition_entry:
             YYABORT;
           }
         }
-        partition {};
+        partition {}
+        ;
 
 partition:
-        BY part_type_def opt_no_parts {} opt_sub_part {} part_defs;
+        BY part_type_def opt_no_parts {} opt_sub_part {} part_defs
+        ;
 
 part_type_def:
         opt_linear KEY_SYM '(' part_field_list ')'
@@ -2660,22 +2676,26 @@ part_type_def:
         part_func {}
         | LIST_SYM
         { Lex->part_info->part_type= LIST_PARTITION; }
-        part_func {};
+        part_func {}
+        ;
 
 opt_linear:
         /* empty */ {}
         | LINEAR_SYM
-        { Lex->part_info->linear_hash_ind= TRUE;};
+        { Lex->part_info->linear_hash_ind= TRUE;}
+        ;
 
 part_field_list:
         part_field_item {}
-        | part_field_list ',' part_field_item {};
+        | part_field_list ',' part_field_item {}
+        ;
 
 part_field_item:
         ident
         {
           Lex->part_info->part_field_list.push_back($1.str);
-        };
+        }
+        ;
 
 part_func:
         '(' remember_name part_func_expr remember_end ')'
@@ -2686,7 +2706,8 @@ part_func:
           lex->part_info->part_expr= $3;
           lex->part_info->part_func_string= $2+1;
           lex->part_info->part_func_len= expr_len;
-        };
+        }
+        ;
 
 sub_part_func:
         '(' remember_name part_func_expr remember_end ')'
@@ -2697,7 +2718,8 @@ sub_part_func:
           lex->part_info->subpart_expr= $3;
           lex->part_info->subpart_func_string= $2+1;
           lex->part_info->subpart_func_len= expr_len;
-        };
+        }
+        ;
 
 
 opt_no_parts:
@@ -2711,7 +2733,8 @@ opt_no_parts:
             YYABORT;
           }
           Lex->part_info->no_parts= no_parts;
-        };
+        }
+        ;
 
 opt_sub_part:
         /* empty */ {}
@@ -2725,15 +2748,18 @@ opt_sub_part:
           lex->part_info->subpart_type= HASH_PARTITION;
           lex->part_info->list_of_subpart_fields= TRUE;
         }
-        opt_no_subparts {};
+        opt_no_subparts {}
+        ;
 
 sub_part_field_list:
         sub_part_field_item {}
-        | sub_part_field_list ',' sub_part_field_item {};
+        | sub_part_field_list ',' sub_part_field_item {}
+        ;
 
 sub_part_field_item:
         ident
-        { Lex->part_info->subpart_field_list.push_back($1.str); };
+        { Lex->part_info->subpart_field_list.push_back($1.str); }
+        ;
 
 part_func_expr:
         bit_expr
@@ -2749,6 +2775,7 @@ part_func_expr:
           }
           $$=$1;
         }
+        ;
 
 opt_no_subparts:
         /* empty */ {}
@@ -2761,7 +2788,8 @@ opt_no_subparts:
             YYABORT;
           }
           Lex->part_info->no_subparts= no_parts;
-        };
+        }
+        ;
 
 part_defs:
         /* empty */
@@ -2785,11 +2813,13 @@ part_defs:
           }
           part_info->count_curr_subparts= 0;
           part_info->count_curr_parts= 0;
-        };
+        }
+        ;
 
 part_def_list:
         part_definition {}
-        | part_def_list ',' part_definition {};
+        | part_def_list ',' part_definition {}
+        ;
 
 part_definition:
         PARTITION_SYM
@@ -2812,47 +2842,61 @@ part_definition:
         part_name {}
         opt_part_values {}
         opt_part_options {}
-        opt_sub_partition {};
+        opt_sub_partition {}
+        ;
 
 part_name:
         ident_or_text
-        { Lex->part_info->curr_part_elem->partition_name= $1.str; };
+        { Lex->part_info->curr_part_elem->partition_name= $1.str; }
+        ;
 
 opt_part_values:
         /* empty */
         {
           LEX *lex= Lex;
-          if (lex->part_info->part_type == RANGE_PARTITION)
+          if (!is_partition_management(lex))
           {
-            my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-            "RANGE", "LESS THAN");
-            YYABORT;
-          }
-          if (lex->part_info->part_type == LIST_PARTITION)
-          {
-            my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-            "LIST", "IN");
-            YYABORT;
+            if (lex->part_info->part_type == RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+              "RANGE", "LESS THAN");
+              YYABORT;
+            }
+            if (lex->part_info->part_type == LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+              "LIST", "IN");
+              YYABORT;
+            }
           }
         }
         | VALUES LESS_SYM THAN_SYM part_func_max
         {
-          if (Lex->part_info->part_type != RANGE_PARTITION)
+          LEX *lex= Lex;
+          if (!is_partition_management(lex))
           {
-            my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-            "RANGE", "LESS THAN");
-            YYABORT;
+            if (Lex->part_info->part_type != RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+              "RANGE", "LESS THAN");
+              YYABORT;
+            }
           }
         }
         | VALUES IN_SYM '(' part_list_func ')'
         {
-          if (Lex->part_info->part_type != LIST_PARTITION)
+          LEX *lex= Lex;
+          if (!is_partition_management(lex))
           {
-            my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-            "LIST", "IN");
-            YYABORT;
+            if (Lex->part_info->part_type != LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+              "LIST", "IN");
+              YYABORT;
+            }
           }
-        };
+        }
+        ;
 
 part_func_max:
         MAX_VALUE_SYM
@@ -2873,17 +2917,20 @@ part_func_max:
             yyerror(ER(ER_PARTITION_MAXVALUE_ERROR));
             YYABORT;
           }
-        };
+        }
+        ;
 
 part_range_func:
         '(' part_bit_expr ')' 
         {
           Lex->part_info->curr_part_elem->range_value= $2;
-        };
+        }
+        ;
 
 part_list_func:
         part_list_item {}
-        | part_list_func ',' part_list_item {};
+        | part_list_func ',' part_list_item {}
+        ;
 
 part_list_item:
         part_bit_expr
@@ -2896,7 +2943,8 @@ part_list_item:
           }
           *value_ptr= $1;
           Lex->part_info->curr_part_elem->list_val_list.push_back(value_ptr);
-        };
+        }
+        ;
 
 part_bit_expr:
         bit_expr
@@ -2926,6 +2974,7 @@ part_bit_expr:
           item_value= part_expr->val_int();
           $$= item_value; 
         }
+        ;
 
 opt_sub_partition:
         /* empty */ {}
@@ -2947,11 +2996,13 @@ opt_sub_partition:
             part_info->no_subparts= part_info->count_curr_subparts;
           }
           part_info->count_curr_subparts= 0;
-        };
+        }
+        ;
 
 sub_part_list:
         sub_part_definition {}
-        | sub_part_list ',' sub_part_definition {};
+        | sub_part_list ',' sub_part_definition {}
+        ;
 
 sub_part_definition:
         SUBPARTITION_SYM
@@ -2970,19 +3021,23 @@ sub_part_definition:
           part_info->count_curr_subparts++;
           p_elem->engine_type= DB_TYPE_UNKNOWN;
         }
-        sub_name opt_part_options {};
+        sub_name opt_part_options {}
+        ;
 
 sub_name:
         ident_or_text
-        { Lex->part_info->curr_part_elem->partition_name= $1.str; };
+        { Lex->part_info->curr_part_elem->partition_name= $1.str; }
+        ;
 
 opt_part_options:
        /* empty */ {}
-       | opt_part_option_list {};
+       | opt_part_option_list {}
+       ;
 
 opt_part_option_list:
        opt_part_option_list opt_part_option {}
-       | opt_part_option {};
+       | opt_part_option {}
+       ;
 
 opt_part_option:
         TABLESPACE opt_equal ident_or_text
@@ -3000,7 +3055,8 @@ opt_part_option:
         | INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
         { Lex->part_info->curr_part_elem->index_file_name= $4.str; }
         | COMMENT_SYM opt_equal TEXT_STRING_sys
-        { Lex->part_info->curr_part_elem->part_comment= $3.str; };
+        { Lex->part_info->curr_part_elem->part_comment= $3.str; }
+        ;
 
 /*
  End of partition parser part
@@ -3850,7 +3906,91 @@ alter_commands:
         | alter_list
         opt_partitioning
         | partitioning
+/*
+  This part was added for release 5.1 by Mikael Ronström.
+  From here we insert a number of commands to manage the partitions of a
+  partitioned table such as adding partitions, dropping partitions,
+  reorganising partitions in various manners. In future releases the list
+  will be longer and also include moving partitions to a
+  new table and so forth.
+*/
+        | add_partition_rule
+        | DROP PARTITION_SYM alt_part_name_list
+          {
+	    Lex->alter_info.flags|= ALTER_DROP_PARTITION;
+          }
+        | COALESCE PARTITION_SYM ulong_num
+          {
+            LEX *lex= Lex;
+	    lex->alter_info.flags|= ALTER_COALESCE_PARTITION;
+	    lex->alter_info.no_parts= $3;
+          }
+        | reorg_partition_rule
         ;
+
+add_partition_rule:
+        ADD PARTITION_SYM
+        {
+          LEX *lex= Lex;
+          lex->part_info= new partition_info();
+          if (!lex->part_info)
+          {
+            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
+            YYABORT;
+          }
+	  lex->alter_info.flags|= ALTER_ADD_PARTITION;
+        }
+        add_part_extra
+        {}
+        ;
+
+add_part_extra:
+        | '(' part_def_list ')'
+        {
+          LEX *lex= Lex;
+          lex->part_info->no_parts= lex->part_info->count_curr_parts;
+        }
+        | PARTITIONS_SYM ulong_num
+        {
+          LEX *lex= Lex;
+          lex->part_info->no_parts= $2;
+        }
+        ;
+
+reorg_partition_rule:
+        REORGANISE_SYM PARTITION_SYM
+        {
+          LEX *lex= Lex;
+          lex->part_info= new partition_info();
+          if (!lex->part_info)
+          {
+            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
+            YYABORT;
+          }
+	  lex->alter_info.flags|= ALTER_REORGANISE_PARTITION;
+        }
+        alt_part_name_list INTO '(' part_def_list ')'
+        {
+          LEX *lex= Lex;
+          lex->part_info->no_parts= lex->part_info->count_curr_parts;
+        }
+        ;
+
+alt_part_name_list:
+        alt_part_name_item {}
+        | alt_part_name_list ',' alt_part_name_item {}
+        ;
+
+alt_part_name_item:
+        ident
+        {
+          Lex->alter_info.partition_names.push_back($1.str);
+        }
+        ;
+
+/*
+  End of management of partition commands
+*/
 
 alter_list:
         alter_list_item
@@ -7872,6 +8012,7 @@ keyword_sp:
 	| CHANGED		{}
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
+	| COALESCE		{}
 	| COLLATION_SYM		{}
         | COLUMNS               {}
 	| COMMITTED_SYM		{}
@@ -8007,6 +8148,7 @@ keyword_sp:
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}
+	| REORGANISE_SYM	{}
 	| REPEATABLE_SYM	{}
 	| REPLICATION		{}
 	| RESOURCES		{}

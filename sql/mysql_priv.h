@@ -628,6 +628,10 @@ bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 bool check_global_access(THD *thd, ulong want_access);
 
 /*
+  Support routine for SQL parser on partitioning syntax
+*/
+my_bool is_partition_management(LEX *lex);
+/*
   General routine to change field->ptr of a NULL-terminated array of Field
   objects. Useful when needed to call val_int, val_str or similar and the
   field data is not in table->record[0] but in some other structure.
