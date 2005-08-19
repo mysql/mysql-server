@@ -2581,44 +2581,7 @@ MgmtSrvr::backupCallback(BackupEvent & event)
 int
 MgmtSrvr::repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted)
 {
-  bool    next;
-  NodeId  nodeId = 0;
-  
-  while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-	theFacade->get_node_alive(nodeId) == false);
-  
-  if(!next){
-    return NO_CONTACT_WITH_DB_NODES;
-  }
-
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
-  GrepReq* req = CAST_PTR(GrepReq, signal->getDataPtrSend());
-  signal->set(TestOrd::TraceAPI, GREP, GSN_GREP_REQ, GrepReq::SignalLength);
-  req->senderRef = _ownReference;
-  req->request   = request;
-
-  int result;
-  if (waitCompleted)
-    result = sendRecSignal(nodeId, NO_WAIT, signal, true);
-  else
-    result = sendRecSignal(nodeId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-
-  /**
-   * @todo
-   * Maybe add that we should receive a confirmation that the 
-   * request was received ok.
-   * Then we should give the user the correct repReqId.
-   */
-
-  *repReqId = 4711;
-
+  abort();
   return 0;
 }
 

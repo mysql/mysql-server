@@ -35,6 +35,7 @@
 #include <ndb_version.h>
 #include <SignalLoggerManager.hpp>
 #include <kernel/ndb_limits.h>
+#include <signaldata/AlterTable.hpp>
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE;
@@ -309,6 +310,17 @@ execute(void * callbackObj, SignalHeader * const header,
 	 theFacade->theArbitMgr->doStop(theData);
        break;
 
+     case GSN_ALTER_TABLE_REP:
+     {
+       const AlterTableRep* rep = (const AlterTableRep*)theData;
+       theFacade->m_globalDictCache.lock();
+       theFacade->m_globalDictCache.
+	 alter_table_rep((const char*)ptr[0].p, 
+			 rep->tableId,
+			 rep->tableVersion,
+			 rep->changeType == AlterTableRep::CT_ALTERED);
+       theFacade->m_globalDictCache.unlock();
+     }
      default:
        break;
        
