@@ -76,7 +76,6 @@ static BlockInfo ALL_BLOCKS[] = {
   { BACKUP_REF,  1 , 10000, 10999 },
   { DBUTIL_REF,  1 , 11000, 11999 },
   { SUMA_REF,    1 , 13000, 13999 },
-  { GREP_REF,    1 ,     0,     0 },
   { DBTUX_REF,   1 , 12000, 12999 }
 };
 
@@ -1453,9 +1452,6 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
 	     NodeFailRep::SignalLength, JBB);
 
-  sendSignal(GREP_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
-
   Uint32 nodeId = 0;
   while(!allFailed.isclear()){
     nodeId = allFailed.find(nodeId + 1);
@@ -2381,7 +2377,6 @@ void Ndbcntr::execREAD_CONFIG_CONF(Signal* signal){
 
 void Ndbcntr::execSTART_ORD(Signal* signal){
   jamEntry();
-  ndbrequire(NO_OF_BLOCKS == ALL_BLOCKS_SZ);
   c_missra.execSTART_ORD(signal);
 }
 
@@ -2456,7 +2451,7 @@ void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
    * Finished...
    */
   currentStartPhase = 0;
-  for(Uint32 i = 0; i<NO_OF_BLOCKS; i++){
+  for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
     if(ALL_BLOCKS[i].NextSP < currentStartPhase)
       currentStartPhase = ALL_BLOCKS[i].NextSP;
   }
