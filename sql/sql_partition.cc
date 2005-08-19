@@ -89,7 +89,106 @@ uint32 get_partition_id_hash_sub(partition_info *part_info);
 uint32 get_partition_id_key_sub(partition_info *part_info); 
 uint32 get_partition_id_linear_hash_sub(partition_info *part_info); 
 uint32 get_partition_id_linear_key_sub(partition_info *part_info); 
-    
+#endif
+
+
+/*
+  A routine used by the parser to decide whether we are specifying a full
+  partitioning or if only partitions to add or to split.
+  SYNOPSIS
+    is_partition_management()
+    lex                    Reference to the lex object
+  RETURN VALUE
+    TRUE                   Yes, it is part of a management partition command
+    FALSE                  No, not a management partition command
+  DESCRIPTION
+    This needs to be outside of HAVE_PARTITION_DB since it is used from the
+    sql parser that doesn't have any #ifdef's
+*/
+
+my_bool is_partition_management(LEX *lex)
+{
+  return (lex->sql_command == SQLCOM_ALTER_TABLE &&
+          (lex->alter_info.flags == ALTER_ADD_PARTITION ||
+           lex->alter_info.flags == ALTER_REORGANISE_PARTITION));
+}
+
+#ifdef HAVE_PARTITION_DB
+/*
+  A support function to check if a partition name is in a list of strings
+  SYNOPSIS
+    is_partition_in_list()
+    part_name          String searched for
+    list_part_names    A list of names searched in
+  RETURN VALUES
+    TRUE               String found
+    FALSE              String not found
+*/
+
+bool is_partition_in_list(char *part_name,
+                          List<char> list_part_names)
+{
+  List_iterator<char> part_names_it(list_part_names);
+  uint no_names= list_part_names.elements;
+  uint i= 0;
+  do
+  {
+    char *list_name= part_names_it++;
+    if (!(my_strcasecmp(system_charset_info, part_name, list_name)))
+      return TRUE;
+  } while (++i < no_names);
+  return FALSE;
+}
+
+
+/*
+  A support function to check partition names for duplication in a
+  partitioned table
+  SYNOPSIS
+    is_partitions_in_table()
+    new_part_info      New partition info
+    old_part_info      Old partition info
+  RETURN VALUES
+    TRUE               Duplicate names found
+    FALSE              Duplicate names not found
+  DESCRIPTION
+    Can handle that the new and old parts are the same in which case it
+    checks that the list of names in the partitions doesn't contain any
+    duplicated names.
+*/
+
+bool is_partitions_in_table(partition_info *new_part_info,
+                            partition_info *old_part_info)
+{
+  uint no_new_parts= new_part_info->partitions.elements, new_count;
+  uint no_old_parts= old_part_info->partitions.elements, old_count;
+  List_iterator<partition_element> new_parts_it(new_part_info->partitions);
+  bool same_part_info= (new_part_info == old_part_info);
+  DBUG_ENTER("is_partitions_in_table");
+
+  new_count= 0;
+  do
+  {
+    List_iterator<partition_element> old_parts_it(old_part_info->partitions);
+    char *new_name= (new_parts_it++)->partition_name;
+    new_count++;
+    old_count= 0;
+    do
+    {
+      char *old_name= (old_parts_it++)->partition_name;
+      old_count++;
+      if (same_part_info && old_count == new_count)
+        break;
+      if (!(my_strcasecmp(system_charset_info, old_name, new_name)))
+      {
+        DBUG_RETURN(TRUE);
+      }
+    } while (old_count < no_old_parts);
+  } while (new_count < no_new_parts);
+  DBUG_RETURN(FALSE);
+}
+
+
 /*
   A useful routine used by update_row for partition handlers to calculate
   the partition ids of the old and the new record.
@@ -415,7 +514,8 @@ end:
 
 #define MAX_PART_NAME_SIZE 8
 
-static char *create_default_partition_names(uint no_parts, bool subpart)
+static char *create_default_partition_names(uint no_parts, uint start_no,
+                                            bool subpart)
 {
   char *ptr= sql_calloc(no_parts*MAX_PART_NAME_SIZE);
   char *move_ptr= ptr;
@@ -426,9 +526,9 @@ static char *create_default_partition_names(uint no_parts, bool subpart)
     do
     {
       if (subpart)
-        my_sprintf(move_ptr, (move_ptr,"sp%u", i));
+        my_sprintf(move_ptr, (move_ptr,"sp%u", (start_no + i)));
       else
-        my_sprintf(move_ptr, (move_ptr,"p%u", i));
+        my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
       move_ptr+=MAX_PART_NAME_SIZE;
     } while (++i < no_parts);
   }
@@ -462,7 +562,8 @@ static char *create_default_partition_names(uint no_parts, bool subpart)
 */
 
 static bool set_up_default_partitions(partition_info *part_info,
-                                      handler *file, ulonglong max_rows)
+                                      handler *file, ulonglong max_rows,
+                                      uint start_no)
 {
   uint no_parts, i;
   char *default_name;
@@ -482,12 +583,14 @@ static bool set_up_default_partitions(partition_info *part_info,
   if (part_info->no_parts == 0)
     part_info->no_parts= file->get_default_no_partitions(max_rows);
   no_parts= part_info->no_parts;
+  part_info->use_default_partitions= FALSE;
   if (unlikely(no_parts > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
   }
   if (unlikely((!(default_name= create_default_partition_names(no_parts,
+                                                               start_no,
                                                                FALSE)))))
     goto end;
   i= 0;
@@ -537,8 +640,8 @@ end:
 static bool set_up_default_subpartitions(partition_info *part_info,
                                          handler *file, ulonglong max_rows)
 {
-  uint i, j= 0, no_parts, no_subparts;
-  char *default_name;
+  uint i, j, no_parts, no_subparts;
+  char *default_name, *name_ptr;
   bool result= TRUE;
   partition_element *part_elem;
   List_iterator<partition_element> part_it(part_info->partitions);
@@ -548,26 +651,29 @@ static bool set_up_default_subpartitions(partition_info *part_info,
     part_info->no_subparts= file->get_default_no_partitions(max_rows);
   no_parts= part_info->no_parts;
   no_subparts= part_info->no_subparts;
+  part_info->use_default_subpartitions= FALSE;
   if (unlikely((no_parts * no_subparts) > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
   }
   if (unlikely((!(default_name=
-                  create_default_partition_names(no_subparts, TRUE)))))
+             create_default_partition_names(no_subparts, (uint)0, TRUE)))))
     goto end;
   i= 0;
   do
   {
     part_elem= part_it++;
+    j= 0;
+    name_ptr= default_name;
     do
     {
       partition_element *subpart_elem= new partition_element();
       if (likely(subpart_elem != 0))
       {
         subpart_elem->engine_type= DB_TYPE_UNKNOWN;
-        subpart_elem->partition_name= default_name;
-        default_name+= MAX_PART_NAME_SIZE;
+        subpart_elem->partition_name= name_ptr;
+        name_ptr+= MAX_PART_NAME_SIZE;
         part_elem->subpartitions.push_back(subpart_elem);
       }
       else
@@ -598,14 +704,15 @@ end:
     Support routine for check_partition_info
 */
 
-static bool set_up_defaults_for_partitioning(partition_info *part_info,
-                                             handler *file,
-                                             ulonglong max_rows)
+bool set_up_defaults_for_partitioning(partition_info *part_info,
+                                      handler *file,
+                                      ulonglong max_rows, uint start_no)
 {
   DBUG_ENTER("set_up_defaults_for_partitioning");
 
   if (part_info->use_default_partitions)
-    DBUG_RETURN(set_up_default_partitions(part_info, file, max_rows));
+    DBUG_RETURN(set_up_default_partitions(part_info, file, max_rows,
+                                          start_no));
   if (is_sub_partitioned(part_info) && part_info->use_default_subpartitions)
     DBUG_RETURN(set_up_default_subpartitions(part_info, file, max_rows));
   DBUG_RETURN(FALSE);
@@ -682,12 +789,18 @@ bool check_partition_info(partition_info *part_info,enum db_type eng_type,
     my_error(ER_SUBPARTITION_ERROR, MYF(0));
     goto end;
   }
-  if (unlikely(set_up_defaults_for_partitioning(part_info, file, max_rows)))
+  if (unlikely(set_up_defaults_for_partitioning(part_info, file,
+                                                max_rows, (uint)0)))
     goto end;
   tot_partitions= get_tot_partitions(part_info);
   if (unlikely(tot_partitions > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
+    goto end;
+  }
+  if (unlikely(is_partitions_in_table(part_info, part_info)))
+  {
+    my_error(ER_SAME_NAME_PARTITION, MYF(0));
     goto end;
   }
   engine_array= (u_char*)my_malloc(tot_partitions, MYF(MY_WME));
@@ -1524,11 +1637,9 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table)
   db_name= &db_name_string[home_dir_length];
   tables.db= db_name;
 
-  part_info->no_full_parts= part_info->no_parts;
   if (is_sub_partitioned(part_info))
   {
     DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
-    part_info->no_full_parts= part_info->no_parts*part_info->no_subparts;
     /*
      Subpartition is defined. We need to verify that subpartitioning
      function is correct.
@@ -2768,7 +2879,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec, part_id_range *part_spec)
 {
   partition_info *part_info= table->s->part_info;
-  uint no_parts= part_info->no_full_parts, i, part_id;
+  uint no_parts= get_tot_partitions(part_info), i, part_id;
   uint sub_part= no_parts, part_part= no_parts;
   KEY *key_info= NULL;
   bool found_part_field= FALSE;
