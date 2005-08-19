@@ -1330,7 +1330,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   
   if (!(start= data_buf = (char*) my_malloc(catalog_len + 1 +
                                             time_zone_len + 1 +
-                                            data_len + 1, MYF(MY_WME))))
+                                            data_len + 1 +
+#ifndef MYSQL_CLIENT
+#ifdef HAVE_QUERY_CACHE
+					    QUERY_CACHE_FLAGS_SIZE +
+#endif
+#endif
+					    db_len + 1, MYF(MY_WME))))
     DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
