@@ -9,7 +9,7 @@ drop database if exists mysqltest;
 Warnings:
 Note	1008	Can't drop database 'mysqltest'; database doesn't exist
 show tables from mysqltest;
-ERROR HY000: Can't read dir of './mysqltest/' (Errcode: X)
+ERROR 42000: Unknown database 'mysqltest'
 create table t1 (a int);
 drop table if exists t1;
 Warnings:
