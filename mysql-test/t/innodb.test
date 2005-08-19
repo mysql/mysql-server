@@ -586,7 +586,7 @@ insert into mysqltest.t3 values(1);
 commit;
 drop database mysqltest;
 # Don't check error message
---error 12,12
+--error 1049
 show tables from mysqltest;
 
 #
