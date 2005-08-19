@@ -405,3 +405,8 @@ SHOW OPEN TABLES;
 DROP TABLE txt1;
 DROP TABLE tyt2;
 DROP TABLE urkunde;
+#
+# BUG #12591 (SHOW TABLES FROM dbname produces wrong error message)
+#
+--error 1049
+SHOW TABLES FROM non_existing_database;
