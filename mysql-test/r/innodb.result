@@ -904,7 +904,7 @@ insert into mysqltest.t3 values(1);
 commit;
 drop database mysqltest;
 show tables from mysqltest;
-Got one of the listed errors
+ERROR 42000: Unknown database 'mysqltest'
 set autocommit=0;
 create table t1 (a int not null) engine= innodb;
 insert into t1 values(1),(2);
