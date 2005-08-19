@@ -528,7 +528,9 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
     param->set_param_func= set_param_str;
-    param->value.cs_info.character_set_client= &my_charset_bin;
+    param->value.cs_info.character_set_of_placeholder= &my_charset_bin;
+    param->value.cs_info.character_set_client=
+      thd->variables.character_set_client;
     param->value.cs_info.final_character_set_of_str_value= &my_charset_bin;
     param->item_type= Item::STRING_ITEM;
     param->item_result_type= STRING_RESULT;
@@ -544,6 +546,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
+      param->value.cs_info.character_set_of_placeholder= fromcs;
       param->value.cs_info.character_set_client= fromcs;
 
       /*
@@ -601,7 +604,7 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
         param->set_param_func(param, &read_pos, data_end - read_pos);
       }
     }
-    res= param->query_val_str(&str, thd);
+    res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
@@ -749,7 +752,7 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
                               client_param->buffer_length);
       }
     }
-    res= param->query_val_str(&str, thd);
+    res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
