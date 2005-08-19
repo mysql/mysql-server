@@ -1986,7 +1986,7 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
   sp_cond_type_t *p;
 
   while ((p= li++))
-    thd->spcont->push_handler(p, m_handler, m_type, m_frame);
+    thd->spcont->push_handler(p, m_ip+1, m_type, m_frame);
 
   *nextp= m_dest;
   DBUG_RETURN(0);
@@ -2003,7 +2003,7 @@ sp_instr_hpush_jump::print(String *str)
   str->append(" f=");
   str->qs_append(m_frame);
   str->append(" h=");
-  str->qs_append(m_handler);
+  str->qs_append(m_ip+1);
 }
 
 uint

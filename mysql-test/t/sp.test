@@ -3928,6 +3928,72 @@ end|
 call p_bug11247(10)|
 drop function f_bug11247|
 drop procedure p_bug11247|
+#
+# BUG#12168: "'DECLARE CONTINUE HANDLER FOR NOT FOUND ...' in conditional
+# handled incorrectly"
+#
+--disable_warnings
+drop procedure if exists bug12168|
+drop table if exists t1, t2|
+--enable_warnings
+
+create table t1 (a int)|
+insert into t1 values (1),(2),(3),(4)|
+
+create table t2 (a int)|
+
+create procedure bug12168(arg1 char(1))
+begin
+  declare b, c integer;
+  if arg1 = 'a' then
+    begin
+      declare c1 cursor for select a from t1 where a % 2;
+      declare continue handler for not found set b = 1;
+      set b = 0;
+      open c1;
+      c1_repeat: repeat
+        fetch c1 into c;
+        if (b = 1) then
+          leave c1_repeat;
+        end if;
+
+        insert into t2 values (c);
+        until b = 1
+      end repeat;
+    end;
+  end if;
+  if arg1 = 'b' then
+    begin
+      declare c2 cursor for select a from t1 where not a % 2;
+      declare continue handler for not found set b = 1;
+      set b = 0;
+      open c2;
+      c2_repeat: repeat
+        fetch c2 into c;
+        if (b = 1) then
+          leave c2_repeat;
+        end if;
+
+        insert into t2 values (c);
+        until b = 1
+      end repeat;
+    end;
+  end if;
+end|
+
+call bug12168('a')|
+select * from t2|
+truncate t2|
+call bug12168('b')|
+select * from t2|
+truncate t2|
+call bug12168('a')|
+select * from t2|
+truncate t2|
+call bug12168('b')|
+select * from t2|
+truncate t2|
+drop procedure if exists bug12168|
 
 #
 # BUG#NNNN: New bug synopsis
