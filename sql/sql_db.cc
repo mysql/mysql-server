@@ -25,14 +25,20 @@
 #include <direct.h>
 #endif
 
+#define MAX_DROP_TABLE_Q_LEN      1024
+
 const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
-				 const char *db, const char *path,
-				 uint level);
+				 const char *db, const char *path, uint level, 
+         TABLE_LIST** dropped_tables);
+         
 
+static inline void write_to_binlog(THD* thd, char* query, uint q_len,
+  char* db, uint db_len);
+          
 /* Database options hash */
 static HASH dboptions;
 static my_bool dboptions_init= 0;
@@ -56,6 +62,19 @@ static byte* dboptions_get_key(my_dbopt_t *opt, uint *length,
   *length= opt->name_length;
   return (byte*) opt->name;
 }
+
+/*
+   Helper function to write a query to binlog used by mysql_rm_db()
+ */
+static inline void write_to_binlog(THD* thd, char* query, uint q_len,
+  char* db, uint db_len)
+{
+   Query_log_event qinfo(thd, query, q_len, 0, 0);
+   qinfo.error_code= 0;
+   qinfo.db= db;
+   qinfo.db_len= db_len;
+   mysql_bin_log.write(&qinfo);
+}  
 
 
 /*
@@ -585,6 +604,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
   MY_DIR *dirp;
   uint length;
+  TABLE_LIST* dropped_tables= 0;
   DBUG_ENTER("mysql_rm_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -621,8 +641,10 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
+    
     error= -1;
-    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0)) >= 0)
+    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
+         &dropped_tables)) >= 0)
     {
       ha_drop_database(path);
       query_cache_invalidate1(db);
@@ -672,6 +694,45 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     send_ok(thd, (ulong) deleted);
     thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
+  else if (mysql_bin_log.is_open())
+  {
+     char* query= thd->alloc(MAX_DROP_TABLE_Q_LEN);
+     
+     if (!query)
+       goto exit; /* not much else we can do */
+     char* p= strmov(query,"drop table ");  
+     char* p_end= query + MAX_DROP_TABLE_Q_LEN;
+     TABLE_LIST* tbl;
+     bool last_query_needs_write= 0;
+     uint db_len= strlen(db);
+     
+     for (tbl= dropped_tables;tbl;tbl= tbl->next)
+     {
+       if (!tbl->was_dropped)
+         continue;
+         
+       /* 3 for the quotes and the comma*/  
+       uint tbl_name_len= strlen(tbl->real_name) + 3; 
+       if (p + tbl_name_len + 1 >= p_end)
+       {
+          *--p= 0; /* kill , */
+          write_to_binlog(thd, query, p - query, db, db_len);
+          p= query + 11; /* reuse the initial "drop table" */
+       }    
+       
+       *p++ = '`';
+       p= strmov(p,tbl->real_name);
+       *p++ = '`';
+       *p++ = ',';
+       last_query_needs_write= 1;
+     }
+     
+     if (last_query_needs_write)
+     {
+       *--p= 0;
+       write_to_binlog(thd, query, p - query, db, db_len);
+     }  
+  }
 
 exit:
   start_waiting_global_read_lock(thd);
@@ -716,7 +777,7 @@ exit2:
 */
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
-				 const char *org_path, uint level)
+				 const char *org_path, uint level, TABLE_LIST** dropped_tables)
 {
   long deleted=0;
   ulong found_other_files=0;
@@ -758,7 +819,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
-	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
+	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1,0)) < 0)
 	  goto err;
 	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
 	    !(dir= new (thd->mem_root) String(copy_of_path, length,
@@ -817,6 +878,9 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	found_other_files++;
   }
   my_dirend(dirp);  
+  
+  if (dropped_tables)
+    *dropped_tables= tot_list;
   
   /*
     If the directory is a symbolic link, remove the link first, then
