@@ -8842,7 +8842,7 @@ xa: XA_SYM begin_or_start xid opt_join_or_resume
       {
         Lex->sql_command = SQLCOM_XA_START;
       }
-    | XA_SYM END xid opt_suspend_or_migrate
+    | XA_SYM END xid opt_suspend
       {
         Lex->sql_command = SQLCOM_XA_END;
       }
@@ -8902,9 +8902,14 @@ opt_one_phase:
     | ONE_SYM PHASE_SYM     { Lex->xa_opt=XA_ONE_PHASE;   }
     ;
 
-opt_suspend_or_migrate:
+opt_suspend:
     /* nothing */           { Lex->xa_opt=XA_NONE;        }
     | SUSPEND_SYM           { Lex->xa_opt=XA_SUSPEND;     }
+      opt_migrate
+    ;
+
+opt_migrate:
+    /* nothing */           { }
     | FOR_SYM MIGRATE_SYM   { Lex->xa_opt=XA_FOR_MIGRATE; }
     ;
 
