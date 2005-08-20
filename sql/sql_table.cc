@@ -375,8 +375,13 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (some_tables_deleted || tmp_table_deleted || !error)
   {
     query_cache_invalidate3(thd, tables, 0);
-    if (!dont_log_query)
-      write_bin_log(thd, !error);
+    if (!dont_log_query && mysql_bin_log.is_open())
+    {
+      if (!error)
+        thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
   }
 
   unlock_table_names(thd, tables, (TABLE_LIST*) 0);
@@ -1762,8 +1767,12 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     thd->tmp_table_used= 1;
   }
-  if (!internal_tmp_table)
-    write_bin_log(thd, TRUE);
+  if (!internal_tmp_table && mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
+    mysql_bin_log.write(&qinfo);
+  }
   error= FALSE;
 
 end:
@@ -4217,6 +4226,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!need_copy_table)
     create_info->frm_only= 1;
 
+#ifdef HAVE_PARTITION_DB
   if (partition_changed)
   {
     if (online_drop_partition)
@@ -4310,6 +4320,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_RETURN(FALSE);
     }
   }
+#endif
 
   /*
     Handling of symlinked tables:
