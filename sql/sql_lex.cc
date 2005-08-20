@@ -1511,13 +1511,16 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 
 void st_select_lex_unit::print(String *str)
 {
+  bool union_all= !union_distinct;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     if (sl != first_select())
     {
       str->append(" union ", 7);
-      if (!union_distinct)
+      if (union_all)
 	str->append("all ", 4);
+      else if (union_distinct == sl)
+        union_all= true;
     }
     if (sl->braces)
       str->append('(');

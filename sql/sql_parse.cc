@@ -6415,8 +6415,7 @@ Name_resolution_context *
 make_join_on_context(THD *thd, TABLE_LIST *left_op, TABLE_LIST *right_op)
 {
   Name_resolution_context *on_context;
-  if (!(on_context= (Name_resolution_context*)
-        thd->calloc(sizeof(Name_resolution_context))))
+  if (!(on_context= new Name_resolution_context))
     return NULL;
   on_context->init();
   on_context->first_name_resolution_table=

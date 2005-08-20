@@ -264,8 +264,14 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 
   bzero((char*) &table_list,sizeof(table_list));
 
-  if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
+  if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
+  {
+    if (my_errno == ENOENT)
+      my_error(ER_BAD_DB_ERROR, MYF(ME_BELL+ME_WAITTANG), db);
+    else
+      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path, my_errno);
     DBUG_RETURN(-1);
+  }
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
@@ -2046,7 +2052,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             {
               if (with_i_schema)
               {
-                table->field[3]->store("TEMPORARY", 9, system_charset_info);
+                table->field[3]->store("SYSTEM VIEW", 11, system_charset_info);
               }
               else
               {
@@ -2214,7 +2220,9 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
 
     file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO |
                HA_STATUS_NO_LOCK);
-    if (share->tmp_table == TMP_TABLE)
+    if (share->tmp_table == SYSTEM_TMP_TABLE)
+      table->field[3]->store("SYSTEM VIEW", 11, cs);
+    else if (share->tmp_table)
       table->field[3]->store("TEMPORARY", 9, cs);
     else
       table->field[3]->store("BASE TABLE", 10, cs);
@@ -3554,7 +3562,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   {
     DBUG_RETURN(1);
   }
-  table->s->tmp_table= TMP_TABLE;
+  table->s->tmp_table= SYSTEM_TMP_TABLE;
   table->grant.privilege= SELECT_ACL;
   /*
     This test is necessary to make

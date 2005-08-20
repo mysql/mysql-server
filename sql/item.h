@@ -237,7 +237,7 @@ void view_error_processor(THD *thd, void *data);
   structure before and after INSERT/CREATE and its SELECT to make correct
   field name resolution.
 */
-struct Name_resolution_context
+struct Name_resolution_context: Sql_alloc
 {
   /*
     The name resolution context to search in when an Item cannot be
@@ -1026,6 +1026,7 @@ public:
     struct CONVERSION_INFO
     {
       CHARSET_INFO *character_set_client;
+      CHARSET_INFO *character_set_of_placeholder;
       /*
         This points at character set of connection if conversion
         to it is required (i. e. if placeholder typecode is not BLOB).
