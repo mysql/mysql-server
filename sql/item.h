@@ -1026,6 +1026,7 @@ public:
     struct CONVERSION_INFO
     {
       CHARSET_INFO *character_set_client;
+      CHARSET_INFO *character_set_of_placeholder;
       /*
         This points at character set of connection if conversion
         to it is required (i. e. if placeholder typecode is not BLOB).
