@@ -238,7 +238,8 @@ end:
 
 
 /*
-    Check if user exist and password supplied is correct. 
+  Check if user exist and password supplied is correct. 
+
   SYNOPSIS
     check_user()
     thd          thread handle, thd->{host,user,ip} are used
@@ -273,6 +274,10 @@ int check_user(THD *thd, enum enum_server_command command,
   /* Change database if necessary */
   if (db && db[0])
   {
+    /*
+      thd->db is saved in caller and needs to be freed by caller if this
+      function returns 0
+    */
     thd->db= 0;
     thd->db_length= 0;
     if (mysql_change_db(thd, db, FALSE))

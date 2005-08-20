@@ -150,14 +150,10 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
     DBUG_ASSERT(share->table_name != 0);
     if ((!share->table_name))			// To be removed
       continue;					// Shouldn't happen
-    if (db && my_strcasecmp(system_charset_info, db, share->table_cache_key))
+    if (db && my_strcasecmp(system_charset_info, db, share->db))
       continue;
-
-    if (wild)
-    {
-      if (wild_compare(share->table_name,wild,0))
-	continue;
-    }
+    if (wild && wild_compare(share->table_name,wild,0))
+      continue;
 
     /* Check if user has SELECT privilege for any column in the table */
     table_list.db=        (char*) share->db;
@@ -3803,7 +3799,6 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       if (cur_left_neighbor &&
           cur_table_ref->outer_join & JOIN_TYPE_RIGHT)
       {
-        DBUG_ASSERT(cur_table_ref);
         /* This can happen only for JOIN ... ON. */
         DBUG_ASSERT(table_ref->nested_join->join_list.elements == 2);
         swap_variables(TABLE_LIST*, cur_left_neighbor, cur_table_ref);
@@ -3813,7 +3808,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
           store_top_level_join_columns(thd, cur_table_ref,
                                        cur_left_neighbor, cur_right_neighbor))
         DBUG_RETURN(TRUE);
-     cur_right_neighbor= cur_table_ref;
+      cur_right_neighbor= cur_table_ref;
     }
   }
 
