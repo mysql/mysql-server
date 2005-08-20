@@ -49,7 +49,8 @@ typedef struct st_grant_info
   ulong want_privilege;
 } GRANT_INFO;
 
-enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};
+enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
+                     SYSTEM_TMP_TABLE=3};
 
 enum frm_type_enum
 {
@@ -698,7 +699,7 @@ public:
   Field_iterator_natural_join() :column_ref_it(NULL), cur_column_ref(NULL) {}
   ~Field_iterator_natural_join() { delete column_ref_it; }
   void set(TABLE_LIST *table);
-  void next() { cur_column_ref= (*column_ref_it)++; }
+  void next();
   bool end_of_fields() { return !cur_column_ref; }
   const char *name() { return cur_column_ref->name(); }
   Item *create_item(THD *thd) { return cur_column_ref->create_item(thd); }

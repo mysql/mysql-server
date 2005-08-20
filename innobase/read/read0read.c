@@ -310,11 +310,13 @@ read_cursor_view_create_for_mysql(
 	n = 0;
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
-	/* No active transaction should be visible, not even cr_trx !*/
+	/* No active transaction should be visible, except cr_trx.
+	This is quick fix for a bug 12456 and needs to be fixed when
+	semi-consistent high-granularity read view is implemented. */
 
 	while (trx) {
-                if (trx->conc_state == TRX_ACTIVE ||
-			trx->conc_state == TRX_PREPARED) {
+                if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
+					trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
