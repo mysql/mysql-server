@@ -397,6 +397,12 @@ connection n1;
 --error 1370
 call mysqltest_1.p1();
 disconnect n1;
+# Test also without a current database
+connect (n2,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection n2;
+--error 1370
+call mysqltest_1.p1();
+disconnect n2;
 
 connection default;
 
