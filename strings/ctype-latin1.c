@@ -441,6 +441,7 @@ CHARSET_INFO my_charset_latin1=
     1,			/* mbmaxlen  */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
+    0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler
 };
@@ -739,6 +740,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   1,					/* mbmaxlen  */
   0,					/* min_sort_char */
   247,					/* max_sort_char */
+  0,                                    /* escape_with_backslash_is_dangerous */
   &my_charset_handler,
   &my_collation_german2_ci_handler
 };
@@ -770,6 +772,7 @@ CHARSET_INFO my_charset_latin1_bin=
   1,					/* mbmaxlen  */
   0,					/* min_sort_char */
   255,					/* max_sort_char */
+  0,                                    /* escape_with_backslash_is_dangerous */
   &my_charset_handler,
   &my_collation_8bit_bin_handler
 };
