@@ -334,6 +334,22 @@ SELECT DISTINCT html,SUM(rout)/(SUM(rin)+1) as 'prod' FROM t1 GROUP BY rin;
 drop table t1;
 
 #
+# Test cases for #12625: DISTINCT for a list with constants
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+SELECT DISTINCT a, 1 FROM t1;
+SELECT DISTINCT 1, a FROM t1;
+
+CREATE TABLE t2 (a int, b int); 
+INSERT INTO t2 VALUES (1,1),(2,2),(2,3),(2,4),(3,5);
+SELECT DISTINCT a, b, 2 FROM t2;
+SELECT DISTINCT 2, a, b FROM t2;
+SELECT DISTINCT a, 2, b FROM t2;
+
+DROP TABLE t1,t2;
+
 # Bug 9784 DISTINCT IFNULL truncates data
 #
 create table t1 (id int, dsc varchar(50));
