@@ -3522,7 +3522,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     LQHKEY_abort(signal, 4);
     return;
   }
-  if(tabptr.p->schemaVersion != schemaVersion){
+  if(table_version_major(tabptr.p->schemaVersion) != 
+     table_version_major(schemaVersion)){
     LQHKEY_abort(signal, 5);
     return;
   }
@@ -4461,7 +4462,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->requestInfo = Treqinfo;
   lqhKeyReq->tcBlockref = sig4;
 
-  sig0 = regTcPtr->tableref + (regTcPtr->schemaVersion << 16);
+  sig0 = regTcPtr->tableref + ((regTcPtr->schemaVersion << 16) & 0xFFFF0000);
   sig1 = regTcPtr->fragmentid + (regTcPtr->nodeAfterNext[0] << 16);
   sig2 = regTcPtr->transid[0];
   sig3 = regTcPtr->transid[1];
@@ -15922,7 +15923,7 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
   tabptr.i = tcConnectptr.p->tableref;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if (getFragmentrec(signal, tcConnectptr.p->fragmentid) &&
-      (tabptr.p->schemaVersion == tcConnectptr.p->schemaVersion)) {
+      (table_version_major(tabptr.p->schemaVersion) == table_version_major(tcConnectptr.p->schemaVersion))) {
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       if (fragptr.p->execSrNoReplicas > logPartPtr.p->execSrExecuteIndex) {
         ndbrequire((fragptr.p->execSrNoReplicas - 1) < 4);
