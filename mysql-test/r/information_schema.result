@@ -966,4 +966,8 @@ column_name	column_default
 a	NULL
 b	NULL
 use test;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO			
+b	int(11)	YES		NULL	
 drop table t1;
