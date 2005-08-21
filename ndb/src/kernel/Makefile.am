@@ -23,7 +23,6 @@ INCLUDES += \
               -Iblocks/backup \
               -Iblocks/dbutil \
               -Iblocks/suma \
-              -Iblocks/grep \
               -Iblocks/dbtux
 
 LDADD +=  \
@@ -41,7 +40,6 @@ LDADD +=  \
               blocks/backup/libbackup.a \
               blocks/dbutil/libdbutil.a \
               blocks/suma/libsuma.a \
-              blocks/grep/libgrep.a \
               blocks/dbtux/libdbtux.a \
               vm/libkernel.a	\
               error/liberror.a \
