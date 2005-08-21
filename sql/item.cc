@@ -1230,7 +1230,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
-      value.cs_info.character_set_client= fromcs;
+      value.cs_info.character_set_of_placeholder= fromcs;
       /*
         Setup source and destination character sets so that they
         are different only if conversion is necessary: this will
@@ -1443,7 +1443,7 @@ String *Item_param::val_str(String* str)
   and avoid one more memcpy/alloc between str and log string.
 */
 
-const String *Item_param::query_val_str(String* str, THD *thd) const
+const String *Item_param::query_val_str(String* str) const
 {
   switch (state) {
   case INT_VALUE:
@@ -1482,18 +1482,17 @@ const String *Item_param::query_val_str(String* str, THD *thd) const
 
       buf= str->c_ptr_quick();
       ptr= buf;
-      if (thd->charset()->escape_with_backslash_is_dangerous)
+      if (value.cs_info.character_set_client->escape_with_backslash_is_dangerous)
       {
-        ptr= strmov(ptr, "x\'");
-        ptr= bare_str_to_hex(ptr, str_value.ptr(), str_value.length());
+        ptr= str_to_hex(ptr, str_value.ptr(), str_value.length());
       }
       else
       {
         *ptr++= '\'';
         ptr+= escape_string_for_mysql(str_value.charset(), ptr,
                                       str_value.ptr(), str_value.length());
+        *ptr++='\'';
       }
-      *ptr++='\'';
       str->length(ptr - buf);
       break;
     }
@@ -1523,10 +1522,10 @@ bool Item_param::convert_str_value(THD *thd)
       here only if conversion is really necessary.
     */
     if (value.cs_info.final_character_set_of_str_value !=
-        value.cs_info.character_set_client)
+        value.cs_info.character_set_of_placeholder)
     {
       rc= thd->convert_string(&str_value,
-                              value.cs_info.character_set_client,
+                              value.cs_info.character_set_of_placeholder,
                               value.cs_info.final_character_set_of_str_value);
     }
     else
