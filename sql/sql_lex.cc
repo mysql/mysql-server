@@ -1520,7 +1520,7 @@ void st_select_lex_unit::print(String *str)
       if (union_all)
 	str->append("all ", 4);
       else if (union_distinct == sl)
-        union_all= true;
+        union_all= TRUE;
     }
     if (sl->braces)
       str->append('(');
