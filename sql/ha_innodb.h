@@ -203,7 +203,7 @@ class ha_innobase: public handler
         bool primary_key_is_clustered() { return true; }
         int cmp_ref(const byte *ref1, const byte *ref2);
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
-						     uint table_changes);
+					uint table_changes);
 };
 
 extern struct show_var_st innodb_status_variables[];

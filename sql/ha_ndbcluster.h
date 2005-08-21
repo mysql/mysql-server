@@ -585,7 +585,7 @@ static void set_tabname(const char *pathname, char *tabname);
                                      ulonglong *engine_data);
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
-						 uint table_changes);
+				  uint table_changes);
 
 private:
   int alter_table_name(const char *to);
