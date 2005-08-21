@@ -998,7 +998,7 @@ err:
     mysql_change_db()
     thd			Thread handler
     name		Databasename
-    no_access_check	True= don't do access check
+    no_access_check	True don't do access check. In this case name may be ""
 
   DESCRIPTION
     Becasue the database name may have been given directly from the
@@ -1025,14 +1025,22 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
   HA_CREATE_INFO create;
-  bool schema_db= 0;
+  bool system_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
 #endif
   DBUG_ENTER("mysql_change_db");
+  DBUG_PRINT("enter",("name: '%s'",name));
 
+  /* dbname can only be NULL if malloc failed */
   if (!dbname || !(db_length= strlen(dbname)))
   {
+    if (no_access_check && dbname)
+    {
+      /* Called from SP when orignal database was not set */
+      system_db= 1;
+      goto end;
+    }
     x_free(dbname);				/* purecov: inspected */
     my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
                MYF(0));                         /* purecov: inspected */
@@ -1047,7 +1055,7 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   DBUG_PRINT("info",("Use database: %s", dbname));
   if (!my_strcasecmp(system_charset_info, dbname, information_schema_name.str))
   {
-    schema_db= 1;
+    system_db= 1;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     db_access= SELECT_ACL;
 #endif
@@ -1055,13 +1063,15 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!no_access_check) {
+  if (!no_access_check)
+  {
     if (test_all_bits(thd->master_access,DB_ACLS))
       db_access=DB_ACLS;
     else
       db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
                   thd->master_access);
-    if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+    if (!(db_access & DB_ACLS) && (!grant_option ||
+                                   check_grant_db(thd,dbname)))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->priv_user,
@@ -1094,7 +1104,7 @@ end:
   if (!no_access_check)
     thd->db_access=db_access;
 #endif
-  if (schema_db)
+  if (system_db)
   {
     thd->db_charset= system_charset_info;
     thd->variables.collation_database= system_charset_info;
