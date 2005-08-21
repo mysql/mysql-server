@@ -726,3 +726,4 @@ partition by list (a)
 partitions 2
 (partition x1 values in 4,
  partition x2 values in (5));
+

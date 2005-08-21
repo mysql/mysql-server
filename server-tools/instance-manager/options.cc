@@ -21,7 +21,7 @@
 #include "options.h"
 
 #include "priv.h"
-#include "port.h"
+#include "portability.h"
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <m_string.h>
