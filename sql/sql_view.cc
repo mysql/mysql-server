@@ -310,7 +310,7 @@ bool mysql_create_view(THD *thd,
     open_and_lock_tables can change the value of tables,
     e.g. it may happen if before the function call tables was equal to 0. 
   */ 
-  for (tbl= tables= lex->query_tables; tbl; tbl= tbl->next_global)
+  for (tbl= lex->query_tables; tbl; tbl= tbl->next_global)
   {
     /* is this table temporary and is not view? */
     if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->view &&
