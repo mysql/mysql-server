@@ -2518,12 +2518,9 @@ void Field_iterator_natural_join::set(TABLE_LIST *table_ref)
 void Field_iterator_natural_join::next()
 {
   cur_column_ref= (*column_ref_it)++;
-  DBUG_ASSERT(cur_column_ref ?
-              (cur_column_ref->table_field ?
-               cur_column_ref->table_ref->table ==
-               cur_column_ref->table_field->table :
-               TRUE) :
-              TRUE);
+  DBUG_ASSERT(!cur_column_ref || ! cur_column_ref->table_field ||
+              cur_column_ref->table_ref->table ==
+              cur_column_ref->table_field->table);
 }
 
 
@@ -2695,9 +2692,8 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, bool *is_created)
     nj_col= natural_join_it.column_ref();
     DBUG_ASSERT(nj_col);
   }
-  DBUG_ASSERT(nj_col->table_field ?
-              nj_col->table_ref->table == nj_col->table_field->table :
-              TRUE);
+  DBUG_ASSERT(!nj_col->table_field ||
+              nj_col->table_ref->table == nj_col->table_field->table);
   return nj_col;
 }
 
