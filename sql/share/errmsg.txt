@@ -5440,7 +5440,7 @@ ER_PARTITION_ENTRY_ERROR
         eng "Partitioning can not be used stand-alone in query"
         swe "Partitioneringssyntax kan inte användas på egen hand i en SQL-fråga"
 ER_MIX_HANDLER_ERROR
-        eng "The mix of handlers in the partitions is not allowed in this version in MySQL"
+        eng "The mix of handlers in the partitions is not allowed in this version of MySQL"
         swe "Denna mix av lagringsmotorer är inte tillåten i denna version av MySQL"
 ER_PARTITION_NOT_DEFINED_ERROR
         eng "For the partitioned engine it is necessary to define all %s"
@@ -5466,3 +5466,44 @@ ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
 ER_NO_PARTS_ERROR
         eng "Number of %s = 0 is not an allowed value"
         swe "Antal %s = 0 är inte ett tillåten värde"
+ER_PARTITION_MGMT_ON_NONPARTITIONED
+        eng "Partition management on a not partitioned table is not possible"
+        swe "Partitioneringskommando på en opartitionerad tabell är inte möjligt"
+ER_DROP_PARTITION_NON_EXISTENT
+        eng "Error in list of partitions to change"
+        swe "Fel i listan av partitioner att förändra"
+ER_DROP_LAST_PARTITION
+        eng "Cannot remove all partitions, use DROP TABLE instead"
+        swe "Det är inte tillåtet att ta bort alla partitioner, använd DROP TABLE istället"
+ER_COALESCE_ONLY_ON_HASH_PARTITION
+        eng "COALESCE PARTITION can only be used on HASH/KEY partitions"
+        swe "COALESCE PARTITION kan bara användas på HASH/KEY partitioner"
+ER_ONLY_ON_RANGE_LIST_PARTITION
+        eng "%s PARTITION can only be used on RANGE/LIST partitions"
+        eng "%s PARTITION kan bara användas på RANGE/LIST partitioner"
+ER_ADD_PARTITION_SUBPART_ERROR
+        eng "Trying to Add partition(s) with wrong number of subpartitions"
+        swe "ADD PARTITION med fel antal subpartitioner"
+ER_ADD_PARTITION_NO_NEW_PARTITION
+        eng "At least one partition must be added"
+        swe "Åtminstone en partition måste läggas till vid ADD PARTITION"
+ER_COALESCE_PARTITION_NO_PARTITION
+        eng "At least one partition must be coalesced"
+        swe "Åtminstone en partition måste slås ihop vid COALESCE PARTITION"
+ER_REORG_PARTITION_NOT_EXIST
+        eng "More partitions to reorganise than there are partitions"
+        swe "Fler partitioner att reorganisera än det finns partitioner"
+ER_SAME_NAME_PARTITION
+        eng "All partitions must have unique names in the table"
+        swe "Alla partitioner i tabellen måste ha unika namn"
+ER_CONSECUTIVE_REORG_PARTITIONS
+        eng "When reorganising a set of partitions they must be in consecutive order"
+        swe "När ett antal partitioner omorganiseras måste de vara i konsekutiv ordning"
+ER_REORG_OUTSIDE_RANGE
+        eng "The new partitions cover a bigger range then the reorganised partitions do"
+        swe "De nya partitionerna täcker ett större intervall än de omorganiserade partitionerna"
+ER_DROP_PARTITION_FAILURE
+        eng "Drop partition not supported in this version for this handler"
+ER_DROP_PARTITION_WHEN_FK_DEFINED
+        eng "Cannot drop a partition when a foreign key constraint is defined on the table"
+        swe "Kan inte ta bort en partition när en främmande nyckel är definierad på tabellen"
