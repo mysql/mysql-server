@@ -426,9 +426,14 @@ struct ilink
 
 template <class T> class I_List_iterator;
 
+/*
+  WARNING: copy constructor of this class does not create a usable
+  copy, as its members may point at each other.
+*/
+
 class base_ilist
 {
-  public:
+public:
   struct ilink *first,last;
   inline void empty() { first= &last; last.prev= &first; }
   base_ilist() { empty(); }
