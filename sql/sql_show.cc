@@ -626,7 +626,7 @@ static const char *require_quotes(const char *name, uint name_length)
   uint length;
   const char *end= name + name_length;
 
-  for ( ; name < end ; name++)
+  for (; name < end ; name++)
   {
     uchar chr= (uchar) *name;
     length= my_mbcharlen(system_charset_info, chr);
@@ -1914,7 +1914,7 @@ int make_db_list(THD *thd, List<char> *files,
 int schema_tables_add(THD *thd, List<char> *files, const char *wild)
 {
   ST_SCHEMA_TABLE *tmp_schema_table= schema_tables;
-  for ( ; tmp_schema_table->table_name; tmp_schema_table++)
+  for (; tmp_schema_table->table_name; tmp_schema_table++)
   {
     if (tmp_schema_table->hidden)
       continue;
@@ -2373,7 +2373,13 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
+  TABLE *show_table;
+  handler *file;
+  Field **ptr,*field;
+  int count;
+  uint base_name_length, file_name_length;
   DBUG_ENTER("get_schema_column_record");
+
   if (res)
   {
     if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS)
@@ -2390,189 +2396,187 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     DBUG_RETURN(res);
   }
 
-  TABLE *show_table= tables->table;
-  handler *file= show_table->file;
+  show_table= tables->table;
+  file= show_table->file;
+  count= 0;
   file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   restore_record(show_table, s->default_values);
-  Field **ptr,*field;
-  int count= 0;
+  base_name_length= strlen(base_name);
+  file_name_length= strlen(file_name);
+
   for (ptr=show_table->field; (field= *ptr) ; ptr++)
   {
-    if (!wild || !wild[0] || 
-        !wild_case_compare(system_charset_info, field->field_name,wild))
-    {
-      const char *tmp_buff;
-      byte *pos;
-      bool is_blob;
-      uint flags=field->flags;
-      char tmp[MAX_FIELD_WIDTH];
-      char tmp1[MAX_FIELD_WIDTH];
-      String type(tmp,sizeof(tmp), system_charset_info);
-      char *end= tmp;
-      count++;
-      restore_record(table, s->default_values);
+    const char *tmp_buff;
+    byte *pos;
+    bool is_blob;
+    uint flags=field->flags;
+    char tmp[MAX_FIELD_WIDTH];
+    char tmp1[MAX_FIELD_WIDTH];
+    String type(tmp,sizeof(tmp), system_charset_info);
+    char *end;
+    int decimals, field_length;
+
+    if (wild && wild[0] &&
+        wild_case_compare(system_charset_info, field->field_name,wild))
+      continue;
+
+    flags= field->flags;
+    count++;
+    /* Get default row, with all NULL fields set to NULL */
+    restore_record(table, s->default_values);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      uint col_access;
-      check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
-                   &tables->grant.privilege, 0, 0);
-      col_access= get_column_grant(thd, &tables->grant, 
-                                   base_name, file_name,
-                                   field->field_name) & COL_ACLS;
-      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && 
-          !tables->schema_table && !col_access)
-        continue;
-      for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+    uint col_access;
+    check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
+                 &tables->grant.privilege, 0, 0);
+    col_access= get_column_grant(thd, &tables->grant, 
+                                 base_name, file_name,
+                                 field->field_name) & COL_ACLS;
+    if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && 
+        !tables->schema_table && !col_access)
+      continue;
+    end= tmp;
+    for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+    {
+      if (col_access & 1)
       {
-        if (col_access & 1)
-        {
-          *end++=',';
-          end=strmov(end,grant_types.type_names[bitnr]);
-        }
+        *end++=',';
+        end=strmov(end,grant_types.type_names[bitnr]);
       }
-      if (tables->schema_table)      // any user has 'select' privilege on all 
-                                     // I_S table columns
-        table->field[17]->store(grant_types.type_names[0],
-                                strlen(grant_types.type_names[0]), cs);
-      else
-        table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
-
-#else
-      *end= 0;
-#endif
-      table->field[1]->store(base_name, strlen(base_name), cs);
-      table->field[2]->store(file_name, strlen(file_name), cs);
-      table->field[3]->store(field->field_name, strlen(field->field_name),
-                             cs);
-      table->field[4]->store((longlong) count);
-      field->sql_type(type);
-      table->field[14]->store(type.ptr(), type.length(), cs);		
-      tmp_buff= strchr(type.ptr(), '(');
-      table->field[7]->store(type.ptr(),
-                             (tmp_buff ? tmp_buff - type.ptr() :
-                              type.length()), cs);
-      if (show_table->timestamp_field == field &&
-          field->unireg_check != Field::TIMESTAMP_UN_FIELD)
-      {
-        table->field[5]->store("CURRENT_TIMESTAMP", 17, cs);
-        table->field[5]->set_notnull();
-      }
-      else if (field->unireg_check != Field::NEXT_NUMBER &&
-               !field->is_null() &&
-               !(field->flags & NO_DEFAULT_VALUE_FLAG))
-      {
-        String def(tmp1,sizeof(tmp1), cs);
-        type.set(tmp, sizeof(tmp), field->charset());
-        field->val_str(&type);
-        uint dummy_errors;
-        def.copy(type.ptr(), type.length(), type.charset(), cs, &dummy_errors);
-        table->field[5]->store(def.ptr(), def.length(), def.charset());
-        table->field[5]->set_notnull();
-      }
-      else if (field->unireg_check == Field::NEXT_NUMBER ||
-               lex->orig_sql_command != SQLCOM_SHOW_FIELDS ||
-               field->maybe_null())
-        table->field[5]->set_null();                // Null as default
-      else
-      {
-        table->field[5]->store("",0, cs);
-        table->field[5]->set_notnull();
-      }
-      pos=(byte*) ((flags & NOT_NULL_FLAG) &&
-                   field->type() != FIELD_TYPE_TIMESTAMP ?
-                   "NO" : "YES");
-      table->field[6]->store((const char*) pos,
-                             strlen((const char*) pos), cs);
-      is_blob= (field->type() == FIELD_TYPE_BLOB);
-      if (field->has_charset() || is_blob)
-      {
-        longlong c_octet_len= is_blob ? (longlong) field->max_length() :
-          (longlong) field->max_length()/field->charset()->mbmaxlen;
-        table->field[8]->store(c_octet_len);
-        table->field[8]->set_notnull();
-        table->field[9]->store((longlong) field->max_length());
-        table->field[9]->set_notnull();
-      }
-
-      {
-        uint dec =field->decimals();
-        switch (field->type()) {
-        case FIELD_TYPE_NEWDECIMAL:
-          table->field[10]->store((longlong)
-                                  ((Field_new_decimal*)field)->precision);
-          table->field[10]->set_notnull();
-          table->field[11]->store((longlong) field->decimals());
-          table->field[11]->set_notnull();
-          break;
-        case FIELD_TYPE_DECIMAL:
-        {
-          uint int_part=field->field_length - (dec  ? dec + 1 : 0);
-          table->field[10]->store((longlong) (int_part + dec - 1));
-          table->field[10]->set_notnull();
-          table->field[11]->store((longlong) field->decimals());
-          table->field[11]->set_notnull();
-          break;
-        }
-        case FIELD_TYPE_TINY:
-        case FIELD_TYPE_SHORT:
-        case FIELD_TYPE_LONG:
-        case FIELD_TYPE_LONGLONG:
-        case FIELD_TYPE_INT24:
-        {
-          table->field[10]->store((longlong) field->max_length() - 1);
-          table->field[10]->set_notnull();
-          table->field[11]->store((longlong) 0);
-          table->field[11]->set_notnull();
-          break;
-        }
-        case FIELD_TYPE_BIT:
-        {
-          table->field[10]->store((longlong) field->max_length());
-          table->field[10]->set_notnull();
-          break;
-        }
-        case FIELD_TYPE_FLOAT:  
-        case FIELD_TYPE_DOUBLE:
-        {
-          table->field[10]->store((longlong) field->field_length);
-          table->field[10]->set_notnull();
-          if (dec != NOT_FIXED_DEC)
-          {
-            table->field[11]->store((longlong) dec);
-            table->field[11]->set_notnull();
-          }
-          break;
-        }
-        default:
-          break;
-        }
-      }
-      if (field->has_charset())
-      {
-        pos=(byte*) field->charset()->csname;
-        table->field[12]->store((const char*) pos,
-                                strlen((const char*) pos), cs);
-        table->field[12]->set_notnull();
-        pos=(byte*) field->charset()->name;
-        table->field[13]->store((const char*) pos,
-                                strlen((const char*) pos), cs);
-        table->field[13]->set_notnull();
-      }
-      pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
-                   (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
-                   (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-      table->field[15]->store((const char*) pos,
-                              strlen((const char*) pos), cs);
-      end= tmp;
-      if (field->unireg_check == Field::NEXT_NUMBER)
-        end=strmov(tmp,"auto_increment");
-      table->field[16]->store(tmp, (uint) (end-tmp), cs);
-
-      end=tmp;
-      table->field[18]->store(field->comment.str, field->comment.length, cs);
-      if (schema_table_store_record(thd, table))
-        DBUG_RETURN(1);
     }
+    if (tables->schema_table)      // any user has 'select' privilege on all 
+      // I_S table columns
+      table->field[17]->store(grant_types.type_names[0],
+                              strlen(grant_types.type_names[0]), cs);
+    else
+      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+
+#endif
+    table->field[1]->store(base_name, base_name_length, cs);
+    table->field[2]->store(file_name, file_name_length, cs);
+    table->field[3]->store(field->field_name, strlen(field->field_name),
+                           cs);
+    table->field[4]->store((longlong) count);
+    field->sql_type(type);
+    table->field[14]->store(type.ptr(), type.length(), cs);		
+    tmp_buff= strchr(type.ptr(), '(');
+    table->field[7]->store(type.ptr(),
+                           (tmp_buff ? tmp_buff - type.ptr() :
+                            type.length()), cs);
+    if (show_table->timestamp_field == field &&
+        field->unireg_check != Field::TIMESTAMP_UN_FIELD)
+    {
+      table->field[5]->store("CURRENT_TIMESTAMP", 17, cs);
+      table->field[5]->set_notnull();
+    }
+    else if (field->unireg_check != Field::NEXT_NUMBER &&
+             !field->is_null() &&
+             !(field->flags & NO_DEFAULT_VALUE_FLAG))
+    {
+      String def(tmp1,sizeof(tmp1), cs);
+      type.set(tmp, sizeof(tmp), field->charset());
+      field->val_str(&type);
+      uint dummy_errors;
+      def.copy(type.ptr(), type.length(), type.charset(), cs, &dummy_errors);
+      table->field[5]->store(def.ptr(), def.length(), def.charset());
+      table->field[5]->set_notnull();
+    }
+    else if (field->unireg_check == Field::NEXT_NUMBER ||
+             lex->orig_sql_command != SQLCOM_SHOW_FIELDS ||
+             field->maybe_null())
+      table->field[5]->set_null();                // Null as default
+    else
+    {
+      table->field[5]->store("",0, cs);
+      table->field[5]->set_notnull();
+    }
+    pos=(byte*) ((flags & NOT_NULL_FLAG) &&
+                 field->type() != FIELD_TYPE_TIMESTAMP ?
+                 "NO" : "YES");
+    table->field[6]->store((const char*) pos,
+                           strlen((const char*) pos), cs);
+    is_blob= (field->type() == FIELD_TYPE_BLOB);
+    if (field->has_charset() || is_blob)
+    {
+      longlong c_octet_len= is_blob ? (longlong) field->max_length() :
+        (longlong) field->max_length()/field->charset()->mbmaxlen;
+      table->field[8]->store(c_octet_len);
+      table->field[8]->set_notnull();
+      table->field[9]->store((longlong) field->max_length());
+      table->field[9]->set_notnull();
+    }
+
+    /*
+      Calculate field_length and decimals.
+      They are set to -1 if they should not be set (we should return NULL)
+    */
+
+    decimals= field->decimals();
+    switch (field->type()) {
+    case FIELD_TYPE_NEWDECIMAL:
+      field_length= ((Field_new_decimal*) field)->precision;
+      break;
+    case FIELD_TYPE_DECIMAL:
+      field_length= field->field_length - (decimals  ? 2 : 1);
+      break;
+    case FIELD_TYPE_TINY:
+    case FIELD_TYPE_SHORT:
+    case FIELD_TYPE_LONG:
+    case FIELD_TYPE_LONGLONG:
+    case FIELD_TYPE_INT24:
+      field_length= field->max_length() - 1;
+      break;
+    case FIELD_TYPE_BIT:
+      field_length= field->max_length();
+      decimals= -1;                             // return NULL
+      break;
+    case FIELD_TYPE_FLOAT:  
+    case FIELD_TYPE_DOUBLE:
+      field_length= field->field_length;
+      if (decimals == NOT_FIXED_DEC)
+        decimals= -1;                           // return NULL
+    break;
+    default:
+      field_length= decimals= -1;
+      break;
+    }
+
+    if (field_length >= 0)
+    {
+      table->field[10]->store((longlong) field_length);
+      table->field[10]->set_notnull();
+    }
+    if (decimals >= 0)
+    {
+      table->field[11]->store((longlong) decimals);
+      table->field[11]->set_notnull();
+    }
+
+    if (field->has_charset())
+    {
+      pos=(byte*) field->charset()->csname;
+      table->field[12]->store((const char*) pos,
+                              strlen((const char*) pos), cs);
+      table->field[12]->set_notnull();
+      pos=(byte*) field->charset()->name;
+      table->field[13]->store((const char*) pos,
+                              strlen((const char*) pos), cs);
+      table->field[13]->set_notnull();
+    }
+    pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
+                 (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
+                 (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
+    table->field[15]->store((const char*) pos,
+                            strlen((const char*) pos), cs);
+
+    end= tmp;
+    if (field->unireg_check == Field::NEXT_NUMBER)
+      end=strmov(tmp,"auto_increment");
+    table->field[16]->store(tmp, (uint) (end-tmp), cs);
+
+    table->field[18]->store(field->comment.str, field->comment.length, cs);
+    if (schema_table_store_record(thd, table))
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
@@ -2585,7 +2589,8 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
-  for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
+
+  for (cs= all_charsets ; cs < all_charsets+255 ; cs++)
   {
     CHARSET_INFO *tmp_cs= cs[0];
     if (tmp_cs && (tmp_cs->state & MY_CS_PRIMARY) && 
@@ -2593,12 +2598,12 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
         !(wild && wild[0] &&
 	  wild_case_compare(scs, tmp_cs->csname,wild)))
     {
+      const char *comment;
       restore_record(table, s->default_values);
       table->field[0]->store(tmp_cs->csname, strlen(tmp_cs->csname), scs);
       table->field[1]->store(tmp_cs->name, strlen(tmp_cs->name), scs);
-      table->field[2]->store(tmp_cs->comment ? tmp_cs->comment : "",
-			     strlen(tmp_cs->comment ? tmp_cs->comment : ""),
-                             scs);
+      comment= tmp_cs->comment ? tmp_cs->comment : "";
+      table->field[2]->store(comment, strlen(comment), scs);
       table->field[3]->store((longlong) tmp_cs->mbmaxlen);
       if (schema_table_store_record(thd, table))
         return 1;
@@ -2614,14 +2619,14 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
-  for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
+  for (cs= all_charsets ; cs < all_charsets+255 ; cs++ )
   {
     CHARSET_INFO **cl;
     CHARSET_INFO *tmp_cs= cs[0];
     if (!tmp_cs || !(tmp_cs->state & MY_CS_AVAILABLE) || 
         !(tmp_cs->state & MY_CS_PRIMARY))
       continue;
-    for ( cl= all_charsets; cl < all_charsets+255 ;cl ++)
+    for (cl= all_charsets; cl < all_charsets+255 ;cl ++)
     {
       CHARSET_INFO *tmp_cl= cl[0];
       if (!tmp_cl || !(tmp_cl->state & MY_CS_AVAILABLE) || 
@@ -2654,14 +2659,14 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
   CHARSET_INFO **cs;
   TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
-  for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
+  for (cs= all_charsets ; cs < all_charsets+255 ; cs++ )
   {
     CHARSET_INFO **cl;
     CHARSET_INFO *tmp_cs= cs[0];
     if (!tmp_cs || !(tmp_cs->state & MY_CS_AVAILABLE) || 
         !(tmp_cs->state & MY_CS_PRIMARY))
       continue;
-    for ( cl= all_charsets; cl < all_charsets+255 ;cl ++)
+    for (cl= all_charsets; cl < all_charsets+255 ;cl ++)
     {
       CHARSET_INFO *tmp_cl= cl[0];
       if (!tmp_cl || !(tmp_cl->state & MY_CS_AVAILABLE) || 
@@ -3266,7 +3271,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name)
 {
   ST_SCHEMA_TABLE *schema_table= schema_tables;
-  for ( ; schema_table->table_name; schema_table++)
+  for (; schema_table->table_name; schema_table++)
   {
     if (!my_strcasecmp(system_charset_info,
                        schema_table->table_name,
@@ -3307,7 +3312,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("create_schema_table");
 
-  for ( ; fields_info->field_name; fields_info++)
+  for (; fields_info->field_name; fields_info++)
   {
     switch (fields_info->field_type) {
     case MYSQL_TYPE_LONG:
@@ -3376,7 +3381,7 @@ int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   ST_FIELD_INFO *field_info= schema_table->fields_info;
   Name_resolution_context *context= &thd->lex->select_lex.context;
-  for ( ; field_info->field_name; field_info++)
+  for (; field_info->field_name; field_info++)
   {
     if (field_info->old_name)
     {
