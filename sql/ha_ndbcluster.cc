@@ -34,7 +34,7 @@
 
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
-extern my_bool opt_ndb_linear_hash;
+extern enum ndb_distribution opt_ndb_distribution_id;
 extern const char *opt_ndbcluster_connectstring;
 
 // Default value for parallelism
@@ -7450,7 +7450,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  NDBTAB::FragmentType ftype;
+  NDBTAB::FragmentType ftype= NDBTAB::DistrKeyHash;
   ushort node_group[MAX_PARTITIONS];
   uint no_nodes= g_ndb_cluster_connection->no_db_nodes(), no_fragments, i;
   DBUG_ENTER("ndb_set_fragmentation");
@@ -7481,10 +7481,14 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
   node_group[0]= 0;
   for (i= 1; i < no_fragments; i++)
     node_group[i]= UNDEF_NODEGROUP;
-  if (opt_ndb_linear_hash)
+  switch (opt_ndb_distribution_id)
+  {
+  case ND_KEYHASH:
+    break;
+  case ND_LINHASH:
     ftype= NDBTAB::DistrKeyLin;
-  else
-    ftype= NDBTAB::DistrKeyHash;
+    break;
+  }
   tab.setFragmentType(ftype);
   tab.setNodeGroupIds(&node_group, no_fragments);
   DBUG_VOID_RETURN;
