@@ -640,7 +640,10 @@ void field_conv(Field *to,Field *from)
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          to->type() != FIELD_TYPE_DATE &&
-         to->type() != FIELD_TYPE_DATETIME))
+         to->type() != FIELD_TYPE_DATETIME) &&
+        (from->real_type() != MYSQL_TYPE_VARCHAR ||
+         ((Field_varstring*)from)->length_bytes ==
+          ((Field_varstring*)to)->length_bytes))
     {						// Identical fields
 #ifdef HAVE_purify
       /* This may happen if one does 'UPDATE ... SET x=x' */
