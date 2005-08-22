@@ -362,7 +362,12 @@ my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
-bool opt_ndb_linear_hash;
+
+const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
+TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
+				    "", ndb_distribution_names, NULL };
+const char *opt_ndb_distribution= ndb_distribution_names[ND_KEYHASH];
+enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -4311,7 +4316,7 @@ enum options_mysqld
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
-  OPT_NDB_LINEAR_HASH,
+  OPT_NDB_DISTRIBUTION,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4879,16 +4884,11 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    0, GET_ULONG, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
-  {"ndb-use-linear-hash", OPT_NDB_LINEAR_HASH,
-   "Flag to indicate whether to use linear hash for default in new tables",
-   (gptr*) &opt_ndb_linear_hash,
-   (gptr*) &opt_ndb_linear_hash,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb_use_linear_hash", OPT_NDB_LINEAR_HASH,
-   "Flag to indicate whether to use linear hash for default in new tables",
-   (gptr*) &opt_ndb_linear_hash,
-   (gptr*) &opt_ndb_linear_hash,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-distibution", OPT_NDB_DISTRIBUTION,
+   "Default distribution for new tables in ndb",
+   (gptr*) &opt_ndb_distribution,
+   (gptr*) &opt_ndb_distribution,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-force-send", OPT_NDB_FORCE_SEND,
    "Force send of buffers to ndb immediately without waiting for "
    "other threads.",
@@ -6673,6 +6673,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
     opt_ndbcluster_connectstring= opt_ndb_constrbuf;
+    break;
+  case OPT_NDB_DISTRIBUTION:
+    int id;
+    if ((id= find_type(argument, &ndb_distribution_typelib, 2)) <= 0)
+    {
+      fprintf(stderr, 
+	      "Unknown ndb distribution type: '%s' "
+	      "(should be '%s' or '%s')\n", 
+	      argument,
+              ndb_distribution_names[ND_KEYHASH],
+              ndb_distribution_names[ND_LINHASH]);
+      exit(1);
+    }
+    opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
     break;
 #endif
   case OPT_INNODB:
