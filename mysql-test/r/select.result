@@ -2765,3 +2765,13 @@ f1	f2	f3	f4
  2	2	 2	 one 
  2	2	 2	 two 
 drop table t1,t2;
+create table t1 (empnum smallint, grp int);
+create table t2 (empnum int, name char(5));
+insert into t1 values(1,1);
+insert into t2 values(1,'bob');
+create view v1 as select * from t2 inner join t1 using (empnum);
+select * from v1;
+empnum	name	grp
+1	bob	1
+drop table t1,t2;
+drop view v1;
