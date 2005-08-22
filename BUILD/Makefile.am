@@ -19,6 +19,7 @@
 
 EXTRA_DIST =		FINISH.sh \
 			SETUP.sh \
+			autorun.sh \
 			check-cpu \
 			compile-alpha \
 			compile-alpha-ccc \
