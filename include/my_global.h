@@ -933,10 +933,10 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
   (ABSTIME).ts_nsec=0; \
 }
 #define set_timespec_nsec(ABSTIME,NSEC) \
-{\
-  ulonglong now= my_getsystime(); \
-  (ABSTIME).ts_sec= (now / ULL(10000000)) + (NSEC / ULL(1000000000)); \
-  (ABSTIME).ts_nsec= (now % ULL(10000000)) * 100 + (NSEC % ULL(1000000000)); \
+{ \
+  ulonglong now= my_getsystime() + (NSEC/100); \
+  (ABSTIME).ts_sec=  (now / ULL(10000000)); \
+  (ABSTIME).ts_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
 #else
 #define set_timespec(ABSTIME,SEC) \
@@ -948,9 +948,9 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 }
 #define set_timespec_nsec(ABSTIME,NSEC) \
 {\
-  ulonglong now= my_getsystime(); \
-  (ABSTIME).tv_sec= (now / ULL(10000000)) + (NSEC / ULL(1000000000)); \
-  (ABSTIME).tv_nsec= (now % ULL(10000000)) * 100 + (NSEC % ULL(1000000000)); \
+  ulonglong now= my_getsystime() + (NSEC/100); \
+  (ABSTIME).tv_sec=  (now / ULL(10000000)); \
+  (ABSTIME).tv_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100));    \
 }
 #endif /* HAVE_TIMESPEC_TS_SEC */
 #endif /* set_timespec */
