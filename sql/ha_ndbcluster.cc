@@ -7484,6 +7484,7 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
   switch (opt_ndb_distribution_id)
   {
   case ND_KEYHASH:
+    ftype= NDBTAB::DistrKeyHash;
     break;
   case ND_LINHASH:
     ftype= NDBTAB::DistrKeyLin;
