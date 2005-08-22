@@ -697,41 +697,38 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   else if (mysql_bin_log.is_open())
   {
      char* query= thd->alloc(MAX_DROP_TABLE_Q_LEN);
-     
+
      if (!query)
        goto exit; /* not much else we can do */
-     char* p= strmov(query,"drop table ");  
+     char* p= strmov(query,"drop table ");
      char* p_end= query + MAX_DROP_TABLE_Q_LEN;
      TABLE_LIST* tbl;
      bool last_query_needs_write= 0;
      uint db_len= strlen(db);
-     
+
      for (tbl= dropped_tables;tbl;tbl= tbl->next)
      {
-       if (!tbl->was_dropped)
-         continue;
-         
-       /* 3 for the quotes and the comma*/  
-       uint tbl_name_len= strlen(tbl->real_name) + 3; 
+       /* 3 for the quotes and the comma*/
+       uint tbl_name_len= strlen(tbl->real_name) + 3;
        if (p + tbl_name_len + 1 >= p_end)
        {
           *--p= 0; /* kill , */
           write_to_binlog(thd, query, p - query, db, db_len);
           p= query + 11; /* reuse the initial "drop table" */
-       }    
-       
+       }
+
        *p++ = '`';
        p= strmov(p,tbl->real_name);
        *p++ = '`';
        *p++ = ',';
        last_query_needs_write= 1;
      }
-     
+
      if (last_query_needs_write)
      {
        *--p= 0;
        write_to_binlog(thd, query, p - query, db, db_len);
-     }  
+     }
   }
 
 exit:
