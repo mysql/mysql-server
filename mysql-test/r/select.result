@@ -2775,3 +2775,8 @@ empnum	name	grp
 1	bob	1
 drop table t1,t2;
 drop view v1;
+create table t1 (pk int primary key, b int);
+create table t2 (pk int primary key, c int);
+select pk from t1 inner join t2 using (pk);
+pk
+drop table t1,t2;
