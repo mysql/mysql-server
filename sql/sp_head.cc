@@ -127,16 +127,17 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
 
 
 /* Macro to switch arena in sp_eval_func_item */
-#define CREATE_ON_CALLERS_ARENA(new_command, condition, backup_arena) do\
-        {\
-          if (condition) \
-            thd->set_n_backup_item_arena(thd->spcont->callers_arena,\
-                                         backup_arena);\
-          new_command;\
-          if (condition)\
-            thd->restore_backup_item_arena(thd->spcont->callers_arena,\
-                                           &backup_current_arena);\
-        } while(0)
+#define CREATE_ON_CALLERS_ARENA(new_command, condition, backup_arena)   \
+  do                                                                    \
+  {                                                                     \
+    if (condition)                                                      \
+      thd->set_n_backup_item_arena(thd->spcont->callers_arena,          \
+                                   backup_arena);                       \
+    new_command;                                                        \
+    if (condition)                                                      \
+      thd->restore_backup_item_arena(thd->spcont->callers_arena,        \
+                                     &backup_current_arena);            \
+  } while(0)
 
 /*
   Evaluate an item and store it in the returned item
@@ -174,88 +175,82 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     DBUG_RETURN(NULL);
   }
 
-  /* QQ How do we do this? Is there some better way? */
-  if (type == MYSQL_TYPE_NULL)
-    goto return_null_item;
-
   switch (sp_map_result_type(type)) {
   case INT_RESULT:
-    {
-      longlong i= it->val_int();
+  {
+    longlong i= it->val_int();
 
-      if (it->null_value)
-      {
-        DBUG_PRINT("info", ("INT_RESULT: null"));
-        goto return_null_item;
-      }
-      else
-      {
-        DBUG_PRINT("info", ("INT_RESULT: %d", i));
-        CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_int(i),
-                          use_callers_arena, &backup_current_arena);
-      }
-      break;
+    if (it->null_value)
+    {
+      DBUG_PRINT("info", ("INT_RESULT: null"));
+      goto return_null_item;
     }
+    DBUG_PRINT("info", ("INT_RESULT: %d", i));
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_int(i),
+                            use_callers_arena, &backup_current_arena);
+    break;
+  }
   case REAL_RESULT:
-    {
-      double d= it->val_real();
+  {
+    double d= it->val_real();
+    uint8 decimals;
+    uint32 max_length;
 
-      if (it->null_value)
-      {
-        DBUG_PRINT("info", ("REAL_RESULT: null"));
-        goto return_null_item;
-      }
-      else
-      {
-        /* There's some difference between Item::new_item() and the
-         * constructor; the former crashes, the latter works... weird. */
-        uint8 decimals= it->decimals;
-        uint32 max_length= it->max_length;
-        DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-        CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_float(d),
-                          use_callers_arena, &backup_current_arena);
-        it->decimals= decimals;
-        it->max_length= max_length;
-      }
-      break;
+    if (it->null_value)
+    {
+      DBUG_PRINT("info", ("REAL_RESULT: null"));
+      goto return_null_item;
     }
+
+    /*
+      There's some difference between Item::new_item() and the
+      constructor; the former crashes, the latter works... weird.
+    */
+    decimals= it->decimals;
+    max_length= it->max_length;
+    DBUG_PRINT("info", ("REAL_RESULT: %g", d));
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_float(d),
+                            use_callers_arena, &backup_current_arena);
+    it->decimals= decimals;
+    it->max_length= max_length;
+    break;
+  }
   case DECIMAL_RESULT:
-    {
-      my_decimal value, *val= it->val_decimal(&value);
-      if (it->null_value)
-        goto return_null_item;
-      else
-        CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_decimal(val),
-                          use_callers_arena, &backup_current_arena);
+  {
+    my_decimal value, *val= it->val_decimal(&value);
+    if (it->null_value)
+      goto return_null_item;
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_decimal(val),
+                            use_callers_arena, &backup_current_arena);
 #ifndef DBUG_OFF
-      char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
-      DBUG_PRINT("info", ("DECIMAL_RESULT: %s", dbug_decimal_as_string(dbug_buff, val)));
-#endif
-      break;
-    }
-  case STRING_RESULT:
     {
-      char buffer[MAX_FIELD_WIDTH];
-      String tmp(buffer, sizeof(buffer), it->collation.collation);
-      String *s= it->val_str(&tmp);
-
-      if (it->null_value)
-      {
-        DBUG_PRINT("info", ("default result: null"));
-        goto return_null_item;
-      }
-      else
-      {
-        DBUG_PRINT("info",("default result: %*s",
-                           s->length(), s->c_ptr_quick()));
-        CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
-                              Item_string(thd->strmake(s->ptr(),
-                                          s->length()), s->length(),
-                                          it->collation.collation),
-                          use_callers_arena, &backup_current_arena);
-      }
-      break;
+      char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+      DBUG_PRINT("info", ("DECIMAL_RESULT: %s",
+                          dbug_decimal_as_string(dbug_buff, val)));
+#endif
     }
+    break;
+  }
+  case STRING_RESULT:
+  {
+    char buffer[MAX_FIELD_WIDTH];
+    String tmp(buffer, sizeof(buffer), it->collation.collation);
+    String *s= it->val_str(&tmp);
+
+    if (type == MYSQL_TYPE_NULL || it->null_value)
+    {
+      DBUG_PRINT("info", ("STRING_RESULT: null"));
+      goto return_null_item;
+    }
+    DBUG_PRINT("info",("STRING_RESULT: %*s",
+                       s->length(), s->c_ptr_quick()));
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
+                            Item_string(thd->strmake(s->ptr(),
+                                                     s->length()), s->length(),
+                                        it->collation.collation),
+                            use_callers_arena, &backup_current_arena);
+    break;
+  }
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
@@ -574,13 +569,10 @@ sp_head::destroy()
 
 
 /*
- *  This is only used for result fields from functions (both during
- *  fix_length_and_dec() and evaluation).
- *
- *  Since the current mem_root during a will be freed and the result
- *  field will be used by the caller, we have to put it in the caller's
- *  or main mem_root.
- */
+  This is only used for result fields from functions (both during
+  fix_length_and_dec() and evaluation).
+*/
+
 Field *
 sp_head::make_field(uint max_length, const char *name, TABLE *dummy)
 {
@@ -817,47 +809,49 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
-  int ret;
+  Item_null *nit;
+  int ret= -1;                                  // Assume error
 
   if (argcount != params)
   {
     /*
-      Need to use my_printf_error here, or it will not terminate the
+      Need to use my_error here, or it will not terminate the
       invoking query properly.
     */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
              "FUNCTION", m_qname.str, params, argcount);
-    DBUG_RETURN(-1);
+    goto end;
   }
 
 
   // QQ Should have some error checking here? (types, etc...)
-  nctx= new sp_rcontext(csize, hmax, cmax);
+  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+    goto end;
   for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
     Item *it= sp_eval_func_item(thd, argp++, pvar->type, NULL, FALSE);
 
-    if (it)
-      nctx->push_item(it);
-    else
-    {
-      DBUG_RETURN(-1);
-    }
+    if (!it)
+      goto end;                                 // EOM error
+    nctx->push_item(it);
   }
+
   /*
     The rest of the frame are local variables which are all IN.
     Default all variables to null (those with default clauses will
     be set by an set instruction).
   */
+
+  nit= NULL;                       // Re-use this, and only create if needed
+  for (; i < csize ; i++)
   {
-    Item_null *nit= NULL;	// Re-use this, and only create if needed
-    for (; i < csize ; i++)
+    if (! nit)
     {
-      if (! nit)
-	nit= new Item_null();
-      nctx->push_item(nit);
+      if (!(nit= new Item_null()))
+        DBUG_RETURN(-1);
     }
+    nctx->push_item(nit);
   }
   thd->spcont= nctx;
 
@@ -878,14 +872,15 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   }
 
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
-  delete nctx;
+  delete nctx;                                  // Doesn't do anything
   thd->spcont= octx;
 
+end:
   DBUG_RETURN(ret);
 }
 
-static Item_func_get_user_var *
-item_is_user_var(Item *it)
+
+static Item_func_get_user_var *item_is_user_var(Item *it)
 {
   if (it->type() == Item::FUNC_ITEM)
   {
@@ -897,19 +892,18 @@ item_is_user_var(Item *it)
   return NULL;
 }
 
-int
-sp_head::execute_procedure(THD *thd, List<Item> *args)
+
+int sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
-  DBUG_ENTER("sp_head::execute_procedure");
-  DBUG_PRINT("info", ("procedure %s", m_name.str));
   int ret= 0;
   uint csize = m_pcont->max_pvars();
   uint params = m_pcont->current_pvars();
   uint hmax = m_pcont->max_handlers();
   uint cmax = m_pcont->max_cursors();
-  sp_rcontext *octx = thd->spcont;
+  sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
-  my_bool is_tmp_octx = FALSE;  // True if we have allocated a temporary octx
+  DBUG_ENTER("sp_head::execute_procedure");
+  DBUG_PRINT("info", ("procedure %s", m_name.str));
 
   if (args->elements != params)
   {
@@ -918,17 +912,22 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_RETURN(-1);
   }
 
+  save_spcont= octx= thd->spcont;
   if (! octx)
   {				// Create a temporary old context
-    octx= new sp_rcontext(csize, hmax, cmax);
-    is_tmp_octx= TRUE;
+    if (!(octx= new sp_rcontext(csize, hmax, cmax)))
+      DBUG_RETURN(-1);
     thd->spcont= octx;
 
     /* set callers_arena to thd, for upper-level function to work */
     thd->spcont->callers_arena= thd;
   }
 
-  nctx= new sp_rcontext(csize, hmax, cmax);
+  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+  {
+    thd->spcont= save_spcont;
+    DBUG_RETURN(-1);
+  }
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
@@ -936,7 +935,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     uint i;
     List_iterator<Item> li(*args);
     Item *it;
-
 
     /* Evaluate SP arguments (i.e. get the values passed as parameters) */
     // QQ: Should do type checking?
@@ -959,20 +957,25 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	if (pvar->mode == sp_param_out)
 	{
 	  if (! nit)
-	    nit= new Item_null();
+          {
+	    if (!(nit= new Item_null()))
+            {
+              ret= -1;
+              break;
+            }
+          }
 	  nctx->push_item(nit); // OUT
 	}
 	else
 	{
 	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type, NULL, FALSE);
 
-	  if (it2)
-	    nctx->push_item(it2); // IN or INOUT
-	  else
+	  if (!it2)
 	  {
 	    ret= -1;		// Eval failed
 	    break;
 	  }
+          nctx->push_item(it2); // IN or INOUT
 	}
       }
     }
@@ -994,7 +997,13 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     for (; i < csize ; i++)
     {
       if (! nit)
-	nit= new Item_null();
+      {
+	if (!(nit= new Item_null()))
+        {
+          ret= -1;
+          break;
+        }
+      }
       nctx->push_item(nit);
     }
   }
@@ -1090,15 +1099,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     }
   }
 
-  if (is_tmp_octx)
-  {
-    delete octx;                                /* call destructor */
-    octx= NULL;
-  }
+  if (!save_spcont)
+    delete octx;                                // Does nothing
 
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
-  delete nctx;
-  thd->spcont= octx;
+  delete nctx;                                  // Does nothing
+  thd->spcont= save_spcont;
 
   DBUG_RETURN(ret);
 }

@@ -649,4 +649,5 @@ use information_schema;
 select column_name, column_default from columns
   where table_schema='test' and table_name='t1';
 use test;
+show columns from t1;
 drop table t1;
