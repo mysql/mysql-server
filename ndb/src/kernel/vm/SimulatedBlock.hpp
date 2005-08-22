@@ -20,11 +20,13 @@
 #include <NdbTick.h>
 #include <kernel_types.h>
 #include <ndb_version.h>
+#include <ndb_limits.h>
 
 #include "VMSignal.hpp"
 #include <RefConvert.hpp>
 #include <BlockNumbers.h>
 #include <GlobalSignalNumbers.h>
+
 #include "pc.hpp"
 #include <NodeInfo.hpp>
 #include <NodeState.hpp>
@@ -385,6 +387,24 @@ protected:
    */
   const NodeInfo & getNodeInfo(NodeId nodeId) const;
   NodeInfo & setNodeInfo(NodeId);
+
+  /**********************
+   * Xfrm stuff
+   */
+  
+  /**
+   * @return length
+   */
+  Uint32 xfrm_key(Uint32 tab, const Uint32* src, 
+		  Uint32 *dst, Uint32 dstLen,
+		  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
+  
+  /**
+   *
+   */
+  Uint32 create_distr_key(Uint32 tableId,
+			  Uint32 *data, 
+			  const Uint32 keyPaLen[MAX_ATTRIBUTES_IN_INDEX])const;
   
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
