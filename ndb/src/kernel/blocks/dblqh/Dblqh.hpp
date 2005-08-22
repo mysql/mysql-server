@@ -2233,7 +2233,7 @@ private:
   void LQHKEY_abort(Signal* signal, int errortype);
   void LQHKEY_error(Signal* signal, int errortype);
   void nextRecordCopy(Signal* signal);
-  void calculateHash(Signal* signal);
+  Uint32 calculateHash(Uint32 tableId, const Uint32* src);
   void continueAfterCheckLcpStopBlocked(Signal* signal);
   void checkLcpStopBlockedLab(Signal* signal);
   void sendCommittedTc(Signal* signal, BlockReference atcBlockref);

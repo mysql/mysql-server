@@ -66,6 +66,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <AttributeDescriptor.hpp>
 #include <SectionReader.hpp>
+#include <KeyDescriptor.hpp>
 
 #include <NdbOut.hpp>
 #include <DebuggerNames.hpp>
@@ -329,42 +330,16 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   BlockReference retPtr = signal->theData[5];
   Uint32 noOfKeyAttr = signal->theData[6];
   ndbrequire(noOfKeyAttr <= MAX_ATTRIBUTES_IN_INDEX);
-  Uint32 hasCharAttr = 0;
-  Uint32 noOfDistrKeys = 0;
-  SegmentedSectionPtr s0Ptr;
-  signal->getSection(s0Ptr, 0);
-  SectionReader r0(s0Ptr, getSectionSegmentPool());
-  Uint32 i = 0;
-  while (i < noOfKeyAttr) {
-    jam();
-    Uint32 attributeDescriptor = ~0;
-    Uint32 csNumber = ~0;
-    if (! r0.getWord(&attributeDescriptor) ||
-        ! r0.getWord(&csNumber)) {
-      jam();
-      break;
-    }
-    CHARSET_INFO* cs = 0;
-    if (csNumber != 0) {
-      cs = all_charsets[csNumber];
-      ndbrequire(cs != 0);
-      hasCharAttr = 1;
-    }
-    
-    noOfDistrKeys += AttributeDescriptor::getDKey(attributeDescriptor);
-    tabptr.p->keyAttr[i].attributeDescriptor = attributeDescriptor;
-    tabptr.p->keyAttr[i].charsetInfo = cs;
-    i++;
-  }
-  ndbrequire(i == noOfKeyAttr);
-  releaseSections(signal);
+
+  const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tabptr.i);
+  ndbrequire(noOfKeyAttr == desc->noOfKeyAttr);
 
   ndbrequire(tabptr.p->enabled == false);
   tabptr.p->enabled = true;
   tabptr.p->dropping = false;
-  tabptr.p->noOfKeyAttr = noOfKeyAttr;
-  tabptr.p->hasCharAttr = hasCharAttr;
-  tabptr.p->noOfDistrKeys = noOfDistrKeys;
+  tabptr.p->noOfKeyAttr = desc->noOfKeyAttr;
+  tabptr.p->hasCharAttr = desc->hasCharAttr;
+  tabptr.p->noOfDistrKeys = desc->noOfDistrKeys;
   
   signal->theData[0] = tabptr.i;
   signal->theData[1] = retPtr;
@@ -2323,113 +2298,37 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
 			  Uint32 tabPtrI,
 			  bool distr)
 {
-  Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS * 4 * MAX_XFRM_MULTIPLY];
-  const Uint32 dstSize = sizeof(Tmp) / 4;
+  Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   const TableRecord* tabPtrP = &tableRecord[tabPtrI];
-  const Uint32 noOfKeyAttr = tabPtrP->noOfKeyAttr;
-  Uint32 noOfDistrKeys = tabPtrP->noOfDistrKeys;
   const bool hasCharAttr = tabPtrP->hasCharAttr;
+  const bool hasDistKeys = tabPtrP->noOfDistrKeys > 0;
   
   Uint32 *dst = (Uint32*)Tmp;
   Uint32 dstPos = 0;
-  Uint32 srcPos = 0;
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  if(hasCharAttr){
-    Uint32 i = 0;
-    while (i < noOfKeyAttr) {
-      const TableRecord::KeyAttr& keyAttr = tabPtrP->keyAttr[i];
-      
-      Uint32 srcBytes = 
-	AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
-      Uint32 srcWords = (srcBytes + 3) / 4;
-      Uint32 dstWords = ~0;
-      uchar* dstPtr = (uchar*)&dst[dstPos];
-      const uchar* srcPtr = (const uchar*)&src[srcPos];
-      CHARSET_INFO* cs = keyAttr.charsetInfo;
-      
-      if (cs == NULL) {
-	jam();
-	memcpy(dstPtr, srcPtr, srcWords << 2);
-	dstWords = srcWords;
-      } else {
-	jam();
-        Uint32 typeId =
-          AttributeDescriptor::getType(keyAttr.attributeDescriptor);
-        Uint32 lb, len;
-        bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
-        ndbrequire(ok);
-	Uint32 xmul = cs->strxfrm_multiply;
-	if (xmul == 0)
-	  xmul = 1;
-        /*
-         * Varchar is really Char.  End spaces do not matter.  To get
-         * same hash we blank-pad to maximum length via strnxfrm.
-         * TODO use MySQL charset-aware hash function instead
-         */
-	Uint32 dstLen = xmul * (srcBytes - lb);
-	ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-	int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
-        ndbrequire(n != -1);
-	while ((n & 3) != 0) {
-	  dstPtr[n++] = 0;
-	}
-	dstWords = (n >> 2);
-      }
-      dstPos += dstWords;
-      srcPos += srcWords;
-      keyPartLen[i++] = dstWords;
-    }
+  Uint32 * keyPartLenPtr;
+  if(hasCharAttr)
+  {
+    keyPartLenPtr = keyPartLen;
+    dstPos = xfrm_key(tabPtrI, src, dst, sizeof(Tmp) >> 2, keyPartLenPtr);
+    ndbrequire(dstPos);
   } 
   else 
   {
     dst = src;
     dstPos = srcLen;
+    keyPartLenPtr = 0;
   }
   
   md5_hash(dstHash, (Uint64*)dst, dstPos);
   
-  if(distr && noOfDistrKeys)
+  if(distr && hasDistKeys)
   {
     jam();
-    src = dst;
-    dstPos = 0;
-    Uint32 i = 0;
-    if(hasCharAttr)
-    {
-      while (i < noOfKeyAttr && noOfDistrKeys) 
-      {
-	const TableRecord::KeyAttr& keyAttr = tabPtrP->keyAttr[i];
-	Uint32 len = keyPartLen[i];
-	if(AttributeDescriptor::getDKey(keyAttr.attributeDescriptor))
-	{
-	  noOfDistrKeys--;
-	  memmove(dst+dstPos, src, len << 2);
-	  dstPos += len;
-	}
-	src += len;
-	i++;
-      }
-    }
-    else
-    {
-      while (i < noOfKeyAttr && noOfDistrKeys) 
-      {
-	const TableRecord::KeyAttr& keyAttr = tabPtrP->keyAttr[i];
-	Uint32 len = 
-	  AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
-	len = (len + 3) / 4;
-	if(AttributeDescriptor::getDKey(keyAttr.attributeDescriptor))
-	{
-	  noOfDistrKeys--;
-	  memmove(dst+dstPos, src, len << 2);
-	  dstPos += len;
-	}
-	src += len;
-	i++;
-      }
-    }
+    
     Uint32 tmp[4];
-    md5_hash(tmp, (Uint64*)dst, dstPos);
+    Uint32 len = create_distr_key(tabPtrI, dst, keyPartLenPtr);
+    md5_hash(tmp, (Uint64*)dst, len);
     dstHash[1] = tmp[1];
   }
   return true;  // success
@@ -10204,10 +10103,6 @@ void Dbtc::initTable(Signal* signal)
     tabptr.p->noOfKeyAttr = 0;
     tabptr.p->hasCharAttr = 0;
     tabptr.p->noOfDistrKeys = 0;
-    for (unsigned k = 0; k < MAX_ATTRIBUTES_IN_INDEX; k++) {
-      tabptr.p->keyAttr[k].attributeDescriptor = 0;
-      tabptr.p->keyAttr[k].charsetInfo = 0;
-    }
   }//for
 }//Dbtc::initTable()
 
