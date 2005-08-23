@@ -54,7 +54,7 @@ void get_date(register my_string to, int flag, time_t date)
    if (flag & GETDATE_GMT)
      start_time= localtime(&skr);
    else
-     gmtime(&skr,&tm_tmp);
+     start_time= gmtime(&skr);
 #endif
    if (flag & GETDATE_SHORT_DATE)
      sprintf(to,"%02d%02d%02d",
