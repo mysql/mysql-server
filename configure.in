@@ -2755,7 +2755,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/kernel/blocks/backup/Makefile dnl
    ndb/src/kernel/blocks/dbutil/Makefile dnl
    ndb/src/kernel/blocks/suma/Makefile dnl
-   ndb/src/kernel/blocks/grep/Makefile dnl
    ndb/src/kernel/blocks/dbtux/Makefile dnl
    ndb/src/kernel/vm/Makefile dnl
    ndb/src/mgmapi/Makefile dnl
