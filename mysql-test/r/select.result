@@ -2875,3 +2875,15 @@ b	a	t1_val	t2_val
 1	1	1	1
 1	2	2	1
 drop table t1, t2, t3;
+create table t1 (a char(1));
+create table t2 (a char(1));
+insert into t1 values ('a'),('b'),('c');
+insert into t2 values ('b'),('c'),('d');
+select a from t1 natural join t2;
+a
+b
+c
+select * from t1 natural join t2 where a = 'b';
+a
+b
+drop table t1, t2;
