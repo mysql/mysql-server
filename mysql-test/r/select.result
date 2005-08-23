@@ -2818,3 +2818,14 @@ create table t2 (pk int primary key, c int);
 select pk from t1 inner join t2 using (pk);
 pk
 drop table t1,t2;
+create table t1 (s1 int, s2 char(5), s3 decimal(10));
+create view v1 as select s1, s2, 'x' as s3 from t1;
+select * from t1 natural join v1;
+s1	s2	s3
+insert into t1 values (1,'x',5);
+select * from t1 natural join v1;
+s1	s2	s3
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+drop table t1;
+drop view v1;

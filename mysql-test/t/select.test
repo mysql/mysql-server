@@ -2394,3 +2394,15 @@ create table t1 (pk int primary key, b int);
 create table t2 (pk int primary key, c int);
 select pk from t1 inner join t2 using (pk);
 drop table t1,t2;
+
+#
+# Bug #10972 Natural join of view and underlying table gives wrong result
+#
+
+create table t1 (s1 int, s2 char(5), s3 decimal(10));
+create view v1 as select s1, s2, 'x' as s3 from t1;
+select * from t1 natural join v1;
+insert into t1 values (1,'x',5);
+select * from t1 natural join v1;
+drop table t1;
+drop view v1;
