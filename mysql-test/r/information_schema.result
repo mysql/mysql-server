@@ -971,3 +971,11 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	NO			
 b	int(11)	YES		NULL	
 drop table t1;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+SHOW TABLE STATUS FROM test
+WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t2	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
