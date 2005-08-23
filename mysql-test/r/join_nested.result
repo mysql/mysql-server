@@ -1153,13 +1153,13 @@ a	b	a1	b
 4	2	1	2
 4	2	2	2
 5	3	NULL	NULL
-SELECT *
+SELECT t2.a,t2.b,t3.a1,t3.b
 FROM t2 NATURAL LEFT JOIN t3
 WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
-b	a	c	a1	c1
-2	4	0	1	0
-2	4	0	2	0
-3	5	0	NULL	NULL
+a	b	a1	b
+4	2	1	2
+4	2	2	2
+5	3	NULL	NULL
 DROP TABLE t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
