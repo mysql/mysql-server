@@ -182,3 +182,5 @@ set @p=_latin1 'test';
 update t1 set pk='test' where pk=@p;
 drop table t1;
 sync_slave_with_master;
+
+# End of 4.1 tests

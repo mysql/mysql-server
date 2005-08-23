@@ -136,7 +136,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
 				   USER_RESOURCES *mqh)
 {
-  int return_val=0;
+  int return_val= 0;
   uint temp_len, user_len;
   char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
   struct  user_conn *uc;
@@ -144,7 +144,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
 
-  user_len=strlen(user);
+  user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) hash_search(&hash_user_connections,
@@ -156,25 +156,23 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 			 MYF(MY_WME)))))
     {
       send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
     uc->user_len= user_len;
-    uc->host=uc->user + uc->user_len +  1;
-    uc->len = temp_len;
-    uc->connections = 1;
-    uc->questions=uc->updates=uc->conn_per_hour=0;
-    uc->user_resources=*mqh;
-    if (max_user_connections && mqh->connections > max_user_connections)
-      uc->user_resources.connections = max_user_connections;
-    uc->intime=thd->thr_create_time;
+    uc->host= uc->user + uc->user_len +  1;
+    uc->len= temp_len;
+    uc->connections= 0;
+    uc->questions= uc->updates= uc->conn_per_hour=0;
+    uc->user_resources= *mqh;
+    uc->intime= thd->thr_create_time;
     if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
       my_free((char*) uc,0);
       send_error(thd, 0, NullS);		// Out of memory
-      return_val=1;
+      return_val= 1;
       goto end;
     }
   }
@@ -2879,7 +2877,8 @@ unsent_create_error:
                                     lex->field_list, 0,
 				    lex->update_list, lex->value_list,
 				    lex->duplicates)) &&
-        (result= new select_insert(insert_table, &lex->field_list,
+        (result= new select_insert(insert_table, first_local_table,
+				   &dup_tables, &lex->field_list,
 				   &lex->update_list, &lex->value_list,
                                    lex->duplicates, lex->ignore)))
     {
@@ -4198,6 +4197,8 @@ void create_select_for_variable(const char *var_name)
   THD *thd;
   LEX *lex;
   LEX_STRING tmp, null_lex_string;
+  Item *var;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *end;
   DBUG_ENTER("create_select_for_variable");
 
   thd= current_thd;
@@ -4207,8 +4208,16 @@ void create_select_for_variable(const char *var_name)
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
   bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
-  add_item_to_list(thd, get_system_var(thd, OPT_SESSION, tmp,
-				       null_lex_string));
+  /*
+    We set the name of Item to @@session.var_name because that then is used
+    as the column name in the output.
+  */
+  if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
+  {
+    end= strxmov(buff, "@@session.", var_name, NullS);
+    var->set_name(buff, end-buff, system_charset_info);
+    add_item_to_list(thd, var);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -5021,6 +5030,25 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   {
     if ((options & REFRESH_READ_LOCK) && thd)
     {
+      /*
+        We must not try to aspire a global read lock if we have a write
+        locked table. This would lead to a deadlock when trying to
+        reopen (and re-lock) the table after the flush.
+      */
+      if (thd->locked_tables)
+      {
+        THR_LOCK_DATA **lock_p= thd->locked_tables->locks;
+        THR_LOCK_DATA **end_p= lock_p + thd->locked_tables->lock_count;
+
+        for (; lock_p < end_p; lock_p++)
+        {
+          if ((*lock_p)->type == TL_WRITE)
+          {
+            my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+            return 1;
+          }
+        }
+      }
       /*
 	Writing to the binlog could cause deadlocks, as we don't log
 	UNLOCK TABLES

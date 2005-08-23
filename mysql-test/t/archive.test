@@ -1311,3 +1311,5 @@ select * from t4 where fld3='bonfire';
 select count(*) from t4;
 
 drop table t1, t2, t4;
+
+# End of 4.1 tests

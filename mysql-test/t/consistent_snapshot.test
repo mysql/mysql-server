@@ -39,3 +39,5 @@ select * from t1; # if consistent snapshot was not set, as expected, we
 commit;
 
 drop table t1;
+
+# End of 4.1 tests

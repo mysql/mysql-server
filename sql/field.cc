@@ -5003,7 +5003,7 @@ int Field_str::store(double nr)
   double anr= fabs(nr);
   int neg= (nr < 0.0) ? 1 : 0;
   if (char_length > 4 && char_length < 32 &&
-      (anr < 1.0 ? anr > 1/(log_10[max(0,char_length-neg-2)]) /* -2 for "0." */
+      (anr < 1.0 ? anr > 1/(log_10[max(0,(int) char_length-neg-2)]) /* -2 for "0." */
                  : anr < log_10[char_length-neg]-1))
     use_scientific_notation= FALSE;
 

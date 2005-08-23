@@ -6805,6 +6805,7 @@ static void test_set_option()
   bug #89 (reported by mark@mysql.com)
 */
 
+#ifndef EMBEDDED_LIBRARY
 static void test_prepare_grant()
 {
   int rc;
@@ -6896,7 +6897,7 @@ static void test_prepare_grant()
 
   }
 }
-
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Test a crash when invalid/corrupted .frm is used in the
@@ -11566,7 +11567,7 @@ static void test_bug8330()
   const char *stmt_text;
   MYSQL_STMT *stmt[2];
   int i, rc;
-  char *query= "select a,b from t1 where a=?";
+  const char *query= "select a,b from t1 where a=?";
   MYSQL_BIND bind[2];
   long lval[2];
 
@@ -11796,6 +11797,40 @@ static void test_bug12001()
 }
 
 /*
+  Bug#11718: query with function, join and order by returns wrong type
+*/
+
+static void test_bug11718()
+{
+  MYSQL_RES	*res;
+  int rc;
+  const char *query= "select str_to_date(concat(f3),'%Y%m%d') from t1,t2 "
+                     "where f1=f2 order by f1";
+
+  myheader("test_bug11718");
+
+  rc= mysql_query(mysql, "drop table if exists t1, t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (f1 int)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t2 (f2 int, f3 numeric(8))");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1), (2)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (1,20050101), (2,20050202)");
+  myquery(rc);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  res = mysql_store_result(mysql);
+
+  if (!opt_silent)
+    printf("return type: %s", (res->fields[0].type == MYSQL_TYPE_DATE)?"DATE":
+           "not DATE");
+  DIE_UNLESS(res->fields[0].type == MYSQL_TYPE_DATE);
+  rc= mysql_query(mysql, "drop table t1, t2");
+  myquery(rc);
+}
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -12012,6 +12047,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
   { "test_bug12001", test_bug12001 },
+  { "test_bug11718", test_bug11718 },
   { 0, 0 }
 };
 

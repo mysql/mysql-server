@@ -544,3 +544,5 @@ INSERT INTO t1 VALUES (2), (1), (1), (2), (1);
 SELECT a FROM t1 ORDER BY a;
 (SELECT a FROM t1) ORDER BY a;
 DROP TABLE t1;
+
+# End of 4.1 tests

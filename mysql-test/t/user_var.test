@@ -119,3 +119,26 @@ select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
 set session @honk=99;
 --error 1105
 set one_shot @honk=99;
+
+#
+# Bug #10724  @@local not preserved in column name of select
+#
+# The value doesn't actually matter, we just care about the column name
+--replace_column 1 #
+select @@local.max_allowed_packet;
+--replace_column 1 #
+select @@session.max_allowed_packet;
+--replace_column 1 #
+select @@global.max_allowed_packet;
+--replace_column 1 #
+select @@max_allowed_packet;
+--replace_column 1 #
+select @@Max_Allowed_Packet;
+--replace_column 1 #
+select @@version;
+--replace_column 1 #
+select @@global.version;
+--replace_column 1 #
+select @@session.VERSION;
+
+# End of 4.1 tests

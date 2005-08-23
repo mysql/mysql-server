@@ -152,6 +152,7 @@ int deny_severity = LOG_WARNING;
 #define zVOLSTATE_MAINTENANCE 3
 
 #ifdef __NETWARE__
+#include <nks/netware.h>
 #include <nks/vm.h>
 #include <library.h>
 #include <monitor.h>
@@ -382,6 +383,7 @@ Le_creator le_creator;
 
 
 FILE *bootstrap_file;
+FILE *stderror_file=0;
 
 I_List<i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
@@ -648,7 +650,6 @@ static void close_connections(void)
   }
 #endif
   end_thr_alarm(0);			 // Abort old alarms.
-  end_slave();
 
   /*
     First signal all threads that it's time to die
@@ -664,6 +665,9 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
+    /* We skip slave threads on this first loop through. */
+    if (tmp->slave_thread) continue;
+
     tmp->killed= 1;
     if (tmp->mysys_var)
     {
@@ -679,6 +683,8 @@ static void close_connections(void)
     }
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
+
+  end_slave();
 
   if (thread_count)
     sleep(2);					// Give threads time to die
@@ -2767,7 +2773,7 @@ server.");
 #ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
 #endif
-	freopen(log_error_file, "a+", stderr);
+	stderror_file= freopen(log_error_file, "a+", stderr);
     }
   }
 
@@ -4322,7 +4328,7 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
-   "Set the default storage engine (table tyoe) for tables.", 0, 0,
+   "Set the default storage engine (table type) for tables.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-table-type", OPT_STORAGE_ENGINE,
    "(deprecated) Use --default-storage-engine.", 0, 0,

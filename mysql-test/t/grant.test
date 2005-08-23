@@ -401,3 +401,12 @@ insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_gr
 flush privileges;
 delete from tables_priv where host = '' and user = 'mysqltest_1';
 flush privileges;
+
+#
+# Bug #10892 user variables not auto cast for comparisons
+# Check that we don't get illegal mix of collations
+#
+set @user123="non-existent";
+select * from mysql.db where user=@user123;
+
+# End of 4.1 tests

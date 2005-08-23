@@ -82,3 +82,5 @@ INSERT_METHOD=LAST;
 
 drop table t1, t1_1, t1_2, 
            t9_1, t9_2, t9;
+
+# End of 4.1 tests

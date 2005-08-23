@@ -83,3 +83,5 @@ DROP TABLE db, host, user, func, tables_priv, columns_priv, help_category, help_
 
 # check that we droped all system tables
 show tables;
+
+# End of 4.1 tests

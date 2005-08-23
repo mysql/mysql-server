@@ -1,0 +1,100 @@
+-- source include/have_query_cache.inc
+-- source include/not_embedded.inc
+
+#
+# Tests with query cache
+#
+set GLOBAL query_cache_size=1355776;
+
+# Reset query cache variables.
+
+flush query cache; # This crashed in some versions
+flush query cache; # This crashed in some versions
+reset query cache;
+flush status;
+--disable_warnings
+drop table if exists t1, t2, t3, t11, t21;
+--enable_warnings
+#
+# FLUSH QUERY CACHE
+#
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+select * from t1;
+select * from t2;
+insert into t1 values (4);
+show status like "Qcache_free_blocks";
+flush query cache;
+show status like "Qcache_free_blocks";
+drop table t1, t2;
+# With join results...
+create table t1 (a text not null);
+create table t11 (a text not null);
+create table t2 (a text not null);
+create table t21 (a text not null);
+create table t3 (a text not null);
+insert into t1 values("1111111111111111111111111111111111111111111111111111");
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+# t11 and t21 must be over 4Kb (QUERY_CACHE_MIN_RESULT_DATA_SIZE)
+insert into t11 select * from t1;
+insert into t21 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+#results of t3 must  be > 0.5Mb
+insert into t3 select * from t1;
+insert into t3 select * from t2;
+insert into t3 select * from t1;
+disable_result_log;
+select * from t11;
+select * from t21;
+enable_result_log;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+disable_result_log;
+insert into t11 values("");
+select * from t3;
+enable_result_log;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+flush query cache;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+drop table t1, t2, t3, t11, t21;
+
+#
+# do not use QC if tables locked (BUG#12385)
+#
+connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connection root;
+CREATE TABLE t1 ( a INT NOT NULL PRIMARY KEY AUTO_INCREMENT ) ENGINE =
+MyISAM;
+LOCK TABLE t1 READ LOCAL;
+connect (root2,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connection root2;
+INSERT INTO t1 VALUES (), (), ();
+connection root;
+SELECT * FROM t1;
+connection root2;
+SELECT * FROM t1;
+connection root;
+SELECT * FROM t1;
+drop table t1;
+
+set GLOBAL query_cache_size=0;

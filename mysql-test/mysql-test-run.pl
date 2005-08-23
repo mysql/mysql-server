@@ -287,6 +287,7 @@ sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
 sub kill_and_cleanup ();
+sub ndbcluster_support ();
 sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
@@ -319,6 +320,12 @@ sub main () {
   initial_setup();
   command_line_setup();
   executable_setup();
+  
+  if (! $opt_skip_ndbcluster and ! $opt_with_ndbcluster)
+  {
+    $opt_with_ndbcluster= ndbcluster_support();
+  }
+
   environment_setup();
   signal_setup();
 
@@ -334,7 +341,6 @@ sub main () {
 
   if ( ! $glob_use_running_server )
   {
-
     if ( $opt_start_dirty )
     {
       kill_running_server();
@@ -349,7 +355,7 @@ sub main () {
     }
   }
 
-  if ( $opt_start_and_exit or $opt_start_dirty )
+  if ( $opt_start_dirty )
   {
     if ( ndbcluster_start() )
     {
@@ -364,16 +370,13 @@ sub main () {
       mtr_error("Can't start the mysqld server");
     }
   }
+  elsif ( $opt_bench )
+  {
+    run_benchmarks(shift);      # Shift what? Extra arguments?!
+  }
   else
   {
-    if ( $opt_bench )
-    {
-      run_benchmarks(shift);      # Shift what? Extra arguments?!
-    }
-    else
-    {
-      run_tests();
-    }
+    run_tests();
   }
 
   mtr_exit(0);
@@ -411,7 +414,7 @@ sub initial_setup () {
     $opt_source_dist=  1;
   }
 
-  $glob_hostname=  mtr_full_hostname();
+  $glob_hostname=  mtr_short_hostname();
 
   # 'basedir' is always parent of "mysql-test" directory
   $glob_mysql_test_dir=  cwd();
@@ -1026,6 +1029,23 @@ sub kill_and_cleanup () {
 #
 ##############################################################################
 
+sub ndbcluster_support () {
+
+  # check ndbcluster support by testing using a switch
+  # that is only available in that case
+  if ( mtr_run($exe_mysqld,
+	       ["--no-defaults",
+	        "--ndb-use-exact-count",
+	        "--help"],
+	       "", "/dev/null", "/dev/null", "") != 0 )
+  {
+    mtr_report("No ndbcluster support");
+    return 0;
+  }
+  mtr_report("Has ndbcluster support");
+  return 1;
+}
+
 # FIXME why is there a different start below?!
 
 sub ndbcluster_install () {
@@ -1467,6 +1487,16 @@ sub run_testcase ($) {
   }
 
   # ----------------------------------------------------------------------
+  # If --start-and-exit given, stop here to let user manually run tests
+  # ----------------------------------------------------------------------
+
+  if ( $opt_start_and_exit )
+  {
+    mtr_report("\nServers started, exiting");
+    exit(0);
+  }
+
+  # ----------------------------------------------------------------------
   # Run the test case
   # ----------------------------------------------------------------------
 
@@ -1663,19 +1693,26 @@ sub mysqld_arguments ($$$$$) {
 
   if ( $type eq 'master' )
   {
+    my $id= $idx > 0 ? $idx + 101 : 1;
+
     mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
                 $opt_vardir, $sidx);
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $master->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
                 $master->[$idx]->{'path_myport'});
-    mtr_add_arg($args, "%s--server-id=1", $prefix);
+    mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
     mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:50M", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
+
+    if ( $idx > 0 )
+    {
+      mtr_add_arg($args, "%s--skip-innodb", $prefix);
+    }
 
     if ( $opt_skip_ndbcluster )
     {
@@ -1686,7 +1723,7 @@ sub mysqld_arguments ($$$$$) {
   if ( $type eq 'slave' )
   {
     my $slave_server_id=  2 + $idx;
-    my $slave_rpl_rank= $idx > 0 ? 2 : $slave_server_id;
+    my $slave_rpl_rank= $slave_server_id;
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
@@ -2217,7 +2254,8 @@ Misc options
   script-debug          Debug this script itself
   compress              Use the compressed protocol between client and server
   timer                 Show test case execution time
-  start-and-exit        Only initiate and start the "mysqld" servers
+  start-and-exit        Only initiate and start the "mysqld" servers, use the startup
+                        settings for the specified test case if any
   start-dirty           Only start the "mysqld" servers without initiation
   fast                  Don't try to cleanup from earlier runs
   reorder               Reorder tests to get less server restarts

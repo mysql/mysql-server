@@ -379,3 +379,5 @@ SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 SET GLOBAL table_cache=-1;
 SHOW VARIABLES LIKE 'table_cache';
 SET GLOBAL table_cache=DEFAULT;
+
+# End of 4.1 tests

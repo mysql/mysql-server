@@ -98,3 +98,5 @@ show create database mysqltest2;
 drop database mysqltest2;
 --error 1046
 ALTER DATABASE DEFAULT CHARACTER SET latin2;
+
+# End of 4.1 tests

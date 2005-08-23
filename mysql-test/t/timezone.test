@@ -58,3 +58,5 @@ select unix_timestamp('1970-01-01 01:00:00'),
        unix_timestamp('1970-01-01 01:00:01'),
        unix_timestamp('2038-01-01 00:59:59'),
        unix_timestamp('2038-01-01 01:00:00');
+
+# End of 4.1 tests
