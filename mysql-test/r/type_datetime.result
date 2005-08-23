@@ -26,6 +26,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 delete from t1;
 insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
+insert into t1 values ("2003-003-03");
+insert into t1 values ("20030102T131415"),("2001-01-01T01:01:01"), ("2001-1-1T1:01:01");
 select * from t1;
 t
 2000-01-01 00:00:00
@@ -43,6 +45,17 @@ t
 9999-12-31 23:59:59
 2003-01-00 00:00:00
 2003-00-00 00:00:00
+2003-03-03 00:00:00
+2003-01-02 13:14:15
+2001-01-01 01:01:01
+2001-01-01 01:01:01
+truncate table t1;
+insert into t1 values("2003-0303 12:13:14");
+Warnings:
+Warning	1264	Data truncated; out of range for column 't' at row 1
+select * from t1;
+t
+0000-00-00 00:00:00
 drop table t1;
 CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());

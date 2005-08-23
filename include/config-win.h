@@ -283,6 +283,7 @@ inline double ulonglong2double(ulonglong value)
 #define doublestore(T,V) { *((long *) T) = *((long*) &V); \
 			   *(((long *) T)+1) = *(((long*) &V)+1); }
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
+#define floatget(V,M) memcpy((byte*) &V,(byte*) (M),sizeof(float))
 #define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
 #define float8get(V,M) doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))

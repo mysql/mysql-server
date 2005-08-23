@@ -85,3 +85,14 @@ def			aaa	1	1	8	20	1	N	32769	0	63
 1
 1
 drop table t1;
+create table t1 (i int);
+insert into t1 values (1),(2),(3);
+select * from t1 where i = 2;
+drop table t1;//
+affected rows: 0
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 0
+i
+2
+affected rows: 1
+affected rows: 0

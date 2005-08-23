@@ -182,3 +182,4 @@ select count(*) from t1 where match a against ('aaazzz' in boolean mode);
 
 drop table t1;
 
+# End of 4.1 tests

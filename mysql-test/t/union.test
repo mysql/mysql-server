@@ -763,3 +763,5 @@ insert into t1 (col1) values (2),(3),(4),(5),(6);
 select 99 union all select id from t1 order by 1;
 select id from t1 union all select 99 order by 1;
 drop table t1;
+
+# End of 4.1 tests

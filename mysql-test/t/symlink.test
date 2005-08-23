@@ -130,3 +130,5 @@ eval create table t1 (i int) index directory = "$MYSQL_TEST_DIR/var/master-data/
 enable_query_log;
 show create table t1;
 drop table t1;
+
+# End of 4.1 tests

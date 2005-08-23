@@ -23,3 +23,5 @@ sleep 3;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 23 # 33 #
 show slave status;
+
+# End of 4.1 tests

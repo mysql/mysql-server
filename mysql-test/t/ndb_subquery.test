@@ -37,3 +37,5 @@ drop table t1;
 drop table t2;
 # bug#5367
 ##########
+
+# End of 4.1 tests

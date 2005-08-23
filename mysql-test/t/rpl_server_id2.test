@@ -22,3 +22,5 @@ select * from t1; # check that indeed 2 were inserted
 # (not critical).
 stop slave;
 drop table t1;
+
+# End of 4.1 tests

@@ -31,3 +31,4 @@ load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated 
 select * from t1;
 drop table t1;
 
+# End of 4.1 tests

@@ -51,3 +51,5 @@ unlock tables;
 connection con1;
 reap;
 drop table t5;
+
+# End of 4.1 tests

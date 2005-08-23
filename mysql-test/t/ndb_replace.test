@@ -26,3 +26,5 @@ insert into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 select * from t1 order by gesuchnr;
 drop table t1;
+
+# End of 4.1 tests

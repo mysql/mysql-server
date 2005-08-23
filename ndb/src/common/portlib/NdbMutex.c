@@ -23,9 +23,9 @@
 
 NdbMutex* NdbMutex_Create(void)
 {
-  DBUG_ENTER("NdbMutex_Create");
   NdbMutex* pNdbMutex;
   int result;
+  DBUG_ENTER("NdbMutex_Create");
   
   pNdbMutex = (NdbMutex*)NdbMem_Allocate(sizeof(NdbMutex));
   DBUG_PRINT("info",("NdbMem_Allocate 0x%lx",pNdbMutex));
@@ -42,8 +42,8 @@ NdbMutex* NdbMutex_Create(void)
 
 int NdbMutex_Destroy(NdbMutex* p_mutex)
 {
-  DBUG_ENTER("NdbMutex_Destroy");
   int result;
+  DBUG_ENTER("NdbMutex_Destroy");
 
   if (p_mutex == NULL)
     DBUG_RETURN(-1);

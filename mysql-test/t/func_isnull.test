@@ -11,3 +11,5 @@ insert into t1 values (0,"2002-05-01"),(0,"2002-05-01"),(0,"2002-05-01");
 flush tables;
 select * from t1 where isnull(to_days(mydate));
 drop table t1;
+
+# End of 4.1 tests

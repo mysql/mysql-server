@@ -186,8 +186,8 @@ sub spawn_parent_impl {
   if ( $mode eq 'run' or $mode eq 'test' )
   {
     my $exit_value= -1;
-    my $signal_num=  0;
-    my $dumped_core= 0;
+#    my $signal_num=  0;
+#    my $dumped_core= 0;
 
     if ( $mode eq 'run' )
     {
@@ -199,9 +199,10 @@ sub spawn_parent_impl {
         mtr_error("$path ($pid) got lost somehow");
       }
 
-      $exit_value=  $? >> 8;
-      $signal_num=  $? & 127;
-      $dumped_core= $? & 128;
+      $exit_value=  $?;
+#      $exit_value=  $? >> 8;
+#      $signal_num=  $? & 127;
+#      $dumped_core= $? & 128;
 
       return $exit_value;
     }
@@ -229,9 +230,10 @@ sub spawn_parent_impl {
         if ( $ret_pid == $pid )
         {
           # We got termination of mysqltest, we are done
-          $exit_value=  $? >> 8;
-          $signal_num=  $? & 127;
-          $dumped_core= $? & 128;
+          $exit_value=  $?;
+#          $exit_value=  $? >> 8;
+#          $signal_num=  $? & 127;
+#          $dumped_core= $? & 128;
           last;
         }
 
@@ -473,6 +475,7 @@ sub mtr_stop_mysqld_servers ($) {
     }
     else
     {
+      # Server is dead, we remove the pidfile if any
       # Race, could have been removed between I tested with -f
       # and the unlink() below, so I better check again with -f
 
@@ -502,10 +505,12 @@ sub mtr_stop_mysqld_servers ($) {
   # that for true Win32 processes, kill(0,$pid) will not return 1.
   # ----------------------------------------------------------------------
 
+  start_reap_all();                     # Avoid zombies
+
  SIGNAL:
   foreach my $sig (15,9)
   {
-    my $retries= 10;                    # 10 seconds
+    my $retries= 20;                    # FIXME 20 seconds, this is silly!
     kill($sig, keys %mysqld_pids);
     while ( $retries-- and  kill(0, keys %mysqld_pids) )
     {
@@ -513,6 +518,8 @@ sub mtr_stop_mysqld_servers ($) {
       sleep(1)                      # Wait one second
     }
   }
+
+  stop_reap_all();                      # Get into control again
 
   # ----------------------------------------------------------------------
   # Now, we check if all we can find using kill(0,$pid) are dead,
@@ -632,7 +639,8 @@ sub mtr_mysqladmin_shutdown () {
     $mysql_admin_pids{$pid}= 1;
   }
 
-  # We wait blocking, we wait for the last one anyway
+  # As mysqladmin is such a simple program, we trust it to terminate.
+  # I.e. we wait blocking, and wait wait for them all before we go on.
   while (keys %mysql_admin_pids)
   {
     foreach my $pid (keys %mysql_admin_pids)
@@ -651,7 +659,8 @@ sub mtr_mysqladmin_shutdown () {
 
   my $timeout= 20;                      # 20 seconds max
   my $res= 1;                           # If we just fall through, we are done
- 
+                                        # in the sense that the servers don't
+                                        # listen to their ports any longer
  TIME:
   while ( $timeout-- )
   {
@@ -668,6 +677,8 @@ sub mtr_mysqladmin_shutdown () {
     }
     last;                               # If we got here, we are done
   }
+
+  $timeout or mtr_debug("At least one server is still listening to its port");
 
   sleep(5) if $::glob_win32;            # FIXME next startup fails if no sleep
 
@@ -752,6 +763,7 @@ sub mtr_ping_mysqld_server () {
 #
 ##############################################################################
 
+# FIXME check that the pidfile contains the expected pid!
 
 sub sleep_until_file_created ($$$) {
   my $pidfile= shift;
@@ -762,7 +774,7 @@ sub sleep_until_file_created ($$$) {
   {
     if ( -r $pidfile )
     {
-      return 1;
+      return $pid;
     }
 
     # Check if it died after the fork() was successful 
@@ -793,8 +805,12 @@ sub sleep_until_file_created ($$$) {
 #
 ##############################################################################
 
+# FIXME something is wrong, we sometimes terminate with "Hangup" written
+# to tty, and no STDERR output telling us why.
+
 sub mtr_exit ($) {
   my $code= shift;
+#  cluck("Called mtr_exit()");
   local $SIG{HUP} = 'IGNORE';
   kill('HUP', -$$);
   exit($code);

@@ -10,3 +10,4 @@
 --exec echo "select ' ok' as 'MEMORY'"    | $MYSQL --protocol=MEMORY  2>&1 || true
 --exec echo "select ' ok' as 'NullS'"     | $MYSQL --protocol=NullS   2>&1 || true
 
+# End of 4.1 tests

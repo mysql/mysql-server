@@ -76,3 +76,5 @@ drop table t1;
 # Bug #11402: abs() forces rest of calculation to unsigned
 #
 select abs(-2) * -2;
+
+# End of 4.1 tests

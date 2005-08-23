@@ -157,3 +157,5 @@ SET collation_connection='tis620_thai_ci';
 -- source include/ctype_filesort.inc
 SET collation_connection='tis620_bin';
 -- source include/ctype_filesort.inc
+
+# End of 4.1 tests

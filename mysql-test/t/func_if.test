@@ -72,3 +72,5 @@ SELECT a, NULLIF(a,'') FROM t1;
 SELECT a, NULLIF(a,'') FROM t1 WHERE NULLIF(a,'') IS NULL;
 
 DROP TABLE t1;
+
+# End of 4.1 tests

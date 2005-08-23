@@ -28,3 +28,5 @@ drop table t1;
 save_master_pos;
 connection slave;
 wait_for_slave_to_stop;
+
+# End of 4.1 tests

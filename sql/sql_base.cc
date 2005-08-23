@@ -2186,6 +2186,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   bool found_unaliased_non_uniq= 0;
   uint unaliased_counter;
 
+  LINT_INIT(unaliased_counter);
   *unaliased= FALSE;
 
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)

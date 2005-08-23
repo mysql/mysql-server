@@ -25,3 +25,5 @@ update test set url='test', shortdesc='ggg', longdesc='mmm',
 description='ddd', name='nam' where gnr=2;
 check table test;
 drop table test;
+
+# End of 4.1 tests
