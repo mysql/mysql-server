@@ -185,10 +185,6 @@ sub spawn_parent_impl {
 
   if ( $mode eq 'run' or $mode eq 'test' )
   {
-    my $exit_value= -1;
-#    my $signal_num=  0;
-#    my $dumped_core= 0;
-
     if ( $mode eq 'run' )
     {
       # Simple run of command, we wait for it to return
@@ -199,12 +195,7 @@ sub spawn_parent_impl {
         mtr_error("$path ($pid) got lost somehow");
       }
 
-      $exit_value=  $?;
-#      $exit_value=  $? >> 8;
-#      $signal_num=  $? & 127;
-#      $dumped_core= $? & 128;
-
-      return $exit_value;
+      return mtr_process_exit_status($?);
     }
     else
     {
@@ -218,6 +209,8 @@ sub spawn_parent_impl {
       # FIXME is this as it should be? Can't mysqld terminate
       # normally from running a test case?
 
+      my $exit_value= -1;
+      my $saved_exit_value;
       my $ret_pid;                      # What waitpid() returns
 
       while ( ($ret_pid= waitpid(-1,0)) != -1 )
@@ -227,13 +220,28 @@ sub spawn_parent_impl {
         # but not $exit_value, this is flagged from
         # 
 
+        my $timer_name= mtr_timer_timeout($::glob_timers, $ret_pid);
+        if ( $timer_name )
+        {
+          if ( $timer_name eq "suite" )
+          {
+            # We give up here
+            # FIXME we should only give up the suite, not all of the run?
+            print STDERR "\n";
+            mtr_error("Test suite timeout");
+          }
+          elsif ( $timer_name eq "testcase" )
+          {
+            $saved_exit_value=  63;       # Mark as timeout
+            kill(9, $pid);                # Kill mysqltest
+            next;                         # Go on and catch the termination
+          }
+        }
+
         if ( $ret_pid == $pid )
         {
           # We got termination of mysqltest, we are done
-          $exit_value=  $?;
-#          $exit_value=  $? >> 8;
-#          $signal_num=  $? & 127;
-#          $dumped_core= $? & 128;
+          $exit_value= mtr_process_exit_status($?);
           last;
         }
 
@@ -281,7 +289,7 @@ sub spawn_parent_impl {
         }
       }
 
-      return $exit_value;
+      return $saved_exit_value || $exit_value;
     }
   }
   else
@@ -291,6 +299,23 @@ sub spawn_parent_impl {
   }
 }
 
+
+# ----------------------------------------------------------------------
+# We try to emulate how an Unix shell calculates the exit code
+# ----------------------------------------------------------------------
+
+sub mtr_process_exit_status {
+  my $raw_status= shift;
+
+  if ( $raw_status & 127 )
+  {
+    return ($raw_status & 127) + 128;  # Signal num + 128
+  }
+  else
+  {
+    return $raw_status >> 8;           # Exit code
+  }
+}
 
 
 ##############################################################################
@@ -331,7 +356,7 @@ sub mtr_kill_leftovers () {
                });
   }
 
-  mtr_mysqladmin_shutdown(\@args);
+  mtr_mysqladmin_shutdown(\@args, 20);
 
   # We now have tried to terminate nice. We have waited for the listen
   # port to be free, but can't really tell if the mysqld process died
@@ -441,7 +466,8 @@ sub mtr_stop_mysqld_servers ($) {
   # First try nice normal shutdown using 'mysqladmin'
   # ----------------------------------------------------------------------
 
-  mtr_mysqladmin_shutdown($spec);
+  # Shutdown time must be high as slave may be in reconnect
+  mtr_mysqladmin_shutdown($spec, 70);
 
   # ----------------------------------------------------------------------
   # We loop with waitpid() nonblocking to see how many of the ones we
@@ -591,8 +617,9 @@ sub mtr_stop_mysqld_servers ($) {
 #
 ##############################################################################
 
-sub mtr_mysqladmin_shutdown () {
+sub mtr_mysqladmin_shutdown {
   my $spec= shift;
+  my $adm_shutdown_tmo= shift;
 
   my %mysql_admin_pids;
   my @to_kill_specs;
@@ -631,7 +658,7 @@ sub mtr_mysqladmin_shutdown () {
       mtr_add_arg($args, "--protocol=tcp"); # Needed if no --socket
     }
     mtr_add_arg($args, "--connect_timeout=5");
-    mtr_add_arg($args, "--shutdown_timeout=20");
+    mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
     mtr_add_arg($args, "shutdown");
     # We don't wait for termination of mysqladmin
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
@@ -808,11 +835,15 @@ sub sleep_until_file_created ($$$) {
 # FIXME something is wrong, we sometimes terminate with "Hangup" written
 # to tty, and no STDERR output telling us why.
 
+# FIXME for some readon, setting HUP to 'IGNORE' will cause exit() to
+# write out "Hangup", and maybe loose some output. We insert a sleep...
+
 sub mtr_exit ($) {
   my $code= shift;
 #  cluck("Called mtr_exit()");
   local $SIG{HUP} = 'IGNORE';
   kill('HUP', -$$);
+  sleep 2;
   exit($code);
 }
 
