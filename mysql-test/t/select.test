@@ -2443,3 +2443,16 @@ insert into t3 values (1,1),(2,1),(3,1),(4,1);
 select * from t1 natural join t2 natural join t3;
 select * from t1 natural join t3 natural join t2;
 drop table t1, t2, t3;
+
+
+#
+# Bug #6495 Illogical requirement for column qualification in NATURAL join
+#
+
+create table t1 (a char(1));
+create table t2 (a char(1));
+insert into t1 values ('a'),('b'),('c');
+insert into t2 values ('b'),('c'),('d');
+select a from t1 natural join t2;
+select * from t1 natural join t2 where a = 'b';
+drop table t1, t2;
