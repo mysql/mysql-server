@@ -1218,7 +1218,8 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
       length--;
     buff[length]=0;
     thd->query_length=length;
-    thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
+    thd->query= thd->memdup_w_gap(buff, length+1, 
+				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
     thd->query[length] = '\0';
     /*
       We don't need to obtain LOCK_thread_count here because in bootstrap
