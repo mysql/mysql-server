@@ -1330,14 +1330,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   
   if (!(start= data_buf = (char*) my_malloc(catalog_len + 1 +
                                             time_zone_len + 1 +
-                                            data_len + 1 +
-#ifndef MYSQL_CLIENT
-#ifdef HAVE_QUERY_CACHE
-					    QUERY_CACHE_FLAGS_SIZE +
+                                            data_len + 1
+#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+					    + QUERY_CACHE_FLAGS_SIZE +
+					    db_len + 1
 #endif
-#endif
-					    db_len + 1, MYF(MY_WME))))
-    DBUG_VOID_RETURN;
+					    , MYF(MY_WME))))
+      DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
     if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
