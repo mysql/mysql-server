@@ -650,3 +650,18 @@ select column_name, column_default from columns
   where table_schema='test' and table_name='t1';
 use test;
 drop table t1;
+
+#
+# Bug #12636: SHOW TABLE STATUS with where condition containing a subquery
+#             over information schema
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+
+--replace_column 8 # 12 # 13 #
+SHOW TABLE STATUS FROM test
+  WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+                    WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
+
+DROP TABLE t1,t2

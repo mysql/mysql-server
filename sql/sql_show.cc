@@ -1705,7 +1705,7 @@ void get_index_field_values(LEX *lex, INDEX_FIELD_VALUES *index_field_values)
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
-    index_field_values->db_value= lex->current_select->db;
+    index_field_values->db_value= lex->select_lex.db;
     index_field_values->table_value= wild;
     break;
   default:
