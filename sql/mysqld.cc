@@ -1257,7 +1257,7 @@ static void set_root(const char *path)
 #endif
 }
 
-static void server_init(void)
+static void network_init(void)
 {
   struct sockaddr_in	IPaddr;
 #ifdef HAVE_SYS_UN_H
@@ -1317,16 +1317,6 @@ static void server_init(void)
 		      socket_errno);
       unireg_abort(1);
     }
-  }
-
-  if ((user_info= check_user(mysqld_user)))
-  {
-#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
-    if (locked_in_memory) // getuid() == 0 here
-      set_effective_user(user_info);
-    else
-#endif
-      set_user(mysqld_user, user_info);
   }
 
 #ifdef __NT__
@@ -3039,7 +3029,17 @@ int main(int argc, char **argv)
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
-  server_init();
+
+  if ((user_info= check_user(mysqld_user)))
+  {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
+    if (locked_in_memory) // getuid() == 0 here
+      set_effective_user(user_info);
+    else
+#endif
+      set_user(mysqld_user, user_info);
+  }
+
 
   if (opt_bin_log && !server_id)
   {
@@ -3063,6 +3063,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (init_server_components())
     exit(1);
+
+  network_init();
 
 #ifdef __WIN__
   if (!opt_console)
