@@ -40,7 +40,7 @@ Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords);
 void readArguments(int argc, const char** argv);
 void doExit();
 
-FILE * f;
+FILE * f= 0;
 char fileName[256];
 bool thePrintFlag = true;
 bool theCheckFlag = true;
@@ -458,7 +458,7 @@ void readArguments(int argc, const char** argv)
 
 void doExit() {
   ndbout << "Error in redoLogReader(). Exiting!" << endl;
-  fclose(f);
+  if (f) fclose(f);
   delete [] redoLogPage;
   exit(RETURN_ERROR);
 }
