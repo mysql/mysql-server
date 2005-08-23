@@ -2829,3 +2829,34 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'x'
 drop table t1;
 drop view v1;
+create table t1(a1 int);
+create table t2(a2 int);
+insert into t1 values(1),(2);
+insert into t2 values(1),(2);
+create view v2 (c) as select a1 from t1;
+select * from t1 natural left join t2;
+a1	a2
+1	1
+1	2
+2	1
+2	2
+select * from t1 natural right join t2;
+a2	a1
+1	1
+1	2
+2	1
+2	2
+select * from v2 natural left join t2;
+c	a2
+1	1
+1	2
+2	1
+2	2
+select * from v2 natural right join t2;
+a2	c
+1	1
+1	2
+2	1
+2	2
+drop table t1, t2;
+drop view v2;
