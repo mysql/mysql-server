@@ -22,3 +22,5 @@ INSERT INTO t1 VALUES ('2005-01-1');
 SELECT * FROM t1 WHERE popisek = '2005-01-1';
 SELECT * FROM t1 WHERE popisek LIKE '2005-01-1';
 drop table t1;
+
+# End of 4.1 tests

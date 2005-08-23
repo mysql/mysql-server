@@ -121,3 +121,5 @@ select date_add("1997-12-31",INTERVAL "10.09" SECOND_MICROSECOND) as a;
 --disable_ps_protocol
 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f");
 --enable_ps_protocol
+
+# End of 4.1 tests

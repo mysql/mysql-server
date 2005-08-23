@@ -10,3 +10,4 @@ create temporary table mysqltest.t2 (n int);
 show status like 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	0
+drop database mysqltest;

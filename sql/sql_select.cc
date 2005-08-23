@@ -984,7 +984,7 @@ JOIN::reinit()
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
   
-  if (setup_tables(tables_list))
+  if (!optimized && setup_tables(tables_list))
     DBUG_RETURN(1);
   
   /* Reset of sum functions */
@@ -1072,7 +1072,14 @@ JOIN::exec()
     else
     {
       result->send_fields(fields_list,1);
-      if (cond_value != Item::COND_FALSE && (!having || having->val_int()))
+      /*
+        We have to test for 'conds' here as the WHERE may not be constant
+        even if we don't have any tables for prepared statements or if
+        conds uses something like 'rand()'.
+      */
+      if (cond_value != Item::COND_FALSE &&
+          (!conds || conds->val_int()) &&
+          (!having || having->val_int()))
       {
 	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
                                           procedure->end_of_records())
@@ -1432,7 +1439,8 @@ JOIN::exec()
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables);
-	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
+	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
+                                         "having after sort"););
       }
     }
     {
@@ -2253,9 +2261,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= (cond->functype() == Item_func::EQ_FUNC) &&
+  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC) &&
                                  ((*value)->type() == Item::FIELD_ITEM) &&
-                                 ((Item_field*)*value)->field->maybe_null();
+                                  ((Item_field*)*value)->field->maybe_null());
   (*key_fields)++;
 }
 
@@ -4891,7 +4899,15 @@ static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
-    if (item->max_length > 255)
+    enum enum_field_types type;
+    /*
+      DATE/TIME fields have STRING_RESULT result type. To preserve
+      type they needed to be handled separately.
+    */
+    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
+        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
+      new_field= item->tmp_table_field_from_field_type(table);
+    else if (item->max_length > 255)
     {
       if (convert_blob_length)
         new_field= new Field_varstring(convert_blob_length, maybe_null,
@@ -5281,7 +5297,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES)
+      OPTION_BIG_TABLES ||(select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file=get_new_handler(table,table->db_type=DB_TYPE_MYISAM);
     if (group &&
@@ -6310,6 +6326,11 @@ join_read_always_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
+  {
+    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
+        return -1;
+  } 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key);
   if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
@@ -8504,9 +8525,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
   li.rewind();
   while ((item=li++))
   {
-    if (item->const_item() || item->with_sum_func)
-      continue;
-    if (!item->marker)
+    if (!item->const_item() && !item->with_sum_func && !item->marker)
     {
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)

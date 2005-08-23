@@ -220,3 +220,5 @@ ALTER TABLE t1 RENAME t2;
 ALTER TABLE t2 CHANGE COLUMN c c VARCHAR(251) NOT NULL;
 select count(*) from t2;
 DROP TABLE t2;
+
+# End of 4.1 tests

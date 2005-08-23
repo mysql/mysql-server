@@ -1236,19 +1236,27 @@ class select_insert :public select_result_interceptor {
   List<Item> *fields;
   ulonglong last_insert_id;
   COPY_INFO info;
+  TABLE_LIST *insert_table_list;
+  TABLE_LIST *dup_table_list;
 
   select_insert(TABLE *table_par, List<Item> *fields_par,
 		enum_duplicates duplic, bool ignore)
-    :table(table_par), fields(fields_par), last_insert_id(0)
+    :table(table_par), fields(fields_par), last_insert_id(0),
+     insert_table_list(0), dup_table_list(0)
   {
     bzero((char*) &info,sizeof(info));
     info.ignore= ignore;
     info.handle_duplicates=duplic;
   }
-  select_insert(TABLE *table_par, List<Item> *fields_par,
+  select_insert(TABLE *table_par,
+		TABLE_LIST *insert_table_list_par,
+		TABLE_LIST *dup_table_list_par,
+		List<Item> *fields_par,
 		List<Item> *update_fields, List<Item> *update_values,
 		enum_duplicates duplic, bool ignore)
-    :table(table_par), fields(fields_par), last_insert_id(0)
+    :table(table_par), fields(fields_par), last_insert_id(0),
+     insert_table_list(insert_table_list_par),
+     dup_table_list(dup_table_list_par)
   {
     bzero((char*) &info,sizeof(info));
     info.ignore= ignore;

@@ -21,3 +21,5 @@ use mysqltest;
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 show binlog events from 79; # should be nothing
 drop database mysqltest;
+
+# End of 4.1 tests

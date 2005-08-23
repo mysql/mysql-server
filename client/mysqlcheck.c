@@ -575,8 +575,13 @@ static void print_result()
 
     if (status)
     {
+      /*
+        if there was an error with the table, we have --auto-repair set,
+        and this isn't a repair op, then add the table to the tables4repair
+        list
+      */
       if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
-	  (!opt_fast || strcmp(row[3],"OK")))
+	  strcmp(row[3],"OK"))
 	insert_dynamic(&tables4repair, prev);
       found_error=0;
       if (opt_silent)
@@ -595,8 +600,8 @@ static void print_result()
     strmov(prev, row[0]);
     putchar('\n');
   }
-  if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
-      !opt_fast)
+  /* add the last table to be repaired to the list */
+  if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
     insert_dynamic(&tables4repair, prev);
   mysql_free_result(res);
 }

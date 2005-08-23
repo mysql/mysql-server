@@ -44,3 +44,5 @@ sync_with_master;
 # no need to delete manually, as the DELETEs must have done some real job on
 # master (updated binlog)
 flush privileges;
+
+# End of 4.1 tests

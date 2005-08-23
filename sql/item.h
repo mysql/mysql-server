@@ -532,6 +532,7 @@ public:
     struct CONVERSION_INFO
     {
       CHARSET_INFO *character_set_client;
+      CHARSET_INFO *character_set_of_placeholder;
       /*
         This points at character set of connection if conversion
         to it is required (i. e. if placeholder typecode is not BLOB).
@@ -1023,6 +1024,15 @@ public:
   String* val_str(String* s);
   bool get_date(TIME *ltime, uint fuzzydate);
   void print(String *str);
+  /*
+    we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
+  */
+  table_map used_tables() const
+  {
+    return (depended_from ?
+            OUTER_REF_TABLE_BIT :
+            (*ref)->used_tables() | RAND_TABLE_BIT);
+  }
 };
 
 class Item_null_helper :public Item_ref_null_helper

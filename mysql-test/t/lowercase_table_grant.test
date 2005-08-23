@@ -26,3 +26,5 @@ flush privileges;
 drop user mysqltest_1@localhost;
 
 drop database MYSQLtest;
+
+# End of 4.1 tests

@@ -29,3 +29,5 @@ show status like 'Slow_queries'||||
 drop table t1||||
 
 delimiter ;||||
+
+# End of 4.1 tests

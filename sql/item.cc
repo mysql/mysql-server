@@ -455,14 +455,18 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
        ; // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             derivation < dt.derivation &&
-             collation->state & MY_CS_UNICODE)
+             collation->state & MY_CS_UNICODE &&
+             (derivation < dt.derivation ||
+             (derivation == dt.derivation &&
+             !(dt.collation->state & MY_CS_UNICODE))))
     {
       // Do nothing
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
-             dt.derivation < derivation &&
-             dt.collation->state & MY_CS_UNICODE)
+             dt.collation->state & MY_CS_UNICODE &&
+             (dt.derivation < derivation ||
+              (dt.derivation == derivation &&
+             !(collation->state & MY_CS_UNICODE))))
     {
       set(dt);
     }
@@ -1226,7 +1230,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
-      value.cs_info.character_set_client= fromcs;
+      value.cs_info.character_set_of_placeholder= fromcs;
       /*
         Setup source and destination character sets so that they
         are different only if conversion is necessary: this will
@@ -1478,10 +1482,17 @@ const String *Item_param::query_val_str(String* str) const
 
       buf= str->c_ptr_quick();
       ptr= buf;
-      *ptr++= '\'';
-      ptr+= escape_string_for_mysql(str_value.charset(), ptr,
-                                    str_value.ptr(), str_value.length());
-      *ptr++= '\'';
+      if (value.cs_info.character_set_client->escape_with_backslash_is_dangerous)
+      {
+        ptr= str_to_hex(ptr, str_value.ptr(), str_value.length());
+      }
+      else
+      {
+        *ptr++= '\'';
+        ptr+= escape_string_for_mysql(str_value.charset(), ptr,
+                                      str_value.ptr(), str_value.length());
+        *ptr++='\'';
+      }
       str->length(ptr - buf);
       break;
     }
@@ -1511,10 +1522,10 @@ bool Item_param::convert_str_value(THD *thd)
       here only if conversion is really necessary.
     */
     if (value.cs_info.final_character_set_of_str_value !=
-        value.cs_info.character_set_client)
+        value.cs_info.character_set_of_placeholder)
     {
       rc= thd->convert_string(&str_value,
-                              value.cs_info.character_set_client,
+                              value.cs_info.character_set_of_placeholder,
                               value.cs_info.final_character_set_of_str_value);
     }
     else

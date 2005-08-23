@@ -587,13 +587,15 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 
       while (!got_error &&
 	     !my_b_read(&sinfo->tempfile_for_exceptions,(byte*)&key_length,
-			sizeof(key_length)) &&
-	     !my_b_read(&sinfo->tempfile_for_exceptions,(byte*)mergebuf,
-			(uint) key_length))
+			sizeof(key_length)))
       {
-	if (_mi_ck_write(info,sinfo->key,(uchar*) mergebuf,
-			 key_length - info->s->rec_reflength))
-	  got_error=1;
+        byte ft_buf[HA_FT_MAXBYTELEN + HA_FT_WLEN + 10];
+        if (key_length > sizeof(ft_buf) ||
+            my_b_read(&sinfo->tempfile_for_exceptions, (byte*)ft_buf,
+                      (uint)key_length) ||
+            _mi_ck_write(info, sinfo->key, (uchar*)ft_buf,
+                         key_length - info->s->rec_reflength))
+          got_error=1;
       }
     }
   }

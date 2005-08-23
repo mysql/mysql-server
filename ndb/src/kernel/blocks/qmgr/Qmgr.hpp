@@ -220,6 +220,7 @@ private:
 
 
   void execAPI_VERSION_REQ(Signal* signal);
+  void execAPI_BROADCAST_REP(Signal* signal);
 
   // Arbitration signals
   void execARBIT_CFG(Signal* signal);

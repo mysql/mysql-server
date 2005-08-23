@@ -59,3 +59,5 @@ insert into t1 values (1);
 select 1 as a from t1 union all select 1 from dual limit 1;
 (select 1 as a from t1) union all (select 1 from dual) limit 1;
 drop table t1;
+
+# End of 4.1 tests

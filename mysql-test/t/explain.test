@@ -41,3 +41,5 @@ insert into таб (кол0) values (2);
 explain select кол0 from таб where кол0=1;
 drop table таб;
 set names latin1;
+
+# End of 4.1 tests

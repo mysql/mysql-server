@@ -154,3 +154,5 @@ insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@val
 
 drop table t1;
 --enable_ps_protocol
+
+# End of 4.1 tests

@@ -3196,7 +3196,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   lqhKeyReq->tcBlockref = sig4;
   lqhKeyReq->savePointId = sig5;
 
-  sig0 = regCachePtr->tableref + (regCachePtr->schemaVersion << 16);
+  sig0 = regCachePtr->tableref + ((regCachePtr->schemaVersion << 16) & 0xFFFF0000);
   sig1 = regCachePtr->fragmentid + (regTcPtr->tcNodedata[1] << 16);
   sig2 = regApiPtr->transid[0];
   sig3 = regApiPtr->transid[1];
@@ -12877,7 +12877,7 @@ Dbtc::TableRecord::getErrorCode(Uint32 schemaVersion) const {
     return ZNO_SUCH_TABLE;
   if(dropping)
     return ZDROP_TABLE_IN_PROGRESS;
-  if(schemaVersion != currentSchemaVersion)
+  if(table_version_major(schemaVersion) != table_version_major(currentSchemaVersion))
     return ZWRONG_SCHEMA_VERSION_ERROR;
   ErrorReporter::handleAssert("Dbtc::TableRecord::getErrorCode",
 			      __FILE__, __LINE__);

@@ -65,3 +65,5 @@ sleep 1;
 show tables;
 
 drop table t2, t4;
+
+# End of 4.1 tests
