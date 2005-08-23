@@ -1350,6 +1350,20 @@ fld1	fld1
 250504	250505
 250505	250505
 insert into t2 (fld1, companynr) values (999999,99);
+select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
+companynr	companyname
+99	NULL
+select count(*) from t2 left join t4 using (companynr) where t4.companynr is not null;
+count(*)
+1199
+explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	Using where; Not exists
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	Using where; Not exists
 select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
 companynr	companyname
 select count(*) from t2 left join t4 using (companynr) where companynr is not null;
@@ -1362,6 +1376,18 @@ explain select companynr,companyname from t4 left join t2 using (companynr) wher
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 delete from t2 where fld1=999999;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
@@ -1374,6 +1400,18 @@ explain select companynr,companyname from t4 left join t2 using (companynr) wher
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where

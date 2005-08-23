@@ -19,11 +19,11 @@ select t1.*,t2.* from t1 JOIN t2 where t1.a=t2.a;
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 select t1.*,t2.* from { oj t2 left outer join t1 on (t1.a=t2.a) };
 select t1.*,t2.* from t1 as t0,{ oj t2 left outer join t1 on (t1.a=t2.a) } WHERE t0.a=2;
-select * from t1 left join t2 using (a);
-select t1.*,t2.* from t1 left join t2 on t1.a=t2.a;
-select * from t1 left join t2 using (a,c);
-select * from t1 left join t2 using (c);
-select * from t1 natural left outer join t2;
+select t1.*,t2.* from t1 left join t2 using (a);
+select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
+select t1.*,t2.* from t1 left join t2 using (a,c);
+select t1.*,t2.* from t1 left join t2 using (c);
+select t1.*,t2.* from t1 natural left outer join t2;
 
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id=3;
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id is null;
@@ -44,9 +44,9 @@ select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on 
 select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 
 # Test of inner join
-select * from t1 inner join t2 using (a);
+select t1.*,t2.* from t1 inner join t2 using (a);
 select t1.*,t2.* from t1 inner join t2 on (t1.a=t2.a);
-select * from t1 natural join t2;
+select t1.*,t2.* from t1 natural join t2;
 
 drop table t1,t2;
 
@@ -325,7 +325,7 @@ INSERT INTO t2 VALUES (2,'y');
 INSERT INTO t2 VALUES (3,'z');
 
 SELECT t2.id2 FROM t2 LEFT OUTER JOIN t1 ON t1.id2 = t2.id2 WHERE id1 IS NULL;
-SELECT id2 FROM t2 NATURAL LEFT OUTER JOIN t1 WHERE id1 IS NULL;
+SELECT t2.id2 FROM t2 NATURAL LEFT OUTER JOIN t1 WHERE id1 IS NULL;
 
 drop table t1,t2;
 
@@ -430,6 +430,8 @@ insert into t1 values(1),(2);
 insert into t2 values(2),(3);
 insert into t3 values(2),(4);
 select * from t1 natural left join t2 natural left join t3;
+select * from t1 natural left join t2 where (t2.i is not null)=0;
+select * from t1 natural left join t2 where (t2.i is not null) is not null;
 select * from t1 natural left join t2 where (i is not null)=0;
 select * from t1 natural left join t2 where (i is not null) is not null;
 drop table t1,t2,t3;
@@ -656,6 +658,8 @@ create table t1 (a int, b varchar(20));
 create table t2 (a int, c varchar(20));
 insert into t1 values (1,"aaaaaaaaaa"),(2,"bbbbbbbbbb");
 insert into t2 values (1,"cccccccccc"),(2,"dddddddddd");
+select group_concat(t1.b,t2.c) from t1 left join t2 using(a) group by t1.a;
+select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by t1.a;
 select group_concat(t1.b,t2.c) from t1 left join t2 using(a) group by a;
 select group_concat(t1.b,t2.c) from t1 inner join t2 using(a) group by a;
 drop table t1, t2;
