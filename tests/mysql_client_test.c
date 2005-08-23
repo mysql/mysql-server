@@ -11801,8 +11801,8 @@ static void test_bug6046()
 
   stmt= mysql_stmt_init(mysql);
 
-  stmt_text= "SELECT a FROM t1 NATURAL JOIN t1 as X1 "
-             "WHERE b > ? ORDER BY a";
+  stmt_text= "SELECT t1.a FROM t1 NATURAL JOIN t1 as X1 "
+             "WHERE t1.b > ? ORDER BY t1.a";
 
   rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
   check_execute(stmt, rc);
