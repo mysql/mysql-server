@@ -763,9 +763,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   }
   if (!res && !thd->is_fatal_error)
   {
-    TABLE_LIST *top_view= (table->belong_to_view ?
-                           table->belong_to_view :
-                           table);
+    TABLE_LIST *top_view= table->top_table();
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
@@ -1134,8 +1132,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       thd->lex->select_lex.select_limit == 0)
     DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
   table= view->table;
-  if (view->belong_to_view)
-    view= view->belong_to_view;
+  view= view->top_table();
   trans= view->field_translation;
   key_info_end= (key_info= table->key_info)+ table->s->keys;
 

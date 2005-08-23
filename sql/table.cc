@@ -2056,7 +2056,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 {
   if (check_option && check_option->val_int() == 0)
   {
-    TABLE_LIST *view= (belong_to_view ? belong_to_view : this);
+    TABLE_LIST *view= top_table();
     if (ignore_failure)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
