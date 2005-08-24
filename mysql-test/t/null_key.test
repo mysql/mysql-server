@@ -152,18 +152,12 @@ INSERT INTO t1 (order_id, product_id, product_type) VALUES
 INSERT INTO t2 (order_id, product_id, product_type) VALUES
 ('9d9aad7764b5b2c53004348ef8d34500',2315652, 3);
 
-select t1.* from t1 left join t2
-       on (t1.order_id = t2.order_id and
-           t1.product_id = t2.product_id and
-           t1.product_type = t2.product_type)
-where t2.order_id = NULL;
-
-select t1.* from t1 left join t2
-       on (t1.order_id = t2.order_id and
-           t1.product_id = t2.product_id and
-           t1.product_type = t2.product_type)
+select t1.* from t1
+left join t2 using(order_id, product_id, product_type)
+where t2.order_id=NULL;
+select t1.* from t1
+left join t2 using(order_id, product_id, product_type)
 where t2.order_id is NULL;
-
 drop table t1,t2;
 
 #

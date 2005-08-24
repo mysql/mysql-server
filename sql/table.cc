@@ -2289,7 +2289,6 @@ Natural_join_column::Natural_join_column(Field_translator *field_param,
   table_field= NULL;
   table_ref= tab;
   is_common= FALSE;
-  is_coalesced= FALSE;
 }
 
 
@@ -2301,7 +2300,6 @@ Natural_join_column::Natural_join_column(Field *field_param,
   view_field= NULL;
   table_ref= tab;
   is_common= FALSE;
-  is_coalesced= FALSE;
 }
 
 
@@ -2637,13 +2635,6 @@ GRANT_INFO *Field_iterator_table_ref::grant()
   return &(table_ref->table->grant);
 }
 
-
-bool Field_iterator_table_ref::is_coalesced()
-{
-  if (table_ref->is_natural_join)
-    return natural_join_it.column_ref()->is_coalesced;
-  return FALSE;
-}
 
 /*
   Create new or return existing column reference to a column of a
