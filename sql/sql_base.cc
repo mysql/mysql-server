@@ -3763,7 +3763,12 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
                              TABLE_LIST *left_neighbor,
                              TABLE_LIST *right_neighbor)
 {
+  Query_arena *arena, backup;
+  bool result= TRUE;
+
   DBUG_ENTER("store_top_level_join_columns");
+
+  arena= thd->change_arena_if_needed(&backup);
 
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join)
@@ -3797,7 +3802,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       if (cur_table_ref->nested_join &&
           store_top_level_join_columns(thd, cur_table_ref,
                                        cur_left_neighbor, cur_right_neighbor))
-        DBUG_RETURN(TRUE);
+        goto err;
       cur_right_neighbor= cur_table_ref;
     }
   }
@@ -3829,7 +3834,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       swap_variables(TABLE_LIST*, table_ref_1, table_ref_2);
     if (mark_common_columns(thd, table_ref_1, table_ref_2,
                             using_fields, &found_using_fields))
-      DBUG_RETURN(TRUE);
+      goto err;
 
     /*
       Swap the join operands back, so that we pick the columns of the second
@@ -3841,7 +3846,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     if (store_natural_using_join_columns(thd, table_ref, table_ref_1,
                                          table_ref_2, using_fields,
                                          found_using_fields))
-      DBUG_RETURN(TRUE);
+      goto err;
 
     /*
       Change NATURAL JOIN to JOIN ... ON. We do this for both operands
@@ -3872,7 +3877,12 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     else
       table_ref->next_name_resolution_table= NULL;
   }
-  DBUG_RETURN(FALSE);
+  result= FALSE; /* All is OK. */
+
+err:
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+  DBUG_RETURN(result);
 }
 
 
