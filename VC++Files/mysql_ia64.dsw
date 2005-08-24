@@ -109,7 +109,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "myisam"=".\myisam\myisam_ia64.dsp" - Package Owner=<4>
+Project: "myisam"=".\storage\myisam\myisam_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -124,7 +124,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "myisammrg"=".\myisammrg\myisammrg_ia64.dsp" - Package Owner=<4>
+Project: "myisammrg"=".\storage\myisammrg\myisammrg_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -163,7 +163,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "heap"=".\heap\heap_ia64.dsp" - Package Owner=<4>
+Project: "heap"=".\storage\heap\heap_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -175,7 +175,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "innobase"=".\innobase\innobase_ia64.dsp" - Package Owner=<4>
+Project: "innobase"=".\storage\innobase\innobase_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
