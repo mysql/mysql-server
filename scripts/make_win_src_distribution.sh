@@ -184,7 +184,7 @@ rm -r -f "$BASE/share/Makefile"
 rm -r -f "$BASE/share/Makefile.in"
 rm -r -f "$BASE/share/Makefile.am"
 
-mkdir $BASE/Docs $BASE/extra $BASE/include
+mkdir $BASE/Docs $BASE/extra $BASE/include $BASE/storage
 
 #
 # Copy directory files
@@ -249,9 +249,9 @@ copy_dir_dirs() {
 # Input directories to be copied
 #
 
-for i in client dbug extra heap include \
-         libmysql libmysqld myisam \
-         myisammrg mysys regex sql strings sql-common sql/examples \
+for i in client dbug extra storage/heap include \
+         libmysql libmysqld storage/myisam \
+         storage/myisammrg mysys regex sql strings sql-common sql/examples \
          tools vio zlib
 do
   copy_dir_files $i
@@ -260,13 +260,13 @@ done
 #
 # Create project files for ndb
 #
-make -C $SOURCE/ndb windoze
+make -C $SOURCE/storage/ndb windoze
 
 #
 # Input directories to be copied recursively
 #
 
-for i in bdb innobase ndb extra/yassl
+for i in storage/bdb storage/innobase storage/ndb extra/yassl
 do
   copy_dir_dirs $i
 done
@@ -275,10 +275,10 @@ done
 # Create dummy innobase configure header
 #
 
-if [ -f $BASE/innobase/ib_config.h ]; then
-  rm -f $BASE/innobase/ib_config.h
+if [ -f $BASE/storage/innobase/ib_config.h ]; then
+  rm -f $BASE/storage/innobase/ib_config.h
 fi
-touch $BASE/innobase/ib_config.h
+touch $BASE/storage/innobase/ib_config.h
 
 
 #

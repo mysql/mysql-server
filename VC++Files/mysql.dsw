@@ -3,7 +3,7 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
-Project: "bdb"=".\bdb\bdb.dsp" - Package Owner=<4>
+Project: "bdb"=".\storage\bdb\bdb.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -45,7 +45,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "heap"=".\heap\heap.dsp" - Package Owner=<4>
+Project: "heap"=".\storage\heap\heap.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -57,7 +57,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "innobase"=".\innobase\innobase.dsp" - Package Owner=<4>
+Project: "innobase"=".\storage\innobase\innobase.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -171,7 +171,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "myisam"=".\myisam\myisam.dsp" - Package Owner=<4>
+Project: "myisam"=".\storage\myisam\myisam.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -261,7 +261,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "myisammrg"=".\myisammrg\myisammrg.dsp" - Package Owner=<4>
+Project: "myisammrg"=".\storage\myisammrg\myisammrg.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{

@@ -4,33 +4,33 @@
 
 # TARGTYPE "Win32 (x86) Static Library" 0x0104
 
-CFG=heap - WinIA64 TLS
+CFG=heap - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "heap.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
-!MESSAGE NMAKE /f "heap.mak" CFG="heap - WinIA64 TLS"
-!MESSAGE 
+!MESSAGE
+!MESSAGE NMAKE /f "heap.mak" CFG="heap - Win32 Debug"
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
-!MESSAGE "heap - WinIA64 Release" (based on "Win32 (x86) Static Library")
-!MESSAGE "heap - WinIA64 Debug" (based on "Win32 (x86) Static Library")
-!MESSAGE "heap - WinIA64 TLS_DEBUG" (based on "Win32 (x86) Static Library")
-!MESSAGE "heap - WinIA64 TLS" (based on "Win32 (x86) Static Library")
-!MESSAGE 
+!MESSAGE
+!MESSAGE "heap - Win32 Release" (based on "Win32 (x86) Static Library")
+!MESSAGE "heap - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "heap - Win32 TLS_DEBUG" (based on "Win32 (x86) Static Library")
+!MESSAGE "heap - Win32 TLS" (based on "Win32 (x86) Static Library")
+!MESSAGE
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "heap - WinIA64 Release"
+!IF  "$(CFG)" == "heap - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -42,19 +42,19 @@ RSC=rc.exe
 # PROP Output_Dir "release"
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN64" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"..\lib_release\heap.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\heap.lib"
 
-!ELSEIF  "$(CFG)" == "heap - WinIA64 Debug"
+!ELSEIF  "$(CFG)" == "heap - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -66,33 +66,33 @@ LIB32=link.exe -lib
 # PROP Output_Dir "debug"
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN64" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /MTd /W3 /Zi /Od /GF /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"..\lib_debug\heap.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_debug\heap.lib"
 
-!ELSEIF  "$(CFG)" == "heap - WinIA64 TLS_DEBUG"
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS_DEBUG"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "heap___WinIA64_TLS_DEBUG"
-# PROP BASE Intermediate_Dir "heap___WinIA64_TLS_DEBUG"
+# PROP BASE Output_Dir "heap___Win32_TLS_DEBUG"
+# PROP BASE Intermediate_Dir "heap___Win32_TLS_DEBUG"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
-# PROP Output_Dir "heap___WinIA64_TLS_DEBUG"
-# PROP Intermediate_Dir "heap___WinIA64_TLS_DEBUG"
+# PROP Output_Dir "heap___Win32_TLS_DEBUG"
+# PROP Intermediate_Dir "heap___Win32_TLS_DEBUG"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /GF /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
+# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /MTd /W3 /Zi /O2 /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -100,24 +100,24 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_debug\heap_tls.lib"
-# ADD LIB32 /nologo /out:"..\lib_debug\heap_tls.lib"
+# ADD BASE LIB32 /nologo /out:"..\..\lib_debug\heap_tls.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_debug\heap_tls.lib"
 
-!ELSEIF  "$(CFG)" == "heap - WinIA64 TLS"
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "heap___WinIA64_TLS"
-# PROP BASE Intermediate_Dir "heap___WinIA64_TLS"
+# PROP BASE Output_Dir "heap___Win32_TLS"
+# PROP BASE Intermediate_Dir "heap___Win32_TLS"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "heap___WinIA64_TLS"
-# PROP Intermediate_Dir "heap___WinIA64_TLS"
+# PROP Output_Dir "heap___Win32_TLS"
+# PROP Intermediate_Dir "heap___Win32_TLS"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -125,17 +125,17 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\heap_tls.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\heap_tls.lib"
+# ADD BASE LIB32 /nologo /out:"..\..\lib_release\heap_tls.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\heap_tls.lib"
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
-# Name "heap - WinIA64 Release"
-# Name "heap - WinIA64 Debug"
-# Name "heap - WinIA64 TLS_DEBUG"
-# Name "heap - WinIA64 TLS"
+# Name "heap - Win32 Release"
+# Name "heap - Win32 Debug"
+# Name "heap - Win32 TLS_DEBUG"
+# Name "heap - Win32 TLS"
 # Begin Source File
 
 SOURCE=.\_check.c
@@ -176,20 +176,20 @@ SOURCE=.\hp_extra.c
 
 SOURCE=.\hp_hash.c
 
-!IF  "$(CFG)" == "heap - WinIA64 Release"
+!IF  "$(CFG)" == "heap - Win32 Release"
 
-!ELSEIF  "$(CFG)" == "heap - WinIA64 Debug"
+!ELSEIF  "$(CFG)" == "heap - Win32 Debug"
 
 # SUBTRACT CPP /YX
 
-!ELSEIF  "$(CFG)" == "heap - WinIA64 TLS_DEBUG"
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS_DEBUG"
 
 # SUBTRACT BASE CPP /YX
 # SUBTRACT CPP /YX
 
-!ELSEIF  "$(CFG)" == "heap - WinIA64 TLS"
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS"
 
-!ENDIF 
+!ENDIF
 
 # End Source File
 # Begin Source File
