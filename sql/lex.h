@@ -751,7 +751,7 @@ static SYMBOL sql_functions[] = {
   { "SUBSTRING_INDEX",	SYM(SUBSTRING_INDEX)},
   { "SUBTIME",          F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_subtime)},
   { "SUM",		SYM(SUM_SYM)},
-  { "SYSDATE",		SYM(NOW_SYM)},
+  { "SYSDATE",		SYM(SYSDATE)},
   { "SYSTEM_USER",	SYM(USER)},
   { "TAN",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_tan)},
   { "TIME_FORMAT",	F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_time_format)},
