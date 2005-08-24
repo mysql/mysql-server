@@ -419,7 +419,7 @@ SET @var1= x'8300';
 # exercise this code from mysql-test-run.
 EXECUTE stmt1 USING @var1;
 --replace_column 2 # 5 #
-SHOW BINLOG EVENTS;
+SHOW BINLOG EVENTS FROM 79;
 SELECT HEX(f1) FROM t1;
 DROP table t1;
 # end test for bug#11338
