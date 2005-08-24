@@ -1328,14 +1328,19 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
   }
   
+#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
   if (!(start= data_buf = (char*) my_malloc(catalog_len + 1 +
                                             time_zone_len + 1 +
-                                            data_len + 1
-#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
-					    + QUERY_CACHE_FLAGS_SIZE +
-					    db_len + 1
+                                            data_len + 1 +
+					    QUERY_CACHE_FLAGS_SIZE +
+					    db_len + 1,
+					    MYF(MY_WME))))
+#else
+  if (!(start= data_buf = (char*) my_malloc(catalog_len + 1 +
+                                            time_zone_len + 1 +
+                                            data_len + 1,
+					    MYF(MY_WME))))
 #endif
-					    , MYF(MY_WME))))
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
