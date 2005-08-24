@@ -923,6 +923,10 @@ end:
 	0	The query was cached and user was sent the result.
 	-1	The query was cached but we didn't have rights to use it.
 		No error is sent to the client yet.
+
+  NOTE
+  This method requires that sql points to allocated memory of size:
+  tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
 */
 
 int
