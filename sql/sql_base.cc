@@ -2945,9 +2945,15 @@ find_field_in_tables(THD *thd, Item_ident *item,
   char name_buff[NAME_LEN+1];
   TABLE_LIST *cur_table= first_table;
   TABLE_LIST *actual_table;
-  bool is_qualified= table_name && table_name[0];
-  bool allow_rowid= is_qualified ?
-                    TRUE : (cur_table && !cur_table->next_local);
+  bool allow_rowid;
+
+  if (!table_name || !table_name[0])
+  {
+    table_name= 0;                              // For easier test
+    db= 0;
+  }
+
+  allow_rowid= table_name || (cur_table && !cur_table->next_local);
 
   if (item->cached_table)
   {
@@ -3022,8 +3028,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
        cur_table= cur_table->next_name_resolution_table)
   {
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, item->name,
-                                              is_qualified ? table_name : NULL,
-                                              is_qualified ? db : NULL,
+                                              table_name, db,
                                               length, ref,
                                               (cur_table->table &&
                                                test(cur_table->table->grant.
@@ -3053,7 +3058,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
         If we found a fully qualified field we return it directly as it can't
         have duplicates.
        */
-      if (is_qualified && db)
+      if (db)
         return cur_field;
 
       if (found)
@@ -3061,7 +3066,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
         if (report_error == REPORT_ALL_ERRORS ||
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
           my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                   is_qualified ? item->full_name() : name, thd->where);
+                   table_name ? item->full_name() : name, thd->where);
 	return (Field*) 0;
       }
       found= cur_field;
@@ -3078,7 +3083,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
     and cur_table wouldn't be updated by the loop increment part, so it
     will be equal to the first table.
   */
-  if (is_qualified && (cur_table == first_table) &&
+  if (table_name && (cur_table == first_table) &&
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
@@ -3091,13 +3096,13 @@ find_field_in_tables(THD *thd, Item_ident *item,
     my_error(ER_UNKNOWN_TABLE, MYF(0), table_name, thd->where);
   }
   else
+  {
     if (report_error == REPORT_ALL_ERRORS ||
         report_error == REPORT_EXCEPT_NON_UNIQUE)
       my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
     else
       found= not_found_field;
-
-  DBUG_ASSERT(!found || found == not_found_field);
+  }
   return found;
 }
 
