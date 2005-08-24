@@ -1476,15 +1476,79 @@ void Item_func_now_utc::store_now_in_TIME(TIME *now_time)
 
 
 bool Item_func_now::get_date(TIME *res,
-			     uint fuzzy_date __attribute__((unused)))
+                             uint fuzzy_date __attribute__((unused)))
 {
-  *res=ltime;
+  *res= ltime;
   return 0;
 }
 
 
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
+  to->set_notnull();
+  to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
+  return 0;
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole SYSDATE function.
+*/
+void Item_func_sysdate_local::store_now_in_TIME(TIME *now_time)
+{
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, time(NULL));
+  thd->time_zone_used= 1;
+}
+
+
+String *Item_func_sysdate_local::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  store_now_in_TIME(&ltime);
+  buff_length= (uint) my_datetime_to_str(&ltime, buff);
+  str_value.set(buff, buff_length, &my_charset_bin);
+  return &str_value;
+}
+
+
+longlong Item_func_sysdate_local::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  store_now_in_TIME(&ltime);
+  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+}
+
+
+double Item_func_sysdate_local::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  store_now_in_TIME(&ltime);
+  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+}
+
+
+void Item_func_sysdate_local::fix_length_and_dec()
+{
+  decimals= 0;
+  collation.set(&my_charset_bin);
+  max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+}
+
+
+bool Item_func_sysdate_local::get_date(TIME *res,
+                                       uint fuzzy_date __attribute__((unused)))
+{
+  store_now_in_TIME(&ltime);
+  *res= ltime;
+  return 0;
+}
+
+
+int Item_func_sysdate_local::save_in_field(Field *to, bool no_conversions)
+{
+  store_now_in_TIME(&ltime);
   to->set_notnull();
   to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   return 0;
