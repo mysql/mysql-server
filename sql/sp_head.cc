@@ -227,8 +227,8 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
       char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
       DBUG_PRINT("info", ("DECIMAL_RESULT: %s",
                           dbug_decimal_as_string(dbug_buff, val)));
-#endif
     }
+#endif
     break;
   }
   case STRING_RESULT:
