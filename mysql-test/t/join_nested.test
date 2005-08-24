@@ -678,7 +678,7 @@ SELECT t2.a,t2.b,t3.a1,t3.b
   FROM t2 LEFT JOIN t3 ON t2.b=t3.b
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
 
-SELECT *
+SELECT t2.a,t2.b,t3.a1,t3.b
   FROM t2 NATURAL LEFT JOIN t3
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
 
