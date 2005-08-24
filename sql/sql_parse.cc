@@ -6517,7 +6517,7 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields)
 
   SYNOPSIS
     reload_acl_and_cache()
-    thd			Thread handler
+    thd			Thread handler (can be NULL!)
     options             What should be reset/reloaded (tables, privileges,
     slave...)
     tables              Tables to flush (if any)
@@ -6539,7 +6539,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   select_errors=0;				/* Write if more errors */
   bool tmp_write_to_binlog= 1;
 
-  if (thd->in_sub_stmt)
+  if (thd && thd->in_sub_stmt)
   {
     my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
     return 1;
