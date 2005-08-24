@@ -106,6 +106,10 @@ static TYPELIB command_typelib=
 
 static struct my_option my_long_options[] =
 {
+#ifdef __NETWARE__
+  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"count", 'c',
    "Number of iterations to make. This works with -i (--sleep) only",
    (gptr*) &nr_iterations, (gptr*) &nr_iterations, 0, GET_UINT,
@@ -184,6 +188,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   int error = 0;
 
   switch(optid) {
+#ifdef __NETWARE__
+  case OPT_AUTO_CLOSE:
+    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+    break;
+#endif
   case 'c':
     opt_count_iterations= 1;
     break;

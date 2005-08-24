@@ -113,6 +113,10 @@ int deny_severity = LOG_WARNING;
 #include <sys/mman.h>
 #endif
 
+#define zVOLSTATE_ACTIVE 6
+#define zVOLSTATE_DEACTIVE 2
+#define zVOLSTATE_MAINTENANCE 3
+
 #ifdef __NETWARE__
 #include <nks/netware.h>
 #include <nks/vm.h>
@@ -130,6 +134,7 @@ VolumeID_t datavolid;
 event_handle_t eh;
 Report_t ref;
 void *refneb=NULL;
+bool event_flag=FALSE;
 int volumeid=-1;
 
   /* NEB event callback */
@@ -804,7 +809,8 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_end();
 
 #ifdef __NETWARE__
-  pthread_join(select_thread, NULL);		// wait for main thread
+  if(!event_flag)
+    pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
   
   pthread_exit(0);				/* purecov: deadcode */
@@ -1468,6 +1474,7 @@ static void check_data_home(const char *path)
 // down server event callback
 void mysql_down_server_cb(void *, void *)
 {
+  event_flag = TRUE; 
   kill_server(0);
 }
 
@@ -1501,7 +1508,7 @@ void mysql_cb_init()
     Register for volume deactivation event
     Wrap the callback function, as it is called by non-LibC thread
   */
-  (void)NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
+  (void *)NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
   registerwithneb();
 
   NXVmRegisterExitHandler(mysql_cb_destroy, NULL);  // clean-up
@@ -1587,7 +1594,9 @@ ulong neb_event_callback(struct EventBlock *eblock)
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
-  if ((voldata->oldState == 6 && voldata->newState == 2))
+  if ((voldata->oldState == zVOLSTATE_ACTIVE &&
+       voldata->newState == zVOLSTATE_DEACTIVE ||
+       voldata->newState == zVOLSTATE_MAINTENANCE))
   {
     /*
       Ensure that we bring down MySQL server only for MySQL data
@@ -1596,6 +1605,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
     if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      event_flag= TRUE;
       nw_panic = TRUE;
       kill_server(0);
     }
