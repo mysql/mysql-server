@@ -2210,7 +2210,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
   else if (tables->view)
   {
     table->field[3]->store("VIEW", 4, cs);
-    table->field[20]->store("view", 4, cs);
+    table->field[20]->store("VIEW", 4, cs);
   }
   else
   {
