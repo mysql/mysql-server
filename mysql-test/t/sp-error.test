@@ -410,6 +410,35 @@ unlock tables|
 
 
 #
+# Check that in functions we don't allow to update tables which
+# are used by statements which invoke these functions.
+#
+--disable_warnings
+drop function if exists f1|
+--enable_warnings
+create function f1(i int) returns int
+begin
+  insert into t1 (val) values (i);
+  return 0;
+end|
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+select val, f1(val) from t1|
+# Table alias should not matter
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+select val, f1(val) from t1 as tab|
+select * from t1|
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+update t1 set val= f1(val)|
+select * from t1|
+# But this should be OK
+select f1(17)|
+select * from t1|
+# Cleanup
+delete from t1 where val= 17|
+drop function f1|
+
+
+#
 # BUG#1965
 #
 create procedure bug1965()
