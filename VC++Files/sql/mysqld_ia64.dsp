@@ -77,7 +77,7 @@ LINK32=link.exe
 # PROP Target_Dir ""
 MTL=midl.exe
 # ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN64" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MTd /W3 /Zi /Od /I "../bdb/build_win32" /I "../include" /I "../regex" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /MTd /W3 /Zi /Od /I "../storage/bdb/build_win32" /I "../include" /I "../regex" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
 # SUBTRACT CPP /Fr /YX
 # ADD BASE RSC /l 0x410 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
@@ -134,7 +134,7 @@ LINK32=link.exe
 MTL=midl.exe
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /D "NDEBUG" /D "__NT__" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../bdb/build_win32" /I "../include" /I "../regex" /I "../zlib" /D "NDEBUG" /D "__NT__" /D "DBUG_OFF" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /DMYSQL_SERVER_SUFFIX=-nt-max /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../storage/bdb/build_win32" /I "../include" /I "../regex" /I "../zlib" /D "NDEBUG" /D "__NT__" /D "DBUG_OFF" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /DMYSQL_SERVER_SUFFIX=-nt-max /G2 /EHsc /Wp64 /Zm600 /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -164,7 +164,7 @@ LINK32=link.exe
 MTL=midl.exe
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /D "NDEBUG" /D "DBUG_OFF" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../bdb/build_win32" /I "../include" /I "../regex" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "USE_SYMDIR" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /DMYSQL_SERVER_SUFFIX=-max /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../storage/bdb/build_win32" /I "../include" /I "../regex" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "USE_SYMDIR" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /DMYSQL_SERVER_SUFFIX=-max /G2 /EHsc /Wp64 /Zm600 /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
