@@ -2115,3 +2115,15 @@ CREATE VIEW v1 AS SELECT f1();
 ERROR HY000: View's SELECT refers to a temporary table 't1'
 DROP FUNCTION f1;
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+CREATE TABLE t1 (f4 CHAR(5));
+CREATE VIEW v1 AS SELECT * FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+f4	char(5)	YES		NULL	
+ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
+DESCRIBE v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+DROP TABLE t1;
+DROP VIEW v1;
