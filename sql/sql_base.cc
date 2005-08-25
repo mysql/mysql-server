@@ -3598,7 +3598,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 
       if (field_1)
       {
-        TABLE *table_1= nj_col1->table_ref->table;
+        TABLE *table_1= nj_col_1->table_ref->table;
         /* Mark field_1 used for table cache. */
         field_1->query_id= thd->query_id;
         table_1->file->ha_set_bit_in_read_set(field_1->fieldnr);
@@ -3606,7 +3606,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       }
       if (field_2)
       {
-        TABLE *table_2= nj_col2->table_ref->table;
+        TABLE *table_2= nj_col_2->table_ref->table;
         /* Mark field_2 used for table cache. */
         field_2->query_id= thd->query_id;
         table_2->file->ha_set_bit_in_read_set(field_1->fieldnr);
