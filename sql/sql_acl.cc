@@ -2494,7 +2494,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     The following should always succeed as new users are created before
     this function is called!
   */
-  if (!find_acl_user(combo.host.str,combo.user.str))
+  if (!find_acl_user(combo.host.str, combo.user.str, FALSE))
   {
     my_error(ER_PASSWORD_NO_MATCH,MYF(0));
     DBUG_RETURN(-1);
@@ -4611,11 +4611,12 @@ static int handle_grant_struct(uint struct_no, bool drop,
   ACL_DB *acl_db;
   GRANT_NAME *grant_name;
   DBUG_ENTER("handle_grant_struct");
+  DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
+                     struct_no, user_from->user.str, user_from->host.str));
+
   LINT_INIT(acl_user);
   LINT_INIT(acl_db);
   LINT_INIT(grant_name);
-  DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
-                     struct_no, user_from->user.str, user_from->host.str));
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
@@ -5311,10 +5312,12 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   combo->user.str= thd->user;
   
-  if (!find_acl_user(combo->host.str=(char*)thd->host_or_ip, combo->user.str) &&
-      !find_acl_user(combo->host.str=(char*)thd->host, combo->user.str) &&
-      !find_acl_user(combo->host.str=(char*)thd->ip, combo->user.str) &&
-      !find_acl_user(combo->host.str=(char*)"%", combo->user.str))
+  if (!find_acl_user(combo->host.str=(char*)thd->host_or_ip, combo->user.str,
+                     FALSE) &&
+      !find_acl_user(combo->host.str=(char*)thd->host, combo->user.str,
+                     FALSE) &&
+      !find_acl_user(combo->host.str=(char*)thd->ip, combo->user.str, FALSE) &&
+      !find_acl_user(combo->host.str=(char*)"%", combo->user.str, FALSE))
     DBUG_RETURN(TRUE);
 
   bzero((char*)tables, sizeof(TABLE_LIST));

@@ -706,14 +706,14 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     query_end= query + MAX_DROP_TABLE_Q_LEN;
     db_len= strlen(db);
      
-    for (tbl= dropped_tables; tbl; tbl= tbl->next)
+    for (tbl= dropped_tables; tbl; tbl= tbl->next_local)
     {
       uint tbl_name_len;
       if (!tbl->was_dropped)
         continue;
          
       /* 3 for the quotes and the comma*/  
-      tbl_name_len= strlen(tbl->real_name) + 3; 
+      tbl_name_len= strlen(tbl->table_name) + 3; 
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
         write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
@@ -721,7 +721,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       }    
        
       *query_pos++ = '`';
-      query_pos= strmov(query_pos,tbl->real_name);
+      query_pos= strmov(query_pos,tbl->table_name);
       *query_pos++ = '`';
       *query_pos++ = ',';
     }
