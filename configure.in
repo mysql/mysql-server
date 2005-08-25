@@ -2770,7 +2770,7 @@ AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
    storage/ndb/test/ndbapi/Makefile dnl
    storage/ndb/test/ndbapi/bank/Makefile dnl
    storage/ndb/test/tools/Makefile dnl
-   storage/ndb/test/run-test/Makefile storage/mysql-test/ndb/Makefile dnl
+   storage/ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
    storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
    storage/ndb/include/ndb_types.h dnl
    )
