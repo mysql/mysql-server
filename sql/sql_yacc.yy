@@ -7133,10 +7133,13 @@ simple_ident:
 	  sp_pvar_t *spv;
 	  LEX *lex = Lex;
           sp_pcontext *spc = lex->spcont;
-
 	  if (spc && (spv = spc->find_pvar(&$1)))
-	  { /* We're compiling a stored procedure and found a variable */
-	    $$ = (Item*) new Item_splocal($1, spv->offset);
+	  {
+            /* We're compiling a stored procedure and found a variable */
+            Item_splocal *splocal;
+            splocal= new Item_splocal($1, spv->offset, lex->tok_start_prev - 
+                                      lex->sphead->m_tmp_query);
+	    $$ = (Item*) splocal;
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
 	  }
