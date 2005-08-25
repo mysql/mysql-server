@@ -2253,6 +2253,7 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
   return FALSE;
 }
 
+
 /****************************************************************************
 ** mysql_execute_command
 ** Execute command saved in thd and current_lex->sql_command
@@ -4217,28 +4218,16 @@ end_with_restore_list:
 	thd->variables.select_limit= HA_POS_ERROR;
 
         thd->row_count_func= 0;
-        tmp_disable_binlog(thd); /* don't binlog the substatements */
-	res= sp->execute_procedure(thd, &lex->value_list);
-        reenable_binlog(thd);
-
-        /*
-          We write CALL to binlog; on the opposite we didn't write the
-          substatements. That choice is necessary because the substatements
-          may use local vars.
-          Binlogging should happen when all tables are locked. They are locked
-          just above, and unlocked by close_thread_tables(). All tables which
-          are to be updated are locked like with a table-level write lock, and
-          this also applies to InnoDB (I tested - note that it reduces
-          InnoDB's concurrency as we don't use row-level locks). So binlogging
-          below is safe.
-          Note the limitation: if the SP returned an error, but still did some
-          updates, we do NOT binlog it. This is because otherwise "permission
-          denied", "table does not exist" etc would stop the slave quite
-          often. There is no easy way to know if the SP updated something
-          (even no_trans_update is not suitable, as it may be a transactional
-          autocommit update which happened, and no_trans_update covers only
-          INSERT/UPDATE/LOAD).
+        
+        /* 
+          We never write CALL statements int binlog:
+           - If the mode is non-prelocked, each statement will be logged
+             separately.
+           - If the mode is prelocked, the invoking statement will care
+             about writing into binlog.
+          So just execute the statement.
         */
+	res= sp->execute_procedure(thd, &lex->value_list);
         if (mysql_bin_log.is_open() &&
             (sp->m_chistics->daccess == SP_CONTAINS_SQL ||
              sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -4248,11 +4237,7 @@ end_with_restore_list:
                          ER_FAILED_ROUTINE_BREAK_BINLOG,
 			 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
           else
-          {
             thd->clear_error();
-            Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-            mysql_bin_log.write(&qinfo);
-          }
         }
 
 	/*
@@ -5405,8 +5390,10 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
+    
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
+    
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

@@ -4717,11 +4717,15 @@ Item_func_sp::execute(Item **itp)
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
     goto error_check_ctx;
 #endif
-
+  /*
+    Disable the binlogging if this is not a SELECT statement. If this is a
+    SELECT, leave binlogging on, so execute_function() code writes the
+    function call into binlog.
+  */
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
   res= m_sp->execute_function(thd, args, arg_count, itp);
   thd->restore_sub_statement_state(&statement_state);
-
+ 
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
        m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
