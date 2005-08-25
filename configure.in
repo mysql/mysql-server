@@ -2729,50 +2729,50 @@ AC_SUBST([NDB_SIZEOF_INT])
 AC_SUBST([NDB_SIZEOF_LONG])
 AC_SUBST([NDB_SIZEOF_LONG_LONG])
 
-AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
-   ndb/src/Makefile ndb/src/common/Makefile dnl
-   ndb/docs/Makefile dnl
-   ndb/tools/Makefile dnl
-   ndb/src/common/debugger/Makefile dnl
-   ndb/src/common/debugger/signaldata/Makefile dnl
-   ndb/src/common/portlib/Makefile dnl
-   ndb/src/common/util/Makefile dnl
-   ndb/src/common/logger/Makefile dnl
-   ndb/src/common/transporter/Makefile dnl
-   ndb/src/common/mgmcommon/Makefile dnl
-   ndb/src/kernel/Makefile dnl
-   ndb/src/kernel/error/Makefile dnl
-   ndb/src/kernel/blocks/Makefile dnl
-   ndb/src/kernel/blocks/cmvmi/Makefile dnl
-   ndb/src/kernel/blocks/dbacc/Makefile dnl
-   ndb/src/kernel/blocks/dbdict/Makefile dnl
-   ndb/src/kernel/blocks/dbdih/Makefile dnl
-   ndb/src/kernel/blocks/dblqh/Makefile dnl
-   ndb/src/kernel/blocks/dbtc/Makefile dnl
-   ndb/src/kernel/blocks/dbtup/Makefile dnl
-   ndb/src/kernel/blocks/ndbfs/Makefile dnl
-   ndb/src/kernel/blocks/ndbcntr/Makefile dnl
-   ndb/src/kernel/blocks/qmgr/Makefile dnl
-   ndb/src/kernel/blocks/trix/Makefile dnl
-   ndb/src/kernel/blocks/backup/Makefile dnl
-   ndb/src/kernel/blocks/dbutil/Makefile dnl
-   ndb/src/kernel/blocks/suma/Makefile dnl
-   ndb/src/kernel/blocks/dbtux/Makefile dnl
-   ndb/src/kernel/vm/Makefile dnl
-   ndb/src/mgmapi/Makefile dnl
-   ndb/src/ndbapi/Makefile dnl
-   ndb/src/mgmsrv/Makefile dnl
-   ndb/src/mgmclient/Makefile dnl
-   ndb/src/cw/Makefile dnl
-   ndb/src/cw/cpcd/Makefile dnl
-   ndb/test/Makefile dnl
-   ndb/test/src/Makefile dnl
-   ndb/test/ndbapi/Makefile dnl
-   ndb/test/ndbapi/bank/Makefile dnl
-   ndb/test/tools/Makefile dnl
-   ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
-   ndb/include/ndb_version.h ndb/include/ndb_global.h dnl
-   ndb/include/ndb_types.h dnl
+AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
+   storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
+   storage/ndb/docs/Makefile dnl
+   storage/ndb/tools/Makefile dnl
+   storage/ndb/src/common/debugger/Makefile dnl
+   storage/ndb/src/common/debugger/signaldata/Makefile dnl
+   storage/ndb/src/common/portlib/Makefile dnl
+   storage/ndb/src/common/util/Makefile dnl
+   storage/ndb/src/common/logger/Makefile dnl
+   storage/ndb/src/common/transporter/Makefile dnl
+   storage/ndb/src/common/mgmcommon/Makefile dnl
+   storage/ndb/src/kernel/Makefile dnl
+   storage/ndb/src/kernel/error/Makefile dnl
+   storage/ndb/src/kernel/blocks/Makefile dnl
+   storage/ndb/src/kernel/blocks/cmvmi/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbacc/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbdict/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbdih/Makefile dnl
+   storage/ndb/src/kernel/blocks/dblqh/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtc/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtup/Makefile dnl
+   storage/ndb/src/kernel/blocks/ndbfs/Makefile dnl
+   storage/ndb/src/kernel/blocks/ndbcntr/Makefile dnl
+   storage/ndb/src/kernel/blocks/qmgr/Makefile dnl
+   storage/ndb/src/kernel/blocks/trix/Makefile dnl
+   storage/ndb/src/kernel/blocks/backup/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbutil/Makefile dnl
+   storage/ndb/src/kernel/blocks/suma/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtux/Makefile dnl
+   storage/ndb/src/kernel/vm/Makefile dnl
+   storage/ndb/src/mgmapi/Makefile dnl
+   storage/ndb/src/ndbapi/Makefile dnl
+   storage/ndb/src/mgmsrv/Makefile dnl
+   storage/ndb/src/mgmclient/Makefile dnl
+   storage/ndb/src/cw/Makefile dnl
+   storage/ndb/src/cw/cpcd/Makefile dnl
+   storage/ndb/test/Makefile dnl
+   storage/ndb/test/src/Makefile dnl
+   storage/ndb/test/ndbapi/Makefile dnl
+   storage/ndb/test/ndbapi/bank/Makefile dnl
+   storage/ndb/test/tools/Makefile dnl
+   storage/ndb/test/run-test/Makefile storage/mysql-test/ndb/Makefile dnl
+   storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
+   storage/ndb/include/ndb_types.h dnl
    )
 fi
 
