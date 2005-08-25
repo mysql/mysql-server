@@ -68,7 +68,8 @@ static ulong get_access(TABLE *form,uint fieldnr, uint *next_field=0);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
 static void init_check_host(void);
-static ACL_USER *find_acl_user(const char *host, const char *user);
+static ACL_USER *find_acl_user(const char *host, const char *user,
+                               my_bool exact);
 static bool update_user_table(THD *thd, const char *host, const char *user,
 			      const char *new_password, uint new_password_len);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
@@ -1289,7 +1290,7 @@ bool check_change_password(THD *thd, const char *host, const char *user,
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
-       my_strcasecmp(system_charset_info, host, thd->host_or_ip)))
+       my_strcasecmp(system_charset_info, host, thd->priv_host)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
       return(1);
@@ -1340,7 +1341,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
-  if (!(acl_user= find_acl_user(host, user)))
+  if (!(acl_user= find_acl_user(host, user, TRUE)))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
@@ -1380,7 +1381,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 */
 
 static ACL_USER *
-find_acl_user(const char *host, const char *user)
+find_acl_user(const char *host, const char *user, my_bool exact)
 {
   DBUG_ENTER("find_acl_user");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'",host,user));
@@ -1396,7 +1397,9 @@ find_acl_user(const char *host, const char *user)
     if (!acl_user->user && !user[0] ||
 	acl_user->user && !strcmp(user,acl_user->user))
     {
-      if (compare_hostname(&acl_user->host,host,host))
+      if (exact ? !my_strcasecmp(&my_charset_latin1, host,
+                                 acl_user->host.hostname) :
+          compare_hostname(&acl_user->host,host,host))
       {
 	DBUG_RETURN(acl_user);
       }
@@ -1822,7 +1825,7 @@ static int replace_db_table(TABLE *table, const char *db,
   }
 
   /* Check if there is such a user in user table in memory? */
-  if (!find_acl_user(combo.host.str,combo.user.str))
+  if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
     DBUG_RETURN(-1);
@@ -2369,7 +2372,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     The following should always succeed as new users are created before
     this function is called!
   */
-  if (!find_acl_user(combo.host.str,combo.user.str))
+  if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
                MYF(0));	/* purecov: deadcode */
@@ -4263,7 +4266,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 void get_mqh(const char *user, const char *host, USER_CONN *uc)
 {
   ACL_USER *acl_user;
-  if (initialized && (acl_user= find_acl_user(host,user)))
+  if (initialized && (acl_user= find_acl_user(host,user, FALSE)))
     uc->user_resources= acl_user->user_resource;
   else
     bzero((char*) &uc->user_resources, sizeof(uc->user_resources));
