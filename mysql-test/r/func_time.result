@@ -720,3 +720,43 @@ Warning	1292	Truncated incorrect datetime value: '2005-01-00'
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
 100 100 04 04 4
+create table t1 (a timestamp default '2005-05-05 01:01:01',
+b timestamp default '2005-05-05 01:01:01');
+create function t_slow_sysdate() returns timestamp
+begin
+do sleep(2);
+return sysdate();
+end;
+//
+insert into t1 set a = sysdate(), b = t_slow_sysdate();//
+create trigger t_before before insert on t1
+for each row begin
+set new.b = t_slow_sysdate();
+end
+//
+insert into t1 set a = sysdate();
+select a != b from t1;
+a != b
+1
+1
+drop trigger t_before;
+drop function t_slow_sysdate;
+drop table t1;
+create table t1 (a datetime, i int, b datetime);
+insert into t1 select sysdate(), sleep(1), sysdate() from dual;
+select a != b from t1;
+a != b
+1
+drop table t1;
+create procedure t_sysdate()
+begin
+select sysdate() into @a;
+do sleep(2);
+select sysdate() into @b;
+select @a != @b;
+end;
+//
+call t_sysdate();
+@a != @b
+1
+drop procedure t_sysdate;
