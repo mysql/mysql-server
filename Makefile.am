@@ -101,7 +101,7 @@ tags:
 
 test:
 	cd mysql-test; \
-	perl ./mysql-test-run && perl ./mysql-test-run --ps-protocol
+	perl ./mysql-test-run.pl && perl ./mysql-test-run.pl --ps-protocol
 
 test-force:
 	cd mysql-test; \
