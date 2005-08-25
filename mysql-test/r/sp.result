@@ -3166,4 +3166,23 @@ a
 4
 truncate t2|
 drop procedure if exists bug12168|
+drop table if exists t3|
+drop procedure if exists bug11333|
+create table t3 (c1 char(128))|
+insert into t3 values 
+('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')|
+create procedure bug11333(i int)
+begin
+declare tmp varchar(128);
+set @x = 0;
+repeat
+select c1 into tmp from t3
+where c1 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+set @x = @x + 1;
+until @x >= i
+end repeat;
+end|
+call bug11333(10)|
+drop procedure bug11333|
+drop table t3|
 drop table t1,t2;

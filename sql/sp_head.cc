@@ -249,10 +249,25 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
         DBUG_PRINT("info",("default result: %*s",
                            s->length(), s->c_ptr_quick()));
         CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
-                              Item_string(thd->strmake(s->ptr(),
-                                          s->length()), s->length(),
-                                          it->collation.collation),
-                          use_callers_arena, &backup_current_arena);
+                                Item_string(it->collation.collation),
+                                use_callers_arena, &backup_current_arena);
+        /*
+          We have to use special constructor and allocate string
+          on system heap here. This is because usual Item_string
+          constructor would allocate memory in the callers arena.
+          This would lead to the memory leak in SP loops.
+          See Bug #11333 "Stored Procedure: Memory blow up on
+          repeated SELECT ... INTO query" for sample of such SP.
+          TODO: Usage of the system heap gives significant overhead,
+          however usual "reuse" mechanism does not work here, as
+          Item_string has no max size. That is, if we have a loop, which
+          has string variable with constantly increasing size, we would have
+          to allocate new pieces of memory again and again on each iteration.
+          In future we should probably reserve some area of memory for
+          not-very-large strings and reuse it. But for large strings
+          we would have to use system heap anyway.
+        */
+        ((Item_string*) it)->set_str_with_copy(s->ptr(), s->length());
       }
       break;
     }
