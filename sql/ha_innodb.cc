@@ -6888,6 +6888,28 @@ ha_innobase::get_auto_increment()
 	return((ulonglong) nr);
 }
 
+/* See comment in handler.h */
+int
+ha_innobase::reset_auto_increment()
+{
+	DBUG_ENTER("ha_innobase::reset_auto_increment");
+
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+  	int     	error;
+
+	error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+	if (error != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(error, user_thd);
+
+		DBUG_RETURN(error);
+	}	
+
+	dict_table_autoinc_initialize(prebuilt->table, 0);
+
+	DBUG_RETURN(0);
+}
+
 /***********************************************************************
 Compares two 'refs'. A 'ref' is the (internal) primary key value of the row.
 If there is no explicitly declared non-null unique key or a primary key, then
