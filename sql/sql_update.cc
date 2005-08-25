@@ -475,7 +475,8 @@ int mysql_update(THD *thd,
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_table, FALSE);
-      if (mysql_bin_log.write(&qinfo) && transactional_table)
+      if ((thd->query_str_binlog_unsuitable || mysql_bin_log.write(&qinfo)) 
+          && transactional_table)
 	error=1;				// Rollback update
     }
     if (!transactional_table)
@@ -1441,7 +1442,8 @@ bool multi_update::send_eof()
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
-      if (mysql_bin_log.write(&qinfo) && trans_safe)
+      if ((thd->query_str_binlog_unsuitable || mysql_bin_log.write(&qinfo))
+          && trans_safe)
 	local_error= 1;				// Rollback update
     }
     if (!transactional_tables)

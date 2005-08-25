@@ -254,7 +254,8 @@ cleanup:
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_table, FALSE);
-      if (mysql_bin_log.write(&qinfo) && transactional_table)
+      if ((thd->query_str_binlog_unsuitable || mysql_bin_log.write(&qinfo)) 
+           && transactional_table)
 	error=1;
     }
     if (!transactional_table)
@@ -719,7 +720,8 @@ bool multi_delete::send_eof()
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
-      if (mysql_bin_log.write(&qinfo) && !normal_tables)
+      if ((thd->query_str_binlog_unsuitable || mysql_bin_log.write(&qinfo))
+          && !normal_tables)
 	local_error=1;  // Log write failed: roll back the SQL statement
     }
     if (!transactional_tables)
