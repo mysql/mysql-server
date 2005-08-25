@@ -138,7 +138,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
-mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8);
+mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) order by 1;
 select count(*) from information_schema.ROUTINES;
 
 connect (user1,localhost,mysqltest_1,,);
