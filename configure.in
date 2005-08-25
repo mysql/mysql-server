@@ -2487,7 +2487,7 @@ then
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
   AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
-  sql_server_dirs="strings dbug extra regex"
+  sql_server_dirs="strings mysys dbug extra regex"
 
 
   #
