@@ -1023,7 +1023,7 @@ bool mysql_xa_recover(THD *thd)
     DBUG_RETURN(1);
 
   pthread_mutex_lock(&LOCK_xid_cache);
-  while (xs=(XID_STATE*)hash_element(&xid_cache, i++))
+  while ((xs= (XID_STATE*)hash_element(&xid_cache, i++)))
   {
     if (xs->xa_state==XA_PREPARED)
     {
