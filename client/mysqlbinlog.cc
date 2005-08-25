@@ -431,6 +431,11 @@ end:
 
 static struct my_option my_long_options[] =
 {
+
+#ifdef __NETWARE__
+  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -616,6 +621,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   bool tty_password=0;
   switch (optid) {
+#ifdef __NETWARE__
+  case OPT_AUTO_CLOSE:
+    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+    break;
+#endif
 #ifndef DBUG_OFF
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
