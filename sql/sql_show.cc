@@ -1985,13 +1985,15 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     lex->all_selects_list= lsel;
     res= open_normal_and_derived_tables(thd, show_table_list,
                                         MYSQL_LOCK_IGNORE_FLUSH);
-    if (schema_table->process_table(thd, show_table_list,
+    /*
+      get_all_tables() returns 1 on failure and 0 on success thus
+      return only these and not the result code of ::process_table()
+    */
+    error= test(schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
-                                    show_table_list->alias))
-      goto err;
+                                    show_table_list->alias));
     close_thread_tables(thd);
     show_table_list->table= 0;
-    error= 0;
     goto err;
   }
 
@@ -2090,11 +2092,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             lex->derived_tables= 0;
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
-            if (schema_table->process_table(thd, show_table_list, table,
+            res= schema_table->process_table(thd, show_table_list, table,
                                             res, base_name,
-                                            show_table_list->alias))
-              goto err;
+                                            show_table_list->alias);
             close_thread_tables(thd);
+            if (res)
+              goto err;
           }
         }
       }
