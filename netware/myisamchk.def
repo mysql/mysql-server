@@ -2,7 +2,7 @@
 # MyISAM Check
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-SCREENNAME "MySQL MyISAM Table Check Tool"
+SCREENNAME "MySQL MyISAM Table Check Tool[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL MyISAM Table Check Tool"
 VERSION 4, 0
