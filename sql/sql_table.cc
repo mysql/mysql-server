@@ -229,6 +229,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
+    table->was_dropped= 0;
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->table_name))
     {
@@ -300,6 +301,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	wrong_tables.append(',');
       wrong_tables.append(String(table->table_name,system_charset_info));
     }
+    else
+      table->was_dropped= 1;
   }
   thd->tmp_table_used= tmp_table_deleted;
   error= 0;

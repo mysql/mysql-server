@@ -3104,7 +3104,18 @@ int set_var_password::check(THD *thd)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
-    user->host.str= (char*) thd->host_or_ip;
+  {
+    if (thd->priv_host != 0)
+    {
+      user->host.str= (char *) thd->priv_host;
+      user->host.length= strlen(thd->priv_host);
+    }
+    else
+    {
+      user->host.str= (char *)"%";
+      user->host.length= 1;
+    }
+  }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
                                password, strlen(password)) ? 1 : 0;
