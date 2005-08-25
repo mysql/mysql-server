@@ -247,9 +247,13 @@ date_add("1997-12-31 23:59:59",INTERVAL -100000 DAY)
 select date_add("1997-12-31 23:59:59",INTERVAL 100000 MONTH);
 date_add("1997-12-31 23:59:59",INTERVAL 100000 MONTH)
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 select date_add("1997-12-31 23:59:59",INTERVAL -100000 YEAR);
 date_add("1997-12-31 23:59:59",INTERVAL -100000 YEAR)
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 select date_add("1997-12-31 23:59:59",INTERVAL "10000:1" MINUTE_SECOND);
 date_add("1997-12-31 23:59:59",INTERVAL "10000:1" MINUTE_SECOND)
 1998-01-07 22:40:00
@@ -301,6 +305,8 @@ NULL
 select date_add("9999-12-31 23:59:59",INTERVAL 1 SECOND);
 date_add("9999-12-31 23:59:59",INTERVAL 1 SECOND)
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 select date_sub("0000-00-00 00:00:00",INTERVAL 1 SECOND);
 date_sub("0000-00-00 00:00:00",INTERVAL 1 SECOND)
 NULL
@@ -375,15 +381,23 @@ SELECT "1900-01-01 00:00:00" + INTERVAL 1<<20 HOUR;
 SELECT "1900-01-01 00:00:00" + INTERVAL 1<<38 SECOND;
 "1900-01-01 00:00:00" + INTERVAL 1<<38 SECOND
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT "1900-01-01 00:00:00" + INTERVAL 1<<33 MINUTE;
 "1900-01-01 00:00:00" + INTERVAL 1<<33 MINUTE
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT "1900-01-01 00:00:00" + INTERVAL 1<<30 HOUR;
 "1900-01-01 00:00:00" + INTERVAL 1<<30 HOUR
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 SELECT "1900-01-01 00:00:00" + INTERVAL "1000000000:214748364700" MINUTE_SECOND;
 "1900-01-01 00:00:00" + INTERVAL "1000000000:214748364700" MINUTE_SECOND
 NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
 create table t1 (ctime varchar(20));
 insert into t1 values ('2001-01-12 12:23:40');
 select ctime, hour(ctime) from t1;
@@ -687,7 +701,7 @@ timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select timestamp_diff(WEEK,_latin1'2001-02-01',_latin1'2001-05-01') AS `a1`,timestamp_diff(SECOND_FRAC,_latin1'2001-02-01 12:59:59.120000',_latin1'2001-05-01 12:58:58.119999') AS `a2`
+Note	1003	select timestampdiff(WEEK,_latin1'2001-02-01',_latin1'2001-05-01') AS `a1`,timestampdiff(SECOND_FRAC,_latin1'2001-02-01 12:59:59.120000',_latin1'2001-05-01 12:58:58.119999') AS `a2`
 select last_day('2005-00-00');
 last_day('2005-00-00')
 NULL
@@ -706,3 +720,43 @@ Warning	1292	Truncated incorrect datetime value: '2005-01-00'
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
 100 100 04 04 4
+create table t1 (a timestamp default '2005-05-05 01:01:01',
+b timestamp default '2005-05-05 01:01:01');
+create function t_slow_sysdate() returns timestamp
+begin
+do sleep(2);
+return sysdate();
+end;
+//
+insert into t1 set a = sysdate(), b = t_slow_sysdate();//
+create trigger t_before before insert on t1
+for each row begin
+set new.b = t_slow_sysdate();
+end
+//
+insert into t1 set a = sysdate();
+select a != b from t1;
+a != b
+1
+1
+drop trigger t_before;
+drop function t_slow_sysdate;
+drop table t1;
+create table t1 (a datetime, i int, b datetime);
+insert into t1 select sysdate(), sleep(1), sysdate() from dual;
+select a != b from t1;
+a != b
+1
+drop table t1;
+create procedure t_sysdate()
+begin
+select sysdate() into @a;
+do sleep(2);
+select sysdate() into @b;
+select @a != @b;
+end;
+//
+call t_sysdate();
+@a != @b
+1
+drop procedure t_sysdate;

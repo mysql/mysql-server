@@ -7,6 +7,7 @@
 use strict;
 
 sub mtr_full_hostname ();
+sub mtr_short_hostname ();
 sub mtr_init_args ($);
 sub mtr_add_arg ($$);
 sub mtr_path_exists(@);
@@ -21,6 +22,7 @@ sub mtr_exe_exists(@);
 
 # We want the fully qualified host name and hostname() may have returned
 # only the short name. So we use the resolver to find out.
+# Note that this might fail on some platforms
 
 sub mtr_full_hostname () {
 
@@ -32,6 +34,13 @@ sub mtr_full_hostname () {
     my $fullname=  gethostbyaddr($address, AF_INET);
     $hostname= $fullname if $fullname; 
   }
+  return $hostname;
+}
+
+sub mtr_short_hostname () {
+
+  my $hostname=  hostname();
+  $hostname =~ s/\..+$//;
   return $hostname;
 }
 

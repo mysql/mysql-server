@@ -55,6 +55,7 @@
 #include <signaldata/AlterTab.hpp>
 
 #include <signaldata/LCP.hpp>
+#include <KeyDescriptor.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -3522,7 +3523,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     LQHKEY_abort(signal, 4);
     return;
   }
-  if(tabptr.p->schemaVersion != schemaVersion){
+  if(table_version_major(tabptr.p->schemaVersion) != 
+     table_version_major(schemaVersion)){
     LQHKEY_abort(signal, 5);
     return;
   }
@@ -4461,7 +4463,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->requestInfo = Treqinfo;
   lqhKeyReq->tcBlockref = sig4;
 
-  sig0 = regTcPtr->tableref + (regTcPtr->schemaVersion << 16);
+  sig0 = regTcPtr->tableref + ((regTcPtr->schemaVersion << 16) & 0xFFFF0000);
   sig1 = regTcPtr->fragmentid + (regTcPtr->nodeAfterNext[0] << 16);
   sig2 = regTcPtr->transid[0];
   sig3 = regTcPtr->transid[1];
@@ -9012,44 +9014,17 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
 /*   FRAGMENT TO A NEW REPLICA OF THE FRAGMENT. IT DOES ALSO SHUT DOWN ALL   */
 /*   CONNECTIONS TO THE FAILED NODE.                                         */
 /*---------------------------------------------------------------------------*/
-void Dblqh::calculateHash(Signal* signal) 
+Uint32 
+Dblqh::calculateHash(Uint32 tableId, const Uint32* src) 
 {
-  DatabufPtr locDatabufptr;
-  UintR  Ti;
-  UintR  Tdata0;
-  UintR  Tdata1;
-  UintR  Tdata2;
-  UintR  Tdata3;
-  UintR*  Tdata32;
-  Uint64 Tdata[512];
-
-  Tdata32 = (UintR*)&Tdata[0];
-
-  Tdata0 = tcConnectptr.p->tupkeyData[0];
-  Tdata1 = tcConnectptr.p->tupkeyData[1];
-  Tdata2 = tcConnectptr.p->tupkeyData[2];
-  Tdata3 = tcConnectptr.p->tupkeyData[3];
-  Tdata32[0] = Tdata0;
-  Tdata32[1] = Tdata1;
-  Tdata32[2] = Tdata2;
-  Tdata32[3] = Tdata3;
-  locDatabufptr.i = tcConnectptr.p->firstTupkeybuf;
-  Ti = 4;
-  while (locDatabufptr.i != RNIL) {
-    ptrCheckGuard(locDatabufptr, cdatabufFileSize, databuf);
-    Tdata0 = locDatabufptr.p->data[0];
-    Tdata1 = locDatabufptr.p->data[1];
-    Tdata2 = locDatabufptr.p->data[2];
-    Tdata3 = locDatabufptr.p->data[3];
-    Tdata32[Ti    ] = Tdata0;
-    Tdata32[Ti + 1] = Tdata1;
-    Tdata32[Ti + 2] = Tdata2;
-    Tdata32[Ti + 3] = Tdata3;
-    locDatabufptr.i = locDatabufptr.p->nextDatabuf;
-    Ti += 4;
-  }//while
-  tcConnectptr.p->hashValue = 
-    md5_hash((Uint64*)&Tdata32[0], (UintR)tcConnectptr.p->primKeyLen);
+  jam();
+  Uint64 Tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
+  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
+  Uint32 keyLen = xfrm_key(tableId, src, (Uint32*)Tmp, sizeof(Tmp) >> 2, 
+			   keyPartLen);
+  ndbrequire(keyLen);
+  
+  return md5_hash(Tmp, keyLen);
 }//Dblqh::calculateHash()
 
 /* *************************************** */
@@ -9383,7 +9358,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   const TupKeyConf * const tupKeyConf = (TupKeyConf *)signal->getDataPtr();
 
   UintR readLength = tupKeyConf->readLength;
-
+  Uint32 tableId = tcConnectptr.p->tableref;
   scanptr.i = tcConnectptr.p->tcScanRec;
   c_scanRecordPool.getPtr(scanptr);
   ScanRecord* scanP = scanptr.p;
@@ -9410,7 +9385,14 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   Uint32 len= tcConnectptr.p->primKeyLen = readPrimaryKeys(scanP, tcConP, tmp);
   
   // Calculate hash (no need to linearies key)
-  tcConnectptr.p->hashValue = md5_hash((Uint64*)tmp, len);
+  if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
+  {
+    tcConnectptr.p->hashValue = calculateHash(tableId, tmp);
+  }
+  else
+  {
+    tcConnectptr.p->hashValue = md5_hash((Uint64*)tmp, len);
+  }
 
   // Move into databuffer to make packLqhkeyreqLab happy
   memcpy(tcConP->tupkeyData, tmp, 4*4);
@@ -15922,7 +15904,7 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
   tabptr.i = tcConnectptr.p->tableref;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if (getFragmentrec(signal, tcConnectptr.p->fragmentid) &&
-      (tabptr.p->schemaVersion == tcConnectptr.p->schemaVersion)) {
+      (table_version_major(tabptr.p->schemaVersion) == table_version_major(tcConnectptr.p->schemaVersion))) {
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       if (fragptr.p->execSrNoReplicas > logPartPtr.p->execSrExecuteIndex) {
         ndbrequire((fragptr.p->execSrNoReplicas - 1) < 4);

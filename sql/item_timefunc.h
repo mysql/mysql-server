@@ -446,6 +446,7 @@ public:
 
 class Item_func_now :public Item_date_func
 {
+protected:
   longlong value;
   char buff[20*2+32];	// +32 to make my_snprintf_{8bit|ucs2} happy
   uint buff_length;
@@ -482,6 +483,32 @@ public:
   Item_func_now_utc(Item *a) :Item_func_now(a) {}
   const char *func_name() const { return "utc_timestamp"; }
   virtual void store_now_in_TIME(TIME *now_time);
+};
+
+
+/*
+  This is like NOW(), but always uses the real current time, not the
+  query_start(). This matches the Oracle behavior.
+*/
+class Item_func_sysdate_local :public Item_func_now
+{
+public:
+  Item_func_sysdate_local() :Item_func_now() {}
+  Item_func_sysdate_local(Item *a) :Item_func_now(a) {}
+  bool const_item() const { return 0; }
+  const char *func_name() const { return "sysdate"; }
+  void store_now_in_TIME(TIME *now_time);
+  double val_real();
+  longlong val_int();
+  int save_in_field(Field *to, bool no_conversions);
+  String *val_str(String *str);
+  void fix_length_and_dec();
+  bool get_date(TIME *res, uint fuzzy_date);
+  void update_used_tables()
+  {
+    Item_func_now::update_used_tables();
+    used_tables_cache|= RAND_TABLE_BIT;
+  }
 };
 
 
@@ -714,6 +741,12 @@ public:
   {
     return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
   }  
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length= 10;
+    maybe_null= 1;
+  }
 };
 
 
@@ -854,7 +887,7 @@ class Item_func_timestamp_diff :public Item_int_func
 public:
   Item_func_timestamp_diff(Item *a,Item *b,interval_type type_arg)
     :Item_int_func(a,b), int_type(type_arg) {}
-  const char *func_name() const { return "timestamp_diff"; }
+  const char *func_name() const { return "timestampdiff"; }
   longlong val_int();
   void fix_length_and_dec()
   {

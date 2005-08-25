@@ -1,7 +1,7 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.57)dnl		Minimum Autoconf version required.
+AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
@@ -131,6 +131,7 @@ AC_PROG_MAKE_SET
 # Hack for OS X/Darwin and Metrowerks CodeWarrior
 AC_ARG_WITH(darwin-mwcc,
 [  --with-darwin-mwcc      Use Metrowerks CodeWarrior wrappers on OS X/Darwin],[
+ if [ "with_darwin_mwcc" = yes ] ; then
   builddir=`pwd`
   ccwrapper="$builddir/support-files/MacOSX/mwcc-wrapper"
   arwrapper="$builddir/support-files/MacOSX/mwar-wrapper"
@@ -142,7 +143,7 @@ AC_ARG_WITH(darwin-mwcc,
   export CC CXX LD AR RANLIB
   AC_SUBST(AR)
   AC_SUBST(RANLIB)
-  with_darwin_mwcc=yes
+ fi
 ])
 
 AM_CONDITIONAL(DARWIN_MWCC, test x$with_darwin_mwcc = xyes)
@@ -2446,7 +2447,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="libmysql strings regex client"
+sql_client_dirs="strings regex mysys sql/share libmysql client"
 linked_client_targets="linked_libmysql_sources"
 
 if test "$THREAD_SAFE_CLIENT" != "no"
@@ -2484,7 +2485,7 @@ then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
-  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
+  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
   AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
@@ -2597,7 +2598,6 @@ esac
   # END of configuration for optional table handlers
   #
   sql_server_dirs="$sql_server_dirs storage/myisam storage/myisammrg storage/heap vio sql"
-
 fi
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
@@ -2729,53 +2729,50 @@ AC_SUBST([NDB_SIZEOF_INT])
 AC_SUBST([NDB_SIZEOF_LONG])
 AC_SUBST([NDB_SIZEOF_LONG_LONG])
 
-AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
-   storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
-   storage/ndb/docs/Makefile dnl
-   storage/ndb/tools/Makefile dnl
-   storage/ndb/src/common/debugger/Makefile dnl
-   storage/ndb/src/common/debugger/signaldata/Makefile dnl
-   storage/ndb/src/common/portlib/Makefile dnl
-   storage/ndb/src/common/util/Makefile dnl
-   storage/ndb/src/common/logger/Makefile dnl
-   storage/ndb/src/common/transporter/Makefile dnl
-   storage/ndb/src/common/mgmcommon/Makefile dnl
-   storage/ndb/src/kernel/Makefile dnl
-   storage/ndb/src/kernel/error/Makefile dnl
-   storage/ndb/src/kernel/blocks/Makefile dnl
-   storage/ndb/src/kernel/blocks/cmvmi/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbacc/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbdict/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbdih/Makefile dnl
-   storage/ndb/src/kernel/blocks/dblqh/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtc/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtup/Makefile dnl
-   storage/ndb/src/kernel/blocks/ndbfs/Makefile dnl
-   storage/ndb/src/kernel/blocks/ndbcntr/Makefile dnl
-   storage/ndb/src/kernel/blocks/qmgr/Makefile dnl
-   storage/ndb/src/kernel/blocks/trix/Makefile dnl
-   storage/ndb/src/kernel/blocks/backup/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbutil/Makefile dnl
-   storage/ndb/src/kernel/blocks/suma/Makefile dnl
-   storage/ndb/src/kernel/blocks/grep/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtux/Makefile dnl
-   storage/ndb/src/kernel/vm/Makefile dnl
-   storage/ndb/src/mgmapi/Makefile dnl
-   storage/ndb/src/ndbapi/Makefile dnl
-   storage/ndb/src/mgmsrv/Makefile dnl
-   storage/ndb/src/mgmclient/Makefile dnl
-   storage/ndb/src/cw/Makefile dnl
-   storage/ndb/src/cw/cpcd/Makefile dnl
-   storage/ndb/test/Makefile dnl
-   storage/ndb/test/src/Makefile dnl
-   storage/ndb/test/ndbapi/Makefile dnl
-   storage/ndb/test/ndbapi/bank/Makefile dnl
-   storage/ndb/test/tools/Makefile dnl
-   storage/ndb/test/run-test/Makefile dnl
-   storage/ndb/include/ndb_version.h dnl
-   storage/ndb/include/ndb_global.h dnl
-   storage/ndb/include/ndb_types.h dnl
-   mysql-test/ndb/Makefile dnl
+AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
+   ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/docs/Makefile dnl
+   ndb/tools/Makefile dnl
+   ndb/src/common/debugger/Makefile dnl
+   ndb/src/common/debugger/signaldata/Makefile dnl
+   ndb/src/common/portlib/Makefile dnl
+   ndb/src/common/util/Makefile dnl
+   ndb/src/common/logger/Makefile dnl
+   ndb/src/common/transporter/Makefile dnl
+   ndb/src/common/mgmcommon/Makefile dnl
+   ndb/src/kernel/Makefile dnl
+   ndb/src/kernel/error/Makefile dnl
+   ndb/src/kernel/blocks/Makefile dnl
+   ndb/src/kernel/blocks/cmvmi/Makefile dnl
+   ndb/src/kernel/blocks/dbacc/Makefile dnl
+   ndb/src/kernel/blocks/dbdict/Makefile dnl
+   ndb/src/kernel/blocks/dbdih/Makefile dnl
+   ndb/src/kernel/blocks/dblqh/Makefile dnl
+   ndb/src/kernel/blocks/dbtc/Makefile dnl
+   ndb/src/kernel/blocks/dbtup/Makefile dnl
+   ndb/src/kernel/blocks/ndbfs/Makefile dnl
+   ndb/src/kernel/blocks/ndbcntr/Makefile dnl
+   ndb/src/kernel/blocks/qmgr/Makefile dnl
+   ndb/src/kernel/blocks/trix/Makefile dnl
+   ndb/src/kernel/blocks/backup/Makefile dnl
+   ndb/src/kernel/blocks/dbutil/Makefile dnl
+   ndb/src/kernel/blocks/suma/Makefile dnl
+   ndb/src/kernel/blocks/dbtux/Makefile dnl
+   ndb/src/kernel/vm/Makefile dnl
+   ndb/src/mgmapi/Makefile dnl
+   ndb/src/ndbapi/Makefile dnl
+   ndb/src/mgmsrv/Makefile dnl
+   ndb/src/mgmclient/Makefile dnl
+   ndb/src/cw/Makefile dnl
+   ndb/src/cw/cpcd/Makefile dnl
+   ndb/test/Makefile dnl
+   ndb/test/src/Makefile dnl
+   ndb/test/ndbapi/Makefile dnl
+   ndb/test/ndbapi/bank/Makefile dnl
+   ndb/test/tools/Makefile dnl
+   ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   ndb/include/ndb_version.h ndb/include/ndb_global.h dnl
+   ndb/include/ndb_types.h dnl
    )
 fi
 

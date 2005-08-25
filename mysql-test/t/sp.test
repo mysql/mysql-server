@@ -2468,25 +2468,26 @@ drop table t3|
 #
 # BUG#4318
 #
-#QQ Don't know if HANDLER commands can work with SPs, or at all...
-# 
-#create table t3 (s1 int)|
-#insert into t3 values (3), (4)|
-#
-#--disable_warnings
-#drop procedure if exists bug4318|
-#--enable_warnings
-#create procedure bug4318()
-#  handler t3 read next|
-#
-#handler t3 open|
-## Expect no results, as tables are closed, but there shouldn't be any errors
-#call bug4318()|
-#call bug4318()|
-#handler t3 close|
-#
-#drop procedure bug4318|
-#drop table t3|
+
+--disable_parsing Don't know if HANDLER commands can work with SPs, or at all..
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+
+--disable_warnings
+drop procedure if exists bug4318|
+--enable_warnings
+create procedure bug4318()
+  handler t3 read next|
+
+handler t3 open|
+# Expect no results, as tables are closed, but there shouldn't be any errors
+call bug4318()|
+call bug4318()|
+handler t3 close|
+
+drop procedure bug4318|
+drop table t3|
+--enable_parsing
 
 #
 # BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
@@ -2542,9 +2543,9 @@ create procedure bug4902_2()
 begin
   show processlist;
 end|
---replace_column 1 # 6 #
+--replace_column 1 # 6 # 3 localhost
 call bug4902_2()|
---replace_column 1 # 6 #
+--replace_column 1 # 6 # 3 localhost
 call bug4902_2()|
 drop procedure bug4902_2|
 
@@ -2834,26 +2835,27 @@ drop table t3|
 #
 # BUG#6022: Stored procedure shutdown problem with self-calling function.
 #
-# This part of test is disabled until we implement support for
-# recursive stored functions.
-#--disable_warnings
-#drop function if exists bug6022|
-#--enable_warnings
-#
-#--disable_warnings
-#drop function if exists bug6022|
-#--enable_warnings
-#create function bug6022(x int) returns int
-#begin
-#  if x < 0 then
-#    return 0;
-#  else
-#    return bug6022(x-1);
-#  end if;
-#end|
-#
-#select bug6022(5)|
-#drop function bug6022|
+
+--disable_parsing until we implement support for recursive stored functions.
+--disable_warnings
+drop function if exists bug6022|
+--enable_warnings
+
+--disable_warnings
+drop function if exists bug6022|
+--enable_warnings
+create function bug6022(x int) returns int
+begin
+  if x < 0 then
+    return 0;
+  else
+    return bug6022(x-1);
+  end if;
+end|
+
+select bug6022(5)|
+drop function bug6022|
+--enable_parsing
 
 #
 # BUG#6029: Stored procedure specific handlers should have priority
@@ -3760,27 +3762,28 @@ drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
-# psergey: temporarily disabled until Bar fixes BUG#11986
-# create procedure bug6063()
-#   lâbel: begin end|
-# call bug6063()|
-# # QQ Known bug: this will not show the label correctly.
-# show create procedure bug6063|
-# 
-# set character set utf8|
-# create procedure bug7088_1()
-#   label1: begin end label1|
-# create procedure bug7088_2()
-#   lÃ¤bel1: begin end|
-# call bug7088_1()|
-# call bug7088_2()|
-# set character set default|
-# show create procedure bug7088_1|
-# show create procedure bug7088_2|
-# 
-# drop procedure bug6063|
-# drop procedure bug7088_1|
-# drop procedure bug7088_2|
+--disable_parsing temporarily disabled until Bar fixes BUG#11986
+create procedure bug6063()
+  lâbel: begin end|
+call bug6063()|
+# QQ Known bug: this will not show the label correctly.
+show create procedure bug6063|
+
+set character set utf8|
+create procedure bug7088_1()
+  label1: begin end label1|
+create procedure bug7088_2()
+  lÃ¤bel1: begin end|
+call bug7088_1()|
+call bug7088_2()|
+set character set default|
+show create procedure bug7088_1|
+show create procedure bug7088_2|
+
+drop procedure bug6063|
+drop procedure bug7088_1|
+drop procedure bug7088_2|
+--enable_parsing
 
 #
 # BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
@@ -3852,6 +3855,146 @@ end|
 call bug8692()|
 drop procedure bug8692|
 drop table t3|
+
+#
+# Bug#10055 "Using stored function with information_schema causes empty
+#            result set"
+#
+--disable_warnings
+drop function if exists bug10055|
+--enable_warnings
+create function bug10055(v char(255)) returns char(255) return lower(v)|
+# This select should not crash server and should return all fields in t1
+select t.column_name, bug10055(t.column_name)
+from information_schema.columns as t
+where t.table_schema = 'test' and t.table_name = 't1'|
+drop function bug10055|
+
+#
+# Bug #12297 "SP crashes the server if data inserted inside a lon loop"
+# The test for memleak bug, so actually there is no way to test it
+# from the suite. The test below could be used to check SP memory
+# consumption by passing large input parameter.
+#
+
+#
+#  Note: the test is currenly disabled because of the
+#  Bug #12637: SP crashes the server if it has update query with user var
+#  & binlog is enabled.
+#
+
+--disable_warnings
+#drop procedure if exists bug12297|
+--enable_warnings
+
+#create procedure bug12297(lim int)
+#begin
+#  set @x = 0;
+#  repeat
+#   insert into t1(id,data)
+#   values('aa', @x);
+#   set @x = @x + 1;
+#  until @x >= lim
+#  end repeat;
+#end|
+
+#call bug12297(10)|
+#drop procedure bug12297|
+
+#
+# Bug #11247 "Stored procedures: Function calls in long loops leak memory"
+# One more memleak bug test. One could use this test to check that the memory
+# isn't leaking by increasing the input value for p_bug11247.
+#
+
+--disable_warnings
+drop function if exists f_bug11247|
+drop procedure if exists p_bug11247|
+--enable_warnings
+
+create function f_bug11247(param int)
+  returns int
+return param + 1|
+
+create procedure p_bug11247(lim int)
+begin
+  declare v int default 0;
+
+  while v < lim do
+    set v= f_bug11247(v);
+  end while;
+end|
+
+call p_bug11247(10)|
+drop function f_bug11247|
+drop procedure p_bug11247|
+#
+# BUG#12168: "'DECLARE CONTINUE HANDLER FOR NOT FOUND ...' in conditional
+# handled incorrectly"
+#
+--disable_warnings
+drop procedure if exists bug12168|
+drop table if exists t3, t4|
+--enable_warnings
+
+create table t3 (a int)|
+insert into t3 values (1),(2),(3),(4)|
+
+create table t4 (a int)|
+
+create procedure bug12168(arg1 char(1))
+begin
+  declare b, c integer;
+  if arg1 = 'a' then
+    begin
+      declare c1 cursor for select a from t3 where a % 2;
+      declare continue handler for not found set b = 1;
+      set b = 0;
+      open c1;
+      c1_repeat: repeat
+        fetch c1 into c;
+        if (b = 1) then
+          leave c1_repeat;
+        end if;
+
+        insert into t4 values (c);
+        until b = 1
+      end repeat;
+    end;
+  end if;
+  if arg1 = 'b' then
+    begin
+      declare c2 cursor for select a from t3 where not a % 2;
+      declare continue handler for not found set b = 1;
+      set b = 0;
+      open c2;
+      c2_repeat: repeat
+        fetch c2 into c;
+        if (b = 1) then
+          leave c2_repeat;
+        end if;
+
+        insert into t4 values (c);
+        until b = 1
+      end repeat;
+    end;
+  end if;
+end|
+
+call bug12168('a')|
+select * from t4|
+truncate t4|
+call bug12168('b')|
+select * from t4|
+truncate t4|
+call bug12168('a')|
+select * from t4|
+truncate t4|
+call bug12168('b')|
+select * from t4|
+truncate t4|
+drop table t3, t4|
+drop procedure if exists bug12168|
 
 #
 # BUG#NNNN: New bug synopsis

@@ -94,6 +94,13 @@ void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 
 extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
 
+/*
+  Routines which allow open/lock and close mysql.proc table even when
+  we already have some tables open and locked.
+*/
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
+void close_proc_table(THD *thd, Open_tables_state *backup);
+
 //
 // Utilities...
 //
@@ -104,9 +111,5 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
 int
 sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddbmax,
 	      bool no_access_check, bool *dbchangedp);
-
-// Like mysql_change_db() but handles empty db name and the  send_ok() problem.
-int
-sp_change_db(THD *thd, char *db, bool no_access_check);
 
 #endif /* _SP_H_ */

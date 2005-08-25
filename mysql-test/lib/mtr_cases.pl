@@ -53,21 +53,20 @@ sub collect_test_cases ($) {
   else
   {
     # ----------------------------------------------------------------------
-    # Skip some tests listed in disabled.def
+    # Disable some tests listed in disabled.def
     # ----------------------------------------------------------------------
-    my %skiplist;
-    my $skipfile= "$testdir/disabled.def";
-    if ( open(SKIPFILE, $skipfile) )
+    my %disabled;
+    if ( open(DISABLED, "$testdir/disabled.def" ) )
     {
-      while ( <SKIPFILE> )
+      while ( <DISABLED> )
       {
         chomp;
         if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
         {
-          $skiplist{$1}= $2;
+          $disabled{$1}= $2;
         }
       }
-      close SKIPFILE;
+      close DISABLED;
     }
 
     foreach my $elem ( sort readdir(TESTDIR) ) {
@@ -75,7 +74,7 @@ sub collect_test_cases ($) {
       next if ! defined $tname;
       next if $::opt_do_test and ! defined mtr_match_prefix($elem,$::opt_do_test);
 
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%skiplist);
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled);
     }
     closedir TESTDIR;
   }
@@ -119,7 +118,7 @@ sub collect_one_test_case($$$$$$) {
   my $tname=   shift;
   my $elem=    shift;
   my $cases=   shift;
-  my $skiplist=shift;
+  my $disabled=shift;
 
   my $path= "$testdir/$elem";
 
@@ -188,7 +187,7 @@ sub collect_one_test_case($$$$$$) {
   my $slave_mi_file=   "$testdir/$tname.slave-mi";
   my $master_sh=       "$testdir/$tname-master.sh";
   my $slave_sh=        "$testdir/$tname-slave.sh";
-  my $disabled=        "$testdir/$tname.disabled";
+  my $disabled_file=   "$testdir/$tname.disabled";
 
   $tinfo->{'master_opt'}= $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
   $tinfo->{'slave_opt'}=  $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
@@ -292,18 +291,18 @@ sub collect_one_test_case($$$$$$) {
   }
 
   # FIXME why this late?
-  if ( $skiplist->{$tname} )
+  if ( $disabled->{$tname} )
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'disable'}= 1;   # Sub type of 'skip'
-    $tinfo->{'comment'}= $skiplist->{$tname} if $skiplist->{$tname};
+    $tinfo->{'comment'}= $disabled->{$tname} if $disabled->{$tname};
   }
 
-  if ( -f $disabled )
+  if ( -f $disabled_file )
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'disable'}= 1;   # Sub type of 'skip'
-    $tinfo->{'comment'}= mtr_fromfile($disabled);
+    $tinfo->{'comment'}= mtr_fromfile($disabled_file);
   }
 
   # We can't restart a running server that may be in use

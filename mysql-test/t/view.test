@@ -1711,6 +1711,10 @@ CHECK TABLE v1, v2, v3, v4, v5, v6;
 drop view v1, v2, v3, v4, v5, v6;
 drop table t2;
 
+--disable_warnings
+drop function if exists f1;
+drop function if exists f2;
+--enable_warnings
 CREATE TABLE t1 (col1 time);
 CREATE TABLE t2 (col1 time);
 CREATE TABLE t3 (col1 time);
@@ -1897,3 +1901,85 @@ SELECT pid,GROUP_CONCAT(CONCAT(fn,' ',ln) ORDER BY 1) FROM v1 GROUP BY pid;
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+#
+# Test for bug #12382: SELECT * FROM view after INSERT command
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, f varchar(255));
+CREATE VIEW v1 AS SELECT id, f FROM t1 WHERE id <= 2;
+INSERT INTO t1 VALUES (2, 'foo2');
+INSERT INTO t1 VALUES (1, 'foo1');
+
+SELECT * FROM v1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Test for bug #12470: crash for a simple select from a view defined
+#                      as a join over 5 tables
+
+CREATE TABLE t1 (pk int PRIMARY KEY, b int);
+CREATE TABLE t2 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t3 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t4 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE TABLE t5 (pk int PRIMARY KEY, fk int, INDEX idx(fk));
+CREATE VIEW v1 AS
+  SELECT t1.pk as a FROM t1,t2,t3,t4,t5
+    WHERE t1.b IS NULL AND
+          t1.pk=t2.fk AND t2.pk=t3.fk AND t3.pk=t4.fk AND t4.pk=t5.fk;
+
+SELECT a FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4,t5;
+
+#
+# Bug #12298 Typo in  function name results in erroneous view being created.
+#
+create view v1 as select timestampdiff(day,'1997-01-01 00:00:00','1997-01-02 00:00:00') as f1;
+select * from v1;
+drop view v1;
+
+#
+# Bug #10624 Views with multiple UNION and UNION ALL produce incorrect results
+#
+create table t1 (f1 int);
+create table t2 (f1 int);
+insert into t1 values (1);
+insert into t2 values (2);
+create view v1 as select * from t1 union select * from t2 union all select * from t2;
+select * from v1;
+drop view v1;
+drop table t1,t2;
+#
+# Test for bug #10970: view referring a temporary table indirectly
+#                     
+
+CREATE TEMPORARY TABLE t1 (a int);
+CREATE FUNCTION f1 () RETURNS int RETURN (SELECT COUNT(*) FROM t1);
+-- error 1352
+CREATE VIEW v1 AS SELECT f1();
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+#
+# BUG #12533 (crash on DESCRIBE <view> after renaming base table column)
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+--enable_warnings
+
+CREATE TABLE t1 (f4 CHAR(5));
+CREATE VIEW v1 AS SELECT * FROM t1;
+DESCRIBE v1;
+
+ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
+--error 1356
+DESCRIBE v1;
+DROP TABLE t1;
+DROP VIEW v1;
