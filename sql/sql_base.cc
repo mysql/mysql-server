@@ -565,7 +565,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     else
     {
       // Free memory and reset for next loop
-      table->file->reset();
+      table->file->ha_reset();
     }
     table->in_use=0;
     if (unused_tables)
@@ -2512,15 +2512,20 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
 {
   if (thd->set_query_id)
   {
+    table->file->ha_set_bit_in_rw_set(field->fieldnr,
+                                      (bool)(thd->set_query_id-1));
     if (field->query_id != thd->query_id)
     {
+      if (table->get_fields_in_item_tree)
+        field->flags|= GET_FIXED_FIELDS_FLAG;
       field->query_id= thd->query_id;
       table->used_fields++;
       table->used_keys.intersect(field->part_of_key);
     }
     else
       thd->dupp_field= field;
-  }
+  } else if (table->get_fields_in_item_tree)
+    field->flags|= GET_FIXED_FIELDS_FLAG;
 }
 
 
@@ -2894,6 +2899,42 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   }
 
   DBUG_RETURN(fld);
+}
+
+
+/*
+  Find field in table, no side effects, only purpose is to check for field
+  in table object and get reference to the field if found.
+
+  SYNOPSIS
+  find_field_in_table_sef()
+
+  table                         table where to find
+  name                          Name of field searched for
+
+  RETURN
+    0                   field is not found
+    #                   pointer to field
+*/
+
+Field *find_field_in_table_sef(TABLE *table, const char *name)
+{
+  Field **field_ptr;
+  if (table->s->name_hash.records)
+    field_ptr= (Field**)hash_search(&table->s->name_hash,(byte*) name,
+                                    strlen(name));
+  else
+  {
+    if (!(field_ptr= table->field))
+      return (Field *)0;
+    for (; *field_ptr; ++field_ptr)
+      if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
+        break;
+  }
+  if (field_ptr)
+    return *field_ptr;
+  else
+    return (Field *)0;
 }
 
 
@@ -3557,15 +3598,19 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 
       if (field_1)
       {
+        TABLE *table_1= nj_col1->table_ref->table;
         /* Mark field_1 used for table cache. */
         field_1->query_id= thd->query_id;
-        nj_col_1->table_ref->table->used_keys.intersect(field_1->part_of_key);
+        table_1->file->ha_set_bit_in_read_set(field_1->fieldnr);
+        table_1->used_keys.intersect(field_1->part_of_key);
       }
       if (field_2)
       {
+        TABLE *table_2= nj_col2->table_ref->table;
         /* Mark field_2 used for table cache. */
         field_2->query_id= thd->query_id;
-        nj_col_2->table_ref->table->used_keys.intersect(field_2->part_of_key);
+        table_2->file->ha_set_bit_in_read_set(field_1->fieldnr);
+        table_2->used_keys.intersect(field_2->part_of_key);
       }
 
       if (using_fields != NULL)
@@ -4045,11 +4090,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ****************************************************************************/
 
 bool setup_fields(THD *thd, Item **ref_pointer_array,
-                  List<Item> &fields, bool set_query_id,
+                  List<Item> &fields, ulong set_query_id,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
-  bool save_set_query_id= thd->set_query_id;
+  ulong save_set_query_id= thd->set_query_id;
   List_iterator<Item> it(fields);
   DBUG_ENTER("setup_fields");
 
@@ -4427,6 +4472,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         if (field->query_id == thd->query_id)
           thd->dupp_field= field;
         field->query_id= thd->query_id;
+        table->file->ha_set_bit_in_read_set(field->fieldnr);
 
         if (table)
           table->used_keys.intersect(field->part_of_key);
@@ -4467,7 +4513,10 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       For NATURAL joins, used_tables is updated in the IF above.
     */
     if (table)
+    {
       table->used_fields= table->s->fields;
+      table->file->ha_set_all_bits_in_read_set();
+    }
   }
   if (found)
     DBUG_RETURN(FALSE);
