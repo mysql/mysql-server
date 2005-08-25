@@ -5,7 +5,7 @@
 # show databases
 
 --disable_warnings
-DROP TABLE IF EXISTS t0,t1,t2;
+DROP TABLE IF EXISTS t0,t1,t2,t3,t5;
 --enable_warnings
 
 
@@ -30,6 +30,8 @@ create table mysqltest.t1(a int, b VARCHAR(30), KEY string_data (b));
 create table test.t2(a int);
 create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
+create table t5 (id int auto_increment primary key);
+insert into t5 values (10);
 create view v1 (c) as select table_name from information_schema.TABLES;
 select * from v1;
 
@@ -76,7 +78,7 @@ where table_schema = 'mysqltest' and table_name = 'v1';
 connection default;
 
 drop view v1, mysqltest.v1;
-drop tables mysqltest.t4, mysqltest.t1, t2, t3;
+drop tables mysqltest.t4, mysqltest.t1, t2, t3, t5;
 drop database mysqltest;
 
 # Test for information_schema.CHARACTER_SETS &
@@ -136,7 +138,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
-mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8);
+mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) order by 1;
 select count(*) from information_schema.ROUTINES;
 
 connect (user1,localhost,mysqltest_1,,);
@@ -613,6 +615,7 @@ show create database information_schema;
 
 #
 # Bug #11057 information_schema: columns table has some questionable contents
+# Bug #12301 information_schema: NUMERIC_SCALE must be 0 for integer columns
 #
 create table t1(f1 LONGBLOB, f2 LONGTEXT);
 select column_name,data_type,CHARACTER_OCTET_LENGTH,
@@ -637,3 +640,29 @@ select trigger_schema, trigger_name from triggers where
 trigger_name='tr1';
 use test;
 drop table t1;
+
+#
+# Bug#12518 COLUMN_DEFAULT has wrong value if NOT NULL is set
+#
+create table t1 (a int not null, b int);
+use information_schema;
+select column_name, column_default from columns
+  where table_schema='test' and table_name='t1';
+use test;
+show columns from t1;
+drop table t1;
+
+#
+# Bug #12636: SHOW TABLE STATUS with where condition containing a subquery
+#             over information schema
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+
+--replace_column 8 # 12 # 13 #
+SHOW TABLE STATUS FROM test
+  WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+                    WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
+
+DROP TABLE t1,t2

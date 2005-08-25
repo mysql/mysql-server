@@ -80,7 +80,7 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   custom_arg.search_flag= SEARCH_SAME;
   old_allocated= keyinfo->rb_tree.allocated;
   res= tree_delete(&keyinfo->rb_tree, info->recbuf, &custom_arg);
-  info->s->index_length+= (keyinfo->rb_tree.allocated-old_allocated);
+  info->s->index_length-= (old_allocated - keyinfo->rb_tree.allocated);
   return res;
 }
 

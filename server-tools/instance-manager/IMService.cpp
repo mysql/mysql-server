@@ -44,28 +44,28 @@ int HandleServiceOptions(Options options)
   if (options.install_as_service)
   {
     if (winService.IsInstalled())
-      log_info("Service is already installed\n");
+      log_info("Service is already installed");
     else if (winService.Install())
-      log_info("Service installed successfully\n");
+      log_info("Service installed successfully");
     else
     {
-      log_info("Service failed to install\n");
-      ret_val= -1;
+      log_info("Service failed to install");
+      ret_val= 1;
     }
   }
   else if (options.remove_service)
   {
     if (! winService.IsInstalled())
-      log_info("Service is not installed\n");
+      log_info("Service is not installed");
     else if (winService.Remove())
-      log_info("Service removed successfully\n");
+      log_info("Service removed successfully");
     else
     {
-      log_info("Service failed to remove\n");
-      ret_val= -1;
+      log_info("Service failed to remove");
+      ret_val= 1;
     }
   }
   else
-    return (int)winService.Init();
+    ret_val= !winService.Init();
   return ret_val;
 }

@@ -343,8 +343,8 @@ mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
 # Search the tree for plain text files and adapt the line end marker
 #
 find $BASE \( -name "*.dsp" -o -name "*.dsw" -o -name "*.cnf" -o -name "*.ini" \
-           -o -name COPYING -o -name ChangeLog -o -name EXCEPTIONS-CLIENT 
-           -o -name "INSTALL*" -o -name LICENSE -o -name "README*" 
+           -o -name COPYING -o -name ChangeLog -o -name EXCEPTIONS-CLIENT \
+           -o -name "INSTALL*" -o -name LICENSE -o -name "README*" \
            -o -name "*.vcproj" -o -name "*.sln" \) -type f -print \
 | while read v
   do

@@ -351,8 +351,6 @@ public:
   inline uint32 get_open_count() { return open_count; }
 };
 
-/* character conversion tables */
-
 
 typedef struct st_copy_info {
   ha_rows records;
@@ -566,11 +564,11 @@ struct system_variables
 #endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_alter_table;
   my_bool old_passwords;
-  
+
   /* Only charset part of these variables is sensible */
-  CHARSET_INFO 	*character_set_client;
+  CHARSET_INFO  *character_set_client;
   CHARSET_INFO  *character_set_results;
-  
+
   /* Both charset and collation parts of these variables are important */
   CHARSET_INFO	*collation_server;
   CHARSET_INFO	*collation_database;
@@ -633,7 +631,7 @@ typedef struct system_status_var
   ulong filesort_range_count;
   ulong filesort_rows;
   ulong filesort_scan_count;
-  /* Ppepared statements and binary protocol */
+  /* Prepared statements and binary protocol */
   ulong com_stmt_prepare;
   ulong com_stmt_execute;
   ulong com_stmt_send_long_data;
@@ -658,8 +656,8 @@ void free_tmp_table(THD *thd, TABLE *entry);
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
 #define INIT_ARENA_DBUG_INFO is_backup_arena= 0
-#else 
-#define INIT_ARENA_DBUG_INFO  
+#else
+#define INIT_ARENA_DBUG_INFO
 #endif
 
 
@@ -934,6 +932,22 @@ struct st_savepoint {
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
 extern const char *xa_state_names[];
 
+typedef struct st_xid_state {
+  /* For now, this is only used to catch duplicated external xids */
+  XID  xid;                           // transaction identifier
+  enum xa_states xa_state;            // used by external XA only
+  bool in_thd;
+} XID_STATE;
+
+extern pthread_mutex_t LOCK_xid_cache;
+extern HASH xid_cache;
+bool xid_cache_init(void);
+void xid_cache_free(void);
+XID_STATE *xid_cache_search(XID *xid);
+bool xid_cache_insert(XID *xid, enum xa_states xa_state);
+bool xid_cache_insert(XID_STATE *xid_state);
+void xid_cache_delete(XID_STATE *xid_state);
+
 /*
   A registry for item tree transformations performed during
   query optimization. We register only those changes which require
@@ -955,7 +969,7 @@ enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
 
 
 /*
-  Class that holds information about tables which were open and locked
+  Class that holds information about tables which were opened and locked
   by the thread. It is also used to save/restore this information in
   push_open_tables_state()/pop_open_tables_state().
 */
@@ -1018,7 +1032,13 @@ public:
   ulong	version;
   uint current_tablenr;
 
-  Open_tables_state();
+  /*
+    This constructor serves for creation of Open_tables_state instances
+    which are used as backup storage.
+  */
+  Open_tables_state() {};
+
+  Open_tables_state(ulong version_arg);
 
   void set_open_tables_state(Open_tables_state *state)
   {
@@ -1031,6 +1051,27 @@ public:
     lock= locked_tables= 0;
     prelocked_mode= NON_PRELOCKED;
   }
+};
+
+
+/* class to save context when executing a function or trigger */
+
+/* Defines used for Sub_statement_state::in_sub_stmt */
+
+#define SUB_STMT_TRIGGER 1
+#define SUB_STMT_FUNCTION 2
+
+class Sub_statement_state
+{
+public:
+  ulonglong options;
+  ulonglong last_insert_id, next_insert_id;
+  ulonglong limit_found_rows;
+  ha_rows    cuted_fields, sent_row_count, examined_row_count;
+  ulong client_capabilities;
+  uint in_sub_stmt;
+  bool enable_slow_log, insert_id_used;
+  my_bool no_send_ok;
 };
 
 
@@ -1071,7 +1112,7 @@ public:
                                         // the lock_id of a cursor.
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
   /* all prepared statements and cursors of this connection */
-  Statement_map stmt_map; 
+  Statement_map stmt_map;
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
@@ -1140,11 +1181,10 @@ public:
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
   delayed_insert *di;
-  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
-  
-  /* TRUE if we are inside of trigger or stored function. */
-  bool in_sub_stmt;
-  
+
+  /* <> 0 if we are inside of trigger or stored function. */
+  uint in_sub_stmt;
+
   /* container for handler's private per-connection data */
   void *ha_data[MAX_HA];
   struct st_transactions {
@@ -1152,8 +1192,7 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
-    XID  xid;                           // transaction identifier
-    enum xa_states xa_state;            // used by external XA only
+    XID_STATE xid_state;
     /*
        Tables changed in transaction (that must be invalidated in query cache).
        List contain only transactional tables, that not invalidated in query
@@ -1173,7 +1212,7 @@ public:
     st_transactions()
     {
       bzero((char*)this, sizeof(*this));
-      xid.null();
+      xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
 #endif
@@ -1226,8 +1265,16 @@ public:
   */
   ulonglong  current_insert_id;
   ulonglong  limit_found_rows;
+  ulonglong  options;           /* Bitmap of states */
+  longlong   row_count_func;	/* For the ROW_COUNT() function */
   ha_rows    cuted_fields,
              sent_row_count, examined_row_count;
+  /*
+    The set of those tables whose fields are referenced in all subqueries
+    of the query.
+    TODO: possibly this it is incorrect to have used tables in THD because
+    with more than one subquery, it is not clear what does the field mean.
+  */
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
@@ -1240,7 +1287,6 @@ public:
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
-  List	     <Open_tables_state> open_state_list;
   /*
     Id of current query. Statement can be reused to execute several queries
     query_id is global in context of the whole MySQL server.
@@ -1250,7 +1296,7 @@ public:
     update auto-updatable fields (like auto_increment and timestamp).
   */
   query_id_t query_id, warn_id;
-  ulong	     options, thread_id, col_access;
+  ulong      thread_id, col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
@@ -1290,7 +1336,8 @@ public:
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
-  longlong   row_count_func;	/* For the ROW_COUNT() function */
+  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
+
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
@@ -1496,13 +1543,15 @@ public:
   void set_status_var_init();
   bool is_context_analysis_only()
     { return current_arena->is_stmt_prepare() || lex->view_prepare_mode; }
-  bool push_open_tables_state();
-  void pop_open_tables_state();
+  void reset_n_backup_open_tables_state(Open_tables_state *backup);
+  void restore_backup_open_tables_state(Open_tables_state *backup);
+  void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
+  void restore_sub_statement_state(Sub_statement_state *backup);
 };
 
 
 #define tmp_disable_binlog(A)       \
-  {ulong tmp_disable_binlog__save_options= (A)->options; \
+  {ulonglong tmp_disable_binlog__save_options= (A)->options; \
   (A)->options&= ~OPTION_BIN_LOG
 
 #define reenable_binlog(A)   (A)->options= tmp_disable_binlog__save_options;}
@@ -1569,6 +1618,7 @@ public:
     statement/stored procedure.
   */
   virtual void cleanup();
+  void set_thd(THD *thd_arg) { thd= thd_arg; }
 };
 
 
@@ -1924,14 +1974,13 @@ class multi_delete :public select_result_interceptor
 {
   TABLE_LIST *delete_tables, *table_being_deleted;
   Unique **tempfiles;
-  THD *thd;
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
   bool do_delete, transactional_tables, normal_tables, delete_while_scanning;
 
 public:
-  multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
+  multi_delete(TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -1947,7 +1996,6 @@ class multi_update :public select_result_interceptor
   TABLE_LIST *all_tables; /* query/update command tables */
   TABLE_LIST *leaves;     /* list of leves of join table tree */
   TABLE_LIST *update_tables, *table_being_updated;
-  THD *thd;
   TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
   ha_rows updated, found;
@@ -1959,7 +2007,7 @@ class multi_update :public select_result_interceptor
   bool do_update, trans_safe, transactional_tables, ignore;
 
 public:
-  multi_update(THD *thd_arg, TABLE_LIST *ut, TABLE_LIST *leaves_list,
+  multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
 	       List<Item> *fields, List<Item> *values,
 	       enum_duplicates handle_duplicates, bool ignore);
   ~multi_update();

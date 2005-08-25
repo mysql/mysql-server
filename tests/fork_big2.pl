@@ -300,7 +300,7 @@ sub test_select
 
 #
 # Do big select count(distinct..) over the table
-# 
+#
 
 sub test_select_count
 {

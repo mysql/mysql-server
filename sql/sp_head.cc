@@ -126,16 +126,48 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
 }
 
 
-/* Evaluate a (presumed) func item. Always returns an item, the parameter
-** if nothing else.
+/* Macro to switch arena in sp_eval_func_item */
+#define CREATE_ON_CALLERS_ARENA(new_command, condition, backup_arena)   \
+  do                                                                    \
+  {                                                                     \
+    if (condition)                                                      \
+      thd->set_n_backup_item_arena(thd->spcont->callers_arena,          \
+                                   backup_arena);                       \
+    new_command;                                                        \
+    if (condition)                                                      \
+      thd->restore_backup_item_arena(thd->spcont->callers_arena,        \
+                                     &backup_current_arena);            \
+  } while(0)
+
+/*
+  Evaluate an item and store it in the returned item
+
+  SYNOPSIS
+    sp_eval_func_item()
+      name                  - current thread object
+      it_addr               - pointer to the item to evaluate
+      type                  - type of the item we evaluating
+      reuse                 - used if we would like to reuse existing item
+                              instead of allocation of the new one
+      use_callers_arena     - TRUE if we want to use caller's arena
+                              rather then current one.
+  DESCRIPTION
+   We use this function to evaluate result for stored functions
+   and stored procedure parameters. It is also used to evaluate and
+   (re) allocate variables.
+
+  RETURN VALUES
+    Evaluated item is returned
 */
+
 Item *
 sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
-		  Item *reuse)
+		  Item *reuse, bool use_callers_arena)
 {
   DBUG_ENTER("sp_eval_func_item");
   Item *it= sp_prepare_func_item(thd, it_addr);
   uint rsize;
+  Query_arena backup_current_arena;
   DBUG_PRINT("info", ("type: %d", type));
 
   if (!it)
@@ -143,90 +175,93 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     DBUG_RETURN(NULL);
   }
 
-  /* QQ How do we do this? Is there some better way? */
-  if (type == MYSQL_TYPE_NULL)
-    it= new(reuse, &rsize) Item_null();
-  else
+  switch (sp_map_result_type(type)) {
+  case INT_RESULT:
   {
-    switch (sp_map_result_type(type)) {
-    case INT_RESULT:
-      {
-	longlong i= it->val_int();
+    longlong i= it->val_int();
 
-	if (it->null_value)
-	{
-	  DBUG_PRINT("info", ("INT_RESULT: null"));
-	  it= new(reuse, &rsize) Item_null();
-	}
-	else
-	{
-	  DBUG_PRINT("info", ("INT_RESULT: %d", i));
-          it= new(reuse, &rsize) Item_int(i);
-	}
-	break;
-      }
-    case REAL_RESULT:
-      {
-	double d= it->val_real();
-
-	if (it->null_value)
-	{
-	  DBUG_PRINT("info", ("REAL_RESULT: null"));
-	  it= new(reuse, &rsize) Item_null();
-	}
-	else
-	{
-	  /* There's some difference between Item::new_item() and the
-	   * constructor; the former crashes, the latter works... weird. */
-	  uint8 decimals= it->decimals;
-	  uint32 max_length= it->max_length;
-	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-          it= new(reuse, &rsize) Item_float(d);
-	  it->decimals= decimals;
-	  it->max_length= max_length;
-	}
-	break;
-      }
-    case DECIMAL_RESULT:
-      {
-        my_decimal value, *val= it->val_decimal(&value);
-        if (it->null_value)
-          it= new(reuse, &rsize) Item_null();
-        else
-          it= new(reuse, &rsize) Item_decimal(val);
-#ifndef DBUG_OFF
-        char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
-        DBUG_PRINT("info", ("DECIMAL_RESULT: %s", dbug_decimal_as_string(dbug_buff, val)));
-#endif
-        break;
-      }
-    case STRING_RESULT:
-      {
-	char buffer[MAX_FIELD_WIDTH];
-	String tmp(buffer, sizeof(buffer), it->collation.collation);
-	String *s= it->val_str(&tmp);
-
-	if (it->null_value)
-	{
-	  DBUG_PRINT("info", ("default result: null"));
-	  it= new(reuse, &rsize) Item_null();
-	}
-	else
-	{
-	  DBUG_PRINT("info",("default result: %*s",
-                             s->length(), s->c_ptr_quick()));
-	  it= new(reuse, &rsize) Item_string(thd->strmake(s->ptr(),
-							  s->length()),
-					     s->length(),
-					     it->collation.collation);
-	}
-	break;
-      }
-    case ROW_RESULT:
-    default:
-      DBUG_ASSERT(0);
+    if (it->null_value)
+    {
+      DBUG_PRINT("info", ("INT_RESULT: null"));
+      goto return_null_item;
     }
+    DBUG_PRINT("info", ("INT_RESULT: %d", i));
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_int(i),
+                            use_callers_arena, &backup_current_arena);
+    break;
   }
+  case REAL_RESULT:
+  {
+    double d= it->val_real();
+    uint8 decimals;
+    uint32 max_length;
+
+    if (it->null_value)
+    {
+      DBUG_PRINT("info", ("REAL_RESULT: null"));
+      goto return_null_item;
+    }
+
+    /*
+      There's some difference between Item::new_item() and the
+      constructor; the former crashes, the latter works... weird.
+    */
+    decimals= it->decimals;
+    max_length= it->max_length;
+    DBUG_PRINT("info", ("REAL_RESULT: %g", d));
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_float(d),
+                            use_callers_arena, &backup_current_arena);
+    it->decimals= decimals;
+    it->max_length= max_length;
+    break;
+  }
+  case DECIMAL_RESULT:
+  {
+    my_decimal value, *val= it->val_decimal(&value);
+    if (it->null_value)
+      goto return_null_item;
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_decimal(val),
+                            use_callers_arena, &backup_current_arena);
+#ifndef DBUG_OFF
+    {
+      char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+      DBUG_PRINT("info", ("DECIMAL_RESULT: %s",
+                          dbug_decimal_as_string(dbug_buff, val)));
+    }
+#endif
+    break;
+  }
+  case STRING_RESULT:
+  {
+    char buffer[MAX_FIELD_WIDTH];
+    String tmp(buffer, sizeof(buffer), it->collation.collation);
+    String *s= it->val_str(&tmp);
+
+    if (type == MYSQL_TYPE_NULL || it->null_value)
+    {
+      DBUG_PRINT("info", ("STRING_RESULT: null"));
+      goto return_null_item;
+    }
+    DBUG_PRINT("info",("STRING_RESULT: %*s",
+                       s->length(), s->c_ptr_quick()));
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
+                            Item_string(thd->strmake(s->ptr(),
+                                                     s->length()), s->length(),
+                                        it->collation.collation),
+                            use_callers_arena, &backup_current_arena);
+    break;
+  }
+  case ROW_RESULT:
+  default:
+    DBUG_ASSERT(0);
+  }
+  it->rsize= rsize;
+
+  DBUG_RETURN(it);
+
+return_null_item:
+  CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_null(),
+                    use_callers_arena, &backup_current_arena);
   it->rsize= rsize;
 
   DBUG_RETURN(it);
@@ -534,34 +569,22 @@ sp_head::destroy()
 
 
 /*
- *  This is only used for result fields from functions (both during
- *  fix_length_and_dec() and evaluation).
- *
- *  Since the current mem_root during a will be freed and the result
- *  field will be used by the caller, we have to put it in the caller's
- *  or main mem_root.
- */
+  This is only used for result fields from functions (both during
+  fix_length_and_dec() and evaluation).
+*/
+
 Field *
 sp_head::make_field(uint max_length, const char *name, TABLE *dummy)
 {
   Field *field;
-  MEM_ROOT *tmp_mem_root;
-  THD *thd;
   DBUG_ENTER("sp_head::make_field");
 
-  thd= current_thd;
-  tmp_mem_root= thd->mem_root;
-  if (thd->spcont && thd->spcont->callers_mem_root)
-    thd->mem_root= thd->spcont->callers_mem_root;
-  else
-    thd->mem_root= &thd->main_mem_root;
   field= ::make_field((char *)0,
 		!m_returns_len ? max_length : m_returns_len, 
 		(uchar *)"", 0, m_returns_pack, m_returns, m_returns_cs,
 		(enum Field::geometry_type)0, Field::NONE, 
 		m_returns_typelib,
 		name ? name : (const char *)m_name.str, dummy);
-  thd->mem_root= tmp_mem_root;
   DBUG_RETURN(field);
 }
 
@@ -576,11 +599,19 @@ sp_head::execute(THD *thd)
   uint ip= 0;
   ulong save_sql_mode;
   Query_arena *old_arena;
+  /* per-instruction arena */
+  MEM_ROOT execute_mem_root;
+  Query_arena execute_arena(&execute_mem_root, INITIALIZED_FOR_SP),
+              execute_backup_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
   LEX *old_lex;
   Item_change_list old_change_list;
   String old_packet;
+
+  /* init per-instruction memroot */
+  init_alloc_root(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+
 
   /* Use some extra margin for possible SP recursion and functions */
   if (check_stack_overrun(thd, 4*STACK_MIN_SIZE, olddb))
@@ -650,6 +681,18 @@ sp_head::execute(THD *thd)
   */
   old_packet.swap(thd->packet);
 
+  /*
+    Switch to per-instruction arena here. We can do it since we cleanup
+    arena after every instruction.
+  */
+  thd->set_n_backup_item_arena(&execute_arena, &execute_backup_arena);
+
+  /*
+    Save callers arena in order to store instruction results and out
+    parameters in it later during sp_eval_func_item()
+  */
+  thd->spcont->callers_arena= &execute_backup_arena;
+
   do
   {
     sp_instr *i;
@@ -659,7 +702,9 @@ sp_head::execute(THD *thd)
     if (i == NULL)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
-    thd->set_time();		// Make current_time() et al work
+    /* Don't change NOW() in FUNCTION or TRIGGER */
+    if (!thd->in_sub_stmt)
+      thd->set_time();		// Make current_time() et al work
     /*
       We have to set thd->current_arena before executing the instruction
       to store in the instruction free_list all new items, created
@@ -668,6 +713,7 @@ sp_head::execute(THD *thd)
     */
     thd->current_arena= i;
     ret= i->execute(thd, &ip);
+
     /*
       If this SP instruction have sent eof, it has caused no_send_error to be
       set. Clear it back to allow the next instruction to send error. (multi-
@@ -678,23 +724,30 @@ sp_head::execute(THD *thd)
       cleanup_items(i->free_list);
     i->state= Query_arena::EXECUTED;
 
-    // Check if an exception has occurred and a handler has been found
-    // Note: We havo to check even if ret==0, since warnings (and some
-    //       errors don't return a non-zero value.
-    //       We also have to check even if thd->killed != 0, since some
-    //       errors return with this even when a handler has been found
-    //       (e.g. "bad data").
+    /* we should cleanup free_list and memroot, used by instruction */
+    thd->free_items();
+    free_root(&execute_mem_root, MYF(0));
+
+    /*
+      Check if an exception has occurred and a handler has been found
+      Note: We havo to check even if ret==0, since warnings (and some
+      errors don't return a non-zero value.
+      We also have to check even if thd->killed != 0, since some
+      errors return with this even when a handler has been found
+      (e.g. "bad data").
+    */
     if (ctx)
     {
       uint hf;
 
-      switch (ctx->found_handler(&hip, &hf))
-      {
+      switch (ctx->found_handler(&hip, &hf)) {
       case SP_HANDLER_NONE:
 	break;
       case SP_HANDLER_CONTINUE:
-	ctx->save_variables(hf);
-	ctx->push_hstack(ip);
+        thd->restore_backup_item_arena(&execute_arena, &execute_backup_arena);
+        ctx->save_variables(hf);
+        thd->set_n_backup_item_arena(&execute_arena, &execute_backup_arena);
+        ctx->push_hstack(ip);
         // Fall through
       default:
 	ip= hip;
@@ -707,6 +760,9 @@ sp_head::execute(THD *thd)
       }
     }
   } while (ret == 0 && !thd->killed);
+
+  thd->restore_backup_item_arena(&execute_arena, &execute_backup_arena);
+
 
   /* Restore all saved */
   old_packet.swap(thd->packet);
@@ -734,7 +790,7 @@ sp_head::execute(THD *thd)
   if (dbchanged)
   {
     if (! thd->killed)
-      ret= sp_change_db(thd, olddb, 0);
+      ret= mysql_change_db(thd, olddb, 0);
   }
   m_is_invoked= FALSE;
   DBUG_RETURN(ret);
@@ -753,60 +809,53 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
-  int ret;
-  MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, INITIALIZED_FOR_SP), backup_arena;
+  Item_null *nit;
+  int ret= -1;                                  // Assume error
 
   if (argcount != params)
   {
-    // Need to use my_printf_error here, or it will not terminate the
-    // invoking query properly.
+    /*
+      Need to use my_error here, or it will not terminate the
+      invoking query properly.
+    */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
              "FUNCTION", m_qname.str, params, argcount);
-    DBUG_RETURN(-1);
+    goto end;
   }
-
-  init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
 
   // QQ Should have some error checking here? (types, etc...)
-  nctx= new sp_rcontext(csize, hmax, cmax);
-  nctx->callers_mem_root= thd->mem_root;
+  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+    goto end;
   for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
-    Item *it= sp_eval_func_item(thd, argp++, pvar->type, NULL);
+    Item *it= sp_eval_func_item(thd, argp++, pvar->type, NULL, FALSE);
 
-    if (it)
-      nctx->push_item(it);
-    else
-    {
-      DBUG_RETURN(-1);
-    }
+    if (!it)
+      goto end;                                 // EOM error
+    nctx->push_item(it);
   }
-  // The rest of the frame are local variables which are all IN.
-  // Default all variables to null (those with default clauses will
-  // be set by an set instruction).
+
+  /*
+    The rest of the frame are local variables which are all IN.
+    Default all variables to null (those with default clauses will
+    be set by an set instruction).
+  */
+
+  nit= NULL;                       // Re-use this, and only create if needed
+  for (; i < csize ; i++)
   {
-    Item_null *nit= NULL;	// Re-use this, and only create if needed
-    for (; i < csize ; i++)
+    if (! nit)
     {
-      if (! nit)
-	nit= new Item_null();
-      nctx->push_item(nit);
+      if (!(nit= new Item_null()))
+        DBUG_RETURN(-1);
     }
+    nctx->push_item(nit);
   }
   thd->spcont= nctx;
-  thd->set_n_backup_item_arena(&call_arena, &backup_arena);
-  /* mem_root was moved to backup_arena */
-  DBUG_ASSERT(nctx->callers_mem_root == backup_arena.mem_root);
 
   ret= execute(thd);
-
-  // Partially restore context now.
-  // We still need the call mem root and free list for processing
-  // of the result.
-  thd->restore_backup_item_arena(&call_arena, &backup_arena);
 
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
   {
@@ -814,7 +863,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     Item *it= nctx->get_result();
 
     if (it)
-      *resp= sp_eval_func_item(thd, &it, m_returns, NULL);
+      *resp= sp_eval_func_item(thd, &it, m_returns, NULL, FALSE);
     else
     {
       my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
@@ -823,17 +872,15 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   }
 
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
+  delete nctx;                                  // Doesn't do anything
   thd->spcont= octx;
 
-  // Now get rid of the rest of the callee context
-  call_arena.free_items();
-  free_root(&call_mem_root, MYF(0));
-
+end:
   DBUG_RETURN(ret);
 }
 
-static Item_func_get_user_var *
-item_is_user_var(Item *it)
+
+static Item_func_get_user_var *item_is_user_var(Item *it)
 {
   if (it->type() == Item::FUNC_ITEM)
   {
@@ -845,21 +892,18 @@ item_is_user_var(Item *it)
   return NULL;
 }
 
-int
-sp_head::execute_procedure(THD *thd, List<Item> *args)
+
+int sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
-  DBUG_ENTER("sp_head::execute_procedure");
-  DBUG_PRINT("info", ("procedure %s", m_name.str));
   int ret= 0;
   uint csize = m_pcont->max_pvars();
   uint params = m_pcont->current_pvars();
   uint hmax = m_pcont->max_handlers();
   uint cmax = m_pcont->max_cursors();
-  sp_rcontext *octx = thd->spcont;
+  sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
-  my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
-  MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, INITIALIZED_FOR_SP), backup_arena;
+  DBUG_ENTER("sp_head::execute_procedure");
+  DBUG_PRINT("info", ("procedure %s", m_name.str));
 
   if (args->elements != params)
   {
@@ -868,7 +912,22 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_RETURN(-1);
   }
 
-  init_alloc_root(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  save_spcont= octx= thd->spcont;
+  if (! octx)
+  {				// Create a temporary old context
+    if (!(octx= new sp_rcontext(csize, hmax, cmax)))
+      DBUG_RETURN(-1);
+    thd->spcont= octx;
+
+    /* set callers_arena to thd, for upper-level function to work */
+    thd->spcont->callers_arena= thd;
+  }
+
+  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+  {
+    thd->spcont= save_spcont;
+    DBUG_RETURN(-1);
+  }
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
@@ -876,13 +935,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     uint i;
     List_iterator<Item> li(*args);
     Item *it;
-
-    nctx= new sp_rcontext(csize, hmax, cmax);
-    if (! octx)
-    {				// Create a temporary old context
-      octx= new sp_rcontext(csize, hmax, cmax);
-      tmp_octx= TRUE;
-    }
 
     /* Evaluate SP arguments (i.e. get the values passed as parameters) */
     // QQ: Should do type checking?
@@ -905,20 +957,25 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	if (pvar->mode == sp_param_out)
 	{
 	  if (! nit)
-	    nit= new Item_null();
+          {
+	    if (!(nit= new Item_null()))
+            {
+              ret= -1;
+              break;
+            }
+          }
 	  nctx->push_item(nit); // OUT
 	}
 	else
 	{
-	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type, NULL);
+	  Item *it2= sp_eval_func_item(thd, li.ref(), pvar->type, NULL, FALSE);
 
-	  if (it2)
-	    nctx->push_item(it2); // IN or INOUT
-	  else
+	  if (!it2)
 	  {
 	    ret= -1;		// Eval failed
 	    break;
 	  }
+          nctx->push_item(it2); // IN or INOUT
 	}
       }
     }
@@ -929,35 +986,50 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
-      close_thread_tables(thd, 0, 0, 0);
+      close_thread_tables(thd, 0, 0);
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
-    // The rest of the frame are local variables which are all IN.
-    // Default all variables to null (those with default clauses will
-    // be set by an set instruction).
+    /*
+      The rest of the frame are local variables which are all IN.
+      Default all variables to null (those with default clauses will
+      be set by an set instruction).
+    */
     for (; i < csize ; i++)
     {
       if (! nit)
-	nit= new Item_null();
+      {
+	if (!(nit= new Item_null()))
+        {
+          ret= -1;
+          break;
+        }
+      }
       nctx->push_item(nit);
     }
-    thd->spcont= nctx;
   }
 
+  thd->spcont= nctx;
+
   if (! ret)
-  {
-    thd->set_n_backup_item_arena(&call_arena, &backup_arena);
     ret= execute(thd);
-    thd->restore_backup_item_arena(&call_arena, &backup_arena);
-  }
+
+  /*
+    In the case when we weren't able to employ reuse mechanism for
+    OUT/INOUT paranmeters, we should reallocate memory. This
+    allocation should be done on the arena which will live through
+    all execution of calling routine.
+  */
+  thd->spcont->callers_arena= octx->callers_arena;
 
   if (!ret && csize > 0)
   {
     List_iterator<Item> li(*args);
     Item *it;
 
-    // Copy back all OUT or INOUT values to the previous frame, or
-    // set global user variables
+    /*
+      Copy back all OUT or INOUT values to the previous frame, or
+      set global user variables
+    */
     for (uint i = 0 ; (it= li++) && i < params ; i++)
     {
       sp_pvar_t *pvar= m_pcont->find_pvar(i);
@@ -972,12 +1044,20 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  Item *val= nctx->get_item(i);
 	  Item *orig= octx->get_item(offset);
 	  Item *o_item_next;
-	  Item *o_free_list= thd->free_list;
+          /* we'll use callers_arena in sp_eval_func_item */
+	  Item *o_free_list= thd->spcont->callers_arena->free_list;
+
 	  LINT_INIT(o_item_next);
 
 	  if (orig)
 	    o_item_next= orig->next;
-	  copy= sp_eval_func_item(thd, &val, pvar->type, orig); // Copy
+
+          /*
+            We might need to allocate new item if we weren't able to
+            employ reuse mechanism. Then we should do it on the callers arena.
+          */
+	  copy= sp_eval_func_item(thd, &val, pvar->type, orig, TRUE); // Copy
+
 	  if (!copy)
 	  {
 	    ret= -1;
@@ -987,9 +1067,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	    octx->set_item(offset, copy);
 	  if (orig && copy == orig)
 	  {
-	    // A reused item slot, where the constructor put it in the
-	    // free_list, so we have to restore the list.
-	    thd->free_list= o_free_list;
+	    /*
+              A reused item slot, where the constructor put it in the
+              free_list, so we have to restore the list.
+            */
+	    thd->spcont->callers_arena->free_list= o_free_list;
 	    copy->next= o_item_next;
 	  }
 	}
@@ -1017,16 +1099,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     }
   }
 
-  if (tmp_octx)
-    octx= NULL;
-  if (nctx)
-    nctx->pop_all_cursors();	// To avoid memory leaks after an error
-  thd->spcont= octx;
+  if (!save_spcont)
+    delete octx;                                // Does nothing
 
-  // Now get rid of the rest of the callee context
-  call_arena.free_items();
-  thd->lex->unit.cleanup();
-  free_root(&call_mem_root, MYF(0));
+  nctx->pop_all_cursors();	// To avoid memory leaks after an error
+  delete nctx;                                  // Does nothing
+  thd->spcont= save_spcont;
 
   DBUG_RETURN(ret);
 }
@@ -1420,8 +1498,6 @@ sp_head::opt_mark(uint ip)
     ip= i->opt_mark(this);
 }
 
-// ------------------------------------------------------------------
-
 
 /*
   Prepare LEX and thread for execution of instruction, if requested open
@@ -1513,6 +1589,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   thd->proc_info="closing tables";
   close_thread_tables(thd);
+  thd->proc_info= 0;
 
   if (m_lex->query_tables_own_last)
   {
@@ -1549,9 +1626,10 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 }
 
 
-//
-// sp_instr
-//
+/*
+  sp_instr class functions
+*/
+
 int sp_instr::exec_core(THD *thd, uint *nextp)
 {
   DBUG_ASSERT(0);
@@ -1559,9 +1637,10 @@ int sp_instr::exec_core(THD *thd, uint *nextp)
 }
 
 
-//
-// sp_instr_stmt
-//
+/*
+  sp_instr_stmt class functions
+*/
+
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
@@ -1606,9 +1685,11 @@ sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   return res;
 }
 
-//
-// sp_instr_set
-//
+
+/*
+  sp_instr_set class functions
+*/
+
 int
 sp_instr_set::execute(THD *thd, uint *nextp)
 {
@@ -1617,6 +1698,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 
   DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
 }
+
 
 int
 sp_instr_set::exec_core(THD *thd, uint *nextp)
@@ -1638,9 +1720,10 @@ sp_instr_set::print(String *str)
 }
 
 
-//
-// sp_instr_set_trigger_field
-//
+/*
+  sp_instr_set_trigger_field class functions
+*/
+
 int
 sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 {
@@ -1671,9 +1754,11 @@ sp_instr_set_trigger_field::print(String *str)
   value->print(str);
 }
 
-//
-// sp_instr_jump
-//
+
+/*
+ sp_instr_jump class functions
+*/
+
 int
 sp_instr_jump::execute(THD *thd, uint *nextp)
 {
@@ -1732,9 +1817,10 @@ sp_instr_jump::opt_move(uint dst, List<sp_instr> *bp)
   m_ip= dst;
 }
 
-//
-// sp_instr_jump_if
-//
+
+/*
+  sp_instr_jump_if class functions
+*/
 
 int
 sp_instr_jump_if::execute(THD *thd, uint *nextp)
@@ -1790,9 +1876,11 @@ sp_instr_jump_if::opt_mark(sp_head *sp)
   return m_ip+1;
 }
 
-//
-// sp_instr_jump_if_not
-//
+
+/*
+  sp_instr_jump_if_not class functions
+*/
+
 int
 sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
@@ -1823,6 +1911,7 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
   return res;
 }
 
+
 void
 sp_instr_jump_if_not::print(String *str)
 {
@@ -1832,6 +1921,7 @@ sp_instr_jump_if_not::print(String *str)
   str->append(' ');
   m_expr->print(str);
 }
+
 
 uint
 sp_instr_jump_if_not::opt_mark(sp_head *sp)
@@ -1848,9 +1938,10 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
   return m_ip+1;
 }
 
-//
-// sp_instr_freturn
-//
+
+/*
+  sp_instr_freturn class functions
+*/
 
 int
 sp_instr_freturn::execute(THD *thd, uint *nextp)
@@ -1866,7 +1957,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
   Item *it;
   int res;
 
-  it= sp_eval_func_item(thd, &m_value, m_type, NULL);
+  it= sp_eval_func_item(thd, &m_value, m_type, NULL, TRUE);
   if (! it)
     res= -1;
   else
@@ -1889,9 +1980,10 @@ sp_instr_freturn::print(String *str)
   m_value->print(str);
 }
 
-//
-// sp_instr_hpush_jump
-//
+/*
+  sp_instr_hpush_jump class functions
+*/
+
 int
 sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
@@ -1900,7 +1992,7 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
   sp_cond_type_t *p;
 
   while ((p= li++))
-    thd->spcont->push_handler(p, m_handler, m_type, m_frame);
+    thd->spcont->push_handler(p, m_ip+1, m_type, m_frame);
 
   *nextp= m_dest;
   DBUG_RETURN(0);
@@ -1917,7 +2009,7 @@ sp_instr_hpush_jump::print(String *str)
   str->append(" f=");
   str->qs_append(m_frame);
   str->append(" h=");
-  str->qs_append(m_handler);
+  str->qs_append(m_ip+1);
 }
 
 uint
@@ -1935,9 +2027,11 @@ sp_instr_hpush_jump::opt_mark(sp_head *sp)
   return m_ip+1;
 }
 
-//
-// sp_instr_hpop
-//
+
+/*
+  sp_instr_hpop class functions
+*/
+
 int
 sp_instr_hpop::execute(THD *thd, uint *nextp)
 {
@@ -1962,9 +2056,10 @@ sp_instr_hpop::backpatch(uint dest, sp_pcontext *dst_ctx)
 }
 
 
-//
-// sp_instr_hreturn
-//
+/*
+  sp_instr_hreturn class functions
+*/
+
 int
 sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
@@ -1980,6 +2075,7 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+
 void
 sp_instr_hreturn::print(String *str)
 {
@@ -1989,6 +2085,7 @@ sp_instr_hreturn::print(String *str)
   if (m_dest)
     str->qs_append(m_dest);
 }
+
 
 uint
 sp_instr_hreturn::opt_mark(sp_head *sp)
@@ -2003,17 +2100,33 @@ sp_instr_hreturn::opt_mark(sp_head *sp)
 }
 
 
-//
-// sp_instr_cpush
-//
+/*
+  sp_instr_cpush class functions
+*/
+
 int
 sp_instr_cpush::execute(THD *thd, uint *nextp)
 {
+  Query_arena backup_current_arena;
   DBUG_ENTER("sp_instr_cpush::execute");
+
+  /*
+    We should create cursors in the callers arena, as
+    it could be (and usually is) used in several instructions.
+  */
+  thd->set_n_backup_item_arena(thd->spcont->callers_arena,
+                               &backup_current_arena);
+
   thd->spcont->push_cursor(&m_lex_keeper, this);
+
+  thd->restore_backup_item_arena(thd->spcont->callers_arena,
+                                 &backup_current_arena);
+
   *nextp= m_ip+1;
+
   DBUG_RETURN(0);
 }
+
 
 void
 sp_instr_cpush::print(String *str)
@@ -2021,9 +2134,11 @@ sp_instr_cpush::print(String *str)
   str->append("cpush");
 }
 
-//
-// sp_instr_cpop
-//
+
+/*
+  sp_instr_cpop class functions
+*/
+
 int
 sp_instr_cpop::execute(THD *thd, uint *nextp)
 {
@@ -2032,6 +2147,7 @@ sp_instr_cpop::execute(THD *thd, uint *nextp)
   *nextp= m_ip+1;
   DBUG_RETURN(0);
 }
+
 
 void
 sp_instr_cpop::print(String *str)
@@ -2047,9 +2163,11 @@ sp_instr_cpop::backpatch(uint dest, sp_pcontext *dst_ctx)
   m_count= m_ctx->diff_cursors(dst_ctx);
 }
 
-//
-// sp_instr_copen
-//
+
+/*
+  sp_instr_copen class functions
+*/
+
 int
 sp_instr_copen::execute(THD *thd, uint *nextp)
 {
@@ -2117,9 +2235,11 @@ sp_instr_copen::print(String *str)
   str->qs_append(m_cursor);
 }
 
-//
-// sp_instr_cclose
-//
+
+/*
+  sp_instr_cclose class functions
+*/
+
 int
 sp_instr_cclose::execute(THD *thd, uint *nextp)
 {
@@ -2135,6 +2255,7 @@ sp_instr_cclose::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+
 void
 sp_instr_cclose::print(String *str)
 {
@@ -2143,23 +2264,34 @@ sp_instr_cclose::print(String *str)
   str->qs_append(m_cursor);
 }
 
-//
-// sp_instr_cfetch
-//
+
+/*
+  sp_instr_cfetch class functions
+*/
+
 int
 sp_instr_cfetch::execute(THD *thd, uint *nextp)
 {
   sp_cursor *c= thd->spcont->get_cursor(m_cursor);
   int res;
+  Query_arena backup_current_arena;
   DBUG_ENTER("sp_instr_cfetch::execute");
 
   if (! c)
     res= -1;
   else
+  {
+    thd->set_n_backup_item_arena(thd->spcont->callers_arena,
+                                 &backup_current_arena);
     res= c->fetch(thd, &m_varlist);
+    thd->restore_backup_item_arena(thd->spcont->callers_arena,
+                                   &backup_current_arena);
+  }
+
   *nextp= m_ip+1;
   DBUG_RETURN(res);
 }
+
 
 void
 sp_instr_cfetch::print(String *str)
@@ -2178,9 +2310,11 @@ sp_instr_cfetch::print(String *str)
   }
 }
 
-//
-// sp_instr_error
-//
+
+/*
+  sp_instr_error class functions
+*/
+
 int
 sp_instr_error::execute(THD *thd, uint *nextp)
 {
@@ -2191,6 +2325,7 @@ sp_instr_error::execute(THD *thd, uint *nextp)
   DBUG_RETURN(-1);
 }
 
+
 void
 sp_instr_error::print(String *str)
 {
@@ -2199,12 +2334,12 @@ sp_instr_error::print(String *str)
   str->qs_append(m_errcode);
 }
 
+
 /* ------------------------------------------------------------------ */
 
-
-//
-// Security context swapping
-//
+/*
+  Security context swapping
+*/
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 void
@@ -2453,11 +2588,12 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   DBUG_RETURN(result);
 }
 
+
 /*
- * Simple function for adding an explicetly named (systems) table to
- * the global table list, e.g. "mysql", "proc".
- *
- */
+  Simple function for adding an explicetly named (systems) table to
+  the global table list, e.g. "mysql", "proc".
+*/
+
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
