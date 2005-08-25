@@ -303,6 +303,7 @@ void *Item::operator new(size_t size, Item *reuse, uint *rsize)
     if (rsize)
       (*rsize)= reuse->rsize;
     reuse->cleanup();
+    delete reuse;
     TRASH((void *)reuse, size);
     return (void *)reuse;
   }
