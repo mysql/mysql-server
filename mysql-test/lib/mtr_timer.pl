@@ -15,6 +15,7 @@ use POSIX 'WNOHANG';
 sub mtr_init_timers ();
 sub mtr_timer_start($$$);
 sub mtr_timer_stop($$);
+sub mtr_timer_stop_all($);
 sub mtr_timer_waitpid($$$);
 
 ##############################################################################
@@ -109,6 +110,29 @@ sub mtr_timer_stop ($$) {
   {
     mtr_debug("Asked to stop timer \"$name\" not started");
     return 0;
+  }
+}
+
+
+sub mtr_timer_stop_all ($) {
+  my $timers= shift;
+
+  foreach my $name ( keys %{$timers->{'timers'}} )
+  {
+    my $tpid= $timers->{'timers'}->{$name}->{'pid'};
+
+    # FIXME as Cygwin reuses pids fast, maybe check that is
+    # the expected process somehow?!
+    kill(9, $tpid);
+
+    # As the timers are so simple programs, we trust them to terminate,
+    # and use blocking wait for it. We wait just to avoid a zombie.
+    waitpid($tpid,0);
+
+    delete $timers->{'timers'}->{$name}; # Remove the timer information
+    delete $timers->{'pids'}->{$tpid};   # and PID reference
+
+    return 1;
   }
 }
 

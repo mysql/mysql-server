@@ -841,6 +841,7 @@ sub sleep_until_file_created ($$$) {
 sub mtr_exit ($) {
   my $code= shift;
 #  cluck("Called mtr_exit()");
+  mtr_timer_stop_all($::glob_timers);
   local $SIG{HUP} = 'IGNORE';
   kill('HUP', -$$);
   sleep 2;
