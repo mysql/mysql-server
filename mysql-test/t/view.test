@@ -1966,3 +1966,20 @@ CREATE VIEW v1 AS SELECT f1();
 DROP FUNCTION f1;
 DROP TABLE t1;
 
+#
+# BUG #12533 (crash on DESCRIBE <view> after renaming base table column)
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+--enable_warnings
+
+CREATE TABLE t1 (f4 CHAR(5));
+CREATE VIEW v1 AS SELECT * FROM t1;
+DESCRIBE v1;
+
+ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
+--error 1356
+DESCRIBE v1;
+DROP TABLE t1;
+DROP VIEW v1;
