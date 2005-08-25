@@ -223,7 +223,8 @@ sub mtr_report_stats ($) {
 
   if ( $tot_failed != 0 )
   {
-    print "mysql-test-run: *** Failing the test(s):";
+    my $test_mode= join(" ", @::glob_test_mode) || "default";
+    print "mysql-test-run in $test_mode mode: *** Failing the test(s):";
 
     foreach my $tinfo (@$tests)
     {
