@@ -178,7 +178,7 @@ THD::THD()
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
-   spcont(NULL)
+   spcont(NULL), query_str_binlog_unsuitable(FALSE)
 {
   current_arena= this;
   host= user= priv_user= db= ip= 0;
@@ -210,6 +210,7 @@ THD::THD()
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
+  binlog_evt_union.do_union= FALSE;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -1888,7 +1889,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
 
-  options&= ~OPTION_BIN_LOG;
+  if (!lex->requires_prelocking() || is_update_query(lex->sql_command))
+    options&= ~OPTION_BIN_LOG;
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;

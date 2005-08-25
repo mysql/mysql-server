@@ -34,6 +34,7 @@
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
 #include "sql_bitmap.h"
+#include "sql_array.h"
 
 #ifdef __EMX__
 #undef write  /* remove pthread.h macro definition for EMX */

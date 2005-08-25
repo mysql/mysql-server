@@ -326,10 +326,22 @@ public:
   virtual ~sp_instr()
   { free_items(); }
 
-  // Execute this instrution. '*nextp' will be set to the index of the next
-  // instruction to execute. (For most instruction this will be the
-  // instruction following this one.)
-  // Returns 0 on success, non-zero if some error occured.
+
+  /*
+    Execute this instruction
+
+    SYNOPSIS
+       execute()
+         thd        Thread handle
+         nextp  OUT index of the next instruction to execute. (For most
+                    instructions this will be the instruction following this
+                    one).
+ 
+     RETURN 
+       0      on success, 
+       other  if some error occured
+  */
+  
   virtual int execute(THD *thd, uint *nextp) = 0;
 
   /*
@@ -339,7 +351,7 @@ public:
 
     Should be implemented for instructions using expressions or whole
     statements (thus having to have own LEX). Used in concert with
-    sp_lex_keeper class and its descendants.
+    sp_lex_keeper class and its descendants (there are none currently).
   */
   virtual int exec_core(THD *thd, uint *nextp);
 
@@ -808,6 +820,7 @@ private:
 }; // class sp_instr_hreturn : public sp_instr
 
 
+/* This is DECLARE CURSOR */
 class sp_instr_cpush : public sp_instr
 {
   sp_instr_cpush(const sp_instr_cpush &); /* Prevent use of these */
