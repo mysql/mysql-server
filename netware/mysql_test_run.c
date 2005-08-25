@@ -25,6 +25,10 @@
 #include <sys/stat.h>
 #include <sys/mode.h>
 #include "my_manage.h"
+#ifdef __NETWARE__
+#define strindex(a,b) ((char*)strindex(a,b))
+#endif
+
 /******************************************************************************
 
   macros
