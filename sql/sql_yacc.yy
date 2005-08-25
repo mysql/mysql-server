@@ -580,6 +580,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SUM_SYM
 %token  SUPER_SYM
 %token  SUSPEND_SYM
+%token  SYSDATE
 %token  TABLES
 %token  TABLESPACE
 %token  TABLE_SYM
@@ -4683,6 +4684,10 @@ simple_expr:
 	  { $$= new Item_func_substr($3,$5); }
 	| SUBSTRING_INDEX '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_substr_index($3,$5,$7); }
+	| SYSDATE optional_braces
+	  { $$= new Item_func_sysdate_local(); Lex->safe_to_cache_query=0;}
+	| SYSDATE '(' expr ')'
+	  { $$= new Item_func_sysdate_local($3); Lex->safe_to_cache_query=0;}
 	| TIME_SYM '(' expr ')'
 	  { $$= new Item_time_typecast($3); }
 	| TIMESTAMP '(' expr ')'
