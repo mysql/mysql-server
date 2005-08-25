@@ -1375,6 +1375,15 @@ public:
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
   }
+  /* Just create an item and do not fill string representation */
+  Item_string(CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+  {
+    collation.set(cs, dv);
+    max_length= 0;
+    set_name(NULL, 0, cs);
+    decimals= NOT_FIXED_DEC;
+    fixed= 1;
+  }
   Item_string(const char *name_par, const char *str, uint length,
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
@@ -1385,6 +1394,15 @@ public:
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
+  }
+  /*
+    This is used in stored procedures to avoid memory leaks and
+    does a deep copy of its argument.
+  */
+  void set_str_with_copy(const char *str_arg, uint length_arg)
+  {
+    str_value.copy(str_arg, length_arg, collation.collation);
+    max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
   enum Type type() const { return STRING_ITEM; }
   double val_real();
