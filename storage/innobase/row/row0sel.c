@@ -2685,7 +2685,7 @@ row_sel_get_clust_rec_for_mysql(
 				"InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
-			trx_print(stderr, trx);
+			trx_print(stderr, trx, 600);
 
 			fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
@@ -3101,12 +3101,6 @@ row_search_for_mysql(
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 
-		/* Restore a global read view back to a transaction. This 
-		forces MySQL always to set a cursor view before fetch from
-		a cursor. */
-
-		trx->read_view = trx->global_read_view;
-
 		return(DB_ERROR);
 	}
 
@@ -3130,12 +3124,17 @@ row_search_for_mysql(
 		be zero; in that case select_lock_type is set to LOCK_X in
 		::start_stmt. */
 
+/* August 19, 2005 by Heikki: temporarily disable this error print until the
+cursor lock count is done correctly. See bugs #12263 and #12456!
+
 		fputs(
 "InnoDB: Error: MySQL is trying to perform a SELECT\n"
 "InnoDB: but it has not locked any tables in ::external_lock()!\n",
                       stderr);
-		trx_print(stderr, trx);
+		trx_print(stderr, trx, 600);
                 fputc('\n', stderr);
+*/
+
 	}
 
 /*	fprintf(stderr, "Match mode %lu\n search tuple ", (ulong) match_mode);
@@ -3461,7 +3460,7 @@ shortcut_fails_too_big_rec:
 			fputs(
 "InnoDB: Error: MySQL is trying to perform a consistent read\n"
 "InnoDB: but the read view is not assigned!\n", stderr);
-			trx_print(stderr, trx);
+			trx_print(stderr, trx, 600);
                         fputc('\n', stderr);
 			ut_a(0);
 		}
@@ -4098,12 +4097,6 @@ normal_return:
 	}
 
 func_exit:
-	/* Restore a global read view back to a transaction. This 
-	forces MySQL always to set a cursor view before fetch from
-	a cursor. */
-
-	trx->read_view = trx->global_read_view;
-
 	trx->op_info = "";
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);

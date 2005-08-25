@@ -3076,4 +3076,95 @@ v1	v2	v3	v4	v5	v6	v7
 						NULL
 drop procedure bug8692|
 drop table t3|
+drop function if exists bug10055|
+create function bug10055(v char(255)) returns char(255) return lower(v)|
+select t.column_name, bug10055(t.column_name)
+from information_schema.columns as t
+where t.table_schema = 'test' and t.table_name = 't1'|
+column_name	bug10055(t.column_name)
+id	id
+data	data
+drop function bug10055|
+drop function if exists f_bug11247|
+drop procedure if exists p_bug11247|
+create function f_bug11247(param int)
+returns int
+return param + 1|
+create procedure p_bug11247(lim int)
+begin
+declare v int default 0;
+while v < lim do
+set v= f_bug11247(v);
+end while;
+end|
+call p_bug11247(10)|
+drop function f_bug11247|
+drop procedure p_bug11247|
+drop procedure if exists bug12168|
+drop table if exists t3, t4|
+create table t3 (a int)|
+insert into t3 values (1),(2),(3),(4)|
+create table t4 (a int)|
+create procedure bug12168(arg1 char(1))
+begin
+declare b, c integer;
+if arg1 = 'a' then
+begin
+declare c1 cursor for select a from t3 where a % 2;
+declare continue handler for not found set b = 1;
+set b = 0;
+open c1;
+c1_repeat: repeat
+fetch c1 into c;
+if (b = 1) then
+leave c1_repeat;
+end if;
+insert into t4 values (c);
+until b = 1
+end repeat;
+end;
+end if;
+if arg1 = 'b' then
+begin
+declare c2 cursor for select a from t3 where not a % 2;
+declare continue handler for not found set b = 1;
+set b = 0;
+open c2;
+c2_repeat: repeat
+fetch c2 into c;
+if (b = 1) then
+leave c2_repeat;
+end if;
+insert into t4 values (c);
+until b = 1
+end repeat;
+end;
+end if;
+end|
+call bug12168('a')|
+select * from t4|
+a
+1
+3
+truncate t4|
+call bug12168('b')|
+select * from t4|
+a
+2
+4
+truncate t4|
+call bug12168('a')|
+select * from t4|
+a
+1
+3
+truncate t4|
+call bug12168('b')|
+select * from t4|
+a
+2
+4
+truncate t4|
+drop table t3, t4|
+drop procedure if exists bug12168|
 drop table t1,t2;

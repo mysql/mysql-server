@@ -371,3 +371,45 @@ drop procedure bug7291_0;
 disconnect user1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
 drop user user1@localhost;
+
+#
+# Bug #12318: Wrong error message when accessing an inaccessible stored
+# procedure in another database when the current database is
+# information_schema.
+# 
+
+--disable_warnings
+drop database if exists mysqltest_1;
+--enable_warnings
+
+create database mysqltest_1;
+delimiter //;
+create procedure mysqltest_1.p1()
+begin
+   select 1 from dual;
+end//
+delimiter ;//
+
+grant usage on *.* to mysqltest_1@localhost;
+
+connect (n1,localhost,mysqltest_1,,information_schema,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection n1;
+--error 1370
+call mysqltest_1.p1();
+disconnect n1;
+# Test also without a current database
+connect (n2,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection n2;
+--error 1370
+call mysqltest_1.p1();
+disconnect n2;
+
+connection default;
+
+drop procedure mysqltest_1.p1;
+drop database mysqltest_1;
+
+revoke usage on *.* from mysqltest_1@localhost;
+drop user mysqltest_1@localhost;
+
+# End of 5.0 bugs.

@@ -1476,15 +1476,79 @@ void Item_func_now_utc::store_now_in_TIME(TIME *now_time)
 
 
 bool Item_func_now::get_date(TIME *res,
-			     uint fuzzy_date __attribute__((unused)))
+                             uint fuzzy_date __attribute__((unused)))
 {
-  *res=ltime;
+  *res= ltime;
   return 0;
 }
 
 
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
+  to->set_notnull();
+  to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
+  return 0;
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole SYSDATE function.
+*/
+void Item_func_sysdate_local::store_now_in_TIME(TIME *now_time)
+{
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, time(NULL));
+  thd->time_zone_used= 1;
+}
+
+
+String *Item_func_sysdate_local::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  store_now_in_TIME(&ltime);
+  buff_length= (uint) my_datetime_to_str(&ltime, buff);
+  str_value.set(buff, buff_length, &my_charset_bin);
+  return &str_value;
+}
+
+
+longlong Item_func_sysdate_local::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  store_now_in_TIME(&ltime);
+  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+}
+
+
+double Item_func_sysdate_local::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  store_now_in_TIME(&ltime);
+  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+}
+
+
+void Item_func_sysdate_local::fix_length_and_dec()
+{
+  decimals= 0;
+  collation.set(&my_charset_bin);
+  max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+}
+
+
+bool Item_func_sysdate_local::get_date(TIME *res,
+                                       uint fuzzy_date __attribute__((unused)))
+{
+  store_now_in_TIME(&ltime);
+  *res= ltime;
+  return 0;
+}
+
+
+int Item_func_sysdate_local::save_in_field(Field *to, bool no_conversions)
+{
+  store_now_in_TIME(&ltime);
   to->set_notnull();
   to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   return 0;
@@ -1938,7 +2002,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
     daynr= calc_daynr(ltime->year,ltime->month,1) + days;
     /* Day number from year 0 to 9999-12-31 */
     if ((ulonglong) daynr >= MAX_DAY_NUMBER)
-      goto null_date;
+      goto invalid_date;
     get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
                         &ltime->day);
     break;
@@ -1949,13 +2013,13 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
              sign * (long) interval.day);
     /* Daynumber from year 0 to 9999-12-31 */
     if ((ulong) period >= MAX_DAY_NUMBER)
-      goto null_date;
+      goto invalid_date;
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
   case INTERVAL_YEAR:
     ltime->year+= sign * (long) interval.year;
     if ((ulong) ltime->year >= 10000L)
-      goto null_date;
+      goto invalid_date;
     if (ltime->month == 2 && ltime->day == 29 &&
 	calc_days_in_year(ltime->year) != 366)
       ltime->day=28;				// Was leap-year
@@ -1966,7 +2030,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
     period= (ltime->year*12 + sign * (long) interval.year*12 +
 	     ltime->month-1 + sign * (long) interval.month);
     if ((ulong) period >= 120000L)
-      goto null_date;
+      goto invalid_date;
     ltime->year= (uint) (period / 12);
     ltime->month= (uint) (period % 12L)+1;
     /* Adjust day if the new month doesn't have enough days */
@@ -1982,6 +2046,11 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   }
   return 0;					// Ok
 
+invalid_date:
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                      ER_DATETIME_FUNCTION_OVERFLOW,
+                      ER(ER_DATETIME_FUNCTION_OVERFLOW),
+                      "datetime");
  null_date:
   return (null_value=1);
 }

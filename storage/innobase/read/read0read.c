@@ -286,6 +286,11 @@ read_cursor_view_create_for_mysql(
 	curview = (cursor_view_t*) mem_heap_alloc(heap, sizeof(cursor_view_t));
 	curview->heap = heap;
 
+        /* Drop cursor tables from consideration when evaluating the need of
+          auto-commit */
+	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
+	cr_trx->n_mysql_tables_in_use = 0;
+
 	mutex_enter(&kernel_mutex);
 
 	curview->read_view = read_view_create_low(
@@ -305,11 +310,13 @@ read_cursor_view_create_for_mysql(
 	n = 0;
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
-	/* No active transaction should be visible, not even cr_trx !*/
+	/* No active transaction should be visible, except cr_trx.
+	This is quick fix for a bug 12456 and needs to be fixed when
+	semi-consistent high-granularity read view is implemented. */
 
 	while (trx) {
-                if (trx->conc_state == TRX_ACTIVE ||
-			trx->conc_state == TRX_PREPARED) {
+                if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
+					trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
@@ -359,6 +366,10 @@ read_cursor_view_close_for_mysql(
 	ut_a(curview);
 	ut_a(curview->read_view); 
 	ut_a(curview->heap);
+
+        /* Add cursor's tables to the global count of active tables that
+          belong to this transaction */
+	trx->n_mysql_tables_in_use += curview->n_mysql_tables_in_use;
 
 	mutex_enter(&kernel_mutex);
 

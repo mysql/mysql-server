@@ -17,21 +17,8 @@
 # For documentation, check my_strtoll.c
 	
 	.file	"my_strtoll10-x86.s"
-	.version "01.01"
-.data
-	.align 32
-	.type	 lfactor,@object
-	.size	 lfactor,36
-lfactor:
-	.long 1
-	.long 10
-	.long 100
-	.long 1000
-	.long 10000
-	.long 100000
-	.long 1000000
-	.long 10000000
-	.long 100000000
+	.version "01.02"
+	
 .text
 	.align 4
 	
@@ -209,14 +196,16 @@ my_strtoll10:
 	jne .L500
 	cmpl -36(%ebp),%esi	# Test if string is less than 18 digits
 	jne .Lend_i_and_j
-	jmp .Lend3		# 18 digit string
+.L499:	
+	movl $1000000000,%eax	
+	jmp .Lgot_factor	# 18 digit string
 
 	# Handle the possible next to last digit and store in ecx
 .L500:
 	movb (%esi),%al
 	addb $-48,%al
 	cmpb $9,%al
-	ja .Lend3
+	ja .L499		# 18 digit string
 
 	incl %esi
 	movzbl %al,%ecx
@@ -315,14 +304,41 @@ my_strtoll10:
 .Lend_i_and_j:
 	movl %esi,%ecx
 	subl -12(%ebp),%ecx	# ecx= number of digits in second part
-	movl lfactor(,%ecx,4),%eax
-	jmp .L523
 
-	# Return -8(%ebp) * $1000000000 + edi
+	# Calculate %eax= 10 ** %cl, where %cl <= 8
+	# With an array one could do this with:
+	# movl 10_factor_table(,%ecx,4),%eax
+	# We calculate the table here to avoid problems in
+	# position independent code (gcc -pic)
+
+	cmpb  $3,%cl
+	ja    .L4_to_8
+	movl  $1000, %eax
+	je    .Lgot_factor	# %cl=3, eax= 1000
+	movl  $10, %eax
+	cmpb  $1,%cl		# %cl is here 0 - 2
+	je    .Lgot_factor	# %cl=1, eax= 10
+	movl  $100, %eax	
+	ja    .Lgot_factor	# %cl=2, eax=100
+	movl  $1, %eax		
+	jmp   .Lgot_factor	# %cl=0, eax=1
+
+.L4_to_8:			# %cl is here 4-8
+	cmpb  $5,%cl
+	movl  $100000, %eax
+	je   .Lgot_factor	# %cl=5, eax=100000
+	movl  $10000, %eax
+	jbe  .Lgot_factor	# %cl=4, eax=10000
+	movl  $10000000, %eax
+	cmpb  $7,%cl
+	je   .Lgot_factor	# %cl=7, eax=10000000
+	movl  $100000000, %eax	
+	ja   .Lgot_factor	# %cl=8, eax=100000000
+	movl  $1000000, %eax	# %cl=6, eax=1000000
+
+	# Return -8(%ebp) * %eax + edi
 	.p2align 4,,7
-.Lend3:
-	movl $1000000000,%eax
-.L523:
+.Lgot_factor:
 	mull -8(%ebp)
 	addl %edi,%eax
 	adcl $0,%edx

@@ -52,7 +52,7 @@ struct Options
   int load(int argc, char **argv);
   void cleanup();
 #ifdef __WIN__
-  void setup_windows_defaults(const char *progname);
+  int setup_windows_defaults(const char *progname);
 #endif
 };
 

@@ -92,18 +92,11 @@ select distinct
     t1.comments as comments,
     sum( t3.amount_received ) + sum( t3.adjustment ) as total_budget
 from
-    t1 ,
     t2 as client_period ,
-    t2 as project_period
-    left join
-        t3
-    on
-        t3.project_ptr = t1.project_id
-        and t3.date_received <= '2001-03-22 14:15:09'
-    left join
-        t4
-    on
-        t4.client_id = t1.client_ptr
+    t2 as project_period,
+    t3 left join t1 on (t3.project_ptr = t1.project_id and
+                        t3.date_received <= '2001-03-22 14:15:09')
+       left join t4 on t4.client_id = t1.client_ptr
    where
         1
         and ( client_period.period_type = 'client_table'

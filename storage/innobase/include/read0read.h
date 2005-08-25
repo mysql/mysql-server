@@ -136,6 +136,9 @@ struct cursor_view_struct{
 				/* Memory heap for the cursor view */
 	read_view_t*	read_view;	
 				/* Consistent read view of the cursor*/
+	ulint		n_mysql_tables_in_use;
+                                /* number of Innobase tables used in the
+				  processing of this cursor */
 };
 
 #ifndef UNIV_NONINL
