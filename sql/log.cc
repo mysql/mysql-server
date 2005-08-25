@@ -1553,6 +1553,20 @@ bool MYSQL_LOG::flush_and_sync()
   return err;
 }
 
+void MYSQL_LOG::start_union_events(THD *thd)
+{
+  DBUG_ASSERT(!thd->binlog_evt_union.do_union);
+  thd->binlog_evt_union.do_union= TRUE;
+  thd->binlog_evt_union.unioned_events= FALSE;
+  thd->binlog_evt_union.unioned_events_trans= FALSE;
+}
+
+void MYSQL_LOG::stop_union_events(THD *thd)
+{
+  DBUG_ASSERT(thd->binlog_evt_union.do_union);
+  thd->binlog_evt_union.do_union= FALSE;
+}
+
 /*
   Write an event to the binary log
 */
@@ -1563,6 +1577,13 @@ bool MYSQL_LOG::write(Log_event *event_info)
   bool error= 1;
   DBUG_ENTER("MYSQL_LOG::write(Log_event *)");
 
+  if (thd->binlog_evt_union.do_union)
+  {
+    thd->binlog_evt_union.unioned_events= TRUE;
+    thd->binlog_evt_union.unioned_events_trans |= event_info->cache_stmt;
+    DBUG_RETURN(0);
+  }
+  
   pthread_mutex_lock(&LOCK_log);
 
   /*
