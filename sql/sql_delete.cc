@@ -14,14 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 /*
   Delete of records and truncate of tables.
 
   Multi-table deletes were introduced by Monty and Sinisa
 */
-
-
 
 #include "mysql_priv.h"
 #include "ha_innodb.h"
@@ -254,8 +251,7 @@ cleanup:
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_table, FALSE);
-      if ((thd->query_str_binlog_unsuitable || mysql_bin_log.write(&qinfo)) 
-           && transactional_table)
+      if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;
     }
     if (!transactional_table)
@@ -720,8 +716,7 @@ bool multi_delete::send_eof()
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
-      if ((thd->query_str_binlog_unsuitable || mysql_bin_log.write(&qinfo))
-          && !normal_tables)
+      if (mysql_bin_log.write(&qinfo) && !normal_tables)
 	local_error=1;  // Log write failed: roll back the SQL statement
     }
     if (!transactional_tables)
