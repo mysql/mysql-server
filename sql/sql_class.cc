@@ -178,7 +178,7 @@ THD::THD()
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
-   spcont(NULL), query_str_binlog_unsuitable(FALSE)
+   spcont(NULL)
 {
   current_arena= this;
   host= user= priv_user= db= ip= 0;
