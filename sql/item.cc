@@ -936,7 +936,7 @@ my_decimal *Item_name_const::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
   my_decimal *val= value_item->val_decimal(decimal_value);
-  Item::null_value= value_item->null_value;
+  null_value= value_item->null_value;
   return val;
 }
 
@@ -944,7 +944,7 @@ my_decimal *Item_name_const::val_decimal(my_decimal *decimal_value)
 bool Item_name_const::is_null()
 {
   bool ret= value_item->is_null();
-  Item::null_value= value_item->null_value;
+  null_value= value_item->null_value;
   return ret;
 }
 

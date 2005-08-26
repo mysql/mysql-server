@@ -620,7 +620,7 @@ void init_update_queries(void)
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
-  return uc_update_queries[command];
+  return uc_update_queries[command] != 0;
 }
 
 /*

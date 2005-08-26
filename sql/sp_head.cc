@@ -672,7 +672,7 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
   variables with NAME_CONST('sp_var_name', value) calls.
  
   RETURN
-    0  Ok, thd->query{_length} either has been appropraiately replaced or
+    0  Ok, thd->query{_length} either has been appropriately replaced or
        there is no need for replacements.
     1  Out of memory error.
 */
@@ -683,6 +683,9 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   if (thd->prelocked_mode == NON_PRELOCKED && mysql_bin_log.is_open())
   {
     Dynamic_array<Item_splocal*> sp_vars_uses;
+    char *pbuf, *cur, buffer[512];
+    String qbuf(buffer, sizeof(buffer), &my_charset_bin);
+    int prev_pos, res;
 
     /* Find all instances of item_splocal used in this statement */
     for (Item *item= instr->free_list; item; item= item->next)
@@ -704,41 +707,35 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
       Construct a statement string where SP local var refs are replaced
       with "NAME_CONST(name, value)"
     */
-    char buffer[512];
-    String qbuf(buffer, sizeof(buffer), &my_charset_bin);
     qbuf.length(0);
-    
-    char *cur= query_str->str;
-    int prev_pos= 0;
-    int res= 0;
+    cur= query_str->str;
+    prev_pos= res= 0;
     for (Item_splocal **splocal= sp_vars_uses.front(); 
          splocal < sp_vars_uses.back(); splocal++)
     {
+      Item *val;
       /* append the text between sp ref occurences */
-      res |= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
+      res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
       prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
       
       /* append the spvar substitute */
-      res |= qbuf.append(" NAME_CONST('");
-      res |= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
-      res |= qbuf.append("',");
-      Item *val= (*splocal)->this_item();
+      res|= qbuf.append(" NAME_CONST('");
+      res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
+      res|= qbuf.append("',");
+      val= (*splocal)->this_item();
       DBUG_PRINT("info", ("print %p", val));
       val->print(&qbuf);
-      res |= qbuf.append(')');
+      res|= qbuf.append(')');
       if (res)
         break;
     }
-    res |= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
+    res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
     if (res)
       DBUG_RETURN(1);
 
-    char *pbuf= thd->alloc(qbuf.length()+1);
-
-    if (!pbuf)
+    if (!(pbuf= thd->strmake(qbuf.ptr(), qbuf.length())))
       DBUG_RETURN(1);
 
-    memcpy(pbuf, qbuf.ptr(), qbuf.length()+1);
     thd->query= pbuf;
     thd->query_length= qbuf.length();
   }
@@ -1058,9 +1055,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   if (need_binlog_call)
     mysql_bin_log.stop_union_events(thd);
 
-  if (thd->binlog_evt_union.unioned_events)
+  if (thd->binlog_evt_union.unioned_events && mysql_bin_log.is_open())
   {
-    char buf[64];
+    char buf[256];
     String bufstr(buf, sizeof(buf), &my_charset_bin);
     bufstr.length(0);
     bufstr.append("DO ", 3);
@@ -1074,17 +1071,14 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     }
     bufstr.append(')');
     
-    if (mysql_bin_log.is_open())
+    Query_log_event qinfo(thd, bufstr.ptr(), bufstr.length(),
+                          thd->binlog_evt_union.unioned_events_trans, FALSE);
+    if (mysql_bin_log.write(&qinfo) && 
+        thd->binlog_evt_union.unioned_events_trans)
     {
-      bool transactional_table= FALSE;
-      Query_log_event qinfo(thd, bufstr.ptr(), bufstr.length(),
-                            thd->binlog_evt_union.unioned_events_trans, FALSE);
-      if (mysql_bin_log.write(&qinfo) && transactional_table)
-      {
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-                    "Invoked ROUTINE modified a transactional table but MYSQL"
-                    "failed to reflect this change in the binary log.");
-      }
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   "Invoked ROUTINE modified a transactional table but MySQL "
+                   "failed to reflect this change in the binary log");
     }
   }
 
@@ -1905,15 +1899,18 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   query= thd->query;
   query_length= thd->query_length;
-  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)))
+  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)) &&
+      !(res=subst_spvars(thd, this, &m_query)))
   {
+    /*
+      (the order of query cache and subst_spvars calls is irrelevant because
+      queries with SP vars can't be cached)
+    */
     if (query_cache_send_result_to_client(thd,
 					  thd->query, thd->query_length) <= 0)
     {
-      thd->query_str_binlog_unsuitable= subst_spvars(thd, this, &m_query);
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
       query_cache_end_of_result(thd);
-      thd->query_str_binlog_unsuitable= FALSE;
     }
     else
       *nextp= m_ip+1;
