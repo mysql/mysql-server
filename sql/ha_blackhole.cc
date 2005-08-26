@@ -133,7 +133,7 @@ THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
                                          THR_LOCK_DATA **to,
                                          enum thr_lock_type lock_type)
 {
-  DEBUG_RETURN(to);
+  DBUG_RETURN(to);
 }
 
 
