@@ -206,7 +206,7 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
     next->left= get_size-ALIGN_SIZE(sizeof(USED_MEM));
     *prev=next;
   }
-    
+
   point= (gptr) ((char*) next+ (next->size-next->left));
   /*TODO: next part may be unneded due to mem_root->first_block_usage counter*/
   if ((next->left-= Size) < mem_root->min_malloc)
@@ -221,6 +221,12 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
 #endif
 }
 
+#ifdef SAFEMALLOC
+#define TRASH(X) bfill(((char*)(X) + ((X)->size-(X)->left)), (X)->left, 0xa5)
+#else
+#define TRASH /* no-op */
+#endif
+
 /* Mark all data in blocks free for reusage */
 
 static inline void mark_blocks_free(MEM_ROOT* root)
@@ -231,14 +237,20 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   /* iterate through (partially) free blocks, mark them free */
   last= &root->free;
   for (next= root->free; next; next= *(last= &next->next))
+  {
     next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
+    TRASH(next);
+  }
 
   /* Combine the free and the used list */
   *last= next=root->used;
 
   /* now go through the used blocks and mark them free */
   for (; next; next= next->next)
+  {
     next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
+    TRASH(next);
+  }
 
   /* Now everything is set; Indicate that nothing is used anymore */
   root->used= 0;
@@ -298,6 +310,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   {
     root->free=root->pre_alloc;
     root->free->left=root->pre_alloc->size-ALIGN_SIZE(sizeof(USED_MEM));
+    TRASH(root->pre_alloc);
     root->free->next=0;
   }
   root->block_num= 4;
