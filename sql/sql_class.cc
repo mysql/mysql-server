@@ -1947,7 +1947,7 @@ static byte *xid_get_hash_key(const byte *ptr,uint *length,
 static void xid_free_hash (void *ptr)
 {
   if (!((XID_STATE*)ptr)->in_thd)
-    my_free((byte *)ptr, MYF(0));
+    my_free((gptr)ptr, MYF(0));
 }
 
 bool xid_cache_init()
