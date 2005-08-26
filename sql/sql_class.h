@@ -1350,13 +1350,6 @@ public:
     long    long_value;
   } sys_var_tmp;
   
-  /*
-    If true, thd->query is not a suitable query to write to binary log. This
-    is not handled everywhere currently - we check it only in statements
-    that can have SP variable references.
-  */
-  bool query_str_binlog_unsuitable;
-  
   struct {
     /* 
       If true, mysql_bin_log::write(Log_event) call will not write events to 
