@@ -119,7 +119,7 @@ sub mtr_timer_stop_all ($) {
 
   foreach my $name ( keys %{$timers->{'timers'}} )
   {
-    mtr_timer_stop($name);
+    mtr_timer_stop($timers, $name);
   }
   return 1;
 }
