@@ -526,6 +526,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+#ifdef __NETWARE__
+  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
    (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -750,6 +754,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
+#ifdef __NETWARE__
+  case OPT_AUTO_CLOSE:
+    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+    break;
+#endif
   case OPT_CHARSETS_DIR:
     strmov(mysql_charsets_dir, argument);
     charsets_dir = mysql_charsets_dir;

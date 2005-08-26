@@ -158,14 +158,16 @@ int ha_blackhole::external_lock(THD *thd, int lock_type)
 }
 
 
+uint ha_blackhole::lock_count(void) const
+{
+  DBUG_RETURN(0);
+}
+
 THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
                                          THR_LOCK_DATA **to,
                                          enum thr_lock_type lock_type)
 {
-  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK)
-    lock.type=lock_type;
-  *to++= &lock;
-  return to;
+  DEBUG_RETURN(to);
 }
 
 
