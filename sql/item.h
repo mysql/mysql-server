@@ -853,7 +853,7 @@ public:
     return  value_item->save_in_field(field, no_conversions);
   }
 
-  inline bool send(Protocol *protocol, String *str)
+  bool send(Protocol *protocol, String *str)
   {
     return value_item->send(protocol, str);
   }
