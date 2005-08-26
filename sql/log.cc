@@ -1579,6 +1579,10 @@ bool MYSQL_LOG::write(Log_event *event_info)
 
   if (thd->binlog_evt_union.do_union)
   {
+    /*
+      In Stored function; Remember that function call caused an update.
+      We will log the function call to the binary log on function exit
+    */
     thd->binlog_evt_union.unioned_events= TRUE;
     thd->binlog_evt_union.unioned_events_trans |= event_info->cache_stmt;
     DBUG_RETURN(0);

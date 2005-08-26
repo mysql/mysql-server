@@ -592,8 +592,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      transactional_table, FALSE);
-	if ((thd->query_str_binlog_unsuitable ||
-            mysql_bin_log.write(&qinfo)) && transactional_table)
+	if (mysql_bin_log.write(&qinfo) && transactional_table)
 	  error=1;
       }
       if (!transactional_table)
