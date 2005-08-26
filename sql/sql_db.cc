@@ -711,7 +711,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       uint tbl_name_len;
 
       /* 3 for the quotes and the comma*/
-      tbl_name_len= strlen(tbl->real_name) + 3;
+      tbl_name_len= strlen(tbl->table_name) + 3;
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
         write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
