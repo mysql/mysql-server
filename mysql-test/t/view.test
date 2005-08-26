@@ -1944,6 +1944,18 @@ select * from v1;
 drop view v1;
 
 #
+# repeatable CREATE VIEW statement BUG#12468
+#
+create table t1(a int);
+create procedure p1() create view v1 as select * from t1;
+drop table t1;
+-- error 1146
+call p1();
+-- error 1146
+call p1();
+drop procedure p1;
+
+#
 # Bug #10624 Views with multiple UNION and UNION ALL produce incorrect results
 #
 create table t1 (f1 int);
@@ -1966,3 +1978,20 @@ CREATE VIEW v1 AS SELECT f1();
 DROP FUNCTION f1;
 DROP TABLE t1;
 
+#
+# BUG #12533 (crash on DESCRIBE <view> after renaming base table column)
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+--enable_warnings
+
+CREATE TABLE t1 (f4 CHAR(5));
+CREATE VIEW v1 AS SELECT * FROM t1;
+DESCRIBE v1;
+
+ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
+--error 1356
+DESCRIBE v1;
+DROP TABLE t1;
+DROP VIEW v1;

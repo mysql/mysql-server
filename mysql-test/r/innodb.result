@@ -750,6 +750,11 @@ drop table t1;
 set @a:=now();
 CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) engine=innodb;
 insert into t1 (a) values(1),(2),(3);
+select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
+a
+1
+2
+3
 select a from t1 natural join t1 as t2 where b >= @a order by a;
 a
 1

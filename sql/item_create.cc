@@ -261,6 +261,11 @@ Item *create_func_mod(Item* a, Item *b)
   return new Item_func_mod(a,b);
 }
 
+Item *create_func_name_const(Item *a, Item *b)
+{
+  return new Item_name_const(a,b);
+}
+
 Item *create_func_monthname(Item* a)
 {
   return new Item_func_monthname(a);
@@ -356,6 +361,7 @@ Item *create_func_sha(Item* a)
 
 Item *create_func_sleep(Item* a)
 {
+  current_thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new Item_func_sleep(a);
 }
 

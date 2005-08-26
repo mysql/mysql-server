@@ -630,7 +630,7 @@ int Arg_comparator::compare_row()
       owner->null_value= 0;
       res= 0;  // continue comparison (maybe we will meet explicit difference)
     }
-    if (res)
+    else if (res)
       return res;
   }
   if (was_null)
@@ -644,6 +644,7 @@ int Arg_comparator::compare_row()
   }
   return 0;
 }
+
 
 int Arg_comparator::compare_e_row()
 {

@@ -150,12 +150,12 @@ v6	VIEW
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	5	9	45	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
-v2	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
-v3	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
-v4	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
-v5	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
-v6	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v2	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v3	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v4	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v5	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v6	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 drop view v1,v2,v3,v4,v5,v6;
 create view v1 (c,d,e,f) as select a,b,
 a in (select a+2 from t1), a = all (select a from t1) from t1;
@@ -2097,6 +2097,14 @@ select * from v1;
 f1
 1
 drop view v1;
+create table t1(a int);
+create procedure p1() create view v1 as select * from t1;
+drop table t1;
+call p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop procedure p1;
 create table t1 (f1 int);
 create table t2 (f1 int);
 insert into t1 values (1);
@@ -2115,3 +2123,15 @@ CREATE VIEW v1 AS SELECT f1();
 ERROR HY000: View's SELECT refers to a temporary table 't1'
 DROP FUNCTION f1;
 DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+CREATE TABLE t1 (f4 CHAR(5));
+CREATE VIEW v1 AS SELECT * FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+f4	char(5)	YES		NULL	
+ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
+DESCRIBE v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+DROP TABLE t1;
+DROP VIEW v1;
