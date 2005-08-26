@@ -44,8 +44,7 @@
 #define TRIX        0xFF
 #define DBUTIL     0x100
 #define SUMA       0x101
-#define GREP       0x102
-#define DBTUX      0x103
+#define DBTUX      0x102
 
 const BlockReference BACKUP_REF  = numberToRef(BACKUP, 0);
 const BlockReference DBTC_REF    = numberToRef(DBTC, 0);
@@ -61,7 +60,6 @@ const BlockReference CMVMI_REF   = numberToRef(CMVMI, 0);
 const BlockReference TRIX_REF    = numberToRef(TRIX, 0);
 const BlockReference DBUTIL_REF  = numberToRef(DBUTIL, 0);
 const BlockReference SUMA_REF    = numberToRef(SUMA, 0);
-const BlockReference GREP_REF    = numberToRef(GREP, 0);
 const BlockReference DBTUX_REF   = numberToRef(DBTUX, 0);
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;

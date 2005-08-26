@@ -389,12 +389,6 @@ public:
     we are looking at some column.
   */
   bool is_common;
-  /*
-    A column is coalesced if it was common in some of several nested NATURAL/
-    USING joins. We have to know this, because according to ANSI, coalesced
-    columns cannot be qualified. 
-  */
-  bool is_coalesced;
 public:
   Natural_join_column(Field_translator *field_param, st_table_list *tab);
   Natural_join_column(Field *field_param, st_table_list *tab);
@@ -576,6 +570,9 @@ typedef struct st_table_list
   st_table_list *embedding;             /* nested join containing the table */
   List<struct st_table_list> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
+  
+  /* used for proper partially successful DROP DATABASE binlogging */
+  bool    was_dropped; 
   /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
   bool		skip_temporary;		/* this table shouldn't be temporary */
@@ -742,7 +739,6 @@ public:
   const char *table_name();
   const char *db_name();
   GRANT_INFO *grant();
-  bool is_coalesced();
   Item *create_item(THD *thd) { return field_it->create_item(thd); }
   Field *field() { return field_it->field(); }
   Natural_join_column *get_or_create_column_ref(THD *thd, bool *is_created);
