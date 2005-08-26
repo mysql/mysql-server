@@ -42,7 +42,7 @@ public:
   void kill_instance(int signo);
   int is_crashed();
   void set_crash_flag_n_wake_all();
-  Instance_map *Instance::get_map();
+  Instance_map *get_map();
 
 public:
   enum { DEFAULT_SHUTDOWN_DELAY= 35 };

@@ -349,14 +349,14 @@ drop table if exists t2 ;
 --enable_warnings
 create table t2 as select * from t1 ;
 set @query1= 'SELECT * FROM t2 join t1 on (t1.a=t2.a) order by t2.a ' ;
-set @query2= 'SELECT * FROM t2 natural join t1 order by a ' ;
-set @query3= 'SELECT * FROM t2 join t1 using(a) order by a ' ;
+set @query2= 'SELECT * FROM t2 natural join t1 order by t2.a ' ;
+set @query3= 'SELECT * FROM t2 join t1 using(a) order by t2.a ' ;
 set @query4= 'SELECT * FROM t2 left join t1 on(t1.a=t2.a) order by t2.a ' ;
-set @query5= 'SELECT * FROM t2 natural left join t1 order by a ' ;
-set @query6= 'SELECT * FROM t2 left join t1 using(a) order by a ' ;
+set @query5= 'SELECT * FROM t2 natural left join t1 order by t2.a ' ;
+set @query6= 'SELECT * FROM t2 left join t1 using(a) order by t2.a ' ;
 set @query7= 'SELECT * FROM t2 right join t1 on(t1.a=t2.a) order by t2.a ' ;
-set @query8= 'SELECT * FROM t2 natural right join t1 order by a ' ;
-set @query9= 'SELECT * FROM t2 right join t1 using(a) order by a ' ;
+set @query8= 'SELECT * FROM t2 natural right join t1 order by t2.a ' ;
+set @query9= 'SELECT * FROM t2 right join t1 using(a) order by t2.a ' ;
 let $1= 9 ;
 while ($1)
 {

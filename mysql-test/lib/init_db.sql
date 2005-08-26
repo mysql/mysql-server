@@ -518,7 +518,7 @@ CREATE TABLE proc (
   security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
   param_list        blob DEFAULT '' NOT NULL,
   returns           char(64) DEFAULT '' NOT NULL,
-  body              blob DEFAULT '' NOT NULL,
+  body              longblob DEFAULT '' NOT NULL,
   definer           char(77) collate utf8_bin DEFAULT '' NOT NULL,
   created           timestamp,
   modified          timestamp,

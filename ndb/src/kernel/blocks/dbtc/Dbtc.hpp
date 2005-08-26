@@ -962,13 +962,9 @@ public:
     Uint8 hasCharAttr;
     Uint8 noOfDistrKeys;
     
-    struct KeyAttr {
-      Uint32 attributeDescriptor;
-      CHARSET_INFO* charsetInfo;
-    } keyAttr[MAX_ATTRIBUTES_IN_INDEX];
-
     bool checkTable(Uint32 schemaVersion) const {
-      return enabled && !dropping && (schemaVersion == currentSchemaVersion);
+      return enabled && !dropping && 
+	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion));
     }
 
     Uint32 getErrorCode(Uint32 schemaVersion) const;

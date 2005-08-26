@@ -26,13 +26,16 @@
 #include <direct.h>
 #endif
 
+#define MAX_DROP_TABLE_Q_LEN      1024
+
 const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
-				 const char *db, const char *path,
-				 uint level);
+				 const char *db, const char *path, uint level, 
+                                 TABLE_LIST **dropped_tables);
+         
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
 /* Database options hash */
@@ -52,12 +55,28 @@ typedef struct my_dbopt_st
 /*
   Function we use in the creation of our hash to get key.
 */
+
 static byte* dboptions_get_key(my_dbopt_t *opt, uint *length,
                                my_bool not_used __attribute__((unused)))
 {
   *length= opt->name_length;
   return (byte*) opt->name;
 }
+
+
+/*
+  Helper function to write a query to binlog used by mysql_rm_db()
+*/
+
+static inline void write_to_binlog(THD *thd, char *query, uint q_len,
+                                   char *db, uint db_len)
+{
+  Query_log_event qinfo(thd, query, q_len, 0, 0);
+  qinfo.error_code= 0;
+  qinfo.db= db;
+  qinfo.db_len= db_len;
+  mysql_bin_log.write(&qinfo);
+}  
 
 
 /*
@@ -593,6 +612,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   char	path[FN_REFLEN+16];
   MY_DIR *dirp;
   uint length;
+  TABLE_LIST* dropped_tables= 0;
   DBUG_ENTER("mysql_rm_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -629,8 +649,10 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
+    
     error= -1;
-    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0)) >= 0)
+    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
+                                       &dropped_tables)) >= 0)
     {
       ha_drop_database(path);
       query_cache_invalidate1(db);
@@ -671,6 +693,43 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
     send_ok(thd, (ulong) deleted);
     thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
+  }
+  else if (mysql_bin_log.is_open())
+  {
+    char *query, *query_pos, *query_end, *query_data_start;
+    TABLE_LIST *tbl;
+    uint db_len;
+
+    if (!(query= thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+      goto exit; /* not much else we can do */
+    query_pos= query_data_start= strmov(query,"drop table ");  
+    query_end= query + MAX_DROP_TABLE_Q_LEN;
+    db_len= strlen(db);
+     
+    for (tbl= dropped_tables; tbl; tbl= tbl->next_local)
+    {
+      uint tbl_name_len;
+      if (!tbl->was_dropped)
+        continue;
+         
+      /* 3 for the quotes and the comma*/  
+      tbl_name_len= strlen(tbl->table_name) + 3; 
+      if (query_pos + tbl_name_len + 1 >= query_end)
+      {
+        write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
+        query_pos= query_data_start;
+      }    
+       
+      *query_pos++ = '`';
+      query_pos= strmov(query_pos,tbl->table_name);
+      *query_pos++ = '`';
+      *query_pos++ = ',';
+    }
+     
+    if (query_pos != query_data_start)
+    {
+      write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
+    }
   }
 
 exit:
@@ -717,7 +776,8 @@ exit2:
 */
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
-				 const char *org_path, uint level)
+				 const char *org_path, uint level,
+                                 TABLE_LIST **dropped_tables)
 {
   long deleted=0;
   ulong found_other_files=0;
@@ -759,7 +819,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
-	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
+	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1,0)) < 0)
 	  goto err;
 	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
 	    !(dir= new (thd->mem_root) String(copy_of_path, length,
@@ -836,6 +896,9 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	found_other_files++;
   }
   my_dirend(dirp);  
+  
+  if (dropped_tables)
+    *dropped_tables= tot_list;
   
   /*
     If the directory is a symbolic link, remove the link first, then
@@ -998,7 +1061,7 @@ err:
     mysql_change_db()
     thd			Thread handler
     name		Databasename
-    no_access_check	True= don't do access check
+    no_access_check	True don't do access check. In this case name may be ""
 
   DESCRIPTION
     Becasue the database name may have been given directly from the
@@ -1025,14 +1088,22 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
   HA_CREATE_INFO create;
-  bool schema_db= 0;
+  bool system_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
 #endif
   DBUG_ENTER("mysql_change_db");
+  DBUG_PRINT("enter",("name: '%s'",name));
 
+  /* dbname can only be NULL if malloc failed */
   if (!dbname || !(db_length= strlen(dbname)))
   {
+    if (no_access_check && dbname)
+    {
+      /* Called from SP when orignal database was not set */
+      system_db= 1;
+      goto end;
+    }
     x_free(dbname);				/* purecov: inspected */
     my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
                MYF(0));                         /* purecov: inspected */
@@ -1047,7 +1118,7 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   DBUG_PRINT("info",("Use database: %s", dbname));
   if (!my_strcasecmp(system_charset_info, dbname, information_schema_name.str))
   {
-    schema_db= 1;
+    system_db= 1;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     db_access= SELECT_ACL;
 #endif
@@ -1055,13 +1126,15 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!no_access_check) {
+  if (!no_access_check)
+  {
     if (test_all_bits(thd->master_access,DB_ACLS))
       db_access=DB_ACLS;
     else
       db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
                   thd->master_access);
-    if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+    if (!(db_access & DB_ACLS) && (!grant_option ||
+                                   check_grant_db(thd,dbname)))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->priv_user,
@@ -1094,7 +1167,7 @@ end:
   if (!no_access_check)
     thd->db_access=db_access;
 #endif
-  if (schema_db)
+  if (system_db)
   {
     thd->db_charset= system_charset_info;
     thd->variables.collation_database= system_charset_info;

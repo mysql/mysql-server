@@ -3101,16 +3101,16 @@ call p_bug11247(10)|
 drop function f_bug11247|
 drop procedure p_bug11247|
 drop procedure if exists bug12168|
-drop table if exists t1, t2|
-create table t1 (a int)|
-insert into t1 values (1),(2),(3),(4)|
-create table t2 (a int)|
+drop table if exists t3, t4|
+create table t3 (a int)|
+insert into t3 values (1),(2),(3),(4)|
+create table t4 (a int)|
 create procedure bug12168(arg1 char(1))
 begin
 declare b, c integer;
 if arg1 = 'a' then
 begin
-declare c1 cursor for select a from t1 where a % 2;
+declare c1 cursor for select a from t3 where a % 2;
 declare continue handler for not found set b = 1;
 set b = 0;
 open c1;
@@ -3119,14 +3119,14 @@ fetch c1 into c;
 if (b = 1) then
 leave c1_repeat;
 end if;
-insert into t2 values (c);
+insert into t4 values (c);
 until b = 1
 end repeat;
 end;
 end if;
 if arg1 = 'b' then
 begin
-declare c2 cursor for select a from t1 where not a % 2;
+declare c2 cursor for select a from t3 where not a % 2;
 declare continue handler for not found set b = 1;
 set b = 0;
 open c2;
@@ -3135,35 +3135,55 @@ fetch c2 into c;
 if (b = 1) then
 leave c2_repeat;
 end if;
-insert into t2 values (c);
+insert into t4 values (c);
 until b = 1
 end repeat;
 end;
 end if;
 end|
 call bug12168('a')|
-select * from t2|
+select * from t4|
 a
 1
 3
-truncate t2|
+truncate t4|
 call bug12168('b')|
-select * from t2|
+select * from t4|
 a
 2
 4
-truncate t2|
+truncate t4|
 call bug12168('a')|
-select * from t2|
+select * from t4|
 a
 1
 3
-truncate t2|
+truncate t4|
 call bug12168('b')|
-select * from t2|
+select * from t4|
 a
 2
 4
-truncate t2|
+truncate t4|
+drop table t3, t4|
 drop procedure if exists bug12168|
+drop table if exists t3|
+drop procedure if exists bug11333|
+create table t3 (c1 char(128))|
+insert into t3 values 
+('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')|
+create procedure bug11333(i int)
+begin
+declare tmp varchar(128);
+set @x = 0;
+repeat
+select c1 into tmp from t3
+where c1 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+set @x = @x + 1;
+until @x >= i
+end repeat;
+end|
+call bug11333(10)|
+drop procedure bug11333|
+drop table t3|
 drop table t1,t2;

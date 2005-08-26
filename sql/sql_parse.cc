@@ -238,7 +238,8 @@ end:
 
 
 /*
-    Check if user exist and password supplied is correct. 
+  Check if user exist and password supplied is correct. 
+
   SYNOPSIS
     check_user()
     thd          thread handle, thd->{host,user,ip} are used
@@ -273,6 +274,10 @@ int check_user(THD *thd, enum enum_server_command command,
   /* Change database if necessary */
   if (db && db[0])
   {
+    /*
+      thd->db is saved in caller and needs to be freed by caller if this
+      function returns 0
+    */
     thd->db= 0;
     thd->db_length= 0;
     if (mysql_change_db(thd, db, FALSE))
@@ -1213,7 +1218,8 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
       length--;
     buff[length]=0;
     thd->query_length=length;
-    thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
+    thd->query= thd->memdup_w_gap(buff, length+1, 
+				  thd->db_length+1+QUERY_CACHE_FLAGS_SIZE);
     thd->query[length] = '\0';
     /*
       We don't need to obtain LOCK_thread_count here because in bootstrap
@@ -2246,6 +2252,7 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
   return FALSE;
 }
+
 
 /****************************************************************************
 ** mysql_execute_command
@@ -4211,28 +4218,16 @@ end_with_restore_list:
 	thd->variables.select_limit= HA_POS_ERROR;
 
         thd->row_count_func= 0;
-        tmp_disable_binlog(thd); /* don't binlog the substatements */
-	res= sp->execute_procedure(thd, &lex->value_list);
-        reenable_binlog(thd);
-
-        /*
-          We write CALL to binlog; on the opposite we didn't write the
-          substatements. That choice is necessary because the substatements
-          may use local vars.
-          Binlogging should happen when all tables are locked. They are locked
-          just above, and unlocked by close_thread_tables(). All tables which
-          are to be updated are locked like with a table-level write lock, and
-          this also applies to InnoDB (I tested - note that it reduces
-          InnoDB's concurrency as we don't use row-level locks). So binlogging
-          below is safe.
-          Note the limitation: if the SP returned an error, but still did some
-          updates, we do NOT binlog it. This is because otherwise "permission
-          denied", "table does not exist" etc would stop the slave quite
-          often. There is no easy way to know if the SP updated something
-          (even no_trans_update is not suitable, as it may be a transactional
-          autocommit update which happened, and no_trans_update covers only
-          INSERT/UPDATE/LOAD).
+        
+        /* 
+          We never write CALL statements int binlog:
+           - If the mode is non-prelocked, each statement will be logged
+             separately.
+           - If the mode is prelocked, the invoking statement will care
+             about writing into binlog.
+          So just execute the statement.
         */
+	res= sp->execute_procedure(thd, &lex->value_list);
         if (mysql_bin_log.is_open() &&
             (sp->m_chistics->daccess == SP_CONTAINS_SQL ||
              sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -4242,11 +4237,7 @@ end_with_restore_list:
                          ER_FAILED_ROUTINE_BREAK_BINLOG,
 			 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
           else
-          {
             thd->clear_error();
-            Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-            mysql_bin_log.write(&qinfo);
-          }
         }
 
 	/*
@@ -5399,8 +5390,10 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
+    
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
+    
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -6415,7 +6408,7 @@ Name_resolution_context *
 make_join_on_context(THD *thd, TABLE_LIST *left_op, TABLE_LIST *right_op)
 {
   Name_resolution_context *on_context;
-  if (!(on_context= new Name_resolution_context))
+  if (!(on_context= new (thd->mem_root) Name_resolution_context))
     return NULL;
   on_context->init();
   on_context->first_name_resolution_table=
@@ -6511,7 +6504,7 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields)
 
   SYNOPSIS
     reload_acl_and_cache()
-    thd			Thread handler
+    thd			Thread handler (can be NULL!)
     options             What should be reset/reloaded (tables, privileges,
     slave...)
     tables              Tables to flush (if any)
@@ -6533,7 +6526,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   select_errors=0;				/* Write if more errors */
   bool tmp_write_to_binlog= 1;
 
-  if (thd->in_sub_stmt)
+  if (thd && thd->in_sub_stmt)
   {
     my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
     return 1;

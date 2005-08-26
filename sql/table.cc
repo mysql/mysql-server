@@ -2289,7 +2289,6 @@ Natural_join_column::Natural_join_column(Field_translator *field_param,
   table_field= NULL;
   table_ref= tab;
   is_common= FALSE;
-  is_coalesced= FALSE;
 }
 
 
@@ -2301,7 +2300,6 @@ Natural_join_column::Natural_join_column(Field *field_param,
   view_field= NULL;
   table_ref= tab;
   is_common= FALSE;
-  is_coalesced= FALSE;
 }
 
 
@@ -2518,12 +2516,9 @@ void Field_iterator_natural_join::set(TABLE_LIST *table_ref)
 void Field_iterator_natural_join::next()
 {
   cur_column_ref= (*column_ref_it)++;
-  DBUG_ASSERT(cur_column_ref ?
-              (cur_column_ref->table_field ?
-               cur_column_ref->table_ref->table ==
-               cur_column_ref->table_field->table :
-               TRUE) :
-              TRUE);
+  DBUG_ASSERT(!cur_column_ref || ! cur_column_ref->table_field ||
+              cur_column_ref->table_ref->table ==
+              cur_column_ref->table_field->table);
 }
 
 
@@ -2641,13 +2636,6 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 }
 
 
-bool Field_iterator_table_ref::is_coalesced()
-{
-  if (table_ref->is_natural_join)
-    return natural_join_it.column_ref()->is_coalesced;
-  return FALSE;
-}
-
 /*
   Create new or return existing column reference to a column of a
   natural/using join.
@@ -2695,9 +2683,8 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, bool *is_created)
     nj_col= natural_join_it.column_ref();
     DBUG_ASSERT(nj_col);
   }
-  DBUG_ASSERT(nj_col->table_field ?
-              nj_col->table_ref->table == nj_col->table_field->table :
-              TRUE);
+  DBUG_ASSERT(!nj_col->table_field ||
+              nj_col->table_ref->table == nj_col->table_field->table);
   return nj_col;
 }
 

@@ -109,7 +109,14 @@ sub mtr_report_test_failed ($) {
   my $tinfo= shift;
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
-  print "[ fail ]\n";
+  if ( $tinfo->{'timeout'} )
+  {
+    print "[ fail ]  timeout\n";
+  }
+  else
+  {
+    print "[ fail ]\n";
+  }
 
   # FIXME Instead of this test, and meaningless error message in 'else'
   # we should write out into $::path_timefile when the error occurs.

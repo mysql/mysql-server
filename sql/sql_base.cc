@@ -150,14 +150,10 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
     DBUG_ASSERT(share->table_name != 0);
     if ((!share->table_name))			// To be removed
       continue;					// Shouldn't happen
-    if (db && my_strcasecmp(system_charset_info, db, share->table_cache_key))
+    if (db && my_strcasecmp(system_charset_info, db, share->db))
       continue;
-
-    if (wild)
-    {
-      if (wild_compare(share->table_name,wild,0))
-	continue;
-    }
+    if (wild && wild_compare(share->table_name,wild,0))
+      continue;
 
     /* Check if user has SELECT privilege for any column in the table */
     table_list.db=        (char*) share->db;
@@ -1047,35 +1043,61 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
+    bool check_if_used= thd->prelocked_mode &&
+                        ((int) table_list->lock_type >=
+                         (int) TL_WRITE_ALLOW_WRITE);
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->key_length == key_length &&
-          !memcmp(table->s->table_cache_key, key, key_length) &&
-          !my_strcasecmp(system_charset_info, table->alias, alias) &&
-          table->query_id != thd->query_id && /* skip tables already used */
-          !(thd->prelocked_mode && table->query_id))
+          !memcmp(table->s->table_cache_key, key, key_length))
       {
-        int distance= ((int) table->reginfo.lock_type -
-                       (int) table_list->lock_type);
-        /*
-          Find a table that either has the exact lock type requested,
-          or has the best suitable lock. In case there is no locked
-          table that has an equal or higher lock than requested,
-          we us the closest matching lock to be able to produce an error
-          message about wrong lock mode on the table. The best_table is changed
-          if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
-
-          distance <  0 - No suitable lock found
-          distance >  0 - we have lock mode higher then we require
-          distance == 0 - we have lock mode exactly which we need
-        */
-        if (best_distance < 0 && distance > best_distance ||
-            distance >= 0 && distance < best_distance)
+        if (check_if_used && table->query_id &&
+            table->query_id != thd->query_id)
         {
-          best_distance= distance;
-          best_table= table;
-          if (best_distance == 0)               // Found perfect lock
-            break;
+          /*
+            If we are in stored function or trigger we should ensure that
+            we won't change table that is already used by calling statement.
+            So if we are opening table for writing, we should check that it
+            is not already open by some calling stamement.
+          */
+          my_error(ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG, MYF(0),
+                   table->s->table_name);
+          DBUG_RETURN(0);
+        }
+        if (!my_strcasecmp(system_charset_info, table->alias, alias) &&
+            table->query_id != thd->query_id && /* skip tables already used */
+            !(thd->prelocked_mode && table->query_id))
+        {
+          int distance= ((int) table->reginfo.lock_type -
+                         (int) table_list->lock_type);
+          /*
+            Find a table that either has the exact lock type requested,
+            or has the best suitable lock. In case there is no locked
+            table that has an equal or higher lock than requested,
+            we us the closest matching lock to be able to produce an error
+            message about wrong lock mode on the table. The best_table
+            is changed if bd < 0 <= d or bd < d < 0 or 0 <= d < bd.
+
+            distance <  0 - No suitable lock found
+            distance >  0 - we have lock mode higher then we require
+            distance == 0 - we have lock mode exactly which we need
+          */
+          if (best_distance < 0 && distance > best_distance ||
+              distance >= 0 && distance < best_distance)
+          {
+            best_distance= distance;
+            best_table= table;
+            if (best_distance == 0 && !check_if_used)
+            {
+              /*
+                If we have found perfect match and we don't need to check that
+                table is not used by one of calling statements (assuming that
+                we are inside of function or trigger) we can finish iterating
+                through open tables list.
+              */
+              break;
+            }
+          }
         }
       }
     }
@@ -2587,8 +2609,6 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     thd			 [in]  thread handler
     table_ref            [in]  table reference to search
     name		 [in]  name of field
-    table_name           [in]  optional table name that qualifies the field
-    db_name              [in]  optional database name that qualifies the field
     length		 [in]  length of name
     ref                  [in/out] if 'name' is resolved to a view field, ref is
                                set to point to the found view field
@@ -2599,6 +2619,12 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
                                belongs - differs from 'table_list' only for
                                NATURAL/USING joins
 
+  DESCRIPTION
+    Search for a field among the result fields of a NATURAL/USING join.
+    Notice that this procedure is called only for non-qualified field
+    names. In the case of qualified fields, we search directly the base
+    tables of a natural join.
+
   RETURN
     NULL        if the field was not found
     WRONG_GRANT if no access rights to the found field
@@ -2607,7 +2633,6 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
 
 static Field *
 find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
-                           const char *table_name, const char *db_name,
                            uint length, Item **ref, bool check_grants,
                            bool register_tree_change,
                            TABLE_LIST **actual_table)
@@ -2628,27 +2653,6 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   {
     if (!(nj_col= field_it++))
       DBUG_RETURN(NULL);
-
-    if (table_name)
-    {
-      /*
-        Coalesced columns cannot be qualified unless this is the execute phase
-        of prepared statements. The reason is that they do not belong to any
-        table, but for PS the prepare phase already resolves and stores
-        items, so during the execution phase we resolve fully qualified items.
-      */
-      if (!thd->current_arena->is_stmt_execute() && nj_col->is_coalesced)
-        continue;
-      if (table_name[0] &&
-          my_strcasecmp(table_alias_charset, nj_col->table_name(), table_name))
-        continue;
-      if (db_name && db_name[0])
-      {
-        const char *cur_db_name= nj_col->db_name();
-        if (cur_db_name && strcmp(db_name, cur_db_name))
-          continue;
-      }
-    }
 
     if (!my_strcasecmp(system_charset_info, nj_col->name(), name))
       break;
@@ -2842,11 +2846,35 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       *actual_table= table_list;
   }
   else if (table_list->is_natural_join)
-    fld= find_field_in_natural_join(thd, table_list, name, table_name,
-                                    db_name,  length, ref,
+  {
+    if (table_name && table_name[0])
+    {
+      /*
+        Qualified field; Search for it in the tables used by the natural join.
+      */
+      List_iterator<TABLE_LIST> it(table_list->nested_join->join_list);
+      TABLE_LIST *table;
+      while ((table= it++))
+      {
+        if ((fld= find_field_in_table_ref(thd, table, name, item_name,
+                                          table_name, db_name, length, ref,
+                                          check_grants_table,
+                                          check_grants_view,
+                                          allow_rowid, cached_field_index_ptr,
+                                          register_tree_change, actual_table)))
+          DBUG_RETURN(fld);
+      }
+      DBUG_RETURN(0);
+    }
+    /*
+      Non-qualified field, search directly in the result columns of the
+      natural join.
+    */
+    fld= find_field_in_natural_join(thd, table_list, name, length, ref,
                                     /* TIMOUR_TODO: check this with Sanja */
                                     check_grants_table || check_grants_view,
                                     register_tree_change, actual_table);
+  }
   else
   {
     if ((fld= find_field_in_table(thd, table_list->table, name, length,
@@ -2915,9 +2943,17 @@ find_field_in_tables(THD *thd, Item_ident *item,
   const char *name= item->field_name;
   uint length=(uint) strlen(name);
   char name_buff[NAME_LEN+1];
-  bool allow_rowid;
   TABLE_LIST *cur_table= first_table;
   TABLE_LIST *actual_table;
+  bool allow_rowid;
+
+  if (!table_name || !table_name[0])
+  {
+    table_name= 0;                              // For easier test
+    db= 0;
+  }
+
+  allow_rowid= table_name || (cur_table && !cur_table->next_local);
 
   if (item->cached_table)
   {
@@ -2988,81 +3024,12 @@ find_field_in_tables(THD *thd, Item_ident *item,
   if (last_table)
     last_table= last_table->next_name_resolution_table;
 
-  /* The field we search for is qualified with a table name and optional db. */
-  if (table_name && table_name[0])
-  {
-    for (; cur_table != last_table ;
-         cur_table= cur_table->next_name_resolution_table)
-    {
-      Field *cur_field= find_field_in_table_ref(thd, cur_table, name,
-                                                item->name, table_name,
-                                                db, length, ref,
-                                                (cur_table->table &&
-                                                 test(cur_table->table->grant.
-                                                      want_privilege) &&
-                                                 check_privileges),
-                                                (test(cur_table->grant.
-                                                      want_privilege) &&
-                                                 check_privileges),
-                                                1, &(item->cached_field_index),
-                                                register_tree_change,
-                                                &actual_table);
-      if (cur_field)
-      {
-        /*
-          Store the original table of the field, which may be different from
-          cur_table in the case of NATURAL/USING join.
-        */
-        item->cached_table= (!actual_table->cacheable_table) ? 0 : actual_table;
-
-        if (cur_field == WRONG_GRANT)
-          return (Field*) 0;
-        if (db || !thd->where)
-          return cur_field;
-        if (found)
-        {
-          if (report_error == REPORT_ALL_ERRORS ||
-              report_error == IGNORE_EXCEPT_NON_UNIQUE)
-            my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                     item->full_name(),thd->where);
-          return (Field*) 0;
-        }
-        found= cur_field;
-      }
-    }
-    if (found)
-      return found;
-    /*
-      If there were no tables to search, we wouldn't go through the loop and
-      cur_table wouldn't be updated by the loop increment part.
-    */
-    if (cur_table == first_table && (report_error == REPORT_ALL_ERRORS ||
-                                     report_error == REPORT_EXCEPT_NON_UNIQUE))
-    {
-      char buff[NAME_LEN*2+1];
-      if (db && db[0])
-      {
-	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
-	table_name=buff;
-      }
-      my_error(ER_UNKNOWN_TABLE, MYF(0), table_name, thd->where);
-    }
-    else
-      if (report_error == REPORT_ALL_ERRORS ||
-          report_error == REPORT_EXCEPT_NON_UNIQUE)
-	my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(),thd->where);
-      else
-	return (Field*) not_found_field;
-    return (Field*) 0;
-  }
-
-  /* The field we search for is not qualified. */
-  allow_rowid= cur_table && !cur_table->next_local;
   for (; cur_table != last_table ;
        cur_table= cur_table->next_name_resolution_table)
   {
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, item->name,
-                                              NULL, NULL, length, ref,
+                                              table_name, db,
+                                              length, ref,
                                               (cur_table->table &&
                                                test(cur_table->table->grant.
                                                     want_privilege) &&
@@ -3086,26 +3053,57 @@ find_field_in_tables(THD *thd, Item_ident *item,
       item->cached_table= (!actual_table->cacheable_table || found) ?
                           0 : actual_table;
 
+      DBUG_ASSERT(thd->where);
+      /*
+        If we found a fully qualified field we return it directly as it can't
+        have duplicates.
+       */
+      if (db)
+        return cur_field;
+
       if (found)
       {
-	if (!thd->where)			// Returns first found
-	  break;
         if (report_error == REPORT_ALL_ERRORS ||
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
-          my_error(ER_NON_UNIQ_ERROR, MYF(0), name, thd->where);
+          my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                   table_name ? item->full_name() : name, thd->where);
 	return (Field*) 0;
       }
       found= cur_field;
     }
   }
+
   if (found)
     return found;
-  if (report_error == REPORT_ALL_ERRORS ||
-      report_error == REPORT_EXCEPT_NON_UNIQUE)
-    my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
+
+  /*
+    If the field was qualified and there were no tables to search, issue
+    an error that an unknown table was given. The situation is detected
+    as follows: if there were no tables we wouldn't go through the loop
+    and cur_table wouldn't be updated by the loop increment part, so it
+    will be equal to the first table.
+  */
+  if (table_name && (cur_table == first_table) &&
+      (report_error == REPORT_ALL_ERRORS ||
+       report_error == REPORT_EXCEPT_NON_UNIQUE))
+  {
+    char buff[NAME_LEN*2+1];
+    if (db && db[0])
+    {
+      strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
+      table_name=buff;
+    }
+    my_error(ER_UNKNOWN_TABLE, MYF(0), table_name, thd->where);
+  }
   else
-    return (Field*) not_found_field;
-  return (Field*) 0;
+  {
+    if (report_error == REPORT_ALL_ERRORS ||
+        report_error == REPORT_EXCEPT_NON_UNIQUE)
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
+    else
+      found= not_found_field;
+  }
+  return found;
 }
 
 
@@ -3367,7 +3365,7 @@ static bool
 set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
 {
   Name_resolution_context *context;
-  if (!(context= new Name_resolution_context))
+  if (!(context= new (thd->mem_root) Name_resolution_context))
     return TRUE;
   context->init();
   context->first_name_resolution_table=
@@ -3510,10 +3508,6 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
 
-      DBUG_PRINT("info", ("new equi-join condition:  %s.%s = %s.%s",
-                          table_ref_1->alias, field_1->field_name,
-                          table_ref_2->alias, field_2->field_name));
-
       if (!item_1 || !item_2)
         goto err;                               // out of memory
 
@@ -3560,7 +3554,6 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                   eq_cond);
 
       nj_col_1->is_common= nj_col_2->is_common= TRUE;
-      nj_col_1->is_coalesced= nj_col_2->is_coalesced= TRUE;
 
       if (field_1)
       {
@@ -3775,7 +3768,12 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
                              TABLE_LIST *left_neighbor,
                              TABLE_LIST *right_neighbor)
 {
+  Query_arena *arena, backup;
+  bool result= TRUE;
+
   DBUG_ENTER("store_top_level_join_columns");
+
+  arena= thd->change_arena_if_needed(&backup);
 
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join)
@@ -3801,7 +3799,6 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       if (cur_left_neighbor &&
           cur_table_ref->outer_join & JOIN_TYPE_RIGHT)
       {
-        DBUG_ASSERT(cur_table_ref);
         /* This can happen only for JOIN ... ON. */
         DBUG_ASSERT(table_ref->nested_join->join_list.elements == 2);
         swap_variables(TABLE_LIST*, cur_left_neighbor, cur_table_ref);
@@ -3810,8 +3807,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       if (cur_table_ref->nested_join &&
           store_top_level_join_columns(thd, cur_table_ref,
                                        cur_left_neighbor, cur_right_neighbor))
-        DBUG_RETURN(TRUE);
-     cur_right_neighbor= cur_table_ref;
+        goto err;
+      cur_right_neighbor= cur_table_ref;
     }
   }
 
@@ -3842,7 +3839,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       swap_variables(TABLE_LIST*, table_ref_1, table_ref_2);
     if (mark_common_columns(thd, table_ref_1, table_ref_2,
                             using_fields, &found_using_fields))
-      DBUG_RETURN(TRUE);
+      goto err;
 
     /*
       Swap the join operands back, so that we pick the columns of the second
@@ -3854,7 +3851,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     if (store_natural_using_join_columns(thd, table_ref, table_ref_1,
                                          table_ref_2, using_fields,
                                          found_using_fields))
-      DBUG_RETURN(TRUE);
+      goto err;
 
     /*
       Change NATURAL JOIN to JOIN ... ON. We do this for both operands
@@ -3863,6 +3860,11 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       and the two tables may be reordered.
     */
     table_ref_1->natural_join= table_ref_2->natural_join= NULL;
+
+    /* Add a TRUE condition to outer joins that have no common columns. */
+    if (table_ref_2->outer_join &&
+        !table_ref_1->on_expr && !table_ref_2->on_expr)
+      table_ref_2->on_expr= new Item_int((longlong) 1,1);   /* Always true. */
 
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor)
@@ -3880,7 +3882,12 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     else
       table_ref->next_name_resolution_table= NULL;
   }
-  DBUG_RETURN(FALSE);
+  result= FALSE; /* All is OK. */
+
+err:
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+  DBUG_RETURN(result);
 }
 
 
@@ -4310,29 +4317,28 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   }
 
   found= FALSE;
-  for (TABLE_LIST *tables= context->first_name_resolution_table;
+
+  /*
+    If table names are qualified, then loop over all tables used in the query,
+    else treat natural joins as leaves and do not iterate over their underlying
+    tables.
+  */
+  for (TABLE_LIST *tables= (table_name ? context->table_list :
+                            context->first_name_resolution_table);
        tables;
-       tables= tables->next_name_resolution_table)
+       tables= (table_name ? tables->next_local :
+                tables->next_name_resolution_table)
+       )
   {
     Field *field;
     TABLE *table= tables->table;
 
     DBUG_ASSERT(tables->is_leaf_for_name_resolution());
 
-    /*
-      If optional table and db names do not match the ones used to qualify
-      the field being expanded, skip this table reference. However if this is
-      a NATURAL/USING join, we can't simply skip the whole table reference,
-      because  its columns may come from different tables/views. For NATURAL/
-      USING joins we perform this test for each column in the loop below.
-    */
-    if (!tables->is_natural_join)
-    {
-      if (table_name && my_strcasecmp(table_alias_charset, table_name,
-                                      tables->alias) ||
-          (db_name && strcmp(tables->db,db_name)))
-        continue;
-    }
+    if (table_name && my_strcasecmp(table_alias_charset, table_name,
+                                    tables->alias) ||
+        (db_name && strcmp(tables->db,db_name)))
+      continue;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Ensure that we have access rights to all fields to be inserted. */
@@ -4369,21 +4375,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     {
       Item *item;
 
-      /*
-        If this is a column of a NATURAL/USING join, and the star was
-        qualified with a table (and database) name, check if the
-        column is not a coalesced one, and if not, that is belongs to
-        the same table.
-      */
-      if (tables->is_natural_join && table_name)
-      {
-        if (field_iterator.is_coalesced() ||
-            my_strcasecmp(table_alias_charset, table_name,
-                          field_iterator.table_name()) ||
-            (db_name && strcmp(db_name, field_iterator.db_name())))
-          continue;
-      }
-
       if (!(item= field_iterator.create_item(thd)))
         DBUG_RETURN(TRUE);
 
@@ -4410,18 +4401,18 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
                     tables->is_natural_join);
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
         Item_field *fld= (Item_field*) item;
-        const char *table_name= field_iterator.table_name();
+        const char *field_table_name= field_iterator.table_name();
 
         if (!tables->schema_table && 
             !(fld->have_privileges=
               (get_column_grant(thd, field_iterator.grant(),
                                 field_iterator.db_name(),
-                                table_name, fld->field_name) &
+                                field_table_name, fld->field_name) &
                VIEW_ANY_ACL)))
         {
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0), "ANY",
                    thd->priv_user, thd->host_or_ip,
-                   fld->field_name, table_name);
+                   fld->field_name, field_table_name);
           DBUG_RETURN(TRUE);
         }
       }

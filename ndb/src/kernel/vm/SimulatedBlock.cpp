@@ -1802,3 +1802,118 @@ SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
 }
 
 #endif
+
+#include "KeyDescriptor.hpp"
+
+Uint32
+SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src, 
+			 Uint32 *dst, Uint32 dstSize,
+			 Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const
+{
+  const KeyDescriptor * desc = g_key_descriptor_pool.getPtr(tab);
+  const Uint32 noOfKeyAttr = desc->noOfKeyAttr;
+
+  Uint32 i = 0;
+  Uint32 srcPos = 0;
+  Uint32 dstPos = 0;
+  while (i < noOfKeyAttr) 
+  {
+    const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
+    
+    Uint32 srcBytes = 
+      AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
+    Uint32 srcWords = (srcBytes + 3) / 4;
+    Uint32 dstWords = ~0;
+    uchar* dstPtr = (uchar*)&dst[dstPos];
+    const uchar* srcPtr = (const uchar*)&src[srcPos];
+    CHARSET_INFO* cs = keyAttr.charsetInfo;
+    
+    if (cs == NULL) 
+    {
+      jam();
+      memcpy(dstPtr, srcPtr, srcWords << 2);
+      dstWords = srcWords;
+    } 
+    else 
+    {
+      jam();
+      Uint32 typeId =
+	AttributeDescriptor::getType(keyAttr.attributeDescriptor);
+      Uint32 lb, len;
+      bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+      ndbrequire(ok);
+      Uint32 xmul = cs->strxfrm_multiply;
+      if (xmul == 0)
+	xmul = 1;
+      /*
+       * Varchar is really Char.  End spaces do not matter.  To get
+       * same hash we blank-pad to maximum length via strnxfrm.
+       * TODO use MySQL charset-aware hash function instead
+       */
+      Uint32 dstLen = xmul * (srcBytes - lb);
+      ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
+      int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+      ndbrequire(n != -1);
+      while ((n & 3) != 0) 
+      {
+	dstPtr[n++] = 0;
+      }
+      dstWords = (n >> 2);
+    }
+    dstPos += dstWords;
+    srcPos += srcWords;
+    keyPartLen[i++] = dstWords;
+  }
+
+  return dstPos;
+}
+
+Uint32
+SimulatedBlock::create_distr_key(Uint32 tableId,
+				 Uint32 *data, 
+				 const Uint32 
+				 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const 
+{
+  const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
+  const Uint32 noOfKeyAttr = desc->noOfKeyAttr;
+  Uint32 noOfDistrKeys = desc->noOfDistrKeys;
+  
+  Uint32 *src = data;
+  Uint32 *dst = data;
+  Uint32 i = 0;
+  Uint32 dstPos = 0;
+  
+  if(keyPartLen)
+  {
+    while (i < noOfKeyAttr && noOfDistrKeys) 
+    {
+      Uint32 attr = desc->keyAttr[i].attributeDescriptor;
+      Uint32 len = keyPartLen[i];
+      if(AttributeDescriptor::getDKey(attr))
+      {
+	noOfDistrKeys--;
+	memmove(dst+dstPos, src, len << 2);
+	dstPos += len;
+      }
+      src += len;
+      i++;
+    }
+  }
+  else
+  {
+    while (i < noOfKeyAttr && noOfDistrKeys) 
+    {
+      Uint32 attr = desc->keyAttr[i].attributeDescriptor;
+      Uint32 len = AttributeDescriptor::getSizeInWords(attr);
+      if(AttributeDescriptor::getDKey(attr))
+      {
+	noOfDistrKeys--;
+	memmove(dst+dstPos, src, len << 2);
+	dstPos += len;
+      }
+      src += len;
+      i++;
+    }
+  }
+  return dstPos;
+}
