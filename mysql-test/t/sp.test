@@ -4031,6 +4031,19 @@ drop procedure bug11333|
 drop table t3|
 
 #
+# BUG#9048: Creating a function with char binary IN parameter fails
+#
+--disable_warnings
+drop function if exists bug9048|
+--enable_warnings
+create function bug9048(f1 char binary) returns char binary
+begin
+  set f1= concat( 'hello', f1 );
+  return f1;
+end|
+drop function bug9048|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
