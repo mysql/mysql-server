@@ -38,7 +38,6 @@
 #include <m_ctype.h>
 #include "md5.h"
 
-
 #ifdef HAVE_PARTITION_DB
 /*
   Partition related functions declarations and some static constants;
