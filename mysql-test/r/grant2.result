@@ -94,5 +94,31 @@ i
 2
 3
 REVOKE ALL ON mysqltest_1.t1 FROM mysqltest_1@'127.0.0.0/255.0.0.0';
+delete from mysql.user where user like 'mysqltest\_1';
+flush privileges;
 drop table mysqltest_1.t1;
+grant all on mysqltest_1.* to mysqltest_1@'127.0.0.1';
+select current_user();
+current_user()
+mysqltest_1@127.0.0.1
+set password = password('changed');
+select host, length(password) from mysql.user where user like 'mysqltest\_1';
+host	length(password)
+127.0.0.1	41
+revoke all on mysqltest_1.* from mysqltest_1@'127.0.0.1';
+delete from mysql.user where user like 'mysqltest\_1';
+flush privileges;
+grant all on mysqltest_1.* to mysqltest_1@'127.0.0.0/255.0.0.0';
+select current_user();
+current_user()
+mysqltest_1@127.0.0.0/255.0.0.0
+set password = password('changed');
+select host, length(password) from mysql.user where user like 'mysqltest\_1';
+host	length(password)
+127.0.0.0/255.0.0.0	41
+revoke all on mysqltest_1.* from mysqltest_1@'127.0.0.0/255.0.0.0';
+delete from mysql.user where user like 'mysqltest\_1';
+flush privileges;
 drop database mysqltest_1;
+set password = password("changed");
+ERROR 42000: Access denied for user ''@'localhost' to database 'mysql'
