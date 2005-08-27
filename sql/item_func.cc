@@ -1950,7 +1950,7 @@ void Item_func_min_max::fix_length_and_dec()
   int max_int_part=0;
   decimals=0;
   max_length=0;
-  maybe_null=1;
+  maybe_null=0;
   cmp_type=args[0]->result_type();
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -1958,8 +1958,8 @@ void Item_func_min_max::fix_length_and_dec()
     set_if_bigger(max_length, args[i]->max_length);
     set_if_bigger(decimals, args[i]->decimals);
     set_if_bigger(max_int_part, args[i]->decimal_int_part());
-    if (!args[i]->maybe_null)
-      maybe_null=0;
+    if (args[i]->maybe_null)
+      maybe_null=1;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
   }
   if (cmp_type == STRING_RESULT)
@@ -2005,14 +2005,11 @@ String *Item_func_min_max::val_str(String *str)
   {
     String *res;
     LINT_INIT(res);
-    null_value=1;
+    null_value= 0;
     for (uint i=0; i < arg_count ; i++)
     {
-      if (null_value)
-      {
+      if (i == 0)
 	res=args[i]->val_str(str);
-	null_value=args[i]->null_value;
-      }
       else
       {
 	String *res2;
@@ -2023,7 +2020,11 @@ String *Item_func_min_max::val_str(String *str)
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
+        else
+          res= 0;
       }
+      if ((null_value= args[i]->null_value))
+        break;
     }
     if (res)					// If !NULL
       res->set_charset(collation.collation);
@@ -2043,20 +2044,19 @@ double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
-  null_value=1;
+  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
-    if (null_value)
-    {
+    if (i == 0)
       value= args[i]->val_real();
-      null_value=args[i]->null_value;
-    }
     else
     {
       double tmp= args[i]->val_real();
       if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
 	value=tmp;
     }
+    if ((null_value= args[i]->null_value))
+      break;
   }
   return value;
 }
@@ -2066,20 +2066,19 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
-  null_value=1;
+  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
-    if (null_value)
-    {
+    if (i == 0)
       value=args[i]->val_int();
-      null_value=args[i]->null_value;
-    }
     else
     {
       longlong tmp=args[i]->val_int();
       if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
 	value=tmp;
     }
+    if ((null_value= args[i]->null_value))
+      break;
   }
   return value;
 }
@@ -2089,20 +2088,17 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
   my_decimal tmp_buf, *tmp, *res= NULL;
-  null_value=1;
+  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
-    if (null_value)
-    {
+    if (i == 0)
       res= args[i]->val_decimal(dec);
-      null_value= args[i]->null_value;
-    }
     else
     {
       tmp= args[i]->val_decimal(&tmp_buf);
       if (args[i]->null_value)
-        continue;
-      if ((my_decimal_cmp(tmp, res) * cmp_sign) < 0)
+        res= 0;
+      else if ((my_decimal_cmp(tmp, res) * cmp_sign) < 0)
       {
         if (tmp == &tmp_buf)
         {
@@ -2113,6 +2109,8 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
           res= tmp;
       }
     }
+    if ((null_value= args[i]->null_value))
+      break;
   }
   return res;
 }
