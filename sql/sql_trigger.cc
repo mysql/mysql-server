@@ -869,3 +869,39 @@ end:
   free_root(&table.mem_root, MYF(0));
   DBUG_RETURN(result);
 }
+
+
+
+bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
+                                           trg_action_time_type time_type,
+                                           bool old_row_is_record1)
+{
+  int res= 0;
+
+  if (bodies[event][time_type])
+  {
+    Sub_statement_state statement_state;
+
+    if (old_row_is_record1)
+    {
+      old_field= record1_field;
+      new_field= table->field;
+    }
+    else
+    {
+      new_field= record1_field;
+      old_field= table->field;
+    }
+
+    /*
+      FIXME: We should juggle with security context here (because trigger
+      should be invoked with creator rights).
+    */
+
+    thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
+    res= bodies[event][time_type]->execute_function(thd, 0, 0, 0);
+    thd->restore_sub_statement_state(&statement_state);
+  }
+
+  return res;
+}

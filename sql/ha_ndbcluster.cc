@@ -2921,7 +2921,16 @@ void ha_ndbcluster::info(uint flag)
     errkey= m_dupkey;
   }
   if (flag & HA_STATUS_AUTO)
+  {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
+    if (m_table)
+    {
+      Ndb *ndb= get_ndb();
+      
+      auto_increment_value= 
+        ndb->readAutoIncrementValue((const NDBTAB *) m_table);
+    }
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -3243,7 +3252,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("info", ("Table schema version: %d", 
                           tab->getObjectVersion()));
       // Check if thread has stale local cache
-      if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
+      // New transaction must not use old tables... (trans != 0)
+      // Running might...
+      if ((trans && tab->getObjectStatus() != NdbDictionary::Object::Retrieved)
+	  || tab->getObjectStatus() == NdbDictionary::Object::Invalid)
       {
         invalidate_dictionary_cache(FALSE);
         if (!(tab= dict->getTable(m_tabname, &tab_info)))
@@ -6947,6 +6959,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       break;
     Ndb_item *a= cond->next->ndb_item;
     Ndb_item *b, *field, *value= NULL;
+    LINT_INIT(field);
+
     switch (cond->ndb_item->argument_count()) {
     case 1:
       field= 

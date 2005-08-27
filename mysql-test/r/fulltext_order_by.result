@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1,t2,t3;
 CREATE TABLE t1 (
 a INT AUTO_INCREMENT PRIMARY KEY,
 message CHAR(20),
@@ -126,7 +126,7 @@ group by
 a.text, b.id, b.betreff
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42S02: Unknown table 'b' in order clause
+ERROR 42S22: Unknown column 'b.betreff' in 'order clause'
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -142,7 +142,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42S02: Unknown table 'b' in order clause
+ERROR 42S22: Unknown column 'b.betreff' in 'order clause'
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -158,5 +158,19 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(betreff) against ('+abc' in boolean mode) desc;
-ERROR HY000: The used table type doesn't support FULLTEXT indexes
+text	id	betreff
+(select b.id, b.betreff from t3 b) union 
+(select b.id, b.betreff from t3 b) 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+id	betreff
+(select b.id, b.betreff from t3 b) union 
+(select b.id, b.betreff from t3 b) 
+order by match(betreff) against ('+abc') desc;
+ERROR HY000: Can't find FULLTEXT index matching the column list
+select distinct b.id, b.betreff from t3 b 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+id	betreff
+select b.id, b.betreff from t3 b group by b.id+1 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+id	betreff
 drop table t1,t2,t3;

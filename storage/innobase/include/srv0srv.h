@@ -94,6 +94,7 @@ extern ulint	srv_max_dirty_pages_pct;
 
 extern ulint	srv_force_recovery;
 extern ulong	srv_thread_concurrency;
+extern ulong	srv_commit_concurrency;
 
 extern ulint	srv_max_n_threads;
 

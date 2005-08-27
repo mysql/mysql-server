@@ -2,6 +2,7 @@ drop table if exists t1, t2, t3;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
+drop procedure if exists p1;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:=1;
 set @a:=0;
@@ -635,3 +636,105 @@ show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode
 t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#	
 drop table t1;
+create table t1 (id int);
+create trigger t1_ai after insert on t1 for each row flush tables;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush privileges;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create procedure p1() flush tables;
+create trigger t1_ai after insert on t1 for each row call p1();
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush privileges;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+drop table t1;
+create table t1 (id int, data int, username varchar(16));
+insert into t1 (id, data) values (1, 0);
+create trigger t1_whoupdated before update on t1 for each row
+begin
+declare user varchar(32);
+declare i int;
+select user() into user;
+set NEW.username = user;
+select count(*) from ((select 1) union (select 2)) as d1 into i;
+end|
+update t1 set data = 1;
+update t1 set data = 2;
+drop table t1;
+create table t1 (c1 int, c2 datetime);
+create trigger tr1 before insert on t1 for each row 
+begin 
+set new.c2= '2004-04-01';
+select 'hello';
+end|
+ERROR 0A000: Not allowed to return a result set from a trigger
+insert into t1 (c1) values (1),(2),(3);
+select * from t1;
+c1	c2
+1	NULL
+2	NULL
+3	NULL
+drop procedure if exists bug11587;
+create procedure bug11587(x char(16))
+begin
+select "hello";
+select "hello again";
+end|
+create trigger tr1 before insert on t1 for each row 
+begin 
+call bug11587();
+set new.c2= '2004-04-02';
+end|
+insert into t1 (c1) values (4),(5),(6);
+ERROR 0A000: PROCEDURE test.bug11587 can't return a result set in the given context
+select * from t1;
+c1	c2
+1	NULL
+2	NULL
+3	NULL
+drop procedure bug11587;
+drop table t1;
+create table t1 (f1 integer);
+create table t2 (f2 integer);
+create trigger t1_ai after insert on t1
+for each row insert into t2 values (new.f1+1);
+create trigger t2_ai after insert on t2
+for each row insert into t1 values (new.f2+1);
+insert into t1 values (1);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+select * from t1;
+f1
+1
+select * from t2;
+f2
+2
+drop trigger t1_ai;
+drop trigger t2_ai;
+create trigger t1_bu before update on t1
+for each row insert into t1 values (2);
+update t1 set f1= 10;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+select * from t1;
+f1
+1
+drop trigger t1_bu;
+create trigger t1_bu before update on t1
+for each row delete from t1 where f1=new.f1;
+update t1 set f1= 10;
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+select * from t1;
+f1
+1
+drop trigger t1_bu;
+create trigger t1_bi before insert on t1
+for each row set new.f1=(select sum(f1) from t1);
+insert into t1 values (3);
+select * from t1;
+f1
+1
+1
+drop trigger t1_bi;
+drop tables t1, t2;

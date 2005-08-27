@@ -50,7 +50,8 @@ typedef struct st_grant_info
   ulong want_privilege;
 } GRANT_INFO;
 
-enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};
+enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
+                     SYSTEM_TMP_TABLE=3};
 
 enum frm_type_enum
 {
@@ -93,7 +94,10 @@ class Field_timestamp;
 class Field_blob;
 class Table_triggers_list;
 
-/* This structure is shared between different table objects */
+/*
+  This structure is shared between different table objects. There is one
+  instance of table share per one table in the database.
+*/
 
 typedef struct st_table_share
 {
@@ -372,9 +376,80 @@ struct Field_translator
 };
 
 
+/*
+  Column reference of a NATURAL/USING join. Since column references in
+  joins can be both from views and stored tables, may point to either a
+  Field (for tables), or a Field_translator (for views).
+*/
+
+class Natural_join_column: public Sql_alloc
+{
+public:
+  Field_translator *view_field;  /* Column reference of merge view. */
+  Field            *table_field; /* Column reference of table or temp view. */
+  st_table_list *table_ref; /* Original base table/view reference. */
+  /*
+    True if a common join column of two NATURAL/USING join operands. Notice
+    that when we have a hierarchy of nested NATURAL/USING joins, a column can
+    be common at some level of nesting but it may not be common at higher
+    levels of nesting. Thus this flag may change depending on at which level
+    we are looking at some column.
+  */
+  bool is_common;
+public:
+  Natural_join_column(Field_translator *field_param, st_table_list *tab);
+  Natural_join_column(Field *field_param, st_table_list *tab);
+  const char *name();
+  Item *create_item(THD *thd);
+  Field *field();
+  const char *table_name();
+  const char *db_name();
+  GRANT_INFO *grant();
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  bool check_grants(THD *thd, const char *name, uint length);
+#endif
+};
+
+
+/*
+  Table reference in the FROM clause.
+
+  These table references can be of several types that correspond to
+  different SQL elements. Below we list all types of TABLE_LISTs with
+  the necessary conditions to determine when a TABLE_LIST instance
+  belongs to a certain type.
+
+  1) table (TABLE_LIST::view == NULL)
+     - base table
+       (TABLE_LIST::derived == NULL)
+     - subquery - TABLE_LIST::table is a temp table
+       (TABLE_LIST::derived != NULL)
+     - information schema table
+       (TABLE_LIST::schema_table != NULL)
+       NOTICE: for schema tables TABLE_LIST::field_translation may be != NULL
+  2) view (TABLE_LIST::view != NULL)
+     - merge    (TABLE_LIST::effective_algorithm == VIEW_ALGORITHM_MERGE)
+           also (TABLE_LIST::field_translation != NULL)
+     - tmptable (TABLE_LIST::effective_algorithm == VIEW_ALGORITHM_TMPTABLE)
+           also (TABLE_LIST::field_translation == NULL)
+  3) nested table reference (TABLE_LIST::nested_join != NULL)
+     - table sequence - e.g. (t1, t2, t3)
+       TODO: how to distinguish from a JOIN?
+     - general JOIN
+       TODO: how to distinguish from a table sequence?
+     - NATURAL JOIN
+       (TABLE_LIST::natural_join != NULL)
+       - JOIN ... USING
+         (TABLE_LIST::join_using_fields != NULL)
+*/
+
 typedef struct st_table_list
 {
-  /* link in a local table list (used by SQL_LIST) */
+  /*
+    List of tables local to a subquery (used by SQL_LIST). Considers
+    views as leaves (unlike 'next_leaf' below). Created at parse time
+    in st_select_lex::add_table_to_list() -> table_list.link_in_list().
+  */
   struct st_table_list *next_local;
   /* link in a global list of all queries tables */
   struct st_table_list *next_global, **prev_global;
@@ -382,7 +457,7 @@ typedef struct st_table_list
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
   /*
-    The scturcture of ON expression presented in the member above
+    The structure of ON expression presented in the member above
     can be changed during certain optimizations. This member
     contains a snapshot of AND-OR structure of the ON expression
     made after permanent transformations of the parse tree, and is
@@ -391,10 +466,40 @@ typedef struct st_table_list
   */
   Item          *prep_on_expr;
   COND_EQUAL    *cond_equal;            /* Used with outer join */
-  struct st_table_list *natural_join;	/* natural join on this table*/
-  /* ... join ... USE INDEX ... IGNORE INDEX */
-  List<String>	*use_index, *ignore_index;
-  TABLE         *table;                 /* opened table */
+  /*
+    During parsing - left operand of NATURAL/USING join where 'this' is
+    the right operand. After parsing (this->natural_join == this) iff
+    'this' represents a NATURAL or USING join operation. Thus after
+    parsing 'this' is a NATURAL/USING join iff (natural_join != NULL).
+  */
+  struct st_table_list *natural_join;
+  /*
+    True if 'this' represents a nested join that is a NATURAL JOIN.
+    For one of the operands of 'this', the member 'natural_join' points
+    to the other operand of 'this'.
+  */
+  bool is_natural_join;
+  /* Field names in a USING clause for JOIN ... USING. */
+  List<String> *join_using_fields;
+  /*
+    Explicitly store the result columns of either a NATURAL/USING join or
+    an operand of such a join.
+  */
+  List<Natural_join_column> *join_columns;
+  /* TRUE if join_columns contains all columns of this table reference. */
+  bool is_join_columns_complete;
+
+  /*
+    List of nodes in a nested join tree, that should be considered as
+    leaves with respect to name resolution. The leaves are: views,
+    top-most nodes representing NATURAL/USING joins, subqueries, and
+    base tables. All of these TABLE_LIST instances contain a
+    materialized list of columns. The list is local to a subquery.
+  */
+  struct st_table_list *next_name_resolution_table;
+  /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
+  List<String> *use_index, *ignore_index;
+  TABLE        *table;                   /* opened table */
   /*
     select_result for derived table to pass it from table creation to table
     filling procedure
@@ -411,6 +516,10 @@ typedef struct st_table_list
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
+  /*
+    True when the view field translation table is used to convert
+    schema table fields for backwards compatibility with SHOW command.
+  */
   bool schema_table_reformed;
   TMP_TABLE_PARAM *schema_table_param;
   /* link to select_lex where this table was used */
@@ -423,7 +532,11 @@ typedef struct st_table_list
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
-  /* list of join table tree leaves */
+  /*
+    List of all base tables local to a subquery including all view
+    tables. Unlike 'next_local', this in this list views are *not*
+    leaves. Created in setup_tables() -> make_leaves_list().
+  */
   st_table_list	*next_leaf;
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
@@ -464,6 +577,9 @@ typedef struct st_table_list
   st_table_list *embedding;             /* nested join containing the table */
   List<struct st_table_list> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
+  
+  /* used for proper partially successful DROP DATABASE binlogging */
+  bool    was_dropped; 
   /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
   bool		skip_temporary;		/* this table shouldn't be temporary */
@@ -493,6 +609,9 @@ typedef struct st_table_list
   bool set_insert_values(MEM_ROOT *mem_root);
   void hide_view_error(THD *thd);
   st_table_list *find_underlying_table(TABLE *table);
+  st_table_list *first_leaf_for_name_resolution();
+  st_table_list *last_leaf_for_name_resolution();
+  bool is_leaf_for_name_resolution();
   inline bool prepare_check_option(THD *thd)
   {
     bool res= FALSE;
@@ -514,6 +633,10 @@ private:
 
 class Item;
 
+/*
+  Iterator over the fields of a generic table reference.
+*/
+
 class Field_iterator: public Sql_alloc
 {
 public:
@@ -526,6 +649,11 @@ public:
   virtual Field *field()= 0;
 };
 
+
+/* 
+  Iterator over the fields of a base table, view with temporary
+  table, or subquery.
+*/
 
 class Field_iterator_table: public Field_iterator
 {
@@ -542,6 +670,8 @@ public:
 };
 
 
+/* Iterator over the fields of a merge view. */
+
 class Field_iterator_view: public Field_iterator
 {
   Field_translator *ptr, *array_end;
@@ -555,8 +685,70 @@ public:
   Item *create_item(THD *thd);
   Item **item_ptr() {return &ptr->item; }
   Field *field() { return 0; }
-
   inline Item *item() { return ptr->item; }
+  Field_translator *field_translator() { return ptr; }
+};
+
+
+/*
+  Field_iterator interface to the list of materialized fields of a
+  NATURAL/USING join.
+*/
+
+class Field_iterator_natural_join: public Field_iterator
+{
+  List_iterator_fast<Natural_join_column> *column_ref_it;
+  Natural_join_column *cur_column_ref;
+public:
+  Field_iterator_natural_join() :column_ref_it(NULL), cur_column_ref(NULL) {}
+  ~Field_iterator_natural_join() { delete column_ref_it; }
+  void set(TABLE_LIST *table);
+  void next();
+  bool end_of_fields() { return !cur_column_ref; }
+  const char *name() { return cur_column_ref->name(); }
+  Item *create_item(THD *thd) { return cur_column_ref->create_item(thd); }
+  Field *field() { return cur_column_ref->field(); }
+  Natural_join_column *column_ref() { return cur_column_ref; }
+};
+
+
+/*
+  Generic iterator over the fields of an arbitrary table reference.
+
+  DESCRIPTION
+    This class unifies the various ways of iterating over the columns
+    of a table reference depending on the type of SQL entity it
+    represents. If such an entity represents a nested table reference,
+    this iterator encapsulates the iteration over the columns of the
+    members of the table reference.
+
+  IMPLEMENTATION
+    The implementation assumes that all underlying NATURAL/USING table
+    references already contain their result columns and are linked into
+    the list TABLE_LIST::next_name_resolution_table.
+*/
+
+class Field_iterator_table_ref: public Field_iterator
+{
+  TABLE_LIST *table_ref, *first_leaf, *last_leaf;
+  Field_iterator_table        table_field_it;
+  Field_iterator_view         view_field_it;
+  Field_iterator_natural_join natural_join_it;
+  Field_iterator *field_it;
+  void set_field_iterator();
+public:
+  Field_iterator_table_ref() :field_it(NULL) {}
+  void set(TABLE_LIST *table);
+  void next();
+  bool end_of_fields()
+  { return (table_ref == last_leaf && field_it->end_of_fields()); }
+  const char *name() { return field_it->name(); }
+  const char *table_name();
+  const char *db_name();
+  GRANT_INFO *grant();
+  Item *create_item(THD *thd) { return field_it->create_item(thd); }
+  Field *field() { return field_it->field(); }
+  Natural_join_column *get_or_create_column_ref(THD *thd, bool *is_created);
 };
 
 

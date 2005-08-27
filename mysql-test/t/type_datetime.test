@@ -14,6 +14,17 @@ optimize table t1;
 check table t1;
 delete from t1;
 insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
+
+# Strange dates
+insert into t1 values ("2003-003-03");
+
+# Bug #7308: ISO-8601 date format not handled correctly
+insert into t1 values ("20030102T131415"),("2001-01-01T01:01:01"), ("2001-1-1T1:01:01");
+select * from t1;
+
+# Test some wrong dates
+truncate table t1;
+insert into t1 values("2003-0303 12:13:14");
 select * from t1;
 drop table t1;
 
@@ -99,16 +110,6 @@ create table t1 (dt datetime);
 insert into t1 values ("12-00-00"), ("00-00-00 01:00:00");
 # Zero dates are still special :/
 insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
-select * from t1;
-drop table t1;
-
-#
-# Bug #7308: ISO-8601 date format not handled correctly
-#
-create table t1 (dt datetime);
-insert into t1 values ("20010101T010101");
-insert into t1 values ("2001-01-01T01:01:01");
-insert into t1 values ("2001-1-1T1:01:01");
 select * from t1;
 drop table t1;
 
