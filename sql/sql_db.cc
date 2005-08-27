@@ -33,12 +33,8 @@ static TYPELIB deletable_extentions=
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path, uint level, 
-         TABLE_LIST** dropped_tables);
+                                 TABLE_LIST **dropped_tables);
          
-
-static inline void write_to_binlog(THD* thd, char* query, uint q_len,
-  char* db, uint db_len);
-          
 /* Database options hash */
 static HASH dboptions;
 static my_bool dboptions_init= 0;
@@ -56,6 +52,7 @@ typedef struct my_dbopt_st
 /*
   Function we use in the creation of our hash to get key.
 */
+
 static byte* dboptions_get_key(my_dbopt_t *opt, uint *length,
                                my_bool not_used __attribute__((unused)))
 {
@@ -63,17 +60,19 @@ static byte* dboptions_get_key(my_dbopt_t *opt, uint *length,
   return (byte*) opt->name;
 }
 
+
 /*
-   Helper function to write a query to binlog used by mysql_rm_db()
- */
-static inline void write_to_binlog(THD* thd, char* query, uint q_len,
-  char* db, uint db_len)
+  Helper function to write a query to binlog used by mysql_rm_db()
+*/
+
+static inline void write_to_binlog(THD *thd, char *query, uint q_len,
+                                   char *db, uint db_len)
 {
-   Query_log_event qinfo(thd, query, q_len, 0, 0);
-   qinfo.error_code= 0;
-   qinfo.db= db;
-   qinfo.db_len= db_len;
-   mysql_bin_log.write(&qinfo);
+  Query_log_event qinfo(thd, query, q_len, 0, 0);
+  qinfo.error_code= 0;
+  qinfo.db= db;
+  qinfo.db_len= db_len;
+  mysql_bin_log.write(&qinfo);
 }  
 
 
@@ -644,7 +643,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     
     error= -1;
     if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
-         &dropped_tables)) >= 0)
+                                       &dropped_tables)) >= 0)
     {
       ha_drop_database(path);
       query_cache_invalidate1(db);
@@ -696,42 +695,38 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
   else if (mysql_bin_log.is_open())
   {
-     char* query= thd->alloc(MAX_DROP_TABLE_Q_LEN);
-     
-     if (!query)
-       goto exit; /* not much else we can do */
-     char* p= strmov(query,"drop table ");  
-     char* p_end= query + MAX_DROP_TABLE_Q_LEN;
-     TABLE_LIST* tbl;
-     bool last_query_needs_write= 0;
-     uint db_len= strlen(db);
-     
-     for (tbl= dropped_tables;tbl;tbl= tbl->next)
-     {
-       if (!tbl->was_dropped)
-         continue;
-         
-       /* 3 for the quotes and the comma*/  
-       uint tbl_name_len= strlen(tbl->real_name) + 3; 
-       if (p + tbl_name_len + 1 >= p_end)
-       {
-          *--p= 0; /* kill , */
-          write_to_binlog(thd, query, p - query, db, db_len);
-          p= query + 11; /* reuse the initial "drop table" */
-       }    
-       
-       *p++ = '`';
-       p= strmov(p,tbl->real_name);
-       *p++ = '`';
-       *p++ = ',';
-       last_query_needs_write= 1;
-     }
-     
-     if (last_query_needs_write)
-     {
-       *--p= 0;
-       write_to_binlog(thd, query, p - query, db, db_len);
-     }  
+    char *query, *query_pos, *query_end, *query_data_start;
+    TABLE_LIST *tbl;
+    uint db_len;
+
+    if (!(query= thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+      goto exit; /* not much else we can do */
+    query_pos= query_data_start= strmov(query,"drop table ");
+    query_end= query + MAX_DROP_TABLE_Q_LEN;
+    db_len= strlen(db);
+
+    for (tbl= dropped_tables; tbl; tbl= tbl->next)
+    {
+      uint tbl_name_len;
+
+      /* 3 for the quotes and the comma*/
+      tbl_name_len= strlen(tbl->real_name) + 3;
+      if (query_pos + tbl_name_len + 1 >= query_end)
+      {
+        write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
+        query_pos= query_data_start;
+      }
+
+      *query_pos++ = '`';
+      query_pos= strmov(query_pos,tbl->real_name);
+      *query_pos++ = '`';
+      *query_pos++ = ',';
+    }
+
+    if (query_pos != query_data_start)
+    {
+      write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
+    }
   }
 
 exit:
@@ -777,7 +772,8 @@ exit2:
 */
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
-				 const char *org_path, uint level, TABLE_LIST** dropped_tables)
+				 const char *org_path, uint level,
+                                 TABLE_LIST **dropped_tables)
 {
   long deleted=0;
   ulong found_other_files=0;

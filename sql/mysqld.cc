@@ -1751,6 +1751,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
     if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      event_flag= TRUE;
       nw_panic = TRUE;
       event_flag= TRUE;
       kill_server(0);
