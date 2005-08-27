@@ -338,7 +338,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables(thd, &select_lex->context,
+       setup_tables(thd, &select_lex->context, join_list,
                     tables_list, &conds, &select_lex->leaf_tables,
                     FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
@@ -1086,9 +1086,10 @@ JOIN::optimize()
 	  order=0;
       }
     }
-    
-    if (thd->lex->subqueries)
+
+    if (select_lex->uncacheable && !is_top_level_join())
     {
+      /* If this join belongs to an uncacheable subquery */
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
       error= 0;				// Ensure that tmp_join.error= 0
@@ -1282,7 +1283,15 @@ JOIN::exec()
   if (need_tmp)
   {
     if (tmp_join)
+    {
+      /*
+        We are in a non cacheable sub query. Get the saved join structure
+        after optimization.
+        (curr_join may have been modified during last exection and we need
+        to reset it)
+      */
       curr_join= tmp_join;
+    }
     curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
@@ -1576,7 +1585,8 @@ JOIN::exec()
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables);
-	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
+	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
+                                         "having after sort"););
       }
     }
     {
@@ -1647,9 +1657,7 @@ JOIN::exec()
   curr_join->fields= curr_fields_list;
   curr_join->procedure= procedure;
 
-  if (unit == &thd->lex->unit &&
-      (unit->fake_select_lex == 0 || select_lex == unit->fake_select_lex) &&
-      thd->cursor && tables != const_tables)
+  if (is_top_level_join() && thd->cursor && tables != const_tables)
   {
     /*
       We are here if this is JOIN::exec for the last select of the main unit
@@ -1726,6 +1734,7 @@ JOIN::destroy()
 Cursor::Cursor(THD *thd)
   :Query_arena(&main_mem_root, INITIALIZED),
    join(0), unit(0),
+   protocol(thd),
    close_at_commit(FALSE)
 {
   /* We will overwrite it at open anyway. */
@@ -8142,7 +8151,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 ulong select_options, ha_rows rows_limit,
+		 ulonglong select_options, ha_rows rows_limit,
 		 char *table_alias)
 {
   TABLE *table;
@@ -8400,7 +8409,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES)
+      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
@@ -11934,13 +11943,14 @@ cp_buffer_from_ref(THD *thd, TABLE_REF *ref)
 
   SYNOPSIS
     find_order_in_list()
-    thd		      	Pointer to current thread structure
-    ref_pointer_array   All select, group and order by fields
-    tables              List of tables to search in (usually FROM clause)
-    order               Column reference to be resolved
-    fields              List of fields to search in (usually SELECT list)
-    all_fields          All select, group and order by fields
-    is_group_field      True if order is a GROUP field, false if ORDER by field
+    thd		      [in]     Pointer to current thread structure
+    ref_pointer_array [in/out] All select, group and order by fields
+    tables            [in]     List of tables to search in (usually FROM clause)
+    order             [in]     Column reference to be resolved
+    fields            [in]     List of fields to search in (usually SELECT list)
+    all_fields        [in/out] All select, group and order by fields
+    is_group_field    [in]     True if order is a GROUP field, false if
+                               ORDER by field
 
   DESCRIPTION
     Given a column reference (represented by 'order') from a GROUP BY or ORDER
@@ -12016,7 +12026,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
         order_item_type == Item::REF_ITEM)
     {
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
-                                       &view_ref, IGNORE_ERRORS, TRUE,
+                                       NULL, &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
       if (!from_field)
         from_field= (Field*) not_found_field;
@@ -12250,9 +12260,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
   li.rewind();
   while ((item=li++))
   {
-    if (item->const_item() || item->with_sum_func)
-      continue;
-    if (!item->marker)
+    if (!item->const_item() && !item->with_sum_func && !item->marker)
     {
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)

@@ -1542,6 +1542,11 @@ select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.
 select count(*) from t2 left join t4 using (companynr) where t4.companynr is not null;
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
+
+select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
+select count(*) from t2 left join t4 using (companynr) where companynr is not null;
+explain select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr is null;
 delete from t2 where fld1=999999;
 
 #
@@ -1550,10 +1555,18 @@ delete from t2 where fld1=999999;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
+
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0;
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 and companynr > 0;
 # Following can't be optimized
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
+
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
+explain select companynr,companyname from t4 left join t2 using (companynr) where ifnull(companynr,1)>0;
 
 #
 # Joins with forms.
@@ -2348,3 +2361,98 @@ DROP TABLE t1,t2;
 #
 
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
+
+#
+# Bug #11398 Bug in field_conv() results in wrong result of join with index
+#
+create table t1 (f1 varchar(6) default NULL, f2 int(6) primary key not null);
+create table t2 (f3 varchar(5) not null, f4 varchar(5) not null, UNIQUE KEY UKEY (f3,f4));
+insert into t1 values (" 2", 2);
+insert into t2 values (" 2", " one "),(" 2", " two ");
+select * from t1 left join t2 on f1 = f3;
+drop table t1,t2;
+
+#
+# Bug #6558 Views: CREATE VIEW fails with JOIN ... USING
+#
+
+create table t1 (empnum smallint, grp int);
+create table t2 (empnum int, name char(5));
+insert into t1 values(1,1);
+insert into t2 values(1,'bob');
+create view v1 as select * from t2 inner join t1 using (empnum);
+select * from v1;
+drop table t1,t2;
+drop view v1;
+
+#
+# Bug #10646 Columns included in the join between two tables are ambigious
+# in the select
+#
+
+create table t1 (pk int primary key, b int);
+create table t2 (pk int primary key, c int);
+select pk from t1 inner join t2 using (pk);
+drop table t1,t2;
+
+#
+# Bug #10972 Natural join of view and underlying table gives wrong result
+#
+
+create table t1 (s1 int, s2 char(5), s3 decimal(10));
+create view v1 as select s1, s2, 'x' as s3 from t1;
+select * from t1 natural join v1;
+insert into t1 values (1,'x',5);
+select * from t1 natural join v1;
+drop table t1;
+drop view v1;
+
+#
+# Bug #6276 A SELECT that does a NATURAL OUTER JOIN without common
+#           columns crashes server because of empty ON condition
+#
+
+create table t1(a1 int);
+create table t2(a2 int);
+insert into t1 values(1),(2);
+insert into t2 values(1),(2);
+create view v2 (c) as select a1 from t1;
+
+select * from t1 natural left join t2;
+select * from t1 natural right join t2;
+
+select * from v2 natural left join t2;
+select * from v2 natural right join t2;
+
+drop table t1, t2;
+drop view v2;
+
+
+#
+# Bug #4789 Incosistent results of more than 2-way natural joins due to
+#           incorrect transformation to join ... on.
+#
+
+create table t1 (a int(10), t1_val int(10));
+create table t2 (b int(10), t2_val int(10));
+create table t3 (a int(10), b int(10));
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(2,2),(3,3);
+insert into t3 values (1,1),(2,1),(3,1),(4,1);
+# the following two queries must return the same result
+select * from t1 natural join t2 natural join t3;
+select * from t1 natural join t3 natural join t2;
+drop table t1, t2, t3;
+
+
+#
+# Bug #6495 Illogical requirement for column qualification in NATURAL join
+#
+
+create table t1 (a char(1));
+create table t2 (a char(1));
+insert into t1 values ('a'),('b'),('c');
+insert into t2 values ('b'),('c'),('d');
+select a from t1 natural join t2;
+select * from t1 natural join t2 where a = 'b';
+drop table t1, t2;

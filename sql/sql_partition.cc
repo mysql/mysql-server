@@ -38,7 +38,6 @@
 #include <m_ctype.h>
 #include "md5.h"
 
-
 #ifdef HAVE_PARTITION_DB
 /*
   Partition related functions declarations and some static constants;
@@ -1213,18 +1212,26 @@ static bool fix_fields_part_func(THD *thd, TABLE_LIST *tables,
 
   bool result= TRUE;
   TABLE *table= tables->table;
-  TABLE_LIST *save_list;
+  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
-  Name_resolution_context *context= &thd->lex->current_select->context;
+  Name_resolution_context *context;
   DBUG_ENTER("fix_fields_part_func");
 
+  context= thd->lex->current_context();
   table->map= 1; //To ensure correct calculation of const item
   table->get_fields_in_item_tree= TRUE;
-  save_list= context->table_list;
+  save_table_list= context->table_list;
+  save_first_table= context->first_name_resolution_table;
+  save_last_table= context->last_name_resolution_table;
   context->table_list= tables;
+  context->first_name_resolution_table= tables;
+  context->last_name_resolution_table= NULL;
+  func_expr->walk(&Item::change_context_processor, (byte*) context);
   thd->where= "partition function";
   error= func_expr->fix_fields(thd, (Item**)0);
-  context->table_list= save_list;
+  context->table_list= save_table_list;
+  context->first_name_resolution_table= save_first_table;
+  context->last_name_resolution_table= save_last_table;
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
@@ -1630,6 +1637,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table)
   bzero((void*)&tables, sizeof(TABLE_LIST));
   tables.alias= tables.table_name= (char*)share->table_name;
   tables.table= table;
+  tables.next_local= 0;
+  tables.next_name_resolution_table= 0;
   strmov(db_name_string, name);
   dir_length= dirname_length(db_name_string);
   db_name_string[dir_length - 1]= 0;

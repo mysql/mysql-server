@@ -437,3 +437,14 @@ insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #3094: Row format of memory tables should always be reported as Fixed
+#
+create table t1 (c char(10)) engine=memory;
+create table t2 (c varchar(10)) engine=memory;
+--replace_column 8 #
+show table status like 't_';
+drop table t1, t2;
+
+# End of 5.0 tests
