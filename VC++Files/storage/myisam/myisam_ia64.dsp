@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN64" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -51,7 +51,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"..\lib_release\myisam.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\myisam.lib"
 
 !ELSEIF  "$(CFG)" == "myisam - WinIA64 Debug"
 
@@ -66,7 +66,7 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN64" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Zi /Od /GF /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /Fo".\Debug/" /Fd".\Debug/" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /MTd /W3 /Zi /Od /GF /I "../../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /Fo".\Debug/" /Fd".\Debug/" /FD /G2 /EHsc /Wp64 /Zm600 /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -74,7 +74,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LIB32=link.exe -lib
 # ADD BASE LIB32  /nologo
-# ADD LIB32 /nologo /out:"..\lib_Debug\myisam.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_Debug\myisam.lib"
 
 !ELSEIF  "$(CFG)" == "myisam - WinIA64 TLS_DEBUG"
 
@@ -88,16 +88,16 @@ LIB32=link.exe -lib
 # PROP Output_Dir "myisam___Win64_TLS_DEBUG"
 # PROP Intermediate_Dir "myisam___Win64_TLS_DEBUG"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /GF /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /Fo".\Debug/" /Fd".\Debug/" /FD /c
-# ADD CPP /nologo /MTd /W3 /Zi /O2 /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /Fo".\Debug/" /Fd".\Debug/" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /GF /I "../../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /Fo".\Debug/" /Fd".\Debug/" /FD /c
+# ADD CPP /nologo /MTd /W3 /Zi /O2 /I "../../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /Fo".\Debug/" /Fd".\Debug/" /FD /G2 /EHsc /Wp64 /Zm600 /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=link.exe -lib
-# ADD BASE LIB32  /nologo /out:"..\lib_Debug\myisam_tls.lib"
-# ADD LIB32 /nologo /out:"..\lib_Debug\myisam_tls.lib"
+# ADD BASE LIB32  /nologo /out:"..\..\lib_Debug\myisam_tls.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_Debug\myisam_tls.lib"
 
 !ELSEIF  "$(CFG)" == "myisam - WinIA64 TLS"
 
@@ -111,16 +111,16 @@ LIB32=link.exe -lib
 # PROP Output_Dir "myisam___Win64_TLS"
 # PROP Intermediate_Dir "myisam___Win64_TLS"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
-# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LIB32=link.exe -lib
-# ADD BASE LIB32  /nologo /out:"..\lib_release\myisam_tls.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\myisam_tls.lib"
+# ADD BASE LIB32  /nologo /out:"..\..\lib_release\myisam_tls.lib"
+# ADD LIB32 /nologo /out:"..\..\lib_release\myisam_tls.lib"
 
 !ENDIF 
 

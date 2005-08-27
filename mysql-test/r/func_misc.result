@@ -59,3 +59,38 @@ t1	CREATE TABLE `t1` (
   `length(uuid())` int(10) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a timestamp default '2005-05-05 01:01:01',
+b timestamp default '2005-05-05 01:01:01');
+insert into t1 set a = now();
+select sleep(3);
+sleep(3)
+0
+update t1 set b = now();
+select timediff(b, a) >= '00:00:03' from t1;
+timediff(b, a) >= '00:00:03'
+1
+drop table t1;
+set global query_cache_size=1355776;
+create table t1 (a int);
+insert into t1 values (1),(1),(1);
+create table t2 (a datetime default null, b datetime default null);
+insert into t2 set a = now();
+select a from t1 where sleep(1);
+a
+update t2 set b = now() where b is null;
+insert into t2 set a = now();
+select a from t1 where sleep(a);
+a
+update t2 set b = now() where b is null;
+insert into t2 set a = now();
+select a from t1 where sleep(1);
+a
+update t2 set b = now() where b is null;
+select timediff(b, a) >= '00:00:03' from t2;
+timediff(b, a) >= '00:00:03'
+1
+1
+1
+drop table t2;
+drop table t1;
+set global query_cache_size=default;

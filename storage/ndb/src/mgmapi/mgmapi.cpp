@@ -335,15 +335,21 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
-    /**
-     * Print some info about why the parser returns NULL
-     */
-    fprintf(handle->errstream, 
-	    "Error in mgm protocol parser. cmd: >%s< status: %d curr: %d\n",
-	    cmd, (Uint32)ctx.m_status, ctx.m_currentToken);
-    DBUG_PRINT("info",("ctx.status: %d, ctx.m_currentToken: %s",
-		       ctx.m_status, ctx.m_currentToken));
-  } 
+    if(!ndb_mgm_is_connected(handle)) {
+      return NULL;
+    }
+    else
+    {
+      /**
+       * Print some info about why the parser returns NULL
+       */
+      fprintf(handle->errstream,
+	      "Error in mgm protocol parser. cmd: >%s< status: %d curr: %d\n",
+	      cmd, (Uint32)ctx.m_status, ctx.m_currentToken);
+      DBUG_PRINT("info",("ctx.status: %d, ctx.m_currentToken: %s",
+		         ctx.m_status, ctx.m_currentToken));
+    }
+  }
 #ifdef MGMAPI_LOG
   else {
     /** 
@@ -363,6 +369,15 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
 {
   if(!handle)
     return 0;
+
+  if(handle->connected)
+  {
+    if(Ndb_check_socket_hup(handle->socket))
+    {
+      handle->connected= 0;
+      NDB_CLOSE_SOCKET(handle->socket);
+    }
+  }
   return handle->connected;
 }
 

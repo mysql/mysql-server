@@ -1,13 +1,13 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.57)dnl		Minimum Autoconf version required.
+AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.1.1-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.1.2-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -18,7 +18,7 @@ SHARED_LIB_VERSION=15:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=1
+NDB_VERSION_BUILD=2
 NDB_VERSION_STATUS="alpha"
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -131,6 +131,7 @@ AC_PROG_MAKE_SET
 # Hack for OS X/Darwin and Metrowerks CodeWarrior
 AC_ARG_WITH(darwin-mwcc,
 [  --with-darwin-mwcc      Use Metrowerks CodeWarrior wrappers on OS X/Darwin],[
+ if [ "with_darwin_mwcc" = yes ] ; then
   builddir=`pwd`
   ccwrapper="$builddir/support-files/MacOSX/mwcc-wrapper"
   arwrapper="$builddir/support-files/MacOSX/mwar-wrapper"
@@ -142,7 +143,7 @@ AC_ARG_WITH(darwin-mwcc,
   export CC CXX LD AR RANLIB
   AC_SUBST(AR)
   AC_SUBST(RANLIB)
-  with_darwin_mwcc=yes
+ fi
 ])
 
 AM_CONDITIONAL(DARWIN_MWCC, test x$with_darwin_mwcc = xyes)
@@ -2446,7 +2447,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="libmysql strings regex client"
+sql_client_dirs="strings regex mysys sql/share libmysql client"
 linked_client_targets="linked_libmysql_sources"
 
 if test "$THREAD_SAFE_CLIENT" != "no"
@@ -2484,7 +2485,7 @@ then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
-  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
+  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
   AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
@@ -2597,7 +2598,6 @@ esac
   # END of configuration for optional table handlers
   #
   sql_server_dirs="$sql_server_dirs storage/myisam storage/myisammrg storage/heap vio sql"
-
 fi
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
@@ -2757,7 +2757,6 @@ AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
    storage/ndb/src/kernel/blocks/backup/Makefile dnl
    storage/ndb/src/kernel/blocks/dbutil/Makefile dnl
    storage/ndb/src/kernel/blocks/suma/Makefile dnl
-   storage/ndb/src/kernel/blocks/grep/Makefile dnl
    storage/ndb/src/kernel/blocks/dbtux/Makefile dnl
    storage/ndb/src/kernel/vm/Makefile dnl
    storage/ndb/src/mgmapi/Makefile dnl
@@ -2771,11 +2770,9 @@ AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
    storage/ndb/test/ndbapi/Makefile dnl
    storage/ndb/test/ndbapi/bank/Makefile dnl
    storage/ndb/test/tools/Makefile dnl
-   storage/ndb/test/run-test/Makefile dnl
-   storage/ndb/include/ndb_version.h dnl
-   storage/ndb/include/ndb_global.h dnl
+   storage/ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
    storage/ndb/include/ndb_types.h dnl
-   mysql-test/ndb/Makefile dnl
    )
 fi
 

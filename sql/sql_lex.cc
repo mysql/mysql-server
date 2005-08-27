@@ -118,8 +118,11 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->buf= lex->ptr= buf;
   lex->end_of_query= buf+length;
 
+  lex->context_stack.empty();
   lex->unit.init_query();
   lex->unit.init_select();
+  /* 'parent_lex' is used in init_query() so it must be before it. */
+  lex->select_lex.parent_lex= lex;
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->update_list.empty();
@@ -148,7 +151,6 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->leaf_tables_insert= lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   lex->variables_used= 0;
-  lex->select_lex.parent_lex= lex;
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;
@@ -1115,6 +1117,11 @@ void st_select_lex::init_query()
   having_fix_field= 0;
   context.select_lex= this;
   context.init();
+  /*
+    Add the name resolution context of the current (sub)query to the
+    stack of contexts for the whole query.
+  */
+  parent_lex->push_context(&context);
   cond_count= with_wild= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
@@ -1131,7 +1138,7 @@ void st_select_lex::init_select()
 {
   st_select_lex_node::init_select();
   group_list.empty();
-  type= db= db1= table1= db2= table2= 0;
+  type= db= 0;
   having= 0;
   use_index_ptr= ignore_index_ptr= 0;
   table_join_options= 0;
@@ -1505,13 +1512,16 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 
 void st_select_lex_unit::print(String *str)
 {
+  bool union_all= !union_distinct;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     if (sl != first_select())
     {
       str->append(" union ", 7);
-      if (!union_distinct)
+      if (union_all)
 	str->append("all ", 4);
+      else if (union_distinct == sl)
+        union_all= TRUE;
     }
     if (sl->braces)
       str->append('(');
@@ -1861,8 +1871,9 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     */
     if ((*link_to_local= test(select_lex.table_list.first)))
     {
-      select_lex.table_list.first= (byte*) (select_lex.context.table_list=
-                                            first->next_local);
+      select_lex.context.table_list= 
+        select_lex.context.first_name_resolution_table= first->next_local;
+      select_lex.table_list.first= (byte*) (first->next_local);
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -1967,8 +1978,8 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
     if (link_to_local)
     {
       first->next_local= (TABLE_LIST*) select_lex.table_list.first;
-      select_lex.table_list.first=
-        (byte*) (select_lex.context.table_list= first);
+      select_lex.context.table_list= first;
+      select_lex.table_list.first= (byte*) first;
       select_lex.table_list.elements++;	//safety
     }
   }

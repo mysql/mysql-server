@@ -36,6 +36,16 @@
 #include <m_string.h>
 #include <mysql.h>
 
+
+static void start_and_monitor_instance(Instance_options *old_instance_options,
+                                       Instance_map *instance_map);
+
+#ifndef _WIN_
+typedef pid_t My_process_info;
+#else
+typedef PROCESS_INFORMATION My_process_info;
+#endif
+
 C_MODE_START
 
 /*
@@ -48,11 +58,222 @@ C_MODE_START
 pthread_handler_decl(proxy, arg)
 {
   Instance *instance= (Instance *) arg;
-  instance->fork_and_monitor();
+  start_and_monitor_instance(&instance->options,
+                             instance->get_map());
   return 0;
 }
 
 C_MODE_END
+
+
+/*
+  Wait for an instance
+
+  SYNOPSYS
+    wait_process()
+    pi                   Pointer to the process information structure
+                         (platform-dependent).
+
+  RETURN
+   0  -  Success
+   1  -  Error
+*/
+
+#ifndef __WIN__
+static int wait_process(My_process_info *pi)
+{
+  /*
+    Here we wait for the child created. This process differs for systems
+    running LinuxThreads and POSIX Threads compliant systems. This is because
+    according to POSIX we could wait() for a child in any thread of the
+    process. While LinuxThreads require that wait() is called by the thread,
+    which created the child.
+    On the other hand we could not expect mysqld to return the pid, we
+    got in from fork(), to wait4() fucntion when running on LinuxThreads.
+    This is because MySQL shutdown thread is not the one, which was created
+    by our fork() call.
+    So basically we have two options: whether the wait() call returns only in
+    the creator thread, but we cannot use waitpid() since we have no idea
+    which pid we should wait for (in fact it should be the pid of shutdown
+    thread, but we don't know this one). Or we could use waitpid(), but
+    couldn't use wait(), because it could return in any wait() in the program.
+  */
+  if (linuxthreads)
+    wait(NULL);                               /* LinuxThreads were detected */
+  else
+    waitpid(*pi, NULL, 0);
+
+  return 0;
+}
+#else
+static int wait_process(My_process_info *pi)
+{
+  /* Wait until child process exits. */
+  WaitForSingleObject(pi->hProcess, INFINITE);
+
+  DWORD exitcode;
+  ::GetExitCodeProcess(pi->hProcess, &exitcode);
+
+  /* Close process and thread handles. */
+  CloseHandle(pi->hProcess);
+  CloseHandle(pi->hThread);
+
+  /*
+    GetExitCodeProces returns zero on failure. We should revert this value
+    to report an error.
+  */
+  return (!exitcode);
+}
+#endif
+
+
+/*
+  Launch an instance
+
+  SYNOPSYS
+    start_process()
+    instance_options     Pointer to the options of the instance to be
+                         launched.
+    pi                   Pointer to the process information structure
+                         (platform-dependent).
+
+  RETURN
+   0  -  Success
+   1  -  Cannot create an instance
+*/
+
+#ifndef __WIN__
+static int start_process(Instance_options *instance_options,
+                         My_process_info *pi)
+{
+  *pi= fork();
+
+  switch (*pi) {
+  case 0:
+    execv(instance_options->mysqld_path, instance_options->argv);
+    /* exec never returns */
+    exit(1);
+  case 1:
+    log_info("cannot fork() to start instance %s",
+             instance_options->instance_name);
+    return 1;
+  }
+  return 0;
+}
+#else
+static int start_process(Instance_options *instance_options,
+                         My_process_info *pi)
+{
+  STARTUPINFO si;
+
+  ZeroMemory(&si, sizeof(STARTUPINFO));
+  si.cb= sizeof(STARTUPINFO);
+  ZeroMemory(pi, sizeof(PROCESS_INFORMATION));
+
+  int cmdlen= 0;
+  for (int i= 1; instance_options->argv[i] != 0; i++)
+    cmdlen+= strlen(instance_options->argv[i]) + 1;
+  cmdlen++;  /* we have to add a single space for CreateProcess (see docs) */
+
+  char *cmdline= NULL;
+  if (cmdlen > 0)
+  {
+    cmdline= new char[cmdlen];
+    cmdline[0]= 0;
+    for (int i= 1; instance_options->argv[i] != 0; i++)
+    {
+      strcat(cmdline, " ");
+      strcat(cmdline, instance_options->argv[i]);
+    }
+  }
+
+  /* Start the child process */
+  BOOL result=
+    CreateProcess(instance_options->mysqld_path,  /* File to execute */
+                  cmdline,       /* Command line */
+                  NULL,          /* Process handle not inheritable */
+                  NULL,          /* Thread handle not inheritable */
+                  FALSE,         /* Set handle inheritance to FALSE */
+                  0,             /* No creation flags */
+                  NULL,          /* Use parent's environment block */
+                  NULL,          /* Use parent's starting directory */
+                  &si,           /* Pointer to STARTUPINFO structure */
+                  pi);           /* Pointer to PROCESS_INFORMATION structure */
+  delete cmdline;
+
+  return (!result);
+}
+#endif
+
+/*
+  Fork child, exec an instance and monitor it.
+
+  SYNOPSYS
+    start_and_monitor_instance()
+    old_instance_options   Pointer to the options of the instance to be
+                           launched. This info is likely to become obsolete
+                           when function returns from wait_process()
+    instance_map           Pointer to the instance_map. We use it to protect
+                           the instance from deletion, while we are working
+                           with it.
+
+  DESCRIPTION
+    Fork a child, then exec and monitor it. When the child is dead,
+    find appropriate instance (for this purpose we save its name),
+    set appropriate flags and wake all threads waiting for instance
+    to stop.
+
+  RETURN
+    Function returns no value
+*/
+
+static void start_and_monitor_instance(Instance_options *old_instance_options,
+                                       Instance_map *instance_map)
+{
+  enum { MAX_INSTANCE_NAME_LEN= 512 };
+  char instance_name_buff[MAX_INSTANCE_NAME_LEN];
+  uint instance_name_len;
+  Instance *current_instance;
+  My_process_info process_info;
+
+  /*
+    Lock instance map to guarantee that no instances are deleted during
+    strmake() and execv() calls.
+  */
+  instance_map->lock();
+
+  /*
+    Save the instance name in the case if Instance object we
+    are using is destroyed. (E.g. by "FLUSH INSTANCES")
+  */
+  strmake(instance_name_buff, old_instance_options->instance_name,
+          MAX_INSTANCE_NAME_LEN - 1);
+  instance_name_len= old_instance_options->instance_name_len;
+
+  log_info("starting instance %s", instance_name_buff);
+
+  if (start_process(old_instance_options, &process_info))
+    return;                                     /* error is logged */
+
+  /* allow users to delete instances */
+  instance_map->unlock();
+
+  /* don't check for return value */
+  wait_process(&process_info);
+
+  current_instance= instance_map->find(instance_name_buff, instance_name_len);
+
+  if (current_instance)
+    current_instance->set_crash_flag_n_wake_all();
+
+  return;
+}
+
+
+Instance_map *Instance::get_map()
+{
+  return instance_map;
+}
 
 
 void Instance::remove_pid()
@@ -64,6 +285,7 @@ void Instance::remove_pid()
                 since IM lacks permmissions or hasn't found the pidifle",
                 options.instance_name);
 }
+
 
 /*
   The method starts an instance.
@@ -116,107 +338,24 @@ int Instance::start()
   return ER_INSTANCE_ALREADY_STARTED;
 }
 
-#ifndef __WIN__
-int Instance::launch_and_wait()
+/*
+  The method sets the crash flag and wakes all waiters on
+  COND_instance_stopped and COND_guardian
+
+  SYNOPSYS
+    set_crash_flag_n_wake_all()
+
+  DESCRIPTION
+    The method is called when an instance is crashed or terminated.
+    In the former case it might indicate that guardian probably should
+    restart it.
+
+  RETURN
+    Function returns no value
+*/
+
+void Instance::set_crash_flag_n_wake_all()
 {
-  pid_t pid= fork();
-
-  switch (pid) {
-  case 0:
-    execv(options.mysqld_path, options.argv);
-    /* exec never returns */
-    exit(1);
-  case -1:
-    log_info("cannot fork() to start instance %s", options.instance_name);
-    return -1;
-  default:
-    /*
-      Here we wait for the child created. This process differs for systems
-      running LinuxThreads and POSIX Threads compliant systems. This is because
-      according to POSIX we could wait() for a child in any thread of the
-      process. While LinuxThreads require that wait() is called by the thread,
-      which created the child.
-      On the other hand we could not expect mysqld to return the pid, we
-      got in from fork(), to wait4() fucntion when running on LinuxThreads.
-      This is because MySQL shutdown thread is not the one, which was created
-      by our fork() call.
-      So basically we have two options: whether the wait() call returns only in
-      the creator thread, but we cannot use waitpid() since we have no idea
-      which pid we should wait for (in fact it should be the pid of shutdown
-      thread, but we don't know this one). Or we could use waitpid(), but
-      couldn't use wait(), because it could return in any wait() in the program.
-    */
-    if (linuxthreads)
-      wait(NULL);                               /* LinuxThreads were detected */
-    else
-      waitpid(pid, NULL, 0);
-  }
-  return 0;
-}
-#else
-int Instance::launch_and_wait()
-{
-  STARTUPINFO si;
-  PROCESS_INFORMATION pi;
-
-  ZeroMemory(&si, sizeof(si));
-  si.cb= sizeof(si);
-  ZeroMemory(&pi, sizeof(pi));
-
-  int cmdlen= 0;
-  for (int i= 1; options.argv[i] != 0; i++)
-    cmdlen+= strlen(options.argv[i]) + 1;
-  cmdlen++;  // we have to add a single space for CreateProcess (read the docs)
-
-  char *cmdline= NULL;
-  if (cmdlen > 0)
-  {
-    cmdline= new char[cmdlen];
-    cmdline[0]= 0;
-    for (int i= 1; options.argv[i] != 0; i++)
-    {
-      strcat(cmdline, " ");
-      strcat(cmdline, options.argv[i]);
-    }
-  }
-
-  // Start the child process.
-  BOOL result= CreateProcess(options.mysqld_path,    // file to execute
-                             cmdline,    // Command line.
-                             NULL,       // Process handle not inheritable.
-                             NULL,       // Thread handle not inheritable.
-                             FALSE,      // Set handle inheritance to FALSE.
-                             0,          // No creation flags.
-                             NULL,       // Use parent's environment block.
-                             NULL,       // Use parent's starting directory.
-                             &si,        // Pointer to STARTUPINFO structure.
-                             &pi );      // Pointer to PROCESS_INFORMATION structure.
-  delete cmdline;
-  if (! result)
-    return -1;
-
-  // Wait until child process exits.
-  WaitForSingleObject(pi.hProcess, INFINITE);
-
-  DWORD exitcode;
-  ::GetExitCodeProcess(pi.hProcess, &exitcode);
-
-  // Close process and thread handles.
-  CloseHandle(pi.hProcess);
-  CloseHandle(pi.hThread);
-
-  return exitcode;
-}
-#endif
-
-
-void Instance::fork_and_monitor()
-{
-  log_info("starting instance %s", options.instance_name);
-
-  if (launch_and_wait())
-    return;                                     /* error is logged */
-
   /* set instance state to crashed */
   pthread_mutex_lock(&LOCK_instance);
   crashed= 1;
@@ -230,9 +369,8 @@ void Instance::fork_and_monitor()
   pthread_cond_signal(&COND_instance_stopped);
   /* wake guardian */
   pthread_cond_signal(&instance_map->guardian->COND_guardian);
-  /* thread exits */
-  return;
 }
+
 
 
 Instance::Instance(): crashed(0)

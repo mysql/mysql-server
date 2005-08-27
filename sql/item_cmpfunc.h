@@ -193,10 +193,11 @@ class Item_bool_func2 :public Item_int_func
 protected:
   Arg_comparator cmp;
   String tmp_value1,tmp_value2;
+  bool abort_on_null;
 
 public:
   Item_bool_func2(Item *a,Item *b)
-    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
+    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
   void fix_length_and_dec();
   void set_cmp_func()
   {
@@ -210,6 +211,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
+  void top_level_item() { abort_on_null=1; }
 
   friend class  Arg_comparator;
 };
@@ -913,6 +915,11 @@ public:
   longlong val_int();
   const char *func_name() const { return "<is_not_null_test>"; }
   void update_used_tables();
+  /*
+    we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
+  */
+  table_map used_tables() const
+    { return used_tables_cache | RAND_TABLE_BIT; }
 };
 
 
