@@ -118,3 +118,12 @@ insert into t1 values (1,2), (2,3), (3,4), (4,5);
 select * from t1 where a not between 1 and 2;
 select * from t1 where a not between 1 and 2 and b not between 3 and 4;
 drop table t1;
+
+#
+# Test for bug #12791: one of the arguments of LEAST/GREATEST is NULL
+#
+
+SELECT GREATEST(1,NULL) FROM DUAL;
+SELECT LEAST('xxx','aaa',NULL,'yyy') FROM DUAL;
+SELECT LEAST(1.1,1.2,NULL,1.0) FROM DUAL;
+SELECT GREATEST(1.5E+2,1.3E+2,NULL) FROM DUAL;
