@@ -387,6 +387,9 @@ drop table t1;
 #
 # Bug #10499 (function creation with GEOMETRY datatype)
 #
+--disable_warnings
+drop procedure if exists fn3;
+--enable_warnings
 create function fn3 () returns point return GeomFromText("point(1 1)"); 
 show create function fn3;
 select astext(fn3());
