@@ -2874,10 +2874,10 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
-	| nchar '(' NUM ')'		{ Lex->length=$3.str;
+	| nchar '(' NUM ')' opt_bin_mod	{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
-	| nchar				{ Lex->length=(char*) "1";
+	| nchar opt_bin_mod		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
@@ -2888,7 +2888,7 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$= MYSQL_TYPE_VARCHAR; }
-	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
+	| nvarchar '(' NUM ')' opt_bin_mod { Lex->length=$3.str;
 					  $$= MYSQL_TYPE_VARCHAR;
 					  Lex->charset=national_charset_info; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
@@ -3077,7 +3077,6 @@ attribute:
 	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
 	  }
 	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
-	| BINARY { Lex->type|= BINCMP_FLAG; }
 	| COLLATE_SYM collation_name
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
@@ -3162,8 +3161,27 @@ opt_default:
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
-	| ASCII_SYM			{ Lex->charset=&my_charset_latin1; }
+	| ASCII_SYM opt_bin_mod		{ Lex->charset=&my_charset_latin1; }
 	| BYTE_SYM			{ Lex->charset=&my_charset_bin; }
+	| UNICODE_SYM opt_bin_mod
+	{
+	  if (!(Lex->charset=get_charset_by_csname("ucs2",
+                                                   MY_CS_PRIMARY,MYF(0))))
+	  {
+	    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), "ucs2");
+	    YYABORT;
+	  }
+	}
+	| charset charset_name opt_bin_mod	{ Lex->charset=$2; }
+        | BINARY opt_bin_charset { Lex->type|= BINCMP_FLAG; };
+
+opt_bin_mod:
+	/* empty */ { }
+	| BINARY { Lex->type|= BINCMP_FLAG; };
+
+opt_bin_charset:
+	/* empty */ { }
+	| ASCII_SYM	{ Lex->charset=&my_charset_latin1; }
 	| UNICODE_SYM
 	{
 	  if (!(Lex->charset=get_charset_by_csname("ucs2",
