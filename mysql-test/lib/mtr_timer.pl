@@ -119,21 +119,9 @@ sub mtr_timer_stop_all ($) {
 
   foreach my $name ( keys %{$timers->{'timers'}} )
   {
-    my $tpid= $timers->{'timers'}->{$name}->{'pid'};
-
-    # FIXME as Cygwin reuses pids fast, maybe check that is
-    # the expected process somehow?!
-    kill(9, $tpid);
-
-    # As the timers are so simple programs, we trust them to terminate,
-    # and use blocking wait for it. We wait just to avoid a zombie.
-    waitpid($tpid,0);
-
-    delete $timers->{'timers'}->{$name}; # Remove the timer information
-    delete $timers->{'pids'}->{$tpid};   # and PID reference
-
-    return 1;
+    mtr_timer_stop($timers, $name);
   }
+  return 1;
 }
 
 
