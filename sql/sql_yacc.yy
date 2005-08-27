@@ -88,6 +88,7 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
   udf_func *udf;
   LEX_USER *lex_user;
   struct sys_var_with_base variable;
+  enum enum_var_type var_type;
   Key::Keytype key_type;
   enum ha_key_alg key_alg;
   enum db_type db_type;
@@ -697,11 +698,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <num>
 	type int_type real_type order_dir lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-        table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
-        opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
+        table_option opt_if_not_exists opt_no_write_to_binlog
+        delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts opt_chain opt_release
-        union_opt select_derived_init option_type option_type2
+        union_opt select_derived_init option_type2
 
 %type <ulong_num>
 	ulong_num raid_types merge_insert_types
@@ -732,6 +733,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item_list>
 	expr_list udf_expr_list udf_expr_list2 when_list
 	ident_list ident_list_arg
+
+%type <var_type>
+        option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
 	key_type opt_unique_or_fulltext constraint_key_type
@@ -4381,7 +4385,7 @@ simple_expr:
               yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
+	    if (!($$= get_system_var(YYTHD, $3, $4, $5)))
 	      YYABORT;
 	    Lex->variables_used= 1;
 	  }
@@ -6474,7 +6478,7 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_STATUS;
-            lex->option_type= (enum_var_type) $1;
+            lex->option_type= $1;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
               YYABORT;
 	  }	
@@ -6489,7 +6493,7 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_VARIABLES;
-            lex->option_type= (enum_var_type) $1;
+            lex->option_type= $1;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
               YYABORT;
 	  }
@@ -7871,7 +7875,7 @@ sys_option_value:
           else if ($2.var)
           { /* System variable */
             if ($1)
-              lex->option_type= (enum_var_type)$1;
+              lex->option_type= $1;
             lex->var_list.push_back(new set_var(lex->option_type, $2.var,
                                     &$2.base_name, $4));
           }
@@ -7905,8 +7909,8 @@ sys_option_value:
         | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
 	{
 	  LEX *lex=Lex;
-          if (!$1)
-            lex->option_type= (enum_var_type)$1;
+          if ($1)
+            lex->option_type= $1;
 	  lex->var_list.push_back(new set_var(lex->option_type,
                                               find_sys_var("tx_isolation"),
                                               &null_lex_str,
@@ -7922,8 +7926,7 @@ option_value:
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4.var,
-						&$4.base_name, $6));
+	    lex->var_list.push_back(new set_var($3, $4.var, &$4.base_name, $6));
 	  }
 	| charset old_or_new_charset_name_or_default
 	{
