@@ -97,7 +97,7 @@ typedef struct st_isam_sort_info {
 enum ic_options {OPT_CHARSETS_DIR_IC=256, OPT_KEY_BUFFER_SIZE,
 		 OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE,
 		 OPT_SORT_BUFFER_SIZE, OPT_SORT_KEY_BLOCKS,
-		 OPT_DECODE_BITS};
+		 OPT_DECODE_BITS, OPT_AUTO_CLOSE};
 
 static ulong	use_buffers=0,read_buffer_length=0,write_buffer_length=0,
 		sort_buffer_length=0,sort_key_blocks=0,crc=0,unique_count=0;
@@ -243,6 +243,10 @@ static struct my_option my_long_options[] =
   {"analyze", 'a',
    "Analyze distribution of keys. Will make some joins in MySQL faster.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef __NETWARE__
+  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"character-sets-dir", OPT_CHARSETS_DIR_IC,
    "Directory where character sets are", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -592,6 +596,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
      
 {
   switch(optid) {
+#ifdef __NETWARE__
+  case OPT_AUTO_CLOSE:
+    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+    break;
+#endif
   case 'a':
     testflag|= T_STATISTICS;
     break;
