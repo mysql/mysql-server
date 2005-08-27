@@ -3609,7 +3609,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         TABLE *table_2= nj_col_2->table_ref->table;
         /* Mark field_2 used for table cache. */
         field_2->query_id= thd->query_id;
-        table_2->file->ha_set_bit_in_read_set(field_1->fieldnr);
+        table_2->file->ha_set_bit_in_read_set(field_2->fieldnr);
         table_2->used_keys.intersect(field_2->part_of_key);
       }
 
@@ -4472,7 +4472,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         if (field->query_id == thd->query_id)
           thd->dupp_field= field;
         field->query_id= thd->query_id;
-        table->file->ha_set_bit_in_read_set(field->fieldnr);
+        field->table->file->ha_set_bit_in_read_set(field->fieldnr);
 
         if (table)
           table->used_keys.intersect(field->part_of_key);
