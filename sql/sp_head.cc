@@ -597,7 +597,7 @@ sp_head::make_field(uint max_length, const char *name, TABLE *dummy)
   field= ::make_field((char *)0,
 		!m_returns_len ? max_length : m_returns_len, 
 		(uchar *)"", 0, m_returns_pack, m_returns, m_returns_cs,
-		(enum Field::geometry_type)0, Field::NONE, 
+		m_geom_returns, Field::NONE, 
 		m_returns_typelib,
 		name ? name : (const char *)m_name.str, dummy);
   DBUG_RETURN(field);
