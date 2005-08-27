@@ -670,3 +670,13 @@ create trigger t1_bu before update on t1 for each row set new.s1 = null;
 insert into t1 values (null,null);
 ERROR 23000: Column 's1' cannot be null
 drop table t1;
+drop procedure if exists fn3;
+create function fn3 () returns point return GeomFromText("point(1 1)");
+show create function fn3;
+Function	sql_mode	Create Function
+fn3		CREATE FUNCTION `fn3`() RETURNS point
+return GeomFromText("point(1 1)")
+select astext(fn3());
+astext(fn3())
+POINT(1 1)
+drop function fn3;

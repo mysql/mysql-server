@@ -308,7 +308,7 @@ Function	sql_mode	Create Function
 sub1		
 show create function sub2;
 Function	sql_mode	Create Function
-sub2		CREATE FUNCTION `test`.`sub2`(i int) RETURNS int(11)
+sub2		CREATE FUNCTION `sub2`(i int) RETURNS int(11)
 return i+1
 show function status like "sub2";
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
@@ -316,7 +316,7 @@ test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER
 drop function sub2;
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure
-sel2		CREATE PROCEDURE `test`.`sel2`()
+sel2		CREATE PROCEDURE `sel2`()
 begin
 select * from t1;
 select * from t2;
