@@ -1055,7 +1055,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   if (need_binlog_call)
     mysql_bin_log.stop_union_events(thd);
 
-  if (thd->binlog_evt_union.unioned_events && mysql_bin_log.is_open())
+  if (need_binlog_call && thd->binlog_evt_union.unioned_events)
   {
     char buf[256];
     String bufstr(buf, sizeof(buf), &my_charset_bin);
