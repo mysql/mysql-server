@@ -97,7 +97,22 @@ tags:
 	support-files/build-tags
 .PHONY:		init-db bin-dist
 
-# Test installation
+# Test installation. Ports are configurable from the environment.
+
+MYSQL_TEST_MANAGER_PORT =	9305
+MYSQL_TEST_MASTER_PORT =	9306
+MYSQL_TEST_SLAVE_PORT =		9308
+MYSQL_TEST_NDB_PORT =		9350
 
 test:
-	cd mysql-test; perl mysql-test-run.pl && perl mysql-test-run.pl --ps-protocol
+	cd mysql-test ; \
+	./mysql-test-run.pl \
+		--manager-port=$(MYSQL_TEST_MANAGER_PORT) \
+		--master_port=$(MYSQL_TEST_MASTER_PORT) \
+		--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
+		--ndbcluster_port=$(MYSQL_TEST_NDB_PORT) && \
+	./mysql-test-run.pl --ps-protocol \
+		--manager-port=$(MYSQL_TEST_MANAGER_PORT) \
+		--master_port=$(MYSQL_TEST_MASTER_PORT) \
+		--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
+		--ndbcluster_port=$(MYSQL_TEST_NDB_PORT)
