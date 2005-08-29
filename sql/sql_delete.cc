@@ -100,6 +100,13 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
     send_ok(thd,0L);
+
+    /*
+      We don't need to call reset_auto_increment in this case, because
+      mysql_truncate always gives a NULL conds argument, hence we never
+      get here.
+    */
+
     DBUG_RETURN(0);				// Nothing to delete
   }
 
@@ -222,6 +229,21 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   free_io_cache(table);				// Will not do any harm
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
+
+  if ((error < 0) && (thd->lex->sql_command == SQLCOM_TRUNCATE))
+  {
+    /*
+      We're really doing a truncate and need to reset the table's
+      auto-increment counter.
+    */
+    int error2 = table->file->reset_auto_increment();
+
+    if (error2 && (error2 != HA_ERR_WRONG_COMMAND))
+    {
+      table->file->print_error(error2, MYF(0));
+      error = 1;
+    }
+  }
 
 cleanup:
   /*
