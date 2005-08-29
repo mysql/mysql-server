@@ -1020,11 +1020,19 @@ execute_var_ident: '@' ident_or_text
 /* help */
 
 help:
-       HELP_SYM ident_or_text
+       HELP_SYM
+       {
+         if (Lex->sphead)
+         {
+           my_error(ER_SP_BADSTATEMENT, MYF(0), "HELP");
+           YYABORT;
+         }
+       }
+       ident_or_text
        {
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_HELP;
-	  lex->help_arg= $2.str;
+	  lex->help_arg= $3.str;
        };
 
 /* change master */
