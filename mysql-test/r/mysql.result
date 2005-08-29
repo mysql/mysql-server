@@ -31,6 +31,10 @@ a
 Test delimiter delimiter
 a
 1
+Tables_in_test
+t1
+t2
+t3
 
 Test delimiter : from command line
 a
