@@ -840,6 +840,8 @@ insert into t1 values ('bar','kostja');
 prepare my_stmt from "select * from t1 where a=?";
 set @a:='bar';
 execute my_stmt using @a;
+set @a:=NULL;
+execute my_stmt using @a;
 drop table t1;
 
 
