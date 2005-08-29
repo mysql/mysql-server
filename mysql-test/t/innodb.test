@@ -1202,4 +1202,22 @@ SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t
 DROP TABLE t2;
 DROP TABLE t1;
 
+#
+# Bug#11816 - Truncate table doesn't work with temporary innodb tables
+# This is not an innodb bug, but we test it using innodb.
+#
+create temporary table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+drop table t1;
+# Show that it works with permanent tables too.
+create table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+drop table t1;
+
 # End of 4.1 tests

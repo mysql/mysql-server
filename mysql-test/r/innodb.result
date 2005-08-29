@@ -1658,3 +1658,19 @@ a_id	b_list
 3	NULL
 DROP TABLE t2;
 DROP TABLE t1;
+create temporary table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+a
+42
+drop table t1;
+create table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+a
+42
+drop table t1;
