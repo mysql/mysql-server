@@ -2446,6 +2446,15 @@ drop table t1, t2, t3;
 
 
 #
+# Bug #12841: Server crash on DO IFNULL(NULL,NULL)
+#
+# (testing returning of int, decimal, real, string)
+DO IFNULL(NULL, NULL);
+SELECT CAST(IFNULL(NULL, NULL) AS DECIMAL);
+SELECT ABS(IFNULL(NULL, NULL));
+SELECT IFNULL(NULL, NULL);
+
+#
 # Bug #6495 Illogical requirement for column qualification in NATURAL join
 #
 
