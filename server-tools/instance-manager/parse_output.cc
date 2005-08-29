@@ -43,8 +43,8 @@
     if flag is GET_VALUE. Return the rest of the parsed string otherwise.
 
   RETURN
-    0 - ok
-    1 - error occured
+    0 - ok, the word has been found
+    1 - error occured or the word is not found
 */
 
 int parse_output_and_get_value(const char *command, const char *word,
@@ -56,9 +56,15 @@ int parse_output_and_get_value(const char *command, const char *word,
   /* should be enough to store the string from the output */
   enum { MAX_LINE_LEN= 512 };
   char linebuf[MAX_LINE_LEN];
+  int rc= 1;
 
   wordlen= strlen(word);
 
+  /*
+    Successful return of popen does not tell us whether the command has been
+    executed successfully: if the command was not found, we'll get EOF
+    when reading the output buffer below.
+  */
   if (!(output= popen(command, "r")))
     goto err;
 
@@ -95,10 +101,9 @@ int parse_output_and_get_value(const char *command, const char *word,
         strmake(result, linep, found_word_len);
       }
       else         /* currently there are only two options */
-      {
         strmake(result, linep, input_buffer_len - 1);
-      }
-      goto pclose;
+      rc= 0;
+      break;
     }
   }
 
@@ -106,9 +111,7 @@ pclose:
   /* we are not interested in the termination status */
   pclose(output);
 
-  return 0;
-
 err:
-  return 1;
+  return rc;
 }
 

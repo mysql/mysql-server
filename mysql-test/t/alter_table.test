@@ -338,6 +338,14 @@ alter table t1 drop key a;
 drop table t1;
 
 #
+# BUG 12207 alter table ... discard table space on MyISAM table causes ERROR 2013 (HY000)
+#
+CREATE TABLE T12207(a int) ENGINE=MYISAM;
+--error 1031
+ALTER TABLE T12207 DISCARD TABLESPACE;
+DROP TABLE T12207;
+
+#
 # Bug #6479  ALTER TABLE ... changing charset fails for TEXT columns
 #
 # The column's character set was changed but the actual data was not
