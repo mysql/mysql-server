@@ -39,8 +39,6 @@
 #include <my_sys.h>
 
 
-Command *parse_command(Command_factory * factory, const char *text);
-
 Mysql_connection_thread_args::Mysql_connection_thread_args(
                              struct st_vio *vio_arg,
                              Thread_registry &thread_registry_arg,
@@ -336,8 +334,7 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
   {
     log_info("query for connection %d : ----\n%s\n-------------------------",
 	     connection_id,packet);
-    Command_factory commands_factory(instance_map);
-    if (Command *command= parse_command(&commands_factory, packet))
+    if (Command *command= parse_command(&instance_map, packet))
     {
       int res= 0;
       log_info("query for connection %d successefully parsed",connection_id);
