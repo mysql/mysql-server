@@ -617,6 +617,8 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     TABLE *table= *table_ptr;
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
     db_type table_type=table->db_type;
+    if (!ha_supports_generate(table_type))
+      goto trunc_by_del;
     strmov(path,table->path);
     *table_ptr= table->next;			// Unlink table from list
     close_temporary(table,0);
@@ -635,7 +637,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 
   (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
 		 table_list->real_name,reg_ext);
-  fn_format(path,path,"","",4);
+  fn_format(path, path, "", "", MY_UNPACK_FILENAME);
 
   if (!dont_send_ok)
   {
@@ -647,18 +649,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(-1);
     }
     if (!ha_supports_generate(table_type))
-    {
-      /* Probably InnoDB table */
-      ulong save_options= thd->options;
-      table_list->lock_type= TL_WRITE;
-      thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
-      ha_enable_transaction(thd, FALSE);
-      error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
-			  HA_POS_ERROR, 0);
-      ha_enable_transaction(thd, TRUE);
-      thd->options= save_options;
-      DBUG_RETURN(error);
-    }
+      goto trunc_by_del;
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(-1);
   }
@@ -693,4 +684,16 @@ end:
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   DBUG_RETURN(error ? -1 : 0);
+
+ trunc_by_del:
+  /* Probably InnoDB table */
+  ulong save_options= thd->options;
+  table_list->lock_type= TL_WRITE;
+  thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
+  ha_enable_transaction(thd, FALSE);
+  error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
+                      HA_POS_ERROR, 0);
+  ha_enable_transaction(thd, TRUE);
+  thd->options= save_options;
+  DBUG_RETURN(error);
 }
