@@ -3001,7 +3001,7 @@ end_with_restore_list:
         {
           if (! thd->db)
           {
-            send_error(thd,ER_NO_DB_ERROR);
+            my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
             goto error;
           }
           select_lex->db= thd->db;
