@@ -2875,6 +2875,16 @@ b	a	t1_val	t2_val
 1	1	1	1
 1	2	2	1
 drop table t1, t2, t3;
+DO IFNULL(NULL, NULL);
+SELECT CAST(IFNULL(NULL, NULL) AS DECIMAL);
+CAST(IFNULL(NULL, NULL) AS DECIMAL)
+NULL
+SELECT ABS(IFNULL(NULL, NULL));
+ABS(IFNULL(NULL, NULL))
+NULL
+SELECT IFNULL(NULL, NULL);
+IFNULL(NULL, NULL)
+NULL
 create table t1 (a char(1));
 create table t2 (a char(1));
 insert into t1 values ('a'),('b'),('c');
