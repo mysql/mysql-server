@@ -1001,6 +1001,9 @@ set @a:='bar';
 execute my_stmt using @a;
 a	b
 bar	kostja
+set @a:=NULL;
+execute my_stmt using @a;
+a	b
 drop table t1;
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',

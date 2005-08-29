@@ -290,7 +290,13 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
   {
     Item_string *conv;
     uint conv_errors;
-    String tmp, cstr, *ostr= val_str(&tmp);
+    char buf[MAX_FIELD_WIDTH];
+    String tmp(buf, sizeof(buf), &my_charset_bin);
+    String cstr, *ostr= val_str(&tmp);
+    /*
+      As safe_charset_converter is not executed for
+      a parameter bound to NULL, ostr should never be 0.
+    */
     cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
     if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
                                                cstr.charset(),
