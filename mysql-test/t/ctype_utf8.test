@@ -832,6 +832,18 @@ drop table t1;
 
 
 #
+# Bug #12371 executing prepared statement fails (illegal mix of collations)
+#
+set names utf8;
+create table t1 (a char(3), b varchar(10));
+insert into t1 values ('bar','kostja');
+prepare my_stmt from "select * from t1 where a=?";
+set @a:='bar';
+execute my_stmt using @a;
+drop table t1;
+
+
+#
 # Bug#9557 MyISAM utf8 table crash
 #
 CREATE TABLE t1 (
