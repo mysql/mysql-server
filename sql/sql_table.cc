@@ -2820,15 +2820,15 @@ mysql_discard_or_import_tablespace(THD *thd,
 err:
   close_thread_tables(thd);
   thd->tablespace_op=FALSE;
+  
   if (error == 0)
   {
     send_ok(thd);
     DBUG_RETURN(0);
   }
 
-  if (error == HA_ERR_ROW_IS_REFERENCED)
-    my_error(ER_ROW_IS_REFERENCED, MYF(0));
-  
+  table->file->print_error(error, MYF(0));
+    
   DBUG_RETURN(-1);
 }
 
