@@ -122,8 +122,7 @@ void Guardian_thread::process_instance(Instance *instance,
   }
   else
   {
-    switch (current_node->state)
-    {
+    switch (current_node->state) {
     case NOT_STARTED:
       instance->start();
       current_node->last_checked= current_time;
@@ -149,7 +148,8 @@ void Guardian_thread::process_instance(Instance *instance,
         log_info("guardian: starting instance %s",
                  instance->options.instance_name);
       }
-      else current_node->state= CRASHED;
+      else
+        current_node->state= CRASHED;
       break;
     case CRASHED:    /* just regular restarts */
       if (current_time - current_node->last_checked >
@@ -219,7 +219,8 @@ void Guardian_thread::run()
 
     /* check the loop predicate before sleeping */
     if (!(shutdown_requested && (!(guarded_instances))))
-      pthread_cond_timedwait(&COND_guardian, &LOCK_guardian, &timeout);
+      thread_registry.cond_timedwait(&thread_info, &COND_guardian,
+                                     &LOCK_guardian, &timeout);
   }
 
   stopped= TRUE;
@@ -365,18 +366,20 @@ int Guardian_thread::stop_guard(Instance *instance)
 }
 
 /*
-  Start Guardian shutdown. Attempt to start instances if requested.
+  An internal method which is called at shutdown to unregister instances and
+  attempt to stop them if requested.
 
   SYNOPSYS
     stop_instances()
     stop_instances_arg          whether we should stop instances at shutdown
 
   DESCRIPTION
-
     Loops through the guarded_instances list and prepares them for shutdown.
     If stop_instances was requested, we need to issue a stop command and change
-    the state accordingly. Otherwise we could simply delete an entry.
-    NOTE: Guardian should be locked by the calling function
+    the state accordingly. Otherwise we simply delete an entry.
+
+  NOTE
+    Guardian object should be locked by the calling function.
 
   RETURN
     0 - ok
