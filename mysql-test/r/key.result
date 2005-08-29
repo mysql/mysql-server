@@ -345,6 +345,7 @@ c1	c2
 2	 		Test String
 3	 
 	Test String
+drop table t1;
 create table t1 (a varchar(10), b varchar(10), key(a(10),b(10)));
 show create table t1;
 Table	Create Table
