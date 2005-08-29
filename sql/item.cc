@@ -284,6 +284,26 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
+Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  if (const_item())
+  {
+    Item_string *conv;
+    uint conv_errors;
+    String tmp, cstr, *ostr= val_str(&tmp);
+    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+    if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                               cstr.charset(),
+                                               collation.derivation)))
+      return NULL;
+    conv->str_value.copy();
+    conv->str_value.shrink_to_length();
+    return conv;
+  }
+  return NULL;
+}
+
+
 bool Item_string::eq(const Item *item, bool binary_cmp) const
 {
   if (type() == item->type() && item->basic_const_item())
