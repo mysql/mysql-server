@@ -29,7 +29,6 @@
 #include "protocol.h"
 #include "messages.h"
 #include "command.h"
-#include "factory.h"
 #include "parse.h"
 
 #include <mysql.h>
