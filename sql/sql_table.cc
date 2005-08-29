@@ -3745,9 +3745,16 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 	  protocol->store_null();
 	else
 	{
-	  while (!t->file->rnd_next(t->record[0]))
+	  for (;;)
 	  {
 	    ha_checksum row_crc= 0;
+            int error= t->file->rnd_next(t->record[0]);
+            if (unlikely(error))
+            {
+              if (error == HA_ERR_RECORD_DELETED)
+                continue;
+              break;
+            }
 	    if (t->record[0] != (byte*) t->field[0]->ptr)
 	      row_crc= my_checksum(row_crc, t->record[0],
 				   ((byte*) t->field[0]->ptr) - t->record[0]);
