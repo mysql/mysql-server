@@ -2599,7 +2599,24 @@ unsent_create_error:
 	break;
       }
       if (!select_lex->db)
-	select_lex->db=tables->db;
+      {
+        /*
+          In the case of ALTER TABLE ... RENAME we should supply the
+          default database if the new name is not explicitly qualified
+          by a database. (Bug #11493)
+        */
+        if (lex->alter_info.flags & ALTER_RENAME)
+        {
+          if (! thd->db)
+          {
+            send_error(thd,ER_NO_DB_ERROR);
+            goto error;
+          }
+          select_lex->db= thd->db;
+        }
+        else
+          select_lex->db=tables->db;
+      }
       if (check_access(thd,ALTER_ACL,tables->db,&tables->grant.privilege,0,0) ||
 	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0)||
 	  check_merge_table_access(thd, tables->db,
