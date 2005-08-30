@@ -187,7 +187,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 
   /* for now HANDLER can be used only for real TABLES */
   tables->required_type= FRMTYPE_TABLE;
-  error= open_tables(thd, &tables, &counter);
+  error= open_tables(thd, &tables, &counter, 0);
 
   HANDLER_TABLES_HACK(thd);
   if (error)

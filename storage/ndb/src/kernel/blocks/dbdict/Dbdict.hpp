@@ -591,6 +591,7 @@ private:
   void execALTER_TAB_REQ(Signal* signal);
   void execALTER_TAB_REF(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
+  bool check_ndb_versions() const;
 
   /*
    *  2.4 COMMON STORED VARIABLES

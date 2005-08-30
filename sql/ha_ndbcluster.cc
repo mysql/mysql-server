@@ -34,7 +34,7 @@
 
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
-extern my_bool opt_ndb_linear_hash;
+extern enum ndb_distribution opt_ndb_distribution_id;
 extern const char *opt_ndbcluster_connectstring;
 
 // Default value for parallelism
@@ -2921,7 +2921,16 @@ void ha_ndbcluster::info(uint flag)
     errkey= m_dupkey;
   }
   if (flag & HA_STATUS_AUTO)
+  {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
+    if (m_table)
+    {
+      Ndb *ndb= get_ndb();
+      
+      auto_increment_value= 
+        ndb->readAutoIncrementValue((const NDBTAB *) m_table);
+    }
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -3243,7 +3252,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("info", ("Table schema version: %d", 
                           tab->getObjectVersion()));
       // Check if thread has stale local cache
-      if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
+      // New transaction must not use old tables... (trans != 0)
+      // Running might...
+      if ((trans && tab->getObjectStatus() != NdbDictionary::Object::Retrieved)
+	  || tab->getObjectStatus() == NdbDictionary::Object::Invalid)
       {
         invalidate_dictionary_cache(FALSE);
         if (!(tab= dict->getTable(m_tabname, &tab_info)))
@@ -6947,6 +6959,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       break;
     Ndb_item *a= cond->next->ndb_item;
     Ndb_item *b, *field, *value= NULL;
+    LINT_INIT(field);
+
     switch (cond->ndb_item->argument_count()) {
     case 1:
       field= 
@@ -7450,7 +7464,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  NDBTAB::FragmentType ftype;
+  NDBTAB::FragmentType ftype= NDBTAB::DistrKeyHash;
   ushort node_group[MAX_PARTITIONS];
   uint no_nodes= g_ndb_cluster_connection->no_db_nodes(), no_fragments, i;
   DBUG_ENTER("ndb_set_fragmentation");
@@ -7481,10 +7495,15 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
   node_group[0]= 0;
   for (i= 1; i < no_fragments; i++)
     node_group[i]= UNDEF_NODEGROUP;
-  if (opt_ndb_linear_hash)
-    ftype= NDBTAB::DistrKeyLin;
-  else
+  switch (opt_ndb_distribution_id)
+  {
+  case ND_KEYHASH:
     ftype= NDBTAB::DistrKeyHash;
+    break;
+  case ND_LINHASH:
+    ftype= NDBTAB::DistrKeyLin;
+    break;
+  }
   tab.setFragmentType(ftype);
   tab.setNodeGroupIds(&node_group, no_fragments);
   DBUG_VOID_RETURN;

@@ -113,6 +113,8 @@ struct negated_function_mapping
   NDB_FUNC_TYPE neg_fun;
 };
 
+enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
+
 /*
   Define what functions can be negated in condition pushdown.
   Note, these HAVE to be in the same order as in definition enum
@@ -584,8 +586,8 @@ static void set_tabname(const char *pathname, char *tabname);
                                      qc_engine_callback *engine_callback,
                                      ulonglong *engine_data);
 
-  bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
-						 uint table_changes);
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+				  uint table_changes);
 
 private:
   int alter_table_name(const char *to);

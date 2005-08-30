@@ -33,7 +33,7 @@ all-local:	english/errmsg.sys
 # created. Normally these are created by extra/Makefile
 
 english/errmsg.sys: errmsg.txt
-	rm $(top_builddir)/include/mysqld_error.h
+	rm -f $(top_builddir)/include/mysqld_error.h
 	(cd $(top_builddir)/extra && $(MAKE))
 
 install-data-local:

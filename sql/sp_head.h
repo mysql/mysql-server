@@ -714,7 +714,6 @@ public:
   sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int htype, uint fp)
     : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp)
   {
-    m_handler= ip+1;
     m_cond.empty();
   }
 
@@ -743,7 +742,6 @@ private:
 
   int m_type;			// Handler type
   uint m_frame;
-  uint m_handler;		// Location of handler
   List<struct sp_cond_type> m_cond;
 
 }; // class sp_instr_hpush_jump : public sp_instr_jump

@@ -777,8 +777,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /**
  * Grep signals
  */
-#define GSN_GREP_SUB_CREATE_REQ         606
-#define GSN_GREP_SUB_CREATE_REF         607
+#define GSN_ALTER_TABLE_REP             606
+#define GSN_API_BROADCAST_REP           607
 #define GSN_GREP_SUB_CREATE_CONF        608
 #define GSN_GREP_CREATE_REQ             609
 #define GSN_GREP_CREATE_REF             610

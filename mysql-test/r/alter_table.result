@@ -314,7 +314,7 @@ INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
-t1	0	PRIMARY	2	User	A	3	NULL	NULL		BTREE	
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
 ALTER TABLE t1 ENABLE KEYS;
 UNLOCK TABLES;
 CHECK TABLES t1;
@@ -338,7 +338,7 @@ INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
-t1	0	PRIMARY	2	User	A	2	NULL	NULL		BTREE	
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
 t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled
 ALTER TABLE t1 ENABLE KEYS;
 SHOW INDEX FROM t1;

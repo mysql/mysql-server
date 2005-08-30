@@ -576,15 +576,19 @@ set @arg00= 9223372036854775807 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 set @arg00= '9223372036854775807' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 # Use the minimum BIGINT from the manual
 #
@@ -592,15 +596,19 @@ set @arg00= -9223372036854775808 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 set @arg00= '-9223372036854775808' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 
 # Numeric overflow of columns(c1, c2, c3, c4, c5, c12) with type not in 
@@ -610,8 +618,10 @@ set @arg00= 1.11111111111111111111e+50 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 # Attention: The columns(c1,c2,c3,c4,c5,c6) do not get the overflow,
 #             because the string is treated as written integer and
@@ -620,15 +630,19 @@ set @arg00= '1.11111111111111111111e+50' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 set @arg00= -1.11111111111111111111e+50 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 # Attention: The columns(c1,c2,c3,c4,c5,c6) do not get the overflow,
 #             because the string is treated as written integer and
@@ -637,8 +651,10 @@ set @arg00= '-1.11111111111111111111e+50' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
                         @arg00, @arg00, @arg00, @arg00, @arg00 ;
 --vertical_results
+--replace_result e+0 e+
 execute my_select ;
 --horizontal_results
+--replace_result e+0 e+
 execute my_delete ;
 
 ########################## test of string types ##########################

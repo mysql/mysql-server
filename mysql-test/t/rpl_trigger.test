@@ -1,0 +1,118 @@
+#
+# Test of triggers with replication
+#
+
+source include/master-slave.inc;
+
+#
+# #12482: Triggers has side effects with auto_increment values
+#
+
+create table t1 (a int auto_increment, primary key (a), b int, rand_value double not null);
+create table t2 (a int auto_increment, primary key (a), b int);
+create table t3 (a int auto_increment, primary key (a), name varchar(64) not null, old_a int, old_b int, rand_value double not null);
+
+delimiter |;
+create trigger t1 before insert on t1 for each row
+begin
+ insert into t3 values (NULL, "t1", new.a, new.b, rand());
+end|
+
+create trigger t2 after insert on t2 for each row
+begin
+ insert into t3 values (NULL, "t2", new.a, new.b, rand());
+end|
+delimiter ;|
+
+insert into t3 values(100,"log",0,0,0);
+
+# Ensure we always have same random numbers
+SET @@RAND_SEED1=658490765, @@RAND_SEED2=635893186;
+
+# Emulate that we have rows 2-9 deleted on the slave
+insert into t1 values(1,1,rand()),(NULL,2,rand());
+insert into t2 (b) values(last_insert_id());
+insert into t2 values(3,0),(NULL,0);
+insert into t2 values(NULL,0),(500,0);
+
+select a,b, truncate(rand_value,4) from t1;
+select * from t2;
+select a,name, old_a, old_b, truncate(rand_value,4) from t3;
+save_master_pos;
+connection slave;
+sync_with_master;
+--disable_query_log
+select "--- On slave --" as "";
+--enable_query_log
+select a,b, truncate(rand_value,4) from t1;
+select * from t2;
+select a,name, old_a, old_b, truncate(rand_value,4) from t3;
+connection master;
+drop table t1,t2,t3;
+
+#
+# #12480: NOW() is not constant in a trigger
+# #12481: Using NOW() in a stored function breaks statement based replication
+#
+
+# Start by getting a lock on 'bug12480' to be able to use get_lock() as sleep()
+connect (con2,localhost,root,,);
+connection con2;
+select get_lock("bug12480",2);
+connection default;
+
+create table t1 (a datetime,b  datetime, c datetime);
+--ignore_warnings
+drop function if exists bug12480;
+--enable_warnings
+
+delimiter |;
+
+create function bug12480() returns datetime
+begin
+  set @a=get_lock("bug12480",2);
+  return now();
+end|
+
+create trigger t1_first before insert on t1
+for each row begin
+  set @a=get_lock("bug12480",2);
+  set new.b= now();
+  set new.c= bug12480();
+end
+|
+
+delimiter ;|
+insert into t1 set a = now();
+select a=b && a=c from t1;
+let $time=`select a from t1`;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+--disable_query_log
+select "--- On slave --" as "";
+--enable_query_log
+select a=b && a=c from t1;
+--disable_query_log
+eval select a='$time' as 'test' from t1;
+--enable_query_log
+
+connection master;
+disconnect con2;
+
+truncate table t1;
+drop trigger t1_first;
+
+insert into t1 values ("2003-03-03","2003-03-03","2003-03-03"),(bug12480(),bug12480(),bug12480()),(now(),now(),now());
+select a=b && a=c from t1;
+
+drop function bug12480;
+drop table t1;
+
+#
+# End of test
+#
+save_master_pos;
+connection slave;
+sync_with_master;

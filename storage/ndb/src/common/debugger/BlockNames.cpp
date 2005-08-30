@@ -32,7 +32,6 @@ const BlockName BlockNames[] = {
   { "BACKUP", BACKUP },
   { "DBUTIL", DBUTIL },
   { "SUMA", SUMA },
-  { "GREP", GREP },
   { "DBTUX", DBTUX }
 };
                                                                        

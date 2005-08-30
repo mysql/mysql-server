@@ -202,8 +202,8 @@ class ha_innobase: public handler
         static ulonglong get_mysql_bin_log_pos();
         bool primary_key_is_clustered() { return true; }
         int cmp_ref(const byte *ref1, const byte *ref2);
-	bool ha_innobase::check_if_incompatible_data(HA_CREATE_INFO *info,
-						     uint table_changes);
+	bool check_if_incompatible_data(HA_CREATE_INFO *info,
+					uint table_changes);
 };
 
 extern struct show_var_st innodb_status_variables[];
@@ -244,6 +244,7 @@ extern ulong srv_n_spin_wait_rounds;
 extern ulong srv_n_free_tickets_to_enter;
 extern ulong srv_thread_sleep_delay;
 extern ulong srv_thread_concurrency;
+extern ulong srv_commit_concurrency;
 }
 
 extern TYPELIB innobase_lock_typelib;

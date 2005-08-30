@@ -329,17 +329,20 @@ trx_commit_step(
 /*============*/
 				/* out: query thread to run next, or NULL */
 	que_thr_t*	thr);	/* in: query thread */
+
 /**************************************************************************
-Prints info about a transaction to the standard output. The caller must
-own the kernel mutex and must have called
-innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL or
-InnoDB cannot meanwhile change the info printed here. */
+Prints info about a transaction to the given file. The caller must own the
+kernel mutex and must have called
+innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL
+or InnoDB cannot meanwhile change the info printed here. */
 
 void
 trx_print(
 /*======*/
-	FILE*	f,	/* in: output stream */
-	trx_t*	trx);	/* in: transaction */
+	FILE*	f,		/* in: output stream */
+	trx_t*	trx,		/* in: transaction */
+	uint	max_query_len);	/* in: max query length to print, or 0 to
+				   use the default max length */
 
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************

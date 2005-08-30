@@ -15,6 +15,7 @@ connection con1;
 drop table if exists t1;
 --enable_warnings
 
+--disable_reconnect
 create table t1 (kill_id int);
 insert into t1 values(connection_id());
 
@@ -25,7 +26,6 @@ kill @id;
 
 connection con1;
 
---disable_reconnect
 # this statement should fail
 --error 2006,2013
 select 1;
