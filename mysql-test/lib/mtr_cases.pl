@@ -8,7 +8,7 @@ use File::Basename;
 use strict;
 
 sub collect_test_cases ($);
-sub collect_one_test_case ($$$$$$);
+sub collect_one_test_case ($$$$$$$);
 
 ##############################################################################
 #
@@ -40,13 +40,84 @@ sub collect_test_cases ($) {
   if ( @::opt_cases )
   {
     foreach my $tname ( @::opt_cases ) { # Run in specified order, no sort
-      $tname= basename($tname, ".test");
-      my $elem= "$tname.test";
-      if ( ! -f "$testdir/$elem")
+      my $elem= undef;
+      my $component_id= undef;
+      
+      # Get rid of directory part (path). Leave the extension since it is used
+      # to understand type of the test.
+
+      $tname = basename($tname);
+
+      # Check if the extenstion has been specified.
+
+      if ( mtr_match_extension($tname, "test") )
       {
-        mtr_error("Test case $tname ($testdir/$elem) is not found");
+        $elem= $tname;
+        $tname=~ s/\.test$//;
+        $component_id= 'mysqld';
       }
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,{});
+      elsif ( mtr_match_extension($tname, "imtest") )
+      {
+        $elem= $tname;
+        $tname =~ s/\.imtest$//;
+        $component_id= 'im';
+
+        if ( $::glob_use_embedded_server )
+        {
+          mtr_report(
+            "Instance Manager's tests are not available in embedded mode." .
+            "Test case '$tname' is skipped.");
+          next;
+        }
+
+        unless ( $::exe_im )
+        {
+          mtr_report(
+            "Instance Manager executable is unavailable. " .
+            "Test case '$tname' is skipped.");
+          next;
+        }
+      }
+
+      # If target component is known, check that the specified test case
+      # exists.
+      # 
+      # Otherwise, try to guess the target component.
+
+      if ( defined $component_id )
+      {
+        if ( ! -f "$testdir/$elem")
+        {
+          mtr_error("Test case $tname ($testdir/$elem) is not found");
+        }
+      }
+      else
+      {
+        my $mysqld_test_exists = -f "$testdir/$tname.test";
+        my $im_test_exists = -f "$testdir/$tname.imtest";
+
+        if ( $mysqld_test_exists && $im_test_exists )
+        {
+          mtr_error("Ambiguos test case name ($tname)");
+        }
+        elsif ( ! $mysqld_test_exists && !$im_test_exists )
+        {
+          mtr_error("Test case $tname is not found");
+        }
+        elsif ( $mysqld_test_exists )
+        {
+          $elem= "$tname.test";
+          $component_id= 'mysqld';
+        }
+        elsif ( $im_test_exists )
+        {
+          $elem= "$tname.imtest";
+          $component_id= 'im';
+        }
+      }
+      
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,{},
+        $component_id);
     }
     closedir TESTDIR;
   }
@@ -70,11 +141,26 @@ sub collect_test_cases ($) {
     }
 
     foreach my $elem ( sort readdir(TESTDIR) ) {
-      my $tname= mtr_match_extension($elem,"test");
-      next if ! defined $tname;
+      my $component_id= undef;
+      my $tname= undef;
+
+      if ($tname= mtr_match_extension($elem, 'test'))
+      {
+        $component_id = 'mysqld';
+      }
+      elsif ($tname= mtr_match_extension($elem, 'imtest'))
+      {
+        $component_id = 'im';
+      }
+      else
+      {
+        next;
+      }
+      
       next if $::opt_do_test and ! defined mtr_match_prefix($elem,$::opt_do_test);
 
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled);
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
+        $component_id);
     }
     closedir TESTDIR;
   }
@@ -112,13 +198,14 @@ sub collect_test_cases ($) {
 ##############################################################################
 
 
-sub collect_one_test_case($$$$$$) {
+sub collect_one_test_case($$$$$$$) {
   my $testdir= shift;
   my $resdir=  shift;
   my $tname=   shift;
   my $elem=    shift;
   my $cases=   shift;
   my $disabled=shift;
+  my $component_id= shift;
 
   my $path= "$testdir/$elem";
 
@@ -138,6 +225,7 @@ sub collect_one_test_case($$$$$$) {
   my $tinfo= {};
   $tinfo->{'name'}= $tname;
   $tinfo->{'result_file'}= "$resdir/$tname.result";
+  $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
 
   if ( $::opt_skip_test and defined mtr_match_prefix($tname,$::opt_skip_test) )
@@ -188,6 +276,7 @@ sub collect_one_test_case($$$$$$) {
   my $master_sh=       "$testdir/$tname-master.sh";
   my $slave_sh=        "$testdir/$tname-slave.sh";
   my $disabled_file=   "$testdir/$tname.disabled";
+  my $im_opt_file=     "$testdir/$tname-im.opt";
 
   $tinfo->{'master_opt'}= $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
   $tinfo->{'slave_opt'}=  $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
@@ -288,6 +377,15 @@ sub collect_one_test_case($$$$$$) {
       $tinfo->{'slave_sh'}= $slave_sh;
       $tinfo->{'slave_restart'}= 1;
     }
+  }
+
+  if ( -f $im_opt_file )
+  {
+    $tinfo->{'im_opts'} = mtr_get_opts_from_file($im_opt_file);
+  }
+  else
+  {
+    $tinfo->{'im_opts'} = [];
   }
 
   # FIXME why this late?
