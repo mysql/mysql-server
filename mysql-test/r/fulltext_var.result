@@ -1,7 +1,7 @@
 show variables like "ft\_%";
 Variable_name	Value
 ft_boolean_syntax	+ -><()~*:""&|
-ft_min_word_len	4
 ft_max_word_len	254
 ft_max_word_len_for_sort	20
+ft_min_word_len	4
 ft_stopword_file	(built-in)
