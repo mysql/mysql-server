@@ -6255,35 +6255,6 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 2	011401	37	breaking	dreaded	Steinberg	W
 3	011402	37	Romans	scholastics	jarring	
 4	011403	37	intercepted	audiology	tinily	
-INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
-create table t3 engine=archive select * from t2;
-select * from t3 where fld3='bonfire';
-auto	fld1	companynr	fld3	fld4	fld5	fld6
-1191	068504	00	bonfire	corresponds	positively	
-select count(*) from t3;
-count(*)
-1203
-rename table t3 to t4;
-select * from t4 where fld3='bonfire';
-auto	fld1	companynr	fld3	fld4	fld5	fld6
-1191	068504	00	bonfire	corresponds	positively	
-select count(*) from t4;
-count(*)
-1203
-create table t3 engine=archive select * from t2;
-select * from t3 where fld3='bonfire';
-auto	fld1	companynr	fld3	fld4	fld5	fld6
-1191	068504	00	bonfire	corresponds	positively	
-select count(*) from t3;
-count(*)
-1203
-rename table t3 to t4;
-select * from t4 where fld3='bonfire';
-auto	fld1	companynr	fld3	fld4	fld5	fld6
-1191	068504	00	bonfire	corresponds	positively	
-select count(*) from t4;
-count(*)
-1203
 DELETE FROM t2;
 SELECT * FROM t2;
 auto	fld1	companynr	fld3	fld4	fld5	fld6
@@ -7486,6 +7457,13 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 1191	068504	00	bonfire	corresponds	positively	
 1192	068305	00	Colombo	hardware	colicky	
 1193	000000	00	nondecreasing	implant	thrillingly	
+1	000001	00	Omaha	teethe	neat	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
 1	000001	00	Omaha	teethe	neat	
 2	011401	37	breaking	dreaded	Steinberg	W
 3	011402	37	Romans	scholastics	jarring	
@@ -8694,6 +8672,13 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 1191	068504	00	bonfire	corresponds	positively	
 1192	068305	00	Colombo	hardware	colicky	
 1193	000000	00	nondecreasing	implant	thrillingly	
+1	000001	00	Omaha	teethe	neat	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
 1	000001	00	Omaha	teethe	neat	
 2	011401	37	breaking	dreaded	Steinberg	W
 3	011402	37	Romans	scholastics	jarring	
@@ -9910,4 +9895,12 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 2	011401	37	breaking	dreaded	Steinberg	W
 3	011402	37	Romans	scholastics	jarring	
 4	011403	37	intercepted	audiology	tinily	
+1	000001	00	Omaha	teethe	neat	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
+INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
 drop table t1, t2, t4;
