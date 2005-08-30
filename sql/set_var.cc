@@ -118,6 +118,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
+static byte *get_have_innodb(THD *thd);
 
 /*
   Variable definition list
@@ -484,6 +485,8 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 /* Read only variables */
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
+sys_var_readonly                sys_have_innodb("have_innodb", OPT_GLOBAL,
+                                                SHOW_CHAR, get_have_innodb);
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
@@ -529,6 +532,7 @@ sys_var *sys_variables[]=
   &sys_ft_boolean_syntax,
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
+  &sys_have_innodb,
   &sys_identity,
   &sys_init_connect,
   &sys_init_slave,
@@ -2613,6 +2617,12 @@ static byte *get_error_count(THD *thd)
   thd->sys_var_tmp.long_value= 
     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
   return (byte*) &thd->sys_var_tmp.long_value;
+}
+
+
+static byte *get_have_innodb(THD *thd)
+{
+  return (byte*) show_comp_option_name[have_innodb];
 }
 
 
