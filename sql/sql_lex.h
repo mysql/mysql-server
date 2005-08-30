@@ -306,7 +306,7 @@ protected:
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
 
-  ulong options;
+  ulonglong options;
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
@@ -459,6 +459,7 @@ public:
   inline bool is_prepared() { return prepared; }
   bool change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values);
+  void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
@@ -472,14 +473,16 @@ class st_select_lex: public st_select_lex_node
 {
 public:
   Name_resolution_context context;
-  char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
+  char *db;
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
   /* point on lex in which it was created, used in view subquery detection */
   st_lex *parent_lex;
   enum olap_type olap;
-  SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
-  List<Item>          item_list; /* list of fields & expressions */
+  /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
+  SQL_LIST	      table_list;
+  SQL_LIST	      group_list; /* GROUP BY clause. */
+  List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   /* 
@@ -492,7 +495,12 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
-  TABLE_LIST *leaf_tables;        /* list of leaves in join table tree   */
+  /*
+    Beginning of the list of leaves in a FROM clause, where the leaves
+    inlcude all base tables including view tables. The tables are connected
+    by TABLE_LIST::next_leaf, so leaf_tables points to the left-most leaf.
+  */
+  TABLE_LIST *leaf_tables;
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
@@ -594,7 +602,6 @@ public:
   bool init_nested_join(THD *thd);
   TABLE_LIST *end_nested_join(THD *thd);
   TABLE_LIST *nest_last_join(THD *thd);
-  void save_names_for_using_list(TABLE_LIST *tab1, TABLE_LIST *tab2);
   void add_joined_table(TABLE_LIST *table);
   TABLE_LIST *convert_right_join();
   List<Item>* get_item_list();
@@ -650,6 +657,10 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_CONVERT          1024
 #define ALTER_FORCE		2048
 #define ALTER_RECREATE          4096
+#define ALTER_ADD_PARTITION     8192
+#define ALTER_DROP_PARTITION    16384
+#define ALTER_COALESCE_PARTITION 32768
+#define ALTER_REORGANISE_PARTITION   65536
 
 typedef struct st_alter_info
 {
@@ -658,9 +669,17 @@ typedef struct st_alter_info
   uint                        flags;
   enum enum_enable_or_disable keys_onoff;
   enum tablespace_op_type     tablespace_op;
+  List<char>                  partition_names;
+  uint                        no_parts;
 
   st_alter_info(){clear();}
-  void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
+  void clear()
+  {
+    keys_onoff= LEAVE_AS_IS;
+    tablespace_op= NO_TABLESPACE_OP;
+    no_parts= 0;
+    partition_names.empty();
+  }
   void reset(){drop_list.empty();alter_list.empty();clear();}
 } ALTER_INFO;
 
@@ -739,6 +758,21 @@ typedef struct st_lex
   List<set_var_base>  var_list;
   List<Item_param>    param_list;
   List<LEX_STRING>    view_list; // view list (list of field names in view)
+  /*
+    A stack of name resolution contexts for the query. This stack is used
+    at parse time to set local name resolution contexts for various parts
+    of a query. For example, in a JOIN ... ON (some_condition) clause the
+    Items in 'some_condition' must be resolved only against the operands
+    of the the join, and not against the whole clause. Similarly, Items in
+    subqueries should be resolved against the subqueries (and outer queries).
+    The stack is used in the following way: when the parser detects that
+    all Items in some clause need a local context, it creates a new context
+    and pushes it on the stack. All newly created Items always store the
+    top-most context in the stack. Once the parser leaves the clause that
+    required a local context, the parser pops the top-most context.
+  */
+  List<Name_resolution_context> context_stack;
+
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   create_field	      *last_field;
   udf_func udf;
@@ -930,6 +964,21 @@ typedef struct st_lex
     return ( query_tables_own_last ? *query_tables_own_last : 0);
   }
   void cleanup_after_one_table_open();
+
+  void push_context(Name_resolution_context *context)
+  {
+    context_stack.push_front(context);
+  }
+
+  void pop_context()
+  {
+    context_stack.pop();
+  }
+
+  Name_resolution_context *current_context()
+  {
+    return context_stack.head();
+  }
 } LEX;
 
 struct st_lex_local: public st_lex

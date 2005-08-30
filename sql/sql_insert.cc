@@ -111,12 +111,15 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
   }
   else
   {						// Part field list
-    Name_resolution_context *context= &thd->lex->select_lex.context;
-    TABLE_LIST *save_next= table_list->next_local,
-               *save_context= context->table_list;
-    bool save_resolve_in_select_list=
-      thd->lex->select_lex.context.resolve_in_select_list;
+    SELECT_LEX *select_lex= &thd->lex->select_lex;
+    Name_resolution_context *context= &select_lex->context;
+    TABLE_LIST *save_next_local;
+    TABLE_LIST *save_table_list;
+    TABLE_LIST *save_first_name_resolution_table;
+    TABLE_LIST *save_next_name_resolution_table;
+    bool        save_resolve_in_select_list;
     int res;
+
     if (fields.elements != values.elements)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
@@ -124,8 +127,22 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     }
 
     thd->dupp_field=0;
-    thd->lex->select_lex.no_wrap_view_item= TRUE;
-    /* fields only from first table */
+    select_lex->no_wrap_view_item= TRUE;
+
+    /* Save the state of the current name resolution context. */
+    save_table_list=                  context->table_list;
+    save_first_name_resolution_table= context->first_name_resolution_table;
+    save_next_name_resolution_table=  (context->first_name_resolution_table) ?
+                                      context->first_name_resolution_table->
+                                               next_name_resolution_table :
+                                      NULL;
+    save_resolve_in_select_list=      context->resolve_in_select_list;
+    save_next_local=                  table_list->next_local;
+
+    /*
+      Perform name resolution only in the first table - 'table_list',
+      which is the table that is inserted into.
+    */
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
     /*
@@ -133,12 +150,20 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       parameter to 2. This sets the bit in the write_set for each field.
     */
     res= setup_fields(thd, 0, fields, 2, 0, 0);
-    table_list->next_local= save_next;
+
+    /* Restore the current context. */
+    table_list->next_local=                save_next_local;
+    context->table_list=                   save_table_list;
+    context->first_name_resolution_table=  save_first_name_resolution_table;
+    if (context->first_name_resolution_table)
+      context->first_name_resolution_table->
+               next_name_resolution_table= save_next_name_resolution_table;
+    context->resolve_in_select_list=       save_resolve_in_select_list;
     thd->lex->select_lex.no_wrap_view_item= FALSE;
-    context->table_list= save_context;
-    context->resolve_in_select_list= save_resolve_in_select_list;
+
     if (res)
       return -1;
+
     if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
     {
       /* it is join view => we need to find table for update */
@@ -267,9 +292,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   ulonglong id;
   COPY_INFO info;
   TABLE *table= 0;
-  TABLE_LIST *next_local;
+  TABLE_LIST *save_table_list;
+  TABLE_LIST *save_next_local;
+  TABLE_LIST *save_first_name_resolution_table;
+  TABLE_LIST *save_next_name_resolution_table;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
+  Name_resolution_context *context;
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
 #endif
@@ -348,9 +377,23 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
 
-  next_local= table_list->next_local;
+  context= &thd->lex->select_lex.context;
+  /* Save the state of the current name resolution context. */
+  save_table_list=                  context->table_list;
+  save_first_name_resolution_table= context->first_name_resolution_table;
+  save_next_name_resolution_table=  (context->first_name_resolution_table) ?
+                                    context->first_name_resolution_table->
+                                             next_name_resolution_table :
+                                    NULL;
+  save_next_local=                  table_list->next_local;
+
+  /*
+    Perform name resolution only in the first table - 'table_list',
+    which is the table that is inserted into.
+  */
   table_list->next_local= 0;
-  thd->lex->select_lex.context.resolve_in_table_list_only(table_list);
+  context->resolve_in_table_list_only(table_list);
+
   value_count= values->elements;
   while ((values= its++))
   {
@@ -364,7 +407,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       goto abort;
   }
   its.rewind ();
-  table_list->next_local= next_local;
+ 
+  /* Restore the current context. */
+  table_list->next_local= save_next_local;
+  context->first_name_resolution_table= save_first_name_resolution_table;
+  if (context->first_name_resolution_table)
+    context->first_name_resolution_table->
+             next_name_resolution_table= save_next_name_resolution_table;
+
   /*
     Fill in the given fields and dump it to the table file
   */
@@ -720,6 +770,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
   if (setup_tables(thd, &thd->lex->select_lex.context,
+                   &thd->lex->select_lex.top_join_list,
                    table_list, where, &thd->lex->select_lex.leaf_tables,
 		   select_insert))
     DBUG_RETURN(TRUE);
@@ -774,10 +825,13 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           COND **where, bool select_insert)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
+  Name_resolution_context *context= &select_lex->context;
   TABLE_LIST *save_table_list;
   TABLE_LIST *save_next_local;
+  TABLE_LIST *save_first_name_resolution_table;
+  TABLE_LIST *save_next_name_resolution_table;
+  bool        save_resolve_in_select_list;
   bool insert_into_view= (table_list->view != 0);
-  bool save_resolve_in_select_list;
   bool res= 0;
   DBUG_ENTER("mysql_prepare_insert");
   DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
@@ -815,35 +869,58 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                                        select_insert))
     DBUG_RETURN(TRUE);
 
-  save_table_list= select_lex->context.table_list;
-  save_resolve_in_select_list= select_lex->context.resolve_in_select_list;
-  save_next_local= table_list->next_local;
+  /* Save the state of the current name resolution context. */
+  save_table_list=                  context->table_list;
+  /* Here first_name_resolution_table points to the first select table. */
+  save_first_name_resolution_table= context->first_name_resolution_table;
+  save_next_name_resolution_table=  (context->first_name_resolution_table) ?
+                                    context->first_name_resolution_table->
+                                             next_name_resolution_table :
+                                    NULL;
+  save_resolve_in_select_list=      context->resolve_in_select_list;
+  save_next_local=                  table_list->next_local;
 
+  /*
+    Perform name resolution only in the first table - 'table_list',
+    which is the table that is inserted into.
+  */
   table_list->next_local= 0;
-  select_lex->context.resolve_in_table_list_only(table_list);
-  if ((values && check_insert_fields(thd, table_list, fields, *values,
-                                     !insert_into_view)) ||
-      (values && setup_fields(thd, 0, *values, 0, 0, 0)))
-    res= TRUE;
-  else if (duplic == DUP_UPDATE)
+  context->resolve_in_table_list_only(table_list);
+
+  /* Prepare the fields in the statement. */
+  if (values &&
+      !(res= check_insert_fields(thd, context->table_list, fields, *values,
+                                 !insert_into_view) ||
+        setup_fields(thd, 0, *values, 0, 0, 0)) &&
+      duplic == DUP_UPDATE)
   {
     select_lex->no_wrap_view_item= TRUE;
-    res= check_update_fields(thd, table_list, update_fields);
+    res= check_update_fields(thd, context->table_list, update_fields);
     select_lex->no_wrap_view_item= FALSE;
+    /*
+      When we are not using GROUP BY we can refer to other tables in the
+      ON DUPLICATE KEY part.
+    */       
     if (select_lex->group_list.elements == 0)
     {
-      /*
-        When we are not using GROUP BY we can refer to other tables in the
-        ON DUPLICATE KEY part
-      */       
-      table_list->next_local= save_next_local;
+      context->table_list->next_local=       save_next_local;
+      /* first_name_resolution_table was set by resolve_in_table_list_only() */
+      context->first_name_resolution_table->
+        next_name_resolution_table=          save_next_local;
     }
     if (!res)
       res= setup_fields(thd, 0, update_values, 1, 0, 0);
   }
+
+  /* Restore the current context. */
   table_list->next_local= save_next_local;
-  select_lex->context.table_list= save_table_list;
-  select_lex->context.resolve_in_select_list= save_resolve_in_select_list;
+  context->table_list= save_table_list;
+  context->first_name_resolution_table= save_first_name_resolution_table;
+  if (context->first_name_resolution_table)
+    context->first_name_resolution_table->
+             next_name_resolution_table= save_next_name_resolution_table;
+  context->resolve_in_select_list= save_resolve_in_select_list;
+
   if (res)
     DBUG_RETURN(res);
 
@@ -2102,7 +2179,55 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   */
   lex->current_select= &lex->select_lex;
   res= check_insert_fields(thd, table_list, *fields, values,
-                           !insert_into_view);
+                           !insert_into_view) ||
+       setup_fields(thd, 0, values, 0, 0, 0);
+
+  if (info.handle_duplicates == DUP_UPDATE)
+  {
+    /* Save the state of the current name resolution context. */
+    Name_resolution_context *context= &lex->select_lex.context;
+    TABLE_LIST *save_table_list;
+    TABLE_LIST *save_next_local;
+    TABLE_LIST *save_first_name_resolution_table;
+    TABLE_LIST *save_next_name_resolution_table;
+    save_table_list=                  context->table_list;
+    save_first_name_resolution_table= context->first_name_resolution_table;
+    save_next_name_resolution_table=  (context->first_name_resolution_table) ?
+                                      context->first_name_resolution_table->
+                                               next_name_resolution_table :
+                                      NULL;
+    save_next_local= table_list->next_local;
+
+    /* Perform name resolution only in the first table - 'table_list'. */
+    table_list->next_local= 0;
+    context->resolve_in_table_list_only(table_list);
+
+    lex->select_lex.no_wrap_view_item= TRUE;
+    res= res || check_update_fields(thd, context->table_list,
+                                    *info.update_fields);
+    lex->select_lex.no_wrap_view_item= FALSE;
+    /*
+      When we are not using GROUP BY we can refer to other tables in the
+      ON DUPLICATE KEY part
+    */       
+    if (lex->select_lex.group_list.elements == 0)
+    {
+      context->table_list->next_local=       save_next_local;
+      /* first_name_resolution_table was set by resolve_in_table_list_only() */
+      context->first_name_resolution_table->
+        next_name_resolution_table=          save_next_local;
+    }
+    res= res || setup_fields(thd, 0, *info.update_values, 1, 0, 0);
+
+    /* Restore the current context. */
+    table_list->next_local= save_next_local;
+    context->first_name_resolution_table= save_first_name_resolution_table;
+    if (context->first_name_resolution_table)
+      context->first_name_resolution_table->
+               next_name_resolution_table= save_next_name_resolution_table;
+
+  }
+
   lex->current_select= lex_current_select_save;
   if (res)
     DBUG_RETURN(1);

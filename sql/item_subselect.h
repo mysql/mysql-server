@@ -299,8 +299,11 @@ public:
   virtual ~subselect_engine() {}; // to satisfy compiler
   virtual void cleanup()= 0;
 
-  // set_thd should be called before prepare()
-  void set_thd(THD *thd_arg) { thd= thd_arg; }
+  /*
+    Also sets "thd" for subselect_engine::result.
+    Should be called before prepare().
+  */
+  void set_thd(THD *thd_arg);
   THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;

@@ -83,3 +83,18 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
   return -1;
 }
 #endif
+
+int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
+{
+  struct pollfd pfd[1];
+  int r;
+
+  pfd[0].fd= sock;
+  pfd[0].events= POLLHUP | POLLIN | POLLOUT | POLLNVAL;
+  pfd[0].revents= 0;
+  r= poll(pfd,1,0);
+  if(pfd[0].revents & (POLLHUP|POLLERR))
+    return 1;
+
+  return 0;
+}

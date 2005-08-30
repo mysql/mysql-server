@@ -73,6 +73,7 @@ Long data handling:
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -88,6 +89,7 @@ class Prepared_statement: public Statement
 {
 public:
   THD *thd;
+  Protocol *protocol;
   Item_param **param_array;
   uint param_count;
   uint last_errno;
@@ -549,7 +551,9 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
     param->set_param_func= set_param_str;
-    param->value.cs_info.character_set_client= &my_charset_bin;
+    param->value.cs_info.character_set_of_placeholder= &my_charset_bin;
+    param->value.cs_info.character_set_client=
+      thd->variables.character_set_client;
     param->value.cs_info.final_character_set_of_str_value= &my_charset_bin;
     param->item_type= Item::STRING_ITEM;
     param->item_result_type= STRING_RESULT;
@@ -565,6 +569,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
+      param->value.cs_info.character_set_of_placeholder= fromcs;
       param->value.cs_info.character_set_client= fromcs;
 
       /*
@@ -927,7 +932,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_normal_and_derived_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     goto error;
 
   if ((values= its++))
@@ -1007,7 +1012,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (update_precheck(thd, table_list))
     goto error;
 
-  if (open_tables(thd, &table_list, &table_count))
+  if (open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
   if (table_list->multitable_view)
@@ -1781,6 +1786,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   mysql_reset_errors(thd, 0);
   lex= thd->lex;
 
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
+
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          thd->net.report_error || init_param_array(stmt);
   lex->safe_to_cache_query= 0;
@@ -1850,6 +1858,13 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
 
+  /*
+    We have to update "thd" pointer in LEX, all its units and in LEX::result,
+    since statements which belong to trigger body are associated with TABLE
+    object and because of this can be used in different threads.
+  */
+  lex->thd= thd;
+
   if (lex->empty_field_list_on_rset)
   {
     lex->empty_field_list_on_rset= 0;
@@ -1888,6 +1903,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       unit->types.empty();
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
+      unit->set_thd(thd);
     }
   }
 
@@ -1926,7 +1942,10 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     lex->select_lex.leaf_tables= lex->leaf_tables_insert;
 
   if (lex->result)
+  {
     lex->result->cleanup();
+    lex->result->set_thd(thd);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -2021,6 +2040,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
       stmt->lex->result= &cursor->result;
+      stmt->protocol= &cursor->protocol;
       thd->lock_id= &cursor->lock_id;
     }
   }
@@ -2055,9 +2075,11 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   }
   mysql_log.write(thd, thd->command, "[%lu] %s", stmt->id, thd->query);
 
-  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
+  thd->protocol= stmt->protocol;                // Switch to binary protocol
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  sp_cache_flush_obsolete(&thd->sp_proc_cache);
+  sp_cache_flush_obsolete(&thd->sp_func_cache);
   mysql_execute_command(thd);
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
@@ -2247,7 +2269,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
 
-  thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
+  thd->protocol= stmt->protocol;                // Switch to binary protocol
   cursor->fetch(num_rows);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
@@ -2419,6 +2441,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
              thd_arg->variables.query_alloc_block_size,
              thd_arg->variables.query_prealloc_size),
   thd(thd_arg),
+  protocol(&thd_arg->protocol_prep),
   param_array(0),
   param_count(0),
   last_errno(0)

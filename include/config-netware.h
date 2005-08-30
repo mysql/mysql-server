@@ -53,6 +53,7 @@ extern "C" {
 #define HAVE_PTHREAD_YIELD_ZERO_ARG 1
 #define HAVE_BROKEN_REALPATH 1
 
+/* changes made to make use of LibC-June-2004 for building purpose */
 #undef HAVE_POSIX_SIGNALS
 #undef HAVE_PTHREAD_ATTR_SETSCOPE
 #undef HAVE_ALLOC_A
@@ -62,6 +63,8 @@ extern "C" {
 #undef HAVE_PTHREAD_SETSCHEDPARAM
 #undef HAVE_READLINK
 #undef HAVE_STPCPY
+/* changes  end  */
+
 /* no libc crypt() function */
 #ifdef HAVE_OPENSSL
   #define HAVE_CRYPT 1

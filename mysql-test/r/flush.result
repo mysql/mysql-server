@@ -27,3 +27,24 @@ select * from t1;
 n
 345
 drop table t1;
+create table t1 (c1 int);
+lock table t1 write;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+lock table t1 read;
+flush tables with read lock;
+lock table t1 write;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+lock table t1 read;
+lock table t1 write;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+unlock tables;
+create table t2 (c1 int);
+create table t3 (c1 int);
+lock table t1 read, t2 read, t3 write;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+lock table t1 read, t2 read, t3 read;
+flush tables with read lock;
+unlock tables;
+drop table t1, t2, t3;

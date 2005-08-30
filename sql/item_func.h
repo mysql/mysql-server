@@ -874,6 +874,7 @@ public:
   }
 };
 
+
 class Item_func_benchmark :public Item_int_func
 {
   ulong loop_count;
@@ -886,6 +887,22 @@ public:
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
   void print(String *str);
 };
+
+
+class Item_func_sleep :public Item_int_func
+{
+public:
+  Item_func_sleep(Item *a) :Item_int_func(a) {}
+  bool const_item() const { return 0; }
+  const char *func_name() const { return "sleep"; }
+  void update_used_tables()
+  {
+    Item_int_func::update_used_tables();
+    used_tables_cache|= RAND_TABLE_BIT;
+  }
+  longlong val_int();
+};
+
 
 
 #ifdef HAVE_DLOPEN

@@ -23,7 +23,8 @@ class AttributeDescriptor {
   friend class Dbacc;
   friend class Dbtup;
   friend class Dbtux;
-  
+  friend class SimulatedBlock;
+
 private:
   static void setType(Uint32 &, Uint32 type);
   static void setSize(Uint32 &, Uint32 size);

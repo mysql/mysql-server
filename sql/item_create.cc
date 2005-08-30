@@ -354,6 +354,12 @@ Item *create_func_sha(Item* a)
   return new Item_func_sha(a);
 }
 
+Item *create_func_sleep(Item* a)
+{
+  current_thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return new Item_func_sleep(a);
+}
+
 Item *create_func_space(Item *a)
 {
   CHARSET_INFO *cs= current_thd->variables.collation_connection;

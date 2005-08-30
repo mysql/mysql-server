@@ -1177,11 +1177,23 @@ String *Item_func_substr_index::val_str(String *str)
       }
     }
     else
-    {					// Start counting at end
-      for (offset=res->length() ; ; offset-=delimeter_length-1)
+    {
+      /*
+        Negative index, start counting at the end
+      */
+      for (offset=res->length(); offset ;)
       {
+        /* 
+          this call will result in finding the position pointing to one 
+          address space less than where the found substring is located
+          in res
+        */
 	if ((int) (offset=res->strrstr(*delimeter,offset)) < 0)
 	  return res;			// Didn't find, return org string
+        /*
+          At this point, we've searched for the substring
+          the number of times as supplied by the index value
+        */
 	if (!++count)
 	{
 	  offset+=delimeter_length;
@@ -1558,6 +1570,7 @@ Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
     return NULL;
   }
   conv->str_value.copy();
+  conv->str_value.mark_as_const();
   return conv;
 }
 
