@@ -531,6 +531,8 @@ extern TYPELIB tx_isolation_typelib;
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
                                  T != DB_TYPE_BERKELEY_DB && \
+                                 T != DB_TYPE_ARCHIVE_DB && \
+                                 T != DB_TYPE_FEDERATED_DB && \
                                  T != DB_TYPE_NDBCLUSTER)
 
 bool ha_caching_allowed(THD* thd, char* table_key,
