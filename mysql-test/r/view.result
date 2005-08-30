@@ -2135,3 +2135,9 @@ DESCRIBE v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
 DROP TABLE t1;
 DROP VIEW v1;
+create table t1 (f1 char);
+create view v1 as select strcmp(f1,'a') from t1;
+select * from v1;
+strcmp(f1,'a')
+drop view v1;
+drop table t1;
