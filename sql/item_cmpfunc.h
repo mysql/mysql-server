@@ -427,6 +427,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
+  void print(String *str) { Item_func::print(str); }
 };
 
 
