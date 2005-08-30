@@ -126,6 +126,7 @@ int ha_blackhole::external_lock(THD *thd, int lock_type)
 
 uint ha_blackhole::lock_count(void) const
 {
+  DBUG_ENTER("ha_blackhole::lock_count");
   DBUG_RETURN(0);
 }
 
