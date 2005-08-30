@@ -1001,4 +1001,15 @@ ha_rows ha_archive::records_in_range(uint inx, key_range *min_key,
   DBUG_ENTER("ha_archive::records_in_range ");
   DBUG_RETURN(records); // HA_ERR_WRONG_COMMAND 
 }
+
+/*
+  We cancel a truncate command. The only way to delete an archive table is to drop it.
+  This is done for security reasons. In a later version we will enable this by 
+  allowing the user to select a different row format.
+*/
+int ha_archive::delete_all_rows()
+{
+  DBUG_ENTER("ha_archive::delete_all_rows");
+  DBUG_RETURN(0);
+}
 #endif /* HAVE_ARCHIVE_DB */
