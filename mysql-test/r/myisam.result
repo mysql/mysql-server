@@ -594,6 +594,20 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+create table t1 (c1 int);
+insert into t1 values (1),(2),(3),(4);
+checksum table t1;
+Table	Checksum
+test.t1	149057747
+delete from t1 where c1 = 1;
+create table t2 as select * from t1;
+checksum table t1;
+Table	Checksum
+test.t1	984116287
+checksum table t2;
+Table	Checksum
+test.t2	984116287
+drop table t1, t2;
 set storage_engine=MyISAM;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
@@ -1274,3 +1288,9 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	
 drop table t1;
+create table t1 (c1 int) engine=myisam pack_keys=0;
+create table t2 (c1 int) engine=myisam pack_keys=1;
+create table t3 (c1 int) engine=myisam pack_keys=default;
+create table t4 (c1 int) engine=myisam pack_keys=2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
+drop table t1, t2, t3;

@@ -318,19 +318,21 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   get_key_pack_length(kseg_len,length_pack,kseg);
   key_len_skip=length_pack+kseg_len;
   key_len_left=(int) key_len- (int) key_len_skip;
+  /* If key_len is 0, then lenght_pack is 1, then key_len_left is -1. */
   cmplen=(key_len_left>=0) ? kseg_len : key_len-length_pack;
   DBUG_PRINT("info",("key: '%.*s'",kseg_len,kseg));
 
   /*
     Keys are compressed the following way:
 
-    If the max length of first key segment <= 127 characters the prefix is
+    If the max length of first key segment <= 127 bytes the prefix is
     1 byte else it's 2 byte
 
-    prefix         The high bit is set if this is a prefix for the prev key
-    length         Packed length if the previous was a prefix byte
-    [length]       Length character of data
-    next-key-seg   Next key segments
+    (prefix) length  The high bit is set if this is a prefix for the prev key.
+    [suffix length]  Packed length of suffix if the previous was a prefix.
+    (suffix) data    Key data bytes (past the common prefix or whole segment).
+    [next-key-seg]   Next key segments (([packed length], data), ...)
+    pointer          Reference to the data file (last_keyseg->length).
   */
 
   matched=0;  /* how many char's from prefix were alredy matched */
@@ -351,16 +353,23 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 
     if (packed)
     {
-      if (suffix_len == 0)                      /* Same key */
+      if (suffix_len == 0)
+      {
+        /* == 0x80 or 0x8000, same key, prefix length == old key length. */
         prefix_len=len;
+      }
       else
       {
+        /* > 0x80 or 0x8000, this is prefix lgt, packed suffix lgt follows. */
         prefix_len=suffix_len;
         get_key_length(suffix_len,vseg);
       }
     }
     else
+    {
+      /* Not packed. No prefix used from last key. */
       prefix_len=0;
+    }
 
     len=prefix_len+suffix_len;
     seg_len_pack=get_pack_length(len);
@@ -417,7 +426,12 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
       uint  left;
       uchar *k=kseg+prefix_len;
 
-      left=(len>cmplen) ? cmplen-prefix_len : suffix_len;
+      /*
+        If prefix_len > cmplen then we are in the end-space comparison
+        phase. Do not try to acces the key any more ==> left= 0.
+      */
+      left= ((len <= cmplen) ? suffix_len :
+             ((prefix_len < cmplen) ? cmplen - prefix_len : 0));
 
       matched=prefix_len+left;
 
@@ -455,7 +469,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 	    my_flag= -1;
 	  else
 	  {
-	    /* We have to compare k and vseg as if they where space extended */
+	    /* We have to compare k and vseg as if they were space extended */
 	    uchar *end= k+ (cmplen - len);
 	    for ( ; k < end && *k == ' '; k++) ;
 	    if (k == end)
@@ -474,7 +488,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 	  if ((nextflag & SEARCH_PREFIX) && key_len_left == 0)
 	    goto fix_flag;
 
-	  /* We have to compare k and vseg as if they where space extended */
+	  /* We have to compare k and vseg as if they were space extended */
 	  for (end=vseg + (len-cmplen) ;
 	       vseg < end && *vseg == (uchar) ' ';
 	       vseg++, matched++) ;
