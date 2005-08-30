@@ -326,6 +326,23 @@ alter table t1 add key (c1,c1,c2);
 drop table t1;
 
 #
+# Bug#12565 - ERROR 1034 when running simple UPDATE or DELETE 
+#             on large MyISAM table
+#
+create table t1 (
+  c1 int,
+  c2 varchar(20) not null,
+  primary key (c1),
+  key (c2(10))
+) engine=myisam;
+insert into t1 values (1,'');
+insert into t1 values (2,' \t\tTest String');
+insert into t1 values (3,' \n\tTest String');
+update t1 set c2 = 'New Test String' where c1 = 1;
+select * from t1;
+drop table t1;
+
+#
 # If we use a partial field for a key that is actually the length of the
 # field, and we extend the field, we end up with a key that includes the
 # whole new length of the field.
