@@ -2,7 +2,7 @@
 # MySQL Client
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-SCREENNAME "MySQL Import"
+SCREENNAME "MySQL Import[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Import Tool"
 VERSION 4, 0

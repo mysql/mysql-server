@@ -62,6 +62,10 @@ static struct my_option my_long_options[] =
    "Instead of issuing one query for each table, use one query per database, naming all tables in the database in a comma-separated list.",
    (gptr*) &opt_all_in_1, (gptr*) &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+#ifdef __NETWARE__
+  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"auto-repair", OPT_AUTO_REPAIR,
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
    (gptr*) &opt_auto_repair, (gptr*) &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
@@ -221,6 +225,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
+#ifdef __NETWARE__
+  case OPT_AUTO_CLOSE:
+    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+    break;
+#endif
   case 'a':
     what_to_do = DO_ANALYZE;
     break;

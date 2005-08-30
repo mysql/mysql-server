@@ -1,0 +1,155 @@
+# Test of replication of stored procedures (WL#2146 for MySQL 5.0)
+
+source include/master-slave.inc;
+
+# ****************************************************************
+connection master;
+
+# cleanup
+--disable_warnings
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
+drop table if exists t1,t2;
+drop view if exists v1;
+--enable_warnings
+create table t1 (a int);
+
+# 1. Test simple variables use.
+delimiter //;
+create procedure p1()
+begin
+  declare spv int default 0;
+  while spv < 5 do
+    insert into t1 values(spv+1);
+    set spv=spv+1;
+  end while;
+end//
+delimiter ;//
+
+call p1();
+
+sync_slave_with_master;
+connection slave;
+select * from t1;
+connection master;
+delete from t1;
+
+# 2. Test SP variable name
+delimiter //;
+create procedure p2()
+begin
+  declare a int default 4;
+  create table t2 as select a;
+end//
+delimiter ;//
+
+call p2();
+select * from t2;
+sync_slave_with_master;
+connection slave;
+select * from t2;
+
+connection master;
+drop procedure p1;
+drop procedure p2;
+drop table t2;
+
+# 3. Test FUNCTIONs in various places
+
+delimiter //;
+create function f1(x int) returns int
+begin
+  insert into t1 values(x);
+  return x+1;
+end//
+
+create procedure p1(a int, b int)
+begin
+  declare v int default f1(5);
+  if (f1(6)) then
+    select 'yes';
+  end if;
+  set v = f1(7);
+  while f1(8) < 1 do 
+    select 'this cant be';
+  end while;
+
+end//
+delimiter ;//
+
+call p1(f1(1), f1(2));
+select * from t1;
+
+create table t2(a int);
+insert into t2 values (10),(11);
+select a,f1(a) from t2;
+
+# This shouldn't put separate 'call f1(3)' into binlog:
+insert into t2 select f1(3);
+select 'master:',a from t1;
+
+sync_slave_with_master;
+connection slave;
+select 'slave:',a from t1;
+
+connection master;
+drop procedure p1;
+delete from t1;
+delete from t2;
+
+# 4. VIEWs
+delete from t1;
+insert into t2 values(1),(2);
+create view v1 as select f1(a) from t2;
+select * from v1;
+select 'master:',a from t1;
+
+sync_slave_with_master;
+connection slave;
+select 'slave:',a from t1;
+
+connection master;
+drop view v1;
+delete from t1;
+
+# 5. Prepared statements.
+prepare s1 from 'select f1(?)';
+set @xx=123;
+execute s1 using @xx;
+select 'master:',a from t1;
+
+sync_slave_with_master;
+connection slave;
+select 'slave:',a from t1;
+
+connection master;
+delete from t1;
+
+# 5. Cursors.
+# t2 has (1),(2);
+delimiter //;
+create procedure p1(spv int)
+begin
+  declare c cursor for select f1(spv) from t2;
+  while (spv > 2) do
+    open c;
+    fetch c into spv;
+    close c;
+    set spv= spv - 10;
+  end while;
+end//
+delimiter ;//
+
+call p1(15);
+select 'master:',a from t1;
+sync_slave_with_master;
+connection slave;
+select 'slave:',a from t1;
+
+connection master;
+drop procedure p1;
+drop function f1;
+drop table t1,t2;
+
+sync_slave_with_master;

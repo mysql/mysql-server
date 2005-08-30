@@ -61,6 +61,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
                         tztime.h my_decimal.h\
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
+			sql_array.h \
 			examples/ha_example.h examples/ha_archive.h \
 			examples/ha_tina.h ha_blackhole.h  \
 			ha_federated.h ha_partition.h

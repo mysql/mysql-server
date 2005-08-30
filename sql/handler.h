@@ -1129,6 +1129,16 @@ public:
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
   virtual ulonglong get_auto_increment();
   virtual void restore_auto_increment();
+
+  /*
+    Reset the auto-increment counter to the given value, i.e. the next row
+    inserted will get the given value. This is called e.g. after TRUNCATE
+    is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
+    returned by storage engines that don't support this operation.
+  */
+  virtual int reset_auto_increment(ulonglong value)
+  { return HA_ERR_WRONG_COMMAND; }
+
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
 
   /* admin commands - called from mysql_admin_table */
@@ -1339,6 +1349,8 @@ extern ulong total_ha, total_ha_2pc;
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
                                  T != DB_TYPE_BERKELEY_DB && \
+                                 T != DB_TYPE_ARCHIVE_DB && \
+                                 T != DB_TYPE_FEDERATED_DB && \
                                  T != DB_TYPE_NDBCLUSTER)
 
 /* lookups */

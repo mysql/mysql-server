@@ -25,6 +25,11 @@
 #include <sys/stat.h>
 #include <sys/mode.h>
 #include "my_manage.h"
+#ifdef __NETWARE__
+#define strindex(a,b) ((char*)strindex(a,b))
+#define strstr(a,b)   ((char*)strstr(a,b))
+#endif
+
 /******************************************************************************
 
   macros
@@ -939,7 +944,7 @@ void run_test(char *test)
       // increment total
       ++total_test;
     }
-    else if (err == 2)
+    else if (err == 62)
     {
       // skip
       rstr = TEST_SKIP;
