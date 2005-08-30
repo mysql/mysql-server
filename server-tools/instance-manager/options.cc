@@ -244,8 +244,6 @@ C_MODE_END
 
 int Options::load(int argc, char **argv)
 {
-  saved_argv= argv;
-
   if (argc >= 2)
   {
     if (is_prefix(argv[1], "--defaults-file="))
@@ -267,6 +265,8 @@ int Options::load(int argc, char **argv)
   if (setup_windows_defaults())
     goto err;
 #endif
+  /* load_defaults will reset saved_argv with a new allocated list */
+  saved_argv= argv;
 
   /* config-file options are prepended to command-line ones */
   load_defaults(config_file, default_groups, &argc,

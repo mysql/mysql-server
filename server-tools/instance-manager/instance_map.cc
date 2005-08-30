@@ -91,22 +91,20 @@ static int process_option(void *ctx, const char *group, const char *option)
       if ((instance= map->find(group, strlen(group))) == NULL)
       {
         if ((instance= new Instance) == 0)
-          goto err_new_instance;
-        if (instance->init(group))
           goto err;
-        if (map->add_instance(instance))
-          goto err;
+        if (instance->init(group) || map->add_instance(instance))
+          goto err_instance;
       }
 
       if (instance->options.add_option(option))
-        goto err;
+        goto err;   /* the instance'll be deleted when we destroy the map */
     }
 
   return 0;
 
-err:
+err_instance:
   delete instance;
-err_new_instance:
+err:
   return 1;
 }
 
@@ -122,10 +120,8 @@ mysqld_path(default_mysqld_path_arg)
 
 int Instance_map::init()
 {
-  if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
-                get_instance_key, delete_instance, 0))
-    return 1;
-  return 0;
+  return hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
+                   get_instance_key, delete_instance, 0);
 }
 
 Instance_map::~Instance_map()
@@ -217,10 +213,9 @@ int Instance_map::complete_initialization()
     }
 
   return 0;
-err:
-  return 1;
 err_instance:
   delete instance;
+err:
   return 1;
 }
 

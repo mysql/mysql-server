@@ -734,11 +734,13 @@ longlong Item_func_numhybrid::val_int()
   case STRING_RESULT:
   {
     int err_not_used;
-    String *res= str_op(&str_value);
+    String *res;
+    if (!(res= str_op(&str_value)))
+      return 0;
+
     char *end= (char*) res->ptr() + res->length();
     CHARSET_INFO *cs= str_value.charset();
-    return (res ? (*(cs->cset->strtoll10))(cs, res->ptr(), &end,
-                                           &err_not_used) : 0);
+    return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
   }
   default:
     DBUG_ASSERT(0);
@@ -769,7 +771,10 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
   }
   case STRING_RESULT:
   {
-    String *res= str_op(&str_value);
+    String *res;
+    if (!(res= str_op(&str_value)))
+      return NULL;
+
     str2my_decimal(E_DEC_FATAL_ERROR, (char*) res->ptr(),
                    res->length(), res->charset(), decimal_value);
     break;
