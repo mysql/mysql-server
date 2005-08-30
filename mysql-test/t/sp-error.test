@@ -1079,6 +1079,19 @@ call bug11394(2, 1)|
 drop procedure bug11394|
 delimiter ;|
 
+
+#
+# BUG 12490 (Packets out of order if calling HELP CONTENTS from Stored Procedure)
+#
+--error 1314
+CREATE PROCEDURE BUG_12490() HELP CONTENTS;
+--error 1314
+CREATE FUNCTION BUG_12490() RETURNS INT HELP CONTENTS;
+CREATE TABLE t_bug_12490(a int);
+--error 1314
+CREATE TRIGGER BUG_12490 BEFORE UPDATE ON t_bug_12490 FOR EACH ROW HELP CONTENTS;
+DROP TABLE t_bug_12490;
+
 #
 # Bug#11834 "Re-execution of prepared statement with dropped function
 # crashes server". Also tests handling of prepared stmts which use
