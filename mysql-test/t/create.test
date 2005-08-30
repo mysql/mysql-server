@@ -493,6 +493,15 @@ create table t2(test.t2.name int);
 drop table t1,t2;
 
 #
+# Bug #12537: UNION produces longtext instead of varchar
+#
+CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
+CREATE TABLE t2 AS SELECT LEFT(f1,86) AS f2 FROM t1 UNION SELECT LEFT(f1,86)
+AS f2 FROM t1;
+DESC t2;
+DROP TABLE t1,t2;
+
+#
 # Bug#11028: Crash on create table like
 #
 create database mysqltest;
