@@ -760,6 +760,9 @@
 			</FileConfiguration>
 		</File>
 		<File
+			RelativePath=".\str_alloc.c">
+		</File>
+		<File
 			RelativePath="strcend.c">
 			<FileConfiguration
 				Name="Release|Win32">

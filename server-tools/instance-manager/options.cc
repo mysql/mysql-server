@@ -30,18 +30,20 @@
 #define QUOTE2(x) #x
 #define QUOTE(x) QUOTE2(x)
 
-const char *default_password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
-const char *default_log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
 #ifdef __WIN__
-char windows_config_file[FN_REFLEN];
-
 char Options::install_as_service;
 char Options::remove_service;
+char windows_config_file[FN_REFLEN];
+char default_password_file_name[FN_REFLEN];
+char default_log_file_name[FN_REFLEN];
+const char *Options::config_file= windows_config_file;
 #else
 char Options::run_as_service;
 const char *Options::user= 0;                   /* No default value */
-#endif
+const char *default_password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
+const char *default_log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
 const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
+#endif
 const char *Options::log_file_name= default_log_file_name;
 const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
@@ -51,7 +53,7 @@ const char *Options::bind_address= 0;           /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
 /* just to declare */
-char **Options::saved_argv;
+char **Options::saved_argv= NULL;
 
 /*
   List of options, accepted by the instance manager.
@@ -262,30 +264,8 @@ int Options::load(int argc, char **argv)
   }
 
 #ifdef __WIN__
-  setup_windows_defaults(*argv);
-
-  /*
-    On Windows, there are two possibilities.  Either we are given
-    a defaults file on the command line or we use the my.ini file
-    that is in our app dir
-  */
-  if (Options::config_file == NULL)
-  {
-    char *filename;
-    static const char default_win_config_file_name[]= "\\my.ini";
-
-    if (!GetModuleFileName(NULL, windows_config_file,
-                           sizeof(windows_config_file)))
-      goto err;
-
-    filename= strrchr(windows_config_file, "\\");
-    /*
-      Don't check for the overflow as strlen("\\my.ini") is less
-      then strlen("mysqlmanager") (the binary name)
-    */
-    strcpy(filename, default_win_config_file_name);
-    Options::config_file= windows_config_file;
-  }
+  if (setup_windows_defaults())
+    goto err;
 #endif
 
   /* config-file options are prepended to command-line ones */
@@ -305,33 +285,32 @@ err:
 void Options::cleanup()
 {
   /* free_defaults returns nothing */
-  free_defaults(Options::saved_argv);
-#ifdef __WIN__
-  free((char*)default_password_file_name);
-#endif
+  if (Options::saved_argv != NULL)
+    free_defaults(Options::saved_argv);
 }
 
 #ifdef __WIN__
 
-char* change_extension(const char *src, const char *newext)
+int Options::setup_windows_defaults()
 {
-  char *dot= (char*)strrchr(src, '.');
-  if (!dot) return (char*)src;
+  if (!GetModuleFileName(NULL, default_password_file_name,
+                         sizeof(default_password_file_name)))
+    return 1;
+  char *filename= strstr(default_password_file_name, ".exe");
+  strcpy(filename, ".passwd");
+ 
+  if (!GetModuleFileName(NULL, default_log_file_name,
+                         sizeof(default_log_file_name)))
+    return 1;
+  filename= strstr(default_log_file_name, ".exe");
+  strcpy(filename, ".log");
 
-  int newlen= dot-src+strlen(newext)+1;
-  char *temp= (char*)malloc(newlen);
-  bzero(temp, newlen);
-  strncpy(temp, src, dot-src+1);
-  strcat(temp, newext);
-  return temp;
-}
-
-void Options::setup_windows_defaults(const char *progname)
-{
-  Options::password_file_name= default_password_file_name=
-    change_extension(progname, "passwd");
-  Options::log_file_name= default_log_file_name=
-    change_extension(progname, "log");
+  if (!GetModuleFileName(NULL, windows_config_file,
+                         sizeof(windows_config_file)))
+    return 1;
+  char *slash= strrchr(windows_config_file, '\\');
+  strcpy(slash, "\\my.ini");
+  return 0;
 }
 
 #endif

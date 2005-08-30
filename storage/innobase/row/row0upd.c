@@ -1279,7 +1279,7 @@ row_upd_sec_index_entry(
 		rec_print(stderr, rec, index);
 		putc('\n', stderr);
 
-		trx_print(stderr, trx);
+		trx_print(stderr, trx, 0);
 
 		fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);

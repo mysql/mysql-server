@@ -9,11 +9,7 @@
 	<key>CFBundleName</key>
 	<string>MySQL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>@VERSION@</string>
-	<key>IFMajorVersion</key>
-	<integer>4</integer>
-	<key>IFMinorVersion</key>
-	<integer>0</integer>
+	<string>@MYSQL_NO_DASH_VERSION@</string>
 	<key>IFPkgFlagAllowBackRev</key>
 	<false/>
 	<key>IFPkgFlagAuthorizationAction</key>

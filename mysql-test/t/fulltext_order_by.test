@@ -1,5 +1,5 @@
 --disable_warnings
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1,t2,t3;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -80,7 +80,7 @@ CREATE TABLE t3 (
   FULLTEXT KEY betreff (betreff)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
 
---error 1109
+--error 1054
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -100,7 +100,7 @@ group by
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
   
---error 1109
+--error 1054
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -117,8 +117,6 @@ where
 order by 
   match(b.betreff) against ('+abc' in boolean mode) desc;
 
--- todo psergey: fix
---error 1214 
 select a.text, b.id, b.betreff
 from 
   t2 a inner join t3 b on a.id = b.forum inner join
@@ -134,6 +132,22 @@ where
   match(c.beitrag) against ('+abc' in boolean mode)
 order by 
   match(betreff) against ('+abc' in boolean mode) desc;
+
+# BUG#11869 part2: used table type doesn't support FULLTEXT indexes error
+(select b.id, b.betreff from t3 b) union 
+(select b.id, b.betreff from t3 b) 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+
+--error 1191
+(select b.id, b.betreff from t3 b) union 
+(select b.id, b.betreff from t3 b) 
+order by match(betreff) against ('+abc') desc;
+
+select distinct b.id, b.betreff from t3 b 
+order by match(betreff) against ('+abc' in boolean mode) desc;
+
+select b.id, b.betreff from t3 b group by b.id+1 
+order by match(betreff) against ('+abc' in boolean mode) desc;
 
 drop table t1,t2,t3;
 

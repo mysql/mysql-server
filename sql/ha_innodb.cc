@@ -48,6 +48,10 @@ have disables the InnoDB inlining in this file. */
 pthread_mutex_t innobase_share_mutex, /* to protect innobase_open_files */
                 prepare_commit_mutex; /* to force correct commit order in
 				      binlog */
+ulong commit_threads= 0;
+pthread_mutex_t commit_threads_m;
+pthread_cond_t commit_cond;
+pthread_mutex_t commit_cond_m;
 bool innodb_inited= 0;
 
 /*-----------------------------------------------------------------*/
@@ -550,19 +554,20 @@ innobase_mysql_end_print_arbitrary_thd(void)
 }
 
 /*****************************************************************
-Prints info of a THD object (== user session thread) to the
-standard output. NOTE that /mysql/innobase/trx/trx0trx.c must contain
-the prototype for this function! */
+Prints info of a THD object (== user session thread) to the given file.
+NOTE that /mysql/innobase/trx/trx0trx.c must contain the prototype for
+this function! */
 extern "C"
 void
 innobase_mysql_print_thd(
 /*=====================*/
-	FILE*   f,	/* in: output stream */
-        void*   input_thd)/* in: pointer to a MySQL THD object */
+	FILE*   f,		/* in: output stream */
+	void*   input_thd,	/* in: pointer to a MySQL THD object */
+	uint	max_query_len)	/* in: max query length to print, or 0 to
+				   use the default max length */
 {
 	const THD*	thd;
 	const char*	s;
-	char		buf[301];
 
         thd = (const THD*) input_thd;
 
@@ -589,25 +594,47 @@ innobase_mysql_print_thd(
 	}
 
 	if ((s = thd->query)) {
-		/* determine the length of the query string */
-		uint32 i, len;
-		
-		len = thd->query_length;
+		/* 3100 is chosen because currently 3000 is the maximum
+		   max_query_len we ever give this. */
+		char	buf[3100];
+		uint	len;
 
-		if (len > 300) {
-			len = 300;	/* ADDITIONAL SAFETY: print at most
-					300 chars to reduce the probability of
-					a seg fault if there is a race in
-					thd->query_length in MySQL; after
-					May 14, 2004 probably no race any more,
-					but better be safe */
+		/* If buf is too small, we dynamically allocate storage
+		   in this. */
+		char*	dyn_str = NULL;
+
+		/* Points to buf or dyn_str. */
+		char*	str = buf;
+		
+		if (max_query_len == 0)
+		{
+			/* ADDITIONAL SAFETY: the default is to print at
+			   most 300 chars to reduce the probability of a
+			   seg fault if there is a race in
+			   thd->query_length in MySQL; after May 14, 2004
+			   probably no race any more, but better be
+			   safe */
+			max_query_len = 300;
+		}
+		
+		len = min(thd->query_length, max_query_len);
+
+		if (len > (sizeof(buf) - 1))
+		{
+			dyn_str = my_malloc(len + 1, MYF(0));
+			str = dyn_str;
 		}
 
-                /* Use strmake to reduce the timeframe
-                   for a race, compared to fwrite() */
-		i= (uint) (strmake(buf, s, len) - buf);
+                /* Use strmake to reduce the timeframe for a race,
+                   compared to fwrite() */
+		len = (uint) (strmake(str, s, len) - str);
 		putc('\n', f);
-		fwrite(buf, 1, i, f);
+		fwrite(str, 1, len, f);
+
+		if (dyn_str)
+		{
+			my_free(dyn_str, MYF(0));
+		}
 	}
 
 	putc('\n', f);
@@ -948,9 +975,9 @@ innobase_query_caching_of_table_permitted(
         trx = check_trx_exists(thd);
 	if (trx->has_search_latch) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"  InnoDB: Error: the calling thread is holding the adaptive search\n"
-"InnoDB: latch though calling innobase_query_caching_of_table_permitted\n");
+		sql_print_error("The calling thread is holding the adaptive "
+				"search, latch though calling "
+				"innobase_query_caching_of_table_permitted.");
 	}
 
 	innobase_release_stat_resources(trx);
@@ -1266,9 +1293,8 @@ innobase_init(void)
 						&srv_log_group_home_dirs);
 
 	if (ret == FALSE || innobase_mirrored_log_groups != 1) {
-		fprintf(stderr,
-		"InnoDB: syntax error in innodb_log_group_home_dir\n"
-		"InnoDB: or a wrong number of mirrored log groups\n");
+	  sql_print_error("syntax error in innodb_log_group_home_dir, or a "
+			  "wrong number of mirrored log groups");
 
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
@@ -1367,6 +1393,9 @@ innobase_init(void)
 			 		(hash_get_key) innobase_get_key, 0, 0);
         pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
         pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
+        pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
+        pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
+        pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
 
 	/* If this is a replication slave and we needed to do a crash recovery,
@@ -1416,6 +1445,9 @@ innobase_end(void)
 						MYF(MY_ALLOW_ZERO_PTR));
                 pthread_mutex_destroy(&innobase_share_mutex);
                 pthread_mutex_destroy(&prepare_commit_mutex);
+                pthread_mutex_destroy(&commit_threads_m);
+                pthread_mutex_destroy(&commit_cond_m);
+                pthread_cond_destroy(&commit_cond);
 	}
 
   	DBUG_RETURN(err);
@@ -1542,8 +1574,10 @@ innobase_commit(
 	reserve the kernel mutex, we have to release the search system latch
 	first to obey the latching order. */
 
-	innobase_release_stat_resources(trx);
-
+        if (trx->has_search_latch) {
+                          trx_search_latch_release_if_reserved(trx);
+        }
+        
         /* The flag trx->active_trans is set to 1 in
 
 	1. ::external_lock(),
@@ -1562,11 +1596,9 @@ innobase_commit(
         if (trx->active_trans == 0
 	    && trx->conc_state != TRX_NOT_STARTED) {
 	    
-	        fprintf(stderr,
-"InnoDB: Error: trx->active_trans == 0\n"
-"InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
+	  sql_print_error("trx->active_trans == 0, but trx->conc_state != "
+			  "TRX_NOT_STARTED");
 	}
-
         if (all
 	    || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 	        
@@ -1575,18 +1607,43 @@ innobase_commit(
 
                 /* We need current binlog position for ibbackup to work.
                 Note, the position is current because of prepare_commit_mutex */
+retry:
+                if (srv_commit_concurrency > 0)
+                {
+                  pthread_mutex_lock(&commit_cond_m);
+                  commit_threads++;
+                  if (commit_threads > srv_commit_concurrency)
+                  {
+                    commit_threads--;
+                    pthread_cond_wait(&commit_cond, &commit_cond_m);
+                    pthread_mutex_unlock(&commit_cond_m);
+                    goto retry;
+                  }
+                  else
+                    pthread_mutex_unlock(&commit_cond_m);
+                }
+                
                 trx->mysql_log_file_name = mysql_bin_log.get_log_fname();
                 trx->mysql_log_offset =
                         (ib_longlong)mysql_bin_log.get_log_file()->pos_in_file;
 
 		innobase_commit_low(trx);
 
+                if (srv_commit_concurrency > 0)
+                {
+                  pthread_mutex_lock(&commit_cond_m);
+                  commit_threads--;
+                  pthread_cond_signal(&commit_cond);
+                  pthread_mutex_unlock(&commit_cond_m);
+                }
+                
                 if (trx->active_trans == 2) {
 
                         pthread_mutex_unlock(&prepare_commit_mutex);
                 }
+               
                 trx->active_trans = 0;
-
+               
 	} else {
 	        /* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -1606,7 +1663,11 @@ innobase_commit(
 
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
+        if (trx->declared_to_be_inside_innodb) {
+                          /* Release our possible ticket in the FIFO */
 
+                          srv_conc_force_exit_innodb(trx);
+        }
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(0);
@@ -1813,21 +1874,23 @@ try_again:
                 if (ret != 0) {
                         ut_print_timestamp(stderr);
 
-                        fprintf(stderr,
-"  InnoDB: Error: MySQL synchronous replication\n"
-"InnoDB: was not able to send the binlog to the slave within the\n"
-"InnoDB: timeout %lu. We assume that the slave has become inaccessible,\n"
-"InnoDB: and switch off synchronous replication until the communication.\n"
-"InnoDB: to the slave works again.\n",
-				thd->variables.sync_replication_timeout);
-                        fprintf(stderr,
-"InnoDB: MySQL synchronous replication has sent binlog\n"
-"InnoDB: to the slave up to file %s, position %lu\n", innobase_repl_file_name,
-                                        (ulong)innobase_repl_pos);
-                        fprintf(stderr,
-"InnoDB: This transaction needs it to be sent up to\n"
-"InnoDB: file %s, position %lu\n", trx->repl_wait_binlog_name,
-                                        (ulong)trx->repl_wait_binlog_pos);
+			sql_print_error("MySQL synchronous replication was "
+					"not able to send the binlog to the "
+					"slave within the timeout %lu. We "
+					"assume that the slave has become "
+					"inaccessible, and switch off "
+					"synchronous replication until the "
+					"communication to the slave works "
+					"again. MySQL synchronous replication "
+					"has sent binlog to the slave up to "
+					"file %s, position %lu. This "
+					"transaction needs it to be sent up "
+					"to file %s, position %lu.",
+					thd->variables.sync_replication_timeout,
+					innobase_repl_file_name,
+					(ulong) innobase_repl_pos,
+					trx->repl_wait_binlog_name,
+					(ulong) trx->repl_wait_binlog_pos);
 
                         innobase_repl_state = 0;
 
@@ -1878,9 +1941,9 @@ innobase_repl_report_sent_binlog(
         if (innobase_repl_state == 0) {
 
                 ut_print_timestamp(stderr);
-                fprintf(stderr,
-"  InnoDB: Switching MySQL synchronous replication on again at\n"
-"InnoDB: binlog file %s, position %lu\n", log_file_name, (ulong)end_offset);
+		sql_print_warning("Switching MySQL synchronous replication on "
+				  "again at binlog file %s, position %lu",
+				  log_file_name, (ulong) end_offset);
 
                 innobase_repl_state = 1;
         }
@@ -1897,14 +1960,14 @@ innobase_repl_report_sent_binlog(
                     || (cmp == 0 && end_offset < innobase_repl_pos)) {
 
                         ut_print_timestamp(stderr);
-                        fprintf(stderr,
-"  InnoDB: Error: MySQL synchronous replication has sent binlog\n"
-"InnoDB: to the slave up to file %s, position %lu\n", innobase_repl_file_name,
-                                        (ulong)innobase_repl_pos);
-                        fprintf(stderr,
-"InnoDB: but now MySQL reports that it sent the binlog only up to\n"
-"InnoDB: file %s, position %lu\n", log_file_name, (ulong)end_offset);
-
+			sql_print_error("MySQL synchronous replication has "
+					"sent binlog to the slave up to file "
+					"%s, position %lu, but now MySQL "
+					"reports that it sent the binlog only "
+					"up to file %s, position %lu",
+					innobase_repl_file_name,
+					(ulong) innobase_repl_pos,
+					log_file_name, (ulong) end_offset);
                 }
         }
 
@@ -2146,15 +2209,20 @@ innobase_close_connection(
 
 	ut_a(trx);
 
-	if (trx->conc_state != TRX_NOT_STARTED) {
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-"  InnoDB: Warning: MySQL is closing a connection"
-"InnoDB: that has an active InnoDB transaction. We roll back that\n"
-"InnoDB: transaction. %lu row modifications to roll back.\n",
-			(ulong)trx->undo_no.low);
+        if (trx->active_trans == 0
+	    && trx->conc_state != TRX_NOT_STARTED) {
+	    
+	  sql_print_error("trx->active_trans == 0, but trx->conc_state != "
+			  "TRX_NOT_STARTED");
 	}
+
+
+	if (trx->conc_state != TRX_NOT_STARTED &&
+            global_system_variables.log_warnings)
+          sql_print_warning("MySQL is closing a connection that has an active "
+                            "InnoDB transaction.  %lu row modifications will "
+                            "roll back.",
+                            (ulong)trx->undo_no.low);
 
 	innobase_rollback_trx(trx);
 
@@ -2306,15 +2374,17 @@ ha_innobase::open(
 				      		     norm_name, NULL);
  	if (NULL == ib_table) {
 	        ut_print_timestamp(stderr);
-	        fprintf(stderr, "  InnoDB error:\n"
-"Cannot find table %s from the internal data dictionary\n"
-"of InnoDB though the .frm file for the table exists. Maybe you\n"
-"have deleted and recreated InnoDB data files but have forgotten\n"
-"to delete the corresponding .frm files of InnoDB tables, or you\n"
-"have moved .frm files to another database?\n"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
-"how you can resolve the problem.\n",
-			  norm_name);
+		sql_print_error("Cannot find table %s from the internal data "
+				"dictionary\nof InnoDB though the .frm file "
+				"for the table exists. Maybe you\nhave "
+				"deleted and recreated InnoDB data files but "
+				"have forgotten\nto delete the corresponding "
+				".frm files of InnoDB tables, or you\n"
+				"have moved .frm files to another database?\n"
+				"Look from section 15.1 of "
+				"http://www.innodb.com/ibman.html\n"
+				"how you can resolve the problem.\n",
+				norm_name);
 	        free_share(share);
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
@@ -2324,14 +2394,15 @@ ha_innobase::open(
 
  	if (ib_table->ibd_file_missing && !thd->tablespace_op) {
 	        ut_print_timestamp(stderr);
-	        fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to open a table handle but the .ibd file for\n"
-"table %s does not exist.\n"
-"Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
-"how you can resolve the problem.\n",
-			  norm_name);
+		sql_print_error("MySQL is trying to open a table handle but "
+				"the .ibd file for\ntable %s does not exist.\n"
+				"Have you deleted the .ibd file from the "
+				"database directory under\nthe MySQL datadir, "
+				"or have you used DISCARD TABLESPACE?\n"
+				"Look from section 15.1 of "
+				"http://www.innodb.com/ibman.html\n"
+				"how you can resolve the problem.\n",
+				norm_name);
 	        free_share(share);
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
@@ -2357,9 +2428,8 @@ ha_innobase::open(
 
   	if (!row_table_got_default_clust_index(ib_table)) {
 	        if (primary_key >= MAX_KEY) {
-	                fprintf(stderr,
-		    "InnoDB: Error: table %s has a primary key in InnoDB\n"
-		    "InnoDB: data dictionary, but not in MySQL!\n", name);
+		  sql_print_error("Table %s has a primary key in InnoDB data "
+				  "dictionary, but not in MySQL!", name);
 		}
 
 		((row_prebuilt_t*)innobase_prebuilt)
@@ -2373,16 +2443,15 @@ ha_innobase::open(
   		ref_length = table->key_info[primary_key].key_length;
 	} else {
 	        if (primary_key != MAX_KEY) {
-	                fprintf(stderr,
-		    "InnoDB: Error: table %s has no primary key in InnoDB\n"
-		    "InnoDB: data dictionary, but has one in MySQL!\n"
-		    "InnoDB: If you created the table with a MySQL\n"
-                    "InnoDB: version < 3.23.54 and did not define a primary\n"
-                    "InnoDB: key, but defined a unique key with all non-NULL\n"
-                    "InnoDB: columns, then MySQL internally treats that key\n"
-                    "InnoDB: as the primary key. You can fix this error by\n"
-		    "InnoDB: dump + DROP + CREATE + reimport of the table.\n",
-				name);
+		  sql_print_error("Table %s has no primary key in InnoDB data "
+				  "dictionary, but has one in MySQL! If you "
+				  "created the table with a MySQL version < "
+				  "3.23.54 and did not define a primary key, "
+				  "but defined a unique key with all non-NULL "
+				  "columns, then MySQL internally treats that "
+				  "key as the primary key. You can fix this "
+				  "error by dump + DROP + CREATE + reimport "
+				  "of the table.", name);
 		}
 
 		((row_prebuilt_t*)innobase_prebuilt)
@@ -2399,10 +2468,9 @@ ha_innobase::open(
 		and it will never be updated anyway. */
 	       
 		if (key_used_on_scan != MAX_KEY) {
-	                fprintf(stderr,
-"InnoDB: Warning: table %s key_used_on_scan is %lu even though there is no\n"
-"InnoDB: primary key inside InnoDB.\n",
-				name, (ulong)key_used_on_scan);
+		  sql_print_warning("Table %s key_used_on_scan is %lu even "
+				    "though there is no primary key inside "
+				    "InnoDB.", name, (ulong) key_used_on_scan);
 		}
 	}
 
@@ -2557,9 +2625,10 @@ innobase_mysql_cmp(
 			charset = get_charset(charset_number, MYF(MY_WME));
 
 			if (charset == NULL) {
-				fprintf(stderr,
-"InnoDB: fatal error: InnoDB needs charset %lu for doing a comparison,\n"
-"InnoDB: but MySQL cannot find that charset.\n", (ulong)charset_number);
+			  sql_print_error("InnoDB needs charset %lu for doing "
+					  "a comparison, but MySQL cannot "
+					  "find that charset.",
+					  (ulong) charset_number);
 				ut_a(0);
 			}
 		}
@@ -3126,11 +3195,11 @@ ha_innobase::write_row(
 
 	if (prebuilt->trx !=
                         (trx_t*) current_thd->ha_data[innobase_hton.slot]) {
-		fprintf(stderr,
-"InnoDB: Error: the transaction object for the table handle is at\n"
-"InnoDB: %p, but for the current thread it is at %p\n",
-			prebuilt->trx,
-                        (trx_t*) current_thd->ha_data[innobase_hton.slot]);
+	  sql_print_error("The transaction object for the table handle is at "
+			  "%p, but for the current thread it is at %p",
+			  prebuilt->trx,
+			  (trx_t*) current_thd->ha_data[innobase_hton.slot]);
+
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
 		fputs("\n"
@@ -3617,9 +3686,9 @@ ha_innobase::unlock_row(void)
 
 	if (last_query_id != user_thd->query_id) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"  InnoDB: Error: last_query_id is %lu != user_thd_query_id is %lu\n",
-			(ulong)last_query_id, (ulong)user_thd->query_id);
+		sql_print_error("last_query_id is %lu != user_thd_query_id is "
+				"%lu", (ulong) last_query_id,
+				(ulong) user_thd->query_id);
 		mem_analyze_corruption((byte *) prebuilt->trx);
 		ut_error;
 	}
@@ -3912,9 +3981,10 @@ ha_innobase::change_active_index(
 	}
 
 	if (!prebuilt->index) {
-	       sql_print_error(
-"Innodb could not find key n:o %u with name %s from dict cache for table %s",
-	      keynr, key ? key->name : "NULL", prebuilt->table->name);
+	       sql_print_error("Innodb could not find key n:o %u with name %s "
+			       "from dict cache for table %s",
+			       keynr, key ? key->name : "NULL",
+			       prebuilt->table->name);
 	      DBUG_RETURN(1);
 	}
 
@@ -4280,9 +4350,8 @@ ha_innobase::position(
 	table. */
   
 	if (len != ref_length) {
-		fprintf(stderr,
-	 "InnoDB: Error: stored ref len is %lu, but table ref len is %lu\n",
-		  (ulong)len, (ulong)ref_length);
+	  sql_print_error("Stored ref len is %lu, but table ref len is %lu",
+			  (ulong) len, (ulong) ref_length);  
 	}
 }
 
@@ -4487,11 +4556,13 @@ create_index(
 			    || col_type == DATA_FLOAT
 			    || col_type == DATA_DOUBLE
 			    || col_type == DATA_DECIMAL) {
-			        fprintf(stderr,
-"InnoDB: error: MySQL is trying to create a column prefix index field\n"
-"InnoDB: on an inappropriate data type. Table name %s, column name %s.\n",
-				  table_name, key_part->field->field_name);
-			        
+			  sql_print_error("MySQL is trying to create a column "
+					  "prefix index field, on an "
+					  "inappropriate data type. Table "
+					  "name %s, column name %s.",
+					  table_name,
+					  key_part->field->field_name);
+        
 			        prefix_len = 0;
 			}
 		} else {
@@ -5282,6 +5353,7 @@ ha_innobase::info(
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
 	ha_rows		rec_per_key;
+	ib_longlong	n_rows;
 	ulong		j;
 	ulong		i;
 	char		path[FN_REFLEN];
@@ -5346,7 +5418,30 @@ ha_innobase::info(
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
-    		records = (ha_rows)ib_table->stat_n_rows;
+		n_rows = ib_table->stat_n_rows;
+
+		/* Because we do not protect stat_n_rows by any mutex in a
+		delete, it is theoretically possible that the value can be
+		smaller than zero! TODO: fix this race.
+
+		The MySQL optimizer seems to assume in a left join that n_rows
+		is an accurate estimate if it is zero. Of course, it is not,
+		since we do not have any locks on the rows yet at this phase.
+		Since SHOW TABLE STATUS seems to call this function with the
+		HA_STATUS_TIME flag set, while the left join optizer does not
+		set that flag, we add one to a zero value if the flag is not
+		set. That way SHOW TABLE STATUS will show the best estimate,
+		while the optimizer never sees the table empty. */
+
+		if (n_rows < 0) {
+			n_rows = 0;
+		}
+
+		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
+			n_rows++;
+		}
+
+    		records = (ha_rows)n_rows;
     		deleted = 0;
     		data_file_length = ((ulonglong)
 				ib_table->stat_clustered_index_size)
@@ -5374,12 +5469,14 @@ ha_innobase::info(
 		for (i = 0; i < table->s->keys; i++) {
 			if (index == NULL) {
 				ut_print_timestamp(stderr);
-			        fprintf(stderr,
-"  InnoDB: Error: table %s contains less indexes inside InnoDB\n"
-"InnoDB: than are defined in the MySQL .frm file. Have you mixed up\n"
-"InnoDB: .frm files from different installations? See section\n"
-"InnoDB: 15.1 at http://www.innodb.com/ibman.html\n",
-				   ib_table->name);
+				sql_print_error("Table %s contains less "
+						"indexes inside InnoDB than "
+						"are defined in the MySQL "
+						".frm file. Have you mixed up "
+						".frm files from different "
+						"installations? See section "
+						"15.1 at http://www.innodb.com/ibman.html",
+						ib_table->name);
 				break;
 			}
 
@@ -5387,15 +5484,21 @@ ha_innobase::info(
 
 				if (j + 1 > index->n_uniq) {
 				        ut_print_timestamp(stderr);
-			                fprintf(stderr,
-"  InnoDB: Error: index %s of %s has %lu columns unique inside InnoDB\n"
-"InnoDB: but MySQL is asking statistics for %lu columns. Have you mixed up\n"
-"InnoDB: .frm files from different installations? See section\n"
-"InnoDB: 15.1 at http://www.innodb.com/ibman.html\n",
-						index->name,
-						ib_table->name,
-						(unsigned long) index->n_uniq,
-						j + 1);
+					sql_print_error("Index %s of %s has "
+							"%lu columns unique "
+							"inside InnoDB, but "
+							"MySQL is asking "
+							"statistics for %lu "
+							"columns. Have you "
+							"mixed up .frm files "
+							"from different "
+							"installations? See "
+							"section 15.1 at "
+							"http://www.innodb.com/ibman.html",
+							index->name,
+							ib_table->name,
+							(unsigned long)
+							index->n_uniq, j + 1);
 				        break;
 				}
 
@@ -5943,9 +6046,9 @@ ha_innobase::start_stmt(
 
 		if (prebuilt->stored_select_lock_type != LOCK_S
 		    && prebuilt->stored_select_lock_type != LOCK_X) {
-			fprintf(stderr,
-"InnoDB: Error: stored_select_lock_type is %lu inside ::start_stmt()!\n",
-			prebuilt->stored_select_lock_type);
+		  sql_print_error("stored_select_lock_type is %lu inside "
+				  "::start_stmt()!",
+				  prebuilt->stored_select_lock_type);
 
 			/* Set the value to LOCK_X: this is just fault
 			tolerance, we do not know what the correct value
@@ -6721,9 +6824,8 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			error = 0;
 		} else {
 			/* This should not happen in a consistent read */
-			fprintf(stderr,
-"InnoDB: Error: consistent read of auto-inc column returned %lu\n",
-								(ulong)error);
+		  sql_print_error("Consistent read of auto-inc column "
+				  "returned %lu", (ulong) error);
   			auto_inc = -1;
 
   			goto func_exit;
@@ -6780,9 +6882,8 @@ ha_innobase::get_auto_increment()
 		initialized. */
 	
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-		"  InnoDB: Error: error %lu in ::get_auto_increment()\n",
-						(ulong)error);
+		sql_print_error("Error %lu in ::get_auto_increment()",
+				(ulong) error);
           	return(~(ulonglong) 0);
 	}
 
@@ -6857,8 +6958,8 @@ ha_innobase::cmp_ref(
 			return(result);
 		}
 
-		ref1 += key_part->length;
-		ref2 += key_part->length;
+		ref1 += key_part->store_length;
+		ref2 += key_part->store_length;
 	}
 
 	return(0);
@@ -7039,7 +7140,7 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-        trx->xid=thd->transaction.xid;
+        trx->xid=thd->transaction.xid_state.xid;
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the kernel mutex, we have to release the search system latch
@@ -7049,9 +7150,8 @@ innobase_xa_prepare(
 
 	if (trx->active_trans == 0 && trx->conc_state != TRX_NOT_STARTED) {
 
-		fprintf(stderr,
-"InnoDB: Error: trx->active_trans == 0\n"
-"InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
+	  sql_print_error("trx->active_trans == 0, but trx->conc_state != "
+			  "TRX_NOT_STARTED");
 	}
 
 	if (all

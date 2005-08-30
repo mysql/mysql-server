@@ -16,26 +16,26 @@
 # Optimized longlong2str function for Intel 80x86  (gcc/gas syntax) 
 # Some set sequences are optimized for pentuimpro II 
 
-	.file	"longlong2str.s"
-	.version "1.01"
+	.file	"longlong2str-x86.s"
+	.version "1.02"
 
 .text
 	.align 4
 
-.globl	longlong2str
-	.type	 longlong2str,@function
+.globl	longlong2str_with_dig_vector
+	.type	 longlong2str_with_dig_vector,@function
 	
-longlong2str:
+longlong2str_with_dig_vector:
 	subl $80,%esp
 	pushl %ebp
 	pushl %esi
 	pushl %edi
 	pushl %ebx
 	movl 100(%esp),%esi	# Lower part of val 
-	movl 104(%esp),%ebp	# Higher part of val 
-	movl 108(%esp),%edi	# get dst 
 	movl 112(%esp),%ebx	# Radix 
+	movl 104(%esp),%ebp	# Higher part of val 
 	movl %ebx,%eax
+	movl 108(%esp),%edi	# get dst 
 	testl %eax,%eax
 	jge .L144
 
@@ -69,6 +69,8 @@ longlong2str:
 
 .L150:
 	leal 92(%esp),%ecx	# End of buffer 
+	movl %edi, 108(%esp)    # Store possible modified dest
+	movl 116(%esp), %edi    # dig_vec_upper
 	jmp  .L155
 	.align 4
 
@@ -83,7 +85,7 @@ longlong2str:
 	divl %ebx
 	decl %ecx
 	movl %eax,%esi		# quotent in ebp:esi 
-	movb _dig_vec_upper(%edx),%al   # al is faster than dl 
+	movb (%edx,%edi),%al    # al is faster than dl 
 	movb %al,(%ecx)		# store value in buff 
 	.align 4
 .L155:
@@ -91,20 +93,22 @@ longlong2str:
 	ja .L153
 	testl %esi,%esi		# rest value 
 	jl .L153
-	je .L10_mov		# Ready 
+	je .L160		# Ready 
 	movl %esi,%eax
-	movl $_dig_vec_upper,%ebp
 	.align 4
 
 .L154:				# Do rest with integer precision 
 	cltd
 	divl %ebx
 	decl %ecx
-	movb (%edx,%ebp),%dl	# bh is always zero as ebx=radix < 36 
+	movb (%edx,%edi),%dl	# bh is always zero as ebx=radix < 36 
 	testl %eax,%eax
 	movb %dl,(%ecx)
 	jne .L154
 
+.L160:
+	movl 108(%esp),%edi	# get dst 
+	
 .L10_mov:
 	movl %ecx,%esi
 	leal 92(%esp),%ecx	# End of buffer 
@@ -129,16 +133,13 @@ longlong2str:
 	jmp .L165
 
 .Lfe3:
-	.size	 longlong2str,.Lfe3-longlong2str
+	.size	 longlong2str_with_dig_vector,.Lfe3-longlong2str_with_dig_vector
 
 #
 # This is almost equal to the above, except that we can do the final
 # loop much more efficient	
 #	
 
-	.align 4
-.Ltmp:
-        .long 0xcccccccd
 	.align 4
 	
 .globl	longlong10_to_str
@@ -202,8 +203,8 @@ longlong10_to_str:
 
 	# The following code uses some tricks to change division by 10 to
 	# multiplication and shifts
-	movl .Ltmp,%esi		# set %esi to 0xcccccccd
-	
+	movl $0xcccccccd,%esi
+		
 .L10_40:
         movl %ebx,%eax
         mull %esi

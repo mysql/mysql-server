@@ -43,6 +43,9 @@ pkgdata_DATA =		my-small.cnf \
 
 pkgdata_SCRIPTS =	mysql.server
 
+noinst_DATA = mysql-@VERSION@.spec \
+			MySQL-shared-compat.spec
+
 CLEANFILES =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \

@@ -261,6 +261,7 @@ Value 10 should be good if there are less than 4 processors + 4 disks in the
 computer. Bigger computers need bigger values. */
 
 ulong	srv_thread_concurrency	= SRV_CONCURRENCY_THRESHOLD;
+ulong   srv_commit_concurrency  = 0;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
@@ -999,7 +1000,7 @@ retry:
 		fputs(
 "  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
 "InnoDB: it already is declared.\n", stderr);
-		trx_print(stderr, trx);
+		trx_print(stderr, trx, 0);
 		putc('\n', stderr);
 		os_fast_mutex_unlock(&srv_conc_mutex);
 

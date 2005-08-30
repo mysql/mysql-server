@@ -5137,8 +5137,8 @@ ER_SP_CANT_ALTER
 	eng "Failed to ALTER %s %s"
 ER_SP_SUBSELECT_NYI 0A000 
 	eng "Subselect value not supported"
-ER_SP_NO_USE 42000 
-	eng "USE is not allowed in a stored procedure"
+ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 0A000
+        eng "%s is not allowed in stored function or trigger"
 ER_SP_VARCOND_AFTER_CURSHNDLR 42000 
 	eng "Variable or condition declaration after cursor or handler declaration"
 ER_SP_CURSOR_AFTER_HANDLER 42000 
@@ -5194,7 +5194,7 @@ ER_VIEW_SELECT_VARIABLE
 	rus "View SELECT ”œƒ≈“÷…‘ –≈“≈Õ≈ŒŒ’¿ …Ã… –¡“¡Õ≈‘“"
 	ukr "View SELECT Õ¡§ ⁄Õ…ŒŒ’ ¡¬œ –¡“¡Õ≈‘≈“"
 ER_VIEW_SELECT_TMPTABLE  
-	eng "View's SELECT contains a temporary table '%-.64s'"
+	eng "View's SELECT refers to a temporary table '%-.64s'"
 	rus "View SELECT ”œƒ≈“÷…‘ ””ŸÃÀ’ Œ¡ ◊“≈Õ≈ŒŒ’¿ ‘¡¬Ã…√’ '%-.64s'"
 	ukr "View SELECT ◊…Àœ“…”‘œ◊’§ ‘…Õﬁ¡”œ◊’ ‘¡¬Ã…√¿ '%-.64s'"
 ER_VIEW_WRONG_LIST  
@@ -5342,8 +5342,8 @@ ER_SP_DUP_HANDLER 42000
 	eng "Duplicate handler declared in the same block"
 ER_SP_NOT_VAR_ARG 42000
 	eng "OUT or INOUT argument %d for routine %s is not a variable"
-ER_SP_NO_RETSET_IN_FUNC 0A000
-	eng "Not allowed to return a result set from a function"
+ER_SP_NO_RETSET 0A000
+	eng "Not allowed to return a result set from a %s"
 ER_CANT_CREATE_GEOMETRY_OBJECT 22003 
 	eng "Cannot get geometry object from data you send to the GEOMETRY field"
 ER_FAILED_ROUTINE_BREAK_BINLOG
@@ -5380,14 +5380,25 @@ ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE
         eng "Can't create federated table. The data source connection string '%-.64s' is not in the correct format"
 ER_FOREIGN_DATA_STRING_INVALID
         eng "The data source connection string '%-.64s' is not in the correct format"
-ER_CANT_CREATE_FEDERATED_TABLE
-        eng "Can't create federated table. Foreign data src error : '%-.64s'"
-ER_TRG_IN_WRONG_SCHEMA
-        eng "Trigger in wrong schema"
+ER_CANT_CREATE_FEDERATED_TABLE  
+	eng "Can't create federated table. Foreign data src error : '%-.64s'"
+ER_TRG_IN_WRONG_SCHEMA  
+	eng "Trigger in wrong schema"
 ER_STACK_OVERRUN_NEED_MORE
 	eng "Thread stack overrun:  %ld bytes used of a %ld byte stack, and %ld bytes needed.  Use 'mysqld -O thread_stack=#' to specify a bigger stack."
 ER_TOO_LONG_BODY 42000 S1009
 	eng "Routine body for '%-.100s' is too long"
+ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+	eng "Cannot drop default keycache"
+        ger "Der Default-Keycache kann nicht gelˆscht werden"
+ER_TOO_BIG_DISPLAYWIDTH 42000 S1009
+	eng "Display width out of range for column '%-.64s' (max = %d)"
+ER_XAER_DUPID XAE08
+        eng "XAER_DUPID: The XID already exists"
+ER_DATETIME_FUNCTION_OVERFLOW 22008
+        eng "Datetime function: %-.32s field overflow"
+ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+        eng "Can't update table '%-.64s' in stored function/trigger because it is already used by statement which invoked this stored function/trigger."
 ER_PARTITION_REQUIRES_VALUES_ERROR
         eng "%s PARTITIONING requires definition of VALUES %s for each partition"
         swe "%s PARTITIONering kr‰ver definition av VALUES %s fˆr varje partition"
@@ -5440,7 +5451,7 @@ ER_PARTITION_ENTRY_ERROR
         eng "Partitioning can not be used stand-alone in query"
         swe "Partitioneringssyntax kan inte anv‰ndas pÂ egen hand i en SQL-frÂga"
 ER_MIX_HANDLER_ERROR
-        eng "The mix of handlers in the partitions is not allowed in this version in MySQL"
+        eng "The mix of handlers in the partitions is not allowed in this version of MySQL"
         swe "Denna mix av lagringsmotorer ‰r inte tillÂten i denna version av MySQL"
 ER_PARTITION_NOT_DEFINED_ERROR
         eng "For the partitioned engine it is necessary to define all %s"
@@ -5466,3 +5477,44 @@ ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
 ER_NO_PARTS_ERROR
         eng "Number of %s = 0 is not an allowed value"
         swe "Antal %s = 0 ‰r inte ett tillÂten v‰rde"
+ER_PARTITION_MGMT_ON_NONPARTITIONED
+        eng "Partition management on a not partitioned table is not possible"
+        swe "Partitioneringskommando pÂ en opartitionerad tabell ‰r inte mˆjligt"
+ER_DROP_PARTITION_NON_EXISTENT
+        eng "Error in list of partitions to change"
+        swe "Fel i listan av partitioner att fˆr‰ndra"
+ER_DROP_LAST_PARTITION
+        eng "Cannot remove all partitions, use DROP TABLE instead"
+        swe "Det ‰r inte tillÂtet att ta bort alla partitioner, anv‰nd DROP TABLE ist‰llet"
+ER_COALESCE_ONLY_ON_HASH_PARTITION
+        eng "COALESCE PARTITION can only be used on HASH/KEY partitions"
+        swe "COALESCE PARTITION kan bara anv‰ndas pÂ HASH/KEY partitioner"
+ER_ONLY_ON_RANGE_LIST_PARTITION
+        eng "%s PARTITION can only be used on RANGE/LIST partitions"
+        eng "%s PARTITION kan bara anv‰ndas pÂ RANGE/LIST partitioner"
+ER_ADD_PARTITION_SUBPART_ERROR
+        eng "Trying to Add partition(s) with wrong number of subpartitions"
+        swe "ADD PARTITION med fel antal subpartitioner"
+ER_ADD_PARTITION_NO_NEW_PARTITION
+        eng "At least one partition must be added"
+        swe "≈tminstone en partition mÂste l‰ggas till vid ADD PARTITION"
+ER_COALESCE_PARTITION_NO_PARTITION
+        eng "At least one partition must be coalesced"
+        swe "≈tminstone en partition mÂste slÂs ihop vid COALESCE PARTITION"
+ER_REORG_PARTITION_NOT_EXIST
+        eng "More partitions to reorganise than there are partitions"
+        swe "Fler partitioner att reorganisera ‰n det finns partitioner"
+ER_SAME_NAME_PARTITION
+        eng "All partitions must have unique names in the table"
+        swe "Alla partitioner i tabellen mÂste ha unika namn"
+ER_CONSECUTIVE_REORG_PARTITIONS
+        eng "When reorganising a set of partitions they must be in consecutive order"
+        swe "N‰r ett antal partitioner omorganiseras mÂste de vara i konsekutiv ordning"
+ER_REORG_OUTSIDE_RANGE
+        eng "The new partitions cover a bigger range then the reorganised partitions do"
+        swe "De nya partitionerna t‰cker ett stˆrre intervall ‰n de omorganiserade partitionerna"
+ER_DROP_PARTITION_FAILURE
+        eng "Drop partition not supported in this version for this handler"
+ER_DROP_PARTITION_WHEN_FK_DEFINED
+        eng "Cannot drop a partition when a foreign key constraint is defined on the table"
+        swe "Kan inte ta bort en partition n‰r en fr‰mmande nyckel ‰r definierad pÂ tabellen"

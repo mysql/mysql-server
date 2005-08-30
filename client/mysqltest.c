@@ -2781,6 +2781,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
     if (!disable_result_log)
     {
       ulong affected_rows;    /* Ok to be undef if 'disable_info' is set */
+      LINT_INIT(affected_rows);
 
       if (res)
       {

@@ -413,6 +413,8 @@ sys_var_long_ptr  sys_innodb_thread_sleep_delay("innodb_thread_sleep_delay",
                                                 &srv_thread_sleep_delay);
 sys_var_long_ptr  sys_innodb_thread_concurrency("innodb_thread_concurrency",
                                                 &srv_thread_concurrency);
+sys_var_long_ptr  sys_innodb_commit_concurrency("innodb_commit_concurrency",
+                                                &srv_commit_concurrency);
 #endif
 
 /* Condition pushdown to storage engine */
@@ -711,6 +713,7 @@ sys_var *sys_variables[]=
   &sys_innodb_concurrency_tickets,
   &sys_innodb_thread_sleep_delay,
   &sys_innodb_thread_concurrency,
+  &sys_innodb_commit_concurrency,
 #endif  
   &sys_trust_routine_creators,
   &sys_engine_condition_pushdown,
@@ -832,6 +835,7 @@ struct show_var_st init_vars[]= {
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
+  {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
@@ -2298,7 +2302,12 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   if (!tmp)					// Zero size means delete
   {
     if (key_cache == dflt_key_cache)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_CANT_DROP_DEFAULT_KEYCACHE,
+                          ER(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE));
       goto end;					// Ignore default key cache
+    }
 
     if (key_cache->key_cache_inited)		// If initied
     {
@@ -3100,7 +3109,18 @@ int set_var_password::check(THD *thd)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
-    user->host.str= (char*) thd->host_or_ip;
+  {
+    if (thd->priv_host != 0)
+    {
+      user->host.str= (char *) thd->priv_host;
+      user->host.length= strlen(thd->priv_host);
+    }
+    else
+    {
+      user->host.str= (char *)"%";
+      user->host.length= 1;
+    }
+  }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,
                                password, strlen(password)) ? 1 : 0;

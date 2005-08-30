@@ -3297,7 +3297,7 @@ lock_deadlock_recursive(
 
 				fputs("\n*** (1) TRANSACTION:\n", ef);
 
-				trx_print(ef, wait_lock->trx);
+				trx_print(ef, wait_lock->trx, 3000);
 
 				fputs(
 			"*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
@@ -3310,7 +3310,7 @@ lock_deadlock_recursive(
 			
 				fputs("*** (2) TRANSACTION:\n", ef);
 
-				trx_print(ef, lock->trx);
+				trx_print(ef, lock->trx, 3000);
 
 				fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
 			
@@ -4207,7 +4207,7 @@ lock_print_info_all_transactions(
 	while (trx) {
 		if (trx->conc_state == TRX_NOT_STARTED) {
 			fputs("---", file);
-			trx_print(file, trx);
+			trx_print(file, trx, 600);
 		}
 			
 		trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
@@ -4239,7 +4239,7 @@ loop:
 
 	if (nth_lock == 0) {
 		fputs("---", file);
-		trx_print(file, trx);
+		trx_print(file, trx, 600);
 		
 	        if (trx->read_view) {
 			fprintf(file,

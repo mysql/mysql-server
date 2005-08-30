@@ -48,8 +48,14 @@ class sp_rcontext : public Sql_alloc
 
  public:
 
-  MEM_ROOT *callers_mem_root;	// Used to store result fields
   bool in_handler;
+  /*
+    Arena used to (re) allocate items on . E.g. reallocate INOUT/OUT
+    SP parameters when they don't fit into prealloced items. This
+    is common situation with String items. It is used mainly in
+    sp_eval_func_item().
+  */
+  Query_arena *callers_arena;
 
   sp_rcontext(uint fsize, uint hmax, uint cmax);
 

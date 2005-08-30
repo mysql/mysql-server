@@ -79,6 +79,7 @@ int HandleServiceOptions(Options options);
 
 int main(int argc, char *argv[])
 {
+  int return_value= 1;
   init_environment(argv[0]);
   Options options;
   struct passwd *user_info;
@@ -90,10 +91,7 @@ int main(int argc, char *argv[])
   if ((user_info= check_user(options.user)))
   {
       if (set_user(options.user, user_info))
-      {
-        options.cleanup();
         goto err;
-      }
   }
 
   if (options.run_as_service)
@@ -105,17 +103,18 @@ int main(int argc, char *argv[])
   }
 #else
 #ifdef NDEBUG
-  return HandleServiceOptions(options);
+  return_value= HandleServiceOptions(options);
+  goto err;   /* this is not always an error but we reuse the label */
 #endif
 #endif
 
   manager(options);
+  return_value= 0;
+
+err:
   options.cleanup();
   my_end(0);
-  return 0;
-err:
-  my_end(0);
-  return 1;
+  return return_value;
 }
 
 /******************* Auxilary functions implementation **********************/

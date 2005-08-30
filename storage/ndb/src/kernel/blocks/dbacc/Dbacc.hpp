@@ -851,13 +851,6 @@ struct Tabrec {
   Uint32 fragptrholder[MAX_FRAG_PER_NODE];
   Uint32 tabUserPtr;
   BlockReference tabUserRef;
-
-  Uint8 noOfKeyAttr;
-  Uint8 hasCharAttr;
-  struct KeyAttr {
-    Uint32 attributeDescriptor;
-    CHARSET_INFO* charsetInfo;
-  } keyAttr[MAX_ATTRIBUTES_IN_INDEX];
 };
   typedef Ptr<Tabrec> TabrecPtr;
 
@@ -903,7 +896,6 @@ private:
   void execACCKEYREQ(Signal* signal);
   void execACCSEIZEREQ(Signal* signal);
   void execACCFRAGREQ(Signal* signal);
-  void execTC_SCHVERREQ(Signal* signal);
   void execACC_SRREQ(Signal* signal);
   void execNEXT_SCANREQ(Signal* signal);
   void execACC_ABORTREQ(Signal* signal);

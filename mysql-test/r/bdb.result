@@ -737,6 +737,11 @@ a
 1
 2
 3
+select a from t1 natural join t1 as t2 where b >= @a order by a;
+a
+1
+2
+3
 update t1 set a=5 where a=1;
 select a from t1;
 a

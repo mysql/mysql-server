@@ -362,7 +362,12 @@ my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
-bool opt_ndb_linear_hash;
+
+const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
+TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
+				    "", ndb_distribution_names, NULL };
+const char *opt_ndb_distribution= ndb_distribution_names[ND_KEYHASH];
+enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -389,8 +394,8 @@ uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint tc_heuristic_recover= 0;
 uint volatile thread_count, thread_running;
-ulong back_log, connect_timeout, concurrency;
-ulong server_id, thd_startup_options;
+ulonglong thd_startup_options;
+ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
@@ -715,7 +720,6 @@ static void close_connections(void)
   }
 #endif
   end_thr_alarm(0);			 // Abort old alarms.
-  end_slave();
 
   /*
     First signal all threads that it's time to die
@@ -731,6 +735,10 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
+    /* We skip slave threads on this first loop through. */
+    if (tmp->slave_thread)
+      continue;
+
     tmp->killed= THD::KILL_CONNECTION;
     if (tmp->mysys_var)
     {
@@ -746,6 +754,8 @@ static void close_connections(void)
     }
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
+
+  end_slave();
 
   if (thread_count)
     sleep(2);					// Give threads time to die
@@ -1051,6 +1061,7 @@ void clean_up(bool print_message)
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
   if (tc_log)
     tc_log->close();
+  xid_cache_free();
   delete_elements(&key_caches, (void (*)(const char*, gptr)) free_key_cache);
   multi_keycache_free();
   end_thr_alarm(1);			/* Free allocated memory */
@@ -1906,7 +1917,8 @@ static void check_data_home(const char *path)
 static void sig_reload(int signo)
 {
  // Flush everything
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, NULL);
+  bool not_used;
+  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, &not_used);
   signal(signo, SIG_ACK);
 }
 
@@ -2265,12 +2277,13 @@ static void *signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
+        bool not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
-			     (TABLE_LIST*) 0, NULL); // Flush logs
+			     (TABLE_LIST*) 0, &not_used); // Flush logs
       }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
@@ -2918,6 +2931,11 @@ server.");
     using_update_log=1;
   }
 
+  if (xid_cache_init())
+  {
+    sql_print_error("Out of memory");
+    unireg_abort(1);
+  }
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -4311,7 +4329,7 @@ enum options_mysqld
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
-  OPT_NDB_LINEAR_HASH,
+  OPT_NDB_DISTRIBUTION,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4879,16 +4897,11 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    0, GET_ULONG, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
-  {"ndb-use-linear-hash", OPT_NDB_LINEAR_HASH,
-   "Flag to indicate whether to use linear hash for default in new tables",
-   (gptr*) &opt_ndb_linear_hash,
-   (gptr*) &opt_ndb_linear_hash,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb_use_linear_hash", OPT_NDB_LINEAR_HASH,
-   "Flag to indicate whether to use linear hash for default in new tables",
-   (gptr*) &opt_ndb_linear_hash,
-   (gptr*) &opt_ndb_linear_hash,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-distibution", OPT_NDB_DISTRIBUTION,
+   "Default distribution for new tables in ndb",
+   (gptr*) &opt_ndb_distribution,
+   (gptr*) &opt_ndb_distribution,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-force-send", OPT_NDB_FORCE_SEND,
    "Force send of buffers to ndb immediately without waiting for "
    "other threads.",
@@ -5337,6 +5350,10 @@ log and this option does nothing anymore.",
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
    0, GET_LONG, REQUIRED_ARG, 20, 1, 1000, 0, 1, 0},
+  {"innodb_commit_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
+   "Helps in performance tuning in heavily concurrent environments.",
+   (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,
+   0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
   {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
    "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
     " disable a sleep",
@@ -6673,6 +6690,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
     opt_ndbcluster_connectstring= opt_ndb_constrbuf;
+    break;
+  case OPT_NDB_DISTRIBUTION:
+    int id;
+    if ((id= find_type(argument, &ndb_distribution_typelib, 2)) <= 0)
+    {
+      fprintf(stderr, 
+	      "Unknown ndb distribution type: '%s' "
+	      "(should be '%s' or '%s')\n", 
+	      argument,
+              ndb_distribution_names[ND_KEYHASH],
+              ndb_distribution_names[ND_LINHASH]);
+      exit(1);
+    }
+    opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
     break;
 #endif
   case OPT_INNODB:
