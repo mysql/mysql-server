@@ -9177,7 +9177,7 @@ static void test_create_drop()
     rc= mysql_stmt_execute(stmt_drop);
     check_execute(stmt_drop, rc);
     if (!opt_silent)
-      fprintf(stdout, "droped %i\n", i);
+      fprintf(stdout, "dropped %i\n", i);
 
     rc= mysql_stmt_execute(stmt_create_select);
     check_execute(stmt_create, rc);
@@ -9192,7 +9192,7 @@ static void test_create_drop()
     rc= mysql_stmt_execute(stmt_drop);
     check_execute(stmt_drop, rc);
     if (!opt_silent)
-      fprintf(stdout, "droped %i\n", i);
+      fprintf(stdout, "dropped %i\n", i);
   }
 
   mysql_stmt_close(stmt_create);
