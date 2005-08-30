@@ -834,6 +834,8 @@ extern ulong total_ha, total_ha_2pc;
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
                                  T != DB_TYPE_BERKELEY_DB && \
+                                 T != DB_TYPE_ARCHIVE_DB && \
+                                 T != DB_TYPE_FEDERATED_DB && \
                                  T != DB_TYPE_NDBCLUSTER)
 
 /* lookups */
