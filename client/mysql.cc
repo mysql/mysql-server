@@ -203,7 +203,7 @@ static int com_nopager(String *str, char*), com_pager(String *str, char*),
            com_edit(String *str,char*), com_shell(String *str, char *);
 #endif
 
-static int read_lines(bool execute_commands);
+static int read_and_execute(bool interactive);
 static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
 static int put_info(const char *str,INFO_TYPE info,uint error=0,
@@ -468,7 +468,7 @@ int main(int argc,char *argv[])
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
 #endif
   put_info(buff,INFO_INFO);
-  status.exit_status=read_lines(1);		// read lines and execute them
+  status.exit_status= read_and_execute(!status.batch);
   if (opt_outfile)
     end_tee();
   mysql_end(0);
@@ -526,6 +526,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+#ifdef __NETWARE__
+  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
    (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -750,6 +754,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
+#ifdef __NETWARE__
+  case OPT_AUTO_CLOSE:
+    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+    break;
+#endif
   case OPT_CHARSETS_DIR:
     strmov(mysql_charsets_dir, argument);
     charsets_dir = mysql_charsets_dir;
@@ -948,7 +957,7 @@ static int get_options(int argc, char **argv)
   return(0);
 }
 
-static int read_lines(bool execute_commands)
+static int read_and_execute(bool interactive)
 {
 #if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
   char linebuffer[254];
@@ -963,7 +972,7 @@ static int read_lines(bool execute_commands)
   
   for (;;)
   {
-    if (status.batch || !execute_commands)
+    if (!interactive)
     {
       line=batch_readline(status.line_buff);
       line_number++;
@@ -1041,7 +1050,7 @@ static int read_lines(bool execute_commands)
       Check if line is a mysql command line
       (We want to allow help, print and clear anywhere at line start
     */
-    if (execute_commands && (named_cmds || glob_buffer.is_empty()) 
+    if ((named_cmds || glob_buffer.is_empty())
 	&& !in_string && (com=find_command(line,0)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
@@ -1049,7 +1058,7 @@ static int read_lines(bool execute_commands)
       if (glob_buffer.is_empty())		// If buffer was emptied
 	in_string=0;
 #ifdef HAVE_READLINE
-      if (status.add_to_history && not_in_history(line))
+      if (interactive && status.add_to_history && not_in_history(line))
 	add_history(line);
 #endif
       continue;
@@ -1059,7 +1068,7 @@ static int read_lines(bool execute_commands)
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
 
-  if ((status.batch || !execute_commands) && !status.exit_status)
+  if (!interactive && !status.exit_status)
   {
     remove_cntrl(glob_buffer);
     if (!glob_buffer.is_empty())
@@ -2774,7 +2783,7 @@ static int com_source(String *buffer, char *line)
   status.line_buff=line_buff;
   status.file_name=source_name;
   glob_buffer.length(0);			// Empty command buffer
-  error=read_lines(0);				// Read lines from file
+  error= read_and_execute(false);
   status=old_status;				// Continue as before
   my_fclose(sql_file,MYF(0));
   batch_readline_end(line_buff);

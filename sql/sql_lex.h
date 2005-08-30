@@ -717,6 +717,10 @@ typedef struct st_lex
   SELECT_LEX *all_selects_list;
   uchar *buf;			/* The beginning of string, used by SPs */
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
+  
+  /* The values of tok_start/tok_end as they were one call of yylex before */
+  uchar *tok_start_prev, *tok_end_prev;
+
   char *length,*dec,*change,*name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */

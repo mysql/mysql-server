@@ -1302,6 +1302,7 @@ rename table t3 to t4;
 select * from t4 where fld3='bonfire';
 select count(*) from t4;
 
+# End of 4.1 tests
 
 #
 # Test for insert after select
@@ -1326,12 +1327,25 @@ SELECT * FROM t2;
 INSERT INTO t2 VALUES (1,000001,00,'Omaha','teethe','neat','') , (2,011401,37,'breaking','dreaded','Steinberg','W') , (3,011402,37,'Romans','scholastics','jarring','') , (4,011403,37,'intercepted','audiology','tinily','');
 SELECT * FROM t2;
 
+#
+# For bug #12836
+# Delete was allowing all rows to be removed
+DELETE FROM t2;
+SELECT * FROM t2;
+INSERT INTO t2 VALUES (2,011401,37,'breaking','dreaded','Steinberg','W');
+INSERT INTO t2 VALUES (3,011402,37,'Romans','scholastics','jarring','');
+INSERT INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
+SELECT * FROM t2;
+TRUNCATE TABLE t2;
+SELECT * FROM t2;
+
+
 # Just test syntax, we will never know if the out put is right or wrong
 # Must be the last test
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
 # 
 # Cleanup, test is over
 #
-drop table t1, t2, t4;
 
-# End of 4.1 tests
+
+drop table t1, t2, t4;

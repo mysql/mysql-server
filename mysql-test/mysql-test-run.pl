@@ -142,6 +142,7 @@ our $glob_timers=                 undef;
 our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_embedded_server=    0;
+our @glob_test_mode;
 
 our $glob_basedir;
 
@@ -606,12 +607,18 @@ sub command_line_setup () {
   if ( $opt_embedded_server )
   {
     $glob_use_embedded_server= 1;
+    push(@glob_test_mode, "embedded");
     $opt_skip_rpl= 1;              # We never run replication with embedded
 
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern with --embedded-server");
     }
+  }
+
+  if ( $opt_ps_protocol )
+  {
+    push(@glob_test_mode, "ps-protocol");
   }
 
   # FIXME don't understand what this is
@@ -1562,8 +1569,9 @@ sub report_failure_and_restart ($) {
   print "\n";
   if ( ! $opt_force )
   {
-    print "Aborting: $tinfo->{'name'} failed. To continue, re-run with '--force'.";
-    print "\n";
+    my $test_mode= join(" ", @::glob_test_mode) || "default";
+    print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
+    print "To continue, re-run with '--force'.\n";
     if ( ! $opt_gdb and ! $glob_use_running_server and
          ! $opt_ddd and ! $glob_use_embedded_server )
     {

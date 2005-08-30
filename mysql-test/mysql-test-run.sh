@@ -872,7 +872,7 @@ report_stats () {
 	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% were successful."
 	$ECHO ""
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
-	$ECHO "of what when wrong."
+	$ECHO "of what went wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
         $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
     fi

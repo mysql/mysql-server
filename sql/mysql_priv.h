@@ -34,6 +34,7 @@
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
 #include "sql_bitmap.h"
+#include "sql_array.h"
 
 #ifdef __EMX__
 #undef write  /* remove pthread.h macro definition for EMX */
@@ -762,8 +763,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
-bool mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
-                  ha_rows rows, ulonglong options);
+bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
+                  SQL_LIST *order, ha_rows rows, ulonglong options,
+                  bool reset_auto_increment);
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);

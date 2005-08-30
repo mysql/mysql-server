@@ -461,7 +461,8 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
     /* Instance has no such log */
     if (logpath == NULL)
       return ER_NO_SUCH_LOG;
-    else if (*logpath == '\0')
+
+    if (*logpath == '\0')
       return ER_GUESS_LOGFILE;
 
 
@@ -571,6 +572,7 @@ int Show_instance_log_files::execute(struct st_net *net, ulong connection_id)
   if ((instance= instance_map->
                  find(instance_name, strlen(instance_name))) == NULL)
     goto err;
+
   {
     /*
       We have alike structure in instance_options.cc. We use such to be able
@@ -686,7 +688,7 @@ Set_option::Set_option(Instance_map *instance_map_arg,
   option.
 
   RETURN
-    ER_BAD_INSTANCE_NAME    The instance name specified is not valid
+    ER_OUT_OF_RESOURCES     out of resources
     ER_ACCESS_OPTION_FILE   Cannot access the option file
     0 - ok
 */
@@ -694,22 +696,14 @@ Set_option::Set_option(Instance_map *instance_map_arg,
 int Set_option::correct_file(int skip)
 {
   int error;
+  const static int mysys_to_im_error[]= { 0, ER_OUT_OF_RESOURCES,
+                                             ER_ACCESS_OPTION_FILE };
 
   error= modify_defaults_file(Options::config_file, option,
                               option_value, instance_name, skip);
-  switch (error)
-  {
-  case 0:
-    return 0;                                   /* everything was fine */
-  case 1:
-    return ER_OUT_OF_RESOURCES;
-  case 2:
-    return ER_ACCESS_OPTION_FILE;
-  default:
-    DBUG_ASSERT(0);                           /* should never get here */
-  }
+  DBUG_ASSERT(error >= 0 && error <= 2);
 
-  return 0;                                   /* keep compiler happy */
+  return mysys_to_im_error[error];
 }
 
 
@@ -725,10 +719,9 @@ int Set_option::correct_file(int skip)
     1 - error occured
 */
 
-
 int Set_option::do_command(struct st_net *net)
 {
-  int error= 0;
+  int error;
 
   /* we must hold the instance_map mutex while changing config file */
   instance_map->lock();
@@ -746,16 +739,14 @@ int Set_option::execute(struct st_net *net, ulong connection_id)
     int val;
 
     val= do_command(net);
+
     if (val == 0)
-    {
       net_send_ok(net, connection_id, NULL);
-      return 0;
-    }
 
     return val;
   }
-  else
-    return ER_BAD_INSTANCE_NAME;
+
+  return ER_BAD_INSTANCE_NAME;
 }
 
 
@@ -785,16 +776,15 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
 
   if (instance == 0)
     return ER_BAD_INSTANCE_NAME; /* haven't found an instance */
-  else
-  {
-    if (!(instance->options.nonguarded))
-        instance_map->guardian->
-               stop_guard(instance);
-    if ((err_code= instance->stop()))
-      return err_code;
-    net_send_ok(net, connection_id, NULL);
-    return 0;
-  }
+
+  if (!(instance->options.nonguarded))
+    instance_map->guardian->stop_guard(instance);
+
+  if ((err_code= instance->stop()))
+    return err_code;
+
+  net_send_ok(net, connection_id, NULL);
+  return 0;
 }
 
 
