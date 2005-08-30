@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "parse.h"
-#include "factory.h"
+#include "commands.h"
 
 #include <string.h>
 
@@ -114,7 +114,7 @@ int get_text_id(const char **text, uint *word_len, const char **id)
 }
 
 
-Command *parse_command(Command_factory *factory, const char *text)
+Command *parse_command(Instance_map *map, const char *text)
 {
   uint word_len;
   const char *instance_name;
@@ -147,10 +147,10 @@ Command *parse_command(Command_factory *factory, const char *text)
     if (word_len)
       goto syntax_error;
 
-    command= (tok1 == TOK_START) ? (Command *)
-              factory->new_Start_instance(instance_name, instance_name_len):
-              (Command *)
-              factory->new_Stop_instance(instance_name, instance_name_len);
+    if (tok1 == TOK_START)
+      command= new Start_instance(map, instance_name, instance_name_len);
+    else
+      command= new Stop_instance(map, instance_name, instance_name_len);
     break;
   case TOK_FLUSH:
     if (shift_token(&text, &word_len) != TOK_INSTANCES)
@@ -160,7 +160,7 @@ Command *parse_command(Command_factory *factory, const char *text)
     if (word_len)
       goto syntax_error;
 
-    command= factory->new_Flush_instances();
+    command= new Flush_instances(map);
     break;
   case TOK_UNSET:
     skip= true;
@@ -201,13 +201,13 @@ Command *parse_command(Command_factory *factory, const char *text)
       goto syntax_error;
 
     if (skip)
-      command= factory->new_Unset_option(instance_name, instance_name_len,
-                                         option, option_len, option_value,
-                                         option_value_len);
+      command= new  Unset_option(map, instance_name, instance_name_len,
+                                 option, option_len, option_value,
+                                 option_value_len);
     else
-      command= factory->new_Set_option(instance_name, instance_name_len,
-                                       option, option_len, option_value,
-                                       option_value_len);
+      command= new Set_option(map, instance_name, instance_name_len,
+                              option, option_len, option_value,
+                              option_value_len);
     break;
   case TOK_SHOW:
     switch (shift_token(&text, &word_len)) {
@@ -215,7 +215,7 @@ Command *parse_command(Command_factory *factory, const char *text)
       get_word(&text, &word_len);
       if (word_len)
         goto syntax_error;
-      command= factory->new_Show_instances();
+      command= new Show_instances(map);
       break;
     case TOK_INSTANCE:
       switch (Token tok2= shift_token(&text, &word_len)) {
@@ -227,12 +227,12 @@ Command *parse_command(Command_factory *factory, const char *text)
         get_word(&text, &word_len);
         if (word_len)
           goto syntax_error;
-        command= (tok2 == TOK_STATUS) ? (Command *)
-                  factory->new_Show_instance_status(instance_name,
-                                                    instance_name_len):
-                  (Command *)
-                  factory->new_Show_instance_options(instance_name,
-                                                     instance_name_len);
+        if (tok2 == TOK_STATUS)
+          command= new Show_instance_status(map, instance_name,
+                                            instance_name_len);
+        else
+          command= new Show_instance_options(map, instance_name,
+                                            instance_name_len);
         break;
       default:
         goto syntax_error;
@@ -252,9 +252,8 @@ Command *parse_command(Command_factory *factory, const char *text)
             /* check that this is the end of the command */
             if (word_len)
               goto syntax_error;
-            command=  (Command *)
-                      factory->new_Show_instance_log_files(instance_name,
-                                                           instance_name_len);
+            command= new Show_instance_log_files(map, instance_name,
+                                                 instance_name_len);
             break;
           case TOK_ERROR:
           case TOK_GENERAL:
@@ -288,22 +287,16 @@ Command *parse_command(Command_factory *factory, const char *text)
                 get_word(&text, &word_len);
                 if (!word_len)
                   goto syntax_error;
-                command= (Command *)
-                      factory->new_Show_instance_log(instance_name,
-                                                     instance_name_len,
-                                                     log_type,
-                                                     log_size,
-                                                     text);
+                command= new Show_instance_log(map, instance_name,
+                                               instance_name_len, log_type,
+                                               log_size, text);
 
                 //get_text_id(&text, &log_size_len, &log_size);
                 break;
               case '\0':
-                command= (Command *)
-                      factory->new_Show_instance_log(instance_name,
-                                                     instance_name_len,
-                                                     log_type,
-                                                     log_size,
-                                                     NULL);
+                command= new Show_instance_log(map, instance_name,
+                                               instance_name_len, log_type,
+                                               log_size, NULL);
                 break; /* this is ok */
               default:
               goto syntax_error;
@@ -324,7 +317,7 @@ Command *parse_command(Command_factory *factory, const char *text)
     break;
   default:
 syntax_error:
-    command= factory->new_Syntax_error();
+    command= new Syntax_error();
   }
   return command;
 }

@@ -2,10 +2,11 @@
 # MySQL Admin
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-SCREENNAME "MySQL Admin"
+SCREENNAME "MySQL Admin[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Admin Tool"
 VERSION 4, 0
+STACKSIZE 32767
 XDCDATA ../netware/mysql.xdc
 #DEBUG
 

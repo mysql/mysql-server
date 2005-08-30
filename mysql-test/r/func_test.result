@@ -166,7 +166,6 @@ CREATE TABLE t2 (  access_id smallint(6) NOT NULL default '0',   name varchar(20
 INSERT INTO t2 VALUES (1,'Everyone',2),(2,'Help',3),(3,'Customer Support',1);
 SELECT f_acc.rank, a1.rank, a2.rank  FROM t1 LEFT JOIN t1 f1 ON  (f1.access_id=1 AND f1.faq_group_id = t1.faq_group_id) LEFT JOIN t2 a1 ON (a1.access_id =  f1.access_id) LEFT JOIN t1 f2 ON (f2.access_id=3 AND  f2.faq_group_id = t1.faq_group_id) LEFT  JOIN t2 a2 ON (a2.access_id = f2.access_id), t2 f_acc WHERE LEAST(a1.rank,a2.rank) =  f_acc.rank;
 rank	rank	rank
-2	2	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (d varchar(6), k int);
 INSERT INTO t1 VALUES (NULL, 2);
@@ -193,3 +192,15 @@ select * from t1 where a not between 1 and 2 and b not between 3 and 4;
 a	b
 4	5
 drop table t1;
+SELECT GREATEST(1,NULL) FROM DUAL;
+GREATEST(1,NULL)
+NULL
+SELECT LEAST('xxx','aaa',NULL,'yyy') FROM DUAL;
+LEAST('xxx','aaa',NULL,'yyy')
+NULL
+SELECT LEAST(1.1,1.2,NULL,1.0) FROM DUAL;
+LEAST(1.1,1.2,NULL,1.0)
+NULL
+SELECT GREATEST(1.5E+2,1.3E+2,NULL) FROM DUAL;
+GREATEST(1.5E+2,1.3E+2,NULL)
+NULL

@@ -5428,7 +5428,7 @@ ha_innobase::info(
 		is an accurate estimate if it is zero. Of course, it is not,
 		since we do not have any locks on the rows yet at this phase.
 		Since SHOW TABLE STATUS seems to call this function with the
-		HA_STATUS_TIME flag set, while the left join optizer does not
+		HA_STATUS_TIME flag set, while the left join optimizer does not
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
@@ -6888,6 +6888,28 @@ ha_innobase::get_auto_increment()
 	}
 
 	return((ulonglong) nr);
+}
+
+/* See comment in handler.h */
+int
+ha_innobase::reset_auto_increment(ulonglong value)
+{
+	DBUG_ENTER("ha_innobase::reset_auto_increment");
+
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+  	int     	error;
+
+	error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+	if (error != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(error, user_thd);
+
+		DBUG_RETURN(error);
+	}	
+
+	dict_table_autoinc_initialize(prebuilt->table, value);
+
+	DBUG_RETURN(0);
 }
 
 /***********************************************************************
