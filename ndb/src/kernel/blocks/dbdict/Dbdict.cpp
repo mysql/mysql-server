@@ -369,7 +369,7 @@ void Dbdict::execFSCLOSECONF(Signal* signal)
     jam();
     closeWriteTableConf(signal, fsPtr);
     break;
-  case FsConnectRecord::FsConnectRecord::OPEN_READ_SCHEMA2:
+  case FsConnectRecord::OPEN_READ_SCHEMA2:
     openSchemaFile(signal, 1, fsPtr.i, false);
     break;
   default:
