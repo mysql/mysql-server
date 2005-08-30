@@ -2047,12 +2047,14 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_VAR_STRING:
-    if (max_length > 255)
+    DBUG_ASSERT(collation.collation);
+    if (max_length/collation.collation->mbmaxlen > 255)
       break;					// If blob
     return new Field_varstring(max_length, maybe_null, name, table,
 			       collation.collation);
   case MYSQL_TYPE_STRING:
-    if (max_length > 255)			// If blob
+    DBUG_ASSERT(collation.collation);
+    if (max_length/collation.collation->mbmaxlen > 255)		// If blob
       break;
     return new Field_string(max_length, maybe_null, name, table,
 			    collation.collation);
