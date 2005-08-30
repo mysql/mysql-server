@@ -317,6 +317,10 @@ SOURCE=.\mf_tempfile.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\mf_unixpath.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\mf_wcomp.c
 # End Source File
 # Begin Source File
