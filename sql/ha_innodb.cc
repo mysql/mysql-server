@@ -6890,7 +6890,7 @@ ha_innobase::get_auto_increment()
 
 /* See comment in handler.h */
 int
-ha_innobase::reset_auto_increment()
+ha_innobase::reset_auto_increment(ulonglong value)
 {
 	DBUG_ENTER("ha_innobase::reset_auto_increment");
 
@@ -6905,7 +6905,7 @@ ha_innobase::reset_auto_increment()
 		DBUG_RETURN(error);
 	}	
 
-	dict_table_autoinc_initialize(prebuilt->table, 0);
+	dict_table_autoinc_initialize(prebuilt->table, value);
 
 	DBUG_RETURN(0);
 }

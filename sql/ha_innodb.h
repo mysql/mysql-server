@@ -173,7 +173,7 @@ class ha_innobase: public handler
 			     		enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER(); 
 	ulonglong get_auto_increment();
-	int reset_auto_increment();
+	int reset_auto_increment(ulonglong value);
 	
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
         /*

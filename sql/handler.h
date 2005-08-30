@@ -651,12 +651,13 @@ public:
   virtual ulonglong get_auto_increment();
   virtual void restore_auto_increment();
 
-  /* This is called after TRUNCATE is emulated by doing a 'DELETE FROM t',
-     in which case we need a separate operation for resetting the table's
-     auto-increment counter. HA_ERR_WRONG_COMMAND is returned by storage
-     engines that have no need for this, i.e. those that can always do a
-     fast TRUNCATE. */
-  virtual int reset_auto_increment()
+  /*
+    Reset the auto-increment counter to the given value, i.e. the next row
+    inserted will get the given value. This is called e.g. after TRUNCATE
+    is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
+    returned by storage engines that don't support this operation.
+  */
+  virtual int reset_auto_increment(ulonglong value)
   { return HA_ERR_WRONG_COMMAND; }
 
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}

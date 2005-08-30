@@ -27,7 +27,8 @@
 #include "sql_trigger.h"
 
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows limit, ulonglong options)
+                  SQL_LIST *order, ha_rows limit, ulonglong options,
+                  bool reset_auto_increment)
 {
   int		error;
   TABLE		*table;
@@ -230,18 +231,18 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
 
-  if ((error < 0) && (thd->lex->sql_command == SQLCOM_TRUNCATE))
+  if (reset_auto_increment && (error < 0))
   {
     /*
       We're really doing a truncate and need to reset the table's
       auto-increment counter.
     */
-    int error2 = table->file->reset_auto_increment();
+    int error2= table->file->reset_auto_increment(0);
 
     if (error2 && (error2 != HA_ERR_WRONG_COMMAND))
     {
       table->file->print_error(error2, MYF(0));
-      error = 1;
+      error= 1;
     }
   }
 
@@ -828,7 +829,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       ha_enable_transaction(thd, FALSE);
       mysql_init_select(thd->lex);
       error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
-			  HA_POS_ERROR, LL(0));
+                          HA_POS_ERROR, LL(0), TRUE);
       ha_enable_transaction(thd, TRUE);
       thd->options= save_options;
       DBUG_RETURN(error);
