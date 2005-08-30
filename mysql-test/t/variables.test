@@ -381,3 +381,10 @@ SHOW VARIABLES LIKE 'table_cache';
 SET GLOBAL table_cache=DEFAULT;
 
 # End of 4.1 tests
+
+#
+# Bug #9613: @@have_innodb
+#
+
+--replace_column 1 #
+select @@have_innodb;
