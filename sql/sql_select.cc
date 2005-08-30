@@ -4899,7 +4899,8 @@ static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
-    if (item->max_length > 255)
+    DBUG_ASSERT(item->collation.collation);
+    if (item->max_length/item->collation.collation->mbmaxlen > 255)
     {
       if (convert_blob_length)
         new_field= new Field_varstring(convert_blob_length, maybe_null,
