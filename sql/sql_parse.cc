@@ -3321,7 +3321,8 @@ end_with_restore_list:
     unit->set_limit(select_lex);
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
-                       unit->select_limit_cnt, select_lex->options);
+                       unit->select_limit_cnt, select_lex->options,
+                       FALSE);
     break;
   }
   case SQLCOM_DELETE_MULTI:
