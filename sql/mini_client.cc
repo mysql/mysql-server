@@ -399,7 +399,7 @@ mc_net_safe_read(MYSQL *mysql)
   {
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
-    if (socket_errno != SOCKET_EINTR)
+    if (!vio_was_interrupted(net->vio))
     {
       mc_end_server(mysql);
       if (net->last_errno != ER_NET_PACKET_TOO_LARGE)
