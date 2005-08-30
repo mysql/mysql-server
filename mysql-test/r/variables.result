@@ -491,3 +491,6 @@ SHOW VARIABLES LIKE 'table_cache';
 Variable_name	Value
 table_cache	1
 SET GLOBAL table_cache=DEFAULT;
+select @@have_innodb;
+@@have_innodb
+#
