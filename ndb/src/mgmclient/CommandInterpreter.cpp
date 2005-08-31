@@ -1909,47 +1909,54 @@ CommandInterpreter::executeEventReporting(int processId,
     return;
   }
   BaseString tmp(parameters);
-  Vector<BaseString> spec;
-  tmp.split(spec, "=");
-  if(spec.size() != 2){
-    ndbout << "Invalid loglevel specification: " << parameters << endl;
-    return;
-  }
+  Vector<BaseString> specs;
+  tmp.split(specs, " ");
 
-  spec[0].trim().ndb_toupper();
-  int category = ndb_mgm_match_event_category(spec[0].c_str());
-  if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
-    if(!convert(spec[0].c_str(), category) ||
-       category < NDB_MGM_MIN_EVENT_CATEGORY ||
-       category > NDB_MGM_MAX_EVENT_CATEGORY){
-      ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
-      return;
+  for (int i=0; i < specs.size(); i++)
+  {
+    Vector<BaseString> spec;
+    specs[i].split(spec, "=");
+    if(spec.size() != 2){
+      ndbout << "Invalid loglevel specification: " << specs[i] << endl;
+      continue;
+    }
+
+    spec[0].trim().ndb_toupper();
+    int category = ndb_mgm_match_event_category(spec[0].c_str());
+    if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
+      if(!convert(spec[0].c_str(), category) ||
+	 category < NDB_MGM_MIN_EVENT_CATEGORY ||
+	 category > NDB_MGM_MAX_EVENT_CATEGORY){
+	ndbout << "Unknown category: \"" << spec[0].c_str() << "\"" << endl;
+	continue;
+      }
+    }
+
+    int level;
+    if (!convert(spec[1].c_str(),level))
+    {
+      ndbout << "Invalid level: " << spec[1].c_str() << endl;
+      continue;
+    }
+
+    ndbout << "Executing CLUSTERLOG " << spec[0] << "=" << spec[1]
+	   << " on node " << processId << flush;
+
+    struct ndb_mgm_reply reply;
+    int result;
+    result = ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
+					     processId,
+					     (ndb_mgm_event_category)category,
+					     level, 
+					     &reply);
+  
+    if (result != 0) {
+      ndbout_c(" failed."); 
+      printError();
+    } else {
+      ndbout_c(" OK!"); 
     }
   }
-
-  int level;
-  if (!convert(spec[1].c_str(),level))
-  {
-    ndbout << "Invalid level: " << spec[1].c_str() << endl;
-    return;
-  }
-
-  ndbout << "Executing CLUSTERLOG on node " << processId << flush;
-
-  struct ndb_mgm_reply reply;
-  int result;
-  result = ndb_mgm_set_loglevel_clusterlog(m_mgmsrv, 
-					   processId,
-					   (ndb_mgm_event_category)category,
-					   level, 
-					   &reply);
-  
-  if (result != 0) {
-    ndbout_c(" failed."); 
-    printError();
-  } else {
-    ndbout_c(" OK!"); 
-  }  
 }
 
 /*****************************************************************************
