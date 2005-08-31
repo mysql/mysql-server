@@ -144,6 +144,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   const SystemError * const sysErr = (SystemError *)signal->getDataPtr();
   char buf[100];
   int killingNode = refToNode(sysErr->errorRef);
+  Uint32 data1 = sysErr->data1;
   
   jamEntry();
   switch (sysErr->errorCode){
@@ -178,8 +179,9 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   case SystemError::CopyFragRefError:
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
-	     "it could not copy a fragment during node restart",     
-	     killingNode);
+	     "it could not copy a fragment during node restart. "
+	     "Copy fragment error code: %u.",
+	     killingNode, data1);
     break;
 
   default:
@@ -2389,12 +2391,6 @@ Ndbcntr::clearFilesystem(Signal* signal){
   sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
              FsRemoveReq::SignalLength, JBA);
   c_fsRemoveCount++;
-}
-
-void
-Ndbcntr::execFSREMOVEREF(Signal* signal){
-  jamEntry();
-  ndbrequire(0);
 }
 
 void

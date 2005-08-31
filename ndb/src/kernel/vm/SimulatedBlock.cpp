@@ -29,6 +29,7 @@
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ContinueFragmented.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
+#include <signaldata/FsRef.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
 
@@ -140,6 +141,13 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_UTIL_UNLOCK_REF]  = &SimulatedBlock::execUTIL_UNLOCK_REF;
   a[GSN_UTIL_UNLOCK_CONF] = &SimulatedBlock::execUTIL_UNLOCK_CONF;
   a[GSN_READ_CONFIG_REQ] = &SimulatedBlock::execREAD_CONFIG_REQ;
+  a[GSN_FSOPENREF]    = &SimulatedBlock::execFSOPENREF;
+  a[GSN_FSCLOSEREF]   = &SimulatedBlock::execFSCLOSEREF;
+  a[GSN_FSWRITEREF]   = &SimulatedBlock::execFSWRITEREF;
+  a[GSN_FSREADREF]    = &SimulatedBlock::execFSREADREF;
+  a[GSN_FSREMOVEREF]  = &SimulatedBlock::execFSREMOVEREF;
+  a[GSN_FSSYNCREF]    = &SimulatedBlock::execFSSYNCREF;
+  a[GSN_FSAPPENDREF]  = &SimulatedBlock::execFSAPPENDREF;
 }
 
 void
@@ -1779,6 +1787,61 @@ SimulatedBlock::execUPGRADE(Signal* signal){
     UpgradeStartup::execCNTR_MASTER_REPLY(* this, signal);
     break;
   }
+}
+
+void
+SimulatedBlock::fsRefError(Signal* signal, Uint32 line, const char *msg) 
+{
+  const FsRef *fsRef = (FsRef*)signal->getDataPtr();
+  Uint32 errorCode = fsRef->errorCode;
+  Uint32 osErrorCode = fsRef->osErrorCode;
+  char msg2[100];
+
+  sprintf(msg2, "%s: %s. OS errno: %u", getBlockName(number()), msg, osErrorCode);
+
+  progError(line, errorCode, msg2);
+}
+
+void
+SimulatedBlock::execFSWRITEREF(Signal* signal) 
+{
+  fsRefError(signal, __LINE__, "File system write failed");
+}
+
+void
+SimulatedBlock::execFSREADREF(Signal* signal) 
+{
+  fsRefError(signal, __LINE__, "File system read failed");
+}
+
+void
+SimulatedBlock::execFSCLOSEREF(Signal* signal) 
+{
+  fsRefError(signal, __LINE__, "File system close failed");
+}
+
+void
+SimulatedBlock::execFSOPENREF(Signal* signal) 
+{
+  fsRefError(signal, __LINE__, "File system open failed");
+}
+
+void
+SimulatedBlock::execFSREMOVEREF(Signal* signal) 
+{
+  fsRefError(signal, __LINE__, "File system remove failed");
+}
+
+void
+SimulatedBlock::execFSSYNCREF(Signal* signal) 
+{
+  fsRefError(signal, __LINE__, "File system sync failed");
+}
+
+void
+SimulatedBlock::execFSAPPENDREF(Signal* signal) 
+{
+  fsRefError(signal, __LINE__, "File system append failed");
 }
 
 #ifdef VM_TRACE

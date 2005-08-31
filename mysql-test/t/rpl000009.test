@@ -167,7 +167,7 @@ drop database mysqltest2;
 save_master_pos;
 connection slave;
 sync_with_master;
-# These has to be droped on slave as they are not replicated
+# These have to be dropped on slave because they are not replicated
 drop database mysqltest2;
 drop database mysqltest3;
 

@@ -3241,7 +3241,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
-    /* Check if field should be droped */
+    /* Check if field should be dropped */
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))

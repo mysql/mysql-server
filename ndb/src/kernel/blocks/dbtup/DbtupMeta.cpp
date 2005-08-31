@@ -702,10 +702,3 @@ void Dbtup::execFSREMOVECONF(Signal* signal)
   initTab(tabPtr.p);
 }//Dbtup::execFSREMOVECONF()
 
-void Dbtup::execFSREMOVEREF(Signal* signal)
-{
-  ljamEntry();
-  ndbrequire(false);
-}//Dbtup::execFSREMOVEREF()
-
-
