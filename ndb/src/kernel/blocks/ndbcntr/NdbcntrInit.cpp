@@ -100,7 +100,6 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
   addRecSignal(GSN_STTORRY, &Ndbcntr::execSTTORRY);
   addRecSignal(GSN_READ_CONFIG_CONF, &Ndbcntr::execREAD_CONFIG_CONF);
 
-  addRecSignal(GSN_FSREMOVEREF, &Ndbcntr::execFSREMOVEREF);
   addRecSignal(GSN_FSREMOVECONF, &Ndbcntr::execFSREMOVECONF);
   
   initData();
