@@ -308,13 +308,41 @@ test2
 test3
 test4
 1
-mysqltest: In included file "./include/mysqltest_while.inc": At line 32: Nesting too deeply
+mysqltest: In included file "./include/mysqltest_while.inc": At line 64: Nesting too deeply
 mysqltest: At line 1: missing '(' in while
 mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
 mysqltest: At line 1: Stray '}' - end of block before beginning
-mysqltest: At line 1: Stray '}' - end of block before beginning
+mysqltest: At line 1: Stray 'end' command - end of block before beginning
 mysqltest: At line 1: query '' failed: 1065: Query was empty
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
 mysqltest: At line 3: Missing end of block
 mysqltest: At line 1: Missing newline between while and '{'
+mysqltest: At line 1: missing '(' in if
+mysqltest: At line 1: Stray 'end' command - end of block before beginning
+select "b" bs col1, "c" bs col2;
+col1	col2
+b	c
+seledt "b" bs dol1, "d" bs dol2;
+dol1	dol2
+b	d
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a;'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a '
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c'
+mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c '
+select "a" as col1, "c" as col2;
+col1	col2
+b	c
+select "a" as col1, "c" as col2;
+col1	col2
+b	d
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a'
+mysqltest: At line 1: Wrong number of arguments to replace_column in 'replace_column 1'
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a b'
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column a 1'
+mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1 b c '
+mysqltest: At line 1: Invalid integer argument "10!"
+mysqltest: At line 1: End of line junk detected: "!"
+mysqltest: At line 1: Invalid integer argument "a"
