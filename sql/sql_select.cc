@@ -7963,7 +7963,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
       new_field= item->tmp_table_field_from_field_type(table);
-    else if (item->max_length > 255 && convert_blob_length)
+    else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
+             convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
