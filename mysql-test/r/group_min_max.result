@@ -1984,7 +1984,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 explain select distinct a1 from bug12672 where pk_col not in (1,2,3,4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	bug12672	range	PRIMARY	PRIMARY	4	NULL	93	Using where; Using temporary
+1	SIMPLE	bug12672	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
 select distinct a1 from bug12672 where pk_col not in (1,2,3,4);
 a1
 a

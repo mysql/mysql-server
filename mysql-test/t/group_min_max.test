@@ -666,6 +666,7 @@ create index idx12672_1 on bug12672 (a1,a2,b,c);
 create index idx12672_2 on bug12672 (a1,a2,b);
 analyze table t1;
 
+--replace_column 9 #
 explain select distinct a1 from bug12672 where pk_col not in (1,2,3,4);
 select distinct a1 from bug12672 where pk_col not in (1,2,3,4);
 
