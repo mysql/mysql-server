@@ -36,4 +36,22 @@ sync_with_master;
 --replace_column 1 # 33 #
 show slave status;
 
+#
+# BUG#12542
+# TEST: "SET ONE_SHOT should always be executed on slave"
+#
+# We could use any timezone different than server default in this test
+#
+connection master;
+create table t1 (ts timestamp);
+set one_shot time_zone='met';
+insert into t1 values('2005-08-12 00:00:00');
+set one_shot time_zone='met';
+select * from t1;
+sync_slave_with_master;
+
+connection slave;
+set one_shot time_zone='met';
+select * from t1;
+
 # End of 4.1 tests
