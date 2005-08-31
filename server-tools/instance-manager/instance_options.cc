@@ -51,13 +51,9 @@ static inline int create_mysqld_command(Buffer *buf,
     /* here the '\0' character is copied from the option string */
     buf->append(position, option, option_len);
 
-    if (buf->is_error())
-      return 1;
+    return buf->is_error();
   }
-  else
-    return 1;
-
-  return 0;
+  return 1;
 }
 
 
@@ -96,10 +92,8 @@ int Instance_options::get_default_option(char *result, size_t result_len,
   /* +2 eats first "--" from the option string (E.g. "--datadir") */
   rc= parse_output_and_get_value(cmd.buffer, option_name + 2,
                                  result, result_len, GET_VALUE);
-
-  return rc;
 err:
-  return 1;
+  return rc;
 }
 
 
@@ -142,11 +136,8 @@ int Instance_options::fill_instance_version()
     result[strlen(result) - NEWLINE_LEN]= '\0';
     mysqld_version= strdup_root(&alloc, result);
   }
-
-  return rc;
-
 err:
-  return 1;
+  return rc;
 }
 
 
@@ -194,13 +185,15 @@ int Instance_options::fill_log_options()
   /* compute hostname and datadir for the instance */
   if (mysqld_datadir == NULL)
   {
-    if (get_default_option(datadir,
-                           MAX_LOG_OPTION_LENGTH, "--datadir"))
+    if (get_default_option(datadir, MAX_LOG_OPTION_LENGTH, "--datadir"))
       goto err;
   }
-  else           /* below is safe, as --datadir always has a value */
-    strmake(datadir, strchr(mysqld_datadir, '=') + 1,
-            MAX_LOG_OPTION_LENGTH - 1);
+  else
+  {
+    /* below is safe, as --datadir always has a value */
+    strmake(datadir,
+            strchr(mysqld_datadir, '=') + 1, MAX_LOG_OPTION_LENGTH - 1);
+  }
 
   if (gethostname(hostname,sizeof(hostname)-1) < 0)
     strmov(hostname, "mysql");
@@ -230,14 +223,11 @@ int Instance_options::fill_log_options()
                     MY_UNPACK_FILENAME | MY_SAFE_PATH);
 
 
-          if ((MAX_LOG_OPTION_LENGTH - strlen(full_name)) >
+          if ((MAX_LOG_OPTION_LENGTH - strlen(full_name)) <=
               strlen(log_files->default_suffix))
-          {
-            strmov(full_name + strlen(full_name),
-                   log_files->default_suffix);
-          }
-          else
             goto err;
+
+          strmov(full_name + strlen(full_name), log_files->default_suffix);
 
           /*
             If there were specified two identical logfiles options,
@@ -254,8 +244,7 @@ int Instance_options::fill_log_options()
           fn_format(full_name, argv[i] +log_files->length + 1,
                     datadir, "", MY_UNPACK_FILENAME | MY_SAFE_PATH);
 
-          if (!(*(log_files->value)=
-                strdup_root(&alloc, full_name)))
+          if (!(*(log_files->value)= strdup_root(&alloc, full_name)))
             goto err;
         }
       }
@@ -263,10 +252,8 @@ int Instance_options::fill_log_options()
   }
 
   return 0;
-
 err:
   return 1;
-
 }
 
 
@@ -294,7 +281,7 @@ int Instance_options::get_pid_filename(char *result)
   const char *pid_file= mysqld_pid_file;
   char datadir[MAX_PATH_LEN];
 
-  if (!(mysqld_datadir))
+  if (mysqld_datadir == NULL)
   {
     /* we might get an error here if we have wrong path to the mysqld binary */
     if (get_default_option(datadir, sizeof(datadir), "--datadir"))
@@ -333,8 +320,7 @@ pid_t Instance_options::get_pid()
     my_fclose(pid_file_stream, MYF(0));
     return pid;
   }
-  else
-    return 0;
+  return 0;
 }
 
 
@@ -343,11 +329,8 @@ int Instance_options::complete_initialization(const char *default_path,
 {
   const char *tmp;
 
-  if (!(mysqld_path))
-  {
-    if (!(mysqld_path= strdup_root(&alloc, default_path)))
-      goto err;
-  }
+  if (!mysqld_path && !(mysqld_path= strdup_root(&alloc, default_path)))
+    goto err;
 
   mysqld_path_len= strlen(mysqld_path);
 
@@ -395,9 +378,10 @@ int Instance_options::complete_initialization(const char *default_path,
     goto err;
 
   /* we need to reserve space for the final zero + possible default options */
-  if (!(argv= (char**) alloc_root(&alloc, (options_array.elements + 1
-                       + MAX_NUMBER_OF_DEFAULT_OPTIONS) * sizeof(char*))))
-  goto err;
+  if (!(argv= (char**)
+        alloc_root(&alloc, (options_array.elements + 1
+                            + MAX_NUMBER_OF_DEFAULT_OPTIONS) * sizeof(char*))))
+    goto err;
 
   /* the path must be first in the argv */
   if (add_to_argv(mysqld_path))
@@ -465,8 +449,8 @@ int Instance_options::add_option(const char* option)
 
    for (selected_options= options; selected_options->name; selected_options++)
    {
-     if (!strncmp(tmp, selected_options->name, selected_options->length))
-       switch(selected_options->type){
+     if (strncmp(tmp, selected_options->name, selected_options->length) == 0)
+       switch (selected_options->type) {
        case SAVE_WHOLE_AND_ADD:
          *(selected_options->value)= tmp;
          insert_dynamic(&options_array,(gptr) &tmp);
@@ -496,7 +480,7 @@ int Instance_options::add_to_argv(const char* option)
 {
   DBUG_ASSERT(filled_default_options < MAX_NUMBER_OF_DEFAULT_OPTIONS);
 
-  if ((option))
+  if (option)
     argv[filled_default_options++]= (char*) option;
   return 0;
 }
@@ -508,9 +492,7 @@ void Instance_options::print_argv()
   int i;
   printf("printing out an instance %s argv:\n", instance_name);
   for (i=0; argv[i] != NULL; i++)
-  {
     printf("argv: %s\n", argv[i]);
-  }
 }
 
 
@@ -526,10 +508,10 @@ int Instance_options::init(const char *instance_name_arg)
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 
   if (my_init_dynamic_array(&options_array, sizeof(char*), 0, 32))
-      goto err;
+    goto err;
 
   if (!(instance_name= strmake_root(&alloc, (char*) instance_name_arg,
-                                  instance_name_len)))
+                                    instance_name_len)))
     goto err;
 
   return 0;

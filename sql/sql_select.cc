@@ -7968,6 +7968,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
+    DBUG_ASSERT(item->collation.collation);
+  
     enum enum_field_types type;
     /*
       DATE/TIME fields have STRING_RESULT result type. To preserve
@@ -7976,7 +7978,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
       new_field= item->tmp_table_field_from_field_type(table);
-    else if (item->max_length > 255 && convert_blob_length)
+    else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
+             convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
@@ -10287,6 +10290,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	       bool end_of_records)
 {
   int idx= -1;
+  enum_nested_loop_state ok_code= NESTED_LOOP_OK;
   DBUG_ENTER("end_send_group");
 
   if (!join->first_record || end_of_records ||
@@ -10351,7 +10355,11 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
             There is a server side cursor and all rows
             for this fetch request are sent.
           */
-          DBUG_RETURN(NESTED_LOOP_CURSOR_LIMIT);
+          /*
+            Preventing code duplication. When finished with the group reset
+            the group functions and copy_fields. We fall through. bug #11904
+          */
+          ok_code= NESTED_LOOP_CURSOR_LIMIT;
         }
       }
     }
@@ -10364,12 +10372,16 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (idx < (int) join->send_group_parts)
     {
+      /*
+        This branch is executed also for cursors which have finished their
+        fetch limit - the reason for ok_code.
+      */
       copy_fields(&join->tmp_table_param);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
 	join->procedure->add();
-      DBUG_RETURN(NESTED_LOOP_OK);
+      DBUG_RETURN(ok_code);
     }
   }
   if (update_sum_func(join->sum_funcs))

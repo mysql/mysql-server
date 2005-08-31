@@ -23,7 +23,7 @@
   stop all running threads, cleanup and exit.
 
   Note, that a thread can't be shut down nicely if it doesn't want to be.
-  That's why to perform clean shutdown, all threads consituting a process
+  That's why to perform clean shutdown, all threads constituting a process
   must observe certain rules. Here we use the rules, described in Butenhof
   book 'Programming with POSIX threads', namely:
   - all user signals are handled in 'signal thread' in synchronous manner
@@ -94,7 +94,9 @@ public:
   void request_shutdown();
   inline bool is_shutdown();
   int cond_wait(Thread_info *info, pthread_cond_t *cond,
-                 pthread_mutex_t *mutex, bool *is_shutdown);
+                 pthread_mutex_t *mutex);
+  int cond_timedwait(Thread_info *info, pthread_cond_t *cond,
+                     pthread_mutex_t *mutex, struct timespec *wait_time);
 private:
   Thread_info head;
   bool shutdown_in_progress;

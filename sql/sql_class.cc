@@ -210,6 +210,7 @@ THD::THD()
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
+  binlog_evt_union.do_union= FALSE;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -1888,7 +1889,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
 
-  options&= ~OPTION_BIN_LOG;
+  if (!lex->requires_prelocking() || is_update_query(lex->sql_command))
+    options&= ~OPTION_BIN_LOG;
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
@@ -1945,7 +1947,7 @@ static byte *xid_get_hash_key(const byte *ptr,uint *length,
 static void xid_free_hash (void *ptr)
 {
   if (!((XID_STATE*)ptr)->in_thd)
-    my_free((byte *)ptr, MYF(0));
+    my_free((gptr)ptr, MYF(0));
 }
 
 bool xid_cache_init()
