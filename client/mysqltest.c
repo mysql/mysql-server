@@ -104,12 +104,11 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
 
 /* ************************************************************************ */
 /*
-  A line that starts with !$ or $S, and the list of error codes to
-  --error are stored in an internal array of structs. This struct can
-  hold numeric SQL error codes or SQLSTATE codes as strings. The
-  element next to the last active element in the list is set to type
-  ERR_EMPTY. When an SQL statement return an error we use this list to
-  check if this  is an expected error.
+  The list of error codes to --error are stored in an internal array of
+  structs. This struct can hold numeric SQL error codes or SQLSTATE codes
+  as strings. The element next to the last active element in the list is
+  set to type ERR_EMPTY. When an SQL statement return an error we use
+  this list to check if this  is an expected error.
 */
  
 enum match_err_type
@@ -2338,8 +2337,6 @@ int read_line(char *buf, int size)
     Converts lines returned by read_line into a query, this involves
     parsing the first word in the read line to find the query type.
 
-    If the line starts with !$<num> or !S<alphanum> the query is setup
-    to expect that result when query is executed.
 
     A -- comment may contain a valid query as the first word after the
     comment start. Thus it's always checked to see if that is the case.
@@ -2397,33 +2394,6 @@ int read_query(struct st_query** q_ptr)
   }
   else
   {
-    if (*p == '!')
-    {
-      q->abort_on_error= 0;
-      p++;
-      if (*p == '$')
-      {
-        int expected_errno= 0;
-        p++;
-        for (; my_isdigit(charset_info, *p); p++)
-          expected_errno = expected_errno * 10 + *p - '0';
-        q->expected_errno[0].code.errnum= expected_errno;
-        q->expected_errno[0].type= ERR_ERRNO;
-        q->expected_errno[1].type= ERR_EMPTY;
-        q->expected_errors= 1;
-      }
-      else if (*p == 'S')                            /* SQLSTATE */
-      {
-        int i;
-        p++;
-        for (i = 0; my_isalnum(charset_info, *p) && i < SQLSTATE_LENGTH; p++, i++)
-          q->expected_errno[0].code.sqlstate[i]= *p;
-        q->expected_errno[0].code.sqlstate[i]= '\0';
-        q->expected_errno[0].type= ERR_SQLSTATE;
-        q->expected_errno[1].type= ERR_EMPTY;
-        q->expected_errors= 1;
-      }
-    }
     while (*p && my_isspace(charset_info, *p))
       p++ ;
     if (*p == '@')
