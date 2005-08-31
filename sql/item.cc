@@ -303,6 +303,7 @@ void *Item::operator new(size_t size, Item *reuse, uint *rsize)
     if (rsize)
       (*rsize)= reuse->rsize;
     reuse->cleanup();
+    delete reuse;
     TRASH((void *)reuse, size);
     return (void *)reuse;
   }
@@ -789,12 +790,15 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
 }
 
 
+/*****************************************************************************
+  Item_splocal methods
+*****************************************************************************/
 double Item_splocal::val_real()
 {
   DBUG_ASSERT(fixed);
   Item *it= this_item();
   double ret= it->val_real();
-  Item::null_value= it->null_value;
+  null_value= it->null_value;
   return ret;
 }
 
@@ -804,7 +808,7 @@ longlong Item_splocal::val_int()
   DBUG_ASSERT(fixed);
   Item *it= this_item();
   longlong ret= it->val_int();
-  Item::null_value= it->null_value;
+  null_value= it->null_value;
   return ret;
 }
 
@@ -814,7 +818,7 @@ String *Item_splocal::val_str(String *sp)
   DBUG_ASSERT(fixed);
   Item *it= this_item();
   String *ret= it->val_str(sp);
-  Item::null_value= it->null_value;
+  null_value= it->null_value;
   return ret;
 }
 
@@ -824,7 +828,7 @@ my_decimal *Item_splocal::val_decimal(my_decimal *decimal_value)
   DBUG_ASSERT(fixed);
   Item *it= this_item();
   my_decimal *val= it->val_decimal(decimal_value);
-  Item::null_value= it->null_value;
+  null_value= it->null_value;
   return val;
 }
 
@@ -833,7 +837,7 @@ bool Item_splocal::is_null()
 {
   Item *it= this_item();
   bool ret= it->is_null();
-  Item::null_value= it->null_value;
+  null_value= it->null_value;
   return ret;
 }
 
@@ -897,6 +901,97 @@ void Item_splocal::print(String *str)
   str->qs_append(m_offset);
 }
 
+
+/*****************************************************************************
+  Item_name_const methods
+*****************************************************************************/
+double Item_name_const::val_real()
+{
+  DBUG_ASSERT(fixed);
+  double ret= value_item->val_real();
+  null_value= value_item->null_value;
+  return ret;
+}
+
+
+longlong Item_name_const::val_int()
+{
+  DBUG_ASSERT(fixed);
+  longlong ret= value_item->val_int();
+  null_value= value_item->null_value;
+  return ret;
+}
+
+
+String *Item_name_const::val_str(String *sp)
+{
+  DBUG_ASSERT(fixed);
+  String *ret= value_item->val_str(sp);
+  null_value= value_item->null_value;
+  return ret;
+}
+
+
+my_decimal *Item_name_const::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed);
+  my_decimal *val= value_item->val_decimal(decimal_value);
+  null_value= value_item->null_value;
+  return val;
+}
+
+
+bool Item_name_const::is_null()
+{
+  bool ret= value_item->is_null();
+  null_value= value_item->null_value;
+  return ret;
+}
+
+Item::Type Item_name_const::type() const
+{
+  return value_item->type();
+}
+
+
+bool Item_name_const::fix_fields(THD *thd, Item **)
+{
+  char buf[128];
+  String *item_name;
+  String s(buf, sizeof(buf), &my_charset_bin);
+  s.length(0);
+
+  if (value_item->fix_fields(thd, &value_item) ||
+      name_item->fix_fields(thd, &name_item))
+    return TRUE;
+  if (!(value_item->const_item() && name_item->const_item()))
+    return TRUE;
+
+  if (!(item_name= name_item->val_str(&s)))
+    return TRUE; /* Can't have a NULL name */
+
+  set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
+  max_length= value_item->max_length;
+  decimals= value_item->decimals;
+  fixed= 1;
+  return FALSE;
+}
+
+
+void Item_name_const::cleanup()
+{
+  fixed= 0;
+}
+
+
+void Item_name_const::print(String *str)
+{
+  str->append("NAME_CONST(");
+  name_item->print(str);
+  str->append(',');
+  value_item->print(str);
+  str->append(')');
+}
 
 
 /*
@@ -3558,7 +3653,8 @@ enum_field_types Item::field_type() const
 
 Field *Item::make_string_field(TABLE *table)
 {
-  if (max_length > CONVERT_IF_BIGGER_TO_BLOB)
+  DBUG_ASSERT(collation.collation);
+  if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     return new Field_blob(max_length, maybe_null, name, table,
                           collation.collation);
   if (max_length > 0)

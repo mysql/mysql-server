@@ -596,6 +596,12 @@ ERROR 42000: Incorrect database name 'xyz'
 create table t1(t1.name int);
 create table t2(test.t2.name int);
 drop table t1,t2;
+CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
+CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+f2	varchar(171)	YES		NULL	
+DROP TABLE t1,t2;
 create database mysqltest;
 use mysqltest;
 drop database mysqltest;

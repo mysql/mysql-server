@@ -704,7 +704,6 @@ CHARSET_INFO *fs_character_set()
 }
 #endif
 
-
 /*
   Escape apostrophes by doubling them up
 

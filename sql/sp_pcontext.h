@@ -72,6 +72,11 @@ typedef struct sp_cond
   sp_cond_type_t *val;
 } sp_cond_t;
 
+
+/*
+  This seems to be an "SP parsing context" or something.
+*/
+
 class sp_pcontext : public Sql_alloc
 {
   sp_pcontext(const sp_pcontext &); /* Prevent use of these */

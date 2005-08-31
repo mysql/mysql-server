@@ -105,6 +105,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	if (thePrintFlag) ndbout << (*thePageHeader);
 	if (theCheckFlag) {
 	  if(!thePageHeader->check()) {
+	    ndbout << "Error in thePageHeader->check()" << endl;
 	    doExit();
 	  }
 
@@ -146,6 +147,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	  if (thePrintFlag) ndbout << (*fdRecord);
 	  if (theCheckFlag) {
 	    if(!fdRecord->check()) {
+	      ndbout << "Error in fdRecord->check()" << endl;
 	      doExit();
 	    }
 	  }
@@ -163,6 +165,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	    if (thePrintFlag) ndbout << (*nlRecord);
 	    if (theCheckFlag) {
 	      if(!nlRecord->check()) {
+		ndbout << "Error in nlRecord->check()" << endl;
 		doExit();
 	      }
 	    }
@@ -176,6 +179,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	    if (thePrintFlag) ndbout << (*cGCIrecord);
 	    if (theCheckFlag) {
 	      if(!cGCIrecord->check()) {
+		ndbout << "Error in cGCIrecord->check()" << endl;
 		doExit();
 	      }
 	    }
@@ -189,6 +193,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	    if (thePrintFlag) ndbout << (*poRecord);
 	    if (theCheckFlag) {
 	      if(!poRecord->check()) {
+		ndbout << "Error in poRecord->check()" << endl;
 		doExit();
 	      }
 	    }
@@ -205,6 +210,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	    if (thePrintFlag) ndbout << (*ctRecord);
 	    if (theCheckFlag) {
 	      if(!ctRecord->check()) {
+		ndbout << "Error in ctRecord->check()" << endl;
 		doExit();
 	      }
 	    }
@@ -221,6 +227,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	    if (thePrintFlag) ndbout << (*ictRecord);
 	    if (theCheckFlag) {
 	      if(!ictRecord->check()) {
+		ndbout << "Error in ictRecord->check()" << endl;
 		doExit();
 	      }
 	    }
@@ -243,6 +250,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	    if (thePrintFlag) ndbout << (*atRecord);
 	    if (theCheckFlag) {
 	      if(!atRecord->check()) {
+		ndbout << "Error in atRecord->check()" << endl;
 		doExit();
 	      }
 	    }
@@ -329,6 +337,7 @@ Uint32  readRecordOverPageBoundary(Uint32 *pagePtr, Uint32 pageIndex, Uint32 old
     if (recordSize < (PAGESIZE - PAGEHEADERSIZE)) {
       if (theCheckFlag) {
 	if(!poRecord->check()) {
+	  ndbout << "Error in poRecord->check() (readRecordOverPageBoundary)" << endl;
 	  doExit();
 	}
       } 
@@ -344,6 +353,7 @@ Uint32  readRecordOverPageBoundary(Uint32 *pagePtr, Uint32 pageIndex, Uint32 old
     if (recordSize < (PAGESIZE - PAGEHEADERSIZE)) {
       if (theCheckFlag) {
 	if(!ctRecord->check()) {
+	  ndbout << "Error in ctRecord->check() (readRecordOverPageBoundary)" << endl;
 	  doExit();
 	}
       }
@@ -359,6 +369,7 @@ Uint32  readRecordOverPageBoundary(Uint32 *pagePtr, Uint32 pageIndex, Uint32 old
     if (recordSize < (PAGESIZE - PAGEHEADERSIZE)) {
       if (theCheckFlag) {
 	if(!ictRecord->check()) {
+	  ndbout << "Error in ictRecord->check() (readRecordOverPageBoundary)" << endl;
 	  doExit();
 	}
       }

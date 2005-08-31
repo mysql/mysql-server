@@ -311,6 +311,9 @@ public:
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
 
+  void start_union_events(THD *thd);
+  void stop_union_events(THD *thd);
+
   /*
     v stands for vector
     invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
@@ -1355,7 +1358,27 @@ public:
     my_bool my_bool_value;
     long    long_value;
   } sys_var_tmp;
-
+  
+  struct {
+    /* 
+      If true, mysql_bin_log::write(Log_event) call will not write events to 
+      binlog, and maintain 2 below variables instead (use
+      mysql_bin_log.start_union_events to turn this on)
+    */
+    bool do_union;
+    /*
+      If TRUE, at least one mysql_bin_log::write(Log_event) call has been
+      made after last mysql_bin_log.start_union_events() call.
+    */
+    bool unioned_events;
+    /*
+      If TRUE, at least one mysql_bin_log::write(Log_event e), where 
+      e.cache_stmt == TRUE call has been made after last 
+      mysql_bin_log.start_union_events() call.
+    */
+    bool unioned_events_trans;
+  } binlog_evt_union;
+  
   THD();
   ~THD();
 
@@ -1977,7 +2000,12 @@ class multi_delete :public select_result_interceptor
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
-  bool do_delete, transactional_tables, normal_tables, delete_while_scanning;
+  bool do_delete;
+  /* True if at least one table we delete from is transactional */
+  bool transactional_tables;
+  /* True if at least one table we delete from is not transactional */
+  bool normal_tables;
+  bool delete_while_scanning;
 
 public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
@@ -2004,7 +2032,10 @@ class multi_update :public select_result_interceptor
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables, ignore;
+  bool do_update, trans_safe;
+  /* True if the update operation has made a change in a transactional table */
+  bool transactional_tables;
+  bool ignore;
 
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,

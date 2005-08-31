@@ -45,4 +45,7 @@ delimiter delimiter
 select * from t1 delimiter
 delimiter ; # Reset delimiter
 
-
+#
+# Bug #11523: \d works differently than delimiter
+#
+source t/mysql_delimiter_source.sql
