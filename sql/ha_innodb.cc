@@ -5449,7 +5449,9 @@ ha_innobase::store_lock(
 			reader). To get a similar effect on an InnoDB table,
 			we must use LOCK TABLES ... READ. We convert the lock
 			type here, so that for InnoDB, READ LOCAL is
-			equivalent to READ. */
+			equivalent to READ. This will change the InnoDB
+			behavior in mysqldump, so that dumps of InnoDB tables
+			are consistent with dumps of MyISAM tables. */
 
 			lock_type = TL_READ_NO_INSERT;
 		}
