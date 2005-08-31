@@ -271,6 +271,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool opt_skip_character_set_client_handshake= 0;
 bool lower_case_table_names_used= 0;
 bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
@@ -4216,6 +4217,7 @@ enum options_mysqld
   OPT_EXPIRE_LOGS_DAYS,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
+  OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_INIT_CONNECT,
   OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
@@ -4753,6 +4755,11 @@ Can't be set to 1 if --log-slave-updates is used.",
    "Show user and password in SHOW SLAVE HOSTS on this master",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
+   "Don't use client side character set value sent during handshake.",
+   (gptr*) &opt_skip_character_set_client_handshake,
+   (gptr*) &opt_skip_character_set_client_handshake,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-grant-tables", OPT_SKIP_GRANT,
    "Start without grant tables. This gives all users FULL ACCESS to all tables!",
    (gptr*) &opt_noacl, (gptr*) &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
