@@ -706,6 +706,69 @@ while ($i)
 --exec echo -e "while (0){\n echo hej;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
+# Test error messages returned from comments starting with a command
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "--if the other server is down" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "-- end when ..." | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# Test replace
+# ----------------------------------------------------------------------------
+--replace_result a b
+select "a" as col1, "c" as col2;
+
+--replace_result a b c d
+select "a" as col1, "c" as col2;
+
+--error 1
+--exec echo "--replace_result a" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_result a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_result a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_result a ;" | $MYSQL_TEST 2>&1
+--exec echo "replace_result a b;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_result a b c" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_result a b c ;" | $MYSQL_TEST 2>&1
+
+
+--replace_column 1 b
+select "a" as col1, "c" as col2;
+
+--replace_column 1 b 2 d
+select "a" as col1, "c" as col2;
+
+--error 1
+--exec echo "--replace_column a" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--replace_column 1" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--replace_column a b" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_column a 1" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_column 1 b c " | $MYSQL_TEST 2>&1
+
+
+# ----------------------------------------------------------------------------
+# Test sync_with_master
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "save_master_pos; sync_with_master 10!;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "save_master_pos; sync_with_master 10 !;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "save_master_pos; sync_with_master a;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
 # TODO Test queries, especially their errormessages... so it's easy to debug 
 # new scripts and diagnose errors
 # ----------------------------------------------------------------------------
