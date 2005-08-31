@@ -67,7 +67,7 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
       break;
     }
 #endif
-#if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
+#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if ((info->options & HA_OPTION_COMPRESS_RECORD))
     {
       pthread_mutex_lock(&info->s->intern_lock);
@@ -144,7 +144,7 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       error=end_io_cache(&info->rec_cache);
     }
-#if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
+#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if (info->opt_flag & MEMMAP_USED)
       madvise(info->s->file_map,info->s->state.data_file_length,MADV_RANDOM);
 #endif
