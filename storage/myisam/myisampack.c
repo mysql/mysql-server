@@ -249,10 +249,14 @@ int main(int argc, char **argv)
 #endif
 }
 
-enum options_mp {OPT_CHARSETS_DIR_MP=256};
+enum options_mp {OPT_CHARSETS_DIR_MP=256, OPT_AUTO_CLOSE};
 
 static struct my_option my_long_options[] =
 {
+#ifdef __NETWARE__
+  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"backup", 'b', "Make a backup of the table as table_name.OLD.",
    (gptr*) &backup, (gptr*) &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR_MP,
@@ -321,6 +325,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   uint length;
 
   switch(optid) {
+#ifdef __NETWARE__
+  case OPT_AUTO_CLOSE:
+    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+    break;
+#endif
   case 'f':
     force_pack= 1;
     tmpfile_createflag= O_RDWR | O_TRUNC;

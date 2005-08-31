@@ -120,6 +120,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
+static byte *get_have_innodb(THD *thd);
 
 /*
   Variable definition list
@@ -539,6 +540,8 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 /* Read only variables */
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
+sys_var_readonly                sys_have_innodb("have_innodb", OPT_GLOBAL,
+                                                SHOW_CHAR, get_have_innodb);
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
@@ -589,6 +592,7 @@ sys_var *sys_variables[]=
   &sys_ft_boolean_syntax,
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
+  &sys_have_innodb,
   &sys_identity,
   &sys_init_connect,
   &sys_init_slave,
@@ -767,12 +771,14 @@ struct show_var_st init_vars[]= {
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {sys_date_format.name,      (char*) &sys_date_format,		    SHOW_SYS},
   {sys_datetime_format.name,  (char*) &sys_datetime_format,	    SHOW_SYS},
-  {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
   {sys_default_week_format.name, (char*) &sys_default_week_format,  SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
+  {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
+  {sys_engine_condition_pushdown.name, 
+   (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
   {sys_flush_time.name,        (char*) &sys_flush_time,             SHOW_SYS},
@@ -809,6 +815,7 @@ struct show_var_st init_vars[]= {
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
   {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
+  {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
   {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
@@ -831,11 +838,10 @@ struct show_var_st init_vars[]= {
   {sys_innodb_max_purge_lag.name, (char*) &sys_innodb_max_purge_lag, SHOW_SYS},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
+  {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
-  {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
-  {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
@@ -849,8 +855,8 @@ struct show_var_st init_vars[]= {
                                                                     SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
-  {"large_pages",             (char*) &opt_large_pages,             SHOW_MY_BOOL},
   {"large_page_size",         (char*) &opt_large_page_size,         SHOW_INT},
+  {"large_pages",             (char*) &opt_large_pages,             SHOW_MY_BOOL},
   {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
@@ -899,8 +905,6 @@ struct show_var_st init_vars[]= {
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
 #endif
-  {sys_engine_condition_pushdown.name, 
-   (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
 #ifdef HAVE_NDBCLUSTER_DB
   {sys_ndb_autoincrement_prefetch_sz.name,
    (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
@@ -970,16 +974,18 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
-  {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
   {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
   {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
+  {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+#endif
+  {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
+#ifdef HAVE_REPLICATION
   {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
   {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
   {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
 #endif
-  {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
   {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
@@ -2776,6 +2782,12 @@ static byte *get_error_count(THD *thd)
   thd->sys_var_tmp.long_value= 
     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
   return (byte*) &thd->sys_var_tmp.long_value;
+}
+
+
+static byte *get_have_innodb(THD *thd)
+{
+  return (byte*) show_comp_option_name[have_innodb];
 }
 
 

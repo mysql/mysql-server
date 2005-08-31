@@ -577,9 +577,6 @@ typedef struct st_table_list
   st_table_list *embedding;             /* nested join containing the table */
   List<struct st_table_list> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
-  
-  /* used for proper partially successful DROP DATABASE binlogging */
-  bool    was_dropped; 
   /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
   bool		skip_temporary;		/* this table shouldn't be temporary */

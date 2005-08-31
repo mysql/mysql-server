@@ -83,7 +83,7 @@ create procedure foo2()
 call foo2();
 # verify CALL is not in binlog
 --replace_column 2 # 5 #
-show binlog events from 605;
+show binlog events from 518;
 
 --error 1418;
 alter procedure foo2 contains sql;
@@ -147,7 +147,7 @@ show warnings;
 
 # Check that only successful CALLs are in binlog
 --replace_column 2 # 5 #
-show binlog events from 841;
+show binlog events from 990;
 
 # Note that half-failed CALLs are not in binlog, which is a known
 # bug. If we compare t2 on master and slave we see they differ:

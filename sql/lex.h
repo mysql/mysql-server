@@ -710,6 +710,7 @@ static SYMBOL sql_functions[] = {
   { "MULTIPOINTFROMWKB",SYM(GEOMFROMWKB)},
   { "MULTIPOLYGONFROMTEXT",SYM(MPOLYFROMTEXT)},
   { "MULTIPOLYGONFROMWKB",SYM(GEOMFROMWKB)},
+  { "NAME_CONST",       F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_name_const)},
   { "NOW",		SYM(NOW_SYM)},
   { "NULLIF",		F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_nullif)},
   { "NUMGEOMETRIES",	F_SYM(FUNC_ARG1),0,CREATE_FUNC_GEOM(create_func_numgeometries)},

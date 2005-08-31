@@ -1532,8 +1532,6 @@ create_string(THD *thd, String *buf,
     buf->append("FUNCTION ", 9);
   else
     buf->append("PROCEDURE ", 10);
-  append_identifier(thd, buf, name->m_db.str, name->m_db.length);
-  buf->append('.');
   append_identifier(thd, buf, name->m_name.str, name->m_name.length);
   buf->append('(');
   buf->append(params, paramslen);
