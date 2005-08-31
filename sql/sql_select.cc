@@ -7953,6 +7953,8 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 				   item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
+    DBUG_ASSERT(item->collation.collation);
+  
     enum enum_field_types type;
     /*
       DATE/TIME fields have STRING_RESULT result type. To preserve
