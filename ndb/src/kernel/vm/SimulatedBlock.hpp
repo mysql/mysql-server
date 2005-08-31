@@ -507,6 +507,15 @@ private:
 protected:
   void execUPGRADE(Signal* signal);
 
+  void fsRefError(Signal* signal, Uint32 line, const char *msg);
+  void execFSWRITEREF(Signal* signal);
+  void execFSREADREF(Signal* signal);
+  void execFSOPENREF(Signal* signal);
+  void execFSCLOSEREF(Signal* signal);
+  void execFSREMOVEREF(Signal* signal);
+  void execFSSYNCREF(Signal* signal);
+  void execFSAPPENDREF(Signal* signal);
+
   // Variable for storing inserted errors, see pc.H
   ERROR_INSERT_VARIABLE;
 
