@@ -1916,7 +1916,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   }
   
   thd->allow_sum_func= 0;
-  maybe_null= 0;
+  maybe_null= 1;
   item_thd= thd;
 
   /*
@@ -1929,8 +1929,6 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
          args[i]->fix_fields(thd, tables, args + i)) ||
         args[i]->check_cols(1))
       return 1;
-    if (i < arg_count_field)
-      maybe_null|= args[i]->maybe_null;
   }
 
   if (agg_item_charsets(collation, func_name(),
