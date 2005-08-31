@@ -75,8 +75,9 @@ select friedrich from (select 1 as otto) as t1;
 # Positive case(statement)
 # ----------------------------------------------------------------------------
 
+# This syntax not allowed anymore, use --error S00000, see below
 # expectation = response
-!S00000 select otto from (select 1 as otto) as t1;
+#!S00000 select otto from (select 1 as otto) as t1;
 
 --error S00000
 select otto from (select 1 as otto) as t1;
@@ -94,8 +95,9 @@ select otto from (select 1 as otto) as t1;
 # Negative case(statement)
 # ----------------------------------------------------------------------------
 
+# This syntax not allowed anymore, use --error S42S22, see below
 # expectation = response
-!S42S22 select friedrich from (select 1 as otto) as t1;
+#!S42S22 select friedrich from (select 1 as otto) as t1;
 --error S42S22
 select friedrich from (select 1 as otto) as t1;
 
