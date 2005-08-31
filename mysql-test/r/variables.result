@@ -537,3 +537,6 @@ set @@max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
 @@max_heap_table_size > 0
 1
+select @@have_innodb;
+@@have_innodb
+#
