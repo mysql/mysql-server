@@ -2136,7 +2136,17 @@ const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 /****************************************************************************
  * Ctor
  ****************************************************************************/
-static void require(bool v) { if(!v) abort();}
+static void require(bool v)
+{
+  if(!v)
+  {
+#ifndef DBUG_OFF
+    abort();
+#else
+    exit(-1);
+#endif
+  }
+}
 
 ConfigInfo::ConfigInfo()
   : m_info(true), m_systemDefaults(true)
@@ -2277,7 +2287,7 @@ ConfigInfo::ConfigInfo()
  ****************************************************************************/
 inline void warning(const char * src, const char * arg){
   ndbout << "Illegal call to ConfigInfo::" << src << "() - " << arg << endl;
-  abort();
+  require(false);
 }
 
 const Properties * 
@@ -3394,7 +3404,7 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
     }
     case PropertiesType_Properties:
     default:
-      abort();
+      ::require(false);
     }
   }
   return true;
@@ -3406,7 +3416,7 @@ static bool
 saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
   const Properties * sec;
   if(!ctx.m_currentInfo->get(ctx.fname, &sec)){
-    abort();
+    require(false);
     return false;
   }
   
@@ -3477,7 +3487,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 	break;
       }
       default:
-	abort();
+	require(false);
       }
       require(ok);
     }
