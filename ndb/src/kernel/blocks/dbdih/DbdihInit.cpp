@@ -206,13 +206,13 @@ Dbdih::Dbdih(const class Configuration & config):
   addRecSignal(GSN_ADD_FRAGCONF, &Dbdih::execADD_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGREF, &Dbdih::execADD_FRAGREF);
   addRecSignal(GSN_FSOPENCONF, &Dbdih::execFSOPENCONF);
-  addRecSignal(GSN_FSOPENREF, &Dbdih::execFSOPENREF);
+  addRecSignal(GSN_FSOPENREF, &Dbdih::execFSOPENREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Dbdih::execFSCLOSECONF);
-  addRecSignal(GSN_FSCLOSEREF, &Dbdih::execFSCLOSEREF);
+  addRecSignal(GSN_FSCLOSEREF, &Dbdih::execFSCLOSEREF, true);
   addRecSignal(GSN_FSREADCONF, &Dbdih::execFSREADCONF);
-  addRecSignal(GSN_FSREADREF, &Dbdih::execFSREADREF);
+  addRecSignal(GSN_FSREADREF, &Dbdih::execFSREADREF, true);
   addRecSignal(GSN_FSWRITECONF, &Dbdih::execFSWRITECONF);
-  addRecSignal(GSN_FSWRITEREF, &Dbdih::execFSWRITEREF);
+  addRecSignal(GSN_FSWRITEREF, &Dbdih::execFSWRITEREF, true);
   addRecSignal(GSN_SET_VAR_REQ, &Dbdih::execSET_VAR_REQ);
 
   addRecSignal(GSN_START_INFOREQ, 

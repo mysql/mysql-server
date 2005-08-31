@@ -239,6 +239,17 @@ bool PageHeader::check() {
   return true;
 }
 
+bool PageHeader::lastPage()
+{
+  return m_next_page == 0xffffff00;
+}
+
+Uint32 PageHeader::lastWord()
+{
+  return m_current_page_index;
+}
+
+
 NdbOut& operator<<(NdbOut& no, const PageHeader& ph) {
   no << "------------PAGE HEADER------------------------" << endl << endl;
   ndbout_c("%-30s%-12s%-12s\n", "", "Decimal", "Hex");

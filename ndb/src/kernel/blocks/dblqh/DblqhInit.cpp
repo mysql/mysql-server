@@ -309,18 +309,15 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_TUP_SRREF, &Dblqh::execTUP_SRREF);
   addRecSignal(GSN_GCP_SAVEREQ, &Dblqh::execGCP_SAVEREQ);
   addRecSignal(GSN_FSOPENCONF, &Dblqh::execFSOPENCONF);
-  addRecSignal(GSN_FSOPENREF, &Dblqh::execFSOPENREF);
   addRecSignal(GSN_FSCLOSECONF, &Dblqh::execFSCLOSECONF);
-  addRecSignal(GSN_FSCLOSEREF, &Dblqh::execFSCLOSEREF);
   addRecSignal(GSN_FSWRITECONF, &Dblqh::execFSWRITECONF);
-  addRecSignal(GSN_FSWRITEREF, &Dblqh::execFSWRITEREF);
+  addRecSignal(GSN_FSWRITEREF, &Dblqh::execFSWRITEREF, true);
   addRecSignal(GSN_FSREADCONF, &Dblqh::execFSREADCONF);
-  addRecSignal(GSN_FSREADREF, &Dblqh::execFSREADREF);
+  addRecSignal(GSN_FSREADREF, &Dblqh::execFSREADREF, true);
   addRecSignal(GSN_ACC_ABORTCONF, &Dblqh::execACC_ABORTCONF);
   addRecSignal(GSN_SET_VAR_REQ,  &Dblqh::execSET_VAR_REQ);
   addRecSignal(GSN_TIME_SIGNAL,  &Dblqh::execTIME_SIGNAL);
   addRecSignal(GSN_FSSYNCCONF,  &Dblqh::execFSSYNCCONF);
-  addRecSignal(GSN_FSSYNCREF,  &Dblqh::execFSSYNCREF);
   addRecSignal(GSN_REMOVE_MARKER_ORD, &Dblqh::execREMOVE_MARKER_ORD);
 
   //addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
