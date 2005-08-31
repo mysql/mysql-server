@@ -222,6 +222,9 @@ our $instance_manager;
 our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
 
+our $opt_no_manager;            # Does nothing now, we never use manager
+our $opt_manager_port;          # Does nothing now, we never use manager
+
 our $opt_old_master;
 
 our $opt_record;
@@ -475,6 +478,7 @@ sub command_line_setup () {
              'ps-protocol'              => \$opt_ps_protocol,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
+             'no-manager'               => \$opt_no_manager, # Currently not used
 
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
@@ -489,6 +493,7 @@ sub command_line_setup () {
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
              'ndbcluster_port=i'        => \$opt_ndbcluster_port,
+             'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
              'im-mysqld1-port=i'        => \$im_mysqld1_port, # Port of mysqld, controlled by IM
              'im-mysqld2-port=i'        => \$im_mysqld2_port, # Port of mysqld, controlled by IM
