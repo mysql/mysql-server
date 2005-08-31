@@ -150,16 +150,16 @@ Backup::Backup(const Configuration & conf) :
   addRecSignal(GSN_DI_FCOUNTCONF, &Backup::execDI_FCOUNTCONF);
   addRecSignal(GSN_DIGETPRIMCONF, &Backup::execDIGETPRIMCONF);
 
-  addRecSignal(GSN_FSOPENREF, &Backup::execFSOPENREF);
+  addRecSignal(GSN_FSOPENREF, &Backup::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Backup::execFSOPENCONF);
 
-  addRecSignal(GSN_FSCLOSEREF, &Backup::execFSCLOSEREF);
+  addRecSignal(GSN_FSCLOSEREF, &Backup::execFSCLOSEREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Backup::execFSCLOSECONF);
 
-  addRecSignal(GSN_FSAPPENDREF, &Backup::execFSAPPENDREF);
+  addRecSignal(GSN_FSAPPENDREF, &Backup::execFSAPPENDREF, true);
   addRecSignal(GSN_FSAPPENDCONF, &Backup::execFSAPPENDCONF);
 
-  addRecSignal(GSN_FSREMOVEREF, &Backup::execFSREMOVEREF);
+  addRecSignal(GSN_FSREMOVEREF, &Backup::execFSREMOVEREF, true);
   addRecSignal(GSN_FSREMOVECONF, &Backup::execFSREMOVECONF);
 
   /*****/

@@ -2175,9 +2175,7 @@ private:
   void execTUP_SRREF(Signal* signal);
   void execGCP_SAVEREQ(Signal* signal);
   void execFSOPENCONF(Signal* signal);
-  void execFSOPENREF(Signal* signal);
   void execFSCLOSECONF(Signal* signal);
-  void execFSCLOSEREF(Signal* signal);
   void execFSWRITECONF(Signal* signal);
   void execFSWRITEREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
@@ -2186,7 +2184,6 @@ private:
   void execSET_VAR_REQ(Signal* signal);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
-  void execFSSYNCREF(Signal* signal);
 
   void execALTER_TAB_REQ(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
