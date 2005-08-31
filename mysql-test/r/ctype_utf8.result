@@ -955,6 +955,10 @@ char_length(a)	length(a)	a
 2	4	ан
 drop table t1;
 set names utf8;
+select 'andre%' like 'andreñ%' escape 'ñ';
+'andre%' like 'andreñ%' escape 'ñ'
+1
+set names utf8;
 select 'a\\' like 'a\\';
 'a\\' like 'a\\'
 1

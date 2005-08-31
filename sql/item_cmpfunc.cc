@@ -2293,7 +2293,25 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&tmp_value1);
-    escape= escape_str ? *(escape_str->ptr()) : '\\';
+    if (escape_str)
+    {
+      CHARSET_INFO *cs= cmp.cmp_collation.collation;
+      if (use_mb(cs))
+      {
+        my_wc_t wc;
+        int rc= cs->cset->mb_wc(cs, &wc,
+                                (const uchar*) escape_str->ptr(),
+                                (const uchar*) escape_str->ptr() +
+                                               escape_str->length());
+        escape= (int) (rc > 0 ? wc : '\\');
+      }
+      else
+      {
+        escape= *(escape_str->ptr());
+      }
+    }
+    else
+      escape= '\\';
  
     /*
       We could also do boyer-more for non-const items, but as we would have to
