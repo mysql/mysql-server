@@ -96,3 +96,12 @@ i
 REVOKE ALL ON mysqltest_1.t1 FROM mysqltest_1@'127.0.0.0/255.0.0.0';
 drop table mysqltest_1.t1;
 drop database mysqltest_1;
+lock table mysql.user write;
+ flush privileges;
+ grant all on *.* to 'mysqltest_1'@'localhost';
+unlock tables;
+lock table mysql.user write;
+ set password for 'mysqltest_1'@'localhost' = password('');
+ revoke all on *.* from 'mysqltest_1'@'localhost';
+unlock tables;
+drop user 'mysqltest_1'@'localhost';
