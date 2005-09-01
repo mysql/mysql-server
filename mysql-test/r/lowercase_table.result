@@ -83,9 +83,3 @@ create table t2 like T1;
 drop table t1, t2;
 show tables;
 Tables_in_test
-use lpt1;
-ERROR 42000: Unknown database 'lpt1'
-use com1;
-ERROR 42000: Unknown database 'com1'
-use prn;
-ERROR 42000: Unknown database 'prn'

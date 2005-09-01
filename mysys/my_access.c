@@ -105,7 +105,7 @@ int check_if_legal_filename(const char *path)
     {
       if (*reserved != my_toupper(&my_charset_latin1, *name))
         break;
-      if (++name == end)
+      if (++name == end && !reserved[1])
         DBUG_RETURN(1);                         /* Found wrong path */
     } while (*++reserved);
   }

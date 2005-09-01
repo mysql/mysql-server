@@ -1,0 +1,8 @@
+use lpt1;
+ERROR 42000: Unknown database 'lpt1'
+use com1;
+ERROR 42000: Unknown database 'com1'
+use prn;
+ERROR 42000: Unknown database 'prn'
+create table nu (a int);
+drop table nu;
