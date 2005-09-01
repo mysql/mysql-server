@@ -1213,7 +1213,7 @@ end|
 select f5(1)|
 # This should generate an error about insuficient number of tables locked
 # Now this crash server
---disable_parsing until bug#11394 fix
+--disable_parsing # until bug#11394 fix
 --error 1100
 select f5(2)|
 # But now it simply miserably fails because we are trying to use the same
@@ -2469,7 +2469,7 @@ drop table t3|
 # BUG#4318
 #
 
---disable_parsing Don't know if HANDLER commands can work with SPs, or at all..
+--disable_parsing # Don't know if HANDLER commands can work with SPs, or at all..
 create table t3 (s1 int)|
 insert into t3 values (3), (4)|
 
@@ -2836,7 +2836,7 @@ drop table t3|
 # BUG#6022: Stored procedure shutdown problem with self-calling function.
 #
 
---disable_parsing until we implement support for recursive stored functions.
+--disable_parsing # until we implement support for recursive stored functions.
 --disable_warnings
 drop function if exists bug6022|
 --enable_warnings
@@ -3762,7 +3762,7 @@ drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
---disable_parsing temporarily disabled until Bar fixes BUG#11986
+--disable_parsing # temporarily disabled until Bar fixes BUG#11986
 create procedure bug6063()
   lâbel: begin end|
 call bug6063()|

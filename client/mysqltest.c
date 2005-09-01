@@ -2431,7 +2431,7 @@ int read_line(char *buf, int size)
       break;
     case R_LINE_START:
       /* Only accept start of comment if this is the first line in query */
-      if ((*lineno == start_lineno) && (c == '#' || c == '-' || parsing_diabled))
+      if ((*lineno == start_lineno) && (c == '#' || c == '-' || parsing_disabled))
       {
 	state = R_COMMENT;
       }
