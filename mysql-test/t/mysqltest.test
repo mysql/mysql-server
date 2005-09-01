@@ -473,6 +473,26 @@ echo $1;
 let $1 = hej;
 echo $1;
 
+let $1=1;
+let $2=$1;
+echo $2;
+let $5=$6;
+echo $5;
+echo $6;
+
+let $where=a long variable content;
+echo $where;
+
+let $where2= $where;
+echo $where2;
+
+let $where3=a long $where variable content;
+echo $where3;
+
+let $novar1= $novar2;
+echo $novar1;
+
+
 
 # Test illegal uses of let
 

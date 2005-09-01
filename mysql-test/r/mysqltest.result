@@ -206,6 +206,13 @@ source database
 hej
 hej 
 hej
+1
+
+
+a long variable content
+a long variable content
+a long $where variable content
+
 mysqltest: At line 1: Missing arguments to let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Variable name in hi=hi does not start with '$'
