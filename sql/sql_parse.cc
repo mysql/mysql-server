@@ -1998,7 +1998,8 @@ mysql_execute_command(THD *thd)
 
       Exceptions are:
       - SET: we always execute it (Not that many SET commands exists in
-        the binary log anyway)
+        the binary log anyway -- only 4.1 masters write SET statements,
+	in 5.0 there are no SET statements in the binary log)
       - DROP TEMPORARY TABLE IF EXISTS: we always execute it (otherwise we
         have stale files on slave caused by exclusion of one tmp table).
     */
