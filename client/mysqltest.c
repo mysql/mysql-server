@@ -1741,7 +1741,7 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
   for (i = 0; i < MAX_CON_TRIES; ++i)
   {
     if (mysql_real_connect(con, host,user, pass, db, port, sock,
-			   CLIENT_MULTI_STATEMENTS))
+			   CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
     {
       con_error = 0;
       break;
