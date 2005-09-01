@@ -134,8 +134,8 @@ public:
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
-my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
-void acl_reload(THD *thd);
+my_bool  acl_init(bool dont_read_acl_tables);
+my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
@@ -151,9 +151,9 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
 int mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
 		      List <LEX_COLUMN> &column_list, ulong rights,
 		      bool revoke);
-my_bool grant_init(THD *thd);
+my_bool grant_init();
 void grant_free(void);
-void grant_reload(THD *thd);
+my_bool grant_reload(THD *thd);
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 		 uint show_command, uint number, bool dont_print_error);
 bool check_grant_column (THD *thd,TABLE *table, const char *name, uint length,
