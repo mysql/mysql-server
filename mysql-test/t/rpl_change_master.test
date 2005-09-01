@@ -8,7 +8,7 @@ insert into t1 values(1+get_lock("a",15)*0);
 insert into t1 values(2);
 save_master_pos;
 connection slave;
---real_sleep 3; # can't sync_with_master as we should be blocked
+--real_sleep 3 # can't sync_with_master as we should be blocked
 stop slave;
 select * from t1;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
