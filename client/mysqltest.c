@@ -1147,16 +1147,24 @@ int var_query_set(VAR* v, const char *p, const char** p_end)
   return 0;
 }
 
-void var_copy(VAR* dest, VAR* src)
+void var_copy(VAR *dest, VAR *src)
 {
-  dest->int_val=src->int_val;
-  dest->int_dirty=src->int_dirty;
+  dest->int_val= src->int_val;
+  dest->int_dirty= src->int_dirty;
+
+  /* Alloc/realloc data for str_val in dest */
   if (dest->alloced_len < src->alloced_len &&
-      !(dest->str_val=my_realloc(dest->str_val,src->alloced_len+1,
-				 MYF(MY_WME))))
+      !(dest->str_val= dest->str_val
+        ? my_realloc(dest->str_val, src->alloced_len, MYF(MY_WME))
+        : my_malloc(src->alloced_len, MYF(MY_WME))))
     die("Out of memory");
-  dest->str_val_len=src->str_val_len;
-  memcpy(dest->str_val,src->str_val,src->str_val_len+1);
+  else
+    dest->alloced_len= src->alloced_len;
+
+  /* Copy str_val data to dest */
+  dest->str_val_len= src->str_val_len;
+  if (src->str_val_len)
+    memcpy(dest->str_val, src->str_val, src->str_val_len);
 }
 
 int eval_expr(VAR* v, const char *p, const char** p_end)
