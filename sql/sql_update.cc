@@ -566,10 +566,14 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (unique_table(table_list, table_list->next_global))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
-    DBUG_RETURN(TRUE);
+    TABLE_LIST *duplicate;
+    if ((duplicate= unique_table(table_list, table_list->next_global)))
+    {
+      update_non_unique_table_error(table_list, "UPDATE", duplicate);
+      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
+      DBUG_RETURN(TRUE);
+    }
   }
   select_lex->fix_prepare_information(thd, conds);
   DBUG_RETURN(FALSE);
@@ -779,7 +783,7 @@ bool mysql_multi_update_prepare(THD *thd)
   {
     TABLE *table= tl->table;
     TABLE_LIST *tlist;
-    if (!(tlist= tl->belong_to_view ? tl->belong_to_view : tl)->derived)
+    if (!(tlist= tl->top_table())->derived)
     {
       tlist->grant.want_privilege=
         (SELECT_ACL & ~tlist->grant.privilege);
@@ -788,11 +792,14 @@ bool mysql_multi_update_prepare(THD *thd)
     DBUG_PRINT("info", ("table: %s  want_privilege: %u", tl->alias,
                         (uint) table->grant.want_privilege));
     if (tl->lock_type != TL_READ &&
-        tl->lock_type != TL_READ_NO_INSERT &&
-        unique_table(tl, table_list))
+        tl->lock_type != TL_READ_NO_INSERT)
     {
-      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
-      DBUG_RETURN(TRUE);
+      TABLE_LIST *duplicate;
+      if ((duplicate= unique_table(tl, table_list)))
+      {
+        update_non_unique_table_error(table_list, "UPDATE", duplicate);
+        DBUG_RETURN(TRUE);
+      }
     }
   }
 
