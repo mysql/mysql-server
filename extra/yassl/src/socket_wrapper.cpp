@@ -93,11 +93,15 @@ void Socket::closeSocket()
 
 uint Socket::get_ready() const
 {
-    unsigned long ready = 0;
-
 #ifdef _WIN32
+    unsigned long ready = 0;
     ioctlsocket(socket_, FIONREAD, &ready);
 #else
+    /*
+      64-bit Solaris requires the variable passed to
+      FIONREAD be a 32-bit value.
+    */
+    int ready = 0;
     ioctl(socket_, FIONREAD, &ready);
 #endif
 
