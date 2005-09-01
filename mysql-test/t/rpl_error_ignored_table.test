@@ -6,7 +6,7 @@ source include/master-slave.inc;
 connection master;
 create table t1 (a int primary key);
 # generate an error that goes to the binlog
---error 1062;
+--error 1062
 insert into t1 values (1),(1);
 save_master_pos;
 connection slave;
@@ -45,7 +45,7 @@ select (@id := id) - id from t3;
 kill @id;
 drop table t2,t3;
 connection master;
---error 0,1053;
+--error 0,1053
 reap;
 connection master1;
 --replace_column 2 # 5 #

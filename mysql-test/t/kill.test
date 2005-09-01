@@ -49,7 +49,7 @@ select get_lock("a", 10);
 connection con2;
 let $ID= `select connection_id()`;
 send select get_lock("a", 10);
---real_sleep 2;
+real_sleep 2;
 connection con1;
 disable_query_log;
 eval kill query $ID;

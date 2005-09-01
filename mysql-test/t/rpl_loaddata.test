@@ -124,7 +124,7 @@ connection master;
 reset master;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM; # no transactions
---error 1062;
+--error 1062
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
@@ -140,7 +140,7 @@ select * from t2;
 alter table t2 drop key day;
 connection master;
 delete from t2;
---error 1062;
+--error 1062
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;

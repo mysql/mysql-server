@@ -25,7 +25,7 @@ set autocommit=0;
 # The following query should hang because con1 is locking the page
 --send
 update t1 set x=2 where id = 0;
---sleep 2;
+--sleep 2
 
 connection con1;
 update t1 set x=1 where id = 0;
@@ -63,7 +63,7 @@ set autocommit=0;
 # The following query should hang because con1 is locking the page
 --send
 update t1 set x=2 where id = 0;
---sleep 2;
+--sleep 2
 
 connection con1;
 update t1 set x=1 where id = 0;
@@ -97,7 +97,7 @@ update t2 set a=2 where b = 0;
 select * from t2;
 --send
 update t1 set x=2 where id = 0;
---sleep 2;
+--sleep 2
 
 connection con1;
 update t1 set x=1 where id = 0;
