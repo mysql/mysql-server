@@ -2388,11 +2388,16 @@ send_result_message:
     }
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
-      protocol->store("error", 5, system_charset_info);
-      protocol->store("Unknown - internal error during operation", 41
-		      , system_charset_info);
-      fatal_error=1;
-      break;
+      {
+        char buf[ERRMSGSIZE+20];
+        uint length=my_snprintf(buf, ERRMSGSIZE,
+                                "Unknown - internal error %d during operation",
+                                result_code);
+        protocol->store("error", 5, system_charset_info);
+        protocol->store(buf, length, system_charset_info);
+        fatal_error=1;
+        break;
+      }
     }
     if (fatal_error)
       table->table->s->version=0;               // Force close of table
