@@ -494,7 +494,7 @@ select 0.8 = 0.7 + 0.1;
 #
 #drop procedure p1;
 #
-delimiter //
+delimiter //;
 #
 create procedure p1 () begin 
   declare v1, v2, v3, v4 decimal(16,12); declare v5 int; 
