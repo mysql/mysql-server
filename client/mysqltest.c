@@ -837,9 +837,9 @@ int var_set(const char *var_name, const char *var_name_end,
 
 int open_file(const char *name)
 {
+  char buff[FN_REFLEN];
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
-  char buff[FN_REFLEN];
   if (!test_if_hard_path(name))
   {
     strxmov(buff, opt_basedir, name, NullS);
@@ -868,9 +868,9 @@ int open_file(const char *name)
 
 int check_eol_junk(const char *eol)
 {
+  const char *p= eol;
   DBUG_ENTER("check_eol_junk");
   DBUG_PRINT("enter", ("eol: %s", eol));
-  const char *p= eol;
   /* Remove all spacing chars except new line */
   while (*p && my_isspace(charset_info, *p) && (*p != '\n'))
     p++;
@@ -1665,7 +1665,7 @@ static uint get_errcodes(match_err *to,struct st_query *q)
 	}
       }
       if (!e->name)
-	die("Unknown SQL error '%s'\n", start);
+	die("Unknown SQL error '%s'", start);
     }
     else
     {
@@ -2089,7 +2089,7 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
   if (record)
   {
     if (!q->record_file[0] && !result_file)
-      die("At line %u: Missing result file", start_lineno);
+      die("Missing result file");
     if (!result_file)
       str_to_file(q->record_file, ds->str, ds->length);
   }
@@ -2235,7 +2235,7 @@ int do_block(enum block_cmd cmd, struct st_query* q)
   char *p= q->first_argument;
   const char *expr_start, *expr_end;
   VAR v;
-  const char *cmd_name= (cmd == Q_WHILE ? "while" : "if");
+  const char *cmd_name= (cmd == cmd_while ? "while" : "if");
 
   /* Check stack overflow */
   if (cur_block == block_stack_end)
@@ -3092,7 +3092,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	  warn_res= mysql_store_result(mysql);
 	}
 	if (!warn_res)
-	  verbose_msg("Warning count is %u but didn't get any warnings\n",
+	  verbose_msg("Warning count is %u but didn't get any warnings",
 		      count);
 	else
 	{
@@ -3183,7 +3183,7 @@ static int normal_handle_error(const char *query, struct st_query *q,
     abort_not_supported_test();
 
   if (q->abort_on_error)
-    die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
+    die("query '%s' failed: %d: %s", query,
         mysql_errno(mysql), mysql_error(mysql));
   else
   {
@@ -3710,7 +3710,7 @@ static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds)
     {
       MYSQL_RES *warn_res= mysql_store_result(mysql);
       if (!warn_res)
-        verbose_msg("Warning count is %u but didn't get any warnings\n",
+        verbose_msg("Warning count is %u but didn't get any warnings",
                     count);
       else
       {
