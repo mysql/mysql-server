@@ -1233,7 +1233,7 @@ enum enum_operator
 int do_modify_var(struct st_query *query, const char *name,
                   enum enum_operator operator)
 {
-  char *p= query->first_argument;
+  const char *p= query->first_argument;
   VAR* v;
   if (!*p)
     die("Missing arguments to %s", name);
@@ -1252,7 +1252,7 @@ int do_modify_var(struct st_query *query, const char *name,
     break;
   }
   v->int_dirty= 1;
-  query->last_argument= ++p;
+  query->last_argument= (char*)++p;
   return 0;
 }
 
@@ -1392,8 +1392,6 @@ int do_sync_with_master(struct st_query *query)
   long offset= 0;
   char *p= query->first_argument;
   const char *offset_start= p;
-  const char *offset_end= query->end;
-  int error;
   if (*offset_start)
   {
     for (; my_isdigit(charset_info, *p); p++)
