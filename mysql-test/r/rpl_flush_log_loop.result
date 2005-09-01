@@ -4,10 +4,10 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+stop slave;
 change master to master_host='127.0.0.1',master_user='root',
 master_password='',master_port=MASTER_PORT;
 start slave;
-stop slave;
 change master to master_host='127.0.0.1',master_user='root',
 master_password='',master_port=SLAVE_PORT;
 start slave;
