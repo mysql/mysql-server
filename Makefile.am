@@ -116,3 +116,8 @@ test:
 		--master_port=$(MYSQL_TEST_MASTER_PORT) \
 		--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
 		--ndbcluster_port=$(MYSQL_TEST_NDB_PORT)
+
+test-force:
+	cd mysql-test; \
+	./mysql-test-run --force ;\
+	./mysql-test-run --ps-protocol --force
