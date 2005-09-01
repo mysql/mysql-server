@@ -2855,12 +2855,15 @@ mysql_execute_command(THD *thd)
           Is table which we are changing used somewhere in other parts
           of query
         */
-        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-            unique_table(create_table, select_tables))
+        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
-          my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
-          res= 1;
-          goto end_with_restart_wait;
+          TABLE_LIST *duplicate;
+          if ((duplicate= unique_table(create_table, select_tables)))
+          {
+            update_non_unique_table_error(create_table, "CREATE", duplicate);
+            res= 1;
+            goto end_with_restart_wait;
+          }
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2870,9 +2873,10 @@ mysql_execute_command(THD *thd)
                tab;
                tab= tab->next_local)
           {
-            if (unique_table(tab, select_tables))
+            TABLE_LIST *duplicate;
+            if ((duplicate= unique_table(tab, select_tables)))
             {
-              my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
+              update_non_unique_table_error(tab, "CREATE", duplicate);
               res= 1;
               goto end_with_restart_wait;
             }

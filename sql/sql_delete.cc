@@ -332,10 +332,13 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
     DBUG_RETURN(TRUE);
   }
-  if (unique_table(table_list, table_list->next_global))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
-    DBUG_RETURN(TRUE);
+    TABLE_LIST *duplicate;
+    if ((duplicate= unique_table(table_list, table_list->next_global)))
+    {
+      update_non_unique_table_error(table_list, "DELETE", duplicate);
+      DBUG_RETURN(TRUE);
+    }
   }
   select_lex->fix_prepare_information(thd, conds);
   DBUG_RETURN(FALSE);
@@ -418,11 +421,15 @@ bool mysql_multi_delete_prepare(THD *thd)
       Check that table from which we delete is not used somewhere
       inside subqueries/view.
     */
-    if (unique_table(target_tbl->correspondent_table, lex->query_tables))
     {
-      my_error(ER_UPDATE_TABLE_USED, MYF(0),
-               target_tbl->correspondent_table->table_name);
-      DBUG_RETURN(TRUE);
+      TABLE_LIST *duplicate;
+      if ((duplicate= unique_table(target_tbl->correspondent_table,
+                                   lex->query_tables)))
+      {
+        update_non_unique_table_error(target_tbl->correspondent_table,
+                                      "DELETE", duplicate);
+        DBUG_RETURN(TRUE);
+      }
     }
   }
   DBUG_RETURN(FALSE);
