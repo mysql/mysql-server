@@ -58,7 +58,7 @@ while ($1)
 enable_query_log;
 select * from t1 for update;
 start slave;
---sleep 3; # hope that slave is blocked now
+--sleep 3 # hope that slave is blocked now
 insert into t2 values(22); # provoke deadlock, slave should be victim
 commit;
 sync_with_master;
@@ -76,7 +76,7 @@ change master to master_log_pos=401; # the BEGIN log event
 begin;
 select * from t2 for update; # hold lock
 start slave;
---sleep 10; # slave should have blocked, and be retrying
+--sleep 10 # slave should have blocked, and be retrying
 commit;
 sync_with_master;
 select * from t1; # check that slave succeeded finally
@@ -97,7 +97,7 @@ change master to master_log_pos=401;
 begin;
 select * from t2 for update;
 start slave;
---sleep 10;
+--sleep 10
 commit;
 sync_with_master;
 select * from t1;
