@@ -4,7 +4,7 @@
 # We also check how the foreign_key_check variable is replicated
 
 source include/master-slave.inc;
-source include/have_innodb.inc
+source include/have_innodb.inc;
 connection master;
 create table t1(a int auto_increment, key(a));
 create table t2(b int auto_increment, c int, key(b));
