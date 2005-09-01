@@ -437,6 +437,7 @@ typedef struct st_table_list
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */
+  bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
