@@ -919,8 +919,7 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
     {
-      DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
-			   pkt_len));
+      DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       inc_host_errors(&thd->remote.sin_addr);
       return(ER_HANDSHAKE_ERROR);
     }
@@ -3468,7 +3467,7 @@ end_with_restore_list:
     if (lex->local_file)
     {
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
-	  ! opt_local_infile)
+          !opt_local_infile)
       {
 	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
 	goto error;
