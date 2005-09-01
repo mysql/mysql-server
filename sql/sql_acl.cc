@@ -539,12 +539,12 @@ my_bool acl_reload(THD *thd)
     obtaining acl_cache->lock mutex.
   */
   bzero((char*) tables, sizeof(tables));
-  tables[0].alias=tables[0].real_name=(char*) "host";
-  tables[1].alias=tables[1].real_name=(char*) "user";
-  tables[2].alias=tables[2].real_name=(char*) "db";
-  tables[0].db=tables[1].db=tables[2].db= (char*) "mysql";
-  tables[0].next= tables+1;
-  tables[1].next= tables+2;
+  tables[0].alias= tables[0].table_name= (char*) "host";
+  tables[1].alias= tables[1].table_name= (char*) "user";
+  tables[2].alias= tables[2].table_name= (char*) "db";
+  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
+  tables[0].next_local= tables[0].next_global= tables+1;
+  tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
 
   if (simple_open_n_lock_tables(thd, tables))
@@ -1391,7 +1391,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1);
 
   bzero((char*) &tables, sizeof(tables));
-  tables.alias=tables.real_name= (char*) "user";
+  tables.alias= tables.table_name= (char*) "user";
   tables.db= (char*) "mysql";
 
 #ifdef HAVE_REPLICATION
@@ -1407,7 +1407,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     */
     tables.updating= 1;
     /* Thanks to bzero, tables.next==0 */
-    if (!tables_ok(0, &tables))
+    if (!tables_ok(thd, &tables))
       DBUG_RETURN(0);
   }
 #endif
@@ -1438,14 +1438,14 @@ bool change_password(THD *thd, const char *host, const char *user,
   acl_cache->clear(1);				// Clear locked hostname cache
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   result= 0;
-  query_length=
-    my_sprintf(buff,
-	       (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
-		acl_user->user ? acl_user->user : "",
-		acl_user->host.hostname ? acl_user->host.hostname : "",
-		new_password));
   if (mysql_bin_log.is_open())
   {
+    query_length=
+      my_sprintf(buff,
+                 (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
+                  acl_user->user ? acl_user->user : "",
+                  acl_user->host.hostname ? acl_user->host.hostname : "",
+                  new_password));
     thd->clear_error();
     Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
     mysql_bin_log.write(&qinfo);
@@ -3353,6 +3353,7 @@ static my_bool grant_load(TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
+  p_table->file->ha_index_end();
   my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
   DBUG_RETURN(return_val);
 }
@@ -3378,7 +3379,7 @@ end_unlock:
 
 my_bool grant_reload(THD *thd)
 {
-  TABLE_LIST tables[2];
+  TABLE_LIST tables[3];
   HASH old_column_priv_hash, old_proc_priv_hash, old_func_priv_hash;
   bool old_grant_option;
   MEM_ROOT old_mem;
@@ -3390,11 +3391,13 @@ my_bool grant_reload(THD *thd)
     DBUG_RETURN(0);
 
   bzero((char*) tables, sizeof(tables));
-  tables[0].alias=tables[0].real_name= (char*) "tables_priv";
-  tables[1].alias=tables[1].real_name= (char*) "columns_priv";
-  tables[0].db=tables[1].db= (char *) "mysql";
-  tables[0].next=tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_READ;
+  tables[0].alias= tables[0].table_name= (char*) "tables_priv";
+  tables[1].alias= tables[1].table_name= (char*) "columns_priv";
+  tables[2].alias= tables[2].table_name= (char*) "procs_priv";
+  tables[0].db= tables[1].db= tables[2].db= (char *) "mysql";
+  tables[0].next_local= tables[0].next_global= tables+1;
+  tables[1].next_local= tables[1].next_global= tables+2;
+  tables[0].lock_type= tables[1].lock_type= tables[2].lock_type= TL_READ;
 
   /*
     To avoid deadlocks we should obtain table locks before
