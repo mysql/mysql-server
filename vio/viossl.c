@@ -283,9 +283,10 @@ int sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   X509* client_cert;
   my_bool unused;
   my_bool net_blocking;
-  enum enum_vio_type old_type;  
+  enum enum_vio_type old_type;
   DBUG_ENTER("sslaccept");
-  DBUG_PRINT("enter", ("sd: %d  ptr: Ox%p", vio->sd,ptr));
+  DBUG_PRINT("enter", ("sd: %d  ptr: Ox%p, timeout: %d",
+                       vio->sd, ptr, timeout));
 
   old_type= vio->type;
   net_blocking = vio_is_blocking(vio);
@@ -379,7 +380,7 @@ int sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
                       (SSL*) vio->ssl_arg, timeout));
   SSL_clear((SSL*) vio->ssl_arg);
   SSL_SESSION_set_timeout(SSL_get_session((SSL*) vio->ssl_arg), timeout);
-  SSL_set_fd ((SSL*) vio->ssl_arg, vio->sd);
+  SSL_set_fd ((SSL*) vio->ssl_arg, vio_ssl_fd(vio));
   SSL_set_connect_state((SSL*) vio->ssl_arg);
   if (SSL_do_handshake((SSL*) vio->ssl_arg) < 1)
   {
