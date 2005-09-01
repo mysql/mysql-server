@@ -2385,8 +2385,6 @@ int read_query(struct st_query** q_ptr)
 	 sizeof(global_expected_errno));
   q->expected_errors= global_expected_errors;
   q->abort_on_error= (global_expected_errors == 0 && abort_on_error);
-  bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
-  global_expected_errors=0;
   if (p[0] == '-' && p[1] == '-')
   {
     q->type= Q_COMMENT_WITH_COMMAND;
@@ -4001,6 +3999,16 @@ int main(int argc, char **argv)
     }
     else
       check_eol_junk(q->last_argument);
+
+    if (q->type != Q_ERROR)
+    {
+      /*
+        As soon as any non "error" command has been executed,
+        the array with expected errors should be cleared
+      */
+      global_expected_errors= 0;
+      bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
+    }
 
     parser.current_line += current_line_inc;
   }
