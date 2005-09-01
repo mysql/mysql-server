@@ -15,6 +15,7 @@ use POSIX 'WNOHANG';
 sub mtr_init_timers ();
 sub mtr_timer_start($$$);
 sub mtr_timer_stop($$);
+sub mtr_timer_stop_all($);
 sub mtr_timer_waitpid($$$);
 
 ##############################################################################
@@ -110,6 +111,17 @@ sub mtr_timer_stop ($$) {
     mtr_debug("Asked to stop timer \"$name\" not started");
     return 0;
   }
+}
+
+
+sub mtr_timer_stop_all ($) {
+  my $timers= shift;
+
+  foreach my $name ( keys %{$timers->{'timers'}} )
+  {
+    mtr_timer_stop($timers, $name);
+  }
+  return 1;
 }
 
 
