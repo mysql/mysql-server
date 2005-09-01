@@ -351,4 +351,47 @@ set password = password("changed");
 disconnect n5;
 connection default;
 
+
+# Bug #12423 "Deadlock when doing FLUSH PRIVILEGES and GRANT in 
+# multi-threaded environment". We should be able to execute FLUSH
+# PRIVILEGES and SET PASSWORD simultaneously with other account
+# management commands (such as GRANT and REVOKE) without causing
+# deadlocks. To achieve this we should ensure that all account
+# management commands take table and internal locks in the same order.
+connect (con2root,localhost,root,,);
+connect (con3root,localhost,root,,);
+# Check that we can execute FLUSH PRIVILEGES and GRANT simultaneously
+# This will check that locks are taken in proper order during both
+# user/db-level and table/column-level privileges reloading.
+connection default;
+lock table mysql.user write;
+connection con2root;
+send flush privileges;
+connection con3root;
+send grant all on *.* to 'mysqltest_1'@'localhost';
+connection default;
+unlock tables;
+connection con2root;
+reap;
+connection con3root;
+reap;
+# Check for simultaneous SET PASSWORD and REVOKE.
+connection default;
+lock table mysql.user write;
+connection con2root;
+send set password for 'mysqltest_1'@'localhost' = password('');
+connection con3root;
+send revoke all on *.* from 'mysqltest_1'@'localhost';
+connection default;
+unlock tables;
+connection con2root;
+reap;
+connection con3root;
+reap;
+connection default;
+# Clean-up
+drop user 'mysqltest_1'@'localhost';
+disconnect con2root;
+disconnect con3root;
+
 # End of 4.1 tests
