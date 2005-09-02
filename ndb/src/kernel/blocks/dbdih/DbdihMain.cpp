@@ -9640,6 +9640,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   }
 
   bool tableDone = reportLcpCompletion(lcpReport);
+  
+  Uint32 started = lcpReport->maxGciStarted;
+  Uint32 completed = lcpReport->maxGciCompleted;
 
   if(tableDone){
     jam();
@@ -9673,7 +9676,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   signal->theData[1] = nodeId;
   signal->theData[2] = tableId;
   signal->theData[3] = fragId;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+  signal->theData[4] = started;
+  signal->theData[5] = completed;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 #endif
   
   bool ok = false;
@@ -10790,7 +10795,9 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   lcpNo = fmgReplicaPtr.p->nextLcp;
   do {
     ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID) {
+    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID &&
+	fmgReplicaPtr.p->maxGciStarted[lcpNo] <= coldgcp)
+    {
       jam();
       keepGci = fmgReplicaPtr.p->maxGciCompleted[lcpNo];
       oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lcpNo];
@@ -10798,7 +10805,6 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
       return;
     } else {
       jam();
-      ndbrequire(fmgReplicaPtr.p->lcpStatus[lcpNo] == ZINVALID);
       if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) {
         jam();
 	/*-------------------------------------------------------------------
