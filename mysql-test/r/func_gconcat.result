@@ -548,3 +548,6 @@ FROM t1 JOIN t2 ON t1.bID = t2.bID;
 COUNT(*)	GROUP_CONCAT(DISTINCT t2.somename SEPARATOR ' |')
 2	test
 DROP TABLE t1,t2;
+select * from (select group_concat('c') from DUAL) t;
+group_concat('c')
+NULL

@@ -12,16 +12,17 @@ use strict;
 #use POSIX ":sys_wait_h";
 use POSIX 'WNOHANG';
 
-sub mtr_run ($$$$$$);
-sub mtr_spawn ($$$$$$);
+sub mtr_run ($$$$$$;$);
+sub mtr_spawn ($$$$$$;$);
 sub mtr_stop_mysqld_servers ($);
 sub mtr_kill_leftovers ();
 sub mtr_record_dead_children ();
 sub mtr_exit ($);
 sub sleep_until_file_created ($$$);
+sub mtr_kill_processes ($);
 
 # static in C
-sub spawn_impl ($$$$$$$);
+sub spawn_impl ($$$$$$$$);
 
 ##############################################################################
 #
@@ -32,37 +33,43 @@ sub spawn_impl ($$$$$$$);
 # This function try to mimic the C version used in "netware/mysql_test_run.c"
 # FIXME learn it to handle append mode as well, a "new" flag or a "append"
 
-sub mtr_run ($$$$$$) {
+sub mtr_run ($$$$$$;$) {
   my $path=       shift;
   my $arg_list_t= shift;
   my $input=      shift;
   my $output=     shift;
   my $error=      shift;
   my $pid_file=   shift;
+  my $spawn_opts= shift;
 
-  return spawn_impl($path,$arg_list_t,'run',$input,$output,$error,$pid_file);
+  return spawn_impl($path,$arg_list_t,'run',$input,$output,$error,$pid_file,
+    $spawn_opts);
 }
 
-sub mtr_run_test ($$$$$$) {
+sub mtr_run_test ($$$$$$;$) {
   my $path=       shift;
   my $arg_list_t= shift;
   my $input=      shift;
   my $output=     shift;
   my $error=      shift;
   my $pid_file=   shift;
+  my $spawn_opts= shift;
 
-  return spawn_impl($path,$arg_list_t,'test',$input,$output,$error,$pid_file);
+  return spawn_impl($path,$arg_list_t,'test',$input,$output,$error,$pid_file,
+    $spawn_opts);
 }
 
-sub mtr_spawn ($$$$$$) {
+sub mtr_spawn ($$$$$$;$) {
   my $path=       shift;
   my $arg_list_t= shift;
   my $input=      shift;
   my $output=     shift;
   my $error=      shift;
   my $pid_file=   shift;
+  my $spawn_opts= shift;
 
-  return spawn_impl($path,$arg_list_t,'spawn',$input,$output,$error,$pid_file);
+  return spawn_impl($path,$arg_list_t,'spawn',$input,$output,$error,$pid_file,
+    $spawn_opts);
 }
 
 
@@ -72,7 +79,7 @@ sub mtr_spawn ($$$$$$) {
 #
 ##############################################################################
 
-sub spawn_impl ($$$$$$$) {
+sub spawn_impl ($$$$$$$$) {
   my $path=       shift;
   my $arg_list_t= shift;
   my $mode=       shift;
@@ -80,6 +87,7 @@ sub spawn_impl ($$$$$$$) {
   my $output=     shift;
   my $error=      shift;
   my $pid_file=   shift;                 # FIXME
+  my $spawn_opts= shift;
 
   if ( $::opt_script_debug )
   {
@@ -89,6 +97,18 @@ sub spawn_impl ($$$$$$$) {
     print STDERR "#### ", "STDOUT $output\n" if $output;
     print STDERR "#### ", "STDERR $error\n" if $error;
     print STDERR "#### ", "$mode : $path ", join(" ",@$arg_list_t), "\n";
+    print STDERR "#### ", "spawn options:\n";
+    if ($spawn_opts)
+    {
+      foreach my $key (sort keys %{$spawn_opts})
+      {
+        print STDERR "#### ", "  - $key: $spawn_opts->{$key}\n";
+      }
+    }
+    else
+    {
+      print STDERR "#### ", "  none\n";
+    }
     print STDERR "#### ", "-" x 78, "\n";
   }
 
@@ -135,9 +155,16 @@ sub spawn_impl ($$$$$$$) {
 #       $ENV{'COMSPEC'}= "$::glob_cygwin_shell -c";
       }
 
+      my $log_file_open_mode = '>';
+
+      if ($spawn_opts and $spawn_opts->{'append_log_file'})
+      {
+        $log_file_open_mode = '>>';
+      }
+
       if ( $output )
       {
-        if ( ! open(STDOUT,">",$output) )
+        if ( ! open(STDOUT,$log_file_open_mode,$output) )
         {
           mtr_error("can't redirect STDOUT to \"$output\": $!");
         }
@@ -154,9 +181,9 @@ sub spawn_impl ($$$$$$$) {
         }
         else
         {
-          if ( ! open(STDERR,">",$error) )
+          if ( ! open(STDERR,$log_file_open_mode,$error) )
           {
-            mtr_error("can't redirect STDERR to \"$output\": $!");
+            mtr_error("can't redirect STDERR to \"$error\": $!");
           }
         }
       }
@@ -533,17 +560,8 @@ sub mtr_stop_mysqld_servers ($) {
 
   start_reap_all();                     # Avoid zombies
 
- SIGNAL:
-  foreach my $sig (15,9)
-  {
-    my $retries= 20;                    # FIXME 20 seconds, this is silly!
-    kill($sig, keys %mysqld_pids);
-    while ( $retries-- and  kill(0, keys %mysqld_pids) )
-    {
-      mtr_debug("Sleep 1 second waiting for processes to die");
-      sleep(1)                      # Wait one second
-    }
-  }
+  my @mysqld_pids= keys %mysqld_pids;
+  mtr_kill_processes(\@mysqld_pids);
 
   stop_reap_all();                      # Get into control again
 
@@ -826,6 +844,21 @@ sub sleep_until_file_created ($$$) {
 }
 
 
+sub mtr_kill_processes ($) {
+  my $pids = shift;
+
+  foreach my $sig (15,9)
+  {
+    my $retries= 20;                    # FIXME 20 seconds, this is silly!
+    kill($sig, @{$pids});
+    while ( $retries-- and  kill(0, @{$pids}) )
+    {
+      mtr_debug("Sleep 1 second waiting for processes to die");
+      sleep(1)                      # Wait one second
+    }
+  }
+}
+
 ##############################################################################
 #
 #  When we exit, we kill off all children
@@ -841,6 +874,7 @@ sub sleep_until_file_created ($$$) {
 sub mtr_exit ($) {
   my $code= shift;
 #  cluck("Called mtr_exit()");
+  mtr_timer_stop_all($::glob_timers);
   local $SIG{HUP} = 'IGNORE';
   kill('HUP', -$$);
   sleep 2;

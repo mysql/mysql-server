@@ -22,7 +22,7 @@ set sql_log_bin=0;
 insert into t1 values(2);
 set sql_log_bin=1;
 save_master_pos;
---error 1062;
+--error 1062
 insert into t1 values(1),(2);
 drop table t1;
 save_master_pos;

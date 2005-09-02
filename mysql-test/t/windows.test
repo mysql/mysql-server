@@ -1,0 +1,20 @@
+# Windows-specific tests
+--source include/windows.inc
+
+#
+# Bug 9148: Denial of service
+#
+--error 1049
+use lpt1;
+--error 1049
+use com1;
+--error 1049
+use prn;
+
+#
+# Bug #12325: Can't create table named 'nu'
+#
+create table nu (a int);
+drop table nu;
+
+# End of 4.1 tests
