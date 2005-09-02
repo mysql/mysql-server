@@ -63,18 +63,21 @@ static bool allow_all_hosts=1;
 static HASH acl_check_hosts, column_priv_hash, proc_priv_hash, func_priv_hash;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
-static uint grant_version=0; /* Version of priv tables. incremented by acl_init */
+static uint grant_version=0; /* Version of priv tables. incremented by acl_load */
 static ulong get_access(TABLE *form,uint fieldnr, uint *next_field=0);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
 static void init_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
-static bool update_user_table(THD *thd, const char *host, const char *user,
+static bool update_user_table(THD *thd, TABLE *table,
+                              const char *host, const char *user,
 			      const char *new_password, uint new_password_len);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
+static my_bool acl_load(THD *thd, TABLE_LIST *tables);
+static my_bool grant_load(TABLE_LIST *tables);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -119,42 +122,36 @@ static void restrict_update_of_old_passwords_var(THD *thd,
 
 
 /*
-  Read grant privileges from the privilege tables in the 'mysql' database.
+  Initialize structures responsible for user/db-level privilege checking and
+  load privilege information for them from tables in the 'mysql' database.
 
   SYNOPSIS
     acl_init()
-    thd				Thread handler
-    dont_read_acl_tables	Set to 1 if run with --skip-grant
+      dont_read_acl_tables  TRUE if we want to skip loading data from
+                            privilege tables and disable privilege checking.
+
+  NOTES
+    This function is mostly responsible for preparatory steps, main work
+    on initialization and grants loading is done in acl_reload().
 
   RETURN VALUES
     0	ok
     1	Could not initialize grant's
 */
 
-
-my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
+my_bool acl_init(bool dont_read_acl_tables)
 {
   THD  *thd;
-  TABLE_LIST tables[3];
-  TABLE *table;
-  READ_RECORD read_record_info;
-  my_bool return_val=1;
-  bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  char tmp_name[NAME_LEN+1];
-
+  my_bool return_val;
   DBUG_ENTER("acl_init");
 
-  if (!acl_cache)
-    acl_cache=new hash_filo(ACL_CACHE_SIZE,0,0,
-			    (hash_get_key) acl_entry_get_key,
-			    (hash_free_key) free, system_charset_info);
+  acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
+                           (hash_get_key) acl_entry_get_key,
+                           (hash_free_key) free, system_charset_info);
   if (dont_read_acl_tables)
   {
     DBUG_RETURN(0); /* purecov: tested */
   }
-
-  grant_version++; /* Privileges updated */
-  mysql_proc_table_exists= 1;			// Assume mysql.proc exists
 
   /*
     To be able to run this from boot, we allocate a temporary THD
@@ -162,25 +159,48 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
   thd->store_globals();
+  /*
+    It is safe to call acl_reload() since acl_* arrays and hashes which
+    will be freed there are global static objects and thus are initialized
+    by zeros at startup.
+  */
+  return_val= acl_reload(thd);
+  delete thd;
+  /* Remember that we don't have a THD */
+  my_pthread_setspecific_ptr(THR_THD,  0);
+  DBUG_RETURN(return_val);
+}
+
+
+/*
+  Initialize structures responsible for user/db-level privilege checking
+  and load information about grants from open privilege tables.
+
+  SYNOPSIS
+    acl_load()
+      thd     Current thread
+      tables  List containing open "mysql.host", "mysql.user" and
+              "mysql.db" tables.
+
+  RETURN VALUES
+    FALSE  Success
+    TRUE   Error
+*/
+
+static my_bool acl_load(THD *thd, TABLE_LIST *tables)
+{
+  TABLE *table;
+  READ_RECORD read_record_info;
+  my_bool return_val= 1;
+  bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
+  char tmp_name[NAME_LEN+1];
+  DBUG_ENTER("acl_load");
+
+  grant_version++; /* Privileges updated */
+  mysql_proc_table_exists= 1;			// Assume mysql.proc exists
 
   acl_cache->clear(1);				// Clear locked hostname cache
-  thd->db= my_strdup("mysql",MYF(0));
-  thd->db_length=5;				// Safety
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name=(char*) "host";
-  tables[1].alias=tables[1].table_name=(char*) "user";
-  tables[2].alias=tables[2].table_name=(char*) "db";
-  tables[0].next_local= tables[0].next_global= tables+1;
-  tables[1].next_local= tables[1].next_global= tables+2;
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
-  tables[0].db=tables[1].db=tables[2].db=thd->db;
 
-  if (simple_open_n_lock_tables(thd, tables))
-  {
-    sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-		    thd->net.last_error);
-    goto end;
-  }
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
   init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
@@ -454,19 +474,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   init_check_host();
 
   initialized=1;
-  thd->version--;				// Force close to free memory
   return_val=0;
 
 end:
-  close_thread_tables(thd);
-  delete thd;
-  if (org_thd)
-    org_thd->store_globals();			/* purecov: inspected */
-  else
-  {
-    /* Remember that we don't have a THD */
-    my_pthread_setspecific_ptr(THR_THD,  0);
-  }
   DBUG_RETURN(return_val);
 }
 
@@ -490,27 +500,60 @@ void acl_free(bool end)
 
 
 /*
-  Forget current privileges and read new privileges from the privilege tables
+  Forget current user/db-level privileges and read new privileges
+  from the privilege tables.
 
   SYNOPSIS
     acl_reload()
-    thd			Thread handle. Note that this may be NULL if we refresh
-			because we got a signal    
+      thd  Current thread
+
+  NOTE
+    All tables of calling thread which were open and locked by LOCK TABLES
+    statement will be unlocked and closed.
+    This function is also used for initialization of structures responsible
+    for user/db-level privilege checking.
+
+  RETURN VALUE
+    FALSE  Success
+    TRUE   Failure
 */
 
-void acl_reload(THD *thd)
+my_bool acl_reload(THD *thd)
 {
+  TABLE_LIST tables[3];
   DYNAMIC_ARRAY old_acl_hosts,old_acl_users,old_acl_dbs;
   MEM_ROOT old_mem;
   bool old_initialized;
+  my_bool return_val= 1;
   DBUG_ENTER("acl_reload");
 
-  if (thd && thd->locked_tables)
+  if (thd->locked_tables)
   {					// Can't have locked tables here
     thd->lock=thd->locked_tables;
     thd->locked_tables=0;
     close_thread_tables(thd);
   }
+
+  /*
+    To avoid deadlocks we should obtain table locks before
+    obtaining acl_cache->lock mutex.
+  */
+  bzero((char*) tables, sizeof(tables));
+  tables[0].alias= tables[0].table_name= (char*) "host";
+  tables[1].alias= tables[1].table_name= (char*) "user";
+  tables[2].alias= tables[2].table_name= (char*) "db";
+  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
+  tables[0].next_local= tables[0].next_global= tables+1;
+  tables[1].next_local= tables[1].next_global= tables+2;
+  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
+
+  if (simple_open_n_lock_tables(thd, tables))
+  {
+    sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
+		    thd->net.last_error);
+    goto end;
+  }
+
   if ((old_initialized=initialized))
     VOID(pthread_mutex_lock(&acl_cache->lock));
 
@@ -521,7 +564,7 @@ void acl_reload(THD *thd)
   delete_dynamic(&acl_wild_hosts);
   hash_free(&acl_check_hosts);
 
-  if (acl_init(thd, 0))
+  if ((return_val= acl_load(thd, tables)))
   {					// Error. Revert to old list
     DBUG_PRINT("error",("Reverting to old privileges"));
     acl_free();				/* purecov: inspected */
@@ -540,7 +583,9 @@ void acl_reload(THD *thd)
   }
   if (old_initialized)
     VOID(pthread_mutex_unlock(&acl_cache->lock));
-  DBUG_VOID_RETURN;
+end:
+  close_thread_tables(thd);
+  DBUG_RETURN(return_val);
 }
 
 
@@ -1330,7 +1375,13 @@ bool check_change_password(THD *thd, const char *host, const char *user,
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
 {
+  TABLE_LIST tables;
+  TABLE *table;
+  /* Buffer should be extended when password length is extended. */
+  char buff[512];
+  ulong query_length;
   uint new_password_len= strlen(new_password);
+  bool result= 1;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
@@ -1339,40 +1390,69 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(1);
 
+  bzero((char*) &tables, sizeof(tables));
+  tables.alias= tables.table_name= (char*) "user";
+  tables.db= (char*) "mysql";
+
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on)
+  {
+    /*
+      The tables must be marked "updating" so that tables_ok() takes them into
+      account in tests.  It's ok to leave 'updating' set after tables_ok.
+    */
+    tables.updating= 1;
+    /* Thanks to bzero, tables.next==0 */
+    if (!tables_ok(thd, &tables))
+      DBUG_RETURN(0);
+  }
+#endif
+
+  if (!(table= open_ltable(thd, &tables, TL_WRITE)))
+    DBUG_RETURN(1);
+
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
   if (!(acl_user= find_acl_user(host, user, TRUE)))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock));
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
-    DBUG_RETURN(1);
+    goto end;
   }
   /* update loaded acl entry: */
   set_user_salt(acl_user, new_password, new_password_len);
 
-  if (update_user_table(thd,
+  if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
 			acl_user->user ? acl_user->user : "",
 			new_password, new_password_len))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock)); /* purecov: deadcode */
-    DBUG_RETURN(1); /* purecov: deadcode */
+    goto end;
   }
 
   acl_cache->clear(1);				// Clear locked hostname cache
   VOID(pthread_mutex_unlock(&acl_cache->lock));
-
-  char buff[512]; /* Extend with extended password length*/
-  ulong query_length=
-    my_sprintf(buff,
-	       (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
-		acl_user->user ? acl_user->user : "",
-		acl_user->host.hostname ? acl_user->host.hostname : "",
-		new_password));
-  thd->clear_error();
-  Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
-  mysql_bin_log.write(&qinfo);
-  DBUG_RETURN(0);
+  result= 0;
+  if (mysql_bin_log.is_open())
+  {
+    query_length=
+      my_sprintf(buff,
+                 (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
+                  acl_user->user ? acl_user->user : "",
+                  acl_user->host.hostname ? acl_user->host.hostname : "",
+                  new_password));
+    thd->clear_error();
+    Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
+    mysql_bin_log.write(&qinfo);
+  }
+end:
+  close_thread_tables(thd);
+  DBUG_RETURN(result);
 }
 
 
@@ -1486,44 +1566,29 @@ bool hostname_requires_resolving(const char *hostname)
   return FALSE;
 }
 
+
 /*
-  Update grants in the user and database privilege tables
+  Update record for user in mysql.user privilege table with new password.
+
+  SYNOPSIS
+    update_user_table()
+      thd               Thread handle
+      table             Pointer to TABLE object for open mysql.user table
+      host/user         Hostname/username pair identifying user for which
+                        new password should be set
+      new_password      New password
+      new_password_len  Length of new password
 */
 
-static bool update_user_table(THD *thd, const char *host, const char *user,
+static bool update_user_table(THD *thd, TABLE *table,
+                              const char *host, const char *user,
 			      const char *new_password, uint new_password_len)
 {
-  TABLE_LIST tables;
-  TABLE *table;
-  bool error=1;
   char user_key[MAX_KEY_LENGTH];
+  int error;
   DBUG_ENTER("update_user_table");
   DBUG_PRINT("enter",("user: %s  host: %s",user,host));
 
-  bzero((char*) &tables,sizeof(tables));
-  tables.alias=tables.table_name=(char*) "user";
-  tables.db=(char*) "mysql";
-
-#ifdef HAVE_REPLICATION
-  /*
-    GRANT and REVOKE are applied the slave in/exclusion rules as they are
-    some kind of updates to the mysql.% tables.
-  */
-  if (thd->slave_thread && table_rules_on)
-  {
-    /*
-      The tables must be marked "updating" so that tables_ok() takes them into
-      account in tests.  It's ok to leave 'updating' set after tables_ok.
-    */
-    tables.updating= 1;
-    /* Thanks to bzero, tables.next==0 */
-    if (!tables_ok(thd, &tables))
-      DBUG_RETURN(0);
-  }
-#endif
-
-  if (!(table=open_ltable(thd,&tables,TL_WRITE)))
-    DBUG_RETURN(1); /* purecov: deadcode */
   table->field[0]->store(host,(uint) strlen(host), system_charset_info);
   table->field[1]->store(user,(uint) strlen(user), system_charset_info);
   key_copy((byte *) user_key, table->record[0], table->key_info,
@@ -1543,13 +1608,9 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   if ((error=table->file->update_row(table->record[1],table->record[0])))
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
-    goto end;					/* purecov: deadcode */
+    DBUG_RETURN(1);
   }
-  error=0;					// Record updated
-
-end:
-  close_thread_tables(thd);
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 
@@ -3125,17 +3186,59 @@ void  grant_free(void)
 }
 
 
-/* Init grant array if possible */
+/*
+  Initialize structures responsible for table/column-level privilege checking
+  and load information for them from tables in the 'mysql' database.
 
-my_bool grant_init(THD *org_thd)
+  SYNOPSIS
+    grant_init()
+
+  RETURN VALUES
+    0	ok
+    1	Could not initialize grant's
+*/
+
+my_bool grant_init()
 {
   THD  *thd;
-  TABLE_LIST tables[3];
+  my_bool return_val;
+  DBUG_ENTER("grant_init");
+
+  if (!(thd= new THD))
+    DBUG_RETURN(1);				/* purecov: deadcode */
+  thd->store_globals();
+  return_val=  grant_reload(thd);
+  delete thd;
+  /* Remember that we don't have a THD */
+  my_pthread_setspecific_ptr(THR_THD,  0);
+  DBUG_RETURN(return_val);
+}
+
+
+/*
+  Initialize structures responsible for table/column-level privilege
+  checking and load information about grants from open privilege tables.
+
+  SYNOPSIS
+    grant_load()
+      thd     Current thread
+      tables  List containing open "mysql.tables_priv" and
+              "mysql.columns_priv" tables.
+
+  RETURN VALUES
+    FALSE - success
+    TRUE  - error
+*/
+
+static my_bool grant_load(TABLE_LIST *tables)
+{
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
   TABLE *t_table, *c_table, *p_table;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  DBUG_ENTER("grant_init");
+  MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
+                                                           THR_MALLOC);
+  DBUG_ENTER("grant_load");
 
   grant_option = FALSE;
   (void) hash_init(&column_priv_hash,system_charset_info,
@@ -3149,34 +3252,12 @@ my_bool grant_init(THD *org_thd)
 		   0,0);
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  /* Don't do anything if running with --skip-grant */
-  if (!initialized)
-    DBUG_RETURN(0);				/* purecov: tested */
-
-  if (!(thd=new THD))
-    DBUG_RETURN(1);				/* purecov: deadcode */
-  thd->store_globals();
-  thd->db= my_strdup("mysql",MYF(0));
-  thd->db_length=5;				// Safety
-  bzero((char*) &tables, sizeof(tables));
-  tables[0].alias=tables[0].table_name= (char*) "tables_priv";
-  tables[1].alias=tables[1].table_name= (char*) "columns_priv";
-  tables[2].alias=tables[2].table_name= (char*) "procs_priv";
-  tables[0].next_local= tables[0].next_global= tables+1;
-  tables[1].next_local= tables[1].next_global= tables+2;
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
-  tables[0].db=tables[1].db=tables[2].db=thd->db;
-
-  if (simple_open_n_lock_tables(thd, tables))
-    goto end;
-
   t_table = tables[0].table; c_table = tables[1].table;
   p_table= tables[2].table;
   t_table->file->ha_index_init(0);
   p_table->file->ha_index_init(0);
   if (!t_table->file->index_first(t_table->record[0]))
   {
-    /* Will be restored by org_thd->store_globals() */
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
     do
@@ -3214,7 +3295,6 @@ my_bool grant_init(THD *org_thd)
   }
   if (!p_table->file->index_first(p_table->record[0]))
   {
-    /* Will be restored by org_thd->store_globals() */
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
     do
@@ -3274,39 +3354,57 @@ my_bool grant_init(THD *org_thd)
 end_unlock:
   t_table->file->ha_index_end();
   p_table->file->ha_index_end();
-  thd->version--;				// Force close to free memory
-
-end:
-  close_thread_tables(thd);
-  delete thd;
-  if (org_thd)
-    org_thd->store_globals();
-  else
-  {
-    /* Remember that we don't have a THD */
-    my_pthread_setspecific_ptr(THR_THD,  0);
-  }
+  my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
   DBUG_RETURN(return_val);
 }
 
 
 /*
- Reload grant array (table and column privileges) if possible
+  Reload information about table and column level privileges if possible.
 
   SYNOPSIS
     grant_reload()
-    thd			Thread handler (can be NULL)
+      thd  Current thread
 
   NOTES
-    Locked tables are checked by acl_init and doesn't have to be checked here
+    Locked tables are checked by acl_reload() and doesn't have to be checked
+    in this call.
+    This function is also used for initialization of structures responsible
+    for table/column-level privilege checking.
+
+  RETURN VALUE
+    FALSE Success
+    TRUE  Error
 */
 
-void grant_reload(THD *thd)
+my_bool grant_reload(THD *thd)
 {
+  TABLE_LIST tables[3];
   HASH old_column_priv_hash, old_proc_priv_hash, old_func_priv_hash;
   bool old_grant_option;
   MEM_ROOT old_mem;
+  my_bool return_val= 1;
   DBUG_ENTER("grant_reload");
+
+  /* Don't do anything if running with --skip-grant-tables */
+  if (!initialized)
+    DBUG_RETURN(0);
+
+  bzero((char*) tables, sizeof(tables));
+  tables[0].alias= tables[0].table_name= (char*) "tables_priv";
+  tables[1].alias= tables[1].table_name= (char*) "columns_priv";
+  tables[2].alias= tables[2].table_name= (char*) "procs_priv";
+  tables[0].db= tables[1].db= tables[2].db= (char *) "mysql";
+  tables[0].next_local= tables[0].next_global= tables+1;
+  tables[1].next_local= tables[1].next_global= tables+2;
+  tables[0].lock_type= tables[1].lock_type= tables[2].lock_type= TL_READ;
+
+  /*
+    To avoid deadlocks we should obtain table locks before
+    obtaining LOCK_grant rwlock.
+  */
+  if (simple_open_n_lock_tables(thd, tables))
+    goto end;
 
   rw_wrlock(&LOCK_grant);
   grant_version++;
@@ -3316,7 +3414,7 @@ void grant_reload(THD *thd)
   old_grant_option= grant_option;
   old_mem= memex;
 
-  if (grant_init(thd))
+  if ((return_val= grant_load(tables)))
   {						// Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));
     grant_free();				/* purecov: deadcode */
@@ -3334,7 +3432,9 @@ void grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   rw_unlock(&LOCK_grant);
-  DBUG_VOID_RETURN;
+end:
+  close_thread_tables(thd);
+  DBUG_RETURN(return_val);
 }
 
 
