@@ -174,6 +174,9 @@ static bool begin_trans(THD *thd)
 }
 
 #ifdef HAVE_REPLICATION
+/*
+  Returns true if all tables should be ignored
+*/
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
   return (table_rules_on && tables && !tables_ok(thd,tables) &&
@@ -2252,6 +2255,22 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
   return FALSE;
 }
 
+static void reset_one_shot_variables(THD *thd) 
+{
+  thd->variables.character_set_client=
+    global_system_variables.character_set_client;
+  thd->variables.collation_connection=
+    global_system_variables.collation_connection;
+  thd->variables.collation_database=
+    global_system_variables.collation_database;
+  thd->variables.collation_server=
+    global_system_variables.collation_server;
+  thd->update_charset();
+  thd->variables.time_zone=
+    global_system_variables.time_zone;
+  thd->one_shot_set= 0;
+}
+
 
 /****************************************************************************
 ** mysql_execute_command
@@ -2335,16 +2354,22 @@ mysql_execute_command(THD *thd)
     /*
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated.
-      Exception is DROP TEMPORARY TABLE IF EXISTS: we always execute it
-      (otherwise we have stale files on slave caused by exclusion of one tmp
-      table).
+
+      Exceptions are:
+      - SET: we always execute it (Not that many SET commands exists in
+        the binary log anyway -- only 4.1 masters write SET statements,
+	in 5.0 there are no SET statements in the binary log)
+      - DROP TEMPORARY TABLE IF EXISTS: we always execute it (otherwise we
+        have stale files on slave caused by exclusion of one tmp table).
     */
-    if (!(lex->sql_command == SQLCOM_DROP_TABLE &&
+    if (!(lex->sql_command == SQLCOM_SET_OPTION) &&
+	!(lex->sql_command == SQLCOM_DROP_TABLE &&
           lex->drop_temporary && lex->drop_if_exists) &&
         all_tables_not_ok(thd, all_tables))
     {
       /* we warn the slave SQL thread */
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       DBUG_RETURN(0);
     }
 #ifndef TO_BE_DELETED
@@ -3576,6 +3601,7 @@ end_with_restore_list:
 	 !db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3610,6 +3636,7 @@ end_with_restore_list:
 	 !db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3650,6 +3677,7 @@ end_with_restore_list:
 	 !db_ok_with_wild_table(db)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -4706,30 +4734,19 @@ end_with_restore_list:
   }
   thd->proc_info="query end";
   /* Two binlog-related cleanups: */
-  if (thd->one_shot_set)
-  {
-    /*
-      If this is a SET, do nothing. This is to allow mysqlbinlog to print
-      many SET commands (in this case we want the charset temp setting to
-      live until the real query). This is also needed so that SET
-      CHARACTER_SET_CLIENT... does not cancel itself immediately.
-    */
-    if (lex->sql_command != SQLCOM_SET_OPTION)
-    {
-      thd->variables.character_set_client=
-        global_system_variables.character_set_client;
-      thd->variables.collation_connection=
-        global_system_variables.collation_connection;
-      thd->variables.collation_database=
-        global_system_variables.collation_database;
-      thd->variables.collation_server=
-        global_system_variables.collation_server;
-      thd->update_charset();
-      thd->variables.time_zone=
-        global_system_variables.time_zone;
-      thd->one_shot_set= 0;
-    }
-  }
+
+  /*
+    Reset system variables temporarily modified by SET ONE SHOT.
+
+    Exception: If this is a SET, do nothing. This is to allow
+    mysqlbinlog to print many SET commands (in this case we want the
+    charset temp setting to live until the real query). This is also
+    needed so that SET CHARACTER_SET_CLIENT... does not cancel itself
+    immediately.
+  */
+  if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
+    reset_one_shot_variables(thd);
+
 
   /*
     The return value for ROW_COUNT() is "implementation dependent" if
