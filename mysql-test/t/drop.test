@@ -6,13 +6,13 @@ drop database if exists mysqltest;
 drop database if exists client_test_db;
 --enable_warnings
 
---error 1051;
+--error 1051
 drop table t1;
 create table t1(n int);
 insert into t1 values(1);
 create temporary table t1( n int);
 insert into t1 values(2);
---error 1050;
+--error 1050
 create table t1(n int);
 drop table t1;
 select * from t1;
@@ -56,13 +56,13 @@ drop database mysqltest;
 
 # test drop/create database and FLUSH TABLES WITH READ LOCK
 flush tables with read lock;
---error 1209,1223;
+--error 1209,1223
 create database mysqltest;
 unlock tables;
 create database mysqltest;
 show databases;
 flush tables with read lock;
---error 1208,1223;
+--error 1208,1223
 drop database mysqltest;
 unlock tables;
 drop database mysqltest;
@@ -73,7 +73,7 @@ drop database mysqltest;
 # test create table and FLUSH TABLES WITH READ LOCK
 drop table t1;
 flush tables with read lock;
---error 1223;
+--error 1223
 create table t1(n int);
 unlock tables;
 create table t1(n int);

@@ -83,14 +83,4 @@ drop table t1, t2;
 
 show tables;
 
-#
-#Bug 9148: Denial of service
-#
---error 1049
-use lpt1;
---error 1049
-use com1;
---error 1049
-use prn;
-
 # End of 4.1 tests

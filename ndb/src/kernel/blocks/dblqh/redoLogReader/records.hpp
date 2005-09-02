@@ -132,6 +132,8 @@ class PageHeader {
 public:
   bool check();
   Uint32 getLogRecordSize();
+  bool lastPage();
+  Uint32 lastWord();
 protected:
   Uint32 m_checksum;
   Uint32 m_lap;

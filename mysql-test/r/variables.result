@@ -491,6 +491,11 @@ SHOW VARIABLES LIKE 'table_cache';
 Variable_name	Value
 table_cache	1
 SET GLOBAL table_cache=DEFAULT;
+set character_set_results=NULL;
+select ifnull(@@character_set_results,"really null");
+ifnull(@@character_set_results,"really null")
+really null
+set names latin1;
 select @@have_innodb;
 @@have_innodb
 #
