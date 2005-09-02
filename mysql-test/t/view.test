@@ -147,7 +147,7 @@ insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
 
---disable_parsing WL #2486 should enable these tests
+--disable_parsing # WL #2486 should enable these tests
 select * from t1 natural left join v1;
 select * from v2 natural left join t1;
 select * from v2 natural left join v1;
@@ -1995,3 +1995,12 @@ ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
 DESCRIBE v1;
 DROP TABLE t1;
 DROP VIEW v1;
+
+# 
+# Bug #12489 wrongly printed strcmp() function results in creation of broken
+#            view
+create table t1 (f1 char);
+create view v1 as select strcmp(f1,'a') from t1;
+select * from v1;
+drop view v1;
+drop table t1;

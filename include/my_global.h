@@ -419,6 +419,10 @@ C_MODE_END
 #undef setrlimit
 #define setrlimit cma_setrlimit64
 #endif
+/* Declare madvise where it is not declared for C++, like Solaris */
+#if HAVE_MADVISE && !HAVE_DECL_MADVISE && defined(__cplusplus)
+extern "C" int madvise(void *addr, size_t len, int behav);
+#endif
 
 #ifdef __QNXNTO__
 /* This has to be after include limits.h */

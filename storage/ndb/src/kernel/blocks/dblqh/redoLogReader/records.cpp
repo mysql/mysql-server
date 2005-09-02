@@ -79,6 +79,7 @@ NdbOut& operator<<(NdbOut& no, const CommitTransactionRecord& ctr) {
   no << "----------COMMIT TRANSACTION RECORD------------" << endl << endl;
   printOut("Record type:", ctr.m_recordType);
   printOut("TableId", ctr.m_tableId);
+  printOut("SchemaVersion:", ctr.m_schemaVersion);
   printOut("FfragmentId", ctr.m_fragmentId);
   printOut("File no. of Prep. Op.", ctr.m_fileNumberOfPrepareOperation);
   printOut("Start page no. of Prep. Op.", ctr.m_startPageNumberOfPrepareOperation);
@@ -127,7 +128,7 @@ bool PrepareOperationRecord::check() {
   if (m_operationType == 3 && m_attributeLength != 0)
     return false;
 
-  if (m_logRecordSize != (m_attributeLength + m_keyLength + 7))
+  if (m_logRecordSize != (m_attributeLength + m_keyLength + 6))
     return false;
 
   return true;
@@ -142,7 +143,6 @@ NdbOut& operator<<(NdbOut& no, const PrepareOperationRecord& por) {
   printOut("Record type:", por.m_recordType);
   printOut("logRecordSize:", por.m_logRecordSize);
   printOut("hashValue:", por.m_hashValue);
-  printOut("schemaVersion:", por.m_schemaVersion);
   switch (por.m_operationType) {
   case 0:
     ndbout_c("%-30s%-12u%-6s", "operationType:", 
@@ -238,6 +238,17 @@ bool PageHeader::check() {
   // Not implemented yet.
   return true;
 }
+
+bool PageHeader::lastPage()
+{
+  return m_next_page == 0xffffff00;
+}
+
+Uint32 PageHeader::lastWord()
+{
+  return m_current_page_index;
+}
+
 
 NdbOut& operator<<(NdbOut& no, const PageHeader& ph) {
   no << "------------PAGE HEADER------------------------" << endl << endl;
