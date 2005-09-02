@@ -1,5 +1,5 @@
 # Test case for BUG #10780
-source include/master-slave.inc;
+--source include/master-slave.inc
 connection master;
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
 connection slave;
