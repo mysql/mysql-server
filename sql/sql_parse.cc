@@ -6552,8 +6552,25 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
-    acl_reload(thd);
-    grant_reload(thd);
+    THD *tmp_thd= 0;
+    /*
+      If reload_acl_and_cache() is called from SIGHUP handler we have to
+      allocate temporary THD for execution of acl_reload()/grant_reload().
+    */
+    if (!thd && (thd= (tmp_thd= new THD)))
+      thd->store_globals();
+    if (thd)
+    {
+      (void)acl_reload(thd);
+      (void)grant_reload(thd);
+    }
+    if (tmp_thd)
+    {
+      delete tmp_thd;
+      /* Remember that we don't have a THD */
+      my_pthread_setspecific_ptr(THR_THD,  0);
+      thd= 0;
+    }
     reset_mqh((LEX_USER *)NULL, TRUE);
   }
 #endif

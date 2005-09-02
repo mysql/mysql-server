@@ -27,7 +27,7 @@ drop function if exists fn1;
 --enable_warnings
 
 delimiter |;
---error 1418; # not deterministic
+--error 1418 # not deterministic
 create procedure foo()
 begin
   declare b int;
@@ -85,7 +85,7 @@ call foo2();
 --replace_column 2 # 5 #
 show binlog events from 518;
 
---error 1418;
+--error 1418
 alter procedure foo2 contains sql;
 
 # SP with definer's right
@@ -106,7 +106,7 @@ grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
 connect (con1,127.0.0.1,zedjzlcsjhd,,mysqltest1,$MASTER_MYPORT,);
 connection con1;
 
---error 1419; # only full-global-privs user can create a routine
+--error 1419 # only full-global-privs user can create a routine
 create procedure foo4()
   deterministic
   insert into t1 values (10);
@@ -127,7 +127,7 @@ delimiter ;|
 
 # I add ,0 so that it does not print the error in the test output,
 # because this error is hostname-dependent
---error 1142,0;
+--error 1142,0
 call foo4(); # invoker has no INSERT grant on table => failure
 show warnings;
 
@@ -136,7 +136,7 @@ call foo3(); # success (definer == root)
 show warnings;
 
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
---error 1142,0;
+--error 1142,0
 call foo4(); # definer's rights => failure
 show warnings;
 
@@ -226,7 +226,7 @@ select * from mysql.proc where db='mysqltest1';
 # And now triggers
 
 connection con1;
---error 1227;
+--error 1227
 create trigger trg before insert on t1 for each row set new.a= 10;
 
 connection master;
