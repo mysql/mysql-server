@@ -219,9 +219,6 @@ new_VioSSLConnectorFd(const char* key_file,
   int result;
   DH *dh;
   DBUG_ENTER("new_VioSSLConnectorFd");
-  DBUG_PRINT("enter",
-	     ("key_file: %s, cert_file: %s, ca_path: %s, ca_file: %s, cipher: %s",
-	      key_file, cert_file, ca_path, ca_file, cipher));
 
   if (!(ptr=((struct st_VioSSLConnectorFd*)
 	     my_malloc(sizeof(struct st_VioSSLConnectorFd),MYF(0)))))
@@ -314,9 +311,6 @@ new_VioSSLAcceptorFd(const char *key_file,
   int result;
   DH *dh;
   DBUG_ENTER("new_VioSSLAcceptorFd");
-  DBUG_PRINT("enter",
-	     ("key_file: %s, cert_file: %s, ca_path: %s, ca_file: %s, cipher: %s",
-	      key_file, cert_file, ca_path, ca_file, cipher));
 
   ptr= ((struct st_VioSSLAcceptorFd*)
 	my_malloc(sizeof(struct st_VioSSLAcceptorFd),MYF(0)));

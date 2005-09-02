@@ -253,7 +253,7 @@ flush privileges;
 # QQ a LOCK TABLES is in effect when selecting from
 # QQ information_schema.tables.
 
---disable_parsing until bug is fixes
+--disable_parsing # until bug is fixed
 delimiter //;
 create procedure px5 ()
 begin

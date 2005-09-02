@@ -315,7 +315,7 @@ INSERT INTO t1 (col2) VALUES(CAST('0000-00-00' AS DATETIME));
 ## Test INSERT with CAST AS DATETIME into TIMESTAMP
 #       All test cases expected to fail should return 
 #       SQLSTATE 22007 <invalid datetime value>
-!$1292
+--error 1292
 INSERT INTO t1 (col3) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
 -- should return OK
 -- We accept this to be a failure
@@ -406,7 +406,7 @@ INSERT INTO t1 (col2) VALUES(CONVERT('0000-00-00',DATETIME));
 ## Test INSERT with CONVERT to DATETIME into DATETIME
 #       All test cases expected to fail should return 
 #       SQLSTATE 22007 <invalid datetime value>
-!$1292
+--error 1292
 INSERT INTO t1 (col3) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
 -- should return OK
 -- We accept this to be a failure

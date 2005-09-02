@@ -399,14 +399,6 @@ void Dbdict::execFSCLOSECONF(Signal* signal)
   }//switch
 }//execFSCLOSECONF()
 
-/* ---------------------------------------------------------------- */
-// A close file was refused.
-/* ---------------------------------------------------------------- */
-void Dbdict::execFSCLOSEREF(Signal* signal) 
-{
-  jamEntry();
-  progError(0, 0);
-}//execFSCLOSEREF()
 
 /* ---------------------------------------------------------------- */
 // A file was successfully opened.
@@ -469,17 +461,21 @@ void Dbdict::execFSOPENREF(Signal* signal)
   c_fsConnectRecordPool.getPtr(fsPtr, fsRef->userPointer);
   switch (fsPtr.p->fsState) {
   case FsConnectRecord::OPEN_READ_SCHEMA1:
+    jam();
     openReadSchemaRef(signal, fsPtr);
-    break;
+    return;
   case FsConnectRecord::OPEN_READ_TAB_FILE1:
     jam();
     openReadTableRef(signal, fsPtr);
-    break;
+    return;
   default:
-    jamLine((fsPtr.p->fsState & 0xFFF));
-    ndbrequire(false);
     break;
   }//switch
+  {
+    char msg[100];
+    sprintf(msg, "File system open failed during FsConnectRecord state %d", (Uint32)fsPtr.p->fsState);
+    fsRefError(signal,__LINE__,msg);
+  }
 }//execFSOPENREF()
 
 /* ---------------------------------------------------------------- */
@@ -519,17 +515,21 @@ void Dbdict::execFSREADREF(Signal* signal)
   c_fsConnectRecordPool.getPtr(fsPtr, fsRef->userPointer);
   switch (fsPtr.p->fsState) {
   case FsConnectRecord::READ_SCHEMA1:
+    jam();
     readSchemaRef(signal, fsPtr);
-    break;
+    return;
   case FsConnectRecord::READ_TAB_FILE1:
     jam();
     readTableRef(signal, fsPtr);
-    break;
+    return;
   default:
-    jamLine((fsPtr.p->fsState & 0xFFF));
-    ndbrequire(false);
     break;
   }//switch
+  {
+    char msg[100];
+    sprintf(msg, "File system read failed during FsConnectRecord state %d", (Uint32)fsPtr.p->fsState);
+    fsRefError(signal,__LINE__,msg);
+  }
 }//execFSREADREF()
 
 /* ---------------------------------------------------------------- */
@@ -556,14 +556,6 @@ void Dbdict::execFSWRITECONF(Signal* signal)
   }//switch
 }//execFSWRITECONF()
 
-/* ---------------------------------------------------------------- */
-// A write file was refused.
-/* ---------------------------------------------------------------- */
-void Dbdict::execFSWRITEREF(Signal* signal) 
-{
-  jamEntry();
-  progError(0, 0);
-}//execFSWRITEREF()
 
 /* ---------------------------------------------------------------- */
 // Routines to handle Read/Write of Table Files
@@ -1326,13 +1318,11 @@ Dbdict::Dbdict(const class Configuration & conf):
   addRecSignal(GSN_DICTSTARTREQ, &Dbdict::execDICTSTARTREQ);
   addRecSignal(GSN_READ_NODESCONF, &Dbdict::execREAD_NODESCONF);
   addRecSignal(GSN_FSOPENCONF, &Dbdict::execFSOPENCONF);
-  addRecSignal(GSN_FSOPENREF, &Dbdict::execFSOPENREF);
+  addRecSignal(GSN_FSOPENREF, &Dbdict::execFSOPENREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Dbdict::execFSCLOSECONF);
-  addRecSignal(GSN_FSCLOSEREF, &Dbdict::execFSCLOSEREF);
   addRecSignal(GSN_FSWRITECONF, &Dbdict::execFSWRITECONF);
-  addRecSignal(GSN_FSWRITEREF, &Dbdict::execFSWRITEREF);
   addRecSignal(GSN_FSREADCONF, &Dbdict::execFSREADCONF);
-  addRecSignal(GSN_FSREADREF, &Dbdict::execFSREADREF);
+  addRecSignal(GSN_FSREADREF, &Dbdict::execFSREADREF, true);
   addRecSignal(GSN_LQHFRAGCONF, &Dbdict::execLQHFRAGCONF);
   addRecSignal(GSN_LQHADDATTCONF, &Dbdict::execLQHADDATTCONF);
   addRecSignal(GSN_LQHADDATTREF, &Dbdict::execLQHADDATTREF);

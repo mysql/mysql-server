@@ -31,25 +31,7 @@
  * SENDER:  Ndbfs
  * RECIVER: 
  */
-class FsRef {
-  /**
-   * Reciver(s)
-   */
-  friend class Dbdict;
-  friend class Backup;
-
-  /**
-   * Sender(s)
-   */
-  friend class Ndbfs;
-  friend class VoidFs;
-
-  /**
-   * For printing
-   */
-  friend bool printFSREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
-
-public:
+struct FsRef {
  /**
  * Enum type for errorCode
  */
@@ -72,8 +54,6 @@ public:
    * Length of signal
    */
   STATIC_CONST( SignalLength = 4 );
-
-private:
 
   /**
    * DATA VARIABLES

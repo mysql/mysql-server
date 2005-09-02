@@ -309,7 +309,6 @@ private:
   Uint32 c_fsRemoveCount;
   Uint32 c_nodeGroup;
   void clearFilesystem(Signal* signal);
-  void execFSREMOVEREF(Signal* signal);
   void execFSREMOVECONF(Signal* signal);
 
   NdbNodeBitmask c_allDefinedNodes;

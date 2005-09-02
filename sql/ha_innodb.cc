@@ -303,16 +303,16 @@ struct show_var_st innodb_status_variables[]= {
   (char*) &export_vars.innodb_pages_read,                 SHOW_LONG},
   {"pages_written",
   (char*) &export_vars.innodb_pages_written,              SHOW_LONG},
-  {"row_lock_waits",
-  (char*) &export_vars.innodb_row_lock_waits,             SHOW_LONG},
   {"row_lock_current_waits",
   (char*) &export_vars.innodb_row_lock_current_waits,     SHOW_LONG},
   {"row_lock_time",
   (char*) &export_vars.innodb_row_lock_time,              SHOW_LONGLONG},
-  {"row_lock_time_max",
-  (char*) &export_vars.innodb_row_lock_time_max,          SHOW_LONG},
   {"row_lock_time_avg",
   (char*) &export_vars.innodb_row_lock_time_avg,          SHOW_LONG},
+  {"row_lock_time_max",
+  (char*) &export_vars.innodb_row_lock_time_max,          SHOW_LONG},
+  {"row_lock_waits",
+  (char*) &export_vars.innodb_row_lock_waits,             SHOW_LONG},
   {"rows_deleted",
   (char*) &export_vars.innodb_rows_deleted,               SHOW_LONG},
   {"rows_inserted",
@@ -2407,6 +2407,7 @@ ha_innobase::open(
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
+		dict_table_decrement_handle_count(ib_table);
     		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   	}
 
@@ -6684,13 +6685,28 @@ ha_innobase::store_lock(
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
-		/* Starting from 5.0.7, we weaken also the table locks
+                /* Starting from 5.0.7, we weaken also the table locks
 		set at the start of a MySQL stored procedure call, just like
 		we weaken the locks set at the start of an SQL statement.
 		MySQL does set thd->in_lock_tables TRUE there, but in reality
 		we do not need table locks to make the execution of a
 		single transaction stored procedure call deterministic
 		(if it does not use a consistent read). */
+
+		if (lock_type == TL_READ && thd->in_lock_tables) {
+			/* We come here if MySQL is processing LOCK TABLES
+			... READ LOCAL. MyISAM under that table lock type
+			reads the table as it was at the time the lock was
+			granted (new inserts are allowed, but not seen by the
+			reader). To get a similar effect on an InnoDB table,
+			we must use LOCK TABLES ... READ. We convert the lock
+			type here, so that for InnoDB, READ LOCAL is
+			equivalent to READ. This will change the InnoDB
+			behavior in mysqldump, so that dumps of InnoDB tables
+			are consistent with dumps of MyISAM tables. */
+
+			lock_type = TL_READ_NO_INSERT;
+		}
 
     		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
 		TABLESPACE or TRUNCATE TABLE, then allow multiple writers */

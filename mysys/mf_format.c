@@ -54,6 +54,8 @@ my_string fn_format(my_string to, const char *name, const char *dir,
     pack_dirname(dev,dev);			/* Put in ./.. and ~/.. */
   if (flag & MY_UNPACK_FILENAME)
     (void) unpack_dirname(dev,dev);		/* Replace ~/.. with dir */
+  if (flag & MY_UNIX_PATH)
+    to_unix_path(dev);				/* Fix to MySQL representation */
   if ((pos= (char*) strchr(name,FN_EXTCHAR)) != NullS)
   {
     if ((flag & MY_REPLACE_EXT) == 0)		/* If we should keep old ext */

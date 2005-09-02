@@ -19,6 +19,6 @@ extra_flags="$fast_cflags -unroll2 -ip -mp -restrict"
 # icpc: error: problem during multi-file optimization compilation (code 1)
 extra_flags="$extra_flags -no-ipo"
 base_cxxflags="-fno-exceptions -fno-rtti"
-extra_configs="$pentium_configs $static_link"
+extra_configs="$pentium_configs $static_link --with-yassl"
 
 . "$path/FINISH.sh"
