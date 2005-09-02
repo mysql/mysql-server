@@ -4980,10 +4980,7 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     {
       if (context->error_processor == &view_error_processor)
       {
-        TABLE_LIST *view= (cached_table->belong_to_view ?
-                           cached_table->belong_to_view :
-                           cached_table);
-        // TODO: make correct error message
+        TABLE_LIST *view= cached_table->top_table();
         push_warning_printf(field_arg->table->in_use,
                             MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,

@@ -827,29 +827,29 @@ create table t2 (col1 int);
 create view v1 as select * from t1;
 create view v2 as select * from v1;
 create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
--- error 1423
+-- error 1443
 update v2 set col1 = (select max(col1) from v1);
--- error 1423
+-- error 1443
 update v2 set col1 = (select max(col1) from t1);
 -- error 1093
 update v2 set col1 = (select max(col1) from v2);
--- error 1423
+-- error 1443
 update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t1,t2 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
 -- error 1093
 update v1,t2 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t2,v2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t2,t1 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t2,v1 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update v2,t2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
 -- error 1093
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update v1,t2 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
 -- error 1093
 update t2,v2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
@@ -859,74 +859,74 @@ update t2,t1 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
 update t2,v1 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
 -- error 1093
 update v2,t2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t1,t2 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update v1,t2 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t2,v2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t2,t1 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update t2,v1 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
--- error 1423
+-- error 1443
 update v3 set v3.col1 = (select max(col1) from v1);
--- error 1423
+-- error 1443
 update v3 set v3.col1 = (select max(col1) from t1);
--- error 1423
+-- error 1443
 update v3 set v3.col1 = (select max(col1) from v2);
 -- error 1093
 update v3 set v3.col1 = (select max(col1) from v3);
--- error 1423
+-- error 1443
 delete from v2 where col1 = (select max(col1) from v1);
--- error 1423
+-- error 1443
 delete from v2 where col1 = (select max(col1) from t1);
 -- error 1093
 delete from v2 where col1 = (select max(col1) from v2);
--- error 1423
+-- error 1443
 delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
--- error 1423
+-- error 1443
 delete t1 from t1,t2 where (select max(col1) from v1) > 0 and t1.col1 = t2.col1;
 -- error 1093
 delete v1 from v1,t2 where (select max(col1) from v1) > 0 and v1.col1 = t2.col1;
--- error 1423
+-- error 1443
 delete v2 from v2,t2 where (select max(col1) from t1) > 0 and v2.col1 = t2.col1;
 -- error 1093
 delete t1 from t1,t2 where (select max(col1) from t1) > 0 and t1.col1 = t2.col1;
--- error 1423
+-- error 1443
 delete v1 from v1,t2 where (select max(col1) from t1) > 0 and v1.col1 = t2.col1;
 -- error 1093
 delete v2 from v2,t2 where (select max(col1) from v2) > 0 and v2.col1 = t2.col1;
--- error 1423
+-- error 1443
 delete t1 from t1,t2 where (select max(col1) from v2) > 0 and t1.col1 = t2.col1;
--- error 1423
+-- error 1443
 delete v1 from v1,t2 where (select max(col1) from v2) > 0 and v1.col1 = t2.col1;
--- error 1423
+-- error 1443
 insert into v2 values ((select max(col1) from v1));
--- error 1423
+-- error 1443
 insert into t1 values ((select max(col1) from v1));
--- error 1423
+-- error 1443
 insert into v2 values ((select max(col1) from v1));
--- error 1423
+-- error 1443
 insert into v2 values ((select max(col1) from t1));
 -- error 1093
 insert into t1 values ((select max(col1) from t1));
--- error 1423
+-- error 1443
 insert into v2 values ((select max(col1) from t1));
 -- error 1093
 insert into v2 values ((select max(col1) from v2));
--- error 1423
+-- error 1443
 insert into t1 values ((select max(col1) from v2));
 -- error 1093
 insert into v2 values ((select max(col1) from v2));
--- error 1423
+-- error 1443
 insert into v3 (col1) values ((select max(col1) from v1));
--- error 1423
+-- error 1443
 insert into v3 (col1) values ((select max(col1) from t1));
--- error 1423
+-- error 1443
 insert into v3 (col1) values ((select max(col1) from v2));
 #check with TZ tables in list
--- error 1423
+-- error 1443
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
 -- error 1048
@@ -1769,7 +1769,7 @@ create view v1 as select f59, f60 from t1 where f59 in
          (select f59 from t1);
 -- error 1288
 update v1 set f60=2345;
--- error 1423
+-- error 1443
 update t1 set f60=(select max(f60) from v1);
 drop view v1;
 drop table t1;
