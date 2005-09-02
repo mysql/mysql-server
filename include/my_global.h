@@ -297,6 +297,11 @@ C_MODE_END
 #undef  HAVE_FINITE
 #undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
 #undef  LONGLONG_MAX            /* standard system library 'limits.h' */
+#ifdef __cplusplus
+#define HAVE_RINT               /* rint() and isnan() functions are not */
+#define rint(a) std::rint(a)    /* visible in C++ scope due to an error */
+#define isnan(a) std::isnan(a)  /* in the usr/include/math.h on QNX     */
+#endif
 #endif
 
 /* We can not live without the following defines */
