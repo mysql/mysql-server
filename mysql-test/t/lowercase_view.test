@@ -23,29 +23,29 @@ create table t2aA (col1 int);
 create view v1Aa as select * from t1aA;
 create view v2aA as select * from v1aA;
 create view v3Aa as select v2Aa.col1 from v2aA,t2Aa where v2Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update v2aA set col1 = (select max(col1) from v1Aa);
--- error 1423
+-- error 1443
 update v2Aa set col1 = (select max(col1) from t1Aa);
 -- error 1093
 update v2aA set col1 = (select max(col1) from v2Aa);
--- error 1423
+-- error 1443
 update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from v1aA) where v2aA.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t1aA,t2Aa set t1Aa.col1 = (select max(col1) from v1Aa) where t1aA.col1 = t2aA.col1;
 -- error 1093
 update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from v1aA) where v1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t2Aa,v2Aa set v2aA.col1 = (select max(col1) from v1aA) where v2Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from v1Aa) where t1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t2Aa,v1aA set v1Aa.col1 = (select max(col1) from v1aA) where v1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from t1aA) where v2aA.col1 = t2aA.col1;
 -- error 1093
 update t1Aa,t2Aa set t1aA.col1 = (select max(col1) from t1Aa) where t1aA.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from t1Aa) where v1aA.col1 = t2aA.col1;
 -- error 1093
 update t2Aa,v2Aa set v2aA.col1 = (select max(col1) from t1aA) where v2Aa.col1 = t2aA.col1;
@@ -55,71 +55,71 @@ update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from t1Aa) where t1aA.col1 = 
 update t2Aa,v1Aa set v1aA.col1 = (select max(col1) from t1Aa) where v1Aa.col1 = t2aA.col1;
 -- error 1093
 update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from v2aA) where v2Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t1aA,t2Aa set t1Aa.col1 = (select max(col1) from v2aA) where t1aA.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from v2Aa) where v1aA.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t2Aa,v2aA set v2Aa.col1 = (select max(col1) from v2aA) where v2Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from v2aA) where t1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update t2Aa,v1Aa set v1aA.col1 = (select max(col1) from v2Aa) where v1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 update v3aA set v3Aa.col1 = (select max(col1) from v1aA);
--- error 1423
+-- error 1443
 update v3aA set v3Aa.col1 = (select max(col1) from t1aA);
--- error 1423
+-- error 1443
 update v3aA set v3Aa.col1 = (select max(col1) from v2aA);
 -- error 1093
 update v3aA set v3Aa.col1 = (select max(col1) from v3aA);
--- error 1423
+-- error 1443
 delete from v2Aa where col1 = (select max(col1) from v1Aa);
--- error 1423
+-- error 1443
 delete from v2aA where col1 = (select max(col1) from t1Aa);
 -- error 1093
 delete from v2Aa where col1 = (select max(col1) from v2aA);
--- error 1423
+-- error 1443
 delete v2Aa from v2aA,t2Aa where (select max(col1) from v1aA) > 0 and v2Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 delete t1aA from t1Aa,t2Aa where (select max(col1) from v1Aa) > 0 and t1aA.col1 = t2aA.col1;
 -- error 1093
 delete v1aA from v1Aa,t2Aa where (select max(col1) from v1aA) > 0 and v1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 delete v2aA from v2Aa,t2Aa where (select max(col1) from t1Aa) > 0 and v2aA.col1 = t2aA.col1;
 -- error 1093
 delete t1aA from t1Aa,t2Aa where (select max(col1) from t1aA) > 0 and t1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 delete v1aA from v1Aa,t2Aa where (select max(col1) from t1aA) > 0 and v1aA.col1 = t2aA.col1;
 -- error 1093
 delete v2Aa from v2aA,t2Aa where (select max(col1) from v2Aa) > 0 and v2aA.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 delete t1Aa from t1aA,t2Aa where (select max(col1) from v2Aa) > 0 and t1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 delete v1Aa from v1aA,t2Aa where (select max(col1) from v2aA) > 0 and v1Aa.col1 = t2aA.col1;
--- error 1423
+-- error 1443
 insert into v2Aa values ((select max(col1) from v1aA));
--- error 1423
+-- error 1443
 insert into t1aA values ((select max(col1) from v1Aa));
--- error 1423
+-- error 1443
 insert into v2aA values ((select max(col1) from v1aA));
--- error 1423
+-- error 1443
 insert into v2Aa values ((select max(col1) from t1Aa));
 -- error 1093
 insert into t1aA values ((select max(col1) from t1Aa));
--- error 1423
+-- error 1443
 insert into v2aA values ((select max(col1) from t1aA));
 -- error 1093
 insert into v2Aa values ((select max(col1) from v2aA));
--- error 1423
+-- error 1443
 insert into t1Aa values ((select max(col1) from v2Aa));
 -- error 1093
 insert into v2aA values ((select max(col1) from v2Aa));
--- error 1423
+-- error 1443
 insert into v3Aa (col1) values ((select max(col1) from v1Aa));
--- error 1423
+-- error 1443
 insert into v3aA (col1) values ((select max(col1) from t1aA));
--- error 1423
+-- error 1443
 insert into v3Aa (col1) values ((select max(col1) from v2aA));
 drop view v3aA,v2Aa,v1aA;
 drop table t1Aa,t2Aa;
