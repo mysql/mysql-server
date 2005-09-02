@@ -3476,7 +3476,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                       table_ref_1->alias, table_ref_2->alias));
 
   *found_using_fields= 0;
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
     TABLE_LIST::join_columns could be allocated by the previous call to
@@ -3639,7 +3639,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(result);
 }
 
@@ -3697,7 +3697,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 
   DBUG_ASSERT(!natural_using_join->join_columns);
 
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   if (!(non_join_columns= new List<Natural_join_column>) ||
       !(natural_using_join->join_columns= new List<Natural_join_column>))
@@ -3782,7 +3782,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(result);
 }
 
@@ -3827,7 +3827,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
   DBUG_ENTER("store_top_level_join_columns");
 
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join)
@@ -3940,7 +3940,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(result);
 }
 
@@ -4039,7 +4039,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     Don't use arena if we are not in prepared statements or stored procedures
     For PS/SP we have to use arena to remember the changes
   */
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   while (wild_num && (item= it++))
   {
@@ -4067,7 +4067,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
                              any_privileges))
       {
 	if (arena)
-	  thd->restore_backup_item_arena(arena, &backup);
+	  thd->restore_active_arena(arena, &backup);
 	DBUG_RETURN(-1);
       }
       if (sum_func_list)
@@ -4089,7 +4089,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     select_lex->with_wild= 0;
     select_lex->item_list= fields;
 
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   }
   DBUG_RETURN(0);
 }
@@ -4265,15 +4265,15 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     if (table_list->ancestor)
     {
       DBUG_ASSERT(table_list->view);
-      Query_arena *arena= thd->current_arena, backup;
+      Query_arena *arena= thd->stmt_arena, backup;
       bool res;
       if (arena->is_conventional())
         arena= 0;                                   // For easier test
       else
-        thd->set_n_backup_item_arena(arena, &backup);
+        thd->set_n_backup_active_arena(arena, &backup);
       res= table_list->setup_ancestor(thd);
       if (arena)
-        thd->restore_backup_item_arena(arena, &backup);
+        thd->restore_active_arena(arena, &backup);
       if (res)
         DBUG_RETURN(1);
     }
@@ -4354,7 +4354,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   bool found;
   char name_buff[NAME_LEN+1];
   DBUG_ENTER("insert_fields");
-  DBUG_PRINT("arena", ("current arena: 0x%lx", (ulong)thd->current_arena));
+  DBUG_PRINT("arena", ("stmt arena: 0x%lx", (ulong)thd->stmt_arena));
 
   if (db_name && lower_case_table_names)
   {
@@ -4560,7 +4560,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                 COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Query_arena *arena= thd->current_arena, backup;
+  Query_arena *arena= thd->stmt_arena, backup;
   TABLE_LIST *table= NULL;	// For HP compilers
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -4634,7 +4634,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     }
   }
 
-  if (!thd->current_arena->is_conventional())
+  if (!thd->stmt_arena->is_conventional())
   {
     /*
       We are in prepared statement preparation code => we should store
@@ -4649,7 +4649,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
 err_no_arena:
   DBUG_RETURN(1);
 }

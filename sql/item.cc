@@ -1296,7 +1296,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (arg= args, last= args + nargs; arg < last; arg++)
   {
@@ -1342,7 +1342,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
     conv->fix_fields(thd, arg);
   }
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   return res;
 }
 
@@ -1385,7 +1385,7 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
     structure can go away and pop up again between subsequent executions
     of a prepared statement).
   */
-  if (thd->current_arena->is_stmt_prepare_or_first_sp_execute())
+  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
   {
     if (db_name)
       orig_db_name= thd->strdup(db_name);
