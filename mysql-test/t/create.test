@@ -249,7 +249,7 @@ drop table t1;
 create table `t1 `(a int);
 --error 1102
 create database `db1 `;
---error 1166;
+--error 1166
 create table t1(`a ` int);
 
 #

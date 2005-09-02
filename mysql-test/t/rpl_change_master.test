@@ -16,7 +16,7 @@ insert into t1 values(1);
 insert into t1 values(2);
 save_master_pos;
 connection slave;
---real_sleep 3; # wait for I/O thread to have read updates
+--real_sleep 3 # wait for I/O thread to have read updates
 stop slave;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 8 # 9 # 23 # 33 #

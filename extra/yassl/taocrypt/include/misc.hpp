@@ -96,6 +96,13 @@ public:
 #endif
 
 
+// Disable assmebler when compiling with icc
+// Temporary workaround for bug12717
+#if defined(__INTEL_COMPILER)
+    #define TAOCRYPT_DISABLE_X86ASM
+#endif
+
+
 
 // CodeWarrior defines _MSC_VER
 #if !defined(TAOCRYPT_DISABLE_X86ASM) && ((defined(_MSC_VER) && \

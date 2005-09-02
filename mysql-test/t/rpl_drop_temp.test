@@ -9,7 +9,7 @@ sync_slave_with_master;
 connection master;
 disconnect master;
 connection slave;
---real_sleep 3; # time for DROP to be written
+--real_sleep 3 # time for DROP to be written
 show status like 'Slave_open_temp_tables';
 connection default;
 drop database mysqltest;
