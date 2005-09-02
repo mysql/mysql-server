@@ -32,6 +32,8 @@ class StartFragReq {
 public:
   STATIC_CONST( SignalLength = 19 );
 
+  friend bool printSTART_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+  
 private:
   Uint32 userPtr;
   Uint32 userRef;

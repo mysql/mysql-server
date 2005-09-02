@@ -424,7 +424,7 @@ echo ;
 
 # Illegal use of exec
 --error 1
---exec echo "--exec ;" | $MYSQL_TEST 2>&1
+--exec echo "--exec ';' 2> /dev/null" | $MYSQL_TEST 2>&1
 
 --error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
@@ -672,7 +672,7 @@ system echo "hej" > /dev/null;
 --error 1
 --exec echo "system $NONEXISTSINFVAREABLI;" | $MYSQL_TEST 2>&1
 --error 1
---exec echo "system NonExistsinfComamdn;" | $MYSQL_TEST 2>&1
+--exec echo "system NonExistsinfComamdn 2> /dev/null;" | $MYSQL_TEST 2>&1
 
 --disable_abort_on_error
 system NonExistsinfComamdn;
