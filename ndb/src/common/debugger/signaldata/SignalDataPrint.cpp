@@ -198,6 +198,7 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_ACC_LOCKREQ, printACC_LOCKREQ }
   ,{ GSN_LQH_TRANSCONF, printLQH_TRANSCONF }
   ,{ GSN_SCAN_FRAGREQ, printSCAN_FRAGREQ }
+  ,{ GSN_START_FRAGREQ, printSTART_FRAG_REQ }
   ,{ 0, 0 }
 };
 
