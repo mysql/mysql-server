@@ -287,7 +287,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       all collations together for UNION.
     */
     List_iterator_fast<Item> tp(types);
-    Query_arena *arena= thd->current_arena;
+    Query_arena *arena= thd->stmt_arena;
     Item *type;
     ulonglong create_options;
 
@@ -332,7 +332,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       Field **field;
       Query_arena *tmp_arena,backup;
-      tmp_arena= thd->change_arena_if_needed(&backup);
+      tmp_arena= thd->activate_stmt_arena_if_needed(&backup);
 
       for (field= table->field; *field; field++)
       {
@@ -340,12 +340,12 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	if (!item || item_list.push_back(item))
 	{
           if (tmp_arena)
-	    thd->restore_backup_item_arena(tmp_arena, &backup);
+	    thd->restore_active_arena(tmp_arena, &backup);
 	  DBUG_RETURN(TRUE);
 	}
       }
       if (tmp_arena)
-        thd->restore_backup_item_arena(tmp_arena, &backup);
+        thd->restore_active_arena(tmp_arena, &backup);
       if (arena->is_stmt_prepare_or_first_sp_execute())
       {
 	/* prepare fake select to initialize it correctly */

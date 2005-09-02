@@ -1780,7 +1780,7 @@ bool st_table_list::setup_ancestor(THD *thd)
     /* Create view fields translation table */
 
     if (!(transl=
-          (Field_translator*)(thd->current_arena->
+          (Field_translator*)(thd->stmt_arena->
                               alloc(select->item_list.elements *
                                     sizeof(Field_translator)))))
     {
@@ -1856,8 +1856,8 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
     if (!no_where_clause && !where_processed)
     {
       TABLE_LIST *tbl= this;
-      Query_arena *arena= thd->current_arena, backup;
-      arena= thd->change_arena_if_needed(&backup);    // For easier test
+      Query_arena *arena= thd->stmt_arena, backup;
+      arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
 
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
@@ -1877,7 +1877,7 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
       if (tbl == 0)
         *conds= and_conds(*conds, where);
       if (arena)
-        thd->restore_backup_item_arena(arena, &backup);
+        thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
     }
   }

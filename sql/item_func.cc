@@ -1875,7 +1875,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
   if (arg_count)
   {					// Only use argument once in query
     /*
-      Allocate rand structure once: we must use thd->current_arena
+      Allocate rand structure once: we must use thd->stmt_arena
       to create rand in proper mem_root if it's a prepared statement or
       stored procedure.
 
@@ -1883,7 +1883,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
       as it will be replicated in the query as such.
     */
     if (!rand && !(rand= (struct rand_struct*)
-                   thd->current_arena->alloc(sizeof(*rand))))
+                   thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
     /*
       PARAM_ITEM is returned if we're in statement prepare and consequently
