@@ -97,12 +97,6 @@ tags:
 	support-files/build-tags
 .PHONY:		init-db bin-dist
 
-# Test installation
-
-test:
-	cd mysql-test; \
-	./mysql-test-run && ./mysql-test-run --ps-protocol
-
 # Test installation. Ports are configurable from the environment.
 
 MYSQL_TEST_MANAGER_PORT =	9305
