@@ -3055,6 +3055,7 @@ row_search_for_mysql(
 					cursor 'direction' should be 0. */
 {
 	dict_index_t*	index		= prebuilt->index;
+	ibool		comp 		= index->table->comp;
 	dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
@@ -3491,7 +3492,7 @@ rec_loop:
 	/* PHASE 4: Look for matching records in a loop */
 	
 	rec = btr_pcur_get_rec(pcur);
-	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == comp);
 #ifdef UNIV_SEARCH_DEBUG
 /*
 	fputs("Using ", stderr);
@@ -3544,7 +3545,7 @@ rec_loop:
 	/* Do sanity checks in case our cursor has bumped into page
 	corruption */
 	
-	if (page_rec_is_comp(rec)) {
+	if (comp) {
 		next_offs = rec_get_next_offs(rec, TRUE);
 		if (UNIV_UNLIKELY(next_offs < PAGE_NEW_SUPREMUM)) {
 			goto wrong_offs;
@@ -3711,7 +3712,7 @@ rec_loop:
 		if (!set_also_gap_locks
 		    || srv_locks_unsafe_for_binlog
 		    || (unique_search && !UNIV_UNLIKELY(rec_get_deleted_flag(
-					rec, page_rec_is_comp(rec))))) {
+								rec, comp)))) {
 
 			goto no_gap_lock;
 		} else {
@@ -3803,7 +3804,12 @@ no_gap_lock:
 		}
 	}
 
-	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, page_rec_is_comp(rec)))) {
+	/* NOTE that at this point rec can be an old version of a clustered
+	index record built for a consistent read. We cannot assume after this
+	point that rec is on a buffer pool page. Functions like
+	page_rec_is_comp() cannot be used then! */
+
+	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp))) {
 
 		/* The record is delete-marked: we can skip it if this is
 		not a consistent read which might see an earlier version
@@ -3836,6 +3842,7 @@ requires_clust_rec:
 		the clustered index ("clust_index").  However, after this
 		"if" block, "rec" may be pointing to
 		"clust_rec" of "clust_index". */
+
 		ut_ad(rec_offs_validate(rec, index, offsets));
 
 		/* It was a non-clustered index and we must fetch also the
@@ -3858,8 +3865,7 @@ requires_clust_rec:
 			goto next_rec;
 		}
 
-		if (UNIV_UNLIKELY(rec_get_deleted_flag(clust_rec,
-					page_rec_is_comp(clust_rec)))) {
+		if (UNIV_UNLIKELY(rec_get_deleted_flag(clust_rec, comp))) {
 
 			/* The record is delete marked: we can skip it */
 
