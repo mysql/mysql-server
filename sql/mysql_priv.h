@@ -408,7 +408,6 @@ enum enum_parsing_place
 
 struct st_table;
 class THD;
-class Item_arena;
 
 /* Struct to handle simple linked lists */
 
