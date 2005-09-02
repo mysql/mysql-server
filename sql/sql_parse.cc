@@ -923,8 +923,7 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
     {
-      DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
-			   pkt_len));
+      DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       inc_host_errors(&thd->remote.sin_addr);
       return(ER_HANDSHAKE_ERROR);
     }
@@ -3472,7 +3471,7 @@ end_with_restore_list:
     if (lex->local_file)
     {
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
-	  ! opt_local_infile)
+          !opt_local_infile)
       {
 	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
 	goto error;
@@ -6557,8 +6556,25 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
-    acl_reload(thd);
-    grant_reload(thd);
+    THD *tmp_thd= 0;
+    /*
+      If reload_acl_and_cache() is called from SIGHUP handler we have to
+      allocate temporary THD for execution of acl_reload()/grant_reload().
+    */
+    if (!thd && (thd= (tmp_thd= new THD)))
+      thd->store_globals();
+    if (thd)
+    {
+      (void)acl_reload(thd);
+      (void)grant_reload(thd);
+    }
+    if (tmp_thd)
+    {
+      delete tmp_thd;
+      /* Remember that we don't have a THD */
+      my_pthread_setspecific_ptr(THR_THD,  0);
+      thd= 0;
+    }
     reset_mqh((LEX_USER *)NULL, TRUE);
   }
 #endif

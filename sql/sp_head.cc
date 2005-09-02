@@ -244,8 +244,8 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     }
     DBUG_PRINT("info",("STRING_RESULT: %*s",
                        s->length(), s->c_ptr_quick()));
-    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
-                            Item_string(it->collation.collation),
+    CHARSET_INFO *itcs= it->collation.collation;
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_string(itcs),
                             use_callers_arena, &backup_current_arena);
     /*
       We have to use special constructor and allocate string
