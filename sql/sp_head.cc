@@ -47,15 +47,30 @@ sp_map_result_type(enum enum_field_types type)
 }
 
 /*
- * Returns TRUE if the 'cmd' is a command that might result in
- * multiple result sets being sent back.
- * Note: This does not include SQLCOM_SELECT which is treated
- *       separately in sql_yacc.yy.
- */
-bool
-sp_multi_results_command(enum enum_sql_command cmd)
+  SYNOPSIS
+    sp_get_flags_for_command()
+
+  DESCRIPTION
+    Returns a combination of:
+    * sp_head::MULTI_RESULTS: added if the 'cmd' is a command that might
+      result in multiple result sets being sent back.
+    * sp_head::CONTAINS_DYNAMIC_SQL: added if 'cmd' is one of PREPARE,
+      EXECUTE, DEALLOCATE.
+*/
+
+uint
+sp_get_flags_for_command(LEX *lex)
 {
-  switch (cmd) {
+  uint flags;
+
+  switch (lex->sql_command) {
+  case SQLCOM_SELECT:
+    if (lex->result)
+    {
+      flags= 0;                      /* This is a SELECT with INTO clause */
+      break;
+    }
+    /* fallthrough */
   case SQLCOM_ANALYZE:
   case SQLCOM_CHECKSUM:
   case SQLCOM_HA_READ:
@@ -90,10 +105,26 @@ sp_multi_results_command(enum enum_sql_command cmd)
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_WARNS:
-    return TRUE;
+    flags= sp_head::MULTI_RESULTS;
+    break;
+  /*
+    EXECUTE statement may return a result set, but doesn't have to.
+    We can't, however, know it in advance, and therefore must add
+    this statement here. This is ok, as is equivalent to a result-set
+    statement within an IF condition.
+  */
+  case SQLCOM_EXECUTE:
+    flags= sp_head::MULTI_RESULTS | sp_head::CONTAINS_DYNAMIC_SQL;
+    break;
+  case SQLCOM_PREPARE:
+  case SQLCOM_DEALLOCATE_PREPARE:
+    flags= sp_head::CONTAINS_DYNAMIC_SQL;
+    break;
   default:
-    return FALSE;
+    flags= 0;
+    break;
   }
+  return flags;
 }
 
 
@@ -364,9 +395,7 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_returns_cs(NULL), m_has_return(FALSE),
-   m_simple_case(FALSE), m_multi_results(FALSE), m_in_handler(FALSE),
-   m_is_invoked(FALSE)
+   m_flags(0), m_returns_cs(NULL)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
@@ -782,7 +811,7 @@ int sp_head::execute(THD *thd)
     DBUG_RETURN(-1);
   }
 
-  if (m_is_invoked)
+  if (m_flags & IS_INVOKED)
   {
     /*
       We have to disable recursion for stored routines since in
@@ -802,7 +831,7 @@ int sp_head::execute(THD *thd)
     my_error(ER_SP_NO_RECURSION, MYF(0));
     DBUG_RETURN(-1);
   }
-  m_is_invoked= TRUE;
+  m_flags|= IS_INVOKED;
 
   dbchanged= FALSE;
   if (m_db.length &&
@@ -889,6 +918,15 @@ int sp_head::execute(THD *thd)
 
     /* we should cleanup free_list and memroot, used by instruction */
     thd->free_items();
+    /*
+      FIXME: we must free user var events only if the routine is executed
+      in non-prelocked mode and statement-by-statement replication is used.
+      But if we don't free them now, the server crashes because user var
+      events are allocated in execute_mem_root. This is Bug#12637, and when
+      it's fixed, please add if (thd->options & OPTION_BIN_LOG) here.
+    */
+    if (opt_bin_log)
+      reset_dynamic(&thd->user_var_events);
     free_root(&execute_mem_root, MYF(0));
 
     /*
@@ -955,7 +993,7 @@ int sp_head::execute(THD *thd)
     if (! thd->killed)
       ret= mysql_change_db(thd, olddb, 0);
   }
-  m_is_invoked= FALSE;
+  m_flags&= ~IS_INVOKED;
   DBUG_RETURN(ret);
 }
 
@@ -1172,7 +1210,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont= save_spcont;
     DBUG_RETURN(-1);
   }
-  
+
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
     Item_null *nit= NULL;	// Re-use this, and only create if needed
@@ -1349,7 +1387,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
   delete nctx;                                  // Does nothing
   thd->spcont= save_spcont;
-  
+
   DBUG_RETURN(ret);
 }
 
@@ -1397,7 +1435,6 @@ sp_head::restore_lex(THD *thd)
   LEX *sublex= thd->lex;
   LEX *oldlex= (LEX *)m_lex.pop();
 
-  init_stmt_after_parse(thd, sublex);
   if (! oldlex)
     return;			// Nothing to restore
 
