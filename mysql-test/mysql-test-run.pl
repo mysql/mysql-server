@@ -2484,6 +2484,11 @@ sub run_mysqltest ($) {
     mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
   }
 
+  # ----------------------------------------------------------------------
+  # export MYSQL_TEST variable containing <path>/mysqltest <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
+
   return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
 
