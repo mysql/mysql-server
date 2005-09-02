@@ -1767,12 +1767,12 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     both of backup_statement() and backup_item_area() here.
   */
   thd->set_n_backup_statement(stmt, &stmt_backup);
-  thd->set_n_backup_item_arena(stmt, &stmt_backup);
+  thd->set_n_backup_active_arena(stmt, &stmt_backup);
 
   if (alloc_query(thd, packet, packet_length))
   {
     thd->restore_backup_statement(stmt, &stmt_backup);
-    thd->restore_backup_item_arena(stmt, &stmt_backup);
+    thd->restore_active_arena(stmt, &stmt_backup);
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     DBUG_RETURN(TRUE);
@@ -1780,7 +1780,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 
   mysql_log.write(thd, thd->command, "[%lu] %s", stmt->id, packet);
 
-  thd->current_arena= stmt;
+  thd->stmt_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
   /* Reset warnings from previous command */
   mysql_reset_errors(thd, 0);
@@ -1800,7 +1800,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     transformation can be reused on execute, we set again thd->mem_root from
     stmt->mem_root (see setup_wild for one place where we do that).
   */
-  thd->restore_backup_item_arena(stmt, &stmt_backup);
+  thd->restore_active_arena(stmt, &stmt_backup);
 
   if (!error)
     error= check_prepared_statement(stmt, test(name));
@@ -1817,7 +1817,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   close_thread_tables(thd);
   cleanup_stmt_and_thd_after_use(stmt, thd);
   thd->restore_backup_statement(stmt, &stmt_backup);
-  thd->current_arena= thd;
+  thd->stmt_arena= thd;
 
   if (error)
   {
@@ -2063,7 +2063,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     goto set_params_data_err;
 #endif
   thd->set_n_backup_statement(stmt, &stmt_backup);
-  thd->current_arena= stmt;
+  thd->stmt_arena= stmt;
   reinit_stmt_before_use(thd, stmt->lex);
   /* From now cursors assume that thd->mem_root is clean */
   if (expanded_query.length() &&
@@ -2110,7 +2110,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   thd->set_statement(&stmt_backup);
   thd->lock_id= &thd->main_lock_id;
-  thd->current_arena= thd;
+  thd->stmt_arena= thd;
   DBUG_VOID_RETURN;
 
 set_params_data_err:
@@ -2205,7 +2205,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
     transformations of the query tree (i.e. negations elimination).
     This should be done permanently on the parse tree of this statement.
   */
-  thd->current_arena= stmt;
+  thd->stmt_arena= stmt;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
@@ -2224,7 +2224,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   close_thread_tables(thd);                    // to close derived tables
   cleanup_stmt_and_thd_after_use(stmt, thd);
   reset_stmt_params(stmt);
-  thd->current_arena= thd;
+  thd->stmt_arena= thd;
 
   if (stmt->state == Query_arena::PREPARED)
     stmt->state= Query_arena::EXECUTED;
@@ -2263,7 +2263,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-  thd->current_arena= stmt;
+  thd->stmt_arena= stmt;
   thd->set_n_backup_statement(stmt, &stmt_backup);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2291,7 +2291,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   }
 
   thd->restore_backup_statement(stmt, &stmt_backup);
-  thd->current_arena= thd;
+  thd->stmt_arena= thd;
 
   DBUG_VOID_RETURN;
 }

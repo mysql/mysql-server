@@ -333,7 +333,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     return RES_OK;
 
   SELECT_LEX *select_lex= join->select_lex;
-  Query_arena *arena= thd->current_arena;
+  Query_arena *arena= thd->stmt_arena;
  
   if (!select_lex->master_unit()->first_select()->next_select() &&
       !select_lex->table_list.elements &&
@@ -1287,10 +1287,10 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   */
   if (!optimizer)
   {
-    arena= thd->change_arena_if_needed(&backup);
+    arena= thd->activate_stmt_arena_if_needed(&backup);
     result= (!(optimizer= new Item_in_optimizer(left_expr, this)));
     if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
+      thd->restore_active_arena(arena, &backup);
     if (result)
       goto err;
   }
@@ -1306,7 +1306,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     goto err;
 
   transformed= 1;
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
   /*
     Both transformers call fix_fields() only for Items created inside them,
     and all that items do not make permanent changes in current item arena
@@ -1322,14 +1322,14 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     if (func != &eq_creator)
     {
       if (arena)
-        thd->restore_backup_item_arena(arena, &backup);
+        thd->restore_active_arena(arena, &backup);
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
       DBUG_RETURN(RES_ERROR);
     }
     res= row_value_transformer(join);
   }
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
 err:
   thd->where= save_where;
   DBUG_RETURN(res);

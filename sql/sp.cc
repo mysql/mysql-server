@@ -1338,7 +1338,7 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
-    (void)add_used_routine(lex, thd->current_arena, &rt->key);
+    (void)add_used_routine(lex, thd->stmt_arena, &rt->key);
   }
 }
 
@@ -1485,7 +1485,7 @@ void
 sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                               Table_triggers_list *triggers)
 {
-  if (add_used_routine(lex, thd->current_arena, &triggers->sroutines_key))
+  if (add_used_routine(lex, thd->stmt_arena, &triggers->sroutines_key))
   {
     Sroutine_hash_entry **last_cached_routine_ptr=
                             (Sroutine_hash_entry **)lex->sroutines_list.next;

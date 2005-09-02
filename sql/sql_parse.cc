@@ -5279,7 +5279,7 @@ mysql_new_select(LEX *lex, bool move_down)
     it's a constant one. The flag is switched off in the end of
     mysql_stmt_prepare.
   */
-  if (thd->current_arena->is_stmt_prepare())
+  if (thd->stmt_arena->is_stmt_prepare())
     select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
@@ -6085,7 +6085,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->db= empty_c_string;
     ptr->db_length= 0;
   }
-  if (thd->current_arena->is_stmt_prepare_or_first_sp_execute())
+  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
     ptr->db= thd->strdup(ptr->db);
 
   ptr->alias= alias_str;
@@ -7305,7 +7305,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       against the opened tables to ensure we don't use a table that is part
       of the view (which can only be done after the table has been opened).
     */
-    if (thd->current_arena->is_stmt_prepare_or_first_sp_execute())
+    if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
     {
       /*
         For temporary tables we don't have to check if the created table exists
