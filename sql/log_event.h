@@ -1177,9 +1177,6 @@ class Xid_log_event: public Log_event
   Every time a query uses the value of a user variable, a User_var_log_event is
   written before the Query_log_event, to set the user variable.
 
-  Every time a query uses the value of a user variable, a User_var_log_event is
-  written before the Query_log_event, to set the user variable.
-
  ****************************************************************************/
 
 class User_var_log_event: public Log_event

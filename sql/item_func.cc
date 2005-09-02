@@ -3834,21 +3834,21 @@ longlong Item_func_get_user_var::val_int()
   stores this variable and its value in thd->user_var_events, so that it can be
   written to the binlog (will be written just before the query is written, see
   log.cc).
-  
+
   RETURN
-    0  OK 
+    0  OK
     1  Failed to put appropriate record into binary log
-    
+
 */
 
-int get_var_with_binlog(THD *thd, LEX_STRING &name, 
-                        user_var_entry **out_entry)
+int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
+                        LEX_STRING &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
   var_entry= get_variable(&thd->user_vars, name, 0);
-  
-  if (!(opt_bin_log && is_update_query(thd->lex->sql_command)))
+
+  if (!(opt_bin_log && is_update_query(sql_command)))
   {
     *out_entry= var_entry;
     return 0;
@@ -3941,7 +3941,7 @@ void Item_func_get_user_var::fix_length_and_dec()
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
-  error= get_var_with_binlog(thd, name, &var_entry);
+  error= get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry);
 
   if (var_entry)
   {
