@@ -551,11 +551,6 @@ void THD::cleanup_after_query()
   }
   /* Free Items that were created during this execution */
   free_items();
-  /*
-    In the rest of code we assume that free_list never points to garbage:
-    Keep this predicate true.
-  */
-  free_list= 0;
 }
 
 /*
@@ -1686,23 +1681,17 @@ Statement_map::Statement_map() :
             NULL,MYF(0));
 }
 
+
 int Statement_map::insert(Statement *statement)
 {
   int rc= my_hash_insert(&st_hash, (byte *) statement);
-  if (rc == 0)
-    last_found_statement= statement;
   if (statement->name.str)
   {
-    /*
-      If there is a statement with the same name, remove it. It is ok to 
-      remove old and fail to insert new one at the same time.
-    */
-    Statement *old_stmt;
-    if ((old_stmt= find_by_name(&statement->name)))
-      erase(old_stmt); 
     if ((rc= my_hash_insert(&names_hash, (byte*)statement)))
       hash_delete(&st_hash, (byte*)statement);
   }
+  if (rc == 0)
+    last_found_statement= statement;
   return rc;
 }
 

@@ -128,6 +128,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->update_list.empty();
   lex->param_list.empty();
   lex->view_list.empty();
+  lex->prepared_stmt_params.empty();
   lex->unit.next= lex->unit.master=
     lex->unit.link_next= lex->unit.return_to= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
@@ -143,6 +144,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->describe= 0;
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
+  lex->stmt_prepare_mode= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
   lex->found_semicolon= 0;
@@ -568,8 +570,7 @@ int yylex(void *arg, void *yythd)
         its value in a query for the binlog, the query must stay
         grammatically correct.
       */
-      else if (c == '?' && ((THD*) yythd)->command == COM_STMT_PREPARE &&
-               !ident_map[yyPeek()])
+      else if (c == '?' && lex->stmt_prepare_mode && !ident_map[yyPeek()])
         return(PARAM_MARKER);
       return((int) c);
 
@@ -981,7 +982,7 @@ int yylex(void *arg, void *yythd)
       {
         THD* thd= (THD*)yythd;
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            (thd->command != COM_STMT_PREPARE))
+            !lex->stmt_prepare_mode)
         {
 	  lex->safe_to_cache_query= 0;
           lex->found_semicolon=(char*) lex->ptr;
