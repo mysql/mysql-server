@@ -447,30 +447,33 @@ PS=$ac_cv_path_PS
 # Linux style
 if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
+  FIND_PROC="$PS p \$\$PID | grep -v grep | grep mysqld > /dev/null"
 # Solaris
 elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep mysqld > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep -v grep | grep mysqld > /dev/null"
 # BSD style
 elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep -v grep | grep mysqld | grep \" \$\$PID \" > /dev/null"
 # SysV style
 elif $PS -ef 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep mysqld | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep -v grep | grep mysqld | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
 elif $PS $$ 2> /dev/null | grep $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep mysqld > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep -v grep | grep mysqld > /dev/null"
 else
   case $SYSTEM_TYPE in
+    *freebsd*)
+      FIND_PROC="$PS p \$\$PID | grep -v grep | grep mysqld > /dev/null"
+      ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep -v grep | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep -v grep | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware* | *modesto*)
       FIND_PROC=
