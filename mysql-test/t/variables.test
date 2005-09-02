@@ -380,6 +380,14 @@ SET GLOBAL table_cache=-1;
 SHOW VARIABLES LIKE 'table_cache';
 SET GLOBAL table_cache=DEFAULT;
 
+#
+# Bugs12363: character_set_results is nullable,
+# but value_ptr returns string "NULL"
+#
+set character_set_results=NULL;
+select ifnull(@@character_set_results,"really null");
+set names latin1;
+
 # End of 4.1 tests
 
 #
