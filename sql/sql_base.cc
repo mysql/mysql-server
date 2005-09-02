@@ -1864,7 +1864,7 @@ err:
   if (thd->net.last_errno == ER_NO_SUCH_TABLE &&
       table_desc && table_desc->belong_to_view)
   {
-    TABLE_LIST * view= table_desc->belong_to_view;
+    TABLE_LIST *view= table_desc->belong_to_view;
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), view->view_db.str, view->view_name.str);
   }
@@ -4624,9 +4624,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     /* process CHECK OPTION */
     if (it_is_update)
     {
-      TABLE_LIST *view= table->belong_to_view;
-      if (!view)
-        view= table;
+      TABLE_LIST *view= table->top_table();
       if (view->effective_with_check)
       {
         if (view->prepare_check_option(thd))
