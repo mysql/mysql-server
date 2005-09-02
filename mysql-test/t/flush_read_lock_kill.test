@@ -34,7 +34,7 @@ send flush tables with read lock;
 connection con2;
 select ((@id := kill_id) - kill_id) from t1; 
 
---sleep 2; # leave time for FLUSH to block
+--sleep 2 # leave time for FLUSH to block
 kill connection @id;
 
 connection con1;
