@@ -249,7 +249,7 @@ drop table t1;
 create table `t1 `(a int);
 --error 1102
 create database `db1 `;
---error 1166;
+--error 1166
 create table t1(`a ` int);
 
 #
@@ -502,6 +502,14 @@ create table t1(xyz.t1.name int);
 create table t1(t1.name int);
 create table t2(test.t2.name int);
 drop table t1,t2;
+
+#
+# Bug #12537: UNION produces longtext instead of varchar
+#
+CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
+CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
+DESC t2;
+DROP TABLE t1,t2;
 
 #
 # Bug#11028: Crash on create table like

@@ -428,3 +428,4 @@ alter table t1 change i i bigint;
 select * from t1;
 alter table t1 add unique key (i, v);
 select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
+drop table t1;

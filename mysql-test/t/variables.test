@@ -395,6 +395,7 @@ SET GLOBAL table_cache=DEFAULT;
 #
 # Bug#6282 Packet error with SELECT INTO
 # 
+
 create table t1 (a int);
 select a into @x from t1;
 show warnings;
@@ -412,9 +413,17 @@ set @@global.error_count=1;
 #
 # Bug #10351: Setting ulong variable to > MAX_ULONG fails on 32-bit platform
 #
+
 set @@max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
 set global max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
 set @@max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
+
+#
+# Bug #9613: @@have_innodb
+#
+
+--replace_column 1 #
+select @@have_innodb;

@@ -905,17 +905,12 @@ private:
   void execACC_TO_REQ(Signal* signal);
   void execACC_LOCKREQ(Signal* signal);
   void execFSOPENCONF(Signal* signal);
-  void execFSOPENREF(Signal* signal);
   void execFSCLOSECONF(Signal* signal);
-  void execFSCLOSEREF(Signal* signal);
   void execFSWRITECONF(Signal* signal);
-  void execFSWRITEREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
-  void execFSREADREF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execFSREMOVECONF(Signal* signal);
-  void execFSREMOVEREF(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSET_VAR_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
