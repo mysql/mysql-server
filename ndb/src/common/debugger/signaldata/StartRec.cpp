@@ -17,6 +17,7 @@
 
 #include <RefConvert.hpp>
 #include <signaldata/StartRec.hpp>
+#include <signaldata/StartFragReq.hpp>
 
 bool
 printSTART_REC_REQ(FILE * output, 
@@ -49,4 +50,28 @@ printSTART_REC_CONF(FILE * output,
 	  sig->startingNodeId);
 
   return true;
+}
+
+bool 
+printSTART_FRAG_REQ(FILE * output, 
+		    const Uint32 * theData, 
+		    Uint32 len, 
+		    Uint16 recBlockNo)
+{
+  StartFragReq* sig = (StartFragReq*)theData;
+
+  fprintf(output, " table: %d frag: %d lcpId: %d lcpNo: %d #nodes: %d \n",
+	  sig->tableId, sig->fragId, sig->lcpId, sig->lcpNo, 
+	  sig->noOfLogNodes);
+
+  for(Uint32 i = 0; i<sig->noOfLogNodes; i++)
+  {
+    fprintf(output, " (node: %d startGci: %d lastGci: %d)",
+	    sig->lqhLogNode[i],
+	    sig->startGci[i],
+	    sig->lastGci[i]);
+  }
+    
+  fprintf(output, "\n");
+  return true; 
 }
