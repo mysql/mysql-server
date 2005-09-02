@@ -6,7 +6,7 @@ AC_DEFUN([MYSQL_CHECK_PARTITIONDB], [
   AC_ARG_WITH([partition],
               [
   --with-partition
-                          Enable the Partition Storage Engine],
+                        Enable the Partition Storage Engine],
               [partitiondb="$withval"],
               [partitiondb=no])
   AC_MSG_CHECKING([for partition])
