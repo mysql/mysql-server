@@ -651,7 +651,7 @@ int ha_tina::rnd_init(bool scan)
   current_position= next_position= 0;
   records= 0;
   chain_ptr= chain;
-#ifdef MADV_SEQUENTIAL
+#ifdef HAVE_MADVISE
   (void)madvise(share->mapped_file,share->file_stat.st_size,MADV_SEQUENTIAL);
 #endif
 

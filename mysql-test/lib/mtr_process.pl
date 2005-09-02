@@ -183,7 +183,7 @@ sub spawn_impl ($$$$$$$$) {
         {
           if ( ! open(STDERR,$log_file_open_mode,$error) )
           {
-            mtr_error("can't redirect STDERR to \"$output\": $!");
+            mtr_error("can't redirect STDERR to \"$error\": $!");
           }
         }
       }
@@ -560,8 +560,8 @@ sub mtr_stop_mysqld_servers ($) {
 
   start_reap_all();                     # Avoid zombies
 
- SIGNAL:
-  mtr_kill_processes(\keys (%mysqld_pids));
+  my @mysqld_pids= keys %mysqld_pids;
+  mtr_kill_processes(\@mysqld_pids);
 
   stop_reap_all();                      # Get into control again
 

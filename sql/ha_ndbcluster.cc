@@ -1213,7 +1213,7 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
 
 static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
 {
-  if (field->type() == MYSQL_TYPE_VARCHAR) {
+  if (field->type() == MYSQL_TYPE_VARCHAR && ptr != NULL) {
     Field_varstring* f= (Field_varstring*)field;
     if (f->length_bytes == 1) {
       uint pack_len= field->pack_length();

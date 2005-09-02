@@ -349,4 +349,10 @@ select a from t1 where b = 2;
 show tables;
 drop table t1;
 
+# mysqld 5.0.13 crash, no bug#
+create table t1 (a int, c varchar(10),
+  primary key using hash (a), index(c)) engine=ndb;
+insert into t1 (a, c) values (1,'aaa'),(3,'bbb');
+select count(*) from t1 where c<'bbb';
+
 # End of 4.1 tests
