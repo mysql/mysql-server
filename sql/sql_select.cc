@@ -581,11 +581,11 @@ JOIN::optimize()
       MEMROOT for prepared statements and stored procedures.
     */
 
-    Query_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->stmt_arena, backup;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
     else
-      thd->set_n_backup_item_arena(arena, &backup);
+      thd->set_n_backup_active_arena(arena, &backup);
 
     sel->first_cond_optimization= 0;
 
@@ -595,7 +595,7 @@ JOIN::optimize()
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
 
     if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
+      thd->restore_active_arena(arena, &backup);
   }
 
   conds= optimize_cond(this, conds, join_list, &cond_value);   
@@ -1744,7 +1744,7 @@ Cursor::init_from_thd(THD *thd)
     things that are already allocated in thd->mem_root for Cursor::fetch()
   */
   main_mem_root=  *thd->mem_root;
-  state= thd->current_arena->state;
+  state= thd->stmt_arena->state;
   /* Allocate new memory root for thd */
   init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1871,7 +1871,7 @@ Cursor::fetch(ulong num_rows)
   thd->query_id= query_id;
   thd->change_list= change_list;
   /* save references to memory, allocated during fetch */
-  thd->set_n_backup_item_arena(this, &backup_arena);
+  thd->set_n_backup_active_arena(this, &backup_arena);
 
   for (info= ht_info; info->read_view ; info++)
     (info->ht->set_cursor_read_view)(info->read_view);
@@ -1890,7 +1890,7 @@ Cursor::fetch(ulong num_rows)
     ha_release_temporary_latches(thd);
 #endif
   /* Grab free_list here to correctly free it in close */
-  thd->restore_backup_item_arena(this, &backup_arena);
+  thd->restore_active_arena(this, &backup_arena);
 
   for (info= ht_info; info->read_view; info++)
     (info->ht->set_cursor_read_view)(0);

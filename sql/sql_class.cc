@@ -180,7 +180,7 @@ THD::THD()
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
    spcont(NULL)
 {
-  current_arena= this;
+  stmt_arena= this;
   host= user= priv_user= db= ip= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
@@ -794,7 +794,7 @@ struct Item_change_record: public ilink
 /*
   Register an item tree tree transformation, performed by the query
   optimizer. We need a pointer to runtime_memroot because it may be !=
-  thd->mem_root (due to possible set_n_backup_item_arena called for thd).
+  thd->mem_root (due to possible set_n_backup_active_arena called for thd).
 */
 
 void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
@@ -1602,13 +1602,13 @@ void THD::end_statement()
 }
 
 
-void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
+void THD::set_n_backup_active_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Query_arena::set_n_backup_item_arena");
+  DBUG_ENTER("THD::set_n_backup_active_arena");
   DBUG_ASSERT(backup->is_backup_arena == FALSE);
 
-  backup->set_item_arena(this);
-  set_item_arena(set);
+  backup->set_query_arena(this);
+  set_query_arena(set);
 #ifndef DBUG_OFF
   backup->is_backup_arena= TRUE;
 #endif
@@ -1616,19 +1616,19 @@ void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 }
 
 
-void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backup)
+void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Query_arena::restore_backup_item_arena");
+  DBUG_ENTER("THD::restore_active_arena");
   DBUG_ASSERT(backup->is_backup_arena);
-  set->set_item_arena(this);
-  set_item_arena(backup);
+  set->set_query_arena(this);
+  set_query_arena(backup);
 #ifndef DBUG_OFF
   backup->is_backup_arena= FALSE;
 #endif
   DBUG_VOID_RETURN;
 }
 
-void Query_arena::set_item_arena(Query_arena *set)
+void Query_arena::set_query_arena(Query_arena *set)
 {
   mem_root=  set->mem_root;
   free_list= set->free_list;
