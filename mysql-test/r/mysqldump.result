@@ -1875,3 +1875,61 @@ set @fired:= "No";
 end if;
 end	BEFORE	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 DROP TABLE t1, t2;
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+INSERT INTO t1 VALUES(5);
+DROP FUNCTION IF EXISTS bug9056_func1;
+CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
+RETURN a+b //
+CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
+BEGIN SELECT a+b INTO c; end  //
+DROP FUNCTION IF EXISTS bug9056_func2 //
+create function bug9056_func2(f1 char binary) returns char binary
+begin
+set f1= concat( 'hello', f1 );
+return f1;
+end //
+DROP PROCEDURE IF EXISTS bug9056_proc2 //
+CREATE PROCEDURE bug9056_proc2(OUT a INT) 
+BEGIN 
+select sum(id) from t1 into a; 
+END //
+SELECT db, name, type, definer, param_list, body 
+FROM mysql.proc
+WHERE db = 'test';
+db	name	type	definer	param_list	body
+test	bug9056_func1	FUNCTION	root@localhost	a INT, b INT	RETURN a+b
+test	bug9056_func2	FUNCTION	root@localhost	f1 char binary	begin
+set f1= concat( 'hello', f1 );
+return f1;
+end
+test	bug9056_proc1	PROCEDURE	root@localhost	IN a INT, IN b INT, OUT c INT	BEGIN SELECT a+b INTO c; end
+test	bug9056_proc2	PROCEDURE	root@localhost	OUT a INT	BEGIN 
+select sum(id) from t1 into a; 
+END
+DROP PROCEDURE IF EXISTS bug9056_func1;
+DROP PROCEDURE IF EXISTS bug9056_func2;
+DROP PROCEDURE IF EXISTS bug9056_proc1;
+DROP PROCEDURE IF EXISTS bug9056_proc2;
+drop table t1;
+SELECT db, name, type, definer, param_list, body 
+FROM mysql.proc
+WHERE db = 'test';
+db	name	type	definer	param_list	body
+test	bug9056_func1	FUNCTION	root@localhost	a INT, b INT	RETURN a+b
+test	bug9056_func2	FUNCTION	root@localhost	f1 char binary	begin
+set f1= concat( 'hello', f1 );
+return f1;
+end
+test	bug9056_proc1	PROCEDURE	root@localhost	IN a INT, IN b INT, OUT c INT	BEGIN SELECT a+b INTO c; end
+test	bug9056_proc2	PROCEDURE	root@localhost	OUT a INT	BEGIN 
+select sum(id) from t1 into a; 
+END
+DROP PROCEDURE IF EXISTS bug9056_func1;
+DROP PROCEDURE IF EXISTS bug9056_func2;
+DROP PROCEDURE IF EXISTS bug9056_proc1;
+DROP PROCEDURE IF EXISTS bug9056_proc2;
+drop table t1;
