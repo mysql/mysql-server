@@ -618,7 +618,7 @@ select * from t1|
 call bug8408_p()|
 val	x
 select bug8408_f()|
-ERROR 0A000: PROCEDURE test.bug8408_p can't return a result set in the given context
+ERROR 0A000: Not allowed to return a result set from a function
 drop procedure bug8408_p|
 drop function bug8408_f|
 create function bug8408() returns int
@@ -665,20 +665,6 @@ select default(t30.s1) from t30;
 end|
 drop procedure bug10969|
 drop table t1|
-prepare stmt from "select 1";
-create procedure p() deallocate prepare stmt;
-ERROR 0A000: DEALLOCATE is not allowed in stored procedures
-create function f() returns int begin deallocate prepare stmt;
-ERROR 0A000: DEALLOCATE is not allowed in stored procedures
-create procedure p() prepare stmt from "select 1";
-ERROR 0A000: PREPARE is not allowed in stored procedures
-create function f() returns int begin prepare stmt from "select 1";
-ERROR 0A000: PREPARE is not allowed in stored procedures
-create procedure p() execute stmt;
-ERROR 0A000: EXECUTE is not allowed in stored procedures
-create function f() returns int begin execute stmt;
-ERROR 0A000: EXECUTE is not allowed in stored procedures
-deallocate prepare stmt;
 create table t1(f1 int);
 create table t2(f1 int);
 CREATE PROCEDURE SP001()
