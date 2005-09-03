@@ -3818,9 +3818,7 @@ no_gap_lock:
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp))) {
 
-		/* The record is delete-marked: we can skip it if this is
-		not a consistent read which might see an earlier version
-		of a non-clustered index record */
+		/* The record is delete-marked: we can skip it */
 
 		if (srv_locks_unsafe_for_binlog
 	    	    && prebuilt->select_lock_type != LOCK_NONE) {
@@ -3895,7 +3893,8 @@ requires_clust_rec:
 
 		        result_rec = clust_rec;
 
-			ut_ad(rec_offs_validate(rec, clust_index, offsets));
+			ut_ad(rec_offs_validate(result_rec, clust_index,
+								offsets));
 		} else {
 			/* We used 'offsets' for the clust rec, recalculate
 			them for 'rec' */
