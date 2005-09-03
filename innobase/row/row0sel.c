@@ -2724,7 +2724,9 @@ row_sel_get_clust_rec_for_mysql(
 		if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
 		    && !lock_clust_rec_cons_read_sees(clust_rec, clust_index,
 						*offsets, trx->read_view)) {
-
+		
+			/* The following call returns 'offsets' associated with
+			'old_vers' */
 			err = row_sel_build_prev_vers_for_mysql(
 					trx->read_view, clust_index,
 					prebuilt, clust_rec,
@@ -3062,7 +3064,7 @@ row_search_for_mysql(
 	dict_index_t*	clust_index;
 	que_thr_t*	thr;
 	rec_t*		rec;
-	rec_t*		index_rec;
+	rec_t*		result_rec;
 	rec_t*		clust_rec;
 	rec_t*		old_vers;
 	ulint		err				= DB_SUCCESS;
@@ -3548,16 +3550,20 @@ rec_loop:
 	if (comp) {
 		next_offs = rec_get_next_offs(rec, TRUE);
 		if (UNIV_UNLIKELY(next_offs < PAGE_NEW_SUPREMUM)) {
+
 			goto wrong_offs;
 		}
 	} else {
 		next_offs = rec_get_next_offs(rec, FALSE);
 		if (UNIV_UNLIKELY(next_offs < PAGE_OLD_SUPREMUM)) {
+
 			goto wrong_offs;
 		}
 	}
+
 	if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
-	wrong_offs:
+
+wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
 			ut_print_timestamp(stderr);
 			buf_page_print(buf_frame_align(rec));
@@ -3600,6 +3606,9 @@ rec_loop:
 			goto next_rec;
 		}
 	}
+	/*-------------------------------------------------------------*/
+
+	/* Calculate the 'offsets' associated with 'rec' */
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
@@ -3619,8 +3628,6 @@ rec_loop:
 			goto next_rec;
 		}
 	}
-
-	/*-------------------------------------------------------------*/
 
 	/* Note that we cannot trust the up_match value in the cursor at this
 	place because we can arrive here after moving the cursor! Thus
@@ -3768,6 +3775,8 @@ no_gap_lock:
                             && !lock_clust_rec_cons_read_sees(rec, index,
 						offsets, trx->read_view)) {
 
+				/* The following call returns 'offsets'
+				associated with 'old_vers' */
 				err = row_sel_build_prev_vers_for_mysql(
 						trx->read_view, clust_index,
 						prebuilt, rec,
@@ -3796,8 +3805,6 @@ no_gap_lock:
 			is necessary, because we can only get the undo
 			information via the clustered index record. */
 
-			/* Get the clustered index record if needed */
-			index_rec = rec;
 			ut_ad(index != clust_index);
 
 			goto requires_clust_rec;
@@ -3807,7 +3814,7 @@ no_gap_lock:
 	/* NOTE that at this point rec can be an old version of a clustered
 	index record built for a consistent read. We cannot assume after this
 	point that rec is on a buffer pool page. Functions like
-	page_rec_is_comp() cannot be used then! */
+	page_rec_is_comp() cannot be used! */
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp))) {
 
@@ -3829,19 +3836,15 @@ no_gap_lock:
 		goto next_rec;
 	}
 
-	/* Get the clustered index record if needed and if we did
-	not do the search using the clustered index */
-
-	index_rec = rec;
+	/* Get the clustered index record if needed, if we did not do the
+	search using the clustered index. */
 
 	if (index != clust_index && prebuilt->need_to_access_clustered) {
 
 requires_clust_rec:
-		/* Before and after this "if" block, "offsets" will be
-		related to "rec", which may be in a secondary index "index" or
-		the clustered index ("clust_index").  However, after this
-		"if" block, "rec" may be pointing to
-		"clust_rec" of "clust_index". */
+		/* We use a 'goto' to the preceding label if a consistent
+		read of a secondary index record requires us to look up old
+		versions of the associated clustered index record. */
 
 		ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -3849,6 +3852,10 @@ requires_clust_rec:
 		clustered index record */
 
 		mtr_has_extra_clust_latch = TRUE;
+
+		/* The following call returns 'offsets' associated with
+		'clust_rec'. Note that 'clust_rec' can be an old version
+		built for a consistent read. */
 		
 		err = row_sel_get_clust_rec_for_mysql(prebuilt, index, rec,
 							thr, &clust_rec,
@@ -3885,17 +3892,26 @@ requires_clust_rec:
 		}
 		
 		if (prebuilt->need_to_access_clustered) {
-		        rec = clust_rec;
+
+		        result_rec = clust_rec;
+
 			ut_ad(rec_offs_validate(rec, clust_index, offsets));
 		} else {
+			/* We used 'offsets' for the clust rec, recalculate
+			them for 'rec' */
 			offsets = rec_get_offsets(rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
+			result_rec = rec;
 		}
+	} else {
+		result_rec = rec;
 	}
 
-	/* We found a qualifying row */
-	ut_ad(rec_offs_validate(rec,
-				rec == clust_rec ? clust_index : index,
+	/* We found a qualifying record 'result_rec'. At this point,
+	'offsets' are associated with 'result_rec'. */
+
+	ut_ad(rec_offs_validate(result_rec,
+				result_rec != rec ? clust_index : index,
 				offsets));
 
 	if ((match_mode == ROW_SEL_EXACT
@@ -3916,8 +3932,8 @@ requires_clust_rec:
 		not cache rows because there the cursor is a scrollable
 		cursor. */
 
-		row_sel_push_cache_row_for_mysql(prebuilt, rec, offsets);
-
+		row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
+								offsets);
 		if (prebuilt->n_fetch_cached == MYSQL_FETCH_CACHE_SIZE) {
 			
 			goto got_row;
@@ -3926,13 +3942,14 @@ requires_clust_rec:
 		goto next_rec;
 	} else {
 		if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
-			memcpy(buf + 4, rec - rec_offs_extra_size(offsets),
+			memcpy(buf + 4, result_rec
+						- rec_offs_extra_size(offsets),
 					rec_offs_size(offsets));
 			mach_write_to_4(buf,
 					rec_offs_extra_size(offsets) + 4);
 		} else {
 			if (!row_sel_store_mysql_rec(buf, prebuilt,
-							rec, offsets)) {
+							result_rec, offsets)) {
 				err = DB_TOO_BIG_RECORD;
 
 				goto lock_wait_or_error;
@@ -3940,15 +3957,18 @@ requires_clust_rec:
 		}
 
 		if (prebuilt->clust_index_was_generated) {
-			if (rec != index_rec) {
+			if (result_rec != rec) {
 				offsets = rec_get_offsets(
-						index_rec, index, offsets,
+						rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
 			}
-			row_sel_store_row_id_to_prebuilt(prebuilt, index_rec,
+			row_sel_store_row_id_to_prebuilt(prebuilt, rec,
 							index, offsets);
 		}
 	}
+
+	/* From this point on, 'offsets' are invalid. */
+
 got_row:
 	/* We have an optimization to save CPU time: if this is a consistent
 	read on a unique condition on the clustered index, then we do not
@@ -3999,7 +4019,7 @@ next_rec:
 
 	if (moves_up) {		
 		if (UNIV_UNLIKELY(!btr_pcur_move_to_next(pcur, &mtr))) {
-		not_moved:
+not_moved:
 			btr_pcur_store_position(pcur, &mtr);
 
 			if (match_mode != 0) {
