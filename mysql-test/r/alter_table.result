@@ -541,6 +541,21 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 drop table t1;
+create database mysqltest1;
+create table t1 (c1 int);
+alter table t1 rename mysqltest1.t1;
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+alter table mysqltest1.t1 rename t1;
+drop table t1;
+create table t1 (c1 int);
+use mysqltest1;
+drop database mysqltest1;
+alter table test.t1 rename t1;
+ERROR 3D000: No database selected
+alter table test.t1 rename test.t1;
+use test;
+drop table t1;
 create table t1 (v varchar(32));
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
 select * from t1;
