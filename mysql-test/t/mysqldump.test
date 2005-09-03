@@ -761,3 +761,84 @@ show tables;
 --replace_column 6 #
 show triggers;
 DROP TABLE t1, t2;
+
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+INSERT INTO t1 VALUES(5);
+--disable_warnings
+DROP FUNCTION IF EXISTS bug9056_func1;
+DELIMITER //;
+--enable_warnings
+CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
+RETURN a+b //
+CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
+BEGIN SELECT a+b INTO c; end  //
+
+--disable_warnings
+DROP FUNCTION IF EXISTS bug9056_func2 //
+--enable_warnings
+
+create function bug9056_func2(f1 char binary) returns char binary
+begin
+  set f1= concat( 'hello', f1 );
+  return f1;
+end //
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug9056_proc2 //
+--enable_warnings
+CREATE PROCEDURE bug9056_proc2(OUT a INT) 
+BEGIN 
+  select sum(id) from t1 into a; 
+END //
+
+DELIMITER ;//
+
+# just to see what you've created
+# this will not work because of the timestamps!
+# show procedure status;
+#show create procedure bug9056_proc1;
+#show create procedure bug9056_proc2;
+#show function status;
+#show create function bug9056_func1;
+#show create function bug9056_func2;
+SELECT db, name, type, definer, param_list, body 
+FROM mysql.proc
+WHERE db = 'test';
+
+# Dump the DB and ROUTINES 
+--exec $MYSQL_DUMP --skip-comments --routines --databases test > var/tmp/mysqldump.sql
+# ok, now blow it all away
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug9056_func1;
+DROP PROCEDURE IF EXISTS bug9056_func2;
+DROP PROCEDURE IF EXISTS bug9056_proc1;
+DROP PROCEDURE IF EXISTS bug9056_proc2;
+drop table t1;
+--enable-warnings
+
+# Now, restore
+--exec $MYSQL test < var/tmp/mysqldump.sql
+
+# Check that the routines have been reloaded
+# this will not work because of the timestamps!
+#show procedure status;
+#show create procedure bug9056_proc1;
+#show create procedure bug9056_proc2;
+#show function status;
+#show create function bug9056_func1;
+#show create function bug9056_func2;
+SELECT db, name, type, definer, param_list, body 
+FROM mysql.proc
+WHERE db = 'test';
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug9056_func1;
+DROP PROCEDURE IF EXISTS bug9056_func2;
+DROP PROCEDURE IF EXISTS bug9056_proc1;
+DROP PROCEDURE IF EXISTS bug9056_proc2;
+drop table t1;
+--enable-warnings

@@ -87,7 +87,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
                 opt_complete_insert= 0, opt_drop_database= 0,
-                opt_dump_triggers= 0;
+                opt_dump_triggers= 0, opt_routines=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static my_bool insert_pat_inited=0;
@@ -339,6 +339,9 @@ static struct my_option my_long_options[] =
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"routines", 'R', "Dump routines FUNCTIONS and PROCEDURES.",
+     (gptr*) &opt_routines, (gptr*) &opt_routines, 0, GET_BOOL,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
    (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
@@ -599,6 +602,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (!(md_result_file = my_fopen(argument, O_WRONLY | FILE_BINARY,
 				    MYF(MY_WME))))
       exit(1);
+    break;
+  case 'R':
+    opt_routines= 1;
     break;
   case 'W':
 #ifdef __WIN__
@@ -1157,7 +1163,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   uint i;
   MYSQL_FIELD *field;
   ulong *lengths= mysql_fetch_lengths(tableRes);
-  
+
   fprintf(xml_file, "\t\t<%s", row_name);
   check_io(xml_file);
   mysql_field_seek(tableRes, 0);
@@ -1177,6 +1183,112 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   check_io(xml_file);
 }
 
+/*
+  dump_routines_for_db
+  -- retrievs list of routines for a given db, and prints out
+  the CREATE PROCEDURE definition into the output (the dump).
+
+  This function has logic to print the appropriate syntax depending on whether
+  this is a procedure or functions
+
+  RETURN 0 succes, 1 if error
+*/
+
+static uint dump_routines_for_db (char *db)
+{
+  MYSQL_RES  *routine_res= NULL;
+  MYSQL_RES  *routine_list_res= NULL;
+  MYSQL_ROW  row, routine_list_row;
+  char       query_buff[512], routine_type[10];
+  char       db_name_buff[NAME_LEN+3], name_buff[NAME_LEN+3];
+  char       *routine_name;
+  char       **routine_list;
+  int        i;
+  FILE       *sql_file = md_result_file;
+
+  DBUG_ENTER("dump_routines_for_db");
+
+  mysql_real_escape_string(sock, db_name_buff, db, strlen(db));
+  DBUG_PRINT("enter", ("db: '%s'", db_name_buff));
+
+  /* nice comments */
+  if (opt_comments)
+    fprintf(sql_file, "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+  mysql_query(sock, "LOCK TABLES mysql.proc READ");
+
+  /* 0, retrieve and dump functions, 1, procedures */
+  for (i=0; i <= 1; i++)
+  {
+    my_snprintf(routine_type, sizeof(routine_type),
+                  "%s", i == 0 ? "FUNCTION" : "PROCEDURE");
+
+    my_snprintf(query_buff, sizeof(query_buff),
+                "SHOW %s STATUS WHERE Db = '%s'",
+                routine_type, db_name_buff);
+    mysql_query(sock, query_buff);
+
+    if (!(routine_list_res= mysql_store_result(sock)))
+      DBUG_RETURN(1);
+
+    if (mysql_num_rows(routine_list_res))
+    {
+      fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+      fprintf(sql_file, "DELIMITER //\n");
+
+      while((routine_list_row= mysql_fetch_row(routine_list_res)))
+      {
+        DBUG_PRINT("info", ("retrieving CREATE %s for %s", routine_type, name_buff));
+        mysql_real_escape_string(sock, name_buff,
+                                 routine_list_row[1], strlen(routine_list_row[1]));
+        my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
+                    routine_type, name_buff);
+
+        if (mysql_query_with_error_report(sock, &routine_res, query_buff))
+        {
+          if (path)
+            my_fclose(sql_file, MYF(MY_WME));
+          safe_exit(EX_MYSQLERR);
+          DBUG_RETURN(1);
+        }
+
+        while ((row=mysql_fetch_row(routine_res)))
+        {
+          /*
+            the user can see routine names, but NOT the routine body of other
+            routines that are not the creator of!
+          */
+          DBUG_PRINT("info",("length of body for %s row[2] '%s' is %d",
+                             name_buff, row[2], strlen(row[2])));
+          if (strlen(row[2]))
+          {
+            fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/ //\n",
+                    row[1] /* sql_mode */);
+
+            if (opt_drop)
+              fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */ //\n",
+                      routine_type, name_buff);
+            /*
+              the i==0 is temporary until we can figure out why functions
+              can't be in comments
+            */
+            /* create proc/func body */;
+            fprintf(sql_file, i == 0 ? "%s //\n" : "/*!50003 %s */ //\n", row[2]);
+          }
+        } /* end of routine printing */
+      } /* end of list of routines */
+      /* set the delimiter back to ';' */
+      fprintf(sql_file, "DELIMITER ;\n");
+      fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;\n");
+      mysql_free_result(routine_res);
+      routine_res=NULL;
+    }
+    mysql_free_result(routine_list_res);
+    routine_list_res=NULL;
+  } /* end of for i (0 .. 1)  */
+
+  mysql_query(sock, "UNLOCK TABLES");
+  DBUG_RETURN(0);
+}
 
 /*
   getTableStructure -- retrievs database structure, prints out corresponding
@@ -2378,6 +2490,12 @@ static int dump_all_tables_in_db(char *database)
       order_by= 0;
     }
   }
+  if (opt_routines && !opt_xml &&
+      mysql_get_server_version(sock) >= 50009)
+  {
+    DBUG_PRINT("info", ("Dumping routines for database %s", database));
+    dump_routines_for_db(database);
+  }
   if (opt_xml)
   {
     fputs("</database>\n", md_result_file);
@@ -2579,6 +2697,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       table_name= hash_element(&dump_tables, i);
       get_view_structure(table_name, db);
     }
+  }
+  /* obtain dump of routines (procs/functions) */
+  if (opt_routines  && !opt_xml &&
+      mysql_get_server_version(sock) >= 50009)
+  {
+    DBUG_PRINT("info", ("Dumping routines for database %s", db));
+    dump_routines_for_db(db);
   }
   hash_free(&dump_tables);
   my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
