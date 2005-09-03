@@ -1,0 +1,48 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+DROP DATABASE IF EXISTS federated;
+CREATE DATABASE federated;
+DROP DATABASE IF EXISTS federated;
+CREATE DATABASE federated;
+DROP TABLE IF EXISTS federated.archive_table;
+CREATE TABLE federated.archive_table (
+`id` int(4) NOT NULL,
+`name` varchar(54) default NULL
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`id` int(4) NOT NULL,
+`name` varchar(54) default NULL,
+PRIMARY KEY (`id`)
+)
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/archive_table';
+INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
+INSERT INTO federated.t1 (id, name) VALUES (2, 'bar');
+SELECT * FROM federated.t1;
+id	name
+1	foo
+2	bar
+DELETE FROM federated.t1 WHERE id = 1;
+ERROR HY000: There was a problem processing the query on the foreign data source. Data source error: ': 1031 : Table storage engine for 'archive_table' doesn't have t'
+SELECT * FROM federated.t1;
+id	name
+1	foo
+2	bar
+UPDATE federated.t1 SET name='baz' WHERE id = 1;
+ERROR HY000: There was a problem processing the query on the foreign data source. Data source error: ': 1031 : Table storage engine for 'archive_table' doesn't have t'
+SELECT * FROM federated.t1;
+id	name
+1	foo
+2	bar
+DROP TABLE federated.t1;
+DROP TABLE federated.archive_table;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
