@@ -5401,3 +5401,5 @@ ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
         eng "Can't update table '%-.64s' in stored function/trigger because it is already used by statement which invoked this stored function/trigger."
 ER_VIEW_PREVENT_UPDATE
         eng "The definition of table '%-.64s' prevents operation %s on table '%-.64s'."
+ER_PS_NO_RECURSION
+        eng "The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner"

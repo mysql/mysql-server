@@ -689,7 +689,7 @@ call bug11587();
 set new.c2= '2004-04-02';
 end|
 insert into t1 (c1) values (4),(5),(6);
-ERROR 0A000: PROCEDURE test.bug11587 can't return a result set in the given context
+ERROR 0A000: Not allowed to return a result set from a trigger
 select * from t1;
 c1	c2
 1	NULL

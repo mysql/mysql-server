@@ -589,7 +589,7 @@ bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
-bool alloc_query(THD *thd, char *packet, ulong packet_length);
+bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_reset_thd_for_next_command(THD *thd);
 void mysql_init_query(THD *thd, uchar *buf, uint length);
@@ -848,16 +848,17 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 bool get_schema_tables_result(JOIN *join);
 
 /* sql_prepare.cc */
-bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 
-                        LEX_STRING *name);
+
+void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
-void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_close(THD *thd, char *packet);
+void mysql_sql_stmt_prepare(THD *thd);
+void mysql_sql_stmt_execute(THD *thd);
+void mysql_sql_stmt_close(THD *thd);
+void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
-void init_stmt_after_parse(THD*, LEX*);
 
 /* sql_handler.cc */
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
@@ -1364,8 +1365,8 @@ extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 /* item_func.cc */
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component);
-int get_var_with_binlog(THD *thd, LEX_STRING &name,
-                        user_var_entry **out_entry);
+int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
+                        LEX_STRING &name, user_var_entry **out_entry);
 /* log.cc */
 bool flush_error_log(void);
 
