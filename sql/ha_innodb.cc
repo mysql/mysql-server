@@ -5543,7 +5543,7 @@ ha_innobase::info(
 
 		/* The following function call can the first time fail in
 		a lock wait timeout error because it reserves the auto-inc
-		lock on the table. If it fails, then someone has already inited
+		lock on the table. If it fails, then someone is already initing
 		the auto-inc counter, and the second call is guaranteed to
 		succeed. */
 
@@ -6893,9 +6893,11 @@ func_exit:
 
 func_exit_early:
 	/* Since MySQL does not seem to call autocommit after SHOW TABLE
-	STATUS (even if we would register the trx here), we must commit our
+	STATUS (even if we would register the trx here), we commit our
 	transaction here if it was started here. This is to eliminate a
-	dangling transaction. */
+	dangling transaction. If the user had AUTOCOMMIT=0, then SHOW
+	TABLE STATUS does leave a dangling transaction if the user does not
+	himself call COMMIT. */
 
 	if (trx_was_not_started) {
 
