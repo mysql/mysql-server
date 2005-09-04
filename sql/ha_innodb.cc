@@ -463,13 +463,9 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
-		/* Since we rolled back the whole transaction, we must
-		tell it also to MySQL so that MySQL knows to empty the
-		cached binlog for this transaction */
-
-		if (thd) {
-			ha_rollback(thd);
-		}
+		/* Starting from 5.0.13, we let MySQL just roll back the
+		latest SQL statement in a lock wait timeout. Previously, we
+		rolled back the whole transaction. */
 
    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
