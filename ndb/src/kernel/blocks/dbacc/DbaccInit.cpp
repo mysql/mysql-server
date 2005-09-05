@@ -187,17 +187,12 @@ Dbacc::Dbacc(const class Configuration & conf):
   addRecSignal(GSN_ACC_TO_REQ, &Dbacc::execACC_TO_REQ);
   addRecSignal(GSN_ACC_LOCKREQ, &Dbacc::execACC_LOCKREQ);
   addRecSignal(GSN_FSOPENCONF, &Dbacc::execFSOPENCONF);
-  addRecSignal(GSN_FSOPENREF, &Dbacc::execFSOPENREF);
   addRecSignal(GSN_FSCLOSECONF, &Dbacc::execFSCLOSECONF);
-  addRecSignal(GSN_FSCLOSEREF, &Dbacc::execFSCLOSEREF);
   addRecSignal(GSN_FSWRITECONF, &Dbacc::execFSWRITECONF);
-  addRecSignal(GSN_FSWRITEREF, &Dbacc::execFSWRITEREF);
   addRecSignal(GSN_FSREADCONF, &Dbacc::execFSREADCONF);
-  addRecSignal(GSN_FSREADREF, &Dbacc::execFSREADREF);
   addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbacc::execDROP_TAB_REQ);
   addRecSignal(GSN_FSREMOVECONF, &Dbacc::execFSREMOVECONF);
-  addRecSignal(GSN_FSREMOVEREF, &Dbacc::execFSREMOVEREF);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_SET_VAR_REQ,  &Dbacc::execSET_VAR_REQ);
 

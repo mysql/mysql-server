@@ -25,6 +25,7 @@
 #include <m_string.h>
 
 extern my_bool opt_ndb_shm;
+extern my_bool opt_core;
 
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
@@ -2136,7 +2137,16 @@ const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 /****************************************************************************
  * Ctor
  ****************************************************************************/
-static void require(bool v) { if(!v) abort();}
+static void require(bool v)
+{
+  if(!v)
+  {
+    if (opt_core)
+      abort();
+    else
+      exit(-1);
+  }
+}
 
 ConfigInfo::ConfigInfo()
   : m_info(true), m_systemDefaults(true)
@@ -2204,7 +2214,7 @@ ConfigInfo::ConfigInfo()
       ndbout << "Error: Parameter " << param._fname
 	     << " defined twice in section " << param._section
 	     << "." << endl;
-      exit(-1);
+      require(false);
     }
     
     // Add new pinfo to section
@@ -2254,7 +2264,7 @@ ConfigInfo::ConfigInfo()
       ndbout << "Check that each entry has a section failed." << endl;
       ndbout << "Parameter \"" << m_ParamInfo[i]._fname << endl; 
       ndbout << "Edit file " << __FILE__ << "." << endl;
-      exit(-1);
+      require(false);
     }
     
     if(m_ParamInfo[i]._type == ConfigInfo::CI_SECTION)
@@ -2267,7 +2277,7 @@ ConfigInfo::ConfigInfo()
 	     << "\" does not exist in section \"" 
 	     << m_ParamInfo[i]._section << "\"." << endl;
       ndbout << "Edit file " << __FILE__ << "." << endl;
-      exit(-1);
+      require(false);
     }
   }
 }
@@ -2277,7 +2287,7 @@ ConfigInfo::ConfigInfo()
  ****************************************************************************/
 inline void warning(const char * src, const char * arg){
   ndbout << "Illegal call to ConfigInfo::" << src << "() - " << arg << endl;
-  abort();
+  require(false);
 }
 
 const Properties * 
@@ -3394,7 +3404,7 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
     }
     case PropertiesType_Properties:
     default:
-      abort();
+      ::require(false);
     }
   }
   return true;
@@ -3406,7 +3416,7 @@ static bool
 saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
   const Properties * sec;
   if(!ctx.m_currentInfo->get(ctx.fname, &sec)){
-    abort();
+    require(false);
     return false;
   }
   
@@ -3477,7 +3487,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 	break;
       }
       default:
-	abort();
+	require(false);
       }
       require(ok);
     }

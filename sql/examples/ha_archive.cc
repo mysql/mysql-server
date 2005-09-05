@@ -225,7 +225,7 @@ int ha_archive::write_data_header(gzFile file_to_write)
   data_buffer[1]= (uchar)ARCHIVE_VERSION;
 
   if (gzwrite(file_to_write, &data_buffer, DATA_BUFFER_SIZE) != 
-      sizeof(DATA_BUFFER_SIZE))
+      DATA_BUFFER_SIZE)
     goto error;
   DBUG_PRINT("ha_archive::write_data_header", ("Check %u", (uint)data_buffer[0]));
   DBUG_PRINT("ha_archive::write_data_header", ("Version %u", (uint)data_buffer[1]));

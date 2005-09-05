@@ -55,9 +55,6 @@ typedef struct ErrorBundle {
 #define NI ndberror_cl_function_not_implemented
 #define UE ndberror_cl_unknown_error_code
 
-static const char REDO_BUFFER_MSG[]=
-"REDO log buffers overloaded, consult online manual (increase RedoBuffer, and|or decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)";
-
 static const char* empty_string = "";
 
 /*
@@ -164,8 +161,9 @@ ErrorBundle ErrorCodes[] = {
   { 830,  TR, "Out of add fragment operation records" },
   { 873,  TR, "Out of attrinfo records for scan in tuple manager" },
   { 1217, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
-  { 1220, TR, REDO_BUFFER_MSG },
+  { 1220, TR, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
   { 1222, TR, "Out of transaction markers in LQH" },
+  { 1224, TR, "Out of Send Buffer space in LQH" },
   { 4021, TR, "Out of Send Buffer space in NDB API" },
   { 4022, TR, "Out of Send Buffer space in NDB API" },
   { 4032, TR, "Out of Send Buffer space in NDB API" },
@@ -194,10 +192,10 @@ ErrorBundle ErrorCodes[] = {
   /**
    * OverloadError
    */
-  { 410,  OL, REDO_BUFFER_MSG },
+  { 410,  OL, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
   { 677,  OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
   { 891,  OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
-  { 1221, OL, REDO_BUFFER_MSG },
+  { 1221, OL, "REDO buffers overloaded, consult online manual (increase RedoBuffer)" },
   { 4006, OL, "Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)" }, 
 
 

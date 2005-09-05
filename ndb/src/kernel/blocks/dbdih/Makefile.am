@@ -1,9 +1,15 @@
 noinst_LIBRARIES = libdbdih.a
+EXTRA_PROGRAMS = ndbd_sysfile_reader
 
 libdbdih_a_SOURCES = DbdihInit.cpp DbdihMain.cpp
+ndbd_sysfile_reader_SOURCES = printSysfile/printSysfile.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_kernel.mk.am
+
+LDADD +=  \
+              $(top_builddir)/ndb/src/common/util/libgeneral.la \
+              $(top_builddir)/ndb/src/common/portlib/libportlib.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

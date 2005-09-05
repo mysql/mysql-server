@@ -134,7 +134,9 @@ bool PrepareOperationRecord::check() {
   return true;
 }
 
-Uint32 PrepareOperationRecord::getLogRecordSize() {
+Uint32 PrepareOperationRecord::getLogRecordSize(Uint32 wordsRead) {
+  if (wordsRead < 2)
+    return 2; // make sure we read more
   return m_logRecordSize;
 }
 
@@ -238,6 +240,17 @@ bool PageHeader::check() {
   // Not implemented yet.
   return true;
 }
+
+bool PageHeader::lastPage()
+{
+  return m_next_page == 0xffffff00;
+}
+
+Uint32 PageHeader::lastWord()
+{
+  return m_current_page_index;
+}
+
 
 NdbOut& operator<<(NdbOut& no, const PageHeader& ph) {
   no << "------------PAGE HEADER------------------------" << endl << endl;
