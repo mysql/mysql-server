@@ -811,12 +811,12 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
     /*
       Use server character set and collation if
-      - opt_skip_character_set_client_handshake is set
+      - opt_character_set_client_handshake is not set
       - client has not specified a character set
       - client character set is the same as the servers
       - client character set doesn't exists in server
     */
-    if (opt_skip_character_set_client_handshake ||
+    if (!opt_character_set_client_handshake ||
         !(thd->variables.character_set_client=
 	  get_charset((uint) net->read_pos[8], MYF(0))) ||
 	!my_strcasecmp(&my_charset_latin1,

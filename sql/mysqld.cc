@@ -271,7 +271,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
-bool opt_skip_character_set_client_handshake= 0;
+bool opt_character_set_client_handshake= 1;
 bool lower_case_table_names_used= 0;
 bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
@@ -4297,6 +4297,11 @@ Disable with --skip-bdb (will save memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
+   "Don't use client side character set value sent during handshake.",
+   (gptr*) &opt_character_set_client_handshake,
+   (gptr*) &opt_character_set_client_handshake,
+    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"character-set-server", 'C', "Set the default character set.",
    (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -4755,11 +4760,6 @@ Can't be set to 1 if --log-slave-updates is used.",
    "Show user and password in SHOW SLAVE HOSTS on this master",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
-   "Don't use client side character set value sent during handshake.",
-   (gptr*) &opt_skip_character_set_client_handshake,
-   (gptr*) &opt_skip_character_set_client_handshake,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-grant-tables", OPT_SKIP_GRANT,
    "Start without grant tables. This gives all users FULL ACCESS to all tables!",
    (gptr*) &opt_noacl, (gptr*) &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
