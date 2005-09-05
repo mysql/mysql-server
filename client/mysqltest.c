@@ -812,9 +812,9 @@ int var_set(const char *var_name, const char *var_name_end,
 
 int open_file(const char *name)
 {
+  char buff[FN_REFLEN];
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
-  char buff[FN_REFLEN];
   if (!test_if_hard_path(name))
   {
     strxmov(buff, opt_basedir, name, NullS);
@@ -843,9 +843,9 @@ int open_file(const char *name)
 
 int check_eol_junk(const char *eol)
 {
+  const char *p= eol;
   DBUG_ENTER("check_eol_junk");
   DBUG_PRINT("enter", ("eol: %s", eol));
-  const char *p= eol;
   /* Remove all spacing chars except new line */
   while (*p && my_isspace(charset_info, *p) && (*p != '\n'))
     p++;
