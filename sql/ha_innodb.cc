@@ -1651,6 +1651,8 @@ ha_innobase::open(
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
+		dict_table_decrement_handle_count(ib_table);
+
     		DBUG_RETURN(1);
   	}
 
@@ -5438,6 +5440,21 @@ ha_innobase::store_lock(
 	}
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
+
+		if (lock_type == TL_READ && thd->in_lock_tables) {
+			/* We come here if MySQL is processing LOCK TABLES
+			... READ LOCAL. MyISAM under that table lock type
+			reads the table as it was at the time the lock was
+			granted (new inserts are allowed, but not seen by the
+			reader). To get a similar effect on an InnoDB table,
+			we must use LOCK TABLES ... READ. We convert the lock
+			type here, so that for InnoDB, READ LOCAL is
+			equivalent to READ. This will change the InnoDB
+			behavior in mysqldump, so that dumps of InnoDB tables
+			are consistent with dumps of MyISAM tables. */
+
+			lock_type = TL_READ_NO_INSERT;
+		}
 
     		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
 		TABLESPACE, then allow multiple writers */

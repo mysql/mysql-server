@@ -11718,14 +11718,6 @@ Dblqh::execFSSYNCCONF(Signal* signal)
   ccurrentGcprec = RNIL;
 }//Dblqh::execFSSYNCCONF()
 
-void
-Dblqh::execFSSYNCREF(Signal* signal)
-{
-  jamEntry();
-  systemErrorLab(signal);
-  return;
-}//Dblqh::execFSSYNCREF()
-
 
 /* ######################################################################### */
 /* #######                            FILE HANDLING MODULE           ####### */
@@ -11796,16 +11788,6 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
   }//switch
 }//Dblqh::execFSCLOSECONF()
 
-/* ************>> */
-/*  FSCLOSEREF  > */
-/* ************>> */
-void Dblqh::execFSCLOSEREF(Signal* signal) 
-{
-  jamEntry();
-  terrorCode = signal->theData[1];
-  systemErrorLab(signal);
-  return;
-}//Dblqh::execFSCLOSEREF()
 
 /* ************>> */
 /*  FSOPENCONF  > */
@@ -11894,16 +11876,6 @@ void Dblqh::execFSOPENCONF(Signal* signal)
   }//switch
 }//Dblqh::execFSOPENCONF()
 
-/* ************> */
-/*  FSOPENREF  > */
-/* ************> */
-void Dblqh::execFSOPENREF(Signal* signal) 
-{
-  jamEntry();
-  terrorCode = signal->theData[1];
-  systemErrorLab(signal);
-  return;
-}//Dblqh::execFSOPENREF()
 
 /* ************>> */
 /*  FSREADCONF  > */
@@ -11981,60 +11953,43 @@ void Dblqh::execFSREADREF(Signal* signal)
   jamEntry();
   lfoPtr.i = signal->theData[0];
   ptrCheckGuard(lfoPtr, clfoFileSize, logFileOperationRecord);
-  terrorCode = signal->theData[1];
   switch (lfoPtr.p->lfoState) {
   case LogFileOperationRecord::READ_SR_LAST_MBYTE:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_SR_FRONTPAGE:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_SR_LAST_FILE:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_SR_NEXT_FILE:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_EXEC_SR:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_EXEC_LOG:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_SR_FOURTH_PHASE:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_SR_FOURTH_ZERO:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   case LogFileOperationRecord::READ_SR_INVALIDATE_PAGES:
     jam()
-    systemErrorLab(signal);
-    return;
     break;
   default:
     jam();
-    systemErrorLab(signal);
-    return;
     break;
   }//switch
-  return;
+  {
+    char msg[100];
+    sprintf(msg, "File system read failed during LogFileOperationRecord state %d", (Uint32)lfoPtr.p->lfoState);
+    fsRefError(signal,__LINE__,msg);
+  }
 }//Dblqh::execFSREADREF()
 
 /* *************** */
@@ -12115,49 +12070,43 @@ void Dblqh::execFSWRITEREF(Signal* signal)
   switch (lfoPtr.p->lfoState) {
   case LogFileOperationRecord::WRITE_PAGE_ZERO:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::LAST_WRITE_IN_FILE:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::INIT_WRITE_AT_END:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::INIT_FIRST_PAGE:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::WRITE_GCI_ZERO:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::WRITE_DIRTY:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::WRITE_INIT_MBYTE:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::ACTIVE_WRITE_LOG:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::FIRST_PAGE_WRITE_IN_LOGFILE:
     jam();
-    systemErrorLab(signal);
     break;
   case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
     jam();
     systemErrorLab(signal);
-    break;
   default:
     jam();
-    systemErrorLab(signal);
     break;
   }//switch
+  {
+    char msg[100];
+    sprintf(msg, "File system write failed during LogFileOperationRecord state %d", (Uint32)lfoPtr.p->lfoState);
+    fsRefError(signal,__LINE__,msg);
+  }
 }//Dblqh::execFSWRITEREF()
 
 

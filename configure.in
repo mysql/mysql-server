@@ -2043,6 +2043,13 @@ AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 
+# Test whether madvise() is declared in C++ code -- it is not on some
+# systems, such as Solaris
+AC_CHECK_DECLS(madvise, [], [], [#if HAVE_SYS_MMAN_H
+#include <sys/types.h>
+#include <sys/mman.h>
+#endif])
+
 # Do not treat warnings as errors if we are linking against other libc
 # this is to work around gcc not being permissive on non-system includes
 # with respect to ANSI C++

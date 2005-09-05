@@ -585,11 +585,13 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sTable ID = %u, fragment ID = %u has completed LCP "
-	       "on Node %u", 
+	       "on Node %u maxGciStarted: %d maxGciCompleted: %d", 
 	       theNodeId,
 	       theData[2], 
 	       theData[3], 
-	       theData[1]);
+	       theData[1],
+	       theData[4],
+	       theData[5]);
     break;
   case EventReport::TransReportCounters:
     // -------------------------------------------------------------------  

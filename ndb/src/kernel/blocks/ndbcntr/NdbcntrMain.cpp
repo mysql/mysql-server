@@ -144,6 +144,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   const SystemError * const sysErr = (SystemError *)signal->getDataPtr();
   char buf[100];
   int killingNode = refToNode(sysErr->errorRef);
+  Uint32 data1 = sysErr->data1;
   
   jamEntry();
   switch (sysErr->errorCode){
@@ -178,8 +179,9 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   case SystemError::CopyFragRefError:
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
-	     "it could not copy a fragment during node restart",     
-	     killingNode);
+	     "it could not copy a fragment during node restart. "
+	     "Copy fragment error code: %u.",
+	     killingNode, data1);
     break;
 
   default:
@@ -2396,12 +2398,6 @@ Ndbcntr::clearFilesystem(Signal* signal){
 }
 
 void
-Ndbcntr::execFSREMOVEREF(Signal* signal){
-  jamEntry();
-  ndbrequire(0);
-}
-
-void
 Ndbcntr::execFSREMOVECONF(Signal* signal){
   jamEntry();
   if(c_fsRemoveCount == 13){
@@ -2497,6 +2493,14 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
     
     const Uint32 start = currentBlockIndex;
     
+    if (currentStartPhase == ZSTART_PHASE_6)
+    {
+      // Ndbd has passed the critical startphases.
+      // Change error handler from "startup" state
+      // to normal state.
+      ErrorReporter::setErrorHandlerShutdownType();
+    }
+
     for(; currentBlockIndex < ALL_BLOCKS_SZ; currentBlockIndex++){
       jam();
       if(ALL_BLOCKS[currentBlockIndex].NextSP == currentStartPhase){

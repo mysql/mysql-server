@@ -248,15 +248,6 @@ void Dbacc::execFSCLOSECONF(Signal* signal)
   return;
 }//Dbacc::execFSCLOSECONF()
 
-/* ******************--------------------------------------------------------------- */
-/* FSCLOSEREF                                          OPENFILE CONF                 */
-/* ******************------------------------------+                                 */
-/*   SENDER: FS,     LEVEL B       */
-void Dbacc::execFSCLOSEREF(Signal* signal) 
-{
-  jamEntry();
-  ndbrequire(false);
-}//Dbacc::execFSCLOSEREF()
 
 /* ******************--------------------------------------------------------------- */
 /* FSOPENCONF                                         OPENFILE CONF                  */
@@ -304,15 +295,6 @@ void Dbacc::execFSOPENCONF(Signal* signal)
   return;
 }//Dbacc::execFSOPENCONF()
 
-/* ******************--------------------------------------------------------------- */
-/* FSOPENREF                                         OPENFILE REF                    */
-/* ******************------------------------------+                                 */
-/*   SENDER: FS,     LEVEL B       */
-void Dbacc::execFSOPENREF(Signal* signal) 
-{
-  jamEntry();
-  ndbrequire(false);
-}//Dbacc::execFSOPENREF()
 
 /* ******************--------------------------------------------------------------- */
 /* FSREADCONF                                          OPENFILE CONF                 */
@@ -366,16 +348,6 @@ void Dbacc::execFSREADCONF(Signal* signal)
   return;
 }//Dbacc::execFSREADCONF()
 
-/* ******************--------------------------------------------------------------- */
-/* FSREADRREF                                          OPENFILE CONF                 */
-/* ******************------------------------------+                                 */
-/*   SENDER: FS,     LEVEL B       */
-void Dbacc::execFSREADREF(Signal* signal) 
-{
-  jamEntry();
-  progError(0, __LINE__, "Read of file refused");
-  return;
-}//Dbacc::execFSREADREF()
 
 /* ******************--------------------------------------------------------------- */
 /* FSWRITECONF                                         OPENFILE CONF                 */
@@ -479,16 +451,6 @@ void Dbacc::execFSWRITECONF(Signal* signal)
   return;
 }//Dbacc::execFSWRITECONF()
 
-/* ******************--------------------------------------------------------------- */
-/* FSWRITEREF                                          OPENFILE CONF                 */
-/* ******************------------------------------+                                 */
-/*   SENDER: FS,     LEVEL B       */
-void Dbacc::execFSWRITEREF(Signal* signal) 
-{
-  jamEntry();
-  progError(0, __LINE__, "Write to file refused");
-  return;
-}//Dbacc::execFSWRITEREF()
 
 /* ------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------- */
@@ -1425,10 +1387,6 @@ void Dbacc::execFSREMOVECONF(Signal* signal)
   tabPtr.p->tabUserRef = 0;
 }//Dbacc::execFSREMOVECONF()
 
-void Dbacc::execFSREMOVEREF(Signal* signal)
-{
-  ndbrequire(false);
-}//Dbacc::execFSREMOVEREF()
 
 /* -------------------------------------------------------------------------- */
 /* ADDFRAGTOTAB                                                               */

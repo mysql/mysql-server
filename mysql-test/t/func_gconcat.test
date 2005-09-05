@@ -343,4 +343,17 @@ SELECT COUNT(*), GROUP_CONCAT(DISTINCT t2.somename SEPARATOR ' |')
 
 DROP TABLE t1,t2;
 
+#
+# Bug #12861 hang with group_concat insubquery FROM DUAL
+#
+select * from (select group_concat('c') from DUAL) t;
+
+#
+# Bug #12859 group_concat in subquery cause incorrect not null
+#
+create table t1 ( a int not null default 0);
+select * from (select group_concat(a) from t1) t2;
+select group_concat('x') UNION ALL select 1;
+drop table t1;
+
 # End of 4.1 tests

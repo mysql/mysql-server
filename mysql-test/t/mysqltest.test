@@ -3,6 +3,24 @@
 #
 # Test of mysqltest itself
 #
+# There are three rules that determines what belong to each command
+# 1. A normal command is delimited by the <delimiter> which by default is
+#    set to ';'
+#
+#   ex: | select *
+#       |   from t1;
+#       |
+#   Command: "select * from t1"
+#
+# 2. Special case is a line that starts with "--", this is a comment
+#    ended when the new line character is reached. But the first word
+#    in the comment may contain a valid command, which then will be
+#    executed. This can be useful when sending commands that
+#    contains <delimiter>
+#
+# 3. Special case is also a line that starts with '#' which is treated
+#     as a comment and will be ended by new line character
+#
 # ============================================================================
 
 # ----------------------------------------------------------------------------
@@ -37,7 +55,9 @@ select otto from (select 1 as otto) as t1;
 
 # expectation <> response
 #--error 0
-#select friedrich from (select 1 as otto) as t1;
+#select friedrich from (select 1 as otto) as t1
+--error 1
+--exec echo "select friedrich from (select 1 as otto) as t1;" | $MYSQL_TEST  2>&1
 
 # expectation = response
 --error 1054
@@ -55,8 +75,9 @@ select friedrich from (select 1 as otto) as t1;
 # Positive case(statement)
 # ----------------------------------------------------------------------------
 
+# This syntax not allowed anymore, use --error S00000, see below
 # expectation = response
-!S00000 select otto from (select 1 as otto) as t1;
+#!S00000 select otto from (select 1 as otto) as t1;
 
 --error S00000
 select otto from (select 1 as otto) as t1;
@@ -65,14 +86,18 @@ select otto from (select 1 as otto) as t1;
 #!S42S22 select otto from (select 1 as otto) as t1;
 #--error S42S22
 #select otto from (select 1 as otto) as t1;
+--error 1
+--exec echo "error S42S22; select otto from (select 1 as otto) as t1;" | $MYSQL_TEST  2>&1
+
 
 
 # ----------------------------------------------------------------------------
 # Negative case(statement)
 # ----------------------------------------------------------------------------
 
+# This syntax not allowed anymore, use --error S42S22, see below
 # expectation = response
-!S42S22 select friedrich from (select 1 as otto) as t1;
+#!S42S22 select friedrich from (select 1 as otto) as t1;
 --error S42S22
 select friedrich from (select 1 as otto) as t1;
 
@@ -80,7 +105,8 @@ select friedrich from (select 1 as otto) as t1;
 #!S00000 select friedrich from (select 1 as otto) as t1;
 #--error S00000
 #select friedrich from (select 1 as otto) as t1;
-
+--error 1
+--exec echo "error S00000; select friedrich from (select 1 as otto) as t1;" | $MYSQL_TEST  2>&1
 
 # ----------------------------------------------------------------------------
 # test cases for $mysql_errno
@@ -262,6 +288,8 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 # select 3 from t1 ;
 # --error 1000
 # select 3 from t1 ;
+--error 1
+--exec echo "disable_abort_on_error; error 1000; select 3 from t1; error 1000; select 3 from t1;" | $MYSQL_TEST  2>&1
 
 # ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
@@ -288,3 +316,498 @@ select 3 from t1 ;
 #select 3 from t1 ;
 
 # End of 4.1 tests
+--error 1
+--exec echo "disable_abort_on_error; enable_abort_on_error; error 1064; select 3 from t1; select 3 from t1;" | $MYSQL_TEST  2>&1
+
+
+# ----------------------------------------------------------------------------
+# Test comments
+# ----------------------------------------------------------------------------
+
+# This is a comment
+# This is a ;  comment
+# This is a -- comment
+-- This is also a comment
+-- # This is also a comment
+-- This is also a ; comment
+
+# ----------------------------------------------------------------------------
+# Test comments with embedded command
+# ----------------------------------------------------------------------------
+
+--echo hello
+--     echo hello
+--    echo ;;;;;;;;
+
+--echo # MySQL: -- The
+
+# ----------------------------------------------------------------------------
+# Test detect end of line "junk"
+# Most likely causes by a missing delimiter
+# ----------------------------------------------------------------------------
+
+# Too many parameters to function
+--error 1
+--exec echo "sleep 5 6;" | $MYSQL_TEST 2>&1
+
+# Too many parameters to function
+--error 1
+--exec echo "--sleep 5 6" | $MYSQL_TEST 2>&1
+
+#
+# Missing delimiter
+# The comment will be "sucked into" the sleep command since
+# delimiter is missing until after "show status"
+--error 1
+--exec echo -e "sleep 4\n # A comment\nshow status;" | $MYSQL_TEST 2>&1
+
+#
+# Extra delimiter
+#
+--error 1
+--exec echo "--sleep 4;" | $MYSQL_TEST 2>&1
+
+
+# Allow trailing # comment
+--sleep 1 # Wait for insert delayed to be executed.
+--sleep 1 	 # Wait for insert delayed to be executed.
+
+
+# ----------------------------------------------------------------------------
+# Test echo command
+# ----------------------------------------------------------------------------
+
+echo MySQL;
+echo "MySQL";
+echo MySQL: The world''s most popular open source database;
+echo "MySQL: The world's most popular open source database";
+
+echo MySQL: The world''s
+     most popular open
+     source database;
+
+echo # MySQL: The world''s
+# most popular open
+# source database;
+
+echo - MySQL: The world''s
+- most popular open
+- source database;
+
+echo - MySQL: The world''s
+-- most popular open
+-- source database;
+
+echo # MySQL: The
+--world''s
+# most popular
+-- open
+- source database;
+
+echo "MySQL: The world's most popular; open source database";
+echo "MySQL: The world's most popular ; open source database";
+echo "MySQL: The world's most popular ;open source database";
+echo echo message echo message;
+
+
+echo ;
+
+# Illegal use of echo
+
+--error 1
+--exec echo "echo $;" | $MYSQL_TEST 2>&1
+
+
+# ----------------------------------------------------------------------------
+# Test exec command
+# ----------------------------------------------------------------------------
+
+# Illegal use of exec
+--error 1
+--exec echo "--exec ';' 2> /dev/null" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--exec " | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# Test let command
+# ----------------------------------------------------------------------------
+
+let $message=MySQL;
+echo $message;
+
+let $message="MySQL";
+echo $message;
+
+let $message= MySQL: The
+ world''s most
+ popular open
+ source database;
+echo $message;
+
+let $message= # MySQL: The
+# world''s most
+# popular open
+# source database;
+echo $message;
+
+let $message=  -- MySQL: The
+-- world''s most
+-- popular open
+-- source database;
+echo $message;
+
+let $message=  # MySQL: The
+- world''s most
+-- popular open
+# source database;
+echo $message;
+
+echo '$message';
+echo "$message";
+
+let $1=hej;
+echo $1;
+
+let   $1   =hej ;
+echo $1;
+
+let $1 = hej;
+echo $1;
+
+let $1=1;
+let $2=$1;
+echo $2;
+let $5=$6;
+echo $5;
+echo $6;
+
+let $where=a long variable content;
+echo $where;
+
+let $where2= $where;
+echo $where2;
+
+let $where3=a long $where variable content;
+echo $where3;
+
+let $novar1= $novar2;
+echo $novar1;
+
+
+
+# Test illegal uses of let
+
+--error 1
+--exec echo "let ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "let $=hi;" | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "let hi=hi;" | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "let $1 hi;" | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "let $m hi;" | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "let $hi;" | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "let $ hi;" | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "let =hi;" | $MYSQL_TEST  2>&1
+
+--error 1
+--exec echo "let hi;" | $MYSQL_TEST  2>&1
+
+# ----------------------------------------------------------------------------
+# Test source command
+# ----------------------------------------------------------------------------
+
+# Test illegal uses of source
+
+--error 1
+--exec echo "source ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "source non_existingFile;" | $MYSQL_TEST 2>&1
+
+# Too many source
+--exec echo "source var/tmp/recursive.sql;" > var/tmp/recursive.sql
+--error 1
+--exec echo "source var/tmp/recursive.sql;" | $MYSQL_TEST 2>&1
+
+# Source a file with error
+--exec echo "garbage ;" > var/tmp/error.sql
+--error 1
+--exec echo "source var/tmp/error.sql;" | $MYSQL_TEST 2>&1
+
+
+# Test execution of source in a while loop
+--exec echo "echo here is the sourced script;" > var/tmp/sourced.sql
+--disable_query_log
+let $outer= 2; # Number of outer loops
+while ($outer)
+{
+  eval SELECT '$outer = outer loop variable after while' AS "";
+
+  --source var/tmp/sourced.sql
+
+  eval SELECT '$outer = outer loop variable before dec' AS "";
+  dec $outer;
+  eval SELECT '$outer = outer loop variable after dec' AS "";
+}
+
+let $outer= 2; # Number of outer loops
+while ($outer)
+{
+  eval SELECT '$outer = outer loop variable after while' AS "";
+
+  echo here is the sourced script;
+
+  eval SELECT '$outer = outer loop variable before dec' AS "";
+  dec $outer;
+  eval SELECT '$outer = outer loop variable after dec' AS "";
+}
+
+
+# Test execution of source in a while loop
+--exec echo "--source var/tmp/sourced.sql" > var/tmp/sourced1.sql
+--disable_abort_on_error
+# Sourcing of a file within while loop, sourced file will
+# source other file
+let $num= 9;
+while ($num)
+{
+   SELECT 'In loop' AS "";
+   --source var/tmp/sourced1.sql
+   dec $num;
+}
+--enable_abort_on_error;
+--enable_query_log
+
+# ----------------------------------------------------------------------------
+# Test sleep command
+# ----------------------------------------------------------------------------
+
+sleep 0.5;
+sleep 1;
+real_sleep 1;
+
+# Missing parameter
+--error 1
+--exec echo "sleep ;" | $MYSQL_TEST 2>&1
+
+# Illegal parameter
+--error 1
+--exec echo "sleep abc;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# Test inc
+# ----------------------------------------------------------------------------
+inc $i;
+echo $i;
+inc $i;
+echo $i;
+let $i=100;
+inc $i;
+echo $i;
+
+let $i=hej;
+echo $i;
+inc $i;
+echo $i;
+
+--error 1
+--exec echo "inc;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "inc i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "let \$i=100; inc \$i 1000; echo \$i;" | $MYSQL_TEST 2>&1
+
+inc $i; inc $i; inc $i; --echo $i
+echo $i;
+
+
+# ----------------------------------------------------------------------------
+# Test dec
+# ----------------------------------------------------------------------------
+
+dec $d;
+echo $d;
+dec $d;
+echo $d;
+let $d=100;
+dec $d;
+echo $d;
+
+let $d=hej;
+echo $d;
+dec $d;
+echo $d;
+
+--error 1
+--exec echo "dec;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "dec i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "let \$i=100; dec \$i 1000; echo \$i;" | $MYSQL_TEST 2>&1
+
+
+# ----------------------------------------------------------------------------
+# Test system
+# ----------------------------------------------------------------------------
+system ls > /dev/null;
+system echo "hej" > /dev/null;
+--system ls > /dev/null
+--system echo "hej" > /dev/null;
+
+--error 1
+--exec echo "system;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "system $NONEXISTSINFVAREABLI;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "system NonExistsinfComamdn 2> /dev/null;" | $MYSQL_TEST 2>&1
+
+--disable_abort_on_error
+system NonExistsinfComamdn;
+--enable_abort_on_error
+
+
+# ----------------------------------------------------------------------------
+# Test delimiter
+# ----------------------------------------------------------------------------
+
+delimiter stop;
+echo teststop
+delimiter ;stop
+echo test2;
+--delimiter stop
+echo test3stop
+--delimiter ;
+echo test4;
+
+# ----------------------------------------------------------------------------
+# Test while, { and }
+# ----------------------------------------------------------------------------
+
+let $i=1;
+while ($i)
+{
+  echo $i;
+  dec $i;
+}
+# One liner
+#let $i=1;while ($i){echo $i;dec $i;}
+
+
+
+# Exceed max nesting level
+--error 1
+--exec echo "source include/mysqltest_while.inc;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "while \$i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "while (\$i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "let \$i=1; while (\$i) dec \$i;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "};" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "end;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "{;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo -e "while (0)\necho hej;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo -e "while (0)\n{echo hej;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo -e "while (0){\n echo hej;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# Test error messages returned from comments starting with a command
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "--if the other server is down" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "-- end when ..." | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# Test replace
+# ----------------------------------------------------------------------------
+--replace_result a b
+select "a" as col1, "c" as col2;
+
+--replace_result a b c d
+select "a" as col1, "c" as col2;
+
+--error 1
+--exec echo "--replace_result a" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_result a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_result a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_result a ;" | $MYSQL_TEST 2>&1
+--exec echo "replace_result a b;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_result a b c" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_result a b c ;" | $MYSQL_TEST 2>&1
+
+
+--replace_column 1 b
+select "a" as col1, "c" as col2;
+
+--replace_column 1 b 2 d
+select "a" as col1, "c" as col2;
+
+--error 1
+--exec echo "--replace_column a" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--replace_column 1" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--replace_column a b" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_column a 1" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_column 1 b c " | $MYSQL_TEST 2>&1
+
+
+# ----------------------------------------------------------------------------
+# Test sync_with_master
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "save_master_pos; sync_with_master 10!;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "save_master_pos; sync_with_master 10 !;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "save_master_pos; sync_with_master a;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# TODO Test queries, especially their errormessages... so it's easy to debug 
+# new scripts and diagnose errors
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Test bug#12386
+# ----------------------------------------------------------------------------
+let $num= 2;
+while ($num)
+{
+   --error 1064
+   failing_statement;
+
+   dec $num;
+}
+
+SELECT 1 as a;
+
