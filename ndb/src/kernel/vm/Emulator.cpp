@@ -154,6 +154,9 @@ NdbShutdown(NdbShutdownType type,
     case NST_ErrorHandlerSignal:
       g_eventLogger.info("Error handler signal %s system", shutting);
       break;
+    case NST_ErrorHandlerStartup:
+      g_eventLogger.info("Error handler startup %s system", shutting);
+      break;
     case NST_Restart:
       g_eventLogger.info("Restarting system");
       break;
@@ -229,6 +232,9 @@ NdbShutdown(NdbShutdownType type,
     }
     
     if(type != NST_Normal && type != NST_Restart){
+      // Signal parent that error occured during startup
+      if (type == NST_ErrorHandlerStartup)
+	kill(getppid(), SIGUSR1);
       g_eventLogger.info("Error handler shutdown completed - %s", exitAbort);
 #if ( defined VM_TRACE || defined ERROR_INSERT ) && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
       signal(6, SIG_DFL);
