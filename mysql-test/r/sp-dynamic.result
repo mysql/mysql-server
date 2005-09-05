@@ -1,0 +1,364 @@
+create procedure p1()
+begin
+prepare stmt from "select 1";
+execute stmt;
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+end|
+call p1()|
+1
+1
+1
+1
+1
+1
+call p1()|
+1
+1
+1
+1
+1
+1
+call p1()|
+1
+1
+1
+1
+1
+1
+drop procedure p1|
+create procedure p1()
+begin
+execute stmt;
+end|
+prepare stmt from "call p1()"|
+execute stmt|
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
+execute stmt|
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
+execute stmt|
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
+call p1()|
+ERROR HY000: Recursive stored routines are not allowed.
+call p1()|
+ERROR HY000: Recursive stored routines are not allowed.
+call p1()|
+ERROR HY000: Recursive stored routines are not allowed.
+drop procedure p1|
+create procedure p1()
+begin
+prepare stmt from "create procedure p2() begin select 1; end";
+execute stmt;
+deallocate prepare stmt;
+end|
+call p1()|
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+call p1()|
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+drop procedure p1|
+create procedure p1()
+begin
+prepare stmt from "drop procedure p2";
+execute stmt;
+deallocate prepare stmt;
+end|
+call p1()|
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+call p1()|
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+drop procedure p1|
+create procedure p1()
+begin
+prepare stmt_drop from "drop table if exists t1";
+execute stmt_drop;
+prepare stmt from "create table t1 (a int)";
+execute stmt;
+insert into t1 (a) values (1);
+select * from t1;
+deallocate prepare stmt;
+deallocate prepare stmt_drop;
+end|
+call p1()|
+a
+1
+Warnings:
+Note	1051	Unknown table 't1'
+call p1()|
+a
+1
+drop procedure p1|
+create procedure p1()
+begin
+set @tab_name=concat("tab_", replace(curdate(), '-', '_'));
+set @drop_sql=concat("drop table if exists ", @tab_name);
+set @create_sql=concat("create table ", @tab_name, " (a int)");
+set @insert_sql=concat("insert into ", @tab_name, " values (1), (2), (3)");
+set @select_sql=concat("select * from ", @tab_name); 
+select @tab_name;
+select @drop_sql;
+select @create_sql;
+select @insert_sql;
+select @select_sql;
+prepare stmt_drop from @drop_sql;
+execute stmt_drop;
+prepare stmt from @create_sql;
+execute stmt;
+prepare stmt from @insert_sql;
+execute stmt;
+prepare stmt from @select_sql;
+execute stmt;
+execute stmt_drop;
+deallocate prepare stmt;
+deallocate prepare stmt_drop;
+end|
+call p1()|
+call p1()|
+drop procedure p1|
+create procedure p1()
+begin
+prepare stmt_drop from "drop table if exists t1";
+execute stmt_drop;
+prepare stmt from "create table t1 (a int)";
+execute stmt;
+deallocate prepare stmt;
+deallocate prepare stmt_drop;
+end|
+drop function if exists f1|
+create function f1(a int) returns int
+begin
+call p1();
+return 1;
+end|
+select f1(0)|
+ERROR 0A000: Dynamic SQL is not allowed in stored function or trigger
+select f1(f1(0))|
+ERROR 0A000: Dynamic SQL is not allowed in stored function or trigger
+select f1(f1(f1(0)))|
+ERROR 0A000: Dynamic SQL is not allowed in stored function or trigger
+drop function f1|
+drop procedure p1|
+create procedure p1()
+begin
+drop table if exists t1;
+create table t1 (id integer not null primary key,
+name varchar(20) not null);
+insert into t1 (id, name) values (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
+prepare stmt from "select name from t1";
+execute stmt;
+select name from t1;
+execute stmt;
+prepare stmt from
+"select name from t1 where name=(select name from t1 where id=2)";
+execute stmt;
+select name from t1 where name=(select name from t1 where id=2);
+execute stmt;
+end|
+call p1()|
+name
+aaa
+bbb
+ccc
+name
+aaa
+bbb
+ccc
+name
+aaa
+bbb
+ccc
+name
+bbb
+name
+bbb
+name
+bbb
+call p1()|
+name
+aaa
+bbb
+ccc
+name
+aaa
+bbb
+ccc
+name
+aaa
+bbb
+ccc
+name
+bbb
+name
+bbb
+name
+bbb
+drop procedure p1|
+prepare stmt from "select * from t1"|
+create procedure p1()
+begin
+execute stmt;
+deallocate prepare stmt;
+end|
+call p1()|
+id	name
+1	aaa
+2	bbb
+3	ccc
+call p1()|
+ERROR HY000: Unknown prepared statement handler (stmt) given to EXECUTE
+drop procedure p1|
+create procedure p1()
+begin
+declare a char(10);
+set a="sp-variable";
+set @a="mysql-variable";
+prepare stmt from "select 'dynamic sql:', @a, a";
+execute stmt;
+end|
+call p1()|
+ERROR 42S22: Unknown column 'a' in 'field list'
+call p1()|
+ERROR 42S22: Unknown column 'a' in 'field list'
+drop procedure p1|
+create procedure p1()
+begin
+prepare stmt from 'select ? as a';
+execute stmt using @a;
+end|
+set @a=1|
+call p1()|
+a
+1
+call p1()|
+a
+1
+drop procedure p1|
+drop table if exists t1|
+create table t1 (id integer primary key auto_increment,
+stmt_text char(35), status varchar(20))|
+insert into t1 (stmt_text) values
+("select 1"), ("flush tables"), ("handler t1 open as ha"), 
+("analyze table t1"), ("check table t1"), ("checksum table t1"),
+("check table t1"), ("optimize table t1"), ("repair table t1"),
+("describe extended select * from t1"),
+("help help"), ("show databases"), ("show tables"),
+("show table status"), ("show open tables"), ("show storage engines"),
+("insert into t1 (id) values (1)"), ("update t1 set status=''"),
+("delete from t1"), ("truncate t1"), ("call p1()"), ("foo bar")|
+create procedure p1()
+begin
+declare v_stmt_text varchar(255);
+declare v_id integer;
+declare done int default 0;
+declare c cursor for select id, stmt_text from t1;
+declare continue handler for 1295 -- ER_UNSUPPORTED_PS
+set @status='not supported';
+declare continue handler for 1064 -- ER_SYNTAX_ERROR
+set @status='syntax error';
+declare continue handler for sqlstate '02000' set done = 1;
+prepare update_stmt from "update t1 set status=? where id=?";
+open c;
+repeat
+if not done then
+fetch c into v_id, v_stmt_text;
+set @id=v_id, @stmt_text=v_stmt_text;
+set @status="supported";
+prepare stmt from @stmt_text;
+execute update_stmt using @status, @id;
+end if;
+until done end repeat;
+deallocate prepare update_stmt;
+end|
+call p1()|
+select * from t1|
+id	stmt_text	status
+1	select 1	supported
+2	flush tables	not supported
+3	handler t1 open as ha	not supported
+4	analyze table t1	not supported
+5	check table t1	not supported
+6	checksum table t1	not supported
+7	check table t1	not supported
+8	optimize table t1	not supported
+9	repair table t1	not supported
+10	describe extended select * from t1	supported
+11	help help	not supported
+12	show databases	supported
+13	show tables	supported
+14	show table status	supported
+15	show open tables	supported
+16	show storage engines	supported
+17	insert into t1 (id) values (1)	supported
+18	update t1 set status=''	supported
+19	delete from t1	supported
+20	truncate t1	supported
+21	call p1()	supported
+22	foo bar	syntax error
+drop procedure p1|
+drop table t1|
+prepare stmt from 'select 1'|
+create procedure p1() execute stmt|
+call p1()|
+1
+1
+call p1()|
+1
+1
+drop procedure p1|
+create function f1() returns int
+begin
+deallocate prepare stmt;
+return 1;
+end|
+ERROR 0A000: Dynamic SQL is not allowed in stored function or trigger
+create procedure p1()
+begin
+prepare stmt from 'select 1 A';
+execute stmt;
+end|
+prepare stmt from 'call p1()'|
+execute stmt|
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
+execute stmt|
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
+drop procedure p1|
+drop table if exists t1, t2|
+create procedure p1 (a int) language sql deterministic
+begin
+declare rsql varchar(100);
+drop table if exists t1, t2;
+set @rsql= "create table t1 (a int)";
+select @rsql;
+prepare pst from @rsql;
+execute pst;
+set @rsql= null;
+set @rsql= "create table t2 (a int)";
+select @rsql;
+prepare pst from @rsql;
+execute pst;
+drop table if exists t1, t2;
+end|
+set @a:=0|
+call p1(@a)|
+@rsql
+create table t1 (a int)
+@rsql
+create table t2 (a int)
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+select @a|
+@a
+0
+call p1(@a)|
+@rsql
+create table t1 (a int)
+@rsql
+create table t2 (a int)
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+select @a|
+@a
+0
+drop procedure if exists p1|
