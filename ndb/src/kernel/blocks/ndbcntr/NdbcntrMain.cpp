@@ -2489,6 +2489,14 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
     
     const Uint32 start = currentBlockIndex;
     
+    if (currentStartPhase == ZSTART_PHASE_6)
+    {
+      // Ndbd has passed the critical startphases.
+      // Change error handler from "startup" state
+      // to normal state.
+      ErrorReporter::setErrorHandlerShutdownType();
+    }
+
     for(; currentBlockIndex < ALL_BLOCKS_SZ; currentBlockIndex++){
       jam();
       if(ALL_BLOCKS[currentBlockIndex].NextSP == currentStartPhase){
