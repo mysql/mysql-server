@@ -30,7 +30,7 @@ ndb_restore_SOURCES = restore/restore_main.cpp \
                       restore/consumer.cpp \
                       restore/consumer_restore.cpp \
                       restore/consumer_printer.cpp \
-                      restore/Restore.cpp
+                      restore/Restore.cpp $(tools_common_sources)
 
 ndb_config_SOURCES = ndb_config.cpp \
 	../src/mgmsrv/Config.cpp \
