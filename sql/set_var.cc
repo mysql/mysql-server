@@ -1725,11 +1725,17 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type, base),1);
   case SHOW_CHAR:
   {
-    Item_string *tmp;
+    Item *tmp;
     pthread_mutex_lock(&LOCK_global_system_variables);
     char *str= (char*) value_ptr(thd, var_type, base);
-    tmp= new Item_string(str, strlen(str),
-                         system_charset_info, DERIVATION_SYSCONST);
+    if (str)
+      tmp= new Item_string(str, strlen(str),
+                           system_charset_info, DERIVATION_SYSCONST);
+    else
+    {
+      tmp= new Item_null();
+      tmp->collation.set(system_charset_info, DERIVATION_SYSCONST);
+    }
     pthread_mutex_unlock(&LOCK_global_system_variables);
     return tmp;
   }
@@ -2019,7 +2025,7 @@ byte *sys_var_character_set::value_ptr(THD *thd, enum_var_type type,
 				       LEX_STRING *base)
 {
   CHARSET_INFO *cs= ci_ptr(thd,type)[0];
-  return cs ? (byte*) cs->csname : (byte*) "NULL";
+  return cs ? (byte*) cs->csname : (byte*) NULL;
 }
 
 

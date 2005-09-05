@@ -33,8 +33,8 @@
 Item_result
 sp_map_result_type(enum enum_field_types type);
 
-bool
-sp_multi_results_command(enum enum_sql_command cmd);
+uint
+sp_get_flags_for_command(LEX *lex);
 
 struct sp_label;
 class sp_instr;
@@ -107,18 +107,23 @@ class sp_head :private Query_arena
 
   MEM_ROOT main_mem_root;
 public:
+  /* Possible values of m_flags */
+  const static int
+    HAS_RETURN= 1,              // For FUNCTIONs only: is set if has RETURN
+    IN_SIMPLE_CASE= 2,          // Is set if parsing a simple CASE
+    IN_HANDLER= 4,              // Is set if the parser is in a handler body
+    MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
+    CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
+    IS_INVOKED= 32;             // Is set if this sp_head is being used.
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
+  uint m_flags;                 // Boolean attributes of a stored routine
   enum enum_field_types m_returns; // For FUNCTIONs only
   Field::geometry_type m_geom_returns;
   CHARSET_INFO *m_returns_cs;	// For FUNCTIONs only
   TYPELIB *m_returns_typelib;	// For FUNCTIONs only
   uint m_returns_len;		// For FUNCTIONs only
   uint m_returns_pack;		// For FUNCTIONs only
-  my_bool m_has_return;		// For FUNCTIONs only
-  my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
-  my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
-  my_bool m_in_handler;		// TRUE if parser in a handler body
   uchar *m_tmp_query;		// Temporary pointer to sub query string
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
@@ -265,6 +270,19 @@ public:
   bool add_used_tables_to_table_list(THD *thd,
                                      TABLE_LIST ***query_tables_last_ptr);
 
+  /*
+    Check if this stored routine contains statements disallowed
+    in a stored function or trigger, and set an appropriate error message
+    if this is the case.
+  */
+  bool is_not_allowed_in_function(const char *where)
+  {
+    if (m_flags & CONTAINS_DYNAMIC_SQL)
+      my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
+    else if (m_flags & MULTI_RESULTS)
+      my_error(ER_SP_NO_RETSET, MYF(0), where);
+    return test(m_flags & (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS));
+  }
 private:
 
   MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
@@ -289,9 +307,6 @@ private:
     in prelocked mode and in non-prelocked mode.
   */
   HASH m_sptabs;
-
-  /* Used for tracking of routine invocations and preventing recursion. */
-  bool m_is_invoked;
 
   int
   execute(THD *thd);
