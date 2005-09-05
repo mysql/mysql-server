@@ -1666,6 +1666,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   HUFF_COUNTS *count,*end_count;
   HUFF_TREE *tree;
   MI_INFO *isam_file=mrg->file[0];
+  uint pack_version= (uint) isam_file->s->pack.version;
   DBUG_ENTER("compress_isam_file");
 
   if (!(record=(byte*) my_alloca(isam_file->s->base.reclength)))
@@ -1693,23 +1694,10 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  huff_counts[i].tree->height+huff_counts[i].length_bits;
   }
   max_calc_length/=8;
-  if (max_calc_length < 254)
-    pack_ref_length=1;
-  else if (max_calc_length <= 65535)
-    pack_ref_length=3;
-  else
-    pack_ref_length=4;
+  pack_ref_length= calc_pack_length(pack_version, max_calc_length);
   record_count=0;
-  pack_blob_length=0;
-  if (isam_file->s->base.blobs)
-  {
-    if (mrg->max_blob_length < 254)
-      pack_blob_length=1;
-    else if (mrg->max_blob_length <= 65535)
-      pack_blob_length=3;
-    else
-      pack_blob_length=4;
-  }
+  pack_blob_length= isam_file->s->base.blobs ?
+                    calc_pack_length(pack_version, mrg->max_blob_length) : 0;
   max_pack_length=pack_ref_length+pack_blob_length;
 
   mrg_reset(mrg);
@@ -1865,9 +1853,10 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       }
       flush_bits();
       length=(ulong) (file_buffer.pos-record_pos)-max_pack_length;
-      pack_length=save_pack_length(record_pos,length);
+      pack_length= save_pack_length(pack_version, record_pos, length);
       if (pack_blob_length)
-	pack_length+=save_pack_length(record_pos+pack_length,tot_blob_length);
+	pack_length+= save_pack_length(pack_version, record_pos + pack_length,
+	                               tot_blob_length);
 
       /* Correct file buffer if the header was smaller */
       if (pack_length != max_pack_length)
