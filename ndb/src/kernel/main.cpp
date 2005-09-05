@@ -57,7 +57,7 @@ int main(int argc, char** argv)
   NDB_INIT(argv[0]);
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
-  g_eventLogger.setCategory("NDB");
+  g_eventLogger.setCategory("ndbd");
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
