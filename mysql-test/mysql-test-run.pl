@@ -142,6 +142,7 @@ our $glob_timers=                 undef;
 our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_embedded_server=    0;
+our @glob_test_mode;
 
 our $glob_basedir;
 
@@ -606,12 +607,18 @@ sub command_line_setup () {
   if ( $opt_embedded_server )
   {
     $glob_use_embedded_server= 1;
+    push(@glob_test_mode, "embedded");
     $opt_skip_rpl= 1;              # We never run replication with embedded
 
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern with --embedded-server");
     }
+  }
+
+  if ( $opt_ps_protocol )
+  {
+    push(@glob_test_mode, "ps-protocol");
   }
 
   # FIXME don't understand what this is
@@ -999,25 +1006,19 @@ sub kill_and_cleanup () {
   # FIXME do we really need to create these all, or are they
   # created for us when tables are created?
 
-  rmtree("$master->[0]->{'path_myddir'}");
-  mkpath("$master->[0]->{'path_myddir'}/mysql");
-  mkpath("$master->[0]->{'path_myddir'}/test");
-
-  rmtree("$master->[1]->{'path_myddir'}");
-  mkpath("$master->[1]->{'path_myddir'}/mysql");
-  mkpath("$master->[1]->{'path_myddir'}/test");
-
-  rmtree("$slave->[0]->{'path_myddir'}");
-  mkpath("$slave->[0]->{'path_myddir'}/mysql");
-  mkpath("$slave->[0]->{'path_myddir'}/test");
-
-  rmtree("$slave->[1]->{'path_myddir'}");
-  mkpath("$slave->[1]->{'path_myddir'}/mysql");
-  mkpath("$slave->[1]->{'path_myddir'}/test");
-
-  rmtree("$slave->[2]->{'path_myddir'}");
-  mkpath("$slave->[2]->{'path_myddir'}/mysql");
-  mkpath("$slave->[2]->{'path_myddir'}/test");
+  my @data_dir_lst = (
+    $master->[0]->{'path_myddir'},
+    $master->[1]->{'path_myddir'},
+    $slave->[0]->{'path_myddir'},
+    $slave->[1]->{'path_myddir'},
+    $slave->[2]->{'path_myddir'});
+  
+  foreach my $data_dir (@data_dir_lst)
+  {
+    rmtree("$data_dir");
+    mkpath("$data_dir/mysql");
+    mkpath("$data_dir/test");
+  }
 
   # To make some old test cases work, we create a soft
   # link from the old "var" location to the new one
@@ -1565,8 +1566,9 @@ sub report_failure_and_restart ($) {
   print "\n";
   if ( ! $opt_force )
   {
-    print "Aborting: $tinfo->{'name'} failed. To continue, re-run with '--force'.";
-    print "\n";
+    my $test_mode= join(" ", @::glob_test_mode) || "default";
+    print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
+    print "To continue, re-run with '--force'.\n";
     if ( ! $opt_gdb and ! $glob_use_running_server and
          ! $opt_ddd and ! $glob_use_embedded_server )
     {
@@ -1612,6 +1614,7 @@ sub do_before_start_master ($$) {
     }
   }
 
+  # FIXME only remove the ones that are tied to this master
   # Remove old master.info and relay-log.info files
   unlink("$master->[0]->{'path_myddir'}/master.info");
   unlink("$master->[0]->{'path_myddir'}/relay-log.info");
@@ -2193,6 +2196,11 @@ sub run_mysqltest ($) {
   {
     mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
   }
+
+  # ----------------------------------------------------------------------
+  # export MYSQL_TEST variable containing <path>/mysqltest <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
 
   return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }

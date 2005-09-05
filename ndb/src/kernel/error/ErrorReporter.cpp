@@ -152,6 +152,14 @@ ErrorReporter::formatMessage(ErrorCategory type,
   return;
 }
 
+NdbShutdownType ErrorReporter::s_errorHandlerShutdownType = NST_ErrorHandler;
+
+void
+ErrorReporter::setErrorHandlerShutdownType(NdbShutdownType nst)
+{
+  s_errorHandlerShutdownType = nst;
+}
+
 void
 ErrorReporter::handleAssert(const char* message, const char* file, int line)
 {
@@ -170,7 +178,7 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line)
   WriteMessage(assert, ERR_ERROR_PRGERR, message, refMessage,
 	       theEmulatedJamIndex, theEmulatedJam);
 
-  NdbShutdown(NST_ErrorHandler);
+  NdbShutdown(s_errorHandlerShutdownType);
 }
 
 void
@@ -182,7 +190,7 @@ ErrorReporter::handleThreadAssert(const char* message,
   BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d - %s",
 	   file, line, message);
   
-  NdbShutdown(NST_ErrorHandler);
+  NdbShutdown(s_errorHandlerShutdownType);
 }//ErrorReporter::handleThreadAssert()
 
 
@@ -201,6 +209,8 @@ ErrorReporter::handleError(ErrorCategory type, int messageID,
   if(messageID == ERR_ERROR_INSERT){
     NdbShutdown(NST_ErrorInsert);
   } else {
+    if (nst == NST_ErrorHandler)
+      nst = s_errorHandlerShutdownType;
     NdbShutdown(nst);
   }
 }

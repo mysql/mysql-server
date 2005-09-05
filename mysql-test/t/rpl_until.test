@@ -60,7 +60,7 @@ stop slave;
 # this should stop immideately
 start slave until master_log_file='master-bin.000001', master_log_pos=561;
 # 2 is not enough when running with valgrind
-real_sleep 4
+--real_sleep 4
 # here the sql slave thread should be stopped
 --replace_result $MASTER_MYPORT MASTER_MYPORT bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
 --replace_column 1 # 9 # 23 # 33 #

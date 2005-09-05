@@ -45,8 +45,14 @@ extern NdbMutex * theShutdownMutex;
 
 void catchsigs(bool ignore); // for process signal handling
 
+#define MAX_FAILED_STARTUPS 3
+// Flag set by child through SIGUSR1 to signal a failed startup
+static bool failed_startup_flag = false;
+// Counter for consecutive failed startups
+static Uint32 failed_startups = 0;
 extern "C" void handler_shutdown(int signum);  // for process signal handling
 extern "C" void handler_error(int signum);  // for process signal handling
+extern "C" void handler_sigusr1(int signum);  // child signalling failed restart
 
 // Shows system information
 void systemInfo(const Configuration & conf,
@@ -57,7 +63,7 @@ int main(int argc, char** argv)
   NDB_INIT(argv[0]);
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
-  g_eventLogger.setCategory("NDB");
+  g_eventLogger.setCategory("ndbd");
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
@@ -92,6 +98,8 @@ int main(int argc, char** argv)
   }
   
 #ifndef NDB_WIN32
+  signal(SIGUSR1, handler_sigusr1);
+
   for(pid_t child = fork(); child != 0; child = fork()){
     /**
      * Parent
@@ -137,6 +145,20 @@ int main(int argc, char** argv)
        */
       exit(0);
     }
+    if (!failed_startup_flag)
+    {
+      // Reset the counter for consecutive failed startups
+      failed_startups = 0;
+    }
+    else if (failed_startups >= MAX_FAILED_STARTUPS && !theConfig->stopOnError())
+    {
+      /**
+       * Error shutdown && stopOnError()
+       */
+      g_eventLogger.alert("Ndbd has failed %u consecutive startups. Not restarting", failed_startups);
+      exit(0);
+    }
+    failed_startup_flag = false;
     g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
     theConfig->fetch_configuration();
   }
@@ -170,6 +192,9 @@ int main(int argc, char** argv)
   /**
    * Do startup
    */
+
+  ErrorReporter::setErrorHandlerShutdownType(NST_ErrorHandlerStartup);
+
   switch(globalData.theRestartFlag){
   case initial_state:
     globalEmulatorData.theThreadConfig->doStart(NodeState::SL_CMVMI);
@@ -358,4 +383,16 @@ handler_error(int signum){
   char errorData[40];
   BaseString::snprintf(errorData, 40, "Signal %d received", signum);
   ERROR_SET_SIGNAL(fatal, 0, errorData, __FILE__);
+}
+
+extern "C"
+void 
+handler_sigusr1(int signum)
+{
+  if (!failed_startup_flag)
+  {
+    failed_startups++;
+    failed_startup_flag = true;
+  }
+  g_eventLogger.info("Received signal %d. Ndbd failed startup (%u).", signum, failed_startups);
 }

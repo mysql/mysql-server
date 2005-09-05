@@ -782,29 +782,36 @@ void Dbdih::execFSCLOSEREF(Signal* signal)
   filePtr.p->reqStatus = FileRecord::IDLE;
   switch (status) {
   case FileRecord::CLOSING_GCP:
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::CLOSING_GCP_CRASH:
     jam();
     closingGcpCrashLab(signal, filePtr);
-    break;
+    return;
   case FileRecord::CLOSING_TABLE_CRASH:
     jam();
     closingTableCrashLab(signal, filePtr);
-    break;
+    return;
   case FileRecord::CLOSING_TABLE_SR:
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::TABLE_CLOSE:
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::TABLE_CLOSE_DELETE:
-    ndbrequire(false);
+    jam();
     break;
   default:
-    ndbrequire(false);
+    jam();
     break;
+
   }//switch
+  {
+    char msg[100];
+    sprintf(msg, "File system close failed during FileRecord status %d", (Uint32)status);
+    fsRefError(signal,__LINE__,msg);
+  }
+
   return;
 }//Dbdih::execFSCLOSEREF()
 
@@ -868,34 +875,39 @@ void Dbdih::execFSOPENREF(Signal* signal)
     /*   WE DID NOT MANAGE TO CREATE A GLOBAL CHECKPOINT FILE. SERIOUS ERROR */
     /*   WHICH CAUSES A SYSTEM RESTART.                                      */
     /* --------------------------------------------------------------------- */
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::OPENING_COPY_GCI:
     jam();
     openingCopyGciErrorLab(signal, filePtr);
-    break;
+    return;
   case FileRecord::CREATING_COPY_GCI:
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::OPENING_GCP:
     jam();
     openingGcpErrorLab(signal, filePtr);
-    break;
+    return;
   case FileRecord::OPENING_TABLE:
     jam();
     openingTableErrorLab(signal, filePtr);
-    break;
+    return;
   case FileRecord::TABLE_CREATE:
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::TABLE_OPEN_FOR_DELETE:
     jam();
     tableDeleteLab(signal, filePtr);
-    break;
+    return;
   default:
-    ndbrequire(false);
+    jam();
     break;
   }//switch
+  {
+    char msg[100];
+    sprintf(msg, "File system open failed during FileRecord status %d", (Uint32)status);
+    fsRefError(signal,__LINE__,msg);
+  }
   return;
 }//Dbdih::execFSOPENREF()
 
@@ -935,16 +947,19 @@ void Dbdih::execFSREADREF(Signal* signal)
   case FileRecord::READING_GCP:
     jam();
     readingGcpErrorLab(signal, filePtr);
-    break;
+    return;
   case FileRecord::READING_TABLE:
     jam();
     readingTableErrorLab(signal, filePtr);
-    break;
+    return;
   default:
-    ndbrequire(false);
     break;
   }//switch
-  return;
+  {
+    char msg[100];
+    sprintf(msg, "File system read failed during FileRecord status %d", (Uint32)status);
+    fsRefError(signal,__LINE__,msg);
+  }
 }//Dbdih::execFSREADREF()
 
 void Dbdih::execFSWRITECONF(Signal* signal) 
@@ -989,22 +1004,27 @@ void Dbdih::execFSWRITEREF(Signal* signal)
     /*  EVEN CREATING THE FILE DID NOT WORK. WE WILL THEN CRASH.             */
     /*  ERROR IN WRITING FILE. WE WILL NOT CONTINUE FROM HERE.               */
     /* --------------------------------------------------------------------- */
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::WRITE_INIT_GCP:
     /* --------------------------------------------------------------------- */
     /*   AN ERROR OCCURRED IN WRITING A GCI FILE WHICH IS A SERIOUS ERROR    */
     /*   THAT CAUSE A SYSTEM RESTART.                                        */
     /* --------------------------------------------------------------------- */
-    ndbrequire(false);
+    jam();
     break;
   case FileRecord::TABLE_WRITE:
-    ndbrequire(false);
+    jam();
     break;
   default:
-    ndbrequire(false);
+    jam();
     break;
   }//switch
+  {
+    char msg[100];
+    sprintf(msg, "File system write failed during FileRecord status %d", (Uint32)status);
+    fsRefError(signal,__LINE__,msg);
+  }
   return;
 }//Dbdih::execFSWRITEREF()
 
@@ -9620,6 +9640,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   }
 
   bool tableDone = reportLcpCompletion(lcpReport);
+  
+  Uint32 started = lcpReport->maxGciStarted;
+  Uint32 completed = lcpReport->maxGciCompleted;
 
   if(tableDone){
     jam();
@@ -9653,7 +9676,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   signal->theData[1] = nodeId;
   signal->theData[2] = tableId;
   signal->theData[3] = fragId;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+  signal->theData[4] = started;
+  signal->theData[5] = completed;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 #endif
   
   bool ok = false;
@@ -10770,7 +10795,9 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   lcpNo = fmgReplicaPtr.p->nextLcp;
   do {
     ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID) {
+    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID &&
+	fmgReplicaPtr.p->maxGciStarted[lcpNo] <= coldgcp)
+    {
       jam();
       keepGci = fmgReplicaPtr.p->maxGciCompleted[lcpNo];
       oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lcpNo];
@@ -10778,7 +10805,6 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
       return;
     } else {
       jam();
-      ndbrequire(fmgReplicaPtr.p->lcpStatus[lcpNo] == ZINVALID);
       if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) {
         jam();
 	/*-------------------------------------------------------------------

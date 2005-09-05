@@ -11,21 +11,21 @@ drop table if exists t1, t2;
 --enable_warnings
 CREATE TABLE t1 ( a int );
 INSERT INTO t1 VALUES (1),(2),(1);
---error 1062;
+--error 1062
 CREATE TABLE t2 ( PRIMARY KEY (a) ) ENGINE=INNODB SELECT a FROM t1;
---error 1146;
+--error 1146
 select * from t2;
---error 1062;
+--error 1062
 CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) ENGINE=INNODB SELECT a FROM t1;
---error 1146;
+--error 1146
 select * from t2;
---error 1062;
+--error 1062
 CREATE TABLE t2 ( PRIMARY KEY (a) ) ENGINE=MYISAM SELECT a FROM t1;
---error 1146;
+--error 1146
 select * from t2;
---error 1062;
+--error 1062
 CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) ENGINE=MYISAM SELECT a FROM t1;
---error 1146;
+--error 1146
 select * from t2;
 
 # End of 4.1 tests
