@@ -42,6 +42,7 @@ static const char * g_field_delimiter=",";
 static const char * g_row_delimiter=" ";
 
 int g_print_full_config, opt_ndb_shm;
+my_bool opt_core;
 
 typedef ndb_mgm_configuration_iterator Iter;
 
