@@ -65,6 +65,18 @@
 
 extern int global_flag_send_heartbeat_now;
 extern int g_no_nodeid_checks;
+extern my_bool opt_core;
+
+static void require(bool v)
+{
+  if(!v)
+  {
+    if (opt_core)
+      abort();
+    else
+      exit(-1);
+  }
+}
 
 void *
 MgmtSrvr::logLevelThread_C(void* m)
@@ -436,14 +448,14 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
     if (tmp_nodeid == 0)
     {
       ndbout_c(m_config_retriever->getErrorString());
-      exit(-1);
+      require(false);
     }
     // read config from other managent server
     _config= fetchConfig();
     if (_config == 0)
     {
       ndbout << m_config_retriever->getErrorString() << endl;
-      exit(-1);
+      require(false);
     }
     _ownNodeId= tmp_nodeid;
   }
@@ -454,7 +466,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
     _config= readConfig();
     if (_config == 0) {
       ndbout << "Unable to read config file" << endl;
-      exit(-1);
+      require(false);
     }
   }
 
@@ -511,7 +523,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   if ((m_node_id_mutex = NdbMutex_Create()) == 0)
   {
     ndbout << "mutex creation failed line = " << __LINE__ << endl;
-    exit(-1);
+    require(false);
   }
 
   if (_ownNodeId == 0) // we did not get node id from other server
@@ -522,7 +534,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
 		       0, 0, error_string)){
       ndbout << "Unable to obtain requested nodeid: "
 	     << error_string.c_str() << endl;
-      exit(-1);
+      require(false);
     }
     _ownNodeId = tmp;
   }
@@ -533,7 +545,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
 					  _ownNodeId))
     {
       ndbout << m_config_retriever->getErrorString() << endl;
-      exit(-1);
+      require(false);
     }
   }
 
@@ -2203,18 +2215,18 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     iter(*(ndb_mgm_configuration *)_config->m_configValues, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()) {
     unsigned tmp= 0;
-    if(iter.get(CFG_NODE_ID, &tmp)) abort();
+    if(iter.get(CFG_NODE_ID, &tmp)) require(false);
     if (*nodeId && *nodeId != tmp)
       continue;
     found_matching_id= true;
-    if(iter.get(CFG_TYPE_OF_SECTION, &type_c)) abort();
+    if(iter.get(CFG_TYPE_OF_SECTION, &type_c)) require(false);
     if(type_c != (unsigned)type)
       continue;
     found_matching_type= true;
     if (connected_nodes.get(tmp))
       continue;
     found_free_node= true;
-    if(iter.get(CFG_NODE_HOST, &config_hostname)) abort();
+    if(iter.get(CFG_NODE_HOST, &config_hostname)) require(false);
     if (config_hostname && config_hostname[0] == 0)
       config_hostname= 0;
     else if (client_addr) {
@@ -2561,7 +2573,7 @@ MgmtSrvr::backupCallback(BackupEvent & event)
 int
 MgmtSrvr::repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted)
 {
-  abort();
+  require(false);
   return 0;
 }
 
@@ -2715,7 +2727,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
       ndbout_c("Updating node %d param: %d to %s",  node, param, val_char);
       break;
     default:
-      abort();
+      require(false);
     }
     assert(res);
   } while(node == 0 && iter.next() == 0);
