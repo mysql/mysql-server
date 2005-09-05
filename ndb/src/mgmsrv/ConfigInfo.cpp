@@ -25,6 +25,7 @@
 #include <m_string.h>
 
 extern my_bool opt_ndb_shm;
+extern my_bool opt_core;
 
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
@@ -2140,11 +2141,10 @@ static void require(bool v)
 {
   if(!v)
   {
-#ifndef DBUG_OFF
-    abort();
-#else
-    exit(-1);
-#endif
+    if (opt_core)
+      abort();
+    else
+      exit(-1);
   }
 }
 
@@ -2214,7 +2214,7 @@ ConfigInfo::ConfigInfo()
       ndbout << "Error: Parameter " << param._fname
 	     << " defined twice in section " << param._section
 	     << "." << endl;
-      exit(-1);
+      require(false);
     }
     
     // Add new pinfo to section
@@ -2264,7 +2264,7 @@ ConfigInfo::ConfigInfo()
       ndbout << "Check that each entry has a section failed." << endl;
       ndbout << "Parameter \"" << m_ParamInfo[i]._fname << endl; 
       ndbout << "Edit file " << __FILE__ << "." << endl;
-      exit(-1);
+      require(false);
     }
     
     if(m_ParamInfo[i]._type == ConfigInfo::CI_SECTION)
@@ -2277,7 +2277,7 @@ ConfigInfo::ConfigInfo()
 	     << "\" does not exist in section \"" 
 	     << m_ParamInfo[i]._section << "\"." << endl;
       ndbout << "Edit file " << __FILE__ << "." << endl;
-      exit(-1);
+      require(false);
     }
   }
 }
