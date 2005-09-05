@@ -774,6 +774,60 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 }
 
 
+/*
+  Issue correct error message in case we found 2 duplicate tables which
+  prevent some update operation
+
+  SYNOPSIS
+    update_non_unique_table_error()
+    update      table which we try to update
+    operation   name of update operation
+    duplicate   duplicate table which we found
+
+  NOTE:
+    here we hide view underlying tables if we have them
+*/
+
+void update_non_unique_table_error(TABLE_LIST *update,
+                                   const char *operation,
+                                   TABLE_LIST *duplicate)
+{
+  update= update->top_table();
+  duplicate= duplicate->top_table();
+  if (!update->view || !duplicate->view ||
+      update->view == duplicate->view ||
+      update->view_name.length != duplicate->view_name.length ||
+      update->view_db.length != duplicate->view_db.length ||
+      my_strcasecmp(table_alias_charset,
+                    update->view_name.str, duplicate->view_name.str) != 0 ||
+      my_strcasecmp(table_alias_charset,
+                    update->view_db.str, duplicate->view_db.str) != 0)
+  {
+    /*
+      it is not the same view repeated (but it can be parts of the same copy
+      of view), so we have to hide underlying tables.
+    */
+    if (update->view)
+    {
+      if (update->view == duplicate->view)
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), update->alias, operation);
+      else
+        my_error(ER_VIEW_PREVENT_UPDATE, MYF(0),
+                 (duplicate->view ? duplicate->alias : update->alias),
+                 operation, update->alias);
+      return;
+    }
+    if (duplicate->view)
+    {
+      my_error(ER_VIEW_PREVENT_UPDATE, MYF(0), duplicate->alias, operation,
+               update->alias);
+      return;
+    }
+  }
+  my_error(ER_UPDATE_TABLE_USED, MYF(0), update->alias);
+}
+
+
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
@@ -1810,7 +1864,7 @@ err:
   if (thd->net.last_errno == ER_NO_SUCH_TABLE &&
       table_desc && table_desc->belong_to_view)
   {
-    TABLE_LIST * view= table_desc->belong_to_view;
+    TABLE_LIST *view= table_desc->belong_to_view;
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), view->view_db.str, view->view_name.str);
   }
@@ -3422,7 +3476,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                       table_ref_1->alias, table_ref_2->alias));
 
   *found_using_fields= 0;
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
     TABLE_LIST::join_columns could be allocated by the previous call to
@@ -3585,7 +3639,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(result);
 }
 
@@ -3643,7 +3697,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 
   DBUG_ASSERT(!natural_using_join->join_columns);
 
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   if (!(non_join_columns= new List<Natural_join_column>) ||
       !(natural_using_join->join_columns= new List<Natural_join_column>))
@@ -3728,7 +3782,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(result);
 }
 
@@ -3773,7 +3827,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
   DBUG_ENTER("store_top_level_join_columns");
 
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join)
@@ -3886,7 +3940,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(result);
 }
 
@@ -3985,7 +4039,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     Don't use arena if we are not in prepared statements or stored procedures
     For PS/SP we have to use arena to remember the changes
   */
-  arena= thd->change_arena_if_needed(&backup);
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   while (wild_num && (item= it++))
   {
@@ -4013,7 +4067,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
                              any_privileges))
       {
 	if (arena)
-	  thd->restore_backup_item_arena(arena, &backup);
+	  thd->restore_active_arena(arena, &backup);
 	DBUG_RETURN(-1);
       }
       if (sum_func_list)
@@ -4035,7 +4089,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     select_lex->with_wild= 0;
     select_lex->item_list= fields;
 
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   }
   DBUG_RETURN(0);
 }
@@ -4173,9 +4227,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   {
     TABLE *table= table_list->table;
     if (first_select_table &&
-        (table_list->belong_to_view ?
-         table_list->belong_to_view :
-         table_list) == first_select_table)
+        table_list->top_table() == first_select_table)
     {
       /* new counting for SELECT of INSERT ... SELECT command */
       first_select_table= 0;
@@ -4213,15 +4265,15 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     if (table_list->ancestor)
     {
       DBUG_ASSERT(table_list->view);
-      Query_arena *arena= thd->current_arena, backup;
+      Query_arena *arena= thd->stmt_arena, backup;
       bool res;
       if (arena->is_conventional())
         arena= 0;                                   // For easier test
       else
-        thd->set_n_backup_item_arena(arena, &backup);
+        thd->set_n_backup_active_arena(arena, &backup);
       res= table_list->setup_ancestor(thd);
       if (arena)
-        thd->restore_backup_item_arena(arena, &backup);
+        thd->restore_active_arena(arena, &backup);
       if (res)
         DBUG_RETURN(1);
     }
@@ -4302,7 +4354,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   bool found;
   char name_buff[NAME_LEN+1];
   DBUG_ENTER("insert_fields");
-  DBUG_PRINT("arena", ("current arena: 0x%lx", (ulong)thd->current_arena));
+  DBUG_PRINT("arena", ("stmt arena: 0x%lx", (ulong)thd->stmt_arena));
 
   if (db_name && lower_case_table_names)
   {
@@ -4508,7 +4560,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                 COND **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
-  Query_arena *arena= thd->current_arena, backup;
+  Query_arena *arena= thd->stmt_arena, backup;
   TABLE_LIST *table= NULL;	// For HP compilers
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
@@ -4572,9 +4624,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     /* process CHECK OPTION */
     if (it_is_update)
     {
-      TABLE_LIST *view= table->belong_to_view;
-      if (!view)
-        view= table;
+      TABLE_LIST *view= table->top_table();
       if (view->effective_with_check)
       {
         if (view->prepare_check_option(thd))
@@ -4584,7 +4634,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     }
   }
 
-  if (!thd->current_arena->is_conventional())
+  if (!thd->stmt_arena->is_conventional())
   {
     /*
       We are in prepared statement preparation code => we should store
@@ -4599,7 +4649,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
 err_no_arena:
   DBUG_RETURN(1);
 }

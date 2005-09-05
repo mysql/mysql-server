@@ -80,6 +80,10 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
+/* You can remove this define when the release is stable. This define adds
+some consistency checks to code. They use a little CPU time. */
+#define UNIV_RELEASE_NOT_YET_STABLE
+
 /*
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
