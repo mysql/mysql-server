@@ -551,3 +551,12 @@ DROP TABLE t1,t2;
 select * from (select group_concat('c') from DUAL) t;
 group_concat('c')
 NULL
+create table t1 ( a int not null default 0);
+select * from (select group_concat(a) from t1) t2;
+group_concat(a)
+NULL
+select group_concat('x') UNION ALL select 1;
+group_concat('x')
+NULL
+1
+drop table t1;
