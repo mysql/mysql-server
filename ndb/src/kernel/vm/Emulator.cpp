@@ -39,6 +39,7 @@ extern "C" {
   extern void (* ndb_new_handler)();
 }
 extern EventLogger g_eventLogger;
+extern my_bool opt_core;
 
 /**
  * Declare the global variables 
@@ -168,23 +169,25 @@ NdbShutdown(NdbShutdownType type,
     }
     
     const char * exitAbort = 0;
-#if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
-    exitAbort = "aborting";
-#else
-    exitAbort = "exiting";
-#endif
+    if (opt_core)
+      exitAbort = "aborting";
+    else
+      exitAbort = "exiting";
     
     if(type == NST_Watchdog){
       /**
        * Very serious, don't attempt to free, just die!!
        */
       g_eventLogger.info("Watchdog shutdown completed - %s", exitAbort);
-#if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
-      signal(6, SIG_DFL);
-      abort();
-#else
-      exit(-1);
-#endif
+      if (opt_core)
+      {
+	signal(6, SIG_DFL);
+	abort();
+      }
+      else
+      {
+	exit(-1);
+      }
     }
 
 #ifndef NDB_WIN32
@@ -236,12 +239,15 @@ NdbShutdown(NdbShutdownType type,
       if (type == NST_ErrorHandlerStartup)
 	kill(getppid(), SIGUSR1);
       g_eventLogger.info("Error handler shutdown completed - %s", exitAbort);
-#if ( defined VM_TRACE || defined ERROR_INSERT ) && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
-      signal(6, SIG_DFL);
-      abort();
-#else
-      exit(-1);
-#endif
+      if (opt_core)
+      {
+	signal(6, SIG_DFL);
+	abort();
+      }
+      else
+      {
+	exit(-1);
+      }
     }
     
     /**
