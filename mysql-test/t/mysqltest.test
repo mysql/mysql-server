@@ -792,6 +792,19 @@ select "a" as col1, "c" as col2;
 --error 1
 --exec echo "save_master_pos; sync_with_master a;" | $MYSQL_TEST 2>&1
 
+
+# ----------------------------------------------------------------------------
+# Test mysqltest arguments
+# ----------------------------------------------------------------------------
+
+# -x <file_name>, use the file specified after -x as the test file
+--exec $MYSQL_TEST < $MYSQL_TEST_DIR/include/mysqltest-x.inc
+--exec $MYSQL_TEST -x $MYSQL_TEST_DIR/include/mysqltest-x.inc
+--exec $MYSQL_TEST --result_file=$MYSQL_TEST_DIR/include/mysqltest-x.inc
+--error 1
+--exec $MYSQL_TEST -x non_existing_file.inc
+
+
 # ----------------------------------------------------------------------------
 # TODO Test queries, especially their errormessages... so it's easy to debug 
 # new scripts and diagnose errors
