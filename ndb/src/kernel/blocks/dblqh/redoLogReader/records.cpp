@@ -134,7 +134,9 @@ bool PrepareOperationRecord::check() {
   return true;
 }
 
-Uint32 PrepareOperationRecord::getLogRecordSize() {
+Uint32 PrepareOperationRecord::getLogRecordSize(Uint32 wordsRead) {
+  if (wordsRead < 2)
+    return 2; // make sure we read more
   return m_logRecordSize;
 }
 
