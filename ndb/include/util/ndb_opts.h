@@ -30,6 +30,7 @@ my_bool	opt_ndb_optimized_node_selection
 int opt_ndb_nodeid;
 bool opt_endinfo= 0;
 my_bool opt_ndb_shm;
+my_bool opt_core;
 const char *opt_ndb_connectstring= 0;
 const char *opt_connect_str= 0;
 const char *opt_ndb_mgmd= 0;
@@ -41,6 +42,11 @@ const char *opt_debug= 0;
 #endif
 
 #define OPT_NDB_CONNECTSTRING 'c'
+#if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
+#define OPT_WANT_CORE_DEFAULT 1
+#else
+#define OPT_WANT_CORE_DEFAULT 0
+#endif
 
 #define NDB_STD_OPTS_COMMON \
   { "usage", '?', "Display this help and exit.", \
@@ -75,7 +81,10 @@ const char *opt_debug= 0;
     GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},\
   { "connect-string", OPT_NDB_CONNECTSTRING, "same as --ndb-connectstring",\
     (gptr*) &opt_ndb_connectstring, (gptr*) &opt_ndb_connectstring, \
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "core-file", OPT_WANT_CORE, "Write core on errors.",\
+    (gptr*) &opt_core, (gptr*) &opt_core, 0,\
+    GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0}
 
 #ifndef DBUG_OFF
 #define NDB_STD_OPTS(prog_name) \
@@ -99,6 +108,7 @@ enum ndb_std_options {
   OPT_NDB_SHM= 256,
   OPT_NDB_SHM_SIGNUM,
   OPT_NDB_OPTIMIZED_NODE_SELECTION,
+  OPT_WANT_CORE,
   OPT_NDB_MGMD,
   OPT_NDB_NODEID,
   NDB_STD_OPTIONS_LAST /* should always be last in this enum */
