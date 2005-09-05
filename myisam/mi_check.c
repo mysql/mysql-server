@@ -3189,9 +3189,11 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       break;
     case COMPRESSED_RECORD:
       reclength=info->packed_length;
-      length=save_pack_length(block_buff,reclength);
+      length= save_pack_length((uint) share->pack.version, block_buff,
+                               reclength);
       if (info->s->base.blobs)
-	length+=save_pack_length(block_buff+length,info->blob_length);
+	length+= save_pack_length((uint) share->pack.version,
+	                          block_buff + length, info->blob_length);
       if (my_b_write(&info->rec_cache,block_buff,length) ||
 	  my_b_write(&info->rec_cache,(byte*) sort_param->rec_buff,reclength))
       {
