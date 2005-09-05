@@ -2380,8 +2380,10 @@ int read_line(char *buf, int size)
     if (feof(cur_file->file))
     {
   found_eof:
-      if (cur_file->file != stdin)
+      if (cur_file->file != stdin){
 	my_fclose(cur_file->file, MYF(0));
+        cur_file->file= 0;
+      }
       my_free((gptr)cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
       cur_file->file_name= 0;
       lineno--;
@@ -2755,10 +2757,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	argument= buff;
       }
       fn_format(buff, argument, "", "", 4);
-      DBUG_ASSERT(cur_file->file == 0);
+      DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
       if (!(cur_file->file=
             my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
-	die("Could not open %s: errno = %d", argument, errno);
+	die("Could not open %s: errno = %d", buff, errno);
+      cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
       break;
     }
   case 'm':
@@ -4025,9 +4028,8 @@ int main(int argc, char **argv)
 			embedded_server_args,
 			(char**) embedded_server_groups))
     die("Can't initialize MySQL server");
-  if (cur_file == file_stack)
+  if (cur_file == file_stack && cur_file->file == 0)
   {
-    DBUG_ASSERT(cur_file->file == 0);
     cur_file->file= stdin;
     cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
   }
