@@ -164,7 +164,7 @@ void list<T>::push_front(T t)
 {
     void* mem = malloc(sizeof(node));
     if (!mem) abort();
-    node* add = new (mem) node(t);
+    node* add = new (reinterpret_cast<yassl_pointer>(mem)) node(t);
 
     if (head_) {
         add->next_ = head_;
@@ -210,7 +210,7 @@ void list<T>::push_back(T t)
 {
     void* mem = malloc(sizeof(node));
     if (!mem) abort();
-    node* add = new (mem) node(t);
+    node* add = new (reinterpret_cast<yassl_pointer>(mem)) node(t);
 
     if (tail_) {
         tail_->next_ = add;
