@@ -3538,7 +3538,6 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   }
   else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);			       
-
   param->cond= cond;
 
   switch (cond_func->functype()) {
