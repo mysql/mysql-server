@@ -3826,6 +3826,11 @@ optimize:
 	OPTIMIZE opt_no_write_to_binlog table_or_tables
 	{
 	   LEX *lex=Lex;
+	   if (lex->sphead)
+	   {
+	     my_error(ER_SP_BADSTATEMENT, MYF(0), "OPTIMIZE TABLE");
+	     YYABORT;
+	   }
 	   lex->sql_command = SQLCOM_OPTIMIZE;
            lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
