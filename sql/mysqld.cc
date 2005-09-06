@@ -338,6 +338,7 @@ static my_bool opt_sync_bdb_logs;
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;
@@ -4410,6 +4411,7 @@ enum options_mysqld
   OPT_EXPIRE_LOGS_DAYS,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
+  OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_INIT_CONNECT,
   OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
@@ -4511,6 +4513,11 @@ Disable with --skip-bdb (will save memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
+   "Don't use client side character set value sent during handshake.",
+   (gptr*) &opt_character_set_client_handshake,
+   (gptr*) &opt_character_set_client_handshake,
+    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"character-set-server", 'C', "Set the default character set.",
    (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
