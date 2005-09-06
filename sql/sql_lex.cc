@@ -128,6 +128,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->update_list.empty();
   lex->param_list.empty();
   lex->view_list.empty();
+  lex->prepared_stmt_params.empty();
   lex->unit.next= lex->unit.master=
     lex->unit.link_next= lex->unit.return_to= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
@@ -143,6 +144,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->describe= 0;
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
+  lex->stmt_prepare_mode= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
   lex->found_semicolon= 0;
@@ -569,8 +571,7 @@ int yylex(void *arg, void *yythd)
         its value in a query for the binlog, the query must stay
         grammatically correct.
       */
-      else if (c == '?' && ((THD*) yythd)->command == COM_STMT_PREPARE &&
-               !ident_map[yyPeek()])
+      else if (c == '?' && lex->stmt_prepare_mode && !ident_map[yyPeek()])
         return(PARAM_MARKER);
       return((int) c);
 
@@ -982,7 +983,7 @@ int yylex(void *arg, void *yythd)
       {
         THD* thd= (THD*)yythd;
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            (thd->command != COM_STMT_PREPARE))
+            !lex->stmt_prepare_mode)
         {
 	  lex->safe_to_cache_query= 0;
           lex->found_semicolon=(char*) lex->ptr;
@@ -1505,7 +1506,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Query_arena *arena= thd->current_arena;
+  Query_arena *arena= thd->stmt_arena;
   return (ref_pointer_array=
           (Item **)arena->alloc(sizeof(Item*) *
                                 (item_list.elements +
@@ -1827,7 +1828,7 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
   ha_rows select_limit_val;
 
-  DBUG_ASSERT(! thd->current_arena->is_stmt_prepare());
+  DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
   select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
                                                  HA_POS_ERROR);
   offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
@@ -2039,7 +2040,7 @@ void st_lex::cleanup_after_one_table_open()
 
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
 {
-  if (!thd->current_arena->is_conventional() && first_execution)
+  if (!thd->stmt_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
     if (*conds)

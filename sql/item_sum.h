@@ -23,8 +23,6 @@
 
 #include <my_tree.h>
 
-class Item_arena;
-
 class Item_sum :public Item_result_field
 {
 public:

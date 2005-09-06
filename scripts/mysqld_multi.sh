@@ -412,7 +412,12 @@ sub get_mysqladmin_options
   $mysqladmin_found= 0 if (!length($mysqladmin));
   $com = "$mysqladmin";
   $tmp = " -u $opt_user";
-  $tmp.= defined($opt_password) ? " -p$opt_password" : "";
+  if (defined($opt_password)) {
+    my $pw= $opt_password;
+    # Protect single quotes in password
+    $pw =~ s/'/'"'"'/g;
+    $tmp.= " -p'$pw'";
+  }
   $tmp.= $opt_tcp_ip ? " -h 127.0.0.1" : "";
   for ($j = 0; defined($options[$j]); $j++)
   {
