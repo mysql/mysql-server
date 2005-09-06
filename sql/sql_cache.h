@@ -310,10 +310,9 @@ protected:
     Following function control structure_guard_mutex
     by themself or don't need structure_guard_mutex
   */
-  void init();
   ulong init_cache();
   void make_disabled();
-  void free_cache(my_bool destruction);
+  void free_cache();
   Query_cache_block *write_block_data(ulong data_len, gptr data,
 				       ulong header_len,
 				       Query_cache_block::block_type type,
@@ -346,6 +345,8 @@ protected:
 	      uint def_query_hash_size = QUERY_CACHE_DEF_QUERY_HASH_SIZE,
 	      uint def_table_hash_size = QUERY_CACHE_DEF_TABLE_HASH_SIZE);
 
+  /* initialize cache (mutex) */
+  void init();
   /* resize query cache (return real query size, 0 if disabled) */
   ulong resize(ulong query_cache_size);
   inline void result_size_limit(ulong limit){query_cache_limit=limit;}
