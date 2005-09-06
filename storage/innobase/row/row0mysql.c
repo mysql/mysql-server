@@ -513,14 +513,15 @@ handle_new_error:
 
 		return(TRUE);
 
-	} else if (err == DB_DEADLOCK || err == DB_LOCK_WAIT_TIMEOUT
+	} else if (err == DB_DEADLOCK
 		   || err == DB_LOCK_TABLE_FULL) {
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 				
-	} else if (err == DB_OUT_OF_FILE_SPACE) {
+	} else if (err == DB_OUT_OF_FILE_SPACE
+		   || err == DB_LOCK_WAIT_TIMEOUT) {
            	if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
