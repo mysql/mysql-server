@@ -1038,6 +1038,11 @@ bool Item_func_rand::fix_fields(THD *thd, struct st_table_list *tables,
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
+    if (!args[0]->const_during_execution())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "RAND");
+      return TRUE;
+    }
     /*
       Allocate rand structure once: we must use thd->current_arena
       to create rand in proper mem_root if it's a prepared statement or
