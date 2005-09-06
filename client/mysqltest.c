@@ -481,9 +481,10 @@ my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
 				      int len);
 static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
-static int normal_handle_error(const char *query, struct st_query *q,
-                               MYSQL *mysql, DYNAMIC_STRING *ds);
-static int normal_handle_no_error(struct st_query *q);
+static int handle_error(const char *query, struct st_query *q,
+                        unsigned int err_errno, const char *err_error,
+                        const char *err_sqlstate, DYNAMIC_STRING *ds);
+static int handle_no_error(struct st_query *q);
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
 {
@@ -2071,11 +2072,12 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
   if (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
-    error= normal_handle_error("connect", q, con, ds);
+    error= handle_error("connect", q, mysql_errno(con), mysql_error(con),
+                        mysql_sqlstate(con), ds);
     *create_conn= 0;
     goto err;
   }
-  else if (normal_handle_no_error(q))
+  else if (handle_no_error(q))
   {
     /*
       Fail if there was no error but we expected it.
@@ -2964,8 +2966,6 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 static int run_query_normal(MYSQL *mysql, struct st_query *q, int flags);
 static int run_query_stmt  (MYSQL *mysql, struct st_query *q, int flags);
 static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds);
-static int run_query_stmt_handle_error(char *query, struct st_query *q,
-                                       MYSQL_STMT *stmt, DYNAMIC_STRING *ds);
 static void run_query_display_metadata(MYSQL_FIELD *field, uint num_fields,
                                        DYNAMIC_STRING *ds);
 
@@ -3049,12 +3049,13 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	 (!(last_result= res= mysql_store_result(mysql)) &&
 	  mysql_field_count(mysql)))
     {
-      if (normal_handle_error(query, q, mysql, ds))
+      if (handle_error(query, q, mysql_errno(mysql), mysql_error(mysql),
+                       mysql_sqlstate(mysql), ds))
         error= 1;
       goto end;
     }
 
-    if (normal_handle_no_error(q))
+    if (handle_no_error(q))
     {
       error= 1;
       goto end;
@@ -3169,14 +3170,15 @@ end:
 
 
 /*
-  Handle errors which occurred after execution of conventional (non-prepared)
-  statement.
+  Handle errors which occurred after execution
 
   SYNOPSIS
-    normal_handle_error()
+    handle_error()
       query - query string
       q     - query context
-      mysql - connection through which query was sent to server
+      err_errno - error number
+      err_error - error message
+      err_sqlstate - sql state
       ds    - dynamic string which is used for output buffer
 
   NOTE
@@ -3188,85 +3190,83 @@ end:
     1 - Some other error was expected.
 */
 
-static int normal_handle_error(const char *query, struct st_query *q,
-                               MYSQL *mysql, DYNAMIC_STRING *ds)
+static int handle_error(const char *query, struct st_query *q,
+                        unsigned int err_errno, const char *err_error,
+                        const char* err_sqlstate, DYNAMIC_STRING *ds)
 {
   uint i;
-
-  DBUG_ENTER("normal_handle_error");
+ 
+  DBUG_ENTER("handle_error");
 
   if (q->require_file)
     abort_not_supported_test();
-
+ 
   if (q->abort_on_error)
     die("query '%s' failed: %d: %s", query,
-        mysql_errno(mysql), mysql_error(mysql));
-  else
+        err_errno, err_error);
+
+  for (i= 0 ; (uint) i < q->expected_errors ; i++)
   {
-    for (i= 0 ; (uint) i < q->expected_errors ; i++)
+    if (((q->expected_errno[i].type == ERR_ERRNO) &&
+         (q->expected_errno[i].code.errnum == err_errno)) ||
+        ((q->expected_errno[i].type == ERR_SQLSTATE) &&
+         (strcmp(q->expected_errno[i].code.sqlstate, err_sqlstate) == 0)))
     {
-      if (((q->expected_errno[i].type == ERR_ERRNO) &&
-            (q->expected_errno[i].code.errnum == mysql_errno(mysql))) ||
-          ((q->expected_errno[i].type == ERR_SQLSTATE) &&
-           (strcmp(q->expected_errno[i].code.sqlstate, mysql_sqlstate(mysql)) == 0)))
+      if (q->expected_errors == 1)
       {
-        if (q->expected_errors == 1)
-        {
-          /* Only log error if there is one possible error */
-          dynstr_append_mem(ds, "ERROR ", 6);
-          replace_dynstr_append(ds, mysql_sqlstate(mysql));
-          dynstr_append_mem(ds, ": ", 2);
-          replace_dynstr_append(ds, mysql_error(mysql));
-          dynstr_append_mem(ds,"\n",1);
-        }
-	/* Don't log error if we may not get an error */
-        else if (q->expected_errno[0].type == ERR_SQLSTATE ||
-                 (q->expected_errno[0].type == ERR_ERRNO &&
-                  q->expected_errno[0].code.errnum != 0))
-          dynstr_append(ds,"Got one of the listed errors\n");
-        /* OK */
-        DBUG_RETURN(0);
+        /* Only log error if there is one possible error */
+        dynstr_append_mem(ds, "ERROR ", 6);
+        replace_dynstr_append(ds, err_sqlstate);
+        dynstr_append_mem(ds, ": ", 2);
+        replace_dynstr_append(ds, err_error);
+        dynstr_append_mem(ds,"\n",1);
       }
+      /* Don't log error if we may not get an error */
+      else if (q->expected_errno[0].type == ERR_SQLSTATE ||
+               (q->expected_errno[0].type == ERR_ERRNO &&
+                q->expected_errno[0].code.errnum != 0))
+        dynstr_append(ds,"Got one of the listed errors\n");
+      /* OK */
+      DBUG_RETURN(0);
     }
-
-    DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
-
-    dynstr_append_mem(ds, "ERROR ",6);
-    replace_dynstr_append(ds, mysql_sqlstate(mysql));
-    dynstr_append_mem(ds, ": ", 2);
-    replace_dynstr_append(ds, mysql_error(mysql));
-    dynstr_append_mem(ds, "\n", 1);
-
-    if (i)
-    {
-      if (q->expected_errno[0].type == ERR_ERRNO)
-        verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-                    q->query, mysql_errno(mysql),
-                    q->expected_errno[0].code.errnum);
-      else
-        verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
-                    q->query, mysql_sqlstate(mysql),
-                    q->expected_errno[0].code.sqlstate);
-      DBUG_RETURN(1);
-    }
-
-    /*
-      If we do not abort on error, failure to run the query does not fail the
-      whole test case.
-    */
-    verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
-                mysql_error(mysql));
-    DBUG_RETURN(0);
   }
-  return 0; /* Keep compiler happy */
+
+  DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
+
+  dynstr_append_mem(ds, "ERROR ",6);
+  replace_dynstr_append(ds, err_sqlstate);
+  dynstr_append_mem(ds, ": ", 2);
+  replace_dynstr_append(ds, err_error);
+  dynstr_append_mem(ds, "\n", 1);
+
+  if (i)
+  {
+    if (q->expected_errno[0].type == ERR_ERRNO)
+      verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+                  q->query, err_errno,
+                  q->expected_errno[0].code.errnum);
+    else
+      verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
+                  q->query, err_sqlstate,
+                  q->expected_errno[0].code.sqlstate);
+    DBUG_RETURN(1);
+  }
+
+  /*
+    If we do not abort on error, failure to run the query does not fail the
+    whole test case.
+  */
+  verbose_msg("query '%s' failed: %d: %s", q->query, err_errno,
+              err_error);
+  DBUG_RETURN(0);
 }
 
 
 /*
-  Handle absence of errors after execution of convetional statement.
+  Handle absence of errors after execution
 
   SYNOPSIS
-    normal_handle_error()
+    handle_no_error()
       q - context of query
 
   RETURN VALUE
@@ -3274,9 +3274,9 @@ static int normal_handle_error(const char *query, struct st_query *q,
     1 - Some error was expected from this query.
 */
 
-static int normal_handle_no_error(struct st_query *q)
+static int handle_no_error(struct st_query *q)
 {
-  DBUG_ENTER("normal_handle_no_error");
+  DBUG_ENTER("handle_no_error");
 
   if (q->expected_errno[0].type == ERR_ERRNO &&
       q->expected_errno[0].code.errnum != 0)
@@ -3370,17 +3370,17 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
   {
     if (q->abort_on_error)
     {
-      die("unable to prepare statement '%s': "
-          "%s (mysql_stmt_errno=%d returned=%d)",
-          query,
-          mysql_stmt_error(stmt), mysql_stmt_errno(stmt), err);
+      die("query '%s' failed: %d: %s", query,
+          mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
     }
     else
     {
       /*
         Preparing is part of normal execution and some errors may be expected
       */
-      error= run_query_stmt_handle_error(query, q, stmt, ds);
+      error= handle_error(query, q, mysql_stmt_errno(stmt),
+                          mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt),
+                          ds);
       goto end;
     }
   }
@@ -3413,7 +3413,9 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
     else
     {
       /* We got an error, maybe expected */
-      error= run_query_stmt_handle_error(query, q, stmt, ds);
+      error= handle_error(query, q, mysql_stmt_errno(stmt),
+                          mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt),
+                          ds);
       goto end;
     }
   }
@@ -3449,18 +3451,16 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
     else
     {
       /* We got an error, maybe expected */
-      error= run_query_stmt_handle_error(query, q, stmt, ds);
+      error= handle_error(query, q, mysql_stmt_errno(stmt),
+                          mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt),
+                          ds);
       goto end;
     }
   }
 
   /* If we got here the statement was both executed and read succeesfully */
-
-  if (q->expected_errno[0].type == ERR_ERRNO &&
-      q->expected_errno[0].code.errnum != 0)
+  if (handle_no_error(q))
   {
-    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-                q->query, q->expected_errno[0].code.errnum);
     error= 1;
     goto end;
   }
@@ -3739,71 +3739,6 @@ static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds)
   DBUG_VOID_RETURN;
 }
 
-
-static int run_query_stmt_handle_error(char *query, struct st_query *q,
-                                       MYSQL_STMT *stmt, DYNAMIC_STRING *ds)
-{
-  if (q->require_file)              /* FIXME don't understand this one */
-  {
-    abort_not_supported_test();
-  }
-
-  if (q->abort_on_error)
-    die("query '%s' failed: %d: %s", query,
-        mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
-  else
-  {
-    int i;
-
-    for (i=0 ; (uint) i < q->expected_errors ; i++)
-    {
-      if (((q->expected_errno[i].type == ERR_ERRNO) &&
-           (q->expected_errno[i].code.errnum == mysql_stmt_errno(stmt))) ||
-          ((q->expected_errno[i].type == ERR_SQLSTATE) &&
-           (strcmp(q->expected_errno[i].code.sqlstate,
-                   mysql_stmt_sqlstate(stmt)) == 0)))
-      {
-        if (i == 0 && q->expected_errors == 1)
-        {
-          /* Only log error if there is one possible error */
-          dynstr_append_mem(ds,"ERROR ",6);
-          replace_dynstr_append(ds, mysql_stmt_sqlstate(stmt));
-          dynstr_append_mem(ds, ": ", 2);
-          replace_dynstr_append(ds,mysql_stmt_error(stmt));
-          dynstr_append_mem(ds,"\n",1);
-        }
-        /* Don't log error if we may not get an error */
-        else if (q->expected_errno[0].type == ERR_SQLSTATE ||
-                 (q->expected_errno[0].type == ERR_ERRNO &&
-                  q->expected_errno[0].code.errnum != 0))
-          dynstr_append(ds,"Got one of the listed errors\n");
-        return 0; /* Ok */
-      }
-    }
-    DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
-                       q->expected_errors));
-    dynstr_append_mem(ds, "ERROR ",6);
-    replace_dynstr_append(ds, mysql_stmt_sqlstate(stmt));
-    dynstr_append_mem(ds,": ",2);
-    replace_dynstr_append(ds, mysql_stmt_error(stmt));
-    dynstr_append_mem(ds,"\n",1);
-    if (i)
-    {
-      verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-                  q->query, mysql_stmt_errno(stmt), q->expected_errno[0]);
-      return 1; /* Error */
-    }
-    verbose_msg("query '%s' failed: %d: %s", q->query, mysql_stmt_errno(stmt),
-                mysql_stmt_error(stmt));
-    /*
-      if we do not abort on error, failure to run the query does
-      not fail the whole test case
-    */
-    return 0;
-  }
-
-  return 0;
-}
 
 /****************************************************************************\
  *  Functions to match SQL statements that can be prepared
