@@ -369,6 +369,8 @@ select 3 from t1 ;
 #
 --error 1
 --exec echo "--sleep 4;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--disable_query_log;" | $MYSQL_TEST 2>&1
 
 
 # Allow trailing # comment
@@ -592,7 +594,7 @@ while ($num)
    --source var/tmp/sourced1.sql
    dec $num;
 }
---enable_abort_on_error;
+--enable_abort_on_error
 --enable_query_log
 
 # ----------------------------------------------------------------------------
