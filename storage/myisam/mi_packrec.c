@@ -151,11 +151,12 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
       my_errno=HA_ERR_END_OF_FILE;
     goto err0;
   }
-  if (memcmp((byte*) header,(byte*) myisam_pack_file_magic,4))
+  if (memcmp((byte*) header, (byte*) myisam_pack_file_magic, 3))
   {
     my_errno=HA_ERR_WRONG_IN_RECORD;
     goto err0;
   }
+  share->pack.version= header[3];
   share->pack.header_length=	uint4korr(header+4);
   share->min_pack_length=(uint) uint4korr(header+8);
   share->max_pack_length=(uint) uint4korr(header+12);
@@ -1070,38 +1071,12 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BLOCK_INFO *info, File file,
       return BLOCK_FATAL_ERROR;
     DBUG_DUMP("header",(byte*) header,ref_length);
   }
-  if (header[0] < 254)
-  {
-    info->rec_len=header[0];
-    head_length=1;
-  }
-  else if (header[0] == 254)
-  {
-    info->rec_len=uint2korr(header+1);
-    head_length=3;
-  }
-  else
-  {
-    info->rec_len=uint3korr(header+1);
-    head_length=4;
-  }
+  head_length= read_pack_length((uint) myisam->s->pack.version, header,
+                                &info->rec_len);
   if (myisam->s->base.blobs)
   {
-    if (header[head_length] < 254)
-    {
-      info->blob_len=header[head_length];
-      head_length++;
-    }
-    else if (header[head_length] == 254)
-    {
-      info->blob_len=uint2korr(header+head_length+1);
-      head_length+=3;
-    }
-    else
-    {
-      info->blob_len=uint3korr(header+head_length+1);
-      head_length+=4;
-    }
+    head_length+= read_pack_length((uint) myisam->s->pack.version,
+                                   header + head_length, &info->blob_len);
     if (!(mi_alloc_rec_buff(myisam,info->rec_len + info->blob_len,
 			    &myisam->rec_buff)))
       return BLOCK_FATAL_ERROR;			/* not enough memory */
@@ -1251,34 +1226,12 @@ void _mi_unmap_file(MI_INFO *info)
 static uchar *_mi_mempack_get_block_info(MI_INFO *myisam,MI_BLOCK_INFO *info,
 					 uchar *header)
 {
-  if (header[0] < 254)
-    info->rec_len= *header++;
-  else if (header[0] == 254)
-  {
-    info->rec_len=uint2korr(header+1);
-    header+=3;
-  }
-  else
-  {
-    info->rec_len=uint3korr(header+1);
-    header+=4;
-  }
+  header+= read_pack_length((uint) myisam->s->pack.version, header,
+                            &info->rec_len);
   if (myisam->s->base.blobs)
   {
-    if (header[0] < 254)
-    {
-      info->blob_len= *header++;
-    }
-    else if (header[0] == 254)
-    {
-      info->blob_len=uint2korr(header+1);
-      header+=3;
-    }
-    else
-    {
-      info->blob_len=uint3korr(header+1);
-      header+=4;
-    }
+    header+= read_pack_length((uint) myisam->s->pack.version, header,
+                              &info->blob_len);
     /* mi_alloc_rec_buff sets my_errno on error */
     if (!(mi_alloc_rec_buff(myisam, info->blob_len,
 			    &myisam->rec_buff)))
@@ -1350,7 +1303,7 @@ static int _mi_read_rnd_mempack_record(MI_INFO *info, byte *buf,
 
 	/* Save length of row */
 
-uint save_pack_length(byte *block_buff,ulong length)
+uint save_pack_length(uint version, byte *block_buff, ulong length)
 {
   if (length < 254)
   {
@@ -1364,6 +1317,46 @@ uint save_pack_length(byte *block_buff,ulong length)
     return 3;
   }
   *(uchar*) block_buff=255;
-  int3store(block_buff+1,(ulong) length);
-  return 4;
+  if (version == 1) /* old format */
+  {
+    DBUG_ASSERT(length <= 0xFFFFFF);
+    int3store(block_buff + 1, (ulong) length);
+    return 4;
+  }
+  else
+  {
+    int4store(block_buff + 1, (ulong) length);
+    return 5;
+  }
+}
+
+
+uint read_pack_length(uint version, const uchar *buf, ulong *length)
+{
+  if (buf[0] < 254)
+  {
+    *length= buf[0];
+    return 1;
+  }
+  else if (buf[0] == 254)
+  {
+    *length= uint2korr(buf + 1);
+    return 3;
+  }
+  if (version == 1) /* old format */
+  {
+    *length= uint3korr(buf + 1);
+    return 4;
+  }
+  else
+  {
+    *length= uint4korr(buf + 1);
+    return 5;
+  }
+}
+
+
+uint calc_pack_length(uint version, ulong length)
+{
+  return (length < 254) ? 1 : (length < 65536) ? 3 : (version == 1) ? 4 : 5;
 }
