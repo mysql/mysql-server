@@ -358,8 +358,11 @@ select 3 from t1 ;
 # Missing delimiter
 # The comment will be "sucked into" the sleep command since
 # delimiter is missing until after "show status"
+--system echo "sleep 4" > var/log/mysqltest.sql
+--system echo "# A comment" >> var/log/mysqltest.sql
+--system echo "show status;" >> var/log/mysqltest.sql
 --error 1
---exec echo -e "sleep 4\n # A comment\nshow status;" | $MYSQL_TEST 2>&1
+--exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
 
 #
 # Extra delimiter
@@ -423,8 +426,9 @@ echo ;
 # ----------------------------------------------------------------------------
 
 # Illegal use of exec
---error 1
---exec echo "--exec ';' 2> /dev/null" | $MYSQL_TEST 2>&1
+# Disabled, some shells prints the failed command regardless of pipes
+#--error 1
+#--exec echo "--exec ';' 2> /dev/null" | $MYSQL_TEST 2>&1
 
 --error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
@@ -671,8 +675,9 @@ system echo "hej" > /dev/null;
 --exec echo "system;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "system $NONEXISTSINFVAREABLI;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "system NonExistsinfComamdn 2> /dev/null;" | $MYSQL_TEST 2>&1
+# Disabled, some shells prints the failed command regardless of pipes
+#--error 1
+#--exec echo "system NonExistsinfComamdn 2> /dev/null;" | $MYSQL_TEST 2>&1
 
 --disable_abort_on_error
 system NonExistsinfComamdn;
@@ -722,12 +727,21 @@ while ($i)
 --exec echo "end;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "{;" | $MYSQL_TEST 2>&1
+
+--system echo "while (0)" > var/log/mysqltest.sql
+--system echo "echo hej;" >> var/log/mysqltest.sql
 --error 1
---exec echo -e "while (0)\necho hej;" | $MYSQL_TEST 2>&1
+--exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+
+--system echo "while (0)" > var/log/mysqltest.sql
+--system echo "{echo hej;" >> var/log/mysqltest.sql
 --error 1
---exec echo -e "while (0)\n{echo hej;" | $MYSQL_TEST 2>&1
+--exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+
+--system echo "while (0){" > var/log/mysqltest.sql
+--system echo "echo hej;" >> var/log/mysqltest.sql
 --error 1
---exec echo -e "while (0){\n echo hej;" | $MYSQL_TEST 2>&1
+--exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
 
 # ----------------------------------------------------------------------------
 # Test error messages returned from comments starting with a command
@@ -798,11 +812,11 @@ select "a" as col1, "c" as col2;
 # ----------------------------------------------------------------------------
 
 # -x <file_name>, use the file specified after -x as the test file
---exec $MYSQL_TEST < $MYSQL_TEST_DIR/include/mysqltest-x.inc
---exec $MYSQL_TEST -x $MYSQL_TEST_DIR/include/mysqltest-x.inc
---exec $MYSQL_TEST --result_file=$MYSQL_TEST_DIR/include/mysqltest-x.inc
---error 1
---exec $MYSQL_TEST -x non_existing_file.inc
+#--exec $MYSQL_TEST < $MYSQL_TEST_DIR/include/mysqltest-x.inc 2>&1
+#--exec $MYSQL_TEST -x $MYSQL_TEST_DIR/include/mysqltest-x.inc 2>&1
+#--exec $MYSQL_TEST --result_file=$MYSQL_TEST_DIR/include/mysqltest-x.inc 2>&1
+#--error 1
+#--exec $MYSQL_TEST -x non_existing_file.inc 2>&1
 
 
 # ----------------------------------------------------------------------------
