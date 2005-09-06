@@ -930,9 +930,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   if (!select_insert)
   {
     Item *fake_conds= 0;
-    if (unique_table(table_list, table_list->next_global))
+    TABLE_LIST *duplicate;
+    if ((duplicate= unique_table(table_list, table_list->next_global)))
     {
-      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
+      update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
     }
     select_lex->fix_prepare_information(thd, &fake_conds);
@@ -1207,9 +1208,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       bool view= FALSE;
       if (table_list)
       {
-        table_list= (table_list->belong_to_view ?
-                     table_list->belong_to_view :
-                     table_list);
+        table_list= table_list->top_table();
         view= test(table_list->view);
       }
       if (view)

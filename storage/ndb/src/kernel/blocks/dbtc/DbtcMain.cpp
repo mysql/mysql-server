@@ -4454,7 +4454,7 @@ Dbtc::DIVER_node_fail_handling(Signal* signal, UintR Tgci)
    *------------------------------------------------------------------------*/
   tabortInd = ZFALSE;
   setupFailData(signal);
-  if (tabortInd == ZFALSE) {
+  if (false && tabortInd == ZFALSE) {
     jam();
     commitGciHandling(signal, Tgci);
     toCommitHandlingLab(signal);

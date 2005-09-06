@@ -463,13 +463,9 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
-		/* Since we rolled back the whole transaction, we must
-		tell it also to MySQL so that MySQL knows to empty the
-		cached binlog for this transaction */
-
-		if (thd) {
-			ha_rollback(thd);
-		}
+		/* Starting from 5.0.13, we let MySQL just roll back the
+		latest SQL statement in a lock wait timeout. Previously, we
+		rolled back the whole transaction. */
 
    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
@@ -5539,6 +5535,33 @@ ha_innobase::info(
 				       trx_get_error_info(prebuilt->trx));
   	}
 
+	if (flag & HA_STATUS_AUTO && table->found_next_number_field) {
+		longlong	auto_inc;
+		int		ret;
+
+		/* The following function call can the first time fail in
+		a lock wait timeout error because it reserves the auto-inc
+		lock on the table. If it fails, then someone is already initing
+		the auto-inc counter, and the second call is guaranteed to
+		succeed. */
+
+		ret = innobase_read_and_init_auto_inc(&auto_inc); 
+
+		if (ret != 0) {
+			ret = innobase_read_and_init_auto_inc(&auto_inc);
+
+			if (ret != 0) {
+				ut_print_timestamp(stderr);
+				sql_print_error("Cannot get table %s auto-inc"
+						"counter value in ::info\n",
+						ib_table->name);
+				auto_inc = 0;
+			}
+		}
+		
+		auto_increment_value = auto_inc;
+	}
+
 	prebuilt->trx->op_info = (char*)"";
 
   	DBUG_VOID_RETURN;
@@ -6847,8 +6870,13 @@ ha_innobase::innobase_read_and_init_auto_inc(
   			goto func_exit;
   		}
   	} else {
-		/* Initialize to max(col) + 1 */
-    		auto_inc = (longlong) table->next_number_field->
+		/* Initialize to max(col) + 1; we use
+		'found_next_number_field' below because MySQL in SHOW TABLE
+		STATUS does not seem to set 'next_number_field'. The comment
+		in table.h says that 'next_number_field' is set when it is
+		'active'. */
+
+    		auto_inc = (longlong) table->found_next_number_field->
                         	val_int_offset(table->s->rec_buff_length) + 1;
   	}
 
@@ -6863,9 +6891,11 @@ func_exit:
 
 func_exit_early:
 	/* Since MySQL does not seem to call autocommit after SHOW TABLE
-	STATUS (even if we would register the trx here), we must commit our
+	STATUS (even if we would register the trx here), we commit our
 	transaction here if it was started here. This is to eliminate a
-	dangling transaction. */
+	dangling transaction. If the user had AUTOCOMMIT=0, then SHOW
+	TABLE STATUS does leave a dangling transaction if the user does not
+	himself call COMMIT. */
 
 	if (trx_was_not_started) {
 

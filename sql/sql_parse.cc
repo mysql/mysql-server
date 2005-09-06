@@ -175,6 +175,9 @@ static bool begin_trans(THD *thd)
 }
 
 #ifdef HAVE_REPLICATION
+/*
+  Returns true if all tables should be ignored
+*/
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
   return (rpl_filter->is_on() && tables && 
@@ -1645,7 +1648,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_PREPARE:
   {
-    mysql_stmt_prepare(thd, packet, packet_length, 0);
+    mysql_stmt_prepare(thd, packet, packet_length);
     break;
   }
   case COM_STMT_CLOSE:
@@ -1665,6 +1668,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *packet_end= thd->query + thd->query_length;
     mysql_log.write(thd,command,"%s",thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
+
+    if (!(specialflag & SPECIAL_NO_PRIOR))
+      my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+
     mysql_parse(thd,thd->query, thd->query_length);
 
     while (!thd->killed && thd->lex->found_semicolon && !thd->net.report_error)
@@ -2221,7 +2228,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     TRUE  error;  In this case thd->fatal_error is set
 */
 
-bool alloc_query(THD *thd, char *packet, ulong packet_length)
+bool alloc_query(THD *thd, const char *packet, uint packet_length)
 {
   packet_length--;				// Remove end null
   /* Remove garbage at start and end of query */
@@ -2230,7 +2237,7 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
     packet++;
     packet_length--;
   }
-  char *pos=packet+packet_length;		// Point at end null
+  const char *pos= packet + packet_length;     // Point at end null
   while (packet_length > 0 &&
 	 (pos[-1] == ';' || my_isspace(thd->charset() ,pos[-1])))
   {
@@ -2251,9 +2258,23 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
   thd->packet.shrink(thd->variables.net_buffer_length);
   thd->convert_buffer.shrink(thd->variables.net_buffer_length);
 
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
   return FALSE;
+}
+
+static void reset_one_shot_variables(THD *thd) 
+{
+  thd->variables.character_set_client=
+    global_system_variables.character_set_client;
+  thd->variables.collation_connection=
+    global_system_variables.collation_connection;
+  thd->variables.collation_database=
+    global_system_variables.collation_database;
+  thd->variables.collation_server=
+    global_system_variables.collation_server;
+  thd->update_charset();
+  thd->variables.time_zone=
+    global_system_variables.time_zone;
+  thd->one_shot_set= 0;
 }
 
 
@@ -2339,16 +2360,22 @@ mysql_execute_command(THD *thd)
     /*
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated.
-      Exception is DROP TEMPORARY TABLE IF EXISTS: we always execute it
-      (otherwise we have stale files on slave caused by exclusion of one tmp
-      table).
+
+      Exceptions are:
+      - SET: we always execute it (Not that many SET commands exists in
+        the binary log anyway -- only 4.1 masters write SET statements,
+	in 5.0 there are no SET statements in the binary log)
+      - DROP TEMPORARY TABLE IF EXISTS: we always execute it (otherwise we
+        have stale files on slave caused by exclusion of one tmp table).
     */
-    if (!(lex->sql_command == SQLCOM_DROP_TABLE &&
+    if (!(lex->sql_command == SQLCOM_SET_OPTION) &&
+	!(lex->sql_command == SQLCOM_DROP_TABLE &&
           lex->drop_temporary && lex->drop_if_exists) &&
         all_tables_not_ok(thd, all_tables))
     {
       /* we warn the slave SQL thread */
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       DBUG_RETURN(0);
     }
 #ifndef TO_BE_DELETED
@@ -2445,112 +2472,17 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_PREPARE:
   {
-    char *query_str;
-    uint query_len;
-    if (lex->prepared_stmt_code_is_varref)
-    {
-      /* This is PREPARE stmt FROM @var. */
-      String str;
-      CHARSET_INFO *to_cs= thd->variables.collation_connection;
-      bool need_conversion;
-      user_var_entry *entry;
-      String *pstr= &str;
-      uint32 unused;
-      /*
-        Convert @var contents to string in connection character set. Although
-        it is known that int/real/NULL value cannot be a valid query we still
-        convert it for error messages to uniform.
-      */
-      if ((entry=
-             (user_var_entry*)hash_search(&thd->user_vars,
-                                          (byte*)lex->prepared_stmt_code.str,
-                                          lex->prepared_stmt_code.length))
-          && entry->value)
-      {
-        my_bool is_var_null;
-        pstr= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
-        /*
-          NULL value of variable checked early as entry->value so here
-          we can't get NULL in normal conditions
-        */
-        DBUG_ASSERT(!is_var_null);
-        if (!pstr)
-          goto error;
-      }
-      else
-      {
-        /*
-          variable absent or equal to NULL, so we need to set variable to
-          something reasonable to get readable error message during parsing
-        */
-        str.set("NULL", 4, &my_charset_latin1);
-      }
-
-      need_conversion=
-        String::needs_conversion(pstr->length(), pstr->charset(),
-                                 to_cs, &unused);
-
-      query_len= need_conversion? (pstr->length() * to_cs->mbmaxlen) :
-                                  pstr->length();
-      if (!(query_str= alloc_root(thd->mem_root, query_len+1)))
-        goto error;
- 
-      if (need_conversion)
-      {
-        uint dummy_errors;
-        query_len= copy_and_convert(query_str, query_len, to_cs,
-                                    pstr->ptr(), pstr->length(),
-                                    pstr->charset(), &dummy_errors);
-      }
-      else
-        memcpy(query_str, pstr->ptr(), pstr->length());
-      query_str[query_len]= 0;
-    }
-    else
-    {
-      query_str= lex->prepared_stmt_code.str;
-      query_len= lex->prepared_stmt_code.length;
-      DBUG_PRINT("info", ("PREPARE: %.*s FROM '%.*s' \n",
-                          lex->prepared_stmt_name.length,
-                          lex->prepared_stmt_name.str,
-                          query_len, query_str));
-    }
-    thd->command= COM_STMT_PREPARE;
-    if (!(res= mysql_stmt_prepare(thd, query_str, query_len + 1,
-                                  &lex->prepared_stmt_name)))
-      send_ok(thd, 0L, 0L, "Statement prepared");
+    mysql_sql_stmt_prepare(thd);
     break;
   }
   case SQLCOM_EXECUTE:
   {
-    DBUG_PRINT("info", ("EXECUTE: %.*s\n",
-                        lex->prepared_stmt_name.length,
-                        lex->prepared_stmt_name.str));
-    mysql_sql_stmt_execute(thd, &lex->prepared_stmt_name);
-    lex->prepared_stmt_params.empty();
+    mysql_sql_stmt_execute(thd);
     break;
   }
   case SQLCOM_DEALLOCATE_PREPARE:
   {
-    Statement* stmt;
-    DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
-                        lex->prepared_stmt_name.length,
-                        lex->prepared_stmt_name.str));
-    /* We account deallocate in the same manner as mysql_stmt_close */
-    statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
-    if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
-    {
-      thd->stmt_map.erase(stmt);
-      send_ok(thd);
-    }
-    else
-    {
-      my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-               lex->prepared_stmt_name.length,
-               lex->prepared_stmt_name.str,
-               "DEALLOCATE PREPARE");
-      goto error;
-    }
+    mysql_sql_stmt_close(thd);
     break;
   }
   case SQLCOM_DO:
@@ -2859,12 +2791,15 @@ mysql_execute_command(THD *thd)
           Is table which we are changing used somewhere in other parts
           of query
         */
-        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-            unique_table(create_table, select_tables))
+        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
-          my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
-          res= 1;
-          goto end_with_restart_wait;
+          TABLE_LIST *duplicate;
+          if ((duplicate= unique_table(create_table, select_tables)))
+          {
+            update_non_unique_table_error(create_table, "CREATE", duplicate);
+            res= 1;
+            goto end_with_restart_wait;
+          }
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2874,9 +2809,10 @@ mysql_execute_command(THD *thd)
                tab;
                tab= tab->next_local)
           {
-            if (unique_table(tab, select_tables))
+            TABLE_LIST *duplicate;
+            if ((duplicate= unique_table(tab, select_tables)))
             {
-              my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
+              update_non_unique_table_error(tab, "CREATE", duplicate);
               res= 1;
               goto end_with_restart_wait;
             }
@@ -3576,6 +3512,7 @@ end_with_restore_list:
 	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3610,6 +3547,7 @@ end_with_restore_list:
 	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3650,6 +3588,7 @@ end_with_restore_list:
 	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -4100,7 +4039,7 @@ end_with_restore_list:
     }
 #endif
     if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
-	!lex->sphead->m_has_return)
+	!(lex->sphead->m_flags & sp_head::HAS_RETURN))
     {
       my_error(ER_SP_NORETURN, MYF(0), name);
       delete lex->sphead;
@@ -4189,15 +4128,31 @@ end_with_restore_list:
 	ha_rows select_limit;
         /* bits that should be cleared in thd->server_status */
 	uint bits_to_be_cleared= 0;
+        /*
+          Check that the stored procedure doesn't contain Dynamic SQL
+          and doesn't return result sets: such stored procedures can't
+          be called from a function or trigger.
+        */
+        if (thd->in_sub_stmt)
+        {
+          const char *where= (thd->in_sub_stmt & SUB_STMT_TRIGGER ?
+                              "trigger" : "function");
+          if (sp->is_not_allowed_in_function(where))
+            goto error;
+        }
 
 #ifndef EMBEDDED_LIBRARY
 	my_bool nsok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
 #endif
-	if (sp->m_multi_results)
+	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
 	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
 	  {
+            /*
+              The client does not support multiple result sets being sent
+              back
+            */
 	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
 #ifndef EMBEDDED_LIBRARY
 	    thd->net.no_send_ok= nsok;
@@ -4241,7 +4196,7 @@ end_with_restore_list:
         thd->row_count_func= 0;
         
         /* 
-          We never write CALL statements int binlog:
+          We never write CALL statements into binlog:
            - If the mode is non-prelocked, each statement will be logged
              separately.
            - If the mode is prelocked, the invoking statement will care
@@ -4706,30 +4661,19 @@ end_with_restore_list:
   }
   thd->proc_info="query end";
   /* Two binlog-related cleanups: */
-  if (thd->one_shot_set)
-  {
-    /*
-      If this is a SET, do nothing. This is to allow mysqlbinlog to print
-      many SET commands (in this case we want the charset temp setting to
-      live until the real query). This is also needed so that SET
-      CHARACTER_SET_CLIENT... does not cancel itself immediately.
-    */
-    if (lex->sql_command != SQLCOM_SET_OPTION)
-    {
-      thd->variables.character_set_client=
-        global_system_variables.character_set_client;
-      thd->variables.collation_connection=
-        global_system_variables.collation_connection;
-      thd->variables.collation_database=
-        global_system_variables.collation_database;
-      thd->variables.collation_server=
-        global_system_variables.collation_server;
-      thd->update_charset();
-      thd->variables.time_zone=
-        global_system_variables.time_zone;
-      thd->one_shot_set= 0;
-    }
-  }
+
+  /*
+    Reset system variables temporarily modified by SET ONE SHOT.
+
+    Exception: If this is a SET, do nothing. This is to allow
+    mysqlbinlog to print many SET commands (in this case we want the
+    charset temp setting to live until the real query). This is also
+    needed so that SET CHARACTER_SET_CLIENT... does not cancel itself
+    immediately.
+  */
+  if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
+    reset_one_shot_variables(thd);
+
 
   /*
     The return value for ROW_COUNT() is "implementation dependent" if
@@ -5262,7 +5206,7 @@ mysql_new_select(LEX *lex, bool move_down)
     it's a constant one. The flag is switched off in the end of
     mysql_stmt_prepare.
   */
-  if (thd->current_arena->is_stmt_prepare())
+  if (thd->stmt_arena->is_stmt_prepare())
     select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
@@ -6068,7 +6012,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->db= empty_c_string;
     ptr->db_length= 0;
   }
-  if (thd->current_arena->is_stmt_prepare_or_first_sp_execute())
+  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
     ptr->db= thd->strdup(ptr->db);
 
   ptr->alias= alias_str;
@@ -7288,7 +7232,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       against the opened tables to ensure we don't use a table that is part
       of the view (which can only be done after the table has been opened).
     */
-    if (thd->current_arena->is_stmt_prepare_or_first_sp_execute())
+    if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
     {
       /*
         For temporary tables we don't have to check if the created table exists
