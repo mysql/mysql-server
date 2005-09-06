@@ -700,20 +700,40 @@ public:
 };
 
 
-// A local SP variable (incl. parameters), used in runtime
+/*
+  A reference to local SP variable (incl. reference to SP parameter), used in
+  runtime.
+  
+  NOTE
+    This item has a "value" item, defined as 
+      this_item() = thd->spcont->get_item(m_offset)
+    and it delegates everything to that item (if !this_item() then this item
+    poses as Item_null) except for name, which is the name of SP local
+    variable.
+*/
+
 class Item_splocal : public Item
 {
-private:
-  
   uint m_offset;
+public:
   LEX_STRING m_name;
 
-public:
+  /* 
+    Position of this reference to SP variable in the statement (the
+    statement itself is in sp_instr_stmt::m_query).
+    This is valid only for references to SP variables in statements,
+    excluding DECLARE CURSOR statement. It is used to replace references to SP
+    variables with NAME_CONST calls when putting statements into the binary
+    log.
+    Value of 0 means that this object doesn't corresponding to reference to
+    SP variable in query text.
+  */
+  int pos_in_query;
 
-  Item_splocal(LEX_STRING name, uint offset)
-    : m_offset(offset), m_name(name)
+  Item_splocal(LEX_STRING name, uint offset, int pos_in_q=0)
+    : m_offset(offset), m_name(name), pos_in_query(pos_in_q)
   {
-    Item::maybe_null= TRUE;
+    maybe_null= TRUE;
   }
 
   /* For error printing */
@@ -750,7 +770,7 @@ public:
   bool is_null();
   void print(String *str);
 
-  inline void make_field(Send_field *field)
+  void make_field(Send_field *field)
   {
     Item *it= this_item();
 
@@ -761,27 +781,83 @@ public:
     it->make_field(field);
   }
 
-  inline Item_result result_type() const
+  Item_result result_type() const
   {
     return this_const_item()->result_type();
   }
 
-  inline bool const_item() const
+  bool const_item() const
   {
     return TRUE;
   }
 
-  inline int save_in_field(Field *field, bool no_conversions)
+  int save_in_field(Field *field, bool no_conversions)
   {
     return this_item()->save_in_field(field, no_conversions);
   }
 
-  inline bool send(Protocol *protocol, String *str)
+  bool send(Protocol *protocol, String *str)
   {
     return this_item()->send(protocol, str);
   }
 };
 
+
+/*
+  NAME_CONST(given_name, const_value). 
+  This 'function' has all properties of the supplied const_value (which is 
+  assumed to be a literal constant), and the name given_name. 
+
+  This is used to replace references to SP variables when we write PROCEDURE
+  statements into the binary log.
+
+  TODO
+    Together with Item_splocal and Item::this_item() we can actually extract
+    common a base of this class and Item_splocal. Maybe it is possible to
+    extract a common base with class Item_ref, too.
+*/
+
+class Item_name_const : public Item
+{
+  Item *value_item;
+  Item *name_item;
+public:
+  Item_name_const(Item *name, Item *val): value_item(val), name_item(name)
+  {
+    Item::maybe_null= TRUE;
+  }
+
+  bool fix_fields(THD *, Item **);
+  void cleanup();
+
+  enum Type type() const;
+  double val_real();
+  longlong val_int();
+  String *val_str(String *sp);
+  my_decimal *val_decimal(my_decimal *);
+  bool is_null();
+  void print(String *str);
+
+  Item_result result_type() const
+  {
+    return value_item->result_type();
+  }
+
+  bool const_item() const
+  {
+    return TRUE;
+  }
+
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    return  value_item->save_in_field(field, no_conversions);
+  }
+
+  bool send(Protocol *protocol, String *str)
+  {
+    return value_item->send(protocol, str);
+  }
+};
 
 bool agg_item_collations(DTCollation &c, const char *name,
                          Item **items, uint nitems, uint flags= 0);
@@ -1299,6 +1375,15 @@ public:
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
   }
+  /* Just create an item and do not fill string representation */
+  Item_string(CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+  {
+    collation.set(cs, dv);
+    max_length= 0;
+    set_name(NULL, 0, cs);
+    decimals= NOT_FIXED_DEC;
+    fixed= 1;
+  }
   Item_string(const char *name_par, const char *str, uint length,
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
@@ -1309,6 +1394,15 @@ public:
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
+  }
+  /*
+    This is used in stored procedures to avoid memory leaks and
+    does a deep copy of its argument.
+  */
+  void set_str_with_copy(const char *str_arg, uint length_arg)
+  {
+    str_value.copy(str_arg, length_arg, collation.collation);
+    max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
   enum Type type() const { return STRING_ITEM; }
   double val_real();

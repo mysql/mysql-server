@@ -128,7 +128,7 @@ int User_map::load(const char *password_file_name)
   char line[USERNAME_LENGTH + SCRAMBLED_PASSWORD_CHAR_LENGTH +
             2 +                               /* for possible quotes */
             1 +                               /* for ':' */
-            1 +                               /* for newline */
+            2 +                               /* for newline */
             1];                               /* for trailing zero */
   User *user;
   int rc= 1;

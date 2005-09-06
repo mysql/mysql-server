@@ -624,7 +624,7 @@ void init_update_queries(void)
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
-  return uc_update_queries[command];
+  return uc_update_queries[command] != 0;
 }
 
 /*
@@ -923,8 +923,7 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
     {
-      DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
-			   pkt_len));
+      DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       inc_host_errors(&thd->remote.sin_addr);
       return(ER_HANDSHAKE_ERROR);
     }
@@ -2257,6 +2256,7 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
   return FALSE;
 }
 
+
 /****************************************************************************
 ** mysql_execute_command
 ** Execute command saved in thd and current_lex->sql_command
@@ -2994,7 +2994,24 @@ end_with_restore_list:
         goto error;
       }
       if (!select_lex->db)
-	select_lex->db= first_table->db;
+      {
+        /*
+          In the case of ALTER TABLE ... RENAME we should supply the
+          default database if the new name is not explicitly qualified
+          by a database. (Bug #11493)
+        */
+        if (lex->alter_info.flags & ALTER_RENAME)
+        {
+          if (! thd->db)
+          {
+            my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+            goto error;
+          }
+          select_lex->db= thd->db;
+        }
+        else
+          select_lex->db= first_table->db;
+      }
       if (check_access(thd, ALTER_ACL, first_table->db,
 		       &first_table->grant.privilege, 0, 0) ||
 	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0)||
@@ -3324,7 +3341,8 @@ end_with_restore_list:
     unit->set_limit(select_lex);
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
-                       unit->select_limit_cnt, select_lex->options);
+                       unit->select_limit_cnt, select_lex->options,
+                       FALSE);
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -3453,7 +3471,7 @@ end_with_restore_list:
     if (lex->local_file)
     {
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
-	  ! opt_local_infile)
+          !opt_local_infile)
       {
 	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
 	goto error;
@@ -4221,28 +4239,16 @@ end_with_restore_list:
 	thd->variables.select_limit= HA_POS_ERROR;
 
         thd->row_count_func= 0;
-        tmp_disable_binlog(thd); /* don't binlog the substatements */
-	res= sp->execute_procedure(thd, &lex->value_list);
-        reenable_binlog(thd);
-
-        /*
-          We write CALL to binlog; on the opposite we didn't write the
-          substatements. That choice is necessary because the substatements
-          may use local vars.
-          Binlogging should happen when all tables are locked. They are locked
-          just above, and unlocked by close_thread_tables(). All tables which
-          are to be updated are locked like with a table-level write lock, and
-          this also applies to InnoDB (I tested - note that it reduces
-          InnoDB's concurrency as we don't use row-level locks). So binlogging
-          below is safe.
-          Note the limitation: if the SP returned an error, but still did some
-          updates, we do NOT binlog it. This is because otherwise "permission
-          denied", "table does not exist" etc would stop the slave quite
-          often. There is no easy way to know if the SP updated something
-          (even no_trans_update is not suitable, as it may be a transactional
-          autocommit update which happened, and no_trans_update covers only
-          INSERT/UPDATE/LOAD).
+        
+        /* 
+          We never write CALL statements int binlog:
+           - If the mode is non-prelocked, each statement will be logged
+             separately.
+           - If the mode is prelocked, the invoking statement will care
+             about writing into binlog.
+          So just execute the statement.
         */
+	res= sp->execute_procedure(thd, &lex->value_list);
         if (mysql_bin_log.is_open() &&
             (sp->m_chistics->daccess == SP_CONTAINS_SQL ||
              sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -4252,11 +4258,7 @@ end_with_restore_list:
                          ER_FAILED_ROUTINE_BREAK_BINLOG,
 			 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
           else
-          {
             thd->clear_error();
-            Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-            mysql_bin_log.write(&qinfo);
-          }
         }
 
 	/*
@@ -5409,8 +5411,10 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex= thd->lex;
+    
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
+    
     if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -6552,8 +6556,25 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
   {
-    acl_reload(thd);
-    grant_reload(thd);
+    THD *tmp_thd= 0;
+    /*
+      If reload_acl_and_cache() is called from SIGHUP handler we have to
+      allocate temporary THD for execution of acl_reload()/grant_reload().
+    */
+    if (!thd && (thd= (tmp_thd= new THD)))
+      thd->store_globals();
+    if (thd)
+    {
+      (void)acl_reload(thd);
+      (void)grant_reload(thd);
+    }
+    if (tmp_thd)
+    {
+      delete tmp_thd;
+      /* Remember that we don't have a THD */
+      my_pthread_setspecific_ptr(THR_THD,  0);
+      thd= 0;
+    }
     reset_mqh((LEX_USER *)NULL, TRUE);
   }
 #endif

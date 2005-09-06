@@ -134,3 +134,72 @@ select * from t1  where id1 = 1  and id2= '20040101';
 id1	id2
 1	2004-01-01
 drop table t1;
+drop view if exists v1;
+CREATE TABLE t1 (
+`oid` int(11) unsigned NOT NULL auto_increment,
+`fk_bbk_niederlassung` int(11) unsigned NOT NULL,
+`fk_wochentag` int(11) unsigned NOT NULL,
+`uhrzeit_von` time NOT NULL COMMENT 'HH:MM',
+`uhrzeit_bis` time NOT NULL COMMENT 'HH:MM',
+`geloescht` tinyint(4) NOT NULL,
+`version` int(5) NOT NULL,
+PRIMARY KEY  (`oid`),
+KEY `fk_bbk_niederlassung` (`fk_bbk_niederlassung`),
+KEY `fk_wochentag` (`fk_wochentag`),
+KEY `ix_version` (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+insert  into t1 values 
+(1, 38, 1, '08:00:00', '13:00:00', 0, 1),
+(2, 38, 2, '08:00:00', '13:00:00', 0, 1),
+(3, 38, 3, '08:00:00', '13:00:00', 0, 1),
+(4, 38, 4, '08:00:00', '13:00:00', 0, 1),
+(5, 38, 5, '08:00:00', '13:00:00', 0, 1),
+(6, 38, 5, '08:00:00', '13:00:00', 1, 2),
+(7, 38, 3, '08:00:00', '13:00:00', 1, 2),
+(8, 38, 1, '08:00:00', '13:00:00', 1, 2),
+(9, 38, 2, '08:00:00', '13:00:00', 1, 2),
+(10, 38, 4, '08:00:00', '13:00:00', 1, 2),
+(11, 38, 1, '08:00:00', '13:00:00', 0, 3),
+(12, 38, 2, '08:00:00', '13:00:00', 0, 3),
+(13, 38, 3, '08:00:00', '13:00:00', 0, 3),
+(14, 38, 4, '08:00:00', '13:00:00', 0, 3),
+(15, 38, 5, '08:00:00', '13:00:00', 0, 3),
+(16, 38, 4, '08:00:00', '13:00:00', 0, 4),
+(17, 38, 5, '08:00:00', '13:00:00', 0, 4),
+(18, 38, 1, '08:00:00', '13:00:00', 0, 4),
+(19, 38, 2, '08:00:00', '13:00:00', 0, 4),
+(20, 38, 3, '08:00:00', '13:00:00', 0, 4),
+(21, 7, 1, '08:00:00', '13:00:00', 0, 1),
+(22, 7, 2, '08:00:00', '13:00:00', 0, 1),
+(23, 7, 3, '08:00:00', '13:00:00', 0, 1),
+(24, 7, 4, '08:00:00', '13:00:00', 0, 1),
+(25, 7, 5, '08:00:00', '13:00:00', 0, 1);
+create view v1 as 
+select 
+zeit1.oid AS oid, 
+zeit1.fk_bbk_niederlassung AS fk_bbk_niederlassung,
+zeit1.fk_wochentag AS fk_wochentag,
+zeit1.uhrzeit_von AS uhrzeit_von, 
+zeit1.uhrzeit_bis AS uhrzeit_bis, 
+zeit1.geloescht AS geloescht,
+zeit1.version AS version
+from 
+t1 zeit1
+where 
+(zeit1.version = 
+(select max(zeit2.version) AS `max(version)`
+   from t1 zeit2 
+where 
+((zeit1.fk_bbk_niederlassung = zeit2.fk_bbk_niederlassung) and 
+(zeit1.fk_wochentag = zeit2.fk_wochentag) and 
+(zeit1.uhrzeit_von = zeit2.uhrzeit_von) and 
+(zeit1.uhrzeit_bis = zeit2.uhrzeit_bis)
+)
+)
+)
+and (zeit1.geloescht = 0);
+select * from v1 where oid = 21;
+oid	fk_bbk_niederlassung	fk_wochentag	uhrzeit_von	uhrzeit_bis	geloescht	version
+21	7	1	08:00:00	13:00:00	0	1
+drop view v1;
+drop table t1;

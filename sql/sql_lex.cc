@@ -518,6 +518,10 @@ int yylex(void *arg, void *yythd)
   uchar *ident_map= cs->ident_map;
 
   lex->yylval=yylval;			// The global state
+
+  lex->tok_end_prev= lex->tok_end;
+  lex->tok_start_prev= lex->tok_start;
+
   lex->tok_start=lex->tok_end=lex->ptr;
   state=lex->next_state;
   lex->next_state=MY_LEX_OPERATOR_OR_IDENT;

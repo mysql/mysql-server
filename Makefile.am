@@ -105,10 +105,25 @@ test:
 	cd mysql-test; \
 	./mysql-test-run && ./mysql-test-run --ps-protocol
 
+# Test installation. Ports are configurable from the environment.
+
+MYSQL_TEST_MANAGER_PORT =	9305
+MYSQL_TEST_MASTER_PORT =	9306
+MYSQL_TEST_SLAVE_PORT =		9308
+MYSQL_TEST_NDB_PORT =		9350
+MYSQL_TEST_RUN_ARGS =		--manager-port=$(MYSQL_TEST_MANAGER_PORT) \
+				--master_port=$(MYSQL_TEST_MASTER_PORT) \
+				--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
+				--ndbcluster_port=$(MYSQL_TEST_NDB_PORT)
+test:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) && \
+	./mysql-test-run.pl --ps-protocol $(MYSQL_TEST_RUN_ARGS)
+
 test-force:
-	cd mysql-test; \
-	./mysql-test-run --force ;\
-	./mysql-test-run --ps-protocol --force
+	cd mysql-test ; \
+	./mysql-test-run --force $(MYSQL_TEST_RUN_ARGS) ; \
+	./mysql-test-run --ps-protocol --force $(MYSQL_TEST_RUN_ARGS)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

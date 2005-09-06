@@ -142,6 +142,7 @@ our $glob_timers=                 undef;
 our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_embedded_server=    0;
+our @glob_test_mode;
 
 our $glob_basedir;
 
@@ -177,6 +178,7 @@ our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
 our $exe_slave_mysqld;
+our $exe_im;
 
 our $opt_bench= 0;
 our $opt_small_bench= 0;
@@ -214,6 +216,8 @@ our $opt_local_master;
 
 our $master;                    # Will be struct in C
 our $slave;
+
+our $instance_manager;
 
 our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
@@ -308,6 +312,8 @@ sub mysqld_arguments ($$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
+sub im_start ($$);
+sub im_stop ($);
 sub run_mysqltest ($);
 sub usage ($);
 
@@ -459,6 +465,9 @@ sub command_line_setup () {
   my $opt_master_myport= 9306;
   my $opt_slave_myport=  9308;
   $opt_ndbcluster_port=  9350;
+  my $im_port=           9310;
+  my $im_mysqld1_port=   9312;
+  my $im_mysqld2_port=   9314;
 
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -485,6 +494,9 @@ sub command_line_setup () {
              'slave_port=i'             => \$opt_slave_myport,
              'ndbcluster_port=i'        => \$opt_ndbcluster_port,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
+             'im-port=i'                => \$im_port, # Instance Manager port.
+             'im-mysqld1-port=i'        => \$im_mysqld1_port, # Port of mysqld, controlled by IM
+             'im-mysqld2-port=i'        => \$im_mysqld2_port, # Port of mysqld, controlled by IM
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -606,12 +618,18 @@ sub command_line_setup () {
   if ( $opt_embedded_server )
   {
     $glob_use_embedded_server= 1;
+    push(@glob_test_mode, "embedded");
     $opt_skip_rpl= 1;              # We never run replication with embedded
 
     if ( $opt_extern )
     {
       mtr_error("Can't use --extern with --embedded-server");
     }
+  }
+
+  if ( $opt_ps_protocol )
+  {
+    push(@glob_test_mode, "ps-protocol");
   }
 
   # FIXME don't understand what this is
@@ -761,6 +779,37 @@ sub command_line_setup () {
   $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
   $slave->[2]->{'start_timeout'}=  300;
 
+  $instance_manager->{'path_err'}=        "$opt_vardir/log/im.err";
+  $instance_manager->{'path_log'}=        "$opt_vardir/log/im.log";
+  $instance_manager->{'path_pid'}=        "$opt_vardir/run/im.pid";
+  $instance_manager->{'path_sock'}=       "$opt_tmpdir/im.sock";
+  $instance_manager->{'port'}=            $im_port;
+  $instance_manager->{'start_timeout'}=   $master->[0]->{'start_timeout'};
+  $instance_manager->{'admin_login'}=     'im_admin';
+  $instance_manager->{'admin_password'}=  'im_admin_secret';
+  $instance_manager->{'admin_sha1'}=      '*598D51AD2DFF7792045D6DF3DDF9AA1AF737B295';
+  $instance_manager->{'password_file'}=   "$opt_vardir/im.passwd";
+  $instance_manager->{'defaults_file'}=   "$opt_vardir/im.cnf";
+  
+  $instance_manager->{'instances'}->[0]->{'server_id'}= 1;
+  $instance_manager->{'instances'}->[0]->{'port'}= $im_mysqld1_port;
+  $instance_manager->{'instances'}->[0]->{'path_datadir'}=
+    "$opt_vardir/im_mysqld_1.data";
+  $instance_manager->{'instances'}->[0]->{'path_sock'}=
+    "$opt_vardir/mysqld_1.sock";
+  $instance_manager->{'instances'}->[0]->{'path_pid'}=
+    "$opt_vardir/mysqld_1.pid";
+
+  $instance_manager->{'instances'}->[1]->{'server_id'}= 2;
+  $instance_manager->{'instances'}->[1]->{'port'}= $im_mysqld2_port;
+  $instance_manager->{'instances'}->[1]->{'path_datadir'}=
+    "$opt_vardir/im_mysqld_2.data";
+  $instance_manager->{'instances'}->[1]->{'path_sock'}=
+    "$opt_vardir/mysqld_2.sock";
+  $instance_manager->{'instances'}->[1]->{'path_pid'}=
+    "$opt_vardir/mysqld_2.pid";
+  $instance_manager->{'instances'}->[1]->{'nonguarded'}= 1;
+
   if ( $opt_extern )
   {
     $glob_use_running_server=  1;
@@ -796,6 +845,9 @@ sub executable_setup () {
       $exe_mysqld=         mtr_exe_exists ("$glob_basedir/sql/mysqld");
       $path_language=      mtr_path_exists("$glob_basedir/sql/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/sql/share/charsets");
+
+      $exe_im= mtr_exe_exists(
+        "$glob_basedir/server-tools/instance-manager/mysqlmanager");
     }
 
     if ( $glob_use_embedded_server )
@@ -843,6 +895,8 @@ sub executable_setup () {
     $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
                                          "$glob_basedir/bin/mysqld");
 
+    $exe_im= mtr_exe_exists("$glob_basedir/libexec/mysqlmanager",
+                            "$glob_basedir/bin/mysqlmanager");
     if ( $glob_use_embedded_server )
     {
       $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest_embedded");
@@ -915,6 +969,11 @@ sub environment_setup () {
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
+
+  $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
+  $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
+  $ENV{'IM_MYSQLD2_SOCK'}=    $instance_manager->{instances}->[1]->{path_sock};
+  $ENV{'IM_MYSQLD2_PORT'}=    $instance_manager->{instances}->[1]->{port};
 
   if ( $glob_cygwin_perl )
   {
@@ -999,25 +1058,24 @@ sub kill_and_cleanup () {
   # FIXME do we really need to create these all, or are they
   # created for us when tables are created?
 
-  rmtree("$master->[0]->{'path_myddir'}");
-  mkpath("$master->[0]->{'path_myddir'}/mysql");
-  mkpath("$master->[0]->{'path_myddir'}/test");
+  my @data_dir_lst = (
+    $master->[0]->{'path_myddir'},
+    $master->[1]->{'path_myddir'},
+    $slave->[0]->{'path_myddir'},
+    $slave->[1]->{'path_myddir'},
+    $slave->[2]->{'path_myddir'});
+  
+  foreach my $instance (@{$instance_manager->{'instances'}})
+  {
+    push (@data_dir_lst, $instance->{'path_datadir'});
+  }
 
-  rmtree("$master->[1]->{'path_myddir'}");
-  mkpath("$master->[1]->{'path_myddir'}/mysql");
-  mkpath("$master->[1]->{'path_myddir'}/test");
-
-  rmtree("$slave->[0]->{'path_myddir'}");
-  mkpath("$slave->[0]->{'path_myddir'}/mysql");
-  mkpath("$slave->[0]->{'path_myddir'}/test");
-
-  rmtree("$slave->[1]->{'path_myddir'}");
-  mkpath("$slave->[1]->{'path_myddir'}/mysql");
-  mkpath("$slave->[1]->{'path_myddir'}/test");
-
-  rmtree("$slave->[2]->{'path_myddir'}");
-  mkpath("$slave->[2]->{'path_myddir'}/mysql");
-  mkpath("$slave->[2]->{'path_myddir'}/test");
+  foreach my $data_dir (@data_dir_lst)
+  {
+    rmtree("$data_dir");
+    mkpath("$data_dir/mysql");
+    mkpath("$data_dir/test");
+  }
 
   # To make some old test cases work, we create a soft
   # link from the old "var" location to the new one
@@ -1255,6 +1313,11 @@ sub mysql_install_db () {
   install_db('slave',  $slave->[1]->{'path_myddir'});
   install_db('slave',  $slave->[2]->{'path_myddir'});
 
+  if ( defined $exe_im)
+  {
+    im_prepare_env($instance_manager);
+  }
+
   if ( ndbcluster_install() )
   {
     # failed to install, disable usage but flag that its no ok
@@ -1326,6 +1389,101 @@ sub install_db ($$) {
               "Could not install $type test DBs");
   }
   unlink($init_db_sql_tmp);
+}
+
+
+sub im_prepare_env($) {
+  my $instance_manager = shift;
+
+  im_create_passwd_file($instance_manager);
+  im_prepare_data_dir($instance_manager);
+}
+
+
+sub im_create_passwd_file($) {
+  my $instance_manager = shift;
+
+  my $pwd_file_path = $instance_manager->{'password_file'};
+  
+  mtr_report("Creating IM password file ($pwd_file_path)");
+  
+  open(OUT, ">", $pwd_file_path)
+    or mtr_error("Can't write to $pwd_file_path: $!");
+  
+  print OUT $instance_manager->{'admin_login'}, ":",
+        $instance_manager->{'admin_sha1'}, "\n";
+  
+  close(OUT);
+}
+
+
+sub im_create_defaults_file($) {
+  my $instance_manager = shift;
+
+  my $defaults_file = $instance_manager->{'defaults_file'};
+
+  open(OUT, ">", $defaults_file)
+    or mtr_error("Can't write to $defaults_file: $!");
+  
+  print OUT <<EOF
+[mysql]
+
+[manager]
+pid-file            = $instance_manager->{path_pid}
+socket              = $instance_manager->{path_sock}
+port                = $instance_manager->{port}
+password-file       = $instance_manager->{password_file}
+default-mysqld-path = $exe_mysqld
+
+EOF
+;
+
+  foreach my $instance (@{$instance_manager->{'instances'}})
+  {
+    my $server_id = $instance->{'server_id'};
+
+    print OUT <<EOF
+[mysqld$server_id]
+socket              = $instance->{path_sock}
+pid-file            = $instance->{path_pid}
+port                = $instance->{port}
+datadir             = $instance->{path_datadir}
+log                 = $instance->{path_datadir}/mysqld$server_id.log
+log-error           = $instance->{path_datadir}/mysqld$server_id.err.log
+log-slow-queries    = $instance->{path_datadir}/mysqld$server_id.slow.log
+language            = $path_language
+character-sets-dir  = $path_charsetsdir
+basedir             = $path_my_basedir
+server_id           =$server_id
+skip-stack-trace
+skip-innodb
+skip-bdb
+skip-ndbcluster
+EOF
+;
+
+    if ( exists $instance->{nonguarded} and
+      defined $instance->{nonguarded} )
+    {
+      print OUT "nonguarded\n";
+    }
+
+    print OUT "\n";
+  }
+
+  close(OUT);
+}
+
+
+sub im_prepare_data_dir($) {
+  my $instance_manager = shift;
+
+  foreach my $instance (@{$instance_manager->{'instances'}})
+  {
+    install_db(
+      'im_mysqld_' . $instance->{'server_id'},
+      $instance->{'path_datadir'});
+  }
 }
 
 
@@ -1430,7 +1588,7 @@ sub run_testcase ($) {
     # FIXME split up start and check that started so that can do
     #       starts in parallel, masters and slaves at the same time.
 
-    if ( ! $opt_local_master )
+    if ( $tinfo->{'component_id'} eq 'mysqld' and ! $opt_local_master )
     {
       if ( $master->[0]->{'ndbcluster'} )
       {
@@ -1468,6 +1626,17 @@ sub run_testcase ($) {
       {
         $master->[0]->{'running_master_is_special'}= 1;
       }
+    }
+    elsif ( $tinfo->{'component_id'} eq 'im')
+    {
+      # We have to create defaults file every time, in order to ensure that it
+      # will be the same for each test. The problem is that test can change the
+      # file (by SET/UNSET commands), so w/o recreating the file, execution of
+      # one test can affect the other.
+
+      im_create_defaults_file($instance_manager);
+
+      im_start($instance_manager, $tinfo->{im_opts});
     }
 
     # ----------------------------------------------------------------------
@@ -1551,6 +1720,15 @@ sub run_testcase ($) {
       report_failure_and_restart($tinfo);
     }
   }
+
+  # ----------------------------------------------------------------------
+  # Stop Instance Manager if we are processing an IM-test case.
+  # ----------------------------------------------------------------------
+
+  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
+  {
+    im_stop($instance_manager);
+  }
 }
 
 
@@ -1562,8 +1740,9 @@ sub report_failure_and_restart ($) {
   print "\n";
   if ( ! $opt_force )
   {
-    print "Aborting: $tinfo->{'name'} failed. To continue, re-run with '--force'.";
-    print "\n";
+    my $test_mode= join(" ", @::glob_test_mode) || "default";
+    print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
+    print "To continue, re-run with '--force'.\n";
     if ( ! $opt_gdb and ! $glob_use_running_server and
          ! $opt_ddd and ! $glob_use_embedded_server )
     {
@@ -1980,6 +2159,13 @@ sub mysqld_start ($$$$) {
 sub stop_masters_slaves () {
 
   print  "Ending Tests\n";
+
+  if (defined $instance_manager->{'pid'})
+  {
+    print  "Shutting-down Instance Manager\n";
+    im_stop($instance_manager);
+  }
+  
   print  "Shutting-down MySQL daemon\n\n";
   stop_masters();
   print "Master(s) shutdown finished\n";
@@ -2038,6 +2224,97 @@ sub stop_slaves () {
   mtr_stop_mysqld_servers(\@args);
 }
 
+##############################################################################
+#
+#  Instance Manager management routines.
+#
+##############################################################################
+
+sub im_start($$) {
+  my $instance_manager = shift;
+  my $opts = shift;
+
+  if ( ! defined $exe_im)
+  {
+    return;
+  }
+
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--defaults-file=" . $instance_manager->{'defaults_file'});
+
+  foreach my $opt (@{$opts})
+  {
+    mtr_add_arg($args, $opt);
+  }
+
+  $instance_manager->{'pid'} = 
+    mtr_spawn(
+      $exe_im,                          # path to the executable
+      $args,                            # cmd-line args
+      '',                               # stdin
+      $instance_manager->{'path_log'},  # stdout
+      $instance_manager->{'path_err'},  # stderr
+      '',                               # pid file path (not used)
+      { append_log_file => 1 }          # append log files
+      );
+
+  if ( ! defined $instance_manager->{'pid'} )
+  {
+    mtr_report('Could not start Instance Manager');
+    return;
+  }
+  
+  # Instance Manager can be run in daemon mode. In this case, it creates
+  # several processes and the parent process, created by mtr_spawn(), exits just
+  # after start. So, we have to obtain Instance Manager PID from the PID file.
+
+  sleep_until_file_created(
+    $instance_manager->{'path_pid'},
+    $instance_manager->{'start_timeout'},
+    -1); # real PID is still unknown
+
+  $instance_manager->{'pid'} =
+    mtr_get_pid_from_file($instance_manager->{'path_pid'});
+}
+
+sub im_stop($) {
+  my $instance_manager = shift;
+
+  if (! defined $instance_manager->{'pid'})
+  {
+    return;
+  }
+
+  # Inspired from mtr_stop_mysqld_servers().
+
+  start_reap_all();
+
+  # Create list of pids. We should stop Instance Manager and all started
+  # mysqld-instances. Some of them may be nonguarded, so IM will not stop them
+  # on shutdown.
+
+  my @pids = ( $instance_manager->{'pid'} );
+  my $instances = $instance_manager->{'instances'};
+
+  if ( -r $instances->[0]->{'path_pid'} )
+  {
+    push @pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'});
+  }
+
+  if ( -r $instances->[1]->{'path_pid'} )
+  {
+    push @pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'});
+  }
+
+  # Kill processes.
+
+  mtr_kill_processes(\@pids);
+  
+  stop_reap_all();
+
+  $instance_manager->{'pid'} = undef;
+}
 
 sub run_mysqltest ($) {
   my $tinfo=       shift;
@@ -2061,7 +2338,9 @@ sub run_mysqltest ($) {
   }
 
   my $cmdline_mysqlbinlog=
-    "$exe_mysqlbinlog --no-defaults --local-load=$opt_tmpdir --character-sets-dir=$path_charsetsdir";
+    "$exe_mysqlbinlog" .
+      " --no-defaults --local-load=$opt_tmpdir" .
+      " --character-sets-dir=$path_charsetsdir";
 
   if ( $opt_debug )
   {
@@ -2119,15 +2398,26 @@ sub run_mysqltest ($) {
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_mysock'});
-  mtr_add_arg($args, "--database=test");
-  mtr_add_arg($args, "--user=%s", $opt_user);
-  mtr_add_arg($args, "--password=");
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "-v");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
-  mtr_add_arg($args, "--port=%d", $master->[0]->{'path_myport'});
+
+  if ($tinfo->{'component_id'} eq 'im')
+  {
+    mtr_add_arg($args, "--socket=%s", $instance_manager->{'path_sock'});
+    mtr_add_arg($args, "--port=%d", $instance_manager->{'port'});
+    mtr_add_arg($args, "--user=%s", $instance_manager->{'admin_login'});
+    mtr_add_arg($args, "--password=%s", $instance_manager->{'admin_password'});
+  }
+  else # component_id == mysqld
+  {
+    mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_mysock'});
+    mtr_add_arg($args, "--port=%d", $master->[0]->{'path_myport'});
+    mtr_add_arg($args, "--database=test");
+    mtr_add_arg($args, "--user=%s", $opt_user);
+    mtr_add_arg($args, "--password=");
+  }
 
   if ( $opt_ps_protocol )
   {
@@ -2194,6 +2484,11 @@ sub run_mysqltest ($) {
     mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
   }
 
+  # ----------------------------------------------------------------------
+  # export MYSQL_TEST variable containing <path>/mysqltest <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
+
   return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
 
@@ -2216,7 +2511,6 @@ Options to control what engine/variation to run
   ps-protocol           Use the binary protocol between client and server
   bench                 Run the benchmark suite FIXME
   small-bench           FIXME
-  no-manager            Use the istanse manager (currently disabled)
 
 Options to control what test suites or cases to run
 
@@ -2233,7 +2527,6 @@ Options that specify ports
   master_port=PORT      Specify the port number used by the first master
   slave_port=PORT       Specify the port number used by the first slave
   ndbcluster_port=PORT  Specify the port number used by cluster
-  manager-port=PORT     Specify the port number used by manager (currently not used)
 
 Options for test case authoring
 

@@ -60,7 +60,8 @@ set b = 8;
 insert into t1 values (b);
 insert into t1 values (unix_timestamp());
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; call foo()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values ( NAME_CONST('b',8))
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (unix_timestamp())
 select * from t1;
 a
 8
@@ -76,8 +77,10 @@ reads sql data
 select * from mysqltest1.t1;
 call foo2();
 a
-show binlog events from 605;
+show binlog events from 518;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values ( NAME_CONST('b',8))
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (unix_timestamp())
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo2()
 not deterministic
@@ -124,7 +127,7 @@ alter procedure foo4 sql security invoker;
 call foo4();
 show warnings;
 Level	Code	Message
-show binlog events from 841;
+show binlog events from 990;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int)
@@ -141,9 +144,12 @@ begin
 insert into t2 values(3);
 insert into t1 values (5);
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; call foo3()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(3)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (15)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(3)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; alter procedure foo4 sql security invoker
-master-bin.000001	#	Query	1	#	use `mysqltest1`; call foo4()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(3)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (5)
 select * from t1;
 a
 15
@@ -159,6 +165,8 @@ a
 5
 select * from t2;
 a
+3
+3
 3
 select * from mysql.proc where name="foo4" and db='mysqltest1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
@@ -196,6 +204,7 @@ a
 select * from t1;
 a
 21
+20
 select * from t2;
 a
 23

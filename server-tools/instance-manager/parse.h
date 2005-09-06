@@ -20,7 +20,7 @@
 #include <my_sys.h>
 
 class Command;
-class Command_factory;
+class Instance_map;
 
 enum Log_type
 {
@@ -29,7 +29,7 @@ enum Log_type
   IM_LOG_SLOW
 };
 
-Command *parse_command(Command_factory *factory, const char  *text);
+Command *parse_command(Instance_map *instance_map, const char *text);
 
 /* define kinds of the word seek method */
 enum { ALPHANUM= 1, NONSPACE };
@@ -61,6 +61,5 @@ inline void get_word(const char **text, uint *word_len,
 
   *word_len= word_end - *text;
 }
-
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H */

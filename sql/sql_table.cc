@@ -288,7 +288,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
-    table->was_dropped= 0;
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->table_name))
     {
@@ -360,8 +359,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	wrong_tables.append(',');
       wrong_tables.append(String(table->table_name,system_charset_info));
     }
-    else
-      table->was_dropped= 1;
   }
   thd->tmp_table_used= tmp_table_deleted;
   error= 0;
@@ -2532,11 +2529,16 @@ send_result_message:
     }
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
-      protocol->store("error", 5, system_charset_info);
-      protocol->store("Unknown - internal error during operation", 41
-		      , system_charset_info);
-      fatal_error=1;
-      break;
+      {
+        char buf[ERRMSGSIZE+20];
+        uint length=my_snprintf(buf, ERRMSGSIZE,
+                                "Unknown - internal error %d during operation",
+                                result_code);
+        protocol->store("error", 5, system_charset_info);
+        protocol->store(buf, length, system_charset_info);
+        fatal_error=1;
+        break;
+      }
     }
     if (fatal_error)
       table->table->s->version=0;               // Force close of table
@@ -2955,15 +2957,15 @@ mysql_discard_or_import_tablespace(THD *thd,
 err:
   close_thread_tables(thd);
   thd->tablespace_op=FALSE;
+  
   if (error == 0)
   {
     send_ok(thd);
     DBUG_RETURN(0);
   }
 
-  if (error == HA_ERR_ROW_IS_REFERENCED)
-    my_error(ER_ROW_IS_REFERENCED, MYF(0));
-  
+  table->file->print_error(error, MYF(0));
+    
   DBUG_RETURN(-1);
 }
 
@@ -3954,7 +3956,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
-    /* Check if field should be droped */
+    /* Check if field should be dropped */
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -4905,9 +4907,16 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 	  protocol->store_null();
 	else
 	{
-	  while (!t->file->rnd_next(t->record[0]))
+	  for (;;)
 	  {
 	    ha_checksum row_crc= 0;
+            int error= t->file->rnd_next(t->record[0]);
+            if (unlikely(error))
+            {
+              if (error == HA_ERR_RECORD_DELETED)
+                continue;
+              break;
+            }
 	    if (t->record[0] != (byte*) t->field[0]->ptr)
 	      row_crc= my_checksum(row_crc, t->record[0],
 				   ((byte*) t->field[0]->ptr) - t->record[0]);

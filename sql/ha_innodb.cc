@@ -303,16 +303,16 @@ struct show_var_st innodb_status_variables[]= {
   (char*) &export_vars.innodb_pages_read,                 SHOW_LONG},
   {"pages_written",
   (char*) &export_vars.innodb_pages_written,              SHOW_LONG},
-  {"row_lock_waits",
-  (char*) &export_vars.innodb_row_lock_waits,             SHOW_LONG},
   {"row_lock_current_waits",
   (char*) &export_vars.innodb_row_lock_current_waits,     SHOW_LONG},
   {"row_lock_time",
   (char*) &export_vars.innodb_row_lock_time,              SHOW_LONGLONG},
-  {"row_lock_time_max",
-  (char*) &export_vars.innodb_row_lock_time_max,          SHOW_LONG},
   {"row_lock_time_avg",
   (char*) &export_vars.innodb_row_lock_time_avg,          SHOW_LONG},
+  {"row_lock_time_max",
+  (char*) &export_vars.innodb_row_lock_time_max,          SHOW_LONG},
+  {"row_lock_waits",
+  (char*) &export_vars.innodb_row_lock_waits,             SHOW_LONG},
   {"rows_deleted",
   (char*) &export_vars.innodb_rows_deleted,               SHOW_LONG},
   {"rows_inserted",
@@ -2407,6 +2407,7 @@ ha_innobase::open(
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
+		dict_table_decrement_handle_count(ib_table);
     		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   	}
 
@@ -5428,7 +5429,7 @@ ha_innobase::info(
 		is an accurate estimate if it is zero. Of course, it is not,
 		since we do not have any locks on the rows yet at this phase.
 		Since SHOW TABLE STATUS seems to call this function with the
-		HA_STATUS_TIME flag set, while the left join optizer does not
+		HA_STATUS_TIME flag set, while the left join optimizer does not
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
@@ -6684,13 +6685,28 @@ ha_innobase::store_lock(
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
-		/* Starting from 5.0.7, we weaken also the table locks
+                /* Starting from 5.0.7, we weaken also the table locks
 		set at the start of a MySQL stored procedure call, just like
 		we weaken the locks set at the start of an SQL statement.
 		MySQL does set thd->in_lock_tables TRUE there, but in reality
 		we do not need table locks to make the execution of a
 		single transaction stored procedure call deterministic
 		(if it does not use a consistent read). */
+
+		if (lock_type == TL_READ && thd->in_lock_tables) {
+			/* We come here if MySQL is processing LOCK TABLES
+			... READ LOCAL. MyISAM under that table lock type
+			reads the table as it was at the time the lock was
+			granted (new inserts are allowed, but not seen by the
+			reader). To get a similar effect on an InnoDB table,
+			we must use LOCK TABLES ... READ. We convert the lock
+			type here, so that for InnoDB, READ LOCAL is
+			equivalent to READ. This will change the InnoDB
+			behavior in mysqldump, so that dumps of InnoDB tables
+			are consistent with dumps of MyISAM tables. */
+
+			lock_type = TL_READ_NO_INSERT;
+		}
 
     		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
 		TABLESPACE or TRUNCATE TABLE, then allow multiple writers */
@@ -6888,6 +6904,28 @@ ha_innobase::get_auto_increment()
 	}
 
 	return((ulonglong) nr);
+}
+
+/* See comment in handler.h */
+int
+ha_innobase::reset_auto_increment(ulonglong value)
+{
+	DBUG_ENTER("ha_innobase::reset_auto_increment");
+
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+  	int     	error;
+
+	error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+	if (error != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(error, user_thd);
+
+		DBUG_RETURN(error);
+	}	
+
+	dict_table_autoinc_initialize(prebuilt->table, value);
+
+	DBUG_RETURN(0);
 }
 
 /***********************************************************************

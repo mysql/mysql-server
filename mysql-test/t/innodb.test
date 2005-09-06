@@ -1212,7 +1212,7 @@ drop table t1;
 #
 
 CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
---error 1214;
+--error 1214
 SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
 DROP TABLE t1;
 
@@ -1230,6 +1230,24 @@ INSERT INTO t2 VALUES (1,1),(2,1),(3,1),(4,2),(5,2);
 SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t1 LEFT JOIN (t2) on t1.a_id = t2.b_a) GROUP BY t1.a_id ) AS xyz;
 DROP TABLE t2;
 DROP TABLE t1;
+
+#
+# Bug#11816 - Truncate table doesn't work with temporary innodb tables
+# This is not an innodb bug, but we test it using innodb.
+#
+create temporary table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+drop table t1;
+# Show that it works with permanent tables too.
+create table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+drop table t1;
 
 # End of 4.1 tests
 
@@ -1405,3 +1423,31 @@ insert into t1 values ('aa','bb'),('aa','cc');
 delete t1 from t1,t2 where f1=f3 and f4='cc';
 select * from t1;
 drop table t1,t2;
+
+#
+# Test that the slow TRUNCATE implementation resets autoincrement columns
+# (bug #11946)
+#
+
+CREATE TABLE t1 (
+id INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+id INTEGER NOT NULL,
+FOREIGN KEY (id) REFERENCES t1 (id)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+
+# continued from above; test that doing a slow TRUNCATE on a table with 0
+# rows resets autoincrement columns
+DELETE FROM t1;
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t2, t1;

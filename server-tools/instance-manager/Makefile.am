@@ -70,7 +70,6 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			user_map.h user_map.cc \
 			messages.h messages.cc \
 			commands.h commands.cc \
-			factory.h factory.cc \
 			instance.h instance.cc \
 			instance_map.h instance_map.cc\
 			instance_options.h instance_options.cc \

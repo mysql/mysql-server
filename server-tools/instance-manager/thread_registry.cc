@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* cOPYRIght (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,11 +122,10 @@ void Thread_registry::unregister_thread(Thread_info *info)
 */
 
 int Thread_registry::cond_wait(Thread_info *info, pthread_cond_t *cond,
-                                  pthread_mutex_t *mutex, bool *is_shutdown)
+                                  pthread_mutex_t *mutex)
 {
   pthread_mutex_lock(&LOCK_thread_registry);
-  *is_shutdown= shutdown_in_progress;
-  if (*is_shutdown)
+  if (shutdown_in_progress)
   {
     pthread_mutex_unlock(&LOCK_thread_registry);
     return 0;
@@ -137,7 +136,27 @@ int Thread_registry::cond_wait(Thread_info *info, pthread_cond_t *cond,
   int rc= pthread_cond_wait(cond, mutex);
   pthread_mutex_lock(&LOCK_thread_registry);
   info->current_cond= 0;
-  *is_shutdown= shutdown_in_progress;
+  pthread_mutex_unlock(&LOCK_thread_registry);
+  return rc;
+}
+
+
+int Thread_registry::cond_timedwait(Thread_info *info, pthread_cond_t *cond,
+                                    pthread_mutex_t *mutex,
+                                    struct timespec *wait_time)
+{
+  pthread_mutex_lock(&LOCK_thread_registry);
+  if (shutdown_in_progress)
+  {
+    pthread_mutex_unlock(&LOCK_thread_registry);
+    return 0;
+  }
+  info->current_cond= cond;
+  pthread_mutex_unlock(&LOCK_thread_registry);
+  /* sic: race condition here, cond can be signaled in deliver_shutdown */
+  int rc= pthread_cond_timedwait(cond, mutex, wait_time);
+  pthread_mutex_lock(&LOCK_thread_registry);
+  info->current_cond= 0;
   pthread_mutex_unlock(&LOCK_thread_registry);
   return rc;
 }

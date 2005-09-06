@@ -43,6 +43,7 @@ sinclude(config/ac-macros/ha_example.m4)
 sinclude(config/ac-macros/ha_federated.m4)
 sinclude(config/ac-macros/ha_innodb.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
+sinclude(config/ac-macros/ha_partition.m4)
 sinclude(config/ac-macros/ha_tina.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
@@ -1957,6 +1958,13 @@ AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 
+# Test whether madvise() is declared in C++ code -- it is not on some
+# systems, such as Solaris
+AC_CHECK_DECLS(madvise, [], [], [#if HAVE_SYS_MMAN_H
+#include <sys/types.h>
+#include <sys/mman.h>
+#endif])
+
 # Do not treat warnings as errors if we are linking against other libc
 # this is to work around gcc not being permissive on non-system includes
 # with respect to ANSI C++
@@ -2447,7 +2455,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="strings regex mysys sql/share libmysql client"
+sql_client_dirs="strings regex mysys libmysql client"
 linked_client_targets="linked_libmysql_sources"
 
 if test "$THREAD_SAFE_CLIENT" != "no"

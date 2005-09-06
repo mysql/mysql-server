@@ -36,7 +36,7 @@
 #define NO_PAGES_IN_MBYTE 32
 #define NO_MBYTE_IN_FILE 16
 
-#define COMMITTRANSACTIONRECORDSIZE 8
+#define COMMITTRANSACTIONRECORDSIZE 9
 #define COMPLETEDGCIRECORDSIZE 2
 #define PAGEHEADERSIZE 32
 #define FILEDESCRIPTORHEADERSIZE 3
@@ -89,7 +89,6 @@ protected:
   Uint32 m_recordType;
   Uint32 m_logRecordSize;
   Uint32 m_hashValue;
-  Uint32 m_schemaVersion;
   Uint32 m_operationType; // 0 READ, 1 UPDATE, 2 INSERT, 3 DELETE
   Uint32 m_attributeLength;
   Uint32 m_keyLength;
@@ -133,6 +132,8 @@ class PageHeader {
 public:
   bool check();
   Uint32 getLogRecordSize();
+  bool lastPage();
+  Uint32 lastWord();
 protected:
   Uint32 m_checksum;
   Uint32 m_lap;
@@ -190,6 +191,7 @@ public:
 protected:
   Uint32 m_recordType;
   Uint32 m_tableId;
+  Uint32 m_schemaVersion;
   Uint32 m_fragmentId;
   Uint32 m_fileNumberOfPrepareOperation;
   Uint32 m_startPageNumberOfPrepareOperation;

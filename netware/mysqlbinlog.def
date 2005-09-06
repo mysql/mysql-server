@@ -2,7 +2,7 @@
 # MySQL Binary Log
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-SCREENNAME "MySQL Binary Log Dump Tool"
+SCREENNAME "MySQL Binary Log Dump Tool[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Binary Log Dump Tool"
 VERSION 4, 0

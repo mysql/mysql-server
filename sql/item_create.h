@@ -65,6 +65,7 @@ Item *create_func_ltrim(Item* a);
 Item *create_func_md5(Item* a);
 Item *create_func_mod(Item* a, Item *b);
 Item *create_func_monthname(Item* a);
+Item *create_func_name_const(Item *a, Item *b);
 Item *create_func_nullif(Item* a, Item *b);
 Item *create_func_oct(Item *);
 Item *create_func_ord(Item* a);

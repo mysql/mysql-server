@@ -6048,6 +6048,7 @@ int QUICK_RANGE_SELECT::reset()
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
   next=0;
   range= NULL;
+  in_range= FALSE;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
   if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
@@ -7021,6 +7022,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   ha_rows cur_quick_prefix_records= 0;
   uint cur_param_idx;
   key_map cur_used_key_parts;
+  uint pk= param->table->s->primary_key;
 
   for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
        cur_index_info++, cur_index++)
@@ -7028,6 +7030,45 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     /* Check (B1) - if current index is covering. */
     if (!table->used_keys.is_set(cur_index))
       goto next_index;
+
+    /*
+      If the current storage manager is such that it appends the primary key to
+      each index, then the above condition is insufficient to check if the
+      index is covering. In such cases it may happen that some fields are
+      covered by the PK index, but not by the current index. Since we can't
+      use the concatenation of both indexes for index lookup, such an index
+      does not qualify as covering in our case. If this is the case, below
+      we check that all query fields are indeed covered by 'cur_index'.
+    */
+    if (pk < MAX_KEY && cur_index != pk &&
+        (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
+    {
+      /* For each table field */
+      for (uint i= 0; i < table->s->fields; i++)
+      {
+        Field *cur_field= table->field[i];
+        /*
+          If the field is used in the current query, check that the
+          field is covered by some keypart of the current index.
+        */
+        if (thd->query_id == cur_field->query_id)
+        {
+          bool is_covered= FALSE;
+          KEY_PART_INFO *key_part= cur_index_info->key_part;
+          KEY_PART_INFO *key_part_end= key_part + cur_index_info->key_parts;
+          for (; key_part != key_part_end ; key_part++)
+          {
+            if (key_part->field == cur_field)
+            {
+              is_covered= TRUE;
+              break;
+            }
+          }
+          if (!is_covered)
+            goto next_index;
+        }
+      }
+    }
 
     /*
       Check (GA1) for GROUP BY queries.
