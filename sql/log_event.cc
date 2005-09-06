@@ -1555,6 +1555,16 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query
 
   clear_all_errors(thd, rli);
 
+  /*
+    Note:   We do not need to execute reset_one_shot_variables() if this
+            db_ok() test fails.
+    Reason: The db stored in binlog events is the same for SET and for
+            its companion query.  If the SET is ignored because of
+            db_ok(), the companion query will also be ignored, and if
+            the companion query is ignored in the db_ok() test of
+            ::exec_event(), then the companion SET also have so we
+            don't need to reset_one_shot_variables().
+  */
   if (rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
@@ -2704,6 +2714,16 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     Create_file_log_event::exec_event() and then discarding Append_block and
     al. Another way is do the filtering in the I/O thread (more efficient: no
     disk writes at all).
+
+
+    Note:   We do not need to execute reset_one_shot_variables() if this
+            db_ok() test fails.
+    Reason: The db stored in binlog events is the same for SET and for
+            its companion query.  If the SET is ignored because of
+            db_ok(), the companion query will also be ignored, and if
+            the companion query is ignored in the db_ok() test of
+            ::exec_event(), then the companion SET also have so we
+            don't need to reset_one_shot_variables().
   */
   if (rpl_filter->db_ok(thd->db))
   {

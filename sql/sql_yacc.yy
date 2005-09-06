@@ -937,14 +937,9 @@ deallocate:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          if (lex->stmt_prepare_mode)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
-            YYABORT;
-          }
-          if (lex->sphead)
-          {
-            my_error(ER_SP_BADSTATEMENT, MYF(0), "DEALLOCATE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
@@ -962,14 +957,9 @@ prepare:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          if (lex->stmt_prepare_mode)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
-            YYABORT;
-          }
-          if (lex->sphead)
-          {
-            my_error(ER_SP_BADSTATEMENT, MYF(0), "PREPARE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_PREPARE;
@@ -997,14 +987,9 @@ execute:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          if (lex->stmt_prepare_mode)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
-            YYABORT;
-          }
-          if (lex->sphead)
-          {
-            my_error(ER_SP_BADSTATEMENT, MYF(0), "EXECUTE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_EXECUTE;
@@ -1340,11 +1325,8 @@ create:
               YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
             sp->restore_thd_mem_root(YYTHD);
 
-	    if (sp->m_multi_results)
-	    {
-	      my_error(ER_SP_NO_RETSET, MYF(0), "trigger");
-	      YYABORT;
-	    }
+            if (sp->is_not_allowed_in_function("trigger"))
+                YYABORT;
 
             /*
               We have to do it after parsing trigger body, because some of
@@ -1497,11 +1479,9 @@ create_function_tail:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
-	    if (sp->m_multi_results)
-	    {
-	      my_error(ER_SP_NO_RETSET, MYF(0), "function");
-	      YYABORT;
-	    }
+            if (sp->is_not_allowed_in_function("function"))
+              YYABORT;
+
 	    if (sp->check_backpatch(YYTHD))
 	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
@@ -1751,7 +1731,7 @@ sp_decl:
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	    sp->m_in_handler= TRUE;
+	    sp->m_flags|= sp_head::IN_HANDLER;
 	  }
 	  sp_hcond_list sp_proc_stmt
 	  {
@@ -1775,7 +1755,7 @@ sp_decl:
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
-	    sp->m_in_handler= FALSE;
+	    sp->m_flags&= ~sp_head::IN_HANDLER;
 	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
 	    ctx->add_handlers($6);
@@ -1987,12 +1967,7 @@ sp_proc_stmt:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
-	    if ((lex->sql_command == SQLCOM_SELECT && !lex->result) ||
-	        sp_multi_results_command(lex->sql_command))
-	    {
-	      /* We maybe have one or more SELECT without INTO */
-	      sp->m_multi_results= TRUE;
-	    }
+            sp->m_flags|= sp_get_flags_for_command(lex);
 	    if (lex->sql_command == SQLCOM_CHANGE_DB)
 	    { /* "USE db" doesn't work in a procedure */
 	      my_error(ER_SP_BADSTATEMENT, MYF(0), "USE");
@@ -2042,14 +2017,14 @@ sp_proc_stmt:
 	      i= new sp_instr_freturn(sp->instructions(), lex->spcont,
 		                      $3, sp->m_returns, lex);
 	      sp->add_instr(i);
-	      sp->m_has_return= TRUE;
+	      sp->m_flags|= sp_head::HAS_RETURN;
 	    }
 	    sp->restore_lex(YYTHD);
 	  }
 	| IF sp_if END IF {}
 	| CASE_SYM WHEN_SYM
 	  {
-	    Lex->sphead->m_simple_case= FALSE;
+	    Lex->sphead->m_flags&= ~sp_head::IN_SIMPLE_CASE;
 	  }
 	  sp_case END CASE_SYM {}
         | CASE_SYM
@@ -2069,7 +2044,7 @@ sp_proc_stmt:
 
 	    lex->spcont->push_pvar(&dummy, MYSQL_TYPE_STRING, sp_param_in);
 	    lex->sphead->add_instr(i);
-	    lex->sphead->m_simple_case= TRUE;
+	    lex->sphead->m_flags|= sp_head::IN_SIMPLE_CASE;
             lex->sphead->restore_lex(YYTHD);
 	  }
 	  sp_case END CASE_SYM
@@ -2383,7 +2358,7 @@ sp_case:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i;
 
-	    if (! sp->m_simple_case)
+	    if (! (sp->m_flags & sp_head::IN_SIMPLE_CASE))
 	      i= new sp_instr_jump_if_not(ip, ctx, $2, lex);
 	    else
 	    { /* Simple case: <caseval> = <whenval> */

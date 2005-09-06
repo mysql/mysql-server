@@ -41,6 +41,7 @@ void doExit();
 
 FILE * f= 0;
 char fileName[256];
+bool theDumpFlag = false;
 bool thePrintFlag = true;
 bool theCheckFlag = true;
 bool onlyPageHeaders = false;
@@ -208,7 +209,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 
 	case ZPREP_OP_TYPE:
 	  poRecord = (PrepareOperationRecord *) redoLogPagePos;
-	  wordIndex += poRecord->getLogRecordSize();
+	  wordIndex += poRecord->getLogRecordSize(PAGESIZE-wordIndex);
 	  if (wordIndex <= PAGESIZE) {
 	    if (thePrintFlag) ndbout << (*poRecord);
 	    if (theCheckFlag) {
@@ -277,10 +278,9 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	  ndbout << " ------ERROR: UNKNOWN RECORD TYPE------" << endl;
 
 	  // Print out remaining data in this page
-	  for (int j = wordIndex; j < PAGESIZE; j++){
-	    Uint32 unknown = redoLogPage[i*PAGESIZE + j];
-
-	    ndbout_c("%-30d%-12u%-12x", j, unknown, unknown);
+	  for (int k = wordIndex; k < PAGESIZE; k++){
+	    Uint32 unknown = redoLogPage[i*PAGESIZE + k];
+	    ndbout_c("%-30d%-12u%-12x", k, unknown, unknown);
 	  }
 	  
 	  doExit();
@@ -289,8 +289,19 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 
 
       if (lastPage)
+      {
+	if (theDumpFlag)
+	{
+	  ndbout << " ------PAGE END: DUMPING REST OF PAGE------" << endl;
+	  for (int k = wordIndex > PAGESIZE ? oldWordIndex : wordIndex;
+	       k < PAGESIZE; k++)
+	  {
+	    Uint32 word = redoLogPage[i*PAGESIZE + k];
+	    ndbout_c("%-30d%-12u%-12x", k, word, word);
+	  }
+	}
 	break;
-	
+      }
       if (wordIndex > PAGESIZE) {
 	words_from_previous_page = PAGESIZE - oldWordIndex;
 	ndbout << " ----------- Record continues on next page -----------" << endl;
@@ -353,6 +364,8 @@ void readArguments(int argc, const char** argv)
     {
       if (strcmp(argv[i], "-noprint") == 0) {
 	thePrintFlag = false;
+      } else if (strcmp(argv[i], "-dump") == 0) {
+	theDumpFlag = true;
       } else if (strcmp(argv[i], "-nocheck") == 0) {
 	theCheckFlag = false;
       } else if (strcmp(argv[i], "-mbyteheaders") == 0) {
