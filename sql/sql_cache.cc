@@ -1178,6 +1178,7 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
 #endif /*!EMBEDDED_LIBRARY*/
 
   thd->limit_found_rows = query->found_rows();
+  thd->status_var.last_query_cost= 0.0;
 
   BLOCK_UNLOCK_RD(query_block);
   DBUG_RETURN(1);				// Result sent to client
