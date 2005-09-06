@@ -820,6 +820,54 @@ longlong Item_func_interval::val_int()
   return i-1;
 }
 
+
+/*
+  Perform context analysis of a BETWEEN item tree
+
+  SYNOPSIS:
+    fix_fields()
+    thd     reference to the global context of the query thread
+    tables  list of all open tables involved in the query
+    ref     pointer to Item* variable where pointer to resulting "fixed"
+            item is to be assigned
+
+  DESCRIPTION
+    This function performs context analysis (name resolution) and calculates
+    various attributes of the item tree with Item_func_between as its root.
+    The function saves in ref the pointer to the item or to a newly created
+    item that is considered as a replacement for the original one.
+
+  NOTES
+    Let T0(e)/T1(e) be the value of not_null_tables(e) when e is used on
+    a predicate/function level. Then it's easy to show that:
+      T0(e BETWEEN e1 AND e2)     = union(T1(e),T1(e1),T1(e2))
+      T1(e BETWEEN e1 AND e2)     = union(T1(e),intersection(T1(e1),T1(e2)))
+      T0(e NOT BETWEEN e1 AND e2) = union(T1(e),intersection(T1(e1),T1(e2)))
+      T1(e NOT BETWEEN e1 AND e2) = union(T1(e),intersection(T1(e1),T1(e2)))
+
+  RETURN
+    0   ok
+    1   got error
+*/
+
+bool
+Item_func_between::fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
+{
+  if (Item_func_opt_neg::fix_fields(thd, tables, ref))
+    return 1;
+
+  /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
+  if (pred_level && !negated)
+    return 0;
+
+  /* not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2))) */
+  not_null_tables_cache= args[0]->not_null_tables() |
+    (args[1]->not_null_tables() & args[2]->not_null_tables());
+
+  return 0;
+}
+
+
 void Item_func_between::fix_length_and_dec()
 {
    max_length= 1;
@@ -871,8 +919,9 @@ longlong Item_func_between::val_int()
     a=args[1]->val_str(&value1);
     b=args[2]->val_str(&value2);
     if (!args[1]->null_value && !args[2]->null_value)
-      return (sortcmp(value,a,cmp_collation.collation) >= 0 && 
-	      sortcmp(value,b,cmp_collation.collation) <= 0) ? 1 : 0;
+      return (longlong) ((sortcmp(value,a,cmp_collation.collation) >= 0 &&
+                          sortcmp(value,b,cmp_collation.collation) <= 0) !=
+                         negated);
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
@@ -894,7 +943,7 @@ longlong Item_func_between::val_int()
     a=args[1]->val_int();
     b=args[2]->val_int();
     if (!args[1]->null_value && !args[2]->null_value)
-      return (value >= a && value <= b) ? 1 : 0;
+      return (longlong) ((value >= a && value <= b) != negated);
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
@@ -914,7 +963,7 @@ longlong Item_func_between::val_int()
     a=args[1]->val();
     b=args[2]->val();
     if (!args[1]->null_value && !args[2]->null_value)
-      return (value >= a && value <= b) ? 1 : 0;
+      return (longlong) ((value >= a && value <= b) != negated);
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
@@ -926,7 +975,7 @@ longlong Item_func_between::val_int()
       null_value= value >= a;
     }
   }
-  return 0;
+  return (longlong) (!null_value && negated);
 }
 
 
@@ -1016,6 +1065,49 @@ Item_func_ifnull::val_str(String *str)
     return 0;
   res->set_charset(collation.collation);
   return res;
+}
+
+
+/*
+  Perform context analysis of an IF item tree
+
+  SYNOPSIS:
+    fix_fields()
+    thd     reference to the global context of the query thread
+    tables  list of all open tables involved in the query
+    ref     pointer to Item* variable where pointer to resulting "fixed"
+            item is to be assigned
+
+  DESCRIPTION
+    This function performs context analysis (name resolution) and calculates
+    various attributes of the item tree with Item_func_if as its root.
+    The function saves in ref the pointer to the item or to a newly created
+    item that is considered as a replacement for the original one.
+
+  NOTES
+    Let T0(e)/T1(e) be the value of not_null_tables(e) when e is used on
+    a predicate/function level. Then it's easy to show that:
+      T0(IF(e,e1,e2)  = T1(IF(e,e1,e2))
+      T1(IF(e,e1,e2)) = intersection(T1(e1),T1(e2))
+
+  RETURN
+    0   ok
+    1   got error
+*/
+
+bool
+Item_func_if::fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
+{
+  DBUG_ASSERT(fixed == 0);
+  args[0]->top_level_item();
+
+  if (Item_func::fix_fields(thd, tlist, ref))
+    return 1;
+
+  not_null_tables_cache= (args[1]->not_null_tables()
+                        & args[2]->not_null_tables());
+
+  return 0;
 }
 
 
@@ -1750,6 +1842,56 @@ bool Item_func_in::nulls_in_row()
 }
 
 
+/*
+  Perform context analysis of an IN item tree
+
+  SYNOPSIS:
+    fix_fields()
+    thd     reference to the global context of the query thread
+    tables  list of all open tables involved in the query
+    ref     pointer to Item* variable where pointer to resulting "fixed"
+            item is to be assigned
+
+  DESCRIPTION
+    This function performs context analysis (name resolution) and calculates
+    various attributes of the item tree with Item_func_in as its root.
+    The function saves in ref the pointer to the item or to a newly created
+    item that is considered as a replacement for the original one.
+
+  NOTES
+    Let T0(e)/T1(e) be the value of not_null_tables(e) when e is used on
+    a predicate/function level. Then it's easy to show that:
+      T0(e IN(e1,...,en))     = union(T1(e),intersection(T1(ei)))
+      T1(e IN(e1,...,en))     = union(T1(e),intersection(T1(ei)))
+      T0(e NOT IN(e1,...,en)) = union(T1(e),union(T1(ei)))
+      T1(e NOT IN(e1,...,en)) = union(T1(e),intersection(T1(ei)))
+
+  RETURN
+    0   ok
+    1   got error
+*/
+
+bool
+Item_func_in::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+{
+  Item **arg, **arg_end;
+
+  if (Item_func_opt_neg::fix_fields(thd, tables, ref))
+    return 1;
+
+  /* not_null_tables_cache == union(T1(e),union(T1(ei))) */
+  if (pred_level && negated)
+    return 0;
+
+  /* not_null_tables_cache = union(T1(e),intersection(T1(ei))) */
+  not_null_tables_cache= ~(table_map) 0;
+  for (arg= args + 1, arg_end= args + arg_count; arg != arg_end; arg++)
+    not_null_tables_cache&= (*arg)->not_null_tables();
+  not_null_tables_cache|= (*args)->not_null_tables();
+  return 0;
+}
+
+
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
   return cs->coll->strnncollsp(cs,
@@ -1840,7 +1982,7 @@ longlong Item_func_in::val_int()
   {
     int tmp=array->find(args[0]);
     null_value=args[0]->null_value || (!tmp && have_null);
-    return tmp;
+    return (longlong) (!null_value && tmp != negated);
   }
   in_item->store_value(args[0]);
   if ((null_value=args[0]->null_value))
@@ -1849,11 +1991,11 @@ longlong Item_func_in::val_int()
   for (uint i=1 ; i < arg_count ; i++)
   {
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
-      return 1;					// Would maybe be nice with i ?
+      return (longlong) (!negated);
     have_null|= args[i]->null_value;
   }
   null_value= have_null;
-  return 0;
+  return (longlong) (!null_value && negated);
 }
 
 
