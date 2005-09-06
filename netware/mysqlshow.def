@@ -2,7 +2,7 @@
 # MySQL Show
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-SCREENNAME "MySQL Show"
+SCREENNAME "MySQL Show[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Show Tool"
 VERSION 4, 0

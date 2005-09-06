@@ -78,6 +78,7 @@ public:
   void position(const byte *record);
   void info(uint flag);
   int external_lock(THD *thd, int lock_type);
+  uint lock_count(void) const;
   int create(const char *name, TABLE *table_arg,
              HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd,

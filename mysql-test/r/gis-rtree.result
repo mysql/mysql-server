@@ -803,3 +803,16 @@ CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1, t2;
+CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`(32))) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 (geometry) VALUES
+(PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
+-66.8158332999, -18.7186111000 -66.8102777000, -18.7211111000 -66.9269443999,
+-18.6086111000 -66.9327777000))'));
+INSERT INTO t1 (geometry) VALUES
+(PolygonFromText('POLYGON((-65.7402776999 -96.6686111000, -65.7372222000
+-96.5516666000, -65.8502777000 -96.5461111000, -65.8527777000 -96.6627777000,
+-65.7402776999 -96.6686111000))'));
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

@@ -258,7 +258,7 @@ int ha_archive::write_data_header(gzFile file_to_write)
   data_buffer[1]= (uchar)ARCHIVE_VERSION;
 
   if (gzwrite(file_to_write, &data_buffer, DATA_BUFFER_SIZE) != 
-      sizeof(DATA_BUFFER_SIZE))
+      DATA_BUFFER_SIZE)
     goto error;
   DBUG_PRINT("ha_archive::write_data_header", ("Check %u", (uint)data_buffer[0]));
   DBUG_PRINT("ha_archive::write_data_header", ("Version %u", (uint)data_buffer[1]));
@@ -1026,6 +1026,17 @@ int ha_archive::end_bulk_insert()
   DBUG_ENTER("ha_archive::end_bulk_insert");
   bulk_insert= FALSE;
   share->dirty= TRUE;
+  DBUG_RETURN(0);
+}
+
+/*
+  We cancel a truncate command. The only way to delete an archive table is to drop it.
+  This is done for security reasons. In a later version we will enable this by 
+  allowing the user to select a different row format.
+*/
+int ha_archive::delete_all_rows()
+{
+  DBUG_ENTER("ha_archive::delete_all_rows");
   DBUG_RETURN(0);
 }
 #endif /* HAVE_ARCHIVE_DB */

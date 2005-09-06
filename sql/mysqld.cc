@@ -1331,7 +1331,7 @@ static void set_root(const char *path)
 #endif
 }
 
-static void server_init(void)
+static void network_init(void)
 {
   struct sockaddr_in	IPaddr;
 #ifdef HAVE_SYS_UN_H
@@ -1379,16 +1379,6 @@ static void server_init(void)
 		      socket_errno);
       unireg_abort(1);
     }
-  }
-
-  if ((user_info= check_user(mysqld_user)))
-  {
-#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
-    if (locked_in_memory) // getuid() == 0 here
-      set_effective_user(user_info);
-    else
-#endif
-      set_user(mysqld_user, user_info);
   }
 
 #ifdef __NT__
@@ -1814,6 +1804,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
     if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      event_flag= TRUE;
       nw_panic = TRUE;
       event_flag= TRUE;
       kill_server(0);
@@ -3217,7 +3208,17 @@ int main(int argc, char **argv)
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
-  server_init();
+
+  if ((user_info= check_user(mysqld_user)))
+  {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
+    if (locked_in_memory) // getuid() == 0 here
+      set_effective_user(user_info);
+    else
+#endif
+      set_user(mysqld_user, user_info);
+  }
+
 
   if (opt_bin_log && !server_id)
   {
@@ -3242,6 +3243,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   if (init_server_components())
     exit(1);
 
+  network_init();
+
 #ifdef __WIN__
   if (!opt_console)
   {
@@ -3263,7 +3266,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   */
   error_handler_hook= my_message_sql;
   start_signal_handler();				// Creates pidfile
-  if (acl_init((THD *)0, opt_noacl) || 
+  if (acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     abort_loop=1;
@@ -3280,7 +3283,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     exit(1);
   }
   if (!opt_noacl)
-    (void) grant_init((THD *)0);
+    (void) grant_init();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
@@ -5818,13 +5821,13 @@ struct show_var_st status_vars[]= {
   {"Com_savepoint",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SAVEPOINT]), SHOW_LONG_STATUS},
   {"Com_select",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SELECT]), SHOW_LONG_STATUS},
   {"Com_set_option",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SET_OPTION]), SHOW_LONG_STATUS},
-  {"Com_show_binlogs",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
   {"Com_show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
+  {"Com_show_binlogs",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
   {"Com_show_charsets",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
   {"Com_show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
   {"Com_show_column_types",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLUMN_TYPES]), SHOW_LONG_STATUS},
-  {"Com_show_create_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE]), SHOW_LONG_STATUS},
   {"Com_show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
+  {"Com_show_create_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE]), SHOW_LONG_STATUS},
   {"Com_show_databases",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_DATABASES]), SHOW_LONG_STATUS},
   {"Com_show_errors",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ERRORS]), SHOW_LONG_STATUS},
   {"Com_show_fields",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]), SHOW_LONG_STATUS},
@@ -5847,12 +5850,12 @@ struct show_var_st status_vars[]= {
   {"Com_show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
   {"Com_slave_start",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
   {"Com_slave_stop",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_STOP]), SHOW_LONG_STATUS},
-  {"Com_stmt_prepare",         (char*) offsetof(STATUS_VAR, com_stmt_prepare), SHOW_LONG_STATUS},
+  {"Com_stmt_close",           (char*) offsetof(STATUS_VAR, com_stmt_close), SHOW_LONG_STATUS},
   {"Com_stmt_execute",         (char*) offsetof(STATUS_VAR, com_stmt_execute), SHOW_LONG_STATUS},
   {"Com_stmt_fetch",           (char*) offsetof(STATUS_VAR, com_stmt_fetch), SHOW_LONG_STATUS},
-  {"Com_stmt_send_long_data",  (char*) offsetof(STATUS_VAR, com_stmt_send_long_data), SHOW_LONG_STATUS},
+  {"Com_stmt_prepare",         (char*) offsetof(STATUS_VAR, com_stmt_prepare), SHOW_LONG_STATUS},
   {"Com_stmt_reset",           (char*) offsetof(STATUS_VAR, com_stmt_reset), SHOW_LONG_STATUS},
-  {"Com_stmt_close",           (char*) offsetof(STATUS_VAR, com_stmt_close), SHOW_LONG_STATUS},
+  {"Com_stmt_send_long_data",  (char*) offsetof(STATUS_VAR, com_stmt_send_long_data), SHOW_LONG_STATUS},
   {"Com_truncate",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_TRUNCATE]), SHOW_LONG_STATUS},
   {"Com_unlock_tables",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNLOCK_TABLES]), SHOW_LONG_STATUS},
   {"Com_update",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE]), SHOW_LONG_STATUS},
@@ -5924,8 +5927,8 @@ struct show_var_st status_vars[]= {
   {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONG_STATUS},
   {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count), SHOW_LONG_STATUS},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
-  {"Slave_running",            (char*) 0,                       SHOW_SLAVE_RUNNING},
   {"Slave_retried_transactions",(char*) 0,                      SHOW_SLAVE_RETRIED_TRANS},
+  {"Slave_running",            (char*) 0,                       SHOW_SLAVE_RUNNING},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count), SHOW_LONG_STATUS},
   {"Sort_merge_passes",	       (char*) offsetof(STATUS_VAR, filesort_merge_passes), SHOW_LONG_STATUS},

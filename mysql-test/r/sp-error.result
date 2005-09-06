@@ -748,6 +748,14 @@ end|
 call bug11394(2, 1)|
 ERROR HY000: Recursive stored routines are not allowed.
 drop procedure bug11394|
+CREATE PROCEDURE BUG_12490() HELP CONTENTS;
+ERROR 0A000: HELP is not allowed in stored procedures
+CREATE FUNCTION BUG_12490() RETURNS INT HELP CONTENTS;
+ERROR 0A000: HELP is not allowed in stored procedures
+CREATE TABLE t_bug_12490(a int);
+CREATE TRIGGER BUG_12490 BEFORE UPDATE ON t_bug_12490 FOR EACH ROW HELP CONTENTS;
+ERROR 0A000: HELP is not allowed in stored procedures
+DROP TABLE t_bug_12490;
 drop function if exists bug11834_1;
 drop function if exists bug11834_2;
 create function bug11834_1() returns int return 10;

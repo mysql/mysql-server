@@ -2,7 +2,7 @@
 # MySQL Client
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-SCREENNAME "MySQL Check Tool"
+SCREENNAME "MySQL Check Tool[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Check Tool"
 VERSION 4, 0

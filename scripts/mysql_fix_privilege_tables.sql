@@ -508,7 +508,7 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
-                            ) DEFAULT '' NOT NULL
+                            ) DEFAULT '' NOT NULL,
                  DEFAULT CHARACTER SET utf8;
 
 # Correct the character set and collation

@@ -563,6 +563,21 @@ update t1 set c2='A  B' where c1=2;
 check table t1;
 drop table t1;
 
+
+#
+# Bug#12296 - CHECKSUM TABLE reports 0 for the table
+# This happened if the first record was marked as deleted.
+#
+create table t1 (c1 int);
+insert into t1 values (1),(2),(3),(4);
+checksum table t1;
+delete from t1 where c1 = 1;
+create table t2 as select * from t1;
+# The following returns 0 with the bug in place.
+checksum table t1;
+# The above should give the same number as the following.
+checksum table t2;
+drop table t1, t2;
 #
 # Test varchar
 #
@@ -674,5 +689,15 @@ alter table t1 enable keys;
 show keys from t1;
 
 drop table t1;
+
+#
+# Bug#10056 - PACK_KEYS option take values greater than 1 while creating table
+#
+create table t1 (c1 int) engine=myisam pack_keys=0;
+create table t2 (c1 int) engine=myisam pack_keys=1;
+create table t3 (c1 int) engine=myisam pack_keys=default;
+--error 1064
+create table t4 (c1 int) engine=myisam pack_keys=2;
+drop table t1, t2, t3;
 
 # End of 4.1 tests

@@ -5,7 +5,7 @@ source include/master-slave.inc;
 drop table if exists t1, t2;
 --enable_warnings
 create table t1 (a int);
---error 1051;
+--error 1051
 drop table t1, t2;
 save_master_pos;
 connection slave;

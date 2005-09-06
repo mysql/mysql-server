@@ -244,11 +244,26 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     }
     DBUG_PRINT("info",("STRING_RESULT: %*s",
                        s->length(), s->c_ptr_quick()));
-    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
-                            Item_string(thd->strmake(s->ptr(),
-                                                     s->length()), s->length(),
-                                        it->collation.collation),
+    CHARSET_INFO *itcs= it->collation.collation;
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_string(itcs),
                             use_callers_arena, &backup_current_arena);
+    /*
+      We have to use special constructor and allocate string
+      on system heap here. This is because usual Item_string
+      constructor would allocate memory in the callers arena.
+      This would lead to the memory leak in SP loops.
+      See Bug #11333 "Stored Procedure: Memory blow up on
+      repeated SELECT ... INTO query" for sample of such SP.
+      TODO: Usage of the system heap gives significant overhead,
+      however usual "reuse" mechanism does not work here, as
+      Item_string has no max size. That is, if we have a loop, which
+      has string variable with constantly increasing size, we would have
+      to allocate new pieces of memory again and again on each iteration.
+      In future we should probably reserve some area of memory for
+      not-very-large strings and reuse it. But for large strings
+      we would have to use system heap anyway.
+    */
+    ((Item_string*) it)->set_str_with_copy(s->ptr(), s->length());
     break;
   }
   case ROW_RESULT:
@@ -582,14 +597,162 @@ sp_head::make_field(uint max_length, const char *name, TABLE *dummy)
   field= ::make_field((char *)0,
 		!m_returns_len ? max_length : m_returns_len, 
 		(uchar *)"", 0, m_returns_pack, m_returns, m_returns_cs,
-		(enum Field::geometry_type)0, Field::NONE, 
+		m_geom_returns, Field::NONE, 
 		m_returns_typelib,
 		name ? name : (const char *)m_name.str, dummy);
   DBUG_RETURN(field);
 }
 
-int
-sp_head::execute(THD *thd)
+
+int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
+{
+  return (int)((*a)->pos_in_query - (*b)->pos_in_query);
+}
+
+
+/*
+  StoredRoutinesBinlogging
+  Top-down overview:
+
+  1. Statements
+
+  Statements that have is_update_query(stmt) == TRUE are written into the
+  binary log verbatim.
+  Examples:
+    UPDATE tbl SET tbl.x = spfunc_w_side_effects()
+    UPDATE tbl SET tbl.x=1 WHERE spfunc_w_side_effect_that_returns_false(tbl.y)
+
+  Statements that have is_update_query(stmt) == FALSE (e.g. SELECTs) are not
+  written into binary log. Instead we catch function calls the statement
+  makes and write it into binary log separately (see #3).
+  
+  We actually can easily write SELECT statements into the binary log in the 
+  right order (we don't have issues with const tables being unlocked early
+  because SELECTs that use FUNCTIONs unlock all tables at once) We don't do 
+  it because replication slave thread currently can't execute SELECT
+  statements. Fixing this is on the TODO.
+  
+  2. PROCEDURE calls
+
+  CALL statements are not written into binary log. Instead
+  * Any FUNCTION invocation (in SET, IF, WHILE, OPEN CURSOR and other SP
+    instructions) is written into binlog separately.
+
+  * Each statement executed in SP is binlogged separately, according to rules
+    in #1, with the exception that we modify query string: we replace uses
+    of SP local variables with NAME_CONST('spvar_name', <spvar-value>) calls.
+    This substitution is done in subst_spvars().
+
+  3. FUNCTION calls
+  
+  In sp_head::execute_function(), we check 
+   * If this function invocation is done from a statement that is written
+     into the binary log.
+   * If there were any attempts to write events to the binary log during
+     function execution.
+   If the answers are No and Yes, we write the function call into the binary
+   log as "DO spfunc(<param1value>, <param2value>, ...)"
+
+*/
+
+
+/*
+  Replace thd->query{_length} with a string that one can write to the binlog.
+ 
+  SYNOPSIS
+    subst_spvars()
+      thd        Current thread. 
+      instr      Instruction (we look for Item_splocal instances in
+                 instr->free_list)
+      query_str  Original query string
+     
+  DESCRIPTION
+
+  The binlog-suitable string is produced by replacing references to SP local 
+  variables with NAME_CONST('sp_var_name', value) calls.
+ 
+  RETURN
+    0  Ok, thd->query{_length} either has been appropriately replaced or
+       there is no need for replacements.
+    1  Out of memory error.
+*/
+
+static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
+{
+  DBUG_ENTER("subst_spvars");
+  if (thd->prelocked_mode == NON_PRELOCKED && mysql_bin_log.is_open())
+  {
+    Dynamic_array<Item_splocal*> sp_vars_uses;
+    char *pbuf, *cur, buffer[512];
+    String qbuf(buffer, sizeof(buffer), &my_charset_bin);
+    int prev_pos, res;
+
+    /* Find all instances of item_splocal used in this statement */
+    for (Item *item= instr->free_list; item; item= item->next)
+    {
+      if (item->is_splocal())
+      {
+        Item_splocal *item_spl= (Item_splocal*)item;
+        if (item_spl->pos_in_query)
+          sp_vars_uses.append(item_spl);
+      }
+    }
+    if (!sp_vars_uses.elements())
+      DBUG_RETURN(0);
+      
+    /* Sort SP var refs by their occurences in the query */
+    sp_vars_uses.sort(cmp_splocal_locations);
+
+    /* 
+      Construct a statement string where SP local var refs are replaced
+      with "NAME_CONST(name, value)"
+    */
+    qbuf.length(0);
+    cur= query_str->str;
+    prev_pos= res= 0;
+    for (Item_splocal **splocal= sp_vars_uses.front(); 
+         splocal < sp_vars_uses.back(); splocal++)
+    {
+      Item *val;
+      /* append the text between sp ref occurences */
+      res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
+      prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
+      
+      /* append the spvar substitute */
+      res|= qbuf.append(" NAME_CONST('");
+      res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
+      res|= qbuf.append("',");
+      val= (*splocal)->this_item();
+      DBUG_PRINT("info", ("print %p", val));
+      val->print(&qbuf);
+      res|= qbuf.append(')');
+      if (res)
+        break;
+    }
+    res|= qbuf.append(cur + prev_pos, query_str->length - prev_pos);
+    if (res)
+      DBUG_RETURN(1);
+
+    if (!(pbuf= thd->strmake(qbuf.ptr(), qbuf.length())))
+      DBUG_RETURN(1);
+
+    thd->query= pbuf;
+    thd->query_length= qbuf.length();
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Execute the routine. The main instruction jump loop is there 
+  Assume the parameters already set.
+  
+  RETURN
+    -1  on error
+
+*/
+
+int sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
   char olddb[128];
@@ -797,9 +960,31 @@ sp_head::execute(THD *thd)
 }
 
 
+/*
+  Execute a function:
+   - evaluate parameters
+   - call sp_head::execute
+   - evaluate the return value
+
+  SYNOPSIS
+    sp_head::execute_function()
+      thd        Thread handle
+      argp       Passed arguments (these are items from containing statement?)
+      argcount   Number of passed arguments. We need to check if this is
+                 correct.
+      resp   OUT Put result item here (q: is it a constant Item always?) 
+   
+  RETURN
+    0      on OK
+    other  on error
+*/
+
 int
 sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 {
+  Item **param_values;
+  ulonglong binlog_save_options;
+  bool need_binlog_call;
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
   uint csize = m_pcont->max_pvars();
@@ -823,6 +1008,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     goto end;
   }
 
+  if (!(param_values= (Item**)thd->alloc(sizeof(Item*)*argcount)))
+    DBUG_RETURN(-1);
 
   // QQ Should have some error checking here? (types, etc...)
   if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
@@ -831,6 +1018,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
     Item *it= sp_eval_func_item(thd, argp++, pvar->type, NULL, FALSE);
+    param_values[i]= it;
 
     if (!it)
       goto end;                                 // EOM error
@@ -855,7 +1043,44 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   }
   thd->spcont= nctx;
 
+  binlog_save_options= thd->options;
+  need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+  if (need_binlog_call)
+    mysql_bin_log.start_union_events(thd);
+    
+  thd->options&= ~OPTION_BIN_LOG;
   ret= execute(thd);
+  thd->options= binlog_save_options;
+  
+  if (need_binlog_call)
+    mysql_bin_log.stop_union_events(thd);
+
+  if (need_binlog_call && thd->binlog_evt_union.unioned_events)
+  {
+    char buf[256];
+    String bufstr(buf, sizeof(buf), &my_charset_bin);
+    bufstr.length(0);
+    bufstr.append("DO ", 3);
+    append_identifier(thd, &bufstr, m_name.str, m_name.length);
+    bufstr.append('(');
+    for (uint i=0; i < argcount; i++)
+    {
+      if (i)
+        bufstr.append(',');
+      param_values[i]->print(&bufstr);
+    }
+    bufstr.append(')');
+    
+    Query_log_event qinfo(thd, bufstr.ptr(), bufstr.length(),
+                          thd->binlog_evt_union.unioned_events_trans, FALSE);
+    if (mysql_bin_log.write(&qinfo) && 
+        thd->binlog_evt_union.unioned_events_trans)
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   "Invoked ROUTINE modified a transactional table but MySQL "
+                   "failed to reflect this change in the binary log");
+    }
+  }
 
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
   {
@@ -893,6 +1118,25 @@ static Item_func_get_user_var *item_is_user_var(Item *it)
 }
 
 
+/*
+  Execute a procedure. 
+  SYNOPSIS
+    sp_head::execute_procedure()
+      thd    Thread handle
+      args   List of values passed as arguments.
+      
+  DESCRIPTION
+
+  The function does the following steps:
+   - Set all parameters 
+   - call sp_head::execute
+   - copy back values of INOUT and OUT parameters
+
+  RETURN
+    0   Ok
+    -1  Error
+*/
+
 int sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   int ret= 0;
@@ -928,7 +1172,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont= save_spcont;
     DBUG_RETURN(-1);
   }
-
+  
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
     Item_null *nit= NULL;	// Re-use this, and only create if needed
@@ -1105,7 +1349,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
   delete nctx;                                  // Does nothing
   thd->spcont= save_spcont;
-
+  
   DBUG_RETURN(ret);
 }
 
@@ -1447,8 +1691,12 @@ sp_head::show_create_function(THD *thd)
   DBUG_RETURN(res);
 }
 
-void
-sp_head::optimize()
+
+/*
+  TODO: what does this do??
+*/
+
+void sp_head::optimize()
 {
   List<sp_instr> bp;
   sp_instr *i;
@@ -1636,7 +1884,6 @@ int sp_instr::exec_core(THD *thd, uint *nextp)
   return 0;
 }
 
-
 /*
   sp_instr_stmt class functions
 */
@@ -1646,14 +1893,19 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   char *query;
   uint32 query_length;
+  int res;
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
-  int res;
 
   query= thd->query;
   query_length= thd->query_length;
-  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)))
+  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)) &&
+      !(res=subst_spvars(thd, this, &m_query)))
   {
+    /*
+      (the order of query cache and subst_spvars calls is irrelevant because
+      queries with SP vars can't be cached)
+    */
     if (query_cache_send_result_to_client(thd,
 					  thd->query, thd->query_length) <= 0)
     {

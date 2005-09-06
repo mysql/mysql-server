@@ -230,7 +230,10 @@ bool mysql_create_view(THD *thd,
        (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
                      0, 0) ||
         grant_option && check_grant(thd, DROP_ACL, view, 0, 1, 0))))
-    DBUG_RETURN(TRUE);
+  {
+    res= TRUE;
+    goto err;
+  }
   for (sl= select_lex; sl; sl= sl->next_select())
   {
     for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
@@ -243,7 +246,8 @@ bool mysql_create_view(THD *thd,
       {
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                  "ANY", thd->priv_user, thd->host_or_ip, tbl->table_name);
-        DBUG_RETURN(TRUE);
+        res= TRUE;
+        goto err;
       }
       /*
         Mark this table as a table which will be checked after the prepare
@@ -302,7 +306,10 @@ bool mysql_create_view(THD *thd,
 #endif
 
   if (open_and_lock_tables(thd, tables))
-    DBUG_RETURN(TRUE);
+  {
+    res= TRUE;
+    goto err;
+  }
 
   /*
     check that tables are not temporary  and this VIEW do not used in query
@@ -372,7 +379,10 @@ bool mysql_create_view(THD *thd,
   }
 
   if (check_duplicate_names(select_lex->item_list, 1))
-    DBUG_RETURN(TRUE);
+  {
+    res= TRUE;
+    goto err;
+  }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
@@ -402,7 +412,8 @@ bool mysql_create_view(THD *thd,
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
                    "create view", thd->priv_user, thd->host_or_ip, item->name,
                    view->table_name);
-          DBUG_RETURN(TRUE);
+          res= TRUE;
+          goto err;
         }
       }
     }

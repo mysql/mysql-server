@@ -652,3 +652,9 @@ show tables;
 Tables_in_test
 t1
 drop table t1;
+create table t1 (a int, c varchar(10),
+primary key using hash (a), index(c)) engine=ndb;
+insert into t1 (a, c) values (1,'aaa'),(3,'bbb');
+select count(*) from t1 where c<'bbb';
+count(*)
+1

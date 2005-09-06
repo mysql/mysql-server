@@ -49,12 +49,12 @@ public:
   Instance_options options;
 
 private:
+  int crashed;
   /*
     Mutex protecting the instance. Currently we use it to avoid the
     double start of the instance. This happens when the instance is starting
     and we issue the start command once more.
   */
-  int crashed;
   pthread_mutex_t LOCK_instance;
   /*
     This condition variable is used to wake threads waiting for instance to

@@ -523,6 +523,10 @@ alter table t1 drop key no_such_key;
 ERROR 42000: Can't DROP 'no_such_key'; check that column/key exists
 alter table t1 drop key a;
 drop table t1;
+CREATE TABLE T12207(a int) ENGINE=MYISAM;
+ALTER TABLE T12207 DISCARD TABLESPACE;
+ERROR HY000: Table storage engine for 'T12207' doesn't have this option
+DROP TABLE T12207;
 create table t1 (a text) character set koi8r;
 insert into t1 values (_koi8r'тест');
 select hex(a) from t1;
@@ -536,6 +540,21 @@ drop table t1;
 create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
+drop table t1;
+create database mysqltest1;
+create table t1 (c1 int);
+alter table t1 rename mysqltest1.t1;
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+alter table mysqltest1.t1 rename t1;
+drop table t1;
+create table t1 (c1 int);
+use mysqltest1;
+drop database mysqltest1;
+alter table test.t1 rename t1;
+ERROR 3D000: No database selected
+alter table test.t1 rename test.t1;
+use test;
 drop table t1;
 create table t1 (v varchar(32));
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
@@ -591,3 +610,4 @@ alter table t1 add unique key (i, v);
 select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 i	v
 4	3r4f
+drop table t1;

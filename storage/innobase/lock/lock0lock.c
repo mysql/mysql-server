@@ -47,6 +47,10 @@ innobase_mysql_end_print_arbitrary_thd(void);
 graph of transactions */
 #define LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK 1000000
 
+/* Restricts the recursion depth of the search we will do in the waits-for
+graph of transactions */
+#define LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK 200
+
 /* When releasing transaction locks, this specifies how often we release
 the kernel mutex for a moment to give also others access to it */
 
@@ -389,9 +393,12 @@ lock_deadlock_recursive(
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
 	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
-	ulint*	cost);		/* in/out: number of calculation steps thus
+	ulint*	cost,		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
-				we return TRUE */
+				we return LOCK_VICTIM_IS_START */
+	uint depth);            /* in: recursion depth: if this exceeds
+				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
+				return LOCK_VICTIM_IS_START */
 
 /*************************************************************************
 Gets the type of a lock. */
@@ -3180,7 +3187,7 @@ retry:
 		mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx);
 	}
 
-	ret = lock_deadlock_recursive(trx, trx, lock, &cost);
+	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0);
 
 	if (ret == LOCK_VICTIM_IS_OTHER) {
 		/* We chose some other trx as a victim: retry if there still
@@ -3226,9 +3233,12 @@ lock_deadlock_recursive(
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
 	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
-	ulint*	cost)		/* in/out: number of calculation steps thus
+	ulint*	cost,		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_IS_START */
+	uint depth)		/* in: recursion depth: if this exceeds
+				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
+				return LOCK_VICTIM_IS_START */
 {
 	lock_t*	lock;
 	ulint	bit_no		= ULINT_UNDEFINED;
@@ -3249,7 +3259,8 @@ lock_deadlock_recursive(
 
 	*cost = *cost + 1;
 
-	if (*cost > LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK) {
+	if ((depth > LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK)
+		|| (*cost > LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK)) {
 
 		return(LOCK_VICTIM_IS_START);
 	}
@@ -3375,7 +3386,7 @@ lock_deadlock_recursive(
 				a lock */
 
 				ret = lock_deadlock_recursive(start, lock_trx,
-						lock_trx->wait_lock, cost);
+					lock_trx->wait_lock, cost, depth + 1);
 				if (ret != 0) {
 
 					return(ret);

@@ -287,7 +287,7 @@ lpad('STRING', 20, CONCAT('p','a','d') )
 padpadpadpadpaSTRING
 select LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD'),GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD');
 LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')	GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')
-HAROLD	HARRY
+NULL	NULL
 select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least(3,2,1)*1.0,greatest(1,1.1,1.0),least("10",9),greatest("A","B","0");
 least(1,2,3) | greatest(16,32,8)	least(5,4)*1	greatest(-1.0,1.0)*1	least(3,2,1)*1.0	greatest(1,1.1,1.0)	least("10",9)	greatest("A","B","0")
 33	4	1.0	1.0	1.1	9	B

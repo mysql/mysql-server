@@ -177,7 +177,7 @@ sub mtr_report_stats ($) {
       "%.2f\% were successful.\n\n", $ratio;
     print
       "The log files in var/log may give you some hint\n",
-      "of what when wrong.\n",
+      "of what went wrong.\n",
       "If you want to report this error, please read first ",
       "the documentation at\n",
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
@@ -223,7 +223,8 @@ sub mtr_report_stats ($) {
 
   if ( $tot_failed != 0 )
   {
-    print "mysql-test-run: *** Failing the test(s):";
+    my $test_mode= join(" ", @::glob_test_mode) || "default";
+    print "mysql-test-run in $test_mode mode: *** Failing the test(s):";
 
     foreach my $tinfo (@$tests)
     {

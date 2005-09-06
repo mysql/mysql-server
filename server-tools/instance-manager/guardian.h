@@ -62,8 +62,8 @@ class Guardian_thread: public Guardian_thread_args
 {
 public:
   /* states of an instance */
-  enum INSTANCE_STATE { NOT_STARTED= 1, STARTING, STARTED, JUST_CRASHED,
-                        CRASHED, CRASHED_AND_ABANDONED, STOPPING };
+  enum enum_instance_state { NOT_STARTED= 1, STARTING, STARTED, JUST_CRASHED,
+                             CRASHED, CRASHED_AND_ABANDONED, STOPPING };
 
   /*
     The Guardian list node structure. Guardian utilizes it to store
@@ -74,7 +74,7 @@ public:
   {
     Instance *instance;
     /* state of an instance (i.e. STARTED, CRASHED, etc.) */
-    INSTANCE_STATE state;
+    enum_instance_state state;
     /* the amount of attemts to restart instance (cleaned up at success) */
     int restart_counter;
     /* triggered at a crash */

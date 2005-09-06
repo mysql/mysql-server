@@ -1703,6 +1703,22 @@ a_id	b_list
 3	NULL
 DROP TABLE t2;
 DROP TABLE t1;
+create temporary table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+a
+42
+drop table t1;
+create table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+a
+42
+drop table t1;
 create table t1 (x bigint unsigned not null primary key) engine=innodb;
 insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
 select * from t1;
@@ -1749,7 +1765,7 @@ Variable_name	Value
 Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31718
+Innodb_rows_inserted	31722
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
@@ -2488,3 +2504,26 @@ delete t1 from t1,t2 where f1=f3 and f4='cc';
 select * from t1;
 f1	f2
 drop table t1,t2;
+CREATE TABLE t1 (
+id INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+id INTEGER NOT NULL,
+FOREIGN KEY (id) REFERENCES t1 (id)
+) ENGINE=InnoDB;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+id
+1
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+id
+1
+DELETE FROM t1;
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+id
+1
+DROP TABLE t2, t1;

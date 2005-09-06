@@ -383,3 +383,15 @@ create trigger t1_bu before update on t1 for each row set new.s1 = null;
 --error 1048
 insert into t1 values (null,null);
 drop table t1;
+
+#
+# Bug #10499 (function creation with GEOMETRY datatype)
+#
+--disable_warnings
+drop procedure if exists fn3;
+--enable_warnings
+create function fn3 () returns point return GeomFromText("point(1 1)"); 
+show create function fn3;
+select astext(fn3());
+drop function fn3;
+
