@@ -1213,7 +1213,7 @@ end|
 select f5(1)|
 # This should generate an error about insuficient number of tables locked
 # Now this crash server
---disable_parsing until bug#11394 fix
+--disable_parsing # until bug#11394 fix
 --error 1100
 select f5(2)|
 # But now it simply miserably fails because we are trying to use the same
@@ -2469,7 +2469,7 @@ drop table t3|
 # BUG#4318
 #
 
---disable_parsing Don't know if HANDLER commands can work with SPs, or at all..
+--disable_parsing # Don't know if HANDLER commands can work with SPs, or at all..
 create table t3 (s1 int)|
 insert into t3 values (3), (4)|
 
@@ -2836,7 +2836,7 @@ drop table t3|
 # BUG#6022: Stored procedure shutdown problem with self-calling function.
 #
 
---disable_parsing until we implement support for recursive stored functions.
+--disable_parsing # until we implement support for recursive stored functions.
 --disable_warnings
 drop function if exists bug6022|
 --enable_warnings
@@ -3762,7 +3762,7 @@ drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
---disable_parsing temporarily disabled until Bar fixes BUG#11986
+--disable_parsing # temporarily disabled until Bar fixes BUG#11986
 create procedure bug6063()
   lâbel: begin end|
 call bug6063()|
@@ -3995,6 +3995,53 @@ select * from t4|
 truncate t4|
 drop table t3, t4|
 drop procedure if exists bug12168|
+
+#
+# Bug #11333 "Stored Procedure: Memory blow up on repeated SELECT ... INTO
+# query"
+# One more memleak bug. Use the test to check memory consumption.
+#
+
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug11333|
+--enable_warnings
+
+create table t3 (c1 char(128))|
+
+insert into t3 values 
+  ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')|
+
+
+create procedure bug11333(i int)
+begin
+    declare tmp varchar(128);
+    set @x = 0;
+    repeat
+        select c1 into tmp from t3
+          where c1 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+        set @x = @x + 1;
+        until @x >= i
+    end repeat;
+end|
+
+call bug11333(10)|
+
+drop procedure bug11333|
+drop table t3|
+
+#
+# BUG#9048: Creating a function with char binary IN parameter fails
+#
+--disable_warnings
+drop function if exists bug9048|
+--enable_warnings
+create function bug9048(f1 char binary) returns char binary
+begin
+  set f1= concat( 'hello', f1 );
+  return f1;
+end|
+drop function bug9048|
 
 #
 # BUG#NNNN: New bug synopsis

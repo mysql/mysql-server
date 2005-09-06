@@ -41,6 +41,16 @@ typedef struct
   uint foffset;			// Frame offset for the handlers declare level
 } sp_handler_t;
 
+
+/*
+  This is a run context? of one SP ?
+  THis is 
+   - a stack of cursors? 
+   - a stack of handlers?
+   - a stack of Items ?
+   - a stack of instruction locations in SP?
+*/
+
 class sp_rcontext : public Sql_alloc
 {
   sp_rcontext(const sp_rcontext &); /* Prevent use of these */

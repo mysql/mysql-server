@@ -2097,6 +2097,14 @@ select * from v1;
 f1
 1
 drop view v1;
+create table t1(a int);
+create procedure p1() create view v1 as select * from t1;
+drop table t1;
+call p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop procedure p1;
 create table t1 (f1 int);
 create table t2 (f1 int);
 insert into t1 values (1);
@@ -2127,3 +2135,9 @@ DESCRIBE v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
 DROP TABLE t1;
 DROP VIEW v1;
+create table t1 (f1 char);
+create view v1 as select strcmp(f1,'a') from t1;
+select * from v1;
+strcmp(f1,'a')
+drop view v1;
+drop table t1;

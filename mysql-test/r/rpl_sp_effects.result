@@ -1,0 +1,158 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
+drop table if exists t1,t2;
+drop view if exists v1;
+create table t1 (a int);
+create procedure p1()
+begin
+declare spv int default 0;
+while spv < 5 do
+insert into t1 values(spv+1);
+set spv=spv+1;
+end while;
+end//
+call p1();
+select * from t1;
+a
+1
+2
+3
+4
+5
+delete from t1;
+create procedure p2()
+begin
+declare a int default 4;
+create table t2 as select a;
+end//
+call p2();
+select * from t2;
+a
+4
+select * from t2;
+a
+4
+drop procedure p1;
+drop procedure p2;
+drop table t2;
+create function f1(x int) returns int
+begin
+insert into t1 values(x);
+return x+1;
+end//
+create procedure p1(a int, b int)
+begin
+declare v int default f1(5);
+if (f1(6)) then
+select 'yes';
+end if;
+set v = f1(7);
+while f1(8) < 1 do 
+select 'this cant be';
+end while;
+end//
+call p1(f1(1), f1(2));
+yes
+yes
+select * from t1;
+a
+1
+2
+5
+6
+7
+8
+create table t2(a int);
+insert into t2 values (10),(11);
+select a,f1(a) from t2;
+a	f1(a)
+10	11
+11	12
+insert into t2 select f1(3);
+select 'master:',a from t1;
+master:	a
+master:	1
+master:	2
+master:	5
+master:	6
+master:	7
+master:	8
+master:	10
+master:	11
+master:	3
+select 'slave:',a from t1;
+slave:	a
+slave:	1
+slave:	2
+slave:	5
+slave:	6
+slave:	7
+slave:	8
+slave:	10
+slave:	11
+slave:	3
+drop procedure p1;
+delete from t1;
+delete from t2;
+delete from t1;
+insert into t2 values(1),(2);
+create view v1 as select f1(a) from t2;
+select * from v1;
+f1(a)
+2
+3
+select 'master:',a from t1;
+master:	a
+master:	1
+master:	2
+select 'slave:',a from t1;
+slave:	a
+slave:	1
+slave:	2
+drop view v1;
+delete from t1;
+prepare s1 from 'select f1(?)';
+set @xx=123;
+execute s1 using @xx;
+f1(?)
+124
+select 'master:',a from t1;
+master:	a
+master:	123
+select 'slave:',a from t1;
+slave:	a
+slave:	123
+delete from t1;
+create procedure p1(spv int)
+begin
+declare c cursor for select f1(spv) from t2;
+while (spv > 2) do
+open c;
+fetch c into spv;
+close c;
+set spv= spv - 10;
+end while;
+end//
+call p1(15);
+select 'master:',a from t1;
+master:	a
+master:	15
+master:	15
+master:	6
+master:	6
+select 'slave:',a from t1;
+slave:	a
+slave:	15
+slave:	15
+slave:	6
+slave:	6
+drop procedure p1;
+drop function f1;
+drop table t1,t2;

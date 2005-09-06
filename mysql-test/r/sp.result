@@ -788,7 +788,7 @@ comment 'Characteristics procedure test'
   insert into t1 values ("chistics", 1)|
 show create procedure chistics|
 Procedure	sql_mode	Create Procedure
-chistics		CREATE PROCEDURE `test`.`chistics`()
+chistics		CREATE PROCEDURE `chistics`()
     MODIFIES SQL DATA
     COMMENT 'Characteristics procedure test'
 insert into t1 values ("chistics", 1)
@@ -800,7 +800,7 @@ delete from t1|
 alter procedure chistics sql security invoker|
 show create procedure chistics|
 Procedure	sql_mode	Create Procedure
-chistics		CREATE PROCEDURE `test`.`chistics`()
+chistics		CREATE PROCEDURE `chistics`()
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
@@ -815,7 +815,7 @@ comment 'Characteristics procedure test'
   return 42|
 show create function chistics|
 Function	sql_mode	Create Function
-chistics		CREATE FUNCTION `test`.`chistics`() RETURNS int(11)
+chistics		CREATE FUNCTION `chistics`() RETURNS int(11)
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
@@ -828,7 +828,7 @@ no sql
 comment 'Characteristics function test'|
 show create function chistics|
 Function	sql_mode	Create Function
-chistics		CREATE FUNCTION `test`.`chistics`() RETURNS int(11)
+chistics		CREATE FUNCTION `chistics`() RETURNS int(11)
     NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
@@ -1210,7 +1210,7 @@ end while;
 end|
 show create procedure opp|
 Procedure	sql_mode	Create Procedure
-opp		CREATE PROCEDURE `test`.`opp`(n bigint unsigned, out pp bool)
+opp		CREATE PROCEDURE `opp`(n bigint unsigned, out pp bool)
 begin
 declare r double;
 declare b, s bigint unsigned default 0;
@@ -1263,7 +1263,7 @@ alter procedure bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
 Procedure	sql_mode	Create Procedure
-bar		CREATE PROCEDURE `test`.`bar`(x char(16), y int)
+bar		CREATE PROCEDURE `bar`(x char(16), y int)
     COMMENT '3333333333'
 insert into test.t1 values (x, y)
 show procedure status like 'bar'|
@@ -1821,20 +1821,20 @@ return x || y$
 set @@sql_mode = ''|
 show create procedure bug2564_1|
 Procedure	sql_mode	Create Procedure
-bug2564_1		CREATE PROCEDURE `test`.`bug2564_1`()
+bug2564_1		CREATE PROCEDURE `bug2564_1`()
     COMMENT 'Joe''s procedure'
 insert into `t1` values ("foo", 1)
 show create procedure bug2564_2|
 Procedure	sql_mode	Create Procedure
-bug2564_2	ANSI_QUOTES	CREATE PROCEDURE "test"."bug2564_2"()
+bug2564_2	ANSI_QUOTES	CREATE PROCEDURE "bug2564_2"()
 insert into "t1" values ('foo', 1)
 show create function bug2564_3|
 Function	sql_mode	Create Function
-bug2564_3		CREATE FUNCTION `test`.`bug2564_3`(x int, y int) RETURNS int(11)
+bug2564_3		CREATE FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
 return x || y
 show create function bug2564_4|
 Function	sql_mode	Create Function
-bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE FUNCTION "test"."bug2564_4"(x int, y int) RETURNS int(11)
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
 return x || y
 drop procedure bug2564_1|
 drop procedure bug2564_2|
@@ -3167,4 +3167,30 @@ a
 truncate t4|
 drop table t3, t4|
 drop procedure if exists bug12168|
+drop table if exists t3|
+drop procedure if exists bug11333|
+create table t3 (c1 char(128))|
+insert into t3 values 
+('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')|
+create procedure bug11333(i int)
+begin
+declare tmp varchar(128);
+set @x = 0;
+repeat
+select c1 into tmp from t3
+where c1 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+set @x = @x + 1;
+until @x >= i
+end repeat;
+end|
+call bug11333(10)|
+drop procedure bug11333|
+drop table t3|
+drop function if exists bug9048|
+create function bug9048(f1 char binary) returns char binary
+begin
+set f1= concat( 'hello', f1 );
+return f1;
+end|
+drop function bug9048|
 drop table t1,t2;

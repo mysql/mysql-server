@@ -471,13 +471,11 @@ private:
   void execSCHEMA_INFOCONF(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
   void execFSCLOSECONF(Signal* signal);
-  void execFSCLOSEREF(Signal* signal);
   void execFSOPENCONF(Signal* signal);
   void execFSOPENREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
   void execFSWRITECONF(Signal* signal);
-  void execFSWRITEREF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);

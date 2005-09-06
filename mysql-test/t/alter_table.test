@@ -338,6 +338,14 @@ alter table t1 drop key a;
 drop table t1;
 
 #
+# BUG 12207 alter table ... discard table space on MyISAM table causes ERROR 2013 (HY000)
+#
+CREATE TABLE T12207(a int) ENGINE=MYISAM;
+--error 1031
+ALTER TABLE T12207 DISCARD TABLESPACE;
+DROP TABLE T12207;
+
+#
 # Bug #6479  ALTER TABLE ... changing charset fails for TEXT columns
 #
 # The column's character set was changed but the actual data was not
@@ -359,6 +367,37 @@ drop table t1;
 create table t1 ( a timestamp );
 --error 1089
 alter table t1 add unique ( a(1) );
+drop table t1;
+
+#
+# Bug#11493 - Alter table rename to default database does not work without
+#             db name qualifying
+#
+create database mysqltest1;
+create table t1 (c1 int);
+# Move table to other database.
+alter table t1 rename mysqltest1.t1;
+# Assure that it has moved.
+--error 1051
+drop table t1;
+# Move table back.
+alter table mysqltest1.t1 rename t1;
+# Assure that it is back.
+drop table t1;
+# Now test for correct message if no database is selected.
+# Create t1 in 'test'.
+create table t1 (c1 int);
+# Change to other db.
+use mysqltest1;
+# Drop the current db. This de-selects any db.
+drop database mysqltest1;
+# Now test for correct message.
+--error 1046
+alter table test.t1 rename t1;
+# Check that explicit qualifying works even with no selected db.
+alter table test.t1 rename test.t1;
+# Go back to standard 'test' db.
+use test;
 drop table t1;
 
 # End of 4.1 tests
@@ -389,3 +428,4 @@ alter table t1 change i i bigint;
 select * from t1;
 alter table t1 add unique key (i, v);
 select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
+drop table t1;

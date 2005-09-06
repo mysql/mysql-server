@@ -87,7 +87,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
-				PreprocessorDefinitions="NDEBUG;DBUG_OFF;USE_SYMDIR;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
+				PreprocessorDefinitions="NDEBUG;DBUG_OFF;USE_SYMDIR;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -148,7 +148,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
-				PreprocessorDefinitions="NDEBUG;__NT__;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
+				PreprocessorDefinitions="NDEBUG;__NT__;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -212,7 +212,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include,../regex,../zlib,../extra/yassl/include"
-				PreprocessorDefinitions="__NT__;DBUG_OFF;NDEBUG;HAVE_INNOBASE_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
+				PreprocessorDefinitions="__NT__;DBUG_OFF;NDEBUG;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -276,7 +276,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include,../regex,../zlib,../extra/yassl/include"
-				PreprocessorDefinitions="__NT__;DBUG_OFF;NDEBUG;HAVE_INNOBASE_DB;MYSQL_SERVER;LICENSE=Commercial;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
+				PreprocessorDefinitions="__NT__;DBUG_OFF;NDEBUG;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;MYSQL_SERVER;LICENSE=Commercial;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -335,8 +335,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
-				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
+				AdditionalIncludeDirectories="../storage/bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
+				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/mysqld.pch"
 				AssemblerListingLocation=".\debug/"
@@ -398,7 +398,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include,../regex,../zlib,../extra/yassl/include"
-				PreprocessorDefinitions="MYSQL_SERVER;LICENSE=Commercial;HAVE_DLOPEN;HAVE_INNOBASE_DB;DBUG_OFF;NDEBUG;_WINDOWS;_CONSOLE"
+				PreprocessorDefinitions="MYSQL_SERVER;LICENSE=Commercial;HAVE_DLOPEN;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;DBUG_OFF;NDEBUG;_WINDOWS;_CONSOLE"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -521,7 +521,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../zlib,../include,../regex,../extra/yassl/include"
-				PreprocessorDefinitions="NDEBUG;DBUG_OFF;HAVE_INNOBASE_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
+				PreprocessorDefinitions="NDEBUG;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -1253,6 +1253,81 @@
 		</File>
 		<File
 			RelativePath="examples\ha_archive.cpp">
+			<FileConfiguration
+				Name="classic nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Max|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Max nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="pro nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="pro|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="classic|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="examples\ha_example.cpp">
 			<FileConfiguration
 				Name="classic nt|Win32">
 				<Tool
@@ -3670,79 +3745,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\myisammrg\myrg_rnext_same.c">
-			<FileConfiguration
-				Name="classic nt|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Max|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Max nt|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="nt|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="pro nt|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="0"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="pro|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="classic|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""/>
-			</FileConfiguration>
+			RelativePath="..\storage\myisammrg\myrg_rnext_same.c">
 		</File>
 		<File
 			RelativePath="mysqld.cpp">
@@ -4727,6 +4730,9 @@
 					AdditionalIncludeDirectories=""
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
+		</File>
+		<File
+			RelativePath=".\rpl_filter.cpp">
 		</File>
 		<File
 			RelativePath="set_var.cpp">
@@ -6916,6 +6922,9 @@
 					AdditionalIncludeDirectories=""
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
+		</File>
+		<File
+			RelativePath=".\sql_partition.cpp">
 		</File>
 		<File
 			RelativePath="sql_prepare.cpp">

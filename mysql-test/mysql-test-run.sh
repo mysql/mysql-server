@@ -733,6 +733,7 @@ if [ x$USE_TIMER = x1 ] ; then
 fi
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
+export MYSQL_TEST
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
@@ -872,7 +873,7 @@ report_stats () {
 	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% were successful."
 	$ECHO ""
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
-	$ECHO "of what when wrong."
+	$ECHO "of what went wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
         $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
     fi

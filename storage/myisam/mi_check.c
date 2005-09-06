@@ -1036,7 +1036,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
       {
         if (mi_is_key_active(info->s->state.key_map, key))
 	{
-	  if(!(keyinfo->flag & HA_FULLTEXT))
+          if(!(keyinfo->flag & HA_FULLTEXT))
 	  {
 	    uint key_length=_mi_make_key(info,key,info->lastkey,record,
 					 start_recpos);
@@ -1045,14 +1045,18 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	      /* We don't need to lock the key tree here as we don't allow
 		 concurrent threads when running myisamchk
 	      */
-	      if (_mi_search(info,keyinfo,info->lastkey,key_length,
-			     SEARCH_SAME, info->s->state.key_root[key]))
-	      {
-		mi_check_print_error(param,"Record at: %10s  Can't find key for index: %2d",
-			    llstr(start_recpos,llbuff),key+1);
-		if (error++ > MAXERR || !(param->testflag & T_VERBOSE))
-		  goto err2;
-	      }
+              int search_result= (keyinfo->flag & HA_SPATIAL) ?
+                rtree_find_first(info, key, info->lastkey, key_length,
+                                 SEARCH_SAME) : 
+                _mi_search(info,keyinfo,info->lastkey,key_length,
+                           SEARCH_SAME, info->s->state.key_root[key]);
+              if (search_result)
+              {
+                mi_check_print_error(param,"Record at: %10s  Can't find key for index: %2d",
+                                     llstr(start_recpos,llbuff),key+1);
+                if (error++ > MAXERR || !(param->testflag & T_VERBOSE))
+                  goto err2;
+              }
 	    }
 	    else
 	      key_checksum[key]+=mi_byte_checksum((byte*) info->lastkey,

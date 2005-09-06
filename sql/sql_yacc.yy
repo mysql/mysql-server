@@ -89,6 +89,7 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
   udf_func *udf;
   LEX_USER *lex_user;
   struct sys_var_with_base variable;
+  enum enum_var_type var_type;
   Key::Keytype key_type;
   enum ha_key_alg key_alg;
   enum db_type db_type;
@@ -707,11 +708,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <num>
 	type int_type real_type order_dir lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-        table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
-        opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
+        table_option opt_if_not_exists opt_no_write_to_binlog
+        delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts opt_chain opt_release
-        union_opt select_derived_init option_type option_type2
+        union_opt select_derived_init option_type2
 
 %type <ulong_num>
 	ulong_num raid_types merge_insert_types
@@ -746,6 +747,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item_list>
 	expr_list udf_expr_list udf_expr_list2 when_list
 	ident_list ident_list_arg
+
+%type <var_type>
+        option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
 	key_type opt_unique_or_fulltext constraint_key_type
@@ -1032,11 +1036,19 @@ execute_var_ident: '@' ident_or_text
 /* help */
 
 help:
-       HELP_SYM ident_or_text
+       HELP_SYM
+       {
+         if (Lex->sphead)
+         {
+           my_error(ER_SP_BADSTATEMENT, MYF(0), "HELP");
+           YYABORT;
+         }
+       }
+       ident_or_text
        {
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_HELP;
-	  lex->help_arg= $2.str;
+	  lex->help_arg= $3.str;
        };
 
 /* change master */
@@ -1460,7 +1472,7 @@ create_function_tail:
             sp_prepare_create_field(YYTHD, new_field);
 
 	    if (prepare_create_field(new_field, &unused1, &unused2, &unused2,
-				     0))
+				     HA_CAN_GEOMETRY))
 	      YYABORT;
 
 	    sp->m_returns= new_field->sql_type;
@@ -1468,6 +1480,7 @@ create_function_tail:
 	    sp->m_returns_len= new_field->length;
 	    sp->m_returns_pack= new_field->pack_flag;
             sp->m_returns_typelib= new_field->interval;
+            sp->m_geom_returns= new_field->geom_type;
             new_field->interval= NULL;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
@@ -3152,8 +3165,27 @@ create_table_option:
 	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_PASSWORD; }
 	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT; }
 	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
-	| PACK_KEYS_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| PACK_KEYS_SYM opt_equal DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+        | PACK_KEYS_SYM opt_equal ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->create_info.table_options|= HA_OPTION_NO_PACK_KEYS;
+                break;
+            case 1:
+                Lex->create_info.table_options|= HA_OPTION_PACK_KEYS;
+                break;
+            default:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+            }
+            Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;
+          }
+        | PACK_KEYS_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
+            Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;
+          }
 	| CHECKSUM_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM opt_equal ulong_num { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
 	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
@@ -3370,10 +3402,10 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
-	| nchar '(' NUM ')'		{ Lex->length=$3.str;
+	| nchar '(' NUM ')' opt_bin_mod	{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
-	| nchar				{ Lex->length=(char*) "1";
+	| nchar opt_bin_mod		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
@@ -3384,7 +3416,7 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$= MYSQL_TYPE_VARCHAR; }
-	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
+	| nvarchar '(' NUM ')' opt_bin_mod { Lex->length=$3.str;
 					  $$= MYSQL_TYPE_VARCHAR;
 					  Lex->charset=national_charset_info; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
@@ -3573,7 +3605,6 @@ attribute:
 	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
 	  }
 	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
-	| BINARY { Lex->type|= BINCMP_FLAG; }
 	| COLLATE_SYM collation_name
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
@@ -3658,8 +3689,27 @@ opt_default:
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
-	| ASCII_SYM			{ Lex->charset=&my_charset_latin1; }
+	| ASCII_SYM opt_bin_mod		{ Lex->charset=&my_charset_latin1; }
 	| BYTE_SYM			{ Lex->charset=&my_charset_bin; }
+	| UNICODE_SYM opt_bin_mod
+	{
+	  if (!(Lex->charset=get_charset_by_csname("ucs2",
+                                                   MY_CS_PRIMARY,MYF(0))))
+	  {
+	    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), "ucs2");
+	    YYABORT;
+	  }
+	}
+	| charset charset_name opt_bin_mod	{ Lex->charset=$2; }
+        | BINARY opt_bin_charset { Lex->type|= BINCMP_FLAG; };
+
+opt_bin_mod:
+	/* empty */ { }
+	| BINARY { Lex->type|= BINCMP_FLAG; };
+
+opt_bin_charset:
+	/* empty */ { }
+	| ASCII_SYM	{ Lex->charset=&my_charset_latin1; }
 	| UNICODE_SYM
 	{
 	  if (!(Lex->charset=get_charset_by_csname("ucs2",
@@ -4949,7 +4999,7 @@ simple_expr:
               yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
-	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
+	    if (!($$= get_system_var(YYTHD, $3, $4, $5)))
 	      YYABORT;
 	    Lex->variables_used= 1;
 	  }
@@ -7042,7 +7092,7 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_STATUS;
-            lex->option_type= (enum_var_type) $1;
+            lex->option_type= $1;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
               YYABORT;
 	  }	
@@ -7057,7 +7107,7 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_VARIABLES;
-            lex->option_type= (enum_var_type) $1;
+            lex->option_type= $1;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
               YYABORT;
 	  }
@@ -7725,10 +7775,13 @@ simple_ident:
 	  sp_pvar_t *spv;
 	  LEX *lex = Lex;
           sp_pcontext *spc = lex->spcont;
-
 	  if (spc && (spv = spc->find_pvar(&$1)))
-	  { /* We're compiling a stored procedure and found a variable */
-	    $$ = (Item*) new Item_splocal($1, spv->offset);
+	  {
+            /* We're compiling a stored procedure and found a variable */
+            Item_splocal *splocal;
+            splocal= new Item_splocal($1, spv->offset, lex->tok_start_prev - 
+                                      lex->sphead->m_tmp_query);
+	    $$ = (Item*) splocal;
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
 	  }
@@ -8447,7 +8500,7 @@ sys_option_value:
           else if ($2.var)
           { /* System variable */
             if ($1)
-              lex->option_type= (enum_var_type)$1;
+              lex->option_type= $1;
             lex->var_list.push_back(new set_var(lex->option_type, $2.var,
                                     &$2.base_name, $4));
           }
@@ -8481,8 +8534,8 @@ sys_option_value:
         | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
 	{
 	  LEX *lex=Lex;
-          if (!$1)
-            lex->option_type= (enum_var_type)$1;
+          if ($1)
+            lex->option_type= $1;
 	  lex->var_list.push_back(new set_var(lex->option_type,
                                               find_sys_var("tx_isolation"),
                                               &null_lex_str,
@@ -8498,8 +8551,7 @@ option_value:
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4.var,
-						&$4.base_name, $6));
+	    lex->var_list.push_back(new set_var($3, $4.var, &$4.base_name, $6));
 	  }
 	| charset old_or_new_charset_name_or_default
 	{

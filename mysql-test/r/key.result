@@ -329,6 +329,23 @@ ERROR 42S21: Duplicate column name 'c1'
 alter table t1 add key (c1,c1,c2);
 ERROR 42S21: Duplicate column name 'c1'
 drop table t1;
+create table t1 (
+c1 int,
+c2 varchar(20) not null,
+primary key (c1),
+key (c2(10))
+) engine=myisam;
+insert into t1 values (1,'');
+insert into t1 values (2,' \t\tTest String');
+insert into t1 values (3,' \n\tTest String');
+update t1 set c2 = 'New Test String' where c1 = 1;
+select * from t1;
+c1	c2
+1	New Test String
+2	 		Test String
+3	 
+	Test String
+drop table t1;
 create table t1 (a varchar(10), b varchar(10), key(a(10),b(10)));
 show create table t1;
 Table	Create Table

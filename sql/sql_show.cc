@@ -2248,7 +2248,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     if (share->tmp_table == SYSTEM_TMP_TABLE)
       table->field[3]->store("SYSTEM VIEW", 11, cs);
     else if (share->tmp_table)
-      table->field[3]->store("TEMPORARY", 9, cs);
+      table->field[3]->store("LOCAL TEMPORARY", 15, cs);
     else
       table->field[3]->store("BASE TABLE", 10, cs);
 

@@ -39,17 +39,14 @@ static int create_pid_file(const char *pid_file_name)
 {
   if (FILE *pid_file= my_fopen(pid_file_name,
                                O_WRONLY | O_CREAT | O_BINARY, MYF(0)))
-    {
-      fprintf(pid_file, "%d\n", (int) getpid());
-      my_fclose(pid_file, MYF(0));
-    }
-    else
-    {
-      log_error("can't create pid file %s: errno=%d, %s",
-                pid_file_name, errno, strerror(errno));
-      return 1;
-    }
-  return 0;
+  {
+    fprintf(pid_file, "%d\n", (int) getpid());
+    my_fclose(pid_file, MYF(0));
+    return 0;
+  }
+  log_error("can't create pid file %s: errno=%d, %s",
+            pid_file_name, errno, strerror(errno));
+  return 1;
 }
 
 #ifndef __WIN__
@@ -136,7 +133,7 @@ void manager(const Options &options)
   instance_map.guardian= &guardian_thread;
 
   if (instance_map.init() || user_map.init())
-      return;
+    return;
 
 
   if (instance_map.load())
@@ -145,7 +142,7 @@ void manager(const Options &options)
                "the wrong config file options. For instance, missing mysqld "
                "binary. Aborting.");
     return;
-    }
+  }
 
   if (user_map.load(options.password_file_name))
     return;

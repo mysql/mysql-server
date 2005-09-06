@@ -419,6 +419,10 @@ C_MODE_END
 #undef setrlimit
 #define setrlimit cma_setrlimit64
 #endif
+/* Declare madvise where it is not declared for C++, like Solaris */
+#if HAVE_MADVISE && !HAVE_DECL_MADVISE && defined(__cplusplus)
+extern "C" int madvise(void *addr, size_t len, int behav);
+#endif
 
 #ifdef __QNXNTO__
 /* This has to be after include limits.h */
@@ -1013,20 +1017,24 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
 #define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
 
-#ifndef set_timespec
 #ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef set_timespec
 #define set_timespec(ABSTIME,SEC) \
 { \
   (ABSTIME).ts_sec=time(0) + (time_t) (SEC); \
   (ABSTIME).ts_nsec=0; \
 }
+#endif /* !set_timespec */
+#ifndef set_timespec_nsec
 #define set_timespec_nsec(ABSTIME,NSEC) \
 { \
   ulonglong now= my_getsystime() + (NSEC/100); \
   (ABSTIME).ts_sec=  (now / ULL(10000000)); \
   (ABSTIME).ts_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
+#endif /* !set_timespec_nsec */
 #else
+#ifndef set_timespec
 #define set_timespec(ABSTIME,SEC) \
 {\
   struct timeval tv;\
@@ -1034,14 +1042,16 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
   (ABSTIME).tv_sec=tv.tv_sec+(time_t) (SEC);\
   (ABSTIME).tv_nsec=tv.tv_usec*1000;\
 }
+#endif /* !set_timespec */
+#ifndef set_timespec_nsec
 #define set_timespec_nsec(ABSTIME,NSEC) \
 {\
   ulonglong now= my_getsystime() + (NSEC/100); \
   (ABSTIME).tv_sec=  (now / ULL(10000000)); \
   (ABSTIME).tv_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100));    \
 }
+#endif /* !set_timespec_nsec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
-#endif /* set_timespec */
 
 /*
   Define-funktions for reading and storing in machine independent format

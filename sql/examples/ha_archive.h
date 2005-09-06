@@ -78,6 +78,7 @@ public:
   int close(void);
   int write_row(byte * buf);
   int real_write_row(byte *buf, gzFile writer);
+  int delete_all_rows();
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);

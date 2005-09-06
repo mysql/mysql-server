@@ -62,7 +62,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     }
     if (share->base.blobs)
       mi_alloc_rec_buff(info, -1, &info->rec_buff);
-#if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
+#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if (info->opt_flag & MEMMAP_USED)
       madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
 #endif
@@ -93,7 +93,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       my_errno=EACCES;
       break;
     }
-#if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
+#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if ((share->options & HA_OPTION_COMPRESS_RECORD))
     {
       pthread_mutex_lock(&share->intern_lock);
@@ -177,7 +177,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       error=end_io_cache(&info->rec_cache);
       /* Sergei will insert full text index caching here */
     }
-#if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
+#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if (info->opt_flag & MEMMAP_USED)
       madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
 #endif
