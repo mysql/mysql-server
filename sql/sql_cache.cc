@@ -574,13 +574,18 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
 {
   DBUG_ENTER("query_cache_insert");
 
-#ifndef DBUG_OFF
-  // Check if we have called query_cache.wreck() (which disables the cache)
-  if (query_cache.query_cache_size == 0)
-    DBUG_VOID_RETURN;
-#endif
-
   STRUCT_LOCK(&query_cache.structure_guard_mutex);
+  /*
+    It is very unlikely that following condition is TRUE (it is possible
+    only if other thread is resizing cache), so we check it only after guard
+    mutex lock
+  */
+  if (unlikely(query_cache.query_cache_size == 0))
+  {
+    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+    DBUG_VOID_RETURN;
+  }
+
   Query_cache_block *query_block = ((Query_cache_block*)
 				    net->query_cache_query);
   if (query_block)
@@ -623,14 +628,20 @@ void query_cache_abort(NET *net)
 {
   DBUG_ENTER("query_cache_abort");
 
-#ifndef DBUG_OFF
-  // Check if we have called query_cache.wreck() (which disables the cache)
-  if (query_cache.query_cache_size == 0)
-    DBUG_VOID_RETURN;
-#endif
   if (net->query_cache_query != 0)	// Quick check on unlocked structure
   {
     STRUCT_LOCK(&query_cache.structure_guard_mutex);
+    /*
+      It is very unlikely that following condition is TRUE (it is possible
+      only if other thread is resizing cache), so we check it only after guard
+      mutex lock
+    */
+    if (unlikely(query_cache.query_cache_size == 0))
+    {
+      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+      DBUG_VOID_RETURN;
+    }
+
     Query_cache_block *query_block = ((Query_cache_block*)
 				       net->query_cache_query);
     if (query_block)			// Test if changed by other thread
@@ -652,11 +663,6 @@ void query_cache_end_of_result(THD *thd)
 {
   DBUG_ENTER("query_cache_end_of_result");
 
-#ifndef DBUG_OFF
-  // Check if we have called query_cache.wreck() (which disables the cache)
-  if (query_cache.query_cache_size == 0) DBUG_VOID_RETURN;
-#endif
-
   if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
   {
 #ifdef EMBEDDED_LIBRARY
@@ -664,6 +670,17 @@ void query_cache_end_of_result(THD *thd)
 		       emb_count_querycache_size(thd));
 #endif
     STRUCT_LOCK(&query_cache.structure_guard_mutex);
+    /*
+      It is very unlikely that following condition is TRUE (it is possible
+      only if other thread is resizing cache), so we check it only after guard
+      mutex lock
+    */
+    if (unlikely(query_cache.query_cache_size == 0))
+    {
+      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+      DBUG_VOID_RETURN;
+    }
+
     Query_cache_block *query_block = ((Query_cache_block*)
 				      thd->net.query_cache_query);
     if (query_block)
@@ -743,9 +760,14 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   DBUG_ENTER("Query_cache::resize");
   DBUG_PRINT("qcache", ("from %lu to %lu",query_cache_size,
 			query_cache_size_arg));
-  free_cache(0);
+  DBUG_ASSERT(initialized);
+  STRUCT_LOCK(&structure_guard_mutex);
+  if (query_cache_size > 0)
+    free_cache();
   query_cache_size= query_cache_size_arg;
-  DBUG_RETURN(::query_cache_size= init_cache());
+  ::query_cache_size= init_cache();
+  STRUCT_UNLOCK(&structure_guard_mutex);
+  DBUG_RETURN(::query_cache_size);
 }
 
 
@@ -1388,7 +1410,7 @@ void Query_cache::destroy()
   }
   else
   {
-    free_cache(1);
+    free_cache();
     pthread_mutex_destroy(&structure_guard_mutex);
     initialized = 0;
   }
@@ -1417,8 +1439,6 @@ ulong Query_cache::init_cache()
   int align;
 
   DBUG_ENTER("Query_cache::init_cache");
-  if (!initialized)
-    init();
   approx_additional_data_size = (sizeof(Query_cache) +
 				 sizeof(gptr)*(def_query_hash_size+
 					       def_table_hash_size));
@@ -1476,14 +1496,9 @@ ulong Query_cache::init_cache()
     goto err;
   query_cache_size -= additional_data_size;
 
-  STRUCT_LOCK(&structure_guard_mutex);
-
-  if (!(cache = (byte *)
-	 my_malloc_lock(query_cache_size+additional_data_size, MYF(0))))
-  {
-    STRUCT_UNLOCK(&structure_guard_mutex);
+  if (!(cache= (byte *)
+        my_malloc_lock(query_cache_size+additional_data_size, MYF(0))))
     goto err;
-  }
 
   DBUG_PRINT("qcache", ("cache length %lu, min unit %lu, %u bins",
 		      query_cache_size, min_allocation_unit, mem_bin_num));
@@ -1579,7 +1594,6 @@ ulong Query_cache::init_cache()
 
   queries_in_cache = 0;
   queries_blocks = 0;
-  STRUCT_UNLOCK(&structure_guard_mutex);
   DBUG_RETURN(query_cache_size +
 	      additional_data_size + approx_additional_data_size);
 
@@ -1595,6 +1609,7 @@ void Query_cache::make_disabled()
 {
   DBUG_ENTER("Query_cache::make_disabled");
   query_cache_size= 0;
+  queries_blocks= 0;
   free_memory= 0;
   bins= 0;
   steps= 0;
@@ -1606,14 +1621,11 @@ void Query_cache::make_disabled()
 }
 
 
-void Query_cache::free_cache(my_bool destruction)
+void Query_cache::free_cache()
 {
   DBUG_ENTER("Query_cache::free_cache");
   if (query_cache_size > 0)
   {
-    if (!destruction)
-      STRUCT_LOCK(&structure_guard_mutex);
-
     flush_cache();
 #ifndef DBUG_OFF
     if (bins[0].free_blocks == 0)
@@ -1635,8 +1647,6 @@ void Query_cache::free_cache(my_bool destruction)
     make_disabled();
     hash_free(&queries);
     hash_free(&tables);
-    if (!destruction)
-      STRUCT_UNLOCK(&structure_guard_mutex);
   }
   DBUG_VOID_RETURN;
 }
@@ -2266,7 +2276,19 @@ Query_cache::allocate_block(ulong len, my_bool not_less, ulong min,
   }
 
   if (!under_guard)
+  {
     STRUCT_LOCK(&structure_guard_mutex);
+    /*
+      It is very unlikely that following condition is TRUE (it is possible
+      only if other thread is resizing cache), so we check it only after
+      guard mutex lock
+    */
+    if (unlikely(query_cache.query_cache_size == 0))
+    {
+      STRUCT_UNLOCK(&structure_guard_mutex);
+      DBUG_RETURN(0);
+    }
+  }
 
   /* Free old queries until we have enough memory to store this block */
   Query_cache_block *block;
@@ -2764,6 +2786,17 @@ void Query_cache::pack_cache()
 {
   DBUG_ENTER("Query_cache::pack_cache");
   STRUCT_LOCK(&structure_guard_mutex);
+  /*
+    It is very unlikely that following condition is TRUE (it is possible
+    only if other thread is resizing cache), so we check it only after
+    guard mutex lock
+  */
+  if (unlikely(query_cache_size == 0))
+  {
+    STRUCT_UNLOCK(&structure_guard_mutex);
+    DBUG_VOID_RETURN;
+  }
+
   DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
 
   byte *border = 0;
@@ -3073,6 +3106,7 @@ my_bool Query_cache::join_results(ulong join_limit)
   STRUCT_LOCK(&structure_guard_mutex);
   if (queries_blocks != 0)
   {
+    DBUG_ASSERT(query_cache_size > 0);
     Query_cache_block *block = queries_blocks;
     do
     {
@@ -3369,7 +3403,19 @@ my_bool Query_cache::check_integrity(bool not_locked)
     DBUG_RETURN(0);
   }
   if (!not_locked)
+  {
     STRUCT_LOCK(&structure_guard_mutex);
+    /*
+      It is very unlikely that following condition is TRUE (it is possible
+      only if other thread is resizing cache), so we check it only after
+      guard mutex lock
+    */
+    if (unlikely(query_cache_size == 0))
+    {
+      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+      DBUG_RETURN(0);
+    }
+  }
 
   if (hash_check(&queries))
   {
