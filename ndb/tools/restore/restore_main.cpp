@@ -229,6 +229,7 @@ free_data_callback()
     g_consumers[i]->tuple_free();
 }
 
+const char * g_connect_string = 0;
 static void exitHandler(int code)
 {
   NDBT_ProgramExit(code);
@@ -237,8 +238,6 @@ static void exitHandler(int code)
   else
     exit(code);
 }
-
-const char * g_connect_string = 0;
 
 int
 main(int argc, char** argv)
