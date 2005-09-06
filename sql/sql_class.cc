@@ -180,7 +180,7 @@ THD::THD()
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
    spcont(NULL)
 {
-  current_arena= this;
+  stmt_arena= this;
   host= user= priv_user= db= ip= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
@@ -551,11 +551,6 @@ void THD::cleanup_after_query()
   }
   /* Free Items that were created during this execution */
   free_items();
-  /*
-    In the rest of code we assume that free_list never points to garbage:
-    Keep this predicate true.
-  */
-  free_list= 0;
 }
 
 /*
@@ -794,7 +789,7 @@ struct Item_change_record: public ilink
 /*
   Register an item tree tree transformation, performed by the query
   optimizer. We need a pointer to runtime_memroot because it may be !=
-  thd->mem_root (due to possible set_n_backup_item_arena called for thd).
+  thd->mem_root (due to possible set_n_backup_active_arena called for thd).
 */
 
 void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
@@ -1602,13 +1597,13 @@ void THD::end_statement()
 }
 
 
-void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
+void THD::set_n_backup_active_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Query_arena::set_n_backup_item_arena");
+  DBUG_ENTER("THD::set_n_backup_active_arena");
   DBUG_ASSERT(backup->is_backup_arena == FALSE);
 
-  backup->set_item_arena(this);
-  set_item_arena(set);
+  backup->set_query_arena(this);
+  set_query_arena(set);
 #ifndef DBUG_OFF
   backup->is_backup_arena= TRUE;
 #endif
@@ -1616,19 +1611,19 @@ void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 }
 
 
-void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backup)
+void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Query_arena::restore_backup_item_arena");
+  DBUG_ENTER("THD::restore_active_arena");
   DBUG_ASSERT(backup->is_backup_arena);
-  set->set_item_arena(this);
-  set_item_arena(backup);
+  set->set_query_arena(this);
+  set_query_arena(backup);
 #ifndef DBUG_OFF
   backup->is_backup_arena= FALSE;
 #endif
   DBUG_VOID_RETURN;
 }
 
-void Query_arena::set_item_arena(Query_arena *set)
+void Query_arena::set_query_arena(Query_arena *set)
 {
   mem_root=  set->mem_root;
   free_list= set->free_list;
@@ -1686,23 +1681,17 @@ Statement_map::Statement_map() :
             NULL,MYF(0));
 }
 
+
 int Statement_map::insert(Statement *statement)
 {
   int rc= my_hash_insert(&st_hash, (byte *) statement);
-  if (rc == 0)
-    last_found_statement= statement;
   if (statement->name.str)
   {
-    /*
-      If there is a statement with the same name, remove it. It is ok to 
-      remove old and fail to insert new one at the same time.
-    */
-    Statement *old_stmt;
-    if ((old_stmt= find_by_name(&statement->name)))
-      erase(old_stmt); 
     if ((rc= my_hash_insert(&names_hash, (byte*)statement)))
       hash_delete(&st_hash, (byte*)statement);
   }
+  if (rc == 0)
+    last_found_statement= statement;
   return rc;
 }
 

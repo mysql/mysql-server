@@ -700,11 +700,11 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     For now we assume that tables will not be changed during PS life (it
     will be TRUE as far as we make new table cache).
   */
-  Query_arena *arena= thd->current_arena, backup;
+  Query_arena *arena= thd->stmt_arena, backup;
   if (arena->is_conventional())
     arena= 0;
   else
-    thd->set_n_backup_item_arena(arena, &backup);
+    thd->set_n_backup_active_arena(arena, &backup);
 
   /* init timestamp */
   if (!table->timestamp.str)
@@ -774,9 +774,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   }
   if (!res && !thd->is_fatal_error)
   {
-    TABLE_LIST *top_view= (table->belong_to_view ?
-                           table->belong_to_view :
-                           table);
+    TABLE_LIST *top_view= table->top_table();
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
@@ -997,13 +995,13 @@ ok:
 
 ok2:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   thd->lex= old_lex;
   DBUG_RETURN(0);
 
 err:
   if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
+    thd->restore_active_arena(arena, &backup);
   delete table->view;
   table->view= 0;	// now it is not VIEW placeholder
   thd->lex= old_lex;
@@ -1145,8 +1143,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       thd->lex->select_lex.select_limit == 0)
     DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
   table= view->table;
-  if (view->belong_to_view)
-    view= view->belong_to_view;
+  view= view->top_table();
   trans= view->field_translation;
   key_info_end= (key_info= table->key_info)+ table->s->keys;
 

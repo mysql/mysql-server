@@ -824,6 +824,11 @@ typedef struct st_lex
     to an .frm file. We need this definition to stay untouched.
   */
   bool view_prepare_mode;
+  /*
+    TRUE if we're parsing a prepared statement: in this mode
+    we should allow placeholders and disallow multistatements.
+  */
+  bool stmt_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   bool variables_used;

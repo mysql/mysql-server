@@ -609,6 +609,8 @@ typedef struct st_table_list
   st_table_list *first_leaf_for_name_resolution();
   st_table_list *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution();
+  inline st_table_list *top_table()
+    { return belong_to_view ? belong_to_view : this; }
   inline bool prepare_check_option(THD *thd)
   {
     bool res= FALSE;

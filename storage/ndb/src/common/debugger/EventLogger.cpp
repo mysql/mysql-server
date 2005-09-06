@@ -33,7 +33,6 @@ EventLoggerBase::~EventLoggerBase()
   
 }
 
-
 #define QQQQ char *m_text, size_t m_text_len, const Uint32* theData
 
 void getTextConnected(QQQQ) {
@@ -434,10 +433,12 @@ void getTextNR_CopyFragsCompleted(QQQQ) {
 void getTextLCPFragmentCompleted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Table ID = %u, fragment ID = %u has completed LCP "
-		       "on Node %u", 
+		       "on Node %u maxGciStarted: %d maxGciCompleted: %d", 
 		       theData[2], 
 		       theData[3], 
-		       theData[1]);
+		       theData[1],
+		       theData[4],
+		       theData[5]);
 }
 void getTextTransReportCounters(QQQQ) {
   // -------------------------------------------------------------------  
