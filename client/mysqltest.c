@@ -456,6 +456,7 @@ my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
 static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
 				      int len);
+static int handle_no_error(struct st_query *q);
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
 {
@@ -2907,22 +2908,9 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 
     }
 
-    if (q->expected_errno[0].type == ERR_ERRNO &&
-        q->expected_errno[0].code.errnum != 0)
+    if (handle_no_error(q))
     {
-      /* Error code we wanted was != 0, i.e. not an expected success */
-      verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-                  q->query, q->expected_errno[0].code.errnum);
-      error = 1;
-      goto end;
-    }
-    else if (q->expected_errno[0].type == ERR_SQLSTATE &&
-             strcmp(q->expected_errno[0].code.sqlstate,"00000") != 0)
-    {
-      /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
-      verbose_msg("query '%s' succeeded - should have failed with sqlstate %s...",
-                  q->query, q->expected_errno[0].code.sqlstate);
-      error = 1;
+      error= 1;
       goto end;
     }
 
@@ -3102,10 +3090,8 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
   {
     if (q->abort_on_error)
     {
-      die("unable to prepare statement '%s': "
-          "%s (mysql_stmt_errno=%d returned=%d)",
-          query,
-          mysql_stmt_error(stmt), mysql_stmt_errno(stmt), err);
+	die("query '%s' failed: %d: %s", query,
+	    mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
     }
     else
     {
@@ -3186,12 +3172,8 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
   }
 
   /* If we got here the statement was both executed and read succeesfully */
-
-  if (q->expected_errno[0].type == ERR_ERRNO &&
-      q->expected_errno[0].code.errnum != 0)
+  if (handle_no_error(q))
   {
-    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-                q->query, q->expected_errno[0].code.errnum);
     error= 1;
     goto end;
   }
@@ -3518,8 +3500,14 @@ static int run_query_stmt_handle_error(char *query, struct st_query *q,
     dynstr_append_mem(ds,"\n",1);
     if (i)
     {
-      verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-                  q->query, mysql_stmt_errno(stmt), q->expected_errno[0]);
+      if (q->expected_errno[0].type == ERR_ERRNO)
+        verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+                    q->query, mysql_stmt_errno(stmt),
+                    q->expected_errno[0].code.errnum);
+      else
+        verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
+                      q->query, mysql_stmt_sqlstate(stmt),
+                      q->expected_errno[0].code.sqlstate);
       return 1; /* Error */
     }
     verbose_msg("query '%s' failed: %d: %s", q->query, mysql_stmt_errno(stmt),
@@ -3532,6 +3520,43 @@ static int run_query_stmt_handle_error(char *query, struct st_query *q,
   }
 
   return 0;
+}
+
+
+/*
+  Handle absence of errors after execution
+
+  SYNOPSIS
+    handle_no_error()
+      q - context of query
+
+  RETURN VALUE
+    0 - OK
+    1 - Some error was expected from this query.
+*/
+
+static int handle_no_error(struct st_query *q)
+{
+  DBUG_ENTER("handle_no_error");
+
+  if (q->expected_errno[0].type == ERR_ERRNO &&
+      q->expected_errno[0].code.errnum != 0)
+  {
+    /* Error code we wanted was != 0, i.e. not an expected success */
+    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
+                q->query, q->expected_errno[0].code.errnum);
+    DBUG_RETURN(1);
+  }
+  else if (q->expected_errno[0].type == ERR_SQLSTATE &&
+           strcmp(q->expected_errno[0].code.sqlstate,"00000") != 0)
+  {
+    /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
+    verbose_msg("query '%s' succeeded - should have failed with sqlstate %s...",
+                q->query, q->expected_errno[0].code.sqlstate);
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
 }
 
 /****************************************************************************\
