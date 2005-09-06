@@ -735,9 +735,7 @@ public:
     return ptr;
   }
 
-  void set_n_backup_item_arena(Query_arena *set, Query_arena *backup);
-  void restore_backup_item_arena(Query_arena *set, Query_arena *backup);
-  void set_item_arena(Query_arena *set);
+  void set_query_arena(Query_arena *set);
 
   void free_items();
 };
@@ -1239,16 +1237,16 @@ public:
   /*
     A permanent memory area of the statement. For conventional
     execution, the parsed tree and execution runtime reside in the same
-    memory root. In this case current_arena points to THD. In case of
+    memory root. In this case stmt_arena points to THD. In case of
     a prepared statement or a stored procedure statement, thd->mem_root
-    conventionally points to runtime memory, and thd->current_arena
+    conventionally points to runtime memory, and thd->stmt_arena
     points to the memory of the PS/SP, where the parsed tree of the
     statement resides. Whenever you need to perform a permanent
     transformation of a parsed tree, you should allocate new memory in
-    current_arena, to allow correct re-execution of PS/SP.
-    Note: in the parser, current_arena == thd, even for PS/SP.
+    stmt_arena, to allow correct re-execution of PS/SP.
+    Note: in the parser, stmt_arena == thd, even for PS/SP.
   */
-  Query_arena *current_arena;
+  Query_arena *stmt_arena;
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -1476,7 +1474,7 @@ public:
   }
   inline bool fill_derived_tables()
   {
-    return !current_arena->is_stmt_prepare() && !lex->only_view_structure();
+    return !stmt_arena->is_stmt_prepare() && !lex->only_view_structure();
   }
   inline gptr trans_alloc(unsigned int size)
   {
@@ -1515,17 +1513,16 @@ public:
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
-  inline Query_arena *change_arena_if_needed(Query_arena *backup)
+  inline Query_arena *activate_stmt_arena_if_needed(Query_arena *backup)
   {
     /*
-      use new arena if we are in a prepared statements and we have not
-      already changed to use this arena.
+      Use the persistent arena if we are in a prepared statement or a stored
+      procedure statement and we have not already changed to use this arena.
     */
-    if (!current_arena->is_conventional() &&
-        mem_root != current_arena->mem_root)
+    if (!stmt_arena->is_conventional() && mem_root != stmt_arena->mem_root)
     {
-      set_n_backup_item_arena(current_arena, backup);
-      return current_arena;
+      set_n_backup_active_arena(stmt_arena, backup);
+      return stmt_arena;
     }
     return 0;
   }
@@ -1533,7 +1530,7 @@ public:
   void change_item_tree(Item **place, Item *new_value)
   {
     /* TODO: check for OOM condition here */
-    if (!current_arena->is_conventional())
+    if (!stmt_arena->is_conventional())
       nocheck_register_item_tree_change(place, *place, mem_root);
     *place= new_value;
   }
@@ -1565,11 +1562,13 @@ public:
   }
   void set_status_var_init();
   bool is_context_analysis_only()
-    { return current_arena->is_stmt_prepare() || lex->view_prepare_mode; }
+    { return stmt_arena->is_stmt_prepare() || lex->view_prepare_mode; }
   void reset_n_backup_open_tables_state(Open_tables_state *backup);
   void restore_backup_open_tables_state(Open_tables_state *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
   void restore_sub_statement_state(Sub_statement_state *backup);
+  void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
+  void restore_active_arena(Query_arena *set, Query_arena *backup);
 };
 
 

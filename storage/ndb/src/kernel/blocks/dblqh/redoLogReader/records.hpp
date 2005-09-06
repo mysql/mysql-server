@@ -83,7 +83,7 @@ class PrepareOperationRecord {
   friend NdbOut& operator<<(NdbOut&, const PrepareOperationRecord&);
 public:
   bool check();
-  Uint32 getLogRecordSize();
+  Uint32 getLogRecordSize(Uint32 wordsRead);
 
 protected:
   Uint32 m_recordType;

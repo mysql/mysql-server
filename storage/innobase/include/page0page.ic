@@ -175,6 +175,19 @@ page_rec_is_comp(
 				/* out: nonzero if in compact format */
 	const rec_t*	rec)	/* in: record */
 {
+#ifdef UNIV_RELEASE_NOT_YET_STABLE
+	if (UNIV_UNLIKELY((ulint)rec < (ulint)(buf_pool->frame_zero))
+	    || UNIV_UNLIKELY((ulint)rec >= (ulint)(buf_pool->high_end))) {
+
+		ut_print_timestamp(stderr);	
+		fprintf(stderr,
+"InnoDB: Error: trying to read a stray page rec %p\n"
+"InnoDB: buf pool start is at %p, end at %p\n",
+ 			rec, buf_pool->frame_zero,
+			buf_pool->high_end);
+		ut_error;
+	}
+#endif
 	return(page_is_comp(ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE)));
 }
 
