@@ -339,7 +339,6 @@ bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_character_set_client_handshake= 1;
-bool lower_case_table_names_used= 0;
 bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;
