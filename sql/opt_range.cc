@@ -849,7 +849,8 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 
   if (cond_func->functype() == Item_func::BETWEEN)
   {
-    if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
+    if (!((Item_func_between *)(cond_func))->negated &&
+        cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
     {
       Field *field=((Item_field*) (cond_func->arguments()[0]))->field;
       Item_result cmp_type=field->cmp_type();
@@ -866,7 +867,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   if (cond_func->functype() == Item_func::IN_FUNC)
   {						// COND OR
     Item_func_in *func=(Item_func_in*) cond_func;
-    if (func->key_item()->type() == Item::FIELD_ITEM)
+    if (!func->negated && func->key_item()->type() == Item::FIELD_ITEM)
     {
       Field *field=((Item_field*) (func->key_item()))->field;
       Item_result cmp_type=field->cmp_type();

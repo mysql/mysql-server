@@ -2598,7 +2598,12 @@ expr_expr:
 	 expr IN_SYM '(' expr_list ')'
 	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| expr NOT IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
+    {
+      $5->push_front($1);
+      Item_func_in *item= new Item_func_in(*$5);
+      item->negate();
+      $$= item;
+    }
         | expr IN_SYM in_subselect
           { $$= new Item_in_subselect($1, $3); }
 	| expr NOT IN_SYM in_subselect
@@ -2608,7 +2613,11 @@ expr_expr:
 	| expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
 	| expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
+    {
+      Item_func_between *item= new Item_func_between($1,$4,$6);
+      item->negate();
+      $$= item;
+    }
 	| expr OR_OR_CONCAT expr { $$= or_or_concat(YYTHD, $1,$3); }
 	| expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
@@ -2656,7 +2665,11 @@ no_in_expr:
 	no_in_expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
 	| no_in_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
+    {
+      Item_func_between *item= new Item_func_between($1,$4,$6);
+      item->negate();
+      $$= item;
+    }
 	| no_in_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
 	| no_in_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
@@ -2704,7 +2717,12 @@ no_and_expr:
 	  no_and_expr IN_SYM '(' expr_list ')'
 	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| no_and_expr NOT IN_SYM '(' expr_list ')'
-	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
+    {
+      $5->push_front($1);
+      Item_func_in *item= new Item_func_in(*$5);
+      item->negate();
+      $$= item;
+    }
         | no_and_expr IN_SYM in_subselect
           { $$= new Item_in_subselect($1, $3); }
 	| no_and_expr NOT IN_SYM in_subselect
@@ -2714,7 +2732,11 @@ no_and_expr:
 	| no_and_expr BETWEEN_SYM no_and_expr AND_SYM expr
 	  { $$= new Item_func_between($1,$3,$5); }
 	| no_and_expr NOT BETWEEN_SYM no_and_expr AND_SYM expr
-	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
+    {
+      Item_func_between *item= new Item_func_between($1,$4,$6);
+      item->negate();
+      $$= item;
+    }
 	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
 	| no_and_expr OR_SYM expr	{ $$= new Item_cond_or($1,$3); }
         | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
