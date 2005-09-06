@@ -2760,6 +2760,9 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
   case MYSQL_REPORT_DATA_TRUNCATION:
     mysql->options.report_data_truncation= test(*(my_bool *) arg);
     break;
+  case MYSQL_OPT_RECONNECT:
+    mysql->reconnect= *(my_bool *) arg;
+    break;
   default:
     DBUG_RETURN(1);
   }
