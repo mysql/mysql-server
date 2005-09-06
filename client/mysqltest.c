@@ -3901,6 +3901,22 @@ void get_query_type(struct st_query* q)
         q->type != Q_DISABLE_PARSING)
       q->type= Q_COMMENT;
   }
+  else if (q->type == Q_COMMENT_WITH_COMMAND &&
+           q->query[q->first_word_len-1] == ';')
+  {
+    /*
+       Detect comment with command using extra delimiter
+       Ex --disable_query_log;
+                             ^ Extra delimiter causing the command
+                               to be skipped
+    */
+    save= q->query[q->first_word_len-1];
+    q->query[q->first_word_len-1]= 0;
+    type= find_type(q->query, &command_typelib, 1+2);
+    q->query[q->first_word_len-1]= save;
+    if (type > 0)
+      die("Extra delimiter \";\" found");
+  }
   DBUG_VOID_RETURN;
 }
 
