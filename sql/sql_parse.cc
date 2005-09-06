@@ -696,29 +696,19 @@ static int check_connection(THD *thd)
       return (ER_OUT_OF_RESOURCES);
     thd->host_or_ip= thd->ip;
     vio_in_addr(net->vio,&thd->remote.sin_addr);
-#if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
-    /* Fast local hostname resolve for Win32 */
-    if (!strcmp(thd->ip,"127.0.0.1"))
+    if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      thd->host= (char*) my_localhost;
-      thd->host_or_ip= my_localhost;
-    }
-    else
-#endif
-    {
-      if (!(specialflag & SPECIAL_NO_RESOLVE))
+      vio_in_addr(net->vio,&thd->remote.sin_addr);
+      thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
+      /* Cut very long hostnames to avoid possible overflows */
+      if (thd->host)
       {
-	vio_in_addr(net->vio,&thd->remote.sin_addr);
-	thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
-	/* Cut very long hostnames to avoid possible overflows */
-	if (thd->host)
-	{
-	  thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
-	  thd->host_or_ip= thd->host;
-	}
-	if (connect_errors > max_connect_errors)
-	  return(ER_HOST_IS_BLOCKED);
+        if (thd->host != my_localhost)
+          thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+        thd->host_or_ip= thd->host;
       }
+      if (connect_errors > max_connect_errors)
+        return(ER_HOST_IS_BLOCKED);
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
 		       thd->host ? thd->host : "unknown host",
