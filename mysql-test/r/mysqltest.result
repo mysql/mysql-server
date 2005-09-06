@@ -152,6 +152,7 @@ mysqltest: At line 1: End of line junk detected: "6"
 mysqltest: At line 1: End of line junk detected: "6"
 mysqltest: At line 1: Missing delimiter
 mysqltest: At line 1: Extra delimiter ";" found
+mysqltest: At line 1: Extra delimiter ";" found
 MySQL
 "MySQL"
 MySQL: The world''s most popular open source database
