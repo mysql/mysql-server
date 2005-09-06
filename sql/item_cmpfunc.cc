@@ -2307,7 +2307,24 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
       }
       else
       {
-        escape= *(escape_str->ptr());
+        /*
+          In the case of 8bit character set, we pass native
+          code instead of Unicode code as "escape" argument.
+          Convert to "cs" if charset of escape differs.
+        */
+        uint32 unused;
+        if (escape_str->needs_conversion(escape_str->length(),
+                                         escape_str->charset(), cs, &unused))
+        {
+          char ch;
+          uint errors;
+          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str->ptr(),
+                                          escape_str->length(),
+                                          escape_str->charset(), &errors);
+          escape= cnvlen ? ch : '\\';
+        }
+        else
+          escape= *(escape_str->ptr());
       }
     }
     else
