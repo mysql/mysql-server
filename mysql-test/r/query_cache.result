@@ -1127,3 +1127,19 @@ Qcache_hits	9
 drop procedure f1;
 drop table t1;
 set GLOBAL query_cache_size=0;
+SET GLOBAL query_cache_size=102400;
+create table t1(a int);
+insert into t1 values(0), (1), (4), (5);
+select * from t1 where a > 3;
+a
+4
+5
+select * from t1 where a > 3;
+a
+4
+5
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	0.000000
+drop table t1;
+SET GLOBAL query_cache_size=0;
