@@ -24,7 +24,6 @@
 
 #include "runtime.hpp"
 #include "misc.hpp"
-#include <new>        // for NewHandler
 
 
 void* operator new(size_t sz, TaoCrypt::new_t)
