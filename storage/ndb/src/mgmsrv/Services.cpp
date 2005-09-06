@@ -362,8 +362,6 @@ MgmApiSession::getConfig_old(Parser_t::Context &ctx) {
 }
 #endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
 
-inline void require(bool b){ if(!b) abort(); }
-
 void
 MgmApiSession::getConfig(Parser_t::Context &ctx, 
 			 const class Properties &args) {

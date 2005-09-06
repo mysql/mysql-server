@@ -26,7 +26,6 @@ class JOIN;
 class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
-class Item_arena;
 
 /* base class for subselects */
 

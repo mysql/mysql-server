@@ -875,7 +875,7 @@ create procedure bug8408_p()
   select * from t1|
 
 call bug8408_p()|
---error ER_SP_BADSELECT
+--error ER_SP_NO_RETSET
 select bug8408_f()|
 
 drop procedure bug8408_p|
@@ -956,38 +956,9 @@ end|
 drop procedure bug10969|
 
 
-#
-# BUG#NNNN: New bug synopsis
-#
-#--disable_warnings
-#drop procedure if exists bugNNNN|
-#--enable_warnings
-#create procedure bugNNNN...
-
-
 drop table t1|
 
 delimiter ;|
-
-#
-# Bug#10975, #10605, #7115: Dynamic SQL by means of
-# PREPARE/EXECUTE/DEALLOCATE is not supported yet.
-# Check that an error message is returned.
-#
-prepare stmt from "select 1";
---error ER_SP_BADSTATEMENT
-create procedure p() deallocate prepare stmt; 
---error ER_SP_BADSTATEMENT
-create function f() returns int begin deallocate prepare stmt;
---error ER_SP_BADSTATEMENT
-create procedure p() prepare stmt from "select 1";
---error ER_SP_BADSTATEMENT
-create function f() returns int begin prepare stmt from "select 1";
---error ER_SP_BADSTATEMENT
-create procedure p() execute stmt; 
---error ER_SP_BADSTATEMENT
-create function f() returns int begin execute stmt;
-deallocate prepare stmt;
 
 # BUG#9814: Closing a cursor that is not open 
 create table t1(f1 int);
@@ -1114,3 +1085,12 @@ drop function bug11834_1;
 execute stmt;
 deallocate prepare stmt;
 drop function bug11834_2;
+#
+# BUG#NNNN: New bug synopsis
+#
+#--disable_warnings
+#drop procedure if exists bugNNNN|
+#--enable_warnings
+#create procedure bugNNNN...
+
+
