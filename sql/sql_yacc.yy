@@ -8163,6 +8163,11 @@ handler:
 	HANDLER_SYM table_ident OPEN_SYM opt_table_alias
 	{
 	  LEX *lex= Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_OPEN;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
@@ -8170,6 +8175,11 @@ handler:
 	| HANDLER_SYM table_ident_nodb CLOSE_SYM
 	{
 	  LEX *lex= Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_CLOSE;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
@@ -8177,6 +8187,11 @@ handler:
 	| HANDLER_SYM table_ident_nodb READ_SYM
 	{
 	  LEX *lex=Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  lex->current_select->select_limit= new Item_int((int32) 1);
