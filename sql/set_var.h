@@ -190,6 +190,7 @@ public:
     return 1;
   }
   bool check_default(enum_var_type type) { return 1; }
+  bool is_readonly() const { return 1; }
 };
 
 
@@ -900,7 +901,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 bool not_all_support_one_shot(List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 ulong fix_sql_mode(ulong sql_mode);
-extern sys_var_str sys_charset_system;
+extern sys_var_const_str sys_charset_system;
 extern sys_var_str sys_init_connect;
 extern sys_var_str sys_init_slave;
 extern sys_var_thd_time_zone sys_time_zone;
