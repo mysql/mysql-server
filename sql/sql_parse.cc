@@ -5162,7 +5162,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   if (!thd->in_sub_stmt)
   {
     if (opt_bin_log)
+    {
       reset_dynamic(&thd->user_var_events);
+      thd->user_var_events_alloc= thd->mem_root;
+    }
     thd->clear_error();
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;
