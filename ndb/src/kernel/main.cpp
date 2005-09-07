@@ -394,5 +394,5 @@ handler_sigusr1(int signum)
     failed_startups++;
     failed_startup_flag = true;
   }
-  g_eventLogger.info("Received signal %d. Ndbd failed startup (%u).", signum, failed_startups);
+  g_eventLogger.info("Angel received ndbd startup failure count %u.", failed_startups);
 }
