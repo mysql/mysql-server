@@ -1018,9 +1018,9 @@ longlong Item_func_interval::val_int()
 */
 
 bool
-Item_func_between::fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
+Item_func_between::fix_fields(THD *thd, Item **ref)
 {
-  if (Item_func_opt_neg::fix_fields(thd, tables, ref))
+  if (Item_func_opt_neg::fix_fields(thd, ref))
     return 1;
 
   /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
@@ -1132,8 +1132,8 @@ longlong Item_func_between::val_int()
     a_dec= args[1]->val_decimal(&a_buf);
     b_dec= args[2]->val_decimal(&b_buf);
     if (!args[1]->null_value && !args[2]->null_value)
-      return (my_decimal_cmp(dec, a_dec)>=0) && (my_decimal_cmp(dec, b_dec)<=0);
-
+      return (longlong) ((my_decimal_cmp(dec, a_dec) >= 0 &&
+                          my_decimal_cmp(dec, b_dec) <= 0) != negated);
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
@@ -1320,12 +1320,12 @@ Item_func_ifnull::str_op(String *str)
 */
 
 bool
-Item_func_if::fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
+Item_func_if::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   args[0]->top_level_item();
 
-  if (Item_func::fix_fields(thd, tlist, ref))
+  if (Item_func::fix_fields(thd, ref))
     return 1;
 
   not_null_tables_cache= (args[1]->not_null_tables()
@@ -2305,11 +2305,11 @@ bool Item_func_in::nulls_in_row()
 */
 
 bool
-Item_func_in::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+Item_func_in::fix_fields(THD *thd, Item **ref)
 {
   Item **arg, **arg_end;
 
-  if (Item_func_opt_neg::fix_fields(thd, tables, ref))
+  if (Item_func_opt_neg::fix_fields(thd, ref))
     return 1;
 
   /* not_null_tables_cache == union(T1(e),union(T1(ei))) */
