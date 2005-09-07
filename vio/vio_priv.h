@@ -39,6 +39,8 @@ int vio_ssl_fastsend(Vio *vio);
 int vio_ssl_keepalive(Vio *vio, my_bool onoff);
 /* Whenever we should retry the last read/write operation. */
 my_bool vio_ssl_should_retry(Vio *vio);
+/* Check that operation was timed out */
+my_bool	vio_ssl_was_interrupted(Vio *vio);
 /* When the workday is over... */
 int vio_ssl_close(Vio *vio);
 /* Return last error number */
