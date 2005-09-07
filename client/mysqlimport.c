@@ -37,8 +37,9 @@ static char *add_load_option(char *ptr,const char *object,
 			     const char *statement);
 
 static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
-		replace=0,silent=0,ignore=0,opt_compress=0,opt_local_file=0,
+		replace=0,silent=0,ignore=0,opt_compress=0,
                 opt_low_priority= 0, tty_password= 0;
+static uint     opt_local_file=0;
 static MYSQL	mysql_connection;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
