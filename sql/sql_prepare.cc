@@ -2686,11 +2686,11 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
   lex_start(thd, (uchar*) thd->query, thd->query_length);
-  lex->safe_to_cache_query= FALSE;
   lex->stmt_prepare_mode= TRUE;
 
   rc= yyparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
+  lex->safe_to_cache_query= FALSE;
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
