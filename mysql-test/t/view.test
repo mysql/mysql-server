@@ -2020,6 +2020,14 @@ drop view v1;
 drop table t1;
 
 #
+# Bug #12922 if(sum(),...) with group from view returns wrong results 
+#
+create table t1 (f1 int, f2 int,f3 int);
+insert into t1 values (1,10,20),(2,0,0);
+create view v1 as select * from t1;
+select if(sum(f1)>1,f2,f3) from v1 group by f1;
+drop view v1;
+drop table t1;
 # BUG#12941
 #
 create table t1 (
