@@ -179,6 +179,7 @@ source database
 echo message echo message
 
 mysqltest: At line 1: Empty variable
+mysqltest: At line 1: command "false" failed
 mysqltest: At line 1: Missing argument in exec
 MySQL
 "MySQL"
@@ -300,6 +301,7 @@ mysqltest: At line 1: First argument to dec must be a variable (start with $)
 mysqltest: At line 1: End of line junk detected: "1000"
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: Missing arguments to system, nothing to do!
+mysqltest: At line 1: system command 'false' failed
 test
 test2
 test3
