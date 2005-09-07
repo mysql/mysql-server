@@ -342,11 +342,23 @@ int handle_options(int *argc, char ***argv,
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
 	      */
-	    my_bool tmp= (my_bool) (!optend || *optend == '1');
-	    *((my_bool*) value)= tmp;
 	    (*argc)--;
+	    if (!optend || *optend == '1' ||
+		!my_strcasecmp(&my_charset_latin1, optend, "true"))
+	      *((my_bool*) value)= (my_bool) 1;
+	    else if (*optend == '0' ||
+		     !my_strcasecmp(&my_charset_latin1, optend, "false"))
+	      *((my_bool*) value)= (my_bool) 0;
+	    else
+	    {
+	      my_getopt_error_reporter(WARNING_LEVEL,
+				       "%s: ignoring option '--%s' due to \
+invalid value '%s'\n",
+				       my_progname, optp->name, optend);
+	      continue;
+	    }
 	    get_one_option(optp->id, optp,
-			   tmp ? (char*) "1" : disabled_my_option);
+			   value ? (char*) "1" : disabled_my_option);
 	    continue;
 	  }
 	  argument= optend;

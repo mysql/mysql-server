@@ -552,6 +552,7 @@ struct Query_cache_query_flags
 #define query_cache_store_query(A, B) query_cache.store_query(A, B)
 #define query_cache_destroy() query_cache.destroy()
 #define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
+#define query_cache_init() query_cache.init()
 #define query_cache_resize(A) query_cache.resize(A)
 #define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
 #define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
@@ -565,6 +566,7 @@ struct Query_cache_query_flags
 #define query_cache_store_query(A, B)
 #define query_cache_destroy()
 #define query_cache_result_size_limit(A)
+#define query_cache_init()
 #define query_cache_resize(A)
 #define query_cache_set_min_res_unit(A)
 #define query_cache_invalidate3(A, B, C)
@@ -1175,6 +1177,7 @@ extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
+extern bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern bool mysql_proc_table_exists;
 extern uint volatile thread_count, thread_running, global_read_lock;
