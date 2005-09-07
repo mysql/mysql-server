@@ -1022,9 +1022,9 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     /* Will split complicated items and ignore simple ones */
     split_sum_func(thd, ref_pointer_array, fields);
   }
-  else if ((type() == SUM_FUNC_ITEM ||
-            (used_tables() & ~PARAM_TABLE_BIT)) &&
-           type() != REF_ITEM)
+  else if ((type() == SUM_FUNC_ITEM || (used_tables() & ~PARAM_TABLE_BIT)) &&
+           (type() != REF_ITEM ||
+           ((Item_ref*)this)->ref_type() == Item_ref::VIEW_REF))
   {
     /*
       Replace item with a reference so that we can easily calculate
@@ -1033,15 +1033,17 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
       The test above is to ensure we don't do a reference for things
       that are constants (PARAM_TABLE_BIT is in effect a constant)
       or already referenced (for example an item in HAVING)
+      Exception is Item_direct_view_ref which we need to convert to
+      Item_ref to allow fields from view being stored in tmp table.
     */
     uint el= fields.elements;
-    Item *new_item;    
-    ref_pointer_array[el]= this;
+    Item *new_item, *real_item= real_item();
+
+    ref_pointer_array[el]= real_item;
     if (!(new_item= new Item_ref(&thd->lex->current_select->context,
                                  ref_pointer_array + el, 0, name)))
       return;                                   // fatal_error is set
-    fields.push_front(this);
-    ref_pointer_array[el]= this;
+    fields.push_front(real_item);
     thd->change_item_tree(ref, new_item);
   }
 }
