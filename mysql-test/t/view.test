@@ -2018,3 +2018,36 @@ create view v1 as select strcmp(f1,'a') from t1;
 select * from v1;
 drop view v1;
 drop table t1;
+
+#
+# BUG#12941
+#
+create table t1 (
+  r_object_id char(16) NOT NULL,
+  group_name varchar(32) NOT NULL
+) engine = InnoDB;
+
+create table t2 (
+  r_object_id char(16) NOT NULL,
+  i_position int(11) NOT NULL, 
+  users_names varchar(32) default NULL
+) Engine = InnoDB;
+
+create view v1 as select r_object_id, group_name from t1;
+create view v2 as select r_object_id, i_position, users_names from t2;
+
+create unique index r_object_id on t1(r_object_id);
+create index group_name on t1(group_name);
+create unique index r_object_id_i_position on t2(r_object_id,i_position);
+create index users_names on t2(users_names);
+
+insert into t1 values('120001a080000542','tstgroup1');
+insert into t2 values('120001a080000542',-1, 'guser01');
+insert into t2 values('120001a080000542',-2, 'guser02');
+
+select v1.r_object_id, v2.users_names from v1, v2
+where (v1.group_name='tstgroup1') and v2.r_object_id=v1.r_object_id 
+order by users_names;
+
+drop view v1, v2;
+drop table t1, t2;
