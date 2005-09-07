@@ -1085,6 +1085,21 @@ drop function bug11834_1;
 execute stmt;
 deallocate prepare stmt;
 drop function bug11834_2;
+
+#
+# Bug#12953 "Stored procedures: crash if OPTIMIZE TABLE in function"
+#
+delimiter |;
+--disable_warnings
+DROP FUNCTION IF EXISTS bug12953|
+--enable_warnings
+--error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug12953() RETURNS INT
+BEGIN
+  OPTIMIZE TABLE t1;
+  RETURN 1;
+END|
+
 #
 # BUG#NNNN: New bug synopsis
 #
@@ -1092,5 +1107,3 @@ drop function bug11834_2;
 #drop procedure if exists bugNNNN|
 #--enable_warnings
 #create procedure bugNNNN...
-
-
