@@ -1664,7 +1664,9 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
   char buff[MAX_FIELD_WIDTH];
   String tmp((char *)&buff,sizeof(buff),default_charset_info), tmp2;
 
-  if (item->result.length())
+  if (item->no_appended)
+    item->no_appended= FALSE;
+  else
     item->result.append(*item->separator);
 
   tmp.length(0);
@@ -1856,6 +1858,7 @@ void Item_func_group_concat::clear()
   result.copy();
   null_value= TRUE;
   warning_for_row= FALSE;
+  no_appended= TRUE;
   if (tree_mode)
     reset_tree(tree);
 }
@@ -1898,8 +1901,7 @@ bool Item_func_group_concat::add()
 
 void Item_func_group_concat::reset_field()
 {
-  if (tree_mode)
-    reset_tree(tree);
+  DBUG_ASSERT(0);
 }
 
 
