@@ -2811,7 +2811,42 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&tmp_value1);
-    escape= escape_str ? *(escape_str->ptr()) : '\\';
+    if (escape_str)
+    {
+      CHARSET_INFO *cs= cmp.cmp_collation.collation;
+      if (use_mb(cs))
+      {
+        my_wc_t wc;
+        int rc= cs->cset->mb_wc(cs, &wc,
+                                (const uchar*) escape_str->ptr(),
+                                (const uchar*) escape_str->ptr() +
+                                               escape_str->length());
+        escape= (int) (rc > 0 ? wc : '\\');
+      }
+      else
+      {
+        /*
+          In the case of 8bit character set, we pass native
+          code instead of Unicode code as "escape" argument.
+          Convert to "cs" if charset of escape differs.
+        */
+        uint32 unused;
+        if (escape_str->needs_conversion(escape_str->length(),
+                                         escape_str->charset(), cs, &unused))
+        {
+          char ch;
+          uint errors;
+          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str->ptr(),
+                                          escape_str->length(),
+                                          escape_str->charset(), &errors);
+          escape= cnvlen ? ch : '\\';
+        }
+        else
+          escape= *(escape_str->ptr());
+      }
+    }
+    else
+      escape= '\\';
 
     /*
       We could also do boyer-more for non-const items, but as we would have to

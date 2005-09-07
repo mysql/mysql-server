@@ -966,7 +966,7 @@ class Item_func_like :public Item_bool_func2
   Item *escape_item;
 
 public:
-  char escape;
+  int escape;
 
   Item_func_like(Item *a,Item *b, Item *escape_arg)
     :Item_bool_func2(a,b), canDoTurboBM(FALSE), pattern(0), pattern_len(0), 
