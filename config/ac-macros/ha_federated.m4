@@ -6,7 +6,7 @@ AC_DEFUN([MYSQL_CHECK_FEDERATED], [
   AC_ARG_WITH([federated-storage-engine],
               [
   --with-federated-storage-engine
-                        Enable the MySQL Storage Engine],
+                        Enable the MySQL Federated Storage Engine],
               [federateddb="$withval"],
               [federateddb=no])
   AC_MSG_CHECKING([for MySQL federated storage engine])

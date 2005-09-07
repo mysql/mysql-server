@@ -758,3 +758,10 @@ execute stmt;
 ERROR 42000: FUNCTION test.bug11834_1 does not exist
 deallocate prepare stmt;
 drop function bug11834_2;
+DROP FUNCTION IF EXISTS bug12953|
+CREATE FUNCTION bug12953() RETURNS INT
+BEGIN
+OPTIMIZE TABLE t1;
+RETURN 1;
+END|
+ERROR 0A000: OPTIMIZE TABLE is not allowed in stored procedures
