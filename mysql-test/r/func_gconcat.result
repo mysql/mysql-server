@@ -560,3 +560,23 @@ group_concat('x')
 NULL
 1
 drop table t1;
+CREATE TABLE t1 (id int, a varchar(9));
+INSERT INTO t1 VALUES
+(2, ''), (1, ''), (2, 'x'), (1, 'y'), (3, 'z'), (3, '');
+SELECT GROUP_CONCAT(a) FROM t1;
+GROUP_CONCAT(a)
+,,x,y,z,
+SELECT GROUP_CONCAT(a ORDER BY a) FROM t1;
+GROUP_CONCAT(a ORDER BY a)
+,,,x,y,z
+SELECT GROUP_CONCAT(a) FROM t1 GROUP BY id;
+GROUP_CONCAT(a)
+,y
+,x
+z,
+SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY id;
+GROUP_CONCAT(a ORDER BY a)
+,y
+,x
+,z
+DROP TABLE t1;

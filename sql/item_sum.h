@@ -709,6 +709,7 @@ class Item_func_group_concat : public Item_sum
   uint arg_count_field;
   uint field_list_offset;
   uint count_cut_values;
+  bool no_appended;
   /*
     Following is 0 normal object and pointer to original one for copy 
     (to correctly free resources)
