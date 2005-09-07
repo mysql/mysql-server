@@ -1935,6 +1935,8 @@ int ha_federated::delete_row(const byte *buf)
   {
     int error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
     char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
+    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
+              mysql_errno(mysql), mysql_error(mysql)));
     my_error(error_code, MYF(0), error_buffer);
     DBUG_RETURN(error_code);
   }

@@ -165,3 +165,8 @@ drop table t1;
 select abs(-2) * -2;
 abs(-2) * -2
 -4
+create table t1 (i int);
+insert into t1 values (1);
+select rand(i) from t1;
+ERROR HY000: Incorrect arguments to RAND
+drop table t1;
