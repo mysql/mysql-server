@@ -592,7 +592,7 @@ while ($num)
    --source var/tmp/sourced1.sql
    dec $num;
 }
---enable_abort_on_error;
+--enable_abort_on_error
 --enable_query_log
 
 # ----------------------------------------------------------------------------
