@@ -282,6 +282,16 @@ drop table t1;
 drop table t2;
 
 #
+# Bug #12829
+# Cannot convert the charset of a GROUP_CONCAT result
+#
+CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp850);
+INSERT INTO t1 VALUES ('À');
+SELECT a FROM t1;
+SELECT GROUP_CONCAT(a) FROM t1;
+DROP TABLE t1;
+
+#
 # bug #7769: group_concat returning null is checked in having
 #
 CREATE TABLE t1 (id int);
