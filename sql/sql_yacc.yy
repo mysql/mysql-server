@@ -4279,7 +4279,9 @@ predicate:
             else
             {
               $5->push_front($1);
-              $$= negate_expression(YYTHD, new Item_func_in(*$5));
+              Item_func_in *item = new Item_func_in(*$5);
+              item->negate();
+              $$= item;
             }            
           }
         | bit_expr IN_SYM in_subselect
@@ -4289,7 +4291,11 @@ predicate:
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
 	| bit_expr not BETWEEN_SYM bit_expr AND_SYM predicate
-	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
+    {
+      Item_func_between *item= new Item_func_between($1,$4,$6);
+      item->negate();
+      $$= item;
+    }
 	| bit_expr SOUNDS_SYM LIKE bit_expr
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }

@@ -135,7 +135,7 @@ INSERT INTO t1 VALUES (10363,'Tecniques de Comunicacio Oral i Escrita','Tecnicas
 INSERT INTO t1 VALUES (11403,'Projecte Fi de Carrera','Proyecto Fin de Carrera','Projecte Fi de Carrera','PFC',9.0,NULL,NULL,NULL);
 INSERT INTO t1 VALUES (11404,'+lgebra lineal','Algebra lineal','+lgebra lineal','+lgebra lineal',15.0,NULL,NULL,NULL);
 INSERT INTO t1 VALUES (11405,'+lgebra lineal','Algebra lineal','+lgebra lineal','+lgebra lineal',18.0,NULL,NULL,NULL);
-INSERT INTO t1 VALUES (11406,'Calcul Infinitesimal','Cßlculo Infinitesimal','Calcul Infinitesimal','Calcul Infinitesimal',15.0,NULL,NULL,NULL);
+INSERT INTO t1 VALUES (11406,'Calcul Infinitesimal','CÃŸlculo Infinitesimal','Calcul Infinitesimal','Calcul Infinitesimal',15.0,NULL,NULL,NULL);
 
 CREATE TABLE t2 (
   idAssignatura int(11) DEFAULT '0' NOT NULL,
@@ -590,7 +590,6 @@ INSERT INTO t2 VALUES("0", "EN", "0-EN");
 INSERT INTO t2 VALUES("0", "SV", "0-SV");
 INSERT INTO t2 VALUES("10", "EN", "10-EN");
 INSERT INTO t2 VALUES("10", "SV", "10-SV");
-
 SELECT t1.id, t1.text_id, t2.text_data
   FROM t1 LEFT JOIN t2
                ON t1.text_id = t2.text_id
@@ -713,3 +712,49 @@ INSERT INTO t1 VALUES (30), (40), (50);
 INSERT INTO t2 VALUES (300), (400), (500);
 SELECT * FROM t1 LEFT JOIN t2 ON (c11=c21 AND c21=30) WHERE c11=40;
 DROP TABLE t1, t2;
+#
+# Test for bugs
+# #12101: erroneously applied outer join elimination in case of WHERE NOT BETWEEN
+# #12102: erroneously missing outer join elimination in case of WHERE IN/IF
+#
+
+CREATE TABLE t1 (a int PRIMARY KEY, b int);
+CREATE TABLE t2 (a int PRIMARY KEY, b int);
+
+INSERT INTO t1 VALUES (1,2), (2,1), (3,2), (4,3), (5,6), (6,5), (7,8), (8,7), (9,10);
+INSERT INTO t2 VALUES (3,0), (4,1), (6,4), (7,5);
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t2.b <= t1.a AND t1.a <= t1.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a BETWEEN t2.b AND t1.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a NOT BETWEEN t2.b AND t1.b);
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t2.b > t1.a OR t1.a > t1.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a NOT BETWEEN t2.b AND t1.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a BETWEEN t2.b AND t1.b);
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t2.b > t1.a OR t1.a > t1.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a != t2.a AND t1.a BETWEEN t2.b AND t1.b);
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a AND (t2.b > t1.a OR t1.a > t1.b);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a != t2.a OR t1.a BETWEEN t2.b AND t1.b);
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t1.a = t2.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a IN(t2.a, t2.b);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a NOT IN(t2.a, t2.b));
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a != t1.b AND t1.a != t2.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a NOT IN(t1.b, t2.b);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a IN(t1.b, t2.b));
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t2.a != t2.b OR (t1.a != t2.a AND t1.a != t2.b);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t2.a = t2.b AND t1.a IN(t2.a, t2.b));
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t2.a != t2.b AND t1.a != t1.b AND t1.a != t2.b;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t2.a = t2.b OR t1.a IN(t1.b, t2.b));
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t1.a = t2.b;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a IN(t2.a, t2.b);
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a > IF(t1.a = t2.b-2, t2.b, t2.b-1);
+
+DROP TABLE t1,t2;
+
