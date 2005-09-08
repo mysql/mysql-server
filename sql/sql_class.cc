@@ -377,6 +377,8 @@ void THD::cleanup(void)
   mysql_ha_flush(this, (TABLE_LIST*) 0,
                  MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
   hash_free(&handler_tables_hash);
+  delete_dynamic(&user_var_events);
+  hash_free(&user_vars);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
