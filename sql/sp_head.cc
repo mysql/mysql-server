@@ -275,8 +275,19 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     }
     DBUG_PRINT("info",("STRING_RESULT: %*s",
                        s->length(), s->c_ptr_quick()));
-    CHARSET_INFO *itcs= it->collation.collation;
-    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_string(itcs),
+    /*
+      Reuse mechanism in sp_eval_func_item() is only employed for assignments
+      to local variables and OUT/INOUT SP parameters repsesented by
+      Item_splocal. Usually we have some expression, which needs
+      to be calculated and stored into the local variable. However in the
+      case if "it" equals to "reuse", there is no "calculation" step. So,
+      no reason to employ reuse mechanism to save variable into itself.
+    */
+    if (it == reuse)
+      DBUG_RETURN(it);
+
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
+                            Item_string(it->collation.collation),
                             use_callers_arena, &backup_arena);
     /*
       We have to use special constructor and allocate string
