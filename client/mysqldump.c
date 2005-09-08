@@ -1330,41 +1330,6 @@ static uint get_table_structure(char *table, char *db)
       fprintf(sql_file, "%s;\n", row[1]);
       check_io(sql_file);
       mysql_free_result(tableRes);
-      if (opt_dump_triggers &&
-          mysql_get_server_version(sock) >= 50009)
-      {
-        my_snprintf(query_buff, sizeof(query_buff),
-                    "SHOW TRIGGERS LIKE %s",
-                    quote_for_like(table, name_buff));
-
-
-        if (mysql_query_with_error_report(sock, &tableRes, query_buff))
-        {
-          if (path)
-            my_fclose(sql_file, MYF(MY_WME));
-          safe_exit(EX_MYSQLERR);
-          DBUG_RETURN(0);
-        }
-        if (mysql_num_rows(tableRes))
-          fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
-DELIMITER //;\n");
-        while ((row=mysql_fetch_row(tableRes)))
-        {
-          fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/ //\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s*/ //\n\n",
-                  row[6], /* sql_mode */
-                  quote_name(row[0], name_buff, 0), /* Trigger */
-                  row[4], /* Timing */
-                  row[1], /* Event */
-                  result_table,
-                  row[3] /* Statement */);
-        }
-        if (mysql_num_rows(tableRes))
-          fprintf(sql_file,
-                  "DELIMITER ;//\n\
-/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;");
-        mysql_free_result(tableRes);
-      }
     }
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
@@ -1656,6 +1621,68 @@ continue_xml:
   DBUG_RETURN(numFields);
 } /* get_table_structure */
 
+
+/*
+
+  dump_triggers_for_table
+
+  Dumps the triggers given a table/db name. This should be called after
+  the tables have been dumped in case a trigger depends on the existence
+  of a table
+
+  INPUT
+    char * tablename and db name
+  RETURNS
+   0 Failure
+   1 Succes
+
+*/
+
+static void dump_triggers_for_table (char *table, char *db)
+{
+  MYSQL_RES  *result;
+  MYSQL_ROW  row;
+  char	     *result_table;
+  char	     name_buff[NAME_LEN+3], table_buff[NAME_LEN*2+3];
+  char       query_buff[512];
+  FILE       *sql_file = md_result_file;
+
+  DBUG_ENTER("dump_triggers_for_table");
+  DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
+  result_table=     quote_name(table, table_buff, 1);
+
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SHOW TRIGGERS LIKE %s",
+              quote_for_like(table, name_buff));
+
+  if (mysql_query_with_error_report(sock, &result, query_buff))
+  {
+    if (path)
+      my_fclose(sql_file, MYF(MY_WME));
+    safe_exit(EX_MYSQLERR);
+    DBUG_VOID_RETURN;
+  }
+  if (mysql_num_rows(result))
+    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
+DELIMITER //;\n");
+  while ((row=mysql_fetch_row(result)))
+  {
+    fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */ //\n\
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */ //\n\n",
+            row[6], /* sql_mode */
+            quote_name(row[0], name_buff, 0), /* Trigger */
+            row[4], /* Timing */
+            row[1], /* Event */
+            result_table,
+            row[3] /* Statement */);
+  }
+  if (mysql_num_rows(result))
+    fprintf(sql_file,
+            "DELIMITER ;//\n\
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;");
+  mysql_free_result(result);
+  DBUG_VOID_RETURN;
+}
 
 static char *add_load_option(char *ptr,const char *object,
 			     const char *statement)
@@ -2376,6 +2403,9 @@ static int dump_all_tables_in_db(char *database)
       dump_table(numrows,table);
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
       order_by= 0;
+      if (opt_dump_triggers && ! opt_xml &&
+          mysql_get_server_version(sock) >= 50009)
+        dump_triggers_for_table(table, database);
     }
   }
   if (opt_xml)
@@ -2569,6 +2599,9 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     DBUG_PRINT("info",("Dumping table %s", table_name));
     numrows= get_table_structure(table_name, db);
     dump_table(numrows, table_name);
+    if (opt_dump_triggers &&
+        mysql_get_server_version(sock) >= 50009)
+      dump_triggers_for_table(table_name, db);
   }
 
   /* Dump each selected view */
