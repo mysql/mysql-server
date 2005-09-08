@@ -368,3 +368,15 @@ create table t2 (a int);
 select * from (select * from t1,t2) foo;
 ERROR 42S21: Duplicate column name 'a'
 drop table t1,t2;
+create table t1 (ID int unsigned not null auto_increment,
+DATA varchar(5) not null, primary key (ID));
+create table t2 (ID int unsigned not null auto_increment,
+DATA varchar(5) not null, FID int unsigned not null,
+primary key (ID));
+select A.* from (t1 inner join (select * from t2) as A on t1.ID = A.FID);
+ID	DATA	FID
+select t2.* from ((select * from t1) as A inner join t2 on A.ID = t2.FID);
+ID	DATA	FID
+select t2.* from (select * from t1) as A inner join t2 on A.ID = t2.FID;
+ID	DATA	FID
+drop table t1, t2;
