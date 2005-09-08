@@ -413,6 +413,7 @@ public:
     
     Uint32 clientRef;
     Uint32 clientData;
+    Uint32 flags;
     Uint32 backupId;
     Uint32 backupKey[2];
     Uint32 masterRef;
