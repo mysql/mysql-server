@@ -797,44 +797,10 @@ END //
 
 DELIMITER ;//
 
-# just to see what you've created
-# this will not work because of the timestamps!
-# show procedure status;
-#show create procedure bug9056_proc1;
-#show create procedure bug9056_proc2;
-#show function status;
-#show create function bug9056_func1;
-#show create function bug9056_func2;
-SELECT db, name, type, definer, param_list, body 
-FROM mysql.proc
-WHERE db = 'test';
-
 # Dump the DB and ROUTINES 
---exec $MYSQL_DUMP --skip-comments --routines --databases test > var/tmp/mysqldump.sql
+--exec $MYSQL_DUMP --skip-comments --routines --databases test
+
 # ok, now blow it all away
---disable_warnings
-DROP PROCEDURE IF EXISTS bug9056_func1;
-DROP PROCEDURE IF EXISTS bug9056_func2;
-DROP PROCEDURE IF EXISTS bug9056_proc1;
-DROP PROCEDURE IF EXISTS bug9056_proc2;
-drop table t1;
---enable-warnings
-
-# Now, restore
---exec $MYSQL test < var/tmp/mysqldump.sql
-
-# Check that the routines have been reloaded
-# this will not work because of the timestamps!
-#show procedure status;
-#show create procedure bug9056_proc1;
-#show create procedure bug9056_proc2;
-#show function status;
-#show create function bug9056_func1;
-#show create function bug9056_func2;
-SELECT db, name, type, definer, param_list, body 
-FROM mysql.proc
-WHERE db = 'test';
-
 --disable_warnings
 DROP PROCEDURE IF EXISTS bug9056_func1;
 DROP PROCEDURE IF EXISTS bug9056_func2;

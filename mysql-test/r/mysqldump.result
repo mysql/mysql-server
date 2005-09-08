@@ -1897,37 +1897,65 @@ CREATE PROCEDURE bug9056_proc2(OUT a INT)
 BEGIN 
 select sum(id) from t1 into a; 
 END //
-SELECT db, name, type, definer, param_list, body 
-FROM mysql.proc
-WHERE db = 'test';
-db	name	type	definer	param_list	body
-test	bug9056_func1	FUNCTION	root@localhost	a INT, b INT	RETURN a+b
-test	bug9056_func2	FUNCTION	root@localhost	f1 char binary	begin
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `test`;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `id` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
+LOCK TABLES `t1` WRITE;
+INSERT INTO `t1` VALUES (1),(2),(3),(4),(5);
+UNLOCK TABLES;
+/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+
+/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;
+DELIMITER //
+/*!50003 SET SESSION SQL_MODE=""*/ //
+/*!50003 DROP FUNCTION IF EXISTS bug9056_func1 */ //
+/*!50003 CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
+RETURN a+b */ //
+/*!50003 SET SESSION SQL_MODE=""*/ //
+/*!50003 DROP FUNCTION IF EXISTS bug9056_func2 */ //
+/*!50003 CREATE FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1)
+begin
 set f1= concat( 'hello', f1 );
 return f1;
-end
-test	bug9056_proc1	PROCEDURE	root@localhost	IN a INT, IN b INT, OUT c INT	BEGIN SELECT a+b INTO c; end
-test	bug9056_proc2	PROCEDURE	root@localhost	OUT a INT	BEGIN 
+end */ //
+/*!50003 SET SESSION SQL_MODE=""*/ //
+/*!50003 DROP PROCEDURE IF EXISTS bug9056_proc1 */ //
+/*!50003 CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
+BEGIN SELECT a+b INTO c; end */ //
+/*!50003 SET SESSION SQL_MODE=""*/ //
+/*!50003 DROP PROCEDURE IF EXISTS bug9056_proc2 */ //
+/*!50003 CREATE PROCEDURE `bug9056_proc2`(OUT a INT)
+BEGIN 
 select sum(id) from t1 into a; 
-END
-DROP PROCEDURE IF EXISTS bug9056_func1;
-DROP PROCEDURE IF EXISTS bug9056_func2;
-DROP PROCEDURE IF EXISTS bug9056_proc1;
-DROP PROCEDURE IF EXISTS bug9056_proc2;
-drop table t1;
-SELECT db, name, type, definer, param_list, body 
-FROM mysql.proc
-WHERE db = 'test';
-db	name	type	definer	param_list	body
-test	bug9056_func1	FUNCTION	root@localhost	a INT, b INT	RETURN a+b
-test	bug9056_func2	FUNCTION	root@localhost	f1 char binary	begin
-set f1= concat( 'hello', f1 );
-return f1;
-end
-test	bug9056_proc1	PROCEDURE	root@localhost	IN a INT, IN b INT, OUT c INT	BEGIN SELECT a+b INTO c; end
-test	bug9056_proc2	PROCEDURE	root@localhost	OUT a INT	BEGIN 
-select sum(id) from t1 into a; 
-END
+END */ //
+DELIMITER ;
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
 DROP PROCEDURE IF EXISTS bug9056_func1;
 DROP PROCEDURE IF EXISTS bug9056_func2;
 DROP PROCEDURE IF EXISTS bug9056_proc1;

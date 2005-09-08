@@ -603,9 +603,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 				    MYF(MY_WME))))
       exit(1);
     break;
-  case 'R':
-    opt_routines= 1;
-    break;
   case 'W':
 #ifdef __WIN__
     opt_protocol = MYSQL_PROTOCOL_PIPE;
@@ -1196,15 +1193,13 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 
 static uint dump_routines_for_db (char *db)
 {
+  char       query_buff[512], routine_type[10];
+  char       db_name_buff[NAME_LEN+3], name_buff[NAME_LEN+3];
+  int        i;
+  FILE       *sql_file = md_result_file;
   MYSQL_RES  *routine_res= NULL;
   MYSQL_RES  *routine_list_res= NULL;
   MYSQL_ROW  row, routine_list_row;
-  char       query_buff[512], routine_type[10];
-  char       db_name_buff[NAME_LEN+3], name_buff[NAME_LEN+3];
-  char       *routine_name;
-  char       **routine_list;
-  int        i;
-  FILE       *sql_file = md_result_file;
 
   DBUG_ENTER("dump_routines_for_db");
 
@@ -1214,7 +1209,15 @@ static uint dump_routines_for_db (char *db)
   /* nice comments */
   if (opt_comments)
     fprintf(sql_file, "\n--\n-- Dumping routines for database '%s'\n--\n", db);
-  mysql_query(sock, "LOCK TABLES mysql.proc READ");
+
+  /*
+    not using "mysql_query_with_error_report" because of privileges 
+  */
+  if (opt_lock)
+    mysql_query(sock, "LOCK TABLES mysql.proc READ");
+
+  fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+  fprintf(sql_file, "DELIMITER //\n");
 
   /* 0, retrieve and dump functions, 1, procedures */
   for (i=0; i <= 1; i++)
@@ -1225,15 +1228,12 @@ static uint dump_routines_for_db (char *db)
     my_snprintf(query_buff, sizeof(query_buff),
                 "SHOW %s STATUS WHERE Db = '%s'",
                 routine_type, db_name_buff);
-    mysql_query(sock, query_buff);
 
-    if (!(routine_list_res= mysql_store_result(sock)))
+    if (mysql_query_with_error_report(sock, &routine_list_res, query_buff))
       DBUG_RETURN(1);
 
     if (mysql_num_rows(routine_list_res))
     {
-      fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
-      fprintf(sql_file, "DELIMITER //\n");
 
       while((routine_list_row= mysql_fetch_row(routine_list_res)))
       {
@@ -1244,12 +1244,7 @@ static uint dump_routines_for_db (char *db)
                     routine_type, name_buff);
 
         if (mysql_query_with_error_report(sock, &routine_res, query_buff))
-        {
-          if (path)
-            my_fclose(sql_file, MYF(MY_WME));
-          safe_exit(EX_MYSQLERR);
           DBUG_RETURN(1);
-        }
 
         while ((row=mysql_fetch_row(routine_res)))
         {
@@ -1272,21 +1267,23 @@ static uint dump_routines_for_db (char *db)
               can't be in comments
             */
             /* create proc/func body */;
-            fprintf(sql_file, i == 0 ? "%s //\n" : "/*!50003 %s */ //\n", row[2]);
+            fprintf(sql_file, "/*!50003 %s */ //\n", row[2]);
           }
         } /* end of routine printing */
       } /* end of list of routines */
-      /* set the delimiter back to ';' */
-      fprintf(sql_file, "DELIMITER ;\n");
-      fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;\n");
       mysql_free_result(routine_res);
       routine_res=NULL;
     }
     mysql_free_result(routine_list_res);
     routine_list_res=NULL;
   } /* end of for i (0 .. 1)  */
+  /* set the delimiter back to ';' */
+  fprintf(sql_file, "DELIMITER ;\n");
+  fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;\n");
 
-  mysql_query(sock, "UNLOCK TABLES");
+  /* again, no error report due to permissions */
+  if (opt_lock)
+    mysql_query(sock, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
