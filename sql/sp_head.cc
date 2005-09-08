@@ -1827,17 +1827,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   thd->query_id= next_query_id();
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  /*
-    FIXME. Resetting statement (and using it) is not reentrant, thus recursive
-           functions which try to use the same LEX twice will crash server.
-           We should prevent such situations by tracking if LEX is already
-           in use and throwing error about unallowed recursion if needed.
-           OTOH it is nice to allow recursion in cases when LEX is not really
-           used (e.g. in mathematical functions), so such tracking should be
-           implemented at the same time as ability not to store LEX for
-           instruction if it is not really used.
-  */
-
   if (thd->prelocked_mode == NON_PRELOCKED)
   {
     /*
