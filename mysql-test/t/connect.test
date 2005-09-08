@@ -6,6 +6,10 @@
 # This test makes no sense with the embedded server
 --source include/not_embedded.inc
 
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
 #connect (con1,localhost,root,,"");
 #show tables;
 connect (con1,localhost,root,,mysql);
@@ -77,22 +81,18 @@ show tables;
 delete from mysql.user where user=_binary"test";
 flush privileges;
 
-# Test for bug #12517.
+#
+# Bug#12517: Clear user variables and replication events before 
+#            closing temp tables in thread cleanup.
 connect (con2,localhost,root,,test);
 connection con2;
-use test;
-drop table if exists t1;
 create table t1 (id integer not null auto_increment primary key);
-drop table if exists t2;
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
 delete from t1 where id like @id;
 disconnect con2;
-sleep 5;
-connect (con1,localhost,root,,test);
-connection con1;
-use test;
-drop table if exists t2;
-drop table if exists t1;
+--sleep 5
+connection default;
+drop table t1;
 
 # End of 4.1 tests

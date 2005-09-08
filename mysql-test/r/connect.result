@@ -1,3 +1,4 @@
+drop table if exists t1,t2;
 show tables;
 Tables_in_mysql
 columns_priv
@@ -65,19 +66,8 @@ show tables;
 Tables_in_test
 delete from mysql.user where user=_binary"test";
 flush privileges;
-use test;
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
 create table t1 (id integer not null auto_increment primary key);
-drop table if exists t2;
-Warnings:
-Note	1051	Unknown table 't2'
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
 delete from t1 where id like @id;
-use test;
-drop table if exists t2;
-Warnings:
-Note	1051	Unknown table 't2'
-drop table if exists t1;
+drop table t1;
