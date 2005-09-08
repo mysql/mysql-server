@@ -2,10 +2,6 @@
 drop table if exists t1,t2;
 --enable_warnings
 
-set @sav_dpi= @@div_precision_increment;
-set div_precision_increment= 5;
-show variables like 'div_precision_increment';
-
 create table t1 (product varchar(32), country_id int not null, year int, profit int);
 insert into t1  values ( 'Computer', 2,2000, 1200),
 ( 'TV', 1, 1999, 150),
@@ -157,13 +153,6 @@ SELECT DISTINCT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1
 SELECT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
 SELECT DISTINCT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
 
-SELECT b, a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
-SELECT DISTINCT b,a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
-
-ALTER TABLE t1 ADD COLUMN c INT;
-SELECT a,b,sum(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
-SELECT distinct a,b,sum(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
-
 DROP TABLE t1;
 
 #
@@ -195,7 +184,6 @@ SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP;
 SELECT * FROM ( SELECT a, SUM(a) m FROM  t1 GROUP BY a WITH ROLLUP ) t2;
 
 DROP TABLE t1;
-set div_precision_increment= @sav_dpi;
 
 #
 # Tests for bug #7914: ROLLUP over expressions on temporary table
@@ -251,21 +239,6 @@ SELECT IFNULL(a, 'TEST'), COALESCE(b, 'TEST') FROM t2
 DROP TABLE t1,t2;
 
 #
-# Tests for bug #11639: ROLLUP over view executed through filesort
-#
-
-CREATE TABLE t1(id int, type char(1));
-INSERT INTO t1 VALUES
-  (1,"A"),(2,"C"),(3,"A"),(4,"A"),(5,"B"),
-  (6,"B"),(7,"A"),(8,"C"),(9,"A"),(10,"C");
-CREATE VIEW v1 AS SELECT * FROM t1;
-
-SELECT type FROM t1 GROUP BY type WITH ROLLUP;
-SELECT type FROM v1 GROUP BY type WITH ROLLUP;
-EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
-
-DROP VIEW v1;
-DROP TABLE t1;
 # Test for bug #11543: ROLLUP query with a repeated column in GROUP BY 
 #
 
@@ -274,6 +247,19 @@ INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (1, 2);
 
 SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
+
+DROP TABLE t1;
+
+#
+# Bug #11885:  derived table specified by a subquery with
+#              ROLLUP over expressions on not nullable group by attributes 
+#
+
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT * FROM (SELECT a, a + 1, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
+SELECT * FROM (SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
 
 DROP TABLE t1;
 
