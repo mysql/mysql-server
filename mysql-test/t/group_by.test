@@ -600,4 +600,14 @@ insert into t1 values('2005-06-06');
 select date(left(f1+0,8)) from t1 group by 1;
 drop table t1;
 
+#
+# BUG#12695: Item_func_isnull::update_used_tables
+# did not update const_item_cache
+#
+create table t1(f1 varchar(5) key);
+insert into t1 values (1),(2);
+select sql_buffer_result max(f1) is null from t1;
+select sql_buffer_result max(f1)+1 from t1;
+drop table t1;
+
 # End of 4.1 tests
