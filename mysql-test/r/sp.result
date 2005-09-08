@@ -3193,4 +3193,23 @@ set f1= concat( 'hello', f1 );
 return f1;
 end|
 drop function bug9048|
+drop procedure if exists bug12849_1|
+create procedure bug12849_1(inout x char) select x into x|
+set @var='a'|
+call bug12849_1(@var)|
+select @var|
+@var
+a
+drop procedure bug12849_1|
+drop procedure if exists bug12849_2|
+create procedure bug12849_2(inout foo varchar(15))
+begin
+select concat(foo, foo) INTO foo;
+end|
+set @var='abcd'|
+call bug12849_2(@var)|
+select @var|
+@var
+abcdabcd
+drop procedure bug12849_2|
 drop table t1,t2;
