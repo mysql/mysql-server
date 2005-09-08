@@ -39,6 +39,8 @@
 #include <signaldata/BackupSignalData.hpp>
 #include <signaldata/GrepImpl.hpp>
 #include <signaldata/ManagementServer.hpp>
+#include <signaldata/NFCompleteRep.hpp>
+#include <signaldata/NodeFailRep.hpp>
 #include <NdbSleep.h>
 #include <EventLogger.hpp>
 #include <DebuggerNames.hpp>
@@ -55,6 +57,8 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
 #include <m_string.h>
+
+#include <SignalSender.hpp>
 
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG
@@ -707,6 +711,15 @@ int MgmtSrvr::okToSendTo(NodeId processId, bool unCond)
   } else {
     return 0;
   }
+}
+
+void report_unknown_signal(SimpleSignal *signal)
+{
+  g_eventLogger.error("Unknown signal received. SignalNumber: "
+		      "%i from (%d, %x)",
+		      signal->readSignalNumber(),
+		      refToNode(signal->header.theSendersBlockRef),
+		      refToBlock(signal->header.theSendersBlockRef));
 }
 
 /*****************************************************************************
@@ -1911,81 +1924,6 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   }
     break;
     
-  case GSN_BACKUP_CONF:{
-    const BackupConf * const conf = 
-      CAST_CONSTPTR(BackupConf, signal->getDataPtr());
-    BackupEvent event;
-    event.Event = BackupEvent::BackupStarted;
-    event.Started.BackupId = conf->backupId;
-    event.Nodes = conf->nodes;
-#ifdef VM_TRACE
-    ndbout_c("Backup master is %d", refToNode(signal->theSendersBlockRef));
-#endif
-    backupCallback(event);
-  }
-    break;
-
-  case GSN_BACKUP_REF:{
-    const BackupRef * const ref = 
-      CAST_CONSTPTR(BackupRef, signal->getDataPtr());
-    Uint32 errCode = ref->errorCode;
-    if(ref->errorCode == BackupRef::IAmNotMaster){
-      const Uint32 aNodeId = refToNode(ref->masterRef);
-#ifdef VM_TRACE
-      ndbout_c("I'm not master resending to %d", aNodeId);
-#endif
-      theWaitNode= aNodeId;
-      NdbApiSignal aSignal(_ownReference);
-      BackupReq* req = CAST_PTR(BackupReq, aSignal.getDataPtrSend());
-      aSignal.set(TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
-		  BackupReq::SignalLength);
-      req->senderData = 19;
-      req->backupDataLen = 0;
-      
-      int i = theFacade->sendSignalUnCond(&aSignal, aNodeId);
-      if(i == 0){
-	return;
-      }
-      errCode = 5030;
-    }
-    BackupEvent event;
-    event.Event = BackupEvent::BackupFailedToStart;
-    event.FailedToStart.ErrorCode = errCode;
-    backupCallback(event);
-    break;
-  }
-
-  case GSN_BACKUP_ABORT_REP:{
-    const BackupAbortRep * const rep = 
-      CAST_CONSTPTR(BackupAbortRep, signal->getDataPtr());
-    BackupEvent event;
-    event.Event = BackupEvent::BackupAborted;
-    event.Aborted.Reason = rep->reason;
-    event.Aborted.BackupId = rep->backupId;
-    event.Aborted.ErrorCode = rep->reason;
-    backupCallback(event);
-  }
-  break;
-
-  case GSN_BACKUP_COMPLETE_REP:{
-    const BackupCompleteRep * const rep = 
-      CAST_CONSTPTR(BackupCompleteRep, signal->getDataPtr());
-    BackupEvent event;
-    event.Event = BackupEvent::BackupCompleted;
-    event.Completed.BackupId = rep->backupId;
-
-    event.Completed.NoOfBytes = rep->noOfBytes;
-    event.Completed.NoOfLogBytes = rep->noOfLogBytes;
-    event.Completed.NoOfRecords = rep->noOfRecords;
-    event.Completed.NoOfLogRecords = rep->noOfLogRecords;
-    event.Completed.stopGCP = rep->stopGCP;
-    event.Completed.startGCP = rep->startGCP;
-    event.Nodes = rep->nodes;
-
-    backupCallback(event);
-  }
-    break;
-
   case GSN_MGM_LOCK_CONFIG_REP:
   case GSN_MGM_LOCK_CONFIG_REQ:
   case GSN_MGM_UNLOCK_CONFIG_REP:
@@ -2446,6 +2384,9 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
 int
 MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 {
+  SignalSender ss(theFacade);
+  ss.lock(); // lock will be released on exit
+
   bool next;
   NodeId nodeId = 0;
   while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
@@ -2453,49 +2394,125 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
   
   if(!next) return NO_CONTACT_WITH_DB_NODES;
 
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
+  SimpleSignal ssig;
 
-  BackupReq* req = CAST_PTR(BackupReq, signal->getDataPtrSend());
-  signal->set(TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
-	      BackupReq::SignalLength);
+  BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
+  ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+	   BackupReq::SignalLength);
   
   req->senderData = 19;
   req->backupDataLen = 0;
+  assert(waitCompleted < 3);
+  req->flags = waitCompleted & 0x3;
 
-  int result;
-  if (waitCompleted == 2) {
-    result = sendRecSignal(nodeId, WAIT_BACKUP_COMPLETED,
-			   signal, true, 48*60*60*1000 /* 48 hours */);
-  }
-  else if (waitCompleted == 1) {
-    result = sendRecSignal(nodeId, WAIT_BACKUP_STARTED,
-			   signal, true, 5*60*1000 /*5 mins*/);
-  }
-  else {
-    result = sendRecSignal(nodeId, NO_WAIT, signal, true);
-  }
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
+  BackupEvent event;
+  int do_send = 1;
+  while (1) {
+    if (do_send)
+    {
+      SendStatus result = ss.sendSignal(nodeId, &ssig);
+      if (result != SEND_OK) {
+	return SEND_OR_RECEIVE_FAILED;
+      }
+      if (waitCompleted == 0)
+	return 0;
+      do_send = 0;
+    }
+    SimpleSignal *signal = ss.waitFor();
 
-  if (waitCompleted){
-    switch(m_lastBackupEvent.Event){
-    case BackupEvent::BackupCompleted:
-      backupId = m_lastBackupEvent.Completed.BackupId;
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_BACKUP_CONF:{
+      const BackupConf * const conf = 
+	CAST_CONSTPTR(BackupConf, signal->getDataPtr());
+      event.Event = BackupEvent::BackupStarted;
+      event.Started.BackupId = conf->backupId;
+      event.Nodes = conf->nodes;
+#ifdef VM_TRACE
+      ndbout_c("Backup(%d) master is %d", conf->backupId,
+	       refToNode(signal->header.theSendersBlockRef));
+#endif
+      backupId = conf->backupId;
+      if (waitCompleted == 1)
+	return 0;
+      // wait for next signal
       break;
-    case BackupEvent::BackupStarted:
-      backupId = m_lastBackupEvent.Started.BackupId;
+    }
+    case GSN_BACKUP_COMPLETE_REP:{
+      const BackupCompleteRep * const rep = 
+	CAST_CONSTPTR(BackupCompleteRep, signal->getDataPtr());
+#ifdef VM_TRACE
+      ndbout_c("Backup(%d) completed %d", rep->backupId);
+#endif
+      event.Event = BackupEvent::BackupCompleted;
+      event.Completed.BackupId = rep->backupId;
+    
+      event.Completed.NoOfBytes = rep->noOfBytes;
+      event.Completed.NoOfLogBytes = rep->noOfLogBytes;
+      event.Completed.NoOfRecords = rep->noOfRecords;
+      event.Completed.NoOfLogRecords = rep->noOfLogRecords;
+      event.Completed.stopGCP = rep->stopGCP;
+      event.Completed.startGCP = rep->startGCP;
+      event.Nodes = rep->nodes;
+
+      backupId = rep->backupId;
+      return 0;
+    }
+    case GSN_BACKUP_REF:{
+      const BackupRef * const ref = 
+	CAST_CONSTPTR(BackupRef, signal->getDataPtr());
+      if(ref->errorCode == BackupRef::IAmNotMaster){
+	nodeId = refToNode(ref->masterRef);
+#ifdef VM_TRACE
+	ndbout_c("I'm not master resending to %d", nodeId);
+#endif
+	do_send = 1; // try again
+	continue;
+      }
+      event.Event = BackupEvent::BackupFailedToStart;
+      event.FailedToStart.ErrorCode = ref->errorCode;
+      return ref->errorCode;
+    }
+    case GSN_BACKUP_ABORT_REP:{
+      const BackupAbortRep * const rep = 
+	CAST_CONSTPTR(BackupAbortRep, signal->getDataPtr());
+      event.Event = BackupEvent::BackupAborted;
+      event.Aborted.Reason = rep->reason;
+      event.Aborted.BackupId = rep->backupId;
+      event.Aborted.ErrorCode = rep->reason;
+#ifdef VM_TRACE
+      ndbout_c("Backup %d aborted", rep->backupId);
+#endif
+      return rep->reason;
+    }
+    case GSN_NF_COMPLETEREP:{
+      const NFCompleteRep * const rep =
+	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
+#ifdef VM_TRACE
+      ndbout_c("Node %d fail completed", rep->failedNodeId);
+#endif
+      if (rep->failedNodeId == nodeId ||
+	  waitCompleted == 1)
+	return 1326;
+      // wait for next signal
+      // master node will report aborted backup
       break;
-    case BackupEvent::BackupFailedToStart:
-      return m_lastBackupEvent.FailedToStart.ErrorCode;
-    case BackupEvent::BackupAborted:
-      return m_lastBackupEvent.Aborted.ErrorCode;
+    }
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+#ifdef VM_TRACE
+      ndbout_c("Node %d failed", rep->failNo);
+#endif
+      if (rep->failNo == nodeId ||
+	  waitCompleted == 1)
+      // wait for next signal
+      // master node will report aborted backup
+      break;
+    }
     default:
-      return -1;
-      break;
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
     }
   }
   
@@ -2533,36 +2550,6 @@ MgmtSrvr::abortBackup(Uint32 backupId)
   }
   
   return 0;
-}
-
-void
-MgmtSrvr::backupCallback(BackupEvent & event)
-{
-  DBUG_ENTER("MgmtSrvr::backupCallback");
-  m_lastBackupEvent = event;
-  switch(event.Event){
-  case BackupEvent::BackupFailedToStart:
-    DBUG_PRINT("info",("BackupEvent::BackupFailedToStart"));
-    theWaitState = NO_WAIT;
-    break;
-  case BackupEvent::BackupAborted:
-    DBUG_PRINT("info",("BackupEvent::BackupAborted"));
-    theWaitState = NO_WAIT;
-    break;
-  case BackupEvent::BackupCompleted:
-    DBUG_PRINT("info",("BackupEvent::BackupCompleted"));
-    theWaitState = NO_WAIT;
-    break;
-  case BackupEvent::BackupStarted:
-    if(theWaitState == WAIT_BACKUP_STARTED)
-    {
-      DBUG_PRINT("info",("BackupEvent::BackupStarted NO_WAIT"));
-      theWaitState = NO_WAIT;
-    } else {
-      DBUG_PRINT("info",("BackupEvent::BackupStarted"));
-    }
-  }
-  DBUG_VOID_RETURN;
 }
 
 

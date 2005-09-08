@@ -69,6 +69,9 @@ static const Uint32 BACKUP_SEQUENCE = 0x1F000000;
 
 static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
 
+#define SEND_BACKUP_STARTED_FLAG(A) (((A) & 0x3) > 0)
+#define SEND_BACKUP_COMPLETED_FLAG(A) (((A) & 0x3) > 1)
+
 void
 Backup::execSTTOR(Signal* signal) 
 {
@@ -852,7 +855,8 @@ Backup::execBACKUP_REQ(Signal* signal)
   const Uint32 senderData = req->senderData;
   const BlockReference senderRef = signal->senderBlockRef();
   const Uint32 dataLen32 = req->backupDataLen; // In 32 bit words
-  
+  const Uint32 flags = signal->getLength() > 2 ? req->flags : 2;
+
   if(getOwnNodeId() != getMasterNodeId()) {
     jam();
     sendBackupRef(senderRef, signal, senderData, BackupRef::IAmNotMaster);
@@ -894,6 +898,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->errorCode = 0;
   ptr.p->clientRef = senderRef;
   ptr.p->clientData = senderData;
+  ptr.p->flags = flags;
   ptr.p->masterRef = reference();
   ptr.p->nodes = c_aliveNodes;
   ptr.p->backupId = 0;
@@ -931,7 +936,10 @@ void
 Backup::sendBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errorCode)
 {
   jam();
-  sendBackupRef(ptr.p->clientRef, signal, ptr.p->clientData, errorCode);
+  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
+  {
+    sendBackupRef(ptr.p->clientRef, signal, ptr.p->clientData, errorCode);
+  }
   cleanup(signal, ptr);
 }
 
@@ -1098,6 +1106,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   req->backupKey[1] = ptr.p->backupKey[1];
   req->nodes = ptr.p->nodes;
   req->backupDataLen = ptr.p->backupDataLen;
+  req->flags = ptr.p->flags;
   
   ptr.p->masterData.gsn = GSN_DEFINE_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
@@ -1193,13 +1202,18 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   /**
    * Reply to client
    */
+  CRASH_INSERTION((10034));
+
   BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
   conf->backupId = ptr.p->backupId;
   conf->senderData = ptr.p->clientData;
   conf->nodes = ptr.p->nodes;
-  sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal, 
-	     BackupConf::SignalLength, JBB);
-  
+  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
+  {
+    sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal, 
+	       BackupConf::SignalLength, JBB);
+  }
+
   signal->theData[0] = EventReport::BackupStarted;
   signal->theData[1] = ptr.p->clientRef;
   signal->theData[2] = ptr.p->backupId;
@@ -2090,9 +2104,12 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
     rep->noOfLogBytes = ptr.p->noOfLogBytes;
     rep->noOfLogRecords = ptr.p->noOfLogRecords;
     rep->nodes = ptr.p->nodes;
-    sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
-	       BackupCompleteRep::SignalLength, JBB);
-    
+    if (SEND_BACKUP_COMPLETED_FLAG(ptr.p->flags))
+    {
+      sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
+		 BackupCompleteRep::SignalLength, JBB);
+    }
+
     signal->theData[0] = EventReport::BackupCompleted;
     signal->theData[1] = ptr.p->clientRef;
     signal->theData[2] = ptr.p->backupId;
@@ -2133,9 +2150,11 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   rep->backupId = ptr.p->backupId;
   rep->senderData = ptr.p->clientData;
   rep->reason = ptr.p->errorCode;
-  sendSignal(ptr.p->clientRef, GSN_BACKUP_ABORT_REP, signal, 
-	     BackupAbortRep::SignalLength, JBB);
-  
+  if (SEND_BACKUP_COMPLETED_FLAG(ptr.p->flags))
+  {
+    sendSignal(ptr.p->clientRef, GSN_BACKUP_ABORT_REP, signal, 
+	       BackupAbortRep::SignalLength, JBB);
+  }
   signal->theData[0] = EventReport::BackupAborted;
   signal->theData[1] = ptr.p->clientRef;
   signal->theData[2] = ptr.p->backupId;
@@ -2267,6 +2286,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->errorCode = 0;
   ptr.p->clientRef = req->clientRef;
   ptr.p->clientData = req->clientData;
+  ptr.p->flags = req->flags;
   ptr.p->masterRef = senderRef;
   ptr.p->nodes = req->nodes;
   ptr.p->backupId = backupId;
