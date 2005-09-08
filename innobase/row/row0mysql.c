@@ -2088,9 +2088,12 @@ row_table_add_foreign_constraints(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 					table2 can be written also with the
 					database name before it: test.table2 */
-	const char*	name)		/* in: table full name in the
+	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
+	ibool		reject_fks)	/* in: if TRUE, fail with error
+					code DB_CANNOT_ADD_CONSTRAINT if
+					any foreign keys are found. */
 {
 	ulint	err;
 
@@ -2111,7 +2114,8 @@ row_table_add_foreign_constraints(
 
 	trx->dict_operation = TRUE;
 
-	err = dict_create_foreign_constraints(trx, sql_string, name);
+	err = dict_create_foreign_constraints(trx, sql_string, name,
+		reject_fks);
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
