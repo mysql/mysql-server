@@ -24,34 +24,8 @@
  * This signals is sent by Qmgr to NdbCntr
  *   and then from NdbCntr sent to: dih, dict, lqh, tc & API
  */
-class NodeFailRep {
-  /**
-   * Sender(s)
-   */
-  friend class Qmgr;
-  
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Ndbcntr;
-  friend class Dbdict;
-  
-  /**
-   * Reciver(s)
-   */
-  friend class Dbdih;
-  friend class Dblqh;
-  friend class Dbtc;
-  friend class ClusterMgr;
-  friend class Trix;
-  friend class Backup;
-  friend class Suma;
-  friend class Grep;
-  friend class SafeCounterManager;
-
-public:
+struct NodeFailRep {
   STATIC_CONST( SignalLength = 3 + NodeBitmask::Size );
-private:
   
   Uint32 failNo;
 
