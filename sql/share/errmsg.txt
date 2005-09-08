@@ -5495,7 +5495,7 @@ ER_COALESCE_ONLY_ON_HASH_PARTITION
         swe "COALESCE PARTITION kan bara användas på HASH/KEY partitioner"
 ER_ONLY_ON_RANGE_LIST_PARTITION
         eng "%s PARTITION can only be used on RANGE/LIST partitions"
-        eng "%s PARTITION kan bara användas på RANGE/LIST partitioner"
+        swe "%s PARTITION kan bara användas på RANGE/LIST-partitioner"
 ER_ADD_PARTITION_SUBPART_ERROR
         eng "Trying to Add partition(s) with wrong number of subpartitions"
         swe "ADD PARTITION med fel antal subpartitioner"
