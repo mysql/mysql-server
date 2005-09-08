@@ -3826,6 +3826,11 @@ optimize:
 	OPTIMIZE opt_no_write_to_binlog table_or_tables
 	{
 	   LEX *lex=Lex;
+	   if (lex->sphead)
+	   {
+	     my_error(ER_SP_BADSTATEMENT, MYF(0), "OPTIMIZE TABLE");
+	     YYABORT;
+	   }
 	   lex->sql_command = SQLCOM_OPTIMIZE;
            lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
@@ -4274,7 +4279,9 @@ predicate:
             else
             {
               $5->push_front($1);
-              $$= negate_expression(YYTHD, new Item_func_in(*$5));
+              Item_func_in *item = new Item_func_in(*$5);
+              item->negate();
+              $$= item;
             }            
           }
         | bit_expr IN_SYM in_subselect
@@ -4284,7 +4291,11 @@ predicate:
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
 	| bit_expr not BETWEEN_SYM bit_expr AND_SYM predicate
-	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
+    {
+      Item_func_between *item= new Item_func_between($1,$4,$6);
+      item->negate();
+      $$= item;
+    }
 	| bit_expr SOUNDS_SYM LIKE bit_expr
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }
@@ -8152,6 +8163,11 @@ handler:
 	HANDLER_SYM table_ident OPEN_SYM opt_table_alias
 	{
 	  LEX *lex= Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_OPEN;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
@@ -8159,6 +8175,11 @@ handler:
 	| HANDLER_SYM table_ident_nodb CLOSE_SYM
 	{
 	  LEX *lex= Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_CLOSE;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
@@ -8166,6 +8187,11 @@ handler:
 	| HANDLER_SYM table_ident_nodb READ_SYM
 	{
 	  LEX *lex=Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  lex->current_select->select_limit= new Item_int((int32) 1);

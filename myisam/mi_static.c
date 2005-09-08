@@ -27,7 +27,7 @@ LIST	*myisam_open_list=0;
 uchar	NEAR myisam_file_magic[]=
 { (uchar) 254, (uchar) 254,'\007', '\001', };
 uchar	NEAR myisam_pack_file_magic[]=
-{ (uchar) 254, (uchar) 254,'\010', '\001', };
+{ (uchar) 254, (uchar) 254,'\010', '\002', };
 my_string myisam_log_filename=(char*) "myisam.log";
 File	myisam_log_file= -1;
 uint	myisam_quick_table_bits=9;
