@@ -768,9 +768,6 @@ private:
   static void *signalRecvThread_C(void *);
   void signalRecvThreadRun();
   
-  void backupCallback(BackupEvent &);
-  BackupEvent m_lastBackupEvent;
-
   Config *_props;
 
   int send(class NdbApiSignal* signal, Uint32 node, Uint32 node_type);
