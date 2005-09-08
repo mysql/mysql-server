@@ -91,7 +91,7 @@ public:
 
 
 // no gas on these systems ?, disable for now
-#if defined(__sun__) || defined (__QNX__)
+#if defined(__sun__) || defined (__QNX__) || defined (__APPLE__)
     #define TAOCRYPT_DISABLE_X86ASM
 #endif
 
