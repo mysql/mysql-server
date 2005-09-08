@@ -1,3 +1,4 @@
+drop table if exists t1,t2;
 show tables;
 Tables_in_mysql
 columns_priv
@@ -65,3 +66,8 @@ show tables;
 Tables_in_test
 delete from mysql.user where user=_binary"test";
 flush privileges;
+create table t1 (id integer not null auto_increment primary key);
+create temporary table t2(id integer not null auto_increment primary key);
+set @id := 1;
+delete from t1 where id like @id;
+drop table t1;
