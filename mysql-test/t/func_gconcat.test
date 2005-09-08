@@ -373,4 +373,20 @@ select * from (select group_concat(a) from t1) t2;
 select group_concat('x') UNION ALL select 1;
 drop table t1;
 
+#
+# Bug #12863 : missing separators after first empty cancatanated elements
+#
+
+CREATE TABLE t1 (id int, a varchar(9));
+INSERT INTO t1 VALUES
+  (2, ''), (1, ''), (2, 'x'), (1, 'y'), (3, 'z'), (3, '');
+
+SELECT GROUP_CONCAT(a) FROM t1;
+SELECT GROUP_CONCAT(a ORDER BY a) FROM t1;
+
+SELECT GROUP_CONCAT(a) FROM t1 GROUP BY id;
+SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY id;
+
+DROP TABLE t1;
+
 # End of 4.1 tests

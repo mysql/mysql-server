@@ -2740,8 +2740,10 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
 
-  if (result->length())
-    result->append(*item->separator);
+  if (item->no_appended)
+    item->no_appended= FALSE;
+  else
+    item->result.append(*item->separator);
 
   tmp.length(0);
 
@@ -2925,6 +2927,7 @@ void Item_func_group_concat::clear()
   result.copy();
   null_value= TRUE;
   warning_for_row= FALSE;
+  no_appended= TRUE;
   if (tree)
     reset_tree(tree);
   /* No need to reset the table as we never call write_row */
@@ -2966,6 +2969,12 @@ bool Item_func_group_concat::add()
     dump_leaf_key(table->record[0] + table->s->null_bytes, 1, this);
 
   return 0;
+}
+
+
+void Item_func_group_concat::reset_field()
+{
+  DBUG_ASSERT(0);
 }
 
 
