@@ -282,6 +282,16 @@ drop table t1;
 drop table t2;
 
 #
+# Bug #12829
+# Cannot convert the charset of a GROUP_CONCAT result
+#
+CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp850);
+INSERT INTO t1 VALUES ('À');
+SELECT a FROM t1;
+SELECT GROUP_CONCAT(a) FROM t1;
+DROP TABLE t1;
+
+#
 # bug #7769: group_concat returning null is checked in having
 #
 CREATE TABLE t1 (id int);
@@ -354,5 +364,29 @@ DROP TABLE t1,t2;
 # Bug #12861 hang with group_concat insubquery FROM DUAL
 #
 select * from (select group_concat('c') from DUAL) t;
+
+#
+# Bug #12859 group_concat in subquery cause incorrect not null
+#
+create table t1 ( a int not null default 0);
+select * from (select group_concat(a) from t1) t2;
+select group_concat('x') UNION ALL select 1;
+drop table t1;
+
+#
+# Bug #12863 : missing separators after first empty cancatanated elements
+#
+
+CREATE TABLE t1 (id int, a varchar(9));
+INSERT INTO t1 VALUES
+  (2, ''), (1, ''), (2, 'x'), (1, 'y'), (3, 'z'), (3, '');
+
+SELECT GROUP_CONCAT(a) FROM t1;
+SELECT GROUP_CONCAT(a ORDER BY a) FROM t1;
+
+SELECT GROUP_CONCAT(a) FROM t1 GROUP BY id;
+SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY id;
+
+DROP TABLE t1;
 
 # End of 4.1 tests
