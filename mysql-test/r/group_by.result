@@ -764,3 +764,12 @@ select date(left(f1+0,8)) from t1 group by 1;
 date(left(f1+0,8))
 2005-06-06
 drop table t1;
+create table t1(f1 varchar(5) key);
+insert into t1 values (1),(2);
+select sql_buffer_result max(f1) is null from t1;
+max(f1) is null
+0
+select sql_buffer_result max(f1)+1 from t1;
+max(f1)+1
+3
+drop table t1;
