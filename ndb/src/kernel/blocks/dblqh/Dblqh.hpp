@@ -91,7 +91,7 @@
 #define ZPOS_PAGE_I 13
 #define ZPOS_PLACE_WRITTEN_FROM 14
 #define ZPOS_PAGE_NO 15
-#define ZPOS_FILE_NO 16
+#define ZPOS_PAGE_FILE_NO 16
 #define ZPOS_WORD_WRITTEN 17
 #define ZPOS_IN_WRITING 18
 #define ZPOS_PREV_PAGE_NO 19
@@ -2289,7 +2289,7 @@ private:
 			  const LogPartRecordPtr &sltLogPartPtr);
   void checkGcpCompleted(Signal* signal, Uint32 pageWritten, Uint32 wordWritten);
   void initFsopenconf(Signal* signal);
-  void initFsrwconf(Signal* signal);
+  void initFsrwconf(Signal* signal, bool write);
   void initLfo(Signal* signal);
   void initLogfile(Signal* signal, Uint32 fileNo);
   void initLogpage(Signal* signal);
