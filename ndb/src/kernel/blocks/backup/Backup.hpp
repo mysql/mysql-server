@@ -596,7 +596,7 @@ public:
   
   bool insertFileHeader(BackupFormat::FileType, BackupRecord*, BackupFile*);
   void sendBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errorCode);
-  void sendBackupRef(BlockReference ref, Signal *signal,
+  void sendBackupRef(BlockReference ref, Uint32 flags, Signal *signal,
 		     Uint32 senderData, Uint32 errorCode);
   void dumpUsedResources();
   void cleanup(Signal*, BackupRecordPtr ptr);
