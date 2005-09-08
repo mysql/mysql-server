@@ -881,6 +881,7 @@ class Item_func_group_concat : public Item_sum
   bool distinct;
   bool warning_for_row;
   bool always_null;
+  bool no_appended;
   /*
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)
@@ -898,29 +899,6 @@ class Item_func_group_concat : public Item_sum
                            element_count count __attribute__((unused)),
 			   Item_func_group_concat *group_concat_item);
 
- public:
-  String result;
-  String *separator;
-  TREE tree_base;
-  TREE *tree;
-  TABLE *table;
-  ORDER **order;
-  TABLE_LIST *tables_list;
-  ulong group_concat_max_len;
-  uint arg_count_order;
-  uint arg_count_field;
-  uint field_list_offset;
-  uint count_cut_values;
-  bool no_appended;
-  /*
-    Following is 0 normal object and pointer to original one for copy 
-    (to correctly free resources)
-  */
-  Item_func_group_concat *original;
-  
-  Item_func_group_concat(bool is_distinct,List<Item> *is_select,
-                         SQL_LIST *is_order,String *is_separator);
-			 
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
@@ -935,8 +913,8 @@ public:
   virtual Item_result result_type () const { return STRING_RESULT; }
   void clear();
   bool add();
-  void reset_field() {}                         // not used
-  void update_field() {}                        // not used
+  void reset_field() { DBUG_ASSERT(0); }        // not used
+  void update_field() { DBUG_ASSERT(0); }       // not used
   bool fix_fields(THD *,Item **);
   bool setup(THD *thd);
   void make_unique();
