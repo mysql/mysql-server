@@ -4687,13 +4687,7 @@ ha_innobase::create(
 		form->s->row_type != ROW_TYPE_REDUNDANT);
 
   	if (error) {
-		innobase_commit_low(trx);
-
-		row_mysql_unlock_data_dictionary(trx);
-
-  		trx_free_for_mysql(trx);
-
- 		DBUG_RETURN(error);
+		goto cleanup;
  	}
 
 	/* Look for a primary key */
@@ -4717,13 +4711,7 @@ ha_innobase::create(
 		error = create_clustered_index_when_no_primary(trx,
 							norm_name);
   		if (error) {
-			innobase_commit_low(trx);
-
-			row_mysql_unlock_data_dictionary(trx);
-
-			trx_free_for_mysql(trx);
-
-			DBUG_RETURN(error);
+			goto cleanup;
       		}
 	}
 
@@ -4732,13 +4720,7 @@ ha_innobase::create(
 		first */
 	    	if ((error = create_index(trx, form, norm_name,
 					  (uint) primary_key_no))) {
-			innobase_commit_low(trx);
-
-			row_mysql_unlock_data_dictionary(trx);
-
-  			trx_free_for_mysql(trx);
-
-			DBUG_RETURN(error);
+			goto cleanup;
       		}
       	}
 
@@ -4747,14 +4729,7 @@ ha_innobase::create(
 		if (i != (uint) primary_key_no) {
 
     			if ((error = create_index(trx, form, norm_name, i))) {
-
-			  	innobase_commit_low(trx);
-
-				row_mysql_unlock_data_dictionary(trx);
-
-  				trx_free_for_mysql(trx);
-
-				DBUG_RETURN(error);
+				goto cleanup;
       			}
       		}
   	}
@@ -4767,21 +4742,18 @@ ha_innobase::create(
 					current_thd->query_length,
 					current_thd->charset())) {
 			error = HA_ERR_OUT_OF_MEM;
-		} else {
-			error = row_table_add_foreign_constraints(trx,
-					q.str, norm_name);
-
-			error = convert_error_code_to_mysql(error, NULL);
+			
+			goto cleanup;
 		}
 
+		error = row_table_add_foreign_constraints(trx,
+			q.str, norm_name,
+			create_info->options & HA_LEX_CREATE_TMP_TABLE);
+
+		error = convert_error_code_to_mysql(error, NULL);
+
 		if (error) {
-			innobase_commit_low(trx);
-
-			row_mysql_unlock_data_dictionary(trx);
-
-  			trx_free_for_mysql(trx);
-
-			DBUG_RETURN(error);
+			goto cleanup;
 		}
 	}
 
@@ -4821,6 +4793,15 @@ ha_innobase::create(
   	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);
+
+cleanup:
+	innobase_commit_low(trx);
+	
+	row_mysql_unlock_data_dictionary(trx);
+	
+	trx_free_for_mysql(trx);
+
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************
