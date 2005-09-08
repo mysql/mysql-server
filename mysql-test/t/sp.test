@@ -4044,6 +4044,32 @@ end|
 drop function bug9048|
 
 #
+# Bug #12849 Stored Procedure: Crash on procedure call with CHAR type
+# 'INOUT' parameter
+#
+
+--disable_warnings
+drop procedure if exists bug12849_1|
+--enable_warnings
+create procedure bug12849_1(inout x char) select x into x|
+set @var='a'|
+call bug12849_1(@var)|
+select @var|
+drop procedure bug12849_1|
+
+--disable_warnings
+drop procedure if exists bug12849_2|
+--enable_warnings
+create procedure bug12849_2(inout foo varchar(15))
+begin
+select concat(foo, foo) INTO foo;
+end|
+set @var='abcd'|
+call bug12849_2(@var)|
+select @var|
+drop procedure bug12849_2|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

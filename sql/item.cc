@@ -818,8 +818,25 @@ String *Item_splocal::val_str(String *sp)
   DBUG_ASSERT(fixed);
   Item *it= this_item();
   String *ret= it->val_str(sp);
+  /*
+    This way we mark returned value of val_str as const,
+    so that various functions (e.g. CONCAT) won't try to
+    modify the value of the Item. Analogous mechanism is
+    implemented for Item_param.
+    Without this trick Item_splocal could be changed as a
+    side-effect of expression computation. Here is an example
+    of what happens without it: suppose x is varchar local
+    variable in a SP with initial value 'ab' Then
+      select concat(x,'c');
+    would change x's value to 'abc', as Item_func_concat::val_str()
+    would use x's internal buffer to compute the result.
+    This is intended behaviour of Item_func_concat. Comments to
+    Item_param class contain some more details on the topic.
+  */
+  str_value_ptr.set(ret->ptr(), ret->length(),
+                    ret->charset());
   null_value= it->null_value;
-  return ret;
+  return &str_value_ptr;
 }
 
 
