@@ -20,22 +20,22 @@ connect (con4,localhost,ssl_user4,,);
 
 connection con1;
 select * from t1;
---error 1142;
+--error 1142
 delete from t1;
 
 connection con2;
 select * from t1;
---error 1142;
+--error 1142
 delete from t1;
 
 connection con3;
 select * from t1;
---error 1142;
+--error 1142
 delete from t1;
 
 connection con4;
 select * from t1;
---error 1142;
+--error 1142
 delete from t1;
 
 connection default;

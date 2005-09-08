@@ -312,6 +312,7 @@ emacs.h
 extra/charset2html
 extra/comp_err
 extra/created_include_files
+extra/innochecksum
 extra/my_print_defaults
 extra/mysql_install
 extra/mysql_tzinfo_to_sql

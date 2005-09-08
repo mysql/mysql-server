@@ -14,8 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <NDBT_ReturnCodes.h>
 #include "consumer_restore.hpp"
 #include <NdbSleep.h>
+
+extern my_bool opt_core;
 
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
@@ -472,7 +475,11 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
 void BackupRestore::exitHandler() 
 {
   release();
-  exit(-1);
+  NDBT_ProgramExit(NDBT_FAILED);
+  if (opt_core)
+    abort();
+  else
+    exit(NDBT_FAILED);
 }
 
 
@@ -506,7 +513,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   {
     // Deep shit, TODO: handle the error
     err << "Cannot start transaction" << endl;
-    exit(-1);
+    exitHandler();
   } // if
   
   const NdbDictionary::Table * table = get_table(tup.m_table->m_dictTable);
@@ -514,7 +521,7 @@ BackupRestore::logEntry(const LogEntry & tup)
   if (op == NULL) 
   {
     err << "Cannot get operation: " << trans->getNdbError() << endl;
-    exit(-1);
+    exitHandler();
   } // if
   
   int check = 0;
@@ -532,13 +539,13 @@ BackupRestore::logEntry(const LogEntry & tup)
   default:
     err << "Log entry has wrong operation type."
 	   << " Exiting...";
-    exit(-1);
+    exitHandler();
   }
 
   if (check != 0) 
   {
     err << "Error defining op: " << trans->getNdbError() << endl;
-    exit(-1);
+    exitHandler();
   } // if
   
   Bitmask<4096> keys;
@@ -567,7 +574,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     if (check != 0) 
     {
       err << "Error defining op: " << trans->getNdbError() << endl;
-      exit(-1);
+      exitHandler();
     } // if
   }
   
@@ -596,7 +603,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     if (!ok)
     {
       err << "execute failed: " << errobj << endl;
-      exit(-1);
+      exitHandler();
     }
   }
   
@@ -643,7 +650,7 @@ BackupRestore::tuple(const TupleS & tup)
     {
       // Deep shit, TODO: handle the error
       ndbout << "Cannot start transaction" << endl;
-      exit(-1);
+      exitHandler();
     } // if
     
     const TableS * table = tup.getTable();
@@ -652,7 +659,7 @@ BackupRestore::tuple(const TupleS & tup)
     {
       ndbout << "Cannot get operation: ";
       ndbout << trans->getNdbError() << endl;
-      exit(-1);
+      exitHandler();
     } // if
     
     // TODO: check return value and handle error
@@ -660,7 +667,7 @@ BackupRestore::tuple(const TupleS & tup)
     {
       ndbout << "writeTuple call failed: ";
       ndbout << trans->getNdbError() << endl;
-      exit(-1);
+      exitHandler();
     } // if
     
     for (int i = 0; i < tup.getNoOfAttributes(); i++) 
@@ -694,7 +701,7 @@ BackupRestore::tuple(const TupleS & tup)
     {
       ndbout << "execute failed: ";
       ndbout << trans->getNdbError() << endl;
-      exit(-1);
+      exitHandler();
     }
     m_ndb->closeTransaction(trans);
     if (ret == 0)

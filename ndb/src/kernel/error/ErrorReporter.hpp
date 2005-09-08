@@ -26,6 +26,7 @@
 class ErrorReporter
 {
 public:
+  static void setErrorHandlerShutdownType(NdbShutdownType nst = NST_ErrorHandler);
   static void handleAssert(const char* message, 
 			   const char* file, 
 			   int line);
@@ -57,6 +58,7 @@ public:
   static const char* formatTimeStampString();
   
 private:
+  static enum NdbShutdownType s_errorHandlerShutdownType;
 };
 
 #endif
