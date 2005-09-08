@@ -545,3 +545,10 @@ select @@max_heap_table_size > 0;
 select @@have_innodb;
 @@have_innodb
 #
+select @@character_set_system;
+@@character_set_system
+utf8
+set global character_set_system = latin1;
+ERROR HY000: Variable 'character_set_system' is a read only variable
+set @@global.version_compile_os='234';
+ERROR HY000: Variable 'version_compile_os' is a read only variable
