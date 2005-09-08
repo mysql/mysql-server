@@ -2612,6 +2612,8 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
               table_list->alias, name, item_name, (ulong) ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
+  Query_arena *arena, backup;  
+  
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
   for (; !field_it.end_of_fields(); field_it.next())
@@ -2633,7 +2635,13 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
                              name, length))
         DBUG_RETURN(WRONG_GRANT);
 #endif
+      // in PS use own arena or data will be freed after prepare
+      if (register_tree_change)
+        arena= thd->activate_stmt_arena_if_needed(&backup);
       Item *item= field_it.create_item(thd);
+      if (register_tree_change && arena)
+        thd->restore_active_arena(arena, &backup);
+      
       if (!item)
         DBUG_RETURN(0);
       /*
@@ -2695,6 +2703,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
     field_it(*(table_ref->join_columns));
   Natural_join_column *nj_col;
   Field *found_field;
+  Query_arena *arena, backup;
+
   DBUG_ENTER("find_field_in_natural_join");
   DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
 		       name, (ulong) ref));
@@ -2723,7 +2733,14 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       The found field is a view field, we do as in find_field_in_view()
       and return a pointer to pointer to the Item of that field.
     */
+    if (register_tree_change)
+      arena= thd->activate_stmt_arena_if_needed(&backup);
+
     Item *item= nj_col->create_item(thd);
+
+    if (register_tree_change && arena)
+      thd->restore_active_arena(arena, &backup);
+
     if (!item)
       DBUG_RETURN(NULL);
     DBUG_ASSERT(nj_col->table_field == NULL);
