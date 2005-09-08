@@ -2526,6 +2526,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 #endif
       if (rep->failNo == nodeId ||
 	  waitCompleted == 1)
+	return 1326;
       // wait for next signal
       // master node will report aborted backup
       break;
