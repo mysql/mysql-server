@@ -275,8 +275,19 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     }
     DBUG_PRINT("info",("STRING_RESULT: %*s",
                        s->length(), s->c_ptr_quick()));
-    CHARSET_INFO *itcs= it->collation.collation;
-    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_string(itcs),
+    /*
+      Reuse mechanism in sp_eval_func_item() is only employed for assignments
+      to local variables and OUT/INOUT SP parameters repsesented by
+      Item_splocal. Usually we have some expression, which needs
+      to be calculated and stored into the local variable. However in the
+      case if "it" equals to "reuse", there is no "calculation" step. So,
+      no reason to employ reuse mechanism to save variable into itself.
+    */
+    if (it == reuse)
+      DBUG_RETURN(it);
+
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
+                            Item_string(it->collation.collation),
                             use_callers_arena, &backup_arena);
     /*
       We have to use special constructor and allocate string
@@ -1826,17 +1837,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= next_query_id();
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-
-  /*
-    FIXME. Resetting statement (and using it) is not reentrant, thus recursive
-           functions which try to use the same LEX twice will crash server.
-           We should prevent such situations by tracking if LEX is already
-           in use and throwing error about unallowed recursion if needed.
-           OTOH it is nice to allow recursion in cases when LEX is not really
-           used (e.g. in mathematical functions), so such tracking should be
-           implemented at the same time as ability not to store LEX for
-           instruction if it is not really used.
-  */
 
   if (thd->prelocked_mode == NON_PRELOCKED)
   {

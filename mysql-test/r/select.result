@@ -2897,3 +2897,18 @@ select * from t1 natural join t2 where a = 'b';
 a
 b
 drop table t1, t2;
+CREATE TABLE t1 (`id` TINYINT);
+CREATE TABLE t2 (`id` TINYINT);
+CREATE TABLE t3 (`id` TINYINT);
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+SELECT t1.id,t3.id FROM t1 JOIN t2 ON (t2.id=t1.id) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+SELECT t1.id,t3.id FROM t1 JOIN t2 ON (t2.notacolumn=t1.id) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+SELECT id,t3.id FROM t1 JOIN t2 ON (t2.id=t1.id) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+SELECT id,t3.id FROM (t1 JOIN t2 ON (t2.id=t1.id)) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+drop table t1, t2, t3;

@@ -230,7 +230,7 @@ class JOIN :public Sql_alloc
   /* Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
 
-  bool need_tmp, hidden_group_fields, buffer_result;
+  bool need_tmp, hidden_group_fields;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value;
   List<Item> all_fields; // to store all fields that used in query
@@ -299,8 +299,6 @@ class JOIN :public Sql_alloc
     skip_sort_order= 0;
     need_tmp= 0;
     hidden_group_fields= 0; /*safety*/
-    buffer_result= test(select_options & OPTION_BUFFER_RESULT) &&
-      !test(select_options & OPTION_FOUND_ROWS);
     error= 0;
     select= 0;
     return_tab= 0;

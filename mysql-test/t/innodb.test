@@ -1451,3 +1451,18 @@ TRUNCATE t1;
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 DROP TABLE t2, t1;
+
+-- Test that foreign keys in temporary tables are not accepted (bug #12084)
+CREATE TABLE t1
+(
+ id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+--error 1005,1005
+CREATE TEMPORARY TABLE t2
+(
+ id INT NOT NULL PRIMARY KEY,
+ b INT,
+ FOREIGN KEY (b) REFERENCES test.t1(id)
+) ENGINE=InnoDB;
+DROP TABLE t1;
