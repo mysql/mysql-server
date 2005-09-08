@@ -2972,12 +2972,6 @@ bool Item_func_group_concat::add()
 }
 
 
-void Item_func_group_concat::reset_field()
-{
-  DBUG_ASSERT(0);
-}
-
-
 bool
 Item_func_group_concat::fix_fields(THD *thd, Item **ref)
 {
