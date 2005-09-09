@@ -31,7 +31,8 @@ testTimeout \
 testTransactions \
 testDeadlock \
 test_event ndbapi_slow_select testReadPerf testLcp \
-DbCreate DbAsyncGenerator
+DbCreate DbAsyncGenerator \
+testSRBank
 
 #flexTimedAsynch
 #testBlobs
@@ -72,6 +73,7 @@ testReadPerf_SOURCES = testReadPerf.cpp
 testLcp_SOURCES = testLcp.cpp
 DbCreate_SOURCES= bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
 DbAsyncGenerator_SOURCES= bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp bench/dbGenerator.h bench/macros.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
+testSRBank_SOURCES = testSRBank.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
 
@@ -83,6 +85,7 @@ include $(top_srcdir)/ndb/config/type_ndbapitest.mk.am
 ##testSystemRestart_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
 ##testTransactions_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
 testBackup_LDADD = $(LDADD) bank/libbank.a
+testSRBank_LDADD = bank/libbank.a $(LDADD) 
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
