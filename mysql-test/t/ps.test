@@ -809,6 +809,21 @@ select ??;
 select ? from t1;
 --enable_ps_protocol
 drop table t1;
+
+#
+# Bug#12651
+# (Crash on a PS including a subquery which is a select from a simple view)
+#
+CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
+CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
+CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
+
+PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
+EXECUTE b12651;
+
+DROP VIEW b12651_V1;
+DROP TABLE b12651_T1, b12651_T2;
+
 #
 # Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
 # time"
