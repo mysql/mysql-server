@@ -2871,8 +2871,12 @@ dict_create_foreign_constraints_low(
 				table2 can be written also with the database
 				name before it: test.table2; the default
 				database is the database of parameter name */
-	const char*	name)	/* in: table full name in the normalized form
+	const char*	name,	/* in: table full name in the normalized form
 				database_name/table_name */
+	ibool		reject_fks)
+				/* in: if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any foreign
+				keys are found. */
 {
 	dict_table_t*	table;
 	dict_table_t*	referenced_table;
@@ -2994,6 +2998,18 @@ loop:
 	}
 
 	if (*ptr == '\0') {
+		/* The proper way to reject foreign keys for temporary
+		   tables would be to split the lexing and syntactical
+		   analysis of foreign key clauses from the actual adding
+		   of them, so that ha_innodb.cc could first parse the SQL
+		   command, determine if there are any foreign keys, and
+		   if so, immediately reject the command if the table is a
+		   temporary one. For now, this kludge will work. */
+		if (reject_fks && (UT_LIST_GET_LEN(table->foreign_list) > 0))
+		{
+			return DB_CANNOT_ADD_CONSTRAINT;
+		}
+		
 		/**********************************************************/
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */
@@ -3417,9 +3433,12 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
-	const char*	name)		/* in: table full name in the
+	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
+	ibool		reject_fks)	/* in: if TRUE, fail with error
+					code DB_CANNOT_ADD_CONSTRAINT if
+					any foreign keys are found. */
 {
 	char*		str;
 	ulint		err;
@@ -3428,7 +3447,8 @@ dict_create_foreign_constraints(
 	str = dict_strip_comments(sql_string);
 	heap = mem_heap_create(10000);
 
-	err = dict_create_foreign_constraints_low(trx, heap, str, name);
+	err = dict_create_foreign_constraints_low(trx, heap, str, name,
+		reject_fks);
 
 	mem_heap_free(heap);
 	mem_free(str);
