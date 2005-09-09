@@ -665,4 +665,16 @@ SHOW TABLE STATUS FROM test
   WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
                     WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
 
-DROP TABLE t1,t2
+DROP TABLE t1,t2;
+
+#
+# Bug #12905 show fields from view behaving erratically with current database
+#
+create table t1(f1 int);
+create view v1 (c) as select f1 from t1;
+connect (con5,localhost,root,,*NO-ONE*);
+select database();
+show fields from test.v1;
+connection default;
+drop view v1;
+drop table t1;

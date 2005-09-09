@@ -142,11 +142,8 @@ sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 sys_var_thd_ulong	sys_bulk_insert_buff_size("bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 sys_var_character_set_server	sys_character_set_server("character_set_server");
-sys_var_str			sys_charset_system("character_set_system",
-				    sys_check_charset,
-				    sys_update_charset,
-				    sys_set_default_charset,
-                                    (char *)my_charset_utf8_general_ci.name);
+sys_var_const_str       sys_charset_system("character_set_system",
+                                           (char *)my_charset_utf8_general_ci.name);
 sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
@@ -571,6 +568,7 @@ sys_var *sys_variables[]=
   &sys_character_set_client,
   &sys_character_set_connection,
   &sys_character_set_results,
+  &sys_charset_system,
   &sys_collation_connection,
   &sys_collation_database,
   &sys_collation_server,
@@ -1120,27 +1118,6 @@ static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 {
   strmake(ft_boolean_syntax, def_ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
-}
-
-/*
-  The following 3 functions need to be changed in 4.1 when we allow
-  one to change character sets
-*/
-
-static int sys_check_charset(THD *thd, set_var *var)
-{
-  return 0;
-}
-
-
-static bool sys_update_charset(THD *thd, set_var *var)
-{
-  return 0;
-}
-
-
-static void sys_set_default_charset(THD *thd, enum_var_type type)
-{
 }
 
 
