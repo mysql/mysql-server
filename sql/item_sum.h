@@ -898,6 +898,7 @@ class Item_func_group_concat : public Item_sum
                            element_count count __attribute__((unused)),
 			   Item_func_group_concat *group_concat_item);
 
+  bool no_appended;
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
