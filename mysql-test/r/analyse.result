@@ -102,3 +102,9 @@ select * from t1 procedure analyse();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 test.t1.v	"	\\	1	19	0	0	3.7619	NULL	ENUM('"','""','"c','\'\0\\"','\'','\'\'','\'b','a\0\0\0b','a\0','a""""b','a\'\'\'\'b','abc','abc\'def\\hij"klm\0opq','a\\\\\\\\b','b\'','c"','d\\','The\ZEnd','\\','\\d','\\\\') NOT NULL
 drop table t1;
+create table t1 (d double);
+insert into t1 values (100000);
+select * from t1 procedure analyse (1,1);
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.d	100000	100000	6	6	0	0	100000	0	MEDIUMINT(6) UNSIGNED NOT NULL
+drop table t1;
