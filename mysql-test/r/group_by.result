@@ -751,13 +751,6 @@ COUNT(DISTINCT(t1.id))	comment
 1	NULL
 1	a problem
 DROP TABLE t1, t2;
-create table t1 (f1 date);
-insert into t1 values('2005-06-06');
-insert into t1 values('2005-06-06');
-select date(left(f1+0,8)) from t1 group by 1;
-date(left(f1+0,8))
-2005-06-06
-drop table t1;
 create table t1(f1 varchar(5) key);
 insert into t1 values (1),(2);
 select sql_buffer_result max(f1) is null from t1;
@@ -766,6 +759,13 @@ max(f1) is null
 select sql_buffer_result max(f1)+1 from t1;
 max(f1)+1
 3
+drop table t1;
+create table t1 (f1 date);
+insert into t1 values('2005-06-06');
+insert into t1 values('2005-06-06');
+select date(left(f1+0,8)) from t1 group by 1;
+date(left(f1+0,8))
+2005-06-06
 drop table t1;
 CREATE TABLE t1 (n int);
 INSERT INTO t1 VALUES (1);
