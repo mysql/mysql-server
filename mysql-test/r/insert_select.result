@@ -668,3 +668,13 @@ ERROR 42S02: Unknown table 't2' in field list
 insert into t1 select t2.a from t2 group by t2.a on duplicate key update a= t1.a + t2.b;
 ERROR 42S02: Unknown table 't2' in field list
 drop table t1,t2,t3;
+create table t1(f1 varchar(5) key);
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+select * from t1;
+f1
+2000
+2001
+2002
+drop table t1;
