@@ -910,7 +910,7 @@ public:
     else
     {
       args[0]->update_used_tables();
-      if (!(used_tables_cache=args[0]->used_tables()))
+      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables())))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();

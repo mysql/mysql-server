@@ -377,14 +377,16 @@ void THD::cleanup(void)
   mysql_ha_flush(this, (TABLE_LIST*) 0,
                  MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
   hash_free(&handler_tables_hash);
+  delete_dynamic(&user_var_events);
+  hash_free(&user_vars);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
-  delete_dynamic(&user_var_events);
-  hash_free(&user_vars);
+  
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
+
   if (global_read_lock)
     unlock_global_read_lock(this);
   if (ull)
@@ -423,9 +425,6 @@ THD::~THD()
     cleanup();
 
   ha_close_connection(this);
-
-  sp_cache_clear(&sp_proc_cache);
-  sp_cache_clear(&sp_func_cache);
 
   DBUG_PRINT("info", ("freeing host"));
   if (host != my_localhost)			// If not pointer to constant

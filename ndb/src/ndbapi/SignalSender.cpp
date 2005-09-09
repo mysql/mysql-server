@@ -266,5 +266,4 @@ SignalSender::execNodeStatus(void* signalSender,
 
 template SimpleSignal* SignalSender::waitFor<WaitForNode>(unsigned, WaitForNode&);
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
-template Vector<SimpleSignal*>;
-  
+template class Vector<SimpleSignal*>;

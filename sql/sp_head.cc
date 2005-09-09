@@ -689,10 +689,35 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
    * If this function invocation is done from a statement that is written
      into the binary log.
    * If there were any attempts to write events to the binary log during
-     function execution.
+     function execution (grep for start_union_events and stop_union_events)
+
    If the answers are No and Yes, we write the function call into the binary
    log as "DO spfunc(<param1value>, <param2value>, ...)"
+  
+  
+  4. Miscellaneous issues.
+  
+  4.1 User variables. 
 
+  When we call mysql_bin_log.write() for an SP statement, thd->user_var_events
+  must hold set<{var_name, value}> pairs for all user variables used during 
+  the statement execution.
+  This set is produced by tracking user variable reads during statement
+  execution. 
+
+  Fo SPs, this has the following implications:
+  1) thd->user_var_events may contain events from several SP statements and 
+     needs to be valid after exection of these statements was finished. In 
+     order to achieve that, we
+     * Allocate user_var_events array elements on appropriate mem_root (grep
+       for user_var_events_alloc).
+     * Use is_query_in_union() to determine if user_var_event is created.
+     
+  2) We need to empty thd->user_var_events after we have wrote a function
+     call. This is currently done by making 
+     reset_dynamic(&thd->user_var_events);
+     calls in several different places. (TODO cosider moving this into
+     mysql_bin_log.write() function)
 */
 
 
@@ -908,6 +933,7 @@ int sp_head::execute(THD *thd)
     /* Don't change NOW() in FUNCTION or TRIGGER */
     if (!thd->in_sub_stmt)
       thd->set_time();		// Make current_time() et al work
+    
     /*
       We have to set thd->stmt_arena before executing the instruction
       to store in the instruction free_list all new items, created
@@ -915,6 +941,13 @@ int sp_head::execute(THD *thd)
       items made during other permanent subquery transformations).
     */
     thd->stmt_arena= i;
+    
+    /* will binlog this separately */
+    if (thd->prelocked_mode == NON_PRELOCKED) //TODO: change to event union?
+    {
+      thd->user_var_events_alloc= thd->mem_root;
+    }
+    
     ret= i->execute(thd, &ip);
 
     /*
@@ -929,15 +962,6 @@ int sp_head::execute(THD *thd)
 
     /* we should cleanup free_list and memroot, used by instruction */
     thd->free_items();
-    /*
-      FIXME: we must free user var events only if the routine is executed
-      in non-prelocked mode and statement-by-statement replication is used.
-      But if we don't free them now, the server crashes because user var
-      events are allocated in execute_mem_root. This is Bug#12637, and when
-      it's fixed, please add if (thd->options & OPTION_BIN_LOG) here.
-    */
-    if (opt_bin_log)
-      reset_dynamic(&thd->user_var_events);
     free_root(&execute_mem_root, MYF(0));
 
     /*
@@ -1095,7 +1119,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   binlog_save_options= thd->options;
   need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
   if (need_binlog_call)
+  {
+    reset_dynamic(&thd->user_var_events);
     mysql_bin_log.start_union_events(thd);
+  }
     
   thd->options&= ~OPTION_BIN_LOG;
   ret= execute(thd);
@@ -1129,6 +1156,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
                    "Invoked ROUTINE modified a transactional table but MySQL "
                    "failed to reflect this change in the binary log");
     }
+    reset_dynamic(&thd->user_var_events);
   }
 
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
