@@ -2010,10 +2010,20 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     /*
       get_all_tables() returns 1 on failure and 0 on success thus
       return only these and not the result code of ::process_table()
+
+      We should use show_table_list->alias instead of 
+      show_table_list->table_name because table_name
+      could be changed during opening of I_S tables. It's safe
+      to use alias because alias contains original table name 
+      in this case(this part of code is used only for 
+      'show columns' & 'show statistics' commands).
     */
     error= test(schema_table->process_table(thd, show_table_list,
-                                    table, res, show_table_list->db,
-                                    show_table_list->alias));
+                                            table, res, 
+                                            (show_table_list->view ?
+                                             show_table_list->view_db.str :
+                                             show_table_list->db),
+                                            show_table_list->alias));
     close_thread_tables(thd);
     show_table_list->table= 0;
     goto err;
@@ -2114,6 +2124,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             lex->derived_tables= 0;
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
+            /*
+              We should use show_table_list->alias instead of 
+              show_table_list->table_name because table_name
+              could be changed during opening of I_S tables. It's safe
+              to use alias because alias contains original table name 
+              in this case.
+            */
             res= schema_table->process_table(thd, show_table_list, table,
                                             res, base_name,
                                             show_table_list->alias);

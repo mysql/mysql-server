@@ -859,6 +859,7 @@ ndb/test/ndbapi/testNodeRestart
 ndb/test/ndbapi/testOIBasic
 ndb/test/ndbapi/testOperations
 ndb/test/ndbapi/testRestartGci
+ndb/test/ndbapi/testSRBank
 ndb/test/ndbapi/testScan
 ndb/test/ndbapi/testScan.dsp
 ndb/test/ndbapi/testScanInterpreter
