@@ -575,21 +575,10 @@ CREATE TABLE t1 (id varchar(20) NOT NULL);
 INSERT INTO t1 VALUES ('trans1'), ('trans2');
 CREATE TABLE t2 (id varchar(20) NOT NULL, err_comment blob NOT NULL);
 INSERT INTO t2 VALUES ('trans1', 'a problem');
-
 SELECT COUNT(DISTINCT(t1.id)), LEFT(err_comment, 256) AS comment
   FROM t1 LEFT JOIN t2 ON t1.id=t2.id GROUP BY comment;
 
 DROP TABLE t1, t2;
-
-#
-# BUG#12695: Item_func_isnull::update_used_tables
-# did not update const_item_cache
-#
-create table t1(f1 varchar(5) key);
-insert into t1 values (1),(2);
-select sql_buffer_result max(f1) is null from t1;
-select sql_buffer_result max(f1)+1 from t1;
-drop table t1;
 
 #
 # Bug #12266 GROUP BY expression on DATE column produces result with
