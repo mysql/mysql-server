@@ -766,19 +766,29 @@ UtilTransactions::selectCount(Ndb* pNdb,
   int                  check;
   NdbScanOperation     *pOp;
 
-  if(!pTrans)
-    pTrans = pNdb->startTransaction();
   while (true){
-
     if (retryAttempt >= retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
     }
+    if(!pTrans)
+      pTrans = pNdb->startTransaction();
+    
+    if(!pTrans)
+    {
+      const NdbError err = pNdb->getNdbError();
+      
+      if (err.status == NdbError::TemporaryError)
+	continue;
+      return NDBT_FAILED;
+    }
+    
     pOp = pTrans->getNdbScanOperation(tab.getName());	
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
+      pTrans = 0;
       return NDBT_FAILED;
     }
 
@@ -786,6 +796,7 @@ UtilTransactions::selectCount(Ndb* pNdb,
     if( rs == 0) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
+      pTrans = 0;
       return NDBT_FAILED;
     }
 
@@ -799,6 +810,7 @@ UtilTransactions::selectCount(Ndb* pNdb,
       if( check == -1 ) {
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
+	pTrans = 0;
 	return NDBT_FAILED;
       }
     }
@@ -808,6 +820,7 @@ UtilTransactions::selectCount(Ndb* pNdb,
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
+      pTrans = 0;
       return NDBT_FAILED;
     }
 
@@ -823,16 +836,19 @@ UtilTransactions::selectCount(Ndb* pNdb,
       
       if (err.status == NdbError::TemporaryError){
 	pNdb->closeTransaction(pTrans);
+	pTrans = 0;
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
       ERR(err);
       pNdb->closeTransaction(pTrans);
+      pTrans = 0;
       return NDBT_FAILED;
     }
     
     pNdb->closeTransaction(pTrans);
+    pTrans = 0;
     
     if (count_rows != NULL){
       *count_rows = rows;
