@@ -638,33 +638,6 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   DBUG_RETURN(0);
 }
 
-/*
-   returns the length of the longest type on the given table.
-
-   This is used so that show fields will return the data using the proper 
-   lengths instead of forcing columns such as type to always return with a 
-   given length.
-*/
-
-uint get_longest_type_in_table(TABLE *table, const char *wild)
-{  
-  Field **ptr,*field;
-  char tmp[MAX_FIELD_WIDTH];
-  uint max_len= 0;
-
-  for (ptr=table->field; (field= *ptr); ptr++)
-  {
-    if (!wild || !wild[0] ||
-        !wild_case_compare(system_charset_info, field->field_name,wild))
-    {
-      String type(tmp,sizeof(tmp), system_charset_info);
-      field->sql_type(type);
-      max_len= max(max_len, type.length());
-    }
-  }
-  return max_len;
-}
-
 
 /***************************************************************************
 ** List all columns in a table_list->real_name
@@ -694,14 +667,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void) get_table_grant(thd, table_list);
 #endif
-
-  /* we scan for the longest since long enum types can exceed 40 */
-  uint max_len = get_longest_type_in_table(table, wild);
-
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Field",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Type",
-	max_len > 40 ? max_len : 40));
+  field_list.push_back(new Item_empty_string("Type", 40));
   if (verbose)
     field_list.push_back(new Item_empty_string("Collation",40));
   field_list.push_back(new Item_empty_string("Null",1));
