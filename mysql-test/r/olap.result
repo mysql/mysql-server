@@ -579,7 +579,6 @@ a	LENGTH(a)	COUNT(*)
 1	1	1
 2	1	1
 NULL	NULL	2
-DROP TABLE t1;
 CREATE TABLE t1(id int, type char(1));
 INSERT INTO t1 VALUES
 (1,"A"),(2,"C"),(3,"A"),(4,"A"),(5,"B"),
