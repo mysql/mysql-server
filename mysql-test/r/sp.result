@@ -3085,6 +3085,19 @@ column_name	bug10055(t.column_name)
 id	id
 data	data
 drop function bug10055|
+drop procedure if exists bug12297|
+create procedure bug12297(lim int)
+begin
+set @x = 0;
+repeat
+insert into t1(id,data)
+values('aa', @x);
+set @x = @x + 1;
+until @x >= lim
+end repeat;
+end|
+call bug12297(10)|
+drop procedure bug12297|
 drop function if exists f_bug11247|
 drop procedure if exists p_bug11247|
 create function f_bug11247(param int)
