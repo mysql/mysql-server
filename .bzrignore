@@ -1056,3 +1056,4 @@ vio/viotest-ssl
 ndb/tools/ndb_config
 support-files/MacOSX/postflight
 support-files/MacOSX/preflight
+ndb/test/ndbapi/testSRBank

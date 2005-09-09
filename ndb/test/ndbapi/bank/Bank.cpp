@@ -19,12 +19,13 @@
 #include <NdbSleep.h>
 #include <UtilTransactions.hpp>
 
-Bank::Bank():
+Bank::Bank(bool _init):
   m_ndb("BANK"),
   m_maxAccount(-1),
   m_initialized(false)
 {
-
+  if(_init)
+    init();
 }
 
 int Bank::init(){
@@ -34,40 +35,39 @@ int Bank::init(){
   myRandom48Init(NdbTick_CurrentMillisecond());
 
   m_ndb.init();   
-  while (m_ndb.waitUntilReady(10) != 0)
-    ndbout << "Waiting for ndb to be ready" << endl;
-
+  if (m_ndb.waitUntilReady(30) != 0)
+  {
+    ndbout << "Ndb not ready" << endl;
+    return NDBT_FAILED;
+  }
+  
   if (getNumAccounts() != NDBT_OK)
     return NDBT_FAILED;
+
+  m_initialized = true;
   return NDBT_OK;
 }
 
 int Bank::performTransactions(int maxSleepBetweenTrans, int yield){
 
-  if (init() != NDBT_OK)
-    return NDBT_FAILED;
   int transactions = 0;
 
-  while(1){
-
-    while(m_ndb.waitUntilReady(10) != 0)
-      ndbout << "Waiting for ndb to be ready" << endl;
-
-    while(performTransaction() != NDBT_FAILED){
-      transactions++;
-
-      if (maxSleepBetweenTrans > 0){
-	int val = myRandom48(maxSleepBetweenTrans);
-	NdbSleep_MilliSleep(val);      
-      }
-
-      if((transactions % 100) == 0)
-	g_info << transactions  << endl;
-
-      if (yield != 0 && transactions >= yield)
-	return NDBT_OK;
+  while(performTransaction() == NDBT_OK)
+  {
+    transactions++;
+    
+    if (maxSleepBetweenTrans > 0){
+      int val = myRandom48(maxSleepBetweenTrans);
+      NdbSleep_MilliSleep(val);      
     }
+    
+    if((transactions % 100) == 0)
+      g_info << transactions  << endl;
+    
+    if (yield != 0 && transactions >= yield)
+      return NDBT_OK;
   }
+
   return NDBT_FAILED;
 
 }
@@ -92,7 +92,7 @@ int Bank::performTransaction(){
     
   int amount = myRandom48(maxAmount);
 
- retry_transaction:
+retry_transaction:
   int res = performTransaction(fromAccount, toAccount, amount);
   if (res != 0){
     switch (res){
@@ -158,8 +158,9 @@ int Bank::performTransactionImpl1(int fromAccountId,
     
   // Ok, all clear to do the transaction
   Uint64 transId;
-  if (getNextTransactionId(transId) != NDBT_OK){
-    return NDBT_FAILED;
+  int result = NDBT_OK;
+  if ((result= getNextTransactionId(transId)) != NDBT_OK){
+    return result;
   }
 
   NdbConnection* pTrans = m_ndb.startTransaction();
@@ -500,8 +501,6 @@ int Bank::performTransactionImpl1(int fromAccountId,
 
 int Bank::performMakeGLs(int yield){
   int result;
-  if (init() != NDBT_OK)
-    return NDBT_FAILED;
   
   int counter, maxCounter;
   int yieldCounter = 0;
@@ -512,9 +511,6 @@ int Bank::performMakeGLs(int yield){
     counter = 0;
     maxCounter = 50 + myRandom48(100);
     
-    while(m_ndb.waitUntilReady(10) != 0)
-      ndbout << "Waiting for ndb to be ready" << endl;
-
     /** 
      * Validate GLs and Transactions for previous days
      *
@@ -526,6 +522,7 @@ int Bank::performMakeGLs(int yield){
 	return NDBT_FAILED;
       }
       g_info << "performValidateGLs failed" << endl;
+      return NDBT_FAILED;
       continue;
     }
 
@@ -536,7 +533,7 @@ int Bank::performMakeGLs(int yield){
 	return NDBT_FAILED;
       }
       g_info << "performValidatePurged failed" << endl;
-      continue;
+      return NDBT_FAILED;
     }
 
     while (1){
@@ -607,14 +604,9 @@ int Bank::performMakeGLs(int yield){
 
 int Bank::performValidateAllGLs(){
   int result;
-  if (init() != NDBT_OK)
-    return NDBT_FAILED;
   
   while (1){
     
-    while(m_ndb.waitUntilReady(10) != 0)
-      ndbout << "Waiting for ndb to be ready" << endl;
-
     /** 
      * Validate GLs and Transactions for previous days
      * Set age so that ALL GL's are validated
@@ -1937,39 +1929,29 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
 }
  
  
- int Bank::performIncreaseTime(int maxSleepBetweenDays, int yield){
-  if (init() != NDBT_OK)
-    return NDBT_FAILED;
-
+int Bank::performIncreaseTime(int maxSleepBetweenDays, int yield)
+{
   int yieldCounter = 0;
-
-   while(1){
-     
-     while(m_ndb.waitUntilReady(10) != 0)
-      ndbout << "Waiting for ndb to be ready" << endl;
-     
-     while(1){
-       
-       Uint64 currTime;
-       if (incCurrTime(currTime) != NDBT_OK)
-	 break;
-
-       g_info << "Current time is " << currTime << endl;
-       if (maxSleepBetweenDays > 0){
-	 int val = myRandom48(maxSleepBetweenDays);
-	 NdbSleep_SecSleep(val);
-       }
-
-       yieldCounter++;
-       if (yield != 0 && yieldCounter >= yield)
-	 return NDBT_OK;
-       
-     }
-   }
-   return NDBT_FAILED;
- }
-
-
+  
+  while(1){
+    
+    Uint64 currTime;
+    if (incCurrTime(currTime) != NDBT_OK)
+      break;
+    
+    g_info << "Current time is " << currTime << endl;
+    if (maxSleepBetweenDays > 0){
+      int val = myRandom48(maxSleepBetweenDays);
+      NdbSleep_SecSleep(val);
+    }
+    
+    yieldCounter++;
+    if (yield != 0 && yieldCounter >= yield)
+      return NDBT_OK;
+    
+  }
+  return NDBT_FAILED;
+}
 
 int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
 
@@ -1978,22 +1960,30 @@ int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
     ERR(m_ndb.getNdbError());
+    if(m_ndb.getNdbError().status == NdbError::TemporaryError)
+      return NDBT_TEMPORARY;
     return NDBT_FAILED;
   }
 
-  if (prepareReadSystemValueOp(pTrans, sysValId, value) != NDBT_OK) {
+  int result;
+  if ((result= prepareReadSystemValueOp(pTrans, sysValId, value)) != NDBT_OK) {
     ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    return result;
   }
 
   check = pTrans->execute(Commit);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
+    if(pTrans->getNdbError().status == NdbError::TemporaryError)
+    {
+      m_ndb.closeTransaction(pTrans);
+      return NDBT_TEMPORARY;
+    }
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
-    
+  
   m_ndb.closeTransaction(pTrans);      
   return NDBT_OK;
 
@@ -2099,6 +2089,8 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
     ERR(m_ndb.getNdbError());
+    if (m_ndb.getNdbError().status == NdbError::TemporaryError)
+      DBUG_RETURN(NDBT_TEMPORARY);
     DBUG_RETURN(NDBT_FAILED);
   }
     
@@ -2134,6 +2126,11 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
+    if (pTrans->getNdbError().status == NdbError::TemporaryError)
+    {
+      m_ndb.closeTransaction(pTrans);
+      DBUG_RETURN(NDBT_TEMPORARY);
+    }
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
@@ -2208,16 +2205,21 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   check = pTrans->execute(Commit);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
+    if (pTrans->getNdbError().status == NdbError::TemporaryError)
+    {
+      m_ndb.closeTransaction(pTrans);
+      DBUG_RETURN(NDBT_TEMPORARY);
+    }
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
 
   // Check that value updated equals the value we read after the update
   if (valueNewRec->u_64_value() != value){
-
+    
     printf("value actual=%lld\n", valueNewRec->u_64_value());
     printf("value expected=%lld actual=%lld\n", value, valueNewRec->u_64_value());
-
+    
     DBUG_PRINT("info", ("value expected=%ld actual=%ld", value, valueNewRec->u_64_value()));
     g_err << "getNextTransactionId: value was not updated" << endl;
     m_ndb.closeTransaction(pTrans);
@@ -2225,7 +2227,7 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   }
 
   m_ndb.closeTransaction(pTrans);
-
+  
   DBUG_RETURN(0);
 }
 
@@ -2242,6 +2244,8 @@ int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
     ERR(m_ndb.getNdbError());
+    if(m_ndb.getNdbError().status == NdbError::TemporaryError)
+      return NDBT_TEMPORARY;
     return NDBT_FAILED;
   }
     
@@ -2284,6 +2288,11 @@ int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
   check = pTrans->execute(Commit);
   if( check == -1 ) {
     ERR(pTrans->getNdbError());
+    if(pTrans->getNdbError().status == NdbError::TemporaryError)
+    {
+      m_ndb.closeTransaction(pTrans);
+      return NDBT_TEMPORARY;
+    }
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -2308,15 +2317,10 @@ int Bank::prepareGetCurrTimeOp(NdbConnection *pTrans, Uint64 &time){
 
 
 int Bank::performSumAccounts(int maxSleepBetweenSums, int yield){
-  if (init() != NDBT_OK)
-    return NDBT_FAILED;
   
   int yieldCounter = 0;
 
   while (1){
-
-    while (m_ndb.waitUntilReady(10) != 0)
-      ndbout << "Waiting for ndb to be ready" << endl;
 
     Uint32 sumAccounts = 0;
     Uint32 numAccounts = 0;
