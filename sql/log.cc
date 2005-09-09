@@ -1560,12 +1560,19 @@ void MYSQL_LOG::start_union_events(THD *thd)
   thd->binlog_evt_union.do_union= TRUE;
   thd->binlog_evt_union.unioned_events= FALSE;
   thd->binlog_evt_union.unioned_events_trans= FALSE;
+  thd->binlog_evt_union.first_query_id= thd->query_id;
 }
 
 void MYSQL_LOG::stop_union_events(THD *thd)
 {
   DBUG_ASSERT(thd->binlog_evt_union.do_union);
   thd->binlog_evt_union.do_union= FALSE;
+}
+
+bool MYSQL_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
+{
+  return (thd->binlog_evt_union.do_union && 
+          query_id_param >= thd->binlog_evt_union.first_query_id);
 }
 
 /*
