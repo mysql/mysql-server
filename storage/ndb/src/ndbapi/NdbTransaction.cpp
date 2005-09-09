@@ -264,6 +264,7 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 		       AbortOption abortOption,
 		       int forceSend)
 {
+  NdbError savedError= theError;
   DBUG_ENTER("NdbTransaction::execute");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
 		       aTypeOfExec, abortOption));
@@ -293,7 +294,11 @@ NdbTransaction::execute(ExecType aTypeOfExec,
         NdbBlob* tBlob = tPrepOp->theBlobList;
         while (tBlob != NULL) {
           if (tBlob->preExecute(tExecType, batch) == -1)
+	  {
             ret = -1;
+	    if(savedError.code==0)
+	      savedError= theError;
+	  }
           tBlob = tBlob->theNext;
         }
         if (batch) {
@@ -322,7 +327,11 @@ NdbTransaction::execute(ExecType aTypeOfExec,
           NdbBlob* tBlob = tOp->theBlobList;
           while (tBlob != NULL) {
             if (tBlob->preCommit() == -1)
-              ret = -1;
+	    {
+	      ret = -1;
+	      if(savedError.code==0)
+		savedError= theError;
+	    }
             tBlob = tBlob->theNext;
           }
         }
@@ -344,7 +353,12 @@ NdbTransaction::execute(ExecType aTypeOfExec,
     }
 
     if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
-        ret = -1;
+    {
+      ret = -1;
+      if(savedError.code==0)
+	savedError= theError;
+    }
+
 #ifdef ndb_api_crash_on_complex_blob_abort
     assert(theFirstOpInList == NULL && theLastOpInList == NULL);
 #else
@@ -359,7 +373,11 @@ NdbTransaction::execute(ExecType aTypeOfExec,
           while (tBlob != NULL) {
             // may add new operations if batch
             if (tBlob->postExecute(tExecType) == -1)
+	    {
               ret = -1;
+	      if(savedError.code==0)
+		savedError= theError;
+	    }
             tBlob = tBlob->theNext;
           }
         }
@@ -390,6 +408,10 @@ NdbTransaction::execute(ExecType aTypeOfExec,
     ndbout << "completed ops: " << n << endl;
   }
 #endif
+
+  if(savedError.code!=0 && theError.code==4350) // Trans already aborted
+      theError= savedError;
+
   DBUG_RETURN(ret);
 }
 

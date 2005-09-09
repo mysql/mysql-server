@@ -2151,6 +2151,15 @@ select * from v1;
 strcmp(f1,'a')
 drop view v1;
 drop table t1;
+create table t1 (f1 int, f2 int,f3 int);
+insert into t1 values (1,10,20),(2,0,0);
+create view v1 as select * from t1;
+select if(sum(f1)>1,f2,f3) from v1 group by f1;
+if(sum(f1)>1,f2,f3)
+20
+0
+drop view v1;
+drop table t1;
 create table t1 (
 r_object_id char(16) NOT NULL,
 group_name varchar(32) NOT NULL

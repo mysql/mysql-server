@@ -766,6 +766,15 @@ n
 Warnings:
 Warning	1052	Column 'n' in group statement is ambiguous
 DROP TABLE t1;
+create table t1(f1 varchar(5) key);
+insert into t1 values (1),(2);
+select sql_buffer_result max(f1) is null from t1;
+max(f1) is null
+0
+select sql_buffer_result max(f1)+1 from t1;
+max(f1)+1
+3
+drop table t1;
 create table t1 (c1 char(3), c2 char(3));
 create table t2 (c3 char(3), c4 char(3));
 insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2');

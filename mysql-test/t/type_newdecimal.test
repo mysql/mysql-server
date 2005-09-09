@@ -1015,3 +1015,25 @@ create table t1 (
         f1 decimal (0,0) zerofill not null default 0);
 show create table t1;
 drop table t1;
+
+#
+# Bug 12938 (arithmetic loop's zero)
+#
+--disable-warnings
+drop procedure if exists wg2;
+--enable-warnings
+delimiter //;
+create procedure wg2()
+begin
+  declare v int default 1;
+  declare tdec decimal(5) default 0;
+  while v <= 9 do set tdec =tdec * 10;
+    select v, tdec;
+    set v = v + 1;
+  end while;
+end//
+
+call wg2()//
+
+delimiter ;//
+drop procedure wg2;
