@@ -983,6 +983,8 @@ void Item_func_between::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
+  if (negated)
+    str->append(" not", 4);
   str->append(" between ", 9);
   args[1]->print(str);
   str->append(" and ", 5);
@@ -1969,6 +1971,8 @@ void Item_func_in::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
+  if (negated)
+    str->append(" not", 4);
   str->append(" in (", 5);
   print_args(str, 1);
   str->append("))", 2);
