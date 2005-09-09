@@ -108,13 +108,14 @@ class sp_head :private Query_arena
   MEM_ROOT main_mem_root;
 public:
   /* Possible values of m_flags */
-  const static int
+  enum {
     HAS_RETURN= 1,              // For FUNCTIONs only: is set if has RETURN
     IN_SIMPLE_CASE= 2,          // Is set if parsing a simple CASE
     IN_HANDLER= 4,              // Is set if the parser is in a handler body
     MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
     CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
-    IS_INVOKED= 32;             // Is set if this sp_head is being used.
+    IS_INVOKED= 32              // Is set if this sp_head is being used.
+  };
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
   uint m_flags;                 // Boolean attributes of a stored routine

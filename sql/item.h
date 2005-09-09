@@ -715,8 +715,16 @@ public:
 class Item_splocal : public Item
 {
   uint m_offset;
+
 public:
   LEX_STRING m_name;
+
+  /*
+    Buffer, pointing to the string value of the item. We need it to
+    protect internal buffer from changes. See comment to analogous
+    member in Item_param for more details.
+  */
+  String str_value_ptr;
 
   /* 
     Position of this reference to SP variable in the statement (the
@@ -1537,6 +1545,7 @@ class Item_ref :public Item_ident
 protected:
   void set_properties();
 public:
+  enum Ref_Type { REF, DIRECT_REF, VIEW_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(Name_resolution_context *context_arg,
@@ -1617,6 +1626,7 @@ public:
   void cleanup();
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
+  virtual Ref_Type ref_type() { return REF; }
 };
 
 
@@ -1641,6 +1651,7 @@ public:
   bool val_bool();
   bool is_null();
   bool get_date(TIME *ltime,uint fuzzydate);
+  virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
 
 /*
@@ -1660,6 +1671,7 @@ public:
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
+  virtual Ref_Type ref_type() { return VIEW_REF; }
 };
 
 

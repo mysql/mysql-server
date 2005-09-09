@@ -33,7 +33,7 @@ class DefineBackupReq {
 
   friend bool printDEFINE_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 8 + NdbNodeBitmask::Size);
+  STATIC_CONST( SignalLength = 9 + NdbNodeBitmask::Size);
 
 private:
   /**
@@ -60,6 +60,13 @@ private:
    * Length of backup data
    */
   Uint32 backupDataLen;
+
+  /**
+   * Backup flags
+   */
+  /* & 0x3 - waitCompleted
+   */
+  Uint32 flags;
 };
 
 class DefineBackupRef {

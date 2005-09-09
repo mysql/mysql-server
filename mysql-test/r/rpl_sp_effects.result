@@ -156,3 +156,60 @@ slave:	6
 drop procedure p1;
 drop function f1;
 drop table t1,t2;
+create table t1 (a int);
+create procedure p1()
+begin
+insert into t1 values(@x);
+set @x=@x+1;
+insert into t1 values(@x);
+if (f2()) then
+insert into t1 values(1243);
+end if;
+end//
+create function f2() returns int
+begin
+insert into t1 values(@z);
+set @z=@z+1;
+insert into t1 values(@z);
+return 0;
+end//
+create function f1() returns int
+begin
+insert into t1 values(@y);
+call p1();
+return 0;
+end//
+set @x=10;
+set @y=20;
+set @z=100;
+select f1();
+f1()
+0
+set @x=30;
+call p1();
+select 'master', a from t1;
+master	a
+master	20
+master	10
+master	11
+master	100
+master	101
+master	30
+master	31
+master	101
+master	102
+select 'slave', a from t1;
+slave	a
+slave	20
+slave	10
+slave	11
+slave	100
+slave	101
+slave	30
+slave	31
+slave	101
+slave	102
+drop table t1;
+drop function f1;
+drop function f2;
+drop procedure p1;

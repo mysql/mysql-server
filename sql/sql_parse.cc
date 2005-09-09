@@ -2442,6 +2442,12 @@ mysql_execute_command(THD *thd)
     {
       if (lex->describe)
       {
+        /*
+          We always use select_send for EXPLAIN, even if it's an EXPLAIN
+          for SELECT ... INTO OUTFILE: a user application should be able
+          to prepend EXPLAIN to any query and receive output for it,
+          even if the query itself redirects the output.
+        */
 	if (!(result= new select_send()))
 	  goto error;
 	else
@@ -5166,7 +5172,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   if (!thd->in_sub_stmt)
   {
     if (opt_bin_log)
+    {
       reset_dynamic(&thd->user_var_events);
+      thd->user_var_events_alloc= thd->mem_root;
+    }
     thd->clear_error();
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;
