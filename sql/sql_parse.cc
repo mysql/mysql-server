@@ -2438,6 +2438,12 @@ mysql_execute_command(THD *thd)
     {
       if (lex->describe)
       {
+        /*
+          We always use select_send for EXPLAIN, even if it's an EXPLAIN
+          for SELECT ... INTO OUTFILE: a user application should be able
+          to prepend EXPLAIN to any query and receive output for it,
+          even if the query itself redirects the output.
+        */
 	if (!(result= new select_send()))
 	  goto error;
 	else
