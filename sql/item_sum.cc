@@ -2743,7 +2743,7 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   if (item->no_appended)
     item->no_appended= FALSE;
   else
-    item->result.append(*item->separator);
+    result->append(*item->separator);
 
   tmp.length(0);
 
