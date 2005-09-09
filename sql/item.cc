@@ -818,8 +818,25 @@ String *Item_splocal::val_str(String *sp)
   DBUG_ASSERT(fixed);
   Item *it= this_item();
   String *ret= it->val_str(sp);
+  /*
+    This way we mark returned value of val_str as const,
+    so that various functions (e.g. CONCAT) won't try to
+    modify the value of the Item. Analogous mechanism is
+    implemented for Item_param.
+    Without this trick Item_splocal could be changed as a
+    side-effect of expression computation. Here is an example
+    of what happens without it: suppose x is varchar local
+    variable in a SP with initial value 'ab' Then
+      select concat(x,'c');
+    would change x's value to 'abc', as Item_func_concat::val_str()
+    would use x's internal buffer to compute the result.
+    This is intended behaviour of Item_func_concat. Comments to
+    Item_param class contain some more details on the topic.
+  */
+  str_value_ptr.set(ret->ptr(), ret->length(),
+                    ret->charset());
   null_value= it->null_value;
-  return ret;
+  return &str_value_ptr;
 }
 
 
@@ -1022,9 +1039,9 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     /* Will split complicated items and ignore simple ones */
     split_sum_func(thd, ref_pointer_array, fields);
   }
-  else if ((type() == SUM_FUNC_ITEM ||
-            (used_tables() & ~PARAM_TABLE_BIT)) &&
-           type() != REF_ITEM)
+  else if ((type() == SUM_FUNC_ITEM || (used_tables() & ~PARAM_TABLE_BIT)) &&
+           (type() != REF_ITEM ||
+           ((Item_ref*)this)->ref_type() == Item_ref::VIEW_REF))
   {
     /*
       Replace item with a reference so that we can easily calculate
@@ -1033,15 +1050,17 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
       The test above is to ensure we don't do a reference for things
       that are constants (PARAM_TABLE_BIT is in effect a constant)
       or already referenced (for example an item in HAVING)
+      Exception is Item_direct_view_ref which we need to convert to
+      Item_ref to allow fields from view being stored in tmp table.
     */
     uint el= fields.elements;
-    Item *new_item;    
-    ref_pointer_array[el]= this;
+    Item *new_item, *real_itm= real_item();
+
+    ref_pointer_array[el]= real_itm;
     if (!(new_item= new Item_ref(&thd->lex->current_select->context,
                                  ref_pointer_array + el, 0, name)))
       return;                                   // fatal_error is set
-    fields.push_front(this);
-    ref_pointer_array[el]= this;
+    fields.push_front(real_itm);
     thd->change_item_tree(ref, new_item);
   }
 }

@@ -2874,19 +2874,6 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond->type() != Item::FUNC_ITEM)
     return;
   Item_func *cond_func= (Item_func*) cond;
-  if (cond_func->functype() == Item_func::NOT_FUNC)
-  {
-    Item *item= cond_func->arguments()[0];
-    /*
-      At this moment all NOT before simple comparison predicates
-      are eliminated. NOT IN and NOT BETWEEN are treated similar
-      IN and BETWEEN respectively.
-    */
-    if (item->type() == Item::FUNC_ITEM &&
-        ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
-      add_key_fields(key_fields,and_level,item,usable_tables);
-    return;
-  }
   switch (cond_func->select_optimize()) {
   case Item_func::OPTIMIZE_NONE:
     break;
@@ -13087,6 +13074,8 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
     The function replaces occurrences of group by fields in expr
     by ref objects for these fields unless they are under aggregate
     functions.
+    The function also corrects value of the the maybe_null attribute
+    for the items of all subexpressions containing group by fields.
 
   IMPLEMENTATION
     The function recursively traverses the tree of the expr expression,
@@ -13096,6 +13085,9 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
   NOTES
     This substitution is needed GROUP BY queries with ROLLUP if
     SELECT list contains expressions over group by attributes.
+
+  TODO: Some functions are not null-preserving. For those functions
+    updating of the maybe_null attribute is an overkill. 
 
   EXAMPLES
     SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
@@ -13118,6 +13110,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
          arg != arg_end; arg++)
     {
       Item *item= *arg;
+      bool arg_changed= FALSE;
       if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
       {
         ORDER *group_tmp;
@@ -13130,14 +13123,19 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
                                         item->name)))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);
-            *changed= TRUE;
+            arg_changed= TRUE;
           }
         }
       }
       else if (item->type() == Item::FUNC_ITEM)
       {
-        if (change_group_ref(thd, (Item_func *) item, group_list, changed))
+        if (change_group_ref(thd, (Item_func *) item, group_list, &arg_changed))
           return 1;
+      }
+      if (arg_changed)
+      {
+        expr->maybe_null= 1;
+        *changed= TRUE;
       }
     }
   }
@@ -13201,7 +13199,7 @@ bool JOIN::rollup_init()
     }
     if (item->type() == Item::FUNC_ITEM)
     {
-      bool changed= 0;
+      bool changed= FALSE;
       if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
         return 1;
       /*

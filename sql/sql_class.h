@@ -313,6 +313,7 @@ public:
 
   void start_union_events(THD *thd);
   void stop_union_events(THD *thd);
+  bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
   /*
     v stands for vector
@@ -1312,8 +1313,9 @@ public:
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
   enum_check_fields count_cuted_fields;
-  /* for user variables replication*/
-  DYNAMIC_ARRAY user_var_events;
+
+  DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
+  MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
   enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
   killed_state volatile killed;
@@ -1375,6 +1377,12 @@ public:
       mysql_bin_log.start_union_events() call.
     */
     bool unioned_events_trans;
+    
+    /* 
+      'queries' (actually SP statements) that run under inside this binlog
+      union have thd->query_id >= first_query_id.
+    */
+    query_id_t first_query_id;
   } binlog_evt_union;
   
   THD();
