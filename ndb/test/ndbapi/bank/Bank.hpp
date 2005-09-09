@@ -27,7 +27,7 @@
 class Bank {
 public:  
 
-  Bank();
+  Bank(bool init = true);
 
   int createAndLoadBank(bool overWrite, int num_accounts=10);
   int dropBank();
