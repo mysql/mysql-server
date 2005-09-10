@@ -942,11 +942,12 @@ int sp_head::execute(THD *thd)
     */
     thd->stmt_arena= i;
     
-    /* will binlog this separately */
-    if (thd->prelocked_mode == NON_PRELOCKED) //TODO: change to event union?
-    {
+    /* 
+      Will write this SP statement into binlog separately 
+      (TODO: consider changing the condition to "not inside event union")
+    */
+    if (thd->prelocked_mode == NON_PRELOCKED)
       thd->user_var_events_alloc= thd->mem_root;
-    }
     
     ret= i->execute(thd, &ip);
 
@@ -959,10 +960,20 @@ int sp_head::execute(THD *thd)
     if (i->free_list)
       cleanup_items(i->free_list);
     i->state= Query_arena::EXECUTED;
+    
+    /* 
+      If we've set thd->user_var_events_alloc to mem_root of this SP
+      statement, clean all the events allocated in it.
+    */
+    if (thd->prelocked_mode == NON_PRELOCKED)
+    {
+      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events_alloc= NULL;//DEBUG
+    }
 
     /* we should cleanup free_list and memroot, used by instruction */
     thd->free_items();
-    free_root(&execute_mem_root, MYF(0));
+    free_root(&execute_mem_root, MYF(0));    
 
     /*
       Check if an exception has occurred and a handler has been found
