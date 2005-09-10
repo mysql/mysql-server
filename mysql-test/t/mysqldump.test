@@ -761,3 +761,85 @@ show tables;
 --replace_column 6 #
 show triggers;
 DROP TABLE t1, t2;
+
+# Test of fix to BUG 12597
+DROP TABLE IF EXISTS `test1`;
+CREATE TABLE `test1` (
+  `a1` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DROP TABLE IF EXISTS `test2`;
+CREATE TABLE `test2` (
+  `a2` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DELIMITER //;
+CREATE TRIGGER `testref` BEFORE INSERT ON `test1` FOR EACH ROW BEGIN
+INSERT INTO test2 SET a2 = NEW.a1; END  //
+DELIMITER ;//
+
+INSERT INTO `test1` VALUES (1);
+SELECT * FROM `test2`;
+
+# dump
+--exec $MYSQL_DUMP --skip-comments --databases test > var/tmp/mysqldump.sql
+
+#DROP TRIGGER testref;
+#DROP TABLE test1;
+#DROP TABLE test2;
+# restore
+--exec $MYSQL test < var/tmp/mysqldump.sql
+SHOW TRIGGERS;
+SELECT * FROM `test1`;
+SELECT * FROM `test2`;
+
+DROP TRIGGER testref;
+DROP TABLE test1;
+DROP TABLE test2;
+
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+INSERT INTO t1 VALUES(5);
+--disable_warnings
+DROP FUNCTION IF EXISTS bug9056_func1;
+DELIMITER //;
+--enable_warnings
+CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
+RETURN a+b //
+CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
+BEGIN SELECT a+b INTO c; end  //
+
+--disable_warnings
+DROP FUNCTION IF EXISTS bug9056_func2 //
+--enable_warnings
+
+create function bug9056_func2(f1 char binary) returns char binary
+begin
+  set f1= concat( 'hello', f1 );
+  return f1;
+end //
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug9056_proc2 //
+--enable_warnings
+CREATE PROCEDURE bug9056_proc2(OUT a INT) 
+BEGIN 
+  select sum(id) from t1 into a; 
+END //
+
+DELIMITER ;//
+
+# Dump the DB and ROUTINES 
+--exec $MYSQL_DUMP --skip-comments --routines --databases test
+
+# ok, now blow it all away
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug9056_func1;
+DROP PROCEDURE IF EXISTS bug9056_func2;
+DROP PROCEDURE IF EXISTS bug9056_proc1;
+DROP PROCEDURE IF EXISTS bug9056_proc2;
+drop table t1;
+--enable-warnings
