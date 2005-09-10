@@ -147,6 +147,17 @@ protected:
   Uint32 m_old_prepare_file_number;
   Uint32 m_old_prepare_page_reference;
   Uint32 m_dirty_flag;
+/* Debug info Start */
+  Uint32 m_log_timer;
+  Uint32 m_page_i_value;
+  Uint32 m_place_written_from;
+  Uint32 m_page_no;
+  Uint32 m_file_no;
+  Uint32 m_word_written;
+  Uint32 m_in_writing_flag;
+  Uint32 m_prev_page_no;
+  Uint32 m_in_free_list;
+/* Debug info End */
 };
 
 //----------------------------------------------------------------
