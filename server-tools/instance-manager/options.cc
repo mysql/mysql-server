@@ -106,7 +106,7 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::port_number, (gptr *) &Options::port_number,
     0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
 
-  { "password-file", OPT_PASSWORD_FILE, "Look for Instane Manager users"
+  { "password-file", OPT_PASSWORD_FILE, "Look for Instance Manager users"
                                         " and passwords here.",
     (gptr *) &Options::password_file_name,
     (gptr *) &Options::password_file_name,
