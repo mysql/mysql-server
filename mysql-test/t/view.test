@@ -2059,3 +2059,12 @@ order by users_names;
 
 drop view v1, v2;
 drop table t1, t2;
+
+#
+# Bug #12993 View column rename broken in subselect
+#
+create table t1(f1 char(1));
+create view v1 as select * from t1;
+select * from (select f1 as f2 from v1) v where v.f2='a';
+drop view v1;
+drop table t1;
