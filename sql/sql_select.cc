@@ -8056,7 +8056,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool table_cant_handle_bit_fields,
                         uint convert_blob_length)
 {
-  Item::Type orig_type;
+  Item::Type orig_type= type;
   Item *orig_item;
 
   if (type != Item::FIELD_ITEM &&
@@ -8066,7 +8066,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   {
     orig_item= item;
     item= item->real_item();
-    orig_type= type;
     type= Item::FIELD_ITEM;
   }
   switch (type) {
