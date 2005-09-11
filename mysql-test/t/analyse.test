@@ -48,6 +48,15 @@ insert into t1 values ('abc'),('abc\'def\\hij\"klm\0opq'),('\''),('\"'),('\\'),(
 select * from t1 procedure analyse();
 drop table t1;
 
+#
+# Bug#10716 - Procedure Analyse results in wrong values for optimal field type
+#
+
+create table t1 (d double);
+insert into t1 values (100000);
+select * from t1 procedure analyse (1,1);
+drop table t1;
+
 # End of 4.1 tests
 
 #decimal-related test
