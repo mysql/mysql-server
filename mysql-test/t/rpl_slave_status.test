@@ -19,6 +19,7 @@ select * from t1;
 connection master;
 delete from mysql.user where user='rpl';
 flush privileges;
+sync_slave_with_master;
 connection slave;
 stop slave;
 start slave;
