@@ -48,6 +48,14 @@ insert into t1 values ('abc'),('abc\'def\\hij\"klm\0opq'),('\''),('\"'),('\\'),(
 select * from t1 procedure analyse();
 drop table t1;
 
+#decimal-related test
+
+create table t1 (df decimal(5,1));
+insert into t1 values(1.1);
+insert into t1 values(2.2);
+select * from t1 procedure analyse();
+drop table t1;
+
 #
 # Bug#10716 - Procedure Analyse results in wrong values for optimal field type
 #
@@ -59,10 +67,3 @@ drop table t1;
 
 # End of 4.1 tests
 
-#decimal-related test
-
-create table t1 (df decimal(5,1));
-insert into t1 values(1.1);
-insert into t1 values(2.2);
-select * from t1 procedure analyse();
-drop table t1;
