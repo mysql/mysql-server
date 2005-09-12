@@ -1227,9 +1227,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
 	   EventSubscribeReq::SignalLength);
   *dst = ll;
 
-  if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
+  send(ss,ssig,nodeId,NODE_TYPE_DB);
 
 #if 0
   while (1)
@@ -1281,6 +1279,19 @@ MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd & ll)
   *dst = ll;
   
   return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
+}
+
+int
+MgmtSrvr::send(SignalSender &ss, SimpleSignal &ssig, Uint32 node, Uint32 node_type){
+  Uint32 max = (node == 0) ? MAX_NODES : node + 1;
+  
+  for(; node < max; node++){
+    while(nodeTypes[node] != (int)node_type && node < max) node++;
+    if(nodeTypes[node] != (int)node_type)
+      break;
+    ss.sendSignal(node, &ssig);
+  }
+  return 0;
 }
 
 //****************************************************************************
