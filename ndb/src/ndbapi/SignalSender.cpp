@@ -250,14 +250,22 @@ SignalSender::execNodeStatus(void* signalSender,
     // node shutdown complete
     s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;
     NFCompleteRep *rep = (NFCompleteRep *)s->getDataPtrSend();
+    rep->blockNo = 0;
+    rep->nodeId = 0;
     rep->failedNodeId = nodeId;
+    rep->unused = 0;
+    rep->from = 0;
   }
   else
   {
     // node failure
     s->header.theVerId_signalNumber = GSN_NODE_FAILREP;
     NodeFailRep *rep = (NodeFailRep *)s->getDataPtrSend();
-    rep->failNo = nodeId;
+    rep->failNo = 0;
+    rep->masterNodeId = 0;
+    rep->noOfNodes = 1;
+    NodeBitmask::clear(rep->theNodes);
+    NodeBitmask::set(rep->theNodes,nodeId);
   }
 
   ss->m_jobBuffer.push_back(s);

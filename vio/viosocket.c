@@ -196,6 +196,15 @@ vio_should_retry(Vio * vio __attribute__((unused)))
 }
 
 
+my_bool
+vio_was_interrupted(Vio *vio __attribute__((unused)))
+{
+  int en= socket_errno;
+  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
+	  en == SOCKET_EWOULDBLOCK || en == SOCKET_ETIMEDOUT);
+}
+
+
 int vio_close(Vio * vio)
 {
   int r=0;
