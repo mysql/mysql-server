@@ -2922,6 +2922,7 @@ a	b	b
 select * from t1 inner join t2 using (a);
 a	b	b
 1	10	10
+drop table t1, t2;
 create table t1 (a int, c int);
 create table t2 (b int);
 create table t3 (b int, a int);
