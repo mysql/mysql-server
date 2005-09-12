@@ -51,7 +51,8 @@ static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
     type[0]= item_cmp_type(type[0], items[i]->result_type());
 }
 
-static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
+                              const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
   	   c1.collation->name,c1.derivation_name(),
@@ -850,8 +851,8 @@ longlong Item_func_interval::val_int()
     1   got error
 */
 
-bool
-Item_func_between::fix_fields(THD *thd, struct st_table_list *tables, Item **ref)
+bool Item_func_between::fix_fields(THD *thd, struct st_table_list *tables,
+                                   Item **ref)
 {
   if (Item_func_opt_neg::fix_fields(thd, tables, ref))
     return 1;
@@ -861,8 +862,9 @@ Item_func_between::fix_fields(THD *thd, struct st_table_list *tables, Item **ref
     return 0;
 
   /* not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2))) */
-  not_null_tables_cache= args[0]->not_null_tables() |
-    (args[1]->not_null_tables() & args[2]->not_null_tables());
+  not_null_tables_cache= (args[0]->not_null_tables() |
+                          (args[1]->not_null_tables() &
+                           args[2]->not_null_tables()));
 
   return 0;
 }
@@ -1106,8 +1108,8 @@ Item_func_if::fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   if (Item_func::fix_fields(thd, tlist, ref))
     return 1;
 
-  not_null_tables_cache= (args[1]->not_null_tables()
-                        & args[2]->not_null_tables());
+  not_null_tables_cache= (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
 
   return 0;
 }
