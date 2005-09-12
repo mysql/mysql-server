@@ -660,6 +660,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  YEAR_SYM
 %token  ZEROFILL
 
+%left   JOIN_SYM
+/* A dummy token to force the priority of table_ref production in a join. */
+%left   TABLE_REF_PRIORITY
 %left   SET_VAR
 %left	OR_OR_SYM OR_SYM OR2_SYM XOR
 %left	AND_SYM AND_AND_SYM
@@ -5189,7 +5192,13 @@ derived_table_list:
         ;
 
 join_table:
-        table_ref normal_join table_ref { YYERROR_UNLESS($1 && ($$=$3)); }
+        /*
+          Evaluate production 'table_ref' before 'normal_join' so that
+          [INNER | CROSS] JOIN is properly nested as other left-associative
+          joins.
+        */
+        table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
+        { YYERROR_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
 	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref
