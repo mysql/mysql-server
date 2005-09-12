@@ -343,7 +343,7 @@ case $default_charset in
       default_charset_default_collation="ucs2_general_ci"
       define(UCSC1, ucs2_general_ci ucs2_bin)
       define(UCSC2, ucs2_czech_ci ucs2_danish_ci)
-      define(UCSC3, ucs2_estonian_ci ucs2_icelandic_ci)
+      define(UCSC3, ucs2_esperanto_ci ucs2_estonian_ci ucs2_icelandic_ci)
       define(UCSC4, ucs2_latvian_ci ucs2_lithuanian_ci)
       define(UCSC5, ucs2_persian_ci ucs2_polish_ci ucs2_romanian_ci)
       define(UCSC6, ucs2_slovak_ci ucs2_slovenian_ci)
@@ -367,7 +367,7 @@ case $default_charset in
       else
         define(UTFC1, utf8_general_ci utf8_bin)
         define(UTFC2, utf8_czech_ci utf8_danish_ci)
-        define(UTFC3, utf8_estonian_ci utf8_icelandic_ci)
+        define(UTFC3, utf8_esperanto_ci utf8_estonian_ci utf8_icelandic_ci)
         define(UTFC4, utf8_latvian_ci utf8_lithuanian_ci)
         define(UTFC5, utf8_persian_ci utf8_polish_ci utf8_romanian_ci)
         define(UTFC6, utf8_slovak_ci utf8_slovenian_ci)
