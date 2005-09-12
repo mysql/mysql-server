@@ -140,10 +140,11 @@ int main(int argc, char **argv) {
     int now; // current time
     int lastt; // last time
     ulint oldcsum, oldcsumfield, csum, csumfield, logseq, logseqfield; // ulints for checksum storage
-    struct stat64 st; // for stat, if you couldn't guess
+    struct stat st; // for stat, if you couldn't guess
     unsigned long long int size; // size of file (has to be 64 bits)
     ulint pages; // number of pages in file
     ulint start_page = 0, end_page = 0, use_end_page = 0; // for starting and ending at certain pages
+    off_t offset = 0;
     int just_count = 0; // if true, just print page count
     int verbose = 0;
     int debug = 0;
@@ -202,7 +203,7 @@ int main(int argc, char **argv) {
     }
 
     // stat the file to get size and page count
-    if (stat64(argv[optind], &st)) {
+    if (stat(argv[optind], &st)) {
         perror("error statting file");
         return 1;
     }
@@ -217,7 +218,7 @@ int main(int argc, char **argv) {
     }
 
     // open the file for reading
-    f = fopen64(argv[optind], "r");
+    f = fopen(argv[optind], "r");
     if (!f) {
         perror("error opening file");
         return 1;
@@ -230,7 +231,10 @@ int main(int argc, char **argv) {
             perror("unable to obtain file descriptor number");
             return 1;
         }
-        if (lseek64(fd, start_page * UNIV_PAGE_SIZE, SEEK_SET) != (start_page * UNIV_PAGE_SIZE)) {
+
+        offset = (off_t)start_page * (off_t)UNIV_PAGE_SIZE;
+
+        if (lseek(fd, offset, SEEK_SET) != offset) {
             perror("unable to seek to necessary offset");
             return 1;
         }
