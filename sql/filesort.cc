@@ -443,7 +443,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  ha_store_ptr(ref_pos,ref_length,record); // Position to row
 	  record+=sort_form->db_record_offset;
 	}
-	else
+	else if (!error)
 	  file->position(sort_form->record[0]);
       }
       if (error && error != HA_ERR_RECORD_DELETED)
