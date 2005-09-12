@@ -381,19 +381,19 @@ case "$target_os" in
        ;;
      esac
   ;;
-  sysv5UnixWare*) 
+  sysv5UnixWare* | sysv5OpenUNIX8*) 
     if test "$GCC" != "yes"; then
-      # We are using built-in inline function
+      # Use the built-in alloca()
       CFLAGS="$CFLAGS -Kalloca"
     fi
     CXXFLAGS="$CXXFLAGS -DNO_CPLUSPLUS_ALLOCA"
   ;;
-  sysv5OpenUNIX8*) 
+  sysv5SCO_SV6.0.0*)
     if test "$GCC" != "yes"; then
-      # We are using built-in inline function
+      # Use the built-in alloca()
       CFLAGS="$CFLAGS -Kalloca"
+      CXXFLAGS="$CFLAGS -Kalloca"
     fi
-    CXXFLAGS="$CXXFLAGS -DNO_CPLUSPLUS_ALLOCA"
   ;;
 esac
 AC_SUBST(CC)
@@ -1440,8 +1440,6 @@ then
           if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
           then
             AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1])
-          else
-            AC_DEFINE(HAVE_UNIXWARE7_POSIX, [1])
           fi
           AC_MSG_RESULT("yes")
           # We must have cc
@@ -1467,87 +1465,41 @@ then
     AC_MSG_RESULT("no")
   fi
 fi
-# Hack for SCO UnixWare7
+
+#
+# Check for SCO threading libraries
 #
 if test "$with_named_thread" = "no"
 then
-  AC_MSG_CHECKING("SCO UnixWare7 native threads")
-  if expr "$SYSTEM_TYPE" : ".*UnixWare*" > /dev/null
+  AC_MSG_CHECKING([SCO OpenServer 6, UnixWare 7 or OpenUNIX 8 native threads])
+  if expr "$SYSTEM_TYPE" : ".*UnixWare.*" > /dev/null || \
+     expr "$SYSTEM_TYPE" : ".*SCO_SV6.*" > /dev/null || \
+     expr "$SYSTEM_TYPE" : ".*OpenUNIX.*" > /dev/null
   then
     if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
     then
       MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
-      if expr "$CC" : ".*gcc.*"
-        then
-          with_named_thread="-pthread -lsocket -lnsl"
-      else
-        with_named_thread="-Kthread -lsocket -lnsl"
-      fi
-      if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
+      if expr "$CC" : ".*gcc.*" > /dev/null
       then
-        AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1])
-      else
-        AC_DEFINE(HAVE_UNIXWARE7_POSIX, [1])
-      fi
-      # We must have cc
-      AC_MSG_CHECKING("for gcc")
-      if expr "$CC" : ".*gcc.*"
-      then
+        with_named_thread="-pthread -lsocket -lnsl"
 	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
 	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       else
+        with_named_thread="-Kthread -lsocket -lnsl"
 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       fi
-      AC_MSG_RESULT("yes")
+      if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
+      then
+        AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1], [Have UnixWare 7 (or similar) almost-POSIX threading library])
+      fi
+      AC_MSG_RESULT(yes)
     else
+      AC_MSG_RESULT(failed)
       { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
     fi
   else
-    AC_MSG_RESULT("no")
-  fi
-fi
-
-# Hack for Caldera OpenUNIX8
-#
-if test "$with_named_thread" = "no"
-then
-  AC_MSG_CHECKING("OpenUNIX8 native threads")
-  if expr "$SYSTEM_TYPE" : ".*OpenUNIX*" > /dev/null
-  then
-    if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
-    then
-      MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
-      if expr "$CC" : ".*gcc.*"
-      then
-          with_named_thread="-pthread -lsocket -lnsl"
-      else
-        with_named_thread="-Kthread -lsocket -lnsl"
-      fi
-      if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
-      then
-        AC_DEFINE([HAVE_UNIXWARE7_THREADS], [1],
-                  [UNIXWARE7 threads are not posix])
-      else
-        AC_DEFINE([HAVE_UNIXWARE7_POSIX], [1],
-                  [new UNIXWARE7 threads that are not yet posix])
-      fi
-      # We must have cc
-      AC_MSG_CHECKING("for gcc")
-      if expr "$CC" : ".*gcc.*"
-      then
-	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-      else
- 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
- 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-      fi
-      AC_MSG_RESULT("yes")
-    else
-      { echo "configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
-    fi
-  else
-    AC_MSG_RESULT("no")
+    AC_MSG_RESULT(no)
   fi
 fi
 
@@ -3016,7 +2968,7 @@ then
       AC_CONFIG_FILES(bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
-      bdb_conf_flags="--disable-shared"
+      bdb_conf_flags="--disable-shared --build=$build_alias"
       if test $with_debug = "yes"
       then
         bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
