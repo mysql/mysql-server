@@ -6059,7 +6059,10 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   /* check that used name is unique */
   if (lock_type != TL_IGNORE)
   {
-    for (TABLE_LIST *tables=(TABLE_LIST*) table_list.first ;
+    TABLE_LIST *first_table= (TABLE_LIST*) table_list.first;
+    if (lex->sql_command == SQLCOM_CREATE_VIEW)
+      first_table= first_table ? first_table->next_local : NULL;
+    for (TABLE_LIST *tables= first_table ;
 	 tables ;
 	 tables=tables->next_local)
     {
