@@ -50,6 +50,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->fastsend	=vio_fastsend;
     vio->viokeepalive	=vio_keepalive;
     vio->should_retry	=vio_should_retry;
+    vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close_pipe;
     vio->peer_addr	=vio_peer_addr;
     vio->in_addr	=vio_in_addr;
@@ -69,6 +70,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->fastsend	=vio_fastsend;
     vio->viokeepalive	=vio_keepalive;
     vio->should_retry	=vio_should_retry;
+    vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close_shared_memory;
     vio->peer_addr	=vio_peer_addr;
     vio->in_addr	=vio_in_addr;
@@ -88,6 +90,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->fastsend	=vio_ssl_fastsend;
     vio->viokeepalive	=vio_ssl_keepalive;
     vio->should_retry	=vio_ssl_should_retry;
+    vio->was_interrupted=vio_ssl_was_interrupted;
     vio->vioclose	=vio_ssl_close;
     vio->peer_addr	=vio_ssl_peer_addr;
     vio->in_addr	=vio_ssl_in_addr;
@@ -105,6 +108,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->fastsend	=vio_fastsend;
     vio->viokeepalive	=vio_keepalive;
     vio->should_retry	=vio_should_retry;
+    vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close;
     vio->peer_addr	=vio_peer_addr;
     vio->in_addr	=vio_in_addr;
