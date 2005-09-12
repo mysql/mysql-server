@@ -1128,6 +1128,15 @@ case $SYSTEM_TYPE in
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
+  *darwin9*)
+    if test "$ac_cv_prog_gcc" = "yes"
+    then
+      FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
+      CFLAGS="$CFLAGS $FLAGS"
+      CXXFLAGS="$CXXFLAGS $FLAGS"
+      MAX_C_OPTIMIZE="-O"
+    fi
+    ;;
   *freebsd*)
     echo "Adding fix for interrupted reads"
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
