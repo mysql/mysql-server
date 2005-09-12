@@ -2912,3 +2912,13 @@ ERROR 23000: Column 'id' in from clause is ambiguous
 SELECT id,t3.id FROM (t1 JOIN t2 ON (t2.id=t1.id)) LEFT JOIN t3 USING (id);
 ERROR 23000: Column 'id' in from clause is ambiguous
 drop table t1, t2, t3;
+create table t1 (a int(10),b int(10));
+create table t2 (a int(10),b int(10));
+insert into t1 values (1,10),(2,20),(3,30);
+insert into t2 values (1,10);
+select * from t1 inner join t2 using (A);
+a	b	b
+1	10	10
+select * from t1 inner join t2 using (a);
+a	b	b
+1	10	10
