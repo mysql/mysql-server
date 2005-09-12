@@ -63,9 +63,11 @@ show count(*) warnings;
 1
 create table t1(id int);
 create table if not exists t1(id int);
+Warnings:
+Note	1050	Table 't1' already exists
 select @@warning_count;
 @@warning_count
-0
+1
 drop table t1;
 create table t1(a tinyint, b int not null, c date, d char(5));
 load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
