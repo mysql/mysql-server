@@ -19,7 +19,7 @@ flush privileges;
 stop slave;
 start slave;
 show slave status;
-Slave_IO_State	Connecting to master
+Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	rpl
 Master_Port	MASTER_MYPORT
