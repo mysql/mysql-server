@@ -2499,6 +2499,9 @@ insert into t2 values (1,10);
 # both queries should produce the same result
 select * from t1 inner join t2 using (A);
 select * from t1 inner join t2 using (a);
+drop table t1, t2;
+
+#
 # Bug #12943 Incorrect nesting of [INNER| CROSS] JOIN due to unspecified
 #            associativity in the parser.
 #
