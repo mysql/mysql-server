@@ -2862,19 +2862,6 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond->type() != Item::FUNC_ITEM)
     return;
   Item_func *cond_func= (Item_func*) cond;
-  if (cond_func->functype() == Item_func::NOT_FUNC)
-  {
-    Item *item= cond_func->arguments()[0];
-    /*
-      At this moment all NOT before simple comparison predicates
-      are eliminated. NOT IN and NOT BETWEEN are treated similar
-      IN and BETWEEN respectively.
-    */
-    if (item->type() == Item::FUNC_ITEM &&
-        ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
-      add_key_fields(key_fields,and_level,item,usable_tables);
-    return;
-  }
   switch (cond_func->select_optimize()) {
   case Item_func::OPTIMIZE_NONE:
     break;
@@ -8054,11 +8041,15 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool table_cant_handle_bit_fields,
                         uint convert_blob_length)
 {
+  Item::Type orig_type= type;
+  Item *orig_item;
+
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM &&
       (item->type() != Item::REF_ITEM ||
        !((Item_ref *) item)->depended_from))
   {
+    orig_item= item;
     item= item->real_item();
     type= Item::FIELD_ITEM;
   }
@@ -8075,29 +8066,34 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
+    bool orig_modify= modify_item;
+    Field *result;
+    if (orig_type == Item::REF_ITEM)
+      modify_item= 0;
     /*
       If item have to be able to store NULLs but underlaid field can't do it,
       create_tmp_field_from_field() can't be used for tmp field creation.
     */
     if (field->maybe_null && !field->field->maybe_null())
     {
-      Field *res= create_tmp_field_from_item(thd, item, table, NULL,
+      result= create_tmp_field_from_item(thd, item, table, NULL,
                                        modify_item, convert_blob_length);
       *from_field= field->field;
-      if (res && modify_item)
-        ((Item_field*)item)->result_field= res;
-      return res;
-    }
-
-    if (table_cant_handle_bit_fields && 
-        field->field->type() == FIELD_TYPE_BIT)
-      return create_tmp_field_from_item(thd, item, table, copy_func,
+      if (result && modify_item)
+        ((Item_field*)item)->result_field= result;
+    } 
+    else if (table_cant_handle_bit_fields && field->field->type() == FIELD_TYPE_BIT)
+      result= create_tmp_field_from_item(thd, item, table, copy_func,
                                         modify_item, convert_blob_length);
-    return create_tmp_field_from_field(thd, (*from_field= field->field),
+    else
+      result= create_tmp_field_from_field(thd, (*from_field= field->field),
                                        item->name, table,
                                        modify_item ? (Item_field*) item :
                                        NULL,
                                        convert_blob_length);
+    if (orig_type == Item::REF_ITEM && orig_modify)
+      ((Item_ref*)orig_item)->set_result_field(result);
+    return result;
   }
   /* Fall through */
   case Item::FUNC_ITEM:
@@ -13046,6 +13042,8 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
     The function replaces occurrences of group by fields in expr
     by ref objects for these fields unless they are under aggregate
     functions.
+    The function also corrects value of the the maybe_null attribute
+    for the items of all subexpressions containing group by fields.
 
   IMPLEMENTATION
     The function recursively traverses the tree of the expr expression,
@@ -13055,6 +13053,9 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
   NOTES
     This substitution is needed GROUP BY queries with ROLLUP if
     SELECT list contains expressions over group by attributes.
+
+  TODO: Some functions are not null-preserving. For those functions
+    updating of the maybe_null attribute is an overkill. 
 
   EXAMPLES
     SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
@@ -13077,6 +13078,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
          arg != arg_end; arg++)
     {
       Item *item= *arg;
+      bool arg_changed= FALSE;
       if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
       {
         ORDER *group_tmp;
@@ -13089,14 +13091,19 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
                                         item->name)))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);
-            *changed= TRUE;
+            arg_changed= TRUE;
           }
         }
       }
       else if (item->type() == Item::FUNC_ITEM)
       {
-        if (change_group_ref(thd, (Item_func *) item, group_list, changed))
+        if (change_group_ref(thd, (Item_func *) item, group_list, &arg_changed))
           return 1;
+      }
+      if (arg_changed)
+      {
+        expr->maybe_null= 1;
+        *changed= TRUE;
       }
     }
   }
@@ -13160,7 +13167,7 @@ bool JOIN::rollup_init()
     }
     if (item->type() == Item::FUNC_ITEM)
     {
-      bool changed= 0;
+      bool changed= FALSE;
       if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
         return 1;
       /*

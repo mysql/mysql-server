@@ -107,4 +107,13 @@ drop table t1;
 #
 select abs(-2) * -2;
 
+#
+# Bug #6172 RAND(a) should only accept constant values as arguments
+#
+create table t1 (i int);
+insert into t1 values (1);
+--error 1210
+select rand(i) from t1;
+drop table t1;
+
 # End of 4.1 tests

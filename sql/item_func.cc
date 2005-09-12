@@ -1874,6 +1874,11 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
+    if (!args[0]->const_during_execution())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "RAND");
+      return TRUE;
+    }
     /*
       Allocate rand structure once: we must use thd->stmt_arena
       to create rand in proper mem_root if it's a prepared statement or
@@ -3879,7 +3884,8 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;
   }
-  else if (var_entry->used_query_id == thd->query_id)
+  else if (var_entry->used_query_id == thd->query_id ||
+           mysql_bin_log.is_query_in_union(thd, var_entry->used_query_id))
   {
     /* 
        If this variable was already stored in user_var_events by this query
@@ -3896,10 +3902,16 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     appears:
     > set @a:=1;
     > insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
-    We have to write to binlog value @a= 1;
+    We have to write to binlog value @a= 1.
+    
+    We allocate the user_var_event on user_var_events_alloc pool, not on
+    the this-statement-execution pool because in SPs user_var_event objects 
+    may need to be valid after current [SP] statement execution pool is
+    destroyed.
   */
-  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
-  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
+  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;
+  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *)
+        alloc_root(thd->user_var_events_alloc, size)))
     goto err;
   
   user_var_event->value= (char*) user_var_event +
