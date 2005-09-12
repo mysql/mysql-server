@@ -1017,8 +1017,7 @@ longlong Item_func_interval::val_int()
     1   got error
 */
 
-bool Item_func_between::fix_fields(THD *thd, struct st_table_list *tables,
-                                   Item **ref)
+bool Item_func_between::fix_fields(THD *thd, Item **ref)
 {
   if (Item_func_opt_neg::fix_fields(thd, ref))
     return 1;

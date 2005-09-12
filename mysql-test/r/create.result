@@ -278,16 +278,16 @@ create table t1 (a int not null, b int, primary key (a));
 insert into t1 values (1,1);
 create table if not exists t1 select 2;
 Warnings:
-Warning	1364	Field 'a' doesn't have a default value
 Note	1050	Table 't1' already exists
+Warning	1364	Field 'a' doesn't have a default value
 select * from t1;
 a	b
 1	1
 0	2
 create table if not exists t1 select 3 as 'a',4 as 'b';
 Warnings:
-Warning	1364	Field 'a' doesn't have a default value
 Note	1050	Table 't1' already exists
+Warning	1364	Field 'a' doesn't have a default value
 create table if not exists t1 select 3 as 'a',3 as 'b';
 ERROR 23000: Duplicate entry '3' for key 1
 select * from t1;
@@ -621,6 +621,13 @@ create table test.t1 like x;
 ERROR 42000: Incorrect database name 'NULL'
 drop table if exists test.t1;
 create database mysqltest;
+use mysqltest;
+create view v1 as select 'foo' from dual;
+create table t1 like v1;
+ERROR HY000: 'mysqltest.v1' is not BASE TABLE
+drop view v1;
+drop database mysqltest;
+create database mysqltest;
 create database if not exists mysqltest character set latin2;
 Warnings:
 Note	1007	Can't create database 'mysqltest'; database exists
@@ -634,9 +641,3 @@ create table if not exists t1 (a int);
 Warnings:
 Note	1050	Table 't1' already exists
 drop table t1;
-use mysqltest;
-create view v1 as select 'foo' from dual;
-create table t1 like v1;
-ERROR HY000: 'mysqltest.v1' is not BASE TABLE
-drop view v1;
-drop database mysqltest;
