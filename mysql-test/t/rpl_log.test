@@ -110,3 +110,4 @@ show slave status;
 show binlog events in 'slave-bin.000005' from 4;
 
 # End of 4.1 tests
+# Adding comment for force manual merge 5.0 -> wl1012: Delete me
