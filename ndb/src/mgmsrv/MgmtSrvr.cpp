@@ -765,7 +765,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version)
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (rep->failNo == nodeId)
+      if (NodeBitmask::get(rep->theNodes,nodeId))
 	do_send = 1; // retry with other node
       continue;
     }
@@ -894,14 +894,23 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      NodeBitmask failedNodes;
+      failedNodes.assign(NodeBitmask::Size, rep->theNodes);
 #ifdef VM_TRACE
-      ndbout_c("Node %d failed", rep->failNo);
-#endif
-      if (nodes.get(rep->failNo))
       {
-	nodes.clear(rep->failNo);
+	ndbout << "Failed nodes:";
+	for (unsigned i = 0; i < 32*NodeBitmask::Size; i++)
+	  if(failedNodes.get(i))
+	    ndbout << " " << i;
+	ndbout << endl;
+      }
+#endif
+      failedNodes.bitAND(nodes);
+      if (!failedNodes.isclear())
+      {
+	nodes.bitANDC(failedNodes); // clear the failed nodes
 	if (singleUserNodeId == 0)
-	  stoppedNodes.set(rep->failNo);
+	  stoppedNodes.bitOR(failedNodes);
       }
       break;
     }
@@ -1244,7 +1253,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (rep->failNo == nodeId)
+      if (NodeBitmask::get(rep->theNodes,nodeId))
 	return SEND_OR_RECEIVE_FAILED;
       break;
     }
