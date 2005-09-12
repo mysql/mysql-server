@@ -48,3 +48,4 @@ sync_with_master;
 show status like 'slave_open_temp_tables';
 
 # End of 4.1 tests
+#
