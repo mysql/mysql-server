@@ -1027,3 +1027,15 @@ aa
 xxx
 yyy
 DROP TABLE t1;
+set names utf8;
+create table t1 (a char(1)) default character set utf8;
+create table t2 (a char(1)) default character set utf8;
+insert into t1 values('a'),('a'),(0xE38182),(0xE38182);
+insert into t1 values('i'),('i'),(0xE38184),(0xE38184);
+select * from t1 union distinct select * from t2;
+a
+a
+あ
+i
+い
+drop table t1,t2;
