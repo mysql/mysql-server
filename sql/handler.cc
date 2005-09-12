@@ -570,12 +570,20 @@ int ha_prepare(THD *thd)
     {
       int err;
       statistic_increment(thd->status_var.ha_prepare_count,&LOCK_status);
-      if ((err= (*(*ht)->prepare)(thd, all)))
+      if ((*ht)->prepare)
       {
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
-        ha_rollback_trans(thd, all);
-        error=1;
-        break;
+        if ((err= (*(*ht)->prepare)(thd, all)))
+        {
+          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+          ha_rollback_trans(thd, all);
+          error=1;
+          break;
+        }
+      }
+      else
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), (*ht)->name);
       }
     }
   }

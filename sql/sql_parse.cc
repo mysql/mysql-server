@@ -875,11 +875,13 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
     /*
       Use server character set and collation if
+      - opt_character_set_client_handshake is not set
       - client has not specified a character set
       - client character set is the same as the servers
       - client character set doesn't exists in server
     */
-    if (!(thd->variables.character_set_client=
+    if (!opt_character_set_client_handshake ||
+        !(thd->variables.character_set_client=
 	  get_charset((uint) net->read_pos[8], MYF(0))) ||
 	!my_strcasecmp(&my_charset_latin1,
 		       global_system_variables.character_set_client->name,
@@ -2436,6 +2438,12 @@ mysql_execute_command(THD *thd)
     {
       if (lex->describe)
       {
+        /*
+          We always use select_send for EXPLAIN, even if it's an EXPLAIN
+          for SELECT ... INTO OUTFILE: a user application should be able
+          to prepend EXPLAIN to any query and receive output for it,
+          even if the query itself redirects the output.
+        */
 	if (!(result= new select_send()))
 	  goto error;
 	else
@@ -3508,7 +3516,6 @@ end_with_restore_list:
 	 !db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3543,7 +3550,6 @@ end_with_restore_list:
 	 !db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3584,7 +3590,6 @@ end_with_restore_list:
 	 !db_ok_with_wild_table(db)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -5160,7 +5165,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   if (!thd->in_sub_stmt)
   {
     if (opt_bin_log)
+    {
       reset_dynamic(&thd->user_var_events);
+      thd->user_var_events_alloc= thd->mem_root;
+    }
     thd->clear_error();
     thd->total_warn_count=0;			// Warnings for this query
     thd->rand_used= 0;

@@ -152,4 +152,52 @@ drop procedure p1;
 drop function f1;
 drop table t1,t2;
 
+# BUG#12637: User variables + SPs replication
+create table t1 (a int);
+delimiter //;
+create procedure p1()
+begin
+  insert into t1 values(@x);
+  set @x=@x+1;
+  insert into t1 values(@x);
+  if (f2()) then
+    insert into t1 values(1243);
+  end if;
+end//
+
+create function f2() returns int
+begin
+  insert into t1 values(@z);
+  set @z=@z+1;
+  insert into t1 values(@z);
+  return 0;
+end//
+
+create function f1() returns int
+begin
+  insert into t1 values(@y);
+  call p1();
+  return 0;
+end//
+
+delimiter ;//
+
+set @x=10;
+set @y=20;
+set @z=100;
+select f1();
+
+set @x=30;
+call p1();
+
+select 'master', a from t1;
+sync_slave_with_master;
+connection slave;
+select 'slave', a from t1;
+
+connection master;
+drop table t1;
+drop function f1;
+drop function f2;
+drop procedure p1;
 sync_slave_with_master;

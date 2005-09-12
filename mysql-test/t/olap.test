@@ -251,6 +251,32 @@ SELECT IFNULL(a, 'TEST'), COALESCE(b, 'TEST') FROM t2
 DROP TABLE t1,t2;
 
 #
+# Test for bug #11543: ROLLUP query with a repeated column in GROUP BY 
+#
+
+CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (1, 2);
+
+SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
+
+DROP TABLE t1;
+
+# Bug #12885(1): derived table specified by a subquery with
+#                ROLLUP over expressions on not nullable group by attributes 
+#
+
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+
+SELECT * FROM (SELECT a, a + 1, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
+SELECT * FROM (SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
+
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+#
 # Tests for bug #11639: ROLLUP over view executed through filesort
 #
 
@@ -266,15 +292,20 @@ EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
 
 DROP VIEW v1;
 DROP TABLE t1;
-# Test for bug #11543: ROLLUP query with a repeated column in GROUP BY 
+
+#
+# Bug #12885(2): view specified by a subquery with
+#                ROLLUP over expressions on not nullable group by attributes 
 #
 
-CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
-INSERT INTO t1 VALUES (1, 1);
-INSERT INTO t1 VALUES (1, 2);
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
 
-SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
+CREATE VIEW v1 AS
+  SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
 
+DESC v1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
 DROP TABLE t1;
-
-# End of 4.1 tests

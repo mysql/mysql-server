@@ -87,7 +87,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
                 opt_complete_insert= 0, opt_drop_database= 0,
-                opt_dump_triggers= 0;
+                opt_dump_triggers= 0, opt_routines=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static my_bool insert_pat_inited=0;
@@ -339,6 +339,9 @@ static struct my_option my_long_options[] =
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"routines", 'R', "Dump routines FUNCTIONS and PROCEDURES.",
+     (gptr*) &opt_routines, (gptr*) &opt_routines, 0, GET_BOOL,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
    (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
@@ -1157,7 +1160,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   uint i;
   MYSQL_FIELD *field;
   ulong *lengths= mysql_fetch_lengths(tableRes);
-  
+
   fprintf(xml_file, "\t\t<%s", row_name);
   check_io(xml_file);
   mysql_field_seek(tableRes, 0);
@@ -1177,6 +1180,112 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   check_io(xml_file);
 }
 
+/*
+  dump_routines_for_db
+  -- retrievs list of routines for a given db, and prints out
+  the CREATE PROCEDURE definition into the output (the dump).
+
+  This function has logic to print the appropriate syntax depending on whether
+  this is a procedure or functions
+
+  RETURN 0 succes, 1 if error
+*/
+
+static uint dump_routines_for_db (char *db)
+{
+  char       query_buff[512], routine_type[10];
+  char       db_name_buff[NAME_LEN+3], name_buff[NAME_LEN+3];
+  int        i;
+  FILE       *sql_file = md_result_file;
+  MYSQL_RES  *routine_res= NULL;
+  MYSQL_RES  *routine_list_res= NULL;
+  MYSQL_ROW  row, routine_list_row;
+
+  DBUG_ENTER("dump_routines_for_db");
+
+  mysql_real_escape_string(sock, db_name_buff, db, strlen(db));
+  DBUG_PRINT("enter", ("db: '%s'", db_name_buff));
+
+  /* nice comments */
+  if (opt_comments)
+    fprintf(sql_file, "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+
+  /*
+    not using "mysql_query_with_error_report" because of privileges 
+  */
+  if (opt_lock)
+    mysql_query(sock, "LOCK TABLES mysql.proc READ");
+
+  fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
+  fprintf(sql_file, "DELIMITER //\n");
+
+  /* 0, retrieve and dump functions, 1, procedures */
+  for (i=0; i <= 1; i++)
+  {
+    my_snprintf(routine_type, sizeof(routine_type),
+                  "%s", i == 0 ? "FUNCTION" : "PROCEDURE");
+
+    my_snprintf(query_buff, sizeof(query_buff),
+                "SHOW %s STATUS WHERE Db = '%s'",
+                routine_type, db_name_buff);
+
+    if (mysql_query_with_error_report(sock, &routine_list_res, query_buff))
+      DBUG_RETURN(1);
+
+    if (mysql_num_rows(routine_list_res))
+    {
+
+      while((routine_list_row= mysql_fetch_row(routine_list_res)))
+      {
+        DBUG_PRINT("info", ("retrieving CREATE %s for %s", routine_type, name_buff));
+        mysql_real_escape_string(sock, name_buff,
+                                 routine_list_row[1], strlen(routine_list_row[1]));
+        my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
+                    routine_type, name_buff);
+
+        if (mysql_query_with_error_report(sock, &routine_res, query_buff))
+          DBUG_RETURN(1);
+
+        while ((row=mysql_fetch_row(routine_res)))
+        {
+          /*
+            the user can see routine names, but NOT the routine body of other
+            routines that are not the creator of!
+          */
+          DBUG_PRINT("info",("length of body for %s row[2] '%s' is %d",
+                             name_buff, row[2], strlen(row[2])));
+          if (strlen(row[2]))
+          {
+            fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/ //\n",
+                    row[1] /* sql_mode */);
+
+            if (opt_drop)
+              fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */ //\n",
+                      routine_type, name_buff);
+            /*
+              the i==0 is temporary until we can figure out why functions
+              can't be in comments
+            */
+            /* create proc/func body */;
+            fprintf(sql_file, "/*!50003 %s */ //\n", row[2]);
+          }
+        } /* end of routine printing */
+      } /* end of list of routines */
+      mysql_free_result(routine_res);
+      routine_res=NULL;
+    }
+    mysql_free_result(routine_list_res);
+    routine_list_res=NULL;
+  } /* end of for i (0 .. 1)  */
+  /* set the delimiter back to ';' */
+  fprintf(sql_file, "DELIMITER ;\n");
+  fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;\n");
+
+  /* again, no error report due to permissions */
+  if (opt_lock)
+    mysql_query(sock, "UNLOCK TABLES");
+  DBUG_RETURN(0);
+}
 
 /*
   getTableStructure -- retrievs database structure, prints out corresponding
@@ -1330,41 +1439,6 @@ static uint get_table_structure(char *table, char *db)
       fprintf(sql_file, "%s;\n", row[1]);
       check_io(sql_file);
       mysql_free_result(tableRes);
-      if (opt_dump_triggers &&
-          mysql_get_server_version(sock) >= 50009)
-      {
-        my_snprintf(query_buff, sizeof(query_buff),
-                    "SHOW TRIGGERS LIKE %s",
-                    quote_for_like(table, name_buff));
-
-
-        if (mysql_query_with_error_report(sock, &tableRes, query_buff))
-        {
-          if (path)
-            my_fclose(sql_file, MYF(MY_WME));
-          safe_exit(EX_MYSQLERR);
-          DBUG_RETURN(0);
-        }
-        if (mysql_num_rows(tableRes))
-          fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
-DELIMITER //;\n");
-        while ((row=mysql_fetch_row(tableRes)))
-        {
-          fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/ //\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s*/ //\n\n",
-                  row[6], /* sql_mode */
-                  quote_name(row[0], name_buff, 0), /* Trigger */
-                  row[4], /* Timing */
-                  row[1], /* Event */
-                  result_table,
-                  row[3] /* Statement */);
-        }
-        if (mysql_num_rows(tableRes))
-          fprintf(sql_file,
-                  "DELIMITER ;//\n\
-/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;");
-        mysql_free_result(tableRes);
-      }
     }
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
@@ -1656,6 +1730,68 @@ continue_xml:
   DBUG_RETURN(numFields);
 } /* get_table_structure */
 
+
+/*
+
+  dump_triggers_for_table
+
+  Dumps the triggers given a table/db name. This should be called after
+  the tables have been dumped in case a trigger depends on the existence
+  of a table
+
+  INPUT
+    char * tablename and db name
+  RETURNS
+   0 Failure
+   1 Succes
+
+*/
+
+static void dump_triggers_for_table (char *table, char *db)
+{
+  MYSQL_RES  *result;
+  MYSQL_ROW  row;
+  char	     *result_table;
+  char	     name_buff[NAME_LEN+3], table_buff[NAME_LEN*2+3];
+  char       query_buff[512];
+  FILE       *sql_file = md_result_file;
+
+  DBUG_ENTER("dump_triggers_for_table");
+  DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
+  result_table=     quote_name(table, table_buff, 1);
+
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SHOW TRIGGERS LIKE %s",
+              quote_for_like(table, name_buff));
+
+  if (mysql_query_with_error_report(sock, &result, query_buff))
+  {
+    if (path)
+      my_fclose(sql_file, MYF(MY_WME));
+    safe_exit(EX_MYSQLERR);
+    DBUG_VOID_RETURN;
+  }
+  if (mysql_num_rows(result))
+    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
+DELIMITER //;\n");
+  while ((row=mysql_fetch_row(result)))
+  {
+    fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */ //\n\
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */ //\n\n",
+            row[6], /* sql_mode */
+            quote_name(row[0], name_buff, 0), /* Trigger */
+            row[4], /* Timing */
+            row[1], /* Event */
+            result_table,
+            row[3] /* Statement */);
+  }
+  if (mysql_num_rows(result))
+    fprintf(sql_file,
+            "DELIMITER ;//\n\
+/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;");
+  mysql_free_result(result);
+  DBUG_VOID_RETURN;
+}
 
 static char *add_load_option(char *ptr,const char *object,
 			     const char *statement)
@@ -2376,7 +2512,16 @@ static int dump_all_tables_in_db(char *database)
       dump_table(numrows,table);
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
       order_by= 0;
+      if (opt_dump_triggers && ! opt_xml &&
+          mysql_get_server_version(sock) >= 50009)
+        dump_triggers_for_table(table, database);
     }
+  }
+  if (opt_routines && !opt_xml &&
+      mysql_get_server_version(sock) >= 50009)
+  {
+    DBUG_PRINT("info", ("Dumping routines for database %s", database));
+    dump_routines_for_db(database);
   }
   if (opt_xml)
   {
@@ -2569,6 +2714,9 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     DBUG_PRINT("info",("Dumping table %s", table_name));
     numrows= get_table_structure(table_name, db);
     dump_table(numrows, table_name);
+    if (opt_dump_triggers &&
+        mysql_get_server_version(sock) >= 50009)
+      dump_triggers_for_table(table_name, db);
   }
 
   /* Dump each selected view */
@@ -2579,6 +2727,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       table_name= hash_element(&dump_tables, i);
       get_view_structure(table_name, db);
     }
+  }
+  /* obtain dump of routines (procs/functions) */
+  if (opt_routines  && !opt_xml &&
+      mysql_get_server_version(sock) >= 50009)
+  {
+    DBUG_PRINT("info", ("Dumping routines for database %s", db));
+    dump_routines_for_db(db);
   }
   hash_free(&dump_tables);
   my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));

@@ -275,8 +275,19 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     }
     DBUG_PRINT("info",("STRING_RESULT: %*s",
                        s->length(), s->c_ptr_quick()));
-    CHARSET_INFO *itcs= it->collation.collation;
-    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_string(itcs),
+    /*
+      Reuse mechanism in sp_eval_func_item() is only employed for assignments
+      to local variables and OUT/INOUT SP parameters repsesented by
+      Item_splocal. Usually we have some expression, which needs
+      to be calculated and stored into the local variable. However in the
+      case if "it" equals to "reuse", there is no "calculation" step. So,
+      no reason to employ reuse mechanism to save variable into itself.
+    */
+    if (it == reuse)
+      DBUG_RETURN(it);
+
+    CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
+                            Item_string(it->collation.collation),
                             use_callers_arena, &backup_arena);
     /*
       We have to use special constructor and allocate string
@@ -678,10 +689,35 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
    * If this function invocation is done from a statement that is written
      into the binary log.
    * If there were any attempts to write events to the binary log during
-     function execution.
+     function execution (grep for start_union_events and stop_union_events)
+
    If the answers are No and Yes, we write the function call into the binary
    log as "DO spfunc(<param1value>, <param2value>, ...)"
+  
+  
+  4. Miscellaneous issues.
+  
+  4.1 User variables. 
 
+  When we call mysql_bin_log.write() for an SP statement, thd->user_var_events
+  must hold set<{var_name, value}> pairs for all user variables used during 
+  the statement execution.
+  This set is produced by tracking user variable reads during statement
+  execution. 
+
+  Fo SPs, this has the following implications:
+  1) thd->user_var_events may contain events from several SP statements and 
+     needs to be valid after exection of these statements was finished. In 
+     order to achieve that, we
+     * Allocate user_var_events array elements on appropriate mem_root (grep
+       for user_var_events_alloc).
+     * Use is_query_in_union() to determine if user_var_event is created.
+     
+  2) We need to empty thd->user_var_events after we have wrote a function
+     call. This is currently done by making 
+     reset_dynamic(&thd->user_var_events);
+     calls in several different places. (TODO cosider moving this into
+     mysql_bin_log.write() function)
 */
 
 
@@ -897,6 +933,7 @@ int sp_head::execute(THD *thd)
     /* Don't change NOW() in FUNCTION or TRIGGER */
     if (!thd->in_sub_stmt)
       thd->set_time();		// Make current_time() et al work
+    
     /*
       We have to set thd->stmt_arena before executing the instruction
       to store in the instruction free_list all new items, created
@@ -904,6 +941,14 @@ int sp_head::execute(THD *thd)
       items made during other permanent subquery transformations).
     */
     thd->stmt_arena= i;
+    
+    /* 
+      Will write this SP statement into binlog separately 
+      (TODO: consider changing the condition to "not inside event union")
+    */
+    if (thd->prelocked_mode == NON_PRELOCKED)
+      thd->user_var_events_alloc= thd->mem_root;
+    
     ret= i->execute(thd, &ip);
 
     /*
@@ -915,19 +960,20 @@ int sp_head::execute(THD *thd)
     if (i->free_list)
       cleanup_items(i->free_list);
     i->state= Query_arena::EXECUTED;
+    
+    /* 
+      If we've set thd->user_var_events_alloc to mem_root of this SP
+      statement, clean all the events allocated in it.
+    */
+    if (thd->prelocked_mode == NON_PRELOCKED)
+    {
+      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events_alloc= NULL;//DEBUG
+    }
 
     /* we should cleanup free_list and memroot, used by instruction */
     thd->free_items();
-    /*
-      FIXME: we must free user var events only if the routine is executed
-      in non-prelocked mode and statement-by-statement replication is used.
-      But if we don't free them now, the server crashes because user var
-      events are allocated in execute_mem_root. This is Bug#12637, and when
-      it's fixed, please add if (thd->options & OPTION_BIN_LOG) here.
-    */
-    if (opt_bin_log)
-      reset_dynamic(&thd->user_var_events);
-    free_root(&execute_mem_root, MYF(0));
+    free_root(&execute_mem_root, MYF(0));    
 
     /*
       Check if an exception has occurred and a handler has been found
@@ -1084,7 +1130,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   binlog_save_options= thd->options;
   need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
   if (need_binlog_call)
+  {
+    reset_dynamic(&thd->user_var_events);
     mysql_bin_log.start_union_events(thd);
+  }
     
   thd->options&= ~OPTION_BIN_LOG;
   ret= execute(thd);
@@ -1118,6 +1167,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
                    "Invoked ROUTINE modified a transactional table but MySQL "
                    "failed to reflect this change in the binary log");
     }
+    reset_dynamic(&thd->user_var_events);
   }
 
   if (m_type == TYPE_ENUM_FUNCTION && ret == 0)
@@ -1826,17 +1876,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= next_query_id();
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-
-  /*
-    FIXME. Resetting statement (and using it) is not reentrant, thus recursive
-           functions which try to use the same LEX twice will crash server.
-           We should prevent such situations by tracking if LEX is already
-           in use and throwing error about unallowed recursion if needed.
-           OTOH it is nice to allow recursion in cases when LEX is not really
-           used (e.g. in mathematical functions), so such tracking should be
-           implemented at the same time as ability not to store LEX for
-           instruction if it is not really used.
-  */
 
   if (thd->prelocked_mode == NON_PRELOCKED)
   {

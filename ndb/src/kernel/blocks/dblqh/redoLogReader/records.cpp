@@ -134,7 +134,9 @@ bool PrepareOperationRecord::check() {
   return true;
 }
 
-Uint32 PrepareOperationRecord::getLogRecordSize() {
+Uint32 PrepareOperationRecord::getLogRecordSize(Uint32 wordsRead) {
+  if (wordsRead < 2)
+    return 2; // make sure we read more
   return m_logRecordSize;
 }
 
@@ -264,7 +266,16 @@ NdbOut& operator<<(NdbOut& no, const PageHeader& ph) {
   printOut("Current page index:",  ph.m_current_page_index);
   printOut("Oldest prepare op. file No.:", ph.m_old_prepare_file_number);	 
   printOut("Oldest prepare op. page ref.:",  ph.m_old_prepare_page_reference);	 
-  printOut("Dirty flag:", ph.m_dirty_flag);	 
+  printOut("Dirty flag:", ph.m_dirty_flag);
+  printOut("Write Timer:", ph.m_log_timer);
+  printOut("Page i-val:", ph.m_page_i_value);
+  printOut("Place written:", ph.m_place_written_from);
+  printOut("Page No in File:", ph.m_page_no);
+  printOut("File No:", ph.m_file_no);
+  printOut("Word Written:", ph.m_word_written);
+  printOut("In Writing (should be 1)", ph.m_in_writing_flag);
+  printOut("Prev Page No (can be garbage)", ph.m_prev_page_no);
+  printOut("In Free List (should be 0):", ph.m_in_free_list);
   no << endl;
   return no;
 }
