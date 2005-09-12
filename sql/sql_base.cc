@@ -2612,6 +2612,8 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
               table_list->alias, name, item_name, (ulong) ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
+  Query_arena *arena, backup;  
+  
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
   for (; !field_it.end_of_fields(); field_it.next())
@@ -2633,7 +2635,13 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
                              name, length))
         DBUG_RETURN(WRONG_GRANT);
 #endif
+      // in PS use own arena or data will be freed after prepare
+      if (register_tree_change)
+        arena= thd->activate_stmt_arena_if_needed(&backup);
       Item *item= field_it.create_item(thd);
+      if (register_tree_change && arena)
+        thd->restore_active_arena(arena, &backup);
+      
       if (!item)
         DBUG_RETURN(0);
       /*
@@ -2695,6 +2703,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
     field_it(*(table_ref->join_columns));
   Natural_join_column *nj_col;
   Field *found_field;
+  Query_arena *arena, backup;
+
   DBUG_ENTER("find_field_in_natural_join");
   DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
 		       name, (ulong) ref));
@@ -2723,7 +2733,14 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       The found field is a view field, we do as in find_field_in_view()
       and return a pointer to pointer to the Item of that field.
     */
+    if (register_tree_change)
+      arena= thd->activate_stmt_arena_if_needed(&backup);
+
     Item *item= nj_col->create_item(thd);
+
+    if (register_tree_change && arena)
+      thd->restore_active_arena(arena, &backup);
+
     if (!item)
       DBUG_RETURN(NULL);
     DBUG_ASSERT(nj_col->table_field == NULL);
@@ -2877,14 +2894,15 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   /*
     Check that the table and database that qualify the current field name
     are the same as the table we are going to search for the field.
-    This is done differently for NATURAL/USING joins because there we can't
-    simply compare the qualifying table and database names with the ones of
+    This is done differently for NATURAL/USING joins or nested joins that
+    are operands of NATURAL/USING joins because there we can't simply
+    compare the qualifying table and database names with the ones of
     'table_list' because each field in such a join may originate from a
     different table.
     TODO: Ensure that table_name, db_name and tables->db always points to
           something !
   */
-  if (!table_list->is_natural_join &&
+  if (!(table_list->nested_join && table_list->join_columns) &&
       table_name && table_name[0] &&
       (my_strcasecmp(table_alias_charset, table_list->alias, table_name) ||
        (db_name && db_name[0] && table_list->db && table_list->db[0] &&
@@ -2899,8 +2917,13 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                  register_tree_change)))
       *actual_table= table_list;
   }
-  else if (table_list->is_natural_join)
+  else if (table_list->nested_join && table_list->join_columns)
   {
+    /*
+      If this is a NATURAL/USING join, or an operand of such join which is a
+      join itself, and the field name is qualified, then search for the field
+      in the operands of the join.
+    */
     if (table_name && table_name[0])
     {
       /*
@@ -2922,7 +2945,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     }
     /*
       Non-qualified field, search directly in the result columns of the
-      natural join.
+      natural join. The condition of the outer IF is true for the top-most
+      natural join, thus if the field is not qualified, we will search
+      directly the top-most NATURAL/USING join.
     */
     fld= find_field_in_natural_join(thd, table_list, name, length, ref,
                                     /* TIMOUR_TODO: check this with Sanja */
@@ -3389,7 +3414,7 @@ test_if_string_in_list(const char *find, List<String> *str_list)
   {
     if (find_length != curr_str->length())
       continue;
-    if (!strncmp(find, curr_str->ptr(), find_length))
+    if (!my_strcasecmp(system_charset_info, find, curr_str->ptr()))
       return TRUE;
   }
   return FALSE;
@@ -3528,10 +3553,16 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       if (add_columns && is_created_2)
         table_ref_2->join_columns->push_back(cur_nj_col_2);
 
-      /* Compare the two columns and check for duplicate common fields. */
+      /*
+        Compare the two columns and check for duplicate common fields.
+        A common field is duplicate either if it was already found in
+        table_ref_2 (then found == TRUE), or if a field in table_ref_2
+        was already matched by some previous field in table_ref_1
+        (then cur_nj_col_2->is_common == TRUE).
+      */
       if (!my_strcasecmp(system_charset_info, field_name_1, cur_field_name_2))
       {
-        if (found)
+        if (found || cur_nj_col_2->is_common)
         {
           my_error(ER_NON_UNIQ_ERROR, MYF(0), field_name_1, thd->where);
           goto err;

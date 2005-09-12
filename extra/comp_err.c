@@ -51,7 +51,7 @@ uint file_pos[MAX_ROWS];
 
 const char *empty_string= "";			/* For empty states */
 /*
-  Default values for command line options. See getopt structure for defintions
+  Default values for command line options. See getopt structure for definitions
   for these.
 */
 
@@ -227,7 +227,7 @@ static int create_header_files(struct errors *error_head)
   {
     /*
        generating mysqld_error.h
-       fprintf() will automaticly add \r on windows
+       fprintf() will automatically add \r on windows
     */
     fprintf(er_definef, "#define %s %d\n", tmp_error->er_name,
 	    tmp_error->d_code);
@@ -518,14 +518,14 @@ static uint parse_error_offset(char *str)
 }
 
 
-/* Parsing of the default language line. e.g. "default-lanuage eng" */
+/* Parsing of the default language line. e.g. "default-language eng" */
 
 static char *parse_default_language(char *str)
 {
   char *slang;
 
   DBUG_ENTER("parse_default_language");
-  /* skipping the "default_language" keyword */
+  /* skipping the "default-language" keyword */
   str= find_end_of_word(str);
   /* skipping space(s) and/or tabs after the keyword */
   str= skip_delimiters(str);
@@ -556,7 +556,7 @@ static char *parse_default_language(char *str)
 
 
 /*
-  For given error finds message on given language, if does not exist,
+  For given error, finds message in given language; if does not exist,
   returns english.
 */
 
@@ -697,7 +697,7 @@ static struct errors *parse_error_string(char *str, int er_count)
   DBUG_ENTER("parse_error_string");
   DBUG_PRINT("enter", ("str: %s", str));
 
-  /* create a new a element */
+  /* create a new element */
   new_error= (struct errors *) my_malloc(sizeof(*new_error), MYF(MY_WME));
 
   if (my_init_dynamic_array(&new_error->msg, sizeof(struct message), 0, 0))
@@ -762,7 +762,7 @@ static struct errors *parse_error_string(char *str, int er_count)
 
 
 /* 
-  Parsing the string with charset/full lang name/short lang name;
+  Parsing the string with full lang name/short lang name/charset;
   returns pointer to the language structure
 */
 
@@ -814,7 +814,7 @@ static struct languages *parse_charset_string(char *str)
       DBUG_RETURN(0);				/* Fatal error */
     DBUG_PRINT("info", ("charset: %s", new_lang->charset));
 
-    /* skipping space, tub or "," */
+    /* skipping space, tab or "," */
     str= skip_delimiters(str);
   }
   while (*str != ';' && *str);

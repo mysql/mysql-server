@@ -984,3 +984,35 @@ t1	CREATE TABLE `t1` (
   `f1` decimal(10,0) unsigned zerofill NOT NULL default '0000000000'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+drop procedure if exists wg2;
+Warnings:
+Note	1305	PROCEDURE wg2 does not exist
+create procedure wg2()
+begin
+declare v int default 1;
+declare tdec decimal(5) default 0;
+while v <= 9 do set tdec =tdec * 10;
+select v, tdec;
+set v = v + 1;
+end while;
+end//
+call wg2()//
+v	tdec
+1	0
+v	tdec
+2	0
+v	tdec
+3	0
+v	tdec
+4	0
+v	tdec
+5	0
+v	tdec
+6	0
+v	tdec
+7	0
+v	tdec
+8	0
+v	tdec
+9	0
+drop procedure wg2;

@@ -435,3 +435,12 @@ select @@max_heap_table_size > 0;
 
 --replace_column 1 #
 select @@have_innodb;
+
+#
+# Bug #11775 Variable character_set_system does not exist (sometimes)
+#
+select @@character_set_system;
+--error 1238
+set global character_set_system = latin1;
+--error 1238
+set @@global.version_compile_os='234';

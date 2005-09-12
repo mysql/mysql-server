@@ -149,6 +149,7 @@ typedef struct st_mi_blob		/* Info of record */
 typedef struct st_mi_isam_pack {
   ulong header_length;
   uint ref_length;
+  uchar version;
 } MI_PACK;
 
 
@@ -673,7 +674,9 @@ extern void _myisam_log_record(enum myisam_log_commands command,MI_INFO *info,
 extern void mi_report_error(int errcode, const char *file_name);
 extern my_bool _mi_memmap_file(MI_INFO *info);
 extern void _mi_unmap_file(MI_INFO *info);
-extern uint save_pack_length(byte *block_buff,ulong length);
+extern uint save_pack_length(uint version, byte *block_buff, ulong length);
+extern uint read_pack_length(uint version, const uchar *buf, ulong *length);
+extern uint calc_pack_length(uint version, ulong length);
 
 uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite);
 char *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state);
