@@ -513,4 +513,17 @@ create table test.t1 like x;
 drop table if exists test.t1;
 --enable_warnings
 
+#
+# Bug #6008 MySQL does not create warnings when
+# creating database and using IF NOT EXISTS
+#
+create database mysqltest;
+create database if not exists mysqltest character set latin2;
+show create database mysqltest;
+drop database mysqltest;
+use test;
+create table t1 (a int);
+create table if not exists t1 (a int);
+drop table t1;
+
 # End of 4.1 tests

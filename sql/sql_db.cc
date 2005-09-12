@@ -427,7 +427,11 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       error= -1;
       goto exit;
     }
-    result= 0;
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
+    error= 0;
+    send_ok(thd);
+    goto exit;
   }
   else
   {
