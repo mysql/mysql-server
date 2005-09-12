@@ -638,12 +638,10 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   Vector<BaseString> split;
   tmp.split(split, ":");
   if(split.size() != 2){
-    abort();
     return NULL;
   }
  
   if(!(split[0].trim() == "nodes")){
-    abort();
     return NULL;
   }
 
@@ -692,7 +690,6 @@ ndb_mgm_get_status(NdbMgmHandle handle)
 
   if(i+1 != noOfNodes){
     free(state);
-    abort();
     return NULL;
   }
 
