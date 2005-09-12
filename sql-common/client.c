@@ -602,7 +602,7 @@ net_safe_read(MYSQL *mysql)
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
 #ifdef MYSQL_SERVER
-    if (vio_errno(net->vio) == SOCKET_EINTR)
+    if (vio_was_interrupted(net->vio))
       return (packet_error);
 #endif /*MYSQL_SERVER*/
     end_server(mysql);
