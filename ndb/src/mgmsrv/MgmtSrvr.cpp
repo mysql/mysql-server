@@ -67,6 +67,16 @@
 #define DEBUG(x)
 #endif
 
+#define INIT_SIGNAL_SENDER(ss,nodeId) \
+  SignalSender ss(theFacade); \
+  ss.lock(); /* lock will be released on exit */ \
+  {\
+    int result = okToSendTo(nodeId, true);\
+    if (result != 0) {\
+      return result;\
+    }\
+  }
+
 extern int global_flag_send_heartbeat_now;
 extern int g_no_nodeid_checks;
 extern my_bool opt_core;
@@ -88,55 +98,6 @@ MgmtSrvr::logLevelThread_C(void* m)
   MgmtSrvr *mgm = (MgmtSrvr*)m;
   mgm->logLevelThreadRun();
   return 0;
-}
-
-void *
-MgmtSrvr::signalRecvThread_C(void *m) 
-{
-  MgmtSrvr *mgm = (MgmtSrvr*)m;
-  mgm->signalRecvThreadRun();
-  return 0;
-}
-
-class SigMatch 
-{
-public:
-  int gsn;
-  void (MgmtSrvr::* function)(NdbApiSignal *signal);
-
-  SigMatch() { gsn = 0; function = NULL; };
-
-  SigMatch(int _gsn,
-	   void (MgmtSrvr::* _function)(NdbApiSignal *signal)) {
-    gsn = _gsn;
-    function = _function;
-  };
-  
-  bool check(NdbApiSignal *signal) {
-    if(signal->readSignalNumber() == gsn)
-      return true;
-    return false;
-  };
-  
-};
-
-void
-MgmtSrvr::signalRecvThreadRun() 
-{
-  Vector<SigMatch> siglist;
-  siglist.push_back(SigMatch(GSN_MGM_LOCK_CONFIG_REQ,
-			     &MgmtSrvr::handle_MGM_LOCK_CONFIG_REQ));
-  siglist.push_back(SigMatch(GSN_MGM_UNLOCK_CONFIG_REQ,
-			     &MgmtSrvr::handle_MGM_UNLOCK_CONFIG_REQ));
-  
-  while(!_isStopThread) {
-    SigMatch *handler = NULL;
-    NdbApiSignal *signal = NULL;
-    if(m_signalRecvQueue.waitFor(siglist, &handler, &signal, DEFAULT_TIMEOUT)) {
-      if(handler->function != 0)
-	(this->*handler->function)(signal);
-    }
-  }
 }
 
 extern EventLogger g_eventLogger;
@@ -427,7 +388,6 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   _isStopThread        = false;
   _logLevelThread      = NULL;
   _logLevelThreadSleep = 500;
-  m_signalRecvThread   = NULL;
 
   theFacade = 0;
 
@@ -636,12 +596,6 @@ MgmtSrvr::start(BaseString &error_string)
 				     "MgmtSrvr_Loglevel",
 				     NDB_THREAD_PRIO_LOW);
 
-  m_signalRecvThread = NdbThread_Create(signalRecvThread_C,
-					(void **)this,
-					32768,
-					"MgmtSrvr_Service",
-					NDB_THREAD_PRIO_LOW);
-
   DBUG_RETURN(true);
 }
 
@@ -650,10 +604,6 @@ MgmtSrvr::start(BaseString &error_string)
 //****************************************************************************
 MgmtSrvr::~MgmtSrvr() 
 {
-  while (theSignalIdleList != NULL) {
-    freeSignal();
-  }
-
   if(theFacade != 0){
     theFacade->stop_instance();
     delete theFacade;
@@ -681,10 +631,6 @@ MgmtSrvr::~MgmtSrvr()
     NdbThread_Destroy(&_logLevelThread);
   }
 
-  if (m_signalRecvThread != NULL) {
-    NdbThread_WaitFor(m_signalRecvThread, &res);
-    NdbThread_Destroy(&m_signalRecvThread);
-  }
   if (m_config_retriever)
     delete m_config_retriever;
 }
@@ -692,21 +638,21 @@ MgmtSrvr::~MgmtSrvr()
 //****************************************************************************
 //****************************************************************************
 
-int MgmtSrvr::okToSendTo(NodeId processId, bool unCond) 
+int MgmtSrvr::okToSendTo(NodeId nodeId, bool unCond) 
 {
-  if(processId == 0)
+  if(nodeId == 0)
     return 0;
 
-  if (getNodeType(processId) != NDB_MGM_NODE_TYPE_NDB)
+  if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB)
     return WRONG_PROCESS_TYPE;
   
   // Check if we have contact with it
   if(unCond){
-    if(theFacade->theClusterMgr->getNodeInfo(processId).connected)
+    if(theFacade->theClusterMgr->getNodeInfo(nodeId).connected)
       return 0;
     return NO_CONTACT_WITH_PROCESS;
   }
-  if (theFacade->get_node_alive(processId) == 0) {
+  if (theFacade->get_node_alive(nodeId) == 0) {
     return NO_CONTACT_WITH_PROCESS;
   } else {
     return 0;
@@ -727,219 +673,389 @@ void report_unknown_signal(SimpleSignal *signal)
  ****************************************************************************/
 
 int 
-MgmtSrvr::start(int processId)
+MgmtSrvr::start(int nodeId)
 {
-  int result;
+  INIT_SIGNAL_SENDER(ss,nodeId);
   
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
-  
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
-  StartOrd* const startOrd = CAST_PTR(StartOrd, signal->getDataPtrSend());
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_START_ORD, StartOrd::SignalLength);
-  
+  SimpleSignal ssig;
+  StartOrd* const startOrd = CAST_PTR(StartOrd, ssig.getDataPtrSend());
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_START_ORD, StartOrd::SignalLength);
   startOrd->restartInfo = 0;
   
-  result = sendSignal(processId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
+}
+
+/*****************************************************************************
+ * Version handling
+ *****************************************************************************/
+
+int 
+MgmtSrvr::versionNode(int nodeId, Uint32 &version)
+{
+  version= 0;
+  if (getOwnNodeId() == nodeId)
+  {
+    version= NDB_VERSION;
   }
-  
+  else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
+  {
+    ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(nodeId);
+    if(node.connected)
+      version= node.m_info.m_version;
+  }
+  else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
+	   getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
+  {
+    return sendVersionReq(nodeId, version);
+  }
+
   return 0;
 }
 
-/**
- * Restart one database node
- */
-int
-MgmtSrvr::restartNode(int processId, bool nostart, 
-		      bool initalStart, bool abort,
-		      StopCallback callback, void * anyData) 
+int 
+MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version)
 {
-  int result;
+  SignalSender ss(theFacade);
+  ss.lock();
 
-  if(m_stopRec.singleUserMode)
-    return 5060;
+  SimpleSignal ssig;
+  ApiVersionReq* req = CAST_PTR(ApiVersionReq, ssig.getDataPtrSend());
+  req->senderRef = ss.getOwnRef();
+  req->nodeId = v_nodeId;
+  ssig.set(ss, TestOrd::TraceAPI, QMGR, GSN_API_VERSION_REQ, 
+	   ApiVersionReq::SignalLength);
 
-  if(m_stopRec.inUse){
-    return 5029;
-  }
-  
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
-  
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
+  int do_send = 1;
+  NodeId nodeId;
 
-  StopReq* const stopReq = CAST_PTR(StopReq, signal->getDataPtrSend());
-  signal->set(TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
+  while (1)
+  {
+    if (do_send)
+    {
+      bool next;
+      nodeId = 0;
+      while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
+	    okToSendTo(nodeId, true) != 0);
+      if(!next) return NO_CONTACT_WITH_DB_NODES;
   
+      if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
+	return SEND_OR_RECEIVE_FAILED;
+      }
+      do_send = 0;
+    }
+
+    SimpleSignal *signal = ss.waitFor();
+
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_API_VERSION_CONF: {
+      const ApiVersionConf * const conf = 
+	CAST_CONSTPTR(ApiVersionConf, signal->getDataPtr());
+      assert(conf->nodeId == v_nodeId);
+      version = conf->version;
+      return 0;
+    }
+    case GSN_NF_COMPLETEREP:{
+      const NFCompleteRep * const rep =
+	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
+      if (rep->failedNodeId == nodeId)
+	do_send = 1; // retry with other node
+      continue;
+    }
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NodeBitmask::get(rep->theNodes,nodeId))
+	do_send = 1; // retry with other node
+      continue;
+    }
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+    break;
+  } // while(1)
+
+  return 0;
+}
+
+/*
+ * Common method for handeling all STOP_REQ signalling that
+ * is used by Stopping, Restarting and Single user commands
+ */
+
+int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
+			   NodeBitmask &stoppedNodes,
+			   Uint32 singleUserNodeId,
+			   bool abort,
+			   bool stop,
+			   bool restart,
+			   bool nostart,
+			   bool initialStart)
+{
+  stoppedNodes.clear();
+
+  SignalSender ss(theFacade);
+  ss.lock(); // lock will be released on exit
+
+  SimpleSignal ssig;
+  StopReq* const stopReq = CAST_PTR(StopReq, ssig.getDataPtrSend());
+  ssig.set(ss, TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
+
   stopReq->requestInfo = 0;
-  StopReq::setSystemStop(stopReq->requestInfo, false);
-  StopReq::setPerformRestart(stopReq->requestInfo, true);
-  StopReq::setNoStart(stopReq->requestInfo, nostart);
-  StopReq::setInitialStart(stopReq->requestInfo, initalStart);
-  StopReq::setStopAbort(stopReq->requestInfo, abort);
-  stopReq->singleuser = 0;
   stopReq->apiTimeout = 5000;
   stopReq->transactionTimeout = 1000;
   stopReq->readOperationTimeout = 1000;
   stopReq->operationTimeout = 1000;
   stopReq->senderData = 12;
-  stopReq->senderRef = _ownReference;
-
-  m_stopRec.singleUserMode = false;
-  m_stopRec.sentCount = 1;
-  m_stopRec.reply = 0;
-  m_stopRec.nodeId = processId;
-  m_stopRec.anyData = anyData;
-  m_stopRec.callback = callback;
-  m_stopRec.inUse = true;
-  
-  if(callback == NULL){
-    Uint32 timeOut = 0;
-    timeOut += stopReq->apiTimeout;
-    timeOut += stopReq->transactionTimeout;
-    timeOut += stopReq->readOperationTimeout;
-    timeOut += stopReq->operationTimeout;
-    timeOut *= 3;
-    result = sendRecSignal(processId, WAIT_STOP, signal, true, timeOut);
-  } else {
-    result = sendSignal(processId, NO_WAIT, signal, true);
+  stopReq->senderRef = ss.getOwnRef();
+  if (singleUserNodeId)
+  {
+    stopReq->singleuser = 1;
+    stopReq->singleUserApi = singleUserNodeId;
+    StopReq::setSystemStop(stopReq->requestInfo, false);
+    StopReq::setPerformRestart(stopReq->requestInfo, false);
+    StopReq::setStopAbort(stopReq->requestInfo, false);
   }
-  
-  if (result == -1 && theWaitState != WAIT_NODEFAILURE) {
-    m_stopRec.inUse = false;
-    return SEND_OR_RECEIVE_FAILED;
+  else
+  {
+    stopReq->singleuser = 0;
+    StopReq::setSystemStop(stopReq->requestInfo, stop);
+    StopReq::setPerformRestart(stopReq->requestInfo, restart);
+    StopReq::setStopAbort(stopReq->requestInfo, abort);
+    StopReq::setNoStart(stopReq->requestInfo, nostart);
+    StopReq::setInitialStart(stopReq->requestInfo, initialStart);
   }
 
-  if(callback == 0){
-    m_stopRec.inUse = false;
-    return m_stopRec.reply;
-  } else {
-    return 0;
-  }
-}
-
-/**
- * Restart all database nodes
- */
-int
-MgmtSrvr::restart(bool nostart, bool initalStart, bool abort,
-		  int * stopCount, StopCallback callback, void * anyData) 
-{
-  if(m_stopRec.singleUserMode)
-    return 5060;  
-
-  if(m_stopRec.inUse){
-    return 5029;
-  }
-  
-  m_stopRec.singleUserMode = false;
-  m_stopRec.sentCount = 0;
-  m_stopRec.reply = 0;
-  m_stopRec.nodeId = 0;
-  m_stopRec.anyData = anyData;
-  m_stopRec.callback = callback;
-  m_stopRec.inUse = true;
-  
-  /**
-   * Restart all database nodes into idle ("no-started") state
-   */
-  Uint32 timeOut = 0;
-  NodeId nodeId = 0;
+  // send the signals
   NodeBitmask nodes;
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)){
-    if(okToSendTo(nodeId, true) == 0){
-
-      NdbApiSignal* signal = getSignal();
-      if (signal == NULL) {
-	return COULD_NOT_ALLOCATE_MEMORY;
-      }
-      
-      StopReq* const stopReq = CAST_PTR(StopReq, signal->getDataPtrSend());
-      signal->set(TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, 
-		  StopReq::SignalLength);
-      
-      stopReq->requestInfo = 0;
-      stopReq->singleuser = 0;
-      StopReq::setSystemStop(stopReq->requestInfo, true);
-      StopReq::setPerformRestart(stopReq->requestInfo, true);
-      if (callback == 0) {
-	// Start node in idle ("no-started") state
-	StopReq::setNoStart(stopReq->requestInfo, 1); 
-      } else {
-	StopReq::setNoStart(stopReq->requestInfo, nostart); 
-      }
-      StopReq::setInitialStart(stopReq->requestInfo, initalStart);
-      StopReq::setStopAbort(stopReq->requestInfo, abort);
-      
-      stopReq->apiTimeout = 5000;
-      stopReq->transactionTimeout = 1000;
-      stopReq->readOperationTimeout = 1000;
-      stopReq->operationTimeout = 1000;
-      stopReq->senderData = 12;
-      stopReq->senderRef = _ownReference;
-
-      timeOut += stopReq->apiTimeout;
-      timeOut += stopReq->transactionTimeout;
-      timeOut += stopReq->readOperationTimeout;
-      timeOut += stopReq->operationTimeout;
-      timeOut *= 3;
-      
-      m_stopRec.sentCount++;
-      int res;
-      if(callback == 0){
-	res = sendSignal(nodeId, WAIT_STOP, signal, true);
-      } else {
-	res = sendSignal(nodeId, NO_WAIT, signal, true);
-      }
-      
-      if(res != -1){
-	nodes.set(nodeId);
+  if (nodeId)
+  {
+    {
+      int r;
+      if((r = okToSendTo(nodeId, true)) != 0)
+	return r;
+    }
+    {
+      if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+	return SEND_OR_RECEIVE_FAILED;
+    }
+    nodes.set(nodeId);
+  }
+  else
+    while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+    {
+      if(okToSendTo(nodeId, true) == 0)
+      {
+	SendStatus result = ss.sendSignal(nodeId, &ssig);
+	if (result == SEND_OK)
+	  nodes.set(nodeId);
       }
     }
-  }
-  
-  if(stopCount != 0){
-    * stopCount = m_stopRec.sentCount;
-  }
 
-  if(m_stopRec.sentCount == 0){
-    m_stopRec.inUse = false;
-    return 0;
+  // now wait for the replies
+  int error = 0;
+  while (!nodes.isclear())
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_STOP_REF:{
+      const StopRef * const ref = CAST_CONSTPTR(StopRef, signal->getDataPtr());
+      const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+#ifdef VM_TRACE
+      ndbout_c("Node %d refused stop", nodeId);
+#endif
+      assert(nodes.get(nodeId));
+      nodes.clear(nodeId);
+      error = translateStopRef(ref->errorCode);
+      break;
+    }
+    case GSN_STOP_CONF:{
+      const StopConf * const ref = CAST_CONSTPTR(StopConf, signal->getDataPtr());
+      const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+#ifdef VM_TRACE
+      ndbout_c("Node %d single user mode", nodeId);
+#endif
+      assert(nodes.get(nodeId));
+      assert(singleUserNodeId != 0);
+      nodes.clear(nodeId);
+      stoppedNodes.set(nodeId);
+      break;
+    }
+    case GSN_NF_COMPLETEREP:{
+      const NFCompleteRep * const rep =
+	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
+#ifdef VM_TRACE
+      ndbout_c("Node %d fail completed", rep->failedNodeId);
+#endif
+      break;
+    }
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      NodeBitmask failedNodes;
+      failedNodes.assign(NodeBitmask::Size, rep->theNodes);
+#ifdef VM_TRACE
+      {
+	ndbout << "Failed nodes:";
+	for (unsigned i = 0; i < 32*NodeBitmask::Size; i++)
+	  if(failedNodes.get(i))
+	    ndbout << " " << i;
+	ndbout << endl;
+      }
+#endif
+      failedNodes.bitAND(nodes);
+      if (!failedNodes.isclear())
+      {
+	nodes.bitANDC(failedNodes); // clear the failed nodes
+	if (singleUserNodeId == 0)
+	  stoppedNodes.bitOR(failedNodes);
+      }
+      break;
+    }
+    default:
+      report_unknown_signal(signal);
+#ifdef VM_TRACE
+      ndbout_c("Unknown signal %d", gsn);
+#endif
+      return SEND_OR_RECEIVE_FAILED;
+    }
   }
-  
-  if(callback != 0){
-    return 0;
+  return error;
+}
+
+/*
+ * Stop one node
+ */
+
+int MgmtSrvr::stopNode(int nodeId, bool abort)
+{
+  NodeBitmask nodes;
+  return sendSTOP_REQ(nodeId,
+		      nodes,
+		      0,
+		      abort,
+		      false,
+		      false,
+		      false,
+		      false);
+}
+
+/*
+ * Perform system shutdown
+ */
+
+int MgmtSrvr::stop(int * stopCount, bool abort)
+{
+  NodeBitmask nodes;
+  int ret = sendSTOP_REQ(0,
+			 nodes,
+			 0,
+			 abort,
+			 true,
+			 false,
+			 false,
+			 false);
+  if (stopCount)
+    *stopCount = nodes.count();
+  return ret;
+}
+
+/*
+ * Enter single user mode on all live nodes
+ */
+
+int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
+{
+  if (getNodeType(singleUserNodeId) != NDB_MGM_NODE_TYPE_API)
+    return 5062;
+  NodeId nodeId = 0;
+  ClusterMgr::Node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    if((node.m_state.startLevel != NodeState::SL_STARTED) && 
+       (node.m_state.startLevel != NodeState::SL_NOTHING))
+      return 5063;
   }
-  
-  theFacade->lock_mutex();
-  int waitTime = timeOut/m_stopRec.sentCount;
-  if (receiveOptimisedResponse(waitTime) != 0) {
-    m_stopRec.inUse = false;
-    return -1;
-  }
-  
+  NodeBitmask nodes;
+  int ret = sendSTOP_REQ(0,
+			 nodes,
+			 singleUserNodeId,
+			 false,
+			 false,
+			 false,
+			 false,
+			 false);
+  if (stopCount)
+    *stopCount = nodes.count();
+  return ret;
+}
+
+/*
+ * Perform node restart
+ */
+
+int MgmtSrvr::restartNode(int nodeId, bool nostart, bool initialStart, 
+			  bool abort)
+{
+  NodeBitmask nodes;
+  return sendSTOP_REQ(nodeId,
+		      nodes,
+		      0,
+		      abort,
+		      false,
+		      true,
+		      nostart,
+		      initialStart);
+}
+
+/*
+ * Perform system restart
+ */
+
+int MgmtSrvr::restart(bool nostart, bool initialStart, 
+		      bool abort, int * stopCount )
+{
+  NodeBitmask nodes;
+  int ret = sendSTOP_REQ(0,
+			 nodes,
+			 0,
+			 abort,
+			 true,
+			 true,
+			 true,
+			 initialStart);
+
+  if (ret)
+    return ret;
+
+  if (stopCount)
+    *stopCount = nodes.count();
+
+#ifdef VM_TRACE
+    ndbout_c("Stopped %d nodes", nodes.count());
+#endif
   /**
    * Here all nodes were correctly stopped,
    * so we wait for all nodes to be contactable
    */
-  nodeId = 0;
+  int waitTime = 12000;
+  NodeId nodeId = 0;
   NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB) && nodes.get(nodeId)) {
+
+  ndbout_c(" %d", nodes.get(1));
+  ndbout_c(" %d", nodes.get(2));
+
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
+    if (!nodes.get(nodeId))
+      continue;
     enum ndb_mgm_node_status s;
     s = NDB_MGM_NODE_STATUS_NO_CONTACT;
+#ifdef VM_TRACE
+    ndbout_c("Waiting for %d not started", nodeId);
+#endif
     while (s != NDB_MGM_NODE_STATUS_NOT_STARTED && waitTime > 0) {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
       Uint32 connectCount = 0;
@@ -951,17 +1067,17 @@ MgmtSrvr::restart(bool nostart, bool initalStart, bool abort,
     }
   }
   
-  if(nostart){
-    m_stopRec.inUse = false;
+  if(nostart)
     return 0;
-  }
   
   /**
    * Now we start all database nodes (i.e. we make them non-idle)
    * We ignore the result we get from the start command.
    */
   nodeId = 0;
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB) && nodes.get(nodeId)) {
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
+    if (!nodes.get(nodeId))
+      continue;
     int result;
     result = start(nodeId);
     DEBUG("Starting node " << nodeId << " with result " << result);
@@ -970,454 +1086,42 @@ MgmtSrvr::restart(bool nostart, bool initalStart, bool abort,
      * Maybe the user only wanted to restart a subset of the nodes.
      * It is also easy for the user to check which nodes have 
      * started and which nodes have not.
-     *
-     * if (result != 0) {
-     *   m_stopRec.inUse = false;
-     *   return result;
-     * }
      */
   }
   
-  m_stopRec.inUse = false;
-  return 0;
-}
-
-/*****************************************************************************
- * Version handling
- *****************************************************************************/
-
-int 
-MgmtSrvr::versionNode(int processId, bool abort, 
-		      VersionCallback callback, void * anyData)
-{
-  int version;
-
-  if(m_versionRec.inUse)
-    return OPERATION_IN_PROGRESS;
-
-  m_versionRec.callback = callback;
-  m_versionRec.inUse = true ;
-
-  if (getOwnNodeId() == processId)
-  {
-    version= NDB_VERSION;
-  }
-  else if (getNodeType(processId) == NDB_MGM_NODE_TYPE_NDB)
-  {
-    ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(processId);
-    if(node.connected)
-      version= node.m_info.m_version;
-    else
-      version= 0;
-  }
-  else if (getNodeType(processId) == NDB_MGM_NODE_TYPE_API ||
-	   getNodeType(processId) == NDB_MGM_NODE_TYPE_MGM)
-  {
-    return sendVersionReq(processId);
-  }
-  else
-    version= 0;
-
-  if(m_versionRec.callback != 0)
-    m_versionRec.callback(processId, version, this,0);
-  m_versionRec.inUse = false ;
-
-  m_versionRec.version[processId]= version;
-
-  return 0;
-}
-
-int 
-MgmtSrvr::sendVersionReq(int processId) 
-{
-  Uint32 ndbnode=0;
-  int result;
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
-    if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-      if(okToSendTo(i, true) == 0) 
-	{
-	  ndbnode = i;
-	  break;
-	}
-    }
-  }
-  
-  if (ndbnode == 0) {
-    m_versionRec.inUse = false;
-    if(m_versionRec.callback != 0)
-      m_versionRec.callback(processId, 0, this,0);
-    return NO_CONTACT_WITH_CLUSTER;
-  }
-  
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    m_versionRec.inUse = false;
-    if(m_versionRec.callback != 0)
-      m_versionRec.callback(processId, 0, this,0);
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-  ApiVersionReq* req = CAST_PTR(ApiVersionReq, signal->getDataPtrSend());
-  req->senderRef = _ownReference;
-  req->nodeId = processId;
-  
-  signal->set(TestOrd::TraceAPI, QMGR, GSN_API_VERSION_REQ, 
-	      ApiVersionReq::SignalLength);
-  
-  
-  //  if(m_versionRec.callback == 0){
-  Uint32 timeOut = 0;
-  timeOut = 10000;
-  result = sendRecSignal(ndbnode, WAIT_VERSION, signal, true, timeOut);
-  //} else {
-  //result = sendSignal(processId, NO_WAIT, signal, true);
-  // }
-  
-  if (result == -1) {
-    m_versionRec.inUse = false;
-    if(m_versionRec.callback != 0)
-      m_versionRec.callback(processId, 0, this,0);
-    m_versionRec.version[processId] = 0;
-    return SEND_OR_RECEIVE_FAILED;
-  }
-  
-  m_versionRec.inUse = false;
   return 0;
 }
 
 int
-MgmtSrvr::version(int * stopCount, bool abort, 
-		  VersionCallback callback, void * anyData) 
+MgmtSrvr::exitSingleUser(int * stopCount, bool abort)
 {
-  ClusterMgr::Node node;
-  int version;
-
-  if(m_versionRec.inUse)
-    return 1;
-
-  m_versionRec.callback = callback;
-  m_versionRec.inUse = true ;
-  Uint32 i; 
-  for(i = 0; i<MAX_NODES; i++) {
-    if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM) {
-      m_versionRec.callback(i, NDB_VERSION, this,0);
-    }
-  }
-  for(i = 0; i<MAX_NODES; i++) {
-    if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-      node = theFacade->theClusterMgr->getNodeInfo(i);
-      version = node.m_info.m_version;
-      if(theFacade->theClusterMgr->getNodeInfo(i).connected)
-	m_versionRec.callback(i, version, this,0);
-      else
-	m_versionRec.callback(i, 0, this,0);
-      
-    }
-  }
-  for(i = 0; i<MAX_NODES; i++) {
-    if (getNodeType(i) == NDB_MGM_NODE_TYPE_API) {
-      return sendVersionReq(i);   
-    }
-  }
-  
-  return 0;
-}
-
-int 
-MgmtSrvr::stopNode(int processId, bool abort, StopCallback callback, 
-		   void * anyData) 
-		   
-{
-  if(m_stopRec.singleUserMode)
-    return 5060;
-
-  if(m_stopRec.inUse)
-    return 5029;
-
-  int result;
-
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
-  
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
-  StopReq* const stopReq = CAST_PTR(StopReq, signal->getDataPtrSend());
-  signal->set(TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
-  
-  stopReq->requestInfo = 0;
-  stopReq->singleuser = 0;
-  StopReq::setPerformRestart(stopReq->requestInfo, false);
-  StopReq::setSystemStop(stopReq->requestInfo, false);
-  StopReq::setStopAbort(stopReq->requestInfo, abort);
-
-  stopReq->apiTimeout = 5000;
-  stopReq->transactionTimeout = 1000;
-  stopReq->readOperationTimeout = 1000;
-  stopReq->operationTimeout = 1000;
-  stopReq->senderData = 12;
-  stopReq->senderRef = _ownReference;
-
-  m_stopRec.sentCount = 1;
-  m_stopRec.reply = 0;
-  m_stopRec.nodeId = processId;
-  m_stopRec.anyData = anyData;
-  m_stopRec.callback = callback;
-  m_stopRec.inUse = true;
-
-  if(callback == NULL){
-    Uint32 timeOut = 0;
-    timeOut += stopReq->apiTimeout;
-    timeOut += stopReq->transactionTimeout;
-    timeOut += stopReq->readOperationTimeout;
-    timeOut += stopReq->operationTimeout;
-    timeOut *= 3;
-    result = sendRecSignal(processId, WAIT_STOP, signal, true, timeOut);
-  } else {
-    result = sendSignal(processId, NO_WAIT, signal, true);
-  }
-
-  if (result == -1) {
-    m_stopRec.inUse = false;
-    return SEND_OR_RECEIVE_FAILED;
-  }
-
-  if(callback == 0){
-    m_stopRec.inUse = false;
-    return m_stopRec.reply;
-  } else {
-    return 0;
-  }
-}
-
-int
-MgmtSrvr::stop(int * stopCount, bool abort, StopCallback callback, 
-	       void * anyData) 
-{
-  if(m_stopRec.singleUserMode)
-    return 5060;
-
-  if(m_stopRec.inUse){
-    return 5029;
-  }
-  
-  m_stopRec.singleUserMode = false;
-  m_stopRec.sentCount = 0;
-  m_stopRec.reply = 0;
-  m_stopRec.nodeId = 0;
-  m_stopRec.anyData = anyData;
-  m_stopRec.callback = callback;
-  m_stopRec.inUse = true;
-  
   NodeId nodeId = 0;
-  Uint32 timeOut = 0;
+  int count = 0;
+
+  SignalSender ss(theFacade);
+  ss.lock(); // lock will be released on exit
+
+  SimpleSignal ssig;
+  ResumeReq* const resumeReq = 
+    CAST_PTR(ResumeReq, ssig.getDataPtrSend());
+  ssig.set(ss,TestOrd::TraceAPI, NDBCNTR, GSN_RESUME_REQ, 
+	   ResumeReq::SignalLength);
+  resumeReq->senderData = 12;
+  resumeReq->senderRef = ss.getOwnRef();
+
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)){
     if(okToSendTo(nodeId, true) == 0){
-  
-      NdbApiSignal* signal = getSignal();
-      if (signal == NULL) {
-	return COULD_NOT_ALLOCATE_MEMORY;
-      }
-      
-      StopReq* const stopReq = CAST_PTR(StopReq, signal->getDataPtrSend());
-      signal->set(TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, 
-		  StopReq::SignalLength);
-      
-      stopReq->requestInfo = 0;
-      stopReq->singleuser = 0;
-      StopReq::setSystemStop(stopReq->requestInfo, true);
-      StopReq::setPerformRestart(stopReq->requestInfo, false);
-      StopReq::setStopAbort(stopReq->requestInfo, abort);
-      
-      stopReq->apiTimeout = 5000;
-      stopReq->transactionTimeout = 1000;
-      stopReq->readOperationTimeout = 1000;
-      stopReq->operationTimeout = 1000;
-      stopReq->senderData = 12;
-      stopReq->senderRef = _ownReference;
-
-      timeOut += stopReq->apiTimeout;
-      timeOut += stopReq->transactionTimeout;
-      timeOut += stopReq->readOperationTimeout;
-      timeOut += stopReq->operationTimeout;
-      timeOut *= 3;
-      
-      m_stopRec.sentCount++;
-      if(callback == 0)
-	sendSignal(nodeId, WAIT_STOP, signal, true);
-      else
-	sendSignal(nodeId, NO_WAIT, signal, true);
+      SendStatus result = ss.sendSignal(nodeId, &ssig);
+      if (result == SEND_OK)
+	count++;
     }
   }
 
   if(stopCount != 0)
-    * stopCount = m_stopRec.sentCount;
-  
-  if(m_stopRec.sentCount > 0){
-    if(callback == 0){
-      theFacade->lock_mutex();
-      receiveOptimisedResponse(timeOut / m_stopRec.sentCount);
-    } else {
-      return 0;
-    }
-  }
-  
-  m_stopRec.inUse = false;
-  return m_stopRec.reply;
+    * stopCount = count;
+
+  return 0;
 }
-
-/*****************************************************************************
- * Single user mode
- ****************************************************************************/
-
-int
-MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId, 
-			  EnterSingleCallback callback, void * anyData) 
-{
-  if(m_stopRec.singleUserMode) {
-    return 5060;
-  }
-
-  if (getNodeType(singleUserNodeId) != NDB_MGM_NODE_TYPE_API) {
-    return 5062;
-  }  
-  ClusterMgr::Node node;
-
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
-    if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-      node = theFacade->theClusterMgr->getNodeInfo(i);
-      if((node.m_state.startLevel != NodeState::SL_STARTED) && 
-	 (node.m_state.startLevel != NodeState::SL_NOTHING)) {
-	return 5063;
-      }
-    }
-  }
-      
-  if(m_stopRec.inUse){
-    return 5029;
-  }
-
-  if(singleUserNodeId == 0) 
-    return 1;
-  m_stopRec.singleUserMode =  true;
-  m_stopRec.sentCount = 0;
-  m_stopRec.reply = 0;
-  m_stopRec.nodeId = 0;
-  m_stopRec.anyData = anyData;
-  m_stopRec.callback = callback;
-  m_stopRec.inUse = true;
-  
-  NodeId nodeId = 0;
-  Uint32 timeOut = 0;
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)){
-    if(okToSendTo(nodeId, true) == 0){
-  
-      NdbApiSignal* signal = getSignal();
-      if (signal == NULL) {
-	return COULD_NOT_ALLOCATE_MEMORY;
-      }
-      
-      StopReq* const stopReq = CAST_PTR(StopReq, signal->getDataPtrSend());
-      signal->set(TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, 
-		  StopReq::SignalLength);
-      
-      stopReq->requestInfo = 0;
-      stopReq->singleuser = 1;
-      stopReq->singleUserApi = singleUserNodeId;
-      StopReq::setSystemStop(stopReq->requestInfo, false);
-      StopReq::setPerformRestart(stopReq->requestInfo, false);
-      StopReq::setStopAbort(stopReq->requestInfo, false);
-
-      stopReq->apiTimeout = 5000;
-      stopReq->transactionTimeout = 1000;
-      stopReq->readOperationTimeout = 1000;
-      stopReq->operationTimeout = 1000;
-      stopReq->senderData = 12;
-      stopReq->senderRef = _ownReference;
-      timeOut += stopReq->apiTimeout;
-      timeOut += stopReq->transactionTimeout;
-      timeOut += stopReq->readOperationTimeout;
-      timeOut += stopReq->operationTimeout;
-      timeOut *= 3;
-      
-      m_stopRec.sentCount++;
-      if(callback == 0)
-	sendSignal(nodeId, WAIT_STOP, signal, true);
-      else
-	sendSignal(nodeId, NO_WAIT, signal, true);
-    }
-  }
-
-  if(stopCount != 0)
-    * stopCount = m_stopRec.sentCount;
-
-  if(callback == 0){
-    m_stopRec.inUse = false;
-    return 0;
-    //    return m_stopRec.reply;
-  } else {
-    return 0;
-  }  
-
-  m_stopRec.inUse = false;
-  return m_stopRec.reply;
-}
-
-int
-MgmtSrvr::exitSingleUser(int * stopCount, bool abort, 
-			 ExitSingleCallback callback, void * anyData) 
-{
-  m_stopRec.sentCount = 0;
-  m_stopRec.reply = 0;
-  m_stopRec.nodeId = 0;
-  m_stopRec.anyData = anyData;
-  m_stopRec.callback = callback;
-  m_stopRec.inUse = true;
-  
-  NodeId nodeId = 0;
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)){
-    if(okToSendTo(nodeId, true) == 0){
-  
-      NdbApiSignal* signal = getSignal();
-      if (signal == NULL) {
-	return COULD_NOT_ALLOCATE_MEMORY;
-      }
-      
-      ResumeReq* const resumeReq = 
-	CAST_PTR(ResumeReq, signal->getDataPtrSend());
-      signal->set(TestOrd::TraceAPI, NDBCNTR, GSN_RESUME_REQ, 
-		  StopReq::SignalLength);
-      resumeReq->senderData = 12;
-      resumeReq->senderRef = _ownReference;
-
-      m_stopRec.sentCount++;
-      if(callback == 0)
-	sendSignal(nodeId, WAIT_STOP, signal, true);
-      else
-	sendSignal(nodeId, NO_WAIT, signal, true);
-    }
-  }
-
-  m_stopRec.singleUserMode = false;
-
-  if(stopCount != 0)
-    * stopCount = m_stopRec.sentCount;
-
-
-  if(callback == 0){
-    m_stopRec.inUse = false;
-    return m_stopRec.reply;
-  } else {
-    return 0;
-  }  
-
-  m_stopRec.inUse = false;
-  return m_stopRec.reply;
-}
-
 
 /*****************************************************************************
  * Status
@@ -1426,7 +1130,7 @@ MgmtSrvr::exitSingleUser(int * stopCount, bool abort,
 #include <ClusterMgr.hpp>
 
 int 
-MgmtSrvr::status(int processId, 
+MgmtSrvr::status(int nodeId, 
                  ndb_mgm_node_status * _status, 
 		 Uint32 * version,
 		 Uint32 * _phase, 
@@ -1435,23 +1139,20 @@ MgmtSrvr::status(int processId,
 		 Uint32 * nodegroup,
 		 Uint32 * connectCount)
 {
-  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_API ||
-      getNodeType(processId) == NDB_MGM_NODE_TYPE_MGM) {
-    if(versionNode(processId, false,0,0) ==0)
-      * version = m_versionRec.version[processId];
-    else
-      * version = 0;
+  if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
+      getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM) {
+    versionNode(nodeId, *version);
   }
 
   const ClusterMgr::Node node = 
-    theFacade->theClusterMgr->getNodeInfo(processId);
+    theFacade->theClusterMgr->getNodeInfo(nodeId);
 
   if(!node.connected){
     * _status = NDB_MGM_NODE_STATUS_NO_CONTACT;
     return 0;
   }
   
-  if (getNodeType(processId) == NDB_MGM_NODE_TYPE_NDB) {
+  if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB) {
     * version = node.m_info.m_version;
   }
 
@@ -1514,103 +1215,93 @@ MgmtSrvr::status(int processId,
 }
 
 int 
-MgmtSrvr::setEventReportingLevelImpl(int processId, 
+MgmtSrvr::setEventReportingLevelImpl(int nodeId, 
 				     const EventSubscribeReq& ll)
 {
-    
-  int result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
+  INIT_SIGNAL_SENDER(ss,nodeId);
 
-  NdbApiSignal signal(_ownReference);
-
+  SimpleSignal ssig;
   EventSubscribeReq * dst = 
-    CAST_PTR(EventSubscribeReq, signal.getDataPtrSend());
-  
-  * dst = ll;
-  
-  signal.set(TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ,
-	     EventSubscribeReq::SignalLength);
-  
-  theFacade->lock_mutex();
-  send(&signal, processId, NODE_TYPE_DB);
-  theFacade->unlock_mutex();
-  
-  return 0;
-}
+    CAST_PTR(EventSubscribeReq, ssig.getDataPtrSend());
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_EVENT_SUBSCRIBE_REQ,
+	   EventSubscribeReq::SignalLength);
+  *dst = ll;
 
-//****************************************************************************
-//****************************************************************************
-int 
-MgmtSrvr::setNodeLogLevelImpl(int processId, const SetLogLevelOrd & ll)
-{
-  int result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
+  if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
+    return SEND_OR_RECEIVE_FAILED;
   }
 
-  NdbApiSignal signal(_ownReference);
-  
-  SetLogLevelOrd * dst = CAST_PTR(SetLogLevelOrd, signal.getDataPtrSend());
-  
-  * dst = ll;
-  
-  signal.set(TestOrd::TraceAPI, CMVMI, GSN_SET_LOGLEVELORD,
-	     SetLogLevelOrd::SignalLength);
-  
-  theFacade->lock_mutex();
-  theFacade->sendSignalUnCond(&signal, processId);
-  theFacade->unlock_mutex();
-
-  return 0;
-}
-
-int
-MgmtSrvr::send(NdbApiSignal* signal, Uint32 node, Uint32 node_type){
-  Uint32 max = (node == 0) ? MAX_NODES : node + 1;
-  
-  for(; node < max; node++){
-    while(nodeTypes[node] != (int)node_type && node < max) node++;
-    if(nodeTypes[node] != (int)node_type)
+#if 0
+  while (1)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) { 
+    case GSN_EVENT_SUBSCRIBE_CONF:{
       break;
-    theFacade->sendSignalUnCond(signal, node);
+    }
+    case GSN_EVENT_SUBSCRIBE_REF:{
+      return SEND_OR_RECEIVE_FAILED;
+    }
+    case GSN_NF_COMPLETEREP:{
+      const NFCompleteRep * const rep =
+	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
+      if (rep->failedNodeId == nodeId)
+	return SEND_OR_RECEIVE_FAILED;
+      break;
+    }
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NodeBitmask::get(rep->theNodes,nodeId))
+	return SEND_OR_RECEIVE_FAILED;
+      break;
+    }
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+
   }
+#endif
   return 0;
+}
+
+//****************************************************************************
+//****************************************************************************
+int 
+MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd & ll)
+{
+  INIT_SIGNAL_SENDER(ss,nodeId);
+
+  SimpleSignal ssig;
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_SET_LOGLEVELORD,
+	   SetLogLevelOrd::SignalLength);
+  SetLogLevelOrd* const dst = CAST_PTR(SetLogLevelOrd, ssig.getDataPtrSend());
+  *dst = ll;
+  
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 //****************************************************************************
 //****************************************************************************
 
 int 
-MgmtSrvr::insertError(int processId, int errorNo) 
+MgmtSrvr::insertError(int nodeId, int errorNo) 
 {
   if (errorNo < 0) {
     return INVALID_ERROR_NUMBER;
   }
 
-  int result;
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
+  INIT_SIGNAL_SENDER(ss,nodeId);
   
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
-  TamperOrd* const tamperOrd = CAST_PTR(TamperOrd, signal->getDataPtrSend());
+  SimpleSignal ssig;
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_TAMPER_ORD, 
+	   TamperOrd::SignalLength);
+  TamperOrd* const tamperOrd = CAST_PTR(TamperOrd, ssig.getDataPtrSend());
   tamperOrd->errorNo = errorNo;
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_TAMPER_ORD, 
-              TamperOrd::SignalLength);
 
-  result = sendSignal(processId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-
-  return 0;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 
@@ -1619,37 +1310,23 @@ MgmtSrvr::insertError(int processId, int errorNo)
 //****************************************************************************
 
 int 
-MgmtSrvr::setTraceNo(int processId, int traceNo) 
+MgmtSrvr::setTraceNo(int nodeId, int traceNo)
 {
   if (traceNo < 0) {
     return INVALID_TRACE_NUMBER;
   }
 
-  int result;
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
+  INIT_SIGNAL_SENDER(ss,nodeId);
 
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
-  TestOrd* const testOrd = CAST_PTR(TestOrd, signal->getDataPtrSend());
+  SimpleSignal ssig;
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
+  TestOrd* const testOrd = CAST_PTR(TestOrd, ssig.getDataPtrSend());
   testOrd->clear();
-  
   // Assume TRACE command causes toggling. Not really defined... ? TODO
   testOrd->setTraceCommand(TestOrd::Toggle, 
 			   (TestOrd::TraceSpecification)traceNo);
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
 
-  result = sendSignal(processId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-
-  return 0;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 //****************************************************************************
@@ -1668,14 +1345,10 @@ MgmtSrvr::getBlockNumber(const BaseString &blockName)
 //****************************************************************************
 
 int 
-MgmtSrvr::setSignalLoggingMode(int processId, LogMode mode, 
+MgmtSrvr::setSignalLoggingMode(int nodeId, LogMode mode, 
 			       const Vector<BaseString>& blocks)
 {
-  int result;
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
+  INIT_SIGNAL_SENDER(ss,nodeId);
 
   // Convert from MgmtSrvr format...
 
@@ -1710,12 +1383,10 @@ MgmtSrvr::setSignalLoggingMode(int processId, LogMode mode,
     return -1;
   }
 
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
+  SimpleSignal ssig;
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
 
-  TestOrd* const testOrd = CAST_PTR(TestOrd, signal->getDataPtrSend());
+  TestOrd* const testOrd = CAST_PTR(TestOrd, ssig.getDataPtrSend());
   testOrd->clear();
   
   if (blocks.size() == 0 || blocks[0] == "ALL") {
@@ -1725,78 +1396,44 @@ MgmtSrvr::setSignalLoggingMode(int processId, LogMode mode,
     for(unsigned i = 0; i < blocks.size(); i++){
       int blockNumber = getBlockNumber(blocks[i]);
       if (blockNumber == -1) {
-        releaseSignal(signal);
         return INVALID_BLOCK_NAME;
       }
       testOrd->addSignalLoggerCommand(blockNumber, command, logSpec);
     } // for
   } // else
-  
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
-  result = sendSignal(processId, NO_WAIT, signal, true);
 
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-  return 0;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
-
 
 /*****************************************************************************
  * Signal tracing
  *****************************************************************************/
-int MgmtSrvr::startSignalTracing(int processId)
+int MgmtSrvr::startSignalTracing(int nodeId)
 {
-  int result;
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
-
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
+  INIT_SIGNAL_SENDER(ss,nodeId);
   
-  TestOrd* const testOrd = CAST_PTR(TestOrd, signal->getDataPtrSend());
+  SimpleSignal ssig;
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
+
+  TestOrd* const testOrd = CAST_PTR(TestOrd, ssig.getDataPtrSend());
   testOrd->clear();
   testOrd->setTestCommand(TestOrd::On);
 
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
-  result = sendSignal(processId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-
-  return 0;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 int 
-MgmtSrvr::stopSignalTracing(int processId) 
+MgmtSrvr::stopSignalTracing(int nodeId) 
 {
-  int result;
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
+  INIT_SIGNAL_SENDER(ss,nodeId);
 
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
-
-  TestOrd* const testOrd = CAST_PTR(TestOrd, signal->getDataPtrSend());
+  SimpleSignal ssig;
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
+  TestOrd* const testOrd = CAST_PTR(TestOrd, ssig.getDataPtrSend());
   testOrd->clear();
   testOrd->setTestCommand(TestOrd::Off);
 
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_TEST_ORD, TestOrd::SignalLength);
-  result = sendSignal(processId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-
-  return 0;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 
@@ -1805,7 +1442,7 @@ MgmtSrvr::stopSignalTracing(int processId)
  *****************************************************************************/
 
 int
-MgmtSrvr::dumpState(int processId, const char* args)
+MgmtSrvr::dumpState(int nodeId, const char* args)
 {
   // Convert the space separeted args 
   // string to an int array
@@ -1827,29 +1464,20 @@ MgmtSrvr::dumpState(int processId, const char* args)
     }    
   }
   
-  return dumpState(processId, args_array, numArgs);
+  return dumpState(nodeId, args_array, numArgs);
 }
 
 int
-MgmtSrvr::dumpState(int processId, const Uint32 args[], Uint32 no)
+MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
 {
-  int result;
-  
-  result = okToSendTo(processId, true);
-  if (result != 0) {
-    return result;
-  }
-  
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
+  INIT_SIGNAL_SENDER(ss,nodeId);
 
   const Uint32 len = no > 25 ? 25 : no;
   
+  SimpleSignal ssig;
   DumpStateOrd * const dumpOrd = 
-    CAST_PTR(DumpStateOrd, signal->getDataPtrSend());
-  signal->set(TestOrd::TraceAPI, CMVMI, GSN_DUMP_STATE_ORD, len);
+    CAST_PTR(DumpStateOrd, ssig.getDataPtrSend());
+  ssig.set(ss,TestOrd::TraceAPI, CMVMI, GSN_DUMP_STATE_ORD, len);
   for(Uint32 i = 0; i<25; i++){
     if (i < len)
       dumpOrd->args[i] = args[i];
@@ -1857,12 +1485,7 @@ MgmtSrvr::dumpState(int processId, const Uint32 args[], Uint32 no)
       dumpOrd->args[i] = 0;
   }
   
-  result = sendSignal(processId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-  
-  return 0;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 
@@ -1895,42 +1518,18 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   int gsn = signal->readSignalNumber();
 
   switch (gsn) {
-  case GSN_API_VERSION_CONF: {
-    if (theWaitState == WAIT_VERSION) {
-      const ApiVersionConf * const conf = 
-	CAST_CONSTPTR(ApiVersionConf, signal->getDataPtr());
-      if(m_versionRec.callback != 0)
-	m_versionRec.callback(conf->nodeId, conf->version, this, 0);
-      else {
-	m_versionRec.version[conf->nodeId]=conf->version;
-      }
-    } else return;
-    theWaitState = NO_WAIT;
-  }
-    break;
-    
   case GSN_EVENT_SUBSCRIBE_CONF:
     break;
-
+  case GSN_EVENT_SUBSCRIBE_REF:
+    break;
   case GSN_EVENT_REP:
     eventReport(refToNode(signal->theSendersBlockRef), signal->getDataPtr());
     break;
 
-  case GSN_STOP_REF:{
-    const StopRef * const ref = CAST_CONSTPTR(StopRef, signal->getDataPtr());
-    const NodeId nodeId = refToNode(signal->theSendersBlockRef);
-    handleStopReply(nodeId, ref->errorCode);
-    return;
-  }
+  case GSN_NF_COMPLETEREP:
     break;
-    
-  case GSN_MGM_LOCK_CONFIG_REP:
-  case GSN_MGM_LOCK_CONFIG_REQ:
-  case GSN_MGM_UNLOCK_CONFIG_REP:
-  case GSN_MGM_UNLOCK_CONFIG_REQ: {
-    m_signalRecvQueue.receive(new NdbApiSignal(*signal));
+  case GSN_NODE_FAILREP:
     break;
-  }
 
   default:
     g_eventLogger.error("Unknown signal received. SignalNumber: "
@@ -1942,75 +1541,6 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   
   if (theWaitState == NO_WAIT) {
     NdbCondition_Signal(theMgmtWaitForResponseCondPtr);
-  }
-}
-
-/**
- * A database node was either stopped or there was some error
- */
-void
-MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
-{
-  /**
-   * If we are in single user mode and get a stop reply from a
-   * DB node, then we have had a node crash.
-   * If all DB nodes are gone, and we are still in single user mode,
-   * the set m_stopRec.singleUserMode = false; 
-   */
-  if(m_stopRec.singleUserMode) {
-    ClusterMgr::Node node;
-    bool failure = true;
-    for(Uint32 i = 0; i<MAX_NODES; i++) {
-      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-	node = theFacade->theClusterMgr->getNodeInfo(i);
-	if((node.m_state.startLevel == NodeState::SL_NOTHING))
-	  failure = true;
-	else
-	  failure = false;
-      }
-    }
-    if(failure) {
-      m_stopRec.singleUserMode = false;
-    }
-  }
-  if(m_stopRec.inUse == false)
-    return;
-
-  if(!(m_stopRec.nodeId == 0 || m_stopRec.nodeId == nodeId))
-    goto error;
-  
-  if(m_stopRec.sentCount <= 0)
-    goto error;
-  
-  if(!(theWaitState == WAIT_STOP || m_stopRec.callback != 0))
-    goto error;
-  
-  if(errCode != 0)
-    m_stopRec.reply = translateStopRef(errCode);
- 
-  m_stopRec.sentCount --;
-  if(m_stopRec.sentCount == 0){
-    if(theWaitState == WAIT_STOP){
-      theWaitState = NO_WAIT;
-      NdbCondition_Signal(theMgmtWaitForResponseCondPtr);	
-      return;
-    }
-    if(m_stopRec.callback != 0){
-      m_stopRec.inUse = false;
-      StopCallback callback = m_stopRec.callback;
-      m_stopRec.callback = NULL;
-      (* callback)(m_stopRec.nodeId,
-		   m_stopRec.anyData,
-		   m_stopRec.reply);
-      return;
-    }
-  }
-  return;
-  
- error:
-  if(errCode != 0){
-    g_eventLogger.error("Unexpected signal received. SignalNumber: %i from %d",
-			GSN_STOP_REF, nodeId);
   }
 }
 
@@ -2027,15 +1557,7 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
     theData[0] = EventReport::Disconnected;
     if(nfComplete)
     {
-      handleStopReply(nodeId, 0);
       DBUG_VOID_RETURN;
-    }
-
-    if(theWaitNode == nodeId && 
-       theWaitState != NO_WAIT && theWaitState != WAIT_STOP)
-    {
-      theWaitState = WAIT_NODEFAILURE;
-      NdbCondition_Signal(theMgmtWaitForResponseCondPtr);
     }
   }
   
@@ -2381,6 +1903,7 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
 /***************************************************************************
  * Backup
  ***************************************************************************/
+
 int
 MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 {
@@ -2395,7 +1918,6 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
   if(!next) return NO_CONTACT_WITH_DB_NODES;
 
   SimpleSignal ssig;
-
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
   ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
 	   BackupReq::SignalLength);
@@ -2410,8 +1932,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
   while (1) {
     if (do_send)
     {
-      SendStatus result = ss.sendSignal(nodeId, &ssig);
-      if (result != SEND_OK) {
+      if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
 	return SEND_OR_RECEIVE_FAILED;
       }
       if (waitCompleted == 0)
@@ -2513,13 +2034,13 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       return SEND_OR_RECEIVE_FAILED;
     }
   }
-  
-  return 0;
 }
 
 int 
 MgmtSrvr::abortBackup(Uint32 backupId)
 {
+  SignalSender ss(theFacade);
+
   bool next;
   NodeId nodeId = 0;
   while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
@@ -2529,25 +2050,17 @@ MgmtSrvr::abortBackup(Uint32 backupId)
     return NO_CONTACT_WITH_DB_NODES;
   }
   
-  NdbApiSignal* signal = getSignal();
-  if (signal == NULL) {
-    return COULD_NOT_ALLOCATE_MEMORY;
-  }
+  SimpleSignal ssig;
 
-  AbortBackupOrd* ord = CAST_PTR(AbortBackupOrd, signal->getDataPtrSend());
-  signal->set(TestOrd::TraceAPI, BACKUP, GSN_ABORT_BACKUP_ORD, 
-	      AbortBackupOrd::SignalLength);
+  AbortBackupOrd* ord = CAST_PTR(AbortBackupOrd, ssig.getDataPtrSend());
+  ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_ABORT_BACKUP_ORD, 
+	   AbortBackupOrd::SignalLength);
   
   ord->requestType = AbortBackupOrd::ClientAbort;
   ord->senderData = 19;
   ord->backupId = backupId;
   
-  int result = sendSignal(nodeId, NO_WAIT, signal, true);
-  if (result == -1) {
-    return SEND_OR_RECEIVE_FAILED;
-  }
-  
-  return 0;
+  return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
 
@@ -2720,11 +2233,6 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
   msg.assign("Success");
   return 0;
 }
-
-template class Vector<SigMatch>;
-#if __SUNPRO_CC != 0x560
-template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch**, NdbApiSignal**, unsigned);
-#endif
 
 template class MutexVector<unsigned short>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;

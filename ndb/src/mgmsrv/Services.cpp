@@ -1203,7 +1203,11 @@ MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 void
 MgmApiSession::configLock(Parser_t::Context &,
 			   Properties const &) {
+#if 0 // not implemented
   int ret = m_mgmsrv.lockConf();
+#else
+  int ret = -1;
+#endif
   m_output->println("config lock reply");
   m_output->println("result: %d", ret);
   m_output->println("");
@@ -1214,7 +1218,11 @@ MgmApiSession::configUnlock(Parser_t::Context &,
 			   Properties const &args) {
   Uint32 commit;
   args.get("commit", &commit);
+#if 0 // not implemented
   int ret = m_mgmsrv.unlockConf(commit == 1);
+#else
+  int ret = -1;
+#endif
   m_output->println("config unlock reply");
   m_output->println("result: %d", ret);
   m_output->println("");
