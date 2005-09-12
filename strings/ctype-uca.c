@@ -6692,6 +6692,18 @@ static const char persian[]=
              " < \\uFEF5 < \\uFEF6 < \\uFEF7 < \\uFEF8 < \\uFEF9 < \\uFEFA"
              " < \\uFEFB < \\uFEFC";
 
+/*
+  Esperanto tailoring.
+  Contributed by Bertilo Wennergren <bertilow at gmail dot com>
+  September 1, 2005
+*/
+static const char esperanto[]=
+    "& C < \\u0109 <<< \\u0108"
+    "& G < \\u011D <<< \\u011C"
+    "& H < \\u0125 <<< \\u0124"
+    "& J < \\u0135 <<< \\u0134"
+    "& S < \\u015d <<< \\u015c"
+    "& U < \\u016d <<< \\u016c";
 
 /*
   Unicode Collation Algorithm:
@@ -8564,6 +8576,38 @@ CHARSET_INFO my_charset_ucs2_persian_uca_ci=
 };
 
 
+CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
+{
+    145,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_esperanto_ci",/* name         */
+    "",			/* comment      */
+    esperanto,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
 #endif
 
 
@@ -9117,6 +9161,37 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci=
     "utf8_persian_ci",	/* name         */
     "",			/* comment      */
     persian,		/* tailoring    */
+    ctype_utf8,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,			/* mbminlen     */
+    3,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
+CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
+{
+    209,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",		/* cs name    */
+    "utf8_esperanto_ci",/* name         */
+    "",			/* comment      */
+    esperanto,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
