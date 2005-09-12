@@ -23,6 +23,8 @@ a	b
 6	g
 create TEMPORARY TABLE t2 engine=heap select * from t1;
 create TEMPORARY TABLE IF NOT EXISTS t2 (a int) engine=heap;
+Warnings:
+Note	1050	Table 't2' already exists
 CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
 ERROR 42S01: Table 't1' already exists
 ALTER TABLE t1 RENAME t2;
