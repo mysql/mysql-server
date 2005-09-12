@@ -6360,7 +6360,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   SYNOPSIS
     make_join_on_context()
     thd       pointer to current thread
-    left_op   lefto operand of the JOIN
+    left_op   left  operand of the JOIN
     right_op  rigth operand of the JOIN
 
   DESCRIPTION

@@ -40,3 +40,4 @@ select * from t3;
 # in the .err files; these are not fatal and are not reported by mysql-test-run.
 
 # End of 4.1 tests
+# Adding comment for force manual merge 5.0 -> wl1012. Delete me if needed.
