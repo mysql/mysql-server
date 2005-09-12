@@ -2170,7 +2170,8 @@ int read_line(char *buf, int size)
     if (feof(cur_file->file))
     {
   found_eof:
-      if (cur_file->file != stdin){
+      if (cur_file->file != stdin)
+      {
 	my_fclose(cur_file->file, MYF(0));
         cur_file->file= 0;
       }
