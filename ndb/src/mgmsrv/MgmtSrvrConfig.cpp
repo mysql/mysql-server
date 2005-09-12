@@ -23,6 +23,8 @@
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>
 
+#if 0 // code must be rewritten to use SignalSender
+
 void
 MgmtSrvr::handle_MGM_LOCK_CONFIG_REQ(NdbApiSignal *signal) {
   NodeId sender = refToNode(signal->theSendersBlockRef);
@@ -220,6 +222,8 @@ MgmtSrvr::unlockConf(bool commit) {
   NdbMutex_Unlock(m_configMutex);
   return result;
 }
+
+#endif // code must be rewritten to use SignalSender
 
 /**
  * Commit the new configuration
