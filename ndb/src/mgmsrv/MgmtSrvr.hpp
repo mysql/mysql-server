@@ -31,6 +31,8 @@
 #include <EventLogger.hpp>
 #include <signaldata/EventSubscribeReq.hpp>
 
+#include <SignalSender.hpp>
+
 /**
  * @desc Block number for Management server.
  * @todo This should probably be somewhere else. I don't know where atm.
@@ -496,8 +498,7 @@ public:
 private:
   //**************************************************************************
 
-  int setEventReportingLevel(int processId, LogLevel::EventCategory, Uint32); 
-  void set_common_stop_req_params(void *stopReq);
+  int send(SignalSender &ss, SimpleSignal &ssig, Uint32 node, Uint32 node_type);
 
   int sendSTOP_REQ(NodeId nodeId,
 		   NodeBitmask &stoppedNodes,
