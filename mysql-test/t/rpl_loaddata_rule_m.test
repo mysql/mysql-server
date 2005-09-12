@@ -27,3 +27,4 @@ show binlog events from 98;
 drop database mysqltest;
 
 # End of 4.1 tests
+# Adding comment for force manual merge 5.0 -> wl1012: Delete me
