@@ -1153,12 +1153,12 @@ def					id	8	3	1	N	32929	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	Y	0	31	8
 def					type	253	10	3	Y	0	31	8
-def					possible_keys	252	4096	0	Y	0	31	8
+def					possible_keys	253	4096	0	Y	0	31	8
 def					key	253	64	0	Y	0	31	8
 def					key_len	8	3	0	Y	32928	0	63
-def					ref	252	1024	0	Y	0	31	8
+def					ref	253	1024	0	Y	0	31	8
 def					rows	8	10	1	Y	32928	0	63
-def					Extra	252	255	0	N	1	31	8
+def					Extra	253	255	0	N	1	31	8
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	2	
 test_sequence
