@@ -272,7 +272,9 @@ SignalSender::execNodeStatus(void* signalSender,
   NdbCondition_Signal(ss->m_cond);
 }
 
+#if __SUNPRO_CC != 0x560
 template SimpleSignal* SignalSender::waitFor<WaitForNode>(unsigned, WaitForNode&);
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
+#endif
 template class Vector<SimpleSignal*>;
   
