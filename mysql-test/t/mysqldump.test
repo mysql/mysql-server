@@ -4,6 +4,8 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
 drop database if exists mysqldump_test_db;
+drop database if exists db1;
+drop database if exists db2;
 drop view if exists v1, v2, v3;
 --enable_warnings
 
@@ -545,6 +547,66 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
+
+
+#
+# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#
+
+create database db1;
+use db1;
+
+CREATE TABLE t2 (
+  a varchar(30) default NULL,
+  KEY a (a(5))
+);
+
+INSERT INTO t2 VALUES ('alfred');
+INSERT INTO t2 VALUES ('angie');
+INSERT INTO t2 VALUES ('bingo');
+INSERT INTO t2 VALUES ('waffle');
+INSERT INTO t2 VALUES ('lemon');
+create view v2 as select * from t2 where a like 'a%' with check option;
+--exec $MYSQL_DUMP  --skip-comments db1
+drop table t2;
+drop view v2;
+drop database db1;
+
+#
+# Bug 10713 mysqldump includes database in create view and referenced tables
+#
+
+# create table and views in testdb2
+create database db2;
+use db2;
+create table t1 (a int);
+create table t2 (a int, b varchar(10), primary key(a));
+insert into t2 values (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
+insert into t1 values (289), (298), (234), (456), (789);
+create view v1 as select * from t2;
+create view v2 as select * from t1;
+
+# dump tables and view from db2
+--exec $MYSQL_DUMP db2
+--exec $MYSQL_DUMP db2 > var/tmp/bug10713.sql
+
+# drop the db, tables and views
+drop table t1, t2;
+drop view v1, v2;
+drop database db2;
+
+# create db1 and reload dump
+create database db1;
+use db1;
+--exec $MYSQL db1 < var/tmp/bug10713.sql
+
+# check that all tables and views could be created
+show tables;
+#select * from t2 order by a;
+
+#drop table t1, t2;
+#drop view t1, t2;
+drop database db1;
 #
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
