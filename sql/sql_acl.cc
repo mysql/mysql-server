@@ -1337,7 +1337,7 @@ bool check_change_password(THD *thd, const char *host, const char *user,
       (strcmp(thd->user,user) ||
        my_strcasecmp(system_charset_info, host, thd->priv_host)))
   {
-    if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
+    if (check_access(thd, UPDATE_ACL, "mysql",0,1,0,0))
       return(1);
   }
   if (!thd->slave_thread && !thd->user[0])
@@ -5532,7 +5532,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   ulong want_access;
   char buff[100];
   TABLE *table= tables->table;
-  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
   char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_user_privileges");
 
@@ -5585,7 +5585,7 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   ulong want_access;
   char buff[100];
   TABLE *table= tables->table;
-  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
   char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_schema_privileges");
 
@@ -5640,7 +5640,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   uint index;
   char buff[100];
   TABLE *table= tables->table;
-  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
   char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_table_privileges");
 
@@ -5702,7 +5702,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   uint index;
   char buff[100];
   TABLE *table= tables->table;
-  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1);
+  bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
   char *curr_host= thd->priv_host ? thd->priv_host : (char *) "%";
   DBUG_ENTER("fill_schema_table_privileges");
 

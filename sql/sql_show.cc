@@ -2025,8 +2025,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 	  (base_name= select_lex->db) && !bases.elements))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (with_i_schema ||   // don't check the rights if information schema db
-        !check_access(thd,SELECT_ACL, base_name, &thd->col_access,0,1) ||
+    if (!check_access(thd,SELECT_ACL, base_name, 
+                      &thd->col_access, 0, 1, with_i_schema) ||
         thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(thd->host, thd->ip, thd->priv_user, base_name,0) ||
 	(grant_option && !check_grant_db(thd, base_name)))
@@ -2448,7 +2448,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
     check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
-                 &tables->grant.privilege, 0, 0);
+                 &tables->grant.privilege, 0, 0, test(tables->schema_table));
     col_access= get_column_grant(thd, &tables->grant, 
                                  base_name, file_name,
                                  field->field_name) & COL_ACLS;
@@ -2464,12 +2464,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         end=strmov(end,grant_types.type_names[bitnr]);
       }
     }
-    if (tables->schema_table)      // any user has 'select' privilege on all 
-      // I_S table columns
-      table->field[17]->store(grant_types.type_names[0],
-                              strlen(grant_types.type_names[0]), cs);
-    else
-      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+    table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
 
 #endif
     table->field[1]->store(base_name, base_name_length, cs);
