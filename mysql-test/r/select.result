@@ -2922,3 +2922,24 @@ a	b	b
 select * from t1 inner join t2 using (a);
 a	b	b
 1	10	10
+drop table t1, t2;
+create table t1 (a int, c int);
+create table t2 (b int);
+create table t3 (b int, a int);
+create table t4 (c int);
+insert into t1 values (1,1);
+insert into t2 values (1);
+insert into t3 values (1,1);
+insert into t4 values (1);
+select * from t1 join t2 join t3 on (t2.b = t3.b and t1.a = t3.a);
+a	c	b	b	a
+1	1	1	1	1
+select * from t1, t2 join t3 on (t2.b = t3.b and t1.a = t3.a);
+ERROR 42S22: Unknown column 't1.a' in 'on clause'
+select * from t1 join t2 join t3 join t4 on (t1.a = t4.c and t2.b = t4.c);
+a	c	b	b	a	c
+1	1	1	1	1	1
+select * from t1 join t2 join t4 using (c);
+c	a	b
+1	1	1
+drop table t1, t2, t3, t4;

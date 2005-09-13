@@ -74,6 +74,8 @@ int	vio_fastsend(Vio *vio);
 int	vio_keepalive(Vio *vio, my_bool	onoff);
 /* Whenever we should retry the last read/write operation. */
 my_bool	vio_should_retry(Vio *vio);
+/* Check that operation was timed out */
+my_bool	vio_was_interrupted(Vio *vio);
 /* Short text description of the socket for those, who are curious.. */
 const char* vio_description(Vio *vio);
 /* Return the type of the connection */
@@ -153,6 +155,7 @@ int vio_close_shared_memory(Vio * vio);
 #define vio_fastsend(vio)			(vio)->fastsend(vio)
 #define vio_keepalive(vio, set_keep_alive)	(vio)->viokeepalive(vio, set_keep_alive)
 #define vio_should_retry(vio) 			(vio)->should_retry(vio)
+#define vio_was_interrupted(vio) 		(vio)->was_interrupted(vio)
 #define vio_close(vio)				((vio)->vioclose)(vio)
 #define vio_peer_addr(vio, buf, prt)		(vio)->peer_addr(vio, buf, prt)
 #define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
@@ -198,6 +201,7 @@ struct st_vio
   my_bool (*peer_addr)(Vio*, char *, uint16*);
   void    (*in_addr)(Vio*, struct in_addr*);
   my_bool (*should_retry)(Vio*);
+  my_bool (*was_interrupted)(Vio*);
   int     (*vioclose)(Vio*);
   void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
   void	  *ssl_arg;

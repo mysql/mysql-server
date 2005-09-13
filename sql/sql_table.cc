@@ -1695,6 +1695,9 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
       create_info->table_existed= 1;		// Mark that table existed
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                          alias);
       goto no_err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
@@ -1708,12 +1711,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (!access(path,F_OK))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-      {
-	create_info->table_existed= 1;		// Mark that table existed
-	error= FALSE;
-      }
-      else
-	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+        goto warn;
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto end;
     }
   }
@@ -1736,12 +1735,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_PRINT("info", ("Table with same name already existed in handler"));
 
       if (create_if_not_exists)
-      {
-        create_info->table_existed= 1;   // Mark that table existed
-        error= FALSE;
-      }
-      else
-       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+        goto warn;
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto end;
     }
   }
@@ -1774,6 +1769,14 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     mysql_bin_log.write(&qinfo);
   }
   error= FALSE;
+  goto end; 
+
+warn:
+  error= 0;
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                      ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                      alias);
+  create_info->table_existed= 1;		// Mark that table existed
 
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
