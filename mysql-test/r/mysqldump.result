@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
 drop database if exists mysqldump_test_db;
 drop database if exists db1;
+drop database if exists db2;
 drop view if exists v1, v2, v3;
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
@@ -1390,8 +1391,13 @@ INSERT INTO `t2` VALUES ('alfred'),('angie'),('bingo'),('waffle'),('lemon');
 UNLOCK TABLES;
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v2`;
-DROP VIEW IF EXISTS `v2`;
-CREATE ALGORITHM=UNDEFINED VIEW `db1`.`v2` AS select `db1`.`t2`.`a` AS `a` from `db1`.`t2` where (`db1`.`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION;
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+/*!50001 CREATE TABLE `v2` (
+  `a` varchar(30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION*/;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
@@ -1403,6 +1409,33 @@ CREATE ALGORITHM=UNDEFINED VIEW `db1`.`v2` AS select `db1`.`t2`.`a` AS `a` from 
 
 drop table t2;
 drop view v2;
+drop database db1;
+create database db2;
+use db2;
+create table t1 (a int);
+create table t2 (a int, b varchar(10), primary key(a));
+insert into t2 values (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
+insert into t1 values (289), (298), (234), (456), (789);
+create view v1 as select * from t2;
+create view v2 as select * from t1;
+drop table t1, t2;
+drop view v1, v2;
+drop database db2;
+create database db1;
+use db1;
+show tables;
+Tables_in_db1
+t1
+t2
+v1
+v2
+select * from t2 order by a;
+a	b
+1	on
+2	off
+10	pol
+12	meg
+drop table t1, t2;
 drop database db1;
 CREATE DATABASE mysqldump_test_db;
 USE mysqldump_test_db;
@@ -1598,7 +1631,7 @@ DROP TABLE IF EXISTS `v1`;
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select `t1`.`a` AS `a` from `t1`*/;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
@@ -1650,7 +1683,7 @@ DROP TABLE IF EXISTS `v2`;
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED VIEW `mysqldump_test_db`.`v2` AS select `mysqldump_test_db`.`t2`.`a` AS `a` from `mysqldump_test_db`.`t2` where (`mysqldump_test_db`.`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION*/;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
@@ -1714,7 +1747,7 @@ v2	VIEW
 v3	VIEW
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `v3`.`a` AS `a`,`v3`.`b` AS `b`,`v3`.`c` AS `c` from `test`.`v3` where (`v3`.`b` in (1,2,3,4,5,6,7))
+v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select `v3`.`a` AS `a`,`v3`.`b` AS `b`,`v3`.`c` AS `c` from `v3` where (`v3`.`b` in (1,2,3,4,5,6,7))
 select * from v1;
 a	b	c
 1	2	one
