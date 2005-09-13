@@ -1050,12 +1050,12 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
      - if user has db of this view as current db
      - if this view only references table inside it's own db
   */
-  if(strcmp(thd->db, table->view_db.str))
+  if (!thd->db || strcmp(thd->db, table->view_db.str))
     table->compact_view_format= FALSE;
   else
   {
-    table->compact_view_format= TRUE;
     TABLE_LIST *tbl;
+    table->compact_view_format= TRUE;
     for (tbl= thd->lex->query_tables;
          tbl;
          tbl= tbl->next_global)
