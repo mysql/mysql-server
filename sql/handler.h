@@ -209,6 +209,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_ROW_FORMAT       (1L << 15)
 #define HA_CREATE_USED_COMMENT          (1L << 16)
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
+#define HA_CREATE_USED_CONNECTION       (1L << 18)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -382,6 +383,7 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
+  LEX_STRING connect_string;
   const char *comment,*password;
   const char *data_file_name, *index_file_name;
   const char *alias;
