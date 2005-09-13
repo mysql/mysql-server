@@ -447,10 +447,10 @@ sys_var_thd_date_time_format sys_datetime_format("datetime_format",
 
 /* Variables that are bits in THD */
 
-static sys_var_thd_bit	sys_autocommit("autocommit", 0,
-				       set_option_autocommit,
-				       OPTION_NOT_AUTOCOMMIT,
-				       1);
+sys_var_thd_bit sys_autocommit("autocommit", 0,
+                               set_option_autocommit,
+                               OPTION_NOT_AUTOCOMMIT,
+                               1);
 static sys_var_thd_bit	sys_big_tables("big_tables", 0,
 				       set_option_bit,
 				       OPTION_BIG_TABLES);
