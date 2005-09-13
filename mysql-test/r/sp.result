@@ -3225,4 +3225,43 @@ select @var|
 @var
 abcdabcd
 drop procedure bug12849_2|
+drop procedure if exists bug131333|
+drop function if exists bug131333|
+create procedure bug131333()
+begin
+begin
+declare a int;
+select a;
+set a = 1;
+select a;
+end;
+begin
+declare b int;
+select b;
+end;
+end|
+create function bug131333()
+returns int
+begin
+begin
+declare a int;
+set a = 1;
+end;
+begin
+declare b int;
+return b;
+end;
+end|
+call bug131333()|
+a
+NULL
+a
+1
+b
+NULL
+select bug131333()|
+bug131333()
+NULL
+drop procedure bug131333|
+drop function bug131333|
 drop table t1,t2;
