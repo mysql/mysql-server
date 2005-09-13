@@ -13906,13 +13906,20 @@ void st_table_list::print(THD *thd, String *str)
     const char *cmp_name;                         // Name to compare with alias
     if (view_name.str)
     {
-      append_identifier(thd, str, view_db.str, view_db.length);
-      str->append('.');
+      // A view
+
+      if (!(belong_to_view &&
+            belong_to_view->compact_view_format))
+      {
+        append_identifier(thd, str, view_db.str, view_db.length);
+        str->append('.');
+      }
       append_identifier(thd, str, view_name.str, view_name.length);
       cmp_name= view_name.str;
     }
     else if (derived)
     {
+      // A derived table
       str->append('(');
       derived->print(str);
       str->append(')');
@@ -13920,8 +13927,14 @@ void st_table_list::print(THD *thd, String *str)
     }
     else
     {
-      append_identifier(thd, str, db, db_length);
-      str->append('.');
+      // A normal table
+
+      if (!(belong_to_view &&
+            belong_to_view->compact_view_format))
+      {
+        append_identifier(thd, str, db, db_length);
+        str->append('.');
+      }
       if (schema_table)
       {
         append_identifier(thd, str, schema_table_name,
