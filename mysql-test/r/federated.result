@@ -25,28 +25,28 @@ CREATE TABLE federated.t1 (
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
-ERROR HY000: Can't create federated table. The data source connection string 'mysql://root@127.0.0.1:@/too/many/items/federated/t1' is not in the correct format
+CONNECTION='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
+ERROR HY000: Can't create federated table. The data source connection string 'mysql://root@127.0.0.1:@/too/many/items/federated/t1ее' is not in the correct format
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1';
+CONNECTION='mysql://root@127.0.0.1';
 ERROR HY000: Can't create federated table. The data source connection string 'mysql://root@127.0.0.1' is not in the correct format
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t3';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t3';
 ERROR HY000: Can't create federated table. Foreign data src error : ': 1146 : Table 'federated.t3' doesn't exist'
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://user:pass@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://user:pass@127.0.0.1:SLAVE_PORT/federated/t1';
 ERROR HY000: Unable to connect to foreign data source - database ' database federated username user hostname 127.0.0.1'!
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
@@ -56,7 +56,7 @@ CREATE TABLE federated.t1 (
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.t1;
@@ -73,7 +73,7 @@ CREATE TABLE federated.t2 (
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t2 (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.t2;
@@ -98,7 +98,7 @@ CREATE TABLE federated.t1 (
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1%';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1%';
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.t1;
@@ -112,7 +112,7 @@ CREATE TABLE federated.`t1%` (
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1%';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1%';
 INSERT INTO federated.`t1%` (id, name) VALUES (1, 'foo');
 INSERT INTO federated.`t1%` (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.`t1%`;
@@ -139,7 +139,7 @@ CREATE TABLE federated.t1 (
 `created` datetime default '2004-04-04 04:04:04',
 PRIMARY KEY  (`id`))
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (name, other) VALUES ('First Name', 11111);
 INSERT INTO federated.t1 (name, other) VALUES ('Second Name', 22222);
 INSERT INTO federated.t1 (name, other) VALUES ('Third Name', 33333);
@@ -279,7 +279,7 @@ key name(`name`),
 key other(`other`),
 key created(`created`))
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (name, other, created)
 VALUES ('First Name', 11111, '2004-01-01 01:01:01');
 INSERT INTO federated.t1 (name, other, created)
@@ -419,7 +419,7 @@ CREATE TABLE federated.t1 (
 PRIMARY KEY  (`id`) )
 ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (name, other) VALUES ('First Name', 11111);
 INSERT INTO federated.t1 (name, other) VALUES ('Second Name', NULL);
 INSERT INTO federated.t1 (name, other) VALUES ('Third Name', 33333);
@@ -484,7 +484,7 @@ PRIMARY KEY  (`id`),
 KEY nameoth (name, other))
 ENGINE="FEDERATED" DEFAULT
 CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (name, other) VALUES ('First Name', '1111');
 INSERT INTO federated.t1 (name, other) VALUES ('Second Name', '2222');
 INSERT INTO federated.t1 (name, other) VALUES ('Third Name', '3333');
@@ -524,7 +524,7 @@ KEY bincol(bincol),
 KEY floatval(floatval))
 ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (name, bincol, floatval, other) 
 VALUES ('first', 0x65, 11.11, 1111);
 INSERT INTO federated.t1 (name, bincol, floatval, other)
@@ -589,7 +589,7 @@ key col2(col2),
 key col3(col3),
 key col4(col4))
 ENGINE="FEDERATED"
-  COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+  CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (col1, col2, col3, col4) 
 VALUES (1, 'one One', 11, 1111);
 INSERT INTO federated.t1 (col1, col2, col3, col4) 
@@ -798,7 +798,7 @@ key 3key(`col2`,`col3`,`col4`),
 key 2key (`col3`,`col4`),
 key col4(col4))
 ENGINE="FEDERATED"
-  COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+  CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (col1, col2, col3, col4) 
 VALUES ('aaaa', 'aaaaaaaaaaaaaaaaaaa', 'ababababab', 'acacacacacacacac');
 INSERT INTO federated.t1 (col1, col2, col3, col4) 
@@ -898,7 +898,7 @@ CREATE TABLE federated.t1 (
 primary key (`col1`, `col2`, `col3`))
 ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 VALUES ('a00', '110', 'cc0');
 INSERT INTO federated.t1 VALUES ('aaa', '111', 'ccc');
 INSERT INTO federated.t1 VALUES ('bbb', '222', 'yyy');
@@ -933,7 +933,7 @@ CREATE TABLE federated.t1 (
 `other` int)
 ENGINE="FEDERATED"
 DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 values (NULL, NULL, NULL, NULL);
 INSERT INTO federated.t1 values ();
 INSERT INTO federated.t1 (id) VALUES (1);
@@ -968,7 +968,7 @@ CREATE TABLE federated.t1 (
 PRIMARY KEY (blurb_id))
 ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.");
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");
 INSERT INTO federated.t1 VALUES (3, " A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  ");
@@ -994,7 +994,7 @@ PRIMARY KEY (a),
 KEY (b))
 ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 VALUES (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
@@ -1252,7 +1252,7 @@ int, i999 int, i1000 int, b varchar(256))
 row_format=dynamic
 ENGINE="FEDERATED"
 DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1
 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -1322,7 +1322,7 @@ PRIMARY KEY(id),
 index(code),
 index(fileguts(10)))
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('ASDFWERQWETWETAWETA', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2003-03-03 03:03:03');
 INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('DEUEUEUEUEUEUEUEUEU', '*()w*09*$()*#)(*09*^90*d)(*s()d8g)(s*ned)(*)(s*d)(*hn(d*)(*sbn)D((#$*(#*%%&#&^$#&#&#&#&^&#*&*#$*&^*(&#(&Q*&&(*!&!(*&*(#&*(%&#<S-F8>*<S-F8><S-F8><S-F8>#<S-F8>#<S-F8>#<S-F8>[[', '2004-04-04 04:04:04');
 INSERT INTO federated.t1 (code, fileguts, creation_date) VALUES ('DEUEUEUEUEUEUEUEUEU', 'jimbob', '2004-04-04 04:04:04');
@@ -1340,7 +1340,7 @@ DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `a` BLOB)
 ENGINE="FEDERATED"
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 VALUES (0x00);
 INSERT INTO federated.t1 VALUES (0x0001);
 INSERT INTO federated.t1 VALUES (0x0100);
@@ -1378,7 +1378,7 @@ CREATE TABLE federated.t1 (
 PRIMARY KEY  (`id`),
 KEY (country_id) )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-COMMENT='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Kumar', 1, 11111);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Lenz', 2, 22222);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Marizio', 3, 33333);
