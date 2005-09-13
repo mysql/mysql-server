@@ -35,7 +35,6 @@ typedef struct sp_pvar
   enum enum_field_types type;
   sp_param_mode_t mode;
   uint offset;			// Offset in current frame
-  my_bool isset;
   Item *dflt;
 } sp_pvar_t;
 
@@ -145,15 +144,6 @@ class sp_pcontext : public Sql_alloc
 
     if (p)
       p->type= type;
-  }
-
-  inline void
-  set_isset(uint i, my_bool val)
-  {
-    sp_pvar_t *p= find_pvar(i);
-
-    if (p)
-      p->isset= val;
   }
 
   inline void
