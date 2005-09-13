@@ -2341,7 +2341,7 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
 
   switch (state) {
   case INT_VALUE:
-    return field->store(value.integer);
+    return field->store(value.integer, unsigned_flag);
   case REAL_VALUE:
     return field->store(value.real);
   case DECIMAL_VALUE:
@@ -3895,7 +3895,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
-    error=field->store(nr);
+    error=field->store(nr, unsigned_flag);
   }
   return error;
 }
@@ -3911,12 +3911,10 @@ int Item_string::save_in_field(Field *field, bool no_conversions)
   return field->store(result->ptr(),result->length(),collation.collation);
 }
 
+
 int Item_uint::save_in_field(Field *field, bool no_conversions)
 {
-  /*
-    TODO: To be fixed when wen have a
-    field->store(longlong, unsigned_flag) method 
-  */
+  /* Item_int::save_in_field handles both signed and unsigned. */
   return Item_int::save_in_field(field, no_conversions);
 }
 
@@ -3927,7 +3925,7 @@ int Item_int::save_in_field(Field *field, bool no_conversions)
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  return field->store(nr);
+  return field->store(nr, unsigned_flag);
 }
 
 
@@ -4134,7 +4132,7 @@ int Item_hex_string::save_in_field(Field *field, bool no_conversions)
   else
   {
     longlong nr=val_int();
-    error=field->store(nr);
+    error=field->store(nr, TRUE);    // Assume hex numbers are unsigned
   }
   return error;
 }
