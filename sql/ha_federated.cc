@@ -517,6 +517,25 @@ error:
 }
 
 
+static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
+{
+  char buf[table->s->connect_string.length+1];
+  DBUG_ENTER("ha_federated parse_url_error");
+  if (share->scheme)
+  {
+    DBUG_PRINT("info",
+               ("error: parse_url. Returning error code %d \
+                freeing share->scheme %lx", error_num, share->scheme));
+    my_free((gptr) share->scheme, MYF(0));
+    share->scheme= 0;
+  }
+
+  strnmov(buf, table->s->connect_string.str, table->s->connect_string.length+1);
+  buf[table->s->connect_string.length]= '\0';
+  my_error(error_num, MYF(0), buf);
+  DBUG_RETURN(error_num);
+}
+
 /*
   Parse connection info from table->s->connect_string
 
@@ -577,113 +596,92 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
     remove addition of null terminator and store length
     for each string  in share
   */
-  if ((share->username= strstr(share->scheme, "://")))
+  if (!(share->username= strstr(share->scheme, "://")))
+    goto error;
+  share->scheme[share->username - share->scheme]= '\0';
+
+  if (strcmp(share->scheme, "mysql") != 0)
+    goto error;
+
+  share->username+= 3;
+
+  if (!(share->hostname= strchr(share->username, '@')))
+    goto error;
+    
+  share->username[share->hostname - share->username]= '\0';
+  share->hostname++;
+
+  if ((share->password= strchr(share->username, ':')))
   {
-    share->scheme[share->username - share->scheme]= '\0';
-
-    if (strcmp(share->scheme, "mysql") != 0)
+    share->username[share->password - share->username]= '\0';
+    share->password++;
+    share->username= share->username;
+    /* make sure there isn't an extra / or @ */
+    if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
       goto error;
-
-    share->username+= 3;
-
-    if ((share->hostname= strchr(share->username, '@')))
-    {
-      share->username[share->hostname - share->username]= '\0';
-      share->hostname++;
-
-      if ((share->password= strchr(share->username, ':')))
-      {
-        share->username[share->password - share->username]= '\0';
-        share->password++;
-        share->username= share->username;
-        /* make sure there isn't an extra / or @ */
-        if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
-          goto error;
-        /*
-          Found that if the string is:
-          user:@hostname:port/database/table
-          Then password is a null string, so set to NULL
-        */
-        if ((share->password[0] == '\0'))
-          share->password= NULL;
-      }
-      else
-        share->username= share->username;
-
-      /* make sure there isn't an extra / or @ */
-      if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
-        goto error;
-
-      if ((share->database= strchr(share->hostname, '/')))
-      {
-        share->hostname[share->database - share->hostname]= '\0';
-        share->database++;
-
-        if ((share->sport= strchr(share->hostname, ':')))
-        {
-          share->hostname[share->sport - share->hostname]= '\0';
-          share->sport++;
-          if (share->sport[0] == '\0')
-            share->sport= NULL;
-          else
-            share->port= atoi(share->sport);
-        }
-
-        if ((share->table_name= strchr(share->database, '/')))
-        {
-          share->database[share->table_name - share->database]= '\0';
-          share->table_name++;
-        }
-        else
-          goto error;
-
-        share->table_name_length= strlen(share->table_name);
-      }
-      else
-        goto error;
-      /* make sure there's not an extra / */
-      if ((strchr(share->table_name, '/')))
-        goto error;
-
-      if (share->hostname[0] == '\0')
-        share->hostname= NULL;
-
-      if (!share->port)
-      {
-        if (strcmp(share->hostname, my_localhost) == 0)
-          share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
-        else
-          share->port= MYSQL_PORT;
-      }
-
-      DBUG_PRINT("info",
-                 ("scheme %s username %s password %s \
-                  hostname %s port %d database %s tablename %s\n",
-                  share->scheme, share->username, share->password,
-                  share->hostname, share->port, share->database,
-                  share->table_name));
-    }
-    else
-      goto error;
+    /*
+      Found that if the string is:
+      user:@hostname:port/database/table
+      Then password is a null string, so set to NULL
+    */
+    if ((share->password[0] == '\0'))
+      share->password= NULL;
   }
   else
+    share->username= share->username;
+
+  /* make sure there isn't an extra / or @ */
+  if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
     goto error;
+
+  if (!(share->database= strchr(share->hostname, '/')))
+    goto error;
+  share->hostname[share->database - share->hostname]= '\0';
+  share->database++;
+
+  if ((share->sport= strchr(share->hostname, ':')))
+  {
+    share->hostname[share->sport - share->hostname]= '\0';
+    share->sport++;
+    if (share->sport[0] == '\0')
+      share->sport= NULL;
+    else
+      share->port= atoi(share->sport);
+  }
+
+  if (!(share->table_name= strchr(share->database, '/')))
+    goto error;
+  share->database[share->table_name - share->database]= '\0';
+  share->table_name++;
+
+  share->table_name_length= strlen(share->table_name);
+      
+  /* make sure there's not an extra / */
+  if ((strchr(share->table_name, '/')))
+    goto error;
+
+  if (share->hostname[0] == '\0')
+    share->hostname= NULL;
+
+  if (!share->port)
+  {
+    if (strcmp(share->hostname, my_localhost) == 0)
+      share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
+    else
+      share->port= MYSQL_PORT;
+  }
+
+  DBUG_PRINT("info",
+             ("scheme %s username %s password %s \
+              hostname %s port %d database %s tablename %s\n",
+              share->scheme, share->username, share->password,
+              share->hostname, share->port, share->database,
+              share->table_name));
 
   DBUG_RETURN(0);
 
 error:
-  if (share->scheme)
-  {
-    DBUG_PRINT("info",
-               ("error: parse_url. Returning error code %d \
-                freeing share->scheme %lx", error_num, share->scheme));
-    my_free((gptr) share->scheme, MYF(0));
-    share->scheme= 0;
-  }
-  /* FIXME: table->s->connect_string is NOT null terminated */
-  my_error(error_num, MYF(0), "invalid connection string");
-  DBUG_RETURN(error_num);
-
+  DBUG_RETURN(parse_url_error(share, table, error_num));
 }
 
 
