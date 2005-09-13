@@ -1078,7 +1078,6 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
-  Item_null *nit;
   int ret= -1;                                  // Assume error
 
   if (argcount != params)
@@ -1109,22 +1108,15 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     nctx->push_item(it);
   }
 
+
   /*
     The rest of the frame are local variables which are all IN.
-    Default all variables to null (those with default clauses will
-    be set by an set instruction).
+    Push NULLs to get the right size (and make the reuse mechanism work) -
+    the will be initialized by set instructions in each frame.
   */
-
-  nit= NULL;                       // Re-use this, and only create if needed
   for (; i < csize ; i++)
-  {
-    if (! nit)
-    {
-      if (!(nit= new Item_null()))
-        DBUG_RETURN(-1);
-    }
-    nctx->push_item(nit);
-  }
+    nctx->push_item(NULL);
+
   thd->spcont= nctx;
 
   binlog_save_options= thd->options;
@@ -1321,23 +1313,14 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
       close_thread_tables(thd, 0, 0);
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
+
     /*
       The rest of the frame are local variables which are all IN.
-      Default all variables to null (those with default clauses will
-      be set by an set instruction).
+      Push NULLs to get the right size (and make the reuse mechanism work) -
+      the will be initialized by set instructions in each frame.
     */
     for (; i < csize ; i++)
-    {
-      if (! nit)
-      {
-	if (!(nit= new Item_null()))
-        {
-          ret= -1;
-          break;
-        }
-      }
-      nctx->push_item(nit);
-    }
+      nctx->push_item(NULL);
   }
 
   thd->spcont= nctx;
