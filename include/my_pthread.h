@@ -298,11 +298,6 @@ extern int my_pthread_create_detached;
 int sigwait(sigset_t *set, int *sig);
 #endif
 
-#if defined(HAVE_UNIXWARE7_POSIX)
-#undef HAVE_NONPOSIX_SIGWAIT
-#define HAVE_NONPOSIX_SIGWAIT	/* sigwait takes only 1 argument */
-#endif
-
 #ifndef HAVE_NONPOSIX_SIGWAIT
 #define my_sigwait(A,B) sigwait((A),(B))
 #else
