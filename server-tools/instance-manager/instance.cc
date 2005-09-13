@@ -40,7 +40,7 @@
 static void start_and_monitor_instance(Instance_options *old_instance_options,
                                        Instance_map *instance_map);
 
-#ifndef _WIN_
+#ifndef __WIN__
 typedef pid_t My_process_info;
 #else
 typedef PROCESS_INFORMATION My_process_info;
