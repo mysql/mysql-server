@@ -1,52 +1,35 @@
-This is a release of MySQL, a GPL (free) SQL database server (more
-licence information in the PUBLIC file and in the reference manual).
+This is a release of MySQL, a dual-license SQL database server.
+MySQL is brought to you by the MySQL team at MySQL AB.
 
-Please read the "Upgrading from..." section in the manual first, if you are
-migrating from older versions of MySQL!
+License information can be found in these files:
+- For GPL (free) distributions, see the COPYING file.
+- For commercial distributions, see the MySQLEULA.txt file.
 
-The latest information about MySQL can be found at:
-http://www.mysql.com
 
-To see what it can do take a look at the features section in the
-manual.
+For further information about MySQL or additional documentation, see:
+- The latest information about MySQL: http://www.mysql.com
+- The current MySQL documentation: http:/dev.mysql.com/doc
 
-For installation instructions see the Installation chapter in the
-manual.
+Some manual sections of special interest:
 
-For future plans see the TODO appendix in the manual.
+- If you are migrating from an older version of MySQL, please read the
+  "Upgrading from..." section first!
+- To see what MySQL can do, take a look at the features section.
+- For installation instructions, see the Installation chapter.
+- For future plans, see the TODO appendix.
+- For the new features/bugfix history, see the News appendix.
+- For the currently known bugs/misfeatures (known errors) see the problems
+  appendix.
+- For a list of developers and other contributors, see the Credits
+  appendix.
 
-New features/bug fixes history is in the news appendix in the manual.
-
-For the currently known bugs/misfeatures (known errors) see the bugs
-appendix in the manual.
-
-For examples of SQL and benchmarking information see the bench
-directory.
-
-The manual mentioned above can be found in the Docs directory. The
-manual is available in the following formats: as plain ASCII text in
-Docs/manual.txt, in HTML format in Docs/manual_toc.html, as GNU Info in
-Docs/mysql.info and as PostScript in Docs/manual.ps.
-
-MySQL is brought to you by the MySQL team at MySQL AB
-
-For a list of developers and other contributors, see the Credits appendix
-in the manual.
+A local copy of the MySQL Reference Manual can be found in the Docs
+directory in GNU Info format.  You can also browse the manual online or
+download it in any of several formats at the URL given earlier in this
+file.
 
 ************************************************************
 
 IMPORTANT:
 
-Send bug (error) reports, questions and comments to the mailing list
-at mysql@lists.mysql.com
-
-Please use the 'mysqlbug' script when posting bug reports or questions
-about MySQL. mysqlbug will gather some information about your system
-and start your editor with a form in which you can describe your
-problem. Bug reports might be silently ignored by the MySQL
-maintainers if there is not a good reason included in the report as to
-why mysqlbug has not been used. A report that says 'MySQL does not
-work for me. Why?' is not considered a valid bug report.
-
-The mysqlbug script can be found in the 'scripts' directory of the
-distribution, that is '<where-you-installed-mysql>/scripts'.
+Bug or error reports should be sent to http://bugs.mysql.com.

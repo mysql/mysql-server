@@ -544,7 +544,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     error= my_errno;
     goto error;
   }
-  if ((archive= gzdopen(create_file, "ab")) == NULL)
+  if ((archive= gzdopen(create_file, "wb")) == NULL)
   {
     error= errno;
     goto error2;
