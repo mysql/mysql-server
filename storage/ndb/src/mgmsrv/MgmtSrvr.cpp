@@ -2521,10 +2521,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-#ifdef VM_TRACE
-      ndbout_c("Node %d failed", rep->failNo);
-#endif
-      if (rep->failNo == nodeId ||
+      if (NodeBitmask::get(rep->theNodes,nodeId) ||
 	  waitCompleted == 1)
 	return 1326;
       // wait for next signal

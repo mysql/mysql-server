@@ -13104,12 +13104,12 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
   {
     Name_resolution_context *context= &thd->lex->current_select->context;
     Item **arg,**arg_end;
+    bool arg_changed= FALSE;
     for (arg= expr->arguments(),
          arg_end= expr->arguments()+expr->arg_count;
          arg != arg_end; arg++)
     {
       Item *item= *arg;
-      bool arg_changed= FALSE;
       if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
       {
         ORDER *group_tmp;
@@ -13131,11 +13131,11 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
         if (change_group_ref(thd, (Item_func *) item, group_list, &arg_changed))
           return 1;
       }
-      if (arg_changed)
-      {
-        expr->maybe_null= 1;
-        *changed= TRUE;
-      }
+    }
+    if (arg_changed)
+    {
+      expr->maybe_null= 1;
+      *changed= TRUE;
     }
   }
   return 0;
