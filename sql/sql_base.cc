@@ -868,6 +868,13 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   {
     if (table->version != refresh_version)
     {
+      if (! refresh)
+      {
+        /* Ignore flush for now, but force close after usage. */
+        thd->version= table->version;
+        continue;
+      }
+
       /*
       ** There is a refresh in progress for this table
       ** Wait until the table is freed or the thread is killed.
