@@ -26,7 +26,7 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
-ERROR HY000: Can't create federated table. The data source connection string 'mysql://root@127.0.0.1:@/too/many/items/federated/t1ее' is not in the correct format
+ERROR HY000: Can't create federated table. The data source connection string 'mysql://root@127.0.0.1:@/too/many/items/federated/t1' is not in the correct format
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(32) NOT NULL default ''
