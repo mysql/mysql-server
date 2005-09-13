@@ -71,7 +71,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
          interval_count,interval_parts,read_length,db_create_options;
   uint	 key_info_length, com_length;
-  ulong  pos;
+  ulong  pos, record_offset;
   char	 index_file[FN_REFLEN], *names, *keynames, *comment_pos;
   uchar  head[288],*disk_buff,new_field_pack_flag;
   my_string record;
@@ -321,11 +321,12 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
                                     rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
   share->default_values= (byte *) record;
+
+  record_offset= (ulong) (uint2korr(head+6)+
+                          ((uint2korr(head+14) == 0xffff ?
+                            uint4korr(head+47) : uint2korr(head+14))));
   if (my_pread(file,(byte*) record, (uint) share->reclength,
-	       (ulong) (uint2korr(head+6)+
-                        ((uint2korr(head+14) == 0xffff ?
-                            uint4korr(head+47) : uint2korr(head+14)))),
-	       MYF(MY_NABP)))
+               record_offset, MYF(MY_NABP)))
     goto err; /* purecov: inspected */
 
   if (records == 1)
@@ -340,6 +341,19 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       outparam->record[1]= (byte *) record+ rec_buff_length*2;
     else
       outparam->record[1]= outparam->record[0];   // Safety
+  }
+
+  if ((n_length= uint2korr(head+55)))
+  {
+    /* Read extra block information */
+    char *buff;
+    if (!(buff= alloc_root(&outparam->mem_root, n_length)))
+      goto err;
+    if (my_pread(file, buff, n_length, record_offset + share->reclength,
+                 MYF(MY_NABP)))
+      goto err;
+    share->connect_string.length= uint2korr(buff);
+    share->connect_string.str= buff+2;
   }
 
 #ifdef HAVE_purify
@@ -1350,9 +1364,14 @@ File create_frm(THD *thd, my_string name, const char *db,
   ulong length;
   char fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
+  uint extra_size;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
+
+  extra_size= 0;
+  if (create_info->connect_string.length)
+    extra_size= 2+create_info->connect_string.length;
 
 #if SIZEOF_OFF_T > 4
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
@@ -1381,7 +1400,7 @@ File create_frm(THD *thd, my_string name, const char *db,
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
-    length=(ulong) next_io_size((ulong) (IO_SIZE+key_length+reclength));
+    length= next_io_size((ulong) (IO_SIZE+key_length+reclength+extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
     int2store(fileinfo+14,tmp_key_length);
@@ -1403,6 +1422,7 @@ File create_frm(THD *thd, my_string name, const char *db,
     int4store(fileinfo+47, key_length);
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
+    int2store(fileinfo+55, extra_size);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {

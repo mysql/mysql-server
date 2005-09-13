@@ -149,6 +149,15 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   if (make_empty_rec(thd,file,create_info->db_type,create_info->table_options,
 		     create_fields,reclength, data_offset))
     goto err;
+  if (create_info->connect_string.length)
+  {
+    char buff[2];
+    int2store(buff,create_info->connect_string.length);
+    if (my_write(file, buff, sizeof(buff), MYF(MY_NABP)) ||
+        my_write(file, create_info->connect_string.str,
+                 create_info->connect_string.length, MYF(MY_NABP)))
+      goto err;
+  }
 
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
   if (my_write(file,(byte*) forminfo,288,MYF_RW) ||
