@@ -1017,8 +1017,7 @@ longlong Item_func_interval::val_int()
     1   got error
 */
 
-bool
-Item_func_between::fix_fields(THD *thd, Item **ref)
+bool Item_func_between::fix_fields(THD *thd, Item **ref)
 {
   if (Item_func_opt_neg::fix_fields(thd, ref))
     return 1;
@@ -1028,8 +1027,9 @@ Item_func_between::fix_fields(THD *thd, Item **ref)
     return 0;
 
   /* not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2))) */
-  not_null_tables_cache= args[0]->not_null_tables() |
-    (args[1]->not_null_tables() & args[2]->not_null_tables());
+  not_null_tables_cache= (args[0]->not_null_tables() |
+                          (args[1]->not_null_tables() &
+                           args[2]->not_null_tables()));
 
   return 0;
 }
@@ -1330,8 +1330,8 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
   if (Item_func::fix_fields(thd, ref))
     return 1;
 
-  not_null_tables_cache= (args[1]->not_null_tables()
-                        & args[2]->not_null_tables());
+  not_null_tables_cache= (args[1]->not_null_tables() &
+                          args[2]->not_null_tables());
 
   return 0;
 }

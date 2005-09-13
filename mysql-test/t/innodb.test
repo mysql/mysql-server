@@ -1249,6 +1249,16 @@ insert into t1 values (42);
 select * from t1;
 drop table t1;
 
+#
+# Bug #13025  Server crash during filesort	
+#
+
+create table t1 (a int not null, b int not null, c blob not null, d int not null, e int, primary key (a,b,c(255),d)) engine=innodb;
+insert into t1 values (2,2,"b",2,2),(1,1,"a",1,1),(3,3,"ab",3,3);
+select * from t1 order by a,b,c,d;
+explain select * from t1 order by a,b,c,d;
+drop table t1;
+
 # End of 4.1 tests
 
 #

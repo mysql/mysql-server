@@ -202,4 +202,14 @@ insert into t1 select t2.a from t2 on duplicate key update t2.a= a + t2.b;
 insert into t1 select t2.a from t2 group by t2.a on duplicate key update a= t1.a + t2.b;
 drop table t1,t2,t3;
 
+#
+# Bug #12695 Item_func_isnull::update_used_tables() did not update 
+#            const_item_cache
+create table t1(f1 varchar(5) key);
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
+select * from t1;
+drop table t1;
+
 # End of 4.1 tests

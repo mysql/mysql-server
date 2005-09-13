@@ -2487,3 +2487,39 @@ SELECT id,t3.id FROM t1 JOIN t2 ON (t2.id=t1.id) LEFT JOIN t3 USING (id);
 SELECT id,t3.id FROM (t1 JOIN t2 ON (t2.id=t1.id)) LEFT JOIN t3 USING (id);
 
 drop table t1, t2, t3;
+
+#
+# Bug #13067 JOIN xxx USING is case sensitive
+#
+
+create table t1 (a int(10),b int(10));
+create table t2 (a int(10),b int(10));
+insert into t1 values (1,10),(2,20),(3,30);
+insert into t2 values (1,10);
+# both queries should produce the same result
+select * from t1 inner join t2 using (A);
+select * from t1 inner join t2 using (a);
+drop table t1, t2;
+
+#
+# Bug #12943 Incorrect nesting of [INNER| CROSS] JOIN due to unspecified
+#            associativity in the parser.
+#
+
+create table t1 (a int, c int);
+create table t2 (b int);
+create table t3 (b int, a int);
+create table t4 (c int);
+insert into t1 values (1,1);
+insert into t2 values (1);
+insert into t3 values (1,1);
+insert into t4 values (1);
+
+select * from t1 join t2 join t3 on (t2.b = t3.b and t1.a = t3.a);
+# Notice that ',' has lower priority than 'join', thus we have that:
+# t1, t2 join t3 <==> t1, (t2 join t3).
+-- error 1054
+select * from t1, t2 join t3 on (t2.b = t3.b and t1.a = t3.a);
+select * from t1 join t2 join t3 join t4 on (t1.a = t4.c and t2.b = t4.c);
+select * from t1 join t2 join t4 using (c);
+drop table t1, t2, t3, t4;

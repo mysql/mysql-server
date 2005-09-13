@@ -9,6 +9,8 @@ NULL
 drop table if exists t1;
 create table t1 (b char(0) not null);
 create table if not exists t1 (b char(0) not null);
+Warnings:
+Note	1050	Table 't1' already exists
 insert into t1 values (""),(null);
 Warnings:
 Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
@@ -244,9 +246,13 @@ create table t1 select x'4132';
 drop table t1;
 create table t1 select 1,2,3;
 create table if not exists t1 select 1,2;
+Warnings:
+Note	1050	Table 't1' already exists
 create table if not exists t1 select 1,2,3,4;
 ERROR 21S01: Column count doesn't match value count at row 1
 create table if not exists t1 select 1;
+Warnings:
+Note	1050	Table 't1' already exists
 select * from t1;
 1	2	3
 1	2	3
@@ -255,9 +261,13 @@ select * from t1;
 drop table t1;
 create table t1 select 1,2,3;
 create table if not exists t1 select 1,2;
+Warnings:
+Note	1050	Table 't1' already exists
 create table if not exists t1 select 1,2,3,4;
 ERROR 21S01: Column count doesn't match value count at row 1
 create table if not exists t1 select 1;
+Warnings:
+Note	1050	Table 't1' already exists
 select * from t1;
 1	2	3
 1	2	3
@@ -268,6 +278,7 @@ create table t1 (a int not null, b int, primary key (a));
 insert into t1 values (1,1);
 create table if not exists t1 select 2;
 Warnings:
+Note	1050	Table 't1' already exists
 Warning	1364	Field 'a' doesn't have a default value
 select * from t1;
 a	b
@@ -275,6 +286,7 @@ a	b
 0	2
 create table if not exists t1 select 3 as 'a',4 as 'b';
 Warnings:
+Note	1050	Table 't1' already exists
 Warning	1364	Field 'a' doesn't have a default value
 create table if not exists t1 select 3 as 'a',3 as 'b';
 ERROR 23000: Duplicate entry '3' for key 1
@@ -615,3 +627,17 @@ create table t1 like v1;
 ERROR HY000: 'mysqltest.v1' is not BASE TABLE
 drop view v1;
 drop database mysqltest;
+create database mysqltest;
+create database if not exists mysqltest character set latin2;
+Warnings:
+Note	1007	Can't create database 'mysqltest'; database exists
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+drop database mysqltest;
+use test;
+create table t1 (a int);
+create table if not exists t1 (a int);
+Warnings:
+Note	1050	Table 't1' already exists
+drop table t1;
