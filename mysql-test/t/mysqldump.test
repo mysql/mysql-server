@@ -768,8 +768,8 @@ DROP TABLE t1, t2;
 
 --exec echo "[mysqltest1]" > $MYSQL_TEST_DIR/var/tmp/tmp.cnf
 --exec echo "port=1234" >> $MYSQL_TEST_DIR/var/tmp/tmp.cnf
---exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1
---exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1
+--exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQL_TEST_DIR/var/tmp/tmp.cnf client
+--exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQL_TEST_DIR/var/tmp/tmp.cnf -e $MYSQL_TEST_DIR/var/tmp/tmp.cnf client client
 --exec rm $MYSQL_TEST_DIR/var/tmp/tmp.cnf
 
 #

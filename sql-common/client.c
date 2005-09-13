@@ -2203,8 +2203,9 @@ my_bool mysql_reconnect(MYSQL *mysql)
     DBUG_RETURN(1);
   }
   mysql_init(&tmp_mysql);
-  tmp_mysql.options=mysql->options;
-  tmp_mysql.rpl_pivot = mysql->rpl_pivot;
+  tmp_mysql.options= mysql->options;
+  tmp_mysql.rpl_pivot= mysql->rpl_pivot;
+  
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
@@ -2216,6 +2217,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
   }
   if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
   {
+    DBUG_PRINT("error", ("mysql_set_character_set() failed"));
+    bzero((char*) &tmp_mysql.options,sizeof(tmp_mysql.options));
     mysql_close(&tmp_mysql);
     mysql->net.last_errno= tmp_mysql.net.last_errno;
     strmov(mysql->net.last_error, tmp_mysql.net.last_error);
@@ -2223,6 +2226,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
     DBUG_RETURN(1);
   }
 
+  DBUG_PRINT("info", ("reconnect succeded"));
   tmp_mysql.reconnect= 1;
   tmp_mysql.free_me= mysql->free_me;
 
@@ -2286,6 +2290,8 @@ mysql_select_db(MYSQL *mysql, const char *db)
 
 static void mysql_close_free_options(MYSQL *mysql)
 {
+  DBUG_ENTER("mysql_close_free_options");
+
   my_free(mysql->options.user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.host,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.password,MYF(MY_ALLOW_ZERO_PTR));
@@ -2314,6 +2320,7 @@ static void mysql_close_free_options(MYSQL *mysql)
     my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif /* HAVE_SMEM */
   bzero((char*) &mysql->options,sizeof(mysql->options));
+  DBUG_VOID_RETURN;
 }
 
 
