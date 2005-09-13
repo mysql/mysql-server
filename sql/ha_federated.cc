@@ -518,7 +518,7 @@ error:
 
 
 /*
-  Parse connection info from table->s->comment
+  Parse connection info from table->s->connect_string
 
   SYNOPSIS
     parse_url()
@@ -563,7 +563,14 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_ENTER("ha_federated::parse_url");
 
   share->port= 0;
-  share->scheme= my_strdup(table->s->comment, MYF(0));
+  DBUG_PRINT("info", ("Length %d \n", table->s->connect_string.length));
+  DBUG_PRINT("info", ("String %.*s \n", table->s->connect_string.length, 
+                      table->s->connect_string.str));
+  share->scheme= my_strdup_with_length(table->s->connect_string.str,
+		                       table->s->connect_string.length+1,
+				       MYF(0));
+  // Add a null for later termination of table name
+  share->scheme[table->s->connect_string.length]= 0;
   DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
 
   /*
@@ -673,7 +680,8 @@ error:
     my_free((gptr) share->scheme, MYF(0));
     share->scheme= 0;
   }
-  my_error(error_num, MYF(0), table->s->comment);
+  /* FIXME: table->s->connect_string is NOT null terminated */
+  my_error(error_num, MYF(0), "invalid connection string");
   DBUG_RETURN(error_num);
 
 }
@@ -1313,7 +1321,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                           &share, sizeof(*share),
                           &tmp_table_name, tmp_table_name_length+ 1,
                           &select_query,
-                          query.length()+strlen(table->s->comment)+1,
+                          query.length()+table->s->connect_string.length+1,
                           NullS)))
     {
       pthread_mutex_unlock(&federated_mutex);
@@ -1918,11 +1926,9 @@ int ha_federated::delete_row(const byte *buf)
 
   String delete_string(delete_buffer, sizeof(delete_buffer), &my_charset_bin);
   String data_string(data_buffer, sizeof(data_buffer), &my_charset_bin);
-  delete_string.length(0);
-  data_string.length(0);
-
   DBUG_ENTER("ha_federated::delete_row");
 
+  delete_string.length(0);
   delete_string.append(FEDERATED_DELETE);
   delete_string.append(FEDERATED_FROM);
   delete_string.append(FEDERATED_BTICK);
@@ -1932,9 +1938,11 @@ int ha_federated::delete_row(const byte *buf)
 
   for (Field **field= table->field; *field; field++)
   {
-    delete_string.append((*field)->field_name);
+    Field *cur_field= *field;
+    data_string.length(0);
+    delete_string.append(cur_field->field_name);
 
-    if ((*field)->is_null())
+    if (cur_field->is_null())
     {
       delete_string.append(FEDERATED_IS);
       data_string.append(FEDERATED_NULL);
@@ -1942,16 +1950,14 @@ int ha_federated::delete_row(const byte *buf)
     else
     {
       delete_string.append(FEDERATED_EQ);
-      (*field)->val_str(&data_string);
-      (*field)->quote_data(&data_string);
+      cur_field->val_str(&data_string);
+      cur_field->quote_data(&data_string);
     }
 
     delete_string.append(data_string);
-    data_string.length(0);
-
-    if (*(field + 1))
-      delete_string.append(FEDERATED_AND);
+    delete_string.append(FEDERATED_AND);
   }
+  delete_string.length(delete_string.length()-5); // Remove trailing AND
 
   delete_string.append(FEDERATED_LIMIT1);
   DBUG_PRINT("info",

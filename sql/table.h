@@ -126,6 +126,7 @@ typedef struct st_table_share
   const char *db;                       /* Pointer to db */
   const char *table_name;               /* Table name (for open) */
   const char *path;                     /* Path to .frm file (from datadir) */
+  LEX_STRING connect_string;
   key_map keys_in_use;                  /* Keys in use for table */
   key_map keys_for_keyread;
   ulong   avg_row_length;		/* create information */
