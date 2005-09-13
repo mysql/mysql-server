@@ -347,7 +347,6 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
-  TABLE *table;
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
@@ -360,9 +359,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   /* Only one table for now, but VIEW can involve several tables */
   if (open_normal_and_derived_tables(thd, table_list, 0))
-  {
     DBUG_RETURN(TRUE);
-  }
+
   /* TODO: add environment variables show when it become possible */
   if (thd->lex->only_view && !table_list->view)
   {
@@ -371,8 +369,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(TRUE);
   }
 
-  table= table_list->table;
-
+  buffer.length(0);
   if ((table_list->view ?
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table_list, &buffer)))
@@ -397,22 +394,15 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   protocol->prepare_for_resend();
-  buffer.length(0);
   if (table_list->view)
-  {
     protocol->store(table_list->view_name.str, system_charset_info);
-    if (view_store_create_info(thd, table_list, &buffer))
-      DBUG_RETURN(TRUE);
-  }
   else
   {
     if (table_list->schema_table)
       protocol->store(table_list->schema_table->table_name,
                       system_charset_info);
     else
-      protocol->store(table->alias, system_charset_info);
-    if (store_create_info(thd, table_list, &buffer))
-      DBUG_RETURN(TRUE);
+      protocol->store(table_list->table->alias, system_charset_info);
   }
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
@@ -1077,6 +1067,29 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
                                                        MODE_DB2 |
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
+  /*
+     Compact output format for view can be used
+     - if user has db of this view as current db
+     - if this view only references table inside it's own db
+  */
+  if (!thd->db || strcmp(thd->db, table->view_db.str))
+    table->compact_view_format= FALSE;
+  else
+  {
+    TABLE_LIST *tbl;
+    table->compact_view_format= TRUE;
+    for (tbl= thd->lex->query_tables;
+         tbl;
+         tbl= tbl->next_global)
+    {
+      if (strcmp(table->view_db.str, tbl->view ? tbl->view_db.str :tbl->db)!= 0)
+      {
+        table->compact_view_format= FALSE;
+        break;
+      }
+    }
+  }
+
   buff->append("CREATE ", 7);
   if (!foreign_db_mode)
   {
@@ -1097,8 +1110,11 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     }
   }
   buff->append("VIEW ", 5);
-  append_identifier(thd, buff, table->view_db.str, table->view_db.length);
-  buff->append('.');
+  if (!table->compact_view_format)
+  {
+    append_identifier(thd, buff, table->view_db.str, table->view_db.length);
+    buff->append('.');
+  }
   append_identifier(thd, buff, table->view_name.str, table->view_name.length);
   buff->append(" AS ", 4);
 
