@@ -863,3 +863,14 @@ SELECT DISTINCT id FROM t1;
 SELECT DISTINCT id FROM t1 ORDER BY id;
 
 DROP TABLE t1;
+
+#
+# Bug#12891: UNION doesn't return DISTINCT result for multi-byte characters
+#
+set names utf8;
+create table t1 (a char(1)) default character set utf8;
+create table t2 (a char(1)) default character set utf8;
+insert into t1 values('a'),('a'),(0xE38182),(0xE38182);
+insert into t1 values('i'),('i'),(0xE38184),(0xE38184);
+select * from t1 union distinct select * from t2;
+drop table t1,t2;

@@ -6577,13 +6577,24 @@ void ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::BETWEEN:
           {
             DBUG_PRINT("info", ("BETWEEN, rewriting using AND"));
+            Item_func_between *between_func= (Item_func_between *) func_item;
             Ndb_rewrite_context *rewrite_context= 
               new Ndb_rewrite_context(func_item);
             rewrite_context->next= context->rewrite_stack;
             context->rewrite_stack= rewrite_context;
+            if (between_func->negated)
+            {
+              DBUG_PRINT("info", ("NOT_FUNC"));
+              curr_cond->ndb_item= new Ndb_item(Item_func::NOT_FUNC, 1);
+              prev_cond= curr_cond;
+              curr_cond= context->cond_ptr= new Ndb_cond();
+              curr_cond->prev= prev_cond;
+              prev_cond->next= curr_cond;
+            }
             DBUG_PRINT("info", ("COND_AND_FUNC"));
-            curr_cond->ndb_item= new Ndb_item(Item_func::COND_AND_FUNC, 
-                                              func_item->argument_count() - 1);
+            curr_cond->ndb_item= 
+              new Ndb_item(Item_func::COND_AND_FUNC, 
+                           func_item->argument_count() - 1);
             context->expect_only(Item::FIELD_ITEM);
             context->expect(Item::INT_ITEM);
             context->expect(Item::STRING_ITEM);
@@ -6594,10 +6605,20 @@ void ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::IN_FUNC:
           {
             DBUG_PRINT("info", ("IN_FUNC, rewriting using OR"));
+            Item_func_in *in_func= (Item_func_in *) func_item;
             Ndb_rewrite_context *rewrite_context= 
               new Ndb_rewrite_context(func_item);
             rewrite_context->next= context->rewrite_stack;
             context->rewrite_stack= rewrite_context;
+            if (in_func->negated)
+            {
+              DBUG_PRINT("info", ("NOT_FUNC"));
+              curr_cond->ndb_item= new Ndb_item(Item_func::NOT_FUNC, 1);
+              prev_cond= curr_cond;
+              curr_cond= context->cond_ptr= new Ndb_cond();
+              curr_cond->prev= prev_cond;
+              prev_cond->next= curr_cond;
+            }
             DBUG_PRINT("info", ("COND_OR_FUNC"));
             curr_cond->ndb_item= new Ndb_item(Item_func::COND_OR_FUNC, 
                                               func_item->argument_count() - 1);
@@ -6919,6 +6940,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("End of condition group"));
           prev_cond= curr_cond;
           curr_cond= context->cond_ptr= new Ndb_cond();
+          curr_cond->prev= prev_cond;
           prev_cond->next= curr_cond;
           curr_cond->ndb_item= new Ndb_item(NDB_END_COND);
           // Pop rewrite stack
