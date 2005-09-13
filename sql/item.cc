@@ -1528,11 +1528,15 @@ void Item_ident::print(String *str)
   }
   if (db_name && db_name[0] && !alias_name_used)
   {
-    append_identifier(thd, str, d_name, (uint) strlen(d_name));
+    if (!(cached_table && cached_table->belong_to_view &&
+          cached_table->belong_to_view->compact_view_format))
+    {
+      append_identifier(thd, str, d_name, (uint)strlen(d_name));
+      str->append('.');
+    }
+    append_identifier(thd, str, t_name, (uint)strlen(t_name));
     str->append('.');
-    append_identifier(thd, str, t_name, (uint) strlen(t_name));
-    str->append('.');
-    append_identifier(thd, str, field_name, (uint) strlen(field_name));
+    append_identifier(thd, str, field_name, (uint)strlen(field_name));
   }
   else
   {
