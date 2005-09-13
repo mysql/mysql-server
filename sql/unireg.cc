@@ -754,7 +754,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 	     (field->flags & NOT_NULL_FLAG))
     {
       regfield->set_notnull();
-      regfield->store((longlong) 1);
+      regfield->store((longlong) 1, TRUE);
     }
     else if (type == Field::YES)		// Old unireg type
       regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),system_charset_info);
