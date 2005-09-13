@@ -3264,4 +3264,63 @@ bug131333()
 NULL
 drop procedure bug131333|
 drop function bug131333|
+drop function if exists bug12379|
+drop procedure if exists bug12379_1|
+drop procedure if exists bug12379_2|
+drop procedure if exists bug12379_3|
+drop table if exists t3|
+create table t3 (c1 char(1) primary key not null)|
+create function bug12379()
+returns integer
+begin
+insert into t3 values('X');
+insert into t3 values('X');
+return 0;
+end|
+create procedure bug12379_1()
+begin
+declare exit handler for sqlexception select 42;
+select bug12379();
+END|
+create procedure bug12379_2()
+begin
+declare exit handler for sqlexception begin end;
+select bug12379();
+end|
+create procedure bug12379_3()
+begin
+select bug12379();
+end|
+select bug12379()|
+ERROR 23000: Duplicate entry 'X' for key 1
+select 1|
+1
+1
+call bug12379_1()|
+bug12379()
+42
+42
+Warnings:
+Error	1062	Duplicate entry 'X' for key 1
+Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
+select 2|
+2
+2
+call bug12379_2()|
+bug12379()
+Warnings:
+Error	1062	Duplicate entry 'X' for key 1
+Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
+select 3|
+3
+3
+call bug12379_3()|
+ERROR 23000: Duplicate entry 'X' for key 1
+select 4|
+4
+4
+drop function bug12379|
+drop procedure bug12379_1|
+drop procedure bug12379_2|
+drop procedure bug12379_3|
 drop table t1,t2;
