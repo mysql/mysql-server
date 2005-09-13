@@ -818,6 +818,8 @@ String *Item_splocal::val_str(String *sp)
   DBUG_ASSERT(fixed);
   Item *it= this_item();
   String *ret= it->val_str(sp);
+
+  null_value= it->null_value;
   /*
     This way we mark returned value of val_str as const,
     so that various functions (e.g. CONCAT) won't try to
@@ -833,9 +835,12 @@ String *Item_splocal::val_str(String *sp)
     This is intended behaviour of Item_func_concat. Comments to
     Item_param class contain some more details on the topic.
   */
+
+  if (!ret)
+    return NULL;
+
   str_value_ptr.set(ret->ptr(), ret->length(),
                     ret->charset());
-  null_value= it->null_value;
   return &str_value_ptr;
 }
 
