@@ -1030,23 +1030,23 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 
   SYNOPSIS
     open_table()
-      thd         Thread context
-      table_list  Open first table in list
-      refresh     Pointer to memory that will be set to 1 if
-                  we need to close all tables and reopen them
-                  If this is a NULL pointer, then the is no version
-                  number checking and the table is not put in the
-                  thread-open-list
-      flags       Bitmap of flags to modify how open works:
-                    MYSQL_LOCK_IGNORE_FLUSH - Open table even if someone
-                    has done a flush or namelock on it.
+    thd                 Thread context.
+    table_list          Open first table in list.
+    refresh      INOUT  Pointer to memory that will be set to 1 if
+                        we need to close all tables and reopen them.
+                        If this is a NULL pointer, then the table is not
+                        put in the thread-open-list.
+    flags               Bitmap of flags to modify how open works:
+                          MYSQL_LOCK_IGNORE_FLUSH - Open table even if
+                          someone has done a flush or namelock on it.
+                          No version number checking is done.
 
   IMPLEMENTATION
     Uses a cache of open tables to find a table not in use.
 
   RETURN
     NULL  Open failed.  If refresh is set then one should close
-          all other tables and retry the open
+          all other tables and retry the open.
     #     Success. Pointer to TABLE object for open table.
 */
 
@@ -1201,10 +1201,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (!thd->open_tables)
     thd->version=refresh_version;
-  else if (thd->version != refresh_version && refresh)
+  else if ((thd->version != refresh_version) &&
+           ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
   {
     /* Someone did a refresh while thread was opening tables */
-    *refresh=1;
+    if (refresh)
+      *refresh=1;
     VOID(pthread_mutex_unlock(&LOCK_open));
     DBUG_RETURN(0);
   }
