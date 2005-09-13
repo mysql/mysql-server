@@ -4064,6 +4064,51 @@ select @var|
 drop procedure bug12849_2|
 
 #
+# BUG#13133: Local variables in stored procedures are not initialized correctly.
+#
+--disable_warnings
+drop procedure if exists bug131333|
+drop function if exists bug131333|
+--enable_warnings
+create procedure bug131333()
+begin
+  begin
+    declare a int;
+
+    select a;
+    set a = 1;
+    select a;
+  end;
+  begin
+    declare b int;
+
+    select b;
+  end;
+end|
+
+create function bug131333()
+  returns int
+begin
+  begin
+    declare a int;
+
+    set a = 1;
+  end;
+  begin
+    declare b int;
+
+    return b;
+  end;
+end|
+
+call bug131333()|
+select bug131333()|
+
+drop procedure bug131333|
+drop function bug131333|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
