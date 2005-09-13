@@ -46,8 +46,16 @@ static inline int create_mysqld_command(Buffer *buf,
 
   if (buf->get_size()) /* malloc succeeded */
   {
+#ifdef __WIN__
+    buf->append(position, "\"", 1);
+    position++;
+#endif
     buf->append(position, mysqld_path_str, mysqld_path_len);
     position+= mysqld_path_len;
+#ifdef __WIN__
+    buf->append(position, "\"", 1);
+    position++;
+#endif
     /* here the '\0' character is copied from the option string */
     buf->append(position, option, option_len);
 

@@ -121,6 +121,9 @@ void Listener_thread::run()
     n= max(n, sockets[i]);
   n++;
 
+  timeval tv;
+  tv.tv_sec= 0;
+  tv.tv_usec= 100000;
   while (!thread_registry.is_shutdown())
   {
     fd_set read_fds_arg= read_fds;
@@ -130,13 +133,13 @@ void Listener_thread::run()
       signal during shutdown. This results in failing assert
       (Thread_registry::~Thread_registry). Valgrind 2.2 works fine.
     */
-    int rc= select(n, &read_fds_arg, 0, 0, 0);
+    int rc= select(n, &read_fds_arg, 0, 0, &tv);
 
-
-    if (rc == -1 && errno != EINTR)
+    if (rc == 0 || rc == -1)
     {
-      log_error("Listener_thread::run(): select() failed, %s",
-                strerror(errno));
+      if (rc == -1 && errno != EINTR)
+        log_error("Listener_thread::run(): select() failed, %s",
+                  strerror(errno));
       continue;
     }
 
