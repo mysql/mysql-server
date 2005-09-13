@@ -763,7 +763,7 @@ my_real_read(NET *net, ulong *complen)
 	  net->error= 2;				/* Close socket */
 	  net->report_error= 1;
 #ifdef MYSQL_SERVER
-	  net->last_errno= (interrupted ? ER_NET_READ_INTERRUPTED :
+	  net->last_errno= (vio_was_interrupted(net->vio) ? ER_NET_READ_INTERRUPTED :
 			    ER_NET_READ_ERROR);
 #endif
 	  goto end;

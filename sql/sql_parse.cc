@@ -3520,7 +3520,6 @@ end_with_restore_list:
 	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3555,7 +3554,6 @@ end_with_restore_list:
 	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -3596,7 +3594,6 @@ end_with_restore_list:
 	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      reset_one_shot_variables(thd);
       break;
     }
 #endif
@@ -6367,7 +6364,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   SYNOPSIS
     make_join_on_context()
     thd       pointer to current thread
-    left_op   lefto operand of the JOIN
+    left_op   left  operand of the JOIN
     right_op  rigth operand of the JOIN
 
   DESCRIPTION
