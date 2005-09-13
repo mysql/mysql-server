@@ -4108,21 +4108,6 @@ drop procedure bug131333|
 drop function bug131333|
 
 #
-# Bug #13124    Stored Procedure using SELECT INTO crashes server
-#
-
---disable_warnings
-drop procedure if exists bug13124|
---enable_warnings
-create procedure bug13124()
-begin
-  declare y integer;
-  set @x=y;
-end|
-call bug13124()|
-drop procedure  bug13124|
-
-#
 # BUG#12379: PROCEDURE with HANDLER calling FUNCTION with error get
 #            strange result
 #
@@ -4176,6 +4161,21 @@ drop function bug12379|
 drop procedure bug12379_1|
 drop procedure bug12379_2|
 drop procedure bug12379_3|
+
+#
+# Bug #13124    Stored Procedure using SELECT INTO crashes server
+#
+
+--disable_warnings
+drop procedure if exists bug13124|
+--enable_warnings
+create procedure bug13124()
+begin
+  declare y integer;
+  set @x=y;
+end|
+call bug13124()|
+drop procedure  bug13124|
 
 #
 # BUG#NNNN: New bug synopsis
