@@ -3264,4 +3264,12 @@ bug131333()
 NULL
 drop procedure bug131333|
 drop function bug131333|
+drop procedure if exists bug13124|
+create procedure bug13124()
+begin
+declare y integer;
+set @x=y;
+end|
+call bug13124()|
+drop procedure  bug13124|
 drop table t1,t2;
