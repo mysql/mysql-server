@@ -576,7 +576,7 @@ drop database db1;
 # Bug 10713 mysqldump includes database in create view and referenced tables
 #
 
-# create table and views in testdb2
+# create table and views in db2
 create database db2;
 use db2;
 create table t1 (a int);
@@ -587,7 +587,6 @@ create view v1 as select * from t2;
 create view v2 as select * from t1;
 
 # dump tables and view from db2
---exec $MYSQL_DUMP db2
 --exec $MYSQL_DUMP db2 > var/tmp/bug10713.sql
 
 # drop the db, tables and views
@@ -602,10 +601,9 @@ use db1;
 
 # check that all tables and views could be created
 show tables;
-#select * from t2 order by a;
+select * from t2 order by a;
 
-#drop table t1, t2;
-#drop view t1, t2;
+drop table t1, t2;
 drop database db1;
 #
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
