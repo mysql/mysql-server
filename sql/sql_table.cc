@@ -1629,7 +1629,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     */
     if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                      &syntax_len,
-                                                     TRUE)))
+                                                     TRUE,TRUE)))
       DBUG_RETURN(TRUE);
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
@@ -4274,7 +4274,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                           /*select_field_count*/ 0);
       if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                        &syntax_len,
-                                                       TRUE)))
+                                                       TRUE,TRUE)))
       {
         DBUG_RETURN(TRUE);
       }
@@ -4310,7 +4310,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                        &syntax_len,
-                                                       TRUE)))
+                                                       TRUE,TRUE)))
       {
         DBUG_RETURN(TRUE);
       }

@@ -961,7 +961,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-#ifdef HAVE_PARTITION_DB
+#if 0 //def HAVE_PARTITION_DB
     if (!table->s->part_info)
 #endif
     {
@@ -1047,7 +1047,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     if (table->s->part_info &&
         ((part_syntax= generate_partition_syntax(table->s->part_info,
                                                   &part_syntax_len,
-                                                  FALSE))))
+                                                  FALSE,FALSE))))
     {
        packet->append(part_syntax, part_syntax_len);
        my_free(part_syntax, MYF(0));
