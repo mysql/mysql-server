@@ -166,7 +166,7 @@ sub spawn_impl ($$$$$$$$) {
       {
         if ( ! open(STDOUT,$log_file_open_mode,$output) )
         {
-          mtr_error("can't redirect STDOUT to \"$output\": $!");
+          mtr_child_error("can't redirect STDOUT to \"$output\": $!");
         }
       }
 
@@ -176,14 +176,14 @@ sub spawn_impl ($$$$$$$$) {
         {
           if ( ! open(STDERR,">&STDOUT") )
           {
-            mtr_error("can't dup STDOUT: $!");
+            mtr_child_error("can't dup STDOUT: $!");
           }
         }
         else
         {
           if ( ! open(STDERR,$log_file_open_mode,$error) )
           {
-            mtr_error("can't redirect STDERR to \"$error\": $!");
+            mtr_child_error("can't redirect STDERR to \"$error\": $!");
           }
         }
       }
@@ -192,13 +192,13 @@ sub spawn_impl ($$$$$$$$) {
       {
         if ( ! open(STDIN,"<",$input) )
         {
-          mtr_error("can't redirect STDIN to \"$input\": $!");
+          mtr_child_error("can't redirect STDIN to \"$input\": $!");
         }
       }
 
       if ( ! exec($path,@$arg_list_t) )
       {
-        mtr_error("failed to execute \"$path\": $!");
+        mtr_child_error("failed to execute \"$path\": $!");
       }
     }
   }
