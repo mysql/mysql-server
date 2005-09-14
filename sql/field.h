@@ -97,7 +97,7 @@ public:
   /* Store functions returns 1 on overflow and -1 on fatal error */
   virtual int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   virtual int  store(double nr)=0;
-  virtual int  store(longlong nr)=0;
+  virtual int  store(longlong nr, bool unsigned_val)=0;
   virtual int  store_decimal(const my_decimal *d)=0;
   virtual int store_time(TIME *ltime, timestamp_type t_type);
   virtual double val_real(void)=0;
@@ -357,7 +357,7 @@ public:
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
   int  store(double nr);
-  int  store(longlong nr)=0;
+  int  store(longlong nr, bool unsigned_val)=0;
   int  store_decimal(const my_decimal *);
   int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   uint size_of() const { return sizeof(*this); }
@@ -422,7 +422,7 @@ public:
   void reset(void);
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -464,7 +464,7 @@ public:
   void set_value_on_overflow(my_decimal *decimal_value, bool sign);
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);
@@ -497,7 +497,7 @@ public:
     { return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -533,7 +533,7 @@ public:
     { return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;}
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=ptr[1]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -564,7 +564,7 @@ public:
     { return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int store(longlong nr);
+  int store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -600,7 +600,7 @@ public:
     { return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -638,7 +638,7 @@ public:
     { return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -674,7 +674,7 @@ public:
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_FLOAT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { bzero(ptr,sizeof(float)); }
   double val_real(void);
   longlong val_int(void);
@@ -708,7 +708,7 @@ public:
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { bzero(ptr,sizeof(double)); }
   double val_real(void);
   longlong val_int(void);
@@ -737,7 +737,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *cs)
   { null[0]=1; return 0; }
   int  store(double nr)   { null[0]=1; return 0; }
-  int  store(longlong nr) { null[0]=1; return 0; }
+  int  store(longlong nr, bool unsigned_val) { null[0]=1; return 0; }
   int  store_decimal(const my_decimal *d)  { null[0]=1; return 0; }
   void reset(void)	  {}
   double val_real(void)		{ return 0.0;}
@@ -766,7 +766,7 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -818,7 +818,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_YEAR;}
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -845,7 +845,7 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -873,7 +873,7 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   int store_time(TIME *ltime, timestamp_type type);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
@@ -909,7 +909,7 @@ public:
   int store_time(TIME *ltime, timestamp_type type);
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -946,7 +946,7 @@ public:
   uint decimals() const { return DATETIME_DEC; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   int store_time(TIME *ltime, timestamp_type type);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
   double val_real(void);
@@ -990,7 +990,7 @@ public:
   bool zero_pack() const { return 0; }
   void reset(void) { charset()->cset->fill(charset(),ptr,field_length,' '); }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   int store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
   longlong val_int(void);
@@ -1049,7 +1049,7 @@ public:
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
   uint32 key_length() const { return (uint32) field_length; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   int  store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
   longlong val_int(void);
@@ -1106,7 +1106,7 @@ public:
     { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -1201,7 +1201,7 @@ public:
   void sql_type(String &str) const;
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
   void get_key_image(char *buff,uint length,imagetype type);
   uint size_of() const { return sizeof(*this); }
@@ -1232,7 +1232,7 @@ public:
   enum ha_base_keytype key_type() const;
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
-  int  store(longlong nr);
+  int  store(longlong nr, bool unsigned_val);
   void reset() { bzero(ptr,packlength); }
   double val_real(void);
   longlong val_int(void);
@@ -1268,8 +1268,8 @@ public:
       flags=(flags & ~ENUM_FLAG) | SET_FLAG;
     }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
-  int  store(double nr) { return Field_set::store((longlong) nr); }
-  int  store(longlong nr);
+  int  store(double nr) { return Field_set::store((longlong) nr, FALSE); }
+  int  store(longlong nr, bool unsigned_val);
   virtual bool zero_pack() const { return 1; }
   String *val_str(String*,String *);
   void sql_type(String &str) const;
@@ -1296,7 +1296,7 @@ public:
   void reset(void) { bzero(ptr, field_length); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr);
-  int store(longlong nr);
+  int store(longlong nr, bool unsigned_val);
   int store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);
@@ -1342,7 +1342,8 @@ public:
   uint size_of() const { return sizeof(*this); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr) { return Field_bit::store(nr); }
-  int store(longlong nr) { return Field_bit::store(nr); }
+  int store(longlong nr, bool unsigned_val)
+  { return Field_bit::store(nr, unsigned_val); }
   void sql_type(String &str) const;
 };
 
