@@ -224,11 +224,11 @@ bool mysql_create_view(THD *thd,
     table (i.e. user will not get some privileges by view creation)
   */
   if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                    0, 0) ||
+                    0, 0, is_schema_db(view->db)) ||
        grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
       (mode != VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                     0, 0) ||
+                     0, 0, is_schema_db(view->db)) ||
         grant_option && check_grant(thd, DROP_ACL, view, 0, 1, 0))))
   {
     res= TRUE;
@@ -280,7 +280,7 @@ bool mysql_create_view(THD *thd,
       if (!tbl->table_in_first_from_clause)
       {
         if (check_access(thd, SELECT_ACL, tbl->db,
-                         &tbl->grant.privilege, 0, 0) ||
+                         &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
             grant_option && check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
         {
           res= TRUE;

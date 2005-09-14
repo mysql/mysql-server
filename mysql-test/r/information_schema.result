@@ -594,7 +594,7 @@ TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
 create database information_schema;
-ERROR HY000: Can't create database 'information_schema'; database exists
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 use information_schema;
 show full tables like "T%";
 Tables_in_information_schema (T%)	Table_type
@@ -990,3 +990,25 @@ Field	Type	Null	Key	Default	Extra
 c	int(11)	YES		NULL	
 drop view v1;
 drop table t1;
+alter database information_schema;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop database information_schema;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+drop table information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+alter table information_schema.tables;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+use information_schema;
+create temporary table schemata(f1 char(10));
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CREATE PROCEDURE p1 ()
+BEGIN
+SELECT 'foo' FROM DUAL;
+END |
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+select  ROUTINE_NAME from routines;
+ROUTINE_NAME
+grant all on information_schema.* to 'user1'@'localhost';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+grant select on information_schema.* to 'user1'@'localhost';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
