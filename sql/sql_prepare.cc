@@ -1235,7 +1235,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     if (check_table_access(thd, privilege, tables,0))
       goto error;
   }
-  else if (check_access(thd, privilege, any_db,0,0,0))
+  else if (check_access(thd, privilege, any_db,0,0,0,0))
     goto error;
 #endif
 
