@@ -539,10 +539,12 @@ typedef struct st_table_list
   LEX_STRING	view_db;		/* saved view database */
   LEX_STRING	view_name;		/* saved view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
+  st_lex_user   definer;                /* definer of view */
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
+  ulonglong     view_suid;              /* view is suid (TRUE dy default) */
   ulonglong     with_check;             /* WITH CHECK OPTION */
   /*
     effective value of WITH CHECK OPTION (differ for temporary table
@@ -578,6 +580,8 @@ typedef struct st_table_list
   bool          multitable_view;        /* TRUE iff this is multitable view */
   /* view where processed */
   bool          where_processed;
+  /* db part was not defined in table definition */
+  bool          current_db_used;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */

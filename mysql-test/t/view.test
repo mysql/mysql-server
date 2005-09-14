@@ -2059,3 +2059,12 @@ order by users_names;
 
 drop view v1, v2;
 drop table t1, t2;
+
+#
+# DEFINER information check
+#
+-- error ER_NO_VIEW_USER
+create definer=some_user@__% sql security invoker view v1 as select 1;
+create definer=some_user@localhost sql security invoker view v1 as select 1;
+show create view v1;
+drop view v1;
