@@ -237,9 +237,6 @@ extern CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
-extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
-		my_cache_read;
-extern ulong	my_blocks_used, my_blocks_changed;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern uint	mysys_usage_id;
 extern my_bool	my_init_done;
