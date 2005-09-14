@@ -840,10 +840,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
-        prepare prepare_src execute deallocate 
+        prepare prepare_src execute deallocate
 	statement sp_suid opt_view_list view_list or_replace algorithm
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
+        view_user view_suid
         partition_entry
 END_OF_INPUT
 
@@ -1273,16 +1274,16 @@ create:
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
-	| CREATE or_replace algorithm VIEW_SYM table_ident
+	| CREATE or_replace algorithm view_user view_suid VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    /* first table in list is target VIEW name */
-	    if (!lex->select_lex.add_table_to_list(thd, $5, NULL, 0))
+	    if (!lex->select_lex.add_table_to_list(thd, $7, NULL, 0))
               YYABORT;
 	  }
-	  opt_view_list AS select_init check_option
+	  opt_view_list AS select_view_init check_option
 	  {}
         | CREATE TRIGGER_SYM sp_name trg_action_time trg_event 
           ON table_ident FOR_SYM EACH_SYM ROW_SYM
@@ -3915,16 +3916,16 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-	| ALTER algorithm VIEW_SYM table_ident
+	| ALTER algorithm view_user view_suid VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $4, NULL, 0);
+	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
 	  }
-	  opt_view_list AS select_init check_option
+	  opt_view_list AS select_view_init check_option
 	  {}
 	;
 
@@ -4582,6 +4583,18 @@ select_init:
 	SELECT_SYM select_init2
 	|
 	'(' select_paren ')' union_opt;
+
+select_view_init:
+        SELECT_SYM remember_name select_init2
+          {
+            Lex->create_view_select_start= $2;
+          }
+        |
+        '(' remember_name select_paren ')' union_opt
+          {
+            Lex->create_view_select_start= $2;
+          }
+        ;
 
 select_paren:
 	SELECT_SYM select_part2
@@ -9496,6 +9509,53 @@ algorithm:
 	| ALGORITHM_SYM EQ TEMPTABLE_SYM
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
 	;
+
+view_user:
+        /* empty */
+          {
+            THD *thd= YYTHD;
+            if (!(thd->lex->create_view_definer=
+                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+              YYABORT;
+            if (default_view_definer(thd, thd->lex->create_view_definer))
+              YYABORT;
+          }
+        | CURRENT_USER optional_braces
+          {
+            THD *thd= YYTHD;
+            if (!(thd->lex->create_view_definer=
+                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+              YYABORT;
+            if (default_view_definer(thd, thd->lex->create_view_definer))
+              YYABORT;
+          }
+	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
+	  {
+	    THD *thd= YYTHD;
+            st_lex_user *view_user;
+	    if (!(thd->lex->create_view_definer= view_user=
+                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+	      YYABORT;
+	    view_user->user = $3; view_user->host=$5;
+            if (strchr(view_user->host.str, wild_many) ||
+                strchr(view_user->host.str, wild_one))
+            {
+              my_error(ER_NO_VIEW_USER, MYF(0));
+              YYABORT;
+            }
+	  }
+        ;
+
+view_suid:
+        /* empty */
+	  { Lex->create_view_suid= TRUE; }
+        |
+	  SQL_SYM SECURITY_SYM DEFINER_SYM
+	  { Lex->create_view_suid= TRUE; }
+	| SQL_SYM SECURITY_SYM INVOKER_SYM
+	  { Lex->create_view_suid= FALSE; }
+	;
+
 check_option:
         /* empty */
           { Lex->create_view_check= VIEW_CHECK_NONE; }
