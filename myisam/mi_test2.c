@@ -834,14 +834,14 @@ end:
 #if 0
     printf("key cache status: \n\
 blocks used:%10lu\n\
+not flushed:%10lu\n\
 w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-	   my_blocks_used,
-           my_cache_w_requests, my_cache_write,
-	   my_cache_r_requests, my_cache_read);
-#endif
+           my_blocks_used, my_blocks_changed,
+           (ulong) my_cache_w_requests, (ulong) my_cache_write,
+           (ulong) my_cache_r_requests, (ulong) my_cache_read);
   }
   end_key_cache(dflt_key_cache,1);
   if (blob_buffer)
