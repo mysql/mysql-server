@@ -1037,3 +1037,10 @@ call wg2()//
 
 delimiter ;//
 drop procedure wg2;
+
+#
+# Bug #12979 Stored procedures: crash if inout decimal parameter
+# (not a SP bug in fact)
+#
+
+select cast(@non_existing_user_var/2 as DECIMAL);
