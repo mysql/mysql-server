@@ -229,7 +229,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc);
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
-
+bool is_acl_user(const char *host, const char *user);
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0
