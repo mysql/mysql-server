@@ -44,4 +44,4 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 --replace_column 2 # 5 #
-show binlog events;
+show binlog events limit 1,100;
