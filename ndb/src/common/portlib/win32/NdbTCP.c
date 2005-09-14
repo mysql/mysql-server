@@ -52,7 +52,7 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   FD_SET(sock, &writefds);
   FD_SET(sock, &errorfds);
 
-  if(select(1, &readfds, &writefds, &errorfds, &t)==SOCKET_ERROR)
+  if(select(1, &readfds, &writefds, &errorfds, &tv)==SOCKET_ERROR)
     return 1;
 
   if(FD_ISSET(sock,&errorfds))
