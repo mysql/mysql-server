@@ -812,12 +812,14 @@ end:
       puts("blobs used");
     printf("key cache status: \n\
 blocks used:%10lu\n\
+not flushed:%10lu\n\
 w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-	   _my_blocks_used,_my_cache_w_requests, _my_cache_write,
-	   _my_cache_r_requests,_my_cache_read);
+           _my_blocks_used, _my_blocks_changed,
+           (ulong) _my_cache_w_requests, (ulong) _my_cache_write,
+           (ulong) _my_cache_r_requests, (ulong) _my_cache_read);
   }
   end_key_cache();
   if (blob_buffer)
