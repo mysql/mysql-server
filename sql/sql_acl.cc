@@ -1456,6 +1456,29 @@ end:
 
 
 /*
+  Find user in ACL
+
+  SYNOPSIS
+    is_acl_user()
+    host                 host name
+    user                 user name
+
+  RETURN
+   FALSE  user not fond
+   TRUE   there are such user
+*/
+
+bool is_acl_user(const char *host, const char *user)
+{
+  bool res;
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+  res= find_acl_user(host, user, TRUE);
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  return res;
+}
+
+
+/*
   Find first entry that matches the current user
 */
 
