@@ -1130,6 +1130,64 @@ END|
 SELECT bug12995()|
 delimiter ;|
 
+
+#
+# BUG#12712: SET AUTOCOMMIT should fail within SP/functions/triggers
+#
+--disable_warnings
+drop procedure if exists bug12712;
+drop function if exists bug12712;
+--enable_warnings
+# Can...
+create procedure bug12712()
+  set session autocommit = 0;
+
+select @@autocommit;
+set @au = @@autocommit;
+call bug12712();
+select @@autocommit;
+set session autocommit = @au;
+
+delimiter |;
+create function bug12712()
+  returns int
+begin
+  call bug12712();
+  return 0;
+end|
+
+# Can't...
+--error ER_SP_CANT_SET_AUTOCOMMIT
+set @x = bug12712()|
+drop procedure bug12712|
+drop function bug12712|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create function bug12712()
+    returns int
+begin
+  set session autocommit = 0;
+  return 0;
+end|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create function bug12712()
+    returns int
+begin
+  set @@autocommit = 0;
+  return 0;
+end|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create function bug12712()
+    returns int
+begin
+  set local autocommit = 0;
+  return 0;
+end|
+delimiter ;|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create trigger bug12712
+  before insert on t1 for each row set session autocommit = 0;
+
+
 #
 # BUG#NNNN: New bug synopsis
 #
