@@ -3323,6 +3323,7 @@ drop function bug12379|
 drop procedure bug12379_1|
 drop procedure bug12379_2|
 drop procedure bug12379_3|
+drop table t3|
 drop procedure if exists bug13124|
 create procedure bug13124()
 begin

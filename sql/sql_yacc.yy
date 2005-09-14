@@ -8005,15 +8005,14 @@ internal_variable_name:
             if (tmp == &sys_time_zone &&
                 lex->add_time_zone_tables_to_query_tables(YYTHD))
               YYABORT;
-            else
-              if (spc && tmp == &sys_autocommit)
-              {
-                /*
-                  We don't allow setting AUTOCOMMIT from a stored function
-		  or trigger.
-                */
-                lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-              }
+            else if (spc && tmp == &sys_autocommit)
+            {
+              /*
+                We don't allow setting AUTOCOMMIT from a stored function
+		or trigger.
+              */
+              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+            }
 	  }
 	  else
 	  {
