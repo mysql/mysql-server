@@ -1614,6 +1614,10 @@ static bool show_status_array(THD *thd, const char *wild,
           value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
           end= int10_to_str(*(long*) value, buff, 10);
           break;
+        case SHOW_KEY_CACHE_LONGLONG:
+	  value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
+	  end= longlong10_to_str(*(longlong*) value, buff, 10);
+	  break;
         case SHOW_UNDEF:				// Show never happen
         case SHOW_SYS:
           break;					// Return empty string
