@@ -769,7 +769,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
   int thread_mask;
   DBUG_ENTER("start_slave");
 
-  if (check_access(thd, SUPER_ACL, any_db,0,0,0))
+  if (check_access(thd, SUPER_ACL, any_db,0,0,0,0))
     DBUG_RETURN(1);
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
@@ -894,7 +894,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   if (!thd)
     thd = current_thd;
 
-  if (check_access(thd, SUPER_ACL, any_db,0,0,0))
+  if (check_access(thd, SUPER_ACL, any_db,0,0,0,0))
     return 1;
   thd->proc_info = "Killing slave";
   int thread_mask;
