@@ -2298,7 +2298,7 @@ static uint32 get_part_id_key(Field **field_array,
                               uint no_parts)
 {
   DBUG_ENTER("get_part_id_key");
-  DBUG_RETURN(calculate_key_value(field_array) & no_parts);
+  DBUG_RETURN(calculate_key_value(field_array) % no_parts);
 }
 
 
