@@ -114,7 +114,8 @@ public:
     IN_HANDLER= 4,              // Is set if the parser is in a handler body
     MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
     CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
-    IS_INVOKED= 32              // Is set if this sp_head is being used.
+    IS_INVOKED= 32,             // Is set if this sp_head is being used
+    HAS_SET_AUTOCOMMIT_STMT = 64 // Is set if a procedure with 'set autocommit'
   };
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
@@ -282,7 +283,10 @@ public:
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
     else if (m_flags & MULTI_RESULTS)
       my_error(ER_SP_NO_RETSET, MYF(0), where);
-    return test(m_flags & (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS));
+    else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
+      my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
+    return test(m_flags &
+		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
   }
 private:
 

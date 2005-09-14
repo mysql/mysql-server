@@ -628,7 +628,7 @@ void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
                           bool *write_to_binlog);
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
-		  bool no_grant, bool no_errors);
+		  bool no_grant, bool no_errors, bool schema_db);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
@@ -875,6 +875,8 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
 bool get_schema_tables_result(JOIN *join);
+#define is_schema_db(X) \
+  !my_strcasecmp(system_charset_info, information_schema_name.str, (X))
 
 /* sql_prepare.cc */
 
