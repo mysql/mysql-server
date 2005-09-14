@@ -18,9 +18,6 @@
 #pragma implementation
 #endif
 
-#ifdef __WIN__
-#include <process.h>
-#endif
 #include "instance.h"
 
 #include "mysql_manager_error.h"
@@ -40,7 +37,7 @@
 static void start_and_monitor_instance(Instance_options *old_instance_options,
                                        Instance_map *instance_map);
 
-#ifndef _WIN_
+#ifndef __WIN__
 typedef pid_t My_process_info;
 #else
 typedef PROCESS_INFORMATION My_process_info;
@@ -171,25 +168,24 @@ static int start_process(Instance_options *instance_options,
   ZeroMemory(pi, sizeof(PROCESS_INFORMATION));
 
   int cmdlen= 0;
-  for (int i= 1; instance_options->argv[i] != 0; i++)
-    cmdlen+= strlen(instance_options->argv[i]) + 1;
-  cmdlen++;  /* we have to add a single space for CreateProcess (see docs) */
+  for (int i= 0; instance_options->argv[i] != 0; i++)
+    cmdlen+= strlen(instance_options->argv[i]) + 3;
+  cmdlen++;   /* make room for the null */
 
-  char *cmdline= NULL;
-  if (cmdlen > 0)
+  char *cmdline= new char[cmdlen];
+  if (cmdline == NULL)
+    return 1;
+
+  for (int i= 0; instance_options->argv[i] != 0; i++)
   {
-    cmdline= new char[cmdlen];
-    cmdline[0]= 0;
-    for (int i= 1; instance_options->argv[i] != 0; i++)
-    {
-      strcat(cmdline, " ");
-      strcat(cmdline, instance_options->argv[i]);
-    }
+    strcat(cmdline, "\"");
+    strcat(cmdline, instance_options->argv[i]);
+    strcat(cmdline, "\" ");
   }
 
   /* Start the child process */
   BOOL result=
-    CreateProcess(instance_options->mysqld_path,  /* File to execute */
+    CreateProcess(NULL,          /* Put it all in cmdline */
                   cmdline,       /* Command line */
                   NULL,          /* Process handle not inheritable */
                   NULL,          /* Thread handle not inheritable */

@@ -102,10 +102,12 @@ int main(int argc, char *argv[])
     angel(options);
   }
 #else
-#ifdef NDEBUG
-  return_value= HandleServiceOptions(options);
-  goto err;   /* this is not always an error but we reuse the label */
-#endif
+  if (!options.stand_alone)
+  {
+    if (HandleServiceOptions(options))
+      goto err;
+  }
+  else
 #endif
 
   manager(options);

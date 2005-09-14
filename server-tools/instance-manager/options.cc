@@ -33,6 +33,7 @@
 #ifdef __WIN__
 char Options::install_as_service;
 char Options::remove_service;
+char Options::stand_alone;
 char windows_config_file[FN_REFLEN];
 char default_password_file_name[FN_REFLEN];
 char default_log_file_name[FN_REFLEN];
@@ -72,6 +73,7 @@ enum options {
 #else
   OPT_INSTALL_SERVICE,
   OPT_REMOVE_SERVICE,
+  OPT_STAND_ALONE,
 #endif
   OPT_MONITORING_INTERVAL,
   OPT_PORT,
@@ -130,6 +132,9 @@ static struct my_option my_long_options[] =
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { "remove", OPT_REMOVE_SERVICE, "Remove system service.",
     (gptr *)&Options::remove_service, (gptr*) &Options::remove_service,
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
+  { "standalone", OPT_STAND_ALONE, "Run the application in stand alone mode.",
+    (gptr *)&Options::stand_alone, (gptr*) &Options::stand_alone,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
 #else
   { "run-as-service", OPT_RUN_AS_SERVICE,

@@ -31,6 +31,7 @@ struct Options
 #ifdef __WIN__
   static char install_as_service;
   static char remove_service;
+  static char stand_alone;
 #else
   static char run_as_service;        /* handle_options doesn't support bool */
   static const char *user;
@@ -52,7 +53,7 @@ struct Options
   int load(int argc, char **argv);
   void cleanup();
 #ifdef __WIN__
-  int setup_windows_defaults(const char *progname);
+  int setup_windows_defaults();
 #endif
 };
 
