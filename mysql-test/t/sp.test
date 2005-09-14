@@ -4064,6 +4064,120 @@ select @var|
 drop procedure bug12849_2|
 
 #
+# BUG#13133: Local variables in stored procedures are not initialized correctly.
+#
+--disable_warnings
+drop procedure if exists bug131333|
+drop function if exists bug131333|
+--enable_warnings
+create procedure bug131333()
+begin
+  begin
+    declare a int;
+
+    select a;
+    set a = 1;
+    select a;
+  end;
+  begin
+    declare b int;
+
+    select b;
+  end;
+end|
+
+create function bug131333()
+  returns int
+begin
+  begin
+    declare a int;
+
+    set a = 1;
+  end;
+  begin
+    declare b int;
+
+    return b;
+  end;
+end|
+
+call bug131333()|
+select bug131333()|
+
+drop procedure bug131333|
+drop function bug131333|
+
+#
+# BUG#12379: PROCEDURE with HANDLER calling FUNCTION with error get
+#            strange result
+#
+--disable_warnings
+drop function if exists bug12379|
+drop procedure if exists bug12379_1|
+drop procedure if exists bug12379_2|
+drop procedure if exists bug12379_3|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (c1 char(1) primary key not null)|
+
+create function bug12379()
+  returns integer
+begin
+   insert into t3 values('X');
+   insert into t3 values('X');
+   return 0;
+end|
+
+create procedure bug12379_1()
+begin
+   declare exit handler for sqlexception select 42;
+
+   select bug12379();
+END|
+create procedure bug12379_2()
+begin
+   declare exit handler for sqlexception begin end;
+
+   select bug12379();
+end|
+create procedure bug12379_3()
+begin
+   select bug12379();
+end|
+
+--error 1062
+select bug12379()|
+select 1|
+call bug12379_1()|
+select 2|
+call bug12379_2()|
+select 3|
+--error 1062
+call bug12379_3()|
+select 4|
+
+drop function bug12379|
+drop procedure bug12379_1|
+drop procedure bug12379_2|
+drop procedure bug12379_3|
+
+#
+# Bug #13124    Stored Procedure using SELECT INTO crashes server
+#
+
+--disable_warnings
+drop procedure if exists bug13124|
+--enable_warnings
+create procedure bug13124()
+begin
+  declare y integer;
+  set @x=y;
+end|
+call bug13124()|
+drop procedure  bug13124|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

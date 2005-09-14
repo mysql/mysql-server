@@ -235,6 +235,7 @@ DO_GDB=""
 MANUAL_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
+DO_VALGRIND_MYSQL_TEST=""
 SLEEP_TIME_AFTER_RESTART=1
 SLEEP_TIME_FOR_DELETE=10
 SLEEP_TIME_FOR_FIRST_MASTER=400		# Enough time to create innodb tables
@@ -431,6 +432,9 @@ while test $# -gt 0; do
     --valgrind-options=*)
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
       VALGRIND="$VALGRIND $TMP"
+      ;;
+    --valgrind-mysqltest)
+      DO_VALGRIND_MYSQL_TEST=1
       ;;
     --skip-ndbcluster | --skip-ndb)
       USE_NDBCLUSTER=""
@@ -666,7 +670,7 @@ else
      MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test_embedded"
    fi
  else
-   MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
+   MYSQL_TEST="$VALGRIND_MYSQLTEST $CLIENT_BINDIR/mysqltest"
    MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test"
  fi
 fi
@@ -679,6 +683,10 @@ fi
 if [ -z "$SLAVE_MYSQLD" ]
 then
 SLAVE_MYSQLD=$MYSQLD
+fi
+
+if [ x$DO_VALGRIND_MYSQL_TEST = x1 ] ; then
+  MYSQL_TEST="$VALGRIND $MYSQL_TEST"
 fi
 
 # If we should run all tests cases, we will use a local server for that

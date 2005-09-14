@@ -1685,7 +1685,7 @@ bool handler::update_auto_increment()
   /* Mark that we should clear next_insert_id before next stmt */
   thd->clear_next_insert_id= 1;
 
-  if (!table->next_number_field->store((longlong) nr))
+  if (!table->next_number_field->store((longlong) nr, TRUE))
     thd->insert_id((ulonglong) nr);
   else
     thd->insert_id(table->next_number_field->val_int());

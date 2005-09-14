@@ -865,8 +865,33 @@ sql_exchange::sql_exchange(char *name,bool flag)
 
 bool select_send::send_fields(List<Item> &list, uint flags)
 {
-  return thd->protocol->send_fields(&list, flags);
+  bool res;
+  if (!(res= thd->protocol->send_fields(&list, flags)))
+    status= 1;
+  return res;
 }
+
+void select_send::abort()
+{
+  DBUG_ENTER("select_send::abort");
+  if (status && thd->spcont &&
+      thd->spcont->find_handler(thd->net.last_errno,
+                                MYSQL_ERROR::WARN_LEVEL_ERROR))
+  {
+    /*
+      Executing stored procedure without a handler.
+      Here we should actually send an error to the client,
+      but as an error will break a multiple result set, the only thing we
+      can do for now is to nicely end the current data set and remembering
+      the error so that the calling routine will abort
+    */
+    thd->net.report_error= 0;
+    send_eof();
+    thd->net.report_error= 1; // Abort SP
+  }
+  DBUG_VOID_RETURN;
+}
+
 
 /* Send data to client. Returns 0 if ok */
 
@@ -930,6 +955,7 @@ bool select_send::send_eof()
   if (!thd->net.report_error)
   {
     ::send_eof(thd);
+    status= 0;
     return 0;
   }
   else

@@ -25,26 +25,26 @@ eval CREATE TABLE federated.t1 (
     PRIMARY KEY (`id`)
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-  COMMENT='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/archive_table';
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/archive_table';
 
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'bar');
 
 SELECT * FROM federated.t1;
 
---error 1430
+--error 1296
 DELETE FROM federated.t1 WHERE id = 1;
 
 SELECT * FROM federated.t1;
 
 
---error 1430
+--error 1296
 UPDATE federated.t1 SET name='baz' WHERE id = 1;
 
 SELECT * FROM federated.t1;
 
 
-# --error 1430
+# --error 1296
 # TRUNCATE federated.t1;
 #
 # SELECT * from federated.t1;

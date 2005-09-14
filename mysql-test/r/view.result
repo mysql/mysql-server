@@ -1146,11 +1146,11 @@ create view v2 as select * from v1;
 alter view v1 as select * from v2;
 ERROR 42S02: Table 'test.v1' doesn't exist
 alter view v1 as select * from v1;
-ERROR 42000: Not unique table/alias: 'v1'
+ERROR 42S02: Table 'test.v1' doesn't exist
 create or replace view v1 as select * from v2;
 ERROR 42S02: Table 'test.v1' doesn't exist
 create or replace view v1 as select * from v1;
-ERROR 42000: Not unique table/alias: 'v1'
+ERROR 42S02: Table 'test.v1' doesn't exist
 drop view v2,v1;
 drop table t1;
 create table t1 (a int);
@@ -2186,3 +2186,13 @@ r_object_id	users_names
 120001a080000542	guser02
 drop view v1, v2;
 drop table t1, t2;
+create table t1 (s1 int);
+create view abc as select * from t1 as abc;
+drop table t1;
+drop view abc;
+create table t1(f1 char(1));
+create view v1 as select * from t1;
+select * from (select f1 as f2 from v1) v where v.f2='a';
+f2
+drop view v1;
+drop table t1;

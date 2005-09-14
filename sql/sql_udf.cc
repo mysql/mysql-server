@@ -472,10 +472,10 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
-  table->field[1]->store((longlong) u_d->returns);
+  table->field[1]->store((longlong) u_d->returns, TRUE);
   table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
-    table->field[3]->store((longlong) u_d->type);
+    table->field[3]->store((longlong) u_d->type, TRUE);
   error = table->file->write_row(table->record[0]);
 
   close_thread_tables(thd);
