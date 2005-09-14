@@ -2205,3 +2205,8 @@ select * from (select f1 as f2 from v1) v where v.f2='a';
 f2
 drop view v1;
 drop table t1;
+create view v1 as SELECT CONVERT_TZ('2004-01-01 12:00:00','GMT','MET');
+select * from v1;
+CONVERT_TZ('2004-01-01 12:00:00','GMT','MET')
+NULL
+drop view v1;
