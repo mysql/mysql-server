@@ -786,3 +786,50 @@ END|
 ERROR 0A000: HANDLER is not allowed in stored procedures
 SELECT bug12995()|
 ERROR 42000: FUNCTION test.bug12995 does not exist
+drop procedure if exists bug12712;
+drop function if exists bug12712;
+create procedure bug12712()
+set session autocommit = 0;
+select @@autocommit;
+@@autocommit
+1
+set @au = @@autocommit;
+call bug12712();
+select @@autocommit;
+@@autocommit
+0
+set session autocommit = @au;
+create function bug12712()
+returns int
+begin
+call bug12712();
+return 0;
+end|
+set @x = bug12712()|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+drop procedure bug12712|
+drop function bug12712|
+create function bug12712()
+returns int
+begin
+set session autocommit = 0;
+return 0;
+end|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+create function bug12712()
+returns int
+begin
+set @@autocommit = 0;
+return 0;
+end|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+create function bug12712()
+returns int
+begin
+set local autocommit = 0;
+return 0;
+end|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+create trigger bug12712
+before insert on t1 for each row set session autocommit = 0;
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
