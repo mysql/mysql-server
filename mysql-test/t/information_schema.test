@@ -338,7 +338,7 @@ from information_schema.tables
 where table_schema='information_schema' limit 2;
 show tables from information_schema like "T%";
 
---error 1007
+--error 1044
 create database information_schema;
 use information_schema;
 show full tables like "T%";
@@ -678,3 +678,39 @@ show fields from test.v1;
 connection default;
 drop view v1;
 drop table t1;
+
+#
+# Bug #9846 Inappropriate error displayed while dropping table from 'INFORMATION_SCHEMA'
+#
+--error 1044
+alter database information_schema;
+--error 1044
+drop database information_schema;
+--error 1044
+drop table information_schema.tables;
+--error 1044
+alter table information_schema.tables;
+#
+# Bug #9683 INFORMATION_SCH: Creation of temporary table allowed in Information_schema DB
+#
+use information_schema;
+--error 1044
+create temporary table schemata(f1 char(10));
+#
+# Bug #10708 SP's can use INFORMATION_SCHEMA as ROUTINE_SCHEMA
+#
+delimiter |;
+--error 1044
+CREATE PROCEDURE p1 ()
+BEGIN
+  SELECT 'foo' FROM DUAL;
+END |
+delimiter ;|
+select  ROUTINE_NAME from routines;
+#
+# Bug #10734 Grant of privileges other than 'select' and 'create view' should fail on schema
+#
+--error 1044
+grant all on information_schema.* to 'user1'@'localhost';
+--error 1044
+grant select on information_schema.* to 'user1'@'localhost';
