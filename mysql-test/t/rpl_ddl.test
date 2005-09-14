@@ -340,6 +340,57 @@ connection master;
 SELECT '-------- switch to master -------' as "";
 --enable_query_log
 
+# End of 4.1 tests
+
+###############################################################
+# Cases with stored procedures
+###############################################################
+let $my_stmt= CREATE PROCEDURE p1() READS SQL DATA SELECT "this is p1";
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+--vertical_results
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+connection master;
+--horizontal_results
+
+let $my_stmt= ALTER PROCEDURE p1 COMMENT "I have been altered";
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+--vertical_results
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+connection master;
+--horizontal_results
+
+let $my_stmt= DROP PROCEDURE p1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+--vertical_results
+SHOW PROCEDURE STATUS LIKE 'p1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SHOW PROCEDURE STATUS LIKE 'p1';
+connection master;
+--horizontal_results
+
 ###############################################################
 # Cleanup
 ###############################################################
@@ -349,4 +400,4 @@ DROP DATABASE IF EXISTS mysqltest2;
 DROP DATABASE IF EXISTS mysqltest3;
 --enable_warnings
 
-# End of 4.1 tests
+
