@@ -163,7 +163,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   SLAVE_INFO *si;
   uchar *p= packet, *p_end= packet + packet_length;
 
-  if (check_access(thd, REPL_SLAVE_ACL, any_db,0,0,0))
+  if (check_access(thd, REPL_SLAVE_ACL, any_db,0,0,0,0))
     return 1;
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
     goto err2;
