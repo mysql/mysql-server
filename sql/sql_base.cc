@@ -1397,7 +1397,6 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.status=		table->status;
   tmp.keys_in_use_for_query= tmp.s->keys_in_use;
   tmp.used_keys= 	tmp.s->keys_for_keyread;
-  tmp.force_index=	tmp.force_index;
 
   /* Get state */
   tmp.s->key_length=	table->s->key_length;
@@ -1428,6 +1427,9 @@ bool reopen_table(TABLE *table,bool locked)
   for (key=0 ; key < table->s->keys ; key++)
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
       table->key_info[key].key_part[part].field->table= table;
+  if (table->triggers)
+    table->triggers->set_table(table);
+
   VOID(pthread_cond_broadcast(&COND_refresh));
   error=0;
 
@@ -1476,7 +1478,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
 
   TABLE *table,*next,**prev;
   TABLE **tables,**tables_ptr;			// For locks
-  bool error=0;
+  bool error=0, not_used;
   if (get_locks)
   {
     /* The ptr is checked later */
@@ -1517,7 +1519,8 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     MYSQL_LOCK *lock;
     /* We should always get these locks */
     thd->some_tables_deleted=0;
-    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables), 0)))
+    if ((lock= mysql_lock_tables(thd, tables, (uint) (tables_ptr - tables),
+                                 0, &not_used)))
     {
       thd->locked_tables=mysql_lock_merge(thd->locked_tables,lock);
     }
@@ -1967,9 +1970,15 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     /*
       Ignore placeholders for derived tables. After derived tables
       processing, link to created temporary table will be put here.
+      If this is derived table for view then we still want to process
+      routines used by this view.
      */
     if (tables->derived)
+    {
+      if (tables->view)
+        goto process_view_routines;
       continue;
+    }
     if (tables->schema_table)
     {
       if (!mysql_schema_table(thd, thd->lex, tables))
@@ -2001,23 +2010,12 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         if (query_tables_last_own == &(tables->next_global) &&
             tables->view->query_tables)
           query_tables_last_own= tables->view->query_tables_last;
-        
         /*
-          Again if needed we have to get cache all routines used by this view
-          and add tables used by them to table list.
+          Let us free memory used by 'sroutines' hash here since we never
+          call destructor for this LEX.
         */
-        if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-            tables->view->sroutines.records)
-        {
-          /* We have at least one table in TL here */
-          if (!query_tables_last_own)
-            query_tables_last_own= thd->lex->query_tables_last;
-          sp_cache_routines_and_add_tables_for_view(thd, thd->lex,
-                                                    tables->view);
-        }
-        /* Cleanup hashes because destructo for this LEX is never called */
         hash_free(&tables->view->sroutines);
-	continue;
+	goto process_view_routines;
       }
 
       if (refresh)				// Refresh in progress
@@ -2029,11 +2027,6 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 	thd->version=refresh_version;
 	TABLE **prev_table= &thd->open_tables;
 	bool found=0;
-        /*
-          QQ: What we should do if we have started building of table list
-          for prelocking ??? Probably throw it away ? But before we should
-          mark all temporary tables as free? How about locked ?
-        */
 	for (TABLE_LIST *tmp= *start; tmp; tmp= tmp->next_global)
 	{
 	  /* Close normal (not temporary) changed tables */
@@ -2057,6 +2050,18 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 	pthread_mutex_unlock(&LOCK_open);
 	if (found)
 	  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
+        /*
+          Let us prepare for recalculation of set of prelocked tables.
+          First we pretend that we have finished calculation which we
+          were doing currently. Then we restore list of tables to be
+          opened and set of used routines to the state in which they were
+          before first open_tables() call for this statement (i.e. before
+          we have calculated current set of tables for prelocking).
+        */
+        if (query_tables_last_own)
+          thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
+        thd->lex->chop_off_not_own_tables();
+        sp_remove_not_own_routines(thd->lex);
 	goto restart;
       }
       result= -1;				// Fatal error
@@ -2087,6 +2092,21 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
       tables->table->reginfo.lock_type=tables->lock_type;
     tables->table->grant= tables->grant;
+
+process_view_routines:
+    /*
+      Again we may need cache all routines used by this view and add
+      tables used by them to table list.
+    */
+    if (tables->view && !thd->prelocked_mode &&
+        !thd->lex->requires_prelocking() &&
+        tables->view->sroutines_list.elements)
+    {
+      /* We have at least one table in TL here. */
+      if (!query_tables_last_own)
+        query_tables_last_own= thd->lex->query_tables_last;
+      sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables->view);
+    }
   }
   thd->proc_info=0;
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
@@ -2191,7 +2211,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     {
       DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
-	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1, 0)))
+	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1, 0,
+                                            &refresh)))
 	  table= 0;
     }
   }
@@ -2219,11 +2240,20 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
 int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  DBUG_ENTER("simple_open_n_lock_tables");
   uint counter;
-  if (open_tables(thd, &tables, &counter, 0) ||
-      lock_tables(thd, tables, counter))
-    DBUG_RETURN(-1);				/* purecov: inspected */
+  bool need_reopen;
+  DBUG_ENTER("simple_open_n_lock_tables");
+
+  for ( ; ; ) 
+  {
+    if (open_tables(thd, &tables, &counter, 0))
+      DBUG_RETURN(-1);
+    if (!lock_tables(thd, tables, counter, &need_reopen))
+      break;
+    if (!need_reopen)
+      DBUG_RETURN(-1);
+    close_tables_for_reopen(thd, tables);
+  }
   DBUG_RETURN(0);
 }
 
@@ -2248,10 +2278,20 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   uint counter;
+  bool need_reopen;
   DBUG_ENTER("open_and_lock_tables");
-  if (open_tables(thd, &tables, &counter, 0) ||
-      lock_tables(thd, tables, counter) ||
-      mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+
+  for ( ; ; ) 
+  {
+    if (open_tables(thd, &tables, &counter, 0))
+      DBUG_RETURN(-1);
+    if (!lock_tables(thd, tables, counter, &need_reopen))
+      break;
+    if (!need_reopen)
+      DBUG_RETURN(-1);
+    close_tables_for_reopen(thd, tables);
+  }
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -2319,7 +2359,12 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
     lock_tables()
     thd			Thread handler
     tables		Tables to lock
-    count		umber of opened tables
+    count		Number of opened tables
+    need_reopen         Out parameter which if TRUE indicates that some
+                        tables were dropped or altered during this call
+                        and therefore invoker should reopen tables and
+                        try to lock them once again (in this case
+                        lock_tables() will also return error).
 
   NOTES
     You can't call lock_tables twice, as this would break the dead-lock-free
@@ -2335,7 +2380,7 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
    -1	Error
 */
 
-int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
+int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 {
   TABLE_LIST *table;
 
@@ -2350,6 +2395,8 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
     So it is safe to shortcut.
   */
   DBUG_ASSERT(!thd->lex->requires_prelocking() || tables);
+
+  *need_reopen= FALSE;
 
   if (!tables)
     DBUG_RETURN(0);
@@ -2383,7 +2430,9 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       thd->options|= OPTION_TABLE_LOCK;
     }
 
-    if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start), 0)))
+    if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
+                                        MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN,
+                                        need_reopen)))
     {
       if (thd->lex->requires_prelocking())
       {
@@ -2459,6 +2508,28 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
     }
   }
   DBUG_RETURN(0);
+}
+
+
+/*
+  Prepare statement for reopening of tables and recalculation of set of
+  prelocked tables.
+
+  SYNOPSIS
+    close_tables_for_reopen()
+      thd     Thread context
+      tables  List of tables which we were trying to open and lock
+
+*/
+
+void close_tables_for_reopen(THD *thd, TABLE_LIST *tables)
+{
+  thd->lex->chop_off_not_own_tables();
+  sp_remove_not_own_routines(thd->lex);
+  for (TABLE_LIST *tmp= tables; tmp; tmp= tmp->next_global)
+    if (tmp->table && !tmp->table->s->tmp_table)
+      tmp->table= 0;
+  close_thread_tables(thd);
 }
 
 
