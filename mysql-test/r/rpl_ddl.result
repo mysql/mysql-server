@@ -1072,6 +1072,188 @@ Database (mysqltest3)
 mysqltest3
 
 -------- switch to master -------
+
+######## CREATE PROCEDURE p1() READS SQL DATA SELECT "this is p1"  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 15 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+15
+
+-------- switch to master -------
+CREATE PROCEDURE p1() READS SQL DATA SELECT "this is p1";
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	root@localhost
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	
+	-------- switch to slave -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	@
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	
+
+######## ALTER PROCEDURE p1 COMMENT "I have been altered"  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 16 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to master -------
+ALTER PROCEDURE p1 COMMENT "I have been altered";
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	root@localhost
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	I have been altered
+	-------- switch to slave -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	@
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	I have been altered
+
+######## DROP PROCEDURE p1  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 17 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to master -------
+DROP PROCEDURE p1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+	-------- switch to slave -------
+SHOW PROCEDURE STATUS LIKE 'p1';
 DROP DATABASE IF EXISTS mysqltest1;
 DROP DATABASE IF EXISTS mysqltest2;
 DROP DATABASE IF EXISTS mysqltest3;
