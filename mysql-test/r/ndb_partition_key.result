@@ -68,4 +68,13 @@ PRIMARY KEY(a, b, c) - UniqueHashIndex
 
 NDBT_ProgramExit: 0 - OK
 
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` char(10) character set latin1 collate latin1_bin NOT NULL default '',
+  `c` int(11) NOT NULL default '0',
+  `d` int(11) default NULL,
+  PRIMARY KEY  USING HASH (`a`,`b`,`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (b) 
 DROP TABLE t1;

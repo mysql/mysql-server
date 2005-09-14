@@ -55,4 +55,11 @@ insert into t1 values (1,"a",1,1),(2,"a",1,1),(3,"a",1,1);
 # should show only one attribute with DISTRIBUTION KEY
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | sed 's/Version: [0-9]*//' | sed 's/\(Length of frm data: \)[0-9]*/\1#/'
 
+#
+# Test that explicit partition info is not shown in show create table
+# result should not contain (PARTITION P0 ... etc) since this is what shows up in
+# mysqldump, and we don't want that info there
+#
+show create table t1;
+
 DROP TABLE t1;
