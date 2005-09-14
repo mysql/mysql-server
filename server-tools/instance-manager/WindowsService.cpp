@@ -8,7 +8,8 @@ WindowsService::WindowsService(void) :
   statusCheckpoint(0),
   serviceName(NULL),
   inited(false),
-  dwAcceptedControls(SERVICE_ACCEPT_STOP)
+  dwAcceptedControls(SERVICE_ACCEPT_STOP),
+  debugging(false)
 {
   gService= this;
   status.dwServiceType= SERVICE_WIN32_OWN_PROCESS;
@@ -148,7 +149,7 @@ void WindowsService::RegisterAndRun(DWORD argc, LPTSTR *argv)
 {
   statusHandle= ::RegisterServiceCtrlHandler(serviceName, ControlHandler);
   if (statusHandle && ReportStatus(SERVICE_START_PENDING))
-    Run();
+    Run(argc, argv);
   ReportStatus(SERVICE_STOPPED);
 }
 

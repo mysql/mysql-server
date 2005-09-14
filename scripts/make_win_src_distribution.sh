@@ -266,7 +266,7 @@ make -C $SOURCE/ndb windoze
 # Input directories to be copied recursively
 #
 
-for i in bdb innobase ndb extra/yassl
+for i in bdb innobase ndb extra/yassl server-tools
 do
   copy_dir_dirs $i
 done
