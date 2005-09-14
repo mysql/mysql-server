@@ -4161,6 +4161,7 @@ drop function bug12379|
 drop procedure bug12379_1|
 drop procedure bug12379_2|
 drop procedure bug12379_3|
+drop table t3|
 
 #
 # Bug #13124    Stored Procedure using SELECT INTO crashes server

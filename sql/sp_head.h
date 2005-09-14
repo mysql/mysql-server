@@ -285,7 +285,8 @@ public:
       my_error(ER_SP_NO_RETSET, MYF(0), where);
     else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
       my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
-    return test(m_flags & (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS));
+    return test(m_flags &
+		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
   }
 private:
 
