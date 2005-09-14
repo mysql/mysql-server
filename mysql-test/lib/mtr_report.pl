@@ -19,6 +19,7 @@ sub mtr_print_header ();
 sub mtr_report (@);
 sub mtr_warning (@);
 sub mtr_error (@);
+sub mtr_child_error (@);
 sub mtr_debug (@);
 
 
@@ -284,6 +285,11 @@ sub mtr_warning (@) {
 sub mtr_error (@) {
   print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
   mtr_exit(1);
+}
+
+sub mtr_child_error (@) {
+  print STDERR "mysql-test-run: *** ERROR(child): ",join(" ", @_),"\n";
+  exit(1);
 }
 
 sub mtr_debug (@) {
