@@ -59,6 +59,9 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+             
+static TABLE_LIST* get_table_by_alias(TABLE_LIST* tl, const char* db,
+  const char* alias);      
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -125,10 +128,7 @@ static bool end_active_trans(THD *thd)
 */
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
-  return (table_rules_on && tables && !tables_ok(thd,tables) &&
-          ((thd->lex->sql_command != SQLCOM_DELETE_MULTI) ||
-           !tables_ok(thd,
-		      (TABLE_LIST *)thd->lex->auxilliary_table_list.first)));
+  return (table_rules_on && tables && !tables_ok(thd,tables));
 }
 #endif
 
@@ -4248,6 +4248,40 @@ void create_select_for_variable(const char *var_name)
   DBUG_VOID_RETURN;
 }
 
+static TABLE_LIST* get_table_by_alias(TABLE_LIST* tl, const char* db,
+  const char* alias)
+{
+  for (;tl;tl= tl->next)
+  {
+    if (!strcmp(db,tl->db) &&
+        tl->alias && !my_strcasecmp(table_alias_charset,tl->alias,alias))
+      return tl;
+  }
+  
+  return 0;
+}     
+
+/* Sets up lex->auxilliary_table_list */
+void fix_multi_delete_lex(LEX* lex)
+{
+  TABLE_LIST *tl;
+  TABLE_LIST *good_list= (TABLE_LIST*)lex->select_lex.table_list.first;
+  
+  for (tl= (TABLE_LIST*)lex->auxilliary_table_list.first; tl; tl= tl->next)
+  {
+    TABLE_LIST* good_table= get_table_by_alias(good_list,tl->db,tl->alias);
+    if (good_table && !good_table->derived)
+    {
+      /* 
+          real_name points to a member of Table_ident which is
+          allocated via thd->strmake() from THD memroot 
+       */
+      tl->real_name= good_table->real_name;
+      tl->real_name_length= good_table->real_name_length;
+      good_table->updating= tl->updating;
+    }
+  }
+}  
 
 void mysql_init_multi_delete(LEX *lex)
 {
@@ -5570,13 +5604,7 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     (*table_count)++;
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk;
-    for (walk= delete_tables; walk; walk= walk->next)
-    {
-      if (!my_strcasecmp(table_alias_charset,
-			 target_tbl->alias, walk->alias) &&
-	  !strcmp(walk->db, target_tbl->db))
-	break;
-    }
+    walk= get_table_by_alias(delete_tables,target_tbl->db,target_tbl->alias);
     if (!walk)
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0), target_tbl->real_name,
