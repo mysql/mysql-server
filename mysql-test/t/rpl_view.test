@@ -3,6 +3,7 @@ source include/master-slave.inc;
 drop table if exists t1,v1;
 drop view if exists t1,v1;
 sync_slave_with_master;
+reset master;
 --enable_warnings
 
 #
@@ -42,3 +43,5 @@ select * from v1 order by a;
 connection master;
 drop table t1;
 sync_slave_with_master;
+--replace_column 2 # 5 #
+show binlog events;

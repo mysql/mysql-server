@@ -4,7 +4,7 @@ drop procedure if exists f1;
 use test;
 create table t1 (field1 INT);
 CREATE VIEW v1 AS SELECT field1 FROM t1;
-drop view v1;
+ERROR HY000: View definer is not fully qualified
 drop table t1;
 create procedure f1() select 1;
 drop procedure f1;
