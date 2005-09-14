@@ -68,8 +68,9 @@ foreach(@{$tables})
 {
     my $table= @{$_}[0];
     my @columns;
-    my $info= $dbh->selectall_hashref("describe $table","Field");
-    my @count  = $dbh->selectrow_array("select count(*) from $table");
+    my $info= $dbh->selectall_hashref("describe ".$dbh->quote($table),"Field");
+    my @count  = $dbh->selectrow_array("select count(*) from "
+				       .$dbh->quote($table));
     my %columnsize; # used for index calculations
 
     # We now work out the DataMemory usage
@@ -129,7 +130,9 @@ foreach(@{$tables})
 	elsif($type =~ /varchar/ || $type =~ /varbinary/)
 	{
 	    my $fixed= 1+$size;
-	    my @dynamic=$dbh->selectrow_array("select avg(length($name)) from $table");
+	    my @dynamic=$dbh->selectrow_array("select avg(length("
+					      .$dbh->quote($name)
+					      .")) from ".$dbh->quote($table));
 	    $dynamic[0]=0 if !$dynamic[0];
 	    @realsize= ($fixed,$fixed,ceil($dynamic[0]));
 	}
@@ -163,7 +166,7 @@ foreach(@{$tables})
     # we can still connect to pre-5.0 mysqlds.
     my %indexes;
     {
-	my $sth= $dbh->prepare("show index from $table");
+	my $sth= $dbh->prepare("show index from "$dbh->quote($table));
 	$sth->execute;
 	while(my $i = $sth->fetchrow_hashref)
 	{    
