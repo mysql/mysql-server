@@ -1800,11 +1800,11 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
     USER_RESOURCES mqh= lex->mqh;
     if (mqh.specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
-      table->field[next_field]->store((longlong) mqh.questions);
+      table->field[next_field]->store((longlong) mqh.questions, TRUE);
     if (mqh.specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
-      table->field[next_field+1]->store((longlong) mqh.updates);
+      table->field[next_field+1]->store((longlong) mqh.updates, TRUE);
     if (mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
-      table->field[next_field+2]->store((longlong) mqh.conn_per_hour);
+      table->field[next_field+2]->store((longlong) mqh.conn_per_hour, TRUE);
     if (table->s->fields >= 36 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
       table->field[next_field+3]->store((longlong) mqh.user_conn);
@@ -2306,7 +2306,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       store_record(table,record[1]);			// copy original row
     }
 
-    table->field[6]->store((longlong) get_rights_for_column(privileges));
+    table->field[6]->store((longlong) get_rights_for_column(privileges), TRUE);
 
     if (old_row_exists)
     {
@@ -2373,7 +2373,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
 	privileges&= ~rights;
 	table->field[6]->store((longlong)
-			       get_rights_for_column(privileges));
+			       get_rights_for_column(privileges), TRUE);
 	table->field[4]->val_str(&column_name);
 	grant_column = column_hash_search(g_t,
 					  column_name.ptr(),
@@ -2492,8 +2492,8 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   table->field[4]->store(grantor,(uint) strlen(grantor), system_charset_info);
-  table->field[6]->store((longlong) store_table_rights);
-  table->field[7]->store((longlong) store_col_rights);
+  table->field[6]->store((longlong) store_table_rights, TRUE);
+  table->field[7]->store((longlong) store_col_rights, TRUE);
   rights=fix_rights_for_table(store_table_rights);
   col_rights=fix_rights_for_column(store_col_rights);
 
@@ -2568,7 +2568,8 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->field[3]->store(routine_name,(uint) strlen(routine_name),
                          &my_charset_latin1);
   table->field[4]->store((longlong)(is_proc ? 
-                         TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION));
+                                    TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION),
+                         TRUE);
   store_record(table,record[1]);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0],0,
@@ -2609,7 +2610,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   }
 
   table->field[5]->store(grantor,(uint) strlen(grantor), &my_charset_latin1);
-  table->field[6]->store((longlong) store_proc_rights);
+  table->field[6]->store((longlong) store_proc_rights, TRUE);
   rights=fix_rights_for_procedure(store_proc_rights);
 
   if (old_row_exists)

@@ -223,7 +223,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   table->field[0]->store(name->m_db.str, name->m_db.length, &my_charset_bin);
   table->field[1]->store(name->m_name.str, name->m_name.length,
                          &my_charset_bin);
-  table->field[2]->store((longlong) type);
+  table->field[2]->store((longlong) type, TRUE);
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
