@@ -3331,4 +3331,20 @@ set @x=y;
 end|
 call bug13124()|
 drop procedure  bug13124|
+drop procedure if exists bug12979_1|
+create procedure bug12979_1(inout d decimal(5)) set d = d / 2|
+set @bug12979_user_var = NULL|
+call bug12979_1(@bug12979_user_var)|
+drop procedure bug12979_1|
+drop procedure if exists bug12979_2|
+create procedure bug12979_2()
+begin
+declare internal_var decimal(5);
+set internal_var= internal_var / 2;
+select internal_var;
+end|
+call bug12979_2()|
+internal_var
+NULL
+drop procedure bug12979_2|
 drop table t1,t2;
