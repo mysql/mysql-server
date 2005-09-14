@@ -1826,7 +1826,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong)tzid);
+  table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0);
 
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
@@ -1853,7 +1853,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong)tzid);
+  table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0);
 
   // FIXME Is there any better approach than explicitly specifying 4 ???
@@ -1925,7 +1925,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     in ascending order by index scan also satisfies us.
   */
   table= tz_tables->table; 
-  table->field[0]->store((longlong)tzid);
+  table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0);
 
   // FIXME Is there any better approach than explicitly specifying 4 ???

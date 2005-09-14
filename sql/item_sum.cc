@@ -1614,7 +1614,7 @@ void Item_sum_hybrid::reset_field()
       else
 	result_field->set_notnull();
     }
-    result_field->store(nr);
+    result_field->store(nr, unsigned_flag);
     break;
   }
   case REAL_RESULT:
@@ -1930,7 +1930,7 @@ Item_sum_hybrid::min_max_update_int_field()
   }
   else if (result_field->is_null(0))
     result_field->set_null();
-  result_field->store(old_nr);
+  result_field->store(old_nr, unsigned_flag);
 }
 
 

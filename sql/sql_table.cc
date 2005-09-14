@@ -1712,6 +1712,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
+  tmp_table.timestamp_field= 0;
   tmp_table.s= &tmp_table.share_not_to_be_used;
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
