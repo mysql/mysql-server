@@ -102,4 +102,13 @@ a	b	c
 1	1	1
 DELETE from t1 WHERE b = 6;
 DELETE from t1 WHERE a = 6;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY  (`b`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY RANGE (b) (PARTITION x1 VALUES LESS THAN (5) ENGINE = NDBCLUSTER, PARTITION x2 VALUES LESS THAN (10) ENGINE = NDBCLUSTER, PARTITION x3 VALUES LESS THAN (20) ENGINE = NDBCLUSTER)
 drop table t1;
