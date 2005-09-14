@@ -344,7 +344,9 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
 #undef  LONGLONG_MAX            /* standard system library 'limits.h' */
 #ifdef __cplusplus
-#define HAVE_RINT               /* rint() and isnan() functions are not */
+#ifndef HAVE_RINT
+#define HAVE_RINT
+#endif                          /* rint() and isnan() functions are not */
 #define rint(a) std::rint(a)    /* visible in C++ scope due to an error */
 #define isnan(a) std::isnan(a)  /* in the usr/include/math.h on QNX     */
 #endif
