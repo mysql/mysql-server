@@ -2190,7 +2190,7 @@ create definer=some_user@__% sql security invoker view v1 as select 1;
 ERROR HY000: View definer is not fully qualified
 create definer=some_user@localhost sql security invoker view v1 as select 1;
 Warnings:
-Note	1448	There is not some_user@localhost registered
+Note	1449	There is not some_user@localhost registered
 show create view v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
