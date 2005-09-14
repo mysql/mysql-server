@@ -82,5 +82,11 @@ select * from t1 where a=1 and b in (1,6,10,21) order by b;
 DELETE from t1 WHERE b = 6;
 DELETE from t1 WHERE a = 6;
 
+#
+# Test that explicit partition info _is_ shown in show create table
+# result _should_ contain (PARTITION x1 ... etc)
+#
+show create table t1;
+
 drop table t1;
 
