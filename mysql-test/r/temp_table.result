@@ -111,7 +111,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show create view t1;
 View	Create View
-t1	CREATE ALGORITHM=UNDEFINED VIEW `t1` AS select _latin1'This is view' AS `A`
+t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `t1` AS select _latin1'This is view' AS `A`
 drop view t1;
 select * from t1;
 A

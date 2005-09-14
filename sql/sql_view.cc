@@ -210,6 +210,36 @@ bool mysql_create_view(THD *thd,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
+    check definer of view:
+      - same as current user
+      - current user has SUPER_ACL
+  */
+  if (strcmp(lex->create_view_definer->user.str, thd->priv_user) != 0 ||
+      my_strcasecmp(system_charset_info,
+                    lex->create_view_definer->host.str,
+                    thd->priv_host) != 0)
+  {
+    if (!(thd->master_access & SUPER_ACL))
+    {
+      my_error(ER_VIEW_OTHER_USER, MYF(0), lex->create_view_definer->user.str,
+               lex->create_view_definer->host.str);
+      res= TRUE;
+      goto err;
+    }
+    else
+    {
+      if (!is_acl_user(lex->create_view_definer->host.str,
+                       lex->create_view_definer->user.str))
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                            ER_NO_SUCH_USER,
+                            ER(ER_NO_SUCH_USER),
+                            lex->create_view_definer->user.str,
+                            lex->create_view_definer->host.str);
+      }
+    }
+  }
+  /*
     Privilege check for view creation:
     - user has CREATE VIEW privilege on view table
     - user has DROP privilege in case of ALTER VIEW or CREATE OR REPLACE
@@ -369,6 +399,7 @@ bool mysql_create_view(THD *thd,
     if (lex->view_list.elements != select_lex->item_list.elements)
     {
       my_message(ER_VIEW_WRONG_LIST, ER(ER_VIEW_WRONG_LIST), MYF(0));
+      res= TRUE;
       goto err;
     }
     while ((item= it++, name= nm++))
@@ -447,9 +478,9 @@ err:
 
 
 /* index of revision number in following table */
-static const int revision_number_position= 5;
+static const int revision_number_position= 8;
 /* index of last required parameter for making view */
-static const int required_view_parameters= 7;
+static const int required_view_parameters= 10;
 
 /*
   table of VIEW .frm field descriptors
@@ -458,23 +489,41 @@ static const int required_view_parameters= 7;
   parse()
 */
 static File_option view_parameters[]=
-{{{(char*) "query", 5},		offsetof(TABLE_LIST, query),
+{{{(char*) STRING_WITH_LEN("query")},
+  offsetof(TABLE_LIST, query),
   FILE_OPTIONS_STRING},
- {{(char*) "md5", 3},		offsetof(TABLE_LIST, md5),
+ {{(char*) STRING_WITH_LEN("md5")},
+  offsetof(TABLE_LIST, md5),
   FILE_OPTIONS_STRING},
- {{(char*) "updatable", 9},	offsetof(TABLE_LIST, updatable_view),
+ {{(char*) STRING_WITH_LEN("updatable")},
+  offsetof(TABLE_LIST, updatable_view),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) "algorithm", 9},	offsetof(TABLE_LIST, algorithm),
+ {{(char*) STRING_WITH_LEN("algorithm")},
+  offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) "with_check_option", 17}, offsetof(TABLE_LIST, with_check),
-   FILE_OPTIONS_ULONGLONG},
- {{(char*) "revision", 8},	offsetof(TABLE_LIST, revision),
+ {{(char*) STRING_WITH_LEN("definer_user")},
+  offsetof(TABLE_LIST, definer.user),
+  FILE_OPTIONS_STRING},
+ {{(char*) STRING_WITH_LEN("definer_host")},
+  offsetof(TABLE_LIST, definer.host),
+  FILE_OPTIONS_STRING},
+ {{(char*) STRING_WITH_LEN("suid")},
+  offsetof(TABLE_LIST, view_suid),
+  FILE_OPTIONS_ULONGLONG},
+ {{(char*) STRING_WITH_LEN("with_check_option")},
+  offsetof(TABLE_LIST, with_check),
+  FILE_OPTIONS_ULONGLONG},
+ {{(char*) STRING_WITH_LEN("revision")},
+  offsetof(TABLE_LIST, revision),
   FILE_OPTIONS_REV},
- {{(char*) "timestamp", 9},	offsetof(TABLE_LIST, timestamp),
+ {{(char*) STRING_WITH_LEN("timestamp")},
+  offsetof(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
- {{(char*)"create-version", 14},offsetof(TABLE_LIST, file_version),
+ {{(char*)STRING_WITH_LEN("create-version")},
+  offsetof(TABLE_LIST, file_version),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) "source", 6},	offsetof(TABLE_LIST, source),
+ {{(char*) STRING_WITH_LEN("source")},
+  offsetof(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
  {{NullS, 0},			0,
   FILE_OPTIONS_STRING}
@@ -587,8 +636,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure */
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
-  view->source.str= thd->query;
-  view->source.length= thd->query_length;
+  view->source.str= thd->lex->create_view_select_start;
+  view->source.length= (thd->query_length -
+                        (thd->lex->create_view_select_start - thd->query));
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -602,6 +652,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
   view->algorithm= lex->create_view_algorithm;
+  view->definer.user= lex->create_view_definer->user;
+  view->definer.host= lex->create_view_definer->host;
+  view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
   if ((view->updatable_view= (can_be_merged &&
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
@@ -709,6 +762,11 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   /* init timestamp */
   if (!table->timestamp.str)
     table->timestamp.str= table->timestamp_buffer;
+  /* prepare default values for old format */
+  table->view_suid= 1;
+  table->definer.user.str= table->definer.host.str= 0;
+  table->definer.user.length= table->definer.host.length= 0;
+
   /*
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
@@ -716,6 +774,21 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   if (parser->parse((gptr)table, thd->mem_root, view_parameters,
                     required_view_parameters))
     goto err;
+
+  /*
+    check old format view .frm
+  */
+  if (!table->definer.user.str)
+  {
+    DBUG_ASSERT(!table->definer.host.str &&
+                !table->definer.user.length &&
+                !table->definer.host.length);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
+                        table->db, table->table_name);
+    if (default_view_definer(thd, &table->definer))
+      goto err;
+  }
 
   /*
     Save VIEW parameters, which will be wiped out by derived table
@@ -1162,7 +1235,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     {
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
       {
-        thd->set_query_id= save_set_query_id;        
+        thd->set_query_id= save_set_query_id;
         return TRUE;
       }
     }
