@@ -675,7 +675,8 @@ bool check_partition_info(partition_info *part_info,enum db_type eng_type,
                           handler *file, ulonglong max_rows);
 bool fix_partition_func(THD *thd, const char *name, TABLE *table);
 char *generate_partition_syntax(partition_info *part_info,
-                                uint *buf_length, bool use_sql_alloc);
+                                uint *buf_length, bool use_sql_alloc,
+                                bool add_default_info);
 bool partition_key_modified(TABLE *table, List<Item> &fields);
 void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec,
