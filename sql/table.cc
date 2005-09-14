@@ -288,7 +288,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
 
-  share->null_bytes= (null_pos-(uchar*)outparam->null_flags + (null_bit_pos + 7) / 8);
+  share->null_bytes= null_pos - (uchar*) outparam->null_flags + (null_bit_pos + 7) / 8;
 
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
