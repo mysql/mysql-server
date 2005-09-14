@@ -4467,8 +4467,29 @@ end_with_restore_list:
       if (!(res= mysql_create_view(thd, thd->lex->create_view_mode)) &&
           mysql_bin_log.is_open())
       {
+        String buff;
+        LEX_STRING command[3]=
+          {{STRING_WITH_LEN("CREATE ")},
+           {STRING_WITH_LEN("ALTER ")},
+           {STRING_WITH_LEN("CREATE OR REPLACE ")}};
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+
+        buff.append(command[thd->lex->create_view_mode].str,
+                    command[thd->lex->create_view_mode].length);
+        view_store_options(thd, first_table, &buff);
+        buff.append("VIEW ", 5);
+        if (!first_table->current_db_used)
+        {
+          append_identifier(thd, &buff, first_table->db,
+                            first_table->db_length);
+          buff.append('.');
+        }
+        append_identifier(thd, &buff, first_table->table_name,
+                          first_table->table_name_length);
+        buff.append(" AS ", 4);
+        buff.append(first_table->source.str, first_table->source.length);
+
+        Query_log_event qinfo(thd, buff.ptr(), buff.length(), 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
       break;
@@ -6058,12 +6079,14 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   {
     ptr->db= thd->db;
     ptr->db_length= thd->db_length;
+    ptr->current_db_used= 1;
   }
   else
   {
     /* The following can't be "" as we may do 'casedn_str()' on it */
     ptr->db= empty_c_string;
     ptr->db_length= 0;
+    ptr->current_db_used= 1;
   }
   if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
     ptr->db= thd->strdup(ptr->db);
@@ -7350,4 +7373,35 @@ Item *negate_expression(THD *thd, Item *expr)
   if ((negated= expr->neg_transformer(thd)) != 0)
     return negated;
   return new Item_func_not(expr);
+}
+
+
+/*
+  Assign as view definer current user
+
+  SYNOPSIS
+    default_definer()
+    thd                  thread handler
+    definer              structure where it should be assigned
+
+  RETURN
+    FALSE   OK
+    TRUE    Error
+*/
+
+bool default_view_definer(THD *thd, st_lex_user *definer)
+{
+  definer->user.str= thd->priv_user;
+  definer->user.length= strlen(thd->priv_user);
+  if (*thd->priv_host != 0)
+  {
+    definer->host.str= thd->priv_host;
+    definer->host.length= strlen(thd->priv_host);
+  }
+  else
+  {
+    my_error(ER_NO_VIEW_USER, MYF(0));
+    return TRUE;
+  }
+  return FALSE;
 }

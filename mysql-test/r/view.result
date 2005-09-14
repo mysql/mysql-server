@@ -32,10 +32,10 @@ c
 11
 show create table v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -55,7 +55,7 @@ Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=TEMPTABLE VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`
 select c from v2;
 c
 3
@@ -657,7 +657,7 @@ drop table t1;
 CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
 drop view v1;
 create table t1 (s1 int);
 create table t2 (s2 int);
@@ -691,13 +691,13 @@ create view v1 as select a from t1;
 create view v2 as select a from t2 where a in (select a from v1);
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=UNDEFINED VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where `a` in (select `v1`.`a` AS `a` from `v1`)
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where `a` in (select `v1`.`a` AS `a` from `v1`)
 drop view v2, v1;
 drop table t1, t2;
 CREATE VIEW `v 1` AS select 5 AS `5`;
 show create view `v 1`;
 View	Create View
-v 1	CREATE ALGORITHM=UNDEFINED VIEW `v 1` AS select 5 AS `5`
+v 1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v 1` AS select 5 AS `5`
 drop view `v 1`;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
@@ -765,14 +765,14 @@ a	b
 1	1
 show create view v3;
 View	Create View
-v3	CREATE ALGORITHM=UNDEFINED VIEW `v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`v1` join `v2`) where (`v1`.`col1` = `v2`.`col1`)
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`v1` join `v2`) where (`v1`.`col1` = `v2`.`col1`)
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
 create view v1 as select test.`f``1` ();
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select sql_no_cache `test`.`f``1`() AS `test.``f````1`` ()`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `test`.`f``1`() AS `test.``f````1`` ()`
 select * from v1;
 test.`f``1` ()
 5
@@ -789,10 +789,10 @@ create table t2 (col1 char collate latin1_german2_ci);
 create view v2 as select col1 collate latin1_german1_ci from t2;
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=UNDEFINED VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=UNDEFINED VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
 drop view v2;
 drop table t2;
 create table t1 (a int);
@@ -819,7 +819,7 @@ drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
 drop view v1;
 create table tü (cü char);
 create view vü as select cü from tü;
@@ -840,7 +840,7 @@ drop table t1;
 create view v1 as select cast(1 as char(3));
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
 select * from v1;
 cast(1 as char(3))
 1
@@ -1157,19 +1157,19 @@ create table t1 (a int);
 create view v1 as select * from t1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
 alter algorithm=undefined view v1 as select * from t1 with check option;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
 alter algorithm=merge view v1 as select * from t1 with cascaded check option;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=MERGE VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
 alter algorithm=temptable view v1 as select * from t1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=TEMPTABLE VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
 drop view v1;
 drop table t1;
 create table t1 (s1 int);
@@ -1841,24 +1841,24 @@ create table t2 (b timestamp default now());
 create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a`,`t2`.`b` AS `b`,(`t1`.`a` < now()) AS `t1.a < now()` from (`t1` join `t2`) where (`t1`.`a` < now())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a`,`t2`.`b` AS `b`,(`t1`.`a` < now()) AS `t1.a < now()` from (`t1` join `t2`) where (`t1`.`a` < now())
 drop view v1;
 drop table t1, t2;
 CREATE TABLE t1 ( a varchar(50) );
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = CURRENT_USER();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = current_user())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = current_user())
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = VERSION();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = version())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = version())
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = DATABASE();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = database())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = database())
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (col1 time);
@@ -1949,7 +1949,7 @@ create table t1 (s1 int);
 create view v1 as select var_samp(s1) from t1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select var_samp(`t1`.`s1`) AS `var_samp(s1)` from `t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select var_samp(`t1`.`s1`) AS `var_samp(s1)` from `t1`
 drop view v1;
 drop table t1;
 set sql_mode='strict_all_tables';
@@ -2186,6 +2186,15 @@ r_object_id	users_names
 120001a080000542	guser02
 drop view v1, v2;
 drop table t1, t2;
+create definer=some_user@__% sql security invoker view v1 as select 1;
+ERROR HY000: View definer is not fully qualified
+create definer=some_user@localhost sql security invoker view v1 as select 1;
+Warnings:
+Note	1449	There is not some_user@localhost registered
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
+drop view v1;
 create table t1 (s1 int);
 create view abc as select * from t1 as abc;
 drop table t1;

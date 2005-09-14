@@ -42,7 +42,7 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
 static int
 store_create_info(THD *thd, TABLE_LIST *table_list, String *packet);
 static int
-view_store_create_info(THD *thd, TABLE_LIST *table, String *packet);
+view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 static bool schema_table_store_record(THD *thd, TABLE *table);
 
 
@@ -1057,6 +1057,34 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   DBUG_RETURN(0);
 }
 
+void
+view_store_options(THD *thd, TABLE_LIST *table, String *buff)
+{
+  buff->append("ALGORITHM=", 10);
+  switch ((int8)table->algorithm) {
+  case VIEW_ALGORITHM_UNDEFINED:
+    buff->append("UNDEFINED ", 10);
+    break;
+  case VIEW_ALGORITHM_TMPTABLE:
+    buff->append("TEMPTABLE ", 10);
+    break;
+  case VIEW_ALGORITHM_MERGE:
+    buff->append("MERGE ", 6);
+    break;
+  default:
+    DBUG_ASSERT(0); // never should happen
+  }
+  buff->append("DEFINER=", 8);
+  append_identifier(thd, buff,
+                    table->definer.user.str, table->definer.user.length);
+  buff->append('@');
+  append_identifier(thd, buff,
+                    table->definer.host.str, table->definer.host.length);
+  if (table->view_suid)
+    buff->append(" SQL SECURITY DEFINER ", 22);
+  else
+    buff->append(" SQL SECURITY INVOKER ", 22);
+}
 
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
@@ -1093,21 +1121,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   buff->append("CREATE ", 7);
   if (!foreign_db_mode)
   {
-    buff->append("ALGORITHM=", 10);
-    switch((int8)table->algorithm)
-    {
-    case VIEW_ALGORITHM_UNDEFINED:
-      buff->append("UNDEFINED ", 10);
-      break;
-    case VIEW_ALGORITHM_TMPTABLE:
-      buff->append("TEMPTABLE ", 10);
-      break;
-    case VIEW_ALGORITHM_MERGE:
-      buff->append("MERGE ", 6);
-      break;
-    default:
-	DBUG_ASSERT(0); // never should happen
-    }
+    view_store_options(thd, table, buff);
   }
   buff->append("VIEW ", 5);
   if (!table->compact_view_format)
