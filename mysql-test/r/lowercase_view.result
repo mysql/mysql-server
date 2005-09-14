@@ -7,7 +7,7 @@ create table TaB (Field int);
 create view ViE as select * from TAb;
 show create table VIe;
 View	Create View
-vie	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
+vie	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
 drop database MySQLTest;
 use test;
 create table t1Aa (col1 int);
@@ -119,7 +119,7 @@ create table t1Aa (col1 int);
 create view v1Aa as select col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View
-v1aa	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
 drop view v1AA;
 select Aaa.col1 from t1Aa as AaA;
 col1
@@ -128,6 +128,6 @@ drop view v1AA;
 create view v1Aa as select AaA.col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View
-v1aa	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
 drop view v1AA;
 drop table t1Aa;

@@ -449,11 +449,11 @@ create table t2 (a int);
 create view v1 as select a from t1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
 SET @@SQL_MODE='ANSI_QUOTES';
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW "test"."v1" AS select "test"."t1"."a" AS "a" from "test"."t1"
+v1	CREATE ALGORITHM=UNDEFINED DEFINER="root"@"localhost" SQL SECURITY DEFINER VIEW "test"."v1" AS select "test"."t1"."a" AS "a" from "test"."t1"
 create view v2 as select a from t2 where a in (select a from v1);
 drop view v2, v1;
 drop table t1, t2;
