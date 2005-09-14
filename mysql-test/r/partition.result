@@ -87,3 +87,13 @@ partition by list (b*a)
 partition x2 values in (3, 11, 5, 7) tablespace ts2,
 partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 drop table t1;
+CREATE TABLE t1 (
+a int not null)
+partition by key(a);
+LOCK TABLES t1 WRITE;
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+insert into t1 values (4);
+UNLOCK TABLES;
+drop table t1;
