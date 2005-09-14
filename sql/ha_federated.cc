@@ -517,8 +517,27 @@ error:
 }
 
 
+static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
+{
+  char buf[table->s->connect_string.length+1];
+  DBUG_ENTER("ha_federated parse_url_error");
+  if (share->scheme)
+  {
+    DBUG_PRINT("info",
+               ("error: parse_url. Returning error code %d \
+                freeing share->scheme %lx", error_num, share->scheme));
+    my_free((gptr) share->scheme, MYF(0));
+    share->scheme= 0;
+  }
+
+  strnmov(buf, table->s->connect_string.str, table->s->connect_string.length+1);
+  buf[table->s->connect_string.length]= '\0';
+  my_error(error_num, MYF(0), buf);
+  DBUG_RETURN(error_num);
+}
+
 /*
-  Parse connection info from table->s->comment
+  Parse connection info from table->s->connect_string
 
   SYNOPSIS
     parse_url()
@@ -563,119 +582,106 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_ENTER("ha_federated::parse_url");
 
   share->port= 0;
-  share->scheme= my_strdup(table->s->comment, MYF(0));
+  DBUG_PRINT("info", ("Length %d \n", table->s->connect_string.length));
+  DBUG_PRINT("info", ("String %.*s \n", table->s->connect_string.length, 
+                      table->s->connect_string.str));
+  share->scheme= my_strdup_with_length(table->s->connect_string.str,
+		                       table->s->connect_string.length+1,
+				       MYF(0));
+  // Add a null for later termination of table name
+  share->scheme[table->s->connect_string.length]= 0;
   DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
 
   /*
     remove addition of null terminator and store length
     for each string  in share
   */
-  if ((share->username= strstr(share->scheme, "://")))
+  if (!(share->username= strstr(share->scheme, "://")))
+    goto error;
+  share->scheme[share->username - share->scheme]= '\0';
+
+  if (strcmp(share->scheme, "mysql") != 0)
+    goto error;
+
+  share->username+= 3;
+
+  if (!(share->hostname= strchr(share->username, '@')))
+    goto error;
+    
+  share->username[share->hostname - share->username]= '\0';
+  share->hostname++;
+
+  if ((share->password= strchr(share->username, ':')))
   {
-    share->scheme[share->username - share->scheme]= '\0';
-
-    if (strcmp(share->scheme, "mysql") != 0)
+    share->username[share->password - share->username]= '\0';
+    share->password++;
+    share->username= share->username;
+    /* make sure there isn't an extra / or @ */
+    if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
       goto error;
-
-    share->username+= 3;
-
-    if ((share->hostname= strchr(share->username, '@')))
-    {
-      share->username[share->hostname - share->username]= '\0';
-      share->hostname++;
-
-      if ((share->password= strchr(share->username, ':')))
-      {
-        share->username[share->password - share->username]= '\0';
-        share->password++;
-        share->username= share->username;
-        /* make sure there isn't an extra / or @ */
-        if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
-          goto error;
-        /*
-          Found that if the string is:
-          user:@hostname:port/database/table
-          Then password is a null string, so set to NULL
-        */
-        if ((share->password[0] == '\0'))
-          share->password= NULL;
-      }
-      else
-        share->username= share->username;
-
-      /* make sure there isn't an extra / or @ */
-      if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
-        goto error;
-
-      if ((share->database= strchr(share->hostname, '/')))
-      {
-        share->hostname[share->database - share->hostname]= '\0';
-        share->database++;
-
-        if ((share->sport= strchr(share->hostname, ':')))
-        {
-          share->hostname[share->sport - share->hostname]= '\0';
-          share->sport++;
-          if (share->sport[0] == '\0')
-            share->sport= NULL;
-          else
-            share->port= atoi(share->sport);
-        }
-
-        if ((share->table_name= strchr(share->database, '/')))
-        {
-          share->database[share->table_name - share->database]= '\0';
-          share->table_name++;
-        }
-        else
-          goto error;
-
-        share->table_name_length= strlen(share->table_name);
-      }
-      else
-        goto error;
-      /* make sure there's not an extra / */
-      if ((strchr(share->table_name, '/')))
-        goto error;
-
-      if (share->hostname[0] == '\0')
-        share->hostname= NULL;
-
-      if (!share->port)
-      {
-        if (strcmp(share->hostname, my_localhost) == 0)
-          share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
-        else
-          share->port= MYSQL_PORT;
-      }
-
-      DBUG_PRINT("info",
-                 ("scheme %s username %s password %s \
-                  hostname %s port %d database %s tablename %s\n",
-                  share->scheme, share->username, share->password,
-                  share->hostname, share->port, share->database,
-                  share->table_name));
-    }
-    else
-      goto error;
+    /*
+      Found that if the string is:
+      user:@hostname:port/database/table
+      Then password is a null string, so set to NULL
+    */
+    if ((share->password[0] == '\0'))
+      share->password= NULL;
   }
   else
+    share->username= share->username;
+
+  /* make sure there isn't an extra / or @ */
+  if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
     goto error;
+
+  if (!(share->database= strchr(share->hostname, '/')))
+    goto error;
+  share->hostname[share->database - share->hostname]= '\0';
+  share->database++;
+
+  if ((share->sport= strchr(share->hostname, ':')))
+  {
+    share->hostname[share->sport - share->hostname]= '\0';
+    share->sport++;
+    if (share->sport[0] == '\0')
+      share->sport= NULL;
+    else
+      share->port= atoi(share->sport);
+  }
+
+  if (!(share->table_name= strchr(share->database, '/')))
+    goto error;
+  share->database[share->table_name - share->database]= '\0';
+  share->table_name++;
+
+  share->table_name_length= strlen(share->table_name);
+      
+  /* make sure there's not an extra / */
+  if ((strchr(share->table_name, '/')))
+    goto error;
+
+  if (share->hostname[0] == '\0')
+    share->hostname= NULL;
+
+  if (!share->port)
+  {
+    if (strcmp(share->hostname, my_localhost) == 0)
+      share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
+    else
+      share->port= MYSQL_PORT;
+  }
+
+  DBUG_PRINT("info",
+             ("scheme %s username %s password %s \
+              hostname %s port %d database %s tablename %s\n",
+              share->scheme, share->username, share->password,
+              share->hostname, share->port, share->database,
+              share->table_name));
 
   DBUG_RETURN(0);
 
 error:
-  if (share->scheme)
-  {
-    DBUG_PRINT("info",
-               ("error: parse_url. Returning error code %d \
-                freeing share->scheme %lx", error_num, share->scheme));
-    my_free((gptr) share->scheme, MYF(0));
-    share->scheme= 0;
-  }
-  my_error(error_num, MYF(0), table->s->comment);
-  DBUG_RETURN(error_num);
-
+  DBUG_RETURN(parse_url_error(share, table, error_num));
 }
 
 
@@ -1313,7 +1319,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                           &share, sizeof(*share),
                           &tmp_table_name, tmp_table_name_length+ 1,
                           &select_query,
-                          query.length()+strlen(table->s->comment)+1,
+                          query.length()+table->s->connect_string.length+1,
                           NullS)))
     {
       pthread_mutex_unlock(&federated_mutex);
@@ -1918,11 +1924,9 @@ int ha_federated::delete_row(const byte *buf)
 
   String delete_string(delete_buffer, sizeof(delete_buffer), &my_charset_bin);
   String data_string(data_buffer, sizeof(data_buffer), &my_charset_bin);
-  delete_string.length(0);
-  data_string.length(0);
-
   DBUG_ENTER("ha_federated::delete_row");
 
+  delete_string.length(0);
   delete_string.append(FEDERATED_DELETE);
   delete_string.append(FEDERATED_FROM);
   delete_string.append(FEDERATED_BTICK);
@@ -1932,9 +1936,11 @@ int ha_federated::delete_row(const byte *buf)
 
   for (Field **field= table->field; *field; field++)
   {
-    delete_string.append((*field)->field_name);
+    Field *cur_field= *field;
+    data_string.length(0);
+    delete_string.append(cur_field->field_name);
 
-    if ((*field)->is_null())
+    if (cur_field->is_null())
     {
       delete_string.append(FEDERATED_IS);
       data_string.append(FEDERATED_NULL);
@@ -1942,16 +1948,14 @@ int ha_federated::delete_row(const byte *buf)
     else
     {
       delete_string.append(FEDERATED_EQ);
-      (*field)->val_str(&data_string);
-      (*field)->quote_data(&data_string);
+      cur_field->val_str(&data_string);
+      cur_field->quote_data(&data_string);
     }
 
     delete_string.append(data_string);
-    data_string.length(0);
-
-    if (*(field + 1))
-      delete_string.append(FEDERATED_AND);
+    delete_string.append(FEDERATED_AND);
   }
+  delete_string.length(delete_string.length()-5); // Remove trailing AND
 
   delete_string.append(FEDERATED_LIMIT1);
   DBUG_PRINT("info",
