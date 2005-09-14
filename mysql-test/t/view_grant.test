@@ -24,6 +24,8 @@ grant create view,select on test.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 
+-- error ER_VIEW_OTHER_USER
+create definer=root@localhost view v1 as select * from mysqltest.t1;
 create view v1 as select * from mysqltest.t1;
 # try to modify view without DROP privilege on it
 -- error 1142
@@ -38,6 +40,9 @@ create view mysqltest.v2  as select * from mysqltest.t1;
 create view v2 as select * from mysqltest.t2;
 
 connection root;
+# check view definer information
+show create view v1;
+
 grant create view,drop,select on test.* to mysqltest_1@localhost;
 
 connection user1;

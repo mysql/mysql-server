@@ -733,6 +733,8 @@ typedef struct st_lex
   TABLE_LIST **query_tables_last;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
+  st_lex_user *create_view_definer;
+  char *create_view_select_start;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -853,6 +855,10 @@ typedef struct st_lex
     rexecuton
   */
   bool empty_field_list_on_rset;
+  /*
+    view created to be run from definer (standard behaviour)
+  */
+  bool create_view_suid;
   /* Characterstics of trigger being created */
   st_trg_chistics trg_chistics;
   /*
