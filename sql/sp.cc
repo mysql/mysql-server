@@ -107,7 +107,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 {
   TABLE_LIST tables;
   TABLE *table;
-  bool refresh;
+  bool not_used;
   DBUG_ENTER("open_proc_table");
 
   /*
@@ -122,7 +122,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*)"proc";
-  if (!(table= open_table(thd, &tables, thd->mem_root, &refresh,
+  if (!(table= open_table(thd, &tables, thd->mem_root, &not_used,
                           MYSQL_LOCK_IGNORE_FLUSH)))
   {
     thd->restore_backup_open_tables_state(backup);
@@ -138,7 +138,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
     could lead to a deadlock if we have other tables opened.
   */
   if (!(thd->lock= mysql_lock_tables(thd, &table, 1,
-                                     MYSQL_LOCK_IGNORE_FLUSH)))
+                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
     close_proc_table(thd, backup);
     DBUG_RETURN(0);
@@ -1265,7 +1265,8 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
 
 
 /*
-  Add routine to the set of stored routines used by statement.
+  Add routine which is explicitly used by statement to the set of stored
+  routines used by this statement.
 
   SYNOPSIS
     sp_add_used_routine()
@@ -1276,7 +1277,8 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
       rt_type - routine type (one of TYPE_ENUM_PROCEDURE/...)
 
   NOTES
-    Will also add element to end of 'LEX::sroutines_list' list.
+    Will also add element to end of 'LEX::sroutines_list' list (and will
+    take into account that this is explicitly used routine).
 
     To be friendly towards prepared statements one should pass
     persistent arena as second argument.
@@ -1287,6 +1289,37 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
 {
   rt->set_routine_type(rt_type);
   (void)add_used_routine(lex, arena, &rt->m_sroutines_key);
+  lex->sroutines_list_own_last= lex->sroutines_list.next;
+  lex->sroutines_list_own_elements= lex->sroutines_list.elements;
+}
+
+
+/*
+  Remove routines which are only indirectly used by statement from
+  the set of routines used by this statement.
+
+  SYNOPSIS
+    sp_remove_not_own_routines()
+      lex  LEX representing statement
+*/
+
+void sp_remove_not_own_routines(LEX *lex)
+{
+  Sroutine_hash_entry *not_own_rt, *next_rt;
+  for (not_own_rt= *(Sroutine_hash_entry **)lex->sroutines_list_own_last;
+       not_own_rt; not_own_rt= next_rt)
+  {
+    /*
+      It is safe to obtain not_own_rt->next after calling hash_delete() now
+      but we want to be more future-proof.
+    */
+    next_rt= not_own_rt->next;
+    hash_delete(&lex->sroutines, (byte *)not_own_rt);
+  }
+
+  *(Sroutine_hash_entry **)lex->sroutines_list_own_last= NULL;
+  lex->sroutines_list.next= lex->sroutines_list_own_last;
+  lex->sroutines_list.elements= lex->sroutines_list_own_elements;
 }
 
 
@@ -1340,6 +1373,28 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
     (void)add_used_routine(lex, thd->stmt_arena, &rt->key);
   }
+}
+
+
+/*
+  Add contents of list representing set of routines to the set of
+  routines used by statement.
+
+  SYNOPSIS
+    sp_update_stmt_used_routines()
+      thd  Thread context
+      lex  LEX representing statement
+      src  List representing set from which routines will be added
+
+  NOTE
+    It will also add elements to end of 'LEX::sroutines_list' list.
+*/
+
+static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src)
+{
+  for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
+       rt; rt= rt->next)
+    (void)add_used_routine(lex, thd->stmt_arena, &rt->key);
 }
 
 
@@ -1463,7 +1518,7 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
 {
   Sroutine_hash_entry **last_cached_routine_ptr=
                           (Sroutine_hash_entry **)lex->sroutines_list.next;
-  sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines);
+  sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines_list);
   (void)sp_cache_routines_and_add_tables_aux(thd, lex, 
                                              *last_cached_routine_ptr, FALSE);
 }

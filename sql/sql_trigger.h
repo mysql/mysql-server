@@ -98,6 +98,8 @@ public:
     return test(bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE]);
   }
 
+  void set_table(TABLE *new_table);
+
   friend class Item_trigger_field;
   friend void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                 Table_triggers_list *triggers);
