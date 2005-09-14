@@ -195,6 +195,8 @@ TEST_join(JOIN *join)
 void mysql_print_status(THD *thd)
 {
   char current_dir[FN_REFLEN];
+  char llbuff[22];
+
   printf("\nStatus information:\n\n");
   my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
@@ -214,13 +216,12 @@ void mysql_print_status(THD *thd)
   pthread_mutex_lock(&THR_LOCK_keycache);
   printf("key_cache status:\n\
 blocks used:%10lu\n\
-not flushed:%10lu\n\
-w_requests: %10lu\n\
-writes:     %10lu\n\
-r_requests: %10lu\n\
-reads:      %10lu\n",
-	 _my_blocks_used,_my_blocks_changed,_my_cache_w_requests,
-	 _my_cache_write,_my_cache_r_requests,_my_cache_read);
+not flushed:%10lu\n",
+         _my_blocks_used, _my_blocks_changed);
+  printf("w_requests: %10s\n", llstr(_my_cache_w_requests, llbuff));
+  printf("writes:     %10s\n", llstr(_my_cache_write,      llbuff));
+  printf("r_requests: %10s\n", llstr(_my_cache_r_requests, llbuff));
+  printf("reads:      %10s\n", llstr(_my_cache_read,       llbuff));
   pthread_mutex_unlock(&THR_LOCK_keycache);
 
   if (thd)

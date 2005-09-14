@@ -222,8 +222,8 @@ extern char *get_charsets_dir(char *buf);
 
 
 /* statistics */
-extern ulong	_my_cache_w_requests,_my_cache_write,_my_cache_r_requests,
-		_my_cache_read;
+extern ulonglong    _my_cache_w_requests, _my_cache_write;
+extern ulonglong    _my_cache_r_requests, _my_cache_read;
 extern ulong	_my_blocks_used,_my_blocks_changed;
 extern uint	key_cache_block_size;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;

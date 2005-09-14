@@ -62,8 +62,8 @@ static int	_my_disk_blocks;
 static uint	_my_disk_blocks_used, _my_hash_blocks;
 static uint	key_cache_shift;
 ulong		_my_blocks_used,_my_blocks_changed;
-ulong		_my_cache_w_requests,_my_cache_write,_my_cache_r_requests,
-		_my_cache_read;
+ulonglong       _my_cache_w_requests, _my_cache_write;
+ulonglong       _my_cache_r_requests, _my_cache_read;
 uint		key_cache_block_size=DEFAULT_KEYCACHE_BLOCK_SIZE;
 static byte	HUGE_PTR *_my_block_mem;
 static SEC_LINK *changed_blocks[CHANGED_BLOCKS_HASH];
@@ -192,9 +192,11 @@ void end_key_cache(void)
   key_cache_inited=0;
   _my_hash_blocks=_my_blocks_used=0;
   DBUG_PRINT("status",
-	     ("used: %d  changed: %d  w_requests: %ld  writes: %ld  r_requests: %ld  reads: %ld",
-	      _my_blocks_used,_my_blocks_changed,_my_cache_w_requests,
-	      _my_cache_write,_my_cache_r_requests,_my_cache_read));
+	     ("used: %d  changed: %d  w_requests: %lu  writes: %lu  "
+              "r_requests: %lu  reads: %lu",
+	      _my_blocks_used, _my_blocks_changed,
+              (ulong) _my_cache_w_requests, (ulong) _my_cache_write,
+              (ulong) _my_cache_r_requests, (ulong) _my_cache_read));
   DBUG_VOID_RETURN;
 } /* end_key_cache */
 
