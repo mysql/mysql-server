@@ -4029,6 +4029,9 @@ end_with_restore_list:
       goto error;
     }
 
+    if (end_active_trans(thd)) 
+      goto error;
+
     if (!lex->sphead->m_db.str || !lex->sphead->m_db.str[0])
     {
       lex->sphead->m_db.length= strlen(thd->db);
@@ -4283,6 +4286,9 @@ end_with_restore_list:
 				 sp->m_name.str,
                                  lex->sql_command == SQLCOM_ALTER_PROCEDURE, 0))
 	  goto error;
+
+        if (end_active_trans(thd)) 
+          goto error;
 	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
         if (!trust_routine_creators &&  mysql_bin_log.is_open() &&
             !sp->m_chistics->detistic &&
@@ -4341,6 +4347,9 @@ end_with_restore_list:
 	name= thd->strdup(sp->m_name.str);
 	if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
+          goto error;
+
+        if (end_active_trans(thd)) 
           goto error;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (sp_automatic_privileges && !opt_noacl &&
