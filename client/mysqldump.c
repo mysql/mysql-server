@@ -1193,7 +1193,8 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 
 static uint dump_routines_for_db (char *db)
 {
-  char       query_buff[512], *routine_type[]={"FUNCTION", "PROCEDURE"};
+  char       query_buff[512];
+  const char *routine_type[]={"FUNCTION", "PROCEDURE"};
   char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3], *routine_name;
   int        i;
   FILE       *sql_file = md_result_file;
