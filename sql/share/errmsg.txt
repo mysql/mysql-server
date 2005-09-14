@@ -5403,6 +5403,8 @@ ER_VIEW_PREVENT_UPDATE
         eng "The definition of table '%-.64s' prevents operation %s on table '%-.64s'."
 ER_PS_NO_RECURSION
         eng "The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner"
+ER_SP_CANT_SET_AUTOCOMMIT
+        eng "Not allowed to set autocommit from a stored function or trigger"
 ER_PARTITION_REQUIRES_VALUES_ERROR
         eng "%s PARTITIONING requires definition of VALUES %s for each partition"
         swe "%s PARTITIONering kräver definition av VALUES %s för varje partition"

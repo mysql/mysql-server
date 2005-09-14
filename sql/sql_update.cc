@@ -825,7 +825,8 @@ bool mysql_multi_update_prepare(THD *thd)
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
       if (check_access(thd, want_privilege,
-                        tl->db, &tl->grant.privilege, 0, 0) ||
+                       tl->db, &tl->grant.privilege, 0, 0, 
+                       test(tl->schema_table)) ||
           (grant_option && check_grant(thd, want_privilege, tl, 0, 1, 0)))
         DBUG_RETURN(TRUE);
     }
