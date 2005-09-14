@@ -632,12 +632,13 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
     keycache->blocks_changed= 0;
   }
 
-  DBUG_PRINT("status",
-    ("used: %d  changed: %d  w_requests: %ld  \
-writes: %ld  r_requests: %ld  reads: %ld",
-      keycache->blocks_used, keycache->global_blocks_changed,
-      keycache->global_cache_w_requests, keycache->global_cache_write,
-      keycache->global_cache_r_requests, keycache->global_cache_read));
+  DBUG_PRINT("status", ("used: %d  changed: %d  w_requests: %lu  "
+                        "writes: %lu  r_requests: %lu  reads: %lu",
+                        keycache->blocks_used, keycache->global_blocks_changed,
+                        (ulong) keycache->global_cache_w_requests,
+                        (ulong) keycache->global_cache_write,
+                        (ulong) keycache->global_cache_r_requests,
+                        (ulong) keycache->global_cache_read));
 
   if (cleanup)
   {
