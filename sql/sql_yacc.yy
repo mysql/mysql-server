@@ -4295,12 +4295,10 @@ single_multi:
 	}
 	where_clause opt_order_clause
 	delete_limit_clause {}
-	| table_wild_list
-	  { mysql_init_multi_delete(Lex); }
-          FROM join_table_list where_clause
-	| FROM table_wild_list
-	  { mysql_init_multi_delete(Lex); }
-	  USING join_table_list where_clause
+	| table_wild_list {mysql_init_multi_delete(Lex);}
+          FROM join_table_list {fix_multi_delete_lex(Lex);} where_clause
+	| FROM table_wild_list { mysql_init_multi_delete(Lex);}
+	  USING join_table_list {fix_multi_delete_lex(Lex);} where_clause
 	  {}
 	;
 
