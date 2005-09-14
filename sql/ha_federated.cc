@@ -473,13 +473,15 @@ static int check_foreign_data_source(
   else
   {
     /*
-      Since we do not support transactions at this version, we can let the client
-      API silently reconnect. For future versions, we will need more logic to deal
-      with transactions
+      Since we do not support transactions at this version, we can let the 
+      client API silently reconnect. For future versions, we will need more 
+      logic to deal with transactions
     */
     mysql->reconnect= 1;
     /*
-      Note: I am not using INORMATION_SCHEMA because this needs to work with < 5.0
+      Note: I am not using INORMATION_SCHEMA because this needs to work with 
+      versions prior to 5.0
+      
       if we can connect, then make sure the table exists 
 
       the query will be: SELECT * FROM `tablename` WHERE 1=0
@@ -497,7 +499,8 @@ static int check_foreign_data_source(
     query.append(FEDERATED_WHERE);
     query.append(FEDERATED_FALSE);
 
-    DBUG_PRINT("info", ("check_foreign_data_source query %s", query.c_ptr_quick()));
+    DBUG_PRINT("info", ("check_foreign_data_source query %s", 
+                        query.c_ptr_quick()));
     if (mysql_real_query(mysql, query.ptr(), query.length()))
     {
       error_code= table_create_flag ?
@@ -1449,13 +1452,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
                           share->port,
                           share->socket, 0))
   {
-    int error_code;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    error_code= ER_CONNECT_TO_FOREIGN_DATA_SOURCE;
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   /*
     Since we do not support transactions at this version, we can let the client
@@ -1687,13 +1684,7 @@ int ha_federated::write_row(byte *buf)
 
   if (mysql_real_query(mysql, insert_string.ptr(), insert_string.length()))
   {
-    int error_code;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
 
   DBUG_RETURN(0);
@@ -1717,8 +1708,7 @@ int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
-    my_error(-1, MYF(0), mysql_error(mysql));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(stash_remote_error());
   }
 
   DBUG_RETURN(0);
@@ -1748,8 +1738,7 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
       
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
-    my_error(-1, MYF(0), mysql_error(mysql));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(stash_remote_error());
   }
 
   DBUG_RETURN(0);
@@ -1892,12 +1881,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
 
   if (mysql_real_query(mysql, update_string.ptr(), update_string.length()))
   {
-    int error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   DBUG_RETURN(0);
 }
@@ -1962,12 +1946,7 @@ int ha_federated::delete_row(const byte *buf)
              ("Delete sql: %s", delete_string.c_ptr_quick()));
   if (mysql_real_query(mysql, delete_string.ptr(), delete_string.length()))
   {
-    int error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   deleted+= mysql->affected_rows;
   DBUG_PRINT("info",
@@ -2262,13 +2241,7 @@ int ha_federated::rnd_init(bool scan)
   DBUG_RETURN(0);
 
 error:
-      retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-      my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                mysql_errno(mysql), mysql_error(mysql)));
-      my_error(retval, MYF(0), error_buffer);
-      DBUG_PRINT("info",
-                 ("return error code %d", retval));
-      DBUG_RETURN(retval);
+      DBUG_RETURN(stash_remote_error());
 }
 
 int ha_federated::rnd_end()
@@ -2551,12 +2524,7 @@ int ha_federated::delete_all_rows()
   deleted+= records;
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
-    int error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   DBUG_RETURN(0);
 }
@@ -2665,4 +2633,33 @@ error:
   DBUG_RETURN(retval);
 
 }
+
+
+int ha_federated::stash_remote_error()
+{
+  DBUG_ENTER("ha_federated::stash_remote_error()");
+  remote_error_number= mysql_errno(mysql);
+  snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, mysql_error(mysql));
+  DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
+}
+
+
+bool ha_federated::get_error_message(int error, String* buf)
+{
+  DBUG_ENTER("ha_federated::get_error_message");
+  DBUG_PRINT("enter", ("error: %d", error));
+  if (error == HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM)
+  {
+    buf->append("Error on remote system: ");
+    buf->qs_append(remote_error_number);
+    buf->append(": ");
+    buf->append(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE);
+
+    remote_error_number= 0;
+    remote_error_buf[0]= '\0';
+  }
+  DBUG_PRINT("exit", ("message: %s", buf->ptr()));
+  DBUG_RETURN(FALSE);
+}
+
 #endif /* HAVE_FEDERATED_DB */
