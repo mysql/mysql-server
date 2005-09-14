@@ -826,10 +826,10 @@ DROP TABLE t1, t2;
 # Bugs #9136, #12917: problems with --defaults-extra-file option
 #
 
---exec echo "[client]" > $MYSQL_TEST_DIR/var/tmp/tmp.cnf
+--exec echo "[mysqltest1]" > $MYSQL_TEST_DIR/var/tmp/tmp.cnf
 --exec echo "port=1234" >> $MYSQL_TEST_DIR/var/tmp/tmp.cnf
---exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQL_TEST_DIR/var/tmp/tmp.cnf client
---exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQL_TEST_DIR/var/tmp/tmp.cnf client
+--exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1
+--exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1 mysqltest1
 --exec rm $MYSQL_TEST_DIR/var/tmp/tmp.cnf
 
 #
@@ -870,24 +870,25 @@ DROP TRIGGER testref;
 DROP TABLE test1;
 DROP TABLE test2;
 
-CREATE TABLE t1 (id int);
-INSERT INTO t1 VALUES(1);
-INSERT INTO t1 VALUES(2);
-INSERT INTO t1 VALUES(3);
-INSERT INTO t1 VALUES(4);
-INSERT INTO t1 VALUES(5);
---disable_warnings
-DROP FUNCTION IF EXISTS bug9056_func1;
-DELIMITER //;
---enable_warnings
-CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
-RETURN a+b //
-CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
-BEGIN SELECT a+b INTO c; end  //
+#
+# BUG#9056 - mysqldump does not dump routines
+#
 
 --disable_warnings
-DROP FUNCTION IF EXISTS bug9056_func2 //
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS bug9056_func1;
+DROP FUNCTION IF EXISTS bug9056_func2;
+DROP PROCEDURE IF EXISTS bug9056_proc1;
+DROP PROCEDURE IF EXISTS bug9056_proc2;
 --enable_warnings
+
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES(1), (2), (3), (4), (5);
+
+DELIMITER //;
+CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11) RETURN a+b //
+CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
+BEGIN SELECT a+b INTO c; end  //
 
 create function bug9056_func2(f1 char binary) returns char binary
 begin
@@ -895,9 +896,6 @@ begin
   return f1;
 end //
 
---disable_warnings
-DROP PROCEDURE IF EXISTS bug9056_proc2 //
---enable_warnings
 CREATE PROCEDURE bug9056_proc2(OUT a INT) 
 BEGIN 
   select sum(id) from t1 into a; 
@@ -905,14 +903,17 @@ END //
 
 DELIMITER ;//
 
+set sql_mode='ansi';
+create procedure `a'b` () select 1; # to fix syntax highlighting :')
+set sql_mode='';
+
 # Dump the DB and ROUTINES 
 --exec $MYSQL_DUMP --skip-comments --routines --databases test
 
 # ok, now blow it all away
---disable_warnings
-DROP PROCEDURE IF EXISTS bug9056_func1;
-DROP PROCEDURE IF EXISTS bug9056_func2;
-DROP PROCEDURE IF EXISTS bug9056_proc1;
-DROP PROCEDURE IF EXISTS bug9056_proc2;
+DROP FUNCTION bug9056_func1;
+DROP FUNCTION bug9056_func2;
+DROP PROCEDURE bug9056_proc1;
+DROP PROCEDURE bug9056_proc2;
 drop table t1;
---enable-warnings
+

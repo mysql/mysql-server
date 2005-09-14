@@ -1667,12 +1667,14 @@ public:
 
 
 class select_send :public select_result {
+  int status;
 public:
-  select_send() {}
+  select_send() :status(0) {}
   bool send_fields(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
   bool simple_select() { return 1; }
+  void abort();
 };
 
 

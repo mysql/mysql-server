@@ -1673,42 +1673,41 @@ sp_decls:
 	;
 
 sp_decl:
-	  DECLARE_SYM sp_decl_idents type 
+          DECLARE_SYM sp_decl_idents type 
           { Lex->sphead->reset_lex(YYTHD); }
           sp_opt_default
-	  {
-	    LEX *lex= Lex;
-	    sp_pcontext *ctx= lex->spcont;
-	    uint max= ctx->context_pvars();
-	    enum enum_field_types type= (enum enum_field_types)$3;
-	    Item *it= $5;
+          {
+            LEX *lex= Lex;
+            sp_pcontext *ctx= lex->spcont;
+            uint max= ctx->context_pvars();
+            enum enum_field_types type= (enum enum_field_types)$3;
+            Item *it= $5;
+            bool has_default= (it != NULL);
 
-	    for (uint i = max-$2 ; i < max ; i++)
-	    {
-	      ctx->set_type(i, type);
-	      if (! it)
-	        ctx->set_isset(i, FALSE);
-	      else
-	      {
-	        sp_instr_set *in= new sp_instr_set(lex->sphead->instructions(),
-	                                           ctx,
-						   ctx->pvar_context2index(i),
-                                                   it, type, lex,
-                                                   (i == max - 1));
+            for (uint i = max-$2 ; i < max ; i++)
+            {
+              sp_instr_set *in;
 
-                /*
-                  The last instruction is assigned to be responsible for
-                  freeing LEX.
-                */
-	        lex->sphead->add_instr(in);
-	        ctx->set_isset(i, TRUE);
-		ctx->set_default(i, it);
-	      }
-	    }
+              ctx->set_type(i, type);
+              if (! has_default)
+                it= new Item_null();  /* QQ Set to the type with null_value? */
+              in = new sp_instr_set(lex->sphead->instructions(),
+                                    ctx,
+                                    ctx->pvar_context2index(i),
+                                    it, type, lex,
+                                    (i == max - 1));
+
+              /*
+                The last instruction is assigned to be responsible for
+                freeing LEX.
+              */
+              lex->sphead->add_instr(in);
+              ctx->set_default(i, it);
+            }
             lex->sphead->restore_lex(YYTHD);
-	    $$.vars= $2;
-	    $$.conds= $$.hndlrs= $$.curs= 0;
-	  }
+            $$.vars= $2;
+            $$.conds= $$.hndlrs= $$.curs= 0;
+          }
 	| DECLARE_SYM ident CONDITION_SYM FOR_SYM sp_cond
 	  {
 	    LEX *lex= Lex;
@@ -2284,7 +2283,6 @@ sp_fetch_list:
 	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
 
 	      i->add_to_varlist(spv);
-	      spv->isset= TRUE;
 	    }
 	  }
 	|
@@ -2306,7 +2304,6 @@ sp_fetch_list:
 	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
 
 	      i->add_to_varlist(spv);
-	      spv->isset= TRUE;
 	    }
 	  }
 	;
@@ -3190,6 +3187,7 @@ create_table_option:
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
+	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
         ;
 
 default_charset:
@@ -6481,7 +6479,6 @@ select_var_ident:
 	     else
 	     {
 	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset,t->type));
-	       t->isset= TRUE;
 	     }
 	   }
            ;
@@ -8523,7 +8520,6 @@ sys_option_value:
             sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
                                      spv->offset, it, spv->type, lex, TRUE);
             lex->sphead->add_instr(sp_set);
-            spv->isset= TRUE;
           }
         }
         | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types

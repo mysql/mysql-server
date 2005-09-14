@@ -10,5 +10,5 @@ public:
 protected:
   void Log(const char *msg);
   void Stop();
-  void Run();
+  void Run(DWORD argc, LPTSTR *argv);
 };

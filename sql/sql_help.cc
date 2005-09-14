@@ -289,7 +289,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   topics->file->ha_index_init(iindex_topic,1);
   relations->file->ha_index_init(iindex_relations,1);
 
-  rkey_id->store((longlong) key_id);
+  rkey_id->store((longlong) key_id, TRUE);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
   int key_res= relations->file->index_read(relations->record[0],
 					   (byte *)buff, rkey_id->pack_length(),
@@ -302,7 +302,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     char topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
     Field *field= find_fields[help_topic_help_topic_id].field;
-    field->store((longlong) topic_id);
+    field->store((longlong) topic_id, TRUE);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
     if (!topics->file->index_read(topics->record[0], (byte *)topic_id_buff,

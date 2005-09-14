@@ -162,6 +162,15 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   if (make_empty_rec(thd,file,create_info->db_type,create_info->table_options,
 		     create_fields,reclength, data_offset, db_file))
     goto err;
+  if (create_info->connect_string.length)
+  {
+    char buff[2];
+    int2store(buff,create_info->connect_string.length);
+    if (my_write(file, buff, sizeof(buff), MYF(MY_NABP)) ||
+        my_write(file, create_info->connect_string.str,
+                 create_info->connect_string.length, MYF(MY_NABP)))
+      goto err;
+  }
 
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
   if (my_write(file,(byte*) forminfo,288,MYF_RW) ||
@@ -774,7 +783,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
 	     (field->flags & NOT_NULL_FLAG))
     {
       regfield->set_notnull();
-      regfield->store((longlong) 1);
+      regfield->store((longlong) 1, TRUE);
     }
     else if (type == Field::YES)		// Old unireg type
       regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),system_charset_info);
