@@ -1016,3 +1016,6 @@ v	tdec
 v	tdec
 9	0
 drop procedure wg2;
+select cast(@non_existing_user_var/2 as DECIMAL);
+cast(@non_existing_user_var/2 as DECIMAL)
+NULL
