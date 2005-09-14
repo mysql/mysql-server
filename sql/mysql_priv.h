@@ -59,6 +59,7 @@ void kill_one_thread(THD *thd, ulong id);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
+
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
 #define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
@@ -464,6 +465,7 @@ void mysql_reset_thd_for_next_command(THD *thd);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
+void fix_multi_delete_lex(LEX* lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
