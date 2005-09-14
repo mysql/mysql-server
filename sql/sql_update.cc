@@ -134,25 +134,33 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
+  bool need_reopen;
   DBUG_ENTER("mysql_update");
 
   LINT_INIT(timestamp_query_id);
 
-  if (open_tables(thd, &table_list, &table_count, 0))
-    DBUG_RETURN(1);
-
-  if (table_list->multitable_view)
+  for ( ; ; )
   {
-    DBUG_ASSERT(table_list->view != 0);
-    DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
-    /* convert to multiupdate */
-    return 2;
+    if (open_tables(thd, &table_list, &table_count, 0))
+      DBUG_RETURN(1);
+
+    if (table_list->multitable_view)
+    {
+      DBUG_ASSERT(table_list->view != 0);
+      DBUG_PRINT("info", ("Switch to multi-update"));
+      /* pass counter value */
+      thd->lex->table_count= table_count;
+      /* convert to multiupdate */
+      DBUG_RETURN(2);
+    }
+    if (!lock_tables(thd, table_list, table_count, &need_reopen))
+      break;
+    if (!need_reopen)
+      DBUG_RETURN(1);
+    close_tables_for_reopen(thd, table_list);
   }
 
-  if (lock_tables(thd, table_list, table_count) ||
-      mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(1);
@@ -616,7 +624,6 @@ static table_map get_table_map(List<Item> *items)
 bool mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  ulong opened_tables;
   TABLE_LIST *table_list= lex->query_tables;
   TABLE_LIST *tl, *leaves;
   List<Item> *fields= &lex->select_lex.item_list;
@@ -630,13 +637,16 @@ bool mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables != 0;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
+  bool need_reopen= FALSE;
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
+reopen_tables:
+
   /* open tables and create derived ones, but do not lock and fill them */
-  if ((original_multiupdate &&
+  if (((original_multiupdate || need_reopen) &&
        open_tables(thd, &table_list, &table_count, 0)) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
@@ -741,20 +751,17 @@ bool mysql_multi_update_prepare(THD *thd)
     }
   }
 
-  opened_tables= thd->status_var.opened_tables;
   /* now lock and fill tables */
-  if (lock_tables(thd, table_list, table_count))
-    DBUG_RETURN(TRUE);
-
-  /*
-    we have to re-call fixfields for fixed items, because lock maybe
-    reopened tables
-  */
-  if (opened_tables != thd->status_var.opened_tables)
+  if (lock_tables(thd, table_list, table_count, &need_reopen))
   {
+    if (!need_reopen)
+      DBUG_RETURN(TRUE);
+
     /*
-      Fields items cleanup(). There are only Item_fields in the list, so we
-      do not do Item tree walking
+      We have to reopen tables since some of them were altered or dropped
+      during lock_tables() or something was done with their triggers.
+      Let us do some cleanups to be able do setup_table() and setup_fields()
+      once again.
     */
     List_iterator_fast<Item> it(*fields);
     Item *item;
@@ -765,12 +772,8 @@ bool mysql_multi_update_prepare(THD *thd)
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 
-    if (setup_tables(thd, &lex->select_lex.context,
-                     &lex->select_lex.top_join_list,
-                     table_list, &lex->select_lex.where,
-                     &lex->select_lex.leaf_tables, FALSE) ||
-        setup_fields_with_no_wrap(thd, 0, *fields, 1, 0, 0))
-      DBUG_RETURN(TRUE);
+    close_tables_for_reopen(thd, table_list);
+    goto reopen_tables;
   }
 
   /*
