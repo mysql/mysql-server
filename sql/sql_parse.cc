@@ -6853,11 +6853,11 @@ static bool check_multi_update_lock(THD *thd)
   {
     TABLE_LIST *save= table->next_local;
     table->next_local= 0;
-    if ((check_access(thd, UPDATE_ACL, table->db, &
-                      table->grant.privilege,0,1, test(table->schema_table)) ||
-        (grant_option && check_grant(thd, UPDATE_ACL, table,0,1,1))) &&
+    if ((check_access(thd, UPDATE_ACL, table->db, 
+                      &table->grant.privilege,0,1, test(table->schema_table)) ||
+         (grant_option && check_grant(thd, UPDATE_ACL, table,0,1,1))) &&
 	check_one_table_access(thd, SELECT_ACL, table))
-	goto error;
+      goto error;
     table->next_local= save;
   }
     
