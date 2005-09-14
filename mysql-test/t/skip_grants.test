@@ -9,9 +9,8 @@ use test;
 # test that we can create VIEW if privileges check switched off
 #
 create table t1 (field1 INT);
+-- error ER_NO_VIEW_USER
 CREATE VIEW v1 AS SELECT field1 FROM t1;
-
-drop view v1;
 drop table t1;
 
 #

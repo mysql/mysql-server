@@ -209,7 +209,7 @@ a
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a NOT IN (45);
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` <> 45)
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <> 45)
 SELECT * FROM v1;
 a
 44
