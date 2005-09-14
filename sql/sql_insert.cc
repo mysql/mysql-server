@@ -1826,6 +1826,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 
     if (di->tables_in_use && ! thd->lock)
     {
+      bool not_used;
       /*
         Request for new delayed insert.
         Lock the table, but avoid to be blocked by a global read lock.
@@ -1837,7 +1838,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
         inserts are done.
       */
       if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
-                                          MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK)))
+                                          MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK,
+                                          &not_used)))
       {
 	/* Fatal error */
 	di->dead= 1;

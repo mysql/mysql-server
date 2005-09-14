@@ -10,6 +10,11 @@ drop function if exists f1;
 drop procedure if exists p1;
 --enable_warnings
 
+# Create additional connections used through test
+connect (addconroot1, localhost, root,,);
+connect (addconroot2, localhost, root,,);
+connection default;
+
 create table t1 (i int);
 
 # let us test some very simple trigger
@@ -680,12 +685,10 @@ end|
 delimiter ;|
 update t1 set data = 1;
 
-connect (addconroot, localhost, root,,);
-connection addconroot;
+connection addconroot1;
 update t1 set data = 2;
 
 connection default;
-disconnect addconroot;
 drop table t1;
 
 #
@@ -765,3 +768,110 @@ insert into t1 values (3);
 select * from t1;
 drop trigger t1_bi;
 drop tables t1, t2;
+
+# Tests for bug #12704 "Server crashes during trigger execution".
+# If we run DML statements and CREATE TRIGGER statements concurrently
+# it may happen that trigger will be created while DML statement is
+# waiting for table lock. In this case we have to reopen tables and
+# recalculate prelocking set.
+# Unfortunately these tests rely on the order in which tables are locked
+# by statement so they are non determenistic and are disabled.
+--disable_parsing
+create table t1 (id int);
+create table t2 (id int);
+create table t3 (id int);
+create function f1() returns int return (select max(id)+2 from t2);
+create view v1 as select f1() as f;
+
+# Let us check that we notice trigger at all
+connection addconroot1;
+lock tables t2 write;
+connection default;
+send insert into t1 values ((select max(id) from t2)), (2);
+--sleep 1
+connection addconroot2;
+create trigger t1_trg before insert on t1 for each row set NEW.id:= 1;
+connection addconroot1;
+unlock tables;
+connection default;
+reap;
+select * from t1;
+
+# Check that we properly calculate new prelocking set
+insert into t2 values (3);
+connection addconroot1;
+lock tables t2 write;
+connection default;
+send insert into t1 values ((select max(id) from t2)), (4);
+--sleep 1
+connection addconroot2;
+drop trigger t1_trg;
+create trigger t1_trg before insert on t1 for each row
+  insert into t3 values (new.id);
+connection addconroot1;
+unlock tables;
+connection default;
+reap;
+select * from t1;
+select * from t3;
+
+# We should be able to do this even if fancy views are involved
+connection addconroot1;
+lock tables t2 write;
+connection default;
+send insert into t1 values ((select max(f) from v1)), (6);
+--sleep 1
+connection addconroot2;
+drop trigger t1_trg;
+create trigger t1_trg before insert on t1 for each row
+  insert into t3 values (new.id + 100);
+connection addconroot1;
+unlock tables;
+connection default;
+reap;
+select * from t1;
+select * from t3;
+
+# This also should work for multi-update
+# Let us drop trigger to demonstrate that prelocking set is really
+# rebuilt
+drop trigger t1_trg;
+connection addconroot1;
+lock tables t2 write;
+connection default;
+send update t1, t2 set t1.id=10 where t1.id=t2.id;
+--sleep 1
+connection addconroot2;
+create trigger t1_trg before update on t1 for each row
+  insert into t3 values (new.id);
+connection addconroot1;
+unlock tables;
+connection default;
+reap;
+select * from t1;
+select * from t3;
+
+# And even for multi-update converted from ordinary update thanks to view
+drop view v1;
+drop trigger t1_trg;
+create view v1 as select t1.id as id1 from t1, t2 where t1.id= t2.id;
+insert into t2 values (10);
+connection addconroot1;
+lock tables t2 write;
+connection default;
+send update v1 set id1= 11;
+--sleep 1
+connection addconroot2;
+create trigger t1_trg before update on t1 for each row
+  insert into t3 values (new.id + 100);
+connection addconroot1;
+unlock tables;
+connection default;
+reap;
+select * from t1;
+select * from t3;
+
+drop function f1;
+drop view v1;
+drop table t1, t2, t3;
+--enable_parsing
