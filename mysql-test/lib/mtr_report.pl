@@ -19,6 +19,7 @@ sub mtr_print_header ();
 sub mtr_report (@);
 sub mtr_warning (@);
 sub mtr_error (@);
+sub mtr_child_error (@);
 sub mtr_debug (@);
 
 
@@ -74,7 +75,7 @@ sub mtr_show_failed_diff ($) {
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
 
-  printf "%-31s ", $tinfo->{'name'};
+  printf "%-30s ", $tinfo->{'name'};
 }
 
 sub mtr_report_test_skipped ($) {
@@ -122,13 +123,13 @@ sub mtr_report_test_failed ($) {
   # we should write out into $::path_timefile when the error occurs.
   if ( -f $::path_timefile )
   {
-    print "Errors are (from $::path_timefile) :\n";
+    print "\nErrors are (from $::path_timefile) :\n";
     print mtr_fromfile($::path_timefile); # FIXME print_file() instead
     print "\n(the last lines may be the most important ones)\n";
   }
   else
   {
-    print "Unexpected termination, probably when starting mysqld\n";
+    print "\nUnexpected termination, probably when starting mysqld\n";
   }
 }
 
@@ -284,6 +285,11 @@ sub mtr_warning (@) {
 sub mtr_error (@) {
   print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
   mtr_exit(1);
+}
+
+sub mtr_child_error (@) {
+  print STDERR "mysql-test-run: *** ERROR(child): ",join(" ", @_),"\n";
+  exit(1);
 }
 
 sub mtr_debug (@) {

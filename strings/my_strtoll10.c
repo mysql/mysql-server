@@ -19,7 +19,13 @@
 #include <m_string.h>
 
 #undef  ULONGLONG_MAX
+/* Needed under MetroWerks Compiler, since MetroWerks compiler does not properly handle a constant expression containing a mod operator */
+#if defined(__NETWARE__) && defined(__MWERKS__) 
+ulonglong tmp;
+#define ULONGLONG_MAX (tmp =(~(ulonglong) 0))
+#else
 #define ULONGLONG_MAX		(~(ulonglong) 0)
+#endif /* __NETWARE__ && __MWERKS__ */
 #define MAX_NEGATIVE_NUMBER	((ulonglong) LL(0x8000000000000000))
 #define INIT_CNT  9
 #define LFACTOR   ULL(1000000000)
