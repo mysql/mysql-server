@@ -2086,3 +2086,10 @@ create view v1 as select * from t1;
 select * from (select f1 as f2 from v1) v where v.f2='a';
 drop view v1;
 drop table t1;
+
+#
+# Bug #11416 Server crash if using a view that uses function convert_tz
+#
+create view v1 as SELECT CONVERT_TZ('2004-01-01 12:00:00','GMT','MET');
+select * from v1;
+drop view v1;
