@@ -84,6 +84,7 @@ void sp_get_prelocking_info(THD *thd, bool *need_prelocking,
                             bool *first_no_prelocking);
 void sp_add_used_routine(LEX *lex, Query_arena *arena,
                          sp_name *rt, char rt_type);
+void sp_remove_not_own_routines(LEX *lex);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
 bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex, 
                                       bool first_no_prelock);

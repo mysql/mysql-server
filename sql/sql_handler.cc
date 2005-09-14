@@ -346,6 +346,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   uint          num_rows;
   byte		*key;
   uint		key_len;
+  bool          not_used;
   DBUG_ENTER("mysql_ha_read");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -431,7 +432,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 
   HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1, 0);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0, &not_used);
   HANDLER_TABLES_HACK(thd);
 
   if (!lock)

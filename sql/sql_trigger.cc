@@ -511,6 +511,25 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
 
 
 /*
+  Adjust Table_triggers_list with new TABLE pointer.
+
+  SYNOPSIS
+    set_table()
+      new_table - new pointer to TABLE instance
+*/
+
+void Table_triggers_list::set_table(TABLE *new_table)
+{
+  table= new_table;
+  for (Field **field= table->triggers->record1_field ; *field ; field++)
+  {
+    (*field)->table= (*field)->orig_table= new_table;
+    (*field)->table_name= &new_table->alias;
+  }
+}
+
+
+/*
   Check whenever .TRG file for table exist and load all triggers it contains.
 
   SYNOPSIS
