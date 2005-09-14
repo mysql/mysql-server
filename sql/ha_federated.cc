@@ -473,13 +473,15 @@ static int check_foreign_data_source(
   else
   {
     /*
-      Since we do not support transactions at this version, we can let the client
-      API silently reconnect. For future versions, we will need more logic to deal
-      with transactions
+      Since we do not support transactions at this version, we can let the 
+      client API silently reconnect. For future versions, we will need more 
+      logic to deal with transactions
     */
     mysql->reconnect= 1;
     /*
-      Note: I am not using INORMATION_SCHEMA because this needs to work with < 5.0
+      Note: I am not using INORMATION_SCHEMA because this needs to work with 
+      versions prior to 5.0
+      
       if we can connect, then make sure the table exists 
 
       the query will be: SELECT * FROM `tablename` WHERE 1=0
@@ -497,7 +499,8 @@ static int check_foreign_data_source(
     query.append(FEDERATED_WHERE);
     query.append(FEDERATED_FALSE);
 
-    DBUG_PRINT("info", ("check_foreign_data_source query %s", query.c_ptr_quick()));
+    DBUG_PRINT("info", ("check_foreign_data_source query %s", 
+                        query.c_ptr_quick()));
     if (mysql_real_query(mysql, query.ptr(), query.length()))
     {
       error_code= table_create_flag ?
@@ -517,8 +520,27 @@ error:
 }
 
 
+static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
+{
+  char buf[table->s->connect_string.length+1];
+  DBUG_ENTER("ha_federated parse_url_error");
+  if (share->scheme)
+  {
+    DBUG_PRINT("info",
+               ("error: parse_url. Returning error code %d \
+                freeing share->scheme %lx", error_num, share->scheme));
+    my_free((gptr) share->scheme, MYF(0));
+    share->scheme= 0;
+  }
+
+  strnmov(buf, table->s->connect_string.str, table->s->connect_string.length+1);
+  buf[table->s->connect_string.length]= '\0';
+  my_error(error_num, MYF(0), buf);
+  DBUG_RETURN(error_num);
+}
+
 /*
-  Parse connection info from table->s->comment
+  Parse connection info from table->s->connect_string
 
   SYNOPSIS
     parse_url()
@@ -563,119 +585,106 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_ENTER("ha_federated::parse_url");
 
   share->port= 0;
-  share->scheme= my_strdup(table->s->comment, MYF(0));
+  DBUG_PRINT("info", ("Length %d \n", table->s->connect_string.length));
+  DBUG_PRINT("info", ("String %.*s \n", table->s->connect_string.length, 
+                      table->s->connect_string.str));
+  share->scheme= my_strdup_with_length(table->s->connect_string.str,
+		                       table->s->connect_string.length+1,
+				       MYF(0));
+  // Add a null for later termination of table name
+  share->scheme[table->s->connect_string.length]= 0;
   DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
 
   /*
     remove addition of null terminator and store length
     for each string  in share
   */
-  if ((share->username= strstr(share->scheme, "://")))
+  if (!(share->username= strstr(share->scheme, "://")))
+    goto error;
+  share->scheme[share->username - share->scheme]= '\0';
+
+  if (strcmp(share->scheme, "mysql") != 0)
+    goto error;
+
+  share->username+= 3;
+
+  if (!(share->hostname= strchr(share->username, '@')))
+    goto error;
+    
+  share->username[share->hostname - share->username]= '\0';
+  share->hostname++;
+
+  if ((share->password= strchr(share->username, ':')))
   {
-    share->scheme[share->username - share->scheme]= '\0';
-
-    if (strcmp(share->scheme, "mysql") != 0)
+    share->username[share->password - share->username]= '\0';
+    share->password++;
+    share->username= share->username;
+    /* make sure there isn't an extra / or @ */
+    if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
       goto error;
-
-    share->username+= 3;
-
-    if ((share->hostname= strchr(share->username, '@')))
-    {
-      share->username[share->hostname - share->username]= '\0';
-      share->hostname++;
-
-      if ((share->password= strchr(share->username, ':')))
-      {
-        share->username[share->password - share->username]= '\0';
-        share->password++;
-        share->username= share->username;
-        /* make sure there isn't an extra / or @ */
-        if ((strchr(share->password, '/') || strchr(share->hostname, '@')))
-          goto error;
-        /*
-          Found that if the string is:
-          user:@hostname:port/database/table
-          Then password is a null string, so set to NULL
-        */
-        if ((share->password[0] == '\0'))
-          share->password= NULL;
-      }
-      else
-        share->username= share->username;
-
-      /* make sure there isn't an extra / or @ */
-      if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
-        goto error;
-
-      if ((share->database= strchr(share->hostname, '/')))
-      {
-        share->hostname[share->database - share->hostname]= '\0';
-        share->database++;
-
-        if ((share->sport= strchr(share->hostname, ':')))
-        {
-          share->hostname[share->sport - share->hostname]= '\0';
-          share->sport++;
-          if (share->sport[0] == '\0')
-            share->sport= NULL;
-          else
-            share->port= atoi(share->sport);
-        }
-
-        if ((share->table_name= strchr(share->database, '/')))
-        {
-          share->database[share->table_name - share->database]= '\0';
-          share->table_name++;
-        }
-        else
-          goto error;
-
-        share->table_name_length= strlen(share->table_name);
-      }
-      else
-        goto error;
-      /* make sure there's not an extra / */
-      if ((strchr(share->table_name, '/')))
-        goto error;
-
-      if (share->hostname[0] == '\0')
-        share->hostname= NULL;
-
-      if (!share->port)
-      {
-        if (strcmp(share->hostname, my_localhost) == 0)
-          share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
-        else
-          share->port= MYSQL_PORT;
-      }
-
-      DBUG_PRINT("info",
-                 ("scheme %s username %s password %s \
-                  hostname %s port %d database %s tablename %s\n",
-                  share->scheme, share->username, share->password,
-                  share->hostname, share->port, share->database,
-                  share->table_name));
-    }
-    else
-      goto error;
+    /*
+      Found that if the string is:
+      user:@hostname:port/database/table
+      Then password is a null string, so set to NULL
+    */
+    if ((share->password[0] == '\0'))
+      share->password= NULL;
   }
   else
+    share->username= share->username;
+
+  /* make sure there isn't an extra / or @ */
+  if ((strchr(share->username, '/')) || (strchr(share->hostname, '@')))
     goto error;
+
+  if (!(share->database= strchr(share->hostname, '/')))
+    goto error;
+  share->hostname[share->database - share->hostname]= '\0';
+  share->database++;
+
+  if ((share->sport= strchr(share->hostname, ':')))
+  {
+    share->hostname[share->sport - share->hostname]= '\0';
+    share->sport++;
+    if (share->sport[0] == '\0')
+      share->sport= NULL;
+    else
+      share->port= atoi(share->sport);
+  }
+
+  if (!(share->table_name= strchr(share->database, '/')))
+    goto error;
+  share->database[share->table_name - share->database]= '\0';
+  share->table_name++;
+
+  share->table_name_length= strlen(share->table_name);
+      
+  /* make sure there's not an extra / */
+  if ((strchr(share->table_name, '/')))
+    goto error;
+
+  if (share->hostname[0] == '\0')
+    share->hostname= NULL;
+
+  if (!share->port)
+  {
+    if (strcmp(share->hostname, my_localhost) == 0)
+      share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
+    else
+      share->port= MYSQL_PORT;
+  }
+
+  DBUG_PRINT("info",
+             ("scheme %s username %s password %s \
+              hostname %s port %d database %s tablename %s\n",
+              share->scheme, share->username, share->password,
+              share->hostname, share->port, share->database,
+              share->table_name));
 
   DBUG_RETURN(0);
 
 error:
-  if (share->scheme)
-  {
-    DBUG_PRINT("info",
-               ("error: parse_url. Returning error code %d \
-                freeing share->scheme %lx", error_num, share->scheme));
-    my_free((gptr) share->scheme, MYF(0));
-    share->scheme= 0;
-  }
-  my_error(error_num, MYF(0), table->s->comment);
-  DBUG_RETURN(error_num);
-
+  DBUG_RETURN(parse_url_error(share, table, error_num));
 }
 
 
@@ -1313,7 +1322,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                           &share, sizeof(*share),
                           &tmp_table_name, tmp_table_name_length+ 1,
                           &select_query,
-                          query.length()+strlen(table->s->comment)+1,
+                          query.length()+table->s->connect_string.length+1,
                           NullS)))
     {
       pthread_mutex_unlock(&federated_mutex);
@@ -1443,13 +1452,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
                           share->port,
                           share->socket, 0))
   {
-    int error_code;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    error_code= ER_CONNECT_TO_FOREIGN_DATA_SOURCE;
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   /*
     Since we do not support transactions at this version, we can let the client
@@ -1656,13 +1659,7 @@ int ha_federated::write_row(byte *buf)
 
   if (mysql_real_query(mysql, insert_string.ptr(), insert_string.length()))
   {
-    int error_code;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
 
   DBUG_RETURN(0);
@@ -1686,8 +1683,7 @@ int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
-    my_error(-1, MYF(0), mysql_error(mysql));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(stash_remote_error());
   }
 
   DBUG_RETURN(0);
@@ -1717,8 +1713,7 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
       
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
-    my_error(-1, MYF(0), mysql_error(mysql));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(stash_remote_error());
   }
 
   DBUG_RETURN(0);
@@ -1861,12 +1856,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
 
   if (mysql_real_query(mysql, update_string.ptr(), update_string.length()))
   {
-    int error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   DBUG_RETURN(0);
 }
@@ -1893,11 +1883,9 @@ int ha_federated::delete_row(const byte *buf)
 
   String delete_string(delete_buffer, sizeof(delete_buffer), &my_charset_bin);
   String data_string(data_buffer, sizeof(data_buffer), &my_charset_bin);
-  delete_string.length(0);
-  data_string.length(0);
-
   DBUG_ENTER("ha_federated::delete_row");
 
+  delete_string.length(0);
   delete_string.append(FEDERATED_DELETE);
   delete_string.append(FEDERATED_FROM);
   delete_string.append(FEDERATED_BTICK);
@@ -1907,9 +1895,11 @@ int ha_federated::delete_row(const byte *buf)
 
   for (Field **field= table->field; *field; field++)
   {
-    delete_string.append((*field)->field_name);
+    Field *cur_field= *field;
+    data_string.length(0);
+    delete_string.append(cur_field->field_name);
 
-    if ((*field)->is_null())
+    if (cur_field->is_null())
     {
       delete_string.append(FEDERATED_IS);
       data_string.append(FEDERATED_NULL);
@@ -1917,28 +1907,21 @@ int ha_federated::delete_row(const byte *buf)
     else
     {
       delete_string.append(FEDERATED_EQ);
-      (*field)->val_str(&data_string);
-      (*field)->quote_data(&data_string);
+      cur_field->val_str(&data_string);
+      cur_field->quote_data(&data_string);
     }
 
     delete_string.append(data_string);
-    data_string.length(0);
-
-    if (*(field + 1))
-      delete_string.append(FEDERATED_AND);
+    delete_string.append(FEDERATED_AND);
   }
+  delete_string.length(delete_string.length()-5); // Remove trailing AND
 
   delete_string.append(FEDERATED_LIMIT1);
   DBUG_PRINT("info",
              ("Delete sql: %s", delete_string.c_ptr_quick()));
   if (mysql_real_query(mysql, delete_string.ptr(), delete_string.length()))
   {
-    int error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   deleted+= mysql->affected_rows;
   DBUG_PRINT("info",
@@ -2233,13 +2216,7 @@ int ha_federated::rnd_init(bool scan)
   DBUG_RETURN(0);
 
 error:
-      retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-      my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                mysql_errno(mysql), mysql_error(mysql)));
-      my_error(retval, MYF(0), error_buffer);
-      DBUG_PRINT("info",
-                 ("return error code %d", retval));
-      DBUG_RETURN(retval);
+      DBUG_RETURN(stash_remote_error());
 }
 
 int ha_federated::rnd_end()
@@ -2522,12 +2499,7 @@ int ha_federated::delete_all_rows()
   deleted+= records;
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
-    int error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
-    char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              mysql_errno(mysql), mysql_error(mysql)));
-    my_error(error_code, MYF(0), error_buffer);
-    DBUG_RETURN(error_code);
+    DBUG_RETURN(stash_remote_error());
   }
   DBUG_RETURN(0);
 }
@@ -2636,4 +2608,33 @@ error:
   DBUG_RETURN(retval);
 
 }
+
+
+int ha_federated::stash_remote_error()
+{
+  DBUG_ENTER("ha_federated::stash_remote_error()");
+  remote_error_number= mysql_errno(mysql);
+  snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, mysql_error(mysql));
+  DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
+}
+
+
+bool ha_federated::get_error_message(int error, String* buf)
+{
+  DBUG_ENTER("ha_federated::get_error_message");
+  DBUG_PRINT("enter", ("error: %d", error));
+  if (error == HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM)
+  {
+    buf->append("Error on remote system: ");
+    buf->qs_append(remote_error_number);
+    buf->append(": ");
+    buf->append(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE);
+
+    remote_error_number= 0;
+    remote_error_buf[0]= '\0';
+  }
+  DBUG_PRINT("exit", ("message: %s", buf->ptr()));
+  DBUG_RETURN(FALSE);
+}
+
 #endif /* HAVE_FEDERATED_DB */

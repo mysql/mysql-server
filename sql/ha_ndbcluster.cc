@@ -2402,7 +2402,8 @@ void ha_ndbcluster::unpack_record(byte* buf)
             DBUG_PRINT("info", ("bit field H'%.8X", 
                                 (*value).rec->u_32_value()));
             ((Field_bit *) *field)->store((longlong) 
-                                          (*value).rec->u_32_value());
+                                          (*value).rec->u_32_value(),
+                                          FALSE);
           }
           else
           {
@@ -2410,7 +2411,8 @@ void ha_ndbcluster::unpack_record(byte* buf)
                                 *(Uint32 *)(*value).rec->aRef(),
                                 *((Uint32 *)(*value).rec->aRef()+1)));
             ((Field_bit *) *field)->store((longlong)
-                                          (*value).rec->u_64_value());          }
+                                          (*value).rec->u_64_value(), TRUE);
+          }
         }
       }
       else

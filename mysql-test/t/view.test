@@ -1083,11 +1083,11 @@ create view v1 as select * from t1;
 create view v2 as select * from v1;
 -- error 1146
 alter view v1 as select * from v2;
--- error 1066
+-- error 1146
 alter view v1 as select * from v1;
 -- error 1146
 create or replace view v1 as select * from v2;
--- error 1066
+-- error 1146
 create or replace view v1 as select * from v1;
 drop view v2,v1;
 drop table t1;
@@ -2059,3 +2059,21 @@ order by users_names;
 
 drop view v1, v2;
 drop table t1, t2;
+
+#
+# Bug #6808 - Views: CREATE VIEW v ... FROM t AS v fails
+#
+
+create table t1 (s1 int); 
+create view abc as select * from t1 as abc;
+drop table t1;
+drop view abc;
+
+#
+# Bug #12993 View column rename broken in subselect
+#
+create table t1(f1 char(1));
+create view v1 as select * from t1;
+select * from (select f1 as f2 from v1) v where v.f2='a';
+drop view v1;
+drop table t1;

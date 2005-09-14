@@ -1853,6 +1853,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
+  tmp_table.timestamp_field= 0;
   tmp_table.s= &tmp_table.share_not_to_be_used;
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
@@ -1897,7 +1898,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                             create_info, *extra_fields, *keys, 0,
                             select_field_count))
     {
-      if (!(table= open_table(thd, create_table, thd->mem_root, (bool*)0, 0)))
+      if (! (table= open_table(thd, create_table, thd->mem_root, (bool*) 0,
+                               MYSQL_LOCK_IGNORE_FLUSH)))
         quick_rm_table(create_info->db_type, create_table->db,
                        table_case_name(create_info, create_table->table_name));
     }
@@ -4394,7 +4396,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
-      new_table= open_table(thd, &tbl, thd->mem_root, 0, 0);
+      new_table= open_table(thd, &tbl, thd->mem_root, (bool*) 0,
+                            MYSQL_LOCK_IGNORE_FLUSH);
     }
     else
     {

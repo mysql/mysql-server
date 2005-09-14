@@ -19,7 +19,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\include"
+				AdditionalIncludeDirectories="..\..\include,../../extra/yassl/include"
 				PreprocessorDefinitions="MYSQL_INSTANCE_MANAGER;MYSQL_SERVER;_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS;CONSOLE"
 				MinimalRebuild="TRUE"
 				ExceptionHandling="FALSE"
@@ -69,7 +69,7 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\include"
+				AdditionalIncludeDirectories="..\..\include,../../extra/yassl/include"
 				PreprocessorDefinitions="MYSQL_INSTANCE_MANAGER;MYSQL_SERVER;_WINDOWS;CONSOLE"
 				ExceptionHandling="FALSE"
 				RuntimeLibrary="0"
@@ -119,94 +119,172 @@
 			Filter="cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}">
 			<File
-				RelativePath=".\buffer.cc">
+				RelativePath=".\buffer.cpp">
 			</File>
 			<File
-				RelativePath="..\sql\client.c">
+				RelativePath="..\..\sql\client.c">
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\command.cc">
+				RelativePath=".\command.cpp">
 			</File>
 			<File
-				RelativePath=".\commands.cc">
+				RelativePath=".\commands.cpp">
 			</File>
 			<File
-				RelativePath=".\factory.cc">
+				RelativePath="..\..\libmysql\get_password.c">
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="..\libmysql\get_password.c">
-			</File>
-			<File
-				RelativePath=".\guardian.cc">
+				RelativePath=".\guardian.cpp">
 			</File>
 			<File
 				RelativePath=".\IMService.cpp">
 			</File>
 			<File
-				RelativePath=".\instance.cc">
+				RelativePath=".\instance.cpp">
 			</File>
 			<File
-				RelativePath=".\instance_map.cc">
+				RelativePath=".\instance_map.cpp">
 			</File>
 			<File
-				RelativePath=".\instance_options.cc">
+				RelativePath=".\instance_options.cpp">
 			</File>
 			<File
-				RelativePath=".\listener.cc">
+				RelativePath=".\listener.cpp">
 			</File>
 			<File
-				RelativePath=".\log.cc">
+				RelativePath=".\log.cpp">
 			</File>
 			<File
-				RelativePath=".\manager.cc">
+				RelativePath=".\manager.cpp">
 			</File>
 			<File
-				RelativePath=".\messages.cc">
+				RelativePath=".\messages.cpp">
 			</File>
 			<File
-				RelativePath="..\sql\mini_client_errors.c">
+				RelativePath="..\..\sql\mini_client_errors.c">
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\mysql_connection.cc">
+				RelativePath=".\mysql_connection.cpp">
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\mysqlmanager.cc">
+				RelativePath=".\mysqlmanager.cpp">
 			</File>
 			<File
-				RelativePath="..\sql\net_serv.cpp">
+				RelativePath="..\..\sql\net_serv.cpp">
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\options.cc">
+				RelativePath=".\options.cpp">
 			</File>
 			<File
-				RelativePath="..\sql\pack.c">
+				RelativePath="..\..\sql\pack.c">
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\parse.cc">
+				RelativePath=".\parse.cpp">
 			</File>
 			<File
-				RelativePath=".\parse_output.cc">
+				RelativePath=".\parse_output.cpp">
 			</File>
 			<File
-				RelativePath="..\sql\password.c">
+				RelativePath="..\..\sql\password.c">
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						ObjectFile="$(IntDir)/$(InputName)1.obj"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\priv.cc">
+				RelativePath=".\priv.cpp">
 			</File>
 			<File
-				RelativePath=".\protocol.cc">
+				RelativePath=".\protocol.cpp">
 			</File>
 			<File
-				RelativePath=".\service_funcs.cpp">
+				RelativePath="..\..\sql\sql_state.c">
 			</File>
 			<File
-				RelativePath="..\sql\sql_state.c">
+				RelativePath=".\thread_registry.cpp">
 			</File>
 			<File
-				RelativePath=".\thread_registry.cc">
-			</File>
-			<File
-				RelativePath=".\user_map.cc">
+				RelativePath=".\user_map.cpp">
 			</File>
 			<File
 				RelativePath=".\WindowsService.cpp">

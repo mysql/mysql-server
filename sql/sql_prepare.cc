@@ -118,8 +118,17 @@ public:
   bool deallocate();
 
   /* Possible values of flags */
+#if defined(_MSC_VER) && _MSC_VER < 1300
+  static const int IS_IN_USE;
+#else
   static const int IS_IN_USE= 1;
+#endif
 };
+
+/* VC6 can't handle initializing in declaration */
+#if defined(_MSC_VER) && _MSC_VER < 1300
+const int Prepared_statement::IS_IN_USE= 1;
+#endif
 
 /******************************************************************************
   Implementation

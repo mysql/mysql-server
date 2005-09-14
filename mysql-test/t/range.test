@@ -406,8 +406,8 @@ select count(*) from t1 where x = 18446744073709551601;
 
 
 create table t2 (x bigint not null);
-insert into t2(x) values (0xfffffffffffffff0);
-insert into t2(x) values (0xfffffffffffffff1);
+insert into t2(x) values (cast(0xfffffffffffffff0+0 as signed));
+insert into t2(x) values (cast(0xfffffffffffffff1+0 as signed));
 select * from t2;
 select count(*) from t2 where x>0;
 select count(*) from t2 where x=0;
