@@ -1966,6 +1966,11 @@ Ndbcntr::execRESUME_REQ(Signal* signal){
   //ResumeRef * const ref = (ResumeRef *)&signal->theData[0];
   
   jamEntry();
+
+  signal->theData[0] = EventReport::SingleUser;
+  signal->theData[1] = 2;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
   //Uint32 senderData = req->senderData;
   //BlockReference senderRef = req->senderRef;
   NodeState newState(NodeState::SL_STARTED);		  
@@ -2004,12 +2009,11 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     return;
   }
 
-  if(c_stopRec.stopReq.senderRef != 0 && !singleuser){
-    jam();
+  if(c_stopRec.stopReq.senderRef != 0){
     /**
      * Requested a system shutdown
      */
-    if(StopReq::getSystemStop(req->requestInfo)){
+    if(!singleuser && StopReq::getSystemStop(req->requestInfo)){
       jam();
       sendSignalWithDelay(reference(), GSN_STOP_REQ, signal, 100,
 			  StopReq::SignalLength);
@@ -2031,23 +2035,28 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
   c_stopRec.stopReq = * req;
   c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
   
-  if(StopReq::getSystemStop(c_stopRec.stopReq.requestInfo) && !singleuser) {
-    jam();
-    if(StopReq::getPerformRestart(c_stopRec.stopReq.requestInfo)){
-      ((Configuration&)theConfiguration).stopOnError(false);
-    }
-  }
   if(!singleuser) {
+    if(StopReq::getSystemStop(c_stopRec.stopReq.requestInfo)) {
+      jam();
+      if(StopReq::getPerformRestart(c_stopRec.stopReq.requestInfo)){
+	((Configuration&)theConfiguration).stopOnError(false);
+      }
+    }
     if(!c_stopRec.checkNodeFail(signal)){
       jam();
       return;
     }
+    signal->theData[0] = EventReport::NDBStopStarted;
+    signal->theData[1] = StopReq::getSystemStop(c_stopRec.stopReq.requestInfo) ? 1 : 0;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
   }
-  
-  signal->theData[0] = EventReport::NDBStopStarted;
-  signal->theData[1] = StopReq::getSystemStop(c_stopRec.stopReq.requestInfo) ? 1 : 0;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-  
+  else
+  {
+    signal->theData[0] = EventReport::SingleUser;
+    signal->theData[1] = 0;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  }
+
   NodeState newState(NodeState::SL_STOPPING_1, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   
@@ -2129,9 +2138,11 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   
   stopReq.senderRef = 0;
 
-  NodeState newState(NodeState::SL_STARTED); 
-
-  cntr.updateNodeState(signal, newState);
+  if (cntr.getNodeState().startLevel != NodeState::SL_SINGLEUSER)
+  {
+    NodeState newState(NodeState::SL_STARTED); 
+    cntr.updateNodeState(signal, newState);
+  }
 
   signal->theData[0] = EventReport::NDBStopAborted;
   cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 1, JBB);
@@ -2227,12 +2238,24 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
   jamEntry();
   if(c_stopRec.stopReq.singleuser) {
     jam();
+
     NodeState newState(NodeState::SL_SINGLEUSER);    
     newState.setSingleUser(true);
     newState.setSingleUserApi(c_stopRec.stopReq.singleUserApi);
     updateNodeState(signal, newState);    
     c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
 
+    StopConf * const stopConf = (StopConf *)&signal->theData[0];
+    stopConf->senderData = c_stopRec.stopReq.senderData;
+    stopConf->nodeState  = (Uint32) NodeState::SL_SINGLEUSER;
+    sendSignal(c_stopRec.stopReq.senderRef, GSN_STOP_CONF, signal, StopConf::SignalLength, JBB);
+
+    c_stopRec.stopReq.senderRef = 0; // the command is done
+
+    signal->theData[0] = EventReport::SingleUser;
+    signal->theData[1] = 1;
+    signal->theData[2] = c_stopRec.stopReq.singleUserApi;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
   }
   else 
     {
@@ -2250,7 +2273,13 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
 
 void Ndbcntr::execABORT_ALL_REF(Signal* signal){
   jamEntry();
-  ndbrequire(false);
+  AbortAllRef *abortAllRef = (AbortAllRef *)&signal->theData[0];
+  AbortAllRef::ErrorCode errorCode = (AbortAllRef::ErrorCode) abortAllRef->errorCode;
+
+  StopRef * const stopRef = (StopRef *)&signal->theData[0];
+  stopRef->senderData = c_stopRec.stopReq.senderData;
+  stopRef->errorCode = StopRef::TransactionAbortFailed;
+  sendSignal(c_stopRec.stopReq.senderRef, GSN_STOP_REF, signal, StopRef::SignalLength, JBB);
 }
 
 void
