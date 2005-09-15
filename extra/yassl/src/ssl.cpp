@@ -171,13 +171,25 @@ int SSL_accept(SSL* ssl)
         sendServerHelloDone(*ssl);
         ssl->flushBuffer();
 
-        processReply(*ssl);
+        // Java Client sends fragmented response
+        while (ssl->getStates().getServer() <
+               clientFinishedComplete) {
+            if (ssl->GetError()) break;
+            processReply(*ssl);
+        }
     }
     sendChangeCipher(*ssl);
     sendFinished(*ssl, server_end);
     ssl->flushBuffer();
-    if (ssl->getSecurity().get_resuming())
-        processReply(*ssl);
+    if (ssl->getSecurity().get_resuming()) {
+
+      // Java Client sends fragmented response
+      while (ssl->getStates().getServer() <
+             clientFinishedComplete) {
+          if (ssl->GetError()) break;
+          processReply(*ssl);
+      }
+    }
 
     ssl->useLog().ShowTCP(ssl->getSocket().get_fd());
 
