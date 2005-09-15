@@ -31,9 +31,9 @@ int HugoOperations::startTransaction(Ndb* pNdb){
   return NDBT_OK;
 }
 
-int HugoOperations::setTransaction(NdbTransaction* new_trans){
+int HugoOperations::setTransaction(NdbTransaction* new_trans, bool not_null_ok){
   
-  if (pTrans != NULL){
+  if (pTrans != NULL && !not_null_ok){
     ndbout << "HugoOperations::startTransaction, pTrans != NULL" << endl;
     return NDBT_FAILED;
   }

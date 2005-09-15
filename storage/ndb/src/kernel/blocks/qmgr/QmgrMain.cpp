@@ -1931,9 +1931,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
     break;
-  case NodeInfo::REP:
-    //    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
-    //    break;
   case NodeInfo::DB:
   case NodeInfo::INVALID:
   default:
@@ -1964,7 +1961,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   apiRegConf->qmgrRef = reference();
   apiRegConf->apiHeartbeatFrequency = (chbApiDelay / 10);
   apiRegConf->version = NDB_VERSION;
-  apiRegConf->nodeState = getNodeState();
+  NodeState state= apiRegConf->nodeState = getNodeState();
   {
     NodeRecPtr nodePtr;
     nodePtr.i = getOwnNodeId();
@@ -1982,9 +1979,12 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 
-  if ((getNodeState().startLevel == NodeState::SL_STARTED ||
-       getNodeState().getSingleUserMode())
-      && apiNodePtr.p->phase == ZAPI_INACTIVE) {
+  if (apiNodePtr.p->phase == ZAPI_INACTIVE &&
+      (state.startLevel == NodeState::SL_STARTED ||
+       state.getSingleUserMode() ||
+       (state.startLevel == NodeState::SL_STARTING && 
+	state.starting.startPhase >= 100)))
+  {       
     jam();
     /**----------------------------------------------------------------------
      * THE API NODE IS REGISTERING. WE WILL ACCEPT IT BY CHANGING STATE AND 
@@ -1994,6 +1994,9 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     apiNodePtr.p->blockRef = ref;
     signal->theData[0] = apiNodePtr.i;
     sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
+    
+    signal->theData[0] = apiNodePtr.i;
+    EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
   }
   return;
 }//Qmgr::execAPI_REGREQ()

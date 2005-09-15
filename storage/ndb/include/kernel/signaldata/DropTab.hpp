@@ -61,6 +61,7 @@ class DropTabConf {
   friend class Dbtup;
   friend class Dbtux;
   friend class Dbdih;
+  friend class Suma;
 
   /**
    * Receiver(s)

@@ -16,12 +16,11 @@
 
 #include <ndb_global.h>
 
-#include "EventLogger.hpp"
+#include <EventLogger.hpp>
 
 #include <NdbConfig.h>
 #include <kernel/BlockNumbers.h>
 #include <signaldata/ArbitSignalData.hpp>
-#include <GrepEvent.hpp>
 #include <NodeState.hpp>
 #include <version.h>
 
@@ -571,6 +570,43 @@ void getTextUNDORecordsExecuted(QQQQ) {
 void getTextInfoEvent(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
 }
+const char bytes_unit[]= "B";
+const char kbytes_unit[]= "KB";
+const char mbytes_unit[]= "MB";
+static void convert_unit(unsigned &data, const char *&unit)
+{
+  if (data < 16*1024)
+  {
+    unit= bytes_unit;
+    return;
+  }
+  if (data < 16*1024*1024)
+  {
+    data= (data+1023)/1024;
+    unit= kbytes_unit;
+    return;
+  }
+  data= (data+1024*1024-1)/(1024*1024);
+  unit= mbytes_unit;  
+}
+
+void getTextEventBufferStatus(QQQQ) {
+  unsigned used= theData[1], alloc= theData[2], max_= theData[3];
+  const char *used_unit, *alloc_unit, *max_unit;
+  convert_unit(used, used_unit);
+  convert_unit(alloc, alloc_unit);
+  convert_unit(max_, max_unit);
+  BaseString::snprintf(m_text, m_text_len,
+		       "Event buffer status: used=%d%s(%d%) alloc=%d%s(%d%) "
+		       "max=%d%s apply_gci=%lld latest_gci=%lld",
+		       used, used_unit,
+		       theData[2] ? (theData[1]*100)/theData[2] : 0,
+		       alloc, alloc_unit,
+		       theData[3] ? (theData[2]*100)/theData[3] : 0,
+		       max_, max_unit,
+		       theData[4]+(((Uint64)theData[5])<<32),
+		       theData[6]+(((Uint64)theData[7])<<32));
+}
 void getTextWarningEvent(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
 }
@@ -715,6 +751,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(SentHeartbeat,           LogLevel::llInfo,  12, Logger::LL_INFO ),
   ROW(CreateLogBytes,          LogLevel::llInfo,  11, Logger::LL_INFO ),
   ROW(InfoEvent,               LogLevel::llInfo,   2, Logger::LL_INFO ),
+  ROW(EventBufferStatus,       LogLevel::llInfo,   7, Logger::LL_INFO ),
 
   // Backup
   ROW(BackupStarted,           LogLevel::llBackup, 7, Logger::LL_INFO ),

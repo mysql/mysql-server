@@ -159,7 +159,11 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupCompleted = 56,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
-    NDB_LE_BackupAborted = 57
+    NDB_LE_BackupAborted = 57,
+
+    /** NDB_MGM_EVENT_CATEGORY_INFO */
+    NDB_LE_EventBufferStatus = 58
+
   };
 
   /**
@@ -565,6 +569,16 @@ extern "C" {
       struct {
 	/* TODO */
       } InfoEvent;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
+      struct {
+	unsigned usage;
+	unsigned alloc;
+	unsigned max;
+	unsigned apply_gci_l;
+	unsigned apply_gci_h;
+	unsigned latest_gci_l;
+	unsigned latest_gci_h;
+      } EventBufferStatus;
 
       /** Log event data for @ref NDB_LE_BackupStarted */
       struct {

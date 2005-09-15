@@ -19,7 +19,6 @@
 
 #include <logger/Logger.hpp>
 #include <logger/FileLogHandler.hpp>
-#include "GrepError.hpp"
 #include <kernel/kernel_types.h>
 #include <kernel/LogLevel.hpp>
 #include <kernel/signaldata/EventReport.hpp>

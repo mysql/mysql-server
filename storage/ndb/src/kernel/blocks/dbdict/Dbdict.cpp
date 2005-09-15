@@ -60,8 +60,6 @@
 #include <signaldata/UtilExecute.hpp>
 #include <signaldata/UtilRelease.hpp>
 #include <signaldata/SumaImpl.hpp> 
-#include <GrepError.hpp>
-//#include <signaldata/DropEvnt.hpp>
 
 #include <signaldata/LqhFrag.hpp>
 
@@ -1289,9 +1287,6 @@ Dbdict::Dbdict(const class Configuration & conf):
   addRecSignal(GSN_SUB_STOP_REQ,  &Dbdict::execSUB_STOP_REQ);
   addRecSignal(GSN_SUB_STOP_CONF,  &Dbdict::execSUB_STOP_CONF);
   addRecSignal(GSN_SUB_STOP_REF,  &Dbdict::execSUB_STOP_REF);
-
-  addRecSignal(GSN_SUB_SYNC_CONF, &Dbdict::execSUB_SYNC_CONF);
-  addRecSignal(GSN_SUB_SYNC_REF,  &Dbdict::execSUB_SYNC_REF);
 
   addRecSignal(GSN_DROP_EVNT_REQ,  &Dbdict::execDROP_EVNT_REQ);
 
@@ -2690,10 +2685,24 @@ Dbdict::restartCreateTab_activateComplete(Signal* signal,
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
   tabPtr.p->tabState = TableRecord::DEFINED;
   
-  c_opCreateTable.release(createTabPtr);
+  releaseCreateTableOp(signal,createTabPtr);
 
   c_restartRecord.activeTable++;
   checkSchemaStatus(signal);
+}
+
+void
+Dbdict::releaseCreateTableOp(Signal* signal, CreateTableRecordPtr createTabPtr)
+{
+  if (createTabPtr.p->m_tabInfoPtrI != RNIL)
+  {
+    jam();
+    SegmentedSectionPtr tabInfoPtr;
+    getSection(tabInfoPtr, createTabPtr.p->m_tabInfoPtrI);
+    signal->setSection(tabInfoPtr, 0);
+    releaseSections(signal);
+  }
+  c_opCreateTable.release(createTabPtr);
 }
 
 void
@@ -3777,7 +3786,7 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
       TableRecordPtr tabPtr;
       c_tableRecordPool.getPtr(tabPtr, alterTabPtr.p->m_tablePtrI);  
       releaseTableObject(tabPtr.i, false);
-      c_opCreateTable.release(alterTabPtr);
+      releaseCreateTableOp(signal,alterTabPtr);
       c_blockState = BS_IDLE;
     }
     else {
@@ -3891,6 +3900,7 @@ Dbdict::alterTab_writeSchemaConf(Signal* signal,
   
   writeTableFile(signal, tableId, tabInfoPtr, &callback);
 
+  alterTabPtr.p->m_tabInfoPtrI = RNIL;
   signal->setSection(tabInfoPtr, 0);
   releaseSections(signal);
 }
@@ -3915,6 +3925,17 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   conf->tableVersion = tabPtr.p->tableVersion;
   conf->gci = tabPtr.p->gciTableCreated;
   conf->requestType = AlterTabReq::AlterTableCommit;
+  {
+    AlterTabConf tmp= *conf;
+    if (coordinatorRef == reference())
+      conf->senderRef = alterTabPtr.p->m_senderRef;
+    else
+      conf->senderRef = 0;
+    EXECUTE_DIRECT(SUMA, GSN_ALTER_TAB_CONF, signal,
+		   AlterTabConf::SignalLength);
+    jamEntry();
+    *conf= tmp;
+  }
   sendSignal(coordinatorRef, GSN_ALTER_TAB_CONF, signal, 
 	       AlterTabConf::SignalLength, JBB);
 
@@ -3943,7 +3964,7 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
     // Release resources
     c_tableRecordPool.getPtr(tabPtr, alterTabPtr.p->m_tablePtrI);  
     releaseTableObject(tabPtr.i, false);
-    c_opCreateTable.release(alterTabPtr);
+    releaseCreateTableOp(signal,alterTabPtr);
     c_blockState = BS_IDLE;
   }
 }
@@ -4133,7 +4154,7 @@ Dbdict::createTab_reply(Signal* signal,
     //@todo check api failed
     sendSignal(createTabPtr.p->m_senderRef, GSN_CREATE_TABLE_REF, signal, 
 	       CreateTableRef::SignalLength, JBB);
-    c_opCreateTable.release(createTabPtr);
+    releaseCreateTableOp(signal,createTabPtr);
     c_blockState = BS_IDLE;
     return;
   }
@@ -4192,7 +4213,7 @@ Dbdict::createTab_startLcpMutex_unlocked(Signal* signal,
   //@todo check api failed
   sendSignal(createTabPtr.p->m_senderRef, GSN_CREATE_TABLE_CONF, signal, 
 	     CreateTableConf::SignalLength, JBB);
-  c_opCreateTable.release(createTabPtr);
+  releaseCreateTableOp(signal,createTabPtr);
   c_blockState = BS_IDLE;
   return;
 }
@@ -4323,10 +4344,11 @@ Dbdict::createTab_writeSchemaConf1(Signal* signal,
   SegmentedSectionPtr tabInfoPtr;
   getSection(tabInfoPtr, createTabPtr.p->m_tabInfoPtrI);
   writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
-
+#if 0
   createTabPtr.p->m_tabInfoPtrI = RNIL;
   signal->setSection(tabInfoPtr, 0);
   releaseSections(signal);
+#endif
 }
 
 void
@@ -4814,12 +4836,28 @@ Dbdict::createTab_alterComplete(Signal* signal,
   CreateTabConf * const conf = (CreateTabConf*)signal->getDataPtr();
   conf->senderRef = reference();
   conf->senderData = createTabPtr.p->key;
+  {
+    CreateTabConf tmp= *conf;
+    conf->senderData = createTabPtr.p->m_tablePtrI;
+#if 0
+    signal->header.m_noOfSections = 1;
+    SegmentedSectionPtr tabInfoPtr;
+    getSection(tabInfoPtr, createTabPtr.p->m_tabInfoPtrI);
+    signal->setSection(tabInfoPtr, 0);
+#endif
+    sendSignal(SUMA_REF, GSN_CREATE_TAB_CONF, signal,
+		CreateTabConf::SignalLength, JBB);
+    *conf= tmp;
+#if 0
+    signal->header.m_noOfSections = 0;
+#endif
+  }
   sendSignal(createTabPtr.p->m_coordinatorRef, GSN_CREATE_TAB_CONF,
 	     signal, CreateTabConf::SignalLength, JBB);
 
   if(createTabPtr.p->m_coordinatorRef != reference()){
     jam();
-    c_opCreateTable.release(createTabPtr);
+    releaseCreateTableOp(signal,createTabPtr);
   }
 }
 
@@ -4887,7 +4925,7 @@ Dbdict::createTab_dropComplete(Signal* signal,
 
   if(createTabPtr.p->m_coordinatorRef != reference()){
     jam();
-    c_opCreateTable.release(createTabPtr);
+    releaseCreateTableOp(signal,createTabPtr);
   }
 
   c_opDropTable.release(dropTabPtr);
@@ -5056,7 +5094,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   if (parseP->requestType != DictTabInfo::AlterTableFromAPI) {
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbdict: name=%s,id=%u", tablePtr.p->tableName, tablePtr.i);
+    ndbout_c("Dbdict: name=%s, id=%u, version=%u",
+	     tablePtr.p->tableName, tablePtr.i, tablePtr.p->tableVersion);
     TableRecordPtr tmp;
     ndbrequire(!c_tableRecordHash.find(tmp, * tablePtr.p));
 #endif
@@ -5705,7 +5744,6 @@ Dbdict::execDROP_TAB_CONF(Signal* signal){
   conf->senderData = dropTabPtr.p->m_request.senderData;
   conf->tableId = dropTabPtr.p->m_request.tableId;
   conf->tableVersion = dropTabPtr.p->m_request.tableVersion;
-  
   Uint32 ref = dropTabPtr.p->m_request.senderRef;
   sendSignal(ref, GSN_DROP_TABLE_CONF, signal, 
 	     DropTableConf::SignalLength, JBB);
@@ -5966,7 +6004,17 @@ Dbdict::dropTab_writeSchemaConf(Signal* signal,
   conf->senderRef = reference();
   conf->senderData = dropTabPtrI;
   conf->tableId = dropTabPtr.p->m_request.tableId;
-  
+  {
+    DropTabConf tmp= *conf;
+    if (dropTabPtr.p->m_coordinatorRef == reference())
+      conf->senderRef = dropTabPtr.p->m_request.senderRef;
+    else
+      conf->senderRef = 0;
+    EXECUTE_DIRECT(SUMA, GSN_DROP_TAB_CONF, signal,
+		   DropTabConf::SignalLength);
+    jamEntry();
+    *conf= tmp;
+  }
   dropTabPtr.p->m_participantData.m_gsn = GSN_DROP_TAB_CONF;
   sendSignal(dropTabPtr.p->m_coordinatorRef, GSN_DROP_TAB_CONF, signal, 
 	     DropTabConf::SignalLength, JBB);
@@ -6113,7 +6161,7 @@ void Dbdict::sendGET_TABLEID_REF(Signal* signal,
    * The format of GetTabInfo Req/Ref is the same
    */
   BlockReference retRef = req->senderRef;
-  ref->err  = errorCode;
+  ref->err = errorCode;
   sendSignal(retRef, GSN_GET_TABLEID_REF, signal, 
 	     GetTableIdRef::SignalLength, JBB);
 }//sendGET_TABINFOREF()
@@ -7538,6 +7586,8 @@ void Dbdict::execUTIL_RELEASE_REF(Signal *signal)
 const Uint32 Dbdict::sysTab_NDBEVENTS_0_szs[EVENT_SYSTEM_TABLE_LENGTH] = {
   sizeof(((sysTab_NDBEVENTS_0*)0)->NAME),
   sizeof(((sysTab_NDBEVENTS_0*)0)->EVENT_TYPE),
+  sizeof(((sysTab_NDBEVENTS_0*)0)->TABLEID),
+  sizeof(((sysTab_NDBEVENTS_0*)0)->TABLEVERSION),
   sizeof(((sysTab_NDBEVENTS_0*)0)->TABLE_NAME),
   sizeof(((sysTab_NDBEVENTS_0*)0)->ATTRIBUTE_MASK),
   sizeof(((sysTab_NDBEVENTS_0*)0)->SUBID),
@@ -7755,7 +7805,7 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
 
     CreateEvntRef * ret = (CreateEvntRef *)signal->getDataPtrSend();
     ret->senderRef = reference();
-    ret->setErrorCode(CreateEvntRef::SeizeError);
+    ret->setErrorCode(747);
     ret->setErrorLine(__LINE__);
     ret->setErrorNode(reference());
     sendSignal(signal->senderBlockRef(), GSN_CREATE_EVNT_REF, signal,
@@ -7796,7 +7846,7 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
   jam();
   releaseSections(signal);
     
-  evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
+  evntRecPtr.p->m_errorCode = 1;
   evntRecPtr.p->m_errorLine = __LINE__;
   evntRecPtr.p->m_errorNode = reference();
   
@@ -7810,8 +7860,10 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
  *****************************************************************/
 
 void
-Dbdict::createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr){
+Dbdict::createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr)
+{
   jam();
+  DBUG_ENTER("Dbdict::createEvent_RT_USER_CREATE");
   evntRecPtr.p->m_request.setUserRef(signal->senderBlockRef());
 
 #ifdef EVENT_DEBUG
@@ -7839,12 +7891,12 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr){
     jam();
     releaseSections(signal);
 
-    evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
+    evntRecPtr.p->m_errorCode = 1;
     evntRecPtr.p->m_errorLine = __LINE__;
     evntRecPtr.p->m_errorNode = reference();
 
     createEvent_sendReply(signal, evntRecPtr);
-    return;
+    DBUG_VOID_RETURN;
   }
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
@@ -7865,24 +7917,19 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr){
     jam();
     releaseSections(signal);
     
-    evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
+    evntRecPtr.p->m_errorCode = 1;
     evntRecPtr.p->m_errorLine = __LINE__;
     evntRecPtr.p->m_errorNode = reference();
     
     createEvent_sendReply(signal, evntRecPtr);
-    return;
+    DBUG_VOID_RETURN;
   }
   r0.getString(evntRecPtr.p->m_eventRec.TABLE_NAME);
   {
     int len = strlen(evntRecPtr.p->m_eventRec.TABLE_NAME);
     memset(evntRecPtr.p->m_eventRec.TABLE_NAME+len, 0, MAX_TAB_NAME_SIZE-len);
   }
-  
-#ifdef EVENT_DEBUG
-  ndbout_c("event name: %s",evntRecPtr.p->m_eventRec.NAME);
-  ndbout_c("table name: %s",evntRecPtr.p->m_eventRec.TABLE_NAME);
-#endif
-  
+
   releaseSections(signal);
   
   // Send request to SUMA
@@ -7891,6 +7938,7 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr){
     (CreateSubscriptionIdReq *)signal->getDataPtrSend();
   
   // make sure we save the original sender for later
+  sumaIdReq->senderRef  = reference();
   sumaIdReq->senderData = evntRecPtr.i;
 #ifdef EVENT_DEBUG
   ndbout << "sumaIdReq->senderData = " << sumaIdReq->senderData << endl;
@@ -7899,12 +7947,13 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr){
 	     CreateSubscriptionIdReq::SignalLength, JBB);
   // we should now return in either execCREATE_SUBID_CONF
   // or execCREATE_SUBID_REF
+  DBUG_VOID_RETURN;
 }
 
 void Dbdict::execCREATE_SUBID_REF(Signal* signal)
 {
-  jamEntry();      
-  EVENT_TRACE;
+  jamEntry();
+  DBUG_ENTER("Dbdict::execCREATE_SUBID_REF");
   CreateSubscriptionIdRef * const ref =
     (CreateSubscriptionIdRef *)signal->getDataPtr();
   OpCreateEventPtr evntRecPtr;
@@ -7912,17 +7961,26 @@ void Dbdict::execCREATE_SUBID_REF(Signal* signal)
   evntRecPtr.i = ref->senderData;
   ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
-  evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
-  evntRecPtr.p->m_errorLine = __LINE__;
+  if (ref->errorCode)
+  {
+    evntRecPtr.p->m_errorCode = ref->errorCode;
+    evntRecPtr.p->m_errorLine = __LINE__;
+  }
+  else
+  {
+    evntRecPtr.p->m_errorCode = 1;
+    evntRecPtr.p->m_errorLine = __LINE__;
+  }
   evntRecPtr.p->m_errorNode = reference();
 
   createEvent_sendReply(signal, evntRecPtr);
+  DBUG_VOID_RETURN;
 }
 
 void Dbdict::execCREATE_SUBID_CONF(Signal* signal)
 {
   jamEntry();
-  EVENT_TRACE;
+  DBUG_ENTER("Dbdict::execCREATE_SUBID_CONF");
 
   CreateSubscriptionIdConf const * sumaIdConf =
     (CreateSubscriptionIdConf *)signal->getDataPtr();
@@ -7941,6 +7999,7 @@ void Dbdict::execCREATE_SUBID_CONF(Signal* signal)
 
   prepareTransactionEventSysTable(&c, signal, evntRecId,
 				  UtilPrepareReq::Insert);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -7958,46 +8017,47 @@ Dbdict::createEventComplete_RT_USER_CREATE(Signal* signal,
  */
 
 void interpretUtilPrepareErrorCode(UtilPrepareRef::ErrorCode errorCode,
-				   bool& temporary, Uint32& line)
+				   Uint32& error, Uint32& line)
 {
+  DBUG_ENTER("interpretUtilPrepareErrorCode");
   switch (errorCode) {
   case UtilPrepareRef::NO_ERROR:
     jam();
+    error = 1;
     line = __LINE__;
-    EVENT_TRACE;
-    break;
+    DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARE_SEIZE_ERROR:
     jam();
-    temporary = true;
+    error = 748;
     line = __LINE__;
-    EVENT_TRACE;
-    break;
+    DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR:
     jam();
+    error = 1;
     line = __LINE__;
-    EVENT_TRACE;
-    break;
+    DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR:
     jam();
+    error = 1;
     line = __LINE__;
-    EVENT_TRACE;
-    break;
+    DBUG_VOID_RETURN;
   case UtilPrepareRef::DICT_TAB_INFO_ERROR:
     jam();
+    error = 1;
     line = __LINE__;
-    EVENT_TRACE;
-    break;
+    DBUG_VOID_RETURN;
   case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
     jam();
+    error = 1;
     line = __LINE__;
-    EVENT_TRACE;
-    break;
+    DBUG_VOID_RETURN;
   default:
     jam();
+    error = 1;
     line = __LINE__;
-    EVENT_TRACE;
-    break;
+    DBUG_VOID_RETURN;
   }
+  DBUG_VOID_RETURN;
 }
 
 void 
@@ -8020,25 +8080,28 @@ Dbdict::createEventUTIL_PREPARE(Signal* signal,
 
     switch (evntRecPtr.p->m_requestType) {
     case CreateEvntReq::RT_USER_GET:
-#ifdef EVENT_DEBUG
-      printf("get type = %d\n", CreateEvntReq::RT_USER_GET);
-#endif
       jam();
       executeTransEventSysTable(&c, signal,
 				evntRecPtr.i, evntRecPtr.p->m_eventRec,
 				prepareId, UtilPrepareReq::Read);
       break;
     case CreateEvntReq::RT_USER_CREATE:
-#ifdef EVENT_DEBUG
-      printf("create type = %d\n", CreateEvntReq::RT_USER_CREATE);
-#endif
       {
 	evntRecPtr.p->m_eventRec.EVENT_TYPE = evntRecPtr.p->m_request.getEventType();
+	evntRecPtr.p->m_eventRec.TABLEID  = evntRecPtr.p->m_request.getTableId();
+	evntRecPtr.p->m_eventRec.TABLEVERSION=evntRecPtr.p->m_request.getTableVersion();
 	AttributeMask m = evntRecPtr.p->m_request.getAttrListBitmask();
 	memcpy(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK, &m,
 	       sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK));
 	evntRecPtr.p->m_eventRec.SUBID  = evntRecPtr.p->m_request.getEventId();
 	evntRecPtr.p->m_eventRec.SUBKEY = evntRecPtr.p->m_request.getEventKey();
+	DBUG_PRINT("info",
+		   ("CREATE: event name: %s table name: %s table id: %u table version: %u",
+		    evntRecPtr.p->m_eventRec.NAME,
+		    evntRecPtr.p->m_eventRec.TABLE_NAME,
+		    evntRecPtr.p->m_eventRec.TABLEID,
+		    evntRecPtr.p->m_eventRec.TABLEVERSION));
+  
       }
       jam();
       executeTransEventSysTable(&c, signal,
@@ -8063,17 +8126,9 @@ Dbdict::createEventUTIL_PREPARE(Signal* signal,
     evntRecPtr.i = ref->getSenderData();
     ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
-    bool temporary = false;
-    interpretUtilPrepareErrorCode(errorCode,
-				  temporary, evntRecPtr.p->m_errorLine);
-    if (temporary) {
-      evntRecPtr.p->m_errorCode =
-	CreateEvntRef::makeTemporary(CreateEvntRef::Undefined);
-    }
-
-    if (evntRecPtr.p->m_errorCode == 0) {
-      evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
-    }
+    Uint32 err;
+    interpretUtilPrepareErrorCode(errorCode, evntRecPtr.p->m_errorCode,
+				  evntRecPtr.p->m_errorLine);
     evntRecPtr.p->m_errorNode = reference();
 
     createEvent_sendReply(signal, evntRecPtr);
@@ -8244,20 +8299,22 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
     
     switch (evntRec->m_requestType) {
     case CreateEvntReq::RT_USER_GET: {
-#ifdef EVENT_DEBUG
-      printf("get type = %d\n", CreateEvntReq::RT_USER_GET);
-#endif
       parseReadEventSys(signal, evntRecPtr.p->m_eventRec);
 
       evntRec->m_request.setEventType(evntRecPtr.p->m_eventRec.EVENT_TYPE);
-      evntRec->m_request.setAttrListBitmask(*(AttributeMask*)evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK);
+      evntRec->m_request.setTableId(evntRecPtr.p->m_eventRec.TABLEID);
+      evntRec->m_request.setTableVersion(evntRecPtr.p->m_eventRec.TABLEVERSION);
+      evntRec->m_request.setAttrListBitmask(*(AttributeMask*)
+					    evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK);
       evntRec->m_request.setEventId(evntRecPtr.p->m_eventRec.SUBID);
       evntRec->m_request.setEventKey(evntRecPtr.p->m_eventRec.SUBKEY);
 
-#ifdef EVENT_DEBUG
-      printf("EventName: %s\n", evntRec->m_eventRec.NAME);
-      printf("TableName: %s\n", evntRec->m_eventRec.TABLE_NAME);
-#endif
+      DBUG_PRINT("info",
+		 ("GET: event name: %s table name: %s table id: %u table version: %u",
+		  evntRecPtr.p->m_eventRec.NAME,
+		  evntRecPtr.p->m_eventRec.TABLE_NAME,
+		  evntRecPtr.p->m_eventRec.TABLEID,
+		  evntRecPtr.p->m_eventRec.TABLEVERSION));
       
       // find table id for event table
       TableRecord keyRecord;
@@ -8268,7 +8325,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       
       if (tablePtr.i == RNIL) {
 	jam();
-	evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
+	evntRecPtr.p->m_errorCode = 723;
 	evntRecPtr.p->m_errorLine = __LINE__;
 	evntRecPtr.p->m_errorNode = reference();
 	
@@ -8277,6 +8334,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       }
       
       evntRec->m_request.setTableId(tablePtr.p->tableId);
+      evntRec->m_request.setTableVersion(tablePtr.p->tableVersion);
       
       createEventComplete_RT_USER_GET(signal, evntRecPtr);
       return;
@@ -8307,21 +8365,21 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       switch (ref->getTCErrorCode()) {
       case ZNOT_FOUND:
 	jam();
-	evntRecPtr.p->m_errorCode = CreateEvntRef::EventNotFound;
+	evntRecPtr.p->m_errorCode = 4710;
 	break;
       case ZALREADYEXIST:
 	jam();
-	evntRecPtr.p->m_errorCode = CreateEvntRef::EventNameExists;
+	evntRecPtr.p->m_errorCode = 746;
 	break;
       default:
 	jam();
-	evntRecPtr.p->m_errorCode = CreateEvntRef::UndefinedTCError;
+	evntRecPtr.p->m_errorCode = ref->getTCErrorCode();
 	break;
       }
       break;
     default:
       jam();
-      evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
+      evntRecPtr.p->m_errorCode = ref->getErrorCode();
       break;
     }
     
@@ -8357,7 +8415,7 @@ Dbdict::createEvent_RT_USER_GET(Signal* signal, OpCreateEventPtr evntRecPtr){
     jam();
     releaseSections(signal);
 
-    evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
+    evntRecPtr.p->m_errorCode = 1;
     evntRecPtr.p->m_errorLine = __LINE__;
     evntRecPtr.p->m_errorNode = reference();
 
@@ -8493,8 +8551,8 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
 
   SubCreateReq * sumaReq = (SubCreateReq *)signal->getDataPtrSend();
   
-  sumaReq->subscriberRef    = reference(); // reference to DICT
-  sumaReq->subscriberData   = evntRecPtr.i;
+  sumaReq->senderRef        = reference(); // reference to DICT
+  sumaReq->senderData       = evntRecPtr.i;
   sumaReq->subscriptionId   = evntRecPtr.p->m_request.getEventId();
   sumaReq->subscriptionKey  = evntRecPtr.p->m_request.getEventKey();
   sumaReq->subscriptionType = SubCreateReq::TableEvent;
@@ -8505,106 +8563,56 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
 #endif
 
   sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, signal,
-	     SubCreateReq::SignalLength+1 /*to get table Id*/, JBB);
+	     SubCreateReq::SignalLength, JBB);
 }
 
 void Dbdict::execSUB_CREATE_REF(Signal* signal)
 {
   jamEntry();
-  EVENT_TRACE;
+  DBUG_ENTER("Dbdict::execSUB_CREATE_REF");
+
   SubCreateRef * const ref = (SubCreateRef *)signal->getDataPtr();
   OpCreateEventPtr evntRecPtr;
 
-  evntRecPtr.i = ref->subscriberData;
+  evntRecPtr.i = ref->senderData;
   ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
-#ifdef EVENT_PH2_DEBUG
-  ndbout_c("DBDICT(Participant) got SUB_CREATE_REF evntRecPtr.i = (%d)", evntRecPtr.i);
-#endif
-
-  if (ref->err == GrepError::SUBSCRIPTION_ID_NOT_UNIQUE) {
+  if (ref->errorCode == 1415) {
     jam();
-#ifdef EVENT_PH2_DEBUG
-    ndbout_c("SUBSCRIPTION_ID_NOT_UNIQUE");
-#endif
     createEvent_sendReply(signal, evntRecPtr);
-    return;
+    DBUG_VOID_RETURN;
   }
 
-#ifdef EVENT_PH2_DEBUG
-    ndbout_c("Other error");
-#endif
-
-  evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
-  evntRecPtr.p->m_errorLine = __LINE__;
+  if (ref->errorCode)
+  {
+    evntRecPtr.p->m_errorCode = ref->errorCode;
+    evntRecPtr.p->m_errorLine = __LINE__;
+  }
+  else
+  {
+    evntRecPtr.p->m_errorCode = 1;
+    evntRecPtr.p->m_errorLine = __LINE__;
+  }
   evntRecPtr.p->m_errorNode = reference();
 
   createEvent_sendReply(signal, evntRecPtr);
+  DBUG_VOID_RETURN;
 }
 
 void Dbdict::execSUB_CREATE_CONF(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Dbdict::execSUB_CREATE_CONF");
   EVENT_TRACE;
 
   SubCreateConf * const sumaConf = (SubCreateConf *)signal->getDataPtr();
-
-  const Uint32 subscriptionId  = sumaConf->subscriptionId;
-  const Uint32 subscriptionKey = sumaConf->subscriptionKey;
-  const Uint32 evntRecId       = sumaConf->subscriberData;
-
-  OpCreateEvent *evntRec;
-  ndbrequire((evntRec = c_opCreateEvent.getPtr(evntRecId)) != NULL);
-
-#ifdef EVENT_PH2_DEBUG
-  ndbout_c("DBDICT(Participant) got SUB_CREATE_CONF evntRecPtr.i = (%d)", evntRecId);
-#endif
-
-  SubSyncReq *sumaSync = (SubSyncReq *)signal->getDataPtrSend();
-
-  sumaSync->subscriptionId = subscriptionId;
-  sumaSync->subscriptionKey = subscriptionKey;
-  sumaSync->part = (Uint32) SubscriptionData::MetaData;
-  sumaSync->subscriberData = evntRecId;
-
-  sendSignal(SUMA_REF, GSN_SUB_SYNC_REQ, signal,
-	     SubSyncReq::SignalLength, JBB);
-}
-
-void Dbdict::execSUB_SYNC_REF(Signal* signal)
-{
-  jamEntry();
-  EVENT_TRACE;
-  SubSyncRef * const ref = (SubSyncRef *)signal->getDataPtr();
   OpCreateEventPtr evntRecPtr;
-
-  evntRecPtr.i = ref->subscriberData;
+  evntRecPtr.i = sumaConf->senderData;
   ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
-  evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
-  evntRecPtr.p->m_errorLine = __LINE__;
-  evntRecPtr.p->m_errorNode = reference();
-
   createEvent_sendReply(signal, evntRecPtr);
-}
 
-void Dbdict::execSUB_SYNC_CONF(Signal* signal) 
-{
-  jamEntry();
-  EVENT_TRACE;
-
-  SubSyncConf * const sumaSyncConf = (SubSyncConf *)signal->getDataPtr();
-
-  //  Uint32 subscriptionId = sumaSyncConf->subscriptionId;
-  //  Uint32 subscriptionKey = sumaSyncConf->subscriptionKey;
-  OpCreateEventPtr evntRecPtr;
-
-  evntRecPtr.i = sumaSyncConf->subscriberData;
-  ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
-
-  ndbrequire(sumaSyncConf->part == (Uint32)SubscriptionData::MetaData);
-
-  createEvent_sendReply(signal, evntRecPtr);
+  DBUG_VOID_RETURN;
 }
 
 /****************************************************
@@ -8631,7 +8639,7 @@ void Dbdict::createEvent_sendReply(Signal* signal,
   if (evntRecPtr.p->m_reqTracker.hasRef()) {
     ptr = NULL; // we don't want to return anything if there's an error
     if (!evntRecPtr.p->hasError()) {
-      evntRecPtr.p->m_errorCode = CreateEvntRef::Undefined;
+      evntRecPtr.p->m_errorCode = 1;
       evntRecPtr.p->m_errorLine = __LINE__;
       evntRecPtr.p->m_errorNode = reference();
       jam();
@@ -8655,6 +8663,7 @@ void Dbdict::createEvent_sendReply(Signal* signal,
     ret->setUserData(evntRecPtr.p->m_request.getUserData());
     ret->senderRef = reference();
     ret->setTableId(evntRecPtr.p->m_request.getTableId());
+    ret->setTableVersion(evntRecPtr.p->m_request.getTableVersion());
     ret->setEventType(evntRecPtr.p->m_request.getEventType());
     ret->setRequestType(evntRecPtr.p->m_request.getRequestType());
 
@@ -8680,6 +8689,7 @@ void Dbdict::createEvent_sendReply(Signal* signal,
     evntConf->setUserData(evntRecPtr.p->m_request.getUserData());
     evntConf->senderRef = reference();
     evntConf->setTableId(evntRecPtr.p->m_request.getTableId());
+    evntConf->setTableVersion(evntRecPtr.p->m_request.getTableVersion());
     evntConf->setAttrListBitmask(evntRecPtr.p->m_request.getAttrListBitmask());
     evntConf->setEventType(evntRecPtr.p->m_request.getEventType());
     evntConf->setRequestType(evntRecPtr.p->m_request.getRequestType());
@@ -8728,7 +8738,7 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     //      ret->setErrorLine(__LINE__);
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
-    ref->setTemporary(SubStartRef::Busy);
+    ref->errorCode = SubStartRef::Busy;
 
     sendSignal(origSenderRef, GSN_SUB_START_REF, signal,
 	       SubStartRef::SignalLength2, JBB);
@@ -8789,6 +8799,7 @@ void Dbdict::execSUB_START_REF(Signal* signal)
 
   const SubStartRef* ref = (SubStartRef*) signal->getDataPtr();
   Uint32 senderRef  = ref->senderRef;
+  Uint32 err = ref->errorCode;
 
   OpSubEventPtr subbPtr;
   c_opSubEvent.getPtr(subbPtr, ref->senderData);
@@ -8803,27 +8814,13 @@ void Dbdict::execSUB_START_REF(Signal* signal)
     ndbout_c("DBDICT(Participant) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
 
-    if (ref->isTemporary()){
-      jam();
-      SubStartReq* req = (SubStartReq*)signal->getDataPtrSend();
-      { // fix
-	Uint32 subscriberRef = ref->subscriberRef;
-	req->subscriberRef = subscriberRef;
-      }
-      req->senderRef  = reference();
-      req->senderData = subbPtr.i;
-      sendSignal(SUMA_REF, GSN_SUB_START_REQ,
-		 signal, SubStartReq::SignalLength2, JBB);
-    } else {
-      jam();
-
-      SubStartRef* ref = (SubStartRef*) signal->getDataPtrSend();
-      ref->senderRef = reference();
-      ref->senderData = subbPtr.p->m_senderData;
-      sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_REF,
-		 signal, SubStartRef::SignalLength2, JBB);
-      c_opSubEvent.release(subbPtr);
-    }
+    jam();
+    SubStartRef* ref = (SubStartRef*) signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = subbPtr.p->m_senderData;
+    sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_REF,
+	       signal, SubStartRef::SignalLength2, JBB);
+    c_opSubEvent.release(subbPtr);
     return;
   }
   /*
@@ -8833,11 +8830,15 @@ void Dbdict::execSUB_START_REF(Signal* signal)
 #ifdef EVENT_PH3_DEBUG
   ndbout_c("DBDICT(Coordinator) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
-  if (ref->errorCode == SubStartRef::NF_FakeErrorREF){
+  if (err == SubStartRef::NF_FakeErrorREF){
     jam();
     subbPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
   } else {
     jam();
+    if (subbPtr.p->m_errorCode == 0)
+    {
+      subbPtr.p->m_errorCode= err ? err : 1;
+    }
     subbPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(senderRef));
   }
   completeSubStartReq(signal,subbPtr.i,0);
@@ -8940,7 +8941,7 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
     //      ret->setErrorLine(__LINE__);
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
-    ref->setTemporary(SubStopRef::Busy);
+    ref->errorCode = SubStopRef::Busy;
 
     sendSignal(origSenderRef, GSN_SUB_STOP_REF, signal,
 	       SubStopRef::SignalLength, JBB);
@@ -8997,6 +8998,7 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
   jamEntry();
   const SubStopRef* ref = (SubStopRef*) signal->getDataPtr();
   Uint32 senderRef  = ref->senderRef;
+  Uint32 err = ref->errorCode;
 
   OpSubEventPtr subbPtr;
   c_opSubEvent.getPtr(subbPtr, ref->senderData);
@@ -9006,33 +9008,27 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
      * Participant
      */
     jam();
-    if (ref->isTemporary()){
-      jam();
-      SubStopReq* req = (SubStopReq*)signal->getDataPtrSend();
-      req->senderRef  = reference();
-      req->senderData = subbPtr.i;
-      sendSignal(SUMA_REF, GSN_SUB_STOP_REQ,
-		 signal, SubStopReq::SignalLength, JBB);
-    } else {
-      jam();
-      SubStopRef* ref = (SubStopRef*) signal->getDataPtrSend();
-      ref->senderRef = reference();
-      ref->senderData = subbPtr.p->m_senderData;
-      sendSignal(subbPtr.p->m_senderRef, GSN_SUB_STOP_REF,
-		 signal, SubStopRef::SignalLength, JBB);
-      c_opSubEvent.release(subbPtr);
-    }
+    SubStopRef* ref = (SubStopRef*) signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = subbPtr.p->m_senderData;
+    sendSignal(subbPtr.p->m_senderRef, GSN_SUB_STOP_REF,
+	       signal, SubStopRef::SignalLength, JBB);
+    c_opSubEvent.release(subbPtr);
     return;
   }
   /*
    * Coordinator
    */
   ndbrequire(refToBlock(senderRef) == DBDICT);
-  if (ref->errorCode == SubStopRef::NF_FakeErrorREF){
+  if (err == SubStopRef::NF_FakeErrorREF){
     jam();
     subbPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
   } else {
     jam();
+    if (subbPtr.p->m_errorCode == 0)
+    {
+      subbPtr.p->m_errorCode= err ? err : 1;
+    }
     subbPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(senderRef));
   }
   completeSubStopReq(signal,subbPtr.i,0);
@@ -9092,17 +9088,9 @@ void Dbdict::completeSubStopReq(Signal* signal,
 #endif
     SubStopRef* ref = (SubStopRef*)signal->getDataPtrSend();
 
-    ref->senderRef      = reference();
-    ref->senderData     = subbPtr.p->m_senderData;
-    /*
-    ref->subscriptionId = subbPtr.p->m_senderData;
-    ref->subscriptionKey = subbPtr.p->m_senderData;
-    ref->part = subbPtr.p->m_part;  // SubscriptionData::Part
-    ref->subscriberData = subbPtr.p->m_subscriberData;
-    ref->subscriberRef = subbPtr.p->m_subscriberRef;
-    */
-    ref->errorCode = subbPtr.p->m_errorCode;
-
+    ref->senderRef  = reference();
+    ref->senderData = subbPtr.p->m_senderData;
+    ref->errorCode  = subbPtr.p->m_errorCode;
 
     sendSignal(subbPtr.p->m_senderRef, GSN_SUB_STOP_REF,
 	       signal, SubStopRef::SignalLength, JBB);
@@ -9132,7 +9120,7 @@ void
 Dbdict::execDROP_EVNT_REQ(Signal* signal)
 {
   jamEntry();
-  EVENT_TRACE;
+  DBUG_ENTER("Dbdict::execDROP_EVNT_REQ");
 
   DropEvntReq *req = (DropEvntReq*)signal->getDataPtr();
   const Uint32 senderRef = signal->senderBlockRef();
@@ -9145,12 +9133,12 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
     releaseSections(signal);
  
     DropEvntRef * ret = (DropEvntRef *)signal->getDataPtrSend();
-    ret->setErrorCode(DropEvntRef::SeizeError);
+    ret->setErrorCode(747);
     ret->setErrorLine(__LINE__);
     ret->setErrorNode(reference());
     sendSignal(senderRef, GSN_DROP_EVNT_REF, signal,
 	       DropEvntRef::SignalLength, JBB);
-    return;
+    DBUG_VOID_RETURN;
   }
 
 #ifdef EVENT_DEBUG
@@ -9175,12 +9163,12 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
     jam();
     releaseSections(signal);
 
-    evntRecPtr.p->m_errorCode = DropEvntRef::Undefined;
+    evntRecPtr.p->m_errorCode = 1;
     evntRecPtr.p->m_errorLine = __LINE__;
     evntRecPtr.p->m_errorNode = reference();
 
     dropEvent_sendReply(signal, evntRecPtr);
-    return;
+    DBUG_VOID_RETURN;
   }
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
@@ -9201,6 +9189,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
 
   prepareTransactionEventSysTable(&c, signal, evntRecPtr.i,
 				  UtilPrepareReq::Read);
+  DBUG_VOID_RETURN;
 }
 
 void 
@@ -9274,6 +9263,7 @@ void
 Dbdict::execSUB_REMOVE_REQ(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Dbdict::execSUB_REMOVE_REQ");
 
   Uint32 origSenderRef = signal->senderBlockRef();
 
@@ -9282,11 +9272,11 @@ Dbdict::execSUB_REMOVE_REQ(Signal* signal)
     SubRemoveRef * ref = (SubRemoveRef *)signal->getDataPtrSend();
     jam();
     ref->senderRef = reference();
-    ref->setTemporary(SubRemoveRef::Busy);
+    ref->errorCode = SubRemoveRef::Busy;
 
     sendSignal(origSenderRef, GSN_SUB_REMOVE_REF, signal,
 	       SubRemoveRef::SignalLength, JBB);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   {
@@ -9301,6 +9291,7 @@ Dbdict::execSUB_REMOVE_REQ(Signal* signal)
   req->senderData = subbPtr.i;
 
   sendSignal(SUMA_REF, GSN_SUB_REMOVE_REQ, signal, SubRemoveReq::SignalLength, JBB);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -9311,8 +9302,11 @@ void
 Dbdict::execSUB_REMOVE_REF(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Dbdict::execSUB_REMOVE_REF");
+
   const SubRemoveRef* ref = (SubRemoveRef*) signal->getDataPtr();
   Uint32 senderRef = ref->senderRef;
+  Uint32 err= ref->errorCode;
 
   if (refToBlock(senderRef) == SUMA) {
     /*
@@ -9321,8 +9315,8 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
     jam();
     OpSubEventPtr subbPtr;
     c_opSubEvent.getPtr(subbPtr, ref->senderData);
-    if (ref->errorCode == (Uint32) GrepError::SUBSCRIPTION_ID_NOT_FOUND) {
-      // conf this since this may occur if a nodefailiure has occured
+    if (err == 1407) {
+      // conf this since this may occur if a nodefailure has occured
       // earlier so that the systable was not cleared
       SubRemoveConf* conf = (SubRemoveConf*) signal->getDataPtrSend();
       conf->senderRef  = reference();
@@ -9337,7 +9331,7 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
 		 signal, SubRemoveRef::SignalLength, JBB);
     }
     c_opSubEvent.release(subbPtr);
-    return;
+    DBUG_VOID_RETURN;
   }
   /*
    * Coordinator
@@ -9345,14 +9339,21 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
   ndbrequire(refToBlock(senderRef) == DBDICT);
   OpDropEventPtr eventRecPtr;
   c_opDropEvent.getPtr(eventRecPtr, ref->senderData);
-  if (ref->errorCode == SubRemoveRef::NF_FakeErrorREF){
+  if (err == SubRemoveRef::NF_FakeErrorREF){
     jam();
     eventRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
   } else {
     jam();
+    if (eventRecPtr.p->m_errorCode == 0)
+    {
+      eventRecPtr.p->m_errorCode= err ? err : 1;
+      eventRecPtr.p->m_errorLine= __LINE__;
+      eventRecPtr.p->m_errorNode= reference();
+    }
     eventRecPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(senderRef));
   }
   completeSubRemoveReq(signal,eventRecPtr.i,0);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -9400,9 +9401,12 @@ Dbdict::completeSubRemoveReq(Signal* signal, Uint32 ptrI, Uint32 xxx)
 
   if (evntRecPtr.p->m_reqTracker.hasRef()) {
     jam();
-    evntRecPtr.p->m_errorNode = reference();
-    evntRecPtr.p->m_errorLine = __LINE__;
-    evntRecPtr.p->m_errorCode = DropEvntRef::Undefined;
+    if ( evntRecPtr.p->m_errorCode == 0 )
+    {
+      evntRecPtr.p->m_errorNode = reference();
+      evntRecPtr.p->m_errorLine = __LINE__;
+      evntRecPtr.p->m_errorCode = 1;
+    }
     dropEvent_sendReply(signal, evntRecPtr);
     return;
   }
@@ -9478,18 +9482,8 @@ Dbdict::dropEventUtilPrepareRef(Signal* signal,
   evntRecPtr.i = ref->getSenderData();
   ndbrequire((evntRecPtr.p = c_opDropEvent.getPtr(evntRecPtr.i)) != NULL);
 
-  bool temporary = false;
   interpretUtilPrepareErrorCode((UtilPrepareRef::ErrorCode)ref->getErrorCode(),
-				temporary, evntRecPtr.p->m_errorLine);
-  if (temporary) {
-    evntRecPtr.p->m_errorCode = (DropEvntRef::ErrorCode)
-      ((Uint32) DropEvntRef::Undefined | (Uint32) DropEvntRef::Temporary);
-  }
-
-  if (evntRecPtr.p->m_errorCode == 0) {
-    evntRecPtr.p->m_errorCode = DropEvntRef::Undefined;
-    evntRecPtr.p->m_errorLine = __LINE__;
-  }
+				evntRecPtr.p->m_errorCode, evntRecPtr.p->m_errorLine);
   evntRecPtr.p->m_errorNode = reference();
 
   dropEvent_sendReply(signal, evntRecPtr);
@@ -9516,17 +9510,17 @@ Dbdict::dropEventUtilExecuteRef(Signal* signal,
     switch (ref->getTCErrorCode()) {
     case ZNOT_FOUND:
       jam();
-      evntRecPtr.p->m_errorCode = DropEvntRef::EventNotFound;
+      evntRecPtr.p->m_errorCode = 4710;
       break;
     default:
       jam();
-      evntRecPtr.p->m_errorCode = DropEvntRef::UndefinedTCError;
+      evntRecPtr.p->m_errorCode = ref->getTCErrorCode();
       break;
     }
     break;
   default:
     jam();
-    evntRecPtr.p->m_errorCode = DropEvntRef::Undefined;
+    evntRecPtr.p->m_errorCode = ref->getErrorCode();
     break;
   }
   dropEvent_sendReply(signal, evntRecPtr);

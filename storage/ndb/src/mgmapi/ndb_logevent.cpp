@@ -269,6 +269,14 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
 	/* TODO */
 //  ROW( InfoEvent),
 
+  ROW( EventBufferStatus, "usage",        1, usage),
+  ROW( EventBufferStatus, "alloc",        2, alloc),
+  ROW( EventBufferStatus, "max",          3, max),
+  ROW( EventBufferStatus, "apply_gci_l",  4, apply_gci_l),
+  ROW( EventBufferStatus, "apply_gci_h",  5, apply_gci_h),
+  ROW( EventBufferStatus, "latest_gci_l", 6, latest_gci_l),
+  ROW( EventBufferStatus, "latest_gci_h", 7, latest_gci_h),
+
   // Backup
   ROW_FN( BackupStarted,    "starting_node", 1, starting_node, ref_to_node),
   ROW( BackupStarted,       "backup_id",     2, backup_id),

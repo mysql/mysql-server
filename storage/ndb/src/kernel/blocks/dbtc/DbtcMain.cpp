@@ -3908,7 +3908,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   const UintR TopWords = (UintR)regApiPtr->tckeyrec;
   localHostptr.i = refToNode(regApiPtr->ndbapiBlockref);
   const Uint32 type = getNodeInfo(localHostptr.i).m_type;
-  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
+  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
   const BlockNumber TblockNum = refToBlock(regApiPtr->ndbapiBlockref);
   const Uint32 Tmarker = (regApiPtr->commitAckMarker == RNIL) ? 0 : 1;
   ptrAss(localHostptr, hostRecord);
@@ -4590,7 +4590,8 @@ void Dbtc::sendApiCommit(Signal* signal)
     commitConf->transId1 = regApiPtr->transid[0];
     commitConf->transId2 = regApiPtr->transid[1];
     commitConf->gci = regApiPtr->globalcheckpointid;
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TC_COMMITCONF, signal, 
+
+    sendSignal(regApiPtr->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
 	       TcCommitConf::SignalLength, JBB);
   } else if (regApiPtr->returnsignal == RS_NO_RETURN) {
     jam();
@@ -5127,6 +5128,19 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	return;
       }
       
+      /* Only ref in certain situations */
+      {
+	const Uint32 opType = regTcPtr->operation;
+	if (   (opType == ZDELETE && errCode != ZNOT_FOUND)
+	    || (opType == ZINSERT && errCode != ZALREADYEXIST)
+	    || (opType == ZUPDATE && errCode != ZNOT_FOUND)
+	    || (opType == ZWRITE  && errCode != 839 && errCode != 840))
+	{
+	  TCKEY_abort(signal, 49);
+	  return;
+	}
+      }
+
       /* *************** */
       /*    TCKEYREF   < */
       /* *************** */
@@ -11336,7 +11350,7 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
   const UintR TopWords = (UintR)regApiPtr->tcindxrec;
   localHostptr.i = refToNode(regApiPtr->ndbapiBlockref);
   const Uint32 type = getNodeInfo(localHostptr.i).m_type;
-  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
+  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
   const BlockNumber TblockNum = refToBlock(regApiPtr->ndbapiBlockref);
   const Uint32 Tmarker = (regApiPtr->commitAckMarker == RNIL ? 0 : 1);
   ptrAss(localHostptr, hostRecord);

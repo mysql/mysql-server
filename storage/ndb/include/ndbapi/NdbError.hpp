@@ -192,6 +192,11 @@ struct NdbError {
   int code;
 
   /**
+   * Mysql error code
+   */
+  int mysql_code;
+
+  /**
    * Error message
    */
   const char * message;
@@ -209,6 +214,7 @@ struct NdbError {
     status = UnknownResult;
     classification = NoError;
     code = 0;
+    mysql_code = 0;
     message = 0;
     details = 0;
   }
@@ -216,6 +222,7 @@ struct NdbError {
     status = (NdbError::Status) ndberror.status;
     classification = (NdbError::Classification) ndberror.classification;
     code = ndberror.code;
+    mysql_code = ndberror.mysql_code;
     message = ndberror.message;
     details = ndberror.details;
   }
@@ -224,6 +231,7 @@ struct NdbError {
     ndberror.status = (ndberror_status_enum) status;
     ndberror.classification = (ndberror_classification_enum) classification;
     ndberror.code = code;
+    ndberror.mysql_code = mysql_code;
     ndberror.message = message;
     ndberror.details = details;
     return ndberror;

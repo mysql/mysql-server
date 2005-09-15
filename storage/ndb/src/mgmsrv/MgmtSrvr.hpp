@@ -370,11 +370,6 @@ public:
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
 
-  /**
-   * Global Replication
-   */
-  int repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted = false);
-  
   //**************************************************************************
   // Description: Set event report level for a DB process
   // Parameters:
@@ -695,7 +690,7 @@ private:
   /**
    * An event from <i>nodeId</i> has arrived
    */
-  void eventReport(NodeId nodeId, const Uint32 * theData);
+  void eventReport(const Uint32 * theData);
  
 
   //**************************************************************************

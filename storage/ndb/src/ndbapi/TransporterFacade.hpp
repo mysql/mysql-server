@@ -102,6 +102,11 @@ public:
   void ReportNodeAlive(NodeId nodeId);
   void ReportNodeDead(NodeId nodeId);
   void ReportNodeFailureComplete(NodeId nodeId);
+
+  /**
+   * Send signal to each registered object
+   */
+  void for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3]);
   
   void lock_mutex();
   void unlock_mutex();
@@ -245,7 +250,7 @@ private:
 
     inline Object_Execute get(Uint16 blockNo) const {
       blockNo -= MIN_API_BLOCK_NO;
-      if(blockNo < m_objectExecute.size()){
+      if(likely (blockNo < m_objectExecute.size())){
 	return m_objectExecute[blockNo];
       }
       Object_Execute oe = { 0, 0 };
@@ -381,11 +386,6 @@ TransporterFacade::getIsNodeSendable(NodeId n) const {
       else
         return node.compatible && (startLevel == NodeState::SL_STARTED ||
                                  startLevel == NodeState::SL_STOPPING_1);
-  } else if (node.m_info.m_type == NodeInfo::REP) {
-    /**
-     * @todo Check that REP node actually has received API_REG_REQ
-     */
-    return node.compatible;
   } else {
     ndbout_c("TransporterFacade::getIsNodeSendable: Illegal node type: "
              "%d of node: %d", 
