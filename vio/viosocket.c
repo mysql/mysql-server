@@ -145,7 +145,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
 #endif /* !defined(NO_FCNTL_NONBLOCK) */
 #else /* !defined(__WIN__) && !defined(__EMX__) */
 #ifndef __EMX__
-  if (vio->type != VIO_TYPE_NAMEDPIPE)  
+  if (vio->type != VIO_TYPE_NAMEDPIPE && vio->type != VIO_TYPE_SHARED_MEMORY)
 #endif
   { 
     ulong arg;
