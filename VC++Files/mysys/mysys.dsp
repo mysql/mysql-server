@@ -361,6 +361,10 @@ SOURCE=.\my_compress.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_conio.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_copy.c
 # End Source File
 # Begin Source File
