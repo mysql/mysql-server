@@ -2809,17 +2809,10 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   DBUG_ENTER("init_slave_thread");
   thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
-  /*
-    The two next lines are needed for replication of SP (CREATE PROCEDURE
-    needs a valid user to store in mysql.proc).
-  */
-  thd->priv_user= (char *) "";
-  thd->priv_host[0]= '\0';
-  thd->host_or_ip= "";
+  thd->security_ctx->skip_grants();
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
-  thd->master_access= ~(ulong)0;
   thd->slave_thread = 1;
   set_slave_thread_options(thd);
   /* 

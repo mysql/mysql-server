@@ -484,6 +484,7 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "protocol.h"
 #include "sql_udf.h"
 class user_var_entry;
+class st_security_context;
 enum enum_var_type
 {
   OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
@@ -515,7 +516,7 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
-bool default_view_definer(THD *thd, st_lex_user *definer);
+bool default_view_definer(st_security_context *sctx, st_lex_user *definer);
 
 
 enum enum_mysql_completiontype {

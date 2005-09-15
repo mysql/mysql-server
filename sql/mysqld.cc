@@ -776,7 +776,9 @@ static void close_connections(void)
     {
       if (global_system_variables.log_warnings)
         sql_print_warning(ER(ER_FORCING_CLOSE),my_progname,
-                          tmp->thread_id,tmp->user ? tmp->user : "");
+                          tmp->thread_id,
+                          (tmp->security_ctx->user ?
+                           tmp->security_ctx->user : ""));
       close_connection(tmp,0,0);
     }
 #endif
@@ -3582,7 +3584,7 @@ static void bootstrap(FILE *file)
   thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
-  thd->master_access= ~(ulong)0;
+  thd->security_ctx->master_access= ~(ulong)0;
   thd->thread_id=thread_id++;
   thread_count++;
 
@@ -3922,7 +3924,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
       continue;
     }
     if (sock == unix_sock)
-      thd->host=(char*) my_localhost;
+      thd->security_ctx->host=(char*) my_localhost;
 #ifdef __WIN__
     /* Set default wait_timeout */
     ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;

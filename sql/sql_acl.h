@@ -181,7 +181,8 @@ ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
 int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
                 uint passwd_len);
-int acl_getroot_no_password(THD *thd);
+int acl_getroot_no_password(st_security_context *sctx, char *user, char *host,
+                            char *ip, char *db);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user,
                            char *password, uint password_len);

@@ -172,7 +172,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     stronger test will be removed, the test below will hold.
   */
   if (!trust_routine_creators && mysql_bin_log.is_open() &&
-      !(thd->master_access & SUPER_ACL))
+      !(thd->security_ctx->master_access & SUPER_ACL))
   {
     my_message(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,
 	       ER(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER), MYF(0));

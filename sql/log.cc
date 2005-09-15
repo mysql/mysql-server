@@ -1476,7 +1476,7 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
       {						// Normal thread
 	if ((thd->options & OPTION_LOG_OFF)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	    && (thd->master_access & SUPER_ACL)
+	    && (thd->security_ctx->master_access & SUPER_ACL)
 #endif
 )
 	{
@@ -1935,10 +1935,12 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
           tmp_errno=errno;
       }
       if (my_b_printf(&log_file, "# User@Host: %s[%s] @ %s [%s]\n",
-                      thd->priv_user ? thd->priv_user : "",
-                      thd->user ? thd->user : "",
-                      thd->host ? thd->host : "",
-                      thd->ip ? thd->ip : "") == (uint) -1)
+                      thd->security_ctx->priv_user ?
+                      thd->security_ctx->priv_user : "",
+                      thd->security_ctx->user ? thd->security_ctx->user : "",
+                      thd->security_ctx->host ? thd->security_ctx->host : "",
+                      thd->security_ctx->ip ? thd->security_ctx->ip : "") ==
+          (uint) -1)
         tmp_errno=errno;
     }
     if (query_start_arg)
