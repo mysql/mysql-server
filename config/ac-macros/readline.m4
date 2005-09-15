@@ -59,3 +59,42 @@ AC_DEFUN([MYSQL_CHECK_NEW_RL_INTERFACE], [
         )
     )
 ])
+
+dnl
+dnl check for availability of multibyte characters and functions
+dnl (Based on BASH_CHECK_MULTIBYTE in aclocal.m4 of readline-5.0)
+dnl
+AC_DEFUN([MYSQL_CHECK_MULTIBYTE],
+[
+AC_CHECK_HEADERS(wctype.h)
+AC_CHECK_HEADERS(wchar.h)
+AC_CHECK_HEADERS(langinfo.h)
+
+AC_CHECK_FUNC(mbsrtowcs, AC_DEFINE([HAVE_MBSRTOWCS],[],[Define if you have mbsrtowcs]))
+AC_CHECK_FUNC(mbrtowc, AC_DEFINE([HAVE_MBRTOWC],[],[Define if you have mbrtowc]))
+AC_CHECK_FUNC(mbrlen, AC_DEFINE([HAVE_MBRLEN],[],[Define if you have mbrlen]))
+AC_CHECK_FUNC(wctomb, AC_DEFINE([HAVE_WCTOMB],[],[Define if you have wctomb]))
+AC_CHECK_FUNC(wcwidth, AC_DEFINE([HAVE_WCWIDTH],[],[Define if you have wcwidth]))
+AC_CHECK_FUNC(wcsdup, AC_DEFINE([HAVE_WCSDUP],[],[Define if you check wcsdup]))
+
+AC_CACHE_CHECK([for mbstate_t], mysql_cv_have_mbstate_t,
+[AC_TRY_COMPILE([
+#include <wchar.h>], [
+  mbstate_t ps;
+  mbstate_t *psp;
+  psp = (mbstate_t *)0;
+], mysql_cv_have_mbstate_t=yes,  mysql_cv_have_mbstate_t=no)])
+if test $mysql_cv_have_mbstate_t = yes; then
+        AC_DEFINE([HAVE_MBSTATE_T],[],[Define if mysql_cv_have_mbstate_t=yes])
+fi
+
+AC_CACHE_CHECK([for nl_langinfo and CODESET], mysql_cv_langinfo_codeset,
+[AC_TRY_LINK(
+[#include <langinfo.h>],
+[char* cs = nl_langinfo(CODESET);],
+mysql_cv_langinfo_codeset=yes, mysql_cv_langinfo_codeset=no)])
+if test $mysql_cv_langinfo_codeset = yes; then
+  AC_DEFINE([HAVE_LANGINFO_CODESET],[],[Define if mysql_cv_langinfo_codeset=yes])
+fi
+
+])
