@@ -800,6 +800,7 @@ ndb/test/ndbapi/testNodeRestart
 ndb/test/ndbapi/testOIBasic
 ndb/test/ndbapi/testOperations
 ndb/test/ndbapi/testRestartGci
+ndb/test/ndbapi/testSRBank
 ndb/test/ndbapi/testScan
 ndb/test/ndbapi/testScan.dsp
 ndb/test/ndbapi/testScanInterpreter
@@ -825,6 +826,7 @@ ndb/test/tools/hugoScanUpdate
 ndb/test/tools/ndb_cpcc
 ndb/test/tools/restart
 ndb/test/tools/verify_index
+ndb/tools/ndb_config
 ndb/tools/ndb_delete_all
 ndb/tools/ndb_delete_all.dsp
 ndb/tools/ndb_desc
@@ -969,7 +971,9 @@ support-files/MacOSX/Description.plist
 support-files/MacOSX/Info.plist
 support-files/MacOSX/ReadMe.txt
 support-files/MacOSX/StartupParameters.plist
+support-files/MacOSX/postflight
 support-files/MacOSX/postinstall
+support-files/MacOSX/preflight
 support-files/MacOSX/preinstall
 support-files/binary-configure
 support-files/my-huge.cnf
@@ -1053,7 +1057,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-ndb/tools/ndb_config
-support-files/MacOSX/postflight
-support-files/MacOSX/preflight
-ndb/test/ndbapi/testSRBank
