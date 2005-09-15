@@ -522,7 +522,8 @@ error:
 
 static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
 {
-  char buf[table->s->connect_string.length+1];
+  char buf[FEDERATED_QUERY_BUFFER_SIZE];
+  int buf_len;
   DBUG_ENTER("ha_federated parse_url_error");
   if (share->scheme)
   {
@@ -532,9 +533,11 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
     my_free((gptr) share->scheme, MYF(0));
     share->scheme= 0;
   }
-
-  strnmov(buf, table->s->connect_string.str, table->s->connect_string.length+1);
-  buf[table->s->connect_string.length]= '\0';
+  buf_len= (table->s->connect_string.length > (FEDERATED_QUERY_BUFFER_SIZE - 1)) 
+    ? FEDERATED_QUERY_BUFFER_SIZE - 1 : table->s->connect_string.length;
+  
+  strnmov(buf, table->s->connect_string.str, buf_len);
+  buf[buf_len]= '\0';
   my_error(error_num, MYF(0), buf);
   DBUG_RETURN(error_num);
 }
@@ -743,13 +746,12 @@ ha_federated::ha_federated(TABLE *table_arg)
 
 uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
 {
-  uint num_fields;
   ulong *lengths;
   Field **field;
 
   DBUG_ENTER("ha_federated::convert_row_to_internal_format");
 
-  num_fields= mysql_num_fields(stored_result);
+  // num_fields= mysql_num_fields(stored_result);
   lengths= mysql_fetch_lengths(stored_result);
 
   memset(record, 0, table->s->null_bytes);
@@ -1115,12 +1117,9 @@ bool ha_federated::create_where_from_key(String *to,
   for (int i= 0; i <= 1; i++)
   {
     bool needs_quotes;
-    uint loop_counter= 0;
     KEY_PART_INFO *key_part;
     if (ranges[i] == NULL)
       continue;
-    const byte *key= ranges[i]->key;
-    uint key_length= ranges[i]->length;
 
     if (both_not_null)
     {
@@ -1435,7 +1434,6 @@ const char **ha_federated::bas_ext() const
 
 int ha_federated::open(const char *name, int mode, uint test_if_locked)
 {
-  int rc;
   DBUG_ENTER("ha_federated::open");
 
   if (!(share= get_share(name, table)))
@@ -1778,7 +1776,6 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   /* 
     buffers for following strings
   */
-  char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char old_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
   char new_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
   char update_buffer[FEDERATED_QUERY_BUFFER_SIZE];
@@ -1848,10 +1845,8 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
       where_string.append(FEDERATED_ISNULL);
     else
     {
-      uint o_len;
       (*field)->val_str(&old_field_value,
                         (char*) (old_data + (*field)->offset()));
-      o_len= (*field)->pack_length();
       (*field)->quote_data(&old_field_value);
       where_string.append(old_field_value);
     }
@@ -1989,8 +1984,6 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
   int retval;
   char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char index_value[STRING_BUFFER_USUAL_SIZE];
-  char key_value[STRING_BUFFER_USUAL_SIZE];
-  char test_value[STRING_BUFFER_USUAL_SIZE];
   char sql_query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   String index_string(index_value, 
                       sizeof(index_value),
@@ -2071,7 +2064,6 @@ error:
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
 int ha_federated::index_init(uint keynr)
 {
-  int error;
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info",
              ("table: '%s'  key: %d", table->s->table_name, keynr));
@@ -2178,10 +2170,6 @@ int ha_federated::index_next(byte *buf)
 
 int ha_federated::rnd_init(bool scan)
 {
-  int num_fields, rows;
-  int retval;
-  char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-
   DBUG_ENTER("ha_federated::rnd_init");
   /*
     The use of the 'scan' flag is incredibly important for this handler
@@ -2472,7 +2460,6 @@ void ha_federated::info(uint flag)
     }
     if (flag & HA_STATUS_CONST)
     {
-      TABLE_SHARE *share= table->s;
       block_size= 4096;
     }
   }
