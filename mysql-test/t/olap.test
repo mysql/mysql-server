@@ -263,4 +263,13 @@ SELECT * FROM (SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
 
 DROP TABLE t1;
 
+#
+# Bug #12887 Distinct is not always applied after rollup
+#
+create table t1 ( a varchar(9), b int );
+insert into t1 values('a',1),(null,2);
+select a, max(b) from t1 group by a with rollup;
+select distinct a, max(b) from t1 group by a with rollup;
+drop table t1;
+
 # End of 4.1 tests
