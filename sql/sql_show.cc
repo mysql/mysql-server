@@ -2947,6 +2947,8 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_views_record");
+  char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+  uint defiler_len;
   if (!res)
   {
     if (tables->view)
@@ -2960,17 +2962,24 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
       if (tables->with_check != VIEW_CHECK_NONE)
       {
         if (tables->with_check == VIEW_CHECK_LOCAL)
-          table->field[4]->store("LOCAL", 5, cs);
+          table->field[4]->store(STRING_WITH_LEN("LOCAL"), cs);
         else
-          table->field[4]->store("CASCADED", 8, cs);
+          table->field[4]->store(STRING_WITH_LEN("CASCADED"), cs);
       }
       else
-        table->field[4]->store("NONE", 4, cs);
+        table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
 
       if (tables->updatable_view)
-        table->field[5]->store("YES", 3, cs);
+        table->field[5]->store(STRING_WITH_LEN("YES"), cs);
       else
-        table->field[5]->store("NO", 2, cs);
+        table->field[5]->store(STRING_WITH_LEN("NO"), cs);
+      defiler_len= (strxmov(definer, tables->definer.user.str, "@",
+                            tables->definer.host.str, NullS) - definer) - 1;
+      table->field[6]->store(definer, defiler_len, cs);
+      if (tables->view_suid)
+        table->field[7]->store(STRING_WITH_LEN("DEFINER"), cs);
+      else
+        table->field[7]->store(STRING_WITH_LEN("INVOKER"), cs);
       DBUG_RETURN(schema_table_store_record(thd, table));
     }
   }
@@ -3911,6 +3920,8 @@ ST_FIELD_INFO view_fields_info[]=
   {"VIEW_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CHECK_OPTION", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_UPDATABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"SECURITY_TYPE", 7, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
