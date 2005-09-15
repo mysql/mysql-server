@@ -180,6 +180,8 @@ void lex_start(THD *thd, uchar *buf,uint length)
   if (lex->sroutines.records)
     my_hash_reset(&lex->sroutines);
   lex->sroutines_list.empty();
+  lex->sroutines_list_own_last= lex->sroutines_list.next;
+  lex->sroutines_list_own_elements= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1614,6 +1616,8 @@ st_lex::st_lex()
 {
   hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
   sroutines_list.empty();
+  sroutines_list_own_last= sroutines_list.next;
+  sroutines_list_own_elements= 0;
 }
 
 
@@ -2026,6 +2030,8 @@ void st_lex::cleanup_after_one_table_open()
   if (sroutines.records)
     my_hash_reset(&sroutines);
   sroutines_list.empty();
+  sroutines_list_own_last= sroutines_list.next;
+  sroutines_list_own_elements= 0;
 }
 
 

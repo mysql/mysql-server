@@ -257,7 +257,10 @@ public:
     str->set(val_int(), &my_charset_bin);
     return null_value ? 0 : str;
   }
-  const char *func_name() const { return "weekday"; }
+  const char *func_name() const
+  {
+     return (odbc_type ? "dayofweek" : "weekday");
+  }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
   {

@@ -93,22 +93,32 @@ static void print_lock_error(int error, const char *);
     flags                       Options:
       MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      Ignore a global read lock
       MYSQL_LOCK_IGNORE_FLUSH                 Ignore a flush tables.
+      MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        Instead of reopening altered
+                                              or dropped tables by itself,
+                                              mysql_lock_tables() should
+                                              notify upper level and rely
+                                              on caller doing this.
+    need_reopen                 Out parameter, TRUE if some tables were altered
+                                or deleted and should be reopened by caller.
 
   RETURN
     A lock structure pointer on success.
-    NULL on error.
+    NULL on error or if some tables should be reopen.
 */
 
+/* Map the return value of thr_lock to an error from errmsg.txt */
 static int thr_lock_errno_to_mysql[]=
 { 0, 1, ER_LOCK_WAIT_TIMEOUT, ER_LOCK_DEADLOCK };
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
+                              uint flags, bool *need_reopen)
 {
   MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
   int rc;
-  /* Map the return value of thr_lock to an error from errmsg.txt */
   DBUG_ENTER("mysql_lock_tables");
+
+  *need_reopen= FALSE;
 
   for (;;)
   {
@@ -178,6 +188,11 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
     thd->locked=0;
 retry:
     sql_lock=0;
+    if (flags & MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN)
+    {
+      *need_reopen= TRUE;
+      break;
+    }
     if (wait_for_tables(thd))
       break;					// Couldn't open tables
   }
