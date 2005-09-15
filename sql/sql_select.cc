@@ -755,7 +755,7 @@ JOIN::optimize()
   }
   if (group_list || tmp_table_param.sum_func_count)
   {
-    if (! hidden_group_fields)
+    if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
   else if (select_distinct && tables - const_tables == 1)
