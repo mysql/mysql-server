@@ -4713,7 +4713,7 @@ Item_func_sp::execute(Item **itp)
   Sub_statement_state statement_state;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  st_sp_security_context save_ctx;
+  st_security_context *save_ctx;
 #endif
 
   if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
@@ -4723,11 +4723,11 @@ Item_func_sp::execute(Item **itp)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_routine_access(thd, EXECUTE_ACL, 
-			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
+  if (check_routine_access(thd, EXECUTE_ACL,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, 0) ||
+      sp_change_security_context(thd, m_sp, &save_ctx))
     goto error;
-  sp_change_security_context(thd, m_sp, &save_ctx);
-  if (save_ctx.changed && 
+  if (save_ctx && 
       check_routine_access(thd, EXECUTE_ACL, 
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
     goto error_check_ctx;
@@ -4750,7 +4750,7 @@ Item_func_sp::execute(Item **itp)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 error_check_ctx:
-  sp_restore_security_context(thd, m_sp, &save_ctx);
+  sp_restore_security_context(thd, save_ctx);
 #endif
 
 error:

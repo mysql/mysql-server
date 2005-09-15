@@ -415,8 +415,9 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 bool mysqld_show_create_db(THD *thd, char *dbname,
                            HA_CREATE_INFO *create_info)
 {
+  st_security_context *sctx= thd->security_ctx;
   int length;
-  char	path[FN_REFLEN];
+  char path[FN_REFLEN];
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -435,17 +436,17 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (test_all_bits(thd->master_access,DB_ACLS))
+  if (test_all_bits(sctx->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
-    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-		thd->master_access);
+    db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
+		sctx->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             thd->priv_user, thd->host_or_ip, dbname);
+             sctx->priv_user, sctx->host_or_ip, dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-		    thd->priv_user, thd->host_or_ip, dbname);
+		    sctx->priv_user, sctx->host_or_ip, dbname);
     DBUG_RETURN(TRUE);
   }
 #endif
@@ -1185,24 +1186,26 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
+      st_security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp->user && !strcmp(tmp->user,user))))
+          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
       {
-        thread_info *thd_info=new thread_info;
+        thread_info *thd_info= new thread_info;
 
         thd_info->thread_id=tmp->thread_id;
-        thd_info->user=thd->strdup(tmp->user ? tmp->user :
-				   (tmp->system_thread ?
-				    "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp->host || tmp->ip) && thd->host_or_ip[0])
+        thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
+                                    (tmp->system_thread ?
+                                     "system user" : "unauthenticated user"));
+	if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
+            thd->security_ctx->host_or_ip[0])
 	{
 	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
-			"%s:%u", tmp->host_or_ip, tmp->peer_port);
+			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
 	}
 	else
-	  thd_info->host= thd->strdup(tmp->host_or_ip);
+	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
@@ -1253,6 +1256,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thread_info *thd_info;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  st_security_context *sctx;
+#endif
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
@@ -1989,7 +1995,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   enum enum_schema_tables schema_table_idx;
   List<char> bases;
   List_iterator_fast<char> it(bases);
-  COND *partial_cond; 
+  COND *partial_cond;
+  st_security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_state open_tables_state_backup;
@@ -2061,8 +2068,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!check_access(thd,SELECT_ACL, base_name, 
                       &thd->col_access, 0, 1, with_i_schema) ||
-        thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(thd->host, thd->ip, thd->priv_user, base_name,0) ||
+        sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
+	acl_get(sctx->host, sctx->ip, sctx->priv_user, base_name,0) ||
 	(grant_option && !check_grant_db(thd, base_name)))
 #endif
     {
@@ -2194,6 +2201,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
+  st_security_context *sctx= thd->security_ctx;
   DBUG_ENTER("fill_schema_shemata");
 
   if (make_db_list(thd, &files, &idx_field_vals,
@@ -2212,8 +2220,8 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
       continue;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(thd->host, thd->ip, thd->priv_user, file_name,0) ||
+    if (sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
+	acl_get(sctx->host, sctx->ip, sctx->priv_user, file_name,0) ||
 	(grant_option && !check_grant_db(thd, file_name)))
 #endif
     {
@@ -2814,7 +2822,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("fill_schema_proc");
 
-  strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
+  strxmov(definer, thd->security_ctx->priv_user, "@",
+          thd->security_ctx->priv_host, NullS);
   /* We use this TABLE_LIST instance only for checking of privileges. */
   bzero((char*) &proc_tables,sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";

@@ -151,6 +151,9 @@ public:
   // Pointers set during parsing
   uchar *m_param_begin, *m_param_end, *m_body_begin;
 
+  /* security context for SP procedure/function in case we switch it*/
+  st_security_context m_security_ctx;
+
   static void *
   operator new(size_t size);
 
@@ -1017,23 +1020,12 @@ private:
 }; // class sp_instr_error : public sp_instr
 
 
-struct st_sp_security_context
-{
-  bool changed;
-  uint master_access;
-  uint db_access;
-  char *priv_user;
-  char priv_host[MAX_HOSTNAME];
-  char *user;
-  char *host;
-  char *ip;
-};
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool
+sp_change_security_context(THD *thd, sp_head *sp,
+                           st_security_context **backup);
 void
-sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp);
-void
-sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
+sp_restore_security_context(THD *thd, st_security_context *backup);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 TABLE_LIST *

@@ -473,7 +473,8 @@ String *Item_func_des_decrypt::val_str(String *str)
   {
     uint key_number=(uint) (*res)[0] & 127;
     // Check if automatic key and that we have privilege to uncompress using it
-    if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
+    if (!(current_thd->security_ctx->master_access & SUPER_ACL) ||
+        key_number > 9)
       goto error;
 
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
@@ -1601,13 +1602,13 @@ String *Item_func_user::val_str(String *str)
 
   if (is_current)
   {
-    user= thd->priv_user;
-    host= thd->priv_host;
+    user= thd->security_ctx->priv_user;
+    host= thd->security_ctx->priv_host;
   }
   else
   {
-    user= thd->user;
-    host= thd->host_or_ip;
+    user= thd->main_security_ctx.user;
+    host= thd->main_security_ctx.priv_host;
   }
 
   // For system threads (e.g. replication SQL thread) user may be empty
@@ -2518,7 +2519,7 @@ String *Item_load_file::val_str(String *str)
 
   if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      || !(current_thd->master_access & FILE_ACL)
+      || !(current_thd->security_ctx->master_access & FILE_ACL)
 #endif
       )
     goto err;
