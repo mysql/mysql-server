@@ -565,6 +565,9 @@ struct system_variables
   my_bool ndb_force_send;
   my_bool ndb_use_exact_count;
   my_bool ndb_use_transactions;
+  my_bool ndb_index_stat_enable;
+  ulong ndb_index_stat_cache_entries;
+  ulong ndb_index_stat_update_freq;
 #endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_alter_table;
   my_bool old_passwords;

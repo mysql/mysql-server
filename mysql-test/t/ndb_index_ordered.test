@@ -354,5 +354,79 @@ create table t1 (a int, c varchar(10),
   primary key using hash (a), index(c)) engine=ndb;
 insert into t1 (a, c) values (1,'aaa'),(3,'bbb');
 select count(*) from t1 where c<'bbb';
+drop table t1;
+
+# -- index statistics --
+
+set autocommit=1;
+show session variables like 'ndb_index_stat_%';
+
+set ndb_index_stat_enable = off;
+show session variables like 'ndb_index_stat_%';
+
+create table t1 (a int, b int, c varchar(10) not null,
+  primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+  (1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+  (4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+  (7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+select count(*) from t1 where b < 10;
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+select count(*) from t1 where b > 10;
+select count(*) from t1 where b <= 20 and c < 'ccc';
+select count(*) from t1 where b = 20 and c = 'ccc';
+select count(*) from t1 where b > 20;
+select count(*) from t1 where b = 30 and c > 'aaa';
+select count(*) from t1 where b <= 20;
+select count(*) from t1 where b >= 20 and c > 'aaa';
+drop table t1;
+
+set ndb_index_stat_enable = on;
+set ndb_index_stat_cache_entries = 0;
+show session variables like 'ndb_index_stat_%';
+
+create table t1 (a int, b int, c varchar(10) not null,
+  primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+  (1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+  (4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+  (7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+select count(*) from t1 where b < 10;
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+select count(*) from t1 where b > 10;
+select count(*) from t1 where b <= 20 and c < 'ccc';
+select count(*) from t1 where b = 20 and c = 'ccc';
+select count(*) from t1 where b > 20;
+select count(*) from t1 where b = 30 and c > 'aaa';
+select count(*) from t1 where b <= 20;
+select count(*) from t1 where b >= 20 and c > 'aaa';
+drop table t1;
+
+set ndb_index_stat_enable = on;
+set ndb_index_stat_cache_entries = 4;
+set ndb_index_stat_update_freq = 2;
+show session variables like 'ndb_index_stat_%';
+
+create table t1 (a int, b int, c varchar(10) not null,
+  primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+  (1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+  (4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+  (7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+select count(*) from t1 where b < 10;
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+select count(*) from t1 where b > 10;
+select count(*) from t1 where b <= 20 and c < 'ccc';
+select count(*) from t1 where b = 20 and c = 'ccc';
+select count(*) from t1 where b > 20;
+select count(*) from t1 where b = 30 and c > 'aaa';
+select count(*) from t1 where b <= 20;
+select count(*) from t1 where b >= 20 and c > 'aaa';
+drop table t1;
+
+set ndb_index_stat_enable = @@global.ndb_index_stat_enable;
+set ndb_index_stat_cache_entries = @@global.ndb_index_stat_cache_entries;
+set ndb_index_stat_update_freq = @@global.ndb_index_stat_update_freq;
+show session variables like 'ndb_index_stat_%';
 
 # End of 4.1 tests

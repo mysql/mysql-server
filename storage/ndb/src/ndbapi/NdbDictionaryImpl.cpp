@@ -266,6 +266,11 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::RANGE_NO;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 1;
+  } else if(!strcmp(name, "NDB$RECORDS_IN_RANGE")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::RECORDS_IN_RANGE;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 4;
   } else {
     abort();
   }
@@ -739,12 +744,14 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       delete NdbDictionary::Column::COMMIT_COUNT;
       delete NdbDictionary::Column::ROW_SIZE;
       delete NdbDictionary::Column::RANGE_NO;
+      delete NdbDictionary::Column::RECORDS_IN_RANGE;
       NdbDictionary::Column::FRAGMENT= 0;
       NdbDictionary::Column::FRAGMENT_MEMORY= 0;
       NdbDictionary::Column::ROW_COUNT= 0;
       NdbDictionary::Column::COMMIT_COUNT= 0;
       NdbDictionary::Column::ROW_SIZE= 0;
       NdbDictionary::Column::RANGE_NO= 0;
+      NdbDictionary::Column::RECORDS_IN_RANGE= 0;
     }
     m_globalHash->unlock();
   } else {
@@ -817,6 +824,8 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
 	NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
       NdbDictionary::Column::RANGE_NO= 
 	NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
+      NdbDictionary::Column::RECORDS_IN_RANGE= 
+	NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
     }
     m_globalHash->unlock();
     return true;
@@ -2175,6 +2184,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   }
 
   * dst = idx;
+
   return 0;
 }
 
@@ -3209,4 +3219,3 @@ template class Vector<Uint32>;
 template class Vector<Vector<Uint32> >;
 template class Vector<NdbTableImpl*>;
 template class Vector<NdbColumnImpl*>;
-

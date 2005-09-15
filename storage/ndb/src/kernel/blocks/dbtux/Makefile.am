@@ -9,6 +9,7 @@ libdbtux_a_SOURCES = \
 			DbtuxScan.cpp \
 			DbtuxSearch.cpp \
 			DbtuxCmp.cpp \
+			DbtuxStat.cpp \
 			DbtuxDebug.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/kernel/blocks/dbtup

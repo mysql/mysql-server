@@ -2622,7 +2622,10 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
   regTcPtr.i = signal->theData[0];
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
   
-  if(signal->theData[1] != AttributeHeader::RANGE_NO)
+  if (signal->theData[1] == AttributeHeader::RANGE_NO) {
+    signal->theData[0] = regTcPtr.p->m_scan_curr_range_no;
+  }
+  else if (signal->theData[1] != AttributeHeader::RECORDS_IN_RANGE)
   {
     jam();
     FragrecordPtr regFragptr;
@@ -2634,7 +2637,13 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
   }
   else
   {
-    signal->theData[0] = regTcPtr.p->m_scan_curr_range_no;
+    jam();
+    // scanptr gets reset somewhere within the timeslice
+    ScanRecordPtr tmp;
+    tmp.i = regTcPtr.p->tcScanRec;
+    c_scanRecordPool.getPtr(tmp);
+    signal->theData[0] = tmp.p->scanAccPtr;
+    EXECUTE_DIRECT(DBTUX, GSN_READ_PSEUDO_REQ, signal, 2);
   }
 }
 

@@ -35,6 +35,7 @@ libndbapi_la_SOURCES = \
         DictCache.cpp \
         ndb_cluster_connection.cpp \
 	NdbBlob.cpp \
+	NdbIndexStat.cpp \
         SignalSender.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
