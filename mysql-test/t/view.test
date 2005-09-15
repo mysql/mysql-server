@@ -2088,6 +2088,13 @@ drop view v1;
 drop table t1;
 
 #
+# Bug #11416 Server crash if using a view that uses function convert_tz
+#
+create view v1 as SELECT CONVERT_TZ('2004-01-01 12:00:00','GMT','MET');
+select * from v1;
+drop view v1;
+
+#
 # Bugs #12963, #13000: wrong creation of VIEW with DAYNAME, DAYOFWEEK, and WEEKDAY
 #
 
