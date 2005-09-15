@@ -305,6 +305,10 @@ Dbtup::primaryKey(Tablerec* const regTabPtr, Uint32 attrId)
 Uint32
 Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req)
 {
+  if (ERROR_INSERTED(4004)) {
+    CLEAR_ERROR_INSERT_VALUE;
+    return 9999;
+  }
   Uint32 triggerId = req->getTriggerId();
 
   TriggerType::Value ttype = req->getTriggerType();
