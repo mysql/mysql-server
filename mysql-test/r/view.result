@@ -2205,3 +2205,46 @@ select * from (select f1 as f2 from v1) v where v.f2='a';
 f2
 drop view v1;
 drop table t1;
+CREATE TABLE t1 (date DATE NOT NULL);
+INSERT INTO  t1 VALUES ('2005-09-06');
+CREATE VIEW v1 AS SELECT DAYNAME(date) FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select dayname(`t1`.`date`) AS `DAYNAME(date)` from `t1`
+CREATE VIEW v2 AS SELECT DAYOFWEEK(date) FROM t1;
+SHOW CREATE VIEW v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select dayofweek(`t1`.`date`) AS `DAYOFWEEK(date)` from `t1`
+CREATE VIEW v3 AS SELECT WEEKDAY(date) FROM t1;
+SHOW CREATE VIEW v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select weekday(`t1`.`date`) AS `WEEKDAY(date)` from `t1`
+SELECT DAYNAME('2005-09-06');
+DAYNAME('2005-09-06')
+Tuesday
+SELECT DAYNAME(date) FROM t1;
+DAYNAME(date)
+Tuesday
+SELECT * FROM v1;
+DAYNAME(date)
+Tuesday
+SELECT DAYOFWEEK('2005-09-06');
+DAYOFWEEK('2005-09-06')
+3
+SELECT DAYOFWEEK(date) FROM t1;
+DAYOFWEEK(date)
+3
+SELECT * FROM v2;
+DAYOFWEEK(date)
+3
+SELECT WEEKDAY('2005-09-06');
+WEEKDAY('2005-09-06')
+1
+SELECT WEEKDAY(date) FROM t1;
+WEEKDAY(date)
+1
+SELECT * FROM v3;
+WEEKDAY(date)
+1
+DROP TABLE t1;
+DROP VIEW  v1, v2, v3;

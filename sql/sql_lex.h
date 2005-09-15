@@ -861,8 +861,15 @@ typedef struct st_lex
   /*
     List linking elements of 'sroutines' set. Allows you to add new elements
     to this set as you iterate through the list of existing elements.
+    'sroutines_list_own_last' is pointer to ::next member of last element of
+    this list which represents routine which is explicitly used by query.
+    'sroutines_list_own_elements' number of explicitly used routines.
+    We use these two members for restoring of 'sroutines_list' to the state
+    in which it was right after query parsing.
   */
   SQL_LIST sroutines_list;
+  byte     **sroutines_list_own_last;
+  uint     sroutines_list_own_elements;
 
   st_sp_chistics sp_chistics;
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
@@ -977,6 +984,15 @@ typedef struct st_lex
   TABLE_LIST* first_not_own_table()
   {
     return ( query_tables_own_last ? *query_tables_own_last : 0);
+  }
+  void chop_off_not_own_tables()
+  {
+    if (query_tables_own_last)
+    {
+      *query_tables_own_last= 0;
+      query_tables_last= query_tables_own_last;
+      query_tables_own_last= 0;
+    }
   }
   void cleanup_after_one_table_open();
 

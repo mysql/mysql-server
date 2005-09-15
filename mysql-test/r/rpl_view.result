@@ -43,9 +43,8 @@ drop view v1;
 select * from v1 order by a;
 ERROR 42S02: Table 'test.v1' doesn't exist
 drop table t1;
-show binlog events;
+show binlog events limit 1,100;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Format_desc	2	#	Server ver: 5.0.13-beta-debug-log, Binlog ver: 4
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
 slave-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1)
 slave-bin.000001	#	Query	1	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS select a from t1
