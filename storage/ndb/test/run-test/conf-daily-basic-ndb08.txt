@@ -1,0 +1,19 @@
+baseport: 14000
+basedir: /space/autotest
+mgm: CHOOSE_host1
+ndb: CHOOSE_host2 CHOOSE_host3 CHOOSE_host2 CHOOSE_host3
+api: CHOOSE_host1 CHOOSE_host1 CHOOSE_host1
+-- cluster config
+[DB DEFAULT]
+NoOfReplicas: 2
+IndexMemory: 100M 
+DataMemory: 300M
+BackupMemory: 64M
+MaxNoOfConcurrentScans: 100
+DataDir: .
+FileSystemPath: /space/autotest/run
+
+[MGM DEFAULT]
+PortNumber: 14000
+ArbitrationRank: 1
+DataDir: .

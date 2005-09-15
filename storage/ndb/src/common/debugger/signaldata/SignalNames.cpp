@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "GlobalSignalNumbers.h"
+#include <GlobalSignalNumbers.h>
 
 const GsnName SignalNames [] = {
   { GSN_API_REGCONF,            "API_REGCONF" }
@@ -506,10 +506,13 @@ const GsnName SignalNames [] = {
   ,{ GSN_CREATE_EVNT_CONF,       "CREATE_EVNT_CONF" }
   ,{ GSN_CREATE_EVNT_REF,        "CREATE_EVNT_REF" }
 
-  ,{ GSN_SUMA_START_ME,          "SUMA_START_ME" }  
+  ,{ GSN_SUMA_START_ME_REQ,      "SUMA_START_ME_REQ" }  
+  ,{ GSN_SUMA_START_ME_REF,      "SUMA_START_ME_REF" }  
+  ,{ GSN_SUMA_START_ME_CONF,     "SUMA_START_ME_CONF" }  
   ,{ GSN_SUMA_HANDOVER_REQ,      "SUMA_HANDOVER_REQ"}
+  ,{ GSN_SUMA_HANDOVER_REF,      "SUMA_HANDOVER_REF"}
   ,{ GSN_SUMA_HANDOVER_CONF,     "SUMA_HANDOVER_CONF"} 
-
+  
   ,{ GSN_DROP_EVNT_REQ,          "DROP_EVNT_REQ" }
   ,{ GSN_DROP_EVNT_CONF,         "DROP_EVNT_CONF" }
   ,{ GSN_DROP_EVNT_REF,          "DROP_EVNT_REF" }
@@ -555,25 +558,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_UTIL_RELEASE_CONF,      "UTIL_RELEASE_CONF" }
   ,{ GSN_UTIL_RELEASE_REF,       "UTIL_RELASE_REF" }
 
-  ,{ GSN_GREP_CREATE_REQ,	"GREP_CREATE_REQ" },
-  { GSN_GREP_CREATE_REF,	"GREP_CREATE_REF" },
-  { GSN_GREP_CREATE_CONF,	"GREP_CREATE_CONF" },
-  { GSN_GREP_START_REQ,		"GREP_START_REQ" },
-  { GSN_GREP_START_REF,		"GREP_START_REF" },
-  { GSN_GREP_START_CONF,	"GREP_START_CONF" },
-  { GSN_GREP_SYNC_REQ,		"GREP_SYNC_REQ" },
-  { GSN_GREP_SYNC_REF,		"GREP_SYNC_REF" },
-  { GSN_GREP_SYNC_CONF,		"GREP_SYNC_CONF" },
-  //{ GSN_REP_CONNECT_REQ,        "REP_CONNECT_REQ" }, Not used
-  //{ GSN_REP_CONNECT_REF,        "REP_CONNECT_REF" }, Not used
-  //{ GSN_REP_CONNECT_CONF,       "REP_CONNECT_CONF" }, Not used
-  { GSN_REP_WAITGCP_REQ,	"REP_WAIT_GCP_REQ" },
-  { GSN_REP_WAITGCP_REF,	"REP_WAIT_GCP_REF" },
-  { GSN_REP_WAITGCP_CONF,	"REP_WAIT_GCP_CONF" },
-  { GSN_GREP_WAITGCP_REQ,	"GREP_WAIT_GCP_REQ" },
-  { GSN_GREP_WAITGCP_REF,	"GREP_WAIT_GCP_REF" },
-  { GSN_GREP_WAITGCP_CONF,	"GREP_WAIT_GCP_CONF" }
-
   /* Suma Block Services **/
   ,{ GSN_SUB_CREATE_REQ,         "SUB_CREATE_REQ" }
   ,{ GSN_SUB_CREATE_REF,         "SUB_CREATE_REF" }
@@ -596,7 +580,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_SUB_SYNC_CONTINUE_REF,  "SUB_SYNC_CONTINUE_REF" }
   ,{ GSN_SUB_SYNC_CONTINUE_CONF, "SUB_SYNC_CONTINUE_CONF" }
   ,{ GSN_SUB_GCP_COMPLETE_REP,   "SUB_GCP_COMPLETE_REP" }
-  ,{ GSN_SUB_GCP_COMPLETE_ACC,   "SUB_GCP_COMPLETE_ACC" }
+  ,{ GSN_SUB_GCP_COMPLETE_ACK,   "SUB_GCP_COMPLETE_ACK" }
 
   ,{ GSN_CREATE_SUBID_REQ,         "CREATE_SUBID_REQ" }
   ,{ GSN_CREATE_SUBID_REF,         "CREATE_SUBID_REF" }

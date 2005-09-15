@@ -72,6 +72,11 @@ typedef struct {
   int code;
 
   /**
+   * Mysql error code
+   */
+  int mysql_code;
+
+  /**
    * Error message
    */
   const char * message;

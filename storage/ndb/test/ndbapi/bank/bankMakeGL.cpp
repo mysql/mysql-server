@@ -29,9 +29,11 @@
 int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
+  char * _database = "BANK";
   
   struct getargs args[] = {
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
+    { "usage", '?', arg_flag, &_help, "Print help", "" },
+    { "database", 'd', arg_string, &_database, "Database name", ""} 
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -49,7 +51,7 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  Bank bank(con);
+  Bank bank(con,_database);
 
   if (bank.performMakeGLs() != 0)
     return NDBT_ProgramExit(NDBT_FAILED);

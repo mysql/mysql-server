@@ -29,7 +29,7 @@ public:
 
   ~HugoOperations();
   int startTransaction(Ndb*);
-  int setTransaction(NdbTransaction*);
+  int setTransaction(NdbTransaction*,bool not_null_ok= false);
   int closeTransaction(Ndb*);
   NdbTransaction* getTransaction();
   void refresh();

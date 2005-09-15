@@ -20,14 +20,122 @@
 #include <NdbEventOperation.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <transporter/TransporterDefinitions.hpp>
+#include <NdbRecAttr.hpp>
 
-class NdbGlobalEventBufferHandle;
+#define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
+
+class NdbEventOperationImpl;
+struct EventBufData
+{
+  union {
+    SubTableData *sdata;
+    char *memory;
+  };
+  LinearSectionPtr ptr[3];
+  unsigned sz;
+  NdbEventOperationImpl *m_event_op;
+  EventBufData *m_next; // Next wrt to global order
+};
+
+class EventBufData_list
+{
+public:
+  EventBufData_list();
+  ~EventBufData_list();
+
+  void remove_first();
+  void append(EventBufData *data);
+  void append(const EventBufData_list &list);
+
+  int is_empty();
+
+  EventBufData *m_head, *m_tail;
+  unsigned m_count;
+  unsigned m_sz;
+};
+
+inline
+EventBufData_list::EventBufData_list()
+  : m_head(0), m_tail(0),
+    m_count(0),
+    m_sz(0)
+{
+}
+
+inline
+EventBufData_list::~EventBufData_list()
+{
+}
+
+
+inline
+int EventBufData_list::is_empty()
+{
+  return m_head == 0;
+}
+
+inline
+void EventBufData_list::remove_first()
+{
+  m_count--;
+  m_sz-= m_head->sz;
+  m_head= m_head->m_next;
+  if (m_head == 0)
+    m_tail= 0;
+}
+
+inline
+void EventBufData_list::append(EventBufData *data)
+{
+  data->m_next= 0;
+  if (m_tail)
+    m_tail->m_next= data;
+  else
+  {
+#ifdef VM_TRACE
+    assert(m_count == 0);
+    assert(m_sz == 0);
+#endif
+    m_head= data;
+  }
+  m_tail= data;
+
+  m_count++;
+  m_sz+= data->sz;
+}
+
+inline
+void EventBufData_list::append(const EventBufData_list &list)
+{
+  if (m_tail)
+    m_tail->m_next= list.m_head;
+  else
+    m_head= list.m_head;
+  m_tail= list.m_tail;
+  m_count+= list.m_count;
+  m_sz+= list.m_sz;
+}
+
+struct Gci_container
+{
+  enum State 
+  {
+    GC_COMPLETE = 0x1 // GCI is complete, but waiting for out of order
+  };
+  
+  Uint32 m_state;
+  Uint32 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
+  Uint64 m_gci;                    // GCI
+  EventBufData_list m_data;
+};
+
 class NdbEventOperationImpl : public NdbEventOperation {
 public:
   NdbEventOperationImpl(NdbEventOperation &N,
 			Ndb *theNdb, 
-			const char* eventName, 
-			const int bufferLength); 
+			const char* eventName);
+  NdbEventOperationImpl(NdbEventOperationImpl&); //unimplemented
+  NdbEventOperationImpl& operator=(const NdbEventOperationImpl&); //unimplemented
   ~NdbEventOperationImpl();
 
   NdbEventOperation::State getState();
@@ -36,169 +144,177 @@ public:
   int stop();
   NdbRecAttr *getValue(const char *colName, char *aValue, int n);
   NdbRecAttr *getValue(const NdbColumnImpl *, char *aValue, int n);
-  static int wait(void *p, int aMillisecondNumber);
-  int next(int *pOverrun);
-  bool isConsistent();
-  Uint32 getGCI();
-  Uint32 getLatestGCI();
+  int receive_event();
+  Uint64 getGCI();
+  Uint64 getLatestGCI();
 
   NdbDictionary::Event::TableEvent getEventType();
 
-  /*
-  getOperation();
-  getGCI();
-  getLogType();
-  */
-
   void print();
   void printAll();
+
+  NdbEventOperation *m_facade;
+  Uint32 m_magic_number;
 
   const NdbError & getNdbError() const;
   NdbError m_error;
 
   Ndb *m_ndb;
   NdbEventImpl *m_eventImpl;
-  NdbGlobalEventBufferHandle *m_bufferHandle;
 
   NdbRecAttr *theFirstPkAttrs[2];
   NdbRecAttr *theCurrentPkAttrs[2];
   NdbRecAttr *theFirstDataAttrs[2];
   NdbRecAttr *theCurrentDataAttrs[2];
 
-  NdbEventOperation::State m_state;
+  NdbEventOperation::State m_state; /* note connection to mi_type */
+  Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING
+		   * else same as in EventImpl
+		   */
   Uint32 m_eventId;
-  int m_bufferId;
-  int m_bufferL;
-  SubTableData *sdata;
-  LinearSectionPtr ptr[3];
+  Uint32 m_oid;
+  
+  EventBufData *m_data_item;
+
+  void *m_custom_data;
+  int m_has_error;
+
+#ifdef VM_TRACE
+  Uint32 m_data_done_count;
+  Uint32 m_data_count;
+#endif
+
+  // managed by the ndb object
+  NdbEventOperationImpl *m_next;
+  NdbEventOperationImpl *m_prev;
+private:
+  void receive_data(NdbRecAttr *r, const Uint32 *data, Uint32 sz);
 };
 
-class NdbGlobalEventBuffer;
-class NdbGlobalEventBufferHandle {
+
+class NdbEventBuffer {
 public:
-  NdbGlobalEventBufferHandle (int MAX_NUMBER_ACTIVE_EVENTS);
-  ~NdbGlobalEventBufferHandle ();
-  //static NdbGlobalEventBufferHandle *init(int MAX_NUMBER_ACTIVE_EVENTS);
+  NdbEventBuffer(Ndb*);
+  ~NdbEventBuffer();
 
-  // returns bufferId 0-N if ok otherwise -1
-  int prepareAddSubscribeEvent(NdbEventOperationImpl *, int& hasSubscriber);
-  void unprepareAddSubscribeEvent(int bufferId);
-  void addSubscribeEvent(int bufferId,
-			 NdbEventOperationImpl *ndbEventOperationImpl);
+  const Uint32 &m_system_nodes;
+  Vector<Gci_container> m_active_gci;
+  NdbEventOperation *createEventOperation(const char* eventName,
+					  NdbError &);
+  void dropEventOperation(NdbEventOperation *);
+  static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
 
-  void unprepareDropSubscribeEvent(int bufferId);
-  int prepareDropSubscribeEvent(int bufferId, int& hasSubscriber);
-  void dropSubscribeEvent(int bufferId);
-
-  static int getDataL(const int bufferId,
-		      SubTableData * &sdata,
-		      LinearSectionPtr ptr[3],
-		      int *pOverrun);
-  static int insertDataL(int bufferId,
-			 const SubTableData * const sdata,
-			 LinearSectionPtr ptr[3]);
-  static void latestGCI(int bufferId, Uint32 gci);
-  static Uint32 getLatestGCI();
-  static Uint32 getEventId(int bufferId);
-
-  void group_lock();
-  void group_unlock();
-  int wait(int aMillisecondNumber);
-  int m_bufferL;
-private:
-  friend class NdbGlobalEventBuffer;
-  void addBufferId(int bufferId);
-  void dropBufferId(int bufferId);
-
-  struct NdbCondition *p_cond;
-  int m_nids;
-  int m_bufferIds[NDB_MAX_ACTIVE_EVENTS];
-};
-
-class NdbGlobalEventBuffer {
-private:
-  friend class NdbGlobalEventBufferHandle;
-  void lockB(int bufferId);
-  void unlockB(int bufferId);
-  void group_lock();
-  void group_unlock();
-  void lock();
-  void unlock();
   void add_drop_lock();
   void add_drop_unlock();
+  void lock();
+  void unlock();
 
-  NdbGlobalEventBuffer();
-  ~NdbGlobalEventBuffer();
+  void add_op();
+  void remove_op();
+  void init_gci_containers();
+  Uint32 m_active_op_count;
 
-  void real_remove(NdbGlobalEventBufferHandle *h);
-  void real_init(NdbGlobalEventBufferHandle *h,
-		 int MAX_NUMBER_ACTIVE_EVENTS);
+  // accessed from the "receive thread"
+  int insertDataL(NdbEventOperationImpl *op,
+		  const SubTableData * const sdata,
+		  LinearSectionPtr ptr[3]);
+  void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep);
+  void complete_outof_order_gcis();
+  
+  void reportClusterFailed(NdbEventOperationImpl *op);
+  void completeClusterFailed();
 
-  int real_prepareAddSubscribeEvent(NdbGlobalEventBufferHandle *h,
-				    NdbEventOperationImpl *,
-				    int& hasSubscriber);
-  void real_unprepareAddSubscribeEvent(int bufferId);
-  void real_addSubscribeEvent(int bufferId, void *ndbEventOperation);
+  // used by user thread 
+  Uint64 getLatestGCI();
+  Uint32 getEventId(int bufferId);
 
-  void real_unprepareDropSubscribeEvent(int bufferId);
-  int real_prepareDropSubscribeEvent(int bufferId,
-				     int& hasSubscriber);
-  void real_dropSubscribeEvent(int bufferId);
+  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+  NdbEventOperation *nextEvent();
 
-  int real_getDataL(const int bufferId,
-		    SubTableData * &sdata,
-		    LinearSectionPtr ptr[3],
-		    int *pOverrun);
-  int real_insertDataL(int bufferId,
-		       const SubTableData * const sdata,
-		       LinearSectionPtr ptr[3]);
-  void real_latestGCI(int bufferId, Uint32 gci);
-  Uint32 real_getLatestGCI();
+  NdbEventOperationImpl *move_data();
+
+  // used by both user thread and receive thread
   int copy_data_alloc(const SubTableData * const f_sdata,
 		      LinearSectionPtr f_ptr[3],
-		      SubTableData * &t_sdata,
-		      LinearSectionPtr t_ptr[3]);
+		      EventBufData *ev_buf);
 
-  int real_wait(NdbGlobalEventBufferHandle *, int aMillisecondNumber);
-  int hasData(int bufferId);
-  int ID (int bufferId) {return bufferId & 0xFF;};
-  int NO (int bufferId) {return bufferId >> 16;};
-  int NO_ID (int n, int bufferId) {return (n << 16) | ID(bufferId);};
+  void free_list(EventBufData_list &list);
 
-  Vector<NdbGlobalEventBufferHandle*> m_handlers;
+  void reportStatus();
 
   // Global Mutex used for some things
-  NdbMutex *p_add_drop_mutex;
+  static NdbMutex *p_add_drop_mutex;
 
-  int m_group_lock_flag;
-  Uint32 m_latestGCI;
+#ifdef VM_TRACE
+  const char *m_latest_command;
+#endif
 
-  int m_no;
-  int m_max;
-#define MAX_SUBSCRIBERS_PER_EVENT 16
-  struct BufItem {
-    // local mutex for each event/buffer
-    NdbMutex *p_buf_mutex;
-    Uint32 gId;
-    Uint32 eventType;
-    struct Data {
-      SubTableData *sdata;
-      LinearSectionPtr ptr[3];
-    } * data;
+  Ndb *m_ndb;
+  Uint64 m_latestGCI;           // latest "handover" GCI
+  Uint64 m_latest_complete_GCI; // latest complete GCI (in case of outof order)
 
-    struct Ps {
-      NdbGlobalEventBufferHandle *theHandle;
-      int b;
-      int overrun;
-      int bufferempty;
-      //void *ndbEventOperation;
-    } ps[MAX_SUBSCRIBERS_PER_EVENT];  // only supports 1 subscriber so far
+  NdbMutex *m_mutex;
+  struct NdbCondition *p_cond;
 
-    int subs;
-    int f;
-    int sz;
-    int max_sz;
+  // receive thread
+  Gci_container m_complete_data;
+  EventBufData *m_free_data;
+#ifdef VM_TRACE
+  unsigned m_free_data_count;
+#endif
+  unsigned m_free_data_sz;
+
+  // user thread
+  EventBufData_list m_available_data;
+  EventBufData_list m_used_data;
+
+  unsigned m_total_alloc; // total allocated memory
+
+  // threshholds to report status
+  unsigned m_free_thresh;
+  unsigned m_gci_slip_thresh;
+
+  NdbError m_error;
+private:
+  int expand(unsigned sz);
+
+  // all allocated data
+  struct EventBufData_chunk
+  {
+    unsigned sz;
+    EventBufData data[1];
   };
-  BufItem *m_buf;
+  Vector<EventBufData_chunk *> m_allocated_data;
+  unsigned m_sz;
+
+  // dropped event operations that have not yet
+  // been deleted
+  NdbEventOperationImpl *m_dropped_ev_op;
 };
+
+inline
+NdbEventOperationImpl*
+NdbEventBuffer::getEventOperationImpl(NdbEventOperation* tOp)
+{
+  return &tOp->m_impl;
+}
+
+inline void
+NdbEventOperationImpl::receive_data(NdbRecAttr *r,
+				    const Uint32 *data,
+				    Uint32 sz)
+{
+  r->receive_data(data,sz);
+#if 0
+  if (sz)
+  {
+    assert((r->attrSize() * r->arraySize() + 3) >> 2 == sz);
+    r->theNULLind= 0;
+    memcpy(r->aRef(), data, 4 * sz);
+    return;
+  }
+  r->theNULLind= 1;
+#endif
+}
+
 #endif

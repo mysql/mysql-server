@@ -26,6 +26,7 @@
 #include <NdbRecAttr.hpp>
 #include <NdbReceiver.hpp>
 #include "API.hpp"
+#include "NdbEventOperationImpl.hpp"
 
 #include <signaldata/TcCommit.hpp>
 #include <signaldata/TcKeyFailConf.hpp>
@@ -37,11 +38,15 @@
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include <signaldata/ScanTab.hpp>
+#include <signaldata/SumaImpl.hpp>
 
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+Uint64 g_latest_trans_gci= 0;
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );
@@ -197,7 +202,8 @@ void Ndb::connected(Uint32 ref)
       n++;
     }
   }
-  theImpl->theNoOfDBnodes= n;
+  theImpl->theNoOfDBnodes = n;
+  
   theFirstTransId = ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
   theFirstTransId += theFacade->m_max_trans_id;
@@ -244,6 +250,7 @@ Ndb::report_node_failure(Uint32 node_id)
    * 
    * This method is only called by ClusterMgr (via lots of methods)
    */
+
   theImpl->the_release_ind[node_id] = 1;
   // must come after
   theImpl->the_release_ind[0] = 1;
@@ -255,6 +262,14 @@ Ndb::report_node_failure(Uint32 node_id)
 void
 Ndb::report_node_failure_completed(Uint32 node_id)
 {
+  if (theEventBuffer && 
+      !TransporterFacade::instance()->theClusterMgr->isClusterAlive())
+  {
+    // cluster is unavailable, 
+    // eventOperations in the ndb object should be notified
+    theEventBuffer->completeClusterFailed();
+  }
+  
   abortTransactionsAfterNodeFailure(node_id);
 
 }//Ndb::report_node_failure_completed()
@@ -356,6 +371,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
           (tCon->theSendStatus == NdbTransaction::sendTC_OP)) {
+	g_latest_trans_gci= keyConf->gci;
         tReturnCode = tCon->receiveTCKEYCONF(keyConf, tLen);
         if (tReturnCode != -1) {
           completedTransaction(tCon);
@@ -506,6 +522,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
 	  (tCon->theSendStatus == NdbTransaction::sendTC_COMMIT)) {
+	g_latest_trans_gci= commitConf->gci;
 	tReturnCode = tCon->receiveTC_COMMITCONF(commitConf);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
@@ -676,6 +693,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_DROP_EVNT_CONF:
   case GSN_DROP_EVNT_REF:
   case GSN_LIST_TABLES_CONF:
+  case GSN_WAIT_GCP_CONF:
+  case GSN_WAIT_GCP_REF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     return;
@@ -684,16 +703,43 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_SUB_REMOVE_CONF:
   case GSN_SUB_REMOVE_REF:
     return; // ignore these signals
-  case GSN_SUB_GCP_COMPLETE_REP:
   case GSN_SUB_START_CONF:
   case GSN_SUB_START_REF:
-  case GSN_SUB_TABLE_DATA:
   case GSN_SUB_STOP_CONF:
   case GSN_SUB_STOP_REF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     return;
+  case GSN_SUB_GCP_COMPLETE_REP:
+  {
+    const SubGcpCompleteRep * const rep=
+      CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
+    theEventBuffer->execSUB_GCP_COMPLETE_REP(rep);
+    return;
+  }
+  case GSN_SUB_TABLE_DATA:
+  {
+    const SubTableData * const sdata=
+      CAST_CONSTPTR(SubTableData, aSignal->getDataPtr());
+    const Uint32 oid = sdata->senderData;
 
+    for (int i= aSignal->m_noOfSections;i < 3; i++) {
+      ptr[i].p = NULL;
+      ptr[i].sz = 0;
+    }
+    DBUG_PRINT("info",("oid=senderData: %d, gci: %d, operation: %d, "
+		       "tableId: %d",
+		       sdata->senderData, sdata->gci, sdata->operation,
+		       sdata->tableId));
+
+    NdbEventOperationImpl *op= (NdbEventOperationImpl*)int2void(oid);
+    if (op->m_magic_number == NDB_EVENT_OP_MAGIC_NUMBER)
+      theEventBuffer->insertDataL(op,sdata, ptr);
+    else
+      g_eventLogger.error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
+			  "number");
+    return;
+  }
   case GSN_DIHNDBTAMPER:
     {
       tFirstDataPtr = int2void(tFirstData);
@@ -798,6 +844,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     tCon = void2con(tFirstDataPtr);
     if ((tCon->checkMagicNumber() == 0) &&
 	(tCon->theSendStatus == NdbTransaction::sendTC_OP)) {
+      g_latest_trans_gci= indxConf->gci;
       tReturnCode = tCon->receiveTCINDXCONF(indxConf, tLen);
       if (tReturnCode != -1) { 
 	completedTransaction(tCon);
@@ -1375,4 +1422,28 @@ NdbTransaction::sendTC_COMMIT_ACK(NdbApiSignal * aSignal,
   dataPtr[1] = transId2;
 
   tp->sendSignal(aSignal, refToNode(aTCRef));
+}
+
+int
+NdbImpl::send_event_report(Uint32 *data, Uint32 length)
+{
+  NdbApiSignal aSignal(m_ndb.theMyRef);
+  TransporterFacade *tp = TransporterFacade::instance();
+  aSignal.theTrace                = TestOrd::TraceAPI;
+  aSignal.theReceiversBlockNumber = CMVMI;
+  aSignal.theVerId_signalNumber   = GSN_EVENT_REP;
+  aSignal.theLength               = length;
+  memcpy((char *)aSignal.getDataPtrSend(), (char *)data, length*4);
+
+  Uint32 tNode;
+  Ndb_cluster_connection_node_iter node_iter;
+  m_ndb_cluster_connection.init_get_next_node(node_iter);
+  while ((tNode= m_ndb_cluster_connection.get_next_node(node_iter)))
+  {
+    if(tp->get_node_alive(tNode)){
+      tp->sendSignal(&aSignal, tNode);
+      return 0;
+    }
+  }
+  return 1;
 }

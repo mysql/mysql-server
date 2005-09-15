@@ -117,7 +117,6 @@ Cmvmi::Cmvmi(const Configuration & conf) :
       break;
     case NodeInfo::API:
     case NodeInfo::MGM:
-    case NodeInfo::REP:
       break;
     default:
       ndbrequire(false);
@@ -189,6 +188,12 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   //-----------------------------------------------------------------------
   EventReport * const eventReport = (EventReport *)&signal->theData[0]; 
   Ndb_logevent_type eventType = eventReport->getEventType();
+  Uint32 nodeId= eventReport->getNodeId();
+  if (nodeId == 0)
+  {
+    nodeId= refToNode(signal->getSendersBlockRef());
+    eventReport->setNodeId(nodeId);
+  }
 
   jamEntry();
   
@@ -322,10 +327,6 @@ void Cmvmi::execSTTOR(Signal* signal)
     signal->theData[1] = 0; // no id
     signal->theData[2] = NodeInfo::API;
     execOPEN_COMREQ(signal);
-    signal->theData[0] = 0; // no answer
-    signal->theData[1] = 0; // no id
-    signal->theData[2] = NodeInfo::REP;
-    execOPEN_COMREQ(signal);    
     globalData.theStartLevel = NodeState::SL_STARTED;
     sendSTTORRY(signal);
   } else {
@@ -1023,9 +1024,6 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 	break;
       case NodeInfo::MGM:
 	nodeTypeStr = "MGM";
-	break;
-      case NodeInfo::REP:
-	nodeTypeStr = "REP";
 	break;
       case NodeInfo::INVALID:
 	nodeTypeStr = 0;

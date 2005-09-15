@@ -33,7 +33,7 @@ class NdbEventOperationImpl;
  * - To listen to events, an NdbEventOperation object is instantiated by 
  *   Ndb::createEventOperation()
  * - execute() starts the event flow. Use Ndb::pollEvents() to wait
- *   for an event to occur.  Use next() to iterate
+ *   for an event to occur.  Use Ndb::nextEvent() to iterate
  *   through the events that have occured.
  * - The instance is removed by Ndb::dropEventOperation()
  *
@@ -56,9 +56,9 @@ class NdbEventOperationImpl;
  * - Today all events INSERT/DELETE/UPDATE and all changed attributes are
  * sent to the API, even if only specific attributes have been specified.
  * These are however hidden from the user and only relevant data is shown
- * after next().
+ * after  Ndb::nextEvent().
  * - "False" exits from Ndb::pollEvents() may occur and thus
- * the subsequent next() will return zero,
+ * the subsequent Ndb::nextEvent() will return NULL,
  * since there was no available data. Just do Ndb::pollEvents() again.
  * - Event code does not check table schema version. Make sure to drop events
  * after table is dropped. Will be fixed in later
@@ -86,6 +86,7 @@ public:
   enum State {
     EO_CREATED,   ///< Created but execute() not called
     EO_EXECUTING, ///< execute() called
+    EO_DROPPED,   ///< Waiting to be deleted, Object unusable.
     EO_ERROR      ///< An error has occurred. Object unusable.
   };
   /**
@@ -95,17 +96,13 @@ public:
 
   /**
    * Activates the NdbEventOperation to start receiving events. The
-   * changed attribute values may be retrieved after next() has returned
-   * a value greater than zero. The getValue() methods must be called
+   * changed attribute values may be retrieved after Ndb::nextEvent() 
+   * has returned not NULL. The getValue() methods must be called
    * prior to execute().
    *
    * @return 0 if successful otherwise -1.
    */
   int execute();
-
-  // about the event operation
-  // getting data
-  //  NdbResultSet* getResultSet();
 
   /**
    * Defines a retrieval operation of an attribute value.
@@ -129,8 +126,8 @@ public:
    *       the database!  The NdbRecAttr object returned by this method 
    *       is <em>not</em> readable/printable before the 
    *       execute() has been made and
-   *       next() has returned a value greater than
-   *       zero. If a specific attribute has not changed the corresponding 
+   *       Ndb::nextEvent() has returned not NULL.
+   *       If a specific attribute has not changed the corresponding 
    *       NdbRecAttr will be in state UNDEFINED.  This is checked by 
    *       NdbRecAttr::isNULL() which then returns -1.
    *
@@ -149,43 +146,30 @@ public:
    */
   NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = 0);
 
-  /**
-   * Retrieves event resultset if available, inserted into the NdbRecAttrs
-   * specified in getValue() and getPreValue(). To avoid polling for
-   * a resultset, one can use Ndb::pollEvents()
-   * which will wait on a mutex until an event occurs or the specified
-   * timeout occurs.
-   *
-   * @return >=0 if successful otherwise -1. Return value indicates number
-   * of available events. By sending pOverRun one may query for buffer
-   * overflow and *pOverRun will indicate the number of events that have
-   * overwritten.
-   *
-   * @return number of available events, -1 on failure
-   */
-  int next(int *pOverRun=0);
+  int isOverrun() const;
 
   /**
    * In the current implementation a nodefailiure may cause loss of events,
    * in which case isConsistent() will return false
    */
-  bool isConsistent();
+  bool isConsistent() const;
 
   /**
    * Query for occured event type.
    *
-   * @note Only valid after next() has been called and returned value >= 0
+   * @note Only valid after Ndb::nextEvent() has been called and 
+   * returned a not NULL value
    *
    * @return type of event
    */
-  NdbDictionary::Event::TableEvent getEventType();
+  NdbDictionary::Event::TableEvent getEventType() const;
 
   /**
    * Retrieve the GCI of the latest retrieved event
    *
    * @return GCI number
    */
-  Uint32 getGCI();
+  Uint64 getGCI() const;
 
   /**
    * Retrieve the complete GCI in the cluster (not necessarily
@@ -193,7 +177,7 @@ public:
    *
    * @return GCI number
    */
-  Uint32 getLatestGCI();
+  Uint64 getLatestGCI() const;
 
   /**
    * Get the latest error
@@ -201,6 +185,26 @@ public:
    * @return   Error object.
    */			     
   const struct NdbError & getNdbError() const;
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /** these are subject to change at any time */
+  const NdbDictionary::Table *getTable() const;
+  const NdbDictionary::Event *getEvent() const;
+  const NdbRecAttr *getFirstPkAttr() const;
+  const NdbRecAttr *getFirstPkPreAttr() const;
+  const NdbRecAttr *getFirstDataAttr() const;
+  const NdbRecAttr *getFirstDataPreAttr() const;
+
+  bool validateTable(NdbDictionary::Table &table) const;
+
+  void setCustomData(void * data);
+  void * getCustomData() const;
+
+  void clearError();
+  int hasError() const;
+
+  int getReqNodeId() const;
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /*
@@ -212,11 +216,10 @@ public:
 private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbEventOperationImpl;
-  friend class Ndb;
+  friend class NdbEventBuffer;
 #endif
-  NdbEventOperation(Ndb *theNdb, const char* eventName,int bufferLength);
+  NdbEventOperation(Ndb *theNdb, const char* eventName);
   ~NdbEventOperation();
-  static int wait(void *p, int aMillisecondNumber);
   class NdbEventOperationImpl &m_impl;
   NdbEventOperation(NdbEventOperationImpl& impl);
 };

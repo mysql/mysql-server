@@ -3272,6 +3272,7 @@ void Dblqh::seizeTcrec()
   locTcConnectptr.p->tcTimer = cLqhTimeOutCount;
   locTcConnectptr.p->tableref = RNIL;
   locTcConnectptr.p->savePointId = 0;
+  locTcConnectptr.p->gci = 0;
   cfirstfreeTcConrec = nextTc;
   tcConnectptr = locTcConnectptr;
   locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
@@ -5422,6 +5423,7 @@ void Dblqh::commitReqLab(Signal* signal, Uint32 gci)
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   TcConnectionrec::LogWriteState logWriteState = regTcPtr->logWriteState;
   TcConnectionrec::TransactionState transState = regTcPtr->transactionState;
+  ndbrequire(regTcPtr->gci == gci || regTcPtr->gci == 0);
   regTcPtr->gci = gci; 
   if (transState == TcConnectionrec::PREPARED) {
     if (logWriteState == TcConnectionrec::WRITTEN) {
@@ -5491,6 +5493,7 @@ void Dblqh::execLQH_WRITELOG_REQ(Signal* signal)
   Uint32 newestGci = cnewestGci;
   TcConnectionrec::LogWriteState logWriteState = regTcPtr->logWriteState;
   TcConnectionrec::TransactionState transState = regTcPtr->transactionState;
+  ndbrequire(regTcPtr->gci == gci || regTcPtr->gci == 0);
   regTcPtr->gci = gci;
   if (gci > newestGci) {
     jam();
@@ -8890,7 +8893,7 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   const Uint32 nodeId = refToNode(ref);
   const bool connectedToNode = getNodeInfo(nodeId).m_connected;
   const Uint32 type = getNodeInfo(nodeId).m_type;
-  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
+  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
   const bool old_dest = (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
   const bool longable = true; // TODO is_api && !old_dest;
 

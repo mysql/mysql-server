@@ -325,11 +325,10 @@ doTransaction_T4(Ndb * pNDB, ThreadData * td, int async)
   td->transactionData.do_rollback = 
     getNextRandom(&td->generator.rollbackSequenceT4);
 
-#if 0
-  memset(td->transactionData.session_details, 
-	 myRandom48(26)+'A', SESSION_DETAILS_LENGTH);
-#endif
-  td->transactionData.session_details[SESSION_DETAILS_LENGTH] = 0;
+  memset(td->transactionData.session_details+2, 
+	 myRandom48(26)+'A', SESSION_DETAILS_LENGTH-3);
+  td->transactionData.session_details[SESSION_DETAILS_LENGTH-1] = 0;
+  int2store(td->transactionData.session_details,SESSION_DETAILS_LENGTH-2);
   
   /*-----------------*/
   /* Run transaction */

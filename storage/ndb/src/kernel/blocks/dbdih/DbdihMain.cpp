@@ -7903,7 +7903,6 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     
     SubGcpCompleteRep * const rep = (SubGcpCompleteRep*)signal->getDataPtr();
     rep->gci = coldgcp;
-    rep->senderData = 0;
     sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
 	       SubGcpCompleteRep::SignalLength, JBB);
   }

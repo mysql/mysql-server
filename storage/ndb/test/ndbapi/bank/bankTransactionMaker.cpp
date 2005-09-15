@@ -31,9 +31,11 @@ int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
   int _wait = 20;
+  char * _database = "BANK";
   
   struct getargs args[] = {
     { "wait", 'w', arg_integer, &_wait, "Time to wait between transactions", "ms" },
+    { "database", 'd', arg_string, &_database, "Database name", ""},
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -52,7 +54,7 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  Bank bank(con);
+  Bank bank(con,_database);
 
   if (bank.performTransactions(_wait) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);

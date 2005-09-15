@@ -91,6 +91,7 @@ class CreateTabConf {
    * Sender(s) / Reciver(s)
    */
   friend class Dbdict;
+  friend class Suma;
   
   /**
    * For printing

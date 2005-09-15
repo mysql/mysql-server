@@ -148,6 +148,8 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_FSREMOVEREF]  = &SimulatedBlock::execFSREMOVEREF;
   a[GSN_FSSYNCREF]    = &SimulatedBlock::execFSSYNCREF;
   a[GSN_FSAPPENDREF]  = &SimulatedBlock::execFSAPPENDREF;
+  a[GSN_NODE_START_REP] = &SimulatedBlock::execNODE_START_REP;
+  a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
 }
 
 void
@@ -911,6 +913,16 @@ SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
   ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
   sig->line = __LINE__;
   sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 1, JBB);
+}
+
+void
+SimulatedBlock::execNODE_START_REP(Signal* signal)
+{
+}
+
+void
+SimulatedBlock::execAPI_START_REP(Signal* signal)
+{
 }
 
 #ifdef VM_TRACE_TIME

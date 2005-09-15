@@ -115,7 +115,8 @@ BaseString NDBT_ResultRow::c_str() const {
 }
 
 NdbOut & 
-operator << (NdbOut& ndbout, const NDBT_ResultRow & res) {
+operator << (NdbOut& ndbout, const NDBT_ResultRow & res)
+{
   if (res.cols != 0)
   {
     ndbout << *(res.data[0]);

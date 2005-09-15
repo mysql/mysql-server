@@ -737,6 +737,8 @@ public:
     /** @} *******************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    const char *getMysqlName() const;
+
     void setStoredTable(bool x) { setLogging(x); }
     bool getStoredTable() const { return getLogging(); }
 
@@ -949,12 +951,37 @@ public:
     /** TableEvent must match 1 << TriggerEvent */
 #endif
     enum TableEvent { 
-      TE_INSERT=1, ///< Insert event on table
-      TE_DELETE=2, ///< Delete event on table
-      TE_UPDATE=4, ///< Update event on table
-      TE_ALL=7     ///< Any/all event on table (not relevant when 
-                   ///< events are received)
+      TE_INSERT      =1<<0, ///< Insert event on table
+      TE_DELETE      =1<<1, ///< Delete event on table
+      TE_UPDATE      =1<<2, ///< Update event on table
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+      TE_SCAN        =1<<3, ///< Scan event on table
+      TE_FIRST_NON_DATA_EVENT =1<<4,
+#endif
+      TE_DROP        =1<<4, ///< Drop of table
+      TE_ALTER       =1<<5, ///< Alter of table
+      TE_CREATE      =1<<6, ///< Create of table
+      TE_GCP_COMPLETE=1<<7, ///< GCP is complete
+      TE_CLUSTER_FAILURE=1<<8, ///< Cluster is unavailable
+      TE_STOP        =1<<9, ///< Stop of event operation
+      TE_ALL=0xFFFF         ///< Any/all event on table (not relevant when 
+                            ///< events are received)
     };
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    enum _TableEvent { 
+      _TE_INSERT=0,
+      _TE_DELETE=1,
+      _TE_UPDATE=2,
+      _TE_SCAN=3,
+      _TE_FIRST_NON_DATA_EVENT=4,
+      _TE_DROP=4,
+      _TE_ALTER=5,
+      _TE_CREATE=6,
+      _TE_GCP_COMPLETE=7,
+      _TE_CLUSTER_FAILURE=8,
+      _TE_STOP=9
+    };
+#endif
     /**
      *  Specifies the durability of an event
      * (future version may supply other types)
@@ -1321,6 +1348,10 @@ public:
      */
     void invalidateIndex(const char * indexName,
                          const char * tableName);
+    /**
+     * Force gcp and wait for gcp complete
+     */
+    int forceGCPWait();
 #endif
 
     /** @} *******************************************************************/

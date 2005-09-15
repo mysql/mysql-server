@@ -19,8 +19,8 @@
 #include <NdbSleep.h>
 #include <UtilTransactions.hpp>
 
-Bank::Bank(Ndb_cluster_connection& con, bool _init):
-  m_ndb(&con, "BANK"),
+Bank::Bank(Ndb_cluster_connection& con, bool _init, char * dbase):
+  m_ndb(&con, dbase),
   m_maxAccount(-1),
   m_initialized(false)
 {
