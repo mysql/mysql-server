@@ -1709,6 +1709,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   List_iterator_fast<Item> it(*items);
   Item *item;
   Field *tmp_field;
+  bool not_used;
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
@@ -1767,8 +1768,15 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(0);
   }
 
+  /*
+    FIXME: What happens if trigger manages to be created while we are
+           obtaining this lock ? May be it is sensible just to disable
+           trigger execution in this case ? Or will MYSQL_LOCK_IGNORE_FLUSH
+           save us from that ?
+  */
   table->reginfo.lock_type=TL_WRITE;
-  if (! ((*lock)= mysql_lock_tables(thd, &table, 1, MYSQL_LOCK_IGNORE_FLUSH)))
+  if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
+                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
     VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
