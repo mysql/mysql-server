@@ -77,6 +77,7 @@ public:
   
   const Node &  getNodeInfo(NodeId) const;
   Uint32        getNoOfConnectedNodes() const;
+  bool          isClusterAlive() const;
   void          hb_received(NodeId);
 
 private:
@@ -128,6 +129,11 @@ ClusterMgr::getNoOfConnectedNodes() const {
   return noOfConnectedNodes;
 }
 
+inline
+bool
+ClusterMgr::isClusterAlive() const {
+  return noOfAliveNodes != 0;
+}
 inline
 void
 ClusterMgr::hb_received(NodeId nodeId) {

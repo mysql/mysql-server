@@ -1051,6 +1051,7 @@ class Ndb
   friend class NdbReceiver;
   friend class NdbOperation;
   friend class NdbEventOperationImpl;
+  friend class NdbEventBuffer;
   friend class NdbTransaction;
   friend class Table;
   friend class NdbApiSignal;
@@ -1060,6 +1061,7 @@ class Ndb
   friend class NdbDictionaryImpl;
   friend class NdbDictInterface;
   friend class NdbBlob;
+  friend class NdbImpl;
 #endif
 
 public:
@@ -1206,13 +1208,10 @@ public:
    *
    * @param eventName
    *        unique identifier of the event
-   * @param bufferLength
-   *        circular buffer size for storing event data
    *
    * @return Object representing an event, NULL on failure
    */
-  NdbEventOperation* createEventOperation(const char* eventName,
-					  const int bufferLength);
+  NdbEventOperation* createEventOperation(const char* eventName);
   /**
    * Drop a subscription to an event
    *
@@ -1230,9 +1229,24 @@ public:
    * @param aMillisecondNumber
    *        maximum time to wait
    *
-   * @return the number of events that has occured, -1 on failure
+   * @return > 0 if events available, 0 if no events available, < 0 on failure
    */
-  int pollEvents(int aMillisecondNumber);
+  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+
+  /**
+   * Returns an event operation that has data after a pollEvents
+   *
+   * @return an event operations that has data, NULL if no events left with data.
+   */
+  NdbEventOperation *nextEvent();
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= 0);
+  Uint64 getLatestGCI();
+  void forceGCP();
+  void setReportThreshEventGCISlip(unsigned thresh);
+  void setReportThreshEventFreeMem(unsigned thresh);
+#endif
 
   /** @} *********************************************************************/
 
@@ -1496,7 +1510,6 @@ private:
   NdbIndexScanOperation* getScanOperation(); // Get a scan operation from idle
   NdbIndexOperation* 	getIndexOperation();// Get an index operation from idle
 
-  class NdbGlobalEventBufferHandle* getGlobalEventBufferHandle();
   NdbBlob*              getNdbBlob();// Get a blob handle etc
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
@@ -1635,7 +1648,7 @@ private:
 
   class NdbImpl * theImpl;
   class NdbDictionaryImpl* theDictionary;
-  class NdbGlobalEventBufferHandle* theGlobalEventBufferHandle;
+  class NdbEventBuffer* theEventBuffer;
 
   NdbTransaction*	theConIdleList;	// First connection in idle list.
 

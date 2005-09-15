@@ -184,7 +184,7 @@ ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
     handle->cfg.~LocalConfig();
     new (&(handle->cfg)) LocalConfig;
     handle->cfg.init(0, 0); /* reset the LocalConfig */
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, mgmsrv ? mgmsrv : "");
     DBUG_RETURN(-1);
   }
   handle->cfg_i= -1;

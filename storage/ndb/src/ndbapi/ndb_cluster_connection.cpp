@@ -38,7 +38,6 @@ EventLogger g_eventLogger;
 static int g_run_connect_thread= 0;
 
 #include <NdbMutex.h>
-NdbMutex *ndb_global_event_buffer_mutex= NULL;
 #ifdef VM_TRACE
 NdbMutex *ndb_print_state_mutex= NULL;
 #endif
@@ -188,6 +187,28 @@ Ndb_cluster_connection::node_id()
 }
 
 
+int Ndb_cluster_connection::get_no_ready()
+{
+  TransporterFacade *tp = TransporterFacade::instance();
+  if (tp == 0 || tp->ownId() == 0)
+    return -1;
+
+  unsigned int foundAliveNode = 0;
+  tp->lock_mutex();
+  for(unsigned i= 0; i < no_db_nodes(); i++)
+  {
+    //************************************************
+    // If any node is answering, ndb is answering
+    //************************************************
+    if (tp->get_node_alive(m_impl.m_all_nodes[i].id) != 0) {
+      foundAliveNode++;
+    }
+  }
+  tp->unlock_mutex();
+
+  return foundAliveNode;
+}
+
 int
 Ndb_cluster_connection::wait_until_ready(int timeout,
 					 int timeout_after_first_alive)
@@ -206,18 +227,7 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
   int milliCounter = 0;
   int noChecksSinceFirstAliveFound = 0;
   do {
-    unsigned int foundAliveNode = 0;
-    tp->lock_mutex();
-    for(unsigned i= 0; i < no_db_nodes(); i++)
-    {
-      //************************************************
-      // If any node is answering, ndb is answering
-      //************************************************
-      if (tp->get_node_alive(m_impl.m_all_nodes[i].id) != 0) {
-	foundAliveNode++;
-      }
-    }
-    tp->unlock_mutex();
+    unsigned int foundAliveNode = get_no_ready();
 
     if (foundAliveNode == no_db_nodes())
     {
@@ -264,9 +274,6 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
   m_connect_thread= 0;
   m_connect_callback= 0;
 
-  if (ndb_global_event_buffer_mutex == NULL)
-    ndb_global_event_buffer_mutex= NdbMutex_Create();
-
 #ifdef VM_TRACE
   if (ndb_print_state_mutex == NULL)
     ndb_print_state_mutex= NdbMutex_Create();
@@ -275,7 +282,7 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     new ConfigRetriever(connect_string, NDB_VERSION, NODE_TYPE_API);
   if (m_config_retriever->hasError())
   {
-    printf("Could not connect initialize handle to management server: %s",
+    printf("Could not initialize handle to management server: %s\n",
 	   m_config_retriever->getErrorString());
     delete m_config_retriever;
     m_config_retriever= 0;
@@ -311,11 +318,6 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   {
     delete m_config_retriever;
     m_config_retriever= NULL;
-  }
-  if (ndb_global_event_buffer_mutex != NULL)
-  {
-    NdbMutex_Destroy(ndb_global_event_buffer_mutex);
-    ndb_global_event_buffer_mutex= NULL;
   }
 #ifdef VM_TRACE
   if (ndb_print_state_mutex != NULL)

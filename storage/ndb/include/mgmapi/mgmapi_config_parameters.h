@@ -4,7 +4,6 @@
 #define CFG_SYS_NAME                  3
 #define CFG_SYS_PRIMARY_MGM_NODE      1
 #define CFG_SYS_CONFIG_GENERATION     2
-#define CFG_SYS_REPLICATION_ROLE      7
 #define CFG_SYS_PORT_BASE             8
 
 #define CFG_NODE_ID                   3
@@ -139,8 +138,6 @@
 #define CFG_OSE_PRIO_B_SIZE           603
 #define CFG_OSE_RECEIVE_ARRAY_SIZE    604
 
-#define CFG_REP_HEARTBEAT_INTERVAL    700
-
 /**
  * API Config variables
  *
@@ -162,8 +159,6 @@
 #define NODE_TYPE_DB                  0
 #define NODE_TYPE_API                 1
 #define NODE_TYPE_MGM                 2
-#define NODE_TYPE_REP                 3
-#define NODE_TYPE_EXT_REP             4
 
 #define CONNECTION_TYPE_TCP           0
 #define CONNECTION_TYPE_SHM           1

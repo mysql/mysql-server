@@ -345,6 +345,7 @@
 #endif
 
 class Dbtup: public SimulatedBlock {
+  friend class Suma; 
 public:
 
   typedef bool (Dbtup::* ReadFunction)(Uint32*,
@@ -420,7 +421,8 @@ enum State {
   SAME_PAGE = 64,
   DEFINING = 65,
   TUPLE_BLOCKED = 66,
-  ERROR_WAIT_STORED_PROCREQ = 67
+  ERROR_WAIT_STORED_PROCREQ = 67,
+  DROPPING = 68
 };
 
 // Records

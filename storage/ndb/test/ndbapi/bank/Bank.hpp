@@ -27,7 +27,7 @@
 class Bank {
 public:  
 
-  Bank(Ndb_cluster_connection&, bool init = true);
+  Bank(Ndb_cluster_connection&, bool init = true, char *dbase="BANK");
 
   int createAndLoadBank(bool overWrite, int num_accounts=10);
   int dropBank();

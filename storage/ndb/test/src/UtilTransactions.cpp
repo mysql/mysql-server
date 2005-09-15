@@ -1318,7 +1318,7 @@ UtilTransactions::compare(Ndb* pNdb, const char* tab_name2, int flags){
 
 
   NdbError err;
-  int return_code= -1, row_count= 0;
+  int return_code= 0, row_count= 0;
   int retryAttempt = 0, retryMax = 10;
 
   HugoCalculator calc(tab);
@@ -1336,9 +1336,9 @@ UtilTransactions::compare(Ndb* pNdb, const char* tab_name2, int flags){
   UtilTransactions count(tab2);
 
   while (true){
-    
+loop:    
     if (retryAttempt++ >= retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
+      g_err << "ERROR: compare has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return -1;
     }
@@ -1409,8 +1409,7 @@ UtilTransactions::compare(Ndb* pNdb, const char* tab_name2, int flags){
 	    g_err << "COMPARE FAILED" << endl;
 	    g_err << row << endl;
 	    g_err << cmp.get_row(0) << endl;
-	    return_code= 1;
-	    goto close;
+	    return_code++;
 	  }
 	  retryAttempt= 0;
 	  cmp.closeTransaction(pNdb);
@@ -1434,12 +1433,14 @@ UtilTransactions::compare(Ndb* pNdb, const char* tab_name2, int flags){
 	return -1;
       }
       
-      g_info << row_count2 << " rows in tab_name2" << endl;
-      return (row_count == row_count2 ? 0 : 1);
+      g_info << row_count2 << " rows in tab_name2 - failed " << return_code
+	     << endl;
+      return (row_count == row_count2 ? return_code : 1);
     }
 error:
     if(err.status == NdbError::TemporaryError)
     {
+      g_err << err << endl;
       NdbSleep_MilliSleep(50);
       if(pTrans != 0)
       {
@@ -1448,8 +1449,12 @@ error:
       }
       if(cmp.getTransaction())
 	cmp.closeTransaction(pNdb);
-      continue; 
+      
+      goto loop;
     }
+    g_err << "ERROR" << endl;
+    g_err << err << endl;
+    
     break;
   }
 

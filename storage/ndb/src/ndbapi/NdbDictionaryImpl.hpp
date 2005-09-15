@@ -102,12 +102,15 @@ public:
   void init();
   void setName(const char * name);
   const char * getName() const;
+  const char * getMysqlName() const;
+  void updateMysqlName();
 
   Uint32 m_changeMask;
   Uint32 m_tableId;
   Uint32 m_primaryTableId;
   BaseString m_internalName;
   BaseString m_externalName;
+  BaseString m_mysqlName;
   BaseString m_newExternalName; // Used for alter table
   UtilBuffer m_frm; 
   UtilBuffer m_ng;
@@ -230,9 +233,9 @@ public:
   Uint32 m_eventId;
   Uint32 m_eventKey;
   Uint32 m_tableId;
+  Uint32 m_tableVersion;
   AttributeMask m_attrListBitmask;
-  //BaseString m_internalName;
-  BaseString m_externalName;
+  BaseString m_name;
   Uint32 mi_type;
   NdbDictionary::Event::EventDurability m_dur;
 
@@ -241,10 +244,6 @@ public:
   BaseString m_tableName;
   Vector<NdbColumnImpl *> m_columns;
   Vector<unsigned> m_attrIds;
-
-  int m_bufferId;
-
-  NdbEventOperation *eventOp;
 
   static NdbEventImpl & getImpl(NdbDictionary::Event & t);
   static NdbEventImpl & getImpl(const NdbDictionary::Event & t);
@@ -301,11 +300,8 @@ public:
   int dropEvent(const NdbEventImpl &);
   int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 
-  int executeSubscribeEvent(class Ndb & ndb, NdbEventImpl &);
-  int executeSubscribeEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
-  
-  int stopSubscribeEvent(class Ndb & ndb, NdbEventImpl &);
-  int stopSubscribeEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
+  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
+  int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
   
   int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
   int listObjects(NdbApiSignal* signal);
@@ -316,6 +312,8 @@ public:
 			  LinearSectionPtr ptr[3],
 			  Uint32 noOfSections, bool fullyQualifiedNames);
 
+  int forceGCPWait();
+
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
 			    bool fullyQualifiedNames);
@@ -323,7 +321,7 @@ public:
   static int create_index_obj_from_table(NdbIndexImpl ** dst, 
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
-  
+  const NdbError &getNdbError() const;  
   NdbError & m_error;
 private:
   Uint32 m_reference;
@@ -356,8 +354,6 @@ private:
   void execCREATE_EVNT_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSUB_START_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSUB_START_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_TABLE_DATA(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_GCP_COMPLETE_REP(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSUB_STOP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSUB_STOP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execDROP_EVNT_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
@@ -366,6 +362,9 @@ private:
   void execDROP_TABLE_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execDROP_TABLE_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execLIST_TABLES_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+
+  void execWAIT_GCP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execWAIT_GCP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;
@@ -400,8 +399,10 @@ public:
   int createEvent(NdbEventImpl &);
   int dropEvent(const char * eventName);
 
-  int executeSubscribeEvent(NdbEventImpl &);
-  int stopSubscribeEvent(NdbEventImpl &);
+  int executeSubscribeEvent(NdbEventOperationImpl &);
+  int stopSubscribeEvent(NdbEventOperationImpl &);
+
+  int forceGCPWait();
 
   int listObjects(List& list, NdbDictionary::Object::Type type);
   int listIndexes(List& list, Uint32 indexId);
@@ -510,6 +511,13 @@ NdbTableImpl::getColumn(unsigned attrId){
     return m_columns[attrId];
   }
   return 0;
+}
+
+inline
+const char *
+NdbTableImpl::getMysqlName() const
+{
+  return m_mysqlName.c_str();
 }
 
 inline
@@ -646,10 +654,8 @@ NdbDictionaryImpl::getTable(const char * table_name, void **data)
     get_local_table_info(internal_tabname, true);
   if (info == 0)
     return 0;
-
   if (data)
     *data= info->m_local_data;
-
   return info->m_table_impl;
 }
 

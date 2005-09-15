@@ -16,14 +16,7 @@
 
 #include <ndb_global.h>
 #include <my_sys.h>
-
-//#define HAVE_GLOBAL_REPLICATION
-
 #include <Vector.hpp>
-#ifdef  HAVE_GLOBAL_REPLICATION
-#include "../rep/repapi/repapi.h"
-#endif
-
 #include <mgmapi.h>
 
 class MgmtSrvr;
@@ -158,11 +151,6 @@ private:
   int m_verbose;
   int try_reconnect;
   int m_error;
-#ifdef HAVE_GLOBAL_REPLICATION  
-  NdbRepHandle m_repserver;
-  const char *rep_host;
-  bool rep_connected;
-#endif
   struct NdbThread* m_event_thread;
 };
 
@@ -220,10 +208,6 @@ extern "C" {
 #include <NdbMem.h>
 #include <EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
-#include <signaldata/GrepImpl.hpp>
-#ifdef HAVE_GLOBAL_REPLICATION
-
-#endif // HAVE_GLOBAL_REPLICATION
 #include "MgmtErrorReporter.hpp"
 #include <Parser.hpp>
 #include <SocketServer.hpp>
@@ -251,9 +235,6 @@ static const char* helpText =
 "---------------------------------------------------------------------------\n"
 "HELP                                   Print help text\n"
 "HELP SHOW                              Help for SHOW command\n"
-#ifdef HAVE_GLOBAL_REPLICATION
-"HELP REPLICATION                       Help for global replication\n"
-#endif // HAVE_GLOBAL_REPLICATION
 #ifdef VM_TRACE // DEBUG ONLY
 "HELP DEBUG                             Help for debug compiled version\n"
 #endif
@@ -277,9 +258,6 @@ static const char* helpText =
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
 "<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log\n"
-#ifdef HAVE_GLOBAL_REPLICATION
-"REP CONNECT <host:port>                Connect to REP server on host:port\n"
-#endif
 "PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
 "CONNECT [<connectstring>]              Connect to management server (reconnect if already connected)\n"
 "QUIT                                   Quit management client\n"
@@ -296,39 +274,6 @@ static const char* helpTextShow =
 "SHOW PARAMETERS    Print information about configuration parameters\n\n"
 #endif
 ;
-
-#ifdef HAVE_GLOBAL_REPLICATION
-static const char* helpTextRep =
-"---------------------------------------------------------------------------\n"
-" NDB Cluster -- Management Client -- Help for Global Replication\n"
-"---------------------------------------------------------------------------\n"
-"Commands should be executed on the standby NDB Cluster\n"
-"These features are in an experimental release state.\n"
-"\n"
-"Simple Commands:\n"
-"REP START              Start Global Replication\n" 
-"REP START REQUESTOR    Start Global Replication Requestor\n" 
-"REP STATUS             Show Global Replication status\n" 
-"REP STOP               Stop Global Replication\n"
-"REP STOP REQUESTOR     Stop Global Replication Requestor\n"
-"\n" 
-"Advanced Commands:\n"
-"REP START <protocol>   Starts protocol\n"
-"REP STOP <protocol>    Stops protocol\n"
-"<protocol> = TRANSFER | APPLY | DELETE\n"
-"\n"
-#ifdef VM_TRACE // DEBUG ONLY
-"Debugging commands:\n"
-"REP DELETE             Removes epochs stored in primary and standy systems\n"
-"REP DROP <tableid>     Drop a table in SS identified by table id\n"
-"REP SLOWSTOP           Stop Replication (Tries to synchonize with primary)\n" 
-"REP FASTSTOP           Stop Replication (Stops in consistent state)\n" 
-"<component> = SUBSCRIPTION\n"
-"              METALOG | METASCAN | DATALOG | DATASCAN\n"
-"              REQUESTOR | TRANSFER | APPLY | DELETE\n"
-#endif
-;
-#endif // HAVE_GLOBAL_REPLICATION
 
 #ifdef VM_TRACE // DEBUG ONLY
 static const char* helpTextDebug =
@@ -401,11 +346,6 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
   m_connected= false;
   m_event_thread= 0;
   try_reconnect = 0;
-#ifdef HAVE_GLOBAL_REPLICATION
-  rep_host = NULL;
-  m_repserver = NULL;
-  rep_connected = false;
-#endif
 }
 
 /*
@@ -696,13 +636,6 @@ CommandInterpreter::execute_impl(const char *_line)
     executePurge(allAfterFirstToken);
     DBUG_RETURN(true);
   } 
-#ifdef HAVE_GLOBAL_REPLICATION
-  else if(strcasecmp(firstToken, "REPLICATION") == 0 ||
-	  strcasecmp(firstToken, "REP") == 0) {
-    executeRep(allAfterFirstToken);
-    DBUG_RETURN(true);
-  }
-#endif // HAVE_GLOBAL_REPLICATION
   else if(strcasecmp(firstToken, "ENTER") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
@@ -965,11 +898,6 @@ CommandInterpreter::executeHelp(char* parameters)
     ndbout << endl;
   } else if (strcasecmp(parameters, "SHOW") == 0) {
     ndbout << helpTextShow;
-#ifdef HAVE_GLOBAL_REPLICATION
-  } else if (strcasecmp(parameters, "REPLICATION") == 0 ||
-	     strcasecmp(parameters, "REP") == 0) {
-    ndbout << helpTextRep;
-#endif // HAVE_GLOBAL_REPLICATION
 #ifdef VM_TRACE // DEBUG ONLY
   } else if (strcasecmp(parameters, "DEBUG") == 0) {
     ndbout << helpTextDebug;
@@ -1219,8 +1147,6 @@ CommandInterpreter::executeShow(char* parameters)
       case NDB_MGM_NODE_TYPE_UNKNOWN:
         ndbout << "Error: Unknown Node Type" << endl;
         return;
-      case NDB_MGM_NODE_TYPE_REP:
-	abort();
       }
     }
 
@@ -2098,226 +2024,5 @@ CommandInterpreter::executeAbortBackup(char* parameters)
   ndbout << "Invalid arguments: expected <BackupId>" << endl;
   return;
 }
-
-#ifdef HAVE_GLOBAL_REPLICATION
-/*****************************************************************************
- * Global Replication
- *
- * For information about the different commands, see
- * GrepReq::Request in file signaldata/grepImpl.cpp.
- *
- * Below are commands as of 2003-07-05 (may change!):
- * START = 0,            ///< Start Global Replication (all phases)
- * START_METALOG = 1,    ///< Start Global Replication (all phases)
- * START_METASCAN = 2,   ///< Start Global Replication (all phases)
- * START_DATALOG = 3,    ///< Start Global Replication (all phases)
- * START_DATASCAN = 4,   ///< Start Global Replication (all phases)
- * START_REQUESTOR = 5,  ///< Start Global Replication (all phases)
- * ABORT = 6,            ///< Immediate stop (removes subscription)
- * SLOW_STOP = 7,        ///< Stop after finishing applying current GCI epoch
- * FAST_STOP = 8,        ///< Stop after finishing applying all PS GCI epochs
- * START_TRANSFER = 9,   ///< Start SS-PS transfer
- * STOP_TRANSFER = 10,   ///< Stop SS-PS transfer
- * START_APPLY = 11,     ///< Start applying GCI epochs in SS
- * STOP_APPLY = 12,      ///< Stop applying GCI epochs in SS
- * STATUS = 13,           ///< Status
- * START_SUBSCR = 14,
- * REMOVE_BUFFERS = 15,
- * DROP_TABLE = 16
-
- *****************************************************************************/
-
-void
-CommandInterpreter::executeRep(char* parameters) 
-{
-  if (emptyString(parameters)) {
-    ndbout << helpTextRep;
-    return;
-  }
-
-  char * line = my_strdup(parameters,MYF(MY_WME));
-  My_auto_ptr<char> ap1((char*)line);
-  char * firstToken = strtok(line, " ");
-  
-  struct ndb_rep_reply  reply;
-  unsigned int          repId;
-
-
-  if (!strcasecmp(firstToken, "CONNECT")) {
-    char * host = strtok(NULL, "\0");
-    for (unsigned int i = 0; i < strlen(host); ++i) {
-      host[i] = tolower(host[i]);
-    }
-    
-    if(host == NULL)
-    {
-      ndbout_c("host:port must be specified.");
-      return;
-    }
-    
-    if(rep_connected) {
-      if(m_repserver != NULL) {
-	ndb_rep_disconnect(m_repserver);
-	rep_connected = false;
-      }       
-    }
-          
-    if(m_repserver == NULL)
-      m_repserver = ndb_rep_create_handle();
-    if(ndb_rep_connect(m_repserver, host) < 0)
-      ndbout_c("Failed to connect to %s", host); 
-    else
-      rep_connected=true;
-    return;
-    
-    if(!rep_connected) {
-      ndbout_c("Not connected to REP server");
-    }
-  }
-    
-  /********
-   * START 
-   ********/
-  if (!strcasecmp(firstToken, "START")) {
-    
-    unsigned int          req;
-    char *startType = strtok(NULL, "\0");
-    
-    if (startType == NULL) {                
-      req = GrepReq::START;
-    } else if (!strcasecmp(startType, "SUBSCRIPTION")) {  
-      req = GrepReq::START_SUBSCR;
-    } else if (!strcasecmp(startType, "METALOG")) { 
-      req = GrepReq::START_METALOG;
-    } else if (!strcasecmp(startType, "METASCAN")) {
-      req = GrepReq::START_METASCAN;
-    } else if (!strcasecmp(startType, "DATALOG")) {
-      req = GrepReq::START_DATALOG;
-    } else if (!strcasecmp(startType, "DATASCAN")) {
-      req = GrepReq::START_DATASCAN;
-    } else if (!strcasecmp(startType, "REQUESTOR")) {
-      req = GrepReq::START_REQUESTOR;
-    } else if (!strcasecmp(startType, "TRANSFER")) {
-      req = GrepReq::START_TRANSFER;
-    } else if (!strcasecmp(startType, "APPLY")) {
-      req = GrepReq::START_APPLY;
-    } else if (!strcasecmp(startType, "DELETE")) {
-      req = GrepReq::START_DELETE;
-    } else {
-      ndbout_c("Illegal argument to command 'REPLICATION START'");
-      return;
-    }
-
-    int result = ndb_rep_command(m_repserver, req, &repId, &reply);
-    
-    if (result != 0) {
-      ndbout << "Start of Global Replication failed" << endl;
-    } else {
-      ndbout << "Start of Global Replication ordered" << endl;
-    }
-    return;
-  }
-
-  /********
-   * STOP
-   ********/
-  if (!strcasecmp(firstToken, "STOP")) {    
-    unsigned int          req;
-    char *startType = strtok(NULL, " ");
-    unsigned int epoch = 0;
-    
-    if (startType == NULL) {                 
-      /**
-       * Stop immediately
-       */
-      req = GrepReq::STOP;
-    } else if (!strcasecmp(startType, "EPOCH")) {  
-      char *strEpoch = strtok(NULL, "\0");
-      if(strEpoch == NULL) {
-	ndbout_c("Epoch expected!");
-	return;
-      }
-      req = GrepReq::STOP;
-      epoch=atoi(strEpoch);      
-    } else if (!strcasecmp(startType, "SUBSCRIPTION")) {  
-      req = GrepReq::STOP_SUBSCR;
-    } else if (!strcasecmp(startType, "METALOG")) { 
-      req = GrepReq::STOP_METALOG;
-    } else if (!strcasecmp(startType, "METASCAN")) {
-      req = GrepReq::STOP_METASCAN;
-    } else if (!strcasecmp(startType, "DATALOG")) {
-      req = GrepReq::STOP_DATALOG;
-    } else if (!strcasecmp(startType, "DATASCAN")) {
-      req = GrepReq::STOP_DATASCAN;
-    } else if (!strcasecmp(startType, "REQUESTOR")) {
-      req = GrepReq::STOP_REQUESTOR;
-    } else if (!strcasecmp(startType, "TRANSFER")) {
-      req = GrepReq::STOP_TRANSFER;
-    } else if (!strcasecmp(startType, "APPLY")) {
-      req = GrepReq::STOP_APPLY;
-    } else if (!strcasecmp(startType, "DELETE")) {
-      req = GrepReq::STOP_DELETE;
-    } else {
-      ndbout_c("Illegal argument to command 'REPLICATION STOP'");
-      return;
-    }
-    int result = ndb_rep_command(m_repserver, req, &repId, &reply, epoch);
-    
-    if (result != 0) {
-      ndbout << "Stop command failed" << endl;
-    } else {
-      ndbout << "Stop ordered" << endl;
-    }
-    return;
-  }
-
-  /*********
-   * STATUS
-   *********/
-  if (!strcasecmp(firstToken, "STATUS")) {
-    struct rep_state repstate;
-    int result = 
-      ndb_rep_get_status(m_repserver, &repId, &reply, &repstate);
-    
-    if (result != 0) {
-      ndbout << "Status request of Global Replication failed" << endl;
-    } else {
-      ndbout << "Status request of Global Replication ordered" << endl;
-      ndbout << "See printout at one of the DB nodes" << endl;
-      ndbout << "(Better status report is under development.)" << endl;
-      ndbout << " SubscriptionId " << repstate.subid 
-	     << " SubscriptionKey " << repstate.subkey << endl;
-    }
-    return;
-  }
-
-  /*********
-   * QUERY (see repapi.h for querable counters)
-   *********/
-  if (!strcasecmp(firstToken, "QUERY")) {
-    char *query = strtok(NULL, "\0");
-    int queryCounter=-1;
-    if(query != NULL) {
-      queryCounter = atoi(query);
-    }
-    struct rep_state repstate;
-    unsigned repId = 0;
-    int result = ndb_rep_query(m_repserver, (QueryCounter)queryCounter,
-			       &repId, &reply, &repstate);
-    
-    if (result != 0) {
-      ndbout << "Query repserver failed" << endl;
-    } else {
-      ndbout << "Query repserver sucessful" << endl;
-      ndbout_c("repstate : QueryCounter %d, f=%d l=%d"
-	       " nodegroups %d" , 
-	       repstate.queryCounter,
-	       repstate.first[0], repstate.last[0],
-	       repstate.no_of_nodegroups );
-    }
-    return;
-  }
-}
-#endif // HAVE_GLOBAL_REPLICATION
 
 template class Vector<char const*>;

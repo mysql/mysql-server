@@ -53,22 +53,30 @@ column_NDBEVENTS_0[] = {
     DictTabInfo::ExtUnsigned, 1,
     false, false
   },
-  { 2, "TABLE_NAME",
+  { 2, "TABLEID",
+    DictTabInfo::ExtUnsigned, 1,
+    false, false
+  },
+  { 3, "TABLEVERSION",
+    DictTabInfo::ExtUnsigned, 1,
+    false, false
+  },
+  { 4, "TABLE_NAME",
     DictTabInfo::ExtBinary, MAX_TAB_NAME_SIZE,
     false, false
   },
-  { 3, "ATTRIBUTE_MASK",
+  { 5, "ATTRIBUTE_MASK",
     DictTabInfo::ExtUnsigned, MAXNROFATTRIBUTESINWORDS,
     false, false
   },
-  { 4, "SUBID",
+  { 6, "SUBID",
     DictTabInfo::ExtUnsigned, 1,
     false, false
   },
-  { 5, "SUBKEY",
+  { 7, "SUBKEY",
     DictTabInfo::ExtUnsigned, 1,
     false, false
-  }
+  },
 };
 
 const Ndbcntr::SysTable
