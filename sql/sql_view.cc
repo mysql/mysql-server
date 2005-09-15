@@ -214,12 +214,13 @@ bool mysql_create_view(THD *thd,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (strcmp(lex->create_view_definer->user.str, thd->priv_user) != 0 ||
+  if (strcmp(lex->create_view_definer->user.str,
+             thd->security_ctx->priv_user) != 0 ||
       my_strcasecmp(system_charset_info,
                     lex->create_view_definer->host.str,
-                    thd->priv_host) != 0)
+                    thd->security_ctx->priv_host) != 0)
   {
-    if (!(thd->master_access & SUPER_ACL))
+    if (!(thd->security_ctx->master_access & SUPER_ACL))
     {
       my_error(ER_VIEW_OTHER_USER, MYF(0), lex->create_view_definer->user.str,
                lex->create_view_definer->host.str);
@@ -275,7 +276,8 @@ bool mysql_create_view(THD *thd,
       if (check_some_access(thd, VIEW_ANY_ACL, tbl))
       {
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                 "ANY", thd->priv_user, thd->host_or_ip, tbl->table_name);
+                 "ANY", thd->security_ctx->priv_user,
+                 thd->security_ctx->priv_host, tbl->table_name);
         res= TRUE;
         goto err;
       }
@@ -441,7 +443,8 @@ bool mysql_create_view(THD *thd,
         {
           /* VIEW column has more privileges */
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-                   "create view", thd->priv_user, thd->host_or_ip, item->name,
+                   "create view", thd->security_ctx->priv_user,
+                   thd->security_ctx->priv_host, item->name,
                    view->table_name);
           res= TRUE;
           goto err;
@@ -786,7 +789,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
-    if (default_view_definer(thd, &table->definer))
+    if (default_view_definer(thd->security_ctx, &table->definer))
       goto err;
   }
 
