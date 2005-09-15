@@ -170,12 +170,10 @@ private:
   void execSUB_SYNC_CONF(Signal* signal);
   void execSUB_SYNC_REF(Signal* signal);
   void execSUB_SYNC_CONTINUE_REQ(Signal* signal);
-  void execSUB_META_DATA(Signal* signal);
   void execSUB_TABLE_DATA(Signal* signal);
 
   // Utility functions
   void setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr);
-  void setupTableScan(Signal* signal, SubscriptionRecPtr subRecPtr);
   void startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr);
   void prepareInsertTransactions(Signal* signal, SubscriptionRecPtr subRecPtr);
   void executeInsertTransaction(Signal* signal, SubscriptionRecPtr subRecPtr,

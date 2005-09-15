@@ -82,9 +82,7 @@ NdbObjectIdMap::map(void * object){
   
   //  unlock();
   
-#ifdef DEBUG_OBJECTMAP
-  ndbout_c("NdbObjectIdMap::map(0x%x) %u", object, ff<<2);
-#endif
+  DBUG_PRINT("info",("NdbObjectIdMap::map(0x%x) %u", object, ff<<2));
 
   return ff<<2;
 }
@@ -103,14 +101,13 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
       m_firstFree = i;
     } else {
       ndbout_c("Error: NdbObjectIdMap::::unmap(%u, 0x%x) obj=0x%x", id, object, obj);
+      DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%x) obj=0x%x", id, object, obj));
       return 0;
     }
     
     //  unlock();
     
-#ifdef DEBUG_OBJECTMAP
-    ndbout_c("NdbObjectIdMap::unmap(%u) obj=0x%x", id, obj);
-#endif
+    DBUG_PRINT("info",("NdbObjectIdMap::unmap(%u) obj=0x%x", id, obj));
     
     return obj;
   }
@@ -119,9 +116,7 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
 
 inline void *
 NdbObjectIdMap::getObject(Uint32 id){
-#ifdef DEBUG_OBJECTMAP
-  ndbout_c("NdbObjectIdMap::getObject(%u) obj=0x%x", id,  m_map[id>>2].m_obj);
-#endif
+  // DBUG_PRINT("info",("NdbObjectIdMap::getObject(%u) obj=0x%x", id,  m_map[id>>2].m_obj));
   id >>= 2;
   if(id < m_size){
     return m_map[id].m_obj;

@@ -64,7 +64,7 @@ public:
 
   Uint32 m_node;
   Uint32 m_state;
-  void * m_mutex;
+  NdbMutex * m_mutex;
   bool m_poll_owner;
   Uint32 m_cond_wait_index;
   struct NdbCondition * m_condition;  
@@ -75,7 +75,7 @@ void
 NdbWaiter::wait(int waitTime)
 {
   assert(!m_poll_owner);
-  NdbCondition_WaitTimeout(m_condition, (NdbMutex*)m_mutex, waitTime);
+  NdbCondition_WaitTimeout(m_condition, m_mutex, waitTime);
 }
 
 inline

@@ -208,3 +208,17 @@ max-time: 2500
 cmd: test_event
 args: -n EventOperationApplier
 
+#
+max-time: 2500
+cmd: test_event
+args: -n EventOperationApplier_NR
+
+#
+max-time: 2500
+cmd: test_event
+args: -n Multi
+
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+

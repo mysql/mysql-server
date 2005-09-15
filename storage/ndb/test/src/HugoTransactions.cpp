@@ -24,6 +24,7 @@ HugoTransactions::HugoTransactions(const NdbDictionary::Table& _tab,
   row(_tab){
 
   m_defaultScanUpdateMethod = 3;
+  setRetryMax();
 }
 
 HugoTransactions::~HugoTransactions(){
@@ -40,13 +41,12 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 {
   
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a;
   NdbScanOperation	       *pOp;
 
   while (true){
 
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_err << "ERROR: has retried this operation " << retryAttempt 
 	    << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -192,13 +192,12 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 {
   
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a;
   NdbIndexScanOperation	       *pOp;
 
   while (true){
 
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_err << "ERROR: has retried this operation " << retryAttempt 
 	    << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -378,14 +377,13 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 				     int abortPercent,
 				     int parallelism){
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int check, a;
   NdbScanOperation *pOp;
 
 
   while (true){
 restart:
-    if (retryAttempt++ >= retryMax){
+    if (retryAttempt++ >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -478,6 +476,8 @@ restart:
 
       if(check != -1){
 	check = pTrans->execute(Commit);   
+	if(check != -1)
+	  m_latest_gci = pTrans->getGCI();
 	pTrans->restart();
       }
 
@@ -585,6 +585,8 @@ HugoTransactions::loadTable(Ndb* pNdb,
       //      closeTrans = true;
       closeTrans = false;
       check = pTrans->execute( Commit );
+      if(check != -1)
+	m_latest_gci = pTrans->getGCI();
       pTrans->restart();
     } else {
       closeTrans = false;
@@ -757,6 +759,7 @@ HugoTransactions::fillTable(Ndb* pNdb,
       }
     }
     else{      
+      m_latest_gci = pTrans->getGCI();
       closeTransaction(pNdb);
     }
     
@@ -768,285 +771,6 @@ HugoTransactions::fillTable(Ndb* pNdb,
 }
 
 int 
-HugoTransactions::createEvent(Ndb* pNdb){
-
-  char eventName[1024];
-  sprintf(eventName,"%s_EVENT",tab.getName());
-
-  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
-
-  if (!myDict) {
-    g_err << "Dictionary not found " 
-	  << pNdb->getNdbError().code << " "
-	  << pNdb->getNdbError().message << endl;
-    return NDBT_FAILED;
-  }
-
-  NdbDictionary::Event myEvent(eventName);
-  myEvent.setTable(tab.getName());
-  myEvent.addTableEvent(NdbDictionary::Event::TE_ALL); 
-  //  myEvent.addTableEvent(NdbDictionary::Event::TE_INSERT); 
-  //  myEvent.addTableEvent(NdbDictionary::Event::TE_UPDATE); 
-  //  myEvent.addTableEvent(NdbDictionary::Event::TE_DELETE);
-
-  //  const NdbDictionary::Table *_table = myDict->getTable(tab.getName());
-  for(int a = 0; a < tab.getNoOfColumns(); a++){
-    //    myEvent.addEventColumn(_table->getColumn(a)->getName());
-    myEvent.addEventColumn(a);
-  }
-
-  int res = myDict->createEvent(myEvent); // Add event to database
-
-  if (res == 0)
-    myEvent.print();
-  else if (myDict->getNdbError().classification ==
-	   NdbError::SchemaObjectExists) 
-  {
-    g_info << "Event creation failed event exists\n";
-    res = myDict->dropEvent(eventName);
-    if (res) {
-      g_err << "Failed to drop event: " 
-	    << myDict->getNdbError().code << " : "
-	    << myDict->getNdbError().message << endl;
-      return NDBT_FAILED;
-    }
-    // try again
-    res = myDict->createEvent(myEvent); // Add event to database
-    if (res) {
-      g_err << "Failed to create event (1): " 
-	    << myDict->getNdbError().code << " : "
-	    << myDict->getNdbError().message << endl;
-      return NDBT_FAILED;
-    }
-  }
-  else 
-  {
-    g_err << "Failed to create event (2): " 
-	  << myDict->getNdbError().code << " : "
-	  << myDict->getNdbError().message << endl;
-    return NDBT_FAILED;
-  }
-
-  return NDBT_OK;
-}
-
-#include <NdbEventOperation.hpp>
-#include "TestNdbEventOperation.hpp"
-#include <NdbAutoPtr.hpp>
-
-struct receivedEvent {
-  Uint32 pk;
-  Uint32 count;
-  Uint32 event;
-};
-
-int XXXXX = 0;
-
-int 
-HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
-				 int records) {
-  int myXXXXX = XXXXX++;
-  Uint32 i;
-  const char function[] = "HugoTransactions::eventOperation: ";
-  struct receivedEvent* recInsertEvent;
-  NdbAutoObjArrayPtr<struct receivedEvent>
-    p00( recInsertEvent = new struct receivedEvent[3*records] );
-  struct receivedEvent* recUpdateEvent = &recInsertEvent[records];
-  struct receivedEvent* recDeleteEvent = &recInsertEvent[2*records];
-
-  EventOperationStats &stats = *(EventOperationStats*)pstats;
-
-  stats.n_inserts = 0;
-  stats.n_deletes = 0;
-  stats.n_updates = 0;
-  stats.n_consecutive = 0;
-  stats.n_duplicates = 0;
-  stats.n_inconsistent_gcis = 0;
-
-  for (i = 0; i < records; i++) {
-    recInsertEvent[i].pk    = 0xFFFFFFFF;
-    recInsertEvent[i].count = 0;
-    recInsertEvent[i].event = 0xFFFFFFFF;
-
-    recUpdateEvent[i].pk    = 0xFFFFFFFF;
-    recUpdateEvent[i].count = 0;
-    recUpdateEvent[i].event = 0xFFFFFFFF;
-
-    recDeleteEvent[i].pk    = 0xFFFFFFFF;
-    recDeleteEvent[i].count = 0;
-    recDeleteEvent[i].event = 0xFFFFFFFF;
-  }
-
-  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
-
-  if (!myDict) {
-    g_err << function << "Event Creation failedDictionary not found\n";
-    return NDBT_FAILED;
-  }
-
-  int                  r = 0;
-  NdbEventOperation    *pOp;
-
-  char eventName[1024];
-  sprintf(eventName,"%s_EVENT",tab.getName());
-  int noEventColumnName = tab.getNoOfColumns();
-
-  g_info << function << "create EventOperation\n";
-  pOp = pNdb->createEventOperation(eventName, 100);
-  if ( pOp == NULL ) {
-    g_err << function << "Event operation creation failed\n";
-    return NDBT_FAILED;
-  }
-
-  g_info << function << "get values\n";
-  NdbRecAttr* recAttr[1024];
-  NdbRecAttr* recAttrPre[1024];
-
-  const NdbDictionary::Table *_table = myDict->getTable(tab.getName());
-
-  for (int a = 0; a < noEventColumnName; a++) {
-    recAttr[a]    = pOp->getValue(_table->getColumn(a)->getName());
-    recAttrPre[a] = pOp->getPreValue(_table->getColumn(a)->getName());
-  }
-  
-  // set up the callbacks
-  g_info << function << "execute\n";
-  if (pOp->execute()) { // This starts changes to "start flowing"
-    g_err << function << "operation execution failed: \n";
-    g_err << pOp->getNdbError().code << " "
-	  << pOp->getNdbError().message << endl;
-    return NDBT_FAILED;
-  }
-
-  g_info << function << "ok\n";
-
-  int count = 0;
-  Uint32 last_inconsitant_gci = 0xEFFFFFF0;
-
-  while (r < records){
-    //printf("now waiting for event...\n");
-    int res = pNdb->pollEvents(1000); // wait for event or 1000 ms
-
-    if (res > 0) {
-      //printf("got data! %d\n", r);
-      int overrun;
-      while (pOp->next(&overrun) > 0) {
-	r++;
-	r += overrun;
-	count++;
-
-	Uint32 gci = pOp->getGCI();
-	Uint32 pk = recAttr[0]->u_32_value();
-
-        if (!pOp->isConsistent()) {
-	  if (last_inconsitant_gci != gci) {
-	    last_inconsitant_gci = gci;
-	    stats.n_inconsistent_gcis++;
-	  }
-	  g_warning << "A node failure has occured and events might be missing\n";	
-	}
-	g_info << function << "GCI " << gci << ": " << count;
-	struct receivedEvent* recEvent;
-	switch (pOp->getEventType()) {
-	case NdbDictionary::Event::TE_INSERT:
-	  stats.n_inserts++;
-	  g_info << " INSERT: ";
-	  recEvent = recInsertEvent;
-	  break;
-	case NdbDictionary::Event::TE_DELETE:
-	  stats.n_deletes++;
-	  g_info << " DELETE: ";
-	  recEvent = recDeleteEvent;
-	  break;
-	case NdbDictionary::Event::TE_UPDATE:
-	  stats.n_updates++;
-	  g_info << " UPDATE: ";
-	  recEvent = recUpdateEvent;
-	  break;
-	case NdbDictionary::Event::TE_ALL:
-	  abort();
-	}
-
-	if ((int)pk < records) {
-	  recEvent[pk].pk = pk;
-	  recEvent[pk].count++;
-	}
-
-	g_info << "overrun " << overrun << " pk " << pk;
-	for (i = 1; i < noEventColumnName; i++) {
-	  if (recAttr[i]->isNULL() >= 0) { // we have a value
-	    g_info << " post[" << i << "]=";
-	    if (recAttr[i]->isNULL() == 0) // we have a non-null value
-	      g_info << recAttr[i]->u_32_value();
-	    else                           // we have a null value
-	      g_info << "NULL";
-	  }
-	  if (recAttrPre[i]->isNULL() >= 0) { // we have a value
-	    g_info << " pre[" << i << "]=";
-	    if (recAttrPre[i]->isNULL() == 0) // we have a non-null value
-	      g_info << recAttrPre[i]->u_32_value();
-	    else                              // we have a null value
-	      g_info << "NULL";
-	  }
-	}
-	g_info << endl;
-      }
-    } else
-      ;//printf("timed out\n");
-  }
-
-  //  sleep ((XXXXX-myXXXXX)*2);
-
-  g_info << myXXXXX << "dropping event operation" << endl;
-
-  int res = pNdb->dropEventOperation(pOp);
-  if (res != 0) {
-    g_err << "operation execution failed\n";
-    return NDBT_FAILED;
-  }
-
-  g_info << myXXXXX << " ok" << endl;
-
-  if (stats.n_inserts > 0) {
-    stats.n_consecutive++;
-  }
-  if (stats.n_deletes > 0) {
-    stats.n_consecutive++;
-  }
-  if (stats.n_updates > 0) {
-    stats.n_consecutive++;
-  }
-  for (i = 0; i < (Uint32)records/3; i++) {
-    if (recInsertEvent[i].pk != i) {
-      stats.n_consecutive ++;
-      ndbout << "missing insert pk " << i << endl;
-    } else if (recInsertEvent[i].count > 1) {
-      ndbout << "duplicates insert pk " << i
-	     << " count " << recInsertEvent[i].count << endl;
-      stats.n_duplicates += recInsertEvent[i].count-1;
-    }
-    if (recUpdateEvent[i].pk != i) {
-      stats.n_consecutive ++;
-      ndbout << "missing update pk " << i << endl;
-    } else if (recUpdateEvent[i].count > 1) {
-      ndbout << "duplicates update pk " << i
-	     << " count " << recUpdateEvent[i].count << endl;
-      stats.n_duplicates += recUpdateEvent[i].count-1;
-    }
-    if (recDeleteEvent[i].pk != i) {
-      stats.n_consecutive ++;
-      ndbout << "missing delete pk " << i << endl;
-    } else if (recDeleteEvent[i].count > 1) {
-      ndbout << "duplicates delete pk " << i
-	     << " count " << recDeleteEvent[i].count << endl;
-      stats.n_duplicates += recDeleteEvent[i].count-1;
-    }
-  }
-  
-  return NDBT_OK;
-}
-
-int 
 HugoTransactions::pkReadRecords(Ndb* pNdb, 
 				int records,
 				int batch,
@@ -1054,7 +778,6 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a;
 
   if (batch == 0) {
@@ -1066,7 +789,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
     if(r + batch > records)
       batch = records - r;
 
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -1116,6 +839,7 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
     } else {
+
       if(pIndexScanOp)
       {
 	int rows_found = 0;
@@ -1173,7 +897,6 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
   int updated = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a, b;
   NdbOperation	       *pOp;
 
@@ -1184,7 +907,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     if(r + batch > records)
       batch = records - r;
     
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -1302,6 +1025,7 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     }
     else{
       updated += batch;
+      m_latest_gci = pTrans->getGCI();
     }
     
     closeTransaction(pNdb);
@@ -1321,12 +1045,11 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
   int updated = 0;
   int r = 0;
   int retryAttempt = 0;
-  const int retryMax = 100;
   int check, a;
 
   while (r < records){
     
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -1476,8 +1199,9 @@ HugoTransactions::pkInterpretedUpdateRecords(Ndb* pNdb,
     }
     else{
       updated++;
+      m_latest_gci = pTrans->getGCI();
     }
-
+    
 
     closeTransaction(pNdb);
 
@@ -1499,7 +1223,6 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
   int deleted = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a;
   NdbOperation	       *pOp;
 
@@ -1508,7 +1231,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     if(r + batch > records)
       batch = records - r;
 
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -1576,6 +1299,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     }
     else {
       deleted += batch;
+      m_latest_gci = pTrans->getGCI();
     }
     closeTransaction(pNdb);
     
@@ -1598,7 +1322,6 @@ HugoTransactions::lockRecords(Ndb* pNdb,
   // and lock som other records
   int                  r = 0;
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a, b;
   NdbOperation	       *pOp;
   NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
@@ -1619,7 +1342,7 @@ HugoTransactions::lockRecords(Ndb* pNdb,
     
     g_info << "|- Locking " << lockBatch << " records..." << endl;
 
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -1718,7 +1441,6 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a;
   NdbOperation *pOp;
   NdbIndexScanOperation *sOp;
@@ -1741,7 +1463,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   allocRows(batch);
   
   while (r < records){
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -1865,7 +1587,6 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   int updated = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
-  const int            retryMax = 100;
   int                  check, a, b;
   NdbOperation *pOp;
   NdbScanOperation * sOp;
@@ -1881,7 +1602,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   allocRows(batch);
   
   while (r < records){
-    if (retryAttempt >= retryMax){
+    if (retryAttempt >= m_retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
       return NDBT_FAILED;
@@ -2037,6 +1758,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     } else {
       updated += batch;
+      m_latest_gci = pTrans->getGCI();
     }
     
     closeTransaction(pNdb);

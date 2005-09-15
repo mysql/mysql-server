@@ -55,6 +55,7 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
   addRecSignal(GSN_CNTR_START_CONF, &Ndbcntr::execCNTR_START_CONF);
   addRecSignal(GSN_CNTR_WAITREP, &Ndbcntr::execCNTR_WAITREP);
   addRecSignal(GSN_CNTR_START_REP, &Ndbcntr::execCNTR_START_REP);
+  addRecSignal(GSN_API_START_REP, &Ndbcntr::execAPI_START_REP, true);
   addRecSignal(GSN_NODE_FAILREP, &Ndbcntr::execNODE_FAILREP);
   addRecSignal(GSN_SYSTEM_ERROR , &Ndbcntr::execSYSTEM_ERROR);
   

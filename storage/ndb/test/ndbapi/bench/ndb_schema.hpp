@@ -36,7 +36,7 @@
 #define SERVER_INSERTS           "NO_OF_INSERT"
 #define SERVER_DELETES           "NO_OF_DELETE"
 
-#define GROUP_TABLE              "GROUP"
+#define GROUP_TABLE              "GROUP_T"
 #define GROUP_ID                 "GROUP_ID"
 #define GROUP_NAME               "GROUP_NAME"
 #define GROUP_ALLOW_READ         "ALLOW_READ"

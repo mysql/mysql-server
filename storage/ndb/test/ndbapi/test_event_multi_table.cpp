@@ -21,6 +21,8 @@
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <TestNdbEventOperation.hpp>
+#include <NdbRestarter.hpp>
+#include <NdbRestarts.hpp>
 
 static void usage()
 {
@@ -57,189 +59,182 @@ static int execute_commit(Ndb *ndb, Vector<HugoOperations*> &ops)
   return 0;
 }
 
-static int copy_events(Ndb *ndb,
-		       Vector<NdbEventOperation *> &ops,
-		       Vector<const NdbDictionary::Table *> &tabs,
-		       Vector<Vector<NdbRecAttr *> > &values)
+static int copy_events(Ndb *ndb)
 {
   DBUG_ENTER("copy_events");
   int r= 0;
+  NdbDictionary::Dictionary * dict = ndb->getDictionary();
   while (1)
   {
     int res= ndb->pollEvents(1000); // wait for event or 1000 ms
-    DBUG_PRINT("info", ("pollEvents res=%d", r));
+    DBUG_PRINT("info", ("pollEvents res=%d", res));
     if (res <= 0)
     {
       break;
     }
-    for (unsigned i_ops= 0; i_ops < ops.size(); i_ops++)
+    int error= 0;
+    NdbEventOperation *pOp;
+    while ((pOp= ndb->nextEvent(&error)))
     {
-      NdbEventOperation *pOp= ops[i_ops];
-      const NdbDictionary::Table *table= tabs[i_ops];
-      Vector<NdbRecAttr *> &recAttr= values[i_ops];
+      char buf[1024];
+      sprintf(buf, "%s_SHADOW", pOp->getTable()->getName());
+      const NdbDictionary::Table *table= dict->getTable(buf);
 
-      int overrun= 0;
-      unsigned i;
-      unsigned n_columns= table->getNoOfColumns();
-      while (pOp->next(&overrun) > 0)
+      if (table == 0)
       {
-	if (overrun)
-	{
-	  g_err << "buffer overrun\n";
-	  DBUG_RETURN(-1);
-	}
-	r++;
-	
-	Uint32 gci= pOp->getGCI();
+	g_err << "unable to find table " << buf << endl;
+	DBUG_RETURN(-1);
+      }
 
-	if (!pOp->isConsistent()) {
-	  g_err << "A node failure has occured and events might be missing\n";
+      if (pOp->isOverrun())
+      {
+	g_err << "buffer overrun\n";
+	DBUG_RETURN(-1);
+      }
+      r++;
+      
+      Uint32 gci= pOp->getGCI();
+
+      if (!pOp->isConsistent()) {
+	g_err << "A node failure has occured and events might be missing\n";
+	DBUG_RETURN(-1);
+      }
+	
+      int noRetries= 0;
+      do
+      {
+	NdbTransaction *trans= ndb->startTransaction();
+	if (trans == 0)
+	{
+	  g_err << "startTransaction failed "
+		<< ndb->getNdbError().code << " "
+		<< ndb->getNdbError().message << endl;
 	  DBUG_RETURN(-1);
 	}
 	
-	int noRetries= 0;
-	do
+	NdbOperation *op= trans->getNdbOperation(table);
+	if (op == 0)
 	{
-	  NdbTransaction *trans= ndb->startTransaction();
-	  if (trans == 0)
+	  g_err << "getNdbOperation failed "
+		<< trans->getNdbError().code << " "
+		<< trans->getNdbError().message << endl;
+	  DBUG_RETURN(-1);
+	}
+	
+	switch (pOp->getEventType()) {
+	case NdbDictionary::Event::TE_INSERT:
+	  if (op->insertTuple())
 	  {
-	    g_err << "startTransaction failed "
-		  << ndb->getNdbError().code << " "
-		  << ndb->getNdbError().message << endl;
+	    g_err << "insertTuple "
+		  << op->getNdbError().code << " "
+		  << op->getNdbError().message << endl;
 	    DBUG_RETURN(-1);
 	  }
-	  
-	  NdbOperation *op= trans->getNdbOperation(table);
-	  if (op == 0)
+	  break;
+	case NdbDictionary::Event::TE_DELETE:
+	  if (op->deleteTuple())
 	  {
-	    g_err << "getNdbOperation failed "
-		  << trans->getNdbError().code << " "
-		  << trans->getNdbError().message << endl;
+	    g_err << "deleteTuple "
+		  << op->getNdbError().code << " "
+		  << op->getNdbError().message << endl;
 	    DBUG_RETURN(-1);
 	  }
-	  
-	  switch (pOp->getEventType()) {
-	  case NdbDictionary::Event::TE_INSERT:
-	    if (op->insertTuple())
-	    {
-	      g_err << "insertTuple "
-		    << op->getNdbError().code << " "
-		    << op->getNdbError().message << endl;
-	      DBUG_RETURN(-1);
-	    }
-	    break;
-	  case NdbDictionary::Event::TE_DELETE:
-	    if (op->deleteTuple())
-	    {
-	      g_err << "deleteTuple "
-		    << op->getNdbError().code << " "
-		    << op->getNdbError().message << endl;
-	      DBUG_RETURN(-1);
-	    }
-	    break;
-	  case NdbDictionary::Event::TE_UPDATE:
-	    if (op->updateTuple())
-	    {
-	      g_err << "updateTuple "
-		    << op->getNdbError().code << " "
-		    << op->getNdbError().message << endl;
-	      DBUG_RETURN(-1);
-	    }
-	    break;
-	  default:
-	    abort();
-	  }
-	  
-	  for (i= 0; i < n_columns; i++)
+	  break;
+	case NdbDictionary::Event::TE_UPDATE:
+	  if (op->updateTuple())
 	  {
-	    if (recAttr[i]->isNULL())
+	    g_err << "updateTuple "
+		  << op->getNdbError().code << " "
+		  << op->getNdbError().message << endl;
+	    DBUG_RETURN(-1);
+	  }
+	  break;
+	default:
+	  abort();
+	}
+	
+	{
+	  for (const NdbRecAttr *pk= pOp->getFirstPkAttr(); pk; pk= pk->next())
+	  {
+	    if (pk->isNULL())
 	    {
-	      if (table->getColumn(i)->getPrimaryKey())
-	      {
-		g_err << "internal error: primary key isNull()="
-		      << recAttr[i]->isNULL() << endl;
-		DBUG_RETURN(NDBT_FAILED);
-	      }
-	      switch (pOp->getEventType()) {
-	      case NdbDictionary::Event::TE_INSERT:
-		if (recAttr[i]->isNULL() < 0)
-		{
-		  g_err << "internal error: missing value for insert\n";
-		  DBUG_RETURN(NDBT_FAILED);
-		}
-		break;
-	      case NdbDictionary::Event::TE_DELETE:
-		break;
-	      case NdbDictionary::Event::TE_UPDATE:
-		break;
-	      default:
-		abort();
-	      }
+	      g_err << "internal error: primary key isNull()="
+		    << pk->isNULL() << endl;
+	      DBUG_RETURN(NDBT_FAILED);
 	    }
-	    if (table->getColumn(i)->getPrimaryKey() &&
-		op->equal(i,recAttr[i]->aRef()))
+	    if (op->equal(pk->getColumn()->getColumnNo(),pk->aRef()))
 	    {
-	      g_err << "equal " << i << " "
+	      g_err << "equal " << pk->getColumn()->getColumnNo() << " "
 		    << op->getNdbError().code << " "
 		    << op->getNdbError().message << endl;
 	      DBUG_RETURN(NDBT_FAILED);
 	    }
 	  }
-	  
-	  switch (pOp->getEventType()) {
-	  case NdbDictionary::Event::TE_INSERT:
-	    for (i= 0; i < n_columns; i++)
-	    {
-	      if (!table->getColumn(i)->getPrimaryKey() &&
-		  op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
-	      {
-		g_err << "setValue(insert) " << i << " "
-		      << op->getNdbError().code << " "
-		      << op->getNdbError().message << endl;
-		DBUG_RETURN(-1);
-	      }
-	    }
-	    break;
-	  case NdbDictionary::Event::TE_DELETE:
-	    break;
-	  case NdbDictionary::Event::TE_UPDATE:
-	    for (i= 0; i < n_columns; i++)
-	    {
-	      if (!table->getColumn(i)->getPrimaryKey() &&
-		  recAttr[i]->isNULL() >= 0 &&
-		  op->setValue(i,recAttr[i]->isNULL() ? 0:recAttr[i]->aRef()))
-	      {
-		g_err << "setValue(update) " << i << " "
-		      << op->getNdbError().code << " "
-		      << op->getNdbError().message << endl;
-		DBUG_RETURN(NDBT_FAILED);
-	      }
-	    }
-	    break;
-	  case NdbDictionary::Event::TE_ALL:
-	    abort();
-	  }
-	  if (trans->execute(Commit) == 0)
+	}
+	
+	switch (pOp->getEventType()) {
+	case NdbDictionary::Event::TE_INSERT:
+	{
+	  for (const NdbRecAttr *data= pOp->getFirstDataAttr(); data; data= data->next())
 	  {
-	    trans->close();
-	    // everything ok
-	    break;
+	    if (data->isNULL() < 0 ||
+		op->setValue(data->getColumn()->getColumnNo(),
+			     data->isNULL() ? 0:data->aRef()))
+	    {
+	      g_err << "setValue(insert) " << data->getColumn()->getColumnNo() << " "
+		    << op->getNdbError().code << " "
+		    << op->getNdbError().message << endl;
+	      DBUG_RETURN(-1);
+	    }
 	  }
-	  if (noRetries++ == 10 ||
-	      trans->getNdbError().status != NdbError::TemporaryError)
+	  break;
+	}
+	case NdbDictionary::Event::TE_DELETE:
+	  break;
+	case NdbDictionary::Event::TE_UPDATE:
+	{
+	  for (const NdbRecAttr *data= pOp->getFirstDataAttr(); data; data= data->next())
 	  {
-	    g_err << "execute " << r << " failed "
-		  << trans->getNdbError().code << " "
-		  << trans->getNdbError().message << endl;
-	    trans->close();
-	    DBUG_RETURN(-1);
+	    if (data->isNULL() >= 0 &&
+		op->setValue(data->getColumn()->getColumnNo(),
+			     data->isNULL() ? 0:data->aRef()))
+	    {
+	      g_err << "setValue(update) " << data->getColumn()->getColumnNo() << " "
+		    << op->getNdbError().code << " "
+		    << op->getNdbError().message << endl;
+	      DBUG_RETURN(NDBT_FAILED);
+	    }
 	  }
+	  break;
+	}
+	case NdbDictionary::Event::TE_ALL:
+	  abort();
+	}
+	if (trans->execute(Commit) == 0)
+	{
 	  trans->close();
-	  NdbSleep_MilliSleep(100); // sleep before retying
-	} while(1);
-      }
+	  // everything ok
+	  break;
+	}
+	if (noRetries++ == 10 ||
+	    trans->getNdbError().status != NdbError::TemporaryError)
+	{
+	  g_err << "execute " << r << " failed "
+		<< trans->getNdbError().code << " "
+		<< trans->getNdbError().message << endl;
+	  trans->close();
+	  DBUG_RETURN(-1);
+	}
+	trans->close();
+	NdbSleep_MilliSleep(100); // sleep before retying
+      } while(1);
+    } // for
+    if (error)
+    {
+      g_err << "nextEvent()\n";
+      DBUG_RETURN(-1);
     }
-  }
+  } // while(1)
   DBUG_RETURN(r);
 }
 
@@ -302,19 +297,39 @@ main(int argc, char** argv)
 
   // create all tables
   Vector<const NdbDictionary::Table*> pTabs;
-  for (i= 0; no_error && argc; argc--, i++)
+  if (argc == 0)
   {
-    dict->dropTable(argv[i]);
-    NDBT_Tables::createTable(&ndb, argv[i]);
-    const NdbDictionary::Table *pTab= dict->getTable(argv[i]);
-    if (pTab == 0)
+    NDBT_Tables::dropAllTables(&ndb);
+    NDBT_Tables::createAllTables(&ndb);
+    for (i= 0; no_error && i < NDBT_Tables::getNumTables(); i++)
     {
-      ndbout << "Failed to create table" << endl;
-      ndbout << dict->getNdbError() << endl;
-      no_error= 0;
-      break;
+      const NdbDictionary::Table *pTab= dict->getTable(NDBT_Tables::getTable(i)->getName());
+      if (pTab == 0)
+      {
+	ndbout << "Failed to create table" << endl;
+	ndbout << dict->getNdbError() << endl;
+	no_error= 0;
+	break;
+      }
+      pTabs.push_back(pTab);
     }
-    pTabs.push_back(pTab);
+  }
+  else
+  {
+    for (i= 0; no_error && argc; argc--, i++)
+    {
+      dict->dropTable(argv[i]);
+      NDBT_Tables::createTable(&ndb, argv[i]);
+      const NdbDictionary::Table *pTab= dict->getTable(argv[i]);
+      if (pTab == 0)
+      {
+	ndbout << "Failed to create table" << endl;
+	ndbout << dict->getNdbError() << endl;
+	no_error= 0;
+	break;
+      }
+      pTabs.push_back(pTab);
+    }
   }
   pTabs.push_back(NULL);
 
@@ -344,19 +359,13 @@ main(int argc, char** argv)
   }
 
   // get storage for each event operation
-  Vector<Vector<NdbRecAttr*> > values;
-  Vector<Vector<NdbRecAttr*> > pre_values;
   for (i= 0; no_error && pTabs[i]; i++)
   {
     int n_columns= pTabs[i]->getNoOfColumns();
-    Vector<NdbRecAttr*> tmp_a;
-    Vector<NdbRecAttr*> tmp_b;
     for (int j = 0; j < n_columns; j++) {
-      tmp_a.push_back(pOps[i]->getValue(pTabs[i]->getColumn(j)->getName()));
-      tmp_b.push_back(pOps[i]->getPreValue(pTabs[i]->getColumn(j)->getName()));
+      pOps[i]->getValue(pTabs[i]->getColumn(j)->getName());
+      pOps[i]->getPreValue(pTabs[i]->getColumn(j)->getName());
     }
-    values.push_back(tmp_a);
-    pre_values.push_back(tmp_b);
   }
 
   // start receiving events
@@ -401,9 +410,8 @@ main(int argc, char** argv)
     hugo_ops.push_back(new HugoOperations(*pTabs[i]));
   }
 
-  sleep(5);
-
-  // insert 3 records per table
+  int n_records= 3;
+  // insert n_records records per table
   do {
     if (start_transaction(&ndb, hugo_ops))
     {
@@ -412,7 +420,7 @@ main(int argc, char** argv)
     }
     for (i= 0; no_error && pTabs[i]; i++)
     {
-      hugo_ops[i]->pkInsertRecord(&ndb, 0, 3);
+      hugo_ops[i]->pkInsertRecord(&ndb, 0, n_records);
     }
     if (execute_commit(&ndb, hugo_ops))
     {
@@ -428,7 +436,7 @@ main(int argc, char** argv)
 
   // copy events and verify
   do {
-    if (copy_events(&ndb, pOps, pShadowTabs, values) < 0)
+    if (copy_events(&ndb) < 0)
     {
       no_error= 0;
       break;
@@ -440,7 +448,7 @@ main(int argc, char** argv)
     }
   } while (0);
 
-  // update 2 records in first table
+  // update n_records-1 records in first table
   do {
     if (start_transaction(&ndb, hugo_ops))
     {
@@ -448,7 +456,7 @@ main(int argc, char** argv)
       break;
     }
 
-    hugo_ops[0]->pkUpdateRecord(&ndb, 2);
+    hugo_ops[0]->pkUpdateRecord(&ndb, n_records-1);
 
     if (execute_commit(&ndb, hugo_ops))
     {
@@ -464,7 +472,7 @@ main(int argc, char** argv)
 
   // copy events and verify
   do {
-    if (copy_events(&ndb, pOps, pShadowTabs, values) < 0)
+    if (copy_events(&ndb) < 0)
     {
       no_error= 0;
       break;
@@ -475,6 +483,70 @@ main(int argc, char** argv)
       break;
     }
   } while (0);
+
+
+  {
+    NdbRestarts restarts;
+    for (int j= 0; j < 10; j++)
+    {
+      // restart a node
+      if (no_error)
+      {
+	int timeout = 240;
+	if (restarts.executeRestart("RestartRandomNodeAbort", timeout))
+	{
+	  no_error= 0;
+	  break;
+	}
+      }
+
+      // update all n_records records on all tables
+      if (start_transaction(&ndb, hugo_ops))
+      {
+	no_error= 0;
+	break;
+      }
+
+      for (int r= 0; r < n_records; r++)
+      {
+	for (i= 0; pTabs[i]; i++)
+	{
+	  hugo_ops[i]->pkUpdateRecord(&ndb, r);
+	}
+      }
+      if (execute_commit(&ndb, hugo_ops))
+      {
+	no_error= 0;
+	break;
+      }
+      if(close_transaction(&ndb, hugo_ops))
+      {
+	no_error= 0;
+	break;
+      }
+
+      // copy events and verify
+      if (copy_events(&ndb) < 0)
+      {
+	no_error= 0;
+	break;
+      }
+      if (verify_copy(&ndb, pTabs, pShadowTabs))
+      {
+	no_error= 0;
+	break;
+      }
+    }
+  }
+
+  // drop the event operations
+  for (i= 0; i < (int)pOps.size(); i++)
+  {
+    if (ndb.dropEventOperation(pOps[i]))
+    {
+      no_error= 0;
+    }
+  }
 
   if (no_error)
     DBUG_RETURN(NDBT_ProgramExit(NDBT_OK));

@@ -171,7 +171,6 @@ extern "C" {
     = NODE_TYPE_MGM
 #endif
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    ,NDB_MGM_NODE_TYPE_REP = NODE_TYPE_REP  /** A replication node */
     ,NDB_MGM_NODE_TYPE_MIN     = 0          /** Min valid value*/
     ,NDB_MGM_NODE_TYPE_MAX     = 3          /** Max valid value*/
 #endif

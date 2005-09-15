@@ -37,7 +37,6 @@
 #include <signaldata/EventReport.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/BackupSignalData.hpp>
-#include <signaldata/GrepImpl.hpp>
 #include <signaldata/ManagementServer.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
@@ -509,10 +508,6 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
       case NODE_TYPE_MGM:
 	nodeTypes[id] = NDB_MGM_NODE_TYPE_MGM;
 	break;
-      case NODE_TYPE_REP:
-	nodeTypes[id] = NDB_MGM_NODE_TYPE_REP;
-	break;
-      case NODE_TYPE_EXT_REP:
       default:
 	break;
       }
@@ -1929,7 +1924,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     break;
 
   case GSN_EVENT_REP:
-    eventReport(refToNode(signal->theSendersBlockRef), signal->getDataPtr());
+    eventReport(signal->getDataPtr());
     break;
 
   case GSN_STOP_REF:{
@@ -2035,12 +2030,14 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
 {
   DBUG_ENTER("MgmtSrvr::handleStatus");
   Uint32 theData[25];
+  EventReport *rep = (EventReport *)theData;
+
   theData[1] = nodeId;
   if (alive) {
     m_started_nodes.push_back(nodeId);
-    theData[0] = NDB_LE_Connected;
+    rep->setEventType(NDB_LE_Connected);
   } else {
-    theData[0] = NDB_LE_Disconnected;
+    rep->setEventType(NDB_LE_Connected);
     if(nfComplete)
     {
       handleStopReply(nodeId, 0);
@@ -2054,8 +2051,9 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
       NdbCondition_Signal(theMgmtWaitForResponseCondPtr);
     }
   }
-  
-  eventReport(_ownNodeId, theData);
+
+  rep->setNodeId(_ownNodeId);
+  eventReport(theData);
   DBUG_VOID_RETURN;
 }
 
@@ -2387,11 +2385,13 @@ MgmtSrvr::getNextNodeId(NodeId * nodeId, enum ndb_mgm_node_type type) const
 #include "Services.hpp"
 
 void
-MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
+MgmtSrvr::eventReport(const Uint32 * theData)
 {
   const EventReport * const eventReport = (EventReport *)&theData[0];
   
   Ndb_logevent_type type = eventReport->getEventType();
+  Uint32 nodeId= eventReport->getNodeId();
+
   // Log event
   g_eventLogger.log(type, theData, nodeId, 
 		    &m_event_listner[0].m_logLevel);  
@@ -2567,18 +2567,6 @@ MgmtSrvr::abortBackup(Uint32 backupId)
     return SEND_OR_RECEIVE_FAILED;
   }
   
-  return 0;
-}
-
-
-/*****************************************************************************
- * Global Replication
- *****************************************************************************/
-
-int
-MgmtSrvr::repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted)
-{
-  require(false);
   return 0;
 }
 

@@ -17,6 +17,7 @@
 #ifndef NDBT_TEST_HPP
 #define NDBT_TEST_HPP
 
+#include <ndb_global.h>
 
 #include "NDBT_ReturnCodes.h"
 #include <Properties.hpp>
@@ -40,6 +41,8 @@ public:
   NDBT_Context(Ndb_cluster_connection&);
   ~NDBT_Context();
   const NdbDictionary::Table* getTab();
+  int getNumTables() const;
+  const char * getTableName(int) const;
   NDBT_TestSuite* getSuite();
   NDBT_TestCase* getCase();
 
@@ -218,6 +221,9 @@ public:
   virtual int getNoOfRunningSteps() const = 0;
   virtual int getNoOfCompletedSteps() const = 0;
 
+  bool m_all_tables;
+  bool m_has_run;
+
 protected:
   virtual int runInit(NDBT_Context* ctx) = 0;
   virtual int runSteps(NDBT_Context* ctx) = 0;
@@ -352,6 +358,8 @@ public:
 
 
   int addTest(NDBT_TestCase* pTest);
+
+  Vector<BaseString> m_tables_in_test;
 private:
   int executeOne(Ndb_cluster_connection&,
 		 const char* _tabname, const char* testname = NULL);
@@ -374,6 +382,7 @@ private:
   int timer;
   NdbTimer testSuiteTimer;
   bool createTable;
+  bool createAllTables;
 };
 
 
@@ -430,6 +439,10 @@ C##suitname():NDBT_TestSuite(#suitname){ \
 // Means test will be run on all tables execept T10
 #define NOT_TABLE(tableName) \
   pt->addTable(tableName, false);
+
+// Text case will only be run once, not once per table as normally
+#define ALL_TABLES() \
+  pt->m_all_tables= true;
 
 #define NDBT_TESTSUITE_END(suitname) \
  } } ; C##suitname suitname

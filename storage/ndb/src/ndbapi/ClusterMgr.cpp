@@ -109,18 +109,6 @@ ClusterMgr::init(ndb_mgm_configuration_iterator & iter){
     case NODE_TYPE_MGM:
       theNodes[tmp].m_info.m_type = NodeInfo::MGM;
       break;
-    case NODE_TYPE_REP:
-      theNodes[tmp].m_info.m_type = NodeInfo::REP;
-      break;
-    case NODE_TYPE_EXT_REP:
-      theNodes[tmp].m_info.m_type = NodeInfo::REP;
-      {
-	Uint32 hbFreq = 10000;
-	//ndb_mgm_get_int_parameter(iter, CFG_, &hbFreq);
-	theNodes[tmp].hbFrequency = hbFreq;
-	assert(100 <= hbFreq && hbFreq < 60 * 60 * 1000);
-      }
-      break;
     default:
       type = type;
 #if 0
@@ -218,13 +206,6 @@ ClusterMgr::threadMain( ){
 	  theNode.hbCounter = 0;
 	}
 
-	/**
-	 * If the node is of type REP, 
-	 * then the receiver of the signal should be API_CLUSTERMGR
-	 */
-	if (theNode.m_info.m_type == NodeInfo::REP) {
-	  signal.theReceiversBlockNumber = API_CLUSTERMGR;
-	}
 #if 0 
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
 #endif
@@ -347,9 +328,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   }//if
   node.m_info.m_heartbeat_cnt = 0;
   node.hbCounter = 0;
-  if (node.m_info.m_type != NodeInfo::REP) {
-    node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
-  }
+  node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
 }
 
 void
@@ -422,10 +401,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
    * if first API_REGCONF has not arrived
    */
   theNode.m_state.m_connected_nodes.set(nodeId);
-
-  if (theNode.m_info.m_type != NodeInfo::REP) {
-    theNode.hbFrequency = 0;
-  }
+  theNode.hbFrequency = 0;
   theNode.m_info.m_version = 0;
   theNode.compatible = true;
   theNode.nfCompleteRep = true;

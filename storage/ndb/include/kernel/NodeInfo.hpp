@@ -31,7 +31,6 @@ public:
     DB  = NODE_TYPE_DB,      ///< Database node
     API = NODE_TYPE_API,      ///< NDB API node
     MGM = NODE_TYPE_MGM,      ///< Management node  (incl. NDB API)
-    REP = NODE_TYPE_REP,      ///< Replication node (incl. NDB API)
     INVALID = 255 ///< Invalid type
   };
   NodeType getType() const;
@@ -75,9 +74,6 @@ operator<<(NdbOut& ndbout, const NodeInfo & info){
     break;
   case NodeInfo::MGM:
     ndbout << "MGM";
-    break;
-  case NodeInfo::REP:
-    ndbout << "REP";
     break;
   case NodeInfo::INVALID:
     ndbout << "INVALID";

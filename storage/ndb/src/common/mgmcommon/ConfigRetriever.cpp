@@ -62,7 +62,10 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
 
   if (ndb_mgm_set_connectstring(m_handle, _connect_string))
   {
-    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle));
+    tmp.append(" : ");
+    tmp.append(ndb_mgm_get_latest_error_desc(m_handle));
+    setError(CR_ERROR, tmp.c_str());
     DBUG_VOID_RETURN;
   }
   resetError();
@@ -147,7 +150,10 @@ ConfigRetriever::getConfig(NdbMgmHandle m_handle)
   ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle,m_version);
   if(conf == 0)
   {
-    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle));
+    tmp.append(" : ");
+    tmp.append(ndb_mgm_get_latest_error_desc(m_handle));
+    setError(CR_ERROR, tmp.c_str());
     return 0;
   }
   return conf;
@@ -349,7 +355,10 @@ ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
       no_retries--;
       NdbSleep_SecSleep(retry_delay_in_seconds);
     }
-    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle));
+    tmp.append(" : ");
+    tmp.append(ndb_mgm_get_latest_error_desc(m_handle));
+    setError(CR_ERROR, tmp.c_str());
   } else
     setError(CR_ERROR, "management server handle not initialized");    
   return 0;
