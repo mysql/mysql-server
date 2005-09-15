@@ -568,13 +568,13 @@ public:
     static word Add(word *C, const word *A, const word *B, unsigned int N);
     static word Subtract(word *C, const word *A, const word*B, unsigned int N);
 
-    static void Multiply2(word *C, const word *A, const word *B);
-    static word Multiply2Add(word *C, const word *A, const word *B);
+    static inline void Multiply2(word *C, const word *A, const word *B);
+    static inline word Multiply2Add(word *C, const word *A, const word *B);
     static void Multiply4(word *C, const word *A, const word *B);
     static void Multiply8(word *C, const word *A, const word *B);
     static inline unsigned int MultiplyRecursionLimit() {return 8;}
 
-    static void Multiply2Bottom(word *C, const word *A, const word *B);
+    static inline void Multiply2Bottom(word *C, const word *A, const word *B);
     static void Multiply4Bottom(word *C, const word *A, const word *B);
     static void Multiply8Bottom(word *C, const word *A, const word *B);
     static inline unsigned int MultiplyBottomRecursionLimit() {return 8;}
@@ -668,7 +668,7 @@ void Portable::Multiply2(word *C, const word *A, const word *B)
     C[3] = t.GetHighHalf();
 }
 
-void Portable::Multiply2Bottom(word *C, const word *A, const word *B)
+inline void Portable::Multiply2Bottom(word *C, const word *A, const word *B)
 {
     DWord t = DWord::Multiply(A[0], B[0]);
     C[0] = t.GetLowHalf();
