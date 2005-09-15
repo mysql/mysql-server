@@ -182,12 +182,6 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
 
-  /**
-   *  Global Replication
-   */
-  MGM_CMD("rep", &MgmApiSession::repCommand, ""),
-    MGM_ARG("request", Int, Mandatory, "Command"),
-
   MGM_CMD("stop", &MgmApiSession::stop, ""),
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("abort", Int, Mandatory, "Node"),
@@ -708,30 +702,6 @@ MgmApiSession::abortBackup(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
-}
-
-/*****************************************************************************
- * Global Replication
- *****************************************************************************/
-
-void
-MgmApiSession::repCommand(Parser<MgmApiSession>::Context &,
-			  Properties const &args) {
-  
-  Uint32 request = 0;
-  args.get("request", &request);
-  
-  Uint32 repReqId;
-  int result = m_mgmsrv.repCommand(&repReqId, request, true);
-  
-  m_output->println("global replication reply");
-  if(result != 0)
-    m_output->println("result: %s", get_error_text(result));
-  else{
-    m_output->println("result: Ok");
-    m_output->println("id: %d", repReqId);
-  }
   m_output->println("");
 }
 

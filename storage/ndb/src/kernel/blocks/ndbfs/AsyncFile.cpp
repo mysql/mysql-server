@@ -367,7 +367,11 @@ void AsyncFile::openReq(Request* request)
     break;
     return;
   }
-  const int mode = S_IRUSR | S_IWUSR | S_IRGRP;
+  // allow for user to choose any permissionsa with umask
+  const int mode =
+    S_IRUSR | S_IWUSR |
+    S_IRGRP | S_IWGRP |
+    S_IROTH | S_IWOTH;
   
   if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) {
     PRINT_ERRORANDFLAGS(new_flags);

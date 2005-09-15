@@ -703,7 +703,7 @@ static
 const
 NDBT_Attribute ACCOUNT_TYPES_Attribs[] = {
   NDBT_Attribute("ACCOUNT_TYPE_ID", NdbDictionary::Column::Unsigned, 1, true),
-  NDBT_Attribute("DESCRIPTION", NdbDictionary::Column::Char, 64)
+  NDBT_Attribute("DESCRIPTION", NdbDictionary::Column::Char, 64, false, false, &my_charset_latin1_bin)
 };
 
 static

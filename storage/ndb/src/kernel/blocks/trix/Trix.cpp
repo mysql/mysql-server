@@ -83,7 +83,6 @@ Trix::Trix(const Configuration & conf) :
   addRecSignal(GSN_SUB_SYNC_CONF, &Trix::execSUB_SYNC_CONF);
   addRecSignal(GSN_SUB_SYNC_REF, &Trix::execSUB_SYNC_REF);
   addRecSignal(GSN_SUB_SYNC_CONTINUE_REQ, &Trix::execSUB_SYNC_CONTINUE_REQ);
-  addRecSignal(GSN_SUB_META_DATA, &Trix::execSUB_META_DATA);
   addRecSignal(GSN_SUB_TABLE_DATA, &Trix::execSUB_TABLE_DATA);
 
   // Allocate pool sizes
@@ -424,6 +423,8 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
 void Trix:: execBUILDINDXREQ(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Trix:: execBUILDINDXREQ");
+
   BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtr();
 
   // Seize a subscription record
@@ -438,7 +439,7 @@ void Trix:: execBUILDINDXREQ(Signal* signal)
     releaseSections(signal);
     sendSignal(buildIndxReq->getUserRef(), 
 	       GSN_BUILDINDXREF, signal, BuildIndxRef::SignalLength, JBB);
-    return;
+    DBUG_VOID_RETURN;
   }
   subRec = subRecPtr.p;
   subRec->errorCode = BuildIndxRef::NoError;
@@ -476,6 +477,7 @@ void Trix:: execBUILDINDXREQ(Signal* signal)
 #endif
   releaseSections(signal);
   prepareInsertTransactions(signal, subRecPtr);
+  DBUG_VOID_RETURN;
 }
 
 void Trix:: execBUILDINDXCONF(Signal* signal)
@@ -563,25 +565,31 @@ void Trix::execUTIL_EXECUTE_REF(Signal* signal)
 void Trix::execSUB_CREATE_CONF(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Trix::execSUB_CREATE_CONF");
   SubCreateConf * subCreateConf = (SubCreateConf *)signal->getDataPtr();
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
 
-  subRecPtr.i = subCreateConf->subscriberData;
+  subRecPtr.i = subCreateConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
     printf("Trix::execSUB_CREATE_CONF: Failed to find subscription data %u\n", subRecPtr.i);
-    return;
+    DBUG_VOID_RETURN;
   }
-  ndbrequire(subRec->subscriptionId == subCreateConf->subscriptionId);
-  ndbrequire(subRec->subscriptionKey == subCreateConf->subscriptionKey);
   subRec->subscriptionCreated = true;
   subRecPtr.p = subRec;
-  setupTableScan(signal, subRecPtr);
+
+  DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
+		     subRecPtr.i, subRecPtr.p->subscriptionId,
+		     subRecPtr.p->subscriptionKey));
+
+  startTableScan(signal, subRecPtr);
+  DBUG_VOID_RETURN;
 }
 
 void Trix::execSUB_CREATE_REF(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Trix::execSUB_CREATE_REF");
   // THIS SIGNAL IS NEVER SENT FROM SUMA?
   /*
   SubCreateRef * subCreateRef = (SubCreateRef *)signal->getDataPtr();
@@ -596,47 +604,48 @@ void Trix::execSUB_CREATE_REF(Signal* signal)
   subRecPtr.p = subRec;
   buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
   */
+  DBUG_VOID_RETURN;
 }
 
 void Trix::execSUB_SYNC_CONF(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Trix::execSUB_SYNC_CONF");
   SubSyncConf * subSyncConf = (SubSyncConf *)signal->getDataPtr();
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
   
-  subRecPtr.i = subSyncConf->subscriberData;
+  subRecPtr.i = subSyncConf->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
-    printf("Trix::execSUB_SYNC_CONF: Failed to find subscription data %u\n", subRecPtr.i);
-    return;
+    printf("Trix::execSUB_SYNC_CONF: Failed to find subscription data %u\n",
+	   subRecPtr.i);
+    DBUG_VOID_RETURN;
   }
-  ndbrequire(subRec->subscriptionId == subSyncConf->subscriptionId);
-  ndbrequire(subRec->subscriptionKey == subSyncConf->subscriptionKey);
+
   subRecPtr.p = subRec;
-  if(subSyncConf->part == SubscriptionData::MetaData)
-    startTableScan(signal, subRecPtr);
-  else {
-    subRec->expectedConf--;
-    checkParallelism(signal, subRec);
-    if (subRec->expectedConf == 0)
-      buildComplete(signal, subRecPtr);
-  }
+  subRec->expectedConf--;
+  checkParallelism(signal, subRec);
+  if (subRec->expectedConf == 0)
+    buildComplete(signal, subRecPtr);
+  DBUG_VOID_RETURN;
 }
 
 void Trix::execSUB_SYNC_REF(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Trix::execSUB_SYNC_REF");
   SubSyncRef * subSyncRef = (SubSyncRef *)signal->getDataPtr();
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
 
-  subRecPtr.i = subSyncRef->subscriberData;
+  subRecPtr.i = subSyncRef->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
     printf("Trix::execSUB_SYNC_REF: Failed to find subscription data %u\n", subRecPtr.i);
-    return;
+    DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
   buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
+  DBUG_VOID_RETURN;
 }
 
 void Trix::execSUB_SYNC_CONTINUE_REQ(Signal* signal)
@@ -656,21 +665,17 @@ void Trix::execSUB_SYNC_CONTINUE_REQ(Signal* signal)
   checkParallelism(signal, subRec);
 }
 
-void Trix::execSUB_META_DATA(Signal* signal)
-{
-  jamEntry();
-}
-
 void Trix::execSUB_TABLE_DATA(Signal* signal)
 {
   jamEntry();
+  DBUG_ENTER("Trix::execSUB_TABLE_DATA");
   SubTableData * subTableData = (SubTableData *)signal->getDataPtr();
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
-  subRecPtr.i = subTableData->subscriberData;
+  subRecPtr.i = subTableData->senderData;
   if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
     printf("Trix::execSUB_TABLE_DATA: Failed to find subscription data %u\n", subRecPtr.i);
-    return;
+    DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
   SegmentedSectionPtr headerPtr, dataPtr;
@@ -681,18 +686,41 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
     printf("Trix::execSUB_TABLE_DATA: Failed to get data section\n");
   }
   executeInsertTransaction(signal, subRecPtr, headerPtr, dataPtr);
+  DBUG_VOID_RETURN;
 }
 
 void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
 {
-  Uint32 attributeList[MAX_ATTRIBUTES_IN_TABLE * 2];
-  SubCreateReq * subCreateReq = (SubCreateReq *)signal->getDataPtrSend();
+  jam();
+  DBUG_ENTER("Trix::setupSubscription");
   SubscriptionRecord* subRec = subRecPtr.p;
+  SubCreateReq * subCreateReq = (SubCreateReq *)signal->getDataPtrSend();
 //  Uint32 listLen = subRec->noOfIndexColumns + subRec->noOfKeyColumns;
+  subCreateReq->senderRef = reference();
+  subCreateReq->senderData = subRecPtr.i;
+  subCreateReq->subscriptionId = subRec->subscriptionId;
+  subCreateReq->subscriptionKey = subRec->subscriptionKey;
+  subCreateReq->tableId = subRec->sourceTableId;
+  subCreateReq->subscriptionType = SubCreateReq::SingleTableScan;
+  
+  DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
+		     subRecPtr.i, subCreateReq->subscriptionId,
+		     subCreateReq->subscriptionKey));
+
+  sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, 
+	     signal, SubCreateReq::SignalLength, JBB);
+  DBUG_VOID_RETURN;
+}
+
+void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
+{
+  jam();
+
+  Uint32 attributeList[MAX_ATTRIBUTES_IN_TABLE * 2];
+  SubscriptionRecord* subRec = subRecPtr.p;
   AttrOrderBuffer::DataBufferIterator iter;
   Uint32 i = 0;
 
-  jam();
   bool moreAttributes = subRec->attributeOrder.first(iter);
   while (moreAttributes) {
     attributeList[i++] = *iter.data;
@@ -703,41 +731,21 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
   orderPtr[0].p = attributeList;
   orderPtr[0].sz = subRec->attributeOrder.getSize();
 
-
-  subCreateReq->subscriberRef = reference();
-  subCreateReq->subscriberData = subRecPtr.i;
-  subCreateReq->subscriptionId = subRec->subscriptionId;
-  subCreateReq->subscriptionKey = subRec->subscriptionKey;
-  subCreateReq->tableId = subRec->sourceTableId;
-  subCreateReq->subscriptionType = SubCreateReq::SingleTableScan;
-  
-  sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, 
-	     signal, SubCreateReq::SignalLength+1, JBB, orderPtr, 1);
-}
-
-void Trix::setupTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
-{
   SubSyncReq * subSyncReq = (SubSyncReq *)signal->getDataPtrSend();
-
-  jam();
-  subSyncReq->subscriptionId = subRecPtr.i;
-  subSyncReq->subscriptionKey = subRecPtr.p->subscriptionKey;
-  subSyncReq->part = SubscriptionData::MetaData;
-  sendSignal(SUMA_REF, GSN_SUB_SYNC_REQ, 
-	     signal, SubSyncReq::SignalLength, JBB);
-}
-
-void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
-{
-  jam();
-  subRecPtr.p->expectedConf = 1;
-  SubSyncReq * subSyncReq = (SubSyncReq *)signal->getDataPtrSend();
-
-  subSyncReq->subscriptionId = subRecPtr.i;
-  subSyncReq->subscriptionKey = subRecPtr.p->subscriptionKey;
+  subSyncReq->senderRef = reference();
+  subSyncReq->senderData = subRecPtr.i;
+  subSyncReq->subscriptionId = subRec->subscriptionId;
+  subSyncReq->subscriptionKey = subRec->subscriptionKey;
   subSyncReq->part = SubscriptionData::TableData;
-  sendSignal(SUMA_REF, GSN_SUB_SYNC_REQ, 
-	     signal, SubSyncReq::SignalLength, JBB);
+
+  subRecPtr.p->expectedConf = 1;
+
+  DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
+		     subRecPtr.i, subSyncReq->subscriptionId,
+		     subSyncReq->subscriptionKey));
+
+  sendSignal(SUMA_REF, GSN_SUB_SYNC_REQ,
+	     signal, SubSyncReq::SignalLength, JBB, orderPtr, 1);
 }
 
 void Trix::prepareInsertTransactions(Signal* signal, 

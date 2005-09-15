@@ -29,6 +29,7 @@
  *       createEventOperation()
  *       dropEventOperation()
  *       pollEvents()
+ *       nextEvent()
  *
  *  NdbDictionary
  *       createEvent()
@@ -43,8 +44,6 @@
  *       getValue()
  *       getPreValue()
  *       execute()
- *       next()
- *       isConsistent()
  *       getEventType()
  *
  */
@@ -148,7 +147,7 @@ int main()
     // Start "transaction" for handling events
     NdbEventOperation* op;
     printf("create EventOperation\n");
-    if ((op = myNdb->createEventOperation(eventName,100)) == NULL)
+    if ((op = myNdb->createEventOperation(eventName)) == NULL)
       APIERROR(myNdb->getNdbError());
 
     printf("get values\n");
@@ -172,11 +171,8 @@ int main()
       int r= myNdb->pollEvents(1000); // wait for event or 1000 ms
       if (r > 0) {
 	// printf("got data! %d\n", r);
-	int overrun;
-	while (op->next(&overrun) > 0) {
+	while ((op= myNdb->nextEvent())) {
 	  i++;
-	  if (!op->isConsistent())
-	    printf("A node failure has occured and events might be missing\n");
 	  switch (op->getEventType()) {
 	  case NdbDictionary::Event::TE_INSERT:
 	    printf("%u INSERT: ", i);
@@ -190,7 +186,6 @@ int main()
 	  default:
 	    abort(); // should not happen
 	  }
-	  printf("overrun %u pk %u: ", overrun, recAttr[0]->u_32_value());
 	  for (int i = 1; i < noEventColumnName; i++) {
 	    if (recAttr[i]->isNULL() >= 0) { // we have a value
 	      printf(" post[%u]=", i);

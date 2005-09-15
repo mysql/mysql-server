@@ -107,11 +107,13 @@
  */
 
 #define EVENT_SYSTEM_TABLE_NAME "sys/def/NDB$EVENTS_0"
-#define EVENT_SYSTEM_TABLE_LENGTH 6
+#define EVENT_SYSTEM_TABLE_LENGTH 8
 
 struct sysTab_NDBEVENTS_0 {
   char   NAME[MAX_TAB_NAME_SIZE];
   Uint32 EVENT_TYPE;
+  Uint32 TABLEID;
+  Uint32 TABLEVERSION;
   char   TABLE_NAME[MAX_TAB_NAME_SIZE];
   Uint32 ATTRIBUTE_MASK[MAXNROFATTRIBUTESINWORDS];
   Uint32 SUBID;
@@ -545,9 +547,6 @@ private:
 
   void execSUB_CREATE_CONF(Signal* signal);
   void execSUB_CREATE_REF (Signal* signal);
-
-  void execSUB_SYNC_CONF(Signal* signal);
-  void execSUB_SYNC_REF (Signal* signal);
 
   void execSUB_REMOVE_REQ(Signal* signal);
   void execSUB_REMOVE_CONF(Signal* signal);
@@ -1388,7 +1387,7 @@ private:
     CreateEvntReq::RequestType m_requestType;
     Uint32 m_requestFlag;
     // error info
-    CreateEvntRef::ErrorCode m_errorCode;
+    Uint32 m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
     // ctor
@@ -1432,24 +1431,24 @@ private:
     sysTab_NDBEVENTS_0 m_eventRec;
     RequestTracker m_reqTracker;
     // error info
-    DropEvntRef::ErrorCode m_errorCode;
+    Uint32 m_errorCode;
     Uint32 m_errorLine;
     Uint32 m_errorNode;
     // ctor
     OpDropEvent() {
       memset(&m_request, 0, sizeof(m_request));
-      m_errorCode = DropEvntRef::NoError;
+      m_errorCode = 0;
       m_errorLine = 0;
       m_errorNode = 0;
     }
     void init(const DropEvntReq* req) {
       m_request = *req;
-      m_errorCode = DropEvntRef::NoError;
+      m_errorCode = 0;
       m_errorLine = 0;
       m_errorNode = 0;
     }
     bool hasError() {
-      return m_errorCode != DropEvntRef::NoError;
+      return m_errorCode != 0;
     }
     void setError(const DropEvntRef* ref) {
       if (ref != 0 && ! hasError()) {
@@ -1782,6 +1781,7 @@ private:
   /* ------------------------------------------------------------ */
   // Add Table Handling
   /* ------------------------------------------------------------ */
+  void releaseCreateTableOp(Signal* signal, CreateTableRecordPtr createTabPtr);
 
   /* ------------------------------------------------------------ */
   // Add Fragment Handling

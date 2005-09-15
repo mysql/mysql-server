@@ -568,12 +568,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     case NODE_TYPE_API:
       noOfAPINodes++; // No of API processes
       break;
-    case NODE_TYPE_REP:
-      break;
     case NODE_TYPE_MGM:
       noOfMGMNodes++; // No of MGM processes
-      break;
-    case NODE_TYPE_EXT_REP:
       break;
     default:
       BaseString::snprintf(buf, sizeof(buf), "Unknown node type: %d", nodeType);

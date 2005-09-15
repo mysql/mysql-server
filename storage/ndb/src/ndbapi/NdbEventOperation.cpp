@@ -21,12 +21,8 @@
 #include "NdbEventOperationImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 
-NdbEventOperation::NdbEventOperation(Ndb *theNdb, 
-				     const char* eventName, 
-				     int bufferLength) 
-  : m_impl(* new NdbEventOperationImpl(*this,theNdb, 
-				       eventName, 
-				       bufferLength))
+NdbEventOperation::NdbEventOperation(Ndb *theNdb,const char* eventName) 
+  : m_impl(* new NdbEventOperationImpl(*this,theNdb,eventName))
 {
 }
 
@@ -61,31 +57,43 @@ NdbEventOperation::execute()
 }
 
 int
-NdbEventOperation::next(int *pOverrun)
+NdbEventOperation::isOverrun() const
 {
-  return m_impl.next(pOverrun);
+  return 0; // ToDo
 }
 
 bool
-NdbEventOperation::isConsistent()
+NdbEventOperation::isConsistent() const
 {
-  return m_impl.isConsistent();
+  return true;
 }
 
-Uint32
-NdbEventOperation::getGCI()
+void
+NdbEventOperation::clearError()
+{
+  m_impl.m_has_error= 0;
+}
+
+int
+NdbEventOperation::hasError() const
+{
+  return m_impl.m_has_error;
+}
+
+Uint64
+NdbEventOperation::getGCI() const
 {
   return m_impl.getGCI();
 }
 
-Uint32
-NdbEventOperation::getLatestGCI()
+Uint64
+NdbEventOperation::getLatestGCI() const
 {
   return m_impl.getLatestGCI();
 }
 
 NdbDictionary::Event::TableEvent
-NdbEventOperation::getEventType()
+NdbEventOperation::getEventType() const
 {
   return m_impl.getEventType();
 }
@@ -97,14 +105,61 @@ NdbEventOperation::print()
 }
 
 /*
+ * Internal for the mysql server
+ */
+const NdbDictionary::Table *NdbEventOperation::getTable() const
+{
+  return m_impl.m_eventImpl->m_tableImpl->m_facade;
+}
+const NdbDictionary::Event *NdbEventOperation::getEvent() const
+{
+  return m_impl.m_eventImpl->m_facade;
+}
+const NdbRecAttr* NdbEventOperation::getFirstPkAttr() const
+{
+  return m_impl.theFirstPkAttrs[0];
+}
+const NdbRecAttr* NdbEventOperation::getFirstPkPreAttr() const
+{
+  return m_impl.theFirstPkAttrs[1];
+}
+const NdbRecAttr* NdbEventOperation::getFirstDataAttr() const
+{
+  return m_impl.theFirstDataAttrs[0];
+}
+const NdbRecAttr* NdbEventOperation::getFirstDataPreAttr() const
+{
+  return m_impl.theFirstDataAttrs[1];
+}
+bool NdbEventOperation::validateTable(NdbDictionary::Table &table) const
+{
+  DBUG_ENTER("NdbEventOperation::validateTable");
+  bool res = true;
+  if (table.getObjectVersion() != m_impl.m_eventImpl->m_tableVersion)
+  {
+    DBUG_PRINT("info",("invalid version"));
+    res= false;
+  }
+  DBUG_RETURN(res);
+}
+
+void NdbEventOperation::setCustomData(void * data)
+{
+  m_impl.m_custom_data= data;
+}
+void * NdbEventOperation::getCustomData() const
+{
+  return m_impl.m_custom_data;
+}
+
+int NdbEventOperation::getReqNodeId() const
+{
+  return m_impl.m_data_item->sdata->req_nodeid;
+}
+
+/*
  * Private members
  */
-
-int
-NdbEventOperation::wait(void *p, int aMillisecondNumber)
-{
-  return NdbEventOperationImpl::wait(p, aMillisecondNumber);
-}
 
 NdbEventOperation::NdbEventOperation(NdbEventOperationImpl& impl) 
   : m_impl(impl) {}

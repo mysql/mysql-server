@@ -29,10 +29,10 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include "ObjectMap.hpp"
+#include "NdbEventOperationImpl.hpp"
 
-class NdbGlobalEventBufferHandle;
-NdbGlobalEventBufferHandle *NdbGlobalEventBuffer_init(int);
-void NdbGlobalEventBuffer_drop(NdbGlobalEventBufferHandle *);
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
@@ -123,13 +123,12 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     theInitState = NotInitialised;
 
   {
-    NdbGlobalEventBufferHandle *h=
-      NdbGlobalEventBuffer_init(NDB_MAX_ACTIVE_EVENTS);
-    if (h == NULL) {
-      ndbout_c("Failed NdbGlobalEventBuffer_init(%d)",NDB_MAX_ACTIVE_EVENTS);
+    // theImpl->theWaiter.m_mutex must be set before this
+    theEventBuffer= new NdbEventBuffer(this);
+    if (theEventBuffer == NULL) {
+      ndbout_c("Failed NdbEventBuffer()");
       exit(-1);
     }
-    theGlobalEventBufferHandle = h;
   }
 
   DBUG_VOID_RETURN;
@@ -144,10 +143,18 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 Ndb::~Ndb()
 { 
   DBUG_ENTER("Ndb::~Ndb()");
-  DBUG_PRINT("enter",("Ndb::~Ndb this=0x%x",this));
+  DBUG_PRINT("enter",("this=0x%x",this));
+
+  assert(theImpl->m_ev_op == 0); // user should return NdbEventOperation's
+  for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
+  {
+    if (op->m_state == NdbEventOperation::EO_EXECUTING && op->stop())
+      g_eventLogger.error("stopping NdbEventOperation failed in Ndb destructor");
+    op->m_magic_number= 0;
+  }
   doDisconnect();
 
-  NdbGlobalEventBuffer_drop(theGlobalEventBufferHandle);
+  delete theEventBuffer;
 
   if (TransporterFacade::instance() != NULL && theNdbBlockNumber > 0){
     TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
@@ -231,11 +238,13 @@ NdbWaiter::~NdbWaiter(){
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
-  : m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
+  : m_ndb(ndb),
+    m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
     m_dictionary(ndb),
     theCurrentConnectIndex(0),
     theNdbObjectIdMap(1024,1024),
-    theNoOfDBnodes(0)
+    theNoOfDBnodes(0),
+    m_ev_op(0)
 {
   int i;
   for (i = 0; i < MAX_NDB_NODES; i++) {

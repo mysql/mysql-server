@@ -284,6 +284,11 @@ NdbDictionary::Table::getName() const {
   return m_impl.getName();
 }
 
+const char *
+NdbDictionary::Table::getMysqlName() const {
+  return m_impl.getMysqlName();
+}
+
 int
 NdbDictionary::Table::getTableId() const {
   return m_impl.m_tableId;
@@ -838,6 +843,12 @@ NdbDictionary::Dictionary::invalidateIndex(const char * indexName,
     m_impl.invalidateObject(* i->m_table);
   }
   DBUG_VOID_RETURN;
+}
+
+int
+NdbDictionary::Dictionary::forceGCPWait()
+{
+  return m_impl.forceGCPWait();
 }
 
 void

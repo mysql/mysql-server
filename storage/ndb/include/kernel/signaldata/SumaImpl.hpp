@@ -21,16 +21,15 @@
 #include <NodeBitmask.hpp>
 
 
-class SubCreateReq {
+struct SubCreateReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
-  friend class SumaParticipant;
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printSUB_CREATE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 6 );
   
   enum SubscriptionType {
     SingleTableScan  = 1,  // 
@@ -43,75 +42,57 @@ public:
     RestartFlag  = 0x2 << 16
   };
   
-  Uint32 subscriberRef;
-  Uint32 subscriberData;
+  Uint32 senderRef;
+  Uint32 senderData;
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
   Uint32 subscriptionType;
-  union {
-    Uint32 tableId; // Used when doing SingelTableScan
-  };
-  SECTION( ATTRIBUTE_LIST = 0); // Used when doing SingelTableScan  
-  SECTION( TABLE_LIST = 1 );  
-  
+  Uint32 tableId;
 };
 
-class SubCreateRef {
+struct SubCreateRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
-  friend class SumaParticipant;
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printSUB_CREATE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 3 );
 
-  Uint32 subscriberRef;
-  Uint32 subscriberData;
-  Uint32 subscriptionId;
-  Uint32 subscriptionKey;
-  Uint32 subscriptionType;
-  Uint32 err;
-
-  SECTION( ATTRIBUTE_LIST = 0); // Used when doing SingelTableScan
-  union {
-    Uint32 tableId; // Used when doing SingelTableScan
-  };
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 errorCode;
 };
 
-class SubCreateConf {
+struct SubCreateConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
-  friend class SumaParticipant;
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printSUB_CREATE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 2 );
   
-  Uint32 subscriberData;
-  Uint32 subscriptionId;
-  Uint32 subscriptionKey;
+  Uint32 senderRef;
+  Uint32 senderData;
 };
 
-class SubscriptionData {
-public:
+struct SubscriptionData {
   enum Part {
     MetaData = 1,
     TableData = 2
   };
 };
 
-class SubStartReq {
+struct SubStartReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Suma;
+  friend struct Suma;
   
   friend bool printSUB_START_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 6 );
   STATIC_CONST( SignalLength2 = SignalLength+1 );
 
@@ -124,23 +105,18 @@ public:
   Uint32 subscriberRef;
 };
 
-class SubStartRef {
+struct SubStartRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Suma;
+  friend struct Suma;
   
   friend bool printSUB_START_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   enum ErrorCode {
-    Undefined = 0,
+    Undefined = 1,
     NF_FakeErrorREF = 11,
-    Busy = 701,
-    Temporary = 0x1 << 16
+    Busy = 701
   };
-  bool isTemporary() const;
-  void setTemporary();
-  ErrorCode setTemporary(ErrorCode ec);
 
   STATIC_CONST( SignalLength = 7 );
   STATIC_CONST( SignalLength2 = SignalLength+1 );
@@ -151,29 +127,19 @@ public:
   Uint32 subscriptionKey;
   Uint32 part;  // SubscriptionData::Part
   Uint32 subscriberData;
-  union { // do not change the order here!
-    Uint32 err;
-    Uint32 errorCode;
-  };
+  // do not change the order here!
+  Uint32 errorCode;
   // with SignalLength2
   Uint32 subscriberRef;
 };
-inline bool SubStartRef::isTemporary() const
-{ return (errorCode &  SubStartRef::Temporary) > 0; }
-inline void SubStartRef::setTemporary()
-{ errorCode |=  SubStartRef::Temporary; }
-inline SubStartRef::ErrorCode SubStartRef::setTemporary(ErrorCode ec)
-{ return (SubStartRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)SubStartRef::Temporary)); }
 
-class SubStartConf {
+struct SubStartConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
+  friend struct Grep;
   
   friend bool printSUB_START_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 7 );
   STATIC_CONST( SignalLength2 = SignalLength+1 );
 
@@ -188,14 +154,13 @@ public:
   Uint32 subscriberRef;
 };
 
-class SubStopReq {
+struct SubStopReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Suma;
+  friend struct Suma;
   
   friend bool printSUB_STOP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 7 );
   Uint32 senderRef;
   Uint32 senderData;
@@ -206,23 +171,18 @@ public:
   Uint32 subscriberRef;
 };
 
-class SubStopRef {
+struct SubStopRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Suma;
+  friend struct Suma;
   
   friend bool printSUB_STOP_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   enum ErrorCode {
-    Undefined = 0,
+    Undefined = 1,
     NF_FakeErrorREF = 11,
-    Busy = 701,
-    Temporary = 0x1 << 16
+    Busy = 701
   };
-  bool isTemporary() const;
-  void setTemporary();
-  ErrorCode setTemporary(ErrorCode ec);
 
   STATIC_CONST( SignalLength = 8 );
   
@@ -233,27 +193,16 @@ public:
   Uint32 part;  // SubscriptionData::Part
   Uint32 subscriberData;
   Uint32 subscriberRef;
-  union {
-    Uint32 err;
-    Uint32 errorCode;
-  };
+  Uint32 errorCode;
 };
-inline bool SubStopRef::isTemporary() const
-{ return (errorCode &  SubStopRef::Temporary) > 0; }
-inline void SubStopRef::setTemporary()
-{ errorCode |=  SubStopRef::Temporary; }
-inline SubStopRef::ErrorCode SubStopRef::setTemporary(ErrorCode ec)
-{ return (SubStopRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)SubStopRef::Temporary)); }
 
-class SubStopConf {
+struct SubStopConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
+  friend struct Grep;
   
   friend bool printSUB_STOP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 7 );
 
   Uint32 senderRef;
@@ -265,215 +214,181 @@ public:
   Uint32 subscriberRef;
 };
 
-class SubSyncReq {
+struct SubSyncReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Suma;
-  friend class Grep;
+  friend struct Suma;
+  friend struct Grep;
   
   friend bool printSUB_SYNC_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 4 );
-  
-public:
-  Uint32 subscriptionId;
-  Uint32 subscriptionKey;
-  Uint32 subscriberData;
-  Uint32 part; // SubscriptionData::Part
-};
-
-class SubSyncRef {
-  /**
-   * Sender(s)/Reciver(s)
-   */
-  friend class Suma;
-  friend class Grep;
-  
-  friend bool printSUB_SYNC_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  enum ErrorCode {
-    Undefined = 0,
-    Temporary = 0x1 << 16
-  };
   STATIC_CONST( SignalLength = 5 );
   
+  Uint32 senderRef;
+  Uint32 senderData;
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
   Uint32 part; // SubscriptionData::Part
-  Uint32 subscriberData;
-  union {
-    Uint32 errorCode;
-    Uint32 err;
-  };
+
+  SECTION( ATTRIBUTE_LIST = 0); // Used when doing SingelTableScan  
+  SECTION( TABLE_LIST = 1 );
 };
 
-class SubSyncConf {
+struct SubSyncRef {
+  /**
+   * Sender(s)/Reciver(s)
+   */
+  friend struct Suma;
+  friend struct Grep;
+  
+  friend bool printSUB_SYNC_REF(FILE *, const Uint32 *, Uint32, Uint16);
+  enum ErrorCode {
+    Undefined = 1
+  };
+  STATIC_CONST( SignalLength = 3 );
+  
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 errorCode;
+};
+
+struct SubSyncConf {
 
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Suma;
-  friend class Grep;
+  friend struct Suma;
+  friend struct Grep;
   
   friend bool printSUB_SYNC_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 2 );
   
-  Uint32 subscriptionId;
-  Uint32 subscriptionKey;
-  Uint32 part;  // SubscriptionData::Part
-  Uint32 subscriberData;
+  Uint32 senderRef;
+  Uint32 senderData;
 };
 
-class SubMetaData {
+struct SubMetaData {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class SumaParticipant;
-  friend class Grep;
+  friend struct SumaParticipant;
+  friend struct Grep;
   
   friend bool printSUB_META_DATA(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 3 );
   SECTION( DICT_TAB_INFO = 0 );
   
   Uint32 gci;
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
-  union {
-    Uint32 tableId;
-  };
+  Uint32 senderData;
+  Uint32 tableId;
 };
 
-class SubTableData {
+struct SubTableData {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class SumaParticipant;
-  friend class Grep;
+  friend struct SumaParticipant;
+  friend struct Grep;
   
   friend bool printSUB_TABLE_DATA(FILE *, const Uint32 *, Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 5 );
   
   enum LogType {
     SCAN = 1, 
     LOG  = 2,
-    REMOVE_FLAGS = 0xff,
-    GCINOTCONSISTENT = 0x1 << 16
+    REMOVE_FLAGS = 0xff
   };
   
-  void setGCINotConsistent() { logType |= (Uint32)GCINOTCONSISTENT; };
-  bool isGCIConsistent()
-  { return (logType & (Uint32)GCINOTCONSISTENT) == 0 ? true : false; };
-
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
+  Uint32 senderData;
   Uint32 gci;
   Uint32 tableId;
-  Uint32 operation;
-  Uint32 noOfAttributes;
-  Uint32 dataSize; 
+  Uint8  operation;
+  Uint8  req_nodeid;
+  Uint8  not_used2;
+  Uint8  not_used3;
   Uint32 logType;
 };
 
-class SubSyncContinueReq {
+struct SubSyncContinueReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class SumaParticipant;
-  friend class Grep;
-  friend class Trix;
+  friend struct SumaParticipant;
+  friend struct Grep;
+  friend struct Trix;
   
   friend bool printSUB_SYNC_CONTINUE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 2 );
 
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
+  Uint32 subscriberData;
   Uint32 noOfRowsSent;
 };
 
-class SubSyncContinueRef {
+struct SubSyncContinueRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class SumaParticipant;
-  friend class Grep;
-  friend class Trix;
+  friend struct SumaParticipant;
+  friend struct Grep;
+  friend struct Trix;
   
   friend bool printSUB_SYNC_CONTINUE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 2 );
 
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
 };
 
-class SubSyncContinueConf {
+struct SubSyncContinueConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class SumaParticipant;
-  friend class Grep;
-  friend class Trix;
+  friend struct SumaParticipant;
+  friend struct Grep;
+  friend struct Trix;
   
   friend bool printSUB_SYNC_CONTINUE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 2 );
 
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
 };
 
-class SubGcpCompleteRep {
+struct SubGcpCompleteRep {
 
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Dbdih;
-  friend class SumaParticipant;
-  friend class Grep;
-  friend class Trix;
+  friend struct Dbdih;
+  friend struct SumaParticipant;
+  friend struct Grep;
+  friend struct Trix;
   
   friend bool printSUB_GCP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 3 );
   
   Uint32 gci;
   Uint32 senderRef;
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
+  Uint32 gcp_complete_rep_count;
 };
 
-class SubGcpCompleteAcc {
+struct SubGcpCompleteAck {
   /**
    * Sender(s)/Reciver(s)
    */
-public:
   STATIC_CONST( SignalLength = SubGcpCompleteRep::SignalLength );
 
   SubGcpCompleteRep rep;
 };
 
-class SubRemoveReq {
+struct SubRemoveReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
-  friend class SumaParticipant;
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printSUB_REMOVE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 4 );
   
   Uint32 senderRef;
@@ -482,138 +397,127 @@ public:
   Uint32 subscriptionKey;
 };
 
-class SubRemoveRef {
+struct SubRemoveRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
-  friend class SumaParticipant;
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printSUB_REMOVE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 5 );
   enum ErrorCode {
-    Undefined = 0,
+    Undefined = 1,
     NF_FakeErrorREF = 11,
-    Busy = 701,
-    Temporary = 0x1 << 16
+    Busy = 701
   };
-  bool isTemporary() const;
-  void setTemporary();
-  ErrorCode setTemporary(ErrorCode ec);
 
   Uint32 senderRef;
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
-  union {
-    Uint32 err;
-    Uint32 errorCode;
-  };
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
+  Uint32 errorCode;
+  Uint32 senderData;
 };
-inline bool SubRemoveRef::isTemporary() const
-{ return (err &  SubRemoveRef::Temporary) > 0; }
-inline void SubRemoveRef::setTemporary()
-{ err |=  SubRemoveRef::Temporary; }
-inline SubRemoveRef::ErrorCode SubRemoveRef::setTemporary(ErrorCode ec)
-{ return (SubRemoveRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)SubRemoveRef::Temporary)); }
 
-class SubRemoveConf {
+struct SubRemoveConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend class Grep;
-  friend class SumaParticipant;
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printSUB_REMOVE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-public:
   STATIC_CONST( SignalLength = 5 );
   
   Uint32 senderRef;
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
-  Uint32 err;
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
-
+  Uint32 errorCode;
+  Uint32 senderData;
 };
 
 
-class CreateSubscriptionIdReq {
-  friend class Grep;
-  friend class SumaParticipant;
+struct CreateSubscriptionIdReq {
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printCREATE_SUBSCRIPTION_ID_REQ(FILE *, const Uint32 *, 
 					       Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 2 );
   
-  Uint32 subscriptionId;
-  Uint32 subscriptionKey;
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
+  Uint32 senderRef;
+  Uint32 senderData;
 };
 
 
-class CreateSubscriptionIdConf {
-  friend class Grep;
-  friend class SumaParticipant;
+struct CreateSubscriptionIdConf {
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printCREATE_SUBSCRIPTION_ID_CONF(FILE *, const Uint32 *, 
 					       Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
+  Uint32 senderRef;
+  Uint32 senderData;
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
 };
 
 
-class CreateSubscriptionIdRef {
-  friend class Grep;
-  friend class SumaParticipant;
+struct CreateSubscriptionIdRef {
+  friend struct Grep;
+  friend struct SumaParticipant;
   
   friend bool printCREATE_SUBSCRIPTION_ID_REF(FILE *, const Uint32 *, 
 					       Uint32, Uint16);
-public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 3 );
   
-  Uint32 subscriptionId;
-  Uint32 subscriptionKey;
-  union { // Haven't decide what to call it
-    Uint32 senderData;
-    Uint32 subscriberData;
-  };
-  Uint32 err;
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 errorCode;
 };
 
-class SumaStartMe {
-public:
+struct SumaStartMeReq {
   STATIC_CONST( SignalLength = 1 );
   Uint32 unused;
 };
 
-class SumaHandoverReq {
-public:
+struct SumaStartMeRef {
   STATIC_CONST( SignalLength = 1 );
-  Uint32 gci;
+  Uint32 errorCode;
+  enum {
+    Busy = 0x1
+  };
 };
 
-class SumaHandoverConf {
-public:
+struct SumaStartMeConf {
   STATIC_CONST( SignalLength = 1 );
-  Uint32 gci;
+  Uint32 unused;
 };
+
+struct SumaHandoverReq {
+  STATIC_CONST( SignalLength = 3 );
+  Uint32 gci;
+  Uint32 nodeId;
+  Uint32 theBucketMask[1];
+};
+
+struct SumaHandoverConf {
+  STATIC_CONST( SignalLength = 3 );
+  Uint32 gci;
+  Uint32 nodeId;
+  Uint32 theBucketMask[1];
+};
+
+struct SumaContinueB
+{
+  enum 
+  {
+    RESEND_BUCKET = 1
+    ,RELEASE_GCI = 2
+    ,OUT_OF_BUFFER_RELEASE = 3
+  };
+};
+
 #endif

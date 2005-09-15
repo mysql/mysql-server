@@ -146,7 +146,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
 
   bool connectedToNode = getNodeInfo(nodeId).m_connected;
   const Uint32 type = getNodeInfo(nodeId).m_type;
-  bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
+  bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
   bool old_dest = (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
   const Uint32 TpacketTA = hostBuffer[nodeId].noOfPacketsTA;
   const Uint32 TpacketLen = hostBuffer[nodeId].packetLenTA;

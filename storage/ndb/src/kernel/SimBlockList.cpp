@@ -66,7 +66,7 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 
 void 
 SimBlockList::load(const Configuration & conf){
-  noOfBlocks = 16;
+  noOfBlocks = 15;
   theList = new SimulatedBlock * [noOfBlocks];
   Dbdict* dbdict = 0;
   Dbdih* dbdih = 0;
@@ -96,8 +96,7 @@ SimBlockList::load(const Configuration & conf){
   theList[11] = NEW_BLOCK(Backup)(conf);
   theList[12] = NEW_BLOCK(DbUtil)(conf);
   theList[13] = NEW_BLOCK(Suma)(conf);
-  theList[14] = 0; //NEW_BLOCK(Grep)(conf);
-  theList[15] = NEW_BLOCK(Dbtux)(conf);
+  theList[14] = NEW_BLOCK(Dbtux)(conf);
 
   // Metadata common part shared by block instances
   ptrMetaDataCommon = new MetaData::Common(*dbdict, *dbdih);

@@ -29,6 +29,7 @@ Name:          Ndb.cpp
 #include <NdbOperation.hpp>
 #include <NdbTransaction.hpp>
 #include <NdbEventOperation.hpp>
+#include <NdbEventOperationImpl.hpp>
 #include <NdbRecAttr.hpp>
 #include <md5_hash.hpp>
 #include <NdbSleep.h>
@@ -216,10 +217,9 @@ Remark:        Disconnect all connections to the database.
 void 
 Ndb::doDisconnect()
 {
+  DBUG_ENTER("Ndb::doDisconnect");
   NdbTransaction* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
-  /* DBUG_ENTER must be after CHECK_STATUS_MACRO_VOID because of 'return' */
-  DBUG_ENTER("Ndb::doDisconnect");
 
   Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
   Uint8 *theDBnodes= theImpl->theDBnodes;
@@ -574,6 +574,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
 #ifdef CUSTOMER_RELEASE
   return -1;
 #else
+  DBUG_ENTER("Ndb::NdbTamper");
   CHECK_STATUS_MACRO;
   checkFailedNode();
 
@@ -595,13 +596,13 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
 	break;
      default:
         theError.code = 4102;
-        return -1;
+        DBUG_RETURN(-1);
   }
 
   tNdbConn = getNdbCon();	// Get free connection object
   if (tNdbConn == NULL) {
     theError.code = 4000;
-    return -1;
+    DBUG_RETURN(-1);
   }
   tSignal.setSignal(GSN_DIHNDBTAMPER);
   tSignal.setData (tAction, 1);
@@ -620,12 +621,12 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
     if (tNode == 0) {
       theError.code = 4002;
       releaseNdbCon(tNdbConn);
-      return -1;
+      DBUG_RETURN(-1);
     }//if
     ret_code = tp->sendSignal(&tSignal,aNode);
     tp->unlock_mutex();
     releaseNdbCon(tNdbConn);
-    return ret_code;
+    DBUG_RETURN(ret_code);
   } else {
     do {
       tp->lock_mutex();
@@ -636,7 +637,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
       if (tNode == 0) {
         theError.code = 4009;
         releaseNdbCon(tNdbConn);
-        return -1;
+        DBUG_RETURN(-1);
       }//if
       ret_code = sendRecSignal(tNode, WAIT_NDB_TAMPER, &tSignal, 0);
       if (ret_code == 0) {  
@@ -644,15 +645,15 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
           theRestartGCI = 0;
         }//if
         releaseNdbCon(tNdbConn);
-        return theRestartGCI;
+        DBUG_RETURN(theRestartGCI);
       } else if ((ret_code == -5) || (ret_code == -2)) {
         TRACE_DEBUG("Continue DIHNDBTAMPER when node failed/stopping");
       } else {
-        return -1;
+        DBUG_RETURN(-1);
       }//if
     } while (1);
   }
-  return 0;
+  DBUG_RETURN(0);
 #endif
 }
 #if 0
@@ -1229,49 +1230,82 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   return ret;
 }
 
-NdbEventOperation* Ndb::createEventOperation(const char* eventName,
-					     const int bufferLength)
+// ToDo set event buffer size
+NdbEventOperation* Ndb::createEventOperation(const char* eventName)
 {
-  NdbEventOperation* tOp;
-
-  tOp = new NdbEventOperation(this, eventName, bufferLength);
-
-  if (tOp == 0)
+  DBUG_ENTER("Ndb::createEventOperation");
+  NdbEventOperation* tOp= theEventBuffer->createEventOperation(eventName,
+							       theError);
+  if (tOp)
   {
-    theError.code= 4000;
-    return NULL;
+    // keep track of all event operations
+    NdbEventOperationImpl *op=
+      NdbEventBuffer::getEventOperationImpl(tOp);
+    op->m_next= theImpl->m_ev_op;
+    op->m_prev= 0;
+    theImpl->m_ev_op= op;
+    if (op->m_next)
+      op->m_next->m_prev= op;
   }
 
-  if (tOp->getState() != NdbEventOperation::EO_CREATED) {
-    theError.code= tOp->getNdbError().code;
-    delete tOp;
-    tOp = NULL;
-  }
-
-  //now we have to look up this event in dict
-
-  return tOp;
+  DBUG_RETURN(tOp);
 }
 
-int Ndb::dropEventOperation(NdbEventOperation* op) {
-  delete op;
+int Ndb::dropEventOperation(NdbEventOperation* tOp)
+{
+  DBUG_ENTER("Ndb::dropEventOperation");
+  // remove it from list
+  NdbEventOperationImpl *op=
+    NdbEventBuffer::getEventOperationImpl(tOp);
+  if (op->m_next)
+    op->m_next->m_prev= op->m_prev;
+  if (op->m_prev)
+    op->m_prev->m_next= op->m_next;
+  else
+    theImpl->m_ev_op= op->m_next;
+
+  assert(theImpl->m_ev_op == 0 || theImpl->m_ev_op->m_prev == 0);
+
+  theEventBuffer->dropEventOperation(tOp);
+  DBUG_RETURN(0);
+}
+
+NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
+{
+  NdbEventOperationImpl *op;
+  if (tOp)
+    op= NdbEventBuffer::getEventOperationImpl(tOp)->m_next;
+  else
+    op= theImpl->m_ev_op;
+  if (op)
+    return op->m_facade;
   return 0;
 }
 
-NdbGlobalEventBufferHandle* Ndb::getGlobalEventBufferHandle()
+int
+Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 {
-  return theGlobalEventBufferHandle;
+  return theEventBuffer->pollEvents(aMillisecondNumber, latestGCI);
 }
 
-//void Ndb::monitorEvent(NdbEventOperation *op, NdbEventCallback cb, void* rs)
-//{
-//}
-
-int
-Ndb::pollEvents(int aMillisecondNumber)
+NdbEventOperation *Ndb::nextEvent()
 {
-  return NdbEventOperation::wait(theGlobalEventBufferHandle,
-				 aMillisecondNumber);
+  return theEventBuffer->nextEvent();
+}
+
+Uint64 Ndb::getLatestGCI()
+{
+  return theEventBuffer->getLatestGCI();
+}
+
+void Ndb::setReportThreshEventGCISlip(unsigned thresh)
+{
+  theEventBuffer->m_gci_slip_thresh= thresh;
+}
+
+void Ndb::setReportThreshEventFreeMem(unsigned thresh)
+{
+  theEventBuffer->m_free_thresh= thresh;
 }
 
 #ifdef VM_TRACE

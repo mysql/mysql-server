@@ -136,6 +136,16 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
   }//switch
 }//Ndbcntr::execCONTINUEB()
 
+void
+Ndbcntr::execAPI_START_REP(Signal* signal)
+{
+  if(refToBlock(signal->getSendersBlockRef()) == QMGR)
+  {
+    for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
+      sendSignal(ALL_BLOCKS[i].Ref, GSN_API_START_REP, signal, 1, JBB);
+    }
+  }
+}
 /*******************************/
 /*  SYSTEM_ERROR               */
 /*******************************/
@@ -202,10 +212,6 @@ void Ndbcntr::execSTTOR(Signal* signal)
   jamEntry();
   cstartPhase = signal->theData[1];
 
-  NodeState newState(NodeState::SL_STARTING, cstartPhase, 
-		     (NodeState::StartType)ctypeOfStart);
-  updateNodeState(signal, newState);
-  
   cndbBlocksCount = 0;
   cinternalStartphase = cstartPhase - 1;
 
@@ -566,6 +572,13 @@ Ndbcntr::execCNTR_START_REP(Signal* signal){
   Uint32 nodeId = signal->theData[0];
   c_startedNodes.set(nodeId);
   c_start.m_starting.clear(nodeId);
+
+  /**
+   * Inform all interested blocks that node has started
+   */
+  for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
+    sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
+  }
   
   if(!c_start.m_starting.isclear()){
     jam();
@@ -2532,6 +2545,10 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
     
     currentBlockIndex = 0;
 
+    NodeState newState(NodeState::SL_STARTING, currentStartPhase, 
+		       (NodeState::StartType)cntr.ctypeOfStart);
+    cntr.updateNodeState(signal, newState);
+    
     if(start != 0){
       /**
        * At least one wanted this start phase,  report it
