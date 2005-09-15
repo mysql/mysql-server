@@ -23,6 +23,8 @@
 #include <my_getopt.h>
 #include <mysql_version.h>
 
+#include <netdb.h>
+
 #include <NdbOut.hpp>
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
@@ -124,6 +126,11 @@ struct Match
 {
   int m_key;
   BaseString m_value;
+  virtual int eval(NdbMgmHandle, const Iter&);
+};
+
+struct HostMatch : public Match
+{
   virtual int eval(NdbMgmHandle, const Iter&);
 };
 
@@ -297,9 +304,10 @@ parse_where(Vector<Match*>& where, int &argc, char**& argv)
   Match m;
   if(g_host)
   {
-    m.m_key = CFG_NODE_HOST;
-    m.m_value.assfmt("%s", g_host);
-    where.push_back(new Match(m));
+    HostMatch *m = new HostMatch;
+    m->m_key = CFG_NODE_HOST;
+    m->m_value.assfmt("%s", g_host);
+    where.push_back(m);
   }
   
   if(g_type)
@@ -373,6 +381,40 @@ Match::eval(NdbMgmHandle h, const Iter& iter)
     return 0;
   }
   return 1;
+}
+
+int
+HostMatch::eval(NdbMgmHandle h, const Iter& iter)
+{
+  const char* valc;
+  
+  if(iter.get(m_key, &valc) == 0)
+  {
+	  struct hostent *h1, *h2;
+
+	  h1 = gethostbyname(m_value.c_str());
+	  if (h1 == NULL) {
+		  return 0;
+	  }
+
+	  h2 = gethostbyname(valc);
+	  if (h2 == NULL) {
+		  return 0;
+	  }
+
+	  if (h1->h_addrtype != h2->h_addrtype) {
+		  return 0;
+	  }
+
+	  if (h1->h_length != h2->h_length) 
+	  {
+		  return 0;
+	  }
+	  
+	  return 0 == memcmp(h1->h_addr, h2->h_addr, h1->h_length);
+  }
+
+  return 0;
 }
 
 int
