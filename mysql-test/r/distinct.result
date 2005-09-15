@@ -464,14 +464,6 @@ SELECT DISTINCT html,SUM(rout)/(SUM(rin)+1) as 'prod' FROM t1 GROUP BY rin;
 html	prod
 1	0.0000
 drop table t1;
-create table t1 (id int, dsc varchar(50));
-insert into t1 values (1, "line number one"), (2, "line number two"), (3, "line number three");
-select distinct id, IFNULL(dsc, '-') from t1;
-id	IFNULL(dsc, '-')
-1	line number one
-2	line number two
-3	line number three
-drop table t1;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 SELECT DISTINCT a, 1 FROM t1;
