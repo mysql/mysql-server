@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+//#define NDB_OPTS_SKIP_USAGE
+#include <ndb_opts.h>
 #include <my_pthread.h>
 
 #include "NDBT.hpp"
@@ -22,7 +24,6 @@
 
 #include <PortDefs.h>
 
-#include <getarg.h>
 #include <time.h>
 
 // No verbose outxput
@@ -69,6 +70,18 @@ NDBT_TestSuite* NDBT_Context::getSuite(){
 NDBT_TestCase* NDBT_Context::getCase(){ 
   assert(testcase != NULL);
   return testcase;
+}
+
+const char* NDBT_Context::getTableName(int n) const
+{ 
+  assert(suite != NULL);
+  return suite->m_tables_in_test[n].c_str();
+}
+
+int NDBT_Context::getNumTables() const
+{ 
+  assert(suite != NULL);
+  return suite->m_tables_in_test.size();
 }
 
 int NDBT_Context::getNumRecords() const{ 
@@ -348,6 +361,9 @@ NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite* psuite,
   name= _name.c_str();
   comment= _comment.c_str();
   assert(suite != NULL);
+
+  m_all_tables = false;
+  m_has_run = false;
 }
 
 NDBT_TestCaseImpl1::NDBT_TestCaseImpl1(NDBT_TestSuite* psuite, 
@@ -735,6 +751,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname):name(pname){
    records = 0;
    loops = 0;
    createTable = true;
+   createAllTables = false;
 }
 
 
@@ -747,6 +764,10 @@ NDBT_TestSuite::~NDBT_TestSuite(){
 
 void NDBT_TestSuite::setCreateTable(bool _flag){
   createTable = _flag;
+}
+
+void NDBT_TestSuite::setCreateAllTables(bool _flag){
+  createAllTables = _flag;
 }
 
 bool NDBT_TestSuite::timerIsOn(){
@@ -823,12 +844,16 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
 			     const char* _testname){
   int result; 
 
- 
   for (unsigned t = 0; t < tests.size(); t++){
 
     if (_testname != NULL && 
 	strcasecmp(tests[t]->getName(), _testname) != 0)
       continue;
+
+    if (tests[t]->m_all_tables && tests[t]->m_has_run)
+    {
+      continue;
+    }
 
     if (tests[t]->isVerify(pTab) == false) {
       continue;
@@ -877,10 +902,12 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
       numTestsOk++;
     numTestsExecuted++;
 
-    if (result == NDBT_OK && createTable == true){
+    if (result == NDBT_OK && createTable == true && createAllTables == false){
       pDict->dropTable(pTab->getName());
     }
     
+    tests[t]->m_has_run = true;
+
     delete ctx;
   }
 }
@@ -946,6 +973,67 @@ int NDBT_TestSuite::reportAllTables(const char* _testname){
   return result;
 }
 
+enum test_options {
+  OPT_INTERACTIVE = NDB_STD_OPTIONS_LAST,
+  OPT_PRINT,
+  OPT_PRINT_HTML,
+  OPT_PRINT_CASES
+  
+};
+NDB_STD_OPTS_VARS;
+
+static int opt_print = false;
+static int opt_print_html = false;
+static int opt_print_cases = false;
+static int opt_records;
+static int opt_loops;
+static int opt_timer;
+static char * opt_remote_mgm = NULL;
+static char * opt_testname = NULL;
+static int opt_verbose;
+
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS(""),
+  { "print", OPT_PRINT, "Print execution tree",
+    (gptr*) &opt_print, (gptr*) &opt_print, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print_html", OPT_PRINT_HTML, "Print execution tree in html table format",
+    (gptr*) &opt_print_html, (gptr*) &opt_print_html, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print_cases", OPT_PRINT_CASES, "Print list of test cases",
+    (gptr*) &opt_print_cases, (gptr*) &opt_print_cases, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "records", 'r', "Number of records", 
+    (gptr*) &opt_records, (gptr*) &opt_records, 0,
+    GET_INT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0 },
+  { "loops", 'l', "Number of loops",
+    (gptr*) &opt_loops, (gptr*) &opt_loops, 0,
+    GET_INT, REQUIRED_ARG, 5, 0, 0, 0, 0, 0 },
+  { "testname", 'n', "Name of test to run",
+    (gptr*) &opt_testname, (gptr*) &opt_testname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "remote_mgm", 'm',
+    "host:port to mgmsrv of remote cluster",
+    (gptr*) &opt_remote_mgm, (gptr*) &opt_remote_mgm, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "timer", 't', "Print execution time",
+    (gptr*) &opt_timer, (gptr*) &opt_timer, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "verbose", 'v', "Print verbose status",
+    (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+static void usage()
+{
+  ndb_std_print_version();
+  printf("Usage: %s [OPTIONS] [tabname1 tabname2 ... tabnameN]\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+
 int NDBT_TestSuite::execute(int argc, const char** argv){
   int res = NDBT_FAILED;
   /* Arguments:
@@ -967,78 +1055,50 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
        a complete test suite without any greater knowledge of what 
        should be tested ie. keep arguments at a minimum
   */
-  int _records = 1000;
-  int _loops = 5;
-  int _timer = 0;
-  char * _remote_mgm =NULL;
-  char* _testname = NULL;
-  const char* _tabname = NULL;
-  int _print = false;
-  int _print_html = false;
 
-  int _print_cases = false;
-  int _verbose = false;
+  char **_argv= (char **)argv;
+
+  if (!my_progname)
+    my_progname= _argv[0];
+
+  const char *load_default_groups[]= { "mysql_cluster",0 };
+  load_defaults("my",load_default_groups,&argc,&_argv);
+
+  int ho_error;
 #ifndef DBUG_OFF
-  const char *debug_option= 0;
+  opt_debug= "d:t:i:F:L";
 #endif
-
-  struct getargs args[] = {
-    { "print", '\0', arg_flag, &_print, "Print execution tree", "" },
-    { "print_html", '\0', arg_flag, &_print_html, "Print execution tree in html table format", "" },
-    { "print_cases", '\0', arg_flag, &_print_cases, "Print list of test cases", "" },
-    { "records", 'r', arg_integer, &_records, "Number of records", "records" },
-    { "loops", 'l', arg_integer, &_loops, "Number of loops", "loops" },
-    { "testname", 'n', arg_string, &_testname, "Name of test to run", "testname" },
-    { "remote_mgm", 'm', arg_string, &_remote_mgm, 
-      "host:port to mgmsrv of remote cluster", "host:port" },
-    { "timer", 't', arg_flag, &_timer, "Print execution time", "time" },
-#ifndef DBUG_OFF
-    { "debug", 0, arg_string, &debug_option,
-      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
-#endif
-    { "verbose", 'v', arg_flag, &_verbose, "Print verbose status", "verbose" }
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
-
-  if(getarg(args, num_args, argc, argv, &optind)) {
-    arg_printusage(args, num_args, argv[0], "tabname1 tabname2 ... tabnameN\n");
-    return NDBT_WRONGARGS;
+  if ((ho_error=handle_options(&argc, &_argv, my_long_options,
+			       ndb_std_get_one_option)))
+  {
+    usage();
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-#ifndef DBUG_OFF
-  if (debug_option)
-    DBUG_PUSH(debug_option);
-#endif
-
-  // Check if table name is supplied
-  if (argv[optind] != NULL)
-    _tabname = argv[optind];
-
-  if (_print == true){
+  if (opt_print == true){
     printExecutionTree();
     return 0;
   }
 
-  if (_print_html == true){
+  if (opt_print_html == true){
     printExecutionTreeHTML();
     return 0;
   }
 
-  if (_print_cases == true){
+  if (opt_print_cases == true){
     printCases();
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return 0;
   }
 
-  if (_verbose)
+  if (opt_verbose)
     setOutputLevel(2); // Show g_info
   else 
-   setOutputLevel(0); // Show only g_err ?
+    setOutputLevel(0); // Show only g_err ?
 
-  remote_mgm = _remote_mgm;
-  records = _records;
-  loops = _loops;
-  timer = _timer;
+  remote_mgm = opt_remote_mgm;
+  records = opt_records;
+  loops = opt_loops;
+  timer = opt_timer;
 
   Ndb_cluster_connection con;
   if(con.connect(12, 5, 1))
@@ -1046,18 +1106,72 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   
-  if(optind == argc){
+  {
+    Ndb ndb(&con, "TEST_DB");
+    ndb.init(1024);
+    if (ndb.waitUntilReady(500)){
+      g_err << "Ndb was not ready" << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+    NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+
+    int num_tables= argc;
+    if (argc == 0)
+      num_tables = NDBT_Tables::getNumTables();
+
+    for(int i = 0; i<num_tables; i++)
+    {
+      if (argc == 0)
+	m_tables_in_test.push_back(NDBT_Tables::getTable(i)->getName());
+      else
+	m_tables_in_test.push_back(_argv[i]);
+      if (createAllTables == true)
+      {
+	const char *tab_name=  m_tables_in_test[i].c_str();
+	const NdbDictionary::Table* pTab = pDict->getTable(tab_name);
+	if (pTab && pDict->dropTable(tab_name) != 0)
+	{
+	  g_err << "ERROR0: Failed to drop table " << tab_name
+		<< pDict->getNdbError() << endl;
+	  return NDBT_ProgramExit(NDBT_FAILED);
+	}
+	if(NDBT_Tables::createTable(&ndb, tab_name) != 0)
+	{
+	  g_err << "ERROR1: Failed to create table " << tab_name
+		<< pDict->getNdbError() << endl;
+	  return NDBT_ProgramExit(NDBT_FAILED);
+	}
+      }
+    }
+  }
+
+  if(argc == 0){
     // No table specified
-    res = executeAll(con, _testname);
+    res = executeAll(con, opt_testname);
   } else {
     testSuiteTimer.doStart(); 
-    for(int i = optind; i<argc; i++){
-      executeOne(con, argv[i], _testname);
+    for(int i = 0; i<argc; i++){
+      executeOne(con, _argv[i], opt_testname);
     }
     testSuiteTimer.doStop();
-    res = report(_testname);
+    res = report(opt_testname);
   }
-  
+
+  if (res == NDBT_OK && createAllTables == true)
+  {
+    Ndb ndb(&con, "TEST_DB");
+    ndb.init(1024);
+    if (ndb.waitUntilReady(500)){
+      g_err << "Ndb was not ready" << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+    NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+    for(unsigned i = 0; i<m_tables_in_test.size(); i++)
+    {
+      pDict->dropTable(m_tables_in_test[i].c_str());
+    }
+  }
+
   return NDBT_ProgramExit(res);
 }
  

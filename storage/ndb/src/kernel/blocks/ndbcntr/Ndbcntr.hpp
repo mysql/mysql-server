@@ -159,6 +159,7 @@ private:
   BLOCK_DEFINES(Ndbcntr);
 
   // Transit signals
+  void execAPI_START_REP(Signal*);
   void execCONTINUEB(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
   void execREAD_NODESREF(Signal* signal);

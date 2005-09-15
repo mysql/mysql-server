@@ -123,14 +123,21 @@ Dbtup::execCREATE_TRIG_REQ(Signal* signal)
   BlockReference senderRef = signal->getSendersBlockRef();
   const CreateTrigReq reqCopy = *(const CreateTrigReq*)signal->getDataPtr();
   const CreateTrigReq* const req = &reqCopy;
+  CreateTrigRef::ErrorCode error= CreateTrigRef::NoError;
 
   // Find table
   TablerecPtr tabPtr;
   tabPtr.i = req->getTableId();
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
+  if (tabPtr.p->tableStatus != DEFINED )
+  {
+    ljam();
+    error= CreateTrigRef::InvalidTable;
+  }
   // Create trigger and associate it with the table
-  if (createTrigger(tabPtr.p, req)) {
+  else if (createTrigger(tabPtr.p, req))
+  {
     ljam();
     // Send conf
     CreateTrigConf* const conf = (CreateTrigConf*)signal->getDataPtrSend();
@@ -143,21 +150,26 @@ Dbtup::execCREATE_TRIG_REQ(Signal* signal)
     conf->setTriggerInfo(req->getTriggerInfo());
     sendSignal(senderRef, GSN_CREATE_TRIG_CONF, 
                signal, CreateTrigConf::SignalLength, JBB);
-  } else {
-    ljam();
-    // Send ref
-    CreateTrigRef* const ref = (CreateTrigRef*)signal->getDataPtrSend();
-    ref->setUserRef(reference());
-    ref->setConnectionPtr(req->getConnectionPtr());
-    ref->setRequestType(req->getRequestType());
-    ref->setTableId(req->getTableId());
-    ref->setIndexId(req->getIndexId());
-    ref->setTriggerId(req->getTriggerId());
-    ref->setTriggerInfo(req->getTriggerInfo());
-    ref->setErrorCode(CreateTrigRef::TooManyTriggers);
-    sendSignal(senderRef, GSN_CREATE_TRIG_REF, 
-               signal, CreateTrigRef::SignalLength, JBB);
+    return;
   }
+  else
+  {
+    ljam();
+    error= CreateTrigRef::TooManyTriggers;
+  }
+  ndbassert(error != CreateTrigRef::NoError);
+  // Send ref
+  CreateTrigRef* const ref = (CreateTrigRef*)signal->getDataPtrSend();
+  ref->setUserRef(reference());
+  ref->setConnectionPtr(req->getConnectionPtr());
+  ref->setRequestType(req->getRequestType());
+  ref->setTableId(req->getTableId());
+  ref->setIndexId(req->getIndexId());
+  ref->setTriggerId(req->getTriggerId());
+  ref->setTriggerInfo(req->getTriggerInfo());
+  ref->setErrorCode(error);
+  sendSignal(senderRef, GSN_CREATE_TRIG_REF, 
+	     signal, CreateTrigRef::SignalLength, JBB);
 }//Dbtup::execCREATE_TRIG_REQ()
 
 void

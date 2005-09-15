@@ -169,6 +169,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_ADD_FRAGREF                 110
 #define GSN_ADD_FRAGREQ                 111
 
+#define GSN_API_START_REP               120
 #define GSN_API_FAILCONF                113
 #define GSN_API_FAILREQ                 114
 #define GSN_CNTR_START_REQ              115
@@ -176,7 +177,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CNTR_START_REF              117
 #define GSN_CNTR_START_CONF             118
 #define GSN_CNTR_START_REP              119
-/* 120 unused */
+/* 120 not unused */
 /* 121 unused */
 /* 122 unused */
 /* 123 unused */
@@ -592,6 +593,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_BLOCK_COMMIT_ORD            485
 #define GSN_UNBLOCK_COMMIT_ORD          486
 
+#define GSN_NODE_START_REP              502
 #define GSN_NODE_STATE_REP              487
 #define GSN_CHANGE_NODE_STATE_REQ       488
 #define GSN_CHANGE_NODE_STATE_CONF      489
@@ -612,7 +614,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_WAIT_GCP_REF                500
 #define GSN_WAIT_GCP_CONF               501
 
-/* 502 not used */
+/* 502 used */
 
 /**
  * Trigger and index signals
@@ -774,66 +776,59 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_ALTER_INDX_REF              604
 #define GSN_ALTER_INDX_CONF             605
 
-/**
- * Grep signals
- */
 #define GSN_ALTER_TABLE_REP             606
 #define GSN_API_BROADCAST_REP           607
-#define GSN_GREP_SUB_CREATE_CONF        608
-#define GSN_GREP_CREATE_REQ             609
-#define GSN_GREP_CREATE_REF             610
-#define GSN_GREP_CREATE_CONF            611
+#define GSN_608
+#define GSN_609
+#define GSN_610
+#define GSN_611
 
-#define GSN_GREP_SUB_START_REQ          612
-#define GSN_GREP_SUB_START_REF          613
-#define GSN_GREP_SUB_START_CONF         614
-#define GSN_GREP_START_REQ              615
-#define GSN_GREP_START_REF              616
-#define GSN_GREP_START_CONF             617
+#define GSN_612
+#define GSN_613
+#define GSN_614
+#define GSN_615
+#define GSN_616
+#define GSN_617
 
-#define GSN_GREP_SUB_SYNC_REQ	        618
-#define GSN_GREP_SUB_SYNC_REF	        619
-#define GSN_GREP_SUB_SYNC_CONF          620
-#define GSN_GREP_SYNC_REQ               621
-#define GSN_GREP_SYNC_REF               622
-#define GSN_GREP_SYNC_CONF              623
+#define GSN_618
+#define GSN_619
+#define GSN_620
+#define GSN_621
+#define GSN_622
+#define GSN_623
 
-/**
- * REP signals
- */
-#define GSN_REP_WAITGCP_REQ             627
-#define GSN_REP_WAITGCP_REF             628
-#define GSN_REP_WAITGCP_CONF            629
-#define GSN_GREP_WAITGCP_REQ            630
-#define GSN_GREP_WAITGCP_REF            631
-#define GSN_GREP_WAITGCP_CONF           632
-#define GSN_REP_GET_GCI_REQ		633
-#define GSN_REP_GET_GCI_REF		634
-#define GSN_REP_GET_GCI_CONF		635
-#define GSN_REP_GET_GCIBUFFER_REQ      	636
-#define GSN_REP_GET_GCIBUFFER_REF      	637
-#define GSN_REP_GET_GCIBUFFER_CONF     	638
-#define GSN_REP_INSERT_GCIBUFFER_REQ  	639
-#define GSN_REP_INSERT_GCIBUFFER_REF    640
-#define GSN_REP_INSERT_GCIBUFFER_CONF	641
-#define GSN_REP_CLEAR_PS_GCIBUFFER_REQ  642
-#define GSN_REP_CLEAR_PS_GCIBUFFER_REF  643
-#define GSN_REP_CLEAR_PS_GCIBUFFER_CONF 644
-#define GSN_REP_CLEAR_SS_GCIBUFFER_REQ  645
-#define GSN_REP_CLEAR_SS_GCIBUFFER_REF  646
-#define GSN_REP_CLEAR_SS_GCIBUFFER_CONF 647
-#define GSN_REP_DATA_PAGE	  	648
-#define GSN_REP_GCIBUFFER_ACC_REP 	649
+#define GSN_627
+#define GSN_628
+#define GSN_629
+#define GSN_630
+#define GSN_631
+#define GSN_632
+#define GSN_633
+#define GSN_634
+#define GSN_635
+#define GSN_636
+#define GSN_637
+#define GSN_638
+#define GSN_639
+#define GSN_640
+#define GSN_641
+#define GSN_642
+#define GSN_643
+#define GSN_644
+#define GSN_645
+#define GSN_646
+#define GSN_647
+#define GSN_648
+#define GSN_649
 
-#define GSN_GREP_SUB_REMOVE_REQ	        650
-#define GSN_GREP_SUB_REMOVE_REF	        651
-#define GSN_GREP_SUB_REMOVE_CONF        652
-#define GSN_GREP_REMOVE_REQ             653
-#define GSN_GREP_REMOVE_REF             654
-#define GSN_GREP_REMOVE_CONF            655
+#define GSN_650
+#define GSN_651
+#define GSN_652
+#define GSN_653
+#define GSN_654
+#define GSN_655
 
-/* Start Global Replication */
-#define GSN_GREP_REQ                    656
+#define GSN_656
 
 /**
  * Management server
@@ -864,13 +859,12 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CREATE_SUBID_REF            662      
 #define GSN_CREATE_SUBID_CONF           663      
 
-/* GREP */
-#define GSN_GREP_CREATE_SUBID_REQ       664      
-#define GSN_GREP_CREATE_SUBID_REF       665
-#define GSN_GREP_CREATE_SUBID_CONF      666    
-#define GSN_REP_DROP_TABLE_REQ          667      
-#define GSN_REP_DROP_TABLE_REF          668
-#define GSN_REP_DROP_TABLE_CONF         669    
+#define GSN_664      
+#define GSN_665
+#define GSN_666    
+#define GSN_667      
+#define GSN_668
+#define GSN_669    
 
 /*
  * TUX
@@ -911,27 +905,27 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /**
  * SUMA restart protocol
  */
-#define GSN_SUMA_START_ME               691
+#define GSN_SUMA_START_ME_REQ           691
+#define GSN_SUMA_START_ME_REF           694
+#define GSN_SUMA_START_ME_CONF          695
 #define GSN_SUMA_HANDOVER_REQ           692
+#define GSN_SUMA_HANDOVER_REF           696
 #define GSN_SUMA_HANDOVER_CONF          693
 
-/* not used                             694 */
-/* not used                             695 */
-/* not used                             696 */
+/* used 694 */
+/* used 695 */
+/* used 696 */
 
-/**
- * GREP restart protocol
- */
-#define GSN_GREP_START_ME              706
-#define GSN_GREP_ADD_SUB_REQ           707
-#define GSN_GREP_ADD_SUB_REF           708
-#define GSN_GREP_ADD_SUB_CONF          709
+#define GSN_706
+#define GSN_707
+#define GSN_708
+#define GSN_709
 
 
 /*
  * EVENT Signals
  */
-#define GSN_SUB_GCP_COMPLETE_ACC        699
+#define GSN_SUB_GCP_COMPLETE_ACK        699
 
 #define GSN_CREATE_EVNT_REQ             700
 #define GSN_CREATE_EVNT_CONF            701

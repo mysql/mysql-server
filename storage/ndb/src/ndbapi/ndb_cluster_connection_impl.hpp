@@ -54,6 +54,7 @@ private:
   friend class NdbImpl;
   friend void* run_ndb_cluster_connection_connect_thread(void*);
   friend class Ndb_cluster_connection;
+  friend class NdbEventBuffer;
   
   struct Node
   {

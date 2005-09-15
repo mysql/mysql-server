@@ -28,9 +28,6 @@ public:
   HugoTransactions(const NdbDictionary::Table&,
 		   const NdbDictionary::Index* idx = 0);
   ~HugoTransactions();
-  int createEvent(Ndb*);
-  int eventOperation(Ndb*, void* stats,
-		     int records);
   int loadTable(Ndb*, 
 		int records,
 		int batch = 512,
@@ -107,10 +104,14 @@ public:
 			 const char * idxName,
 			 int records,
 			 int batchsize = 1);
+
+  void setRetryMax(int retryMax = 100) { m_retryMax = retryMax; }
   
+  Uint32 m_latest_gci;
 protected:  
   NDBT_ResultRow row;
   int m_defaultScanUpdateMethod;
+  int m_retryMax;
 };
 
 

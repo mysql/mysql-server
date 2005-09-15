@@ -34,7 +34,6 @@ test_event ndbapi_slow_select testReadPerf testLcp \
 testPartitioning \
 testBitfield \
 DbCreate DbAsyncGenerator \
-test_event_multi_table \
 testSRBank
 
 #flexTimedAsynch
@@ -78,7 +77,6 @@ testPartitioning_SOURCES = testPartitioning.cpp
 testBitfield_SOURCES = testBitfield.cpp
 DbCreate_SOURCES = bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
 DbAsyncGenerator_SOURCES = bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp bench/dbGenerator.h bench/macros.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
-test_event_multi_table_SOURCES = test_event_multi_table.cpp
 testSRBank_SOURCES = testSRBank.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/kernel

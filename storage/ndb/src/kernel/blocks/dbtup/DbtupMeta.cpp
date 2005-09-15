@@ -590,6 +590,7 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
   
   tabPtr.p->m_dropTable.tabUserRef = req->senderRef;
   tabPtr.p->m_dropTable.tabUserPtr = req->senderData;
+  tabPtr.p->tableStatus = DROPPING;
 
   signal->theData[0] = ZREL_FRAG;
   signal->theData[1] = tabPtr.i;

@@ -97,6 +97,13 @@ public:
   enum ErrorCode {
     NoError = 0,
     Undefined = 1,
+    NF_FakeErrorREF = 11,
+    Busy = 701
+  };
+#if 0
+  enum ErrorCode {
+    NoError = 0,
+    Undefined = 1,
     UndefinedTCError = 2,
     NF_FakeErrorREF = 11,
     Busy = 701,
@@ -115,7 +122,7 @@ public:
     InvalidAttributeOrder = 4255,
     Temporary = 0x1 << 16
   };
-
+#endif
   STATIC_CONST( SignalLength = 5 );
 
   union {             // user block reference
@@ -132,7 +139,7 @@ public:
   };
   Uint32 m_errorLine;
   Uint32 m_errorNode;
-
+#if 0
   bool isTemporary() const
   { return (errorCode &  Temporary) > 0; }
 
@@ -141,7 +148,7 @@ public:
 
   ErrorCode setTemporary(ErrorCode ec)
   { return (ErrorCode) (errorCode = ((Uint32) ec | (Uint32)Temporary)); }
-
+#endif
   Uint32 getUserRef() const {
     return m_userRef;
   }
@@ -154,11 +161,11 @@ public:
   void setUserData(Uint32 val) {
     m_userData = val;
   }
-  DropEvntRef::ErrorCode getErrorCode() const {
-    return (DropEvntRef::ErrorCode)m_errorCode;
+  Uint32 getErrorCode() const {
+    return m_errorCode;
   }
-  void setErrorCode(DropEvntRef::ErrorCode val) {
-    m_errorCode = (Uint32)val;
+  void setErrorCode(Uint32 val) {
+    m_errorCode = val;
   }
   Uint32 getErrorLine() const {
     return m_errorLine;
@@ -193,8 +200,8 @@ struct CreateEvntReq {
     //    RT_TC = 5 << 8
   };
   STATIC_CONST( SignalLengthGet = 3 );
-  STATIC_CONST( SignalLengthCreate = 5+MAXNROFATTRIBUTESINWORDS );
-  STATIC_CONST( SignalLength = 7+MAXNROFATTRIBUTESINWORDS );
+  STATIC_CONST( SignalLengthCreate = 6+MAXNROFATTRIBUTESINWORDS );
+  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS );
   //  SECTION( ATTRIBUTE_LIST_SECTION = 0 );
   SECTION( EVENT_NAME_SECTION = 0 );
 
@@ -208,6 +215,7 @@ struct CreateEvntReq {
   };
   Uint32 m_requestInfo;
   Uint32 m_tableId;             // table to event
+  Uint32 m_tableVersion;        // table version
   AttributeMask::Data m_attrListBitmask;
   Uint32 m_eventType;           // from DictTabInfo::TableType
   Uint32 m_eventId;             // event table id set by DICT/SUMA
@@ -245,6 +253,12 @@ struct CreateEvntReq {
   void setTableId(Uint32 val) {
     m_tableId = val;
   }
+  Uint32 getTableVersion() const {
+    return m_tableVersion;
+  }
+  void setTableVersion(Uint32 val) {
+    m_tableVersion = val;
+  }
   AttributeMask getAttrListBitmask() const {
     AttributeMask tmp;
     tmp.assign(m_attrListBitmask);
@@ -281,7 +295,7 @@ class CreateEvntConf {
 
 public:
   //  STATIC_CONST( InternalLength = 3 );
-  STATIC_CONST( SignalLength = 7+MAXNROFATTRIBUTESINWORDS );
+  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS );
 
   union {
     Uint32 m_userRef;             // user block reference
@@ -293,6 +307,7 @@ public:
   };
   Uint32 m_requestInfo;
   Uint32 m_tableId;
+  Uint32 m_tableVersion;        // table version
   AttributeMask m_attrListBitmask;
   Uint32 m_eventType;
   Uint32 m_eventId;
@@ -321,6 +336,12 @@ public:
   }
   void setTableId(Uint32 val) {
     m_tableId = val;
+  }
+  Uint32 getTableVersion() const {
+    return m_tableVersion;
+  }
+  void setTableVersion(Uint32 val) {
+    m_tableVersion = val;
   }
   AttributeMask getAttrListBitmask() const {
     return m_attrListBitmask;
@@ -355,7 +376,14 @@ struct CreateEvntRef {
   friend class SafeCounter;
   friend bool printCREATE_EVNT_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 10 );
+  STATIC_CONST( SignalLength = 11 );
+  enum ErrorCode {
+    NoError = 0,
+    Undefined = 1,
+    NF_FakeErrorREF = 11,
+    Busy = 701
+  };
+#if 0
   enum ErrorCode {
     NoError = 0,
     Undefined = 1,
@@ -383,6 +411,7 @@ struct CreateEvntRef {
   void setTemporary();
   ErrorCode setTemporary(ErrorCode ec);
   static ErrorCode makeTemporary(ErrorCode ec);
+#endif
 
   union {
     Uint32 m_userRef;             // user block reference
@@ -395,6 +424,7 @@ struct CreateEvntRef {
 
   Uint32 m_requestInfo;
   Uint32 m_tableId;
+  Uint32 m_tableVersion;        // table version
   Uint32 m_eventType;
   Uint32 m_eventId;
   Uint32 m_eventKey;
@@ -434,6 +464,12 @@ struct CreateEvntRef {
   void setTableId(Uint32 val) {
     m_tableId = val;
   }
+  Uint32 getTableVersion() const {
+    return m_tableVersion;
+  }
+  void setTableVersion(Uint32 val) {
+    m_tableVersion = val;
+  }
 
   Uint32 getEventType() const {
     return m_eventType;
@@ -454,11 +490,11 @@ struct CreateEvntRef {
     m_eventKey = val;
   }
 
-  CreateEvntRef::ErrorCode getErrorCode() const {
-    return (CreateEvntRef::ErrorCode)errorCode;
+  Uint32 getErrorCode() const {
+    return errorCode;
   }
-  void setErrorCode(CreateEvntRef::ErrorCode val) {
-    errorCode = (Uint32)val;
+  void setErrorCode(Uint32 val) {
+    errorCode = val;
   }
   Uint32 getErrorLine() const {
     return m_errorLine;
@@ -473,6 +509,7 @@ struct CreateEvntRef {
     m_errorNode = val;
   }
 };
+#if 0
 inline bool CreateEvntRef::isTemporary() const
 { return (errorCode &  CreateEvntRef::Temporary) > 0; }
 inline void CreateEvntRef::setTemporary()
@@ -483,5 +520,5 @@ inline CreateEvntRef::ErrorCode CreateEvntRef::setTemporary(ErrorCode ec)
 inline CreateEvntRef::ErrorCode CreateEvntRef::makeTemporary(ErrorCode ec)
 { return (CreateEvntRef::ErrorCode) 
     ( (Uint32) ec | (Uint32)CreateEvntRef::Temporary ); }
-
+#endif
 #endif

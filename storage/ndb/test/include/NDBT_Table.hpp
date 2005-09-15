@@ -28,7 +28,8 @@ public:
 		 NdbDictionary::Column::Type _type,
 		 int _length = 1,
 		 bool _pk = false, 
-		 bool _nullable = false):
+		 bool _nullable = false,
+		 CHARSET_INFO *cs= 0):
     NdbDictionary::Column(_name)
   {
     assert(_name != 0);
@@ -37,6 +38,10 @@ public:
     setLength(_length);
     setNullable(_nullable);
     setPrimaryKey(_pk);
+    if (cs)
+    {
+      setCharset(cs);
+    }
   }
 };
 

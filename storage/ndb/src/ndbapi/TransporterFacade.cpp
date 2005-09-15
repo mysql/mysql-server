@@ -36,6 +36,7 @@
 #include <SignalLoggerManager.hpp>
 #include <kernel/ndb_limits.h>
 #include <signaldata/AlterTable.hpp>
+#include <signaldata/SumaImpl.hpp>
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE;
@@ -320,6 +321,32 @@ execute(void * callbackObj, SignalHeader * const header,
 			 rep->tableVersion,
 			 rep->changeType == AlterTableRep::CT_ALTERED);
        theFacade->m_globalDictCache.unlock();
+       break;
+     }
+     case GSN_SUB_GCP_COMPLETE_REP:
+     {
+       /**
+	* Report
+	*/
+       NdbApiSignal tSignal(* header);
+       tSignal.setDataPtr(theData);
+       theFacade->for_each(&tSignal, ptr);
+
+       /**
+	* Reply
+	*/
+       {
+	 Uint32* send= tSignal.getDataPtrSend();
+	 memcpy(send, theData, tSignal.getLength() << 2);
+	 ((SubGcpCompleteAck*)send)->rep.senderRef = 
+	   numberToRef(API_CLUSTERMGR, theFacade->theOwnId);
+	 Uint32 ref= header->theSendersBlockRef;
+	 Uint32 aNodeId= refToNode(ref);
+	 tSignal.theReceiversBlockNumber= refToBlock(ref);
+	 tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
+	 theFacade->sendSignal(&tSignal, aNodeId);
+       }
+       break;
      }
      default:
        break;
@@ -719,6 +746,22 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   DBUG_RETURN(true);
 }
 
+void
+TransporterFacade::for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
+{
+  DBUG_ENTER("TransporterFacade::connected");
+  Uint32 sz = m_threads.m_statusNext.size();
+  TransporterFacade::ThreadData::Object_Execute oe; 
+  for (Uint32 i = 0; i < sz ; i ++) 
+  {
+    oe = m_threads.m_objectExecute[i];
+    if (m_threads.getInUse(i))
+    {
+      (* oe.m_executeFunction) (oe.m_object, aSignal, ptr);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
 
 void
 TransporterFacade::connected()

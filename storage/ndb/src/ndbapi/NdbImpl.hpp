@@ -40,6 +40,10 @@ public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
   ~NdbImpl();
 
+  int send_event_report(Uint32 *data, Uint32 length);
+
+  Ndb &m_ndb;
+
   Ndb_cluster_connection_impl &m_ndb_cluster_connection;
 
   NdbDictionaryImpl m_dictionary;
@@ -57,6 +61,8 @@ public:
   Uint32 the_release_ind[MAX_NDB_NODES];
 
   NdbWaiter             theWaiter;
+
+  NdbEventOperationImpl *m_ev_op;
 
   int m_optimized_node_selection;
 
@@ -81,13 +87,13 @@ public:
 #endif
 
 #define CHECK_STATUS_MACRO \
-   {if (checkInitState() == -1) { theError.code = 4100; return -1;}}
+   {if (checkInitState() == -1) { theError.code = 4100; DBUG_RETURN(-1);}}
 #define CHECK_STATUS_MACRO_VOID \
-   {if (checkInitState() == -1) { theError.code = 4100; return;}}
+   {if (checkInitState() == -1) { theError.code = 4100; DBUG_VOID_RETURN;}}
 #define CHECK_STATUS_MACRO_ZERO \
-   {if (checkInitState() == -1) { theError.code = 4100; return 0;}}
+   {if (checkInitState() == -1) { theError.code = 4100; DBUG_RETURN(0);}}
 #define CHECK_STATUS_MACRO_NULL \
-   {if (checkInitState() == -1) { theError.code = 4100; return NULL;}}
+   {if (checkInitState() == -1) { theError.code = 4100; DBUG_RETURN(NULL);}}
 
 inline
 void *
