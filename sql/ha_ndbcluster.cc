@@ -31,6 +31,7 @@
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbScanFilter.hpp>
+#include <ndbapi/NdbIndexStat.hpp>
 
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
@@ -83,6 +84,14 @@ static handlerton ndbcluster_hton = {
   const NdbError& tmp= err;              \
   ERR_PRINT(tmp);                        \
   DBUG_RETURN(ndb_to_mysql_error(&tmp)); \
+}
+
+#define ERR_BREAK(err, code)             \
+{                                        \
+  const NdbError& tmp= err;              \
+  ERR_PRINT(tmp);                        \
+  code= ndb_to_mysql_error(&tmp);        \
+  break;                                 \
 }
 
 // Typedefs for long names
@@ -1064,6 +1073,26 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
       const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
       if (!index) DBUG_RETURN(1);
       m_index[i].index= (void *) index;
+      // ordered index - add stats
+      NDB_INDEX_DATA& d=m_index[i];
+      delete d.index_stat;
+      d.index_stat=NULL;
+      THD *thd=current_thd;
+      if (thd->variables.ndb_index_stat_enable)
+      {
+        d.index_stat=new NdbIndexStat(index);
+        d.index_stat_cache_entries=thd->variables.ndb_index_stat_cache_entries;
+        d.index_stat_update_freq=thd->variables.ndb_index_stat_update_freq;
+        d.index_stat_query_count=0;
+        d.index_stat->alloc_cache(d.index_stat_cache_entries);
+        DBUG_PRINT("info", ("index %s stat=on cache_entries=%u update_freq=%u",
+                            index->getName(),
+                            d.index_stat_cache_entries,
+                            d.index_stat_update_freq));
+      } else
+      {
+        DBUG_PRINT("info", ("index %s stat=off", index->getName()));
+      }
     }
     if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
@@ -1135,6 +1164,8 @@ void ha_ndbcluster::release_metadata()
       my_free((char *)m_index[i].unique_index_attrid_map, MYF(0));
       m_index[i].unique_index_attrid_map= NULL;
     }
+    delete m_index[i].index_stat;
+    m_index[i].index_stat=NULL;
   }
 
   DBUG_VOID_RETURN;
@@ -1648,10 +1679,12 @@ inline int ha_ndbcluster::next_result(byte *buf)
 */
 
 int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
+                              uint inx,
+                              bool rir,
                               const key_range *keys[2],
                               uint range_no)
 {
-  const KEY *const key_info= table->key_info + active_index;
+  const KEY *const key_info= table->key_info + inx;
   const uint key_parts= key_info->key_parts;
   uint key_tot_len[2];
   uint tot_len;
@@ -1716,7 +1749,10 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
           switch (p.key->flag)
           {
             case HA_READ_KEY_EXACT:
-              p.bound_type= NdbIndexScanOperation::BoundEQ;
+              if (! rir)
+                p.bound_type= NdbIndexScanOperation::BoundEQ;
+              else // differs for records_in_range
+                p.bound_type= NdbIndexScanOperation::BoundLE;
               break;
             // ascending
             case HA_READ_KEY_OR_NEXT:
@@ -1874,7 +1910,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   
   {
     const key_range *keys[2]= { start_key, end_key };
-    res= set_bounds(op, keys);
+    res= set_bounds(op, active_index, false, keys);
     if (res)
       DBUG_RETURN(res);
   }
@@ -4162,6 +4198,10 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
     m_index[i].unique_index= NULL;
     m_index[i].index= NULL;
     m_index[i].unique_index_attrid_map= NULL;
+    m_index[i].index_stat=NULL;
+    m_index[i].index_stat_cache_entries=0;
+    m_index[i].index_stat_update_freq=0;
+    m_index[i].index_stat_query_count=0;
   }
 
   DBUG_VOID_RETURN;
@@ -4914,6 +4954,84 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
        (max_key && max_key->length == key_length)))
     DBUG_RETURN(1);
   
+  if ((idx_type == PRIMARY_KEY_ORDERED_INDEX ||
+       idx_type == UNIQUE_ORDERED_INDEX ||
+       idx_type == ORDERED_INDEX) &&
+    m_index[inx].index_stat != NULL)
+  {
+    NDB_INDEX_DATA& d=m_index[inx];
+    NDBINDEX* index=(NDBINDEX*)d.index;
+    Ndb* ndb=get_ndb();
+    NdbTransaction* trans=NULL;
+    NdbIndexScanOperation* op=NULL;
+    int res=0;
+    Uint64 rows;
+
+    do
+    {
+      // We must provide approx table rows
+      Uint64 table_rows=0;
+      Ndb_local_table_statistics *info= 
+        (Ndb_local_table_statistics *)m_table_info;
+      if (info->records != ~(ha_rows)0 && info->records != 0)
+      {
+        table_rows = info->records;
+        DBUG_PRINT("info", ("use info->records: %llu", table_rows));
+      }
+      else
+      {
+        Ndb_statistics stat;
+        if ((res=ndb_get_table_statistics(ndb, m_tabname, &stat)) != 0)
+          break;
+        table_rows=stat.row_count;
+        DBUG_PRINT("info", ("use db row_count: %llu", table_rows));
+        if (table_rows == 0) {
+          // Problem if autocommit=0
+#ifdef ndb_get_table_statistics_uses_active_trans
+          rows=0;
+          break;
+#endif
+        }
+      }
+
+      // Define scan op for the range
+      if ((trans=m_active_trans) == NULL)
+      {
+        DBUG_PRINT("info", ("no active trans"));
+        if (! (trans=ndb->startTransaction()))
+          ERR_BREAK(ndb->getNdbError(), res);
+      }
+      if (! (op=trans->getNdbIndexScanOperation(index, (NDBTAB*)m_table)))
+        ERR_BREAK(trans->getNdbError(), res);
+      if ((op->readTuples(NdbOperation::LM_CommittedRead)) == -1)
+        ERR_BREAK(op->getNdbError(), res);
+      const key_range *keys[2]={ min_key, max_key };
+      if ((res=set_bounds(op, inx, true, keys)) != 0)
+        break;
+
+      // Decide if db should be contacted
+      int flags=0;
+      if (d.index_stat_query_count < d.index_stat_cache_entries ||
+          (d.index_stat_update_freq != 0 &&
+           d.index_stat_query_count % d.index_stat_update_freq == 0))
+      {
+        DBUG_PRINT("info", ("force stat from db"));
+        flags|=NdbIndexStat::RR_UseDb;
+      }
+      if (d.index_stat->records_in_range(index, op, table_rows, &rows, flags) == -1)
+        ERR_BREAK(d.index_stat->getNdbError(), res);
+      d.index_stat_query_count++;
+    } while (0);
+
+    if (trans != m_active_trans && rows == 0)
+      rows = 1;
+    if (trans != m_active_trans && trans != NULL)
+      ndb->closeTransaction(trans);
+    if (res != 0)
+      DBUG_RETURN(HA_POS_ERROR);
+    DBUG_RETURN(rows);
+  }
+
   DBUG_RETURN(10); /* Good guess when you don't know anything */
 }
 
@@ -5612,7 +5730,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
       const key_range *keys[2]= { &multi_range_curr->start_key, 
                                   &multi_range_curr->end_key };
-      if ((res= set_bounds(scanOp, keys, multi_range_curr-ranges)))
+      if ((res= set_bounds(scanOp, active_index, false, keys,
+                           multi_range_curr-ranges)))
         DBUG_RETURN(res);
       break;
     }

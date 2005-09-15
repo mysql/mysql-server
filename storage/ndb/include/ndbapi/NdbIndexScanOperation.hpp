@@ -30,6 +30,7 @@ class NdbIndexScanOperation : public NdbScanOperation {
   friend class NdbResultSet;
   friend class NdbOperation;
   friend class NdbScanOperation;
+  friend class NdbIndexStat;
 #endif
 
 public:
@@ -149,12 +150,14 @@ public:
    * Is current scan sorted descending
    */
   bool getDescending() const { return m_descending; }
+
 private:
   NdbIndexScanOperation(Ndb* aNdb);
   virtual ~NdbIndexScanOperation();
 
   int setBound(const NdbColumnImpl*, int type, const void* aValue, Uint32 len);
   int insertBOUNDS(Uint32 * data, Uint32 sz);
+  Uint32 getKeyFromSCANTABREQ(Uint32* data, Uint32 size);
 
   virtual int equal_impl(const NdbColumnImpl*, const char*, Uint32);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);

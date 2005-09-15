@@ -82,9 +82,13 @@
 #define jam()           jamLine(80000 + __LINE__)
 #define jamEntry()      jamEntryLine(80000 + __LINE__)
 #endif
-#ifdef DBTUX_DEBUG_CPP
+#ifdef DBTUX_STAT_CPP
 #define jam()           jamLine(90000 + __LINE__)
 #define jamEntry()      jamEntryLine(90000 + __LINE__)
+#endif
+#ifdef DBTUX_DEBUG_CPP
+#define jam()           jamLine(100000 + __LINE__)
+#define jamEntry()      jamEntryLine(100000 + __LINE__)
 #endif
 #ifndef jam
 #define jam()           jamLine(__LINE__)
@@ -116,6 +120,7 @@ private:
   STATIC_CONST( MaxPrefSize = MAX_TTREE_PREF_SIZE );
   STATIC_CONST( ScanBoundSegmentSize = 7 );
   STATIC_CONST( MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN );
+  STATIC_CONST( MaxTreeDepth = 32 );    // strict
   BLOCK_DEFINES(Dbtux);
 
   // forward declarations
@@ -269,6 +274,7 @@ private:
     Uint8 m_prefSize;           // words in min prefix
     Uint8 m_minOccup;           // min entries in internal node
     Uint8 m_maxOccup;           // max entries in node
+    Uint32 m_entryCount;        // stat: current entries
     TupLoc m_root;              // root node
     TreeHead();
     // methods
@@ -660,6 +666,14 @@ private:
   int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
 
   /*
+   * DbtuxStat.cpp
+   */
+  void execREAD_PSEUDO_REQ(Signal* signal);
+  void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out);
+  Uint32 getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir);
+  unsigned getPathToNode(NodeHandle node, Uint16* path);
+
+  /*
    * DbtuxDebug.cpp
    */
   void execDUMP_STATE_ORD(Signal* signal);
@@ -952,6 +966,7 @@ Dbtux::TreeHead::TreeHead() :
   m_prefSize(0),
   m_minOccup(0),
   m_maxOccup(0),
+  m_entryCount(0),
   m_root()
 {
 }

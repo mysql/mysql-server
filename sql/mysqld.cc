@@ -4335,6 +4335,8 @@ enum options_mysqld
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
   OPT_NDB_DISTRIBUTION,
+  OPT_NDB_INDEX_STAT_ENABLE,
+  OPT_NDB_INDEX_STAT_CACHE_ENTRIES, OPT_NDB_INDEX_STAT_UPDATE_FREQ,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4949,6 +4951,23 @@ Disable with --skip-ndbcluster (will save memory).",
     "A dedicated thread is created to, at the given millisecons interval, invalidate the query cache if another MySQL server in the cluster has changed the data in the database.",
     (gptr*) &opt_ndb_cache_check_time, (gptr*) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
     0, 0, LONG_TIMEOUT, 0, 1, 0},
+  {"ndb-index-stat-enable", OPT_NDB_INDEX_STAT_ENABLE,
+   "Use ndb index statistics in query optimization.",
+   (gptr*) &global_system_variables.ndb_index_stat_enable,
+   (gptr*) &max_system_variables.ndb_index_stat_enable,
+   0, GET_BOOL, OPT_ARG, 1, 0, 1, 0, 0, 0},
+  {"ndb-index-stat-cache-entries", OPT_NDB_INDEX_STAT_CACHE_ENTRIES,
+   "Number of start/end keys to store in statistics memory cache."
+    " Zero means no cache and forces query of db nodes always.",
+   (gptr*) &global_system_variables.ndb_index_stat_cache_entries,
+   (gptr*) &max_system_variables.ndb_index_stat_cache_entries,
+   0, GET_ULONG, OPT_ARG, 32, 0, ~0L, 0, 0, 0},
+  {"ndb-index-stat-update-freq", OPT_NDB_INDEX_STAT_UPDATE_FREQ,
+   "How often, in the long run, to query db nodes instead of statistics cache."
+   " For example 20 means every 20th time.",
+   (gptr*) &global_system_variables.ndb_index_stat_update_freq,
+   (gptr*) &max_system_variables.ndb_index_stat_update_freq,
+   0, GET_ULONG, OPT_ARG, 20, 0, ~0L, 0, 0, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
@@ -6211,6 +6230,12 @@ static void mysql_init_variables(void)
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   have_ndbcluster=SHOW_OPTION_DISABLED;
+  global_system_variables.ndb_index_stat_enable=TRUE;
+  max_system_variables.ndb_index_stat_enable=TRUE;
+  global_system_variables.ndb_index_stat_cache_entries=32;
+  max_system_variables.ndb_index_stat_cache_entries=~0L;
+  global_system_variables.ndb_index_stat_update_freq=20;
+  max_system_variables.ndb_index_stat_update_freq=~0L;
 #else
   have_ndbcluster=SHOW_OPTION_NO;
 #endif

@@ -1028,6 +1028,18 @@ Dbtup::read_pseudo(Uint32 attrId, Uint32* outBuffer){
     EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
     outBuffer[0] = signal->theData[0];
     return 1;
+
+  case AttributeHeader::RECORDS_IN_RANGE:
+    signal->theData[0] = operPtr.p->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    outBuffer[0] = signal->theData[0];
+    outBuffer[1] = signal->theData[1];
+    outBuffer[2] = signal->theData[2];
+    outBuffer[3] = signal->theData[3];
+    return 4;
+
   default:
     return 0;
   }

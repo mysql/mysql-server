@@ -26,25 +26,29 @@ Dbtux::treeAdd(Frag& frag, TreePos treePos, TreeEnt ent)
 {
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
-  if (treePos.m_loc != NullTupLoc) {
-    // non-empty tree
-    jam();
-    selectNode(node, treePos.m_loc);
-    unsigned pos = treePos.m_pos;
-    if (node.getOccup() < tree.m_maxOccup) {
-      // node has room
+  do {
+    if (treePos.m_loc != NullTupLoc) {
+      // non-empty tree
       jam();
-      nodePushUp(node, pos, ent, RNIL);
-      return;
+      selectNode(node, treePos.m_loc);
+      unsigned pos = treePos.m_pos;
+      if (node.getOccup() < tree.m_maxOccup) {
+        // node has room
+        jam();
+        nodePushUp(node, pos, ent, RNIL);
+        break;
+      }
+      treeAddFull(frag, node, pos, ent);
+      break;
     }
-    treeAddFull(frag, node, pos, ent);
-    return;
-  }
-  jam();
-  insertNode(node);
-  nodePushUp(node, 0, ent, RNIL);
-  node.setSide(2);
-  tree.m_root = node.m_loc;
+    jam();
+    insertNode(node);
+    nodePushUp(node, 0, ent, RNIL);
+    node.setSide(2);
+    tree.m_root = node.m_loc;
+    break;
+  } while (0);
+  tree.m_entryCount++;
 }
 
 /*
@@ -178,31 +182,36 @@ Dbtux::treeRemove(Frag& frag, TreePos treePos)
   NodeHandle node(frag);
   selectNode(node, treePos.m_loc);
   TreeEnt ent;
-  if (node.getOccup() > tree.m_minOccup) {
-    // no underflow in any node type
-    jam();
+  do {
+    if (node.getOccup() > tree.m_minOccup) {
+      // no underflow in any node type
+      jam();
+      nodePopDown(node, pos, ent, 0);
+      break;
+    }
+    if (node.getChilds() == 2) {
+      // underflow in interior node
+      jam();
+      treeRemoveInner(frag, node, pos);
+      break;
+    }
+    // remove entry in semi/leaf
     nodePopDown(node, pos, ent, 0);
-    return;
-  }
-  if (node.getChilds() == 2) {
-    // underflow in interior node
-    jam();
-    treeRemoveInner(frag, node, pos);
-    return;
-  }
-  // remove entry in semi/leaf
-  nodePopDown(node, pos, ent, 0);
-  if (node.getLink(0) != NullTupLoc) {
-    jam();
-    treeRemoveSemi(frag, node, 0);
-    return;
-  }
-  if (node.getLink(1) != NullTupLoc) {
-    jam();
-    treeRemoveSemi(frag, node, 1);
-    return;
-  }
-  treeRemoveLeaf(frag, node);
+    if (node.getLink(0) != NullTupLoc) {
+      jam();
+      treeRemoveSemi(frag, node, 0);
+      break;
+    }
+    if (node.getLink(1) != NullTupLoc) {
+      jam();
+      treeRemoveSemi(frag, node, 1);
+      break;
+    }
+    treeRemoveLeaf(frag, node);
+    break;
+  } while (0);
+  ndbrequire(tree.m_entryCount != 0);
+  tree.m_entryCount--;
 }
 
 /*

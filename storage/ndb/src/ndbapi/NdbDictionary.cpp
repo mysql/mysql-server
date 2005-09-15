@@ -1070,3 +1070,4 @@ const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::RANGE_NO = 0;
+const NdbDictionary::Column * NdbDictionary::Column::RECORDS_IN_RANGE = 0;
