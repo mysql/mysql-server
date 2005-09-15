@@ -5413,7 +5413,6 @@ ER_VIEW_OTHER_USER
         eng "You need the SUPER privilege for creation view with %-.64s@%-.64s definer"
 ER_NO_SUCH_USER
         eng "There is not %-.64s@%-.64s registered"
-        eng "Not allowed to set autocommit from a stored function or trigger"
 ER_PARTITION_REQUIRES_VALUES_ERROR
         eng "%s PARTITIONING requires definition of VALUES %s for each partition"
         swe "%s PARTITIONering kräver definition av VALUES %s för varje partition"
