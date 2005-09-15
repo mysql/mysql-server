@@ -6,7 +6,7 @@ Next DBTUP 4013
 Next DBLQH 5042
 Next DBDICT 6006
 Next DBDIH 7174
-Next DBTC 8035
+Next DBTC 8037
 Next CMVMI 9000
 Next BACKUP 10022
 Next DBUTIL 11002
@@ -406,8 +406,11 @@ Drop Table/Index:
 4001: Crash on REL_TABMEMREQ in TUP
 4002: Crash on DROP_TABFILEREQ in TUP
 4003: Fail next trigger create in TUP
+4004: Fail next trigger drop in TUP
 8033: Fail next trigger create in TC
 8034: Fail next index create in TC
+8035: Fail next trigger drop in TC
+8036: Fail next index drop in TC
 
 System Restart:
 ---------------
