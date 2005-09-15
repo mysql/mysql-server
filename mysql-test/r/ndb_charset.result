@@ -188,7 +188,7 @@ p	a
 6	AAA
 explain select * from t1 where a = 'zZz' order by p;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	3	const	10	Using where; Using filesort
+1	SIMPLE	t1	const	a	NULL	NULL	NULL	1	
 select * from t1 where a = 'aAa' order by p;
 p	a
 1	aAa
@@ -225,7 +225,7 @@ p	a
 6	AAA
 explain select * from t1 where a = 'zZz' order by p;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	3	const	10	Using where; Using filesort
+1	SIMPLE	t1	const	a	NULL	NULL	NULL	1	
 select * from t1 where a = 'aAa' order by p;
 p	a
 1	aAa

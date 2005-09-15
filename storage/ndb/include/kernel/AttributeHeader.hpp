@@ -41,6 +41,8 @@ public:
   STATIC_CONST( ROW_SIZE     = 0xFFFA );
   STATIC_CONST( FRAGMENT_MEMORY= 0xFFF9 );
 
+  STATIC_CONST( RECORDS_IN_RANGE = 0xFFF8 );
+
   /** Initialize AttributeHeader at location aHeaderPtr */
   static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 
 			       Uint32 aDataSize);

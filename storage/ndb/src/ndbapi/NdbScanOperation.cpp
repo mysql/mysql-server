@@ -1198,6 +1198,31 @@ error:
   return -1;
 }
 
+Uint32
+NdbIndexScanOperation::getKeyFromSCANTABREQ(Uint32* data, Uint32 size)
+{
+  DBUG_ENTER("NdbIndexScanOperation::getKeyFromSCANTABREQ");
+  assert(size >= theTotalNrOfKeyWordInSignal);
+  size = theTotalNrOfKeyWordInSignal;
+  NdbApiSignal* tSignal = theSCAN_TABREQ->next();
+  Uint32 pos = 0;
+  while (pos < size) {
+    assert(tSignal != NULL);
+    Uint32* tData = tSignal->getDataPtrSend();
+    Uint32 rem = size - pos;
+    if (rem > KeyInfo::DataLength)
+      rem = KeyInfo::DataLength;
+    Uint32 i = 0;
+    while (i < rem) {
+      data[pos + i] = tData[KeyInfo::HeaderLength + i];
+      i++;
+    }
+    pos += rem;
+  }
+  DBUG_DUMP("key", (char*)data, size << 2);
+  DBUG_RETURN(size);
+}
+
 int
 NdbIndexScanOperation::readTuples(LockMode lm,
 				  Uint32 scan_flags,

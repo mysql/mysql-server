@@ -456,6 +456,7 @@ public:
     static const Column * COMMIT_COUNT;
     static const Column * ROW_SIZE;
     static const Column * RANGE_NO;
+    static const Column * RECORDS_IN_RANGE;
     
     int getSizeInBytes() const;
 #endif
@@ -929,6 +930,7 @@ public:
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbIndexImpl;
+    friend class NdbIndexStat;
 #endif
     class NdbIndexImpl & m_impl;
     Index(NdbIndexImpl&);

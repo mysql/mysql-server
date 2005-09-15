@@ -658,3 +658,141 @@ insert into t1 (a, c) values (1,'aaa'),(3,'bbb');
 select count(*) from t1 where c<'bbb';
 count(*)
 1
+drop table t1;
+set autocommit=1;
+show session variables like 'ndb_index_stat_%';
+Variable_name	Value
+ndb_index_stat_cache_entries	32
+ndb_index_stat_enable	ON
+ndb_index_stat_update_freq	20
+set ndb_index_stat_enable = off;
+show session variables like 'ndb_index_stat_%';
+Variable_name	Value
+ndb_index_stat_cache_entries	32
+ndb_index_stat_enable	OFF
+ndb_index_stat_update_freq	20
+create table t1 (a int, b int, c varchar(10) not null,
+primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+(1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+(4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+(7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+select count(*) from t1 where b < 10;
+count(*)
+0
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+count(*)
+6
+select count(*) from t1 where b > 10;
+count(*)
+6
+select count(*) from t1 where b <= 20 and c < 'ccc';
+count(*)
+4
+select count(*) from t1 where b = 20 and c = 'ccc';
+count(*)
+1
+select count(*) from t1 where b > 20;
+count(*)
+3
+select count(*) from t1 where b = 30 and c > 'aaa';
+count(*)
+2
+select count(*) from t1 where b <= 20;
+count(*)
+6
+select count(*) from t1 where b >= 20 and c > 'aaa';
+count(*)
+4
+drop table t1;
+set ndb_index_stat_enable = on;
+set ndb_index_stat_cache_entries = 0;
+show session variables like 'ndb_index_stat_%';
+Variable_name	Value
+ndb_index_stat_cache_entries	0
+ndb_index_stat_enable	ON
+ndb_index_stat_update_freq	20
+create table t1 (a int, b int, c varchar(10) not null,
+primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+(1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+(4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+(7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+select count(*) from t1 where b < 10;
+count(*)
+0
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+count(*)
+6
+select count(*) from t1 where b > 10;
+count(*)
+6
+select count(*) from t1 where b <= 20 and c < 'ccc';
+count(*)
+4
+select count(*) from t1 where b = 20 and c = 'ccc';
+count(*)
+1
+select count(*) from t1 where b > 20;
+count(*)
+3
+select count(*) from t1 where b = 30 and c > 'aaa';
+count(*)
+2
+select count(*) from t1 where b <= 20;
+count(*)
+6
+select count(*) from t1 where b >= 20 and c > 'aaa';
+count(*)
+4
+drop table t1;
+set ndb_index_stat_enable = on;
+set ndb_index_stat_cache_entries = 4;
+set ndb_index_stat_update_freq = 2;
+show session variables like 'ndb_index_stat_%';
+Variable_name	Value
+ndb_index_stat_cache_entries	4
+ndb_index_stat_enable	ON
+ndb_index_stat_update_freq	2
+create table t1 (a int, b int, c varchar(10) not null,
+primary key using hash (a), index(b,c)) engine=ndb;
+insert into t1 values
+(1,10,'aaa'),(2,10,'bbb'),(3,10,'ccc'),
+(4,20,'aaa'),(5,20,'bbb'),(6,20,'ccc'),
+(7,30,'aaa'),(8,30,'bbb'),(9,30,'ccc');
+select count(*) from t1 where b < 10;
+count(*)
+0
+select count(*) from t1 where b >= 10 and c >= 'bbb';
+count(*)
+6
+select count(*) from t1 where b > 10;
+count(*)
+6
+select count(*) from t1 where b <= 20 and c < 'ccc';
+count(*)
+4
+select count(*) from t1 where b = 20 and c = 'ccc';
+count(*)
+1
+select count(*) from t1 where b > 20;
+count(*)
+3
+select count(*) from t1 where b = 30 and c > 'aaa';
+count(*)
+2
+select count(*) from t1 where b <= 20;
+count(*)
+6
+select count(*) from t1 where b >= 20 and c > 'aaa';
+count(*)
+4
+drop table t1;
+set ndb_index_stat_enable = @@global.ndb_index_stat_enable;
+set ndb_index_stat_cache_entries = @@global.ndb_index_stat_cache_entries;
+set ndb_index_stat_update_freq = @@global.ndb_index_stat_update_freq;
+show session variables like 'ndb_index_stat_%';
+Variable_name	Value
+ndb_index_stat_cache_entries	32
+ndb_index_stat_enable	ON
+ndb_index_stat_update_freq	20

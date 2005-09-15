@@ -66,6 +66,10 @@ Dbtux::Dbtux(const Configuration& conf) :
   addRecSignal(GSN_ACCKEYREF, &Dbtux::execACCKEYREF);
   addRecSignal(GSN_ACC_ABORTCONF, &Dbtux::execACC_ABORTCONF);
   /*
+   * DbtuxStat.cpp
+   */
+  addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
+  /*
    * DbtuxDebug.cpp
    */
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);

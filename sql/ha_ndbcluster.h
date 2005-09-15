@@ -35,6 +35,7 @@ class NdbScanOperation;
 class NdbScanFilter; 
 class NdbIndexScanOperation; 
 class NdbBlob;
+class NdbIndexStat;
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
@@ -54,6 +55,12 @@ typedef struct ndb_index_data {
   void *index;
   void *unique_index;
   unsigned char *unique_index_attrid_map;
+  // In this version stats are not shared between threads
+  NdbIndexStat* index_stat;
+  uint index_stat_cache_entries;
+  // Simple counter mechanism to decide when to connect to db
+  uint index_stat_update_freq;
+  uint index_stat_query_count;
 } NDB_INDEX_DATA;
 
 typedef struct st_ndbcluster_share {
@@ -642,7 +649,8 @@ private:
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key_from_record(NdbOperation *op, const byte *record);
-  int set_bounds(NdbIndexScanOperation*, const key_range *keys[2], uint= 0);
+  int set_bounds(NdbIndexScanOperation*, uint inx, bool rir,
+                 const key_range *keys[2], uint= 0);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   int set_index_key(NdbOperation *, const KEY *key_info, const byte *key_ptr);
   void print_results();
