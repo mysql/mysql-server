@@ -1909,10 +1909,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       attached it above in this function).
       Now we'll save the 'tail', and detach it.
     */
-    DBUG_ASSERT(!lex_query_tables_own_last ||
-                lex_query_tables_own_last == m_lex->query_tables_own_last &&
-                prelocking_tables == *(m_lex->query_tables_own_last));
-
     lex_query_tables_own_last= m_lex->query_tables_own_last;
     prelocking_tables= *lex_query_tables_own_last;
     *lex_query_tables_own_last= NULL;
