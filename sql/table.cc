@@ -351,7 +351,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     char *buff;
     if (!(buff= alloc_root(&outparam->mem_root, n_length)))
       goto err;
-    if (my_pread(file, buff, n_length, record_offset + share->reclength,
+    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
       goto err;
     share->connect_string.length= uint2korr(buff);

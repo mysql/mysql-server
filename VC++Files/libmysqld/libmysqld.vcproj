@@ -24,7 +24,7 @@
 				AdditionalIncludeDirectories="../include,../libmysqld,../sql,../regex,../extra/yassl/include,../bdb/build_win32,../zlib"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;SAFEMALLOC;HAVE_BERKELEY_DB;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;HAVE_INNOBASE_DB;USE_TLS;__WIN__"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="0"
+				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/libmysqld.pch"
 				AssemblerListingLocation=".\debug/"
 				ObjectFile=".\debug/"

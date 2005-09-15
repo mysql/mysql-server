@@ -591,9 +591,10 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_PRINT("info", ("Length %d \n", table->s->connect_string.length));
   DBUG_PRINT("info", ("String %.*s \n", table->s->connect_string.length, 
                       table->s->connect_string.str));
-  share->scheme= my_strdup_with_length(table->s->connect_string.str,
-		                       table->s->connect_string.length+1,
-				       MYF(0));
+  share->scheme= my_strdup_with_length(
+    (const byte*)table->s->connect_string.str, 
+    table->s->connect_string.length+1, MYF(0));
+
   // Add a null for later termination of table name
   share->scheme[table->s->connect_string.length]= 0;
   DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
@@ -2626,7 +2627,8 @@ int ha_federated::stash_remote_error()
 {
   DBUG_ENTER("ha_federated::stash_remote_error()");
   remote_error_number= mysql_errno(mysql);
-  snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, mysql_error(mysql));
+  my_snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, 
+              mysql_error(mysql));
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
 }
 
