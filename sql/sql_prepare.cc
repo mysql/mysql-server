@@ -1103,30 +1103,39 @@ static int mysql_test_update(Prepared_statement *stmt,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint          want_privilege;
 #endif
+  bool need_reopen;
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list))
     goto error;
 
-  if (open_tables(thd, &table_list, &table_count, 0))
-    goto error;
-
-  if (table_list->multitable_view)
+  for ( ; ; )
   {
-    DBUG_ASSERT(table_list->view != 0);
-    DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
-    /* convert to multiupdate */
-    DBUG_RETURN(2);
+    if (open_tables(thd, &table_list, &table_count, 0))
+      goto error;
+
+    if (table_list->multitable_view)
+    {
+      DBUG_ASSERT(table_list->view != 0);
+      DBUG_PRINT("info", ("Switch to multi-update"));
+      /* pass counter value */
+      thd->lex->table_count= table_count;
+      /* convert to multiupdate */
+      DBUG_RETURN(2);
+    }
+
+    if (!lock_tables(thd, table_list, table_count, &need_reopen))
+      break;
+    if (!need_reopen)
+      goto error;
+    close_tables_for_reopen(thd, table_list);
   }
 
   /*
     thd->fill_derived_tables() is false here for sure (because it is
     preparation of PS, so we even do not check it).
   */
-  if (lock_tables(thd, table_list, table_count) ||
-      mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     goto error;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
