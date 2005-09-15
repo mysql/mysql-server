@@ -360,12 +360,12 @@ latin1_spanish_ci
 show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 select * from information_schema.views where TABLE_NAME like "v%";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE
-NULL	test	v0	select sql_no_cache `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO
-NULL	test	v1	select sql_no_cache `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO
-NULL	test	v2	select sql_no_cache `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO
-NULL	test	v3	select sql_no_cache `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO
-NULL	test	v4	select sql_no_cache `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
+NULL	test	v0	select sql_no_cache `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhos	DEFINER
+NULL	test	v1	select sql_no_cache `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO	root@localhos	DEFINER
+NULL	test	v2	select sql_no_cache `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO	root@localhos	DEFINER
+NULL	test	v3	select sql_no_cache `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO	root@localhos	DEFINER
+NULL	test	v4	select sql_no_cache `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO	root@localhos	DEFINER
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -455,10 +455,10 @@ create view v1 (c) as select a from t1 with check option;
 create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE
-NULL	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES
-NULL	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES
-NULL	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
+NULL	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhos	DEFINER
+NULL	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhos	DEFINER
+NULL	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhos	DEFINER
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
