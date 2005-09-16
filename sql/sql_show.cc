@@ -2952,7 +2952,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_views_record");
   char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
-  uint defiler_len;
+  uint definer_len;
   if (!res)
   {
     if (tables->view)
@@ -2977,9 +2977,9 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
         table->field[5]->store(STRING_WITH_LEN("YES"), cs);
       else
         table->field[5]->store(STRING_WITH_LEN("NO"), cs);
-      defiler_len= (strxmov(definer, tables->definer.user.str, "@",
-                            tables->definer.host.str, NullS) - definer) - 1;
-      table->field[6]->store(definer, defiler_len, cs);
+      definer_len= (strxmov(definer, tables->definer.user.str, "@",
+                            tables->definer.host.str, NullS) - definer);
+      table->field[6]->store(definer, definer_len, cs);
       if (tables->view_suid)
         table->field[7]->store(STRING_WITH_LEN("DEFINER"), cs);
       else
