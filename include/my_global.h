@@ -195,6 +195,14 @@
 #define _GNU_SOURCE 1
 #endif
 
+/*
+  Temporary solution to solve bug#7156. Include "sys/types.h" before
+  the thread headers, else the function madvise() will not be defined
+*/
+#if defined(HAVE_SYS_TYPES_H) && ( defined(sun) || defined(__sun) )
+#include <sys/types.h>
+#endif
+
 /* The client defines this to avoid all thread code */
 #if defined(UNDEF_THREADS_HACK)
 #undef THREAD
