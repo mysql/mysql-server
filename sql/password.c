@@ -318,8 +318,8 @@ void create_random_string(char *to, uint length, struct rand_struct *rand_st)
     str, len  IN  the beginning and the length of the input string
 */
 
-static void
-octet2hex(char *to, const uint8 *str, uint len)
+void
+octet2hex(char *to, const unsigned char *str, uint len)
 {
   const uint8 *str_end= str + len; 
   for (; str != str_end; ++str)
