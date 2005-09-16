@@ -2790,7 +2790,7 @@ void TC_LOG_MMAP::close()
   case 3:
     my_free((gptr)pages, MYF(0));
   case 2:
-    my_munmap(data, (size_t)file_length);
+    my_munmap((byte*)data, (size_t)file_length);
   case 1:
     my_close(fd, MYF(0));
   }
