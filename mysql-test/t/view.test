@@ -786,6 +786,19 @@ select * from v1;
 drop view v1;
 
 #
+# renaming views
+#
+create table t1 (a int);
+create view v1 as select a from t1;
+create database seconddb;
+-- error 1450
+rename table v1 to seconddb.v1;
+rename table v1 to v2;
+drop table t1;
+drop view v2;
+drop database seconddb;
+
+#
 # bug handling from VIEWs
 #
 create view v1 as select 'a',1;
