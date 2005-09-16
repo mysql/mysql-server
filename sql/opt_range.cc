@@ -750,10 +750,9 @@ int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
 
-  if (file->inited == handler::NONE)
-    DBUG_RETURN(error= file->ha_index_init(index));
-  error= 0;
-  DBUG_RETURN(0);
+  if (file->inited != handler::NONE)
+    file->ha_index_or_rnd_end();
+  DBUG_RETURN(error= file->ha_index_init(index));
 }
 
 
