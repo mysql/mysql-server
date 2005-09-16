@@ -1069,6 +1069,8 @@ ok:
 ok2:
   if (arena)
     thd->restore_active_arena(arena, &backup);
+  if (!old_lex->time_zone_tables_used && thd->lex->time_zone_tables_used)
+    old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
   thd->lex= old_lex;
   DBUG_RETURN(0);
 
