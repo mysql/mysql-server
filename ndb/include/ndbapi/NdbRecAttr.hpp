@@ -17,7 +17,8 @@
 #ifndef NdbRecAttr_H
 #define NdbRecAttr_H
 
-#include <NdbDictionary.hpp>
+#include "NdbDictionary.hpp"
+#include "Ndb.hpp"
 
 class NdbOperation;
 
@@ -242,7 +243,6 @@ public:
    */
   ~NdbRecAttr();    
 private:
-  NdbRecAttr();
 
   Uint32 attrId() const;        /* Get attribute id                     */
   bool setNULL();               /* Set NULL indicator                   */
@@ -251,6 +251,7 @@ private:
   void release();               /* Release memory if allocated          */
   void init();                  /* Initialise object when allocated     */
 
+  NdbRecAttr(Ndb*);
   void next(NdbRecAttr* aRecAttr);
   NdbRecAttr* next() const;
 
@@ -273,6 +274,8 @@ private:
   Uint32 theAttrSize;
   Uint32 theArraySize;
   const NdbDictionary::Column* m_column;
+
+  friend struct Ndb_free_list_t<NdbRecAttr>;
 };
 
 inline

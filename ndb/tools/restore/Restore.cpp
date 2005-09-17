@@ -869,7 +869,7 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
     return ndbout;
   }
   
-  NdbRecAttr tmprec;
+  NdbRecAttr tmprec(0);
   tmprec.setup(desc.m_column, (char *)data.void_value);
   ndbout << tmprec;
 

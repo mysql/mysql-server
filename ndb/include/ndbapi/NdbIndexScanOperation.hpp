@@ -132,6 +132,8 @@ private:
   int compare(Uint32 key, Uint32 cols, const NdbReceiver*, const NdbReceiver*);
 
   Uint32 m_sort_columns;
+
+  friend struct Ndb_free_list_t<NdbIndexScanOperation>;
 };
 
 #endif
