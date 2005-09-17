@@ -18,8 +18,9 @@
 #define NdbConnection_H
 
 #include <ndb_types.h>
-#include <NdbError.hpp>
-#include <NdbDictionary.hpp>
+#include "NdbError.hpp"
+#include "NdbDictionary.hpp"
+#include "Ndb.hpp"
 
 class NdbConnection;
 class NdbOperation;
@@ -465,10 +466,10 @@ private:
   /**************************************************************************
    *	These are the create and delete methods of this class.              *
    **************************************************************************/
-  
   NdbConnection(Ndb* aNdb); 
-  
   ~NdbConnection();
+  NdbConnection* next();			  // Returns the next pointer
+  void next(NdbConnection*);		  // Sets the next pointer
 
   void init();           // Initialize connection object for new transaction
 
@@ -487,8 +488,6 @@ private:
   int		getTC_ConnectPtr();		  // Gets TC Connect pointer
   void          setBuddyConPtr(Uint32);           // Sets Buddy Con Ptr
   Uint32        getBuddyConPtr();                 // Gets Buddy Con Ptr
-  NdbConnection* next();			  // Returns the next pointer
-  void		next(NdbConnection*);		  // Sets the next pointer
 
   enum ConStatusType { 
     NotConnected,
@@ -691,6 +690,7 @@ private:
   void define_scan_op(NdbIndexScanOperation*);
 
   friend class HugoOperations;
+  friend struct Ndb_free_list_t<NdbConnection>;
 };
 
 inline

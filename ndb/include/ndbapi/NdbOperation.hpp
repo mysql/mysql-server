@@ -22,6 +22,7 @@
 #include "NdbError.hpp"
 #include "NdbReceiver.hpp"
 #include "NdbDictionary.hpp"
+#include "Ndb.hpp"
 
 class Ndb;
 class NdbApiSignal;
@@ -723,8 +724,6 @@ protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
  *****************************************************************************/
-  			NdbOperation(Ndb* aNdb);	
-  			virtual ~NdbOperation();
 
   bool                  needReply();
 /******************************************************************************
@@ -736,8 +735,9 @@ protected:
   int init(const class NdbTableImpl*, NdbConnection* aCon);
   void initInterpreter();
 
+  NdbOperation(Ndb* aNdb);	
+  virtual ~NdbOperation();
   void	next(NdbOperation*);		// Set next pointer		      
-
   NdbOperation*	    next();	        // Get next pointer		       
 
   enum OperationStatus{ 
@@ -925,6 +925,8 @@ protected:
    * IgnoreError on connection level.
    */
   Int8 m_abortOption;
+
+  friend struct Ndb_free_list_t<NdbOperation>;
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
