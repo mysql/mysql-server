@@ -7,7 +7,7 @@ aclocal || die "Can't execute aclocal"
 autoheader || die "Can't execute autoheader"
 # --force means overwrite ltmain.sh script if it already exists 
 # Added glibtoolize reference to make native OSX autotools work
-if [ -f /usr/bin/glibtoolize ] ; then
+if test -f /usr/bin/glibtoolize  ; then
   glibtoolize --automake --force || die "Can't execute glibtoolize"
 else
   libtoolize --automake --force || die "Can't execute libtoolize"
