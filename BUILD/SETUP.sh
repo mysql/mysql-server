@@ -10,6 +10,11 @@ prefix_configs="--prefix=/usr/local/mysql"
 just_print=
 just_configure=
 full_debug=
+if test -n $MYSQL_BUILD_PREFIX
+then
+  prefix_configs="--prefix=$MYSQL_BUILD_PREFIX"
+fi
+
 while test $# -gt 0
 do
   case "$1" in
