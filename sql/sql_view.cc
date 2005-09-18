@@ -1167,7 +1167,7 @@ frm_type_enum mysql_frm_type(char *path)
   int length;
   DBUG_ENTER("mysql_frm_type");
 
-  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(MY_WME))) < 0)
+  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
     DBUG_RETURN(FRMTYPE_ERROR);
   }
@@ -1372,43 +1372,21 @@ int view_checksum(THD *thd, TABLE_LIST *view)
           HA_ADMIN_OK);
 }
 
-bool rename_view_files(const char *schema, const char *old_name, 
-                       const char *new_name, ulonglong revision)
-{
-  char old_path[FN_REFLEN], new_path[FN_REFLEN], arc_path[FN_REFLEN];
+/*
+  rename view
 
-  strxnmov(old_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
-           old_name, reg_ext, NullS);
-  (void) unpack_filename(old_path, old_path);
+  Synopsis:
+    renames a view
 
-  strxnmov(new_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
-           new_name, reg_ext, NullS);
-  (void) unpack_filename(new_path, new_path);
+  Parameters:
+    thd        thread handler
+    new_name   new name of view
+    view       view
 
-  if (my_rename(old_path, new_path, MYF(MY_WME)))
-    return 1;
-
-  /* check if arc_dir exists */
-  strxnmov(arc_path, FN_REFLEN, mysql_data_home, "/", schema, "/arc", NullS);
-  (void) unpack_filename(arc_path, arc_path);
-  
-  if (revision && !access(arc_path, F_OK))
-  {
-    while (revision) {
-      my_snprintf(old_path, FN_REFLEN, "%s/%s%s-%04lu",
-		  arc_path, old_name, reg_ext, (ulong)revision);
-      (void) unpack_filename(old_path, old_path);
-      my_snprintf(new_path, FN_REFLEN, "%s/%s%s-%04lu",
-		  arc_path, new_name, reg_ext, (ulong)revision);
-      (void) unpack_filename(new_path, new_path);
-      if (my_rename(old_path, new_path, MYF(0)))
-        return 0;
-      revision--;
-    }
-  }
-  return 0;
-}
-
+  Return values:
+    FALSE      Ok 
+    TRUE       Error
+*/
 bool
 mysql_rename_view(THD *thd,
 		   const char *new_name,
@@ -1438,7 +1416,8 @@ mysql_rename_view(THD *thd,
       DBUG_RETURN(1);
 
     /* rename view and it's backups */
-    if (rename_view_files(view->db, view->table_name, new_name, view->revision - 1))
+    if (rename_in_schema_file(view->db, view->table_name, new_name, 
+                              view->revision - 1, num_view_backups))
       DBUG_RETURN(1);
 
     strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", view->db, "/", NullS);
@@ -1454,7 +1433,8 @@ mysql_rename_view(THD *thd,
     if (sql_create_definition_file(&pathstr, &file, view_file_type,
       (gptr)view, view_parameters, num_view_backups)) {
       /* restore renamed view in case of error */
-      rename_view_files(view->db, new_name, view->table_name, view->revision - 1);
+      rename_in_schema_file(view->db, new_name, view->table_name, 
+                             view->revision - 1, num_view_backups);
       DBUG_RETURN(1);
     }
   } else
