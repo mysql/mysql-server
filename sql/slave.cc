@@ -746,14 +746,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     rules (see code below). For that reason, users should not set conflicting 
     rules because they may get unpredicted results (precedence order is
     explained in the manual).
-    If no table of the list is marked "updating" (so far this can only happen
-    if the statement is a multi-delete (SQLCOM_DELETE_MULTI) and the "tables"
-    is the tables in the FROM): then we always return 0, because there is no
-    reason we play this statement on this slave if it updates nothing. In the
-    case of SQLCOM_DELETE_MULTI, there will be a second call to tables_ok(),
-    with tables having "updating==TRUE" (those after the DELETE), so this
-    second call will make the decision (because
-    all_tables_not_ok() = !tables_ok(1st_list) && !tables_ok(2nd_list)).
+    
 
   RETURN VALUES
     0           should not be logged/replicated
