@@ -138,7 +138,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 
   for (ren_table= table_list; ren_table; ren_table= new_table->next_local)
   {
-    db_type table_type;
+    int rc= 1;
     char name[FN_REFLEN];
     const char *new_alias, *old_alias;
 
@@ -165,36 +165,36 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 	    ren_table->db, old_alias,
 	    reg_ext);
     unpack_filename(name, name);
-    if ((frm_type= mysql_frm_type(name)) == FRMTYPE_TABLE &&
-        (table_type= get_table_type(thd, name)) == DB_TYPE_UNKNOWN)
+
+    frm_type= mysql_frm_type(name);
+    switch (frm_type)
     {
-      my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
-      if (!skip_error)
-        DBUG_RETURN(ren_table);
-    }
-    else {
-      int rc= 1;
-      switch (frm_type)
+      case FRMTYPE_TABLE:
       {
-        case FRMTYPE_TABLE:
+        db_type table_type;
+        if ((table_type= get_table_type(thd, name)) == DB_TYPE_UNKNOWN) 
+          my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+        else
           rc= mysql_rename_table(table_type, ren_table->db, old_alias,
                                  new_table->db, new_alias);
-          break;
-        case FRMTYPE_VIEW:
-          /* change of schema is not allowed */
-          if (strcmp(ren_table->db, new_table->db))
-            my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
-                     new_table->db);
-          else
-            rc= mysql_rename_view(thd, new_alias, ren_table);
-          break;
-        case FRMTYPE_ERROR:
-        default:
-          my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+        break;
       }
-      if (rc && !skip_error)
-	    DBUG_RETURN(ren_table);
+      case FRMTYPE_VIEW:
+        /* change of schema is not allowed */
+        if (strcmp(ren_table->db, new_table->db))
+          my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
+                   new_table->db);
+        else
+          rc= mysql_rename_view(thd, new_alias, ren_table);
+        break;
+      default:
+        DBUG_ASSERT(0); // should never happen
+      case FRMTYPE_ERROR:
+        my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+        break;
     }
+    if (rc && !skip_error)
+      DBUG_RETURN(ren_table);
   }
   DBUG_RETURN(0);
 }
