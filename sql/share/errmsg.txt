@@ -5413,3 +5413,5 @@ ER_VIEW_OTHER_USER
         eng "You need the SUPER privilege for creation view with %-.64s@%-.64s definer"
 ER_NO_SUCH_USER
         eng "There is not %-.64s@%-.64s registered"
+ER_FORBID_SCHEMA_CHANGE
+	eng "Changing schema from '%-.64s' to '%-.64s' is not allowed."
