@@ -25,6 +25,10 @@
 #include "ha_innodb.h"
 #endif
 
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
+
 #ifdef HAVE_OPENSSL
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -2386,6 +2390,13 @@ mysql_execute_command(THD *thd)
       res = load_master_data(thd);
     break;
 #endif /* HAVE_REPLICATION */
+#ifdef HAVE_NDBCLUSTER_DB
+  case SQLCOM_SHOW_NDBCLUSTER_STATUS:
+    {
+      res = ndbcluster_show_status(thd);
+      break;
+    }
+#endif
 #ifdef HAVE_INNOBASE_DB
   case SQLCOM_SHOW_INNODB_STATUS:
     {
