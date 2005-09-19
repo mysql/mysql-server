@@ -871,6 +871,8 @@ set names utf8;
 # correct value
 select hex(char(1));
 select char(0xd1,0x8f);
+select char(0xd18f);
+select char(53647);
 # incorrect value: return with warning
 select char(0xff,0x8f);
 # incorrect value in strict mode: return NULL with "Error" level warning
