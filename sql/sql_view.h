@@ -34,6 +34,7 @@ int view_checksum(THD *thd, TABLE_LIST *view);
 extern TYPELIB updatable_views_with_limit_typelib;
 
 bool check_duplicate_names(List<Item>& item_list, bool gen_unique_view_names);
+bool mysql_rename_view(THD *thd, const char *new_name, TABLE_LIST *view);
 
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
 
