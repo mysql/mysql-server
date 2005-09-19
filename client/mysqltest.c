@@ -92,6 +92,9 @@
 
 #define SLAVE_POLL_INTERVAL 300000 /* 0.3 of a sec */
 
+#define RESULT_OK 0
+#define RESULT_CONTENT_MISMATCH 1
+#define RESULT_LENGTH_MISMATCH 2
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
@@ -546,7 +549,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
   {
     DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
 		       ds->length, stat_info.st_size));
-    DBUG_RETURN(2);
+    DBUG_RETURN(RESULT_LENGTH_MISMATCH);
   }
   if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
@@ -563,7 +566,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
     res_ptr = res_ds.str;
     if ((res_len = res_ds.length) != ds->length)
     {
-      res = 2;
+      res= RESULT_LENGTH_MISMATCH;
       goto err;
     }
   }
@@ -573,7 +576,8 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
     res_len = stat_info.st_size;
   }
 
-  res = (memcmp(res_ptr, ds->str, res_len)) ?  1 : 0;
+  res= (memcmp(res_ptr, ds->str, res_len)) ?
+    RESULT_CONTENT_MISMATCH : RESULT_OK;
 
 err:
   if (res && eval_result)
@@ -590,21 +594,21 @@ err:
 static int check_result(DYNAMIC_STRING* ds, const char* fname,
 			my_bool require_option)
 {
-  int error = 0;
-  int res=dyn_string_cmp(ds, fname);
+  int error= RESULT_OK;
+  int res= dyn_string_cmp(ds, fname);
 
   if (res && require_option)
     abort_not_supported_test();
   switch (res) {
-  case 0:
+  case RESULT_OK:
     break; /* ok */
-  case 2:
+  case RESULT_LENGTH_MISMATCH:
     verbose_msg("Result length mismatch");
-    error = 1;
+    error= RESULT_LENGTH_MISMATCH;
     break;
-  case 1:
+  case RESULT_CONTENT_MISMATCH:
     verbose_msg("Result content mismatch");
-    error = 1;
+    error= RESULT_CONTENT_MISMATCH;
     break;
   default: /* impossible */
     die("Unknown error code from dyn_string_cmp()");
@@ -2451,8 +2455,9 @@ int main(int argc, char **argv)
 {
   int error = 0;
   struct st_query *q;
-  my_bool require_file=0, q_send_flag=0;
+  my_bool require_file=0, q_send_flag=0, query_executed= 0;
   char save_file[FN_REFLEN];
+  MY_STAT res_info;
   MY_INIT(argv[0]);
   {
   DBUG_ENTER("main");
@@ -2577,6 +2582,7 @@ int main(int argc, char **argv)
 	  save_file[0]=0;
 	}
 	error |= run_query(&cur_con->mysql, q, flags);
+	query_executed= 1;
 	break;
       }
       case Q_SEND:
@@ -2596,6 +2602,7 @@ int main(int argc, char **argv)
 	  is given on this connection.
 	 */
 	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
+	query_executed= 1;
 	break;
       case Q_RESULT:
 	get_file_name(save_file,q);
@@ -2637,6 +2644,7 @@ int main(int argc, char **argv)
 	break;
       case Q_EXEC: 
 	(void) do_exec(q);
+	query_executed= 1;
 	break;
       default: processed = 0; break;
       }
@@ -2655,6 +2663,18 @@ int main(int argc, char **argv)
     parser.current_line += current_line_inc;
   }
 
+  if (!query_executed && result_file && my_stat(result_file, &res_info, 0))
+  {
+    /*
+      my_stat() successful on result file. Check if we have not run a
+      single query, but we do have a result file that contains data.
+      Note that we don't care, if my_stat() fails. For example for
+      non-existing or non-readable file we assume it's fine to have
+      no query output from the test file, e.g. regarded as no error.
+    */
+    if (res_info.st_size)
+      error|= (RESULT_CONTENT_MISMATCH | RESULT_LENGTH_MISMATCH);
+  }
   if (result_file && ds_res.length)
   {
     if (!record)
