@@ -34,8 +34,8 @@
 
 /* MyISAM MERGE handlerton */
 
-static handlerton myisammrg_hton= {
-  "MRG_MyISAM",
+handlerton myisammrg_hton= {
+  "MRG_MYISAM",
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */

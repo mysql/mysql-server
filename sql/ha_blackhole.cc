@@ -26,7 +26,7 @@
 
 /* Blackhole storage engine handlerton */
 
-static handlerton blackhole_hton= {
+handlerton blackhole_hton= {
   "BLACKHOLE",
   0,       /* slot */
   0,       /* savepoint size. */

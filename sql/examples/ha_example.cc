@@ -73,7 +73,7 @@
 #include "ha_example.h"
 
 
-static handlerton example_hton= {
+handlerton example_hton= {
   "CSV",
   0,       /* slot */
   0,       /* savepoint size. */
