@@ -241,8 +241,10 @@ our $opt_ps_protocol;
 
 our $opt_sleep_time_after_restart=  1;
 our $opt_sleep_time_for_delete=    10;
-our $opt_testcase_timeout=          5; # 5 min max
-our $opt_suite_timeout=           120; # 2 hours max
+our $opt_testcase_timeout;
+our $opt_suite_timeout;
+my  $default_testcase_timeout=     10; # 10 min max
+my  $default_suite_timeout=       120; # 2 hours max
 
 our $opt_socket;
 
@@ -260,6 +262,7 @@ our $opt_user;
 our $opt_user_test;
 
 our $opt_valgrind;
+our $opt_valgrind_mysqltest;
 our $opt_valgrind_all;
 our $opt_valgrind_options;
 
@@ -521,8 +524,9 @@ sub command_line_setup () {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
-             'valgrind'                 => \$opt_valgrind,
-             'valgrind-all'             => \$opt_valgrind_all,
+             'valgrind:s'               => \$opt_valgrind,
+             'valgrind-mysqltest:s'     => \$opt_valgrind_mysqltest,
+             'valgrind-all:s'           => \$opt_valgrind_all,
              'valgrind-options=s'       => \$opt_valgrind_options,
 
              # Misc
@@ -700,29 +704,42 @@ sub command_line_setup () {
     $opt_with_ndbcluster= 0;
   }
 
-  # FIXME
+  # The ":s" in the argument spec, means we have three different cases
+  #
+  #   undefined    option not set
+  #   ""           option set with no argument
+  #   "somestring" option is name/path of valgrind executable
 
-  #if ( $opt_valgrind or $opt_valgrind_all )
-  #{
-    # VALGRIND=`which valgrind` # this will print an error if not found FIXME
-    # Give good warning to the user and stop
-  #  if ( ! $VALGRIND )
-  #  {
-  #    print "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://valgrind.kde.org.\n"
-  #    exit 1
-  #  }
+  # Take executable path from any of them, if any
+  $opt_valgrind= $opt_valgrind_mysqltest if $opt_valgrind_mysqltest;
+  $opt_valgrind= $opt_valgrind_all       if $opt_valgrind_all;
+
+  # If valgrind flag not defined, define if other valgrind flags are
+  unless ( defined $opt_valgrind )
+  {
+    $opt_valgrind= ""
+      if defined $opt_valgrind_mysqltest or defined $opt_valgrind_all;
+  }
+
+  if ( ! $opt_testcase_timeout )
+  {
+    $opt_testcase_timeout= $default_testcase_timeout;
+    $opt_testcase_timeout*= 10 if defined $opt_valgrind;
+  }
+
+  if ( ! $opt_suite_timeout )
+  {
+    $opt_suite_timeout= $default_suite_timeout;
+    $opt_suite_timeout*= 4 if defined $opt_valgrind;
+  }
+
+  if ( defined $opt_valgrind )
+  {
+    $opt_sleep_time_after_restart= 10;
+    $opt_sleep_time_for_delete= 60;
     # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
-  #  valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
-  #  VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16"
-  #  $opt_extra_mysqld_opt.= " --skip-safemalloc --skip-bdb";
-  #  SLEEP_TIME_AFTER_RESTART=10
-  #  $opt_sleep_time_for_delete=  60
-  #  $glob_use_running_server= ""
-  #  if ( "$1"=  "--valgrind-all" )
-  #  {
-  #    VALGRIND="$VALGRIND -v --show-reachable=yes"
-  #  }
-  #}
+    #  valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
+  }
 
   if ( ! $opt_user )
   {
@@ -1883,7 +1900,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
-  if ( $opt_valgrind )
+  if ( defined $opt_valgrind )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
     mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -2109,29 +2126,9 @@ sub mysqld_start ($$$$) {
 
   mtr_init_args(\$args);
 
-  if ( $opt_valgrind )
+  if ( defined $opt_valgrind )
   {
-
-    mtr_add_arg($args, "--tool=memcheck");
-    mtr_add_arg($args, "--alignment=8");
-    mtr_add_arg($args, "--leak-check=yes");
-    mtr_add_arg($args, "--num-callers=16");
-
-    if ( $opt_valgrind_all )
-    {
-      mtr_add_arg($args, "-v");
-      mtr_add_arg($args, "--show-reachable=yes");
-    }
-
-    if ( $opt_valgrind_options )
-    {
-      # FIXME split earlier and put into @glob_valgrind_*
-      mtr_add_arg($args, split(' ', $opt_valgrind_options));
-    }
-
-    mtr_add_arg($args, $exe);
-
-    $exe=  $opt_valgrind;
+    valgrind_arguments($args, \$exe);
   }
 
   mysqld_arguments($args,$type,$idx,$extra_opt,$slave_master_info);
@@ -2403,6 +2400,11 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
+  if ( defined $opt_valgrind_mysqltest )
+  {
+    valgrind_arguments($args, \$exe);
+  }
+
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "-v");
@@ -2498,6 +2500,36 @@ sub run_mysqltest ($) {
   return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
 
+
+sub valgrind_arguments {
+  my $args= shift;
+  my $exe=  shift;
+
+  mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
+  mtr_add_arg($args, "--alignment=8");
+  mtr_add_arg($args, "--leak-check=yes");
+  mtr_add_arg($args, "--num-callers=16");
+  mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
+    if -f "$glob_mysql_test_dir/valgrind.supp";
+
+  if ( defined $opt_valgrind_all )
+  {
+    mtr_add_arg($args, "-v");
+    mtr_add_arg($args, "--show-reachable=yes");
+  }
+
+  if ( $opt_valgrind_options )
+  {
+    # FIXME split earlier and put into @glob_valgrind_*
+    mtr_add_arg($args, split(' ', $opt_valgrind_options));
+  }
+
+  mtr_add_arg($args, $$exe);
+
+  $$exe= $opt_valgrind || "valgrind";
+}
+
+
 ##############################################################################
 #
 #  Usage
@@ -2562,8 +2594,11 @@ Options for coverage, profiling etc
 
   gcov                  FIXME
   gprof                 FIXME
-  valgrind              FIXME
-  valgrind-all          FIXME
+  valgrind[=EXE]        Run the "mysqltest" executable as well as the "mysqld"
+                        server using valgrind, optionally specifying the
+                        executable path/name
+  valgrind-mysqltest[=EXE] In addition, run the "mysqltest" executable with valgrind
+  valgrind-all[=EXE]    Adds verbose flag, and --show-reachable to valgrind
   valgrind-options=ARGS Extra options to give valgrind
 
 Misc options
