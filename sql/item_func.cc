@@ -4723,14 +4723,8 @@ Item_func_sp::execute(Item **itp)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_routine_access(thd, EXECUTE_ACL, 
-			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
+  if (check_access(EXECUTE_ACL, 0, &save_ctx))
     goto error;
-  sp_change_security_context(thd, m_sp, &save_ctx);
-  if (save_ctx.changed && 
-      check_routine_access(thd, EXECUTE_ACL, 
-			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error_check_ctx;
 #endif
   /*
     Disable the binlogging if this is not a SELECT statement. If this is a
@@ -4749,7 +4743,6 @@ Item_func_sp::execute(Item **itp)
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-error_check_ctx:
   sp_restore_security_context(thd, m_sp, &save_ctx);
 #endif
 
@@ -4856,4 +4849,84 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
     res= Item_func::tmp_table_field(t_arg);
 
   DBUG_RETURN(res);
+}
+
+/*
+  Check access rigths to function
+
+  SYNOPSIS
+    check_access()
+    want_access   requested access
+    report_error  whether to set error to thd->net.report_error
+    sp_ctx        sp security context for switching
+
+  RETURN
+    0     Access granted
+    1     Requested access can't be granted or function doesn't exists
+
+  NOTES
+    Checks if requested access to function can be granted to user.
+    If function isn't found yet, it searches function first.
+    If function can't be found or user don't have requested access
+    and report_error is true error is raised.
+    If security context sp_ctx is provided and access can be granted then
+    switch back to previous context isn't performed.
+    In case of access error or if context is not provided then check_access()
+    switches back to previous security context.
+*/
+bool
+Item_func_sp::check_access(ulong want_access, bool report_error, st_sp_security_context *sp_ctx)
+{
+  bool res;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  THD *thd= current_thd;
+  st_sp_security_context save_ctx, *curr_ctx= sp_ctx?sp_ctx:&save_ctx;
+  bool ctx_switched= 0;
+  res= 1;
+  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
+  {
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    if (report_error)
+      thd->net.report_error= 1;
+    goto error;
+  }
+
+  if (check_routine_access(thd, want_access,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
+  {
+    if (report_error)
+      thd->net.report_error= 1;
+    goto error;
+  }
+
+  sp_change_security_context(thd, m_sp, curr_ctx);
+  ctx_switched= curr_ctx->changed;
+  if (save_ctx.changed &&
+      check_routine_access(thd, want_access,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
+  {
+    if (report_error)
+      thd->net.report_error= 1;
+    goto error_check_ctx;
+  }
+  res= 0;
+error_check_ctx:
+  if (ctx_switched && (res || !sp_ctx))
+    sp_restore_security_context(thd, m_sp, curr_ctx);
+error:
+#else
+  res= 0;
+#endif
+  return res;
+};
+
+bool
+Item_func_sp::fix_fields(THD *thd, Item **ref)
+{
+  bool res;
+  DBUG_ASSERT(fixed == 0);
+  res= Item_func::fix_fields(thd, ref);
+  if (!res && check_access(EXECUTE_ACL, 1, NULL))
+    res= 1;
+  return res;
 }
