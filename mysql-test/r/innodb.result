@@ -1685,3 +1685,12 @@ explain select * from t1 order by a,b,c,d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 drop table t1;
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+min(a)
+4
+select min(b) from t1 where a='8';
+min(b)
+6
+drop table t1;
