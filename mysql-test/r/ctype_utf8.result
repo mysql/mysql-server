@@ -1034,6 +1034,12 @@ hex(char(1))
 select char(0xd1,0x8f);
 char(0xd1,0x8f)
 —è
+select char(0xd18f);
+char(0xd18f)
+—è
+select char(53647);
+char(53647)
+—è
 select char(0xff,0x8f);
 char(0xff,0x8f)
 ˇè
