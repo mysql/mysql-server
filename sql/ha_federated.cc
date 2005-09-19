@@ -690,7 +690,7 @@ error:
 
 /* Federated storage engine handlerton */
 
-static handlerton federated_hton= {
+handlerton federated_hton= {
   "FEDERATED",
   0,       /* slot */
   0,       /* savepoint size. */

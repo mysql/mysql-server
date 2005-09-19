@@ -136,7 +136,7 @@ static HASH archive_open_tables;
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
 /* dummy handlerton - only to have something to return from archive_db_init */
-static handlerton archive_hton = {
+handlerton archive_hton = {
   "archive",
   0,       /* slot */
   0,       /* savepoint size. */

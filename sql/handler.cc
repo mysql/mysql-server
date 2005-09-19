@@ -27,30 +27,43 @@
 #include "ha_myisammrg.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
+extern handlerton berkeley_hton;
 #endif
 #ifdef HAVE_BLACKHOLE_DB
 #include "ha_blackhole.h"
+extern handlerton blackhole_hton;
 #endif
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
+extern handlerton example_hton;
 #endif
 #ifdef HAVE_ARCHIVE_DB
 #include "examples/ha_archive.h"
+extern handlerton archive_hton;
 #endif
 #ifdef HAVE_CSV_DB
 #include "examples/ha_tina.h"
+extern handlerton tina_hton;
 #endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
+extern handlerton innobase_hton;
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
+extern handlerton ndbcluster_hton;
 #endif
 #ifdef HAVE_FEDERATED_DB
 #include "ha_federated.h"
+extern handlerton federated_hton;
 #endif
 #include <myisampack.h>
 #include <errno.h>
+
+extern handlerton myisam_hton;
+extern handlerton myisammrg_hton;
+extern handlerton heap_hton;
+
 
 	/* static functions defined in this file */
 
@@ -66,46 +79,53 @@ ulong total_ha_2pc;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size;
 
+/*
+  This structure will go away with loadable storeage engines, we will instead
+  build it dynamically from the configure script.
+*/
 struct show_table_type_st sys_table_types[]=
 {
   {"MyISAM",	&have_yes,
-   "Default engine as of MySQL 3.23 with great performance", DB_TYPE_MYISAM},
+   "Default engine as of MySQL 3.23 with great performance", DB_TYPE_MYISAM,
+   NULL},
   {"MEMORY",	&have_yes,
-   "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP},
-  {"HEAP",	&have_yes,
-   "Alias for MEMORY", DB_TYPE_HEAP},
-  {"MERGE",	&have_yes,
-   "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM},
-  {"MRG_MYISAM",&have_yes,
-   "Alias for MERGE", DB_TYPE_MRG_MYISAM},
+   "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP,
+   NULL},
+  {"MRG_MYISAM",	&have_yes,
+   "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM, NULL},
   {"ISAM",	&have_isam,
-   "Obsolete storage engine, now replaced by MyISAM", DB_TYPE_ISAM},
+   "Obsolete storage engine, now replaced by MyISAM", DB_TYPE_ISAM, NULL},
   {"MRG_ISAM",  &have_isam,
-   "Obsolete storage engine, now replaced by MERGE", DB_TYPE_MRG_ISAM},
+   "Obsolete storage engine, now replaced by MERGE", DB_TYPE_MRG_ISAM, NULL},
   {"InnoDB",	&have_innodb,
-   "Supports transactions, row-level locking, and foreign keys", DB_TYPE_INNODB},
-  {"INNOBASE",	&have_innodb,
-   "Alias for INNODB", DB_TYPE_INNODB},
-  {"BDB",	&have_berkeley_db,
-   "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB},
-  {"BERKELEYDB",&have_berkeley_db,
-   "Alias for BDB", DB_TYPE_BERKELEY_DB},
+   "Supports transactions, row-level locking, and foreign keys", DB_TYPE_INNODB,
+   NULL},
+  {"BERKELEYDB",	&have_berkeley_db,
+   "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB, NULL},
   {"NDBCLUSTER", &have_ndbcluster,
-   "Clustered, fault-tolerant, memory-based tables", DB_TYPE_NDBCLUSTER},
-  {"NDB", &have_ndbcluster,
-   "Alias for NDBCLUSTER", DB_TYPE_NDBCLUSTER},
+   "Clustered, fault-tolerant, memory-based tables", DB_TYPE_NDBCLUSTER, NULL},
   {"EXAMPLE",&have_example_db,
-   "Example storage engine", DB_TYPE_EXAMPLE_DB},
+   "Example storage engine", DB_TYPE_EXAMPLE_DB, NULL},
   {"ARCHIVE",&have_archive_db,
-   "Archive storage engine", DB_TYPE_ARCHIVE_DB},
+   "Archive storage engine", DB_TYPE_ARCHIVE_DB, NULL},
   {"CSV",&have_csv_db,
-   "CSV storage engine", DB_TYPE_CSV_DB},
+   "CSV storage engine", DB_TYPE_CSV_DB, NULL},
   {"FEDERATED",&have_federated_db,
-   "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB},
+   "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB, NULL},
   {"BLACKHOLE",&have_blackhole_db,
    "/dev/null storage engine (anything you write to it disappears)",
-   DB_TYPE_BLACKHOLE_DB},
-  {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
+   DB_TYPE_BLACKHOLE_DB, NULL},
+  {NullS, NULL, NullS, DB_TYPE_UNKNOWN, NULL}
+};
+
+struct show_table_alias_st sys_table_aliases[]=
+{
+  {"INNOBASE",	"InnoDB", NULL },
+  {"NDB", "NDBCLUSTER", NULL},
+  {"BDB", "BERKELEYDB", NULL},
+  {"HEAP", "MEMORY", NULL},
+  {"MERGE", "MRG_MYISAM", NULL},
+  {NullS, NullS, NULL}
 };
 
 const char *ha_row_type[] = {
@@ -124,15 +144,26 @@ uint known_extensions_id= 0;
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
   THD *thd= current_thd;
+  show_table_alias_st *table_alias;
+  show_table_type_st *types;
+
   if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
     return (enum db_type) thd->variables.table_type;
   }
 
-  show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
   {
     if (!my_strcasecmp(&my_charset_latin1, name, types->type))
       return (enum db_type) types->db_type;
+  }
+
+  /*
+    We check for the historical aliases next.
+  */
+  for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+  {
+    if (!my_strcasecmp(&my_charset_latin1, name, table_alias->alias) && table_alias->st)
+      return (enum db_type) table_alias->st->db_type;
   }
   return DB_TYPE_UNKNOWN;
 }
@@ -361,10 +392,153 @@ int ha_init()
 {
   int error= 0;
   handlerton **ht= handlertons;
+  show_table_type_st *types;
+  show_table_alias_st *table_alias;
   total_ha= savepoint_alloc_size= 0;
 
   if (ha_init_errors())
     return 1;
+
+  for (types= sys_table_types; types->type; types++)
+  {
+    switch (types->db_type) {
+    case DB_TYPE_HEAP:
+      types->ht= &heap_hton;
+      for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+      {
+        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
+          table_alias->st= types;
+      }
+      break;
+    case DB_TYPE_MYISAM:
+      types->ht= &myisam_hton;
+      break;
+    case DB_TYPE_MRG_MYISAM:
+      types->ht= &myisammrg_hton;
+      for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+      {
+        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
+          table_alias->st= types;
+      }
+      break;
+#ifdef HAVE_BERKELEY_DB
+    case DB_TYPE_BERKELEY_DB:
+      if (have_berkeley_db == SHOW_OPTION_YES)
+      {
+        if (!(*ht= berkeley_init()))
+        {
+          have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+          error= 1;
+        }
+        else
+        {
+          types->ht= &berkeley_hton;
+          for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+          {
+            if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
+              table_alias->st= types;
+          }
+          ha_was_inited_ok(ht++);
+        }
+      }
+      break;
+#endif
+#ifdef HAVE_INNOBASE_DB
+    case DB_TYPE_INNODB:
+      if (have_innodb == SHOW_OPTION_YES)
+      {
+        if (!(*ht= innobase_init()))
+        {
+          have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+          error= 1;
+        }
+        else
+        {
+          ha_was_inited_ok(ht++);
+          types->ht= &innobase_hton;
+          for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+          {
+            if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
+              table_alias->st= types;
+          }
+        }
+      }
+      break;
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+    case DB_TYPE_NDBCLUSTER:
+      if (have_ndbcluster == SHOW_OPTION_YES)
+      {
+        if (!(*ht= ndbcluster_init()))
+        {
+          have_ndbcluster= SHOW_OPTION_DISABLED;
+          error= 1;
+        }
+        else
+        {
+          ha_was_inited_ok(ht++);
+          types->ht= &ndbcluster_hton;
+          for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+          {
+            if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
+              table_alias->st= types;
+          }
+        }
+      }
+      break;
+#endif
+#ifdef HAVE_EXAMPLE_DB
+    case DB_TYPE_EXAMPLE_DB:
+      types->ht= &example_hton;
+      break;
+#endif
+#ifdef HAVE_ARCHIVE_DB
+    case DB_TYPE_ARCHIVE_DB:
+      if (have_archive_db == SHOW_OPTION_YES)
+      {
+        if (!(*ht= archive_db_init()))
+        {
+          have_archive_db= SHOW_OPTION_DISABLED;
+          error= 1;
+        }
+        else
+        {
+          ha_was_inited_ok(ht++);
+          types->ht= &archive_hton;
+        }
+      }
+      break;
+#endif
+#ifdef HAVE_CSV_DB
+    case DB_TYPE_CSV_DB,:
+      types->ht= &tina_hton;
+      break;
+#endif
+#ifdef HAVE_FEDERATED_DB
+    case DB_TYPE_FEDERATED_DB:
+      if (have_federated_db == SHOW_OPTION_YES)
+      {
+        if (federated_db_init())
+        {
+          have_federated_db= SHOW_OPTION_DISABLED;
+          error= 1;
+        }
+        else 
+        {
+          types->ht= &federated_hton;
+        }
+      }
+      break;
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+    case DB_TYPE_BLACKHOLE_DB:
+      types->ht= &blackhole_hton;
+      break;
+#endif
+    default:
+      types->ht= NULL;
+    }
+  }
 
   if (opt_bin_log)
   {
@@ -377,64 +551,6 @@ int ha_init()
     else
       ha_was_inited_ok(ht++);
   }
-#ifdef HAVE_BERKELEY_DB
-  if (have_berkeley_db == SHOW_OPTION_YES)
-  {
-    if (!(*ht= berkeley_init()))
-    {
-      have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-      error= 1;
-    }
-    else
-      ha_was_inited_ok(ht++);
-  }
-#endif
-#ifdef HAVE_INNOBASE_DB
-  if (have_innodb == SHOW_OPTION_YES)
-  {
-    if (!(*ht= innobase_init()))
-    {
-      have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-      error= 1;
-    }
-    else
-      ha_was_inited_ok(ht++);
-  }
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
-  if (have_ndbcluster == SHOW_OPTION_YES)
-  {
-    if (!(*ht= ndbcluster_init()))
-    {
-      have_ndbcluster= SHOW_OPTION_DISABLED;
-      error= 1;
-    }
-    else
-      ha_was_inited_ok(ht++);
-  }
-#endif
-#ifdef HAVE_FEDERATED_DB
-  if (have_federated_db == SHOW_OPTION_YES)
-  {
-    if (federated_db_init())
-    {
-      have_federated_db= SHOW_OPTION_DISABLED;
-      error= 1;
-    }
-  }
-#endif
-#ifdef HAVE_ARCHIVE_DB
-  if (have_archive_db == SHOW_OPTION_YES)
-  {
-    if (!(*ht= archive_db_init()))
-    {
-      have_archive_db= SHOW_OPTION_DISABLED;
-      error= 1;
-    }
-    else
-      ha_was_inited_ok(ht++);
-  }
-#endif
   DBUG_ASSERT(total_ha < MAX_HA);
   /*
     Check if there is a transaction-capable storage engine besides the

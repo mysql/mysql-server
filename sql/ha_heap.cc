@@ -23,7 +23,7 @@
 #include <myisampack.h>
 #include "ha_heap.h"
 
-static handlerton heap_hton= {
+handlerton heap_hton= {
   "MEMORY",
   0,       /* slot */
   0,       /* savepoint size. */
