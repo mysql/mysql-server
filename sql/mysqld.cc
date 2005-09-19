@@ -5492,6 +5492,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_fields",	       (char*) (com_stat+(uint) SQLCOM_SHOW_FIELDS),SHOW_LONG},
   {"Com_show_grants",	       (char*) (com_stat+(uint) SQLCOM_SHOW_GRANTS),SHOW_LONG},
   {"Com_show_innodb_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_INNODB_STATUS),SHOW_LONG},
+  {"Com_show_ndb_status",      (char*) (com_stat+(uint) SQLCOM_SHOW_NDBCLUSTER_STATUS),SHOW_LONG},
   {"Com_show_keys",	       (char*) (com_stat+(uint) SQLCOM_SHOW_KEYS),SHOW_LONG},
   {"Com_show_logs",	       (char*) (com_stat+(uint) SQLCOM_SHOW_LOGS),SHOW_LONG},
   {"Com_show_master_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_MASTER_STAT),SHOW_LONG},
