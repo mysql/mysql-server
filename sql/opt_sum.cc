@@ -661,7 +661,8 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
               If key_part2 may be NULL, then we want to find the first row
               that is not null
             */
-            ref->key_buff[ref->key_length++]= 1;
+            ref->key_buff[ref->key_length]= 1;
+            ref->key_length+= part->store_length;
             *range_fl&= ~NO_MIN_RANGE;
             *range_fl|= NEAR_MIN;                // > NULL
           }
