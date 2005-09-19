@@ -258,6 +258,7 @@ our $opt_user;
 our $opt_user_test;
 
 our $opt_valgrind;
+our $opt_valgrind_mysqltest;
 our $opt_valgrind_all;
 our $opt_valgrind_options;
 
@@ -512,6 +513,7 @@ sub command_line_setup () {
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
              'valgrind:s'               => \$opt_valgrind,
+             'valgrind-mysqltest:s'     => \$opt_valgrind_mysqltest,
              'valgrind-all:s'           => \$opt_valgrind_all,
              'valgrind-options=s'       => \$opt_valgrind_options,
 
@@ -696,9 +698,15 @@ sub command_line_setup () {
   #   ""           option set with no argument
   #   "somestring" option is name/path of valgrind executable
 
-  if ( defined $opt_valgrind_all and ! $opt_valgrind )
+  # Take executable path from any of them, if any
+  $opt_valgrind= $opt_valgrind_mysqltest if $opt_valgrind_mysqltest;
+  $opt_valgrind= $opt_valgrind_all       if $opt_valgrind_all;
+
+  # If valgrind flag not defined, define if other valgrind flags are
+  unless ( defined $opt_valgrind )
   {
-    $opt_valgrind= $opt_valgrind_all;
+    $opt_valgrind= ""
+      if defined $opt_valgrind_mysqltest or defined $opt_valgrind_all;
   }
 
   if ( ! $opt_testcase_timeout )
@@ -2110,7 +2118,7 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
-  if ( defined $opt_valgrind )
+  if ( defined $opt_valgrind_mysqltest )
   {
     valgrind_arguments($args, \$exe);
   }
@@ -2208,6 +2216,8 @@ sub valgrind_arguments {
   mtr_add_arg($args, "--alignment=8");
   mtr_add_arg($args, "--leak-check=yes");
   mtr_add_arg($args, "--num-callers=16");
+  mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
+    if -f "$glob_mysql_test_dir/valgrind.supp";
 
   if ( defined $opt_valgrind_all )
   {
@@ -2293,10 +2303,11 @@ Options for coverage, profiling etc
 
   gcov                  FIXME
   gprof                 FIXME
-  valgrind[=exe]        Run the "mysqltest" executable as well as the "mysqld"
+  valgrind[=EXE]        Run the "mysqltest" executable as well as the "mysqld"
                         server using valgrind, optionally specifying the
                         executable path/name
-  valgrind-all          FIXME
+  valgrind-mysqltest[=EXE] In addition, run the "mysqltest" executable with valgrind
+  valgrind-all[=EXE]    Adds verbose flag, and --show-reachable to valgrind
   valgrind-options=ARGS Extra options to give valgrind
 
 Misc options
