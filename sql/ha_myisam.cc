@@ -46,7 +46,7 @@ TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 
 /* MyISAM handlerton */
 
-static handlerton myisam_hton= {
+handlerton myisam_hton= {
   "MyISAM",
   0,       /* slot */
   0,       /* savepoint size. */
