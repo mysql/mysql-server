@@ -287,8 +287,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
 
-  share->null_bytes= null_pos - (uchar*) outparam->null_flags + (null_bit_pos + 7) / 8;
-
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
@@ -459,6 +457,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   {
     outparam->null_flags=null_pos=(uchar*) record+1;
     null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
+    /* null_bytes below is only correct under the condition that
+       there are no bit fields.  Correct values is set below after the
+       table struct is initialized */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
   else
@@ -870,6 +871,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	(*save++)= i;
     }
   }
+
+  /* the correct null_bytes can now be set, since bitfields have been taken into account */
+  share->null_bytes= null_pos - (uchar*) outparam->null_flags + (null_bit_pos + 7) / 8;
 
   /* The table struct is now initialized;  Open the table */
   error=2;
