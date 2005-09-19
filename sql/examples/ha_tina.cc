@@ -54,7 +54,7 @@ pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
 
-static handlerton tina_hton= {
+handlerton tina_hton= {
   "CSV",
   0,       /* slot */
   0,       /* savepoint size. */
