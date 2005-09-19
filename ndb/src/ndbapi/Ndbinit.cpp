@@ -229,7 +229,8 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
   : m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
     m_dictionary(ndb),
     theCurrentConnectIndex(0),
-    theNdbObjectIdMap(1024,1024),
+    theNdbObjectIdMap(ndb_cluster_connection->m_impl.m_transporter_facade->theMutexPtr,
+		      1024,1024),
     theNoOfDBnodes(0)
 {
   int i;

@@ -479,8 +479,12 @@ err:
 
 /* index of revision number in following table */
 static const int revision_number_position= 8;
+/* index of source */
+static const int source_number_position= 11;
 /* index of last required parameter for making view */
 static const int required_view_parameters= 10;
+/* number of backups */
+static const int num_view_backups= 3;
 
 /*
   table of VIEW .frm field descriptors
@@ -708,7 +712,7 @@ loop_out:
   }
 
   if (sql_create_definition_file(&dir, &file, view_file_type,
-				 (gptr)view, view_parameters, 3))
+				 (gptr)view, view_parameters, num_view_backups))
   {
     DBUG_RETURN(thd->net.report_error? -1 : 1);
   }
@@ -1165,7 +1169,7 @@ frm_type_enum mysql_frm_type(char *path)
   int length;
   DBUG_ENTER("mysql_frm_type");
 
-  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(MY_WME))) < 0)
+  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
     DBUG_RETURN(FRMTYPE_ERROR);
   }
@@ -1368,4 +1372,78 @@ int view_checksum(THD *thd, TABLE_LIST *view)
   return (strncmp(md5, view->md5.str, 32) ?
           HA_ADMIN_WRONG_CHECKSUM :
           HA_ADMIN_OK);
+}
+
+/*
+  rename view
+
+  Synopsis:
+    renames a view
+
+  Parameters:
+    thd        thread handler
+    new_name   new name of view
+    view       view
+
+  Return values:
+    FALSE      Ok 
+    TRUE       Error
+*/
+bool
+mysql_rename_view(THD *thd,
+		   const char *new_name,
+           TABLE_LIST *view)
+{
+  LEX_STRING pathstr, file;
+  File_parser *parser;
+  char view_path[FN_REFLEN];
+
+  DBUG_ENTER("mysql_rename_view");
+
+  strxnmov(view_path, FN_REFLEN, mysql_data_home, "/", view->db, "/",
+           view->table_name, reg_ext, NullS);
+  (void) unpack_filename(view_path, view_path);
+
+  pathstr.str= (char *)view_path;
+  pathstr.length= strlen(view_path);
+
+  if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
+       is_equal(&view_type, parser->type())) {
+    char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
+
+    /* get view definition and source */
+    if (mysql_make_view(parser, view) ||
+        parser->parse((gptr)view, thd->mem_root,
+                      view_parameters + source_number_position, 1))
+      DBUG_RETURN(1);
+
+    /* rename view and it's backups */
+    if (rename_in_schema_file(view->db, view->table_name, new_name, 
+                              view->revision - 1, num_view_backups))
+      DBUG_RETURN(1);
+
+    strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", view->db, "/", NullS);
+    (void) unpack_filename(dir_buff, dir_buff);
+
+    pathstr.str=    (char*)dir_buff;
+    pathstr.length= strlen(dir_buff);
+
+    file.str= file_buff;
+    file.length= (strxnmov(file_buff, FN_REFLEN, new_name, reg_ext, NullS) 
+                  - file_buff);
+
+    if (sql_create_definition_file(&pathstr, &file, view_file_type,
+      (gptr)view, view_parameters, num_view_backups)) {
+      /* restore renamed view in case of error */
+      rename_in_schema_file(view->db, new_name, view->table_name, 
+                             view->revision - 1, num_view_backups);
+      DBUG_RETURN(1);
+    }
+  } else
+    DBUG_RETURN(1);  
+
+  /* remove cache entries */
+  query_cache_invalidate3(thd, view, 0);
+  sp_cache_invalidate();
+  DBUG_RETURN(0);
 }

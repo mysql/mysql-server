@@ -1028,6 +1028,45 @@ xxx
 yyy
 DROP TABLE t1;
 set names utf8;
+select hex(char(1));
+hex(char(1))
+01
+select char(0xd1,0x8f);
+char(0xd1,0x8f)
+—è
+select char(0xd18f);
+char(0xd18f)
+—è
+select char(53647);
+char(53647)
+—è
+select char(0xff,0x8f);
+char(0xff,0x8f)
+ˇè
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF8F'
+set sql_mode=traditional;
+select char(0xff,0x8f);
+char(0xff,0x8f)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF8F'
+select char(195);
+char(195)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'C3'
+select char(196);
+char(196)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'C4'
+select char(2557);
+char(2557)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FD'
+set names utf8;
 create table t1 (a char(1)) default character set utf8;
 create table t2 (a char(1)) default character set utf8;
 insert into t1 values('a'),('a'),(0xE38182),(0xE38182);
