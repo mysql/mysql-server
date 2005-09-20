@@ -66,13 +66,11 @@ static int init_failsafe_rpl_thread(THD* thd)
     this thread has no other error reporting method).
   */
   thd->system_thread = thd->bootstrap = 1;
-  thd->host_or_ip= "";
+  thd->security_ctx->skip_grants();
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
-  thd->master_access= ~(ulong)0;
-  thd->priv_user = 0;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id = thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);

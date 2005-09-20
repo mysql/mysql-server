@@ -121,7 +121,7 @@ call foo4();
 Got one of the listed errors
 show warnings;
 Level	Code	Message
-Error	1142	INSERT command denied to user 'zedjzlcsjhd'@'localhost' for table 't1'
+Error	1142	INSERT command denied to user 'zedjzlcsjhd'@'127.0.0.1' for table 't1'
 Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
 alter procedure foo4 sql security invoker;
 call foo4();

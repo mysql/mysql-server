@@ -273,7 +273,7 @@ int check_user(THD *thd, enum enum_server_command command,
   DBUG_ENTER("check_user");
   
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
-  thd->master_access= GLOBAL_ACLS;			// Full rights
+  thd->ain_security_ctx.master_access= GLOBAL_ACLS;       // Full rights
   /* Change database if necessary */
   if (db && db[0])
   {
@@ -340,15 +340,17 @@ int check_user(THD *thd, enum enum_server_command command,
     if (opt_secure_auth_local)
     {
       net_printf_error(thd, ER_SERVER_IS_IN_SECURE_AUTH_MODE,
-                       thd->user, thd->host_or_ip);
+                       thd->main_security_ctx.user,
+                       thd->main_security_ctx.host_or_ip);
       mysql_log.write(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                      thd->user, thd->host_or_ip);
+                      thd->main_security_ctx.user,
+                      thd->main_security_ctx.host_or_ip);
       DBUG_RETURN(-1);
     }
     /* We have to read very specific packet size */
     if (send_old_password_request(thd) ||
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1)
-    {                                               
+    {
       inc_host_errors(&thd->remote.sin_addr);
       DBUG_RETURN(ER_HANDSHAKE_ERROR);
     }
@@ -360,22 +362,27 @@ int check_user(THD *thd, enum enum_server_command command,
   /* here res is always >= 0 */
   if (res == 0)
   {
-    if (!(thd->master_access & NO_ACCESS)) // authentication is OK 
+    if (!(thd->main_security_ctx.master_access &
+          NO_ACCESS)) // authentication is OK
     {
       DBUG_PRINT("info",
                  ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
                   "Login user: '%s' Priv_user: '%s'  Using password: %s "
                   "Access: %u  db: '%s'",
-                  thd->client_capabilities, thd->max_client_packet_length,
-                  thd->host_or_ip, thd->user, thd->priv_user,
+                  thd->client_capabilities,
+                  thd->max_client_packet_length,
+                  thd->main_security_ctx.host_or_ip,
+                  thd->main_security_ctx.user,
+                  thd->main_security_ctx.priv_user,
                   passwd_len ? "yes": "no",
-                  thd->master_access, thd->db ? thd->db : "*none*"));
+                  thd->main_security_ctx.master_access,
+                  (thd->db ? thd->db : "*none*")));
 
       if (check_count)
       {
         VOID(pthread_mutex_lock(&LOCK_thread_count));
         bool count_ok= thread_count <= max_connections + delayed_insert_threads
-                       || (thd->master_access & SUPER_ACL);
+                       || (thd->main_security_ctx.master_access & SUPER_ACL);
         VOID(pthread_mutex_unlock(&LOCK_thread_count));
         if (!count_ok)
         {                                         // too many connections
@@ -385,11 +392,13 @@ int check_user(THD *thd, enum enum_server_command command,
       }
 
       /* Why logging is performed before all checks've passed? */
-      mysql_log.write(thd,command,
-                      (thd->priv_user == thd->user ?
+      mysql_log.write(thd, command,
+                      (thd->main_security_ctx.priv_user ==
+                       thd->main_security_ctx.user ?
                        (char*) "%s@%s on %s" :
                        (char*) "%s@%s as anonymous on %s"),
-                      thd->user, thd->host_or_ip,
+                      thd->main_security_ctx.user,
+                      thd->main_security_ctx.host_or_ip,
                       db ? db : (char*) "");
 
       /*
@@ -397,14 +406,16 @@ int check_user(THD *thd, enum enum_server_command command,
         set to 0 here because we don't have an active database yet (and we
         may not have an active database to set.
       */
-      thd->db_access=0;
+      thd->main_security_ctx.db_access=0;
 
       /* Don't allow user to connect if he has done too many queries */
       if ((ur.questions || ur.updates || ur.conn_per_hour || ur.user_conn ||
 	   max_user_connections) &&
 	  get_or_create_user_conn(thd,
-            opt_old_style_user_limits ? thd->user : thd->priv_user,
-            opt_old_style_user_limits ? thd->host_or_ip : thd->priv_host,
+            (opt_old_style_user_limits ? thd->main_security_ctx.user :
+             thd->main_security_ctx.priv_user),
+            (opt_old_style_user_limits ? thd->main_security_ctx.host_or_ip :
+             thd->main_security_ctx.priv_host),
             &ur))
 	DBUG_RETURN(-1);
       if (thd->user_connect &&
@@ -439,12 +450,12 @@ int check_user(THD *thd, enum enum_server_command command,
     DBUG_RETURN(-1);
   }
   net_printf_error(thd, ER_ACCESS_DENIED_ERROR,
-                   thd->user,
-                   thd->host_or_ip,
+                   thd->main_security_ctx.user,
+                   thd->main_security_ctx.host_or_ip,
                    passwd_len ? ER(ER_YES) : ER(ER_NO));
   mysql_log.write(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
-                  thd->user,
-                  thd->host_or_ip,
+                  thd->main_security_ctx.user,
+                  thd->main_security_ctx.host_or_ip,
                   passwd_len ? ER(ER_YES) : ER(ER_NO));
   DBUG_RETURN(-1);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
@@ -768,41 +779,45 @@ static int check_connection(THD *thd)
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
 
-  if (!thd->host)                           // If TCP/IP connection
+  if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
     char ip[30];
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port))
       return (ER_BAD_HOST_ERROR);
-    if (!(thd->ip= my_strdup(ip,MYF(0))))
+    if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(0))))
       return (ER_OUT_OF_RESOURCES);
-    thd->host_or_ip= thd->ip;
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
     vio_in_addr(net->vio,&thd->remote.sin_addr);
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
       vio_in_addr(net->vio,&thd->remote.sin_addr);
-      thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
+      thd->main_security_ctx.host=
+        ip_to_hostname(&thd->remote.sin_addr, &connect_errors);
       /* Cut very long hostnames to avoid possible overflows */
-      if (thd->host)
+      if (thd->main_security_ctx.host)
       {
-        if (thd->host != my_localhost)
-          thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
-        thd->host_or_ip= thd->host;
+        if (thd->main_security_ctx.host != my_localhost)
+          thd->main_security_ctx.host[min(strlen(thd->main_security_ctx.host),
+                                          HOSTNAME_LENGTH)]= 0;
+        thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
       }
       if (connect_errors > max_connect_errors)
         return(ER_HOST_IS_BLOCKED);
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
-		       thd->host ? thd->host : "unknown host",
-		       thd->ip ? thd->ip : "unknown ip"));
-    if (acl_check_host(thd->host,thd->ip))
+		       (thd->main_security_ctx.host ?
+                        thd->main_security_ctx.host : "unknown host"),
+		       (thd->main_security_ctx.ip ?
+                        thd->main_security_ctx.ip : "unknown ip")));
+    if (acl_check_host(thd->main_security_ctx.host, thd->main_security_ctx.ip))
       return(ER_HOST_NOT_PRIVILEGED);
   }
   else /* Hostname given means that the connection was on a socket */
   {
-    DBUG_PRINT("info",("Host: %s",thd->host));
-    thd->host_or_ip= thd->host;
-    thd->ip= 0;
+    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.host));
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
+    thd->main_security_ctx.ip= 0;
     /* Reset sin_addr */
     bzero((char*) &thd->remote, sizeof(thd->remote));
   }
@@ -985,9 +1000,9 @@ static int check_connection(THD *thd)
                              thd->charset(), &dummy_errors)]= '\0';
   user= user_buff;
 
-  if (thd->user)
-    x_free(thd->user);
-  if (!(thd->user= my_strdup(user, MYF(0))))
+  if (thd->main_security_ctx.user)
+    x_free(thd->main_security_ctx.user);
+  if (!(thd->main_security_ctx.user= my_strdup(user, MYF(0))))
     return (ER_OUT_OF_RESOURCES);
   return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
 }
@@ -1075,13 +1090,14 @@ pthread_handler_decl(handle_one_connection,arg)
   {
     int error;
     NET *net= &thd->net;
+    Security_context *sctx= thd->security_ctx;
     thd->thread_stack= (char*) &thd;
     net->no_send_error= 0;
 
     if ((error=check_connection(thd)))
     {						// Wrong permissions
       if (error > 0)
-	net_printf_error(thd, error, thd->host_or_ip);
+	net_printf_error(thd, error, sctx->host_or_ip);
 #ifdef __NT__
       if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
 	my_sleep(1000);				/* must wait after eof() */
@@ -1090,7 +1106,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 #ifdef __NETWARE__
-    netware_reg_user(thd->ip, thd->user, "MySQL");
+    netware_reg_user(sctx->ip, sctx->user, "MySQL");
 #endif
     if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
@@ -1103,7 +1119,7 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->set_time();
     thd->init_for_queries();
 
-    if (sys_init_connect.value_length && !(thd->master_access & SUPER_ACL))
+    if (sys_init_connect.value_length && !(sctx->master_access & SUPER_ACL))
     {
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
       if (thd->query_error)
@@ -1127,8 +1143,8 @@ pthread_handler_decl(handle_one_connection,arg)
       if (!thd->killed && thd->variables.log_warnings > 1)
 	sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                           thd->thread_id,(thd->db ? thd->db : "unconnected"),
-                          thd->user ? thd->user : "unauthenticated",
-                          thd->host_or_ip,
+                          sctx->user ? sctx->user : "unauthenticated",
+                          sctx->host_or_ip,
                           (net->last_errno ? ER(net->last_errno) :
                            ER(ER_UNKNOWN_ERROR)));
       net_send_error(thd, net->last_errno, NullS);
@@ -1191,7 +1207,8 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
   thd->proc_info=0;
   thd->version=refresh_version;
-  thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
+  thd->security_ctx->priv_user=
+    thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
   thd->init_for_queries();
@@ -1586,17 +1603,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     db= db_buff;
 
     /* Save user and privileges */
-    uint save_master_access= thd->master_access;
-    uint save_db_access= thd->db_access;
     uint save_db_length= thd->db_length;
-    char *save_user= thd->user;
-    char *save_priv_user= thd->priv_user;
     char *save_db= thd->db;
+    Security_context save_security_ctx= *thd->security_ctx;
     USER_CONN *save_user_connect= thd->user_connect;
-    
-    if (!(thd->user= my_strdup(user, MYF(0))))
+
+    if (!(thd->security_ctx->user= my_strdup(user, MYF(0))))
     {
-      thd->user= save_user;
+      thd->security_ctx->user= save_security_ctx.user;
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
       break;
     }
@@ -1610,12 +1624,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* authentication failure, we shall restore old user */
       if (res > 0)
         my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      x_free(thd->user);
-      thd->user= save_user;
-      thd->priv_user= save_priv_user;
+      x_free(thd->security_ctx->user);
+      *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
-      thd->master_access= save_master_access;
-      thd->db_access= save_db_access;
       thd->db= save_db;
       thd->db_length= save_db_length;
     }
@@ -1625,7 +1636,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
       x_free((gptr) save_db);
-      x_free((gptr) save_user);
+      x_free((gptr)  save_security_ctx.user);
     }
     break;
   }
@@ -1967,12 +1978,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_PROCESS_INFO:
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST],
 			&LOCK_status);
-    if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
+    if (!thd->security_ctx->priv_user[0] &&
+        check_global_access(thd, PROCESS_ACL))
       break;
     mysql_log.write(thd,command,NullS);
     mysqld_list_processes(thd,
-			  thd->master_access & PROCESS_ACL ? 
-			  NullS : thd->priv_user, 0);
+			  thd->security_ctx->master_access & PROCESS_ACL ? 
+			  NullS : thd->security_ctx->priv_user, 0);
     break;
   case COM_PROCESS_KILL:
   {
@@ -2140,7 +2152,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       if (!thd->col_access && check_grant_db(thd,db))
       {
 	my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->priv_user, thd->priv_host, db);
+                 thd->security_ctx->priv_user, thd->security_ctx->priv_host,
+                 db);
 	DBUG_RETURN(1);
       }
       /*
@@ -2398,7 +2411,8 @@ mysql_execute_command(THD *thd)
     Except for the replication thread and the 'super' users.
   */
   if (opt_readonly &&
-      !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
+      !(thd->slave_thread ||
+        (thd->security_ctx->master_access & SUPER_ACL)) &&
       uc_update_queries[lex->sql_command])
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
@@ -3377,11 +3391,14 @@ end_with_restore_list:
       res = mysql_drop_index(thd, first_table, &lex->alter_info);
     break;
   case SQLCOM_SHOW_PROCESSLIST:
-    if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
+    if (!thd->security_ctx->priv_user[0] &&
+        check_global_access(thd,PROCESS_ACL))
       break;
     mysqld_list_processes(thd,
-			  thd->master_access & PROCESS_ACL ? NullS :
-			  thd->priv_user,lex->verbose);
+			  (thd->security_ctx->master_access & PROCESS_ACL ?
+                           NullS :
+                           thd->security_ctx->priv_user),
+                          lex->verbose);
     break;
   case SQLCOM_SHOW_STORAGE_ENGINES:
     res= mysqld_show_storage_engines(thd);
@@ -3719,7 +3736,7 @@ end_with_restore_list:
                      select_lex->db ? is_schema_db(select_lex->db) : 0))
       goto error;
 
-    if (thd->user)				// If not replication
+    if (thd->security_ctx->user)              // If not replication
     {
       LEX_USER *user;
       uint counter;
@@ -3735,9 +3752,9 @@ end_with_restore_list:
                               user->host.str);
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
-        if (strcmp(thd->user, user->user.str) ||
+        if (strcmp(thd->security_ctx->user, user->user.str) ||
             my_strcasecmp(system_charset_info,
-                          user->host.str, thd->host_or_ip))
+                          user->host.str, thd->security_ctx->host_or_ip))
         {
           // TODO: use check_change_password()
           if (check_acl_user(user, &counter) && user->password.str &&
@@ -3864,8 +3881,8 @@ end_with_restore_list:
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_SHOW_GRANTS:
-    if ((thd->priv_user &&
-	 !strcmp(thd->priv_user,lex->grant_user->user.str)) ||
+    if ((thd->security_ctx->priv_user &&
+	 !strcmp(thd->security_ctx->priv_user, lex->grant_user->user.str)) ||
 	!check_access(thd, SELECT_ACL, "mysql",0,1,0,0))
     {
       res = mysql_show_grants(thd,lex->grant_user);
@@ -4139,7 +4156,7 @@ end_with_restore_list:
       else
       {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	st_sp_security_context save_ctx;
+	Security_context *save_ctx;
 #endif
 	ha_rows select_limit;
         /* bits that should be cleared in thd->server_status */
@@ -4185,23 +4202,23 @@ end_with_restore_list:
 	}
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	if (check_routine_access(thd, EXECUTE_ACL, 
-				 sp->m_db.str, sp->m_name.str, TRUE, 0))
+	if (check_routine_access(thd, EXECUTE_ACL,
+				 sp->m_db.str, sp->m_name.str, TRUE, 0) ||
+          sp_change_security_context(thd, sp, &save_ctx))
 	{
 #ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
 #endif
 	  goto error;
 	}
-	sp_change_security_context(thd, sp, &save_ctx);
-	if (save_ctx.changed && 
-	    check_routine_access(thd, EXECUTE_ACL, 
-				   sp->m_db.str, sp->m_name.str, TRUE, 0))
+	if (save_ctx &&
+            check_routine_access(thd, EXECUTE_ACL,
+                                 sp->m_db.str, sp->m_name.str, TRUE, 0))
 	{
 #ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
 #endif
-	  sp_restore_security_context(thd, sp, &save_ctx);
+	  sp_restore_security_context(thd, save_ctx);
 	  goto error;
 	}
 
@@ -4241,7 +4258,7 @@ end_with_restore_list:
 
 	thd->variables.select_limit= select_limit;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	sp_restore_security_context(thd, sp, &save_ctx);
+	sp_restore_security_context(thd, save_ctx);
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -4803,6 +4820,7 @@ bool
 check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 	     bool dont_check_global_grants, bool no_errors, bool schema_db)
 {
+  Security_context *sctx= thd->security_ctx;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
   bool  db_is_pattern= test(want_access & GRANT_ACL);
@@ -4811,7 +4829,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   const char *db_name;
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
-                      db ? db : "", want_access, thd->master_access));
+                      db ? db : "", want_access, sctx->master_access));
   if (save_priv)
     *save_priv=0;
   else
@@ -4833,7 +4851,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     {
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->priv_user, thd->priv_host, db_name);
+                 sctx->priv_user,
+                 sctx->priv_host, db_name);
       DBUG_RETURN(TRUE);
     }
     else
@@ -4846,28 +4865,29 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   DBUG_RETURN(0);
 #else
-  if ((thd->master_access & want_access) == want_access)
+  if ((sctx->master_access & want_access) == want_access)
   {
     /*
       If we don't have a global SELECT privilege, we have to get the database
       specific access rights to be able to handle queries of type
       UPDATE t1 SET a=1 WHERE b > 0
     */
-    db_access= thd->db_access;
-    if (!(thd->master_access & SELECT_ACL) &&
+    db_access= sctx->db_access;
+    if (!(sctx->master_access & SELECT_ACL) &&
 	(db && (!thd->db || db_is_pattern || strcmp(db,thd->db))))
-      db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
-    *save_priv=thd->master_access | db_access;
+      db_access=acl_get(sctx->host, sctx->ip, sctx->priv_user, db,
+                        db_is_pattern);
+    *save_priv=sctx->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
-  if (((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
+  if (((want_access & ~sctx->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
       ! db && dont_check_global_grants)
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
       my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-               thd->priv_user,
-               thd->priv_host,
+               sctx->priv_user,
+               sctx->priv_host,
                (thd->password ?
                 ER(ER_YES) :
                 ER(ER_NO)));                    /* purecov: tested */
@@ -4878,15 +4898,16 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);				// Allow select on anything
 
   if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
-    db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
+    db_access= acl_get(sctx->host, sctx->ip, sctx->priv_user, db,
+                       db_is_pattern);
   else
-    db_access=thd->db_access;
+    db_access= sctx->db_access;
   DBUG_PRINT("info",("db_access: %lu", db_access));
   /* Remove SHOW attribute and access rights we already have */
-  want_access &= ~(thd->master_access | EXTRA_ACL);
+  want_access &= ~(sctx->master_access | EXTRA_ACL);
   DBUG_PRINT("info",("db_access: %lu  want_access: %lu",
                      db_access, want_access));
-  db_access= ((*save_priv=(db_access | thd->master_access)) & want_access);
+  db_access= ((*save_priv=(db_access | sctx->master_access)) & want_access);
 
   /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
@@ -4897,8 +4918,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   DBUG_PRINT("error",("Access denied"));
   if (!no_errors)
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             thd->priv_user,
-             thd->priv_host,
+             sctx->priv_user, sctx->priv_host,
              (db ? db : (thd->db ?
                          thd->db :
                          "unknown")));          /* purecov: tested */
@@ -4932,7 +4952,7 @@ bool check_global_access(THD *thd, ulong want_access)
   return 0;
 #else
   char command[128];
-  if ((thd->master_access & want_access))
+  if ((thd->security_ctx->master_access & want_access))
     return 0;
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
@@ -4960,7 +4980,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     {
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->priv_user, thd->priv_host,
+                 thd->security_ctx->priv_user, thd->security_ctx->priv_host,
                  information_schema_name.str);
       return TRUE;
     }
@@ -4969,7 +4989,8 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
         my_tz_check_n_skip_implicit_tables(&tables,
                                            thd->lex->time_zone_tables_used))
       continue;
-    if ((thd->master_access & want_access) == (want_access & ~EXTRA_ACL) &&
+    if ((thd->security_ctx->master_access & want_access) ==
+        (want_access & ~EXTRA_ACL) &&
 	thd->db)
       tables->grant.privilege= want_access;
     else if (tables->db && tables->db == thd->db)
@@ -5006,7 +5027,8 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
   tables->db= db;
   tables->table_name= tables->alias= name;
   
-  if ((thd->master_access & want_access) == want_access && !thd->db)
+  if ((thd->security_ctx->master_access & want_access) == want_access &&
+      !thd->db)
     tables->grant.privilege= want_access;
   else if (check_access(thd,want_access,db,&tables->grant.privilege,
 			0, no_errors, test(tables->schema_table)))
@@ -5039,7 +5061,7 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
                                bool is_proc)
 {
   ulong save_priv;
-  if (thd->master_access & SHOW_PROC_ACLS)
+  if (thd->security_ctx->master_access & SHOW_PROC_ACLS)
     return FALSE;
   /*
     There are no routines in information_schema db. So we can safely
@@ -5236,6 +5258,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
                           SERVER_QUERY_NO_GOOD_INDEX_USED);
+  DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->tmp_table_used= 0;
   if (!thd->in_sub_stmt)
   {
@@ -6760,8 +6783,8 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (tmp)
   {
-    if ((thd->master_access & SUPER_ACL) ||
-	!strcmp(thd->user,tmp->user))
+    if ((thd->security_ctx->master_access & SUPER_ACL) ||
+	!strcmp(thd->security_ctx->user, tmp->security_ctx->user))
     {
       tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
       error=0;
@@ -7386,7 +7409,7 @@ Item *negate_expression(THD *thd, Item *expr)
 
   SYNOPSIS
     default_definer()
-    thd                  thread handler
+    Secytity_context     current decurity context
     definer              structure where it should be assigned
 
   RETURN
@@ -7394,14 +7417,14 @@ Item *negate_expression(THD *thd, Item *expr)
     TRUE    Error
 */
 
-bool default_view_definer(THD *thd, st_lex_user *definer)
+bool default_view_definer(Security_context *sctx, st_lex_user *definer)
 {
-  definer->user.str= thd->priv_user;
-  definer->user.length= strlen(thd->priv_user);
-  if (*thd->priv_host != 0)
+  definer->user.str= sctx->priv_user;
+  definer->user.length= strlen(sctx->priv_user);
+  if (*sctx->priv_host != 0)
   {
-    definer->host.str= thd->priv_host;
-    definer->host.length= strlen(thd->priv_host);
+    definer->host.str= sctx->priv_host;
+    definer->host.length= strlen(sctx->priv_host);
   }
   else
   {
