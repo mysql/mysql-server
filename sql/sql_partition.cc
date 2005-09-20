@@ -3081,7 +3081,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
 */
 
 bool mysql_unpack_partition(File file, THD *thd, uint part_info_len,
-                            TABLE* table)
+                            TABLE* table, enum db_type default_db_type)
 {
   Item *thd_free_list= thd->free_list;
   bool result= TRUE;
@@ -3119,6 +3119,12 @@ bool mysql_unpack_partition(File file, THD *thd, uint part_info_len,
   }
   part_info= lex.part_info;
   table->s->part_info= part_info;
+  if (part_info->default_engine_type == DB_TYPE_UNKNOWN)
+    part_info->default_engine_type= default_db_type;
+  else
+  {
+    DBUG_ASSERT(part_info->default_engine_type == default_db_type);
+  }
   part_info->item_free_list= thd->free_list;
 
   {

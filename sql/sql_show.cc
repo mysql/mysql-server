@@ -961,16 +961,19 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-#if 0 //def HAVE_PARTITION_DB
-    if (!table->s->part_info)
-#endif
-    {
-      if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-        packet->append(" TYPE=", 6);
-      else
-        packet->append(" ENGINE=", 8);
+    if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+      packet->append(" TYPE=", 6);
+    else
+      packet->append(" ENGINE=", 8);
+#ifdef HAVE_PARTITION_DB
+    if (table->s->part_info)
+      packet->append(ha_get_storage_engine(
+                    table->s->part_info->default_engine_type));
+    else
       packet->append(file->table_type());
-    }
+#else
+    packet->append(file->table_type());
+#endif
     
     if (share->table_charset &&
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&

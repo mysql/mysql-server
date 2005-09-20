@@ -1620,6 +1620,10 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       part_engine_type= ha_checktype(thd,
                                      part_info->default_engine_type, 0, 0);
     }
+    else
+    {
+      part_info->default_engine_type= create_info->db_type;
+    }
     if (check_partition_info(part_info, part_engine_type,
                              file, create_info->max_rows))
       DBUG_RETURN(TRUE);
@@ -3467,16 +3471,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
       DBUG_RETURN(TRUE);
     }
-    {
-      List_iterator<partition_element> t_it(tab_part_info->partitions);
-      partition_element *t_part_elem= t_it++;
-      if (is_sub_partitioned(tab_part_info))
-      {
-        List_iterator<partition_element> s_it(t_part_elem->subpartitions);
-        t_part_elem= s_it++;
-      }
-      default_engine_type= t_part_elem->engine_type;
-    }
+    default_engine_type= tab_part_info->default_engine_type;
     /*
       We are going to manipulate the partition info on the table object
       so we need to ensure that the data structure of the table object
@@ -3860,7 +3855,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       if (thd->lex->part_info != table->s->part_info)
         partition_changed= TRUE;
-      thd->lex->part_info->default_engine_type= create_info->db_type;
+      if (create_info->db_type != DB_TYPE_PARTITION_DB)
+        thd->lex->part_info->default_engine_type= create_info->db_type;
       create_info->db_type= DB_TYPE_PARTITION_DB;
     }
   }
