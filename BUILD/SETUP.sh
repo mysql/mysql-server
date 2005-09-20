@@ -52,9 +52,8 @@ global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wch
 #debug_extra_warnings="-Wuninitialized"
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
-
-base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-openssl --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine"
-max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-federated-storage-engine --with-blackhole-storage-engine --with-openssl --with-embedded-server --with-big-tables"
+base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-openssl --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine"
+max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-federated-storage-engine --with-blackhole-storage-engine --with-csv-storage-engine --with-openssl --with-embedded-server --with-big-tables"
 max_configs="$base_max_configs --with-embedded-server"
 
 path=`dirname $0`
