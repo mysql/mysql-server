@@ -4901,7 +4901,7 @@ Item_func_sp::check_access(ulong want_access, bool report_error, st_sp_security_
 
   sp_change_security_context(thd, m_sp, curr_ctx);
   ctx_switched= curr_ctx->changed;
-  if (save_ctx.changed &&
+  if (curr_ctx->changed &&
       check_routine_access(thd, want_access,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
   {
