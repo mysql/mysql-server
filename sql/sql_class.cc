@@ -181,9 +181,10 @@ THD::THD()
    spcont(NULL)
 {
   stmt_arena= this;
-  host= user= priv_user= db= ip= 0;
+  db= 0;
   catalog= (char*)"std"; // the only catalog we have for now
-  host_or_ip= "connecting host";
+  main_security_ctx.init();
+  security_ctx= &main_security_ctx;
   locked=some_tables_deleted=no_errors=password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -236,9 +237,6 @@ THD::THD()
   server_id = ::server_id;
   slave_net = 0;
   command=COM_CONNECT;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access=NO_ACCESS;
-#endif
   *scramble= '\0';
 
   init();
@@ -426,12 +424,8 @@ THD::~THD()
 
   ha_close_connection(this);
 
-  DBUG_PRINT("info", ("freeing host"));
-  if (host != my_localhost)			// If not pointer to constant
-    safeFree(host);
-  if (user != delayed_user)
-    safeFree(user);
-  safeFree(ip);
+  DBUG_PRINT("info", ("freeing security context"));
+  main_security_ctx.destroy();
   safeFree(db);
   free_root(&warn_root,MYF(0));
 #ifdef USING_TRANSACTIONS
@@ -1826,6 +1820,38 @@ void THD::set_status_var_init()
 {
   bzero((char*) &status_var, sizeof(status_var));
 }
+
+
+void Security_context::init()
+{
+  host= user= priv_user= ip= 0;
+  host_or_ip= "connecting host";
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  db_access= NO_ACCESS;
+#endif
+}
+
+
+void Security_context::destroy()
+{
+  // If not pointer to constant
+  if (host != my_localhost)
+    safeFree(host);
+  if (user != delayed_user)
+    safeFree(user);
+  safeFree(ip);
+}
+
+
+void Security_context::skip_grants()
+{
+  /* privileges for the user are unknown everything is allowed */
+  host_or_ip= (char *)"";
+  master_access= ~NO_ACCESS;
+  priv_user= (char *)"";
+  *priv_host= '\0';
+}
+
 
 /****************************************************************************
   Handling of open and locked tables states.

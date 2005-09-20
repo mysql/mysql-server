@@ -4604,7 +4604,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
                VIEW_ANY_ACL)))
         {
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0), "ANY",
-                   thd->priv_user, thd->host_or_ip,
+                   thd->security_ctx->priv_user,
+                   thd->security_ctx->host_or_ip,
                    fld->field_name, field_table_name);
           DBUG_RETURN(TRUE);
         }
