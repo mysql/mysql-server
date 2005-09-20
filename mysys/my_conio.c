@@ -18,23 +18,89 @@
 #include "mysys_priv.h"
 
 #ifdef __WIN__
-static int my_coninpfh= 0;     /* console input */
+
+static HANDLE my_coninpfh= 0;     /* console input */
+
+/*
+  functions my_pthread_auto_mutex_lock & my_pthread_auto_mutex_free
+  are experimental at this moment, they are intended to bring
+  ability of protecting code sections without necessity to explicitly
+  initialize synchronization object in one of threads
+
+  if found useful they are to be exported in mysys
+*/
+
+/*
+  int my_pthread_auto_mutex_lock(HANDLE* ph, const char* name, 
+                                 int id, int time)
+
+  NOTES
+    creates a mutex with given name and tries to lock it time msec.
+    mutex name is appended with id to allow system wide or process wide
+    locks. Handle to created mutex returned in ph argument.
+
+  RETURN
+    0	              thread owns mutex
+    <>0	            error
+
+*/
+static
+int my_pthread_auto_mutex_lock(HANDLE* ph, const char* name, int id, int time)
+{
+  int res;
+  char tname[FN_REFLEN];
+  
+  sprintf(tname, "%s-%08X", name, id);
+  
+  *ph= CreateMutex(NULL, FALSE, tname);
+  if (*ph == NULL)
+    return GetLastError();
+
+  res= WaitForSingleObject(*ph, time);
+  
+  if (res == WAIT_TIMEOUT)
+    return ERROR_SEM_TIMEOUT;
+
+  if (res == WAIT_FAILED)
+    return GetLastError();
+
+  return 0;
+}
+
+/*
+  int my_pthread_auto_mutex_free(HANDLE* ph)
+
+
+  NOTES
+    releases a mutex.
+
+  RETURN
+    0	              thread released mutex
+    <>0	            error
+
+*/
+static
+int my_pthread_auto_mutex_free(HANDLE* ph)
+{
+  if (*ph)
+  {
+    ReleaseMutex(*ph);
+    CloseHandle(*ph);
+    *ph= NULL;
+  }
+
+  return 0;
+}
+
 
 #define pthread_auto_mutex_decl(name)                           \
-  HANDLE __h##name= NULL;                                       \
-  char   __p##name[sizeof(#name)+16];
+  HANDLE __h##name= NULL;
 
 #define pthread_auto_mutex_lock(name, proc, time)               \
-  sprintf(__p##name, "%s-%08X", #name, (proc));                 \
-  __h##name= CreateMutex(NULL, FALSE, __p##name);               \
-  WaitForSingleObject(__h##name, (time));
+  my_pthread_auto_mutex_lock(&__h##name, #name, (proc), (time))
 
 #define pthread_auto_mutex_free(name)                           \
-  if (__h##name)                                                \
-  {                                                             \
-    ReleaseMutex(__h##name);                                    \
-    CloseHandle(__h##name);                                     \
-  }
+  my_pthread_auto_mutex_free(&__h##name)
 
 
 /*
@@ -62,24 +128,29 @@ char* my_cgets(char *buffer, unsigned long clen, unsigned long* plen)
   char *result;
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   
-  pthread_auto_mutex_decl(my_conio_mutex);
+  pthread_auto_mutex_decl(my_conio_cs);
  
-  /* lock the console */
-  pthread_auto_mutex_lock(my_conio_mutex, GetCurrentProcessId(), INFINITE); 
+  /* lock the console for the current process*/
+  if (pthread_auto_mutex_lock(my_conio_cs, GetCurrentProcessId(), INFINITE))
+  {
+    /* can not lock console */
+    pthread_auto_mutex_free(my_conio_cs);  
+    return NULL;
+  }
 
   /* init console input */
   if (my_coninpfh == 0)
   {
     /* same handle will be used until process termination */
-    my_coninpfh= (int)CreateFile("CONIN$", GENERIC_READ | GENERIC_WRITE,
-                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                 NULL, OPEN_EXISTING, 0, NULL);
+    my_coninpfh= CreateFile("CONIN$", GENERIC_READ | GENERIC_WRITE,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE,
+                            NULL, OPEN_EXISTING, 0, NULL);
   }
 
-  if (my_coninpfh == -1) 
+  if (my_coninpfh == INVALID_HANDLE_VALUE) 
   {
     /* unlock the console */
-    pthread_auto_mutex_free(my_conio_mutex);  
+    pthread_auto_mutex_free(my_conio_cs);  
     return(NULL);
   }
 
@@ -138,7 +209,7 @@ char* my_cgets(char *buffer, unsigned long clen, unsigned long* plen)
 
   SetConsoleMode((HANDLE)my_coninpfh, state);
   /* unlock the console */
-  pthread_auto_mutex_free(my_conio_mutex);  
+  pthread_auto_mutex_free(my_conio_cs);  
 
   return result;
 }
