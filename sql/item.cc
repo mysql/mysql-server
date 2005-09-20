@@ -3443,8 +3443,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                             VIEW_ANY_ACL)))
     {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-               "ANY", thd->priv_user, thd->host_or_ip,
-               field_name, tab);
+               "ANY", thd->security_ctx->priv_user,
+               thd->security_ctx->host_or_ip, field_name, tab);
       goto error;
     }
   }

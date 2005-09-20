@@ -4713,7 +4713,7 @@ Item_func_sp::execute(Item **itp)
   Sub_statement_state statement_state;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  st_sp_security_context save_ctx;
+  Security_context *save_ctx;
 #endif
 
   if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
@@ -4743,7 +4743,7 @@ Item_func_sp::execute(Item **itp)
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, m_sp, &save_ctx);
+  sp_restore_security_context(thd, save_ctx);
 #endif
 
 error:
