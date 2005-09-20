@@ -26,6 +26,7 @@ ndbapi/NdbReceiver.hpp \
 ndbapi/NdbScanFilter.hpp \
 ndbapi/NdbScanOperation.hpp \
 ndbapi/NdbIndexScanOperation.hpp \
+ndbapi/NdbIndexStat.hpp \
 ndbapi/ndberror.h
 
 mgmapiinclude_HEADERS = \
