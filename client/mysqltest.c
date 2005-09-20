@@ -1062,8 +1062,8 @@ static void do_exec(struct st_query *query)
           (query->expected_errno[i].code.errnum == status))
       {
         ok= 1;
-        verbose_msg("command \"%s\" failed with expected error: %d",
-                    cmd, status);
+        DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
+                            cmd, status));
       }
     }
     if (!ok)
@@ -2557,7 +2557,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fn_format(buff, argument, "", "", 4);
       DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
       if (!(cur_file->file=
-            my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
+            my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
 	die("Could not open %s: errno = %d", buff, errno);
       cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
       break;
@@ -2663,7 +2663,7 @@ void str_to_file(const char *fname, char *str, int size)
     fname=buff;
   }
   fn_format(buff,fname,"","",4);
-
+  
   if ((fd = my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", buff, errno);
@@ -4043,12 +4043,20 @@ int main(int argc, char **argv)
     parser.current_line += current_line_inc;
   }
 
-  if (result_file && ds_res.length && !error)
+  if (ds_res.length && !error)
   {
-    if (!record)
-      error |= check_result(&ds_res, result_file, q->require_file);
+    if (result_file)
+    {
+      if (!record)
+        error |= check_result(&ds_res, result_file, q->require_file);
+      else
+        str_to_file(result_file, ds_res.str, ds_res.length);
+    }
     else
-      str_to_file(result_file, ds_res.str, ds_res.length);
+    {
+      // Print the result to stdout
+      printf("%s", ds_res.str);
+    }
   }
   dynstr_free(&ds_res);
 
