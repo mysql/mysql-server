@@ -834,14 +834,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* Start Global Replication */
 #define GSN_GREP_REQ                    656
 
-/**
- * Management server
- */
-#define GSN_MGM_LOCK_CONFIG_REQ		657
-#define GSN_MGM_LOCK_CONFIG_REP		658
-#define GSN_MGM_UNLOCK_CONFIG_REQ	659
-#define GSN_MGM_UNLOCK_CONFIG_REP	660
-
 #define GSN_UTIL_CREATE_LOCK_REQ        132
 #define GSN_UTIL_CREATE_LOCK_REF        133
 #define GSN_UTIL_CREATE_LOCK_CONF       188

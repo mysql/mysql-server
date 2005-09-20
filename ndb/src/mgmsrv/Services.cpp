@@ -221,21 +221,6 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("level", Int, Mandatory, "Severety level"),
     MGM_ARG("enable", Int, Mandatory, "1=disable, 0=enable, -1=toggle"),
 
-  MGM_CMD("config lock", &MgmApiSession::configLock, ""),
-
-  MGM_CMD("config unlock", &MgmApiSession::configUnlock, ""),
-    MGM_ARG("commit", Int, Mandatory, "Commit changes"),
-
-  MGM_CMD("config change", &MgmApiSession::configChange, ""),
-    MGM_ARG("section", String, Mandatory, "Section"),
-    MGM_ARG("parameter", String, Mandatory, "Parameter"),
-    MGM_ARG("value", String, Mandatory, "Value"),
-
-  MGM_CMD("config lock", &MgmApiSession::configLock, ""),
-
-  MGM_CMD("config unlock", &MgmApiSession::configUnlock, ""),
-    MGM_ARG("commit", Int, Mandatory, "Commit changes"),
-
   MGM_CMD("set parameter", &MgmApiSession::setParameter, ""),
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("parameter", String, Mandatory, "Parameter"),
@@ -1197,50 +1182,6 @@ MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
-  m_output->println("");
-}
-
-void
-MgmApiSession::configLock(Parser_t::Context &,
-			   Properties const &) {
-#if 0 // not implemented
-  int ret = m_mgmsrv.lockConf();
-#else
-  int ret = -1;
-#endif
-  m_output->println("config lock reply");
-  m_output->println("result: %d", ret);
-  m_output->println("");
-}
-
-void
-MgmApiSession::configUnlock(Parser_t::Context &,
-			   Properties const &args) {
-  Uint32 commit;
-  args.get("commit", &commit);
-#if 0 // not implemented
-  int ret = m_mgmsrv.unlockConf(commit == 1);
-#else
-  int ret = -1;
-#endif
-  m_output->println("config unlock reply");
-  m_output->println("result: %d", ret);
-  m_output->println("");
-}
-
-void
-MgmApiSession::configChange(Parser_t::Context &,
-			    Properties const &args) {
-  BaseString section, param, value;
-  args.get("section", section);
-  args.get("parameter", param);
-  args.get("value", value);
-
-  int ret = m_mgmsrv.changeConfig(section.c_str(),
-				  param.c_str(),
-				  value.c_str());
-  m_output->println("config change reply");
-  m_output->println("result: %d", ret);
   m_output->println("");
 }
 

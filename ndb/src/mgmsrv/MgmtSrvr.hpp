@@ -214,27 +214,6 @@ public:
   // NO_CONTACT_WITH_PROCESS, PROCESS_NOT_CONFIGURED, WRONG_PROCESS_TYPE,
   // COULD_NOT_ALLOCATE_MEMORY, SEND_OR_RECEIVE_FAILED
 
-
-  /**
-   * Lock configuration
-   */
-  int lockConf();
-
-  /**
-   * Unlock configuration, and commit it if commit is true
-   */
-  int unlockConf(bool commit);
-
-  /**
-   * Commit new configuration
-   */
-  int commitConfig();
-
-  /**
-   * Rollback configuration
-   */
-  int rollbackConfig();
-
   /**
    * Save a configuration to permanent storage
    */
@@ -463,24 +442,12 @@ public:
   const Config * getConfig() const;
 
   /**
-   *   Change configuration paramter
-   */
-  bool changeConfig(const BaseString &section,
-		    const BaseString &param,
-		    const BaseString &value);
-
-  /**
    * Returns the node count for the specified node type.
    *
    *  @param type The node type.
    *  @return The number of nodes of the specified type.
    */
   int getNodeCount(enum ndb_mgm_node_type type) const;
-
-  /**
-   * Returns the nodeId of the management master
-   */
-  NodeId getPrimaryNode() const;
 
   /**
    * Returns the port number.
@@ -571,9 +538,6 @@ private:
   //  processId: Id of the dead process.
   // Returns: -
   //**************************************************************************
-
-  void handle_MGM_LOCK_CONFIG_REQ(NdbApiSignal *signal);
-  void handle_MGM_UNLOCK_CONFIG_REQ(NdbApiSignal *signal);
 
   //**************************************************************************
   // Specific signal handling data

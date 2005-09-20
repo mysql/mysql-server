@@ -2086,26 +2086,6 @@ MgmtSrvr::repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted)
   return 0;
 }
 
-
-NodeId
-MgmtSrvr::getPrimaryNode() const {
-#if 0
-  Uint32 tmp;
-  const Properties *prop = NULL;
-
-  getConfig()->get("SYSTEM", &prop);
-  if(prop == NULL)
-    return 0;
-
-  prop->get("PrimaryMGMNode", &tmp);
-  
-  return tmp;
-#else
-  return 0;
-#endif
-}
-
-
 MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
   : m_mgmsrv(m)
 {
