@@ -6554,7 +6554,7 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
 	    THD *thd= lex->thd;
-            st_security_context *sctx= thd->security_ctx;
+            Security_context *sctx= thd->security_ctx;
 	    LEX_USER *curr_user;
             if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
@@ -7464,7 +7464,7 @@ user:
 	| CURRENT_USER optional_braces
 	{
           THD *thd= YYTHD;
-          st_security_context *sctx= thd->security_ctx;
+          Security_context *sctx= thd->security_ctx;
           if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
             YYABORT;
           $$->user.str= sctx->priv_user;

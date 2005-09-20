@@ -4713,7 +4713,7 @@ Item_func_sp::execute(Item **itp)
   Sub_statement_state statement_state;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  st_security_context *save_ctx;
+  Security_context *save_ctx;
 #endif
 
   if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))

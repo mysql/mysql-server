@@ -151,8 +151,11 @@ public:
   // Pointers set during parsing
   uchar *m_param_begin, *m_param_end, *m_body_begin;
 
-  /* security context for SP procedure/function in case we switch it*/
-  st_security_context m_security_ctx;
+  /*
+    Security context for stored routine which should be run under
+    definer privileges.
+  */
+  Security_context m_security_ctx;
 
   static void *
   operator new(size_t size);
@@ -1023,9 +1026,9 @@ private:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool
 sp_change_security_context(THD *thd, sp_head *sp,
-                           st_security_context **backup);
+                           Security_context **backup);
 void
-sp_restore_security_context(THD *thd, st_security_context *backup);
+sp_restore_security_context(THD *thd, Security_context *backup);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 TABLE_LIST *

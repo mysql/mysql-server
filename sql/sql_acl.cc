@@ -719,7 +719,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   ulong user_access= NO_ACCESS;
   int res= 1;
   ACL_USER *acl_user= 0;
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("acl_getroot");
 
   if (!initialized)
@@ -728,6 +728,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       here if mysqld's been started with --skip-grant-tables option.
     */
     sctx->skip_grants();
+    bzero((char*) mqh, sizeof(*mqh));
     DBUG_RETURN(0);
   }
 
@@ -906,13 +907,24 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 
 
 /*
- * This is like acl_getroot() above, but it doesn't check password,
- * and we don't care about the user resources.
- * Used to get access rights for SQL SECURITY DEFINER invocation of
- * stored procedures.
- */
-int acl_getroot_no_password(st_security_context *sctx, char *user, char *host,
-                            char *ip, char *db)
+  This is like acl_getroot() above, but it doesn't check password,
+  and we don't care about the user resources.
+
+  SYNOPSIS
+    acl_getroot_no_password()
+      sctx               Context which should be initialized
+      user               user name
+      host               host name
+      ip                 IP
+      db                 current data base name
+
+  RETURN
+    FALSE  OK
+    TRUE   Error
+*/
+
+bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
+                             char *ip, char *db)
 {
   int res= 1;
   uint i;
@@ -930,7 +942,7 @@ int acl_getroot_no_password(st_security_context *sctx, char *user, char *host,
       here if mysqld's been started with --skip-grant-tables option.
     */
     sctx->skip_grants();
-    DBUG_RETURN(0);
+    DBUG_RETURN(FALSE);
   }
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -1649,7 +1661,7 @@ static bool update_user_table(THD *thd, TABLE *table,
 
 static bool test_if_create_new_users(THD *thd)
 {
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   bool create_new_users= test(sctx->master_access & INSERT_ACL) ||
                          (!opt_safe_user_create &&
                           test(sctx->master_access & CREATE_USER_ACL));
@@ -3493,7 +3505,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 		 uint show_table, uint number, bool no_errors)
 {
   TABLE_LIST *table;
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("check_grant");
   DBUG_ASSERT(number > 0);
 
@@ -3563,7 +3575,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
 			const char *db_name, const char *table_name,
 			const char *name, uint length, uint show_tables)
 {
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
   ulong want_access= grant->want_privilege & ~grant->privilege;
@@ -3623,7 +3635,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
                              const char* db_name, const char *table_name,
                              Field_iterator *fields)
 {
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
 
@@ -3683,7 +3695,7 @@ err2:
 
 bool check_grant_db(THD *thd,const char *db)
 {
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   char helping [NAME_LEN+USERNAME_LENGTH+2];
   uint len;
   bool error= 1;
@@ -3729,7 +3741,7 @@ bool check_grant_routine(THD *thd, ulong want_access,
 			 TABLE_LIST *procs, bool is_proc, bool no_errors)
 {
   TABLE_LIST *table;
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   char *user= sctx->priv_user;
   char *host= sctx->priv_host;
   DBUG_ENTER("check_grant_routine");
@@ -3797,10 +3809,11 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
   if (grant_option)
   {
     GRANT_NAME *grant_proc;
+    Security_context *sctx= thd->security_ctx;
     rw_rdlock(&LOCK_grant);
-    if ((grant_proc= routine_hash_search(thd->security_ctx->priv_host,
-                                         thd->security_ctx->ip, db,
-                                         thd->security_ctx->priv_user,
+    if ((grant_proc= routine_hash_search(sctx->priv_host,
+                                         sctx->ip, db,
+                                         sctx->priv_user,
                                          name, is_proc, 0)))
       no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
     rw_unlock(&LOCK_grant);
@@ -3816,7 +3829,7 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
   ulong privilege;
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   const char *db = table->db ? table->db : thd->db;
   GRANT_TABLE *grant_table;
 
@@ -3867,9 +3880,10 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   /* reload table if someone has modified any grants */
   if (grant->version != grant_version)
   {
+    Security_context *sctx= thd->security_ctx;
     grant->grant_table=
-      table_hash_search(thd->security_ctx->host, thd->security_ctx->ip,
-                        db_name, thd->security_ctx->priv_user,
+      table_hash_search(sctx->host, sctx->ip,
+                        db_name, sctx->priv_user,
 			table_name, 0);	        /* purecov: inspected */
     grant->version= grant_version;              /* purecov: inspected */
   }
@@ -5439,7 +5453,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc)
 {
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   LEX_USER *combo;
   TABLE_LIST tables[1];
   List<LEX_USER> user_list;
@@ -5573,7 +5587,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   char buff[100];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
-  char *curr_host= thd->security_ctx->get_priv_host();
+  char *curr_host= thd->security_ctx->priv_host_name();
   DBUG_ENTER("fill_schema_user_privileges");
 
   for (counter=0 ; counter < acl_users.elements ; counter++)
@@ -5626,7 +5640,7 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   char buff[100];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
-  char *curr_host= thd->security_ctx->get_priv_host();
+  char *curr_host= thd->security_ctx->priv_host_name();
   DBUG_ENTER("fill_schema_schema_privileges");
 
   for (counter=0 ; counter < acl_dbs.elements ; counter++)
@@ -5681,7 +5695,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   char buff[100];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
-  char *curr_host= thd->security_ctx->get_priv_host();
+  char *curr_host= thd->security_ctx->priv_host_name();
   DBUG_ENTER("fill_schema_table_privileges");
 
   for (index=0 ; index < column_priv_hash.records ; index++)
@@ -5743,7 +5757,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
   char buff[100];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",0,1,1,0);
-  char *curr_host= thd->security_ctx->get_priv_host();
+  char *curr_host= thd->security_ctx->priv_host_name();
   DBUG_ENTER("fill_schema_table_privileges");
 
   for (index=0 ; index < column_priv_hash.records ; index++)
@@ -5819,7 +5833,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
 void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table)
 {
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   /* --skip-grants */
   if (!initialized)
   {

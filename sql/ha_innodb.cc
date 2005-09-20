@@ -563,7 +563,7 @@ innobase_mysql_print_thd(
 				   use the default max length */
 {
 	const THD*	thd;
-        const st_security_context *sctx;
+        const Security_context *sctx;
 	const char*	s;
 
         thd = (const THD*) input_thd;

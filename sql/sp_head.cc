@@ -2648,16 +2648,14 @@ sp_instr_error::print(String *str)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool
-sp_change_security_context(THD *thd, sp_head *sp, st_security_context **backup)
+sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
 {
-  bool changed= (sp->m_chistics->suid != SP_IS_NOT_SUID &&
-                 (strcmp(sp->m_definer_user.str,
-                         thd->security_ctx->priv_user) ||
-                  my_strcasecmp(system_charset_info, sp->m_definer_host.str,
-                                thd->security_ctx->priv_host)));
-
   *backup= 0;
-  if (changed)
+  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
+      (strcmp(sp->m_definer_user.str,
+              thd->security_ctx->priv_user) ||
+       my_strcasecmp(system_charset_info, sp->m_definer_host.str,
+                     thd->security_ctx->priv_host)))
   {
     if (acl_getroot_no_password(&sp->m_security_ctx, sp->m_definer_user.str,
                                 sp->m_definer_host.str,
@@ -2675,7 +2673,7 @@ sp_change_security_context(THD *thd, sp_head *sp, st_security_context **backup)
 }
 
 void
-sp_restore_security_context(THD *thd, st_security_context *backup)
+sp_restore_security_context(THD *thd, Security_context *backup)
 {
   if (backup)
     thd->security_ctx= backup;
