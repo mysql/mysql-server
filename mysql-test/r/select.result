@@ -2960,3 +2960,72 @@ x	x
 4	4
 4	5
 drop table t1,t2,t3;
+create table t1 (id char(16) not null default '', primary key  (id));
+insert into t1 values ('100'),('101'),('102');
+create table t2 (id char(16) default null);
+insert into t2 values (1);
+create view v1 as select t1.id from t1;
+create view v2 as select t2.id from t2;
+create view v3 as select (t1.id+2) as id from t1 natural left join t2;
+select t1.id from t1 left join v2 using (id);
+id
+100
+101
+102
+select t1.id from v2 right join t1 using (id);
+id
+100
+101
+102
+select t1.id from t1 left join v3 using (id);
+id
+100
+101
+102
+select * from t1 left join v2 using (id);
+id
+100
+101
+102
+select * from v2 right join t1 using (id);
+id
+100
+101
+102
+select * from t1 left join v3 using (id);
+id
+100
+101
+102
+select v1.id from v1 left join v2 using (id);
+id
+100
+101
+102
+select v1.id from v2 right join v1 using (id);
+id
+100
+101
+102
+select v1.id from v1 left join v3 using (id);
+id
+100
+101
+102
+select * from v1 left join v2 using (id);
+id
+100
+101
+102
+select * from v2 right join v1 using (id);
+id
+100
+101
+102
+select * from v1 left join v3 using (id);
+id
+100
+101
+102
+drop table t1, t2;
+drop view v1, v2, v3;
