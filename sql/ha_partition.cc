@@ -81,6 +81,9 @@ static handlerton partition_hton = {
   NULL, /* recover */
   NULL, /* commit_by_xid */
   NULL, /* rollback_by_xid */
+  NULL,
+  NULL,
+  NULL,
   HTON_NO_FLAGS
 };
 
@@ -2305,9 +2308,13 @@ void ha_partition::info(uint flag)
       if (file->check_time > check_time)
 	check_time= file->check_time;
     } while (*(++file_array));
-    if (records < 2)
+    if (records < 2 &&
+        m_table_flags & HA_NOT_EXACT_COUNT)
       records= 2;
-    mean_rec_length= (ulong) (data_file_length / records);
+    if (records > 0)
+      mean_rec_length= (ulong) (data_file_length / records);
+    else
+      mean_rec_length= 1; //? What should we set here 
   }
   if (flag & HA_STATUS_CONST)
   {

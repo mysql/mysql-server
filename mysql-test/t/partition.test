@@ -18,6 +18,11 @@ c int not null,
 primary key(a,b))
 partition by key (a);
 
+#
+# Bug 13323: Select count(*) on empty table returns 2
+#
+select count(*) from t1;
+
 drop table t1;
 #
 # Partition by key no partition, list of fields
