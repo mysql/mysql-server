@@ -1822,7 +1822,7 @@ void THD::set_status_var_init()
 }
 
 
-void st_security_context::init()
+void Security_context::init()
 {
   host= user= priv_user= ip= 0;
   host_or_ip= "connecting host";
@@ -1832,7 +1832,7 @@ void st_security_context::init()
 }
 
 
-void st_security_context::destroy()
+void Security_context::destroy()
 {
   // If not pointer to constant
   if (host != my_localhost)
@@ -1843,7 +1843,7 @@ void st_security_context::destroy()
 }
 
 
-void st_security_context::skip_grants()
+void Security_context::skip_grants()
 {
   /* privileges for the user are unknown everything is allowed */
   host_or_ip= (char *)"";

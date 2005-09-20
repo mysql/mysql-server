@@ -415,7 +415,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 bool mysqld_show_create_db(THD *thd, char *dbname,
                            HA_CREATE_INFO *create_info)
 {
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   int length;
   char path[FN_REFLEN];
   char buff[2048];
@@ -436,7 +436,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (test_all_bits(sctx->master_access,DB_ACLS))
+  if (test_all_bits(sctx->master_access, DB_ACLS))
     db_access=DB_ACLS;
   else
     db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
@@ -1186,7 +1186,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
-      st_security_context *tmp_sctx= tmp->security_ctx;
+      Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
           (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
@@ -1205,7 +1205,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
 	}
 	else
-	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip);
+	  thd_info->host= thd->strdup(tmp_sctx->host);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
@@ -1257,7 +1257,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   thread_info *thd_info;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  st_security_context *sctx;
+  Security_context *sctx;
 #endif
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
@@ -1996,7 +1996,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   List<char> bases;
   List_iterator_fast<char> it(bases);
   COND *partial_cond;
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_state open_tables_state_backup;
@@ -2201,7 +2201,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("fill_schema_shemata");
 
   if (make_db_list(thd, &files, &idx_field_vals,
