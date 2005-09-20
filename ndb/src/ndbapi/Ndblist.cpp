@@ -132,13 +132,6 @@ NdbTransaction*
 Ndb::getNdbCon()
 {
   NdbTransaction* tNdbCon = theImpl->theConIdleList.seize(this);
-  if (unlikely(theImpl->theConIdleList.m_alloc_cnt > theMaxNoOfTransactions)) 
-  {
-    theImpl->theConIdleList.release(tNdbCon);
-    ndbout << "theNoOfAllocatedTransactions = " << theNoOfAllocatedTransactions << " theMaxNoOfTransactions = " << theMaxNoOfTransactions << endl;
-    return NULL;
-  }//if
-  
   tNdbCon->theMagicNumber = 0x37412619;
   return tNdbCon;
 }

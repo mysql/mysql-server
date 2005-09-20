@@ -806,7 +806,7 @@ private:
   void define_scan_op(NdbIndexScanOperation*);
 
   friend class HugoOperations;
-  friend struct Ndb_free_list_t<NdbConnection>;
+  friend struct Ndb_free_list_t<NdbTransaction>;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
