@@ -177,13 +177,6 @@ enum db_type
   DB_TYPE_DEFAULT // Must be last
 };
 
-struct show_table_type_st {
-  const char *type;
-  SHOW_COMP_OPTION *value;
-  const char *comment;
-  enum db_type db_type;
-};
-
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT };
@@ -362,6 +355,20 @@ typedef struct
    void (*close_cursor_read_view)(void *);
    uint32 flags;                                /* global handler flags */
 } handlerton;
+
+struct show_table_type_st {
+  const char *type;
+  SHOW_COMP_OPTION *value;
+  const char *comment;
+  enum db_type db_type;
+  handlerton *ht;
+};
+
+struct show_table_alias_st {
+  const char *alias;
+  const char *type;
+  show_table_type_st *st;
+};
 
 /* Possible flags of a handlerton */
 #define HTON_NO_FLAGS 0
