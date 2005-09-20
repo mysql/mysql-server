@@ -601,6 +601,11 @@ DESC t2;
 Field	Type	Null	Key	Default	Extra
 f2	varchar(86)	YES		NULL	
 DROP TABLE t1,t2;
+CREATE TABLE t12913 (f1 ENUM ('a','b')) AS SELECT 'a' AS f1;
+SELECT * FROM t12913;
+f1
+a
+DROP TABLE t12913;
 create database mysqltest;
 use mysqltest;
 drop database mysqltest;

@@ -649,6 +649,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  sql_field->decimals=		dup_field->decimals;
 	  sql_field->flags=		dup_field->flags;
 	  sql_field->unireg_check=	dup_field->unireg_check;
+          sql_field->interval=          dup_field->interval;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
