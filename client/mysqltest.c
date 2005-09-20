@@ -577,7 +577,8 @@ static void die(const char *fmt, ...)
     if (cur_file && cur_file != file_stack)
       fprintf(stderr, "In included file \"%s\": ",
               cur_file->file_name);
-    fprintf(stderr, "At line %u: ", start_lineno);
+    if (start_lineno != 0)
+      fprintf(stderr, "At line %u: ", start_lineno);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
     fflush(stderr);
