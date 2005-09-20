@@ -8,6 +8,14 @@ partition by key (a);
 select count(*) from t1;
 count(*)
 0
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY  (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY KEY (a) 
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
