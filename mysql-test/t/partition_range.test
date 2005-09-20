@@ -30,6 +30,7 @@ INSERT into t1 values (10, 1, 1);
 INSERT into t1 values (15, 1, 1);
 
 select * from t1;
+show create table t1;
 
 ALTER TABLE t1
 partition by range (a)
@@ -39,6 +40,7 @@ partitions 3
  partition x3 values less than maxvalue tablespace ts3);
 
 select * from t1;
+show create table t1;
 
 drop table if exists t1;
 
@@ -143,6 +145,10 @@ subpartition by hash (a+b)
 );
 
 SELECT * from t1;
+show create table t1;
+
+ALTER TABLE t1 ADD COLUMN d int;
+show create table t1;
 
 drop table t1;
 
