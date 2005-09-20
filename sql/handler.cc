@@ -80,8 +80,7 @@ ulong total_ha_2pc;
 ulong savepoint_alloc_size;
 
 /*
-  This structure will go away with loadable storeage engines, we will instead
-  build it dynamically from the configure script.
+  This structure will go away in the future.
 */
 struct show_table_type_st sys_table_types[]=
 {
@@ -406,7 +405,8 @@ int ha_init()
       types->ht= &heap_hton;
       for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
       {
-        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
+        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, 
+                           table_alias->type))
           table_alias->st= types;
       }
       break;
@@ -417,7 +417,8 @@ int ha_init()
       types->ht= &myisammrg_hton;
       for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
       {
-        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
+        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, 
+                           table_alias->type))
           table_alias->st= types;
       }
       break;
