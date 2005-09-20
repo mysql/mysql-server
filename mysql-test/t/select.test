@@ -2535,3 +2535,33 @@ insert into t2 values (1, 1), (2, 1), (3, 3), (4, 6), (5, 6);
 insert into t3 values (1), (2), (3), (4), (5);
 select t1.x, t3.x from t1, t2, t3  where t1.x = t2.x and t3.x >= t1.y and t3.x <= t2.y;
 drop table t1,t2,t3;
+
+#
+# Bug #13127 LEFT JOIN against a VIEW returns NULL instead of correct value
+#
+
+create table t1 (id char(16) not null default '', primary key  (id));
+insert into t1 values ('100'),('101'),('102');
+create table t2 (id char(16) default null);
+insert into t2 values (1);
+create view v1 as select t1.id from t1;
+create view v2 as select t2.id from t2;
+create view v3 as select (t1.id+2) as id from t1 natural left join t2;
+
+# all queries must return the same result
+select t1.id from t1 left join v2 using (id);
+select t1.id from v2 right join t1 using (id);
+select t1.id from t1 left join v3 using (id);
+select * from t1 left join v2 using (id);
+select * from v2 right join t1 using (id);
+select * from t1 left join v3 using (id);
+
+select v1.id from v1 left join v2 using (id);
+select v1.id from v2 right join v1 using (id);
+select v1.id from v1 left join v3 using (id);
+select * from v1 left join v2 using (id);
+select * from v2 right join v1 using (id);
+select * from v1 left join v3 using (id);
+
+drop table t1, t2;
+drop view v1, v2, v3;
