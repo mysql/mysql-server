@@ -62,20 +62,8 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theRemainingStartTransactions= 0;
   theMaxNoOfTransactions= 0;
   theMinNoOfEventsToWakeUp= 0;
-  theConIdleList= NULL;
-  theOpIdleList= NULL;
-  theScanOpIdleList= NULL;
-  theIndexOpIdleList= NULL;
   theTransactionList= NULL;
   theConnectionArray= NULL;
-  theRecAttrIdleList= NULL;
-  theSignalIdleList= NULL;
-  theLabelList= NULL;
-  theBranchList= NULL;
-  theSubroutineList= NULL;
-  theCallList= NULL;
-  theScanList= NULL;
-  theNdbBlobIdleList= NULL;
   the_last_check_time= 0;
   theFirstTransId= 0;
   theRestartGCI= 0;
@@ -149,33 +137,6 @@ Ndb::~Ndb()
   if (TransporterFacade::instance() != NULL && theNdbBlockNumber > 0){
     TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
   }
-  
-//  if (theSchemaConToNdbList != NULL)
-//    closeSchemaTransaction(theSchemaConToNdbList);
-  while ( theConIdleList != NULL )
-    freeNdbCon();
-  while (theOpIdleList != NULL)
-    freeOperation();
-  while (theScanOpIdleList != NULL)
-    freeScanOperation();
-  while (theIndexOpIdleList != NULL)
-    freeIndexOperation();
-  while (theLabelList != NULL)
-    freeNdbLabel();
-  while (theBranchList != NULL)
-    freeNdbBranch();
-   while (theSubroutineList != NULL)
-    freeNdbSubroutine();
-   while (theCallList != NULL)
-    freeNdbCall();
-  while (theScanList != NULL)
-    freeNdbScanRec();
-  while (theNdbBlobIdleList != NULL)
-    freeNdbBlob();
-  while (theRecAttrIdleList != NULL)
-    freeRecAttr(); 
-  while ( theSignalIdleList != NULL )
-    freeSignal();
   
   releaseTransactionArrays();
 

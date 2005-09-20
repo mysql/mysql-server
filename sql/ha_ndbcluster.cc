@@ -7392,4 +7392,50 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   DBUG_RETURN(0);
 }
 
+int
+ndbcluster_show_status(THD* thd)
+{
+  Protocol *protocol= thd->protocol;
+  
+  DBUG_ENTER("ndbcluster_show_status");
+  
+  if (have_ndbcluster != SHOW_OPTION_YES) 
+  {
+    my_message(ER_NOT_SUPPORTED_YET,
+	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is defined",
+	       MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("free_list", 255));
+  field_list.push_back(new Item_return_int("created", 10,MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("free", 10,MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("sizeof", 10,MYSQL_TYPE_LONG));
+
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(TRUE);
+  
+  if (thd->transaction.thd_ndb &&
+      ((Thd_ndb*)thd->transaction.thd_ndb)->ndb)
+  {
+    Ndb* ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (ndb->get_free_list_usage(&tmp))
+    {
+      protocol->prepare_for_resend();
+      
+      protocol->store(tmp.m_name, &my_charset_bin);
+      protocol->store((uint)tmp.m_created);
+      protocol->store((uint)tmp.m_free);
+      protocol->store((uint)tmp.m_sizeof);
+      if (protocol->write())
+	DBUG_RETURN(TRUE);
+    }
+  }
+  send_eof(thd);
+  
+  DBUG_RETURN(FALSE);
+}
+
 #endif /* HAVE_NDBCLUSTER_DB */
