@@ -149,6 +149,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   if (part_info)
   {
     int4store(fileinfo+55,part_info->part_info_len);
+    fileinfo[61]= (uchar) part_info->default_engine_type;
   }
 #endif
   int2store(fileinfo+59,db_file->extra_rec_buf_length());

@@ -686,7 +686,7 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
                                const key_range *key_spec,
                                part_id_range *part_spec);
 bool mysql_unpack_partition(File file, THD *thd, uint part_info_len,
-                            TABLE *table);
+                            TABLE *table, enum db_type default_db_type);
 #endif
 
 

@@ -3038,7 +3038,11 @@ opt_part_option:
         TABLESPACE opt_equal ident_or_text
         { Lex->part_info->curr_part_elem->tablespace_name= $3.str; }
         | opt_storage ENGINE_SYM opt_equal storage_engines
-        { Lex->part_info->curr_part_elem->engine_type= $4; }
+        {
+          LEX *lex= Lex;
+          lex->part_info->curr_part_elem->engine_type= $4;
+          lex->part_info->default_engine_type= $4;
+        }
         | NODEGROUP_SYM opt_equal ulong_num
         { Lex->part_info->curr_part_elem->nodegroup_id= $3; }
         | MAX_ROWS opt_equal ulonglong_num
