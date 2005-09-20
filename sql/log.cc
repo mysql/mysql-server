@@ -1915,6 +1915,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     }
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT) || query_start_arg)
     {
+      Security_context *sctx= thd->security_ctx;
       current_time=time(NULL);
       if (current_time != last_time)
       {
@@ -1935,11 +1936,11 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
           tmp_errno=errno;
       }
       if (my_b_printf(&log_file, "# User@Host: %s[%s] @ %s [%s]\n",
-                      thd->security_ctx->priv_user ?
-                      thd->security_ctx->priv_user : "",
-                      thd->security_ctx->user ? thd->security_ctx->user : "",
-                      thd->security_ctx->host ? thd->security_ctx->host : "",
-                      thd->security_ctx->ip ? thd->security_ctx->ip : "") ==
+                      sctx->priv_user ?
+                      sctx->priv_user : "",
+                      sctx->user ? sctx->user : "",
+                      sctx->host ? sctx->host : "",
+                      sctx->ip ? sctx->ip : "") ==
           (uint) -1)
         tmp_errno=errno;
     }

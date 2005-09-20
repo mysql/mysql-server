@@ -777,8 +777,8 @@ static void close_connections(void)
       if (global_system_variables.log_warnings)
         sql_print_warning(ER(ER_FORCING_CLOSE),my_progname,
                           tmp->thread_id,
-                          (tmp->security_ctx->user ?
-                           tmp->security_ctx->user : ""));
+                          (tmp->main_security_ctx.user ?
+                           tmp->main_security_ctx.user : ""));
       close_connection(tmp,0,0);
     }
 #endif

@@ -942,15 +942,17 @@ bool xid_cache_insert(XID_STATE *xid_state);
 void xid_cache_delete(XID_STATE *xid_state);
 
 
-struct st_security_context {
+class Security_context {
+public:
   /*
     host - host of the client
     user - user of the client, set to NULL until the user has been read from
     the connection
-    priv_user - The user privilege we are using. May be '' for anonymous user.
+    priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
   char   *host, *user, *priv_user, *ip;
+  /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
@@ -960,7 +962,7 @@ struct st_security_context {
   void init();
   void destroy();
   void skip_grants();
-  inline char *get_priv_host()
+  inline char *priv_host_name()
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
@@ -1150,8 +1152,8 @@ public:
     the slave SQL thread, in sql/slave.cc.
    */
   char   *db, *catalog;
-  st_security_context main_security_ctx;
-  st_security_context *security_ctx;
+  Security_context main_security_ctx;
+  Security_context *security_ctx;
 
   /* remote (peer) port */
   uint16 peer_port;
