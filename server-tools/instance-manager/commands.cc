@@ -695,9 +695,9 @@ Set_option::Set_option(Instance_map *instance_map_arg,
 
 int Set_option::correct_file(int skip)
 {
-  int error;
-  const static int mysys_to_im_error[]= { 0, ER_OUT_OF_RESOURCES,
+  static const int mysys_to_im_error[]= { 0, ER_OUT_OF_RESOURCES,
                                              ER_ACCESS_OPTION_FILE };
+  int error;
 
   error= modify_defaults_file(Options::config_file, option,
                               option_value, instance_name, skip);
