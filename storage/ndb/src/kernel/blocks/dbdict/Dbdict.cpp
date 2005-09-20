@@ -8151,7 +8151,7 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
   Uint32 id=0;
   // attribute 0 event name: Primary Key
   {
-    AttributeHeader::init(attrPtr, id, sysTab_NDBEVENTS_0_szs[id]/4);
+    AttributeHeader::init(attrPtr, id, sysTab_NDBEVENTS_0_szs[id]);
     total_len += sysTab_NDBEVENTS_0_szs[id];
     attrPtr++; id++;
   }
@@ -8169,7 +8169,7 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
     jam();
     EVENT_TRACE;
     while ( id < noAttr ) {
-      AttributeHeader::init(attrPtr, id, sysTab_NDBEVENTS_0_szs[id]/4);
+      AttributeHeader::init(attrPtr, id, sysTab_NDBEVENTS_0_szs[id]);
       total_len += sysTab_NDBEVENTS_0_szs[id];
       attrPtr++; id++;
     }

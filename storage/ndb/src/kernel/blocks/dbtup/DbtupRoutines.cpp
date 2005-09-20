@@ -213,7 +213,7 @@ int Dbtup::readAttributes(Page* const pagePtr,
     } else if(attributeId & AttributeHeader::PSEUDO){
       Uint32 sz = read_pseudo(attributeId, 
 			      outBuffer+tmpAttrBufIndex+1);
-      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, sz);
+      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, sz << 2);
       tOutBufIndex = tmpAttrBufIndex + 1 + sz;
     } else {
       terrorCode = ZATTRIBUTE_ID_ERROR;

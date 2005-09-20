@@ -12511,7 +12511,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
     moreAttrData = keyValues.next(iter, hops);
   }
-  AttributeHeader pkAttrHeader(attrId, totalPrimaryKeyLength);
+  AttributeHeader pkAttrHeader(attrId, totalPrimaryKeyLength << 2);
   Uint32 attributesLength = afterValues.getSize() + 
     pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize();
   

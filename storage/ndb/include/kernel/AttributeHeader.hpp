@@ -43,9 +43,11 @@ public:
 
   STATIC_CONST( RECORDS_IN_RANGE = 0xFFF8 );
 
+  // NOTE: in 5.1 ctors and init take size in bytes
+
   /** Initialize AttributeHeader at location aHeaderPtr */
   static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 
-			       Uint32 aDataSize);
+			       Uint32 aByteSize);
 
   /** Returns size of AttributeHeader (usually one or two words) */
   Uint32 getHeaderSize() const; // In 32-bit words
@@ -62,8 +64,10 @@ public:
   /** Getters and Setters */
   Uint32  getAttributeId() const;
   void    setAttributeId(Uint32);
-  Uint32  getDataSize() const;   // In 32-bit words
-  void    setDataSize(Uint32);
+  Uint32  getByteSize() const;
+  void    setByteSize(Uint32);
+  Uint32  getDataSize() const;   // In 32-bit words, rounded up
+  void    setDataSize(Uint32);   // Set size to multiple of word size
   bool    isNULL() const;
   void    setNULL();
 
@@ -71,11 +75,12 @@ public:
   //void    print(NdbOut&);
   void    print(FILE*);
 
+  static Uint32 getByteSize(Uint32);
   static Uint32 getDataSize(Uint32);
   
 public:
   AttributeHeader(Uint32 = 0);
-  AttributeHeader(Uint32 anAttributeId, Uint32 aDataSize);
+  AttributeHeader(Uint32 anAttributeId, Uint32 aByteSize);
   ~AttributeHeader();
   
   Uint32 m_value;
@@ -84,12 +89,13 @@ public:
 /**
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * ssssssssssssss eiiiiiiiiiiiiiiii
+ * ssssssssssssssssiiiiiiiiiiiiiiii
  *
  * i = Attribute Id
- * s = Size of current "chunk" - 14 Bits -> 16384 (words) = 65k
- *     Including optional extra word(s).
- * e - Element data/Blob, read element of array
+ * s = Size of current "chunk" in bytes - 16 bits.
+ *     To allow round up to word, max value is 0xFFFC (not checked).
+ * e - [ obsolete future ]
+ *     Element data/Blob, read element of array
  *     If == 0 next data word contains attribute value.
  *     If == 1 next data word contains:
  *       For Array of Fixed size Elements
@@ -98,15 +104,13 @@ public:
  *         Start offset (32 bit) (length is defined in previous word)
  * 
  * An attribute value equal to "null" is represented by setting s == 0.
- * 
- * Bit 14 is not yet used.
  */
 
 inline
 AttributeHeader& AttributeHeader::init(void* aHeaderPtr, Uint32 anAttributeId, 
-				       Uint32 aDataSize)
+				       Uint32 aByteSize)
 {
-  return * new (aHeaderPtr) AttributeHeader(anAttributeId, aDataSize);
+  return * new (aHeaderPtr) AttributeHeader(anAttributeId, aByteSize);
 }
 
 inline
@@ -116,11 +120,11 @@ AttributeHeader::AttributeHeader(Uint32 aHeader)
 }
 
 inline
-AttributeHeader::AttributeHeader(Uint32 anAttributeId, Uint32 aDataSize)
+AttributeHeader::AttributeHeader(Uint32 anAttributeId, Uint32 aByteSize)
 {
   m_value = 0;
   this->setAttributeId(anAttributeId);
-  this->setDataSize(aDataSize);
+  this->setByteSize(aByteSize);
 }
 
 inline
@@ -148,16 +152,29 @@ void AttributeHeader::setAttributeId(Uint32 anAttributeId)
 }
 
 inline
+Uint32 AttributeHeader::getByteSize() const
+{
+  return (m_value & 0xFFFF);
+}
+
+inline
+void AttributeHeader::setByteSize(Uint32 aByteSize)
+{
+  m_value &= (~0xFFFF);
+  m_value |= aByteSize;
+}
+
+inline
 Uint32 AttributeHeader::getDataSize() const
 {
-  return (m_value & 0x3FFF);
+  return (((m_value & 0xFFFF) + 3) >> 2);
 }
 
 inline
 void AttributeHeader::setDataSize(Uint32 aDataSize)
 {
-  m_value &= (~0x3FFF);
-  m_value |= aDataSize;
+  m_value &= (~0xFFFF);
+  m_value |= (aDataSize << 2);
 }
 
 inline
@@ -203,8 +220,14 @@ AttributeHeader::print(FILE* output) {
 
 inline
 Uint32
+AttributeHeader::getByteSize(Uint32 m_value){
+  return (m_value & 0xFFFF);  
+}
+
+inline
+Uint32
 AttributeHeader::getDataSize(Uint32 m_value){
-  return (m_value & 0x3FFF);  
+  return (((m_value & 0xFFFF) + 3) >> 2);
 }
 
 #endif
