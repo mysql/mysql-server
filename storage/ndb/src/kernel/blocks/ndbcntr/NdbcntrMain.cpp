@@ -1709,9 +1709,9 @@ void Ndbcntr::crSystab7Lab(Signal* signal)
 
     tKeyDataPtr[0]               = tkey;
 
-    AttributeHeader::init(&tAIDataPtr[0], 0, 1);
+    AttributeHeader::init(&tAIDataPtr[0], 0, 1 << 2);
     tAIDataPtr[1]                = tkey;
-    AttributeHeader::init(&tAIDataPtr[2], 1, 2);
+    AttributeHeader::init(&tAIDataPtr[2], 1, 2 << 2);
     tAIDataPtr[3]                = (tkey << 16);
     tAIDataPtr[4]                = 1;    
     sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, 
