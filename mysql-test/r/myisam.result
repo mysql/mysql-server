@@ -609,3 +609,64 @@ checksum table t2;
 Table	Checksum
 test.t2	984116287
 drop table t1, t2;
+show variables like 'myisam_stats_method';
+Variable_name	Value
+myisam_stats_method	nulls_inequal
+create table t1 (a int, key(a));
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t1 select NULL from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE	
+insert into t1 values (11);
+delete from t1 where a=11;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE	
+set myisam_stats_method=nulls_equal;
+show variables like 'myisam_stats_method';
+Variable_name	Value
+myisam_stats_method	nulls_equal
+insert into t1 values (11);
+delete from t1 where a=11;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE	
+insert into t1 values (11);
+delete from t1 where a=11;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE	
+set myisam_stats_method=DEFAULT;
+show variables like 'myisam_stats_method';
+Variable_name	Value
+myisam_stats_method	nulls_inequal
+insert into t1 values (11);
+delete from t1 where a=11;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE	
+insert into t1 values (11);
+delete from t1 where a=11;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE	
+drop table t1;
