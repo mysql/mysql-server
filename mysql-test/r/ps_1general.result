@@ -323,17 +323,12 @@ execute stmt4;
 Engine	Support	Comment
 MyISAM	YES/NO	Default engine as of MySQL 3.23 with great performance
 MEMORY	YES/NO	Hash based, stored in memory, useful for temporary tables
-HEAP	YES/NO	Alias for MEMORY
-MERGE	YES/NO	Collection of identical MyISAM tables
-MRG_MYISAM	YES/NO	Alias for MERGE
+MRG_MYISAM	YES/NO	Collection of identical MyISAM tables
 ISAM	YES/NO	Obsolete storage engine, now replaced by MyISAM
 MRG_ISAM	YES/NO	Obsolete storage engine, now replaced by MERGE
 InnoDB	YES/NO	Supports transactions, row-level locking, and foreign keys
-INNOBASE	YES/NO	Alias for INNODB
-BDB	YES/NO	Supports transactions and page-level locking
-BERKELEYDB	YES/NO	Alias for BDB
+BERKELEYDB	YES/NO	Supports transactions and page-level locking
 NDBCLUSTER	YES/NO	Clustered, fault-tolerant, memory-based tables
-NDB	YES/NO	Alias for NDBCLUSTER
 EXAMPLE	YES/NO	Example storage engine
 ARCHIVE	YES/NO	Archive storage engine
 CSV	YES/NO	CSV storage engine

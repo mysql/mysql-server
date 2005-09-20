@@ -206,7 +206,7 @@ static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
 
-static handlerton innobase_hton = {
+handlerton innobase_hton = {
   "InnoDB",
   0,				/* slot */
   sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
