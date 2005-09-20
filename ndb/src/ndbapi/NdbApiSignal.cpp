@@ -62,6 +62,25 @@ NdbApiSignal::NdbApiSignal(BlockReference ref)
   theNextSignal = 0;
 }
 
+NdbApiSignal::NdbApiSignal(Ndb* ndb)
+{
+  BlockReference ref = ndb->theMyRef;
+  theVerId_signalNumber   = 0;    // 4 bit ver id - 16 bit gsn
+  theReceiversBlockNumber = 0;  // Only 16 bit blocknum  
+  theSendersBlockRef      = refToBlock(ref);
+  theLength               = 0;
+  theSendersSignalId      = 0;
+  theSignalId             = 0;
+  theTrace                = 0;
+  m_noOfSections          = 0;
+  m_fragmentInfo          = 0;
+  for (int i = 0; i < 25; i++)
+    theData[i] = 0x13579753;
+  
+  setDataPtr(&theData[0]);
+  theNextSignal = 0;
+}
+
 /**
  * Copy constructor
  */

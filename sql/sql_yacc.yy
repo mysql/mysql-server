@@ -6648,6 +6648,9 @@ show_engine_param:
 	STATUS_SYM
 	  {
 	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_NDBCLUSTER:
+	      Lex->sql_command = SQLCOM_SHOW_NDBCLUSTER_STATUS;
+	      break;
 	    case DB_TYPE_INNODB:
 	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
 	      break;

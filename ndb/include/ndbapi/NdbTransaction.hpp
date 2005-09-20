@@ -18,8 +18,9 @@
 #define NdbTransaction_H
 
 #include <ndb_types.h>
-#include <NdbError.hpp>
-#include <NdbDictionary.hpp>
+#include "NdbError.hpp"
+#include "NdbDictionary.hpp"
+#include "Ndb.hpp"
 
 class NdbTransaction;
 class NdbOperation;
@@ -581,9 +582,7 @@ private:
   /**************************************************************************
    *	These are the create and delete methods of this class.              *
    **************************************************************************/
-  
   NdbTransaction(Ndb* aNdb); 
-  
   ~NdbTransaction();
 
   void init();           // Initialize connection object for new transaction
@@ -807,6 +806,7 @@ private:
   void define_scan_op(NdbIndexScanOperation*);
 
   friend class HugoOperations;
+  friend struct Ndb_free_list_t<NdbConnection>;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
