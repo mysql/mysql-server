@@ -138,7 +138,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
 
   if (forced_extra_defaults)
-    defaults_extra_file= forced_extra_defaults;
+    defaults_extra_file= (char *) forced_extra_defaults;
   
   /*
     We can only handle 'defaults-group-suffix' if we are called from
