@@ -5,6 +5,9 @@ b int not null,
 c int not null,
 primary key(a,b))
 partition by key (a);
+select count(*) from t1;
+count(*)
+0
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
