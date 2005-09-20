@@ -2155,11 +2155,6 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--big-test");
   }
 
-  if ( $opt_record )
-  {
-    mtr_add_arg($args, "--record");
-  }
-
   if ( $opt_compress )
   {
     mtr_add_arg($args, "--compress");
@@ -2185,8 +2180,6 @@ sub run_mysqltest ($) {
                 $glob_mysql_test_dir);
   }
 
-  mtr_add_arg($args, "-R");
-  mtr_add_arg($args, $tinfo->{'result_file'});
 
   # ----------------------------------------------------------------------
   # If embedded server, we create server args to give mysqltest to pass on
@@ -2201,6 +2194,18 @@ sub run_mysqltest ($) {
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
   $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
+
+  # ----------------------------------------------------------------------
+  # Add arguments that should not go into the MYSQL_TEST env var
+  # ----------------------------------------------------------------------
+
+  mtr_add_arg($args, "-R");
+  mtr_add_arg($args, $tinfo->{'result_file'});
+
+  if ( $opt_record )
+  {
+    mtr_add_arg($args, "--record");
+  }
 
   return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
