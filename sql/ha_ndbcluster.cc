@@ -7416,10 +7416,9 @@ ndbcluster_show_status(THD* thd)
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(TRUE);
   
-  if (thd->transaction.thd_ndb &&
-      ((Thd_ndb*)thd->transaction.thd_ndb)->ndb)
+  if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
   {
-    Ndb* ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
+    Ndb* ndb= (get_thd_ndb(thd))->ndb;
     Ndb::Free_list_usage tmp; tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
