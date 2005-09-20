@@ -502,6 +502,13 @@ DESC t2;
 DROP TABLE t1,t2;
 
 #
+# Bug#12913 Simple SQL can crash server or connection
+#
+CREATE TABLE t12913 (f1 ENUM ('a','b')) AS SELECT 'a' AS f1;
+SELECT * FROM t12913;
+DROP TABLE t12913;
+
+#
 # Bug#11028: Crash on create table like
 #
 create database mysqltest;
