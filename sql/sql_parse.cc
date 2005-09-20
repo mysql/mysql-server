@@ -25,6 +25,10 @@
 #include "ha_innodb.h"
 #endif
 
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
+
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
@@ -2669,6 +2673,13 @@ mysql_execute_command(THD *thd)
       res = load_master_data(thd);
     break;
 #endif /* HAVE_REPLICATION */
+#ifdef HAVE_NDBCLUSTER_DB
+  case SQLCOM_SHOW_NDBCLUSTER_STATUS:
+    {
+      res = ndbcluster_show_status(thd);
+      break;
+    }
+#endif
 #ifdef HAVE_INNOBASE_DB
   case SQLCOM_SHOW_INNODB_STATUS:
     {

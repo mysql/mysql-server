@@ -75,24 +75,7 @@ Ndb::checkFailedNode()
 int 
 Ndb::createConIdleList(int aNrOfCon)
 {
-  for (int i = 0; i < aNrOfCon; i++)
-  {
-    NdbTransaction* tNdbCon = new NdbTransaction(this);
-    if (tNdbCon == NULL)
-    {
-      return -1;
-    }
-    if (theConIdleList == NULL)
-    {
-      theConIdleList = tNdbCon;
-      theConIdleList->next(NULL);
-    } else
-    {
-      tNdbCon->next(theConIdleList);
-      theConIdleList = tNdbCon;
-    }
-    tNdbCon->Status(NdbTransaction::NotConnected);
-  }
+  theImpl->theConIdleList.fill(this, aNrOfCon);
   return aNrOfCon; 
 }
 
@@ -108,19 +91,7 @@ Ndb::createConIdleList(int aNrOfCon)
 int 
 Ndb::createOpIdleList(int aNrOfOp)
 { 
-  for (int i = 0; i < aNrOfOp; i++){
-    NdbOperation* tOp = new NdbOperation(this);
-    if ( tOp == NULL ){
-      return -1;
-    }
-    if (theOpIdleList == NULL){
-      theOpIdleList = tOp;
-      theOpIdleList->next(NULL);
-    } else{
-      tOp->next(theOpIdleList);
-      theOpIdleList = tOp;
-    }
-  }
+  theImpl->theOpIdleList.fill(this, aNrOfOp);
   return aNrOfOp; 
 }
 
@@ -134,22 +105,7 @@ Ndb::createOpIdleList(int aNrOfOp)
 NdbBranch*
 Ndb::getNdbBranch()
 {
-  NdbBranch*    tNdbBranch;
-  if ( theBranchList == NULL )
-  {
-    tNdbBranch = new NdbBranch;
-    if (tNdbBranch == NULL)
-    {
-      return NULL;
-    }
-    tNdbBranch->theNext = NULL;
-  } else
-  {
-    tNdbBranch = theBranchList;
-    theBranchList = tNdbBranch->theNext;
-    tNdbBranch->theNext = NULL;
-  }
-  return tNdbBranch;
+  return theImpl->theBranchList.seize(this);
 }
 
 /***************************************************************************
@@ -162,22 +118,7 @@ Ndb::getNdbBranch()
 NdbCall*
 Ndb::getNdbCall()
 {
-  NdbCall*      tNdbCall;
-  if ( theCallList == NULL )
-  {
-    tNdbCall = new NdbCall;
-    if (tNdbCall == NULL)
-    {
-      return NULL;
-    }
-    tNdbCall->theNext = NULL;
-  } else
-  {
-    tNdbCall = theCallList;
-    theCallList = tNdbCall->theNext;
-    tNdbCall->theNext = NULL;
-  }
-  return tNdbCall;
+  return theImpl->theCallList.seize(this);
 }
 
 /***************************************************************************
@@ -190,19 +131,14 @@ Ndb::getNdbCall()
 NdbTransaction*
 Ndb::getNdbCon()
 {
-  NdbTransaction*        tNdbCon;
-  if ( theConIdleList == NULL ) {
-    tNdbCon = new NdbTransaction(this);
-    if (tNdbCon == NULL) {
-      return NULL;
-    }//if
-    tNdbCon->next(NULL);
-  } else
+  NdbTransaction* tNdbCon = theImpl->theConIdleList.seize(this);
+  if (unlikely(theImpl->theConIdleList.m_alloc_cnt > theMaxNoOfTransactions)) 
   {
-    tNdbCon = theConIdleList;
-    theConIdleList = tNdbCon->next();
-    tNdbCon->next(NULL);
-  }
+    theImpl->theConIdleList.release(tNdbCon);
+    ndbout << "theNoOfAllocatedTransactions = " << theNoOfAllocatedTransactions << " theMaxNoOfTransactions = " << theMaxNoOfTransactions << endl;
+    return NULL;
+  }//if
+  
   tNdbCon->theMagicNumber = 0x37412619;
   return tNdbCon;
 }
@@ -217,22 +153,7 @@ Ndb::getNdbCon()
 NdbLabel*
 Ndb::getNdbLabel()
 {
-  NdbLabel*     tNdbLabel;
-  if ( theLabelList == NULL )
-  {
-    tNdbLabel = new NdbLabel;
-    if (tNdbLabel == NULL)
-    {
-      return NULL;
-    }
-    tNdbLabel->theNext = NULL;
-  } else
-  {
-    tNdbLabel = theLabelList;
-    theLabelList = tNdbLabel->theNext;
-    tNdbLabel->theNext = NULL;
-  }
-  return tNdbLabel;
+  return theImpl->theLabelList.seize(this);
 }
 
 /***************************************************************************
@@ -246,23 +167,7 @@ Ndb::getNdbLabel()
 NdbReceiver*
 Ndb::getNdbScanRec()
 {
-  NdbReceiver*      tNdbScanRec;
-  if ( theScanList == NULL )
-  {
-    tNdbScanRec = new NdbReceiver(this);
-    if (tNdbScanRec == NULL)
-    {
-      return NULL;
-    }
-    tNdbScanRec->next(NULL);
-  } else
-  {
-    tNdbScanRec = theScanList;
-    theScanList = tNdbScanRec->next();
-    tNdbScanRec->next(NULL);
-  }
-
-  return tNdbScanRec;
+  return theImpl->theScanList.seize(this);
 }
 
 /***************************************************************************
@@ -275,22 +180,7 @@ Ndb::getNdbScanRec()
 NdbSubroutine*
 Ndb::getNdbSubroutine()
 {
-  NdbSubroutine*        tNdbSubroutine;
-  if ( theSubroutineList == NULL )
-  {
-    tNdbSubroutine = new NdbSubroutine;
-    if (tNdbSubroutine == NULL)
-    {
-      return NULL;
-    }
-    tNdbSubroutine->theNext = NULL;
-  } else
-  {
-    tNdbSubroutine = theSubroutineList;
-    theSubroutineList = tNdbSubroutine->theNext;
-    tNdbSubroutine->theNext = NULL;
-  }
-  return tNdbSubroutine;
+  return theImpl->theSubroutineList.seize(this);
 }
 
 /***************************************************************************
@@ -303,18 +193,7 @@ Remark:         Get an operation from theOpIdleList and return the object .
 NdbOperation*
 Ndb::getOperation()
 {
-  NdbOperation* tOp = theOpIdleList;
-  if (tOp != NULL ) {
-    NdbOperation* tOpNext = tOp->next();
-    tOp->next(NULL);
-    theOpIdleList = tOpNext;
-    return tOp;
-  } else {
-    tOp = new NdbOperation(this);
-    if (tOp != NULL)
-      tOp->next(NULL);
-  }
-  return tOp;
+  return theImpl->theOpIdleList.seize(this);
 }
 
 /***************************************************************************
@@ -327,18 +206,7 @@ Remark:         Get an operation from theScanOpIdleList and return the object .
 NdbIndexScanOperation*
 Ndb::getScanOperation()
 {
-  NdbIndexScanOperation* tOp = theScanOpIdleList;
-  if (tOp != NULL ) {
-    NdbIndexScanOperation* tOpNext = (NdbIndexScanOperation*)tOp->next();
-    tOp->next(NULL);
-    theScanOpIdleList = tOpNext;
-    return tOp;
-  } else {
-    tOp = new NdbIndexScanOperation(this);
-    if (tOp != NULL)
-      tOp->next(NULL);
-  }
-  return tOp;
+  return theImpl->theScanOpIdleList.seize(this);
 }
 
 /***************************************************************************
@@ -351,18 +219,7 @@ Remark:         Get an operation from theIndexOpIdleList and return the object .
 NdbIndexOperation*
 Ndb::getIndexOperation()
 {
-  NdbIndexOperation* tOp = theIndexOpIdleList;
-  if (tOp != NULL ) {
-    NdbIndexOperation* tOpNext = (NdbIndexOperation*) tOp->next();
-    tOp->next(NULL);
-    theIndexOpIdleList = tOpNext;
-    return tOp;
-  } else {
-    tOp = new NdbIndexOperation(this);
-    if (tOp != NULL)
-      tOp->next(NULL);
-  }
-  return tOp;
+  return theImpl->theIndexOpIdleList.seize(this);
 }
 
 /***************************************************************************
@@ -374,21 +231,14 @@ Return Value:   Return a reference to a receive attribute object.
 NdbRecAttr*
 Ndb::getRecAttr()
 {
-  NdbRecAttr* tRecAttr;
-  tRecAttr = theRecAttrIdleList;
-  if (tRecAttr != NULL) {
-    NdbRecAttr* tRecAttrNext = tRecAttr->next();
+  NdbRecAttr* tRecAttr = theImpl->theRecAttrIdleList.seize(this);
+  if (tRecAttr != NULL) 
+  {
     tRecAttr->init();
-    theRecAttrIdleList = tRecAttrNext;
     return tRecAttr;
-  } else {
-    tRecAttr = new NdbRecAttr;
-    if (tRecAttr == NULL)
-      return NULL;
-    tRecAttr->next(NULL);
-  }//if
-  tRecAttr->init();
-  return tRecAttr;
+  }
+
+  return NULL;
 }
 
 /***************************************************************************
@@ -400,34 +250,16 @@ Return Value:   Return a reference to a signal object.
 NdbApiSignal*
 Ndb::getSignal()
 {
-  NdbApiSignal* tSignal = theSignalIdleList;
-  if (tSignal != NULL){
-    NdbApiSignal* tSignalNext = tSignal->next();
-    tSignal->next(NULL);
-    theSignalIdleList = tSignalNext;
-  } else {
-    tSignal = new NdbApiSignal(theMyRef);
-#ifdef POORMANSPURIFY
-    cnewSignals++;
-#endif
-    if (tSignal != NULL)
-      tSignal->next(NULL);
-  }
-#ifdef POORMANSPURIFY
-  cgetSignals++;
-#endif
-  return tSignal;
+  return theImpl->theSignalIdleList.seize(this);
 }
 
 NdbBlob*
 Ndb::getNdbBlob()
 {
-  NdbBlob* tBlob = theNdbBlobIdleList;
-  if (tBlob != NULL) {
-    theNdbBlobIdleList = tBlob->theNext;
+  NdbBlob* tBlob = theImpl->theNdbBlobIdleList.seize(this);
+  if(tBlob)
+  {
     tBlob->init();
-  } else {
-    tBlob = new NdbBlob;
   }
   return tBlob;
 }
@@ -441,8 +273,7 @@ Remark:         Add a NdbBranch object into the Branch idlelist.
 void
 Ndb::releaseNdbBranch(NdbBranch* aNdbBranch)
 {
-  aNdbBranch->theNext = theBranchList;
-  theBranchList = aNdbBranch;
+  theImpl->theBranchList.release(aNdbBranch);
 }
 
 /***************************************************************************
@@ -454,8 +285,7 @@ Remark:         Add a NdbBranch object into the Branch idlelist.
 void
 Ndb::releaseNdbCall(NdbCall* aNdbCall)
 {
-  aNdbCall->theNext = theCallList;
-  theCallList = aNdbCall;
+  theImpl->theCallList.release(aNdbCall);
 }
 
 /***************************************************************************
@@ -467,9 +297,8 @@ Remark:         Add a Connection object into the signal idlelist.
 void
 Ndb::releaseNdbCon(NdbTransaction* aNdbCon)
 {
-  aNdbCon->next(theConIdleList);
   aNdbCon->theMagicNumber = 0xFE11DD;
-  theConIdleList = aNdbCon;
+  theImpl->theConIdleList.release(aNdbCon);
 }
 
 /***************************************************************************
@@ -481,8 +310,7 @@ Remark:         Add a NdbLabel object into the Label idlelist.
 void
 Ndb::releaseNdbLabel(NdbLabel* aNdbLabel)
 {
-  aNdbLabel->theNext = theLabelList;
-  theLabelList = aNdbLabel;
+  theImpl->theLabelList.release(aNdbLabel);
 }
 
 /***************************************************************************
@@ -494,8 +322,7 @@ Remark:         Add a NdbScanReceiver object into the Scan idlelist.
 void
 Ndb::releaseNdbScanRec(NdbReceiver* aNdbScanRec)
 {
-  aNdbScanRec->next(theScanList);
-  theScanList = aNdbScanRec;
+  theImpl->theScanList.release(aNdbScanRec);
 }
 
 /***************************************************************************
@@ -507,8 +334,7 @@ Remark:         Add a NdbSubroutine object into theSubroutine idlelist.
 void
 Ndb::releaseNdbSubroutine(NdbSubroutine* aNdbSubroutine)
 {
-  aNdbSubroutine->theNext = theSubroutineList;
-  theSubroutineList = aNdbSubroutine;
+  theImpl->theSubroutineList.release(aNdbSubroutine);
 }
 
 /***************************************************************************
@@ -521,16 +347,14 @@ void
 Ndb::releaseOperation(NdbOperation* anOperation)
 {
   if(anOperation->m_tcReqGSN == GSN_TCKEYREQ){
-    anOperation->next(theOpIdleList);
     anOperation->theNdbCon = NULL;
     anOperation->theMagicNumber = 0xFE11D0;
-    theOpIdleList = anOperation;
+    theImpl->theOpIdleList.release(anOperation);
   } else {
     assert(anOperation->m_tcReqGSN == GSN_TCINDXREQ);
-    anOperation->next(theIndexOpIdleList);
     anOperation->theNdbCon = NULL;
     anOperation->theMagicNumber = 0xFE11D1;
-    theIndexOpIdleList = (NdbIndexOperation*)anOperation;
+    theImpl->theIndexOpIdleList.release((NdbIndexOperation*)anOperation);
   }
 }
 
@@ -553,10 +377,9 @@ Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
     }
   }
 #endif
-  aScanOperation->next(theScanOpIdleList);
   aScanOperation->theNdbCon = NULL;
   aScanOperation->theMagicNumber = 0xFE11D2;
-  theScanOpIdleList = aScanOperation;
+  theImpl->theScanOpIdleList.release(aScanOperation);
   DBUG_VOID_RETURN;
 }
 
@@ -570,8 +393,7 @@ void
 Ndb::releaseRecAttr(NdbRecAttr* aRecAttr)
 {
   aRecAttr->release();
-  aRecAttr->next(theRecAttrIdleList);
-  theRecAttrIdleList = aRecAttr;
+  theImpl->theRecAttrIdleList.release(aRecAttr);
 }
 
 /***************************************************************************
@@ -598,8 +420,7 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
 #ifdef POORMANSPURIFY
   creleaseSignals++;
 #endif
-  aSignal->next(theSignalIdleList);
-  theSignalIdleList = aSignal;
+  theImpl->theSignalIdleList.release(aSignal);
 }
 
 void
@@ -616,162 +437,7 @@ void
 Ndb::releaseNdbBlob(NdbBlob* aBlob)
 {
   aBlob->release();
-  aBlob->theNext = theNdbBlobIdleList;
-  theNdbBlobIdleList = aBlob;
-}
-
-/***************************************************************************
-void freeOperation();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeOperation()
-{
-  NdbOperation* tOp = theOpIdleList;
-  theOpIdleList = theOpIdleList->next();
-  delete tOp;
-}
-
-/***************************************************************************
-void freeScanOperation();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeScanOperation()
-{
-  NdbIndexScanOperation* tOp = theScanOpIdleList;
-  theScanOpIdleList = (NdbIndexScanOperation *)tOp->next();
-  delete tOp;
-}
-
-/***************************************************************************
-void freeIndexOperation();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeIndexOperation()
-{
-  NdbIndexOperation* tOp = theIndexOpIdleList;
-  theIndexOpIdleList = (NdbIndexOperation *) theIndexOpIdleList->next();
-  delete tOp;
-}
-
-/***************************************************************************
-void freeNdbBranch();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeNdbBranch()
-{
-  NdbBranch* tNdbBranch = theBranchList;
-  theBranchList = theBranchList->theNext;
-  delete tNdbBranch;
-}
-
-/***************************************************************************
-void freeNdbCall();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeNdbCall()
-{
-  NdbCall* tNdbCall = theCallList;
-  theCallList = theCallList->theNext;
-  delete tNdbCall;
-}
-
-/***************************************************************************
-void freeNdbScanRec();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeNdbScanRec()
-{
-  NdbReceiver* tNdbScanRec = theScanList;
-  theScanList = theScanList->next();
-  delete tNdbScanRec;
-}
-
-/***************************************************************************
-void freeNdbCon();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeNdbCon()
-{
-  NdbTransaction* tNdbCon = theConIdleList;
-  theConIdleList = theConIdleList->next();
-  delete tNdbCon;
-}
-
-/***************************************************************************
-void freeNdbLabel();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeNdbLabel()
-{
-  NdbLabel* tNdbLabel = theLabelList;
-  theLabelList = theLabelList->theNext;
-  delete tNdbLabel;
-}
-
-/***************************************************************************
-void freeNdbSubroutine();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeNdbSubroutine()
-{
-  NdbSubroutine* tNdbSubroutine = theSubroutineList;
-  theSubroutineList = theSubroutineList->theNext;
-  delete tNdbSubroutine;
-}
-
-/***************************************************************************
-void freeRecAttr();
-
-Remark:         Always release the first item in the free list
-***************************************************************************/
-void
-Ndb::freeRecAttr()
-{
-  NdbRecAttr* tRecAttr = theRecAttrIdleList;
-  theRecAttrIdleList = theRecAttrIdleList->next();
-  delete tRecAttr;
-}
-
-/***************************************************************************
-void freeSignal();
-
-Remark:         Delete  a signal object from the signal idlelist.
-***************************************************************************/
-void
-Ndb::freeSignal()
-{
-  NdbApiSignal* tSignal = theSignalIdleList;
-  theSignalIdleList = tSignal->next();
-  delete tSignal;
-#ifdef POORMANSPURIFY
-  cfreeSignals++;
-#endif
-}
-
-void
-Ndb::freeNdbBlob()
-{
-  NdbBlob* tBlob = theNdbBlobIdleList;
-  theNdbBlobIdleList = tBlob->theNext;
-  delete tBlob;
+  theImpl->theNdbBlobIdleList.release(aBlob);
 }
 
 /****************************************************************************
@@ -826,3 +492,102 @@ Ndb::releaseConnectToNdb(NdbTransaction* a_con)
   DBUG_VOID_RETURN;
 }
 
+template<class T>
+static
+Ndb::Free_list_usage*
+update(Ndb::Free_list_usage* curr, 
+       Ndb_free_list_t<T> & list, 
+       const char * name)
+{
+  curr->m_name = name;
+  curr->m_created = list.m_alloc_cnt;
+  curr->m_free = list.m_free_cnt;
+  curr->m_sizeof = sizeof(T);
+  return curr;
+}
+
+Ndb::Free_list_usage*
+Ndb::get_free_list_usage(Ndb::Free_list_usage* curr)
+{
+  if (curr == 0)
+  {
+    return 0;
+  } 
+
+  if(curr->m_name == 0)
+  {
+    update(curr, theImpl->theConIdleList, "NdbTransaction");
+  }
+  else if(!strcmp(curr->m_name, "NdbTransaction"))
+  {
+    update(curr, theImpl->theOpIdleList, "NdbOperation");
+  }
+  else if(!strcmp(curr->m_name, "NdbOperation"))
+  {
+    update(curr, theImpl->theScanOpIdleList, "NdbIndexScanOperation");
+  }
+  else if(!strcmp(curr->m_name, "NdbIndexScanOperation"))
+  {
+    update(curr, theImpl->theIndexOpIdleList, "NdbIndexOperation");
+  }
+  else if(!strcmp(curr->m_name, "NdbIndexOperation"))
+  {
+    update(curr, theImpl->theRecAttrIdleList, "NdbRecAttr");
+  }
+  else if(!strcmp(curr->m_name, "NdbRecAttr"))
+  {
+    update(curr, theImpl->theSignalIdleList, "NdbApiSignal");
+  }
+  else if(!strcmp(curr->m_name, "NdbApiSignal"))
+  {
+    update(curr, theImpl->theLabelList, "NdbLabel");
+  }
+  else if(!strcmp(curr->m_name, "NdbLabel"))
+  {
+    update(curr, theImpl->theBranchList, "NdbBranch");
+  }
+  else if(!strcmp(curr->m_name, "NdbBranch"))
+  {
+    update(curr, theImpl->theSubroutineList, "NdbSubroutine");
+  }
+  else if(!strcmp(curr->m_name, "NdbSubroutine"))
+  {
+    update(curr, theImpl->theCallList, "NdbCall");
+  }
+  else if(!strcmp(curr->m_name, "NdbCall"))
+  {
+    update(curr, theImpl->theNdbBlobIdleList, "NdbBlob");
+  }
+  else if(!strcmp(curr->m_name, "NdbBlob"))
+  {
+    update(curr, theImpl->theScanList, "NdbReceiver");
+  }
+  else if(!strcmp(curr->m_name, "NdbReceiver"))
+  {
+    return 0;
+  }
+  else
+  {
+    update(curr, theImpl->theConIdleList, "NdbTransaction");
+  }
+
+  return curr;
+}
+
+#define TI(T) \
+ template Ndb::Free_list_usage* \
+ update(Ndb::Free_list_usage*, Ndb_free_list_t<T> &, const char * name);\
+ template struct Ndb_free_list_t<T>
+
+TI(NdbBlob);
+TI(NdbCall);
+TI(NdbLabel);
+TI(NdbBranch);
+TI(NdbSubroutine);
+TI(NdbApiSignal);
+TI(NdbRecAttr);
+TI(NdbOperation);
+TI(NdbReceiver);
+TI(NdbConnection);
+TI(NdbIndexOperation);
+TI(NdbIndexScanOperation);
