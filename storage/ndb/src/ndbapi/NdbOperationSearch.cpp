@@ -199,14 +199,14 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       // XXX
       if(m_accessTable == m_currentTable)
       {
-	AttributeHeader::init(&ahValue, tAttrId, sz);
+	AttributeHeader::init(&ahValue, tAttrId, sz << 2);
       }
       else
       {
 	assert(m_accessTable->m_index);
 	int attr_id_current_table = 
 	  m_accessTable->m_index->m_columns[tAttrId]->m_keyInfoPos;
-	AttributeHeader::init(&ahValue, attr_id_current_table, sz);
+	AttributeHeader::init(&ahValue, attr_id_current_table, sz << 2);
       }
       
       insertATTRINFO( ahValue );

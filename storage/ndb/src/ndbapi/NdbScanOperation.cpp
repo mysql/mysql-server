@@ -1104,7 +1104,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     // insert attribute header
     Uint32 tIndexAttrId = tAttrInfo->m_attrId;
     Uint32 sizeInWords = (len + 3) / 4;
-    AttributeHeader ah(tIndexAttrId, sizeInWords);
+    AttributeHeader ah(tIndexAttrId, sizeInWords << 2);
     const Uint32 ahValue = ah.m_value;
 
     const Uint32 align = (UintPtr(aValue) & 7);

@@ -1207,7 +1207,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
       if (operationType == UtilPrepareReq::Read) {
 	AttributeHeader::init(rsInfoIt.data, 
 			      attrDesc.AttributeId,    // 1. Store AttrId
-			      len);
+			      len << 2);
 	prepOpPtr.p->rsInfo.next(rsInfoIt, 1);
       }
     }
@@ -1394,7 +1394,7 @@ DbUtil::hardcodedPrepare() {
     ndbrequire(ptr.p->rsInfo.seize(1));
     ResultSetInfoBuffer::DataBufferIterator it; 
     ptr.p->rsInfo.first(it);
-    AttributeHeader::init(it.data, 1, 2); // Attribute 1 - 2 data words
+    AttributeHeader::init(it.data, 1, 2 << 2); // Attribute 1 - 2 data words
   }
 
   /**
@@ -1449,7 +1449,7 @@ DbUtil::hardcodedPrepare() {
       ndbrequire(ptr.p->rsInfo.seize(1));
       ResultSetInfoBuffer::DataBufferIterator it; 
       ptr.p->rsInfo.first(it);
-      AttributeHeader::init(it.data, 1, 2); // Attribute 1 - 2 data words
+      AttributeHeader::init(it.data, 1, 2 << 2); // Attribute 1 - 2 data words
     }
   }
 
@@ -1529,13 +1529,13 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
     AttrInfoBuffer::DataBufferIterator it;   
 
     opPtr.p->attrInfo.first(it);
-    AttributeHeader::init(it.data, 0, 1);
+    AttributeHeader::init(it.data, 0, 1 << 2);
 
     ndbrequire(opPtr.p->attrInfo.next(it));
     * it.data = transPtr.p->sequence.sequenceId;
 
     ndbrequire(opPtr.p->attrInfo.next(it));
-    AttributeHeader::init(it.data, 1, 2);
+    AttributeHeader::init(it.data, 1, 2 << 2);
     
     ndbrequire(opPtr.p->attrInfo.next(it));
     * it.data = 0;

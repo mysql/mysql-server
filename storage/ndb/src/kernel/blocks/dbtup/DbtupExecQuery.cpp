@@ -1548,7 +1548,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 Tlen;
 
 	  AttributeHeader& ah = AttributeHeader::init(&TdataForUpdate[0], 
-						      TattrId, TattrNoOfWords);
+						      TattrId,
+                                                      TattrNoOfWords << 2);
 	  TdataForUpdate[1] = TregMemBuffer[theRegister + 2];
 	  TdataForUpdate[2] = TregMemBuffer[theRegister + 3];
 	  Tlen = TattrNoOfWords + 1;

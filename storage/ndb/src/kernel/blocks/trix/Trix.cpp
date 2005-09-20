@@ -837,7 +837,7 @@ void Trix::executeInsertTransaction(Signal* signal,
   // Pack key attributes
   AttributeHeader::init(headerBuffer + subRec->noOfIndexColumns,
 			subRec->noOfIndexColumns,
-			noOfKeyData);
+			noOfKeyData << 2);
 
   struct LinearSectionPtr sectionsPtr[UtilExecuteReq::NoOfSections];
   sectionsPtr[UtilExecuteReq::HEADER_SECTION].p = headerBuffer;
