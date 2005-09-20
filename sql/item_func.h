@@ -55,7 +55,7 @@ public:
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   GUSERVAR_FUNC, COLLATE_FUNC,
-                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC };
+                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -1365,6 +1365,7 @@ public:
 
 class sp_head;
 class sp_name;
+struct st_sp_security_context;
 
 class Item_func_sp :public Item_func
 {
@@ -1434,7 +1435,10 @@ public:
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
   void fix_length_and_dec();
+  bool check_access(ulong want_access, bool report_error, st_sp_security_context *sp_ctx);
+  virtual enum Functype functype() const { return FUNC_SP; }
 
+  bool fix_fields(THD *thd, Item **ref);
 };
 
 
