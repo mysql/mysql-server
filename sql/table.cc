@@ -87,6 +87,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   SQL_CRYPT *crypted=0;
   MEM_ROOT **root_ptr, *old_root;
   TABLE_SHARE *share;
+  enum db_type default_part_db_type;
   DBUG_ENTER("openfrm");
   DBUG_PRINT("enter",("name: '%s'  form: 0x%lx",name,outparam));
 
@@ -164,6 +165,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (share->frm_version == FRM_VER_TRUE_VARCHAR -1 && head[33] == 5)
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
+  default_part_db_type= ha_checktype(thd,(enum db_type) (uint) *(head+61),0,0);
   share->db_type= ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0);
   share->db_create_options= db_create_options=uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
@@ -452,7 +454,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (part_info_len > 0)
   {
 #ifdef HAVE_PARTITION_DB
-    if (mysql_unpack_partition(file, thd, part_info_len, outparam)) 
+    if (mysql_unpack_partition(file, thd, part_info_len,
+                               outparam, default_part_db_type)) 
       goto err;
 #else
     goto err;
