@@ -1435,7 +1435,8 @@ public:
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
   void fix_length_and_dec();
-  bool check_access(ulong want_access, bool report_error, st_sp_security_context *sp_ctx);
+  bool find_and_check_access(THD * thd, ulong want_access,
+                             Security_context **backup);
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
