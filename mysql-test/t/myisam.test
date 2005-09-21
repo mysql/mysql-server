@@ -578,6 +578,59 @@ checksum table t1;
 # The above should give the same number as the following.
 checksum table t2;
 drop table t1, t2;
+
+#
+# BUG#12232: New myisam_stats_method variable.
+#
+
+show variables like 'myisam_stats_method';
+
+create table t1 (a int, key(a));
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t1 select NULL from t1;
+
+# default: NULLs considered inequal
+analyze table t1; 
+show index from t1;
+insert into t1 values (11);
+delete from t1 where a=11;
+check table t1;
+show index from t1;
+
+# Set nulls to be equal:
+set myisam_stats_method=nulls_equal;
+show variables like 'myisam_stats_method';
+insert into t1 values (11);
+delete from t1 where a=11;
+
+analyze table t1; 
+show index from t1;
+
+insert into t1 values (11);
+delete from t1 where a=11;
+
+check table t1;
+show index from t1;
+
+# Set nulls back to be equal 
+set myisam_stats_method=DEFAULT;
+show variables like 'myisam_stats_method';
+insert into t1 values (11);
+delete from t1 where a=11;
+
+analyze table t1; 
+show index from t1;
+
+insert into t1 values (11);
+delete from t1 where a=11;
+
+check table t1;
+show index from t1;
+
+drop table t1;
+
+# End of 4.1 tests
+
 #
 # Test varchar
 #
@@ -700,4 +753,3 @@ create table t3 (c1 int) engine=myisam pack_keys=default;
 create table t4 (c1 int) engine=myisam pack_keys=2;
 drop table t1, t2, t3;
 
-# End of 4.1 tests
