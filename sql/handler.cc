@@ -511,7 +511,7 @@ int ha_init()
       break;
 #endif
 #ifdef HAVE_CSV_DB
-    case DB_TYPE_CSV_DB,:
+    case DB_TYPE_CSV_DB:
       types->ht= &tina_hton;
       break;
 #endif

@@ -6554,15 +6554,16 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
 	    THD *thd= lex->thd;
+            Security_context *sctx= thd->security_ctx;
 	    LEX_USER *curr_user;
             if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            curr_user->user.str= thd->priv_user;
-            curr_user->user.length= strlen(thd->priv_user);
-            if (*thd->priv_host != 0)
+            curr_user->user.str= sctx->priv_user;
+            curr_user->user.length= strlen(sctx->priv_user);
+            if (*sctx->priv_host != 0)
             {
-              curr_user->host.str= thd->priv_host;
-              curr_user->host.length= strlen(thd->priv_host);
+              curr_user->host.str= sctx->priv_host;
+              curr_user->host.length= strlen(sctx->priv_host);
             }
             else
             {
@@ -7466,14 +7467,15 @@ user:
 	| CURRENT_USER optional_braces
 	{
           THD *thd= YYTHD;
+          Security_context *sctx= thd->security_ctx;
           if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
             YYABORT;
-          $$->user.str= thd->priv_user;
-          $$->user.length= strlen(thd->priv_user);
-          if (*thd->priv_host != 0)
+          $$->user.str= sctx->priv_user;
+          $$->user.length= strlen(sctx->priv_user);
+          if (*sctx->priv_host != 0)
           {
-            $$->host.str= thd->priv_host;
-            $$->host.length= strlen(thd->priv_host);
+            $$->host.str= sctx->priv_host;
+            $$->host.length= strlen(sctx->priv_host);
           }
           else
           {
@@ -7989,7 +7991,7 @@ option_value:
 	    if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
 	      YYABORT;
 	    user->host=null_lex_str;
-	    user->user.str=thd->priv_user;
+	    user->user.str=thd->security_ctx->priv_user;
 	    thd->lex->var_list.push_back(new set_var_password(user, $3));
 	  }
 	| PASSWORD FOR_SYM user equal text_or_password
@@ -8922,7 +8924,8 @@ view_user:
             if (!(thd->lex->create_view_definer=
                   (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            if (default_view_definer(thd, thd->lex->create_view_definer))
+            if (default_view_definer(thd->security_ctx,
+                                     thd->lex->create_view_definer))
               YYABORT;
           }
         | CURRENT_USER optional_braces
@@ -8931,7 +8934,8 @@ view_user:
             if (!(thd->lex->create_view_definer=
                   (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            if (default_view_definer(thd, thd->lex->create_view_definer))
+            if (default_view_definer(thd->security_ctx,
+                                     thd->lex->create_view_definer))
               YYABORT;
           }
 	| DEFINER_SYM EQ ident_or_text '@' ident_or_text

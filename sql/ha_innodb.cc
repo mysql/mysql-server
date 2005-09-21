@@ -563,25 +563,29 @@ innobase_mysql_print_thd(
 				   use the default max length */
 {
 	const THD*	thd;
+        const Security_context *sctx;
 	const char*	s;
 
         thd = (const THD*) input_thd;
+        /* We probably want to have original user as part of debug output. */
+        sctx = &thd->main_security_ctx;
+
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, (ulong) thd->query_id);
-	if (thd->host) {
+	if (sctx->host) {
 		putc(' ', f);
-		fputs(thd->host, f);
+		fputs(sctx->host, f);
 	}
 
-	if (thd->ip) {
+	if (sctx->ip) {
 		putc(' ', f);
-		fputs(thd->ip, f);
+		fputs(sctx->ip, f);
 	}
 
-  	if (thd->user) {
+        if (sctx->user) {
 		putc(' ', f);
-		fputs(thd->user, f);
+		fputs(sctx->user, f);
   	}
 
 	if ((s = thd->proc_info)) {
