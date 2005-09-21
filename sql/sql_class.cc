@@ -1544,6 +1544,19 @@ void Query_arena::free_items()
 }
 
 
+void Query_arena::set_query_arena(Query_arena *set)
+{
+  mem_root=  set->mem_root;
+  free_list= set->free_list;
+  state= set->state;
+}
+
+
+void Query_arena::cleanup_stmt()
+{
+  DBUG_ASSERT("Query_arena::cleanup_stmt()" == "not implemented");
+}
+
 /*
   Statement functions 
 */
@@ -1601,12 +1614,6 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 }
 
 
-void Statement::close_cursor()
-{
-  DBUG_ASSERT("Statement::close_cursor()" == "not implemented");
-}
-
-
 void THD::end_statement()
 {
   /* Cleanup SQL processing state to resuse this statement in next query. */
@@ -1646,13 +1653,6 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
   backup->is_backup_arena= FALSE;
 #endif
   DBUG_VOID_RETURN;
-}
-
-void Query_arena::set_query_arena(Query_arena *set)
-{
-  mem_root=  set->mem_root;
-  free_list= set->free_list;
-  state= set->state;
 }
 
 Statement::~Statement()
@@ -1723,9 +1723,11 @@ int Statement_map::insert(Statement *statement)
 
 void Statement_map::close_transient_cursors()
 {
+#ifdef TO_BE_IMPLEMENTED
   Statement *stmt;
   while ((stmt= transient_cursor_list.head()))
     stmt->close_cursor();                 /* deletes itself from the list */
+#endif
 }
 
 

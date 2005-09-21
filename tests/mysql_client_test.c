@@ -13828,8 +13828,11 @@ static void test_bug10760()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
   rc= mysql_query(mysql, "update t1 set id=id+100");
-  DIE_UNLESS(rc);
-  if (!opt_silent)
+  /*
+    If cursors are not materialized, the update will return an error;
+    we mainly test that it won't deadlock.
+  */
+  if (rc && !opt_silent)
     printf("Got error (as expected): %s\n", mysql_error(mysql));
   /*
     2: check that MyISAM tables used in cursors survive
