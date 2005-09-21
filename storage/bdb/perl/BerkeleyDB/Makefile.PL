@@ -27,11 +27,16 @@ my $LIBS ;
 
 ParseCONFIG() ;
 
-if (defined $DB_NAME) 
+if (defined $DB_NAME)
   { $LIBS = $DB_NAME }
-else { 
+else {
     if ($^O eq 'MSWin32')
       { $LIBS = '-llibdb' }
+    elsif ($^O =~ /aix/i )  {
+      $LIBS .= '-ldb -lpthread ';
+      if ($Config{'cc'} eq 'gcc' && $Config{'osvers'} eq '5.1')
+        { $LIBS .= '-lgcc_s' }
+    }
     else
       { $LIBS = '-ldb' }
 }
@@ -40,6 +45,10 @@ else {
 my $OS2 = "" ;
 $OS2 = "-DOS2" if $^O eq 'os2' ;
 
+my $WALL = '';
+#$WALL = ' -Wall ' if $Config{'cc'} =~ /gcc/ ;
+
+
 WriteMakefile(
 	NAME 		=> 'BerkeleyDB',
 	LIBS 		=> ["-L${LIB_DIR} $LIBS"],
@@ -47,12 +56,12 @@ WriteMakefile(
 	INC		=> "-I$INC_DIR",
 	VERSION_FROM	=> 'BerkeleyDB.pm',
 	XSPROTOARG	=> '-noprototypes',
-	DEFINE		=> "$OS2",
+	DEFINE		=> "$OS2 $WALL",
 	#'macro'		=> { INSTALLDIRS => 'perl' },
         'dist'          => {COMPRESS=>'gzip', SUFFIX=>'gz'},    
 	($] >= 5.005
 	    ? (ABSTRACT_FROM	=> 'BerkeleyDB.pod',
-	       AUTHOR  	=> 'Paul Marquess <Paul.Marquess@btinternet.com>')
+	       AUTHOR  	=> 'Paul Marquess <pmqs@cpan.org>')
 	    : ()
 	),
 	);
@@ -115,7 +124,9 @@ sub ParseCONFIG
 
     $INC_DIR =  $ENV{'BERKELEYDB_INCLUDE'} || $Info{'INCLUDE'} ;
     $LIB_DIR =  $ENV{'BERKELEYDB_LIB'} || $Info{'LIB'} ;
-    $DB_NAME = $Info{'DBNAME'} if defined $Info{'DBNAME'} ;
+    $DB_NAME = $ENV{BERKELEYDB_NAME} || $Info{'DBNAME'} ;
+    #$DB_NAME =  $ENV{} || $Info{'DBNAME'} if defined $Info{'DBNAME'} ;
+
     print "Looks Good.\n" ;
 
 }

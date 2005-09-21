@@ -1,17 +1,15 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2002
+ * Copyright (c) 2001-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: fileops.src,v 1.8 2002/04/06 18:25:55 bostic Exp $
+ * $Id: fileops.src,v 1.13 2004/06/17 17:35:20 bostic Exp $
  */
 
 PREFIX	__fop
 DBPRIVATE
 
-INCLUDE	#include "db_config.h"
-INCLUDE
 INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
@@ -25,7 +23,6 @@ INCLUDE #include "dbinc/db_page.h"
 INCLUDE #include "dbinc/db_dispatch.h"
 INCLUDE #include "dbinc/db_am.h"
 INCLUDE #include "dbinc/log.h"
-INCLUDE #include "dbinc/rep.h"
 INCLUDE #include "dbinc/txn.h"
 INCLUDE #include "dbinc/fop.h"
 INCLUDE
@@ -60,7 +57,9 @@ END
  *
  * name: file containing the page.
  * appname: indicates if the name needs to go through __db_appname
- * offset: offset in the file.
+ * pgsize: page size.
+ * pageno: page number in the file.
+ * offset: offset on the page.
  * page: the actual meta-data page.
  * flag: non-0 indicates that this is a tempfile, so we needn't undo
  *	these modifications (we'll toss the file).
@@ -68,6 +67,8 @@ END
 BEGIN write	145
 DBT	name		DBT		s
 ARG	appname		u_int32_t	lu
+ARG	pgsize		u_int32_t	lu
+ARG	pageno		db_pgno_t	lu
 ARG	offset		u_int32_t	lu
 PGDBT	page		DBT		s
 ARG	flag		u_int32_t	lu

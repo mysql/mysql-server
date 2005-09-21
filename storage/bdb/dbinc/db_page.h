@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_page.h,v 11.52 2002/09/13 21:24:04 bostic Exp $
+ * $Id: db_page.h,v 11.63 2004/09/17 22:00:27 mjc Exp $
  */
 
 #ifndef _DB_PAGE_H_
@@ -243,6 +243,12 @@ typedef struct _db_page {
 	u_int8_t  type;		/*    25: Page type. */
 } PAGE;
 
+/*
+ * With many compilers sizeof(PAGE) == 28, while SIZEOF_PAGE == 26.
+ * We add in other things directly after the page header and need
+ * the SIZEOF_PAGE.  When giving the sizeof(), many compilers will
+ * pad it out to the next 4-byte boundary.
+ */
 #define	SIZEOF_PAGE	26
 /*
  * !!!
@@ -322,7 +328,7 @@ typedef struct _qpage {
 #define	RE_NREC_ADJ(p, adj)						\
 	PREV_PGNO(p) += adj;
 #define	RE_NREC_SET(p, num)						\
-	PREV_PGNO(p) = num;
+	PREV_PGNO(p) = (num);
 
 /*
  * Initialize a page.
@@ -332,13 +338,13 @@ typedef struct _qpage {
  * P_INIT call.
  */
 #define	P_INIT(pg, pg_size, n, pg_prev, pg_next, btl, pg_type) do {	\
-	PGNO(pg) = n;							\
-	PREV_PGNO(pg) = pg_prev;					\
-	NEXT_PGNO(pg) = pg_next;					\
-	NUM_ENT(pg) = 0;						\
-	HOFFSET(pg) = pg_size;						\
-	LEVEL(pg) = btl;						\
-	TYPE(pg) = pg_type;						\
+	PGNO(pg) = (n);							\
+	PREV_PGNO(pg) = (pg_prev);					\
+	NEXT_PGNO(pg) = (pg_next);					\
+	NUM_ENT(pg) = (0);						\
+	HOFFSET(pg) = (db_indx_t)(pg_size);				\
+	LEVEL(pg) = (btl);						\
+	TYPE(pg) = (pg_type);						\
 } while (0)
 
 /* Page header length (offset to first index). */
@@ -432,8 +438,8 @@ typedef struct _hkeydata {
  * not a PAIR index.
  */
 #define	LEN_HITEM(dbp, pg, pgsize, indx)				\
-	(((indx) == 0 ? pgsize :					\
-	(P_INP(dbp, pg)[indx - 1])) - (P_INP(dbp, pg)[indx]))
+	(((indx) == 0 ? (pgsize) :					\
+	(P_INP(dbp, pg)[(indx) - 1])) - (P_INP(dbp, pg)[indx]))
 
 #define	LEN_HKEYDATA(dbp, pg, psize, indx)				\
 	(db_indx_t)(LEN_HITEM(dbp, pg, psize, indx) - HKEYDATA_SIZE(0))
@@ -547,10 +553,13 @@ typedef struct _bkeydata {
 
 /*
  * Page space required to add a new BKEYDATA item to the page, with and
- * without the index value.
+ * without the index value.  The (u_int16_t) cast avoids warnings: DB_ALIGN
+ * casts to uintmax_t, the cast converts it to a small integral type so we
+ * don't get complaints when we assign the final result to an integral type
+ * smaller than uintmax_t.
  */
 #define	BKEYDATA_SIZE(len)						\
-	ALIGN((len) + SSZA(BKEYDATA, data), sizeof(u_int32_t))
+	(u_int16_t)DB_ALIGN((len) + SSZA(BKEYDATA, data), sizeof(u_int32_t))
 #define	BKEYDATA_PSIZE(len)						\
 	(BKEYDATA_SIZE(len) + sizeof(db_indx_t))
 
@@ -572,13 +581,10 @@ typedef struct _boverflow {
 
 /*
  * Page space required to add a new BOVERFLOW item to the page, with and
- * without the index value.  The (u_int16_t) cast avoids warnings: ALIGN
- * casts to db_align_t, the cast converts it to a small integral type so
- * we don't get complaints when we assign the final result to an integral
- * type smaller than db_align_t.
+ * without the index value.
  */
 #define	BOVERFLOW_SIZE							\
-	((u_int16_t)ALIGN(sizeof(BOVERFLOW), sizeof(u_int32_t)))
+	((u_int16_t)DB_ALIGN(sizeof(BOVERFLOW), sizeof(u_int32_t)))
 #define	BOVERFLOW_PSIZE							\
 	(BOVERFLOW_SIZE + sizeof(db_indx_t))
 
@@ -615,7 +621,7 @@ typedef struct _binternal {
  * without the index value.
  */
 #define	BINTERNAL_SIZE(len)						\
-	ALIGN((len) + SSZA(BINTERNAL, data), sizeof(u_int32_t))
+	(u_int16_t)DB_ALIGN((len) + SSZA(BINTERNAL, data), sizeof(u_int32_t))
 #define	BINTERNAL_PSIZE(len)						\
 	(BINTERNAL_SIZE(len) + sizeof(db_indx_t))
 
@@ -640,7 +646,7 @@ typedef struct _rinternal {
  * without the index value.
  */
 #define	RINTERNAL_SIZE							\
-	ALIGN(sizeof(RINTERNAL), sizeof(u_int32_t))
+	(u_int16_t)DB_ALIGN(sizeof(RINTERNAL), sizeof(u_int32_t))
 #define	RINTERNAL_PSIZE							\
 	(RINTERNAL_SIZE + sizeof(db_indx_t))
 

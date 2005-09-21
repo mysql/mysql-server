@@ -20,7 +20,7 @@ BEGIN
             VALUE "FileDescription", "Berkeley DB 3.0 DLL\0"
             VALUE "FileVersion", "%MAJOR%.%MINOR%.%PATCH%\0"
             VALUE "InternalName", "libdb.dll\0"
-            VALUE "LegalCopyright", "Copyright © Sleepycat Software Inc. 1997-2002\0"
+            VALUE "LegalCopyright", "Copyright © Sleepycat Software Inc. 1997-2004\0"
             VALUE "OriginalFilename", "libdb.dll\0"
             VALUE "ProductName", "Sleepycat Software libdb\0"
             VALUE "ProductVersion", "%MAJOR%.%MINOR%.%PATCH%\0"

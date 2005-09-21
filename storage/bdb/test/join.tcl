@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: join.tcl,v 11.21 2002/02/20 17:08:22 sandstro Exp $
+# $Id: join.tcl,v 11.23 2004/01/28 03:36:28 bostic Exp $
 #
 # TEST	jointest
 # TEST	Test duplicate assisted joins.  Executes 1, 2, 3 and 4-way joins

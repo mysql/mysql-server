@@ -1,15 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test072.tcl,v 11.27 2002/07/01 15:40:48 krinsky Exp $
+# $Id: test072.tcl,v 11.34 2004/05/13 18:51:44 mjc Exp $
 #
 # TEST	test072
 # TEST	Test of cursor stability when duplicates are moved off-page.
-proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
+proc test072 { method {pagesize 512} {ndups 20} {tnum "072"} args } {
 	source ./include.tcl
 	global alphabet
+	global is_je_test
 
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]
@@ -17,13 +18,13 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
-	# If we are using an env, then testfile should just be the db name.
-	# Otherwise it is the test directory and the name.
+	# If we are using an env, then testfile name should just be
+	# the db name.  Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set basename $testdir/test$tnum
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set basename test$tnum
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -44,17 +45,17 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 	set predatum "1234567890"
 	set postdatum "0987654321"
 
-	puts -nonewline "Test0$tnum $omethod ($args): "
+	puts -nonewline "Test$tnum $omethod ($args): "
 	if { [is_record_based $method] || [is_rbtree $method] } {
 		puts "Skipping for method $method."
 		return
 	} else {
-		puts "\n    Test of cursor stability when\
+		puts "\nTest$tnum: Test of cursor stability when\
 		    duplicates are moved off-page."
 	}
 	set pgindex [lsearch -exact $args "-pagesize"]
 	if { $pgindex != -1 } {
-		puts "Test0$tnum: skipping for specific pagesizes"
+		puts "Test$tnum: skipping for specific pagesizes"
 		return
 	}
 
@@ -64,14 +65,18 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 	set dlist [list "-dup" "-dup -dupsort"]
 	set testid 0
 	foreach dupopt $dlist {
+		if { $is_je_test && $dupopt == "-dup" } {
+			continue
+		}
+
 		incr testid
-		set duptestfile $testfile$testid
+		set duptestfile $basename$testid.db
 		set db [eval {berkdb_open -create -mode 0644} \
 		    $omethod $args $dupopt {$duptestfile}]
 		error_check_good "db open" [is_valid_db $db] TRUE
 
 		puts \
-"\tTest0$tnum.a: ($dupopt) Set up surrounding keys and cursors."
+"\tTest$tnum.a: ($dupopt) Set up surrounding keys and cursors."
 		if { $txnenv == 1 } {
 			set t [$env txn]
 			error_check_good txn [is_valid_txn $t $env] TRUE
@@ -93,7 +98,7 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 		error_check_good postset [$postcursor get -set $postkey] \
 			[list [list $postkey $postdatum]]
 
-		puts "\tTest0$tnum.b: Put/create cursor/verify all cursor loop."
+		puts "\tTest$tnum.b: Put/create cursor/verify all cursor loop."
 
 		for { set i 0 } { $i < $ndups } { incr i } {
 			set datum [format "%4d$alphabet" [expr $i + 1000]]
@@ -164,7 +169,7 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 			    $post_dbt [list [list $postkey $postdatum]]
 		}
 
-		puts "\tTest0$tnum.c: Reverse Put/create cursor/verify all cursor loop."
+		puts "\tTest$tnum.c: Reverse Put/create cursor/verify all cursor loop."
 		set end [expr $ndups * 2 - 1]
 		for { set i $end } { $i >= $ndups } { set i [expr $i - 1] } {
 			set datum [format "%4d$alphabet" [expr $i + 1000]]
@@ -237,7 +242,7 @@ proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {
 		}
 
 		# Close cursors.
-		puts "\tTest0$tnum.d: Closing cursors."
+		puts "\tTest$tnum.d: Closing cursors."
 		for { set i 0 } { $i <= $end } { incr i } {
 			error_check_good "dbc close ($i)" [$dbc($i) close] 0
 		}

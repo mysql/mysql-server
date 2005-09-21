@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2002
+ * Copyright (c) 2000-2004
  *      Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_server_util.c,v 1.72 2004/09/22 17:30:12 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_server_util.c,v 1.59 2002/03/27 04:32:50 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -34,15 +32,15 @@ static const char revid[] = "$Id: db_server_util.c,v 1.59 2002/03/27 04:32:50 bo
 #include <string.h>
 #include <unistd.h>
 #endif
-#include "dbinc_auto/db_server.h"
+
+#include "db_server.h"
 
 #include "db_int.h"
 #include "dbinc_auto/clib_ext.h"
 #include "dbinc/db_server_int.h"
-#include "dbinc_auto/rpc_server_ext.h"
 #include "dbinc_auto/common_ext.h"
+#include "dbinc_auto/rpc_server_ext.h"
 
-extern int __dbsrv_main	 __P((void));
 static int add_home __P((char *));
 static int add_passwd __P((char *));
 static int env_recover __P((char *));
@@ -56,7 +54,7 @@ static long __dbsrv_idleto = DB_SERVER_IDLETIMEOUT;
 static char *logfile = NULL;
 static char *prog;
 
-static void usage __P((char *));
+static void usage __P((void));
 static void version_check __P((void));
 
 int __dbsrv_verbose = 0;
@@ -66,6 +64,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	extern int __dbsrv_main();
 	extern char *optarg;
 	CLIENT *cl;
 	int ch, ret;
@@ -141,7 +140,7 @@ main(argc, argv)
 			__dbsrv_verbose = 1;
 			break;
 		default:
-			usage(prog);
+			usage();
 		}
 	/*
 	 * Check default timeout against maximum timeout
@@ -155,7 +154,7 @@ main(argc, argv)
 	 */
 	if (__dbsrv_defto > __dbsrv_idleto)
 		fprintf(stderr,
-		    "%s: WARNING: Idle timeout %ld is less than resource timeout %ld\n",
+	    "%s: WARNING: Idle timeout %ld is less than resource timeout %ld\n",
 		    prog, __dbsrv_idleto, __dbsrv_defto);
 
 	LIST_INIT(&__dbsrv_head);
@@ -185,13 +184,14 @@ main(argc, argv)
 		printf("%s:  Ready to receive requests\n", prog);
 	__dbsrv_main();
 
-	/* NOTREACHED */
 	abort();
+
+	/* NOTREACHED */
+	return (0);
 }
 
 static void
-usage(prog)
-	char *prog;
+usage()
 {
 	fprintf(stderr, "usage: %s %s\n\t%s\n", prog,
 	    "[-Vv] [-h home] [-P passwd]",
@@ -416,7 +416,7 @@ new_ct_ent(errp)
 	octp = LIST_FIRST(&__dbsrv_head);
 	if (octp != NULL && octp->ct_id >= t)
 		t = octp->ct_id + 1;
-	ctp->ct_id = t;
+	ctp->ct_id = (long)t;
 	ctp->ct_idle = __dbsrv_idleto;
 	ctp->ct_activep = &ctp->ct_active;
 	ctp->ct_origp = NULL;
@@ -504,7 +504,8 @@ __dbsrv_sharedb(db_ctp, name, subdb, type, flags)
 }
 
 /*
- * PUBLIC: ct_entry *__dbsrv_shareenv __P((ct_entry *, home_entry *, u_int32_t));
+ * PUBLIC: ct_entry *__dbsrv_shareenv
+ * PUBLIC:     __P((ct_entry *, home_entry *, u_int32_t));
  */
 ct_entry *
 __dbsrv_shareenv(env_ctp, home, flags)
@@ -652,7 +653,7 @@ __dbenv_close_int(id, flags, force)
 {
 	DB_ENV *dbenv;
 	int ret;
-	ct_entry *ctp;
+	ct_entry *ctp, *dbctp, *nextctp;
 
 	ret = 0;
 	ctp = get_tableent(id);
@@ -672,6 +673,31 @@ __dbenv_close_int(id, flags, force)
 	if (__dbsrv_verbose)
 		printf("Closing env id %ld\n", id);
 
+	/*
+	 * If we're timing out an env, we want to close all of its
+	 * database handles as well.  All of the txns and cursors
+	 * must have been timed out prior to timing out the env.
+	 */
+	if (force)
+		for (dbctp = LIST_FIRST(&__dbsrv_head);
+		    dbctp != NULL; dbctp = nextctp) {
+			nextctp = LIST_NEXT(dbctp, entries);
+			if (dbctp->ct_type != CT_DB)
+				continue;
+			if (dbctp->ct_envparent != ctp)
+				continue;
+			/*
+			 * We found a DB handle that is part of this
+			 * environment.  Close it.
+			 */
+			__db_close_int(dbctp->ct_id, 0);
+			/*
+			 * If we timed out a dbp, we may have removed
+			 * multiple ctp entries.  Start over with a
+			 * guaranteed good ctp.
+			 */
+			nextctp = LIST_FIRST(&__dbsrv_head);
+		}
 	ret = dbenv->close(dbenv, flags);
 	__dbdel_ctp(ctp);
 	return (ret);
@@ -696,8 +722,11 @@ add_home(home)
 	 * to assure hp->name points to the last component.
 	 */
 	hp->name = __db_rpath(home);
-	*(hp->name) = '\0';
-	hp->name++;
+	if (hp->name != NULL) {
+		*(hp->name) = '\0';
+		hp->name++;
+	} else
+		hp->name = home;
 	while (*(hp->name) == '\0') {
 		hp->name = __db_rpath(home);
 		*(hp->name) = '\0';
@@ -745,14 +774,16 @@ add_passwd(passwd)
 }
 
 /*
- * PUBLIC: home_entry *get_home __P((char *));
+ * PUBLIC: home_entry *get_fullhome __P((char *));
  */
 home_entry *
-get_home(name)
+get_fullhome(name)
 	char *name;
 {
 	home_entry *hp;
 
+	if (name == NULL)
+		return (NULL);
 	for (hp = LIST_FIRST(&__dbsrv_home); hp != NULL;
 	    hp = LIST_NEXT(hp, entries))
 		if (strcmp(name, hp->name) == 0)
@@ -777,10 +808,8 @@ env_recover(progname)
 			    progname, db_strerror(ret));
 			exit(EXIT_FAILURE);
 		}
-		if (__dbsrv_verbose == 1) {
+		if (__dbsrv_verbose == 1)
 			(void)dbenv->set_verbose(dbenv, DB_VERB_RECOVERY, 1);
-			(void)dbenv->set_verbose(dbenv, DB_VERB_CHKPOINT, 1);
-		}
 		dbenv->set_errfile(dbenv, stderr);
 		dbenv->set_errpfx(dbenv, progname);
 		if (hp->passwd != NULL)

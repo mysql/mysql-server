@@ -1,4 +1,4 @@
-# $Id: tcl.ac,v 11.14 2002/09/07 17:25:58 dda Exp $
+# $Id: tcl.ac,v 11.18 2004/03/11 20:11:17 bostic Exp $
 
 # The SC_* macros in this file are from the unix/tcl.m4 files in the Tcl
 # 8.3.0 distribution, with some minor changes.  For this reason, license
@@ -87,6 +87,12 @@ AC_DEFUN(SC_LOAD_TCLCONFIG, [
 		AC_MSG_RESULT([file not found])
 	fi
 
+	# DB requires at least version 8.4.
+	if test ${TCL_MAJOR_VERSION} -lt 8 \
+	    -o ${TCL_MAJOR_VERSION} -eq 8 -a ${TCL_MINOR_VERSION} -lt 4; then
+		AC_MSG_ERROR([Berkeley DB requires Tcl version 8.4 or better.])
+	fi
+
 	#
 	# The eval is required to do the TCL_DBGX substitution in the
 	# TCL_LIB_FILE variable
@@ -118,8 +124,7 @@ AC_DEFUN(SC_LOAD_TCLCONFIG, [
 
 # Optional Tcl API.
 AC_DEFUN(AM_TCL_LOAD, [
-if test "$db_cv_tcl" = "yes"; then
-	if test "$enable_shared" = "no"; then
+	if test `$LIBTOOL_PROG --config | grep build_libtool_libs | grep no` 2>/dev/null; then
 		AC_MSG_ERROR([Tcl requires shared libraries])
 	fi
 
@@ -133,4 +138,4 @@ if test "$db_cv_tcl" = "yes"; then
 	fi
 
 	INSTALL_LIBS="${INSTALL_LIBS} \$(libtso_target)"
-fi])
+])

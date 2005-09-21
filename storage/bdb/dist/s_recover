@@ -1,32 +1,29 @@
 #!/bin/sh -
-#	$Id: s_recover,v 1.14 2002/03/27 04:31:51 bostic Exp $
+#	$Id: s_recover,v 1.17 2004/06/17 17:35:19 bostic Exp $
 #
 # Build the automatically generated logging/recovery files.
 
-. ./RELEASE
-
-tmp=/tmp/__db_a
+header=/tmp/__db_a
 loglist=/tmp/__db_b
-source=/tmp/__db_c
-header=/tmp/__db_d
+print=/tmp/__db_c
+source=/tmp/__db_d
 template=/tmp/__db_e
+tmp=/tmp/__db_f
 
-trap 'rm -f $tmp $loglist $source $header $template; exit 1' 1 2 3 13 15
-trap 'rm -f $tmp $loglist $source $header $template; exit 0' 0
+trap 'rm -f /tmp/__db_[abcdef]; exit 1' 1 2 3 13 15
+trap 'rm -f /tmp/__db_[abcdef]; exit 0' 0
 
-DIR="db dbreg btree hash qam txn"
+DIR="db dbreg btree fileops hash qam rep txn"
 
 # Check to make sure we haven't duplicated a log record entry, and build
 # the list of log record types that the test suite uses.
 for i in $DIR; do
-	p=none
 	for f in ../$i/*.src; do
 		# Grab the PREFIX;  there should only be one per file, and
 		# so it's okay to just take the first.
 		grep '^PREFIX' $f | sed q
 		egrep '^BEGIN[	 ]|^IGNORED[	 ]|^DEPRECATED[	 ]' $f |
 		    awk '{print $1 "\t" $2 "\t" $3}'
-
 	done
 done > $loglist
 grep -v '^PREFIX' $loglist |
@@ -42,12 +39,13 @@ cmp $loglist $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $loglist $f && chmod 444 $f)
 
 # Build DB's recovery routines.
-for i in db dbreg btree fileops hash qam txn; do
+for i in $DIR; do
 	for f in ../$i/*.src; do
 		subsystem=`basename $f .src`
 		awk -f gen_rec.awk \
-		    -v source_file=$source \
 		    -v header_file=$header \
+		    -v print_file=$print\
+		    -v source_file=$source \
 		    -v template_file=$template < $f
 
 		f=../dbinc_auto/${subsystem}_auto.h
@@ -58,6 +56,10 @@ for i in db dbreg btree fileops hash qam txn; do
 		cmp $source $f > /dev/null 2>&1 ||
 		    (echo "Building $f" &&
 		    rm -f $f && cp $source $f && chmod 444 $f)
+		f=../$i/${subsystem}_autop.c
+		cmp $print $f > /dev/null 2>&1 ||
+		    (echo "Building $f" &&
+		    rm -f $f && cp $print $f && chmod 444 $f)
 		f=template/rec_${subsystem}
 		cmp $template $f > /dev/null 2>&1 ||
 		    (echo "Building $f" &&
@@ -66,4 +68,4 @@ for i in db dbreg btree fileops hash qam txn; do
 done
 
 # Build the example application's recovery routines.
-#(cd ../examples_c/ex_apprec && sh auto_rebuild)
+(cd ../examples_c/ex_apprec && sh auto_rebuild)

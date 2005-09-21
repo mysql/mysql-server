@@ -5,6 +5,12 @@
 /* Define to 1 if you want to build a version for running the test suite. */
 /* #undef CONFIG_TEST */
 
+/* We use DB_WIN32 much as one would use _WIN32 -- to specify that we're using
+   an operating system environment that supports Win32 calls and semantics. We
+   don't use _WIN32 because Cygwin/GCC also defines _WIN32, even though
+   Cygwin/GCC closely emulates the Unix environment. */
+/* #undef DB_WIN32 */
+
 /* !!!
  * The DEBUG option may be added using the Tornado project build.
  * DO NOT modify it here.
@@ -29,7 +35,7 @@
 #define HAVE_CLOCK_GETTIME 1
 
 /* Define to 1 if Berkeley DB release includes strong cryptography. */
-/* #undef HAVE_CRYPTO */
+#define HAVE_CRYPTO 1
 
 /* Define to 1 if you have the `directio' function. */
 /* #undef HAVE_DIRECTIO */
@@ -47,8 +53,14 @@
 /* Define to 1 if fcntl/F_SETFD denies child access to file descriptors. */
 /* #undef HAVE_FCNTL_F_SETFD */
 
+/* Define to 1 if you have the `fdatasync' function. */
+/* #undef HAVE_FDATASYNC */
+
 /* Define to 1 if allocated filesystem blocks are not zeroed. */
 #define HAVE_FILESYSTEM_NOTZERO 1
+
+/* Define to 1 if you have the `ftruncate' function. */
+/* #undef HAVE_FTRUNCATE */
 
 /* Define to 1 if you have the `getcwd' function. */
 #define HAVE_GETCWD 1
@@ -56,17 +68,26 @@
 /* Define to 1 if you have the `getopt' function. */
 /* #undef HAVE_GETOPT */
 
+/* Define to 1 if you have the `getrusage' function. */
+/* #undef HAVE_GETRUSAGE */
+
 /* Define to 1 if you have the `gettimeofday' function. */
 /* #undef HAVE_GETTIMEOFDAY */
 
 /* Define to 1 if you have the `getuid' function. */
 /* #undef HAVE_GETUID */
 
+/* Define to 1 if building Hash access method. */
+#define HAVE_HASH 1
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 /* #undef HAVE_INTTYPES_H */
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 /* #undef HAVE_LIBNSL */
+
+/* Define to 1 if the system has the type `long long'. */
+/* #undef HAVE_LONG_LONG */
 
 /* Define to 1 if you have the `memcmp' function. */
 #define HAVE_MEMCMP 1
@@ -104,6 +125,9 @@
 /* Define to 1 to use the GCC compiler and ARM assembly language mutexes. */
 /* #undef HAVE_MUTEX_ARM_GCC_ASSEMBLY */
 
+/* Define to 1 to use the Apple/Darwin _spin_lock_try mutexes. */
+/* #undef HAVE_MUTEX_DARWIN_SPIN_LOCK_TRY */
+
 /* Define to 1 to use the UNIX fcntl system call mutexes. */
 /* #undef HAVE_MUTEX_FCNTL */
 
@@ -120,18 +144,19 @@
 /* Define to 1 to use the msem_XXX mutexes on systems other than HP-UX. */
 /* #undef HAVE_MUTEX_MSEM_INIT */
 
-/* Define to 1 to use the GCC compiler and Apple PowerPC assembly language. */
-/* #undef HAVE_MUTEX_PPC_APPLE_GCC_ASSEMBLY */
-
-/* Define to 1 to use the GCC compiler and generic PowerPC assembly language.
+/* Define to 1 to use the GCC compiler and PowerPC assembly language mutexes.
    */
-/* #undef HAVE_MUTEX_PPC_GENERIC_GCC_ASSEMBLY */
+/* #undef HAVE_MUTEX_PPC_GCC_ASSEMBLY */
 
 /* Define to 1 to use POSIX 1003.1 pthread_XXX mutexes. */
 /* #undef HAVE_MUTEX_PTHREADS */
 
 /* Define to 1 to use Reliant UNIX initspin mutexes. */
 /* #undef HAVE_MUTEX_RELIANTUNIX_INITSPIN */
+
+/* Define to 1 to use the IBM C compiler and S/390 assembly language mutexes.
+   */
+/* #undef HAVE_MUTEX_S390_CC_ASSEMBLY */
 
 /* Define to 1 to use the GCC compiler and S/390 assembly language mutexes. */
 /* #undef HAVE_MUTEX_S390_GCC_ASSEMBLY */
@@ -163,6 +188,9 @@
 /* Define to 1 to configure mutexes intra-process only. */
 /* #undef HAVE_MUTEX_THREAD_ONLY */
 
+/* Define to 1 to use the CC compiler and Tru64 assembly language mutexes. */
+/* #undef HAVE_MUTEX_TRU64_CC_ASSEMBLY */
+
 /* Define to 1 to use the UNIX International mutexes. */
 /* #undef HAVE_MUTEX_UI_THREADS */
 
@@ -175,8 +203,11 @@
 /* Define to 1 to use VxWorks mutexes. */
 #define HAVE_MUTEX_VXWORKS 1
 
-/* Define to 1 to use Windows mutexes. */
+/* Define to 1 to use the MSVC compiler and Windows mutexes. */
 /* #undef HAVE_MUTEX_WIN32 */
+
+/* Define to 1 to use the GCC compiler and Windows mutexes. */
+/* #undef HAVE_MUTEX_WIN32_GCC */
 
 /* Define to 1 to use the GCC compiler and x86 assembly language mutexes. */
 /* #undef HAVE_MUTEX_X86_GCC_ASSEMBLY */
@@ -199,11 +230,17 @@
 /* Define to 1 if building on QNX. */
 /* #undef HAVE_QNX */
 
-/* Define to 1 if you have the `qsort' function. */
-#define HAVE_QSORT 1
+/* Define to 1 if building Queue access method. */
+#define HAVE_QUEUE 1
 
 /* Define to 1 if you have the `raise' function. */
 #define HAVE_RAISE 1
+
+/* Define to 1 if you have the `rand' function. */
+#define HAVE_RAND 1
+
+/* Define to 1 if building replication support. */
+#define HAVE_REPLICATION 1
 
 /* Define to 1 if building RPC client/server. */
 /* #undef HAVE_RPC */
@@ -214,11 +251,20 @@
 /* Define to 1 if you have the `select' function. */
 #define HAVE_SELECT 1
 
+/* Define to 1 if building sequence support. */
+/* #undef HAVE_SEQUENCE */
+
 /* Define to 1 if you have the `shmget' function. */
 /* #undef HAVE_SHMGET */
 
 /* Define to 1 if you have the `snprintf' function. */
 /* #undef HAVE_SNPRINTF */
+
+/* Define to 1 if you have the `srand' function. */
+#define HAVE_SRAND 1
+
+/* Define to 1 if building statistics support. */
+#define HAVE_STATISTICS 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 /* #undef HAVE_STDINT_H */
@@ -241,6 +287,9 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
+/* Define to 1 if you have the `strtol' function. */
+#define HAVE_STRTOL 1
+
 /* Define to 1 if you have the `strtoul' function. */
 #define HAVE_STRTOUL 1
 
@@ -253,6 +302,9 @@
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 /* #undef HAVE_SYS_DIR_H */
+
+/* Define to 1 if you have the <sys/fcntl.h> header file. */
+/* #undef HAVE_SYS_FCNTL_H */
 
 /* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
    */
@@ -276,6 +328,12 @@
 /* Define to 1 if unlink of file with open file descriptors will fail. */
 #define HAVE_UNLINK_WITH_OPEN_FAILURE 1
 
+/* Define to 1 if the system has the type `unsigned long long'. */
+/* #undef HAVE_UNSIGNED_LONG_LONG */
+
+/* Define to 1 if building access method verification support. */
+#define HAVE_VERIFY 1
+
 /* Define to 1 if you have the `vsnprintf' function. */
 /* #undef HAVE_VSNPRINTF */
 
@@ -287,6 +345,9 @@
 
 /* Define to 1 if you have the `_fstati64' function. */
 /* #undef HAVE__FSTATI64 */
+
+/* Define to a value if using non-standard mutex alignment. */
+/* #undef MUTEX_ALIGN */
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "support@sleepycat.com"
@@ -312,7 +373,7 @@
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 /* #undef TIME_WITH_SYS_TIME */
 
-/* Define to 1 to mask harmless unitialized memory read/writes. */
+/* Define to 1 to mask harmless uninitialized memory read/writes. */
 /* #undef UMRW */
 
 /* Number of bits in a file offset, on hosts where this is settable. */

@@ -1,19 +1,22 @@
 #
-# $Id: ignore,v 1.4 2002/08/16 19:35:56 dda Exp $
+# $Id: ignore,v 1.7 2003/08/07 15:48:03 mjc Exp $
 #
 # A list of tests to ignore
 
-# TestRpcServer is not debugged
+# These tests are not debugged
 TestRpcServer
-
-# TestReplication is not debugged
 TestReplication
 
 # These are currently not working
 TestAppendRecno
 TestAssociate
 TestLogc
+TestConstruct01
 TestConstruct02
+
+# We no longer check to see that a Dbt is used more than
+# once simultaneously.  It's no longer a disastrous error.
+TestSameDbt
 
 # TestUtil is used by the other tests, it does not stand on its own
 TestUtil

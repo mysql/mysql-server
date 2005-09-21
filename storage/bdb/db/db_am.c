@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2002
+ * Copyright (c) 1998-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_am.c,v 11.120 2004/10/07 17:33:32 sue Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_am.c,v 11.96 2002/08/27 15:17:32 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -29,91 +27,16 @@ static const char revid[] = "$Id: db_am.c,v 11.96 2002/08/27 15:17:32 bostic Exp
 
 static int __db_append_primary __P((DBC *, DBT *, DBT *));
 static int __db_secondary_get __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t));
-static int __db_secondary_close __P((DB *, u_int32_t));
-
-#ifdef DEBUG
-static int __db_cprint_item __P((DBC *));
-#endif
 
 /*
- * __db_cursor --
- *	Allocate and return a cursor.
+ * __db_cursor_int --
+ *	Internal routine to create a cursor.
  *
- * PUBLIC: int __db_cursor __P((DB *, DB_TXN *, DBC **, u_int32_t));
- */
-int
-__db_cursor(dbp, txn, dbcp, flags)
-	DB *dbp;
-	DB_TXN *txn;
-	DBC **dbcp;
-	u_int32_t flags;
-{
-	DB_ENV *dbenv;
-	DBC *dbc;
-	db_lockmode_t mode;
-	u_int32_t op;
-	int ret;
-
-	dbenv = dbp->dbenv;
-
-	PANIC_CHECK(dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->cursor");
-
-	/* Validate arguments. */
-	if ((ret = __db_cursorchk(dbp, flags)) != 0)
-		return (ret);
-
-	/*
-	 * Check for consistent transaction usage.  For now, assume that
-	 * this cursor might be used for read operations only (in which
-	 * case it may not require a txn).  We'll check more stringently
-	 * in c_del and c_put.  (Note that this all means that the
-	 * read-op txn tests have to be a subset of the write-op ones.)
-	 */
-	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 1)) != 0)
-		return (ret);
-
-	if ((ret = __db_icursor(dbp,
-	    txn, dbp->type, PGNO_INVALID, 0, DB_LOCK_INVALIDID, dbcp)) != 0)
-		return (ret);
-	dbc = *dbcp;
-
-	/*
-	 * If this is CDB, do all the locking in the interface, which is
-	 * right here.
-	 */
-	if (CDB_LOCKING(dbenv)) {
-		op = LF_ISSET(DB_OPFLAGS_MASK);
-		mode = (op == DB_WRITELOCK) ? DB_LOCK_WRITE :
-		    ((op == DB_WRITECURSOR) ? DB_LOCK_IWRITE : DB_LOCK_READ);
-		if ((ret = dbenv->lock_get(dbenv, dbc->locker, 0,
-		    &dbc->lock_dbt, mode, &dbc->mylock)) != 0) {
-			(void)__db_c_close(dbc);
-			return (ret);
-		}
-		if (op == DB_WRITECURSOR)
-			F_SET(dbc, DBC_WRITECURSOR);
-		if (op == DB_WRITELOCK)
-			F_SET(dbc, DBC_WRITER);
-	}
-
-	if (LF_ISSET(DB_DIRTY_READ) ||
-	    (txn != NULL && F_ISSET(txn, TXN_DIRTY_READ)))
-		F_SET(dbc, DBC_DIRTY_READ);
-	return (0);
-}
-
-/*
- * __db_icursor --
- *	Internal version of __db_cursor.  If dbcp is
- *	non-NULL it is assumed to point to an area to
- *	initialize as a cursor.
- *
- * PUBLIC: int __db_icursor
+ * PUBLIC: int __db_cursor_int
  * PUBLIC:     __P((DB *, DB_TXN *, DBTYPE, db_pgno_t, int, u_int32_t, DBC **));
  */
 int
-__db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
+__db_cursor_int(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 	DB *dbp;
 	DB_TXN *txn;
 	DBTYPE dbtype;
@@ -122,7 +45,7 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 	u_int32_t lockerid;
 	DBC **dbcp;
 {
-	DBC *dbc, *adbc;
+	DBC *dbc;
 	DBC_INTERNAL *cp;
 	DB_ENV *dbenv;
 	int allocated, ret;
@@ -131,6 +54,9 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 	allocated = 0;
 
 	/*
+	 * If dbcp is non-NULL it is assumed to point to an area to initialize
+	 * as a cursor.
+	 *
 	 * Take one from the free list if it's available.  Take only the
 	 * right type.  With off page dups we may have different kinds
 	 * of cursors on the queue for a single database.
@@ -146,7 +72,7 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
 
 	if (dbc == NULL) {
-		if ((ret = __os_calloc(dbp->dbenv, 1, sizeof(DBC), &dbc)) != 0)
+		if ((ret = __os_calloc(dbenv, 1, sizeof(DBC), &dbc)) != 0)
 			return (ret);
 		allocated = 1;
 		dbc->flags = 0;
@@ -156,28 +82,33 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 		/* Set up locking information. */
 		if (LOCKING_ON(dbenv)) {
 			/*
-			 * If we are not threaded, then there is no need to
-			 * create new locker ids.  We know that no one else
-			 * is running concurrently using this DB, so we can
-			 * take a peek at any cursors on the active queue.
+			 * If we are not threaded, we share a locker ID among
+			 * all cursors opened in the environment handle,
+			 * allocating one if this is the first cursor.
+			 *
+			 * This relies on the fact that non-threaded DB handles
+			 * always have non-threaded environment handles, since
+			 * we set DB_THREAD on DB handles created with threaded
+			 * environment handles.
 			 */
-			if (!DB_IS_THREADED(dbp) &&
-			    (adbc = TAILQ_FIRST(&dbp->active_queue)) != NULL)
-				dbc->lid = adbc->lid;
-			else {
-				if ((ret =
-				    dbenv->lock_id(dbenv, &dbc->lid)) != 0)
+			if (!DB_IS_THREADED(dbp)) {
+				if (dbp->dbenv->env_lid == DB_LOCK_INVALIDID &&
+				    (ret =
+				    __lock_id(dbenv,&dbp->dbenv->env_lid)) != 0)
+					goto err;
+				dbc->lid = dbp->dbenv->env_lid;
+			} else {
+				if ((ret = __lock_id(dbenv, &dbc->lid)) != 0)
 					goto err;
 				F_SET(dbc, DBC_OWN_LID);
 			}
 
 			/*
 			 * In CDB, secondary indices should share a lock file
-			 * ID with the primary;  otherwise we're susceptible to
-			 * deadlocks.  We also use __db_icursor rather
-			 * than sdbp->cursor to create secondary update
-			 * cursors in c_put and c_del;  these won't
-			 * acquire a new lock.
+			 * ID with the primary;  otherwise we're susceptible
+			 * to deadlocks.  We also use __db_cursor_int rather
+			 * than __db_cursor to create secondary update cursors
+			 * in c_put and c_del; these won't acquire a new lock.
 			 *
 			 * !!!
 			 * Since this is in the one-time cursor allocation
@@ -185,7 +116,7 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 			 * close, all cursors in the secondary when we
 			 * associate.
 			 */
-			if (CDB_LOCKING(dbp->dbenv) &&
+			if (CDB_LOCKING(dbenv) &&
 			    F_ISSET(dbp, DB_AM_SECONDARY))
 				memcpy(dbc->lock.fileid,
 				    dbp->s_primary->fileid, DB_FILE_ID_LEN);
@@ -231,9 +162,9 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 			if ((ret = __qam_c_init(dbc)) != 0)
 				goto err;
 			break;
+		case DB_UNKNOWN:
 		default:
-			ret = __db_unknown_type(dbp->dbenv,
-			    "__db_icursor", dbtype);
+			ret = __db_unknown_type(dbenv, "DB->cursor", dbtype);
 			goto err;
 		}
 
@@ -270,10 +201,8 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 			dbc->locker = lockerid;
 		else
 			dbc->locker = dbc->lid;
-	} else {
+	} else
 		dbc->locker = txn->txnid;
-		txn->cursors++;
-	}
 
 	/*
 	 * These fields change when we are used as a secondary index, so
@@ -283,7 +212,7 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 	 * __db_c_get is used by all access methods, so this should be safe.
 	 */
 	if (F_ISSET(dbp, DB_AM_SECONDARY))
-		dbc->c_get = __db_c_secondary_get;
+		dbc->c_get = __db_c_secondary_get_pp;
 
 	if (is_opd)
 		F_SET(dbc, DBC_OPD);
@@ -310,10 +239,19 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 	case DB_HASH:
 	case DB_QUEUE:
 		break;
+	case DB_UNKNOWN:
 	default:
-		ret = __db_unknown_type(dbp->dbenv, "__db_icursor", dbp->type);
+		ret = __db_unknown_type(dbenv, "DB->cursor", dbp->type);
 		goto err;
 	}
+
+	/*
+	 * The transaction keeps track of how many cursors were opened within
+	 * it to catch application errors where the cursor isn't closed when
+	 * the transaction is resolved.
+	 */
+	if (txn != NULL)
+		++txn->cursors;
 
 	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
 	TAILQ_INSERT_TAIL(&dbp->active_queue, dbc, links);
@@ -324,189 +262,7 @@ __db_icursor(dbp, txn, dbtype, root, is_opd, lockerid, dbcp)
 	return (0);
 
 err:	if (allocated)
-		__os_free(dbp->dbenv, dbc);
-	return (ret);
-}
-
-#ifdef DEBUG
-/*
- * __db_cprint --
- *	Display the cursor active and free queues.
- *
- * PUBLIC: int __db_cprint __P((DB *));
- */
-int
-__db_cprint(dbp)
-	DB *dbp;
-{
-	DBC *dbc;
-	int ret, t_ret;
-
-	ret = 0;
-	MUTEX_THREAD_LOCK(dbp->dbenv, dbp->mutexp);
-	fprintf(stderr, "Active queue:\n");
-	for (dbc = TAILQ_FIRST(&dbp->active_queue);
-	    dbc != NULL; dbc = TAILQ_NEXT(dbc, links))
-		if ((t_ret = __db_cprint_item(dbc)) != 0 && ret == 0)
-			ret = t_ret;
-	fprintf(stderr, "Free queue:\n");
-	for (dbc = TAILQ_FIRST(&dbp->free_queue);
-	    dbc != NULL; dbc = TAILQ_NEXT(dbc, links))
-		if ((t_ret = __db_cprint_item(dbc)) != 0 && ret == 0)
-			ret = t_ret;
-	MUTEX_THREAD_UNLOCK(dbp->dbenv, dbp->mutexp);
-
-	return (ret);
-}
-
-static
-int __db_cprint_item(dbc)
-	DBC *dbc;
-{
-	static const FN fn[] = {
-		{ DBC_ACTIVE,		"active" },
-		{ DBC_COMPENSATE,	"compensate" },
-		{ DBC_OPD,		"off-page-dup" },
-		{ DBC_RECOVER,		"recover" },
-		{ DBC_RMW,		"read-modify-write" },
-		{ DBC_TRANSIENT,	"transient" },
-		{ DBC_WRITECURSOR,	"write cursor" },
-		{ DBC_WRITEDUP,		"internally dup'ed write cursor" },
-		{ DBC_WRITER,		"short-term write cursor" },
-		{ 0,			NULL }
-	};
-	DB *dbp;
-	DBC_INTERNAL *cp;
-	const char *s;
-
-	dbp = dbc->dbp;
-	cp = dbc->internal;
-
-	s = __db_dbtype_to_string(dbc->dbtype);
-	if (strcmp(s, "UNKNOWN TYPE") == 0) {
-		DB_ASSERT(0);
-		return (1);
-	}
-	fprintf(stderr, "%s/%#0lx: opd: %#0lx\n",
-	    s, P_TO_ULONG(dbc), P_TO_ULONG(cp->opd));
-
-	fprintf(stderr, "\ttxn: %#0lx lid: %lu locker: %lu\n",
-	    P_TO_ULONG(dbc->txn), (u_long)dbc->lid, (u_long)dbc->locker);
-
-	fprintf(stderr, "\troot: %lu page/index: %lu/%lu",
-	    (u_long)cp->root, (u_long)cp->pgno, (u_long)cp->indx);
-
-	__db_prflags(dbc->flags, fn, stderr);
-	fprintf(stderr, "\n");
-
-	switch (dbp->type) {
-	case DB_BTREE:
-		__bam_cprint(dbc);
-		break;
-	case DB_HASH:
-		__ham_cprint(dbc);
-		break;
-	default:
-		break;
-	}
-	return (0);
-}
-#endif /* DEBUG */
-
-/*
- * db_fd --
- *	Return a file descriptor for flock'ing.
- *
- * PUBLIC: int __db_fd __P((DB *, int *));
- */
-int
-__db_fd(dbp, fdp)
-	DB *dbp;
-	int *fdp;
-{
-	DB_FH *fhp;
-	int ret;
-
-	PANIC_CHECK(dbp->dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->fd");
-
-	/*
-	 * XXX
-	 * Truly spectacular layering violation.
-	 */
-	if ((ret = __mp_xxx_fh(dbp->mpf, &fhp)) != 0)
-		return (ret);
-
-	if (F_ISSET(fhp, DB_FH_VALID)) {
-		*fdp = fhp->fd;
-		return (0);
-	} else {
-		*fdp = -1;
-		__db_err(dbp->dbenv, "DB does not have a valid file handle");
-		return (ENOENT);
-	}
-}
-
-/*
- * __db_get --
- *	Return a key/data pair.
- *
- * PUBLIC: int __db_get __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t));
- */
-int
-__db_get(dbp, txn, key, data, flags)
-	DB *dbp;
-	DB_TXN *txn;
-	DBT *key, *data;
-	u_int32_t flags;
-{
-	DBC *dbc;
-	int mode, ret, t_ret;
-
-	PANIC_CHECK(dbp->dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->get");
-
-	if ((ret = __db_getchk(dbp, key, data, flags)) != 0)
-		return (ret);
-
-	/* Check for consistent transaction usage. */
-	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 1)) != 0)
-		return (ret);
-
-	mode = 0;
-	if (LF_ISSET(DB_DIRTY_READ)) {
-		mode = DB_DIRTY_READ;
-		LF_CLR(DB_DIRTY_READ);
-	}
-	else if (flags == DB_CONSUME || flags == DB_CONSUME_WAIT)
-		mode = DB_WRITELOCK;
-	if ((ret = dbp->cursor(dbp, txn, &dbc, mode)) != 0)
-		return (ret);
-
-	DEBUG_LREAD(dbc, txn, "__db_get", key, NULL, flags);
-
-	/*
-	 * The DBC_TRANSIENT flag indicates that we're just doing a
-	 * single operation with this cursor, and that in case of
-	 * error we don't need to restore it to its old position--we're
-	 * going to close it right away.  Thus, we can perform the get
-	 * without duplicating the cursor, saving some cycles in this
-	 * common case.
-	 *
-	 * SET_RET_MEM indicates that if key and/or data have no DBT
-	 * flags set and DB manages the returned-data memory, that memory
-	 * will belong to this handle, not to the underlying cursor.
-	 */
-	F_SET(dbc, DBC_TRANSIENT);
-	SET_RET_MEM(dbc, dbp);
-
-	if (LF_ISSET(~(DB_RMW | DB_MULTIPLE)) == 0)
-		LF_SET(DB_SET);
-	ret = dbc->c_get(dbc, key, data, flags);
-
-	if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
-		ret = t_ret;
-
+		__os_free(dbenv, dbc);
 	return (ret);
 }
 
@@ -526,36 +282,14 @@ __db_put(dbp, txn, key, data, flags)
 	DBC *dbc;
 	DBT tdata;
 	DB_ENV *dbenv;
-	int ret, t_ret, txn_local;
+	int ret, t_ret;
 
-	dbc = NULL;
 	dbenv = dbp->dbenv;
-	txn_local = 0;
 
-	PANIC_CHECK(dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->put");
-
-	/* Validate arguments. */
-	if ((ret = __db_putchk(dbp, key, data,
-	    flags, F_ISSET(dbp, DB_AM_DUP) || F_ISSET(key, DB_DBT_DUPOK))) != 0)
+	if ((ret = __db_cursor(dbp, txn, &dbc, DB_WRITELOCK)) != 0)
 		return (ret);
 
-	/* Create local transaction as necessary. */
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto(dbp, &txn)) != 0)
-			return (ret);
-		txn_local = 1;
-		LF_CLR(DB_AUTO_COMMIT);
-	}
-
-	/* Check for consistent transaction usage. */
-	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 0)) != 0)
-		goto err;
-
-	if ((ret = dbp->cursor(dbp, txn, &dbc, DB_WRITELOCK)) != 0)
-		goto err;
-
-	DEBUG_LWRITE(dbc, txn, "db_put", key, data, flags);
+	DEBUG_LWRITE(dbc, txn, "DB->put", key, data, flags);
 
 	SET_RET_MEM(dbc, dbp);
 
@@ -594,10 +328,15 @@ __db_put(dbp, txn, key, data, flags)
 			if ((ret = __ram_append(dbc, key, &tdata)) != 0)
 				goto err;
 			break;
+		case DB_BTREE:
+		case DB_HASH:
+		case DB_UNKNOWN:
 		default:
 			/* The interface should prevent this. */
-			DB_ASSERT(0);
-			ret = __db_ferr(dbenv, "__db_put", flags);
+			DB_ASSERT(
+			    dbp->type == DB_QUEUE || dbp->type == DB_RECNO);
+
+			ret = __db_ferr(dbenv, "DB->put", 0);
 			goto err;
 		}
 
@@ -621,7 +360,7 @@ __db_put(dbp, txn, key, data, flags)
 		FREE_IF_NEEDED(dbp, &tdata);
 
 		/* No need for a cursor put;  we're done. */
-		goto err;
+		goto done;
 	case DB_NOOVERWRITE:
 		flags = 0;
 		/*
@@ -636,7 +375,7 @@ __db_put(dbp, txn, key, data, flags)
 		 * If we're doing page-level locking, set the read-modify-write
 		 * flag, we're going to overwrite immediately.
 		 */
-		if ((ret = dbc->c_get(dbc, key, &tdata,
+		if ((ret = __db_c_get(dbc, key, &tdata,
 		    DB_SET | (STD_LOCKING(dbc) ? DB_RMW : 0))) == 0)
 			ret = DB_KEYEXIST;
 		else if (ret == DB_NOTFOUND || ret == DB_KEYEMPTY)
@@ -646,34 +385,27 @@ __db_put(dbp, txn, key, data, flags)
 		/* Fall through to normal cursor put. */
 		break;
 	}
+
 	if (ret == 0)
-		ret = dbc->c_put(dbc,
+		ret = __db_c_put(dbc,
 		    key, data, flags == 0 ? DB_KEYLAST : flags);
 
-err:	/* Close the cursor. */
-	if (dbc != NULL && (t_ret = __db_c_close(dbc)) != 0 && ret == 0)
+err:
+done:	/* Close the cursor. */
+	if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
 		ret = t_ret;
-
-	/* Commit for DB_AUTO_COMMIT. */
-	if (txn_local) {
-		if (ret == 0)
-			ret = txn->commit(txn, 0);
-		else
-			if ((t_ret = txn->abort(txn)) != 0)
-				ret = __db_panic(dbenv, t_ret);
-	}
 
 	return (ret);
 }
 
 /*
- * __db_delete --
+ * __db_del --
  *	Delete the items referenced by a key.
  *
- * PUBLIC: int __db_delete __P((DB *, DB_TXN *, DBT *, u_int32_t));
+ * PUBLIC: int __db_del __P((DB *, DB_TXN *, DBT *, u_int32_t));
  */
 int
-__db_delete(dbp, txn, key, flags)
+__db_del(dbp, txn, key, flags)
 	DB *dbp;
 	DB_TXN *txn;
 	DBT *key;
@@ -681,38 +413,15 @@ __db_delete(dbp, txn, key, flags)
 {
 	DBC *dbc;
 	DBT data, lkey;
-	DB_ENV *dbenv;
 	u_int32_t f_init, f_next;
-	int ret, t_ret, txn_local;
-
-	dbc = NULL;
-	dbenv = dbp->dbenv;
-	txn_local = 0;
-
-	PANIC_CHECK(dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->del");
-
-	/* Check for invalid flags. */
-	if ((ret = __db_delchk(dbp, key, flags)) != 0)
-		return (ret);
-
-	/* Create local transaction as necessary. */
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto(dbp, &txn)) != 0)
-			return (ret);
-		txn_local = 1;
-		LF_CLR(DB_AUTO_COMMIT);
-	}
-
-	/* Check for consistent transaction usage. */
-	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 0)) != 0)
-		goto err;
+	int ret, t_ret;
 
 	/* Allocate a cursor. */
-	if ((ret = dbp->cursor(dbp, txn, &dbc, DB_WRITELOCK)) != 0)
+	if ((ret = __db_cursor(dbp, txn, &dbc, DB_WRITELOCK)) != 0)
 		goto err;
 
-	DEBUG_LWRITE(dbc, txn, "db_delete", key, NULL, flags);
+	DEBUG_LWRITE(dbc, txn, "DB->del", key, NULL, flags);
+	COMPQUIET(flags, 0);
 
 	/*
 	 * Walk a cursor through the key/data pairs, deleting as we go.  Set
@@ -737,7 +446,7 @@ __db_delete(dbp, txn, key, flags)
 	}
 
 	/* Walk through the set of key/data pairs, deleting as we go. */
-	if ((ret = dbc->c_get(dbc, key, &data, f_init)) != 0)
+	if ((ret = __db_c_get(dbc, key, &data, f_init)) != 0)
 		goto err;
 
 	/*
@@ -760,39 +469,28 @@ __db_delete(dbp, txn, key, flags)
 	 * The ordinary AM-independent alternative will work just fine with
 	 * a hash;  it'll just be slower.
 	 */
-	if (dbp->type == DB_HASH) {
+	if (dbp->type == DB_HASH)
 		if (LIST_FIRST(&dbp->s_secondaries) == NULL &&
 		    !F_ISSET(dbp, DB_AM_SECONDARY) &&
 		    dbc->internal->opd == NULL) {
 			ret = __ham_quick_delete(dbc);
-			goto err;
+			goto done;
 		}
-	}
 
 	for (;;) {
-		if ((ret = dbc->c_del(dbc, 0)) != 0)
-			goto err;
-		if ((ret = dbc->c_get(dbc, &lkey, &data, f_next)) != 0) {
-			if (ret == DB_NOTFOUND) {
+		if ((ret = __db_c_del(dbc, 0)) != 0)
+			break;
+		if ((ret = __db_c_get(dbc, &lkey, &data, f_next)) != 0) {
+			if (ret == DB_NOTFOUND)
 				ret = 0;
-				break;
-			}
-			goto err;
+			break;
 		}
 	}
 
+done:
 err:	/* Discard the cursor. */
-	if (dbc != NULL && (t_ret = dbc->c_close(dbc)) != 0 && ret == 0)
+	if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
 		ret = t_ret;
-
-	/* Commit for DB_AUTO_COMMIT. */
-	if (txn_local) {
-		if (ret == 0)
-			ret = txn->commit(txn, 0);
-		else
-			if ((t_ret = txn->abort(txn)) != 0)
-				ret = __db_panic(dbenv, t_ret);
-	}
 
 	return (ret);
 }
@@ -801,22 +499,17 @@ err:	/* Discard the cursor. */
  * __db_sync --
  *	Flush the database cache.
  *
- * PUBLIC: int __db_sync __P((DB *, u_int32_t));
+ * PUBLIC: int __db_sync __P((DB *));
  */
 int
-__db_sync(dbp, flags)
+__db_sync(dbp)
 	DB *dbp;
-	u_int32_t flags;
 {
 	int ret, t_ret;
 
-	PANIC_CHECK(dbp->dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->sync");
+	ret = 0;
 
-	if ((ret = __db_syncchk(dbp, flags)) != 0)
-		return (ret);
-
-	/* Read-only trees never need to be sync'd. */
+	/* If the database was read-only, we're done. */
 	if (F_ISSET(dbp, DB_AM_RDONLY))
 		return (0);
 
@@ -824,13 +517,17 @@ __db_sync(dbp, flags)
 	if (dbp->type == DB_RECNO)
 		ret = __ram_writeback(dbp);
 
-	/* If the tree was never backed by a database file, we're done. */
+	/* If the database was never backed by a database file, we're done. */
 	if (F_ISSET(dbp, DB_AM_INMEM))
-		return (0);
+		return (ret);
 
-	/* Flush any dirty pages from the cache to the backing file. */
-	if ((t_ret = dbp->mpf->sync(dbp->mpf)) != 0 && ret == 0)
-		ret = t_ret;
+	if (dbp->type == DB_QUEUE)
+		ret = __qam_sync(dbp);
+	else
+		/* Flush any dirty pages from the cache to the backing file. */
+		if ((t_ret = __memp_fsync(dbp->mpf)) != 0 && ret == 0)
+			ret = t_ret;
+
 	return (ret);
 }
 
@@ -851,40 +548,11 @@ __db_associate(dbp, txn, sdbp, callback, flags)
 	DB_ENV *dbenv;
 	DBC *pdbc, *sdbc;
 	DBT skey, key, data;
-	int build, ret, t_ret, txn_local;
+	int build, ret, t_ret;
 
 	dbenv = dbp->dbenv;
-
-	PANIC_CHECK(dbenv);
-
-	txn_local = 0;
-	pdbc = NULL;
-
-	memset(&key, 0, sizeof(DBT));
-	memset(&data, 0, sizeof(DBT));
-	memset(&skey, 0, sizeof(DBT));
-
-	if ((ret = __db_associatechk(dbp, sdbp, callback, flags)) != 0)
-		return (ret);
-
-	/*
-	 * Create a local transaction as necessary, check for consistent
-	 * transaction usage, and, if we have no transaction but do have
-	 * locking on, acquire a locker id for the handle lock acquisition.
-	 */
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto(dbp, &txn)) != 0)
-			return (ret);
-		txn_local = 1;
-	} else if (txn != NULL && !TXN_ON(dbenv))
-		return (__db_not_txn_env(dbenv));
-
-	/*
-	 * Check that if an open transaction is in progress, we're in it,
-	 * for other common transaction errors, and for concurrent associates.
-	 */
-	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 0)) != 0)
-		return (ret);
+	pdbc = sdbc = NULL;
+	ret = 0;
 
 	sdbp->s_callback = callback;
 	sdbp->s_primary = dbp;
@@ -893,23 +561,7 @@ __db_associate(dbp, txn, sdbp, callback, flags)
 	sdbp->get = __db_secondary_get;
 
 	sdbp->stored_close = sdbp->close;
-	sdbp->close = __db_secondary_close;
-
-	/*
-	 * Secondary cursors may have the primary's lock file ID, so we
-	 * need to make sure that no older cursors are lying around
-	 * when we make the transition.
-	 */
-	if (TAILQ_FIRST(&sdbp->active_queue) != NULL ||
-	    TAILQ_FIRST(&sdbp->join_queue) != NULL) {
-		__db_err(dbenv,
-    "Databases may not become secondary indices while cursors are open");
-		ret = EINVAL;
-		goto err;
-	}
-	while ((sdbc = TAILQ_FIRST(&sdbp->free_queue)) != NULL)
-		if ((ret = __db_c_destroy(sdbc)) != 0)
-			goto err;
+	sdbp->close = __db_secondary_close_pp;
 
 	F_SET(sdbp, DB_AM_SECONDARY);
 
@@ -920,19 +572,18 @@ __db_associate(dbp, txn, sdbp, callback, flags)
 	 */
 	build = 0;
 	if (LF_ISSET(DB_CREATE)) {
-		if ((ret = sdbp->cursor(sdbp, txn, &sdbc, 0)) != 0)
+		if ((ret = __db_cursor(sdbp, txn, &sdbc, 0)) != 0)
 			goto err;
-
-		memset(&key, 0, sizeof(DBT));
-		memset(&data, 0, sizeof(DBT));
 
 		/*
 		 * We don't care about key or data;  we're just doing
 		 * an existence check.
 		 */
+		memset(&key, 0, sizeof(DBT));
+		memset(&data, 0, sizeof(DBT));
 		F_SET(&key, DB_DBT_PARTIAL | DB_DBT_USERMEM);
 		F_SET(&data, DB_DBT_PARTIAL | DB_DBT_USERMEM);
-		if ((ret = sdbc->c_real_get(sdbc, &key, &data,
+		if ((ret = __db_c_get(sdbc, &key, &data,
 		    (STD_LOCKING(sdbc) ? DB_RMW : 0) |
 		    DB_FIRST)) == DB_NOTFOUND) {
 			build = 1;
@@ -943,8 +594,12 @@ __db_associate(dbp, txn, sdbp, callback, flags)
 		 * Secondary cursors have special refcounting close
 		 * methods.  Be careful.
 		 */
-		if ((t_ret = __db_c_close(sdbc)) != 0)
+		if ((t_ret = __db_c_close(sdbc)) != 0 && ret == 0)
 			ret = t_ret;
+
+		/* Reset for later error check. */
+		sdbc = NULL;
+
 		if (ret != 0)
 			goto err;
 	}
@@ -976,10 +631,10 @@ __db_associate(dbp, txn, sdbp, callback, flags)
 		 * as the secondary, so they won't conflict.  This should
 		 * be harmless even if we're not using CDB.
 		 */
-		if ((ret = sdbp->cursor(sdbp, txn, &sdbc,
+		if ((ret = __db_cursor(sdbp, txn, &sdbc,
 		    CDB_LOCKING(sdbp->dbenv) ? DB_WRITECURSOR : 0)) != 0)
 			goto err;
-		if ((ret = __db_icursor(dbp,
+		if ((ret = __db_cursor_int(dbp,
 		    txn, dbp->type, PGNO_INVALID, 0, sdbc->locker, &pdbc)) != 0)
 			goto err;
 
@@ -988,15 +643,14 @@ __db_associate(dbp, txn, sdbp, callback, flags)
 
 		memset(&key, 0, sizeof(DBT));
 		memset(&data, 0, sizeof(DBT));
-		while ((ret = pdbc->c_get(pdbc, &key, &data, DB_NEXT)) == 0) {
+		while ((ret = __db_c_get(pdbc, &key, &data, DB_NEXT)) == 0) {
 			memset(&skey, 0, sizeof(DBT));
 			if ((ret = callback(sdbp, &key, &data, &skey)) != 0) {
 				if (ret == DB_DONOTINDEX)
 					continue;
-				else
-					goto err;
+				goto err;
 			}
-			if ((ret = sdbc->c_put(sdbc,
+			if ((ret = __db_c_put(sdbc,
 			    &skey, &key, DB_UPDATE_SECONDARY)) != 0) {
 				FREE_IF_NEEDED(sdbp, &skey);
 				goto err;
@@ -1006,79 +660,16 @@ __db_associate(dbp, txn, sdbp, callback, flags)
 		}
 		if (ret == DB_NOTFOUND)
 			ret = 0;
-
-		if ((ret = sdbc->c_close(sdbc)) != 0)
-			goto err;
 	}
 
-err:	if (pdbc != NULL && (t_ret = pdbc->c_close(pdbc)) != 0 && ret == 0)
+err:	if (sdbc != NULL && (t_ret = __db_c_close(sdbc)) != 0 && ret == 0)
+		ret = t_ret;
+
+	if (pdbc != NULL && (t_ret = __db_c_close(pdbc)) != 0 && ret == 0)
 		ret = t_ret;
 
 	dbp->associate_lid = DB_LOCK_INVALIDID;
 
-	if (txn_local) {
-		if (ret == 0)
-			ret = txn->commit(txn, 0);
-		else
-			if ((t_ret = txn->abort(txn)) != 0)
-				ret = __db_panic(dbenv, t_ret);
-	}
-
-	return (ret);
-}
-
-/*
- * __db_pget --
- *	Return a primary key/data pair given a secondary key.
- *
- * PUBLIC: int __db_pget __P((DB *, DB_TXN *, DBT *, DBT *, DBT *, u_int32_t));
- */
-int
-__db_pget(dbp, txn, skey, pkey, data, flags)
-	DB *dbp;
-	DB_TXN *txn;
-	DBT *skey, *pkey, *data;
-	u_int32_t flags;
-{
-	DBC *dbc;
-	int ret, t_ret;
-
-	PANIC_CHECK(dbp->dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->pget");
-
-	if ((ret = __db_pgetchk(dbp, skey, pkey, data, flags)) != 0)
-		return (ret);
-
-	if ((ret = dbp->cursor(dbp, txn, &dbc, 0)) != 0)
-		return (ret);
-	SET_RET_MEM(dbc, dbp);
-
-	/*
-	 * The underlying cursor pget will fill in a default DBT for null
-	 * pkeys, and use the cursor's returned-key memory internally to
-	 * store any intermediate primary keys.  However, we've just set
-	 * the returned-key memory to the DB handle's key memory, which
-	 * is unsafe to use if the DB handle is threaded.  If the pkey
-	 * argument is NULL, use the DBC-owned returned-key memory
-	 * instead;  it'll go away when we close the cursor before we
-	 * return, but in this case that's just fine, as we're not
-	 * returning the primary key.
-	 */
-	if (pkey == NULL)
-		dbc->rkey = &dbc->my_rkey;
-
-	DEBUG_LREAD(dbc, txn, "__db_pget", skey, NULL, flags);
-
-	/*
-	 * The cursor is just a perfectly ordinary secondary database
-	 * cursor.  Call its c_pget() method to do the dirty work.
-	 */
-	if (flags == 0 || flags == DB_RMW)
-		flags |= DB_SET;
-	ret = dbc->c_pget(dbc, skey, pkey, data, flags);
-
-	if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
-		ret = t_ret;
 	return (ret);
 }
 
@@ -1096,7 +687,7 @@ __db_secondary_get(sdbp, txn, skey, data, flags)
 {
 
 	DB_ASSERT(F_ISSET(sdbp, DB_AM_SECONDARY));
-	return (sdbp->pget(sdbp, txn, skey, NULL, data, flags));
+	return (__db_pget_pp(sdbp, txn, skey, NULL, data, flags));
 }
 
 /*
@@ -1104,8 +695,10 @@ __db_secondary_get(sdbp, txn, skey, data, flags)
  *	Wrapper function for DB->close() which we use on secondaries to
  *	manage refcounting and make sure we don't close them underneath
  *	a primary that is updating.
+ *
+ * PUBLIC: int __db_secondary_close __P((DB *, u_int32_t));
  */
-static int
+int
 __db_secondary_close(sdbp, flags)
 	DB *sdbp;
 	u_int32_t flags;
@@ -1138,7 +731,7 @@ __db_secondary_close(sdbp, flags)
 	 * sdbp->close is this function;  call the real one explicitly if
 	 * need be.
 	 */
-	return (doclose ? __db_close(sdbp, flags) : 0);
+	return (doclose ? __db_close(sdbp, NULL, flags) : 0);
 }
 
 /*
@@ -1179,12 +772,12 @@ __db_append_primary(dbc, key, data)
 		 * correctly-constructed full data item from this partial
 		 * put is on the page waiting for us.
 		 */
-		if ((ret = __db_c_idup(dbc, &pdbc, DB_POSITIONI)) != 0)
+		if ((ret = __db_c_idup(dbc, &pdbc, DB_POSITION)) != 0)
 			return (ret);
 		memset(&pkey, 0, sizeof(DBT));
 		memset(&pdata, 0, sizeof(DBT));
 
-		if ((ret = pdbc->c_get(pdbc, &pkey, &pdata, DB_CURRENT)) != 0)
+		if ((ret = __db_c_get(pdbc, &pkey, &pdata, DB_CURRENT)) != 0)
 			goto err;
 
 		key = &pkey;
@@ -1210,7 +803,7 @@ __db_append_primary(dbc, key, data)
 				goto err;
 		}
 
-		if ((ret = __db_icursor(sdbp, dbc->txn, sdbp->type,
+		if ((ret = __db_cursor_int(sdbp, dbc->txn, sdbp->type,
 		    PGNO_INVALID, 0, dbc->locker, &sdbc)) != 0) {
 			FREE_IF_NEEDED(sdbp, &skey);
 			goto err;
@@ -1230,7 +823,7 @@ __db_append_primary(dbc, key, data)
 		if (!F_ISSET(sdbp, DB_AM_DUP)) {
 			memset(&oldpkey, 0, sizeof(DBT));
 			F_SET(&oldpkey, DB_DBT_MALLOC);
-			ret = sdbc->c_real_get(sdbc, &skey, &oldpkey,
+			ret = __db_c_get(sdbc, &skey, &oldpkey,
 			    DB_SET | (STD_LOCKING(dbc) ? DB_RMW : 0));
 			if (ret == 0) {
 				cmp = __bam_defcmp(sdbp, &oldpkey, key);
@@ -1252,18 +845,18 @@ __db_append_primary(dbc, key, data)
 				goto err1;
 		}
 
-		ret = sdbc->c_put(sdbc, &skey, key, DB_UPDATE_SECONDARY);
+		ret = __db_c_put(sdbc, &skey, key, DB_UPDATE_SECONDARY);
 
 err1:		FREE_IF_NEEDED(sdbp, &skey);
 
-		if ((t_ret = sdbc->c_close(sdbc)) != 0 && ret == 0)
+		if ((t_ret = __db_c_close(sdbc)) != 0 && ret == 0)
 			ret = t_ret;
 
 		if (ret != 0)
 			goto err;
 	}
 
-err:	if (pdbc != NULL && (t_ret = pdbc->c_close(pdbc)) != 0 && ret == 0)
+err:	if (pdbc != NULL && (t_ret = __db_c_close(pdbc)) != 0 && ret == 0)
 		ret = t_ret;
 	if (sdbp != NULL && (t_ret = __db_s_done(sdbp)) != 0 && ret == 0)
 		ret = t_ret;

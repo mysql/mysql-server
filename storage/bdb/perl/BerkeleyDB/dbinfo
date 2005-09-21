@@ -4,10 +4,10 @@
 #			  a database file
 #
 # Author:	Paul Marquess  <Paul.Marquess@btinternet.com>
-# Version: 	1.03 
-# Date		17th September 2000
+# Version: 	1.05 
+# Date		1sh November 2003
 #
-#     Copyright (c) 1998-2002 Paul Marquess. All rights reserved.
+#     Copyright (c) 1998-2003 Paul Marquess. All rights reserved.
 #     This program is free software; you can redistribute it and/or
 #     modify it under the same terms as Perl itself.
 
@@ -22,39 +22,39 @@ my %Data =
 			  Type 	   => "Btree",
 			  Versions => 
 				{
-				  1	=> "Unknown (older than 1.71)",
-				  2	=> "Unknown (older than 1.71)",
-				  3	=> "1.71 -> 1.85, 1.86",
-				  4	=> "Unknown",
-				  5	=> "2.0.0 -> 2.3.0",
-				  6	=> "2.3.1 -> 2.7.7",
-				  7	=> "3.0.x",
-				  8	=> "3.1.x -> 4.0.x",
-				  9	=> "4.1.x or greater",
+				  1	=> [0, "Unknown (older than 1.71)"],
+				  2	=> [0, "Unknown (older than 1.71)"],
+				  3	=> [0, "1.71 -> 1.85, 1.86"],
+				  4	=> [0, "Unknown"],
+				  5	=> [0, "2.0.0 -> 2.3.0"],
+				  6	=> [0, "2.3.1 -> 2.7.7"],
+				  7	=> [0, "3.0.x"],
+				  8	=> [0, "3.1.x -> 4.0.x"],
+				  9	=> [1, "4.1.x or greater"],
 				}
 			},
 	0x061561 => 	{
 			  Type     => "Hash",
 			  Versions =>
 				{
-				  1	=> "Unknown (older than 1.71)",
-        			  2     => "1.71 -> 1.85",
-        			  3     => "1.86",
-        			  4     => "2.0.0 -> 2.1.0",
-        			  5     => "2.2.6 -> 2.7.7",
-        			  6     => "3.0.x",
-				  7	=> "3.1.x -> 4.0.x",
-				  8	=> "4.1.x or greater",
+				  1	=> [0, "Unknown (older than 1.71)"],
+        			  2     => [0, "1.71 -> 1.85"],
+        			  3     => [0, "1.86"],
+        			  4     => [0, "2.0.0 -> 2.1.0"],
+        			  5     => [0, "2.2.6 -> 2.7.7"],
+        			  6     => [0, "3.0.x"],
+				  7	=> [0, "3.1.x -> 4.0.x"],
+				  8	=> [1, "4.1.x or greater"],
 				}
 			},
 	0x042253 => 	{
 			  Type     => "Queue",
 			  Versions =>
 				{
-				  1	=> "3.0.x",
-				  2	=> "3.1.x",
-				  3	=> "3.2.x -> 4.0.x",
-				  4	=> "4.1.x or greater",
+				  1	=> [0, "3.0.x"],
+				  2	=> [0, "3.1.x"],
+				  3	=> [0, "3.2.x -> 4.0.x"],
+				  4	=> [1, "4.1.x or greater"],
 				}
 			},
 	) ;
@@ -65,17 +65,26 @@ print "testing file $ARGV[0]...\n\n" ;
 open (F, "<$ARGV[0]") or die "Cannot open file $ARGV[0]: $!\n" ;
 
 my $buff ;
-read F, $buff, 20 ;
+read F, $buff, 30 ;
 
-my (@info) = unpack("NNNNN", $buff) ;
-my (@info1) = unpack("VVVVV", $buff) ;
-my ($magic, $version, $endian) ;
 
-if ($Data{$info[0]}) # first try DB 1.x format
+my (@info) = unpack("NNNNNNC", $buff) ;
+my (@info1) = unpack("VVVVVVC", $buff) ;
+my ($magic, $version, $endian, $encrypt) ;
+
+if ($Data{$info[0]}) # first try DB 1.x format, big endian
 {
     $magic = $info[0] ;
     $version = $info[1] ;
-    $endian  = "Unknown" ;
+    $endian  = "Big Endian" ;
+    $encrypt = "Not Supported";
+}
+elsif ($Data{$info1[0]}) # first try DB 1.x format, little endian
+{
+    $magic = $info1[0] ;
+    $version = $info1[1] ;
+    $endian  = "Little Endian" ;
+    $encrypt = "Not Supported";
 }
 elsif ($Data{$info[3]}) # next DB 2.x big endian
 {
@@ -96,8 +105,15 @@ my $type = $Data{$magic} ;
 $magic = sprintf "%06X", $magic ;
 
 my $ver_string = "Unknown" ;
-$ver_string = $type->{Versions}{$version}
-	if defined $type->{Versions}{$version} ;
+
+if ( defined $type->{Versions}{$version} )
+{
+     $ver_string = $type->{Versions}{$version}[1];
+     if ($type->{Versions}{$version}[0] )
+       { $encrypt = $info[6] ? "Enabled" : "Disabled" }
+     else
+       { $encrypt = "Not Supported" }
+}
 
 print <<EOM ;
 File Type:		Berkeley DB $type->{Type} file.
@@ -105,6 +121,7 @@ File Version ID:	$version
 Built with Berkeley DB:	$ver_string
 Byte Order:		$endian
 Magic:			$magic
+Encryption:             $encrypt
 EOM
 
 close F ;

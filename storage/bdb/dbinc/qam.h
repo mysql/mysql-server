@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam.h,v 11.38 2002/08/06 06:11:21 bostic Exp $
+ * $Id: qam.h,v 11.49 2004/09/17 22:00:27 mjc Exp $
  */
 
 #ifndef	_DB_QAM_H_
@@ -70,6 +70,7 @@ struct __queue {
 
 /* Format for queue extent names. */
 #define	QUEUE_EXTENT "%s%c__dbq.%s.%d"
+#define	QUEUE_EXTENT_HEAD "__dbq.%s."
 
 typedef struct __qam_filelist {
 	DB_MPOOLFILE *mpf;
@@ -77,7 +78,7 @@ typedef struct __qam_filelist {
 } QUEUE_FILELIST;
 
 /*
- * Caculate the page number of a recno
+ * Calculate the page number of a recno.
  *
  * Number of records per page =
  *	Divide the available space on the page by the record len + header.
@@ -93,8 +94,8 @@ typedef struct __qam_filelist {
  */
 #define	CALC_QAM_RECNO_PER_PAGE(dbp)					\
     (((dbp)->pgsize - QPAGE_SZ(dbp)) /					\
-    ALIGN(((QUEUE *)(dbp)->q_internal)->re_len +			\
-    sizeof(QAMDATA) - SSZA(QAMDATA, data), sizeof(u_int32_t)))
+    (u_int32_t)DB_ALIGN((uintmax_t)SSZA(QAMDATA, data) +		\
+    ((QUEUE *)(dbp)->q_internal)->re_len, sizeof(u_int32_t)))
 
 #define	QAM_RECNO_PER_PAGE(dbp)	(((QUEUE*)(dbp)->q_internal)->rec_page)
 
@@ -102,22 +103,32 @@ typedef struct __qam_filelist {
     (((QUEUE *)(dbp)->q_internal)->q_root				\
     + (((recno) - 1) / QAM_RECNO_PER_PAGE(dbp)))
 
+#define	QAM_PAGE_EXTENT(dbp, pgno)					\
+    (((pgno) - 1) / ((QUEUE *)(dbp)->q_internal)->page_ext)
+
+#define	QAM_RECNO_EXTENT(dbp, recno)					\
+    QAM_PAGE_EXTENT(dbp, QAM_RECNO_PAGE(dbp, recno))
+
 #define	QAM_RECNO_INDEX(dbp, pgno, recno)				\
     (((recno) - 1) - (QAM_RECNO_PER_PAGE(dbp)				\
     * (pgno - ((QUEUE *)(dbp)->q_internal)->q_root)))
 
 #define	QAM_GET_RECORD(dbp, page, index)				\
-    ((QAMDATA *)((u_int8_t *)(page) +					\
-    QPAGE_SZ(dbp) + (ALIGN(sizeof(QAMDATA) - SSZA(QAMDATA, data) +	\
-    ((QUEUE *)(dbp)->q_internal)->re_len, sizeof(u_int32_t)) * index)))
+    ((QAMDATA *)((u_int8_t *)(page) + (QPAGE_SZ(dbp) +			\
+    (DB_ALIGN((uintmax_t)SSZA(QAMDATA, data) +				\
+    ((QUEUE *)(dbp)->q_internal)->re_len, sizeof(u_int32_t)) * index))))
 
 #define	QAM_AFTER_CURRENT(meta, recno)					\
     ((recno) > (meta)->cur_recno &&					\
-    ((meta)->first_recno <= (meta)->cur_recno || (recno) < (meta)->first_recno))
+    ((meta)->first_recno <= (meta)->cur_recno ||			\
+    ((recno) < (meta)->first_recno &&					\
+    (recno) - (meta)->cur_recno < (meta)->first_recno - (recno))))
 
 #define	QAM_BEFORE_FIRST(meta, recno)					\
     ((recno) < (meta)->first_recno &&					\
-    ((meta->first_recno <= (meta)->cur_recno || (recno) > (meta)->cur_recno)))
+    ((meta->first_recno <= (meta)->cur_recno ||				\
+    ((recno) > (meta)->cur_recno &&					\
+    (recno) - (meta)->cur_recno > (meta)->first_recno - (recno)))))
 
 #define	QAM_NOT_VALID(meta, recno)					\
     (recno == RECNO_OOB ||						\
@@ -144,6 +155,15 @@ typedef enum {
 	QAM_PROBE_PUT,
 	QAM_PROBE_MPF
 } qam_probe_mode;
+
+/*
+ * Ops for __qam_nameop.
+ */
+typedef enum {
+	QAM_NAME_DISCARD,
+	QAM_NAME_RENAME,
+	QAM_NAME_REMOVE
+} qam_name_op;
 
 #define	__qam_fget(dbp, pgnoaddr, flags, addrp) \
 	__qam_fprobe(dbp, *pgnoaddr, addrp, QAM_PROBE_GET, flags)

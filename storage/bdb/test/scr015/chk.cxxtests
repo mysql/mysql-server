@@ -1,14 +1,16 @@
 #!/bin/sh -
 #
-# $Id: chk.cxxtests,v 1.5 2002/07/05 22:17:59 dda Exp $
+# $Id: chk.cxxtests,v 1.8 2004/09/28 19:58:42 mjc Exp $
 #
 # Check to make sure that regression tests for C++ run.
 
 TEST_CXX_SRCDIR=../test/scr015  # must be a relative directory
 
 # All paths must be relative to a subdirectory of the build directory
-LIBS="-L.. -ldb -ldb_cxx"
+LIBS="-L.. -ldb_cxx"
 CXXFLAGS="-I.. -I../../dbinc"
+
+[ `uname` = "Linux" ] && LIBS="$LIBS -lpthread"
 
 # Test must be run from a local build directory, not from a test
 # directory.
@@ -17,7 +19,7 @@ cd ..
 	echo 'FAIL: chk.cxxtests must be run from a local build directory.'
 	exit 1
 }
-[ -d ../docs_src ] || {
+[ -d ../env ] || {
 	echo 'FAIL: chk.cxxtests must be run from a local build directory.'
 	exit 1
 }

@@ -14,10 +14,10 @@ BerkeleyDB - Perl extension for Berkeley DB version 2, 3 or 4
   $db  = tie %hash, 'BerkeleyDB::Btree', [OPTIONS] ;
   $db  = new BerkeleyDB::Btree [OPTIONS] ;
 
-  $db  = tie %hash, 'BerkeleyDB::Recno', [OPTIONS] ;
+  $db  = tie @array, 'BerkeleyDB::Recno', [OPTIONS] ;
   $db  = new BerkeleyDB::Recno [OPTIONS] ;
 
-  $db  = tie %hash, 'BerkeleyDB::Queue', [OPTIONS] ;
+  $db  = tie @array, 'BerkeleyDB::Queue', [OPTIONS] ;
   $db  = new BerkeleyDB::Queue [OPTIONS] ;
 
   $db  = new BerkeleyDB::Unknown [OPTIONS] ;
@@ -37,7 +37,6 @@ BerkeleyDB - Perl extension for Berkeley DB version 2, 3 or 4
   $status = $db->db_del() ;
   $status = $db->db_sync() ;
   $status = $db->db_close() ;
-  $status = $db->db_close() ;
   $status = $db->db_pget()
   $hash_ref = $db->db_stat() ;
   $status = $db->db_key_range();
@@ -46,6 +45,11 @@ BerkeleyDB - Perl extension for Berkeley DB version 2, 3 or 4
   $boolean = $db->byteswapped() ;
   $status = $db->truncate($count) ;
 
+  $bool = $env->cds_enabled();
+  $bool = $db->cds_enabled();
+  $lock = $db->cds_lock();
+  $lock->cds_unlock();
+  
   ($flag, $old_offset, $old_length) = $db->partial_set($offset, $length) ;
   ($flag, $old_offset, $old_length) = $db->partial_clear() ;
 
@@ -84,6 +88,7 @@ BerkeleyDB - Perl extension for Berkeley DB version 2, 3 or 4
   $status = $env->set_data_dir() ;
   $status = $env->set_tmp_dir() ;
   $status = $env->set_verbose() ;
+  $db_env_ptr = $env->DB_ENV() ;
 
   $BerkeleyDB::Error
   $BerkeleyDB::db_version
@@ -123,16 +128,21 @@ particularly relevant.
 The interface to Berkeley DB is implemented with a number of Perl
 classes.
 
-=head1 ENV CLASS
+=head1 The BerkeleyDB::Env Class
 
 The B<BerkeleyDB::Env> class provides an interface to the Berkeley DB
 function B<db_appinit> in Berkeley DB 2.x or B<db_env_create> and
 B<DBENV-E<gt>open> in Berkeley DB 3.x/4.x. Its purpose is to initialise a
 number of sub-systems that can then be used in a consistent way in all
-the databases you make use of the environment.
+the databases you make use of in the environment.
 
 If you don't intend using transactions, locking or logging, then you
 shouldn't need to make use of B<BerkeleyDB::Env>.
+
+Note that an environment consists of a number of files that Berkeley DB
+manages behind the scenes for you. When you first use an environment, it
+needs to be explicitly created. This is done by including C<DB_CREATE>
+with the C<Flags> parameter, described below.
 
 =head2 Synopsis
 
@@ -146,11 +156,14 @@ shouldn't need to make use of B<BerkeleyDB::Env>.
              [ -Flags        => number, ]
              [ -SetFlags     => bitmask, ]
              [ -LockDetect   => number, ]
+             [ -SharedMemKey => number, ]
              [ -Verbose      => boolean, ]
-
-=over 5
+             [ -Encrypt      => { Password => "string",
+	                          Flags    => number }, ]
 
 All the parameters to the BerkeleyDB::Env constructor are optional.
+
+=over 5
 
 =item -Home
 
@@ -183,10 +196,33 @@ part of an absolute path.
 If present, this parameter should be the hostname of a server that is running
 the Berkeley DB RPC server. All databases will be accessed via the RPC server.
 
+=item -Encrypt
+
+If present, this parameter will enable encryption of  all data before
+it is written to the database. This parameters must be given a hash
+reference. The format is shown below.
+
+    -Encrypt => { -Password => "abc", Flags => DB_ENCRYPT_AES }
+
+Valid values for the Flags are 0 or C<DB_ENCRYPT_AES>.
+
+This option requires Berkeley DB 4.1 or better.
+
 =item -Cachesize
 
 If present, this parameter sets the size of the environments shared memory
 buffer pool.
+
+=item -SharedMemKey
+
+If present, this parameter sets the base segment ID for the shared memory
+region used by Berkeley DB. 
+
+This option requires Berkeley DB 3.1 or better.
+
+Use C<$env-E<gt>get_shm_key($id)> to find out the base segment ID used
+once the environment is open.
+
 
 =item -Config
 
@@ -207,8 +243,15 @@ The code below shows an example of how it can be used.
 
 =item -ErrFile
 
-Expects a filenme. Any errors generated internally by Berkeley DB will
-be logged to this file.
+Expects a filename or filenhandle. Any errors generated internally by
+Berkeley DB will be logged to this file. A useful debug setting is to
+open environments with either
+
+    -ErrFile => *STDOUT
+
+or 
+
+    -ErrFile => *STDERR
 
 =item -ErrPrefix
 
@@ -335,11 +378,25 @@ TODO
 
 Returns the status of the last BerkeleyDB::Env method.
 
-=item $env->setmutexlocks()
 
-Only available in Berkeley Db 3.0 or greater. Calls 
-B<db_env_set_mutexlocks> when used with Berkeley DB 3.1.x. When used with
-Berkeley DB 3.0 or 3.2 and better it calls B<DBENV-E<gt>set_mutexlocks>.
+=item $env->DB_ENV()
+
+Returns a pointer to the underlying DB_ENV data structure that Berkeley
+DB uses.
+
+=item $env->get_shm_key($id)
+
+Writes the base segment ID for the shared memory region used by the
+Berkeley DB environment into C<$id>. Returns 0 on success.
+
+This option requires Berkeley DB 4.2 or better.
+
+Use the C<-SharedMemKey> option when opening the environemt to set the
+base segment ID.
+
+=item $env->status()
+
+Returns the status of the last BerkeleyDB::Env method.
 
 =back
 
@@ -352,7 +409,7 @@ TODO.
   $status = BerkeleyDB::db_remove [OPTIONS]
   $status = BerkeleyDB::db_rename [OPTIONS]
   $status = BerkeleyDB::db_verify [OPTIONS]
-  
+
 =head1 THE DATABASE CLASSES
 
 B<BerkeleyDB> supports the following database formats:
@@ -421,6 +478,8 @@ Two forms of constructor are supported:
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Hash specific
                 [ -Ffactor       => number,]
                 [ -Nelem         => number,]
@@ -440,6 +499,8 @@ and this
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Hash specific
                 [ -Ffactor       => number,]
                 [ -Nelem         => number,]
@@ -464,7 +525,7 @@ B<BerkeleyDB::Hash> supports these options:
 =item -Property
 
 Used to specify extra flags when opening a database. The following
-flags may be specified by logically OR'ing together one or more of the
+flags may be specified by bitwise OR'ing together one or more of the
 following values:
 
 B<DB_DUP>
@@ -731,6 +792,8 @@ Two forms of constructor are supported:
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Btree specific
                 [ -Minkey        => number,]
                 [ -Compare       => code reference,]
@@ -750,6 +813,8 @@ and this
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Btree specific
                 [ -Minkey        => number,]
                 [ -Compare       => code reference,]
@@ -766,7 +831,7 @@ B<BerkeleyDB::Btree> supports these options:
 =item -Property
 
 Used to specify extra flags when opening a database. The following
-flags may be specified by logically OR'ing together one or more of the
+flags may be specified by bitwise OR'ing together one or more of the
 following values:
 
 B<DB_DUP>
@@ -978,6 +1043,8 @@ Two forms of constructor are supported:
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Recno specific
                 [ -Delim           => byte,]
                 [ -Len             => number,]
@@ -997,6 +1064,8 @@ and this
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Recno specific
                 [ -Delim           => byte,]
                 [ -Len             => number,]
@@ -1072,6 +1141,8 @@ Two forms of constructor are supported:
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Queue specific
                 [ -Len             => number,]
                 [ -Pad             => byte,]
@@ -1090,6 +1161,8 @@ and this
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
                 # BerkeleyDB::Queue specific
                 [ -Len             => number,]
                 [ -Pad             => byte,]
@@ -1116,6 +1189,8 @@ The constructor looks like this:
                 [ -Pagesize      => number,]
                 [ -Env           => $env,]
                 [ -Txn           => $txn,]
+                [ -Encrypt       => { Password => "string",
+	                              Flags    => number }, ],
 
 
 =head2 An example 
@@ -1180,6 +1255,18 @@ When working under a Berkeley DB environment, this parameter
 
 Defaults to no environment.
 
+=item -Encrypt
+
+If present, this parameter will enable encryption of  all data before
+it is written to the database. This parameters must be given a hash
+reference. The format is shown below.
+
+    -Encrypt => { -Password => "abc", Flags => DB_ENCRYPT_AES }
+
+Valid values for the Flags are 0 or C<DB_ENCRYPT_AES>.
+
+This option requires Berkeley DB 4.1 or better.
+
 =item -Txn
 
 TODO.
@@ -1215,7 +1302,7 @@ TODO.
 
 =back
 
-In addition, the following value may be set by logically OR'ing it into
+In addition, the following value may be set by bitwise OR'ing it into
 the B<$flags> parameter:
 
 =over 5
@@ -1300,7 +1387,32 @@ database and B<DB_RECNO> for a B<BerkeleyDB::Recno> database. This method
 is typically used when a database has been opened with
 B<BerkeleyDB::Unknown>.
 
-=item $ref = $db->db_stat()
+=head2   $bool = $env->cds_enabled();
+
+Returns true if the Berkeley DB environment C<$env> has been opened on
+CDS mode.
+
+=head2   $bool = $db->cds_enabled();
+
+Returns true if the database C<$db> has been opened on CDS mode.
+
+=head2 $lock = $db->cds_lock();
+
+Creates a CDS write lock object C<$lock>.
+
+It is a fatal error to attempt to create a cds_lock if the Berkeley DB
+environment has not been opened in CDS mode.
+
+=head2 $lock->cds_unlock();
+
+Removes a CDS lock. The destruction of the CDS lock object automatically
+calls this method.
+
+Note that if multiple CDS lock objects are created, the underlying write
+lock will not be released until all CDS lock objects are either explictly
+unlocked with this method, or the CDS lock objects have been destroyed.
+
+=head2 $ref = $db->db_stat()
 
 Returns a reference to an associative array containing information about
 the database. The keys of the associative array correspond directly to the
@@ -1430,7 +1542,7 @@ TODO.
 
 =back
 
-In addition, the following value may be set by logically OR'ing it into
+In addition, the following value may be set by bitwise OR'ing it into
 the B<$flags> parameter:
 
 =over 5
@@ -1507,7 +1619,7 @@ deleted, B<c_del> will return B<DB_KEYEMPTY>.
 
 The B<$flags> parameter is not used at present.
 
-=head2 $status = $cursor->c_del($cnt [, $flags])
+=head2 $status = $cursor->c_count($cnt [, $flags])
 
 Stores the number of duplicates at the current cursor position in B<$cnt>.
 
@@ -1517,6 +1629,14 @@ Berkeley DB 3.1 or better.
 =head2  $status = $cursor->status()
 
 Returns the status of the last cursor method as a dual type.
+
+=head2  $status = $cursor->c_pget() ;
+
+TODO
+
+=head2  $status = $cursor->c_close()
+
+Closes the cursor B<$cursor>.
 
 =head2 Cursor Examples
 
@@ -1535,6 +1655,12 @@ TODO
 =head1 TRANSACTIONS
 
 TODO.
+
+=head1 CDS Mode
+
+The Berkeley Db Concurrent Data Store is a lightweight locking mechanism
+that is useful in scenarios where transactions are overkill. See the
+accompanying document .. for details of using this module in CDS mode.
 
 =head1 DBM Filters
 
@@ -1731,10 +1857,10 @@ I get asked.
 
 Before Berkeley DB 2.x was written there was only one Perl module that
 interfaced to Berkeley DB. That module is called B<DB_File>. Although
-B<DB_File> can be build with Berkeley DB 1.x, 2.x, 3.x or 4.x, it only provides
-an interface to the functionality available in Berkeley DB 1.x. That
-means that it doesn't support transactions, locking or any of the other
-new features available in DB 2.x or better.
+B<DB_File> can be build with Berkeley DB 1.x, 2.x, 3.x or 4.x, it only
+provides an interface to the functionality available in Berkeley DB
+1.x. That means that it doesn't support transactions, locking or any of
+the other new features available in DB 2.x or better.
 
 =head2 How do I store Perl data structures with BerkeleyDB?
 
@@ -1754,7 +1880,7 @@ The official web site for Berkeley DB is F<http://www.sleepycat.com>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 1997-2002 Paul Marquess. All rights reserved. This program
+Copyright (c) 1997-2004 Paul Marquess. All rights reserved. This program
 is free software; you can redistribute it and/or modify it under the
 same terms as Perl itself.
 
@@ -1781,7 +1907,7 @@ See L<"AUTHOR"> for details.
 
 =head1 AUTHOR
 
-Paul Marquess E<lt>Paul.Marquess@btinternet.comE<gt>.
+Paul Marquess E<lt>pmqs@cpan.orgE<gt>.
 
 Questions about Berkeley DB may be addressed to E<lt>db@sleepycat.comE<gt>.
 

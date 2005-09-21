@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd006.tcl,v 11.26 2002/03/15 16:30:53 sue Exp $
+# $Id: recd006.tcl,v 11.28 2004/01/28 03:36:28 bostic Exp $
 #
 # TEST	recd006
 # TEST	Nested transactions.

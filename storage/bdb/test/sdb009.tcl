@@ -1,13 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb009.tcl,v 11.9 2002/07/11 18:53:46 sandstro Exp $
+# $Id: sdb009.tcl,v 11.12 2004/01/28 03:36:29 bostic Exp $
 #
-# TEST	subdb009
+# TEST	sdb009
 # TEST	Test DB->rename() method for subdbs
-proc subdb009 { method args } {
+proc sdb009 { method args } {
 	global errorCode
 	source ./include.tcl
 

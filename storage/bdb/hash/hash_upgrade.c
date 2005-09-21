@@ -1,19 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: hash_upgrade.c,v 11.35 2004/04/06 12:38:08 bostic Exp $
  */
-#include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: hash_upgrade.c,v 11.32 2002/08/06 05:34:58 bostic Exp $";
-#endif /* not lint */
+#include "db_config.h"
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
-#include <limits.h>
 #include <string.h>
 #endif
 
@@ -38,8 +36,8 @@ __ham_30_hashmeta(dbp, real_name, obuf)
 	HASHHDR *oldmeta;
 	HMETA30 newmeta;
 	u_int32_t *o_spares, *n_spares;
-	u_int32_t fillf, maxb, nelem;
-	int i, max_entry, ret;
+	u_int32_t fillf, i, maxb, max_entry, nelem;
+	int ret;
 
 	dbenv = dbp->dbenv;
 	memset(&newmeta, 0, sizeof(newmeta));

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test023.tcl,v 11.18 2002/05/22 15:42:48 sue Exp $
+# $Id: test023.tcl,v 11.21 2004/09/20 17:06:16 sue Exp $
 #
 # TEST	test023
 # TEST	Duplicate test
@@ -101,7 +101,7 @@ proc test023 { method args } {
 
 		# Now current should fail
 		set ret [$dbc get -current]
-		error_check_good dbc_get:CURRENT $ret [list [list [] []]]
+		error_check_good dbc_get:CURRENT $ret ""
 
 		# Now Prev should fail
 		set ret [$dbc get -prev]
@@ -123,8 +123,7 @@ proc test023 { method args } {
 
 		# Now current should fail
 		set ret [$dbc get -current]
-		error_check_good \
-		    dbc_get:deleted $ret [list [list [] []]]
+		error_check_good dbc_get:deleted $ret ""
 
 		# Prev and Next should work
 		set ret [$dbc get -next]
@@ -153,8 +152,7 @@ proc test023 { method args } {
 
 		# Now current should fail
 		set ret [$dbc get -current]
-		error_check_good \
-		    dbc_get:deleted $ret [list [list [] []]]
+		error_check_good dbc_get:deleted $ret ""
 
 		# Next should fail
 		set ret [$dbc get -next]

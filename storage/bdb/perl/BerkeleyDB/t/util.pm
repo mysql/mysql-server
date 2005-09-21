@@ -7,6 +7,10 @@ use BerkeleyDB ;
 use File::Path qw(rmtree);
 use vars qw(%DB_errors $FA) ;
 
+use vars qw( @StdErrFile );
+
+@StdErrFile = ( -ErrFile => *STDERR, -ErrPrefix => "\n# " ) ;
+
 $| = 1;
 
 %DB_errors = (
@@ -122,6 +126,16 @@ $FA = 0 ;
     }
 }
 
+sub normalise
+{
+    my $data = shift ;
+    $data =~ s#\r\n#\n#g
+        if $^O eq 'cygwin' ;
+
+    return $data ;
+}
+
+
 sub docat
 {
     my $file = shift;
@@ -129,6 +143,7 @@ sub docat
     open(CAT,$file) || die "Cannot open $file:$!";
     my $result = <CAT>;
     close(CAT);
+    $result = normalise($result);
     return $result;
 }
 
@@ -140,6 +155,7 @@ sub docat_del
     my $result = <CAT> || "" ;
     close(CAT);
     unlink $file ;
+    $result = normalise($result);
     return $result;
 }   
 
@@ -174,6 +190,41 @@ sub joiner
     }
 
     (scalar(@data), join($sep, @data)) ;
+}
+
+sub joinkeys
+{
+    my $db = shift ;
+    my $sep = shift || " " ;
+    my ($k, $v) = (0, "") ;
+    my @data = () ;
+
+    my $cursor = $db->db_cursor()  or return () ;
+    for ( my $status = $cursor->c_get($k, $v, DB_FIRST) ;
+          $status == 0 ;
+          $status = $cursor->c_get($k, $v, DB_NEXT)) {
+	push @data, $k ;
+    }
+
+    return join($sep, @data) ;
+
+}
+
+sub dumpdb
+{
+    my $db = shift ;
+    my $sep = shift || " " ;
+    my ($k, $v) = (0, "") ;
+    my @data = () ;
+
+    my $cursor = $db->db_cursor()  or return () ;
+    for ( my $status = $cursor->c_get($k, $v, DB_FIRST) ;
+          $status == 0 ;
+          $status = $cursor->c_get($k, $v, DB_NEXT)) {
+	print "  [$k][$v]\n" ;
+    }
+
+
 }
 
 sub countRecords
@@ -216,5 +267,60 @@ sub ok
     print "ok $no\n" ;
 }
 
+
+# These two subs lifted directly from MLDBM.pm
+#
+sub _compare {
+    use vars qw(%compared);
+    local %compared;
+    return _cmp(@_);
+}
+
+sub _cmp {
+    my($a, $b) = @_;
+
+    # catch circular loops
+    return(1) if $compared{$a.'&*&*&*&*&*'.$b}++;
+#    print "$a $b\n";
+#    print &Data::Dumper::Dumper($a, $b);
+
+    if(ref($a) and ref($a) eq ref($b)) {
+	if(eval { @$a }) {
+#	    print "HERE ".@$a." ".@$b."\n";
+	    @$a == @$b or return 0;
+#	    print @$a, ' ', @$b, "\n";
+#	    print "HERE2\n";
+
+	    for(0..@$a-1) {
+		&_cmp($a->[$_], $b->[$_]) or return 0;
+	    }
+	} elsif(eval { %$a }) {
+	    keys %$a == keys %$b or return 0;
+	    for (keys %$a) {
+		&_cmp($a->{$_}, $b->{$_}) or return 0;
+	    }
+	} elsif(eval { $$a }) {
+	    &_cmp($$a, $$b) or return 0;
+	} else {
+	    die("data $a $b not handled");
+	}
+	return 1;
+    } elsif(! ref($a) and ! ref($b)) {
+	return ($a eq $b);
+    } else {
+	return 0;
+    }
+
+}
+
+sub fillout
+{
+    my $var = shift ;
+    my $length = shift ;
+    my $pad = shift || " " ;
+    my $template = $pad x $length ;
+    substr($template, 0, length($var)) = $var ;
+    return $template ;
+}
 
 1;

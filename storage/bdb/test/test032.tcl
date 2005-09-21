@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test032.tcl,v 11.23 2002/06/11 14:09:57 sue Exp $
+# $Id: test032.tcl,v 11.26 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test032
 # TEST	DB_GET_BOTH, DB_GET_BOTH_RANGE
@@ -17,7 +17,7 @@
 # TEST	Test the DB_GET_BOTH functionality by retrieving each dup in the file
 # TEST	explicitly.  Test the DB_GET_BOTH_RANGE functionality by retrieving
 # TEST	the unique key prefix (cursor only).  Finally test the failure case.
-proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
+proc test032 { method {nentries 10000} {ndups 5} {tnum "032"} args } {
 	global alphabet rand_init
 	source ./include.tcl
 
@@ -33,11 +33,11 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set checkdb $testdir/checkdb.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		set checkdb checkdb.db
 		incr eindex
 		set env [lindex $args $eindex]
@@ -60,11 +60,11 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 	set t3 $testdir/t3
 	cleanup $testdir $env
 
-	puts "Test0$tnum:\
+	puts "Test$tnum:\
 	    $method ($args) $nentries small sorted $ndups dup key/data pairs"
 	if { [is_record_based $method] == 1 || \
 	    [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $omethod"
+		puts "Test$tnum skipping for method $omethod"
 		return
 	}
 	set db [eval {berkdb_open -create -mode 0644 \
@@ -82,7 +82,7 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 	set count 0
 
 	# Here is the loop where we put and get each key/data pair
-	puts "\tTest0$tnum.a: Put/get loop"
+	puts "\tTest$tnum.a: Put/get loop"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -129,7 +129,7 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 			set lastdup $datastr
 		}
 
-		error_check_good "Test0$tnum:ndups:$str" $x $ndups
+		error_check_good "Test$tnum:ndups:$str" $x $ndups
 		incr count
 	}
 	error_check_good cursor_close [$dbc close] 0
@@ -140,7 +140,7 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.b: Checking file for correct duplicates (no cursor)"
+	puts "\tTest$tnum.b: Checking file for correct duplicates (no cursor)"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -169,7 +169,7 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 	$db sync
 
 	# Now repeat the above test using cursor ops
-	puts "\tTest0$tnum.c: Checking file for correct duplicates (cursor)"
+	puts "\tTest$tnum.c: Checking file for correct duplicates (cursor)"
 	set dbc [eval {$db cursor} $txn]
 	error_check_good cursor_open [is_valid_cursor $dbc $db] TRUE
 
@@ -194,7 +194,7 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 	}
 
 	# Now check the error case
-	puts "\tTest0$tnum.d: Check error case (no cursor)"
+	puts "\tTest$tnum.d: Check error case (no cursor)"
 	for {set ret [$check_c get -first]} \
 	    {[llength $ret] != 0} \
 	    {set ret [$check_c get -next] } {
@@ -208,7 +208,7 @@ proc test032 { method {nentries 10000} {ndups 5} {tnum 32} args } {
 	}
 
 	# Now check the error case
-	puts "\tTest0$tnum.e: Check error case (cursor)"
+	puts "\tTest$tnum.e: Check error case (cursor)"
 	for {set ret [$check_c get -first]} \
 	    {[llength $ret] != 0} \
 	    {set ret [$check_c get -next] } {

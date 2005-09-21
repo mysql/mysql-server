@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -35,13 +35,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: db_conv.c,v 11.45 2004/01/28 03:35:57 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_conv.c,v 11.38 2002/08/15 03:00:13 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -100,6 +98,8 @@ __db_pgin(dbenv, pg, pp, cookie)
 		 */
 		if (FLD_ISSET(((DBMETA *)pp)->metaflags, DBMETA_CHKSUM))
 			F_SET(dbp, DB_AM_CHKSUM);
+		else
+			F_CLR(dbp, DB_AM_CHKSUM);
 		if (((DBMETA *)pp)->encrypt_alg != 0 ||
 		    F_ISSET(dbp, DB_AM_ENCRYPT))
 			is_hmac = 1;
@@ -139,22 +139,25 @@ __db_pgin(dbenv, pg, pp, cookie)
 	 * If there is no configuration problem and we don't get a match,
 	 * it's fatal: panic the system.
 	 */
-	if (F_ISSET(dbp, DB_AM_CHKSUM) && sum_len != 0)
+	if (F_ISSET(dbp, DB_AM_CHKSUM) && sum_len != 0) {
+		if (F_ISSET(dbp, DB_AM_SWAP) && is_hmac == 0)
+			P_32_SWAP(chksum);
 		switch (ret = __db_check_chksum(
 		    dbenv, db_cipher, chksum, pp, sum_len, is_hmac)) {
 		case 0:
 			break;
 		case -1:
 			if (DBENV_LOGGING(dbenv))
-				__db_cksum_log(
+				(void)__db_cksum_log(
 				    dbenv, NULL, &not_used, DB_FLUSH);
 			__db_err(dbenv,
-		    "checksum error: catastrophic recovery required");
+	    "checksum error: page %lu: catastrophic recovery required",
+			    (u_long)pg);
 			return (__db_panic(dbenv, DB_RUNRECOVERY));
 		default:
 			return (ret);
 		}
-
+	}
 	if (F_ISSET(dbp, DB_AM_ENCRYPT)) {
 		DB_ASSERT(db_cipher != NULL);
 		DB_ASSERT(F_ISSET(dbp, DB_AM_CHKSUM));
@@ -330,6 +333,8 @@ __db_pgout(dbenv, pg, pp, cookie)
 			break;
 		}
 		__db_chksum(pp, sum_len, key, chksum);
+		if (F_ISSET(dbp, DB_AM_SWAP) && !F_ISSET(dbp, DB_AM_ENCRYPT))
+			 P_32_SWAP(chksum);
 	}
 	return (0);
 }
@@ -436,6 +441,8 @@ __db_byteswap(dbenv, dbp, pg, h, pagesize, pgin)
 				SWAP32(p);			/* pgno */
 				SWAP32(p);			/* tlen */
 				break;
+			default:
+				return (__db_pgfmt(dbenv, pg));
 			}
 
 		}
@@ -484,6 +491,8 @@ __db_byteswap(dbenv, dbp, pg, h, pagesize, pgin)
 				M_32_SWAP(bo->pgno);
 				M_32_SWAP(bo->tlen);
 				break;
+			default:
+				return (__db_pgfmt(dbenv, pg));
 			}
 
 			if (!pgin)
@@ -509,6 +518,8 @@ __db_byteswap(dbenv, dbp, pg, h, pagesize, pgin)
 				M_32_SWAP(bo->pgno);
 				M_32_SWAP(bo->tlen);
 				break;
+			default:
+				return (__db_pgfmt(dbenv, pg));
 			}
 
 			if (!pgin)

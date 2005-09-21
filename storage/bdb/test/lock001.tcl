@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: lock001.tcl,v 11.19 2002/04/25 19:30:28 sue Exp $
+# $Id: lock001.tcl,v 11.21 2004/01/28 03:36:28 bostic Exp $
 #
 
 # TEST	lock001

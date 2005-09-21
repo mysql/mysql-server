@@ -5,6 +5,13 @@ BtreeStat:
 LogStat:
   st_magic: 264584
   st_cur_file: 1
+TxnStat:
+  st_ncommits: 0
+  st_nactive: 2
+DbMpoolStat:
+  st_gbytes: 0
+DbMpoolFileStat:
+  num files: 1
 RepStat:
   st_status: 0
   st_log_duplication: 0

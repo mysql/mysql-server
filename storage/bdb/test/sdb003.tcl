@@ -1,20 +1,20 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb003.tcl,v 11.24 2002/06/10 15:39:37 sue Exp $
+# $Id: sdb003.tcl,v 11.29 2004/01/28 03:36:29 bostic Exp $
 #
-# TEST	subdb003
+# TEST	sdb003
 # TEST	Tests many subdbs
 # TEST		Creates many subdbs and puts a small amount of
-# TEST		data in each (many defaults to 2000)
+# TEST		data in each (many defaults to 1000)
 # TEST
-# TEST	Use the first 10,000 entries from the dictionary as subdbnames.
+# TEST	Use the first 1000 entries from the dictionary as subdbnames.
 # TEST	Insert each with entry as name of subdatabase and a partial list
 # TEST	as key/data.  After all are entered, retrieve all; compare output
 # TEST	to original.  Close file, reopen, do retrieve and re-verify.
-proc subdb003 { method {nentries 1000} args } {
+proc sdb003 { method {nentries 1000} args } {
 	source ./include.tcl
 
 	set args [convert_args $method $args]
@@ -70,6 +70,9 @@ proc subdb003 { method {nentries 1000} args } {
 	set ndataent 10
 	set fdid [open $dict]
 	while { [gets $fdid str] != -1 && $fcount < $nentries } {
+		if { $str == "" } {
+			continue
+		}
 		set subdb $str
 		set db [eval {berkdb_open -create -mode 0644} \
 		    $args {$omethod $testfile $subdb}]

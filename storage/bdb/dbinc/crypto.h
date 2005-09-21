@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: crypto.h,v 1.9 2002/08/06 06:37:07 bostic Exp $
+ * $Id: crypto.h,v 1.12 2004/01/28 03:36:00 bostic Exp $
  */
 
 #ifndef	_DB_CRYPTO_H_
@@ -33,7 +33,7 @@
  * This structure is per-process, not in shared memory.
  */
 struct __db_cipher {
-	int	(*adj_size) __P((size_t));
+	u_int	(*adj_size) __P((size_t));
 	int	(*close) __P((DB_ENV *, void *));
 	int	(*decrypt) __P((DB_ENV *, void *, void *, u_int8_t *, size_t));
 	int	(*encrypt) __P((DB_ENV *, void *, void *, u_int8_t *, size_t));

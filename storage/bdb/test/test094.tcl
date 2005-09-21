@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test094.tcl,v 11.16 2002/06/20 19:01:02 sue Exp $
+# $Id: test094.tcl,v 11.21 2004/06/29 14:26:17 carol Exp $
 #
 # TEST	test094
 # TEST	Test using set_dup_compare.
@@ -12,7 +12,7 @@
 # TEST	Insert each with self as key and data; retrieve each.
 # TEST	After all are entered, retrieve all; compare output to original.
 # TEST	Close file, reopen, do retrieve and re-verify.
-proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
+proc test094 { method {nentries 10000} {ndups 10} {tnum "094"} args} {
 	source ./include.tcl
 	global errorInfo
 
@@ -20,7 +20,7 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 	set omethod [convert_method $method]
 
 	if { [is_btree $method] != 1 && [is_hash $method] != 1 } {
-		puts "Test0$tnum: skipping for method $method."
+		puts "Test$tnum: skipping for method $method."
 		return
 	}
 
@@ -31,15 +31,15 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum-a.db
+		set testfile $testdir/test$tnum-a.db
 		set env NULL
 	} else {
-		set testfile test0$tnum-a.db
+		set testfile test$tnum-a.db
 		incr eindex
 		set env [lindex $dbargs $eindex]
 		set rpcenv [is_rpcenv $env]
 		if { $rpcenv == 1 } {
-			puts "Test0$tnum: skipping for RPC"
+			puts "Test$tnum: skipping for RPC"
 			return
 		}
 		set txnenv [is_txnenv $env]
@@ -52,12 +52,12 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 		}
 		set testdir [get_home $env]
 	}
-	puts "Test0$tnum: $method ($args) $nentries \
+	puts "Test$tnum: $method ($args) $nentries \
 	    with $ndups dups using dupcompare"
 
 	cleanup $testdir $env
 
-	set db [eval {berkdb_open_noerr -dupcompare test094_cmp \
+	set db [eval {berkdb_open -dupcompare test094_cmp \
 	    -dup -dupsort -create -mode 0644} $omethod $dbargs {$testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
@@ -66,7 +66,7 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 	set pflags ""
 	set gflags ""
 	set txn ""
-	puts "\tTest0$tnum.a: $nentries put/get duplicates loop"
+	puts "\tTest$tnum.a: $nentries put/get duplicates loop"
 	# Here is the loop where we put and get each key/data pair
 	set count 0
 	set dlist {}
@@ -97,7 +97,7 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 	close $did
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.b: traverse checking duplicates before close"
+	puts "\tTest$tnum.b: traverse checking duplicates before close"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -113,10 +113,10 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum-b.db
+		set testfile $testdir/test$tnum-b.db
 		set env NULL
 	} else {
-		set testfile test0$tnum-b.db
+		set testfile test$tnum-b.db
 		set env [lindex $dbargs $eindex]
 		set testdir [get_home $env]
 	}
@@ -125,7 +125,7 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 	#
 	# Test dupcompare with data items big enough to force offpage dups.
 	#
-	puts "\tTest0$tnum.c: big key put/get dup loop key=filename data=filecontents"
+	puts "\tTest$tnum.c: big key put/get dup loop key=filename data=filecontents"
 	set db [eval {berkdb_open -dupcompare test094_cmp -dup -dupsort \
 	     -create -mode 0644} $omethod $dbargs $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
@@ -164,7 +164,7 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 		incr count
 	}
 
-	puts "\tTest0$tnum.d: traverse checking duplicates before close"
+	puts "\tTest$tnum.d: traverse checking duplicates before close"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -186,66 +186,4 @@ proc test094 { method {nentries 10000} {ndups 10} {tnum "94"} args} {
 # Simple dup comparison.
 proc test094_cmp { a b } {
 	return [string compare $b $a]
-}
-
-# Check if each key appears exactly [llength dlist] times in the file with
-# the duplicate tags matching those that appear in dlist.
-proc test094_dup_big { db txn tmpfile dlist {extra 0}} {
-	source ./include.tcl
-
-	set outf [open $tmpfile w]
-	# Now we will get each key from the DB and dump to outfile
-	set c [eval {$db cursor} $txn]
-	set lastkey ""
-	set done 0
-	while { $done != 1} {
-		foreach did $dlist {
-			set rec [$c get "-next"]
-			if { [string length $rec] == 0 } {
-				set done 1
-				break
-			}
-			set key [lindex [lindex $rec 0] 0]
-			set fulldata [lindex [lindex $rec 0] 1]
-			set id [id_of $fulldata]
-			set d [data_of $fulldata]
-			if { [string compare $key $lastkey] != 0 && \
-			    $id != [lindex $dlist 0] } {
-				set e [lindex $dlist 0]
-				error "FAIL: \tKey \
-				    $key, expected dup id $e, got $id"
-			}
-			error_check_good dupget.data $d $key
-			error_check_good dupget.id $id $did
-			set lastkey $key
-		}
-		#
-		# Some tests add an extra dup (like overflow entries)
-		# Check id if it exists.
-		if { $extra != 0} {
-			set okey $key
-			set rec [$c get "-next"]
-			if { [string length $rec] != 0 } {
-				set key [lindex [lindex $rec 0] 0]
-				#
-				# If this key has no extras, go back for
-				# next iteration.
-				if { [string compare $key $lastkey] != 0 } {
-					set key $okey
-					set rec [$c get "-prev"]
-				} else {
-					set fulldata [lindex [lindex $rec 0] 1]
-					set id [id_of $fulldata]
-					set d [data_of $fulldata]
-					error_check_bad dupget.data1 $d $key
-					error_check_good dupget.id1 $id $extra
-				}
-			}
-		}
-		if { $done != 1 } {
-			puts $outf $key
-		}
-	}
-	close $outf
-	error_check_good curs_close [$c close] 0
 }

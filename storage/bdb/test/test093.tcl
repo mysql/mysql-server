@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test093.tcl,v 11.20 2002/06/20 19:01:02 sue Exp $
+# $Id: test093.tcl,v 11.23 2004/01/28 03:36:32 bostic Exp $
 #
 # TEST	test093
 # TEST	Test using set_bt_compare.
@@ -12,7 +12,7 @@
 # TEST	Insert each with self as key and data; retrieve each.
 # TEST	After all are entered, retrieve all; compare output to original.
 # TEST	Close file, reopen, do retrieve and re-verify.
-proc test093 { method {nentries 10000} {tnum "93"} args} {
+proc test093 { method {nentries 10000} {tnum "093"} args} {
 	source ./include.tcl
 	global btvals
 	global btvalsck
@@ -22,18 +22,18 @@ proc test093 { method {nentries 10000} {tnum "93"} args} {
 	set omethod [convert_method $method]
 
 	if { [is_btree $method] != 1 } {
-		puts "Test0$tnum: skipping for method $method."
+		puts "Test$tnum: skipping for method $method."
 		return
 	}
 	set txnenv 0
 	set eindex [lsearch -exact $dbargs "-env"]
 	if { $eindex != -1 } {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $dbargs $eindex]
 		set rpcenv [is_rpcenv $env]
 		if { $rpcenv == 1 } {
-			puts "Test0$tnum: skipping for RPC"
+			puts "Test$tnum: skipping for RPC"
 			return
 		}
 		set txnenv [is_txnenv $env]
@@ -46,7 +46,7 @@ proc test093 { method {nentries 10000} {tnum "93"} args} {
 		set testdir [get_home $env]
 		cleanup $testdir $env
 	}
-	puts "Test0$tnum: $method ($args) $nentries using btcompare"
+	puts "Test$tnum: $method ($args) $nentries using btcompare"
 
 
 	test093_run $omethod $dbargs $nentries $tnum test093_cmp1 test093_sort1
@@ -84,10 +84,10 @@ proc test093_run { method dbargs nentries tnum cmpfunc sortfunc } {
 	# Otherwise it is the test directory and the name.
 	set txnenv 0
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $dbargs $eindex]
 		set txnenv [is_txnenv $env]
@@ -109,7 +109,7 @@ proc test093_run { method dbargs nentries tnum cmpfunc sortfunc } {
 	set btvals {}
 	set btvalsck {}
 	set checkfunc test093_check
-	puts "\tTest0$tnum.a: put/get loop"
+	puts "\tTest$tnum.a: put/get loop"
 	# Here is the loop where we put and get each key/data pair
 	set count 0
 	while { [gets $did str] != -1 && $count < $nentries } {
@@ -138,7 +138,7 @@ proc test093_run { method dbargs nentries tnum cmpfunc sortfunc } {
 	close $did
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.b: dump file"
+	puts "\tTest$tnum.b: dump file"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -157,10 +157,10 @@ proc test093_run { method dbargs nentries tnum cmpfunc sortfunc } {
 	file rename -force $t3 $t2
 	filesort $t1 $t3
 
-	error_check_good Test0$tnum:diff($t3,$t2) \
+	error_check_good Test$tnum:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 
-	puts "\tTest0$tnum.c: dump file in order"
+	puts "\tTest$tnum.c: dump file in order"
 	# Now, reopen the file and run the last test again.
 	# We open it here, ourselves, because all uses of the db
 	# need to have the correct comparison func set.  Then
@@ -183,7 +183,7 @@ proc test093_run { method dbargs nentries tnum cmpfunc sortfunc } {
 	#
 	# We need to sort btvals according to the comparison function.
 	# Once that is done, btvalsck and btvals should be the same.
-	puts "\tTest0$tnum.d: check file order"
+	puts "\tTest$tnum.d: check file order"
 
 	$sortfunc
 
@@ -206,10 +206,10 @@ proc test093_runbig { method dbargs nentries tnum cmpfunc sortfunc } {
 	# Otherwise it is the test directory and the name.
 	set txnenv 0
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $dbargs $eindex]
 		set txnenv [is_txnenv $env]
@@ -232,7 +232,7 @@ proc test093_runbig { method dbargs nentries tnum cmpfunc sortfunc } {
 	set btvals {}
 	set btvalsck {}
 	set checkfunc test093_checkbig
-	puts "\tTest0$tnum.e:\
+	puts "\tTest$tnum.e:\
 	    big key put/get loop key=filecontents data=filename"
 
 	# Here is the loop where we put and get each key/data pair
@@ -285,7 +285,7 @@ proc test093_runbig { method dbargs nentries tnum cmpfunc sortfunc } {
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.f: big dump file"
+	puts "\tTest$tnum.f: big dump file"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -297,7 +297,7 @@ proc test093_runbig { method dbargs nentries tnum cmpfunc sortfunc } {
 	}
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum.g: dump file in order"
+	puts "\tTest$tnum.g: dump file in order"
 	# Now, reopen the file and run the last test again.
 	# We open it here, ourselves, because all uses of the db
 	# need to have the correct comparison func set.  Then
@@ -321,7 +321,7 @@ proc test093_runbig { method dbargs nentries tnum cmpfunc sortfunc } {
 	#
 	# We need to sort btvals according to the comparison function.
 	# Once that is done, btvalsck and btvals should be the same.
-	puts "\tTest0$tnum.h: check file order"
+	puts "\tTest$tnum.h: check file order"
 
 	$sortfunc
 	error_check_good btvals:len [llength $btvals] [llength $btvalsck]

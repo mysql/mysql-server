@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: cxx_dbt.cpp,v 11.55 2004/01/28 03:35:56 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: cxx_dbt.cpp,v 11.53 2002/03/27 04:31:14 bostic Exp $";
-#endif /* not lint */
 
 #include <errno.h>
 #include <string.h>

@@ -1,15 +1,13 @@
 /*
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2002
+ * Copyright (c) 1998-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_join.c,v 11.75 2004/09/22 03:30:23 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_join.c,v 11.55 2002/08/08 03:57:47 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -23,10 +21,11 @@ static const char revid[] = "$Id: db_join.c,v 11.55 2002/08/08 03:57:47 bostic E
 #include "dbinc/db_join.h"
 #include "dbinc/btree.h"
 
-static int __db_join_close __P((DBC *));
+static int __db_join_close_pp __P((DBC *));
 static int __db_join_cmp __P((const void *, const void *));
 static int __db_join_del __P((DBC *, u_int32_t));
 static int __db_join_get __P((DBC *, DBT *, DBT *, u_int32_t));
+static int __db_join_get_pp __P((DBC *, DBT *, DBT *, u_int32_t));
 static int __db_join_getnext __P((DBC *, DBT *, DBT *, u_int32_t, u_int32_t));
 static int __db_join_primget __P((DB *,
     DB_TXN *, u_int32_t, DBT *, DBT *, u_int32_t));
@@ -67,7 +66,7 @@ static int __db_join_put __P((DBC *, DBT *, DBT *, u_int32_t));
  * cursor method of a DB, join cursors are created through an explicit
  * call to DB->join.
  *
- * The curslist is an array of existing, intialized cursors and primary
+ * The curslist is an array of existing, initialized cursors and primary
  * is the DB of the primary file.  The data item that joins all the
  * cursors in the curslist is used as the key into the primary and that
  * key and data are returned.  When no more items are left in the join
@@ -84,26 +83,18 @@ __db_join(primary, curslist, dbcp, flags)
 	DB_ENV *dbenv;
 	DBC *dbc;
 	JOIN_CURSOR *jc;
-	int ret;
-	u_int32_t i;
 	size_t ncurs, nslots;
+	u_int32_t i;
+	int ret;
 
-	COMPQUIET(nslots, 0);
-
-	PANIC_CHECK(primary->dbenv);
-
-	if ((ret = __db_joinchk(primary, curslist, flags)) != 0)
-		return (ret);
-
+	dbenv = primary->dbenv;
 	dbc = NULL;
 	jc = NULL;
-	dbenv = primary->dbenv;
 
 	if ((ret = __os_calloc(dbenv, 1, sizeof(DBC), &dbc)) != 0)
 		goto err;
 
-	if ((ret = __os_calloc(dbenv,
-	    1, sizeof(JOIN_CURSOR), &jc)) != 0)
+	if ((ret = __os_calloc(dbenv, 1, sizeof(JOIN_CURSOR), &jc)) != 0)
 		goto err;
 
 	if ((ret = __os_malloc(dbenv, 256, &jc->j_key.data)) != 0)
@@ -122,7 +113,7 @@ __db_join(primary, curslist, dbcp, flags)
 	 * the number of cursors involved in the join, because the
 	 * list is NULL-terminated.
 	 */
-	ncurs = jc->j_curslist - curslist;
+	ncurs = (size_t)(jc->j_curslist - curslist);
 	nslots = ncurs + 1;
 
 	/*
@@ -208,17 +199,20 @@ __db_join(primary, curslist, dbcp, flags)
 	 * because this is the last thing that can fail.  Modifier of this
 	 * function beware!
 	 */
-	if ((ret = jc->j_curslist[0]->c_dup(jc->j_curslist[0], jc->j_workcurs,
-	    DB_POSITIONI)) != 0)
+	if ((ret =
+	    __db_c_dup(jc->j_curslist[0], jc->j_workcurs, DB_POSITION)) != 0)
 		goto err;
 
-	dbc->c_close = __db_join_close;
+	dbc->c_close = __db_join_close_pp;
 	dbc->c_del = __db_join_del;
-	dbc->c_get = __db_join_get;
+	dbc->c_get = __db_join_get_pp;
 	dbc->c_put = __db_join_put;
-	dbc->internal = (DBC_INTERNAL *) jc;
+	dbc->internal = (DBC_INTERNAL *)jc;
 	dbc->dbp = primary;
 	jc->j_primary = primary;
+
+	/* Stash the first cursor's transaction here for easy access. */
+	dbc->txn = curslist[0]->txn;
 
 	*dbcp = dbc;
 
@@ -233,7 +227,7 @@ err:	if (jc != NULL) {
 			__os_free(dbenv, jc->j_curslist);
 		if (jc->j_workcurs != NULL) {
 			if (jc->j_workcurs[0] != NULL)
-				__os_free(dbenv, jc->j_workcurs[0]);
+				(void)__db_c_close(jc->j_workcurs[0]);
 			__os_free(dbenv, jc->j_workcurs);
 		}
 		if (jc->j_fdupcurs != NULL)
@@ -244,6 +238,36 @@ err:	if (jc != NULL) {
 	}
 	if (dbc != NULL)
 		__os_free(dbenv, dbc);
+	return (ret);
+}
+
+/*
+ * __db_join_close_pp --
+ *	DBC->c_close pre/post processing for join cursors.
+ */
+static int
+__db_join_close_pp(dbc)
+	DBC *dbc;
+{
+	DB_ENV *dbenv;
+	DB *dbp;
+	int handle_check, ret;
+
+	dbp = dbc->dbp;
+	dbenv = dbp->dbenv;
+
+	PANIC_CHECK(dbenv);
+
+	handle_check = IS_REPLICATED(dbenv, dbp);
+	if (handle_check &&
+	    (ret = __db_rep_enter(dbp, 0, 0, dbc->txn != NULL)) != 0)
+		return (ret);
+
+	ret = __db_join_close(dbc);
+
+	if (handle_check)
+		__env_db_rep_exit(dbenv);
+
 	return (ret);
 }
 
@@ -273,6 +297,77 @@ __db_join_del(dbc, flags)
 	return (EINVAL);
 }
 
+/*
+ * __db_join_get_pp --
+ *	DBjoin->get pre/post processing.
+ */
+static int
+__db_join_get_pp(dbc, key, data, flags)
+	DBC *dbc;
+	DBT *key, *data;
+	u_int32_t flags;
+{
+	DB *dbp;
+	DB_ENV *dbenv;
+	u_int32_t handle_check, save_flags;
+	int ret;
+
+	dbp = dbc->dbp;
+	dbenv = dbp->dbenv;
+
+	/* Save the original flags value. */
+	save_flags = flags;
+
+	PANIC_CHECK(dbenv);
+
+	if (LF_ISSET(DB_DIRTY_READ | DB_DEGREE_2 | DB_RMW)) {
+		if (!LOCKING_ON(dbp->dbenv))
+			return (__db_fnl(dbp->dbenv, "DBcursor->c_get"));
+
+		LF_CLR(DB_DIRTY_READ | DB_DEGREE_2 | DB_RMW);
+	}
+
+	switch (flags) {
+	case 0:
+	case DB_JOIN_ITEM:
+		break;
+	default:
+		return (__db_ferr(dbp->dbenv, "DBcursor->c_get", 0));
+	}
+
+	/*
+	 * A partial get of the key of a join cursor don't make much sense;
+	 * the entire key is necessary to query the primary database
+	 * and find the datum, and so regardless of the size of the key
+	 * it would not be a performance improvement.  Since it would require
+	 * special handling, we simply disallow it.
+	 *
+	 * A partial get of the data, however, potentially makes sense (if
+	 * all possible data are a predictable large structure, for instance)
+	 * and causes us no headaches, so we permit it.
+	 */
+	if (F_ISSET(key, DB_DBT_PARTIAL)) {
+		__db_err(dbp->dbenv,
+		    "DB_DBT_PARTIAL may not be set on key during join_get");
+		return (EINVAL);
+	}
+
+	handle_check = IS_REPLICATED(dbp->dbenv, dbp);
+	if (handle_check &&
+	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
+		return (ret);
+
+	/* Restore the original flags value. */
+	flags = save_flags;
+
+	ret = __db_join_get(dbc, key, data, flags);
+
+	if (handle_check)
+		__env_db_rep_exit(dbenv);
+
+	return (ret);
+}
+
 static int
 __db_join_get(dbc, key_arg, data_arg, flags)
 	DBC *dbc;
@@ -289,18 +384,13 @@ __db_join_get(dbc, key_arg, data_arg, flags)
 	dbp = dbc->dbp;
 	jc = (JOIN_CURSOR *)dbc->internal;
 
-	PANIC_CHECK(dbp->dbenv);
-
 	operation = LF_ISSET(DB_OPFLAGS_MASK);
 
 	/* !!!
 	 * If the set of flags here changes, check that __db_join_primget
 	 * is updated to handle them properly.
 	 */
-	opmods = LF_ISSET(DB_RMW | DB_DIRTY_READ);
-
-	if ((ret = __db_joingetchk(dbp, key_arg, flags)) != 0)
-		return (ret);
+	opmods = LF_ISSET(DB_RMW | DB_DEGREE_2 | DB_DIRTY_READ);
 
 	/*
 	 * Since we are fetching the key as a datum in the secondary indices,
@@ -329,11 +419,10 @@ __db_join_get(dbc, key_arg, data_arg, flags)
 		goto samekey;
 	F_CLR(jc, JOIN_RETRY);
 
-retry:	ret = jc->j_workcurs[0]->c_real_get(jc->j_workcurs[0],
-	    &jc->j_key, key_n,
+retry:	ret = __db_c_get(jc->j_workcurs[0], &jc->j_key, key_n,
 	    opmods | (jc->j_exhausted[0] ? DB_NEXT_DUP : DB_CURRENT));
 
-	if (ret == ENOMEM) {
+	if (ret == DB_BUFFER_SMALL) {
 		jc->j_key.ulen <<= 1;
 		if ((ret = __os_realloc(dbp->dbenv,
 		    jc->j_key.ulen, &jc->j_key.data)) != 0)
@@ -358,7 +447,7 @@ retry:	ret = jc->j_workcurs[0]->c_real_get(jc->j_workcurs[0],
 	 */
 	for (i = 1; i < jc->j_ncurs; i++) {
 		if (jc->j_fdupcurs[i] != NULL &&
-		    (ret = jc->j_fdupcurs[i]->c_close(jc->j_fdupcurs[i])) != 0)
+		    (ret = __db_c_close(jc->j_fdupcurs[i])) != 0)
 			goto err;
 		jc->j_fdupcurs[i] = NULL;
 	}
@@ -382,9 +471,8 @@ retry:	ret = jc->j_workcurs[0]->c_real_get(jc->j_workcurs[0],
 		DB_ASSERT(jc->j_curslist[i] != NULL);
 		if (jc->j_workcurs[i] == NULL)
 			/* If this is NULL, we need to dup curslist into it. */
-			if ((ret = jc->j_curslist[i]->c_dup(
-			    jc->j_curslist[i], jc->j_workcurs + i,
-			    DB_POSITIONI)) != 0)
+			if ((ret = __db_c_dup(jc->j_curslist[i],
+			    &jc->j_workcurs[i], DB_POSITION)) != 0)
 				goto err;
 
 retry2:		cp = jc->j_workcurs[i];
@@ -435,7 +523,7 @@ retry2:		cp = jc->j_workcurs[i];
 					 * and let strange things happen--we
 					 * can't make rope childproof.
 					 */
-					if ((ret = jc->j_workcurs[j]->c_close(
+					if ((ret = __db_c_close(
 					    jc->j_workcurs[j])) != 0)
 						goto err;
 					if (!SORTED_SET(jc, 0) ||
@@ -448,10 +536,10 @@ retry2:		cp = jc->j_workcurs[i];
 						jc->j_workcurs[j] = NULL;
 					else
 						/* Partial reset suffices. */
-						if ((jc->j_fdupcurs[j]->c_dup(
+						if ((__db_c_dup(
 						    jc->j_fdupcurs[j],
 						    &jc->j_workcurs[j],
-						    DB_POSITIONI)) != 0)
+						    DB_POSITION)) != 0)
 							goto err;
 					jc->j_exhausted[j] = 0;
 				}
@@ -467,23 +555,21 @@ retry2:		cp = jc->j_workcurs[i];
 			for (j = i + 1;
 			    jc->j_workcurs[j] != NULL;
 			    j++) {
-				if ((ret = jc->j_workcurs[j]->c_close(
-				    jc->j_workcurs[j])) != 0)
+				if ((ret =
+				    __db_c_close(jc->j_workcurs[j])) != 0)
 					goto err;
 				jc->j_exhausted[j] = 0;
-				if (jc->j_fdupcurs[j] != NULL &&
-				    (ret = jc->j_fdupcurs[j]->c_dup(
-				    jc->j_fdupcurs[j], &jc->j_workcurs[j],
-				    DB_POSITIONI)) != 0)
-					goto err;
-				else
+				if (jc->j_fdupcurs[j] == NULL)
 					jc->j_workcurs[j] = NULL;
+				else if ((ret = __db_c_dup(jc->j_fdupcurs[j],
+				    &jc->j_workcurs[j], DB_POSITION)) != 0)
+					goto err;
 			}
 			goto retry2;
 			/* NOTREACHED */
 		}
 
-		if (ret == ENOMEM) {
+		if (ret == DB_BUFFER_SMALL) {
 			jc->j_key.ulen <<= 1;
 			if ((ret = __os_realloc(dbp->dbenv, jc->j_key.ulen,
 			    &jc->j_key.data)) != 0) {
@@ -521,9 +607,8 @@ mem_err:			__db_err(dbp->dbenv,
 		 * duplicate duplicates;  store this into jc->j_fdupcurs[i].
 		 */
 		if (SORTED_SET(jc, i) && jc->j_fdupcurs[i] == NULL && (ret =
-		    cp->c_dup(cp, &jc->j_fdupcurs[i], DB_POSITIONI)) != 0)
+		    __db_c_dup(cp, &jc->j_fdupcurs[i], DB_POSITION)) != 0)
 			goto err;
-
 	}
 
 err:	if (ret != 0)
@@ -534,7 +619,7 @@ samekey:	/*
 		 * Get the key we tried and failed to return last time;
 		 * it should be the current datum of all the secondary cursors.
 		 */
-		if ((ret = jc->j_workcurs[0]->c_real_get(jc->j_workcurs[0],
+		if ((ret = __db_c_get(jc->j_workcurs[0],
 		    &jc->j_key, key_n, DB_CURRENT | opmods)) != 0)
 			return (ret);
 		F_CLR(jc, JOIN_RETRY);
@@ -615,7 +700,13 @@ samekey:	/*
 	return (ret);
 }
 
-static int
+/*
+ * __db_join_close --
+ *	DBC->c_close for join cursors.
+ *
+ * PUBLIC: int __db_join_close __P((DBC *));
+ */
+int
 __db_join_close(dbc)
 	DBC *dbc;
 {
@@ -653,11 +744,11 @@ __db_join_close(dbc)
 	 * mucking with.
 	 */
 	for (i = 0; i < jc->j_ncurs; i++) {
-		if (jc->j_workcurs[i] != NULL && (t_ret =
-		    jc->j_workcurs[i]->c_close(jc->j_workcurs[i])) != 0)
+		if (jc->j_workcurs[i] != NULL &&
+		    (t_ret = __db_c_close(jc->j_workcurs[i])) != 0)
 			ret = t_ret;
-		if (jc->j_fdupcurs[i] != NULL && (t_ret =
-		    jc->j_fdupcurs[i]->c_close(jc->j_fdupcurs[i])) != 0)
+		if (jc->j_fdupcurs[i] != NULL &&
+		    (t_ret = __db_c_close(jc->j_fdupcurs[i])) != 0)
 			ret = t_ret;
 	}
 
@@ -711,7 +802,7 @@ __db_join_getnext(dbc, key, data, exhausted, opmods)
 		 */
 		memset(&ldata, 0, sizeof(DBT));
 		F_SET(&ldata, DB_DBT_MALLOC);
-		if ((ret = dbc->c_real_get(dbc,
+		if ((ret = __db_c_get(dbc,
 		    key, &ldata, opmods | DB_CURRENT)) != 0)
 			break;
 		cmp = func(dbp, data, &ldata);
@@ -736,7 +827,7 @@ __db_join_getnext(dbc, key, data, exhausted, opmods)
 		__os_ufree(dbp->dbenv, ldata.data);
 		/* FALLTHROUGH */
 	case 1:
-		ret = dbc->c_real_get(dbc, key, data, opmods | DB_GET_BOTHC);
+		ret = __db_c_get(dbc, key, data, opmods | DB_GET_BOTHC);
 		break;
 	default:
 		ret = EINVAL;
@@ -757,17 +848,14 @@ __db_join_cmp(a, b)
 	DBC *dbca, *dbcb;
 	db_recno_t counta, countb;
 
-	/* In case c_count fails, pretend cursors are equal. */
-	counta = countb = 0;
-
 	dbca = *((DBC * const *)a);
 	dbcb = *((DBC * const *)b);
 
-	if (dbca->c_count(dbca, &counta, 0) != 0 ||
-	    dbcb->c_count(dbcb, &countb, 0) != 0)
+	if (__db_c_count(dbca, &counta) != 0 ||
+	    __db_c_count(dbcb, &countb) != 0)
 		return (0);
 
-	return (counta - countb);
+	return ((long)counta - (long)countb);
 }
 
 /*
@@ -784,7 +872,11 @@ __db_join_primget(dbp, txn, lockerid, key, data, flags)
 	u_int32_t flags;
 {
 	DBC *dbc;
-	int dirty, ret, rmw, t_ret;
+	int ret, rmw, t_ret;
+
+	if ((ret = __db_cursor_int(dbp,
+	    txn, dbp->type, PGNO_INVALID, 0, lockerid, &dbc)) != 0)
+		return (ret);
 
 	/*
 	 * The only allowable flags here are the two flags copied into
@@ -793,17 +885,17 @@ __db_join_primget(dbp, txn, lockerid, key, data, flags)
 	 * It's a DB bug if we allow any other flags down in here.
 	 */
 	rmw = LF_ISSET(DB_RMW);
-	dirty = LF_ISSET(DB_DIRTY_READ);
-	LF_CLR(DB_RMW | DB_DIRTY_READ);
-	DB_ASSERT(flags == 0);
-
-	if ((ret = __db_icursor(dbp,
-	    txn, dbp->type, PGNO_INVALID, 0, lockerid, &dbc)) != 0)
-		return (ret);
-
-	if (dirty ||
+	if (LF_ISSET(DB_DIRTY_READ) ||
 	    (txn != NULL && F_ISSET(txn, TXN_DIRTY_READ)))
 		F_SET(dbc, DBC_DIRTY_READ);
+
+	if (LF_ISSET(DB_DEGREE_2) ||
+	    (txn != NULL && F_ISSET(txn, TXN_DEGREE_2)))
+		F_SET(dbc, DBC_DEGREE_2);
+
+	LF_CLR(DB_RMW | DB_DIRTY_READ | DB_DEGREE_2);
+	DB_ASSERT(flags == 0);
+
 	F_SET(dbc, DBC_TRANSIENT);
 
 	/*
@@ -813,10 +905,26 @@ __db_join_primget(dbp, txn, lockerid, key, data, flags)
 	 */
 	SET_RET_MEM(dbc, dbp);
 
-	ret = dbc->c_get(dbc, key, data, DB_SET | rmw);
+	ret = __db_c_get(dbc, key, data, DB_SET | rmw);
 
 	if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
 		ret = t_ret;
 
 	return (ret);
+}
+
+/*
+ * __db_secondary_corrupt --
+ *	Report that a secondary index appears corrupt, as it has a record
+ * that does not correspond to a record in the primary or vice versa.
+ *
+ * PUBLIC: int __db_secondary_corrupt __P((DB *));
+ */
+int
+__db_secondary_corrupt(dbp)
+	DB *dbp;
+{
+	__db_err(dbp->dbenv,
+	    "Secondary index corrupt: not consistent with primary");
+	return (DB_SECONDARY_BAD);
 }

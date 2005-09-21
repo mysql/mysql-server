@@ -1,4 +1,4 @@
-#	$Id: srcfiles.in,v 1.59 2002/08/29 14:22:21 margo Exp $
+#	$Id: srcfiles.in,v 1.87 2004/10/30 21:07:01 bostic Exp $
 #
 # This is an input file for the s_win32_dsp and s_vxworks scripts.  It lists
 # the source files in the Berkeley DB tree and notes which are used to build
@@ -13,30 +13,33 @@
 #
 #   app=NAME		Linked into application NAME.exe (db_NAME.dsp)
 #   dynamic		File is in the Windows DLL (db_dll.dsp)
-#   java		File is in the Windows Java DLL (db_java.dsp)
+#   small		File is in the small Windows library (db_small.dsp)
 #   static		File is in the Windows static library (db_static.dsp)
+#   java		File is in the Windows Java DLL (db_java.dsp)
 #   tcl			File is in the Windows tcl DLL (db_tcl.dsp)
 #   testutil		File is used for Windows testing (db_test.dsp)
 #   vx			File is in the VxWorks library.
+#   vxsmall		File is in the small VxWorks library.
 
-btree/bt_compare.c				dynamic static vx
-btree/bt_conv.c					dynamic static vx
-btree/bt_curadj.c				dynamic static vx
-btree/bt_cursor.c				dynamic static vx
-btree/bt_delete.c				dynamic static vx
-btree/bt_method.c				dynamic static vx
-btree/bt_open.c					dynamic static vx
-btree/bt_put.c					dynamic static vx
-btree/bt_rec.c					dynamic static vx
-btree/bt_reclaim.c				dynamic static vx
-btree/bt_recno.c				dynamic static vx
-btree/bt_rsearch.c				dynamic static vx
-btree/bt_search.c				dynamic static vx
-btree/bt_split.c				dynamic static vx
-btree/bt_stat.c					dynamic static vx
-btree/bt_upgrade.c				dynamic static vx
+btree/bt_compare.c				dynamic small static vx vxsmall
+btree/bt_conv.c					dynamic small static vx vxsmall
+btree/bt_curadj.c				dynamic small static vx vxsmall
+btree/bt_cursor.c				dynamic small static vx vxsmall
+btree/bt_delete.c				dynamic small static vx vxsmall
+btree/bt_method.c				dynamic small static vx vxsmall
+btree/bt_open.c					dynamic small static vx vxsmall
+btree/bt_put.c					dynamic small static vx vxsmall
+btree/bt_rec.c					dynamic small static vx vxsmall
+btree/bt_reclaim.c				dynamic small static vx vxsmall
+btree/bt_recno.c				dynamic small static vx vxsmall
+btree/bt_rsearch.c				dynamic small static vx vxsmall
+btree/bt_search.c				dynamic small static vx vxsmall
+btree/bt_split.c				dynamic small static vx vxsmall
+btree/bt_stat.c					dynamic small static vx vxsmall
+btree/bt_upgrade.c				dynamic small static vx vxsmall
 btree/bt_verify.c				dynamic static vx
-btree/btree_auto.c				dynamic static vx
+btree/btree_auto.c				dynamic small static vx vxsmall
+btree/btree_autop.c				app=db_printlog
 build_vxworks/db_archive/db_archive.c
 build_vxworks/db_checkpoint/db_checkpoint.c
 build_vxworks/db_deadlock/db_deadlock.c
@@ -49,63 +52,78 @@ build_vxworks/db_upgrade/db_upgrade.c
 build_vxworks/db_verify/db_verify.c
 build_vxworks/dbdemo/dbdemo.c
 build_win32/dbkill.cpp				testutil
-build_win32/dllmain.c				dynamic
 build_win32/libdb.def				dynamic
 build_win32/libdb.rc				dynamic
 build_win32/libdb_tcl.def			tcl
 clib/getcwd.c
-clib/getopt.c					vx
+clib/getopt.c					vx vxsmall
 clib/memcmp.c
 clib/memmove.c
 clib/raise.c
-clib/snprintf.c					vx
-clib/strcasecmp.c				dynamic static vx
-clib/strdup.c					vx
+clib/snprintf.c					vx vxsmall
+clib/strcasecmp.c				dynamic small static vx vxsmall
+clib/strdup.c					vx vxsmall
 clib/strerror.c
-clib/vsnprintf.c				vx
-common/db_byteorder.c				dynamic static vx
-common/db_err.c					dynamic static vx
-common/db_getlong.c				dynamic static vx
-common/db_idspace.c				dynamic static vx
-common/db_log2.c				dynamic static vx
-common/util_arg.c				vx
-common/util_cache.c				dynamic static vx
-common/util_log.c				dynamic static vx
-common/util_sig.c				dynamic static vx
-cxx/cxx_db.cpp					dynamic static
-cxx/cxx_dbc.cpp					dynamic static
-cxx/cxx_dbt.cpp					dynamic static
-cxx/cxx_env.cpp					dynamic static
-cxx/cxx_except.cpp				dynamic static
-cxx/cxx_lock.cpp				dynamic static
-cxx/cxx_logc.cpp				dynamic static
-cxx/cxx_mpool.cpp				dynamic static
-cxx/cxx_txn.cpp					dynamic static
-db/crdel_auto.c					dynamic static vx
-db/crdel_rec.c					dynamic static vx
-db/db.c						dynamic static vx
-db/db_am.c					dynamic static vx
-db/db_auto.c					dynamic static vx
-db/db_cam.c					dynamic static vx
-db/db_conv.c					dynamic static vx
-db/db_dispatch.c				dynamic static vx
-db/db_dup.c					dynamic static vx
-db/db_iface.c					dynamic static vx
-db/db_join.c					dynamic static vx
-db/db_meta.c					dynamic static vx
-db/db_method.c					dynamic static vx
-db/db_open.c					dynamic static vx
-db/db_overflow.c				dynamic static vx
-db/db_pr.c					dynamic static vx
-db/db_rec.c					dynamic static vx
-db/db_reclaim.c					dynamic static vx
-db/db_remove.c					dynamic static vx
-db/db_rename.c					dynamic static vx
-db/db_ret.c					dynamic static vx
-db/db_truncate.c				dynamic static vx
-db/db_upg.c					dynamic static vx
-db/db_upg_opd.c					dynamic static vx
+clib/strtol.c
+clib/strtoul.c
+common/crypto_stub.c				small vxsmall
+common/db_byteorder.c				dynamic small static vx vxsmall
+common/db_err.c					dynamic small static vx vxsmall
+common/db_getlong.c				dynamic small static vx vxsmall
+common/db_idspace.c				dynamic small static vx vxsmall
+common/db_log2.c				dynamic small static vx vxsmall
+common/util_arg.c				vx vxsmall
+common/util_cache.c				dynamic small static vx vxsmall
+common/util_log.c				dynamic small static vx vxsmall
+common/util_sig.c				dynamic small static vx vxsmall
+crypto/aes_method.c				dynamic static vx
+crypto/crypto.c					dynamic static vx
+crypto/mersenne/mt19937db.c			dynamic static vx
+crypto/rijndael/rijndael-alg-fst.c		dynamic static vx
+crypto/rijndael/rijndael-api-fst.c		dynamic static vx
+cxx/cxx_db.cpp					dynamic small static
+cxx/cxx_dbc.cpp					dynamic small static
+cxx/cxx_dbt.cpp					dynamic small static
+cxx/cxx_env.cpp					dynamic small static
+cxx/cxx_except.cpp				dynamic small static
+cxx/cxx_lock.cpp				dynamic small static
+cxx/cxx_logc.cpp				dynamic small static
+cxx/cxx_mpool.cpp				dynamic small static
+cxx/cxx_multi.cpp				dynamic small static
+cxx/cxx_seq.cpp					dynamic small static
+cxx/cxx_txn.cpp					dynamic small static
+db/crdel_auto.c					dynamic small static vx vxsmall
+db/crdel_autop.c				app=db_printlog
+db/crdel_rec.c					dynamic small static vx vxsmall
+db/db.c						dynamic small static vx vxsmall
+db/db_am.c					dynamic small static vx vxsmall
+db/db_auto.c					dynamic small static vx vxsmall
+db/db_autop.c					app=db_printlog
+db/db_cam.c					dynamic small static vx vxsmall
+db/db_conv.c					dynamic small static vx vxsmall
+db/db_dispatch.c				dynamic small static vx vxsmall
+db/db_dup.c					dynamic small static vx vxsmall
+db/db_iface.c					dynamic small static vx vxsmall
+db/db_join.c					dynamic small static vx vxsmall
+db/db_meta.c					dynamic small static vx vxsmall
+db/db_method.c					dynamic small static vx vxsmall
+db/db_open.c					dynamic small static vx vxsmall
+db/db_overflow.c				dynamic small static vx vxsmall
+db/db_ovfl_vrfy.c				dynamic static vx
+db/db_pr.c					dynamic small static vx vxsmall
+db/db_rec.c					dynamic small static vx vxsmall
+db/db_reclaim.c					dynamic small static vx vxsmall
+db/db_remove.c					dynamic small static vx vxsmall
+db/db_rename.c					dynamic small static vx vxsmall
+db/db_ret.c					dynamic small static vx vxsmall
+db/db_setid.c					dynamic small static vx vxsmall
+db/db_setlsn.c					dynamic small static vx vxsmall
+db/db_stati.c					dynamic small static vx vxsmall
+db/db_truncate.c				dynamic small static vx vxsmall
+db/db_upg.c					dynamic small static vx vxsmall
+db/db_upg_opd.c					dynamic small static vx vxsmall
 db/db_vrfy.c					dynamic static vx
+db/db_vrfy_stub.c				small vxsmall
 db/db_vrfyutil.c				dynamic static vx
 db185/db185.c
 db_archive/db_archive.c				app=db_archive
@@ -116,53 +134,71 @@ db_dump185/db_dump185.c
 db_load/db_load.c				app=db_load
 db_printlog/db_printlog.c			app=db_printlog
 db_recover/db_recover.c				app=db_recover
+db_server_clnt.c
+db_server_svc.c
+db_server_xdr.c
 db_stat/db_stat.c				app=db_stat
 db_upgrade/db_upgrade.c				app=db_upgrade
 db_verify/db_verify.c				app=db_verify
 dbm/dbm.c					dynamic static
-dbreg/dbreg.c					dynamic static vx
-dbreg/dbreg_auto.c				dynamic static vx
-dbreg/dbreg_rec.c				dynamic static vx
-dbreg/dbreg_util.c				dynamic static vx
-env/db_salloc.c					dynamic static vx
-env/db_shash.c					dynamic static vx
-env/env_file.c					dynamic static vx
-env/env_method.c				dynamic static vx
-env/env_open.c					dynamic static vx
-env/env_recover.c				dynamic static vx
-env/env_region.c				dynamic static vx
+dbreg/dbreg.c					dynamic small static vx vxsmall
+dbreg/dbreg_auto.c				dynamic small static vx vxsmall
+dbreg/dbreg_autop.c				app=db_printlog
+dbreg/dbreg_rec.c				dynamic small static vx vxsmall
+dbreg/dbreg_stat.c				dynamic small static vx vxsmall
+dbreg/dbreg_util.c				dynamic small static vx vxsmall
+env/db_salloc.c					dynamic small static vx vxsmall
+env/db_shash.c					dynamic small static vx vxsmall
+env/env_file.c					dynamic small static vx vxsmall
+env/env_method.c				dynamic small static vx vxsmall
+env/env_open.c					dynamic small static vx vxsmall
+env/env_recover.c				dynamic small static vx vxsmall
+env/env_region.c				dynamic small static vx vxsmall
+env/env_stat.c					dynamic small static vx vxsmall
 examples_c/bench_001.c
 examples_c/ex_access.c				app=ex_access
 examples_c/ex_apprec/ex_apprec.c
 examples_c/ex_apprec/ex_apprec_auto.c
+examples_c/ex_apprec/ex_apprec_autop.c
 examples_c/ex_apprec/ex_apprec_rec.c
 examples_c/ex_btrec.c				app=ex_btrec
 examples_c/ex_dbclient.c
 examples_c/ex_env.c				app=ex_env
 examples_c/ex_lock.c				app=ex_lock
 examples_c/ex_mpool.c				app=ex_mpool
-examples_c/ex_repquote/ex_rq_client.c
-examples_c/ex_repquote/ex_rq_main.c
-examples_c/ex_repquote/ex_rq_master.c
-examples_c/ex_repquote/ex_rq_net.c
-examples_c/ex_repquote/ex_rq_util.c
+examples_c/ex_repquote/ex_rq_client.c		app=ex_repquote
+examples_c/ex_repquote/ex_rq_main.c		app=ex_repquote
+examples_c/ex_repquote/ex_rq_master.c		app=ex_repquote
+examples_c/ex_repquote/ex_rq_net.c		app=ex_repquote
+examples_c/ex_repquote/ex_rq_util.c		app=ex_repquote
+examples_c/ex_sequence.c
 examples_c/ex_thread.c
 examples_c/ex_tpcb.c				app=ex_tpcb
+examples_c/getting_started/example_database_load.c
+examples_c/getting_started/example_database_read.c
+examples_c/getting_started/gettingstarted_common.c
 examples_cxx/AccessExample.cpp			app=excxx_access
 examples_cxx/BtRecExample.cpp			app=excxx_btrec
 examples_cxx/EnvExample.cpp			app=excxx_env
 examples_cxx/LockExample.cpp			app=excxx_lock
 examples_cxx/MpoolExample.cpp			app=excxx_mpool
+examples_cxx/SequenceExample.cpp
 examples_cxx/TpcbExample.cpp			app=excxx_tpcb
-fileops/fileops_auto.c				dynamic static vx
-fileops/fop_basic.c				dynamic static vx
-fileops/fop_rec.c				dynamic static vx
-fileops/fop_util.c				dynamic static vx
+examples_cxx/getting_started/MyDb.cpp
+examples_cxx/getting_started/excxx_example_database_load.cpp
+examples_cxx/getting_started/excxx_example_database_read.cpp
+fileops/fileops_auto.c				dynamic small static vx vxsmall
+fileops/fileops_autop.c				app=db_printlog
+fileops/fop_basic.c				dynamic small static vx vxsmall
+fileops/fop_rec.c				dynamic small static vx vxsmall
+fileops/fop_util.c				dynamic small static vx vxsmall
+gen_db_server.c
 hash/hash.c					dynamic static vx
 hash/hash_auto.c				dynamic static vx
+hash/hash_autop.c				app=db_printlog
 hash/hash_conv.c				dynamic static vx
 hash/hash_dup.c					dynamic static vx
-hash/hash_func.c				dynamic static vx
+hash/hash_func.c				dynamic small static vx vxsmall
 hash/hash_meta.c				dynamic static vx
 hash/hash_method.c				dynamic static vx
 hash/hash_open.c				dynamic static vx
@@ -170,124 +206,125 @@ hash/hash_page.c				dynamic static vx
 hash/hash_rec.c					dynamic static vx
 hash/hash_reclaim.c				dynamic static vx
 hash/hash_stat.c				dynamic static vx
+hash/hash_stub.c				small vxsmall
 hash/hash_upgrade.c				dynamic static vx
 hash/hash_verify.c				dynamic static vx
-hmac/hmac.c					dynamic static vx
-hmac/sha1.c					dynamic static vx
+hmac/hmac.c					dynamic small static vx vxsmall
+hmac/sha1.c					dynamic small static vx vxsmall
 hsearch/hsearch.c				dynamic static vx
-libdb_java/java_Db.c				java
-libdb_java/java_DbEnv.c				java
-libdb_java/java_DbLock.c			java
-libdb_java/java_DbLogc.c			java
-libdb_java/java_DbLsn.c				java
-libdb_java/java_DbTxn.c				java
-libdb_java/java_DbUtil.c			java
-libdb_java/java_Dbc.c				java
-libdb_java/java_Dbt.c				java
-libdb_java/java_info.c				java
-libdb_java/java_locked.c			java
-libdb_java/java_stat_auto.c			java
-libdb_java/java_util.c				java
-lock/lock.c					dynamic static vx
-lock/lock_deadlock.c				dynamic static vx
-lock/lock_method.c				dynamic static vx
-lock/lock_region.c				dynamic static vx
-lock/lock_stat.c				dynamic static vx
-lock/lock_util.c				dynamic static vx
-log/log.c					dynamic static vx
-log/log_archive.c				dynamic static vx
-log/log_compare.c				dynamic static vx
-log/log_get.c					dynamic static vx
-log/log_method.c				dynamic static vx
-log/log_put.c					dynamic static vx
-mp/mp_alloc.c					dynamic static vx
-mp/mp_bh.c					dynamic static vx
-mp/mp_fget.c					dynamic static vx
-mp/mp_fopen.c					dynamic static vx
-mp/mp_fput.c					dynamic static vx
-mp/mp_fset.c					dynamic static vx
-mp/mp_method.c					dynamic static vx
-mp/mp_region.c					dynamic static vx
-mp/mp_register.c				dynamic static vx
-mp/mp_stat.c					dynamic static vx
-mp/mp_sync.c					dynamic static vx
-mp/mp_trickle.c					dynamic static vx
+libdb_java/db_java_wrap.c			java
+lock/lock.c					dynamic small static vx vxsmall
+lock/lock_deadlock.c				dynamic small static vx vxsmall
+lock/lock_id.c					dynamic small static vx vxsmall
+lock/lock_list.c				dynamic small static vx vxsmall
+lock/lock_method.c				dynamic small static vx vxsmall
+lock/lock_region.c				dynamic small static vx vxsmall
+lock/lock_stat.c				dynamic small static vx vxsmall
+lock/lock_timer.c				dynamic small static vx vxsmall
+lock/lock_util.c				dynamic small static vx vxsmall
+log/log.c					dynamic small static vx vxsmall
+log/log_archive.c				dynamic small static vx vxsmall
+log/log_compare.c				dynamic small static vx vxsmall
+log/log_get.c					dynamic small static vx vxsmall
+log/log_method.c				dynamic small static vx vxsmall
+log/log_put.c					dynamic small static vx vxsmall
+log/log_stat.c					dynamic small static vx vxsmall
+mp/mp_alloc.c					dynamic small static vx vxsmall
+mp/mp_bh.c					dynamic small static vx vxsmall
+mp/mp_fget.c					dynamic small static vx vxsmall
+mp/mp_fmethod.c					dynamic small static vx vxsmall
+mp/mp_fopen.c					dynamic small static vx vxsmall
+mp/mp_fput.c					dynamic small static vx vxsmall
+mp/mp_fset.c					dynamic small static vx vxsmall
+mp/mp_method.c					dynamic small static vx vxsmall
+mp/mp_region.c					dynamic small static vx vxsmall
+mp/mp_register.c				dynamic small static vx vxsmall
+mp/mp_stat.c					dynamic small static vx vxsmall
+mp/mp_sync.c					dynamic small static vx vxsmall
+mp/mp_trickle.c					dynamic small static vx vxsmall
 mutex/mut_fcntl.c
 mutex/mut_pthread.c
-mutex/mut_tas.c					vx
-mutex/mut_win32.c				dynamic static
-mutex/mutex.c					dynamic static vx
+mutex/mut_tas.c					vx vxsmall
+mutex/mut_win32.c				dynamic small static
+mutex/mutex.c					dynamic small static vx vxsmall
 mutex/tm.c
 os/os_abs.c
-os/os_alloc.c					dynamic static vx
-os/os_clock.c					vx
+os/os_alloc.c					dynamic small static vx vxsmall
+os/os_clock.c					vx vxsmall
 os/os_config.c
-os/os_dir.c					vx
-os/os_errno.c					vx
-os/os_fid.c					vx
-os/os_fsync.c					vx
-os/os_handle.c					vx
-os/os_id.c					dynamic static vx
+os/os_dir.c					vx vxsmall
+os/os_errno.c					vx vxsmall
+os/os_fid.c					vx vxsmall
+os/os_fsync.c					vx vxsmall
+os/os_handle.c					vx vxsmall
+os/os_id.c					dynamic small static vx vxsmall
 os/os_map.c
-os/os_method.c					dynamic static vx
-os/os_oflags.c					dynamic static vx
-os/os_open.c					vx
-os/os_region.c					dynamic static vx
-os/os_rename.c					vx
-os/os_root.c					dynamic static vx
-os/os_rpath.c					dynamic static vx
-os/os_rw.c					vx
-os/os_seek.c					vx
-os/os_sleep.c					vx
-os/os_spin.c					vx
-os/os_stat.c					vx
-os/os_tmpdir.c					dynamic static vx
-os/os_unlink.c					dynamic static vx
-os_vxworks/os_vx_abs.c				vx
-os_vxworks/os_vx_config.c			vx
-os_vxworks/os_vx_map.c				vx
-os_win32/os_abs.c				dynamic static
-os_win32/os_clock.c				dynamic static
-os_win32/os_config.c				dynamic static
-os_win32/os_dir.c				dynamic static
-os_win32/os_errno.c				dynamic static
-os_win32/os_fid.c				dynamic static
-os_win32/os_fsync.c				dynamic static
-os_win32/os_handle.c				dynamic static
-os_win32/os_map.c				dynamic static
-os_win32/os_open.c				dynamic static
-os_win32/os_rename.c				dynamic static
-os_win32/os_rw.c				dynamic static
-os_win32/os_seek.c				dynamic static
-os_win32/os_sleep.c				dynamic static
-os_win32/os_spin.c				dynamic static
-os_win32/os_stat.c				dynamic static
-os_win32/os_type.c				dynamic static
+os/os_method.c					dynamic small static vx vxsmall
+os/os_oflags.c					dynamic small static vx vxsmall
+os/os_open.c					vx vxsmall
+os/os_region.c					dynamic small static vx vxsmall
+os/os_rename.c					vx vxsmall
+os/os_root.c					dynamic small static vx vxsmall
+os/os_rpath.c					dynamic small static vx vxsmall
+os/os_rw.c					vx vxsmall
+os/os_seek.c					vx vxsmall
+os/os_sleep.c					vx vxsmall
+os/os_spin.c					vx vxsmall
+os/os_stat.c					vx vxsmall
+os/os_tmpdir.c					dynamic small static vx vxsmall
+os/os_truncate.c				vx vxsmall
+os/os_unlink.c					vx vxsmall
+os_vxworks/os_vx_abs.c				vx vxsmall
+os_vxworks/os_vx_config.c			vx vxsmall
+os_vxworks/os_vx_map.c				vx vxsmall
+os_win32/os_abs.c				dynamic small static
+os_win32/os_clock.c				dynamic small static
+os_win32/os_config.c				dynamic small static
+os_win32/os_dir.c				dynamic small static
+os_win32/os_errno.c				dynamic small static
+os_win32/os_fid.c				dynamic small static
+os_win32/os_fsync.c				dynamic small static
+os_win32/os_handle.c				dynamic small static
+os_win32/os_map.c				dynamic small static
+os_win32/os_open.c				dynamic small static
+os_win32/os_rename.c				dynamic small static
+os_win32/os_rw.c				dynamic small static
+os_win32/os_seek.c				dynamic small static
+os_win32/os_sleep.c				dynamic small static
+os_win32/os_spin.c				dynamic small static
+os_win32/os_stat.c				dynamic small static
+os_win32/os_truncate.c				dynamic small static
+os_win32/os_unlink.c				dynamic small static
 qam/qam.c					dynamic static vx
 qam/qam_auto.c					dynamic static vx
+qam/qam_autop.c					app=db_printlog
 qam/qam_conv.c					dynamic static vx
 qam/qam_files.c					dynamic static vx
 qam/qam_method.c				dynamic static vx
 qam/qam_open.c					dynamic static vx
 qam/qam_rec.c					dynamic static vx
 qam/qam_stat.c					dynamic static vx
+qam/qam_stub.c					small vxsmall
 qam/qam_upgrade.c				dynamic static vx
 qam/qam_verify.c				dynamic static vx
+rep/rep_auto.c					dynamic static vx
+rep/rep_autop.c					app=db_printlog
+rep/rep_backup.c				dynamic static vx
 rep/rep_method.c				dynamic static vx
 rep/rep_record.c				dynamic static vx
 rep/rep_region.c				dynamic static vx
+rep/rep_stat.c					dynamic static vx
+rep/rep_stub.c					small vxsmall
 rep/rep_util.c					dynamic static vx
-rpc_client/client.c				vx
-rpc_client/db_server_clnt.c			vx
-rpc_client/gen_client.c				vx
-rpc_client/gen_client_ret.c			vx
+rpc_client/client.c
+rpc_client/gen_client.c
+rpc_client/gen_client_ret.c
 rpc_server/c/db_server_proc.c
-rpc_server/c/db_server_svc.c
 rpc_server/c/db_server_util.c
-rpc_server/c/db_server_xdr.c			vx
-rpc_server/c/gen_db_server.c
 rpc_server/cxx/db_server_cxxproc.cpp
 rpc_server/cxx/db_server_cxxutil.cpp
+sequence/seq_stat.c				dynamic small static
+sequence/sequence.c				dynamic small static
 tcl/tcl_compat.c				tcl
 tcl/tcl_db.c					tcl
 tcl/tcl_db_pkg.c				tcl
@@ -298,13 +335,14 @@ tcl/tcl_lock.c					tcl
 tcl/tcl_log.c					tcl
 tcl/tcl_mp.c					tcl
 tcl/tcl_rep.c					tcl
+tcl/tcl_seq.c					tcl
 tcl/tcl_txn.c					tcl
 tcl/tcl_util.c					tcl
 test_perf/db_perf.c				app=db_perf
-test_perf/perf_cache_check.c			app=db_perf
 test_perf/perf_checkpoint.c			app=db_perf
 test_perf/perf_config.c				app=db_perf
 test_perf/perf_dbs.c				app=db_perf
+test_perf/perf_dead.c				app=db_perf
 test_perf/perf_debug.c				app=db_perf
 test_perf/perf_file.c				app=db_perf
 test_perf/perf_key.c				app=db_perf
@@ -314,19 +352,22 @@ test_perf/perf_op.c				app=db_perf
 test_perf/perf_parse.c				app=db_perf
 test_perf/perf_rand.c				app=db_perf
 test_perf/perf_spawn.c				app=db_perf
+test_perf/perf_stat.c				app=db_perf
+test_perf/perf_sync.c				app=db_perf
 test_perf/perf_thread.c				app=db_perf
 test_perf/perf_trickle.c			app=db_perf
 test_perf/perf_txn.c				app=db_perf
 test_perf/perf_util.c				app=db_perf
 test_perf/perf_vx.c
-txn/txn.c					dynamic static vx
-txn/txn_auto.c					dynamic static vx
-txn/txn_method.c				dynamic static vx
-txn/txn_rec.c					dynamic static vx
-txn/txn_recover.c				dynamic static vx
-txn/txn_region.c				dynamic static vx
-txn/txn_stat.c					dynamic static vx
-txn/txn_util.c					dynamic static vx
-xa/xa.c						dynamic static vx
-xa/xa_db.c					dynamic static vx
-xa/xa_map.c					dynamic static vx
+txn/txn.c					dynamic small static vx vxsmall
+txn/txn_auto.c					dynamic small static vx vxsmall
+txn/txn_autop.c					app=db_printlog
+txn/txn_method.c				dynamic small static vx vxsmall
+txn/txn_rec.c					dynamic small static vx vxsmall
+txn/txn_recover.c				dynamic small static vx vxsmall
+txn/txn_region.c				dynamic small static vx vxsmall
+txn/txn_stat.c					dynamic small static vx vxsmall
+txn/txn_util.c					dynamic small static vx vxsmall
+xa/xa.c						dynamic small static vx vxsmall
+xa/xa_db.c					dynamic small static vx vxsmall
+xa/xa_map.c					dynamic small static vx vxsmall

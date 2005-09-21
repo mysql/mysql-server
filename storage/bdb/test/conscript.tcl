@@ -1,15 +1,15 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: conscript.tcl,v 11.17 2002/03/22 21:43:06 krinsky Exp $
+# $Id: conscript.tcl,v 11.25 2004/01/28 03:36:26 bostic Exp $
 #
 # Script for DB_CONSUME test (test070.tcl).
 # Usage: conscript dir file runtype nitems outputfile tnum args
 # dir: DBHOME directory
 # file: db file on which to operate
-# runtype: PRODUCE or CONSUME--which am I?
+# runtype: PRODUCE, CONSUME or WAIT -- which am I?
 # nitems: number of items to put or get
 # outputfile: where to log consumer results
 # tnum: test number
@@ -19,7 +19,7 @@ proc consumescript_produce { db_cmd nitems tnum args } {
 	global mydata
 
 	set pid [pid]
-	puts "\tTest0$tnum: Producer $pid starting, producing $nitems items."
+	puts "\tTest$tnum: Producer $pid starting, producing $nitems items."
 
 	set db [eval $db_cmd]
 	error_check_good db_open:$pid [is_valid_db $db] TRUE
@@ -33,26 +33,26 @@ proc consumescript_produce { db_cmd nitems tnum args } {
 		}
 		set ret [$db put -append [chop_data q $mydata]]
 		error_check_good db_put \
-		    [expr $ret > 0 ? $oret < $ret : \
-		    $oret < 0 ? $oret < $ret : $oret > $ret] 1
+		    [expr $oret > $ret ? \
+		    ($oret > 0x7fffffff && $ret < 0x7fffffff) : 1] 1
 
 	}
 
 	set ret [catch {$db close} res]
 	error_check_good db_close:$pid $ret 0
-	puts "\t\tTest0$tnum: Producer $pid finished."
+	puts "\t\tTest$tnum: Producer $pid finished."
 }
 
 proc consumescript_consume { db_cmd nitems tnum outputfile mode args } {
 	source ./include.tcl
 	global mydata
 	set pid [pid]
-	puts "\tTest0$tnum: Consumer $pid starting, seeking $nitems items."
+	puts "\tTest$tnum: Consumer $pid starting, seeking $nitems items."
 
 	set db [eval $db_cmd]
 	error_check_good db_open:$pid [is_valid_db $db] TRUE
 
-	set oid [open $outputfile w]
+	set oid [open $outputfile a]
 
 	for { set ndx 0 } { $ndx < $nitems } { } {
 		set ret [$db get $mode]
@@ -71,7 +71,7 @@ proc consumescript_consume { db_cmd nitems tnum outputfile mode args } {
 
 	set ret [catch {$db close} res]
 	error_check_good db_close:$pid $ret 0
-	puts "\t\tTest0$tnum: Consumer $pid finished."
+	puts "\t\tTest$tnum: Consumer $pid finished."
 }
 
 source ./include.tcl
@@ -117,7 +117,8 @@ if { $runtype == "PRODUCE" } {
 	consumescript_consume $db_cmd $nitems $tnum $outputfile -consume_wait \
 		$args
 } else {
-	error_check_good bad_args $runtype "either PRODUCE, CONSUME or WAIT"
+	error_check_good bad_args $runtype \
+	    "either PRODUCE, CONSUME, or WAIT"
 }
 error_check_good env_close [$dbenv close] 0
 exit

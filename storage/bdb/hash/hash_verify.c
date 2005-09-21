@@ -1,17 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: hash_verify.c,v 1.53 2002/08/06 05:35:02 bostic Exp $
+ * $Id: hash_verify.c,v 1.63 2004/10/14 18:11:36 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: hash_verify.c,v 1.53 2002/08/06 05:35:02 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -21,9 +17,11 @@ static const char revid[] = "$Id: hash_verify.c,v 1.53 2002/08/06 05:35:02 bosti
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
 #include "dbinc/db_verify.h"
 #include "dbinc/btree.h"
 #include "dbinc/hash.h"
+#include "dbinc/mp.h"
 
 static int __ham_dups_unsorted __P((DB *, u_int8_t *, u_int32_t));
 static int __ham_vrfy_bucket __P((DB *, VRFY_DBINFO *, HMETA *, u_int32_t,
@@ -83,12 +81,12 @@ __ham_vrfy_meta(dbp, vdp, m, pgno, flags)
 	if (!LF_ISSET(DB_NOORDERCHK))
 		if (m->h_charkey != hfunc(dbp, CHARKEY, sizeof(CHARKEY))) {
 			EPRINT((dbp->dbenv,
-"Page %lu: database has different custom hash function; reverify with DB_NOORDERCHK set",
+"Page %lu: database has custom hash function; reverify with DB_NOORDERCHK set",
 			    (u_long)pgno));
 			/*
-			 * Return immediately;  this is probably a sign
-			 * of user error rather than database corruption, so
-			 * we want to avoid extraneous errors.
+			 * Return immediately;  this is probably a sign of user
+			 * error rather than database corruption, so we want to
+			 * avoid extraneous errors.
 			 */
 			isbad = 1;
 			goto err;
@@ -173,6 +171,9 @@ __ham_vrfy_meta(dbp, vdp, m, pgno, flags)
 err:	if ((t_ret =
 	    __db_vrfy_putpageinfo(dbp->dbenv, vdp, pip)) != 0 && ret == 0)
 		ret = t_ret;
+	if (LF_ISSET(DB_SALVAGE) &&
+	   (t_ret = __db_salvage_markdone(vdp, pgno)) != 0 && ret == 0)
+		ret = t_ret;
 	return ((ret == 0 && isbad == 1) ? DB_VERIFY_BAD : ret);
 }
 
@@ -199,11 +200,6 @@ __ham_vrfy(dbp, vdp, h, pgno, flags)
 	isbad = 0;
 	if ((ret = __db_vrfy_getpageinfo(vdp, pgno, &pip)) != 0)
 		return (ret);
-
-	/* Sanity check our flags and page type. */
-	if ((ret = __db_fchk(dbp->dbenv, "__ham_vrfy",
-	    flags, DB_AGGRESSIVE | DB_NOORDERCHK | DB_SALVAGE)) != 0)
-		goto err;
 
 	if (TYPE(h) != P_HASH) {
 		TYPE_ERR_PRINT(dbp->dbenv, "__ham_vrfy", pgno, TYPE(h));
@@ -376,7 +372,7 @@ __ham_vrfy_item(dbp, vdp, pgno, h, i, flags)
 		break;
 	default:
 		EPRINT((dbp->dbenv,
-		    "Page %lu: item %i has bad type",
+		    "Page %lu: item %lu has bad type",
 		    (u_long)pip->pgno, (u_long)i));
 		ret = DB_VERIFY_BAD;
 		break;
@@ -428,7 +424,7 @@ __ham_vrfy_structure(dbp, vdp, meta_pgno, flags)
 		return (ret);
 
 	/* Get the meta page;  we'll need it frequently. */
-	if ((ret = mpf->get(mpf, &meta_pgno, 0, &m)) != 0)
+	if ((ret = __memp_fget(mpf, &meta_pgno, 0, &m)) != 0)
 		return (ret);
 
 	/* Loop through bucket by bucket. */
@@ -505,9 +501,9 @@ __ham_vrfy_structure(dbp, vdp, meta_pgno, flags)
 		goto err;
 	}
 
-err:	if ((t_ret = mpf->put(mpf, m, 0)) != 0)
+err:	if ((t_ret = __memp_fput(mpf, m, 0)) != 0)
 		return (t_ret);
-	if (h != NULL && (t_ret = mpf->put(mpf, h, 0)) != 0)
+	if (h != NULL && (t_ret = __memp_fput(mpf, h, 0)) != 0)
 		return (t_ret);
 	return ((isbad == 1 && ret == 0) ? DB_VERIFY_BAD: ret);
 }
@@ -631,7 +627,8 @@ __ham_vrfy_bucket(dbp, vdp, m, bucket, flags)
 		    ret = __db_vrfy_ccnext(cc, &child))
 			if (child->type == V_OVERFLOW) {
 				if ((ret = __db_vrfy_ovfl_structure(dbp, vdp,
-				    child->pgno, child->tlen, flags)) != 0) {
+				    child->pgno, child->tlen,
+				    flags | ST_OVFL_LEAF)) != 0) {
 					if (ret == DB_VERIFY_BAD)
 						isbad = 1;
 					else
@@ -741,7 +738,7 @@ __ham_vrfy_hashing(dbp, nentries, m, thisbucket, pgno, flags, hfunc)
 	memset(&dbt, 0, sizeof(DBT));
 	F_SET(&dbt, DB_DBT_REALLOC);
 
-	if ((ret = mpf->get(mpf, &pgno, 0, &h)) != 0)
+	if ((ret = __memp_fget(mpf, &pgno, 0, &h)) != 0)
 		return (ret);
 
 	for (i = 0; i < nentries; i += 2) {
@@ -771,7 +768,7 @@ __ham_vrfy_hashing(dbp, nentries, m, thisbucket, pgno, flags, hfunc)
 
 err:	if (dbt.data != NULL)
 		__os_ufree(dbp->dbenv, dbt.data);
-	if ((t_ret = mpf->put(mpf, h, 0)) != 0)
+	if ((t_ret = __memp_fput(mpf, h, 0)) != 0)
 		return (t_ret);
 
 	return ((ret == 0 && isbad == 1) ? DB_VERIFY_BAD : ret);
@@ -858,7 +855,7 @@ __ham_salvage(dbp, vdp, pgno, h, handle, callback, flags)
 keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 				dbt.size = len;
 				dbt.data = buf;
-				if ((ret = __db_prdbt(&dbt,
+				if ((ret = __db_vrfy_prdbt(&dbt,
 				    0, " ", handle, callback, 0, vdp)) != 0)
 					err_ret = ret;
 				break;
@@ -872,11 +869,11 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 				if ((ret = __db_safe_goff(dbp, vdp,
 				    dpgno, &dbt, &buf, flags)) != 0) {
 					err_ret = ret;
-					(void)__db_prdbt(&unkdbt, 0, " ",
+					(void)__db_vrfy_prdbt(&unkdbt, 0, " ",
 					    handle, callback, 0, vdp);
 					break;
 				}
-				if ((ret = __db_prdbt(&dbt,
+				if ((ret = __db_vrfy_prdbt(&dbt,
 				    0, " ", handle, callback, 0, vdp)) != 0)
 					err_ret = ret;
 				break;
@@ -889,7 +886,8 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 				    HOFFPAGE_PGNO(hk), sizeof(dpgno));
 				/* UNKNOWN iff pgno is bad or we're a key. */
 				if (!IS_VALID_PGNO(dpgno) || (i % 2 == 0)) {
-					if ((ret = __db_prdbt(&unkdbt, 0, " ",
+					if ((ret =
+					    __db_vrfy_prdbt(&unkdbt, 0, " ",
 					    handle, callback, 0, vdp)) != 0)
 						err_ret = ret;
 				} else if ((ret = __db_salvage_duptree(dbp,
@@ -932,7 +930,7 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 					memcpy(buf, hk + tlen, dlen);
 					dbt.size = dlen;
 					dbt.data = buf;
-					if ((ret = __db_prdbt(&dbt, 0, " ",
+					if ((ret = __db_vrfy_prdbt(&dbt, 0, " ",
 					    handle, callback, 0, vdp)) != 0)
 						err_ret = ret;
 					tlen += sizeof(db_indx_t);
@@ -994,7 +992,7 @@ int __ham_meta2pgset(dbp, vdp, hmeta, flags, pgset)
 		 * Safely walk the list of pages in this bucket.
 		 */
 		for (;;) {
-			if ((ret = mpf->get(mpf, &pgno, 0, &h)) != 0)
+			if ((ret = __memp_fget(mpf, &pgno, 0, &h)) != 0)
 				return (ret);
 			if (TYPE(h) == P_HASH) {
 
@@ -1003,12 +1001,12 @@ int __ham_meta2pgset(dbp, vdp, hmeta, flags, pgset)
 				 * pgset.
 				 */
 				if (++totpgs > vdp->last_pgno) {
-					(void)mpf->put(mpf, h, 0);
+					(void)__memp_fput(mpf, h, 0);
 					return (DB_VERIFY_BAD);
 				}
 				if ((ret =
 				    __db_vrfy_pgset_inc(pgset, pgno)) != 0) {
-					(void)mpf->put(mpf, h, 0);
+					(void)__memp_fput(mpf, h, 0);
 					return (ret);
 				}
 
@@ -1016,7 +1014,7 @@ int __ham_meta2pgset(dbp, vdp, hmeta, flags, pgset)
 			} else
 				pgno = PGNO_INVALID;
 
-			if ((ret = mpf->put(mpf, h, 0)) != 0)
+			if ((ret = __memp_fput(mpf, h, 0)) != 0)
 				return (ret);
 
 			/* If the new pgno is wonky, go onto the next bucket. */

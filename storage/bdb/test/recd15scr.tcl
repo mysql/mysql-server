@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd15scr.tcl,v 1.5 2002/01/30 13:18:04 margo Exp $
+# $Id: recd15scr.tcl,v 1.7 2004/01/28 03:36:29 bostic Exp $
 #
 # Recd15 - lots of txns - txn prepare script
 # Usage: recd15script envcmd dbcmd gidf numtxns

@@ -1,694 +1,780 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2002
- *      Sleepycat Software.  All rights reserved.
+ * Copyright (c) 2001-2004
+ *	Sleepycat Software.  All rights reserved.
  *
- * $Id: RpcDb.java,v 1.8 2002/08/09 01:56:09 bostic Exp $
+ * $Id: RpcDb.java,v 1.24 2004/11/05 00:42:40 mjc Exp $
  */
 
 package com.sleepycat.db.rpcserver;
 
 import com.sleepycat.db.*;
-import java.io.IOException;
+import com.sleepycat.db.internal.DbConstants;
 import java.io.*;
 import java.util.*;
 
 /**
  * RPC wrapper around a db object for the Java RPC server.
  */
-public class RpcDb extends Timer
-{
-	static final byte[] empty = new byte[0];
-	Db db;
-	RpcDbEnv rdbenv;
-	int refcount = 1;
-	String dbname, subdbname;
-	int type, setflags, openflags;
+public class RpcDb extends Timer {
+    static final byte[] empty = new byte[0];
+    DatabaseConfig config;
+    Database db;
+    RpcDbEnv rdbenv;
+    int refcount = 0;
+    String dbname, subdbname;
+    int type, setflags, openflags;
 
-	public RpcDb(RpcDbEnv rdbenv)
-	{
-		this.rdbenv = rdbenv;
-	}
+    public RpcDb(RpcDbEnv rdbenv) {
+        this.rdbenv = rdbenv;
+    }
 
-	void dispose()
-	{
-		if (db != null) {
-			try {
-				db.close(0);
-			} catch(DbException e) {
-				e.printStackTrace(DbServer.err);
-			}
-			db = null;
-		}
-	}
+    void dispose() {
+        if (db != null) {
+            try {
+                db.close();
+            } catch (Throwable t) {
+                Util.handleException(t);
+            }
+            db = null;
+        }
+    }
 
-	public  void associate(DbDispatcher server,
-		__db_associate_msg args, __db_associate_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
-			/*
-			 * We do not support DB_CREATE for associate.   Users
-			 * can only access secondary indices on a read-only basis,
-			 * so whatever they are looking for needs to be there already.
-			 */
-			db.associate(txn, server.getDb(args.sdbpcl_id).db, null, args.flags);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public  void associate(Dispatcher server,
+                           __db_associate_msg args, __db_associate_reply reply) {
+        try {
+            // The semantics of the new API are a little different.
+            // The secondary database will already be open, here, so we first
+            // have to close it and then call openSecondaryDatabase.
+            RpcDb secondary = server.getDatabase(args.sdbpcl_id);
+            try {
+                secondary.db.close();
+            } finally {
+                secondary.db = null;
+            }
 
-	public  void close(DbDispatcher server,
-		__db_close_msg args, __db_close_reply reply)
-	{
-		if (--refcount != 0) {
-			reply.status = 0;
-			return;
-		}
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
 
-		try {
-			db.close(args.flags);
-			db = null;
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		} finally {
-			server.delDb(this);
-		}
-	}
+            args.flags &= ~AssociateCallbacks.DB_RPC2ND_MASK;
+            SecondaryConfig secondaryConfig = new SecondaryConfig();
+            // The secondary has already been opened once, so we don't
+            // need all of the settings here, only a few:
+            secondaryConfig.setReadOnly(secondary.config.getReadOnly());
+            secondaryConfig.setTransactional(secondary.config.getTransactional());
+            secondaryConfig.setKeyCreator(AssociateCallbacks.getCallback(args.flags));
+            secondaryConfig.setAllowPopulate((args.flags & DbConstants.DB_CREATE) != 0);
+            secondary.db = rdbenv.dbenv.openSecondaryDatabase(txn, secondary.dbname, secondary.subdbname, db, secondaryConfig);
+            secondary.config = secondary.db.getConfig();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-	public  void create(DbDispatcher server,
-		__db_create_msg args, __db_create_reply reply)
-	{
-		try {
-			db = new Db(server.getEnv(args.dbenvcl_id).dbenv, args.flags);
-			reply.dbcl_id = server.addDb(this);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public void close(Dispatcher server,
+                       __db_close_msg args, __db_close_reply reply) {
+        if (refcount == 0 || --refcount > 0) {
+            reply.status = 0;
+            return;
+        }
 
-	public  void cursor(DbDispatcher server,
-		__db_cursor_msg args, __db_cursor_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
-			Dbc dbc = db.cursor(txn, args.flags);
-			RpcDbc rdbc = new RpcDbc(this, dbc, false);
-			rdbc.timer = (rtxn != null) ? rtxn.timer : this;
-			reply.dbcidcl_id = server.addCursor(rdbc);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+        try {
+            server.delDatabase(this, false);
+            if (db != null)
+                db.close((args.flags & DbConstants.DB_NOSYNC) != 0);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        } finally {
+            db = null;
+        }
+    }
 
-	public  void del(DbDispatcher server,
-		__db_del_msg args, __db_del_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
-			Dbt key = new Dbt(args.keydata);
-			key.set_dlen(args.keydlen);
-			key.set_doff(args.keydoff);
-			key.set_ulen(args.keyulen);
-			key.set_flags(args.keyflags);
+    public  void create(Dispatcher server,
+                        __db_create_msg args, __db_create_reply reply) {
+        try {
+            config = new DatabaseConfig();
+            config.setXACreate((args.flags & DbConstants.DB_XA_CREATE) != 0);
+            reply.dbcl_id = server.addDatabase(this);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-			db.del(txn, key, args.flags);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public  void cursor(Dispatcher server,
+                        __db_cursor_msg args, __db_cursor_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
 
-	public  void get(DbDispatcher server,
-		__db_get_msg args, __db_get_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
-			Dbt key = new Dbt(args.keydata);
-			key.set_dlen(args.keydlen);
-			key.set_doff(args.keydoff);
-			key.set_ulen(args.keyulen);
-			key.set_flags(Db.DB_DBT_MALLOC |
-				    (args.keyflags & Db.DB_DBT_PARTIAL));
+            CursorConfig config = new CursorConfig();
+            config.setDirtyRead((args.flags & DbConstants.DB_DIRTY_READ) != 0);
+            config.setDegree2((args.flags & DbConstants.DB_DEGREE_2) != 0);
+            config.setWriteCursor((args.flags & DbConstants.DB_WRITECURSOR) != 0);
 
-			Dbt data = new Dbt(args.datadata);
-			data.set_dlen(args.datadlen);
-			data.set_doff(args.datadoff);
-			data.set_ulen(args.dataulen);
-			if ((args.flags & Db.DB_MULTIPLE) != 0) {
-				if (data.get_data().length == 0)
-					data.set_data(new byte[data.get_ulen()]);
-				data.set_flags(Db.DB_DBT_USERMEM |
-				    (args.dataflags & Db.DB_DBT_PARTIAL));
-			} else
-				data.set_flags(Db.DB_DBT_MALLOC |
-				    (args.dataflags & Db.DB_DBT_PARTIAL));
+            Cursor dbc = db.openCursor(txn, config);
+            RpcDbc rdbc = new RpcDbc(this, dbc, false);
+            rdbc.timer = (rtxn != null) ? rtxn.timer : this;
+            reply.dbcidcl_id = server.addCursor(rdbc);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-			reply.status = db.get(txn, key, data, args.flags);
+    public  void del(Dispatcher server,
+                     __db_del_msg args, __db_del_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
+            DatabaseEntry key = Util.makeDatabaseEntry(args.keydata, args.keydlen, args.keydoff, args.keyulen, args.keyflags);
 
-			if (key.get_data() == args.keydata ||
-			    key.get_data().length != key.get_size()) {
-				reply.keydata = new byte[key.get_size()];
-				System.arraycopy(key.get_data(), 0, reply.keydata, 0, key.get_size());
-			} else
-				reply.keydata = key.get_data();
+            db.delete(txn, key /* args.flags == 0 */);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-			if (data.get_data() == args.datadata ||
-			    data.get_data().length != data.get_size()) {
-				reply.datadata = new byte[data.get_size()];
-				System.arraycopy(data.get_data(), 0, reply.datadata, 0, data.get_size());
-			} else
-				reply.datadata = data.get_data();
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-			reply.keydata = reply.datadata = empty;
-		}
-	}
+    public  void get(Dispatcher server,
+                     __db_get_msg args, __db_get_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
+            DatabaseEntry key = Util.makeDatabaseEntry(args.keydata, args.keydlen, args.keydoff, args.keyulen, args.keyflags);
+            DatabaseEntry data = Util.makeDatabaseEntry(args.datadata,
+                args.datadlen, args.datadoff, args.dataulen, args.dataflags,
+                args.flags & DbConstants.DB_MULTIPLE);
 
-	public  void join(DbDispatcher server,
-		__db_join_msg args, __db_join_reply reply)
-	{
-		try {
-			Dbc[] cursors = new Dbc[args.curs.length + 1];
-			for(int i = 0; i < args.curs.length; i++) {
-				RpcDbc rdbc = server.getCursor(args.curs[i]);
-				if (rdbc == null) {
-					reply.status = Db.DB_NOSERVER_ID;
-					return;
-				}
-				cursors[i] = rdbc.dbc;
-			}
-			cursors[args.curs.length] = null;
+            OperationStatus status;
+            switch(args.flags & ~Server.DB_MODIFIER_MASK) {
+            case 0:
+                status = db.get(txn, key, data, Util.getLockMode(args.flags));
+                break;
 
-			Dbc jdbc = db.join(cursors, args.flags);
+            case DbConstants.DB_CONSUME:
+                status = db.consume(txn, key, data, false);
+                break;
 
-			RpcDbc rjdbc = new RpcDbc(this, jdbc, true);
-			/*
-			 * If our curslist has a parent txn, we need to use it too
-			 * for the activity timeout.  All cursors must be part of
-			 * the same transaction, so just check the first.
-			 */
-			RpcDbc rdbc0 = server.getCursor(args.curs[0]);
-			if (rdbc0.timer != rdbc0)
-				rjdbc.timer = rdbc0.timer;
+            case DbConstants.DB_CONSUME_WAIT:
+                status = db.consume(txn, key, data, true);
+                break;
 
-			/*
-			 * All of the curslist cursors must point to the join
-			 * cursor's timeout so that we do not timeout any of the
-			 * curlist cursors while the join cursor is active.
-			 */
-			for(int i = 0; i < args.curs.length; i++) {
-				RpcDbc rdbc = server.getCursor(args.curs[i]);
-				rdbc.orig_timer = rdbc.timer;
-				rdbc.timer = rjdbc;
-			}
-			reply.dbcidcl_id = server.addCursor(rjdbc);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            case DbConstants.DB_GET_BOTH:
+                status = db.getSearchBoth(txn, key, data, Util.getLockMode(args.flags));
+                break;
 
-	public  void key_range(DbDispatcher server,
-		__db_key_range_msg args, __db_key_range_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
-			Dbt key = new Dbt(args.keydata);
-			key.set_dlen(args.keydlen);
-			key.set_doff(args.keydoff);
-			key.set_ulen(args.keyulen);
-			key.set_flags(args.keyflags);
+            case DbConstants.DB_SET_RECNO:
+                status = db.getSearchRecordNumber(txn, key, data, Util.getLockMode(args.flags));
+                break;
 
-			DbKeyRange range = new DbKeyRange();
+            default:
+                throw new UnsupportedOperationException("Unknown flag: " + (args.flags & ~Server.DB_MODIFIER_MASK));
+            }
+            reply.status = Util.getStatus(status);
 
-			db.key_range(txn, key, range, args.flags);
-			reply.status = 0;
-			reply.less = range.less;
-			reply.equal = range.equal;
-			reply.greater = range.greater;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            reply.keydata = Util.returnDatabaseEntry(key);
+            reply.datadata = Util.returnDatabaseEntry(data);
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+            reply.keydata = reply.datadata = empty;
+        }
+    }
 
-	private boolean findSharedDb(DbDispatcher server, __db_open_reply reply)
-		throws DbException
-	{
-		RpcDb rdb = null;
-		boolean matchFound = false;
-		LocalIterator i = ((DbServer)server).db_list.iterator();
+    public  void join(Dispatcher server,
+                      __db_join_msg args, __db_join_reply reply) {
+        try {
+            Cursor[] cursors = new Cursor[args.curs.length + 1];
+            for (int i = 0; i < args.curs.length; i++) {
+                RpcDbc rdbc = server.getCursor(args.curs[i]);
+                if (rdbc == null) {
+                    reply.status = DbConstants.DB_NOSERVER_ID;
+                    return;
+                }
+                cursors[i] = rdbc.dbc;
+            }
+            cursors[args.curs.length] = null;
 
-		while (!matchFound && i.hasNext()) {
-			rdb = (RpcDb)i.next();
-			if (rdb != null && rdb != this && rdb.rdbenv == rdbenv &&
-			    (type == Db.DB_UNKNOWN || rdb.type == type) &&
-			    openflags == rdb.openflags &&
-			    setflags == rdb.setflags &&
-			    dbname != null && rdb.dbname != null &&
-			    dbname.equals(rdb.dbname) &&
-			    (subdbname == rdb.subdbname ||
-			     (subdbname != null && rdb.subdbname != null &&
-			      subdbname.equals(rdb.subdbname))))
-				matchFound = true;
-		}
+            JoinConfig config = new JoinConfig();
+            config.setNoSort(args.flags == DbConstants.DB_JOIN_NOSORT);
+            JoinCursor jdbc = db.join(cursors, config);
 
-		if (matchFound) {
-			++rdb.refcount;
-			reply.dbcl_id = ((FreeList.FreeListIterator)i).current;
-			reply.type = rdb.db.get_type();
-			reply.dbflags = rdb.db.get_flags_raw();
-			// FIXME: not possible to work out byteorder from Java?
-			reply.lorder = rdb.db.get_byteswapped() ? 4321 : 1234;
-			reply.status = 0;
+            RpcDbc rjdbc = new RpcDbc(this, new JoinCursorAdapter(db, jdbc), true);
+            /*
+             * If our curslist has a parent txn, we need to use it too
+             * for the activity timeout.  All cursors must be part of
+             * the same transaction, so just check the first.
+             */
+            RpcDbc rdbc0 = server.getCursor(args.curs[0]);
+            if (rdbc0.timer != rdbc0)
+                rjdbc.timer = rdbc0.timer;
 
-			DbServer.err.println("Sharing Db: " + reply.dbcl_id);
-		}
+            /*
+             * All of the curslist cursors must point to the join
+             * cursor's timeout so that we do not timeout any of the
+             * curlist cursors while the join cursor is active.
+             */
+            for (int i = 0; i < args.curs.length; i++) {
+                RpcDbc rdbc = server.getCursor(args.curs[i]);
+                rdbc.orig_timer = rdbc.timer;
+                rdbc.timer = rjdbc;
+            }
+            reply.dbcidcl_id = server.addCursor(rjdbc);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-		return matchFound;
-	}
+    public  void key_range(Dispatcher server,
+                           __db_key_range_msg args, __db_key_range_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
+            DatabaseEntry key = Util.makeDatabaseEntry(args.keydata, args.keydlen, args.keydoff, args.keyulen, args.keyflags);
 
-	public  void open(DbDispatcher server,
-		__db_open_msg args, __db_open_reply reply)
-	{
-		try {
-			dbname = (args.name.length() > 0) ? args.name : null;
-			subdbname = (args.subdb.length() > 0) ? args.subdb : null;
-			type = args.type;
-			openflags = args.flags & DbServer.DB_SERVER_DBFLAGS;
+            KeyRange range = db.getKeyRange(txn, key /*, args.flags == 0 */);
+            reply.status = 0;
+            reply.less = range.less;
+            reply.equal = range.equal;
+            reply.greater = range.greater;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-			if (findSharedDb(server, reply)) {
-				db.close(0);
-				db = null;
-				server.delDb(this);
-			} else {
-				DbServer.err.println("Calling db.open(" + null + ", " + dbname + ", " + subdbname + ", " + args.type + ", " + Integer.toHexString(args.flags) + ", " + args.mode + ")");
-				db.open(null, dbname, subdbname, args.type, args.flags, args.mode);
+    private boolean findSharedDatabase(Dispatcher server, __db_open_reply reply)
+        throws DatabaseException {
+        RpcDb rdb = null;
+        boolean matchFound = false;
+        LocalIterator i = ((Server)server).db_list.iterator();
 
-				reply.dbcl_id = args.dbpcl_id;
-				reply.type = this.type = db.get_type();
-				reply.dbflags = db.get_flags_raw();
-				// FIXME: not possible to work out byteorder from Java?
-				reply.lorder = db.get_byteswapped() ? 4321 : 1234;
-				reply.status = 0;
-			}
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		} catch(FileNotFoundException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = Db.DB_NOTFOUND;
-		}
+        while (!matchFound && i.hasNext()) {
+            rdb = (RpcDb)i.next();
+            if (rdb != null && rdb != this && rdb.rdbenv == rdbenv &&
+                (type == DbConstants.DB_UNKNOWN || rdb.type == type) &&
+                openflags == rdb.openflags &&
+                setflags == rdb.setflags &&
+                dbname != null && rdb.dbname != null &&
+                dbname.equals(rdb.dbname) &&
+                (subdbname == rdb.subdbname ||
+                 (subdbname != null && rdb.subdbname != null &&
+                  subdbname.equals(rdb.subdbname))))
+                matchFound = true;
+        }
 
-		// System.err.println("Db.open: reply.status = " + reply.status + ", reply.dbcl_id = " + reply.dbcl_id);
-	}
+        if (matchFound) {
+            ++rdb.refcount;
+            reply.dbcl_id = ((FreeList.FreeListIterator)i).current;
+            reply.type = Util.fromDatabaseType(rdb.config.getType());
+            reply.lorder = rdb.config.getByteOrder();
+            reply.status = 0;
 
-	public  void pget(DbDispatcher server,
-		__db_pget_msg args, __db_pget_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
-			Dbt skey = new Dbt(args.skeydata);
-			skey.set_dlen(args.skeydlen);
-			skey.set_doff(args.skeydoff);
-			skey.set_ulen(args.skeyulen);
-			skey.set_flags(Db.DB_DBT_MALLOC |
-			    (args.skeyflags & Db.DB_DBT_PARTIAL));
+            // Server.err.println("Sharing Database: " + reply.dbcl_id);
+        }
 
-			Dbt pkey = new Dbt(args.pkeydata);
-			pkey.set_dlen(args.pkeydlen);
-			pkey.set_doff(args.pkeydoff);
-			pkey.set_ulen(args.pkeyulen);
-			pkey.set_flags(Db.DB_DBT_MALLOC |
-			    (args.pkeyflags & Db.DB_DBT_PARTIAL));
+        return matchFound;
+    }
 
-			Dbt data = new Dbt(args.datadata);
-			data.set_dlen(args.datadlen);
-			data.set_doff(args.datadoff);
-			data.set_ulen(args.dataulen);
-			data.set_flags(Db.DB_DBT_MALLOC |
-			    (args.dataflags & Db.DB_DBT_PARTIAL));
+    public  void get_name(Dispatcher server,
+                          __db_get_name_msg args, __db_get_name_reply reply) {
+        reply.filename = dbname;
+        reply.dbname = subdbname;
+        reply.status = 0;
+    }
 
-			db.pget(txn, skey, pkey, data, args.flags);
+    public  void get_open_flags(Dispatcher server,
+                                __db_get_open_flags_msg args, __db_get_open_flags_reply reply) {
+        try {
+            reply.flags = 0;
+            if (config.getAllowCreate()) reply.flags |= DbConstants.DB_CREATE;
+            if (config.getExclusiveCreate()) reply.flags |= DbConstants.DB_EXCL;
+            if (config.getReadOnly()) reply.flags |= DbConstants.DB_RDONLY;
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-			if (skey.get_data() == args.skeydata ||
-			    skey.get_data().length != skey.get_size()) {
-				reply.skeydata = new byte[skey.get_size()];
-				System.arraycopy(skey.get_data(), 0, reply.skeydata, 0, skey.get_size());
-			} else
-				reply.skeydata = skey.get_data();
+    public  void open(Dispatcher server,
+                      __db_open_msg args, __db_open_reply reply) {
+        try {
+            dbname = (args.name.length() > 0) ? args.name : null;
+            subdbname = (args.subdb.length() > 0) ? args.subdb : null;
+            type = args.type;
+            openflags = args.flags & Server.DB_SERVER_DBFLAGS;
 
-			if (pkey.get_data() == args.pkeydata ||
-			    pkey.get_data().length != pkey.get_size()) {
-				reply.pkeydata = new byte[pkey.get_size()];
-				System.arraycopy(pkey.get_data(), 0, reply.pkeydata, 0, pkey.get_size());
-			} else
-				reply.pkeydata = pkey.get_data();
+            if (findSharedDatabase(server, reply)) {
+                server.delDatabase(this, true);
+            } else {
+                RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+                Transaction txn = (rtxn != null) ? rtxn.txn : null;
 
-			if (data.get_data() == args.datadata ||
-			    data.get_data().length != data.get_size()) {
-				reply.datadata = new byte[data.get_size()];
-				System.arraycopy(data.get_data(), 0, reply.datadata, 0, data.get_size());
-			} else
-				reply.datadata = data.get_data();
+                // Server.err.println("Calling db.open(" + null + ", " + dbname + ", " + subdbname + ", " + args.type + ", " + Integer.toHexString(args.flags) + ", " + args.mode + ")");
 
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-			reply.skeydata = reply.pkeydata = reply.datadata = empty;
-		}
-	}
+                config.setAllowCreate((args.flags & DbConstants.DB_CREATE) != 0);
+                config.setExclusiveCreate((args.flags & DbConstants.DB_EXCL) != 0);
+                config.setReadOnly((args.flags & DbConstants.DB_RDONLY) != 0);
+                config.setTransactional(txn != null || (args.flags & DbConstants.DB_AUTO_COMMIT) != 0);
+                config.setTruncate((args.flags & DbConstants.DB_TRUNCATE) != 0);
+                config.setType(Util.toDatabaseType(args.type));
+                config.setMode(args.mode);
 
-	public  void put(DbDispatcher server,
-		__db_put_msg args, __db_put_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
+                db = rdbenv.dbenv.openDatabase(txn, dbname, subdbname, config);
+                ++refcount;
 
-			Dbt key = new Dbt(args.keydata);
-			key.set_dlen(args.keydlen);
-			key.set_doff(args.keydoff);
-			key.set_ulen(args.keyulen);
-			key.set_flags(Db.DB_DBT_MALLOC |
-			    (args.keyflags & Db.DB_DBT_PARTIAL));
+                // Refresh config in case we didn't know the full story before opening
+                config = db.getConfig();
 
-			Dbt data = new Dbt(args.datadata);
-			data.set_dlen(args.datadlen);
-			data.set_doff(args.datadoff);
-			data.set_ulen(args.dataulen);
-			data.set_flags(args.dataflags);
+                reply.dbcl_id = args.dbpcl_id;
+                type = reply.type = Util.fromDatabaseType(config.getType());
+                reply.lorder = config.getByteOrder();
+                reply.status = 0;
+            }
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
 
-			reply.status = db.put(txn, key, data, args.flags);
+        // System.err.println("Database.open: reply.status = " + reply.status + ", reply.dbcl_id = " + reply.dbcl_id);
+    }
 
-			/*
-			 * If the client did a DB_APPEND, set up key in reply.
-			 * Otherwise just status.
-			 */
-			if ((args.flags & Db.DB_APPEND) != 0) {
-				if (key.get_data() == args.keydata ||
-				    key.get_data().length != key.get_size()) {
-					reply.keydata = new byte[key.get_size()];
-					System.arraycopy(key.get_data(), 0, reply.keydata, 0, key.get_size());
-				} else
-					reply.keydata = key.get_data();
-			} else
-				reply.keydata = empty;
-		} catch(DbException e) {
-			reply.keydata = empty;
-			reply.status = e.get_errno();
-			DbServer.err.println("Exception, setting status to " + reply.status);
-			e.printStackTrace(DbServer.err);
-		}
-	}
+    public  void pget(Dispatcher server,
+                      __db_pget_msg args, __db_pget_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
+            DatabaseEntry skey = Util.makeDatabaseEntry(args.skeydata, args.skeydlen, args.skeydoff, args.skeyulen, args.skeyflags);
+            DatabaseEntry pkey = Util.makeDatabaseEntry(args.pkeydata, args.pkeydlen, args.pkeydoff, args.pkeyulen, args.pkeyflags);
+            DatabaseEntry data = Util.makeDatabaseEntry(args.datadata, args.datadlen, args.datadoff, args.dataulen, args.dataflags);
 
-	public  void remove(DbDispatcher server,
-		__db_remove_msg args, __db_remove_reply reply)
-	{
-		try {
-			args.name = (args.name.length() > 0) ? args.name : null;
-			args.subdb = (args.subdb.length() > 0) ? args.subdb : null;
-			db.remove(args.name, args.subdb, args.flags);
-			db = null;
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		} catch(FileNotFoundException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = Db.DB_NOTFOUND;
-		} finally {
-			server.delDb(this);
-		}
-	}
+            OperationStatus status;
+            switch(args.flags & ~Server.DB_MODIFIER_MASK) {
+            case 0:
+                status = ((SecondaryDatabase)db).get(txn, skey, pkey, data, Util.getLockMode(args.flags));
+                break;
 
-	public  void rename(DbDispatcher server,
-		__db_rename_msg args, __db_rename_reply reply)
-	{
-		try {
-			args.name = (args.name.length() > 0) ? args.name : null;
-			args.subdb = (args.subdb.length() > 0) ? args.subdb : null;
-			args.newname = (args.newname.length() > 0) ? args.newname : null;
-			db.rename(args.name, args.subdb, args.newname, args.flags);
-			db = null;
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		} catch(FileNotFoundException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = Db.DB_NOTFOUND;
-		} finally {
-			server.delDb(this);
-		}
-	}
+            case DbConstants.DB_GET_BOTH:
+                status = ((SecondaryDatabase)db).getSearchBoth(txn, skey, pkey, data, Util.getLockMode(args.flags));
+                break;
 
-	public  void set_bt_maxkey(DbDispatcher server,
-		__db_bt_maxkey_msg args, __db_bt_maxkey_reply reply)
-	{
-		try {
-			db.set_bt_maxkey(args.maxkey);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            case DbConstants.DB_SET_RECNO:
+                status = ((SecondaryDatabase)db).getSearchRecordNumber(txn, skey, pkey, data, Util.getLockMode(args.flags));
+                break;
 
-	public  void set_bt_minkey(DbDispatcher server,
-		__db_bt_minkey_msg args, __db_bt_minkey_reply reply)
-	{
-		try {
-			db.set_bt_minkey(args.minkey);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            default:
+                throw new UnsupportedOperationException("Unknown flag: " + (args.flags & ~Server.DB_MODIFIER_MASK));
+            }
+            reply.status = Util.getStatus(status);
 
-	public  void set_encrypt(DbDispatcher server,
-		__db_encrypt_msg args, __db_encrypt_reply reply)
-	{
-		try {
-			db.set_encrypt(args.passwd, args.flags);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            reply.skeydata = Util.returnDatabaseEntry(skey);
+            reply.pkeydata = Util.returnDatabaseEntry(pkey);
+            reply.datadata = Util.returnDatabaseEntry(data);
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+            reply.skeydata = reply.pkeydata = reply.datadata = empty;
+        }
+    }
 
-	public  void set_flags(DbDispatcher server,
-		__db_flags_msg args, __db_flags_reply reply)
-	{
-		try {
-			// DbServer.err.println("Calling db.setflags(" + Integer.toHexString(args.flags) + ")");
-			db.set_flags(args.flags);
-			setflags |= args.flags;
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public  void put(Dispatcher server,
+                     __db_put_msg args, __db_put_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
 
-	public  void set_h_ffactor(DbDispatcher server,
-		__db_h_ffactor_msg args, __db_h_ffactor_reply reply)
-	{
-		try {
-			db.set_h_ffactor(args.ffactor);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            DatabaseEntry key = Util.makeDatabaseEntry(args.keydata, args.keydlen, args.keydoff, args.keyulen, args.keyflags);
+            DatabaseEntry data = Util.makeDatabaseEntry(args.datadata, args.datadlen, args.datadoff, args.dataulen, args.dataflags);
 
-	public  void set_h_nelem(DbDispatcher server,
-		__db_h_nelem_msg args, __db_h_nelem_reply reply)
-	{
-		try {
-			db.set_h_nelem(args.nelem);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            reply.keydata = empty;
+            OperationStatus status;
+            switch(args.flags & ~Server.DB_MODIFIER_MASK) {
+            case 0:
+                status = db.put(txn, key, data);
+                break;
 
-	public  void set_lorder(DbDispatcher server,
-		__db_lorder_msg args, __db_lorder_reply reply)
-	{
-		try {
-			db.set_lorder(args.lorder);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            case DbConstants.DB_APPEND:
+                status = db.append(txn, key, data);
+                reply.keydata = Util.returnDatabaseEntry(key);
+                break;
 
-	public  void set_pagesize(DbDispatcher server,
-		__db_pagesize_msg args, __db_pagesize_reply reply)
-	{
-		try {
-			db.set_pagesize(args.pagesize);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            case DbConstants.DB_NODUPDATA:
+                status = db.putNoDupData(txn, key, data);
+                break;
 
-	public  void set_q_extentsize(DbDispatcher server,
-		__db_extentsize_msg args, __db_extentsize_reply reply)
-	{
-		try {
-			db.set_q_extentsize(args.extentsize);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            case DbConstants.DB_NOOVERWRITE:
+                status = db.putNoOverwrite(txn, key, data);
+                break;
 
-	public  void set_re_delim(DbDispatcher server,
-		__db_re_delim_msg args, __db_re_delim_reply reply)
-	{
-		try {
-			db.set_re_delim(args.delim);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+            default:
+                throw new UnsupportedOperationException("Unknown flag: " + (args.flags & ~Server.DB_MODIFIER_MASK));
+            }
+            reply.status = Util.getStatus(status);
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+            reply.keydata = empty;
+        }
+    }
 
-	public  void set_re_len(DbDispatcher server,
-		__db_re_len_msg args, __db_re_len_reply reply)
-	{
-		try {
-			db.set_re_len(args.len);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public  void remove(Dispatcher server,
+                        __db_remove_msg args, __db_remove_reply reply) {
+        try {
+            args.name = (args.name.length() > 0) ? args.name : null;
+            args.subdb = (args.subdb.length() > 0) ? args.subdb : null;
+            Database.remove(args.name, args.subdb, config);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        } finally {
+            server.delDatabase(this, false);
+        }
+    }
 
-	public  void set_re_pad(DbDispatcher server,
-		__db_re_pad_msg args, __db_re_pad_reply reply)
-	{
-		try {
-			db.set_re_pad(args.pad);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public  void rename(Dispatcher server,
+                        __db_rename_msg args, __db_rename_reply reply) {
+        try {
+            args.name = (args.name.length() > 0) ? args.name : null;
+            args.subdb = (args.subdb.length() > 0) ? args.subdb : null;
+            args.newname = (args.newname.length() > 0) ? args.newname : null;
+            Database.rename(args.name, args.subdb, args.newname, config);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        } finally {
+            server.delDatabase(this, false);
+        }
+    }
 
-	public  void stat(DbDispatcher server,
-		__db_stat_msg args, __db_stat_reply reply)
-	{
-		try {
-			Object raw_stat = db.stat(args.flags);
+    public  void set_bt_maxkey(Dispatcher server,
+                               __db_bt_maxkey_msg args, __db_bt_maxkey_reply reply) {
+        try {
+            // XXX: check what to do about: config.setBtreeMaxKey(args.maxkey);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-			if (raw_stat instanceof DbHashStat) {
-				DbHashStat hs = (DbHashStat)raw_stat;
-				int[] raw_stats = {
-					hs.hash_magic, hs.hash_version,
-					hs.hash_metaflags, hs.hash_nkeys,
-					hs.hash_ndata, hs.hash_pagesize,
-					hs.hash_ffactor, hs.hash_buckets,
-					hs.hash_free, hs.hash_bfree,
-					hs.hash_bigpages, hs.hash_big_bfree,
-					hs.hash_overflows, hs.hash_ovfl_free,
-					hs.hash_dup, hs.hash_dup_free
-				};
-				reply.stats = raw_stats;
-			} else if (raw_stat instanceof DbQueueStat) {
-				DbQueueStat qs = (DbQueueStat)raw_stat;
-				int[] raw_stats = {
-					qs.qs_magic, qs.qs_version,
-					qs.qs_metaflags, qs.qs_nkeys,
-					qs.qs_ndata, qs.qs_pagesize,
-					qs.qs_extentsize, qs.qs_pages,
-					qs.qs_re_len, qs.qs_re_pad,
-					qs.qs_pgfree, qs.qs_first_recno,
-					qs.qs_cur_recno
-				};
-				reply.stats = raw_stats;
-			} else if (raw_stat instanceof DbBtreeStat) {
-				DbBtreeStat bs = (DbBtreeStat)raw_stat;
-				int[] raw_stats = {
-					bs.bt_magic, bs.bt_version,
-					bs.bt_metaflags, bs.bt_nkeys,
-					bs.bt_ndata, bs.bt_pagesize,
-					bs.bt_maxkey, bs.bt_minkey,
-					bs.bt_re_len, bs.bt_re_pad,
-					bs.bt_levels, bs.bt_int_pg,
-					bs.bt_leaf_pg, bs.bt_dup_pg,
-					bs.bt_over_pg, bs.bt_free,
-					bs.bt_int_pgfree, bs.bt_leaf_pgfree,
-					bs.bt_dup_pgfree, bs.bt_over_pgfree
-				};
-				reply.stats = raw_stats;
-			} else
-				throw new DbException("Invalid return type from db.stat()", Db.DB_NOTFOUND);
+    public  void get_bt_minkey(Dispatcher server,
+                               __db_get_bt_minkey_msg args, __db_get_bt_minkey_reply reply) {
+        try {
+            reply.minkey = config.getBtreeMinKey();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-			reply.stats = new int[0];
-		}
-	}
+    public  void set_bt_minkey(Dispatcher server,
+                               __db_bt_minkey_msg args, __db_bt_minkey_reply reply) {
+        try {
+            config.setBtreeMinKey(args.minkey);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-	public  void sync(DbDispatcher server,
-		__db_sync_msg args, __db_sync_reply reply)
-	{
-		try {
-			db.sync(args.flags);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public  void get_encrypt_flags(Dispatcher server,
+                                   __db_get_encrypt_flags_msg args, __db_get_encrypt_flags_reply reply) {
+        try {
+            reply.flags = config.getEncrypted() ? DbConstants.DB_ENCRYPT_AES : 0;
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
 
-	public  void truncate(DbDispatcher server,
-		__db_truncate_msg args, __db_truncate_reply reply)
-	{
-		try {
-			RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
-			DbTxn txn = (rtxn != null) ? rtxn.txn : null;
-			reply.count = db.truncate(txn, args.flags);
-			reply.status = 0;
-		} catch(DbException e) {
-			e.printStackTrace(DbServer.err);
-			reply.status = e.get_errno();
-		}
-	}
+    public  void set_encrypt(Dispatcher server,
+                             __db_encrypt_msg args, __db_encrypt_reply reply) {
+        try {
+            config.setEncrypted(args.passwd /*, args.flags == 0 */);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_flags(Dispatcher server,
+                           __db_get_flags_msg args, __db_get_flags_reply reply) {
+        try {
+            reply.flags = 0;
+            if (config.getChecksum()) reply.flags |= DbConstants.DB_CHKSUM;
+            if (config.getEncrypted()) reply.flags |= DbConstants.DB_ENCRYPT;
+            if (config.getBtreeRecordNumbers()) reply.flags |= DbConstants.DB_RECNUM;
+            if (config.getRenumbering()) reply.flags |= DbConstants.DB_RENUMBER;
+            if (config.getReverseSplitOff()) reply.flags |= DbConstants.DB_REVSPLITOFF;
+            if (config.getSortedDuplicates()) reply.flags |= DbConstants.DB_DUPSORT;
+            if (config.getSnapshot()) reply.flags |= DbConstants.DB_SNAPSHOT;
+            if (config.getUnsortedDuplicates()) reply.flags |= DbConstants.DB_DUP;
+            if (config.getTransactionNotDurable()) reply.flags |= DbConstants.DB_TXN_NOT_DURABLE;
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_flags(Dispatcher server,
+                           __db_flags_msg args, __db_flags_reply reply) {
+        try {
+            // Server.err.println("Calling db.setflags(" + Integer.toHexString(args.flags) + ")");
+            config.setChecksum((args.flags & DbConstants.DB_CHKSUM) != 0);
+            config.setBtreeRecordNumbers((args.flags & DbConstants.DB_RECNUM) != 0);
+            config.setRenumbering((args.flags & DbConstants.DB_RENUMBER) != 0);
+            config.setReverseSplitOff((args.flags & DbConstants.DB_REVSPLITOFF) != 0);
+            config.setSortedDuplicates((args.flags & DbConstants.DB_DUPSORT) != 0);
+            config.setSnapshot((args.flags & DbConstants.DB_SNAPSHOT) != 0);
+            config.setUnsortedDuplicates((args.flags & DbConstants.DB_DUP) != 0);
+            config.setTransactionNotDurable((args.flags & DbConstants.DB_TXN_NOT_DURABLE) != 0);
+
+            setflags |= args.flags;
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_h_ffactor(Dispatcher server,
+                               __db_get_h_ffactor_msg args, __db_get_h_ffactor_reply reply) {
+        try {
+            reply.ffactor = config.getHashFillFactor();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_h_ffactor(Dispatcher server,
+                               __db_h_ffactor_msg args, __db_h_ffactor_reply reply) {
+        try {
+            config.setHashFillFactor(args.ffactor);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_h_nelem(Dispatcher server,
+                             __db_get_h_nelem_msg args, __db_get_h_nelem_reply reply) {
+        try {
+            reply.nelem = config.getHashNumElements();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_h_nelem(Dispatcher server,
+                             __db_h_nelem_msg args, __db_h_nelem_reply reply) {
+        try {
+            config.setHashNumElements(args.nelem);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_lorder(Dispatcher server,
+                            __db_get_lorder_msg args, __db_get_lorder_reply reply) {
+        try {
+            reply.lorder = config.getByteOrder();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_lorder(Dispatcher server,
+                            __db_lorder_msg args, __db_lorder_reply reply) {
+        try {
+            config.setByteOrder(args.lorder);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_pagesize(Dispatcher server,
+                              __db_get_pagesize_msg args, __db_get_pagesize_reply reply) {
+        try {
+            reply.pagesize = config.getPageSize();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_pagesize(Dispatcher server,
+                              __db_pagesize_msg args, __db_pagesize_reply reply) {
+        try {
+            config.setPageSize(args.pagesize);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_q_extentsize(Dispatcher server,
+                                  __db_get_extentsize_msg args, __db_get_extentsize_reply reply) {
+        try {
+            reply.extentsize = config.getQueueExtentSize();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_q_extentsize(Dispatcher server,
+                                  __db_extentsize_msg args, __db_extentsize_reply reply) {
+        try {
+            config.setQueueExtentSize(args.extentsize);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_re_delim(Dispatcher server,
+                              __db_get_re_delim_msg args, __db_get_re_delim_reply reply) {
+        try {
+            reply.delim = config.getRecordDelimiter();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_re_delim(Dispatcher server,
+                              __db_re_delim_msg args, __db_re_delim_reply reply) {
+        try {
+            config.setRecordDelimiter(args.delim);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_re_len(Dispatcher server,
+                            __db_get_re_len_msg args, __db_get_re_len_reply reply) {
+        try {
+            reply.len = config.getRecordLength();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_re_len(Dispatcher server,
+                            __db_re_len_msg args, __db_re_len_reply reply) {
+        try {
+            config.setRecordLength(args.len);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void get_re_pad(Dispatcher server,
+                            __db_get_re_pad_msg args, __db_get_re_pad_reply reply) {
+        try {
+            reply.pad = config.getRecordPad();
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void set_re_pad(Dispatcher server,
+                            __db_re_pad_msg args, __db_re_pad_reply reply) {
+        try {
+            config.setRecordPad(args.pad);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void stat(Dispatcher server,
+                      __db_stat_msg args, __db_stat_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
+            StatsConfig config = new StatsConfig();
+            config.setClear((args.flags & DbConstants.DB_STAT_CLEAR) != 0);
+            config.setFast((args.flags & DbConstants.DB_FAST_STAT) != 0);
+            DatabaseStats raw_stat = db.getStats(txn, config);
+
+            if (raw_stat instanceof BtreeStats) {
+                BtreeStats bs = (BtreeStats)raw_stat;
+                int[] raw_stats = {
+                    bs.getMagic(), bs.getVersion(),
+                    bs.getMetaFlags(), bs.getNumKeys(),
+                    bs.getNumData(), bs.getPageSize(),
+                    bs.getMaxKey(), bs.getMinKey(),
+                    bs.getReLen(), bs.getRePad(),
+                    bs.getLevels(), bs.getIntPages(),
+                    bs.getLeafPages(), bs.getDupPages(),
+                    bs.getOverPages(), bs.getFree(),
+                    bs.getIntPagesFree(), bs.getLeafPagesFree(),
+                    bs.getDupPagesFree(), bs.getOverPagesFree()
+                };
+                reply.stats = raw_stats;
+            } else if (raw_stat instanceof HashStats) {
+                HashStats hs = (HashStats)raw_stat;
+                int[] raw_stats = {
+                    hs.getMagic(), hs.getVersion(),
+                    hs.getMetaFlags(), hs.getNumKeys(),
+                    hs.getNumData(), hs.getPageSize(),
+                    hs.getFfactor(), hs.getBuckets(),
+                    hs.getFree(), hs.getBFree(),
+                    hs.getBigPages(), hs.getBigBFree(),
+                    hs.getOverflows(), hs.getOvflFree(),
+                    hs.getDup(), hs.getDupFree()
+                };
+                reply.stats = raw_stats;
+            } else if (raw_stat instanceof QueueStats) {
+                QueueStats qs = (QueueStats)raw_stat;
+                int[] raw_stats = {
+                    qs.getMagic(), qs.getVersion(),
+                    qs.getMetaFlags(), qs.getNumKeys(),
+                    qs.getNumData(), qs.getPageSize(),
+                    qs.getExtentSize(), qs.getPages(),
+                    qs.getReLen(), qs.getRePad(),
+                    qs.getPagesFree(), qs.getFirstRecno(),
+                    qs.getCurRecno()
+                };
+                reply.stats = raw_stats;
+            } else
+                throw new DatabaseException("Invalid return type from db.stat()", DbConstants.DB_NOTFOUND);
+
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+            reply.stats = new int[0];
+        }
+    }
+
+    public  void sync(Dispatcher server,
+                      __db_sync_msg args, __db_sync_reply reply) {
+        try {
+            db.sync(/* args.flags == 0 */);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+        }
+    }
+
+    public  void truncate(Dispatcher server,
+                          __db_truncate_msg args, __db_truncate_reply reply) {
+        try {
+            RpcDbTxn rtxn = server.getTxn(args.txnpcl_id);
+            Transaction txn = (rtxn != null) ? rtxn.txn : null;
+            reply.count = db.truncate(txn, true /*, args.flags == 0 */);
+            reply.status = 0;
+        } catch (Throwable t) {
+            reply.status = Util.handleException(t);
+            reply.count = 0;
+        }
+    }
 }

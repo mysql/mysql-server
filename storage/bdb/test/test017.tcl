@@ -1,50 +1,52 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test017.tcl,v 11.23 2002/06/20 19:01:02 sue Exp $
+# $Id: test017.tcl,v 11.29 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test017
 # TEST	Basic offpage duplicate test.
 # TEST
 # TEST	Run duplicates with small page size so that we test off page duplicates.
 # TEST	Then after we have an off-page database, test with overflow pages too.
-proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
+proc test017 { method {contents 0} {ndups 19} {tnum "017"} args } {
 	source ./include.tcl
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
 	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $method"
+		puts "Test$tnum skipping for method $method"
 		return
 	}
 	set pgindex [lsearch -exact $args "-pagesize"]
 	if { $pgindex != -1 } {
 		incr pgindex
 		if { [lindex $args $pgindex] > 8192 } {
-			puts "Test0$tnum: Skipping for large pagesizes"
+			puts "Test$tnum: Skipping for large pagesizes"
 			return
 		}
 	}
 
 	# Create the database and open the dictionary
+	set limit 0
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
 		if { $txnenv == 1 } {
 			append args " -auto_commit "
+			set limit 100
 		}
 		set testdir [get_home $env]
 	}
@@ -66,15 +68,18 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 
 	set file_list [get_file_list 1]
 	if { $txnenv == 1 } {
+		if { [llength $file_list] > $limit } {
+			set file_list [lrange $file_list 0 $limit]
+		}
 		set flen [llength $file_list]
 		reduce_dups flen ndups
-		set file_list [lrange $file_list 0 $flen]
 	}
-	puts "Test0$tnum: $method ($args) Off page duplicate tests with $ndups duplicates"
+	puts "Test$tnum: $method ($args) Off page duplicate tests\
+	    with $ndups duplicates"
 
 	set ovfl ""
 	# Here is the loop where we put and get each key/data pair
-	puts -nonewline "\tTest0$tnum.a: Creating duplicates with "
+	puts -nonewline "\tTest$tnum.a: Creating duplicates with "
 	if { $contents != 0 } {
 		puts "file contents as key/data"
 	} else {
@@ -136,12 +141,12 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 			if {[string length $d] == 0} {
 				break
 			}
-			error_check_good "Test0$tnum:get" $d $str
+			error_check_good "Test$tnum:get" $d $str
 			set id [ id_of $datastr ]
-			error_check_good "Test0$tnum:$f:dup#" $id $x
+			error_check_good "Test$tnum:$f:dup#" $id $x
 			incr x
 		}
-		error_check_good "Test0$tnum:ndups:$str" [expr $x - 1] $ndups
+		error_check_good "Test$tnum:ndups:$str" [expr $x - 1] $ndups
 		error_check_good cursor_close [$dbc close] 0
 		if { $txnenv == 1 } {
 			error_check_good txn [$t commit] 0
@@ -151,7 +156,7 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.b: Checking file for correct duplicates"
+	puts "\tTest$tnum.b: Checking file for correct duplicates"
 	set dlist ""
 	for { set i 1 } { $i <= $ndups } {incr i} {
 		lappend dlist $i
@@ -183,7 +188,7 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 	if {$contents == 0} {
 		filesort $t1 $t3
 
-		error_check_good Test0$tnum:diff($t3,$t2) [filecmp $t3 $t2] 0
+		error_check_good Test$tnum:diff($t3,$t2) [filecmp $t3 $t2] 0
 
 		# Now compare the keys to see if they match the file names
 		if { $txnenv == 1 } {
@@ -197,14 +202,14 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 		}
 		filesort $t1 $t3
 
-		error_check_good Test0$tnum:diff($t3,$t4) [filecmp $t3 $t4] 0
+		error_check_good Test$tnum:diff($t3,$t4) [filecmp $t3 $t4] 0
 	}
 
 	error_check_good db_close [$db close] 0
 	set db [eval {berkdb_open} $args $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
-	puts "\tTest0$tnum.c: Checking file for correct duplicates after close"
+	puts "\tTest$tnum.c: Checking file for correct duplicates after close"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -218,11 +223,11 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 	if {$contents == 0} {
 		# Now compare the keys to see if they match the filenames
 		filesort $t1 $t3
-		error_check_good Test0$tnum:diff($t3,$t2) [filecmp $t3 $t2] 0
+		error_check_good Test$tnum:diff($t3,$t2) [filecmp $t3 $t2] 0
 	}
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum.d: Verify off page duplicates and overflow status"
+	puts "\tTest$tnum.d: Verify off page duplicates and overflow status"
 	set db [eval {berkdb_open} $args $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set stat [$db stat]
@@ -239,8 +244,13 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 			    [is_substr $stat "{{Overflow pages} 0}"] 1
 		}
 	} else {
-		error_check_bad overflow \
-		    [is_substr $stat "{{Overflow pages} 0}"] 1
+		if { [is_hash $method] } {
+			error_check_bad overflow \
+			    [is_substr $stat "{{Number of big pages} 0}"] 1
+		} else {
+			error_check_bad overflow \
+			    [is_substr $stat "{{Overflow pages} 0}"] 1
+		}
 	}
 
 	#
@@ -252,7 +262,7 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 		return
 	}
 
-	puts "\tTest0$tnum.e: Add overflow duplicate entries"
+	puts "\tTest$tnum.e: Add overflow duplicate entries"
 	set ovfldup [expr $ndups + 1]
 	foreach f $ovfl {
 		#
@@ -276,7 +286,7 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 		}
 	}
 
-	puts "\tTest0$tnum.f: Verify overflow duplicate entries"
+	puts "\tTest$tnum.f: Verify overflow duplicate entries"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -287,7 +297,7 @@ proc test017 { method {contents 0} {ndups 19} {tnum 17} args } {
 		error_check_good txn [$t commit] 0
 	}
 	filesort $t1 $t3
-	error_check_good Test0$tnum:diff($t3,$t2) [filecmp $t3 $t2] 0
+	error_check_good Test$tnum:diff($t3,$t2) [filecmp $t3 $t2] 0
 
 	set stat [$db stat]
 	if { [is_hash [$db get_type]] } {

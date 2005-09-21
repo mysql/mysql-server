@@ -1,26 +1,26 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test025.tcl,v 11.19 2002/05/24 15:24:54 sue Exp $
+# $Id: test025.tcl,v 11.22 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test025
 # TEST	DB_APPEND flag test.
-proc test025 { method {nentries 10000} {start 0 } {tnum "25" } args} {
+proc test025 { method {nentries 10000} {start 0 } {tnum "025"} args} {
 	global kvals
 	source ./include.tcl
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
-	puts "Test0$tnum: $method ($args)"
+	puts "Test$tnum: $method ($args)"
 
 	if { [string compare $omethod "-btree"] == 0 } {
-		puts "Test0$tnum skipping for method BTREE"
+		puts "Test$tnum skipping for method BTREE"
 		return
 	}
 	if { [string compare $omethod "-hash"] == 0 } {
-		puts "Test0$tnum skipping for method HASH"
+		puts "Test$tnum skipping for method HASH"
 		return
 	}
 
@@ -31,10 +31,10 @@ proc test025 { method {nentries 10000} {start 0 } {tnum "25" } args} {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -58,7 +58,7 @@ proc test025 { method {nentries 10000} {start 0 } {tnum "25" } args} {
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set did [open $dict]
 
-	puts "\tTest0$tnum.a: put/get loop"
+	puts "\tTest$tnum.a: put/get loop"
 	set gflags " -recno"
 	set pflags " -append"
 	set txn ""
@@ -114,7 +114,7 @@ proc test025 { method {nentries 10000} {start 0 } {tnum "25" } args} {
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.b: dump file"
+	puts "\tTest$tnum.b: dump file"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -126,14 +126,14 @@ proc test025 { method {nentries 10000} {start 0 } {tnum "25" } args} {
 	}
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum.c: close, open, and dump file"
+	puts "\tTest$tnum.c: close, open, and dump file"
 	# Now, reopen the file and run the last test again.
 	open_and_dump_file $testfile $env $t1 $checkfunc \
 	    dump_file_direction -first -next
 
 	# Now, reopen the file and run the last test again in the
 	# reverse direction.
-	puts "\tTest0$tnum.d: close, open, and dump file in reverse direction"
+	puts "\tTest$tnum.d: close, open, and dump file in reverse direction"
 	open_and_dump_file $testfile $env $t1 $checkfunc \
 		dump_file_direction -last -prev
 }

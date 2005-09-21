@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_errno.c,v 11.11 2004/01/28 03:36:18 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_errno.c,v 11.8 2002/01/11 15:52:59 bostic Exp $";
-#endif /* not lint */
 
 #include "db_int.h"
 
@@ -60,5 +58,14 @@ void
 __os_set_errno(evalue)
 	int evalue;
 {
-	errno = evalue;
+	/*
+	 * This routine is called by the compatibility interfaces (DB 1.85,
+	 * dbm and hsearch).  Force values > 0, that is, not one of DB 2.X
+	 * and later's public error returns.  If something bad has happened,
+	 * default to EFAULT -- a nasty return.  Otherwise, default to EINVAL.
+	 * As the compatibility APIs aren't included on Windows, the Windows
+	 * version of this routine doesn't need this behavior.
+	 */
+	errno =
+	    evalue >= 0 ? evalue : (evalue == DB_RUNRECOVERY ? EFAULT : EINVAL);
 }

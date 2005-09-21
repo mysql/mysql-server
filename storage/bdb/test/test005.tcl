@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test005.tcl,v 11.7 2002/01/11 15:53:40 bostic Exp $
+# $Id: test005.tcl,v 11.10 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test005
 # TEST	Small keys/medium data
@@ -15,5 +15,5 @@
 # TEST	it and reopen it.  Then read through the database sequentially
 # TEST	using cursors and delete each element.
 proc test005 { method {nentries 10000} args } {
-	eval {test004 $method $nentries 5 0} $args
+	eval {test004 $method $nentries "005" 0} $args
 }

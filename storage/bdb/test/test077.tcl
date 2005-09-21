@@ -1,23 +1,23 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test077.tcl,v 1.10 2002/05/24 15:24:57 sue Exp $
+# $Id: test077.tcl,v 1.14 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test077
 # TEST	Test of DB_GET_RECNO [#1206].
-proc test077 { method { nkeys 1000 } { pagesize 512 } { tnum 77 } args } {
+proc test077 { method { nkeys 1000 } { tnum "077" } args } {
 	source ./include.tcl
 	global alphabet
 
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]
 
-	puts "Test0$tnum: Test of DB_GET_RECNO."
+	puts "Test$tnum: Test of DB_GET_RECNO."
 
 	if { [is_rbtree $method] != 1 } {
-		puts "\tTest0$tnum: Skipping for method $method."
+		puts "\tTest$tnum: Skipping for method $method."
 		return
 	}
 
@@ -26,10 +26,10 @@ proc test077 { method { nkeys 1000 } { pagesize 512 } { tnum 77 } args } {
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -40,11 +40,11 @@ proc test077 { method { nkeys 1000 } { pagesize 512 } { tnum 77 } args } {
 	}
 	cleanup $testdir $env
 
-	set db [eval {berkdb_open -create -mode 0644\
-	    -pagesize $pagesize} $omethod $args {$testfile}]
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $omethod $args {$testfile}]
 	error_check_good db_open [is_valid_db $db] TRUE
 
-	puts "\tTest0$tnum.a: Populating database."
+	puts "\tTest$tnum.a: Populating database."
 	set txn ""
 
 	for { set i 1 } { $i <= $nkeys } { incr i } {
@@ -61,7 +61,7 @@ proc test077 { method { nkeys 1000 } { pagesize 512 } { tnum 77 } args } {
 		}
 	}
 
-	puts "\tTest0$tnum.b: Verifying record numbers."
+	puts "\tTest$tnum.b: Verifying record numbers."
 
 	if { $txnenv == 1 } {
 		set t [$env txn]

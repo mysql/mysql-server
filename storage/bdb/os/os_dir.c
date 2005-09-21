@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_dir.c,v 11.17 2004/04/26 18:48:19 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_dir.c,v 11.14 2002/07/12 18:56:50 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -67,7 +65,7 @@ __os_dirlist(dbenv, dir, namesp, cntp)
 		if (cnt >= arraysz) {
 			arraysz += 100;
 			if ((ret = __os_realloc(dbenv,
-			    arraysz * sizeof(names[0]), &names)) != 0)
+			    (u_int)arraysz * sizeof(names[0]), &names)) != 0)
 				goto nomem;
 		}
 		if ((ret = __os_strdup(dbenv, dp->d_name, &names[cnt])) != 0)

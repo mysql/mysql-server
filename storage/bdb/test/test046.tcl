@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test046.tcl,v 11.33 2002/05/24 15:24:55 sue Exp $
+# $Id: test046.tcl,v 11.36 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test046
 # TEST	Overwrite test of small/big key/data with cursor checks.
@@ -40,10 +40,10 @@ proc test046 { method args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test046.db
+		set testfile $testdir/test046
 		set env NULL
 	} else {
-		set testfile test046.db
+		set testfile test046
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -56,7 +56,7 @@ proc test046 { method args } {
 	cleanup $testdir $env
 
 	set oflags "-create -mode 0644 $args $omethod"
-	set db [eval {berkdb_open} $oflags $testfile.a]
+	set db [eval {berkdb_open} $oflags $testfile.a.db]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	# keep nkeys even
@@ -256,7 +256,7 @@ proc test046 { method args } {
 		return
 	} else {
 		# Reopen without printing __db_errs.
-		set db [eval {berkdb_open_noerr} $oflags $testfile.a]
+		set db [eval {berkdb_open_noerr} $oflags $testfile.a.db]
 		error_check_good dbopen [is_valid_db $db] TRUE
 		if { $txnenv == 1 } {
 			set t [$env txn]
@@ -310,7 +310,7 @@ proc test046 { method args } {
 	}
 	error_check_good db:close [$db close] 0
 
-	set db [eval {berkdb_open} $oflags $testfile.d]
+	set db [eval {berkdb_open} $oflags $testfile.d.db]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	# Fill page w/ small key/data pairs
 	puts "\tTest046.d.0: Fill page with $nkeys small key/data pairs."
@@ -440,7 +440,7 @@ proc test046 { method args } {
 	}
 
 	puts "\tTest046.e.1: Open db with sorted dups."
-	set db [eval {berkdb_open_noerr} $oflags -dup -dupsort $testfile.e]
+	set db [eval {berkdb_open_noerr} $oflags -dup -dupsort $testfile.e.db]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	# keep nkeys even
@@ -564,7 +564,7 @@ proc test046 { method args } {
 
 	# Reopen database without __db_err, reset cursor
 	error_check_good dbclose [$db close] 0
-	set db [eval {berkdb_open_noerr} $oflags -dup -dupsort $testfile.e]
+	set db [eval {berkdb_open_noerr} $oflags -dup -dupsort $testfile.e.db]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -646,7 +646,7 @@ proc test046 { method args } {
 	error_check_good db_close [$db close] 0
 
 	set db [eval {berkdb_open} \
-	    $oflags -dup $testfile.h]
+	    $oflags -dup $testfile.h.db]
 	error_check_good db_open [is_valid_db $db] TRUE
 	if { $txnenv == 1 } {
 		set t [$env txn]

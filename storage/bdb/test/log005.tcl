@@ -1,22 +1,46 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: log005.tcl,v 11.1 2002/05/30 22:16:49 bostic Exp $
+# $Id: log005.tcl,v 11.6 2004/09/22 18:01:05 bostic Exp $
 #
 # TEST	log005
 # TEST	Check that log file sizes can change on the fly.
 proc log005 { } {
-	source ./include.tcl
 
-	puts "Log005: Check that log file sizes can change."
+	# Skip the test for HP-UX, where we can't do the second
+	# env open.
+	global is_hp_test
+	if { $is_hp_test == 1 } {
+		puts "Log005: Skipping for HP-UX."
+		return
+	}
+
+	foreach inmem { 1 0 } {
+		log005_body $inmem
+	}
+}
+proc log005_body { inmem } {
+	source ./include.tcl
 	env_cleanup $testdir
+
+	puts -nonewline "Log005: Check that log file sizes can change"
+	if { $inmem == 0 } {
+		puts " (on-disk logging)."
+	} else {
+		puts " (in-memory logging)."
+	}
 
 	# Open the environment, set and check the log file size.
 	puts "\tLog005.a: open, set and check the log file size."
-	set env [berkdb_env \
-	    -create -home $testdir -log_buffer 10000 -log_max 1000000 -txn]
+	set logargs ""
+	if { $inmem == 1 } {
+		set lbuf [expr 1024 * 1024]
+		set logargs "-log_inmemory -log_buffer $lbuf"
+	}
+	set env [eval {berkdb_env} -create -home $testdir \
+	    $logargs -log_max 1000000 -txn]
 	error_check_good envopen [is_valid_env $env] TRUE
 	set db [berkdb_open \
 	    -env $env -create -mode 0644 -btree -auto_commit a.db]
@@ -60,6 +84,11 @@ proc log005 { } {
 	# Close down the environment.
 	error_check_good db_close [$db close] 0
 	error_check_good env_close [$env close] 0
+
+	if { $inmem == 1 } {
+		puts "Log005: Skipping remainder of test for in-memory logging."
+		return
+	}
 
 	puts "\tLog005.d: check the log file size is unchanged after recovery."
 	# Open again, running recovery.  Verify the log file size is as we

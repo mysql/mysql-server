@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestAssociate.java,v 1.4 2002/08/16 19:35:54 dda Exp $
+ * $Id: TestAssociate.java,v 1.8 2004/01/28 03:36:34 bostic Exp $
  */
 
 package com.sleepycat.test;
@@ -247,7 +247,7 @@ public class TestAssociate
      */
     public static class Capitalize implements DbSecondaryKeyCreate
     {
-	public int secondary_key_create(Db secondary, Dbt key, Dbt value,
+	public int secondaryKeyCreate(Db secondary, Dbt key, Dbt value,
 					Dbt result)
             throws DbException
         {
@@ -258,7 +258,7 @@ public class TestAssociate
             else if (saveddb2.equals(secondary)) {
                 which = "secondary";
             }
-            System.out.println("secondary_key_create, Db: " + shownull(secondary) + "(" + which + "), key: " + show_dbt(key) + ", data: " + show_dbt(value));
+            System.out.println("secondaryKeyCreate, Db: " + shownull(secondary) + "(" + which + "), key: " + show_dbt(key) + ", data: " + show_dbt(value));
             int len = key.get_size();
             byte[] arr = key.get_data();
             boolean capped = true;
@@ -289,7 +289,7 @@ public class TestAssociate
         }
     }
 
-    public int dup_compare(Db db, Dbt dbt1, Dbt dbt2)
+    public int compareDuplicates(Db db, Dbt dbt1, Dbt dbt2)
     {
         System.out.println("compare");
         int sz1 = dbt1.get_size();

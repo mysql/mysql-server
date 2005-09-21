@@ -23,7 +23,9 @@ BEGIN {
 use DB_File; 
 use Fcntl;
 
-print "1..143\n";
+print "1..166\n";
+
+unlink glob "__db.*";
 
 sub ok
 {
@@ -32,6 +34,8 @@ sub ok
  
     print "not " unless $result ;
     print "ok $no\n" ;
+
+    return $result ;
 }
 
 {
@@ -578,7 +582,8 @@ EOM
    ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
    $k = 'Fred'; $v ='';
    ok(74, ! $db->seq($k, $v, R_FIRST) ) ;
-   ok(75, $k eq "FRED") ;
+   ok(75, $k eq "Fred") ;
+    #print "k [$k]\n" ;
    ok(76, $v eq "[Jxe]") ;
    #                   fk   sk     fv    sv
    ok(77, checkOutput( "FRED", "fred", "[Jxe]", "")) ;
@@ -854,28 +859,32 @@ EOM
 
 }
 
-{
-    # recursion detection in hash
-    my %hash ;
-    unlink $Dfile;
-    my $dbh = new DB_File::HASHINFO ;
-    $dbh->{hash} = sub { $hash{3} = 4 ; length $_[0] } ;
- 
- 
-    my (%h);
-    ok(127, tie(%hash, 'DB_File',$Dfile, O_RDWR|O_CREAT, 0640, $dbh ) );
 
-    eval {	$hash{1} = 2;
-    		$hash{4} = 5;
-	 };
+#{
+#    # recursion detection in hash
+#    my %hash ;
+#    my $Dfile = "xxx.db";
+#    unlink $Dfile;
+#    my $dbh = new DB_File::HASHINFO ;
+#    $dbh->{hash} = sub { $hash{3} = 4 ; length $_[0] } ;
+# 
+# 
+#    ok(127, tie(%hash, 'DB_File',$Dfile, O_RDWR|O_CREAT, 0640, $dbh ) );
+#
+#    eval {	$hash{1} = 2;
+#    		$hash{4} = 5;
+#	 };
+#
+#    ok(128, $@ =~ /^DB_File hash callback: recursion detected/);
+#    {
+#        no warnings;
+#        untie %hash;
+#    }
+#    unlink $Dfile;
+#}
 
-    ok(128, $@ =~ /^DB_File hash callback: recursion detected/);
-    {
-        no warnings;
-        untie %hash;
-    }
-    unlink $Dfile;
-}
+#ok(127, 1);
+#ok(128, 1);
 
 {
     # Check that two hash's don't interact
@@ -893,8 +902,8 @@ EOM
  
  
     my (%h);
-    ok(129, tie(%hash1, 'DB_File',$Dfile, O_RDWR|O_CREAT, 0640, $dbh1 ) );
-    ok(130, tie(%hash2, 'DB_File',$Dfile2, O_RDWR|O_CREAT, 0640, $dbh2 ) );
+    ok(127, tie(%hash1, 'DB_File',$Dfile, O_RDWR|O_CREAT, 0640, $dbh1 ) );
+    ok(128, tie(%hash2, 'DB_File',$Dfile2, O_RDWR|O_CREAT, 0640, $dbh2 ) );
 
     $hash1{DEFG} = 5;
     $hash1{XYZ} = 2;
@@ -904,11 +913,11 @@ EOM
     $hash2{xyz} = 2;
     $hash2{abcde} = 5;
 
-    ok(131, $h1_count > 0);
-    ok(132, $h1_count == $h2_count);
+    ok(129, $h1_count > 0);
+    ok(130, $h1_count == $h2_count);
 
-    ok(133, safeUntie \%hash1);
-    ok(134, safeUntie \%hash2);
+    ok(131, safeUntie \%hash1);
+    ok(132, safeUntie \%hash2);
     unlink $Dfile, $Dfile2;
 }
 
@@ -923,14 +932,19 @@ EOM
     unlink $Dfile;
 
     tie %hash1, 'DB_File',$Dfile, undef;
+    ok(133, $warn_count == 0);
+    $warn_count = 0;
+    untie %hash1;
+    unlink $Dfile;
+    tie %hash1, 'DB_File',$Dfile, O_RDWR|O_CREAT, undef;
+    ok(134, $warn_count == 0);
+    untie %hash1;
+    unlink $Dfile;
+    tie %hash1, 'DB_File',$Dfile, undef, undef;
     ok(135, $warn_count == 0);
     $warn_count = 0;
-    tie %hash1, 'DB_File',$Dfile, O_RDWR|O_CREAT, undef;
-    ok(136, $warn_count == 0);
-    tie %hash1, 'DB_File',$Dfile, undef, undef;
-    ok(137, $warn_count == 0);
-    $warn_count = 0;
 
+    untie %hash1;
     unlink $Dfile;
 }
 
@@ -940,9 +954,10 @@ EOM
    use warnings ;
    use strict ;
    my (%h, $db) ;
+   my $Dfile = "xxy.db";
    unlink $Dfile;
 
-   ok(138, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_HASH ) );
+   ok(136, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_HASH ) );
 
    $db->filter_fetch_key   (sub { }) ;
    $db->filter_store_key   (sub { }) ;
@@ -952,10 +967,10 @@ EOM
    $_ = "original" ;
 
    $h{"fred"} = "joe" ;
-   ok(139, $h{"fred"} eq "joe");
+   ok(137, $h{"fred"} eq "joe");
 
    eval { grep { $h{$_} } (1, 2, 3) };
-   ok (140, ! $@);
+   ok (138, ! $@);
 
 
    # delete the filters
@@ -966,13 +981,248 @@ EOM
 
    $h{"fred"} = "joe" ;
 
-   ok(141, $h{"fred"} eq "joe");
+   ok(139, $h{"fred"} eq "joe");
 
-   ok(142, $db->FIRSTKEY() eq "fred") ;
+   ok(140, $db->FIRSTKEY() eq "fred") ;
    
    eval { grep { $h{$_} } (1, 2, 3) };
-   ok (143, ! $@);
+   ok (141, ! $@);
 
+   undef $db ;
+   untie %h;
+   unlink $Dfile;
+}
+
+{
+   # Check low-level API works with filter
+
+   use warnings ;
+   use strict ;
+   my (%h, $db) ;
+   my $Dfile = "xxy.db";
+   unlink $Dfile;
+
+   ok(142, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_HASH ) );
+
+
+   $db->filter_fetch_key   (sub { $_ = unpack("i", $_) } );
+   $db->filter_store_key   (sub { $_ = pack("i", $_) } );
+   $db->filter_fetch_value (sub { $_ = unpack("i", $_) } );
+   $db->filter_store_value (sub { $_ = pack("i", $_) } );
+
+   $_ = 'fred';
+
+   my $key = 22 ;
+   my $value = 34 ;
+
+   $db->put($key, $value) ;
+   ok 143, $key == 22;
+   ok 144, $value == 34 ;
+   ok 145, $_ eq 'fred';
+   #print "k [$key][$value]\n" ;
+
+   my $val ;
+   $db->get($key, $val) ;
+   ok 146, $key == 22;
+   ok 147, $val == 34 ;
+   ok 148, $_ eq 'fred';
+
+   $key = 51 ;
+   $value = 454;
+   $h{$key} = $value ;
+   ok 149, $key == 51;
+   ok 150, $value == 454 ;
+   ok 151, $_ eq 'fred';
+
+   undef $db ;
+   untie %h;
+   unlink $Dfile;
+}
+
+
+{
+    # Regression Test for bug 30237
+    # Check that substr can be used in the key to db_put
+    # and that db_put does not trigger the warning
+    # 
+    #     Use of uninitialized value in subroutine entry
+
+
+    use warnings ;
+    use strict ;
+    my (%h, $db) ;
+    my $Dfile = "xxy.db";
+    unlink $Dfile;
+
+    ok(152, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_HASH ) );
+
+    my $warned = '';
+    local $SIG{__WARN__} = sub {$warned = $_[0]} ;
+
+    # db-put with substr of key
+    my %remember = () ;
+    for my $ix ( 1 .. 2 )
+    {
+        my $key = $ix . "data" ;
+        my $value = "value$ix" ;
+        $remember{$key} = $value ;
+        $db->put(substr($key,0), $value) ;
+    }
+
+    ok 153, $warned eq '' 
+      or print "# Caught warning [$warned]\n" ;
+
+    # db-put with substr of value
+    $warned = '';
+    for my $ix ( 10 .. 12 )
+    {
+        my $key = $ix . "data" ;
+        my $value = "value$ix" ;
+        $remember{$key} = $value ;
+        $db->put($key, substr($value,0)) ;
+    }
+
+    ok 154, $warned eq '' 
+      or print "# Caught warning [$warned]\n" ;
+
+    # via the tied hash is not a problem, but check anyway
+    # substr of key
+    $warned = '';
+    for my $ix ( 30 .. 32 )
+    {
+        my $key = $ix . "data" ;
+        my $value = "value$ix" ;
+        $remember{$key} = $value ;
+        $h{substr($key,0)} = $value ;
+    }
+
+    ok 155, $warned eq '' 
+      or print "# Caught warning [$warned]\n" ;
+
+    # via the tied hash is not a problem, but check anyway
+    # substr of value
+    $warned = '';
+    for my $ix ( 40 .. 42 )
+    {
+        my $key = $ix . "data" ;
+        my $value = "value$ix" ;
+        $remember{$key} = $value ;
+        $h{$key} = substr($value,0) ;
+    }
+
+    ok 156, $warned eq '' 
+      or print "# Caught warning [$warned]\n" ;
+
+    my %bad = () ;
+    $key = '';
+    for ($status = $db->seq(substr($key,0), substr($value,0), R_FIRST ) ;
+         $status == 0 ;
+         $status = $db->seq(substr($key,0), substr($value,0), R_NEXT ) ) {
+
+        #print "# key [$key] value [$value]\n" ;
+        if (defined $remember{$key} && defined $value && 
+             $remember{$key} eq $value) {
+            delete $remember{$key} ;
+        }
+        else {
+            $bad{$key} = $value ;
+        }
+    }
+    
+    ok 157, keys %bad == 0 ;
+    ok 158, keys %remember == 0 ;
+
+    print "# missing -- $key=>$value\n" while ($key, $value) = each %remember;
+    print "# bad     -- $key=>$value\n" while ($key, $value) = each %bad;
+
+    # Make sure this fix does not break code to handle an undef key
+    # Berkeley DB undef key is broken between versions 2.3.16 and 3.1
+    my $value = 'fred';
+    $warned = '';
+    $db->put(undef, $value) ;
+    ok 159, $warned eq '' 
+      or print "# Caught warning [$warned]\n" ;
+    $warned = '';
+
+    my $no_NULL = ($DB_File::db_ver >= 2.003016 && $DB_File::db_ver < 3.001) ;
+    print "# db_ver $DB_File::db_ver\n";
+    $value = '' ;
+    $db->get(undef, $value) ;
+    ok 160, $no_NULL || $value eq 'fred' or print "# got [$value]\n" ;
+    ok 161, $warned eq '' 
+      or print "# Caught warning [$warned]\n" ;
+    $warned = '';
+
+    undef $db ;
+    untie %h;
+    unlink $Dfile;
+}
+
+{
+   # Check filter + substr
+
+   use warnings ;
+   use strict ;
+   my (%h, $db) ;
+   my $Dfile = "xxy.db";
+   unlink $Dfile;
+
+   ok(162, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_HASH ) );
+
+
+   {
+       $db->filter_fetch_key   (sub { lc $_ } );
+       $db->filter_store_key   (sub { uc $_ } );
+       $db->filter_fetch_value (sub { lc $_ } );
+       $db->filter_store_value (sub { uc $_ } );
+   }
+
+   $_ = 'fred';
+
+    # db-put with substr of key
+    my %remember = () ;
+    my $status = 0 ;
+    for my $ix ( 1 .. 2 )
+    {
+        my $key = $ix . "data" ;
+        my $value = "value$ix" ;
+        $remember{$key} = $value ;
+        $status += $db->put(substr($key,0), substr($value,0)) ;
+    }
+
+    ok 163, $status == 0 or print "# Status $status\n" ;
+
+    if (1)
+    {
+       $db->filter_fetch_key   (undef);
+       $db->filter_store_key   (undef);
+       $db->filter_fetch_value (undef);
+       $db->filter_store_value (undef);
+    }
+
+    my %bad = () ;
+    my $key = '';
+    my $value = '';
+    for ($status = $db->seq($key, $value, R_FIRST ) ;
+         $status == 0 ;
+         $status = $db->seq($key, $value, R_NEXT ) ) {
+
+        #print "# key [$key] value [$value]\n" ;
+        if (defined $remember{$key} && defined $value && 
+             $remember{$key} eq $value) {
+            delete $remember{$key} ;
+        }
+        else {
+            $bad{$key} = $value ;
+        }
+    }
+    
+    ok 164, $_ eq 'fred';
+    ok 165, keys %bad == 0 ;
+    ok 166, keys %remember == 0 ;
+
+    print "# missing -- $key $value\n" while ($key, $value) = each %remember;
+    print "# bad     -- $key $value\n" while ($key, $value) = each %bad;
    undef $db ;
    untie %h;
    unlink $Dfile;

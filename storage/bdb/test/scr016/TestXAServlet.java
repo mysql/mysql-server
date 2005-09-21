@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestXAServlet.java,v 1.1 2002/04/24 03:26:33 dda Exp $
+ * $Id: TestXAServlet.java,v 1.4 2004/01/28 03:36:34 bostic Exp $
  */
 
 /*
@@ -143,7 +143,7 @@ public class TestXAServlet extends HttpServlet
                     key = "key" + counter;
             if (value == null || value.equals(""))
                     value = "value" + counter;
-            
+
             out.println("Adding (\"" + key + "\", \"" + value + "\")");
 
             System.out.println("XA transaction begin");
@@ -209,7 +209,7 @@ public class TestXAServlet extends HttpServlet
             e.printStackTrace();
         }
     }
-        
+
     private static Xid getBogusXid()
         throws XAException
     {
@@ -304,7 +304,7 @@ public class TestXAServlet extends HttpServlet
         throws NamingException
     {
         Hashtable env = new Hashtable();
-        env.put(Context.INITIAL_CONTEXT_FACTORY, 
+        env.put(Context.INITIAL_CONTEXT_FACTORY,
                 "weblogic.jndi.WLInitialContextFactory");
         env.put(Context.PROVIDER_URL, url);
         return new InitialContext(env);

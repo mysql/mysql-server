@@ -1,13 +1,21 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2001-2002
+# Copyright (c) 2001-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: si001.tcl,v 1.7 2002/04/29 17:12:02 sandstro Exp $
+# $Id: si001.tcl,v 1.18 2004/10/27 20:40:25 carol Exp $
 #
-# TEST	sindex001
+# TEST	si001
 # TEST	Basic secondary index put/delete test
-proc sindex001 { methods {nentries 200} {tnum 1} args } {
+# TEST
+# TEST  Put data in primary db and check that pget on secondary
+# TEST  index finds the right entries.  Alter the primary in the
+# TEST  following ways, checking for correct data each time:
+# TEST          Overwrite data in primary database.
+# TEST          Delete half of entries through primary.
+# TEST          Delete half of remaining entries through secondary.
+# TEST          Append data (for record-based primaries only).
+proc si001 { methods {nentries 200} {tnum "001"} args } {
 	source ./include.tcl
 	global dict nsecondaries
 
@@ -29,11 +37,11 @@ proc sindex001 { methods {nentries 200} {tnum 1} args } {
 	set argses [convert_argses $methods $args]
 	set omethods [convert_methods $methods]
 
-	puts "Sindex00$tnum ($pmethod/$methods) $nentries equal key/data pairs"
+	puts "si$tnum \{\[ list $pmethod $methods \]\} $nentries" 
 	env_cleanup $testdir
 
-	set pname "primary00$tnum.db"
-	set snamebase "secondary00$tnum"
+	set pname "primary$tnum.db"
+	set snamebase "secondary$tnum"
 
 	# Open an environment
 	# XXX if one is not supplied!
@@ -56,7 +64,9 @@ proc sindex001 { methods {nentries 200} {tnum 1} args } {
 		lappend sdbs $sdb
 	}
 
-	puts "\tSindex00$tnum.a: Put loop"
+	puts "\tSi$tnum.a: Put loop"
+	# Open dictionary and leave open until done with test .e so append
+	# won't require configuration for duplicates.
 	set did [open $dict]
 	for { set n 0 } { [gets $did str] != -1 && $n < $nentries } { incr n } {
 		if { [is_record_based $pmethod] == 1 } {
@@ -72,32 +82,32 @@ proc sindex001 { methods {nentries 200} {tnum 1} args } {
 		set ret [eval {$pdb put} {$key [chop_data $pmethod $datum]}]
 		error_check_good put($n) $ret 0
 	}
-	close $did
-	check_secondaries $pdb $sdbs $nentries keys data "Sindex00$tnum.a"
 
-	puts "\tSindex00$tnum.b: Put/overwrite loop"
+	check_secondaries $pdb $sdbs $nentries keys data "Si$tnum.a"
+
+	puts "\tSi$tnum.b: Put/overwrite loop"
 	for { set n 0 } { $n < $nentries } { incr n } {
 		set newd $data($n).$keys($n)
 		set ret [eval {$pdb put} {$keys($n) [chop_data $pmethod $newd]}]
 		error_check_good put_overwrite($n) $ret 0
 		set data($n) [pad_data $pmethod $newd]
 	}
-	check_secondaries $pdb $sdbs $nentries keys data "Sindex00$tnum.b"
+	check_secondaries $pdb $sdbs $nentries keys data "Si$tnum.b"
 
 	# Delete the second half of the entries through the primary.
 	# We do the second half so we can just pass keys(0 ... n/2)
 	# to check_secondaries.
 	set half [expr $nentries / 2]
-	puts "\tSindex00$tnum.c: Primary delete loop: deleting $half entries"
+	puts "\tSi$tnum.c: Primary delete loop: deleting $half entries"
 	for { set n $half } { $n < $nentries } { incr n } {
 		set ret [$pdb del $keys($n)]
 		error_check_good pdel($n) $ret 0
 	}
-	check_secondaries $pdb $sdbs $half keys data "Sindex00$tnum.c"
+	check_secondaries $pdb $sdbs $half keys data "Si$tnum.c"
 
 	# Delete half of what's left, through the first secondary.
 	set quar [expr $half / 2]
-	puts "\tSindex00$tnum.d: Secondary delete loop: deleting $quar entries"
+	puts "\tSi$tnum.d: Secondary delete loop: deleting $quar entries"
 	set sdb [lindex $sdbs 0]
 	set callback [callback_n 0]
 	for { set n $quar } { $n < $half } { incr n } {
@@ -105,12 +115,64 @@ proc sindex001 { methods {nentries 200} {tnum 1} args } {
 		set ret [$sdb del $skey]
 		error_check_good sdel($n) $ret 0
 	}
-	check_secondaries $pdb $sdbs $quar keys data "Sindex00$tnum.d"
+	check_secondaries $pdb $sdbs $quar keys data "Si$tnum.d"
+	set left $quar
 
-	puts "\tSindex00$tnum.e: Closing/disassociating primary first"
+	# For queue and recno only, test append, adding back a quarter of
+	# the original number of entries.
+	if { [is_record_based $pmethod] == 1 } {
+		puts "\tSi$tnum.e: Append loop: append $quar entries"
+		for { set n $quar } { [gets $did str] != -1 && $n < $half } \
+		    { incr n } {
+			set key [expr $n + 1]
+			set datum $str
+			set keys($n) $key
+			set data($n) [pad_data $pmethod $datum]
+
+			set ret [eval {$pdb put} \
+			    {$key [chop_data $pmethod $datum]}]
+			error_check_good put($n) $ret 0
+		}
+		check_secondaries $pdb $sdbs $half keys data "Si$tnum.e"
+		set left $half
+	}
+
+	close $did
+
+	puts "\tSi$tnum.f: Truncate primary, check secondaries are empty."
+	error_check_good truncate [$pdb truncate] $left
+	foreach sdb $sdbs {
+		set scursor [$sdb cursor]
+		error_check_good db_cursor [is_substr $scursor $sdb] 1
+		set ret [$scursor get -first]
+		error_check_good sec_empty [string length $ret] 0
+		error_check_good cursor_close [$scursor close] 0
+	}
+
+
+	puts "\tSi$tnum.g: Closing/disassociating primary first"
 	error_check_good primary_close [$pdb close] 0
 	foreach sdb $sdbs {
 		error_check_good secondary_close [$sdb close] 0
 	}
+	error_check_good env_close [$env close] 0
+
+	# Reopen with _noerr for test of truncate secondary.
+	puts "\tSi$tnum.h: Truncate secondary (should fail)"
+
+	set env [berkdb_env_noerr -create -home $testdir]
+	error_check_good env_open [is_valid_env $env] TRUE
+
+	set pdb [eval {berkdb_open_noerr -create -env} $env \
+	    $pomethod $pargs $pname]
+	set sdb [eval {berkdb_open_noerr -create -env} $env \
+	    [lindex $omethods 0] [lindex $argses 0] $snamebase.0.db ]
+	$pdb associate [callback_n 0] $sdb
+
+	set ret [catch {$sdb truncate} ret]
+	error_check_good trunc_secondary $ret 1
+
+	error_check_good primary_close [$pdb close] 0
+	error_check_good secondary_close [$sdb close] 0
 	error_check_good env_close [$env close] 0
 }

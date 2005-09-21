@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd014.tcl,v 1.19 2002/08/15 19:21:24 sandstro Exp $
+# $Id: recd014.tcl,v 1.21 2004/01/28 03:36:29 bostic Exp $
 #
 # TEST	recd014
 # TEST	This is a recovery test for create/delete of queue extents.  We

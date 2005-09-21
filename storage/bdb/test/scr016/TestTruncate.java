@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestTruncate.java,v 1.4 2002/01/23 14:29:52 bostic Exp $
+ * $Id: TestTruncate.java,v 1.8 2004/01/28 03:36:34 bostic Exp $
  */
 
 /*
@@ -34,7 +34,7 @@ public class TestTruncate
             Dbt goodkeydbt = new Dbt("key".getBytes());
             Dbt badkeydbt = new Dbt("badkey".getBytes());
             Dbt resultdbt = new Dbt();
-            resultdbt.set_flags(Db.DB_DBT_MALLOC);
+            resultdbt.setFlags(Db.DB_DBT_MALLOC);
 
             int ret;
 
@@ -43,7 +43,7 @@ public class TestTruncate
             }
             else {
                 String result =
-                    new String(resultdbt.get_data(), 0, resultdbt.get_size());
+                    new String(resultdbt.getData(), 0, resultdbt.getSize());
                 System.out.println("got data: " + result);
             }
 
@@ -53,7 +53,7 @@ public class TestTruncate
             }
             else {
                 String result =
-                    new String(resultdbt.get_data(), 0, resultdbt.get_size());
+                    new String(resultdbt.getData(), 0, resultdbt.getSize());
                 System.out.println("*** got data using bad key!!: " + result);
             }
 
@@ -63,12 +63,12 @@ public class TestTruncate
             System.out.println("truncate returns " + nrecords);
             if ((ret = db.get(null, goodkeydbt, resultdbt, 0)) != 0) {
                 // We expect this...
-                System.out.println("after trunctate get: " +
+                System.out.println("after truncate get: " +
                                    DbEnv.strerror(ret));
             }
             else {
                 String result =
-                    new String(resultdbt.get_data(), 0, resultdbt.get_size());
+                    new String(resultdbt.getData(), 0, resultdbt.getSize());
                 System.out.println("got data: " + result);
             }
 

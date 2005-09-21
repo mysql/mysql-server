@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2001-2002
+# Copyright (c) 2001-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: shelltest.tcl,v 1.20 2002/04/19 15:42:20 bostic Exp $
+# $Id: shelltest.tcl,v 1.31 2004/03/15 21:09:49 bostic Exp $
 #
 # TEST	scr###
 # TEST	The scr### directories are shell scripts that test a variety of
@@ -13,15 +13,20 @@
 # shelltest.tcl:
 #	Code to run shell script tests, to incorporate Java, C++,
 #	example compilation, etc. test scripts into the Tcl framework.
-proc shelltest { { run_one 0 }} {
+proc shelltest {{ run_one 0 } { xml 0 }} {
 	source ./include.tcl
 	global shelltest_list
+	global xmlshelltest_list
 
 	set SH /bin/sh
 	if { [file executable $SH] != 1 } {
 		puts "Shell tests require valid shell /bin/sh: not found."
 		puts "Skipping shell tests."
 		return 0
+	}
+
+	if { $xml == 1 } {
+		set shelltest_list $xmlshelltest_list
 	}
 
 	if { $run_one == 0 } {
@@ -86,3 +91,11 @@ proc scr019 {} { shelltest 19 }
 proc scr020 {} { shelltest 20 }
 proc scr021 {} { shelltest 21 }
 proc scr022 {} { shelltest 22 }
+proc scr023 {} { shelltest 23 }
+proc scr024 {} { shelltest 24 }
+proc scr025 {} { shelltest 25 }
+proc scr026 {} { shelltest 26 }
+proc scr027 {} { shelltest 27 }
+proc scr028 {} { shelltest 28 }
+proc scr029 {} { shelltest 29 }
+proc scr030 {} { shelltest 30 }

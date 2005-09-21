@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd008.tcl,v 1.26 2002/02/25 16:44:26 sandstro Exp $
+# $Id: recd008.tcl,v 1.30 2004/11/05 00:59:01 mjc Exp $
 #
 # TEST	recd008
 # TEST	Test deeply nested transactions and many-child transactions.
@@ -14,10 +14,6 @@ proc recd008 { method {breadth 4} {depth 4} args} {
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	if { [is_record_based $method] == 1 } {
-		puts "Recd008 skipping for method $method"
-		return
-	}
 	puts "Recd008: $method $breadth X $depth deeply nested transactions"
 
 	# Create the database and environment.
@@ -34,7 +30,7 @@ proc recd008 { method {breadth 4} {depth 4} args} {
 	set did [open $dict]
 	set count 0
 	while { [gets $did str] != -1 && $count < 1000 } {
-		if { [string compare $omethod "-recno"] == 0 } {
+		if { [is_record_based $method] == 1 } {
 			set key [expr $count + 1]
 		} else {
 			set key $str
@@ -43,7 +39,7 @@ proc recd008 { method {breadth 4} {depth 4} args} {
 			set p1 $key
 			set kvals($p1) $str
 		}
-		set ret [$db put $key $str]
+		set ret [$db put $key [chop_data $method $str]]
 		error_check_good put $ret 0
 
 		incr count
@@ -57,7 +53,8 @@ proc recd008 { method {breadth 4} {depth 4} args} {
 	}
 	puts "\tRecd008.b: create environment for $txn_max transactions"
 
-	set eflags "-mode 0644 -create -txn_max $txn_max \
+	set lock_max 2500
+	set eflags "-mode 0644 -create -lock_max $lock_max -txn_max $txn_max \
 	    -txn -home $testdir"
 	set env_cmd "berkdb_env $eflags"
 	set dbenv [eval $env_cmd]
@@ -66,9 +63,9 @@ proc recd008 { method {breadth 4} {depth 4} args} {
 	reset_env $dbenv
 
 	set rlist {
-	{ {recd008_parent abort ENV DB $p1 TXNID 1 1 $breadth $depth}
+	{ {recd008_parent abort ENV DB $method $p1 TXNID 1 1 $breadth $depth}
 		"Recd008.c: child abort parent" }
-	{ {recd008_parent commit ENV DB $p1 TXNID 1 1 $breadth $depth}
+	{ {recd008_parent commit ENV DB $method $p1 TXNID 1 1 $breadth $depth}
 		"Recd008.d: child commit parent" }
 	}
 	foreach pair $rlist {
@@ -95,6 +92,7 @@ proc recd008_setkval { dbfile p1 } {
 	set db [berkdb_open $testdir/$dbfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set ret [$db get $p1]
+	error_check_good dbclose [$db close] 0
 	set kvals($p1) [lindex [lindex $ret 0] 1]
 }
 
@@ -114,7 +112,7 @@ proc recd008_setkval { dbfile p1 } {
 #	Parent commit/abort (in op_recover)
 #	(Final file)
 #	Recovery test (in op_recover)
-proc recd008_parent { op env db p1key parent b0 d0 breadth depth } {
+proc recd008_parent { op env db method p1key parent b0 d0 breadth depth } {
 	global kvals
 	source ./include.tcl
 
@@ -122,7 +120,7 @@ proc recd008_parent { op env db p1key parent b0 d0 breadth depth } {
 	# Save copy of original data
 	# Acquire lock on data
 	#
-	set olddata $kvals($p1key)
+	set olddata [pad_data $method $kvals($p1key)]
 	set ret [$db get -rmw -txn $parent $p1key]
 	set Dret [lindex [lindex $ret 0] 1]
 	error_check_good get_parent_RMW $Dret $olddata
@@ -130,7 +128,7 @@ proc recd008_parent { op env db p1key parent b0 d0 breadth depth } {
 	#
 	# Parent spawns off children
 	#
-	set ret [recd008_txn $op $env $db $p1key $parent \
+	set ret [recd008_txn $op $env $db $method $p1key $parent \
 	    $b0 $d0 $breadth $depth]
 
 	puts "Child runs complete.  Parent modifies data."
@@ -139,7 +137,7 @@ proc recd008_parent { op env db p1key parent b0 d0 breadth depth } {
 	# Parent modifies p1
 	#
 	set newdata $olddata.parent
-	set ret [$db put -txn $parent $p1key $newdata]
+	set ret [$db put -txn $parent $p1key [chop_data $method $newdata]]
 	error_check_good db_put $ret 0
 
 	#
@@ -156,7 +154,7 @@ proc recd008_parent { op env db p1key parent b0 d0 breadth depth } {
 	return 0
 }
 
-proc recd008_txn { op env db p1key parent b0 d0 breadth depth } {
+proc recd008_txn { op env db method p1key parent b0 d0 breadth depth } {
 	global log_log_record_types
 	global kvals
 	source ./include.tcl
@@ -176,7 +174,7 @@ proc recd008_txn { op env db p1key parent b0 d0 breadth depth } {
 		error_check_good txn_begin [is_valid_txn $t $env] TRUE
 		set startd [expr $d0 + 1]
 		set child $b:$startd:$t
-		set olddata $kvals($p1key)
+		set olddata [pad_data $method $kvals($p1key)]
 		set newdata $olddata.$child
 		set ret [$db get -rmw -txn $t $p1key]
 		set Dret [lindex [lindex $ret 0] 1]
@@ -186,15 +184,15 @@ proc recd008_txn { op env db p1key parent b0 d0 breadth depth } {
 		# Recursively call to set up nested transactions/children
 		#
 		for {set d $startd} {$d <= $depth} {incr d} {
-			set ret [recd008_txn commit $env $db $p1key $t \
+			set ret [recd008_txn commit $env $db $method $p1key $t \
 			    $b $d $breadth $depth]
-			set ret [recd008_txn abort $env $db $p1key $t \
+			set ret [recd008_txn abort $env $db $method $p1key $t \
 			    $b $d $breadth $depth]
 		}
 		#
 		# Modifies p1.
 		#
-		set ret [$db put -txn $t $p1key $newdata]
+		set ret [$db put -txn $t $p1key [chop_data $method $newdata]]
 		error_check_good db_put $ret 0
 
 		#
@@ -210,6 +208,7 @@ proc recd008_txn { op env db p1key parent b0 d0 breadth depth } {
 		}
 		set ret [$db get -rmw -txn $parent $p1key]
 		set Dret [lindex [lindex $ret 0] 1]
+		set newdata [pad_data $method $newdata]
 		switch $op {
 			"commit" {
 				puts "Command executed and committed."
