@@ -532,7 +532,7 @@ err:
 int check_embedded_connection(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  st_security_context *sctx= thd->security_ctx;
+  Security_context *sctx= thd->security_ctx;
   sctx->host_or_ip= sctx->host= (char*)my_localhost;
   sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
   return check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
