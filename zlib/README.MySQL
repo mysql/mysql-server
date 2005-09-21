@@ -1,0 +1,7 @@
+This an incomplete version of the zlib library -- it excludes some of the
+platform-specific project files, contributed code, and examples from the
+original zlib distribution. You can find the original distribution at
+
+  http://www.gzip.org/zlib/ 
+  or
+  http://www.zlib.net/
