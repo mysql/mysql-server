@@ -903,8 +903,10 @@ printNodeStatus(OutputStream *output,
       nodeGroup = 0,
       connectCount = 0;
     bool system;
-    mgmsrv.status(nodeId, &status, &version, &startPhase, 
-		  &system, &dynamicId, &nodeGroup, &connectCount);
+    const char *address= NULL;
+    mgmsrv.status(nodeId, &status, &version, &startPhase,
+		  &system, &dynamicId, &nodeGroup, &connectCount,
+		  &address);
     output->println("node.%d.type: %s",
 		      nodeId,
 		      ndb_mgm_get_node_type_string(type));
@@ -916,7 +918,7 @@ printNodeStatus(OutputStream *output,
     output->println("node.%d.dynamic_id: %d", nodeId, dynamicId);
     output->println("node.%d.node_group: %d", nodeId, nodeGroup);
     output->println("node.%d.connect_count: %d", nodeId, connectCount);
-    output->println("node.%d.address: %s", nodeId, mgmsrv.get_connect_address(nodeId));
+    output->println("node.%d.address: %s", nodeId, address);
   }
 
 }
