@@ -7413,7 +7413,7 @@ ndbcluster_show_status(THD* thd)
   field_list.push_back(new Item_return_int("free", 10,MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("sizeof", 10,MYSQL_TYPE_LONG));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   
   if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
