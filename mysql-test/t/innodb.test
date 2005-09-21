@@ -1259,6 +1259,15 @@ select * from t1 order by a,b,c,d;
 explain select * from t1 order by a,b,c,d;
 drop table t1;
 
+#
+# BUG#11039,#13218 Wrong key length in min()
+#
+
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+select min(b) from t1 where a='8';
+drop table t1;
 # End of 4.1 tests
 
 #
