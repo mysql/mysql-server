@@ -4904,7 +4904,7 @@ error:
 error:
 #endif
   return res;
-};
+}
 
 bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
