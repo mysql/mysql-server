@@ -208,7 +208,8 @@ public:
 	     bool * systemShutdown,
 	     Uint32 * dynamicId,
 	     Uint32 * nodeGroup,
-	     Uint32 * connectCount);
+	     Uint32 * connectCount,
+	     const char **address);
   
   // All the functions below may return any of this error codes:
   // NO_CONTACT_WITH_PROCESS, PROCESS_NOT_CONFIGURED, WRONG_PROCESS_TYPE,
@@ -255,7 +256,7 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int versionNode(int nodeId, Uint32 &version);
+  int versionNode(int nodeId, Uint32 &version, const char **address);
 
   /**
    *   Maintenance on the system
@@ -611,7 +612,7 @@ private:
 
   class TransporterFacade * theFacade;
 
-  int  sendVersionReq( int processId, Uint32 &version);
+  int  sendVersionReq( int processId, Uint32 &version, const char **address);
   int translateStopRef(Uint32 errCode);
   
   bool _isStopThread;

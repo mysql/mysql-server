@@ -690,30 +690,46 @@ MgmtSrvr::start(int nodeId)
  *****************************************************************************/
 
 int 
-MgmtSrvr::versionNode(int nodeId, Uint32 &version)
+MgmtSrvr::versionNode(int nodeId, Uint32 &version, const char **address)
 {
   version= 0;
   if (getOwnNodeId() == nodeId)
   {
+    sendVersionReq(nodeId, version, address);
     version= NDB_VERSION;
+    if(!*address)
+    {
+      ndb_mgm_configuration_iterator
+	iter(*_config->m_configValues, CFG_SECTION_NODE);
+      unsigned tmp= 0;
+      for(iter.first();iter.valid();iter.next())
+      {
+	if(iter.get(CFG_NODE_ID, &tmp)) require(false);
+	if((unsigned)nodeId!=tmp)
+	  continue;
+	if(iter.get(CFG_NODE_HOST, address)) require(false);
+	break;
+      }
+    }
   }
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
   {
     ClusterMgr::Node node= theFacade->theClusterMgr->getNodeInfo(nodeId);
     if(node.connected)
       version= node.m_info.m_version;
+    *address= get_connect_address(nodeId);
   }
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
 	   getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
   {
-    return sendVersionReq(nodeId, version);
+    return sendVersionReq(nodeId, version, address);
   }
 
   return 0;
 }
 
 int 
-MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version)
+MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version, const char **address)
 {
   SignalSender ss(theFacade);
   ss.lock();
@@ -734,10 +750,23 @@ MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version)
     {
       bool next;
       nodeId = 0;
+
       while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
 	    okToSendTo(nodeId, true) != 0);
+
+      const ClusterMgr::Node &node=
+	theFacade->theClusterMgr->getNodeInfo(nodeId);
+      if(next && node.m_state.startLevel != NodeState::SL_STARTED)
+      {
+	NodeId tmp=nodeId;
+	while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
+	      okToSendTo(nodeId, true) != 0);
+	if(!next)
+	  nodeId= tmp;
+      }
+
       if(!next) return NO_CONTACT_WITH_DB_NODES;
-  
+
       if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
 	return SEND_OR_RECEIVE_FAILED;
       }
@@ -753,6 +782,9 @@ MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version)
 	CAST_CONSTPTR(ApiVersionConf, signal->getDataPtr());
       assert(conf->nodeId == v_nodeId);
       version = conf->version;
+      struct in_addr in;
+      in.s_addr= conf->inet_addr;
+      *address= inet_ntoa(in);
       return 0;
     }
     case GSN_NF_COMPLETEREP:{
@@ -1060,8 +1092,9 @@ int MgmtSrvr::restart(bool nostart, bool initialStart,
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
       Uint32 connectCount = 0;
       bool system;
+      const char *address;
       status(nodeId, &s, &version, &startPhase, 
-	     &system, &dynamicId, &nodeGroup, &connectCount);
+	     &system, &dynamicId, &nodeGroup, &connectCount, &address);
       NdbSleep_MilliSleep(100);  
       waitTime = (maxTime - NdbTick_CurrentMillisecond());
     }
@@ -1137,11 +1170,14 @@ MgmtSrvr::status(int nodeId,
 		 bool * _system,
 		 Uint32 * dynamic,
 		 Uint32 * nodegroup,
-		 Uint32 * connectCount)
+		 Uint32 * connectCount,
+		 const char **address)
 {
   if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
       getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM) {
-    versionNode(nodeId, *version);
+    versionNode(nodeId, *version, address);
+  } else {
+    *address= get_connect_address(nodeId);
   }
 
   const ClusterMgr::Node node = 
