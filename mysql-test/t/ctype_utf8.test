@@ -685,8 +685,10 @@ drop table t1;
 
 SET collation_connection='utf8_general_ci';
 -- source include/ctype_filesort.inc
+-- source include/ctype_like_escape.inc
 SET collation_connection='utf8_bin';
 -- source include/ctype_filesort.inc
+-- source include/ctype_like_escape.inc
 
 #
 # Bug #7874 CONCAT() gives wrong results mixing
