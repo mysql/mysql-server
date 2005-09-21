@@ -698,8 +698,8 @@ get_one_option(int optid,
     break;
   case OPT_STATS_METHOD:
   {
-    myisam_stats_method_str= argument;
     int method;
+    myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
