@@ -599,6 +599,9 @@ void field_conv(Field *to,Field *from)
         !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
 	to->real_type() != FIELD_TYPE_ENUM &&
 	to->real_type() != FIELD_TYPE_SET &&
+        (to->real_type() != FIELD_TYPE_DECIMAL ||
+         (to->field_length == from->field_length &&
+          (((Field_num*) to)->dec == ((Field_num*) from)->dec))) &&
         from->charset() == to->charset() &&
 	to->table->db_low_byte_first == from->table->db_low_byte_first)
     {						// Identical fields

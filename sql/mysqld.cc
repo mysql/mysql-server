@@ -369,6 +369,7 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
+const char *myisam_stats_method_str="nulls_inequal";
 const char *sql_mode_str="OFF";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
@@ -4169,6 +4170,7 @@ enum options_mysqld
   OPT_MAX_ERROR_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
+  OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
   OPT_OPEN_FILES_LIMIT,
@@ -5208,6 +5210,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+  {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
+   "Specifies how MyISAM index statistics collection code should threat NULLs. "
+   "Possible values of name are \"nulls_inequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
    "Buffer length for TCP/IP and socket communication.",
    (gptr*) &global_system_variables.net_buffer_length,
@@ -5760,6 +5767,7 @@ static void mysql_init_variables(void)
   query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
+  myisam_stats_method_str= "nulls_inequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
@@ -5808,6 +5816,12 @@ static void mysql_init_variables(void)
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
+  
+  /*
+    Default behavior for 4.1 and 5.0 is to treat NULL values as inequal
+    when collecting index statistics for MyISAM tables.
+  */
+  global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -6387,6 +6401,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
     }
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
+    break;
+  }
+  case OPT_MYISAM_STATS_METHOD:
+  {
+    myisam_stats_method_str= argument;
+    int method;
+    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
+    {
+      fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
+      exit(1);
+    }
+    global_system_variables.myisam_stats_method= 
+      test(method-1)? MI_STATS_METHOD_NULLS_EQUAL : 
+                      MI_STATS_METHOD_NULLS_NOT_EQUAL;
     break;
   }
   case OPT_SQL_MODE:

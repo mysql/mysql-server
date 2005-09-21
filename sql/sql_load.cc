@@ -114,6 +114,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(-1);
   }
+  /*
+    This needs to be done before external_lock
+  */
+  ha_enable_transaction(thd, FALSE); 
   if (!(table = open_ltable(thd,table_list,lock_type)))
     DBUG_RETURN(-1);
   transactional_table= table->file->has_transactions();
@@ -273,7 +277,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    ha_enable_transaction(thd, FALSE); 
     table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
     if (!field_term->length() && !enclosed->length())
@@ -284,10 +287,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 			   skip_lines);
     if (table->file->end_bulk_insert())
       error=1;					/* purecov: inspected */
-    ha_enable_transaction(thd, TRUE);
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->next_number_field=0;
   }
+  ha_enable_transaction(thd, TRUE);
   if (file >= 0)
     my_close(file,MYF(0));
   free_blobs(table);				/* if pack_blob was used */
