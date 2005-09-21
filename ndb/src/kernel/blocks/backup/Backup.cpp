@@ -3262,6 +3262,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->requestInfo = 0;
     req->savePointId = 0;
     req->tableId = table.tableId;
+    ScanFragReq::setReadCommittedFlag(req->requestInfo, 1);
     ScanFragReq::setLockMode(req->requestInfo, 0);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
