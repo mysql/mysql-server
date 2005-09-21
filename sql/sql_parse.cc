@@ -183,10 +183,7 @@ static bool begin_trans(THD *thd)
 */
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
-  return (table_rules_on && tables && !tables_ok(thd,tables) &&
-          ((thd->lex->sql_command != SQLCOM_DELETE_MULTI) ||
-           !tables_ok(thd,
-		      (TABLE_LIST *)thd->lex->auxilliary_table_list.first)));
+  return table_rules_on && tables && !tables_ok(thd,tables);
 }
 #endif
 
@@ -7212,6 +7209,12 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
                target_tbl->table_name, "MULTI DELETE");
       DBUG_RETURN(TRUE);
     }
+    if (!walk->derived)
+    {
+      target_tbl->table_name= walk->table_name;
+      target_tbl->table_name_length= walk->table_name_length;
+    }
+    walk->updating= target_tbl->updating;
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
