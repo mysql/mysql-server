@@ -3533,17 +3533,17 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 
   switch (cond_func->functype()) {
   case Item_func::BETWEEN:
-    if (cond_func->arguments()[0]->type() != Item::FIELD_ITEM)
+    if (cond_func->arguments()[0]->real_item()->type() != Item::FIELD_ITEM)
       DBUG_RETURN(0);
-    field_item= (Item_field*) (cond_func->arguments()[0]);
+    field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
     value= NULL;
     break;
   case Item_func::IN_FUNC:
   {
     Item_func_in *func=(Item_func_in*) cond_func;
-    if (func->key_item()->type() != Item::FIELD_ITEM)
+    if (func->key_item()->real_item()->type() != Item::FIELD_ITEM)
       DBUG_RETURN(0);
-    field_item= (Item_field*) (func->key_item());
+    field_item= (Item_field*) (func->key_item()->real_item());
     value= NULL;
     break;
   }
