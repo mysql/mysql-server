@@ -475,11 +475,20 @@ int mysql_update(THD *thd,
     query_cache_invalidate3(thd, table_list, 1);
   }
 
-  if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
+  /*
+    error < 0 means really no error at all: we processed all rows until the
+    last one without error. error > 0 means an error (e.g. unique key
+    violation and no IGNORE or REPLACE). error == 0 is also an error (if
+    preparing the record or invoking before triggers fails). See
+    ha_autocommit_or_rollback(error>=0) and DBUG_RETURN(error>=0) below.
+    Sometimes we want to binlog even if we updated no rows, in case user used
+    it to be sure master and slave are in same state.
+  */
+  if ((error < 0) || (updated && !transactional_table))
   {
     if (mysql_bin_log.is_open())
     {
-      if (error <= 0)
+      if (error < 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_table, FALSE);
@@ -1439,16 +1448,14 @@ bool multi_update::send_eof()
   /*
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
-    transacational tables.
-    Note that if we updated nothing we don't write to the binlog (TODO:
-    fix this).
+    transactional tables.
   */
 
-  if (updated && (local_error <= 0 || !trans_safe))
+  if ((local_error == 0) || (updated && !trans_safe))
   {
     if (mysql_bin_log.is_open())
     {
-      if (local_error <= 0)
+      if (local_error == 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);

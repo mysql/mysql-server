@@ -941,6 +941,34 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state);
 bool xid_cache_insert(XID_STATE *xid_state);
 void xid_cache_delete(XID_STATE *xid_state);
 
+
+class Security_context {
+public:
+  /*
+    host - host of the client
+    user - user of the client, set to NULL until the user has been read from
+    the connection
+    priv_user - The user privilege we are using. May be "" for anonymous user.
+    ip - client IP
+  */
+  char   *host, *user, *priv_user, *ip;
+  /* The host privilege we are using */
+  char   priv_host[MAX_HOSTNAME];
+  /* points to host if host is available, otherwise points to ip */
+  const char *host_or_ip;
+  ulong master_access;                 /* Global privileges from mysql.user */
+  ulong db_access;                     /* Privileges for current db */
+
+  void init();
+  void destroy();
+  void skip_grants();
+  inline char *priv_host_name()
+  {
+    return (*priv_host ? priv_host : (char *)"%");
+  }
+};
+
+
 /*
   A registry for item tree transformations performed during
   query optimization. We register only those changes which require
@@ -1113,13 +1141,8 @@ public:
   char	  *thread_stack;
 
   /*
-    host - host of the client
-    user - user of the client, set to NULL until the user has been read from
-     the connection
-    priv_user - The user privilege we are using. May be '' for anonymous user.
     db - currently selected database
     catalog - currently selected catalog
-    ip - client IP
     WARNING: some members of THD (currently 'db', 'catalog' and 'query')  are
     set and alloced by the slave SQL thread (for the THD of that thread); that
     thread is (and must remain, for now) the only responsible for freeing these
@@ -1128,8 +1151,10 @@ public:
     properly. For details see the 'err:' label of the pthread_handler_decl of
     the slave SQL thread, in sql/slave.cc.
    */
-  char	  *host,*user,*priv_user,*db,*catalog,*ip;
-  char	  priv_host[MAX_HOSTNAME];
+  char   *db, *catalog;
+  Security_context main_security_ctx;
+  Security_context *security_ctx;
+
   /* remote (peer) port */
   uint16 peer_port;
   /*
@@ -1138,13 +1163,9 @@ public:
     a time-consuming piece that MySQL can get stuck in for a long time.
   */
   const char *proc_info;
-  /* points to host if host is available, otherwise points to ip */
-  const char *host_or_ip;
 
   ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
-  ulong master_access;			/* Global privileges from mysql.user */
-  ulong db_access;			/* Privileges for current db */
 
   HASH		handler_tables_hash;
   /*
