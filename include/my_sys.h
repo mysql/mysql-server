@@ -887,6 +887,9 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
 
 void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 
+/* implemented in my_conio.c */
+char* my_cgets(char *string, unsigned long clen, unsigned long* plen);
+
 #endif
 #ifdef __NETWARE__
 void netware_reg_user(const char *ip, const char *user,

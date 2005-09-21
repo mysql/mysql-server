@@ -509,6 +509,7 @@ struct system_variables
   ulong multi_range_count;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
+  ulong myisam_stats_method;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
