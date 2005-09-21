@@ -3056,12 +3056,6 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
       goto end;
     }
 
-    if (handle_no_error(q))
-    {
-      error= 1;
-      goto end;
-    }
-
     if (!disable_result_log)
     {
       ulong affected_rows;    /* Ok to be undef if 'disable_info' is set */
@@ -3106,12 +3100,9 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	MYSQL_RES *warn_res=0;
 	uint count= mysql_warning_count(mysql);
 	if (!mysql_real_query(mysql, "SHOW WARNINGS", 13))
-	{
 	  warn_res= mysql_store_result(mysql);
-	}
 	if (!warn_res)
-	  verbose_msg("Warning count is %u but didn't get any warnings",
-		      count);
+	  die("Warning count is %u but didn't get any warnings", count);
 	else
 	{
 	  dynstr_append_mem(ds, "Warnings:\n", 10);
@@ -3142,15 +3133,28 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
     }
     else if (q->record_file[0])
     {
-      error = check_result(ds, q->record_file, q->require_file);
+      error= check_result(ds, q->record_file, q->require_file);
     }
     if (res)
       mysql_free_result(res);
     last_result= 0;
     counter++;
   } while (!(err= mysql_next_result(mysql)));
-  if (err >= 1)
-    mysql_error(mysql);
+  if (err > 0)
+  {
+      /* We got an error from mysql_next_result, maybe expected */
+    if (handle_error(query, q, mysql_errno(mysql), mysql_error(mysql),
+                     mysql_sqlstate(mysql), ds))
+      error= 1;
+    goto end;
+  }
+
+  // If we come here the query is both executed and read successfully
+  if (handle_no_error(q))
+  {
+    error= 1;
+    goto end;
+  }
 
 end:
   free_replace();
@@ -3203,8 +3207,7 @@ static int handle_error(const char *query, struct st_query *q,
     abort_not_supported_test();
  
   if (q->abort_on_error)
-    die("query '%s' failed: %d: %s", query,
-        err_errno, err_error);
+    die("query '%s' failed: %d: %s", query, err_errno, err_error);
 
   for (i= 0 ; (uint) i < q->expected_errors ; i++)
   {
@@ -3243,13 +3246,11 @@ static int handle_error(const char *query, struct st_query *q,
   if (i)
   {
     if (q->expected_errno[0].type == ERR_ERRNO)
-      verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-                  q->query, err_errno,
-                  q->expected_errno[0].code.errnum);
+      die("query '%s' failed with wrong errno %d instead of %d...",
+          q->query, err_errno, q->expected_errno[0].code.errnum);
     else
-      verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
-                  q->query, err_sqlstate,
-                  q->expected_errno[0].code.sqlstate);
+      die("query '%s' failed with wrong sqlstate %s instead of %s...",
+          q->query, err_sqlstate, q->expected_errno[0].code.sqlstate);
     DBUG_RETURN(1);
   }
 
@@ -3283,16 +3284,16 @@ static int handle_no_error(struct st_query *q)
       q->expected_errno[0].code.errnum != 0)
   {
     /* Error code we wanted was != 0, i.e. not an expected success */
-    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-                q->query, q->expected_errno[0].code.errnum);
+    die("query '%s' succeeded - should have failed with errno %d...",
+        q->query, q->expected_errno[0].code.errnum);
     DBUG_RETURN(1);
   }
   else if (q->expected_errno[0].type == ERR_SQLSTATE &&
            strcmp(q->expected_errno[0].code.sqlstate,"00000") != 0)
   {
     /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
-    verbose_msg("query '%s' succeeded - should have failed with sqlstate %s...",
-                q->query, q->expected_errno[0].code.sqlstate);
+    die("query '%s' succeeded - should have failed with sqlstate %s...",
+        q->query, q->expected_errno[0].code.sqlstate);
     DBUG_RETURN(1);
   }
 
@@ -3312,7 +3313,7 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
 {
   int error= 0;             /* Function return code if "goto end;" */
   int err;                  /* Temporary storage of return code from calls */
-  int query_len, got_error_on_execute;
+  int query_len;
   ulonglong num_rows;
   char *query;
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
@@ -3328,7 +3329,7 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
   */
   if (!(stmt= mysql_stmt_init(mysql)))
     die("unable init stmt structure");
-  
+
   if (q->type != Q_EVAL)
   {
     query= q->query;
@@ -3369,30 +3370,21 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
 
   if (err != 0)
   {
-    if (q->abort_on_error)
-    {
-      die("query '%s' failed: %d: %s", query,
-          mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
-    }
-    else
-    {
-      /*
-        Preparing is part of normal execution and some errors may be expected
-      */
-      error= handle_error(query, q, mysql_stmt_errno(stmt),
-                          mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt),
-                          ds);
-      goto end;
-    }
+    /*
+      Preparing is part of normal execution and some errors may be expected
+    */
+    if (handle_error(query, q,  mysql_stmt_errno(stmt),
+                     mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds))
+      error= 1;
+    goto end;
   }
 
   /* We may have got warnings already, collect them if any */
-  /* FIXME we only want this if the statement succeeds I think */ 
   if (!disable_ps_warnings)
     run_query_stmt_handle_warnings(mysql, ds);
 
   /*
-    No need to call mysql_stmt_bind_param() because we have no 
+    No need to call mysql_stmt_bind_param() because we have no
     parameter markers.
 
     To optimize performance we use a global 'stmt' that is initiated
@@ -3401,24 +3393,13 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
     prepared statement.
   */
 
-  if ((got_error_on_execute= mysql_stmt_execute(stmt)) != 0) /* 0 == Success */
+  if (mysql_stmt_execute(stmt) != 0) /* 0 == Success */
   {
-    if (q->abort_on_error)
-    {
-      /* We got an error, unexpected */
-      die("unable to execute statement '%s': "
-          "%s (mysql_stmt_errno=%d returned=%d)",
-          query, mysql_stmt_error(stmt),
-          mysql_stmt_errno(stmt), got_error_on_execute);
-    }
-    else
-    {
-      /* We got an error, maybe expected */
-      error= handle_error(query, q, mysql_stmt_errno(stmt),
-                          mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt),
-                          ds);
-      goto end;
-    }
+    /* We got an error, maybe expected */
+    if (handle_error(query, q, mysql_stmt_errno(stmt),
+                     mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds))
+      error= 1;
+    goto end;
   }
 
   /*
@@ -3428,11 +3409,10 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
   */
   {
     my_bool one= 1;
-    if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH,
-                            (void*) &one) != 0)
+    if ((err= mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH,
+                                  (void*) &one)) != 0)
       die("unable to set stmt attribute "
-          "'STMT_ATTR_UPDATE_MAX_LENGTH': %s (returned=%d)",
-          query, err);
+          "'STMT_ATTR_UPDATE_MAX_LENGTH' err: %d", err);
   }
 
   /*
@@ -3441,22 +3421,11 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
   */
   if ((err= mysql_stmt_store_result(stmt)) != 0)
   {
-    if (q->abort_on_error)
-    {
-      /* We got an error, unexpected */
-      die("unable to execute statement '%s': "
-          "%s (mysql_stmt_errno=%d returned=%d)",
-          query, mysql_stmt_error(stmt),
-          mysql_stmt_errno(stmt), got_error_on_execute);
-    }
-    else
-    {
-      /* We got an error, maybe expected */
-      error= handle_error(query, q, mysql_stmt_errno(stmt),
-                          mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt),
-                          ds);
-      goto end;
-    }
+    /* We got an error, maybe expected */
+    if(handle_error(query, q, mysql_stmt_errno(stmt),
+                    mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds))
+      error = 1;
+    goto end;
   }
 
   /* If we got here the statement was both executed and read succeesfully */
@@ -3479,8 +3448,6 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
     /* Take the column count from meta info */
     MYSQL_FIELD *field= mysql_fetch_fields(res);
     uint num_fields= mysql_num_fields(res);
-
-    /* FIXME check error from the above? */
 
     if (display_metadata)
       run_query_display_metadata(field, num_fields, ds);
@@ -3634,9 +3601,6 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
     mysql_free_result(res);     /* Free normal result set with meta data */
   last_result= 0;               /* FIXME have no idea what this is about... */
 
-  if (err >= 1)
-    mysql_error(mysql);         /* FIXME strange, has no effect... */
-
 end:
   free_replace();
   last_result=0;
@@ -3727,8 +3691,8 @@ static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds)
     {
       MYSQL_RES *warn_res= mysql_store_result(mysql);
       if (!warn_res)
-        verbose_msg("Warning count is %u but didn't get any warnings",
-                    count);
+        die("Warning count is %u but didn't get any warnings",
+            count);
       else
       {
         dynstr_append_mem(ds, "Warnings:\n", 10);
