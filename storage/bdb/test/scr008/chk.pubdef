@@ -3,6 +3,7 @@
 # Reconcile the list of public defines with the man pages and the Java files.
 
 d=../..
+docs=$d/../db_docs
 
 [ -f $d/LICENSE ] || {
 	echo 'FAIL: cannot find source distribution directory.'
@@ -13,8 +14,13 @@ p=$d/dist/pubdef.in
 
 exitv=0
 
-# Check that pubdef.in has everything listed in m4.links.
-f=$d/docs_src/m4/m4.links
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that pubdef.in has everything listed in m4.links.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
+f=$docs/m4/m4.links
 sed -n \
     -e 's/^\$1, \(DB_[^,]*\).*/\1/p' \
     -e d < $f |
@@ -27,8 +33,13 @@ while read name; do
 	fi
 done
 
-# Check that m4.links has everything listed in pubdef.in.
-f=$d/docs_src/m4/m4.links
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that m4.links has everything listed in pubdef.in.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
+f=$docs/m4/m4.links
 sed '/^#/d' $p |
 while read name isdoc isinc isjava; do
 	if `egrep -w "^.1, $name" $f > /dev/null`; then
@@ -44,10 +55,15 @@ while read name isdoc isinc isjava; do
 	fi
 done
 
-# Check that pubdef.in has everything listed in db.in.
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that pubdef.in has everything listed in db.in.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
 f=$d/dbinc/db.in
 sed -n \
-    -e 's/^#define[	 ]*\(DB_[A-Z_0-9]*\).*/\1/p' \
+    -e 's/^#define[	 ]*\(DB_[A-Z_0-9][A-Z_0-9]*\).*/\1/p' \
     -e 's/^[	 ]*\(DB_[A-Z_]*\)=[0-9].*/\1/p' \
     -e d < $f |
 while read name; do
@@ -59,7 +75,12 @@ while read name; do
 	fi
 done
 
-# Check that db.in has everything listed in pubdef.in.
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that db.in has everything listed in pubdef.in.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
 f=$d/dbinc/db.in
 sed '/^#/d' $p |
 while read name isdoc isinc isjava; do
@@ -77,9 +98,15 @@ while read name isdoc isinc isjava; do
 	fi
 done
 
-# Check that pubdef.in has everything listed in DbConstants.java.
-f=$d/java/src/com/sleepycat/db/DbConstants.java
-sed -n -e 's/.*static final int[	 ]*\([^ 	]*\).*/\1/p' < $f |
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that pubdef.in has everything listed in DbConstants.java.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
+j=$d/java/src/com/sleepycat/db
+f=$j/internal/DbConstants.java
+sed -n -e 's/.*int[	 ]\([^ 	]*\).*;/\1/p' < $f |
 while read name; do
 	if `egrep -w "$name" $p > /dev/null`; then
 		:
@@ -89,11 +116,16 @@ while read name; do
 	fi
 done
 
-# Check that DbConstants.java has everything listed in pubdef.in.
-f=$d/java/src/com/sleepycat/db/DbConstants.java
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that DbConstants.java has everything listed in pubdef.in.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
+f=$j/internal/DbConstants.java
 sed '/^#/d' $p |
 while read name isdoc isinc isjava; do
-	if `egrep -w "static final int[	 ]$name =" $f > /dev/null`; then
+	if `egrep -w "int[	 ]$name =" $f > /dev/null`; then
 		[ "X$isjava" != "XJ" ] && {
 			echo "$name should not appear in $f"
 			exitv=1
@@ -106,71 +138,45 @@ while read name isdoc isinc isjava; do
 	fi
 done
 
-# Check that pubdef.in has everything listed in Db.java.
-f=$d/java/src/com/sleepycat/db/Db.java
-sed -n -e 's/.*static final int[	 ]*\([^ 	;]*\).*/\1/p' < $f |
-while read name; do
-	if `egrep -w "$name" $p > /dev/null`; then
-		:
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that all constants in pubdef.in are wrapped by the Java API.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
+sed '/^#/d' $p |
+while read name isdoc isinc isjava; do
+	if `egrep -w "$name" $j/*.java $d/rpc_server/java/*.java \
+	    $j/internal/Db.java $j/internal/DbEnv.java \
+	    $j/internal/db_javaJNI.java > /dev/null`; then
+		[ "X$isjava" != "XJ" ] && {
+			echo "$name should not appear in the Java API"
+			exitv=1
+		}
 	else
-		echo "$f: $name is missing from $p"
-		exitv=1;
-	fi
-done
-sed -n -e 's/^[	 ]*\([^	 ]*\) = DbConstants\..*/\1/p' < $f |
-while read name; do
-	if `egrep -w "$name" $p > /dev/null`; then
-		:
-	else
-		echo "$f: $name is missing from $p"
-		exitv=1
+		[ "X$isjava" = "XJ" ] && {
+			echo "$name does not appear in the Java API"
+			exitv=1
+		}
 	fi
 done
 
-# Check that Db.java has all of the Java case values listed in pubdef.in.
-# Any J entries should appear twice -- once as a static final int, with
-# no initialization value, and once assigned to the DbConstants value.  Any
-# C entries should appear once as a static final int, with an initialization
-# value.
-f=$d/java/src/com/sleepycat/db/Db.java
+cat <<END_OF_TEXT
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Check that all constants in pubdef.in are wrapped by the Java native layer.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+END_OF_TEXT
+
 sed '/^#/d' $p |
 while read name isdoc isinc isjava; do
-	if `egrep -w "static final int[	 ]$name;$" $f > /dev/null`; then
-		[ "X$isjava" != "XJ" ] && {
-			echo "$name should not appear in $f"
+	if `egrep -w "$name" $d/libdb_java/db_java_wrap.c > /dev/null`; then
+		[ "X$isjava" != "XN" ] && [ "X$isjava" != "XJ" ] && {
+			echo "$name should not appear in the Java native layer"
 			exitv=1
 		}
 	else
-		[ "X$isjava" = "XJ" ] && {
-			echo "$name does not appear in $f"
-			exitv=1
-		}
-	fi
-done
-sed '/^#/d' $p |
-while read name isdoc isinc isjava; do
-	if `egrep -w "= DbConstants.$name;" $f > /dev/null`; then
-		[ "X$isjava" != "XJ" ] && {
-			echo "$name should not appear in $f"
-			exitv=1
-		}
-	else
-		[ "X$isjava" = "XJ" ] && {
-			echo "$name does not appear in $f"
-			exitv=1
-		}
-	fi
-done
-sed '/^#/d' $p |
-while read name isdoc isinc isjava; do
-	if `egrep "static final int[	 ]$name =.*;" $f > /dev/null`; then
-		[ "X$isjava" != "XC" ] && {
-			echo "$name should not appear in $f"
-			exitv=1
-		}
-	else
-		[ "X$isjava" = "XC" ] && {
-			echo "$name does not appear in $f"
+		[ "X$isjava" = "XN" ] && {
+			echo "$name does not appear in the Java native layer"
 			exitv=1
 		}
 	fi

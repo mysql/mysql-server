@@ -1,12 +1,13 @@
 #!/bin/sh -
 #
-# $Id: chk.stats,v 1.6 2002/08/19 18:35:18 bostic Exp $
+# $Id: chk.stats,v 1.9 2004/11/08 14:49:42 bostic Exp $
 #
 # Check to make sure all of the stat structure members are included in
 # all of the possible formats.
 
 # Top-level directory.
 d=../..
+docs=../../../db_docs
 
 # Path names are from a top-level directory.
 [ -f $d/README ] || {
@@ -47,7 +48,7 @@ inc()
 			continue
 		fi
 		for j in $2; do
-			if egrep -w $i $d/$j > /dev/null; then
+			if egrep -w $i $j > /dev/null; then
 				:;
 			else
 				echo "	$1: $i not found in $j."
@@ -57,20 +58,23 @@ inc()
 	done
 }
 
-inc	"__db_bt_stat" \
-	"tcl/tcl_db.c db_stat/db_stat.c docs_src/db/db_stat.so"
-inc	"__db_h_stat" \
-	"tcl/tcl_db.c db_stat/db_stat.c docs_src/db/db_stat.so"
-inc	"__db_qam_stat" \
-	"tcl/tcl_db.c db_stat/db_stat.c docs_src/db/db_stat.so"
+inc	"__db_bt_stat" "$d/tcl/tcl_db.c $d/btree/bt_stat.c $docs/db/db_stat.so"
+inc	"__db_h_stat" "$d/tcl/tcl_db.c $d/hash/hash_stat.c $docs/db/db_stat.so"
 inc	__db_lock_stat \
-	"tcl/tcl_lock.c db_stat/db_stat.c docs_src/lock/lock_stat.so"
-inc	__db_log_stat \
-	"tcl/tcl_log.c db_stat/db_stat.c docs_src/log/log_stat.so"
+	"$d/tcl/tcl_lock.c $d/lock/lock_stat.c $docs/lock/lock_stat.so"
+inc	__db_log_stat "$d/tcl/tcl_log.c $d/log/log_stat.c $docs/log/log_stat.so"
+inc	__db_mpool_fstat \
+	"$d/tcl/tcl_mp.c $d/mp/mp_stat.c $docs/memp/memp_stat.so"
 inc	__db_mpool_stat \
-	"tcl/tcl_mp.c db_stat/db_stat.c docs_src/memp/memp_stat.so"
+	"$d/tcl/tcl_mp.c $d/mp/mp_stat.c $docs/memp/memp_stat.so"
+inc	"__db_qam_stat" \
+	"$d/tcl/tcl_db.c $d/qam/qam_stat.c $docs/db/db_stat.so"
+inc	__db_rep_stat \
+	"$d/tcl/tcl_rep.c $d/rep/rep_stat.c $docs/rep/rep_stat.so"
+inc	__db_seq_stat \
+	"$d/tcl/tcl_seq.c $d/sequence/seq_stat.c $docs/seq/seq_stat.so"
 inc	__db_txn_stat \
-	"tcl/tcl_txn.c db_stat/db_stat.c docs_src/txn/txn_stat.so"
+	"$d/tcl/tcl_txn.c $d/txn/txn_stat.c $docs/txn/txn_stat.so"
 
 # Check to make sure the elements from a man page appears in db.in.
 man()
@@ -89,26 +93,33 @@ man()
 	done
 }
 
-sed -e '/m4_stat(/!d' \
-    -e 's/.*m4_stat(\([^)]*\)).*/\1/' < $d/docs_src/db/db_stat.so > $t
+sed -e '/m4_field(/!d' \
+    -e 's/.*m4_field[^,]*,[ ]*\([^,]*\).*/\1/' < $docs/db/db_stat.so > $t
 man "checking db_stat.so against db.h"
 
-sed -e '/m4_stat(/!d' \
-    -e 's/.*m4_stat(\([^)]*\)).*/\1/' \
-    -e 's/.* //' < $d/docs_src/lock/lock_stat.so > $t
+sed -e '/m4_field(/!d' \
+    -e 's/.*m4_field[^,]*,[ ]*\([^,]*\).*/\1/' < $docs/lock/lock_stat.so > $t
 man "checking lock_stat.so against db.h"
 
-sed -e '/m4_stat[12](/!d' \
-    -e 's/.*m4_stat[12](\([^)]*\)).*/\1/' < $d/docs_src/log/log_stat.so > $t
+sed -e '/m4_field(/!d' \
+    -e 's/.*m4_field[^,]*,[ ]*\([^,]*\).*/\1/' < $docs/log/log_stat.so > $t
 man "checking log_stat.so against db.h"
 
-sed -e '/m4_stat[123](/!d' \
-    -e 's/.*m4_stat[123](\([^)]*\)).*/\1/' < $d/docs_src/memp/memp_stat.so > $t
+sed -e '/m4_field(/!d' \
+    -e 's/.*m4_field[^,]*,[ ]*\([^,]*\).*/\1/' < $docs/memp/memp_stat.so > $t
 man "checking memp_stat.so against db.h"
 
-sed -e '/m4_stat(/!d' \
-    -e 's/.*m4_stat(.*, \([^)]*\)).*/\1/' \
-    -e 's/__[LR]B__//g' < $d/docs_src/txn/txn_stat.so > $t
+sed -e '/m4_field(/!d' \
+    -e 's/.*m4_field[^,]*,[ ]*\([^,]*\).*/\1/' < $docs/rep/rep_stat.so > $t
+man "checking rep_stat.so against db.h"
+
+sed -e '/m4_field(/!d' \
+    -e 's/.*m4_field[^,]*,[ ]*\([^,]*\).*/\1/' < $docs/seq/seq_stat.so > $t
+man "checking seq_stat.so against db.h"
+
+sed -e '/m4_field(/!d' \
+    -e 's/.*m4_field[^,]*,[ ]*\([^,]*\).*/\1/' \
+    -e 's/__LB__.*//' < $docs/txn/txn_stat.so > $t
 man "checking txn_stat.so against db.h"
 
 exit $exitv

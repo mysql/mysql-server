@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestDbtFlags.java,v 1.4 2002/08/16 19:35:54 dda Exp $
+ * $Id: TestDbtFlags.java,v 1.8 2004/01/28 03:36:34 bostic Exp $
  */
 
 package com.sleepycat.test;
@@ -25,7 +25,7 @@ public class TestDbtFlags
 
     /*zippy quotes for test input*/
     static final String[] input_lines = {
-        "If we shadows have offended", 
+        "If we shadows have offended",
         "Think but this, and all is mended",
         "That you have but slumber'd here",
         "While these visions did appear",
@@ -97,8 +97,8 @@ public class TestDbtFlags
         // Create the database object.
         // There is no environment for this simple example.
         Db table = new Db(null, 0);
-        table.set_error_stream(System.err);
-        table.set_errpfx("TestDbtFlags");
+        table.setErrorStream(System.err);
+        table.setErrorPrefix("TestDbtFlags");
         table.open(null, FileName, null, Db.DB_BTREE, Db.DB_CREATE, 0644);
 
         //
@@ -165,12 +165,12 @@ public class TestDbtFlags
                  */
                 System.err.println("exception, iteration " + iteration_count +
                                    ": " + dme);
-                System.err.println("  key size: " + key.get_size() +
-                                   " ulen: " + key.get_ulen());
-                System.err.println("  data size: " + key.get_size() +
-                                   " ulen: " + key.get_ulen());
+                System.err.println("  key size: " + key.getSize() +
+                                   " ulen: " + key.getUserBufferLength());
+                System.err.println("  data size: " + key.getSize() +
+                                   " ulen: " + key.getUserBufferLength());
 
-                dme.get_dbt().set_size(buf_size);
+                dme.getDbt().setSize(buf_size);
                 StringDbt tempkey = new StringDbt(Db.DB_DBT_MALLOC, -1);
                 StringDbt tempdata = new StringDbt(Db.DB_DBT_MALLOC, -1);
                 if ((dbreturn = iterator.get(tempkey, tempdata, Db.DB_NEXT)) != 0) {
@@ -202,36 +202,36 @@ public class TestDbtFlags
         StringDbt(int flags, int buf_size)
         {
             this.saved_flags = flags;
-            set_flags(saved_flags);
+            setFlags(saved_flags);
             if (buf_size != -1) {
-                set_data(new byte[buf_size]);
-                set_ulen(buf_size);
+                setData(new byte[buf_size]);
+                setUserBufferLength(buf_size);
             }
         }
 
         StringDbt(String value, int flags)
         {
             this.saved_flags = flags;
-            set_flags(saved_flags);
+            setFlags(saved_flags);
             set_string(value);
         }
 
         void set_string(String value)
         {
-            set_data(value.getBytes());
-            set_size(value.length());
+            setData(value.getBytes());
+            setSize(value.length());
             check_flags();
         }
 
         String get_string()
         {
             check_flags();
-            return new String(get_data(), 0, get_size());
+            return new String(getData(), 0, getSize());
         }
 
         void check_flags()
         {
-            int actual_flags = get_flags();
+            int actual_flags = getFlags();
             if (actual_flags != saved_flags) {
                 System.err.println("flags botch: expected " + saved_flags +
                                    ", got " + actual_flags);

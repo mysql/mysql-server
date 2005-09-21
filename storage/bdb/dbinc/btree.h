@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: btree.h,v 11.45 2002/08/06 06:11:21 bostic Exp $
+ * $Id: btree.h,v 11.50 2004/07/22 21:52:57 bostic Exp $
  */
 #ifndef	_DB_BTREE_H_
 #define	_DB_BTREE_H_
@@ -146,12 +146,12 @@ struct __epg {
 #define	BT_STK_CLR(c) do {						\
 	(c)->csp = (c)->sp;						\
 	(c)->csp->page = NULL;						\
-	LOCK_INIT((c)->csp->lock);				\
+	LOCK_INIT((c)->csp->lock);					\
 } while (0)
 
 #define	BT_STK_ENTER(dbenv, c, pagep, page_indx, l, mode, ret) do {	\
-	if ((ret =							\
-	    (c)->csp == (c)->esp ? __bam_stkgrow(dbenv, c) : 0) == 0) {	\
+	if ((ret = ((c)->csp == (c)->esp ?				\
+	    __bam_stkgrow(dbenv, c) : 0)) == 0) {			\
 		(c)->csp->page = pagep;					\
 		(c)->csp->indx = page_indx;				\
 		(c)->csp->entries = NUM_ENT(pagep);			\
@@ -171,7 +171,7 @@ struct __epg {
 		(c)->csp->page = NULL;					\
 		(c)->csp->indx = page_indx;				\
 		(c)->csp->entries = NUM_ENT(pagep);			\
-		LOCK_INIT((c)->csp->lock);			\
+		LOCK_INIT((c)->csp->lock);				\
 		(c)->csp->lock_mode = DB_LOCK_NG;			\
 	}								\
 } while (0)
@@ -237,7 +237,7 @@ struct __cursor {
  */
 #define	B_MINKEY_TO_OVFLSIZE(dbp, minkey, pgsize)			\
 	((u_int16_t)(((pgsize) - P_OVERHEAD(dbp)) / ((minkey) * P_INDX) -\
-	    (BKEYDATA_PSIZE(0) + ALIGN(1, sizeof(int32_t)))))
+	    (BKEYDATA_PSIZE(0) + DB_ALIGN(1, sizeof(int32_t)))))
 
 /*
  * The maximum space that a single item can ever take up on one page.
@@ -281,6 +281,7 @@ struct __btree {			/* Btree access method. */
 	 * of its information.
 	 */
 	db_pgno_t bt_lpgno;		/* Last insert location. */
+	DB_LSN	  bt_llsn;		/* Last insert LSN. */
 
 	/*
 	 * !!!

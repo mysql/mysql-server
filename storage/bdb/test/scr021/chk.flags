@@ -1,88 +1,109 @@
 #!/bin/sh -
 #
-# $Id: chk.flags,v 1.8 2002/08/14 02:19:55 bostic Exp $
+# $Id: chk.flags,v 1.12 2004/10/19 02:28:19 bostic Exp $
 #
 # Check flag name-spaces.
 
 d=../..
-
 t1=__1
+t2=__2
 
-# Check for DB_ENV flags.
-(grep 'F_ISSET([^ ]*dbenv,' $d/*/*.[chys];
- grep 'F_SET([^ ]*dbenv,' $d/*/*.[chys];
- grep 'F_CLR([^ ]*dbenv,' $d/*/*.[chys]) |
- sed -e '/DB_ENV_/d' -e '/F_SET([^ ]*dbenv, db_env_reset)/d' > $t1
-[ -s $t1 ] && {
-	cat $t1
+if cc -g -Wall -I.. t.c -o t; then
+	:
+else
+	echo "FAIL: unable to compile test program t.c"
+	exit 1
+fi
+
+if ./t $d/*/*.[ch] $d/*/*.in > $t1; then
+	:
+else
+	echo "FAIL: test program failed"
+	exit 1
+fi
+
+echo Checking DB_ENV flags...
+cat $t1 |
+grep '(dbenv,' |
+sed -e '/DB_ENV_/d' \
+    -e '/env_method.c.*, mapped_flags*)/d' \
+    -e '/env_region.c.*, db_env_reset)/d' \
+    > $t2
+[ -s $t2 ] && {
+	cat $t2
 	exit 1
 }
 
-grep 'DB_ENV_' $d/*/*.c |
-sed -e '/F_.*dbenv,/d' \
-    -e '/DB_ENV_TEST_RECOVERY(.*DB_TEST_/d' \
-    -e '/\/libdb_java\//d' > $t1
-[ -s $t1 ] && {
-	cat $t1
+grep 'DB_ENV_' $t1 |
+sed -e '/((*dbenv)*,/d' \
+    -e '/((*dbp)*->dbenv,/d' \
+    -e '/((*infop)*->dbenv,/d' \
+    -e '/((*reginfop)*->dbenv,/d' \
+    -e '/((*sdbp)*->dbenv,/d' \
+    > $t2
+[ -s $t2 ] && {
+	cat $t2
 	exit 1
 }
 
-# Check for DB flags.
-(grep 'F_ISSET([^ ]*dbp,' $d/*/*.[chys];
- grep 'F_SET([^ ]*dbp,' $d/*/*.[chys];
- grep 'F_CLR([^ ]*dbp,' $d/*/*.[chys]) |
- sed -e '/DB_AM_/d' \
-     -e '/db.c:.*F_SET.*F_ISSET(subdbp,/d' > $t1
-[ -s $t1 ] && {
-	cat $t1
+echo Checking DB flags...
+cp $t1 /tmp/_f
+cat $t1 |
+grep '(dbp,' |
+sed -e '/DB_AM_/d' \
+    -e '/dbp, mapped_flag)/d' \
+    > $t2
+[ -s $t2 ] && {
+	cat $t2
 	exit 1
 }
 
-grep 'DB_AM_' $d/*/*.c |
-sed -e '/F_.*dbp/d' \
-    -e '/"DB->open", dbp->flags, DB_AM_DUP,/d' \
-    -e '/"DB_NODUPDATA" behavior for databases with/d' \
-    -e '/If DB_AM_OPEN_CALLED is not set, then we/d' \
-    -e '/This was checked in set_flags when DB_AM_ENCRYPT/d' \
-    -e '/XA_ABORT, we can safely set DB_AM_RECOVER/d' \
-    -e '/ DB_AM_RECNUM\./d' \
-    -e '/ DB_AM_RECOVER set\./d' \
-    -e '/isdup = dbp->flags & DB_AM_DUP/d' \
-    -e '/otherwise we simply do/d' \
-    -e '/pginfo/d' \
-    -e '/setting DB_AM_RECOVER, we guarantee that we don/d' \
-    -e '/:[	 {]*DB_AM_/d' > $t1
-[ -s $t1 ] && {
-	cat $t1
+grep 'DB_AM_' $t1 |
+sed -e '/((*[	 ]*db_rep->rep_db)*,/d' \
+    -e '/((*[	 ]*dbc)*->dbp,/d' \
+    -e '/((*[	 ]*dbc_arg->dbp)*,/d' \
+    -e '/((*[	 ]*dbp)*,/d' \
+    -e '/((*[	 ]*dbp)*->s_primary,/d' \
+    -e '/((D),/d' \
+    -e '/(mdbp,/d' \
+    -e '/(pdbp,/d' \
+    -e '/(pginfo, /d' \
+    -e '/(sdbp,/d' \
+    -e '/(subdbp,/d' \
+    -e '/fop_util.c:.*(t2dbp,/d' \
+    -e '/rep_backup.c.*(rfp,/d' \
+    > $t2
+[ -s $t2 ] && {
+	cat $t2
 	exit 1
 }
 
-# Check for DBC flags.
-(grep 'F_ISSET([^ ]*dbc,' $d/*/*.[chys];
- grep 'F_SET([^ ]*dbc,' $d/*/*.[chys];
- grep 'F_CLR([^ ]*dbc,' $d/*/*.[chys]) |
- sed -e '/DBC_/d' > $t1
-[ -s $t1 ] && {
-	cat $t1
+echo Checking DBC flags...
+cat $t1 |
+grep '(dbc,' |
+sed -e '/DBC_/d' \
+    > $t2
+[ -s $t2 ] && {
+	cat $t2
 	exit 1
 }
 
-grep 'DBC_' $d/*/*.c |
-sed -e '/F_.*dbc/d' \
-    -e '/DBC_INTERNAL/d' \
-    -e '/DBC_LOGGING/d' \
-    -e '/Do the actual get.  Set DBC_TRANSIENT/d' \
-    -e '/If DBC_WRITEDUP is set, the cursor is an in/d' \
-    -e '/The DBC_TRANSIENT flag indicates that we/d' \
-    -e '/This function replaces the DBC_CONTINUE and DBC_KEYSET/d' \
-    -e '/db_cam.c:.*F_CLR(opd, DBC_ACTIVE);/d' \
-    -e '/{ DBC_/d' > $t1
-[ -s $t1 ] && {
-	cat $t1
+grep 'DBC_' $t1 |
+sed -e '/((*dbc)*,/d' \
+    -e '/(dbc_arg,/d' \
+    -e '/(dbc_c,/d' \
+    -e '/(dbc_n,/d' \
+    -e '/(dbc_orig,/d' \
+    -e '/(opd,/d' \
+    -e '/(pdbc,/d' \
+    -e '/(sdbc,/d' \
+    > $t2
+[ -s $t2 ] && {
+	cat $t2
 	exit 1
 }
 
-# Check for bad use of macros.
+echo Checking for bad use of macros...
 egrep 'case .*F_SET\(|case .*F_CLR\(' $d/*/*.c > $t1
 egrep 'for .*F_SET\(|for .*F_CLR\(' $d/*/*.c >> $t1
 egrep 'if .*F_SET\(|if .*F_CLR\(' $d/*/*.c >> $t1

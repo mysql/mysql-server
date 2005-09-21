@@ -1,2 +1,2 @@
-Got expected Db Exception: com.sleepycat.db.DbException: null object: Invalid argument
+Got expected exception: java.lang.IllegalArgumentException: call on closed handle
 finished test

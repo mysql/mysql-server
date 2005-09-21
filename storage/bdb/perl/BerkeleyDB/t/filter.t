@@ -14,7 +14,7 @@ BEGIN {
 use BerkeleyDB; 
 use t::util ;
 
-print "1..46\n";
+print "1..52\n";
 
 my $Dfile = "dbhash.tmp";
 unlink $Dfile;
@@ -80,6 +80,7 @@ umask(0) ;
 
    ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
    ok 8, $h{"Fred"} eq "[Jxe]";
+   print "$h{'Fred'}\n";
    #                   fk   sk     fv    sv
    ok 9, checkOutput( "", "fred", "[Jxe]", "") ;
 
@@ -207,11 +208,123 @@ umask(0) ;
    $db->filter_store_key (sub { $_ = $h{$_} }) ;
 
    eval '$h{1} = 1234' ;
-   ok 46, $@ =~ /^BerkeleyDB Aborting: recursion detected in filter_store_key at/ ;
-   #print "[$@]\n" ;
+   ok 46, $@ =~ /^recursion detected in filter_store_key at/ ;
    
    undef $db ;
    untie %h;
    unlink $Dfile;
 }
 
+{
+   # Check that DBM Filter can cope with read-only $_
+
+   #use warnings ;
+   use strict ;
+   my (%h, $db) ;
+   unlink $Dfile;
+
+   ok 47, $db = tie %h, 'BerkeleyDB::Hash', 
+    		-Filename   => $Dfile, 
+	        -Flags      => DB_CREATE; 
+
+   $db->filter_fetch_key   (sub { }) ;
+   $db->filter_store_key   (sub { }) ;
+   $db->filter_fetch_value (sub { }) ;
+   $db->filter_store_value (sub { }) ;
+
+   $_ = "original" ;
+
+   $h{"fred"} = "joe" ;
+   ok(48, $h{"fred"} eq "joe");
+
+   eval { grep { $h{$_} } (1, 2, 3) };
+   ok (49, ! $@);
+
+
+   # delete the filters
+   $db->filter_fetch_key   (undef);
+   $db->filter_store_key   (undef);
+   $db->filter_fetch_value (undef);
+   $db->filter_store_value (undef);
+
+   $h{"fred"} = "joe" ;
+
+   ok(50, $h{"fred"} eq "joe");
+
+   ok(51, $db->FIRSTKEY() eq "fred") ;
+   
+   eval { grep { $h{$_} } (1, 2, 3) };
+   ok (52, ! $@);
+
+   undef $db ;
+   untie %h;
+   unlink $Dfile;
+}
+
+if(0)
+{
+    # Filter without tie
+    use strict ;
+    my (%h, $db) ;
+
+    unlink $Dfile;
+    ok 53, $db = tie %h, 'BerkeleyDB::Hash', 
+    		-Filename   => $Dfile, 
+	        -Flags      => DB_CREATE; 
+
+    my %result = () ;
+
+    sub INC { return ++ $_[0] }
+    sub DEC { return -- $_[0] }
+    #$db->filter_fetch_key   (sub { warn "FFK $_\n"; $_ = INC($_); warn "XX\n" }) ;
+    #$db->filter_store_key   (sub { warn "FSK $_\n"; $_ = DEC($_); warn "XX\n" }) ;
+    #$db->filter_fetch_value (sub { warn "FFV $_\n"; $_ = INC($_); warn "XX\n"}) ;
+    #$db->filter_store_value (sub { warn "FSV $_\n"; $_ = DEC($_); warn "XX\n" }) ;
+
+    $db->filter_fetch_key   (sub { warn "FFK $_\n"; $_ = pack("i", $_); warn "XX\n" }) ;
+    $db->filter_store_key   (sub { warn "FSK $_\n"; $_ = unpack("i", $_); warn "XX\n" }) ;
+    $db->filter_fetch_value (sub { warn "FFV $_\n"; $_ = pack("i", $_); warn "XX\n"}) ;
+    #$db->filter_store_value (sub { warn "FSV $_\n"; $_ = unpack("i", $_); warn "XX\n" }) ;
+
+    #$db->filter_fetch_key   (sub { ++ $_ }) ;
+    #$db->filter_store_key   (sub { -- $_ }) ;
+    #$db->filter_fetch_value (sub { ++ $_ }) ;
+    #$db->filter_store_value (sub { -- $_ }) ;
+
+    my ($k, $v) = (0,0);
+    ok 54, ! $db->db_put(3,5);
+    exit;
+    ok 55, ! $db->db_get(3, $v);
+    ok 56, $v == 5 ;
+
+    $h{4} = 7 ;
+    ok 57, $h{4} == 7;
+
+    $k = 10;
+    $v = 30;
+    $h{$k} = $v ;
+    ok 58, $k == 10;
+    ok 59, $v == 30;
+    ok 60, $h{$k} == 30;
+
+    $k = 3;
+    ok 61, ! $db->db_get($k, $v, DB_GET_BOTH);
+    ok 62, $k == 3 ;
+    ok 63, $v == 5 ;
+
+    my $cursor = $db->db_cursor();
+
+    my %tmp = ();
+    while ($cursor->c_get($k, $v, DB_NEXT) == 0)
+    {
+	$tmp{$k} = $v;
+    }
+
+    ok 64, keys %tmp == 3 ;
+    ok 65, $tmp{3} == 5;
+
+    undef $cursor ;
+    undef $db ;
+    untie %h;
+    unlink $Dfile;
+}

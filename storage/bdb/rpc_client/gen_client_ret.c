@@ -1,17 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2002
+ * Copyright (c) 2000-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: gen_client_ret.c,v 1.69 2004/09/22 16:29:51 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: gen_client_ret.c,v 1.57 2002/08/06 06:18:37 bostic Exp $";
-#endif /* not lint */
-
-#ifdef HAVE_RPC
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
@@ -20,35 +17,20 @@ static const char revid[] = "$Id: gen_client_ret.c,v 1.57 2002/08/06 06:18:37 bo
 #include <string.h>
 #endif
 
+#include "db_server.h"
+
 #include "db_int.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_am.h"
 #include "dbinc/txn.h"
-
-#include "dbinc_auto/db_server.h"
 #include "dbinc_auto/rpc_client_ext.h"
 
-/*
- * PUBLIC: int __dbcl_env_close_ret
- * PUBLIC:     __P((DB_ENV *, u_int32_t, __env_close_reply *));
- */
-int
-__dbcl_env_close_ret(dbenv, flags, replyp)
-	DB_ENV *dbenv;
-	u_int32_t flags;
-	__env_close_reply *replyp;
-{
-	int ret;
-
-	COMPQUIET(flags, 0);
-
-	ret = __dbcl_refresh(dbenv);
-	__os_free(NULL, dbenv);
-	if (replyp->status == 0 && ret != 0)
-		return (ret);
-	else
-		return (replyp->status);
-}
+#define	FREE_IF_CHANGED(dbtp, orig)	do {				\
+	if ((dbtp)->data != NULL && (dbtp)->data != orig) {		\
+		__os_free(dbenv, (dbtp)->data);				\
+		(dbtp)->data = NULL;					\
+	}								\
+} while (0)
 
 /*
  * PUBLIC: int __dbcl_env_create_ret
@@ -167,7 +149,13 @@ __dbcl_txn_begin_ret(envp, parent, txnpp, flags, replyp)
 
 	if ((ret = __os_calloc(envp, 1, sizeof(DB_TXN), &txn)) != 0)
 		return (ret);
-	__dbcl_txn_setup(envp, txn, parent, replyp->txnidcl_id);
+	/*
+	 * !!!
+	 * Cast the txnidcl_id to 32-bits.  We don't want to change the
+	 * size of the txn structure.  But if we're running on 64-bit
+	 * machines, we could overflow.  Ignore for now.
+	 */
+	__dbcl_txn_setup(envp, txn, parent, (u_int32_t)replyp->txnidcl_id);
 	*txnpp = txn;
 	return (replyp->status);
 }
@@ -249,7 +237,7 @@ __dbcl_txn_recover_ret(dbenv, preplist, count, retp, flags, replyp)
 	while (i++ < replyp->retcount) {
 		__dbcl_txn_setup(dbenv, txn, NULL, *txnid);
 		prep->txn = txn;
-		memcpy(&prep->gid, gid, DB_XIDDATASIZE);
+		memcpy(prep->gid, gid, DB_XIDDATASIZE);
 		/*
 		 * Now increment all our array pointers.
 		 */
@@ -341,8 +329,8 @@ __dbcl_db_get_ret(dbp, txnp, key, data, flags, replyp)
 	 * If an error on copying 'data' and we allocated for 'key'
 	 * free it before returning the error.
 	 */
-	if (ret && oldkey != NULL)
-		__os_free(dbenv, key->data);
+	if (ret)
+		FREE_IF_CHANGED(key, oldkey);
 	return (ret);
 }
 
@@ -389,13 +377,13 @@ __dbcl_db_open_ret(dbp, txn, name, subdb, type, flags, mode, replyp)
 	COMPQUIET(txn, NULL);
 	COMPQUIET(name, NULL);
 	COMPQUIET(subdb, NULL);
-	COMPQUIET(type, 0);
+	COMPQUIET(type, DB_UNKNOWN);
 	COMPQUIET(flags, 0);
 	COMPQUIET(mode, 0);
 
 	if (replyp->status == 0) {
 		dbp->cl_id = replyp->dbcl_id;
-		dbp->type = replyp->type;
+		dbp->type = (DBTYPE)replyp->type;
 		/*
 		 * We get back the database's byteorder on the server.
 		 * Determine if our byteorder is the same or not by
@@ -409,11 +397,10 @@ __dbcl_db_open_ret(dbp, txn, name, subdb, type, flags, mode, replyp)
 		(void)__db_set_lorder(dbp, replyp->lorder);
 
 		/*
-		 * XXX
-		 * This is only for Tcl which peeks at the dbp flags.
-		 * When dbp->get_flags exists, this should go away.
+		 * Explicitly set DB_AM_OPEN_CALLED since open is now
+		 * successfully completed.
 		 */
-		dbp->flags = replyp->dbflags;
+		F_SET(dbp, DB_AM_OPEN_CALLED);
 	}
 	return (replyp->status);
 }
@@ -453,25 +440,17 @@ __dbcl_db_pget_ret(dbp, txnp, skey, pkey, data, flags, replyp)
 		return (ret);
 
 	oldpkey = pkey->data;
-	ret = __dbcl_retcopy(dbenv, pkey, replyp->pkeydata.pkeydata_val,
+	if ((ret = __dbcl_retcopy(dbenv, pkey, replyp->pkeydata.pkeydata_val,
 	    replyp->pkeydata.pkeydata_len, &dbp->my_rkey.data,
-	    &dbp->my_rkey.ulen);
-	if (ret && oldskey != NULL) {
-		__os_free(dbenv, skey->data);
-		return (ret);
-	}
+	    &dbp->my_rkey.ulen)) != 0)
+		goto err;
 	ret = __dbcl_retcopy(dbenv, data, replyp->datadata.datadata_val,
 	    replyp->datadata.datadata_len, &dbp->my_rdata.data,
 	    &dbp->my_rdata.ulen);
-	/*
-	 * If an error on copying 'data' and we allocated for '*key'
-	 * free it before returning the error.
-	 */
+
 	if (ret) {
-		if (oldskey != NULL)
-			__os_free(dbenv, skey->data);
-		if (oldpkey != NULL)
-			__os_free(dbenv, pkey->data);
+err:		FREE_IF_CHANGED(skey, oldskey);
+		FREE_IF_CHANGED(pkey, oldpkey);
 	}
 	return (ret);
 }
@@ -554,19 +533,22 @@ __dbcl_db_rename_ret(dbp, name, subdb, newname, flags, replyp)
 
 /*
  * PUBLIC: int __dbcl_db_stat_ret
- * PUBLIC:     __P((DB *, void *, u_int32_t, __db_stat_reply *));
+ * PUBLIC:     __P((DB *, DB_TXN *, void *, u_int32_t, __db_stat_reply *));
  */
 int
-__dbcl_db_stat_ret(dbp, sp, flags, replyp)
+__dbcl_db_stat_ret(dbp, txnp, sp, flags, replyp)
 	DB *dbp;
+	DB_TXN *txnp;
 	void *sp;
 	u_int32_t flags;
 	__db_stat_reply *replyp;
 {
-	int len, ret;
+	size_t len;
 	u_int32_t i, *q, *p, *retsp;
+	int ret;
 
 	COMPQUIET(flags, 0);
+	COMPQUIET(txnp, NULL);
 
 	if (replyp->status != 0 || sp == NULL)
 		return (replyp->status);
@@ -738,8 +720,8 @@ __dbcl_dbc_get_ret(dbc, key, data, flags, replyp)
 	 * If an error on copying 'data' and we allocated for 'key'
 	 * free it before returning the error.
 	 */
-	if (ret && oldkey != NULL)
-		__os_free(dbenv, key->data);
+	if (ret)
+		FREE_IF_CHANGED(key, oldkey);
 	return (ret);
 }
 
@@ -776,25 +758,21 @@ __dbcl_dbc_pget_ret(dbc, skey, pkey, data, flags, replyp)
 		return (ret);
 
 	oldpkey = pkey->data;
-	ret = __dbcl_retcopy(dbenv, pkey, replyp->pkeydata.pkeydata_val,
+	if ((ret = __dbcl_retcopy(dbenv, pkey, replyp->pkeydata.pkeydata_val,
 	    replyp->pkeydata.pkeydata_len, &dbc->my_rkey.data,
-	    &dbc->my_rkey.ulen);
-	if (ret && oldskey != NULL) {
-		__os_free(dbenv, skey->data);
-		return (ret);
-	}
+	    &dbc->my_rkey.ulen)) != 0)
+		goto err;
 	ret = __dbcl_retcopy(dbenv, data, replyp->datadata.datadata_val,
 	    replyp->datadata.datadata_len, &dbc->my_rdata.data,
 	    &dbc->my_rdata.ulen);
+
 	/*
 	 * If an error on copying 'data' and we allocated for '*key'
 	 * free it before returning the error.
 	 */
 	if (ret) {
-		if (oldskey != NULL)
-			__os_free(dbenv, skey->data);
-		if (oldpkey != NULL)
-			__os_free(dbenv, pkey->data);
+err:		FREE_IF_CHANGED(skey, oldskey);
+		FREE_IF_CHANGED(pkey, oldpkey);
 	}
 	return (ret);
 }
@@ -821,4 +799,3 @@ __dbcl_dbc_put_ret(dbc, key, data, flags, replyp)
 		    *(db_recno_t *)replyp->keydata.keydata_val;
 	return (replyp->status);
 }
-#endif /* HAVE_RPC */

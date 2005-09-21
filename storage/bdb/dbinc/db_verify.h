@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_verify.h,v 1.26 2002/08/06 06:37:08 bostic Exp $
+ * $Id: db_verify.h,v 1.34 2004/05/20 14:34:12 bostic Exp $
  */
 
 #ifndef _DB_VERIFY_H_
@@ -19,25 +19,24 @@
  * EPRINT is the macro for error printing.  Takes as an arg the arg set
  * for DB->err.
  */
-#define	EPRINT(x)							\
-	do {								\
-		if (!LF_ISSET(DB_SALVAGE))				\
-			__db_err x;					\
-	} while (0)
+#define	EPRINT(x) do {							\
+	if (!LF_ISSET(DB_SALVAGE))					\
+		__db_err x;						\
+} while (0)
 
 /* For fatal type errors--i.e., verifier bugs. */
 #define	TYPE_ERR_PRINT(dbenv, func, pgno, ptype)			\
-    EPRINT(((dbenv), "Page %lu: %s called on nonsensical page of type %lu", \
-	(u_long)(pgno), (func), (u_long)(ptype)));
+	EPRINT(((dbenv),						\
+	    "Page %lu: %s called on nonsensical page of type %lu",	\
+	    (u_long)(pgno), (func), (u_long)(ptype)));
 
 /* Complain about a totally zeroed page where we don't expect one. */
-#define	ZEROPG_ERR_PRINT(dbenv, pgno, str)				   \
-    do {								   \
-	    EPRINT(((dbenv), "Page %lu: %s is of inappropriate type %lu",  \
-		(u_long)(pgno), str, (u_long)P_INVALID));		   \
-	    EPRINT(((dbenv), "Page %lu: totally zeroed page",		   \
-		(u_long)(pgno)));					   \
-    } while (0)
+#define	ZEROPG_ERR_PRINT(dbenv, pgno, str) do {				\
+	EPRINT(((dbenv), "Page %lu: %s is of inappropriate type %lu",	\
+	    (u_long)(pgno), str, (u_long)P_INVALID));			\
+	EPRINT(((dbenv), "Page %lu: totally zeroed page",		\
+	    (u_long)(pgno)));						\
+} while (0)
 
 /*
  * Note that 0 is, in general, a valid pgno, despite equalling PGNO_INVALID;
@@ -127,10 +126,18 @@ struct __vrfy_dbinfo {
 	/* Queue needs these to verify data pages in the first pass. */
 	u_int32_t	re_len;
 	u_int32_t	rec_page;
+	u_int32_t	page_ext;
+	u_int32_t       first_recno;
+	u_int32_t       last_recno;
+	int		nextents;
+	db_pgno_t	*extents;
 
 #define	SALVAGE_PRINTABLE	0x01	/* Output printable chars literally. */
 #define	SALVAGE_PRINTHEADER	0x02	/* Print the unknown-key header. */
 #define	SALVAGE_PRINTFOOTER	0x04	/* Print the unknown-key footer. */
+#define	VRFY_LEAFCHAIN_BROKEN	0x08	/* Lost one or more Btree leaf pgs. */
+#define	VRFY_QMETA_SET		0x10    /* We've seen a QUEUE meta page and
+					   set things up for it. */
 	u_int32_t	flags;
 }; /* VRFY_DBINFO */
 
@@ -190,6 +197,7 @@ struct __vrfy_pageinfo {
 }; /* VRFY_PAGEINFO */
 
 struct __vrfy_childinfo {
+	/* The following fields are set by the caller of __db_vrfy_childput. */
 	db_pgno_t	pgno;
 
 #define	V_DUPLICATE	1		/* off-page dup metadata */
@@ -198,6 +206,9 @@ struct __vrfy_childinfo {
 	u_int32_t	type;
 	db_recno_t	nrecs;		/* record count on a btree subtree */
 	u_int32_t	tlen;		/* ovfl. item total size */
+
+	/* The following field is maintained by __db_vrfy_childput. */
+	u_int32_t	refcnt;		/* # of times parent points to child. */
 
 	LIST_ENTRY(__vrfy_childinfo) links;
 }; /* VRFY_CHILDINFO */

@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: crdel_rec.c,v 11.68 2004/04/29 00:07:55 ubell Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: crdel_rec.c,v 11.64 2002/08/14 20:27:34 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -19,8 +17,10 @@ static const char revid[] = "$Id: crdel_rec.c,v 11.64 2002/08/14 20:27:34 bostic
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
 #include "dbinc/hash.h"
 #include "dbinc/log.h"
+#include "dbinc/mp.h"
 
 /*
  * __crdel_metasub_recover --
@@ -49,16 +49,10 @@ __crdel_metasub_recover(dbenv, dbtp, lsnp, op, info)
 	REC_PRINT(__crdel_metasub_print);
 	REC_INTRO(__crdel_metasub_read, 0);
 
-	if ((ret = mpf->get(mpf, &argp->pgno, 0, &pagep)) != 0) {
-		if (DB_REDO(op)) {
-			if ((ret = mpf->get(mpf,
-			    &argp->pgno, DB_MPOOL_CREATE, &pagep)) != 0)
-				goto out;
-		} else {
-			*lsnp = argp->prev_lsn;
-			ret = 0;
-			goto out;
-		}
+	if ((ret = __memp_fget(mpf, &argp->pgno, 0, &pagep)) != 0) {
+		*lsnp = argp->prev_lsn;
+		ret = 0;
+		goto out;
 	}
 
 	modified = 0;
@@ -84,7 +78,7 @@ __crdel_metasub_recover(dbenv, dbtp, lsnp, op, info)
 		LSN(pagep) = argp->lsn;
 		modified = 1;
 	}
-	if ((ret = mpf->put(mpf, pagep, modified ? DB_MPOOL_DIRTY : 0)) != 0)
+	if ((ret = __memp_fput(mpf, pagep, modified ? DB_MPOOL_DIRTY : 0)) != 0)
 		goto out;
 	pagep = NULL;
 
@@ -92,6 +86,6 @@ done:	*lsnp = argp->prev_lsn;
 	ret = 0;
 
 out:	if (pagep != NULL)
-		(void)mpf->put(mpf, pagep, 0);
+		(void)__memp_fput(mpf, pagep, 0);
 	REC_CLOSE;
 }

@@ -1,5 +1,87 @@
 Revision history for Perl extension BerkeleyDB.
 
+0.26  10th October 2004
+
+        * Changed to allow Building with Berkeley DB 4.3
+
+        * added cds_lock and associated methods as a convenience to allow
+          safe updaing of database records when using Berkeley DB CDS mode.
+
+        * added t/cds.t and t/pod.t
+
+        * Modified the test suite to use "-ErrFile => *STDOUT" where 
+          possible. This will make it easier to diagnose build issues.
+
+	* -Errfile will now accept a filehandle as well as a filename
+          This means that -ErrFile => *STDOUT will get all extended error
+          messages displayed directly on screen.
+
+	* Added support for set_shm_key & get_shm_key.
+
+	* Patch from Mark Jason Dominus to add a better error message
+	  when an odd number of parameters are passed to ParseParameters.
+
+	* fixed off-by-one error in my_strdup
+
+	* Fixed a problem with push, pop, shift & unshift with Queue &
+	  Recno when used in CDS mode. These methods were not using
+	  a write cursor behind the scenes. 
+	  Problem reported by Pavel Hlavnicka.
+
+0.25  1st November 2003
+
+	* Minor update to dbinfo
+
+	* Fixed a bug in the test harnesses that is only apparent in
+	  perl 5.8.2.  Original patch courtesy of Michael Schwern.
+
+0.24 27th September 2003
+
+        * Mentioned comp.databases.berkeley-db in README
+
+        * Builds with Berkeley DB 4.2
+
+        * The return type for db->db_fd was wrongly set at DualType -
+          should be int.
+
+0.23 15th June 2003
+
+        * Fixed problem where a secondary index would use the same
+          compare callback as the primary key, regardless of what was
+          defined for the secondary index. 
+	  Problem spotted by Dave Tallman.
+
+        * Also fixed a problem with the associate callback. If the value
+          for the secondary key was not a string, the secondary key was
+          being set incorrectly. This is now fixed.
+
+        * When built with Berkeley DB 3.2 or better, all callbacks now use
+          the BackRef pointer instead of the global CurrentDB. This was
+          done partially to fix the secondary index problem, above.
+
+        * The test harness was failing under cygwin. Now fixed. 
+
+        * Previous release broke TRACE. Fixed.
+
+0.22 17th May 2003
+
+        * win32 problem with open macro fixed.
+
+0.21 12th May 2003
+
+        * adding support for env->set_flags 
+	* adding recursion detection
+	* win32 problem with rename fixed.
+	* problem with sub-database name in Recno & Queue fixed.
+	* fixed the mldbm.t test harness to work with perl 5.8.0
+	* added a note about not using a network drive when running the
+	  test harness.
+	* fixed c_pget
+	* added BerkeleyDB::Env::DB_ENV method
+	* added support for encryption
+	* the dbinfo script will now indicate if the database is encrypted
+	* The CLEAR method is now CDB safe.
+
 0.20 2nd September 2002
 
         * More support for building with Berkeley DB 4.1.x

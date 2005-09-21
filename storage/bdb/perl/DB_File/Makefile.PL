@@ -38,6 +38,9 @@ $LIBS .= " -lpthread" if $^O eq 'aix' ;
 my $OS2 = "" ;
 $OS2 = "-DOS2" if $Config{'osname'} eq 'os2' ;
 
+my $WALL = '' ;
+#$WALL = ' -Wall ';
+
 WriteMakefile(
 	NAME 		=> 'DB_File',
 	LIBS 		=> ["-L${LIB_DIR} $LIBS"],
@@ -45,7 +48,7 @@ WriteMakefile(
 	INC		=> "-I$INC_DIR",
 	VERSION_FROM	=> 'DB_File.pm',
 	XSPROTOARG	=> '-noprototypes',
-	DEFINE		=> "-D_NOT_CORE $OS2 $VER_INFO $COMPAT185",
+	DEFINE		=> "-D_NOT_CORE $OS2 $VER_INFO $COMPAT185 $WALL",
 	OBJECT		=> 'version$(OBJ_EXT) DB_File$(OBJ_EXT)',
 	#OPTIMIZE	=> '-g',
 	'depend'	=> { 'Makefile'          => 'config.in',
@@ -214,7 +217,7 @@ sub ParseCONFIG
 
     $INC_DIR = $ENV{'DB_FILE_INCLUDE'} || $Info{'INCLUDE'} ;
     $LIB_DIR = $ENV{'DB_FILE_LIB'} || $Info{'LIB'} ;
-    $DB_NAME = $Info{'DBNAME'} if defined $Info{'DBNAME'} ;
+    $DB_NAME = $ENV{'DB_FILE_NAME'} || $Info{'DBNAME'} ;
     $COMPAT185 = "-DCOMPAT185 -DDB_LIBRARY_COMPATIBILITY_API" 
         if (defined $ENV{'DB_FILE_COMPAT185'} && 
 		$ENV{'DB_FILE_COMPAT185'} =~ /^\s*(on|true|1)\s*$/i) ||

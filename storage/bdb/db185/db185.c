@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db185.c,v 11.35 2004/03/24 20:37:35 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2002\nSleepycat Software Inc.  All rights reserved.\n";
-static const char revid[] =
-    "$Id: db185.c,v 11.28 2002/05/09 01:55:14 bostic Exp $";
+    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -19,7 +19,6 @@ static const char revid[] =
 
 #include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -32,7 +31,6 @@ static int	db185_fd __P((const DB185 *));
 static int	db185_get __P((const DB185 *, const DBT185 *, DBT185 *, u_int));
 static u_int32_t
 		db185_hash __P((DB *, const void *, u_int32_t));
-static void	db185_openstderr __P((DB_FH *));
 static size_t	db185_prefix __P((DB *, const DBT *, const DBT *));
 static int	db185_put __P((const DB185 *, DBT185 *, const DBT185 *, u_int));
 static int	db185_seq __P((const DB185 *, DBT185 *, DBT185 *, u_int));
@@ -59,8 +57,7 @@ __db185_open(file, oflags, mode, type, openinfo)
 	const RECNOINFO *ri;
 	DB *dbp;
 	DB185 *db185p;
-	DB_FH fh;
-	size_t nw;
+	DB_FH *fhp;
 	int ret;
 
 	dbp = NULL;
@@ -161,8 +158,8 @@ __db185_open(file, oflags, mode, type, openinfo)
 		if (file != NULL) {
 			if (oflags & O_CREAT && __os_exists(file, NULL) != 0)
 				if (__os_openhandle(NULL, file,
-				    oflags, mode, &fh) == 0)
-					(void)__os_closehandle(NULL, &fh);
+				    oflags, mode, &fhp) == 0)
+					(void)__os_closehandle(NULL, fhp);
 			(void)dbp->set_re_source(dbp, file);
 
 			if (O_RDONLY)
@@ -176,11 +173,10 @@ __db185_open(file, oflags, mode, type, openinfo)
 			 * !!!
 			 * We can't support the bfname field.
 			 */
-#define	BFMSG	"DB: DB 1.85's recno bfname field is not supported.\n"
+#define	BFMSG \
+	"Berkeley DB: DB 1.85's recno bfname field is not supported.\n"
 			if (ri->bfname != NULL) {
-				db185_openstderr(&fh);
-				(void)__os_write(NULL, &fh,
-				    BFMSG, sizeof(BFMSG) - 1, &nw);
+				dbp->errx(dbp, "%s", BFMSG);
 				goto einval;
 			}
 
@@ -228,7 +224,7 @@ __db185_open(file, oflags, mode, type, openinfo)
 	 * Store a reference so we can indirect from the DB 1.85 structure
 	 * to the underlying DB structure, and vice-versa.  This has to be
 	 * done BEFORE the DB::open method call because the hash callback
-	 * is exercised as part of hash database initialiation.
+	 * is exercised as part of hash database initialization.
 	 */
 	db185p->dbp = dbp;
 	dbp->api_internal = db185p;
@@ -244,9 +240,9 @@ __db185_open(file, oflags, mode, type, openinfo)
 
 	return (db185p);
 
-err:	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
-einval:		ret = EINVAL;
-	if (db185p != NULL)
+einval:	ret = EINVAL;
+
+err:	if (db185p != NULL)
 		__os_free(NULL, db185p);
 	if (dbp != NULL)
 		(void)dbp->close(dbp, 0);
@@ -271,8 +267,6 @@ db185_close(db185p)
 	if (ret == 0)
 		return (0);
 
-	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
-		ret = EINVAL;
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -307,8 +301,9 @@ db185_del(db185p, key185, flags)
 		return (1);
 	}
 
-	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+	if (0) {
 einval:		ret = EINVAL;
+	}
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -325,8 +320,6 @@ db185_fd(db185p)
 	if ((ret = dbp->fd(dbp, &fd)) == 0)
 		return (fd);
 
-	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
-		ret = EINVAL;
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -363,8 +356,9 @@ db185_get(db185p, key185, data185, flags)
 		return (1);
 	}
 
-	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+	if (0) {
 einval:		ret = EINVAL;
+	}
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -440,8 +434,9 @@ db185_put(db185p, key185, data185, flags)
 		return (1);
 	}
 
-	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+	if (0) {
 einval:		ret = EINVAL;
+	}
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -499,8 +494,9 @@ db185_seq(db185p, key185, data185, flags)
 		return (1);
 	}
 
-	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+	if (0) {
 einval:		ret = EINVAL;
+	}
 	__os_set_errno(ret);
 	return (-1);
 }
@@ -511,8 +507,6 @@ db185_sync(db185p, flags)
 	u_int flags;
 {
 	DB *dbp;
-	DB_FH fh;
-	size_t nw;
 	int ret;
 
 	dbp = db185p->dbp;
@@ -525,10 +519,10 @@ db185_sync(db185p, flags)
 		 * !!!
 		 * We can't support the R_RECNOSYNC flag.
 		 */
-#define	RSMSG	"DB: DB 1.85's R_RECNOSYNC sync flag is not supported.\n"
-		db185_openstderr(&fh);
-		(void)__os_write(NULL, &fh, RSMSG, sizeof(RSMSG) - 1, &nw);
-		goto einval;
+#define	RSMSG \
+	"Berkeley DB: DB 1.85's R_RECNOSYNC sync flag is not supported.\n"
+		dbp->errx(dbp, "%s", RSMSG);
+		/* FALLTHROUGH */
 	default:
 		goto einval;
 	}
@@ -536,24 +530,11 @@ db185_sync(db185p, flags)
 	if ((ret = dbp->sync(dbp, 0)) == 0)
 		return (0);
 
-	if (ret < 0)		/* DB 1.85 can't handle DB 2.0's errors. */
+	if (0) {
 einval:		ret = EINVAL;
+	}
 	__os_set_errno(ret);
 	return (-1);
-}
-
-static void
-db185_openstderr(fhp)
-	DB_FH *fhp;
-{
-	/* Dummy up the results of an __os_openhandle() on stderr. */
-	memset(fhp, 0, sizeof(*fhp));
-	F_SET(fhp, DB_FH_VALID);
-
-#ifndef STDERR_FILENO
-#define	STDERR_FILENO	2
-#endif
-	fhp->fd = STDERR_FILENO;
 }
 
 /*

@@ -1,17 +1,23 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2001-2002
+# Copyright (c) 2001-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: si003.tcl,v 1.6 2002/04/29 17:12:03 sandstro Exp $
+# $Id: si003.tcl,v 1.12 2004/10/27 20:40:25 carol Exp $
 #
-# TEST	sindex003
-# TEST	sindex001 with secondaries created and closed mid-test
+# TEST	si003
+# TEST	si001 with secondaries created and closed mid-test
 # TEST	Basic secondary index put/delete test with secondaries
 # TEST	created mid-test.
-proc sindex003 { methods {nentries 200} {tnum 3} args } {
+proc si003 { methods {nentries 200} {tnum "003"} args } {
 	source ./include.tcl
 	global dict nsecondaries
+
+	# There's no reason to run this test on large lists.
+	if { $nentries > 1000 } {
+		puts "Skipping si003 for large lists (over 1000 items)"
+		return
+	}
 
 	# Primary method/args.
 	set pmethod [lindex $methods 0]
@@ -31,11 +37,11 @@ proc sindex003 { methods {nentries 200} {tnum 3} args } {
 	set argses [convert_argses $methods $args]
 	set omethods [convert_methods $methods]
 
-	puts "Sindex00$tnum ($pmethod/$methods) $nentries equal key/data pairs"
+	puts "si$tnum \{\[ list $pmethod $methods \]\} $nentries" 
 	env_cleanup $testdir
 
-	set pname "primary00$tnum.db"
-	set snamebase "secondary00$tnum"
+	set pname "primary$tnum.db"
+	set snamebase "secondary$tnum"
 
 	# Open an environment
 	# XXX if one is not supplied!
@@ -46,7 +52,7 @@ proc sindex003 { methods {nentries 200} {tnum 3} args } {
 	set pdb [eval {berkdb_open -create -env} $env $pomethod $pargs $pname]
 	error_check_good primary_open [is_valid_db $pdb] TRUE
 
-	puts -nonewline "\tSindex00$tnum.a: Put loop ... "
+	puts -nonewline "\tSi$tnum.a: Put loop ... "
 	set did [open $dict]
 	for { set n 0 } { [gets $did str] != -1 && $n < $nentries } { incr n } {
 		if { [is_record_based $pmethod] == 1 } {
@@ -76,9 +82,9 @@ proc sindex003 { methods {nentries 200} {tnum 3} args } {
 		    [$pdb associate -create [callback_n $i] $sdb] 0
 		lappend sdbs $sdb
 	}
-	check_secondaries $pdb $sdbs $nentries keys data "Sindex00$tnum.a"
+	check_secondaries $pdb $sdbs $nentries keys data "Si$tnum.a"
 
-	puts -nonewline "\tSindex00$tnum.b: Put/overwrite loop ... "
+	puts -nonewline "\tSi$tnum.b: Put/overwrite loop ... "
 	for { set n 0 } { $n < $nentries } { incr n } {
 		set newd $data($n).$keys($n)
 		set ret [eval {$pdb put} {$keys($n) [chop_data $pmethod $newd]}]
@@ -93,7 +99,7 @@ proc sindex003 { methods {nentries 200} {tnum 3} args } {
 		error_check_good second_close($sdb) [$sdb close] 0
 		set sdbs [lrange $sdbs 0 end-1]
 		check_secondaries \
-		    $pdb $sdbs $nentries keys data "Sindex00$tnum.b"
+		    $pdb $sdbs $nentries keys data "Si$tnum.b"
 	}
 
 	# Delete the second half of the entries through the primary.
@@ -101,7 +107,7 @@ proc sindex003 { methods {nentries 200} {tnum 3} args } {
 	# to check_secondaries.
 	set half [expr $nentries / 2]
 	puts -nonewline \
-	    "\tSindex00$tnum.c: Primary delete loop: deleting $half entries ..."
+	    "\tSi$tnum.c: Primary delete loop: deleting $half entries ..."
 	for { set n $half } { $n < $nentries } { incr n } {
 		set ret [$pdb del $keys($n)]
 		error_check_good pdel($n) $ret 0
@@ -120,11 +126,11 @@ proc sindex003 { methods {nentries 200} {tnum 3} args } {
 		    [$pdb associate -create [callback_n $i] $sdb] 0
 		lappend sdbs $sdb
 	}
-	check_secondaries $pdb $sdbs $half keys data "Sindex00$tnum.c"
+	check_secondaries $pdb $sdbs $half keys data "Si$tnum.c"
 
 	# Delete half of what's left, through the first secondary.
 	set quar [expr $half / 2]
-	puts "\tSindex00$tnum.d: Secondary delete loop: deleting $quar entries"
+	puts "\tSi$tnum.d: Secondary delete loop: deleting $quar entries"
 	set sdb [lindex $sdbs 0]
 	set callback [callback_n 0]
 	for { set n $quar } { $n < $half } { incr n } {
@@ -132,7 +138,7 @@ proc sindex003 { methods {nentries 200} {tnum 3} args } {
 		set ret [$sdb del $skey]
 		error_check_good sdel($n) $ret 0
 	}
-	check_secondaries $pdb $sdbs $quar keys data "Sindex00$tnum.d"
+	check_secondaries $pdb $sdbs $quar keys data "Si$tnum.d"
 
 	foreach sdb $sdbs {
 		error_check_good secondary_close [$sdb close] 0

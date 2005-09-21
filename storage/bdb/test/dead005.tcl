@@ -1,27 +1,28 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: dead005.tcl,v 11.10 2002/09/05 17:23:05 sandstro Exp $
+# $Id: dead005.tcl,v 11.15 2004/03/17 15:17:17 bostic Exp $
 #
 # Deadlock Test 5.
 # Test out the minlocks, maxlocks, and minwrites options
 # to the deadlock detector.
-proc dead005 { { procs "4 6 10" } {tests "maxlocks minwrites minlocks" } } {
+proc dead005 { { procs "4 6 10" } \
+    {tests "maxlocks maxwrites minlocks minwrites" } { tnum "005" } } {
 	source ./include.tcl
 
-	puts "Dead005: minlocks, maxlocks, and minwrites deadlock detection tests"
 	foreach t $tests {
-		puts "Dead005.$t: creating environment"
+		puts "Dead$tnum.$t: deadlock detection tests"
 		env_cleanup $testdir
 
 		# Create the environment.
 		set env [berkdb_env -create -mode 0644 -lock -home $testdir]
 		error_check_good lock_env:open [is_valid_env $env] TRUE
 		case $t {
-			minlocks { set to n }
 			maxlocks { set to m }
+			maxwrites { set to W }
+			minlocks { set to n }
 			minwrites { set to w }
 		}
 		foreach n $procs {
@@ -31,15 +32,15 @@ proc dead005 { { procs "4 6 10" } {tests "maxlocks minwrites minlocks" } } {
 			set pidlist ""
 
 			# Fire off the tests
-			puts "\tDead005: $t test with $n procs"
+			puts "\tDead$tnum: $t test with $n procs"
 			for { set i 0 } { $i < $n } { incr i } {
 				set locker [$env lock_id]
 				puts "$tclsh_path $test_path/wrap.tcl \
-				    $testdir/dead005.log.$i \
+				    $testdir/dead$tnum.log.$i \
 				    ddscript.tcl $testdir $t $locker $i $n"
 				set p [exec $tclsh_path \
 					$test_path/wrap.tcl \
-					ddscript.tcl $testdir/dead005.log.$i \
+					ddscript.tcl $testdir/dead$tnum.log.$i \
 					$testdir $t $locker $i $n &]
 				lappend pidlist $p
 			}
@@ -50,7 +51,7 @@ proc dead005 { { procs "4 6 10" } {tests "maxlocks minwrites minlocks" } } {
 			set clean 0
 			set other 0
 			for { set i 0 } { $i < $n } { incr i } {
-				set did [open $testdir/dead005.log.$i]
+				set did [open $testdir/dead$tnum.log.$i]
 				while { [gets $did val] != -1 } {
 					switch $val {
 						DEADLOCK { incr dead }
@@ -61,16 +62,17 @@ proc dead005 { { procs "4 6 10" } {tests "maxlocks minwrites minlocks" } } {
 				close $did
 			}
 			tclkill $dpid
-			puts "dead check..."
+			puts "\tDead$tnum: dead check..."
 			dead_check $t $n 0 $dead $clean $other
 			# Now verify that the correct participant
 			# got deadlocked.
 			switch $t {
+				maxlocks {set f [expr $n - 1]}
+				maxwrites {set f 2}
 				minlocks {set f 0}
 				minwrites {set f 1}
-				maxlocks {set f [expr $n - 1]}
 			}
-			set did [open $testdir/dead005.log.$f]
+			set did [open $testdir/dead$tnum.log.$f]
 			error_check_bad file:$t [gets $did val] -1
 			error_check_good read($f):$t $val DEADLOCK
 			close $did

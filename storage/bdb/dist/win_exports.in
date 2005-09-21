@@ -1,15 +1,13 @@
-# $Id: win_exports.in,v 1.25 2002/08/29 14:22:21 margo Exp $
+# $Id: win_exports.in,v 1.41 2004/10/12 17:44:10 bostic Exp $
 
 # Standard interfaces.
 	db_create
 	db_env_create
+	db_sequence_create
 	db_strerror
 	db_version
 	db_xa_switch
 	log_compare
-	txn_abort
-	txn_begin
-	txn_commit
 
 # Library configuration interfaces.
 	db_env_set_func_close
@@ -18,10 +16,13 @@
 	db_env_set_func_exists
 	db_env_set_func_free
 	db_env_set_func_fsync
+	db_env_set_func_ftruncate
 	db_env_set_func_ioinfo
 	db_env_set_func_malloc
 	db_env_set_func_map
 	db_env_set_func_open
+	db_env_set_func_pread
+	db_env_set_func_pwrite
 	db_env_set_func_read
 	db_env_set_func_realloc
 	db_env_set_func_rename
@@ -43,6 +44,8 @@
 	__db_dbm_init
 	__db_dbm_nextkey
 	__db_dbm_store
+	__db_get_flags_fn
+	__db_get_seq_flags_fn
 	__db_hcreate
 	__db_hdestroy
 	__db_hsearch
@@ -70,8 +73,7 @@
 	__ham_func4
 	__ham_func5
 	__ham_test
-	__lock_dump_region
-	__memp_dump_region
+	__lock_id_set
 	__os_calloc
 	__os_closehandle
 	__os_free
@@ -84,44 +86,78 @@
 	__os_strdup
 	__os_umalloc
 	__os_write
+	__txn_id_set
 
 #These are needed for linking tools or java.
-	__bam_init_print
+	__bam_adj_read
+	__bam_cadjust_read
+	__bam_cdel_read
+	__bam_curadj_read
 	__bam_pgin
 	__bam_pgout
-	__crdel_init_print
+	__bam_rcuradj_read
+	__bam_relink_read
+	__bam_repl_read
+	__bam_root_read
+	__bam_rsplit_read
+	__bam_split_read
+	__crdel_metasub_read
+	__db_addrem_read
+	__db_big_read
+	__db_cksum_read
+	__db_debug_read
 	__db_dispatch
-	__db_dump
-	__db_e_stat
+	__db_dumptree
 	__db_err
+	__db_fileid_reset
 	__db_getlong
 	__db_getulong
 	__db_global_values
-	__db_init_print
-	__db_inmemdbflags
 	__db_isbigendian
+	__db_lsn_reset
+	__db_noop_read
 	__db_omode
 	__db_overwrite
+	__db_ovref_read
+	__db_pg_alloc_read
+	__db_pg_free_read
+	__db_pg_freedata_read
+	__db_pg_init_read
+	__db_pg_new_read
+	__db_pg_prepare_read
 	__db_pgin
 	__db_pgout
-	__db_prdbt
-	__db_prfooter
-	__db_prheader
+	__db_pr_callback
 	__db_rpath
+	__db_stat_pp
+	__db_stat_print_pp
 	__db_util_cache
 	__db_util_interrupted
 	__db_util_logset
 	__db_util_siginit
 	__db_util_sigresend
-	__db_verify_callback
 	__db_verify_internal
-	__dbreg_init_print
-	__fop_init_print
+	__dbreg_register_read
+	__fop_create_read
+	__fop_file_remove_read
+	__fop_remove_read
+	__fop_rename_read
+	__fop_write_read
+	__ham_chgpg_read
+	__ham_copypage_read
+	__ham_curadj_read
 	__ham_get_meta
-	__ham_init_print
+	__ham_groupalloc_read
+	__ham_insdel_read
+	__ham_metagroup_read
+	__ham_newpage_read
 	__ham_pgin
 	__ham_pgout
 	__ham_release_meta
+	__ham_replace_read
+	__ham_splitdata_read
+	__lock_list_print
+	__log_stat_pp
 	__os_clock
 	__os_get_errno
 	__os_id
@@ -129,6 +165,15 @@
 	__os_sleep
 	__os_ufree
 	__os_yield
-	__qam_init_print
+	__qam_add_read
+	__qam_del_read
+	__qam_delext_read
+	__qam_incfirst_read
+	__qam_mvptr_read
 	__qam_pgin_out
-	__txn_init_print
+	__rep_stat_print
+	__txn_child_read
+	__txn_ckp_read
+	__txn_recycle_read
+	__txn_regop_read
+	__txn_xa_regop_read

@@ -1,15 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test074.tcl,v 11.17 2002/05/24 15:24:56 sue Exp $
+# $Id: test074.tcl,v 11.22 2004/09/22 18:01:06 bostic Exp $
 #
 # TEST	test074
 # TEST	Test of DB_NEXT_NODUP.
-proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
+proc test074 { method {dir -nextnodup} {nitems 100} {tnum "074"} args } {
 	source ./include.tcl
 	global alphabet
+	global is_je_test
 	global rand_init
 
 	set omethod [convert_method $method]
@@ -25,12 +26,12 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 		set globaldata [repeat $alphabet 4]
 	}
 
-	puts "Test0$tnum $omethod ($args): Test of $dir"
+	puts "Test$tnum $omethod ($args): Test of $dir"
 
 	# First, test non-dup (and not-very-interesting) case with
 	# all db types.
 
-	puts "\tTest0$tnum.a: No duplicates."
+	puts "\tTest$tnum.a: No duplicates."
 
 	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
@@ -38,10 +39,10 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum-nodup.db
+		set testfile $testdir/test$tnum-nodup.db
 		set env NULL
 	} else {
-		set testfile test0$tnum-nodup.db
+		set testfile test$tnum-nodup.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -57,7 +58,7 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 	set txn ""
 
 	# Insert nitems items.
-	puts "\t\tTest0$tnum.a.1: Put loop."
+	puts "\t\tTest$tnum.a.1: Put loop."
 	for {set i 1} {$i <= $nitems} {incr i} {
 		#
 		# If record based, set key to $i * 2 to leave
@@ -82,7 +83,7 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 		}
 	}
 
-	puts "\t\tTest0$tnum.a.2: Get($dir)"
+	puts "\t\tTest$tnum.a.2: Get($dir)"
 
 	# foundarray($i) is set when key number i is found in the database
 	if { $txnenv == 1 } {
@@ -118,10 +119,10 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 		set foundarray($num) 1
 	}
 
-	puts "\t\tTest0$tnum.a.3: Final key."
+	puts "\t\tTest$tnum.a.3: Final key."
 	error_check_good last_db_get [$dbc get $dir] [list]
 
-	puts "\t\tTest0$tnum.a.4: Verify loop."
+	puts "\t\tTest$tnum.a.4: Verify loop."
 	for { set i 1 } { $i <= $nitems } { incr i } {
 		error_check_good found_key($i) $foundarray($i) 1
 	}
@@ -139,7 +140,7 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 			error_check_good txn [is_valid_txn $t $env] TRUE
 			set txn "-txn $t"
 		}
-		puts "\t\tTest0$tnum.a.5: Check DB_NEXT_DUP for $method."
+		puts "\t\tTest$tnum.a.5: Check DB_NEXT_DUP for $method."
 		set dbc [eval {$db cursor} $txn]
 		error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
@@ -154,28 +155,31 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 
 	# Quit here if we're a method that won't allow dups.
 	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
-		puts "\tTest0$tnum: Skipping remainder for method $method."
+		puts "\tTest$tnum: Skipping remainder for method $method."
 		return
 	}
 
 	foreach opt { "-dup" "-dupsort" } {
+		if { $is_je_test && $opt == "-dup" } {
+			continue
+		}
 
 		#
 		# If we are using an env, then testfile should just be the
 		# db name.  Otherwise it is the test directory and the name.
 		if { $eindex == -1 } {
-			set testfile $testdir/test0$tnum$opt.db
+			set testfile $testdir/test$tnum$opt.db
 		} else {
-			set testfile test0$tnum$opt.db
+			set testfile test$tnum$opt.db
 		}
 
 		if { [string compare $opt "-dupsort"] == 0 } {
 			set opt "-dup -dupsort"
 		}
 
-		puts "\tTest0$tnum.b: Duplicates ($opt)."
+		puts "\tTest$tnum.b: Duplicates ($opt)."
 
-		puts "\t\tTest0$tnum.b.1 ($opt): Put loop."
+		puts "\t\tTest$tnum.b.1 ($opt): Put loop."
 		set db [eval {berkdb_open -create -mode 0644}\
 		    $opt $omethod $args {$testfile}]
 		error_check_good db_open [is_valid_db $db] TRUE
@@ -215,7 +219,7 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 
 		# Get loop--after each get, move forward a random increment
 		# within the duplicate set.
-		puts "\t\tTest0$tnum.b.2 ($opt): Get loop."
+		puts "\t\tTest$tnum.b.2 ($opt): Get loop."
 		set one "001"
 		if { $txnenv == 1 } {
 			set t [$env txn]
@@ -253,11 +257,11 @@ proc test074 { method {dir -nextnodup} {nitems 100} {tnum 74} args } {
 			}
 		}
 
-		puts "\t\tTest0$tnum.b.3 ($opt): Final key."
+		puts "\t\tTest$tnum.b.3 ($opt): Final key."
 		error_check_good last_db_get($opt) [$dbc get $dir] [list]
 
 		# Verify
-		puts "\t\tTest0$tnum.b.4 ($opt): Verify loop."
+		puts "\t\tTest$tnum.b.4 ($opt): Verify loop."
 		for { set i 1 } { $i <= $nitems } { incr i } {
 			error_check_good found_key($i) $foundarray($i) 1
 		}

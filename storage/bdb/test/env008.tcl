@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: env008.tcl,v 11.6 2002/02/22 14:29:34 sandstro Exp $
+# $Id: env008.tcl,v 11.8 2004/01/28 03:36:27 bostic Exp $
 #
 # TEST	env008
 # TEST	Test environments and subdirectories.

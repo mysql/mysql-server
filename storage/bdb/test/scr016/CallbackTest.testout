@@ -7,12 +7,10 @@ compare function called
   key6, key3
 put 9
 compare function called
+  key9, key3
+compare function called
   key9, key6
 put 2
-compare function called
-  key2, key9
-compare function called
-  key2, key0
 compare function called
   key2, key6
 compare function called
@@ -34,10 +32,6 @@ compare function called
 compare function called
   key8, key6
 put 1
-compare function called
-  key1, key9
-compare function called
-  key1, key0
 compare function called
   key1, key5
 compare function called

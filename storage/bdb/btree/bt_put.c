@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -38,13 +38,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: bt_put.c,v 11.80 2004/10/29 17:33:25 ubell Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: bt_put.c,v 11.69 2002/08/06 06:11:12 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -54,7 +52,9 @@ static const char revid[] = "$Id: bt_put.c,v 11.69 2002/08/06 06:11:12 bostic Ex
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
 #include "dbinc/btree.h"
+#include "dbinc/mp.h"
 
 static int __bam_build
 	       __P((DBC *, u_int32_t, DBT *, PAGE *, u_int32_t, u_int32_t));
@@ -76,6 +76,7 @@ __bam_iitem(dbc, key, data, op, flags)
 	DBT *key, *data;
 	u_int32_t op, flags;
 {
+	DB_ENV *dbenv;
 	BKEYDATA *bk, bk_tmp;
 	BTREE *t;
 	BTREE_CURSOR *cp;
@@ -90,6 +91,7 @@ __bam_iitem(dbc, key, data, op, flags)
 	COMPQUIET(bk, NULL);
 
 	dbp = dbc->dbp;
+	dbenv = dbp->dbenv;
 	mpf = dbp->mpf;
 	cp = (BTREE_CURSOR *)dbc->internal;
 	t = dbp->bt_internal;
@@ -102,10 +104,8 @@ __bam_iitem(dbc, key, data, op, flags)
 	 * anything other simple overwrite.
 	 */
 	if (F_ISSET(dbp, DB_AM_FIXEDLEN) &&
-	    F_ISSET(data, DB_DBT_PARTIAL) && data->dlen != data->size) {
-		data_size = data->size;
-		goto len_err;
-	}
+	    F_ISSET(data, DB_DBT_PARTIAL) && data->size != data->dlen)
+		return (__db_rec_repl(dbenv, data->size, data->dlen));
 
 	/*
 	 * Figure out how much space the data will take, including if it's a
@@ -119,12 +119,8 @@ __bam_iitem(dbc, key, data, op, flags)
 	    __bam_partsize(dbp, op, data, h, indx) : data->size;
 	padrec = 0;
 	if (F_ISSET(dbp, DB_AM_FIXEDLEN)) {
-		if (data_size > t->re_len) {
-len_err:		__db_err(dbp->dbenv,
-			    "Length improper for fixed length record %lu",
-			    (u_long)data_size);
-			return (EINVAL);
-		}
+		if (data_size > t->re_len)
+			return (__db_rec_toobig(dbenv, data_size, t->re_len));
 
 		/* Records that are deleted anyway needn't be padded out. */
 		if (!LF_ISSET(BI_DELETED) && data_size < t->re_len) {
@@ -158,8 +154,8 @@ len_err:		__db_err(dbp->dbenv,
 		    dbp->dup_compare, &cmp)) != 0)
 			return (ret);
 		if (cmp != 0) {
-			__db_err(dbp->dbenv,
-			    "Current data differs from put data");
+			__db_err(dbenv,
+		"Existing data sorts differently from put data");
 			return (EINVAL);
 		}
 	}
@@ -218,19 +214,14 @@ len_err:		__db_err(dbp->dbenv,
 			needed += need_bytes - have_bytes;
 		break;
 	default:
-		return (__db_unknown_flag(dbp->dbenv, "__bam_iitem", op));
+		return (__db_unknown_flag(dbenv, "DB->put", op));
 	}
 
 	/*
 	 * If there's not enough room, or the user has put a ceiling on the
 	 * number of keys permitted in the page, split the page.
-	 *
-	 * XXX
-	 * The t->bt_maxkey test here may be insufficient -- do we have to
-	 * check in the btree split code, so we don't undo it there!?!?
 	 */
-	if (P_FREESPACE(dbp, h) < needed ||
-	    (t->bt_maxkey != 0 && NUM_ENT(h) > t->bt_maxkey))
+	if (P_FREESPACE(dbp, h) < needed)
 		return (DB_NEEDSPLIT);
 
 	/*
@@ -294,23 +285,24 @@ len_err:		__db_err(dbp->dbenv,
 		  * we deadlock or fail while deleting the overflow item or
 		  * replacing the non-overflow item, a subsequent cursor close
 		  * will try and remove the item because the cursor's delete
-		  * flag is set
+		  * flag is set.
 		  */
 		(void)__bam_ca_delete(dbp, PGNO(h), indx, 0);
 
 		if (TYPE(h) == P_LBTREE) {
 			++indx;
 			dupadjust = 1;
-
-			/*
-			 * In a Btree deleted records aren't counted (deleted
-			 * records are counted in a Recno because all accesses
-			 * are based on record number).  If it's a Btree and
-			 * it's a DB_CURRENT operation overwriting a previously
-			 * deleted record, increment the record count.
-			 */
-			was_deleted = B_DISSET(bk->type);
 		}
+
+		/*
+		 * In a Btree deleted records aren't counted (deleted records
+		 * are counted in a Recno because all accesses are based on
+		 * record number).  If it's a Btree and it's a DB_CURRENT
+		 * operation overwriting a previously deleted record, increment
+		 * the record count.
+		 */
+		if (TYPE(h) == P_LBTREE || TYPE(h) == P_LDUP)
+			was_deleted = B_DISSET(bk->type);
 
 		/*
 		 * 4. Delete and re-add the data item.
@@ -331,7 +323,7 @@ len_err:		__db_err(dbp->dbenv,
 		replace = 1;
 		break;
 	default:
-		return (__db_unknown_flag(dbp->dbenv, "__bam_iitem", op));
+		return (__db_unknown_flag(dbenv, "DB->put", op));
 	}
 
 	/* Add the data. */
@@ -360,7 +352,7 @@ len_err:		__db_err(dbp->dbenv,
 		if (ret != 0)
 			return (ret);
 	}
-	if ((ret = mpf->set(mpf, h, DB_MPOOL_DIRTY)) != 0)
+	if ((ret = __memp_fset(mpf, h, DB_MPOOL_DIRTY)) != 0)
 		return (ret);
 
 	/*
@@ -648,7 +640,7 @@ __bam_ritem(dbc, h, indx, data)
 		if (p == t)			/* First index is fast. */
 			inp[indx] += nbytes;
 		else {				/* Else, shift the page. */
-			memmove(p + nbytes, p, t - p);
+			memmove(p + nbytes, p, (size_t)(t - p));
 
 			/* Adjust the indices' offsets. */
 			off = inp[indx];
@@ -700,12 +692,16 @@ __bam_dup_convert(dbc, h, indx)
 	 */
 	while (indx > 0 && inp[indx] == inp[indx - P_INDX])
 		indx -= P_INDX;
-	for (cnt = 0, sz = 0, first = indx;; ++cnt, indx += P_INDX) {
-		if (indx >= NUM_ENT(h) || inp[first] != inp[indx])
-			break;
-		bk = GET_BKEYDATA(dbp, h, indx);
-		sz += B_TYPE(bk->type) == B_KEYDATA ?
-		    BKEYDATA_PSIZE(bk->len) : BOVERFLOW_PSIZE;
+
+	/* Count the key once. */
+	bk = GET_BKEYDATA(dbp, h, indx);
+	sz = B_TYPE(bk->type) == B_KEYDATA ?
+	    BKEYDATA_PSIZE(bk->len) : BOVERFLOW_PSIZE;
+
+	/* Sum up all the data items. */
+	for (cnt = 0, first = indx;
+	    indx < NUM_ENT(h) && inp[first] == inp[indx];
+	    ++cnt, indx += P_INDX) {
 		bk = GET_BKEYDATA(dbp, h, indx + O_INDX);
 		sz += B_TYPE(bk->type) == B_KEYDATA ?
 		    BKEYDATA_PSIZE(bk->len) : BOVERFLOW_PSIZE;
@@ -800,14 +796,14 @@ __bam_dup_convert(dbc, h, indx)
 	    B_DUPLICATE, dp->pgno, h, first + 1, NULL)) != 0)
 		goto err;
 
-	/* Adjust cursors for all the above movments. */
+	/* Adjust cursors for all the above movements. */
 	if ((ret = __bam_ca_di(dbc,
-	    PGNO(h), first + P_INDX, first + P_INDX - indx)) != 0)
+	    PGNO(h), first + P_INDX, (int)(first + P_INDX - indx))) != 0)
 		goto err;
 
-	return (mpf->put(mpf, dp, DB_MPOOL_DIRTY));
+	return (__memp_fput(mpf, dp, DB_MPOOL_DIRTY));
 
-err:	(void)mpf->put(mpf, dp, 0);
+err:	(void)__memp_fput(mpf, dp, 0);
 	return (ret);
 }
 

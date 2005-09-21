@@ -1,11 +1,11 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb001.tcl,v 11.18 2002/06/10 15:39:36 sue Exp $
+# $Id: sdb001.tcl,v 11.23 2004/04/05 17:49:25 carol Exp $
 #
-# TEST	subdb001	Tests mixing db and subdb operations
+# TEST	sdb001	Tests mixing db and subdb operations
 # TEST	Tests mixing db and subdb operations
 # TEST	Create a db, add data, try to create a subdb.
 # TEST	Test naming db and subdb with a leading - for correct parsing
@@ -14,7 +14,7 @@
 # TEST	Test non-subdb and subdb operations
 # TEST	Test naming (filenames begin with -)
 # TEST	Test existence (cannot create subdb of same name with -excl)
-proc subdb001 { method args } {
+proc sdb001 { method args } {
 	source ./include.tcl
 	global errorInfo
 
@@ -53,7 +53,6 @@ proc subdb001 { method args } {
 
 	set pflags ""
 	set gflags ""
-	set txn ""
 	set count 0
 
 	if { [is_record_based $method] == 1 } {
@@ -69,7 +68,7 @@ proc subdb001 { method args } {
 			set key $str
 		}
 		set ret [eval \
-		    {$db put} $txn $pflags {$key [chop_data $method $str]}]
+		    {$db put} $pflags {$key [chop_data $method $str]}]
 		error_check_good put $ret 0
 
 		set ret [eval {$db get} $gflags {$key}]
@@ -132,16 +131,8 @@ proc subdb001 { method args } {
 	# Create 1 db with 1 subdb.  Try to create another subdb of
 	# the same name.  Should fail.
 	#
-	puts "\tSubdb001.c: Truncate check"
-	set testfile $testdir/subdb001c.db
-	set subdb subdb
-	set stat [catch {eval {berkdb_open_noerr -create -truncate -mode 0644} \
-	    $args {$omethod $testfile $subdb}} ret]
-	error_check_bad dbopen $stat 0
-	error_check_good trunc [is_substr $ret \
-	    "illegal with multiple databases"] 1
 
-	puts "\tSubdb001.d: Existence check"
+	puts "\tSubdb001.c: Existence check"
 	set testfile $testdir/subdb001d.db
 	set subdb subdb
 	set ret [catch {eval {berkdb_open -create -excl -mode 0644} $args \

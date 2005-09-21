@@ -1,16 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test062.tcl,v 11.20 2002/06/11 14:09:57 sue Exp $
+# $Id: test062.tcl,v 11.23 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test062
 # TEST	Test of partial puts (using DB_CURRENT) onto duplicate pages.
 # TEST	Insert the first 200 words into the dictionary 200 times each with
 # TEST	self as key and <random letter>:self as data.  Use partial puts to
 # TEST	append self again to data;  verify correctness.
-proc test062 { method {nentries 200} {ndups 200} {tnum 62} args } {
+proc test062 { method {nentries 200} {ndups 200} {tnum "062"} args } {
 	global alphabet
 	global rand_init
 	source ./include.tcl
@@ -21,7 +21,7 @@ proc test062 { method {nentries 200} {ndups 200} {tnum 62} args } {
 	set omethod [convert_method $method]
 
 	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $omethod"
+		puts "Test$tnum skipping for method $omethod"
 		return
 	}
 	# Create the database and open the dictionary
@@ -31,10 +31,10 @@ proc test062 { method {nentries 200} {ndups 200} {tnum 62} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -53,7 +53,7 @@ proc test062 { method {nentries 200} {ndups 200} {tnum 62} args } {
 	}
 	cleanup $testdir $env
 
-	puts "Test0$tnum:\
+	puts "Test$tnum:\
 	    $method ($args) $nentries Partial puts and $ndups duplicates."
 	set db [eval {berkdb_open -create -mode 0644 \
 	    $omethod -dup} $args {$testfile} ]
@@ -66,7 +66,7 @@ proc test062 { method {nentries 200} {ndups 200} {tnum 62} args } {
 	set count 0
 
 	# Here is the loop where we put each key/data pair
-	puts "\tTest0$tnum.a: Put loop (initialize database)"
+	puts "\tTest$tnum.a: Put loop (initialize database)"
 	while { [gets $did str] != -1 && $count < $nentries } {
 		for { set i 1 } { $i <= $ndups } { incr i } {
 			set pref \
@@ -90,7 +90,7 @@ proc test062 { method {nentries 200} {ndups 200} {tnum 62} args } {
 	}
 	close $did
 
-	puts "\tTest0$tnum.b: Partial puts."
+	puts "\tTest$tnum.b: Partial puts."
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -131,7 +131,7 @@ proc test062 { method {nentries 200} {ndups 200} {tnum 62} args } {
 		}
 	}
 
-	puts "\tTest0$tnum.c: Double-checking get loop."
+	puts "\tTest$tnum.c: Double-checking get loop."
 	# Double-check that each datum in the regular db has
 	# been appropriately modified.
 

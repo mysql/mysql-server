@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: tcl_log.c,v 11.61 2004/04/05 20:18:32 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: tcl_log.c,v 11.52 2002/08/14 20:11:57 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -40,12 +38,12 @@ tcl_LogArchive(interp, objc, objv, envp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *envp;			/* Environment pointer */
 {
-	static char *archopts[] = {
-		"-arch_abs",	"-arch_data",	"-arch_log",
+	static const char *archopts[] = {
+		"-arch_abs",	"-arch_data",	"-arch_log",	"-arch_remove",
 		NULL
 	};
 	enum archopts {
-		ARCH_ABS,	ARCH_DATA,	ARCH_LOG
+		ARCH_ABS,	ARCH_DATA,	ARCH_LOG,	ARCH_REMOVE
 	};
 	Tcl_Obj *fileobj, *res;
 	u_int32_t flag;
@@ -74,6 +72,9 @@ tcl_LogArchive(interp, objc, objv, envp)
 		case ARCH_LOG:
 			flag |= DB_ARCH_LOG;
 			break;
+		case ARCH_REMOVE:
+			flag |= DB_ARCH_REMOVE;
+			break;
 		}
 	}
 	_debug_check();
@@ -83,7 +84,7 @@ tcl_LogArchive(interp, objc, objv, envp)
 	if (result == TCL_OK) {
 		res = Tcl_NewListObj(0, NULL);
 		for (file = list; file != NULL && *file != NULL; file++) {
-			fileobj = Tcl_NewStringObj(*file, strlen(*file));
+			fileobj = NewStringObj(*file, strlen(*file));
 			result = Tcl_ListObjAppendElement(interp, res, fileobj);
 			if (result != TCL_OK)
 				break;
@@ -183,7 +184,7 @@ tcl_LogFile(interp, objc, objv, envp)
 	}
 	result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret), "log_file");
 	if (ret == 0) {
-		res = Tcl_NewStringObj(name, strlen(name));
+		res = NewStringObj(name, strlen(name));
 		Tcl_SetObjResult(interp, res);
 	}
 
@@ -267,7 +268,7 @@ tcl_LogPut(interp, objc, objv, envp)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *envp;			/* Environment pointer */
 {
-	static char *logputopts[] = {
+	static const char *logputopts[] = {
 		"-flush",
 		NULL
 	};
@@ -327,13 +328,13 @@ tcl_LogPut(interp, objc, objv, envp)
 	if (result == TCL_ERROR)
 		return (result);
 	res = Tcl_NewListObj(0, NULL);
-	intobj = Tcl_NewLongObj((long)lsn.file);
+	intobj = Tcl_NewWideIntObj((Tcl_WideInt)lsn.file);
 	result = Tcl_ListObjAppendElement(interp, res, intobj);
-	intobj = Tcl_NewLongObj((long)lsn.offset);
+	intobj = Tcl_NewWideIntObj((Tcl_WideInt)lsn.offset);
 	result = Tcl_ListObjAppendElement(interp, res, intobj);
 	Tcl_SetObjResult(interp, res);
 	if (freedata)
-		(void)__os_free(NULL, dtmp);
+		__os_free(NULL, dtmp);
 	return (result);
 }
 /*
@@ -400,7 +401,7 @@ tcl_LogStat(interp, objc, objv, envp)
 	MAKE_STAT_LIST("Number of region lock nowaits", sp->st_region_nowait);
 	Tcl_SetObjResult(interp, res);
 error:
-	free(sp);
+	__os_ufree(envp, sp);
 	return (result);
 }
 
@@ -417,7 +418,7 @@ logc_Cmd(clientData, interp, objc, objv)
 	int objc;			/* How many arguments? */
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 {
-	static char *logccmds[] = {
+	static const char *logccmds[] = {
 		"close",
 		"get",
 		NULL
@@ -487,7 +488,7 @@ tcl_LogcGet(interp, objc, objv, logc)
 	Tcl_Obj * CONST *objv;
 	DB_LOGC *logc;
 {
-	static char *logcgetopts[] = {
+	static const char *logcgetopts[] = {
 		"-current",
 		"-first",
 		"-last",
@@ -581,14 +582,14 @@ tcl_LogcGet(interp, objc, objv, logc)
 		 * is a sublist {file offset}.
 		 */
 		myobjc = 2;
-		myobjv[0] = Tcl_NewLongObj((long)lsn.file);
-		myobjv[1] = Tcl_NewLongObj((long)lsn.offset);
+		myobjv[0] = Tcl_NewWideIntObj((Tcl_WideInt)lsn.file);
+		myobjv[1] = Tcl_NewWideIntObj((Tcl_WideInt)lsn.offset);
 		lsnlist = Tcl_NewListObj(myobjc, myobjv);
 		if (lsnlist == NULL)
 			goto memerr;
 
 		result = Tcl_ListObjAppendElement(interp, res, lsnlist);
-		dataobj = Tcl_NewStringObj(data.data, data.size);
+		dataobj = NewStringObj(data.data, data.size);
 		if (dataobj == NULL) {
 			goto memerr;
 		}

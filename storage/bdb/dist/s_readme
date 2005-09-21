@@ -1,14 +1,16 @@
 #!/bin/sh -
-#	$Id: s_readme,v 1.6 2002/02/14 02:50:26 bostic Exp $
+#	$Id: s_readme,v 1.7 2003/07/02 15:27:44 bostic Exp $
 #
 # Build the README.
+
+echo 'Updating Berkeley DB README file...'
 
 d=..
 
 t=/tmp/__t
 trap 'rm -f $t; exit 0' 0 1 2 3 13 15
 
-. ./RELEASE
+. RELEASE
 
 cat << END_OF_README>$t
 $DB_VERSION_STRING

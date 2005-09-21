@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: qam_conv.c,v 11.17 2004/01/28 03:36:19 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: qam_conv.c,v 11.14 2002/08/06 06:17:02 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -19,6 +17,7 @@ static const char revid[] = "$Id: qam_conv.c,v 11.14 2002/08/06 06:17:02 bostic 
 #include "dbinc/db_page.h"
 #include "dbinc/db_swap.h"
 #include "dbinc/db_am.h"
+#include "dbinc/qam.h"
 
 /*
  * __qam_mswap --

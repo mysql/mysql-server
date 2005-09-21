@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test043.tcl,v 11.17 2002/05/22 15:42:52 sue Exp $
+# $Id: test043.tcl,v 11.19 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test043
 # TEST	Recno renumbering and implicit creation test

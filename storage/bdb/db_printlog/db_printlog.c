@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_printlog.c,v 11.64 2004/06/17 17:35:17 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2002\nSleepycat Software Inc.  All rights reserved.\n";
-static const char revid[] =
-    "$Id: db_printlog.c,v 11.52 2002/08/08 03:50:38 bostic Exp $";
+    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -31,14 +31,14 @@ static const char revid[] =
 #include "dbinc/hash.h"
 #include "dbinc/log.h"
 #include "dbinc/qam.h"
-#include "dbinc/rep.h"
 #include "dbinc/txn.h"
 
+int lsn_arg __P((const char *, char *, DB_LSN *));
 int main __P((int, char *[]));
+int open_rep_db __P((DB_ENV *, DB **, DBC **));
+int print_app_record __P((DB_ENV *, DBT *, DB_LSN *, db_recops));
 int usage __P((void));
 int version_check __P((const char *));
-int print_app_record __P((DB_ENV *, DBT *, DB_LSN *, db_recops));
-int open_rep_db __P((DB_ENV *, DB **, DBC **));
 
 int
 main(argc, argv)
@@ -50,13 +50,14 @@ main(argc, argv)
 	const char *progname = "db_printlog";
 	DB *dbp;
 	DBC *dbc;
+	DBT data, keydbt;
 	DB_ENV	*dbenv;
 	DB_LOGC *logc;
-	int (**dtab) __P((DB_ENV *, DBT *, DB_LSN *, db_recops, void *));
+	DB_LSN key, start, stop;
 	size_t dtabsize;
-	DBT data, keydbt;
-	DB_LSN key;
-	int ch, e_close, exitval, nflag, rflag, ret, repflag;
+	u_int32_t logcflag;
+	int ch, cmp, exitval, nflag, rflag, ret, repflag;
+	int (**dtab) __P((DB_ENV *, DBT *, DB_LSN *, db_recops, void *));
 	char *home, *passwd;
 
 	if ((ret = version_check(progname)) != 0)
@@ -64,13 +65,25 @@ main(argc, argv)
 
 	dbp = NULL;
 	dbc = NULL;
+	dbenv = NULL;
 	logc = NULL;
-	e_close = exitval = nflag = rflag = repflag = 0;
-	home = passwd = NULL;
+	ZERO_LSN(start);
+	ZERO_LSN(stop);
 	dtabsize = 0;
+	exitval = nflag = rflag = repflag = 0;
 	dtab = NULL;
-	while ((ch = getopt(argc, argv, "h:NP:rRV")) != EOF)
+	home = passwd = NULL;
+
+	while ((ch = getopt(argc, argv, "b:e:h:NP:rRV")) != EOF)
 		switch (ch) {
+		case 'b':
+			if (lsn_arg(progname, optarg, &start))
+				return (usage());
+			break;
+		case 'e':
+			if (lsn_arg(progname, optarg, &stop))
+				return (usage());
+			break;
 		case 'h':
 			home = optarg;
 			break;
@@ -89,7 +102,7 @@ main(argc, argv)
 		case 'r':
 			rflag = 1;
 			break;
-		case 'R':
+		case 'R':		/* Undocumented */
 			repflag = 1;
 			break;
 		case 'V':
@@ -117,7 +130,6 @@ main(argc, argv)
 		    "%s: db_env_create: %s\n", progname, db_strerror(ret));
 		goto shutdown;
 	}
-	e_close = 1;
 
 	dbenv->set_errfile(dbenv, stderr);
 	dbenv->set_errpfx(dbenv, progname);
@@ -158,28 +170,34 @@ main(argc, argv)
 	if (repflag) {
 		if ((ret = dbenv->open(dbenv, home,
 		    DB_INIT_MPOOL | DB_USE_ENVIRON, 0)) != 0 &&
+		    (ret == DB_VERSION_MISMATCH ||
 		    (ret = dbenv->open(dbenv, home,
 		    DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE | DB_USE_ENVIRON, 0))
-		    != 0) {
-			dbenv->err(dbenv, ret, "open");
+		    != 0)) {
+			dbenv->err(dbenv, ret, "DB_ENV->open");
 			goto shutdown;
 		}
 	} else if ((ret = dbenv->open(dbenv, home,
 	    DB_JOINENV | DB_USE_ENVIRON, 0)) != 0 &&
+	    (ret == DB_VERSION_MISMATCH ||
 	    (ret = dbenv->open(dbenv, home,
-	    DB_CREATE | DB_INIT_LOG | DB_PRIVATE | DB_USE_ENVIRON, 0)) != 0) {
-		dbenv->err(dbenv, ret, "open");
+	    DB_CREATE | DB_INIT_LOG | DB_PRIVATE | DB_USE_ENVIRON, 0)) != 0)) {
+		dbenv->err(dbenv, ret, "DB_ENV->open");
 		goto shutdown;
 	}
 
 	/* Initialize print callbacks. */
 	if ((ret = __bam_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
-	    (ret = __dbreg_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
 	    (ret = __crdel_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
 	    (ret = __db_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
+	    (ret = __dbreg_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
 	    (ret = __fop_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
-	    (ret = __qam_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
+#ifdef HAVE_HASH
 	    (ret = __ham_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
+#endif
+#ifdef HAVE_QUEUE
+	    (ret = __qam_init_print(dbenv, &dtab, &dtabsize)) != 0 ||
+#endif
 	    (ret = __txn_init_print(dbenv, &dtab, &dtabsize)) != 0) {
 		dbenv->err(dbenv, ret, "callback: initialization");
 		goto shutdown;
@@ -194,23 +212,37 @@ main(argc, argv)
 		goto shutdown;
 	}
 
+	if (IS_ZERO_LSN(start)) {
+		memset(&keydbt, 0, sizeof(keydbt));
+		logcflag = rflag ? DB_PREV : DB_NEXT;
+	} else {
+		key = start;
+		logcflag = DB_SET;
+	}
 	memset(&data, 0, sizeof(data));
-	memset(&keydbt, 0, sizeof(keydbt));
-	while (!__db_util_interrupted()) {
+
+	for (; !__db_util_interrupted(); logcflag = rflag ? DB_PREV : DB_NEXT) {
 		if (repflag) {
-			ret = dbc->c_get(dbc,
-			    &keydbt, &data, rflag ? DB_PREV : DB_NEXT);
+			ret = dbc->c_get(dbc, &keydbt, &data, logcflag);
 			if (ret == 0)
 				key = ((REP_CONTROL *)keydbt.data)->lsn;
 		} else
-			ret = logc->get(logc,
-			    &key, &data, rflag ? DB_PREV : DB_NEXT);
+			ret = logc->get(logc, &key, &data, logcflag);
 		if (ret != 0) {
 			if (ret == DB_NOTFOUND)
 				break;
 			dbenv->err(dbenv,
 			    ret, repflag ? "DB_LOGC->get" : "DBC->get");
 			goto shutdown;
+		}
+
+		/*
+		 * We may have reached the end of the range we're displaying.
+		 */
+		if (!IS_ZERO_LSN(stop)) {
+			cmp = log_compare(&key, &stop);
+			if ((rflag && cmp < 0) || (!rflag && cmp > 0))
+				break;
 		}
 
 		ret = __db_dispatch(dbenv,
@@ -247,11 +279,14 @@ shutdown:	exitval = 1;
 	 */
 	if (dtab != NULL)
 		__os_free(dbenv, dtab);
-	if (e_close && (ret = dbenv->close(dbenv, 0)) != 0) {
+	if (dbenv != NULL && (ret = dbenv->close(dbenv, 0)) != 0) {
 		exitval = 1;
 		fprintf(stderr,
 		    "%s: dbenv->close: %s\n", progname, db_strerror(ret));
 	}
+
+	if (passwd != NULL)
+		free(passwd);
 
 	/* Resend any caught signal. */
 	__db_util_sigresend();
@@ -262,8 +297,8 @@ shutdown:	exitval = 1;
 int
 usage()
 {
-	fprintf(stderr, "%s\n",
-	    "usage: db_printlog [-NrV] [-h home] [-P password]");
+	fprintf(stderr, "usage: db_printlog %s\n",
+	    "[-NrV] [-b file/offset] [-e file/offset] [-h home] [-P password]");
 	return (EXIT_FAILURE);
 }
 
@@ -275,12 +310,11 @@ version_check(progname)
 
 	/* Make sure we're loaded with the right version of the DB library. */
 	(void)db_version(&v_major, &v_minor, &v_patch);
-	if (v_major != DB_VERSION_MAJOR ||
-	    v_minor != DB_VERSION_MINOR || v_patch != DB_VERSION_PATCH) {
+	if (v_major != DB_VERSION_MAJOR || v_minor != DB_VERSION_MINOR) {
 		fprintf(stderr,
-	"%s: version %d.%d.%d doesn't match library version %d.%d.%d\n",
+	"%s: version %d.%d doesn't match library version %d.%d\n",
 		    progname, DB_VERSION_MAJOR, DB_VERSION_MINOR,
-		    DB_VERSION_PATCH, v_major, v_minor, v_patch);
+		    v_major, v_minor);
 		return (EXIT_FAILURE);
 	}
 	return (0);
@@ -298,7 +332,9 @@ print_app_record(dbenv, dbt, lsnp, op)
 	u_int32_t i, rectype;
 
 	DB_ASSERT(op == DB_TXN_PRINT);
+
 	COMPQUIET(dbenv, NULL);
+	COMPQUIET(op, DB_TXN_PRINT);
 
 	/*
 	 * Fetch the rectype, which always must be at the beginning of the
@@ -357,4 +393,39 @@ open_rep_db(dbenv, dbpp, dbcp)
 err:	if (*dbpp != NULL)
 		(void)(*dbpp)->close(*dbpp, 0);
 	return (ret);
+}
+
+/*
+ * lsn_arg --
+ *	Parse a LSN argument.
+ */
+int
+lsn_arg(progname, optarg, lsnp)
+	const char *progname;
+	char *optarg;
+	DB_LSN *lsnp;
+{
+	char *p;
+	u_long uval;
+
+	/*
+	 * Expected format is: lsn.file/lsn.offset.
+	 *
+	 * Don't use getsubopt(3), some systems don't have it.
+	 */
+	if ((p = strchr(optarg, '/')) == NULL)
+		return (1);
+	*p = '\0';
+
+	if (__db_getulong(NULL, progname, optarg, 0, 0, &uval))
+		return (1);
+	if (uval > UINT32_MAX)
+		return (1);
+	lsnp->file = uval;
+	if (__db_getulong(NULL, progname, p + 1, 0, 0, &uval))
+		return (1);
+	if (uval > UINT32_MAX)
+		return (1);
+	lsnp->offset = uval;
+	return (0);
 }

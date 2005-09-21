@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_upgrade.h,v 1.10 2002/01/11 15:52:26 bostic Exp $
+ * $Id: db_upgrade.h,v 1.12 2004/01/28 03:36:02 bostic Exp $
  */
 
 #ifndef _DB_UPGRADE_H_

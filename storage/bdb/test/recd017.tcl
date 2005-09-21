@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd017.tcl,v 11.4 2002/09/03 16:44:37 sue Exp $
+# $Id: recd017.tcl,v 11.7 2004/01/28 03:36:29 bostic Exp $
 #
 # TEST	recd017
 # TEST  Test recovery and security.  This is basically a watered
@@ -13,7 +13,14 @@ proc recd017 { method {select 0} args} {
 	global fixed_len
 	global encrypt
 	global passwd
+	global has_crypto
 	source ./include.tcl
+
+	# Skip test if release does not support encryption.
+	if { $has_crypto == 0 } {
+		puts "Skipping recd017 for non-crypto release."
+		return
+	}
 
 	set orig_fixed_len $fixed_len
 	set opts [convert_args $method $args]

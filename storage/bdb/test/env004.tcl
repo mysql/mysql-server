@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: env004.tcl,v 11.18 2002/02/20 17:08:21 sandstro Exp $
+# $Id: env004.tcl,v 11.22 2004/04/23 15:40:12 sue Exp $
 #
 # TEST	env004
 # TEST	Test multiple data directories.  Do a bunch of different opens
@@ -32,15 +32,9 @@ proc env004 { } {
 	puts $cid "set_data_dir data3"
 	close $cid
 
-	# Now get pathnames
-	set curdir [pwd]
-	cd $testdir
-	set fulldir [pwd]
-	cd $curdir
-
 	set e [berkdb_env -create -private -home $testdir]
 	error_check_good dbenv [is_valid_env $e] TRUE
-	ddir_test $fulldir $method $e $args
+	ddir_test $method $e $args
 	error_check_good env_close [$e close] 0
 
 	puts "\tEnv004.b: Multiple data directories in berkdb_env call."
@@ -54,13 +48,11 @@ proc env004 { } {
 	    -data_dir . -data_dir data1 -data_dir data2 \
 	    -data_dir data3 -home $testdir]
 	error_check_good dbenv [is_valid_env $e] TRUE
-	ddir_test $fulldir $method $e $args
+	ddir_test $method $e $args
 	error_check_good env_close [$e close] 0
-
-	env_cleanup $testdir
 }
 
-proc ddir_test { fulldir method e args } {
+proc ddir_test { method e args } {
 	source ./include.tcl
 
 	set args [convert_args $args]
@@ -87,13 +79,13 @@ proc ddir_test { fulldir method e args } {
 	# Now, reopen the files without complete pathnames and make
 	# sure that we find them.
 
-	set db1 [berkdb_open -env $e $fulldir/data1/datafile1.db]
+	set db1 [berkdb_open -env $e datafile1.db]
 	error_check_good dbopen1 [is_valid_db $db1] TRUE
 
-	set db2 [berkdb_open -env $e $fulldir/data2/datafile2.db]
+	set db2 [berkdb_open -env $e datafile2.db]
 	error_check_good dbopen2 [is_valid_db $db2] TRUE
 
-	set db3 [berkdb_open -env $e $fulldir/data3/datafile3.db]
+	set db3 [berkdb_open -env $e datafile3.db]
 	error_check_good dbopen3 [is_valid_db $db3] TRUE
 
 	# Finally close all the files

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test042.tcl,v 11.37 2002/09/05 17:23:07 sandstro Exp $
+# $Id: test042.tcl,v 11.46 2004/09/22 18:01:06 bostic Exp $
 #
 # TEST	test042
 # TEST	Concurrent Data Store test (CDB)
@@ -69,7 +69,7 @@ proc test042_body { method nentries alldb args } {
 	}
 
 	# Create the database and open the dictionary
-	set testfile test042.db
+	set basename test042
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
@@ -80,11 +80,11 @@ proc test042_body { method nentries alldb args } {
 	error_check_good dbenv [is_valid_env $env] TRUE
 
 	# Env is created, now set up database
-	test042_dbinit $env $nentries $method $oargs $testfile 0
+	test042_dbinit $env $nentries $method $oargs $basename.0.db
 	if { $alldb } {
 		for { set i 1 } {$i < $procs} {incr i} {
 			test042_dbinit $env $nentries $method $oargs \
-			    $testfile $i
+			    $basename.$i.db
 		}
 	}
 
@@ -93,7 +93,8 @@ proc test042_body { method nentries alldb args } {
 	set ret [berkdb envremove -home $testdir]
 	error_check_good env_remove $ret 0
 
-	set env [eval {berkdb_env -create} $eflag -home $testdir]
+	set env [eval {berkdb_env \
+	    -create -cachesize {0 1048576 1}} $eflag -home $testdir]
 	error_check_good dbenv [is_valid_widget $env env] TRUE
 
 	if { $do_exit == 1 } {
@@ -107,9 +108,9 @@ proc test042_body { method nentries alldb args } {
 
 	for { set i 0 } {$i < $procs} {incr i} {
 		if { $alldb } {
-			set tf $testfile$i
+			set tf $basename.$i.db
 		} else {
-			set tf ${testfile}0
+			set tf $basename.0.db
 		}
 		puts "exec $tclsh_path $test_path/wrap.tcl \
 		    mdbscript.tcl $testdir/test042.$i.log \
@@ -120,40 +121,42 @@ proc test042_body { method nentries alldb args } {
 		lappend pidlist $p
 	}
 	puts "Test042: $procs independent processes now running"
-	watch_procs $pidlist 
+	watch_procs $pidlist
+
+	# Make sure we haven't added or lost any entries.
+	set dblist [glob $testdir/$basename.*.db]
+	foreach file $dblist {
+		set tf [file tail $file]
+		set db [eval {berkdb_open -env $env $tf}]
+		set statret [$db stat]
+		foreach pair $statret {
+			set fld [lindex $pair 0]
+			if { [string compare $fld {Number of records}] == 0 } {
+				set numrecs [lindex $pair 1]
+				break
+			}
+		}
+		error_check_good nentries $numrecs $nentries
+		error_check_good db_close [$db close] 0
+	}
 
 	# Check for test failure
-	set e [eval findfail [glob $testdir/test042.*.log]]
-	error_check_good "FAIL: error message(s) in log files" $e 0
+	set errstrings [eval findfail [glob $testdir/test042.*.log]]
+	foreach str $errstrings {
+		puts "FAIL: error message in log file: $str"
+	}
 
 	# Test is done, blow away lock and mpool region
 	reset_env $env
 }
 
-# If we are renumbering, then each time we delete an item, the number of
-# items in the file is temporarily decreased, so the highest record numbers
-# do not exist.  To make sure this doesn't happen, we never generate the
-# highest few record numbers as keys.
-#
-# For record-based methods, record numbers begin at 1, while for other keys,
-# we begin at 0 to index into an array.
-proc rand_key { method nkeys renum procs} {
-	if { $renum == 1 } {
-		return [berkdb random_int 1 [expr $nkeys - $procs]]
-	} elseif { [is_record_based $method] == 1 } {
-		return [berkdb random_int 1 $nkeys]
-	} else {
-		return [berkdb random_int 0 [expr $nkeys - 1]]
-	}
-}
-
-proc test042_dbinit { env nentries method oargs tf ext } {
+proc test042_dbinit { env nentries method oargs tf } {
 	global datastr
 	source ./include.tcl
 
 	set omethod [convert_method $method]
 	set db [eval {berkdb_open -env $env -create \
-	    -mode 0644 $omethod} $oargs {$tf$ext}]
+	    -mode 0644 $omethod} $oargs $tf]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	set did [open $dict]
@@ -164,7 +167,7 @@ proc test042_dbinit { env nentries method oargs tf ext } {
 	set count 0
 
 	# Here is the loop where we put each key/data pair
-	puts "\tTest042.a: put loop $tf$ext"
+	puts "\tTest042.a: put loop $tf"
 	while { [gets $did str] != -1 && $count < $nentries } {
 		if { [is_record_based $method] == 1 } {
 			set key [expr $count + 1]

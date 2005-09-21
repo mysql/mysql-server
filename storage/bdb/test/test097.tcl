@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test097.tcl,v 11.8 2002/09/04 18:47:42 sue Exp $
+# $Id: test097.tcl,v 11.11 2004/01/28 03:36:32 bostic Exp $
 #
 # TEST	test097
 # TEST	Open up a large set of database files simultaneously.
@@ -35,7 +35,7 @@ proc test097 { method {ndbs 500} {nentries 400} args } {
 	error_check_good dbenv [is_valid_env $env] TRUE
 
 	# Create the database and open the dictionary
-	set testfile test097.db
+	set basename test097
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
@@ -58,7 +58,7 @@ proc test097 { method {ndbs 500} {nentries 400} args } {
 	puts "$nentries entries in at most $ndbs simultaneous databases"
 
 	puts "\tTest097.a: Simultaneous open"
-	set numdb [test097_open tdb $ndbs $method $env $testfile $largs]
+	set numdb [test097_open tdb $ndbs $method $env $basename $largs]
 	if { $numdb == 0 } {
 		puts "\tTest097: Insufficient resources available -- skipping."
 		error_check_good envclose [$env close] 0
@@ -131,7 +131,7 @@ proc test097.check { key data } {
 	error_check_good "data mismatch for key $key" $data $pad_datastr
 }
 
-proc test097_open { tdb ndbs method env testfile largs } {
+proc test097_open { tdb ndbs method env basename largs } {
 	global errorCode
 	upvar $tdb db
 
@@ -144,7 +144,7 @@ proc test097_open { tdb ndbs method env testfile largs } {
 	for { set i 1 } {$i <= $numdb } { incr i } {
 		set stat [catch {eval {berkdb_open -env $env \
 		     -pagesize 512 -create -mode 0644} \
-		     $largs {$omethod $testfile.$i}} db($i)]
+		     $largs {$omethod $basename.$i.db}} db($i)]
 		#
 		# Check if we've reached our limit
 		#

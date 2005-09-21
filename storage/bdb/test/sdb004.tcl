@@ -1,11 +1,11 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: sdb004.tcl,v 11.22 2002/07/11 18:53:45 sandstro Exp $
+# $Id: sdb004.tcl,v 11.25 2004/01/28 03:36:29 bostic Exp $
 #
-# TEST	subdb004
+# TEST	sdb004
 # TEST	Tests large subdb names
 # TEST		subdb name = filecontents,
 # TEST		key = filename, data = filecontents
@@ -18,7 +18,7 @@
 # TEST	the key with their contents as data.  After all are entered, retrieve
 # TEST	all; compare output to original. Close file, reopen, do retrieve and
 # TEST	re-verify.
-proc subdb004 { method args} {
+proc sdb004 { method args} {
 	global names
 	source ./include.tcl
 

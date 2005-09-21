@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestRpcServer.java,v 1.3 2002/01/11 15:54:03 bostic Exp $
+ * $Id: TestRpcServer.java,v 1.5 2004/01/28 03:36:34 bostic Exp $
  */
 
 package com.sleepycat.test;

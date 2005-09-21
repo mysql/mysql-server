@@ -27,7 +27,7 @@ umask(0);
     my $value ;
 
     ok 1, my $lexD = new LexDir($home) ;
-    ok 2, my $env = new BerkeleyDB::Env -Home => $home,
+    ok 2, my $env = new BerkeleyDB::Env -Home => $home,  @StdErrFile,
 				     -Flags => DB_CREATE|DB_INIT_TXN|
 					  	DB_INIT_MPOOL|DB_INIT_LOCK ;
     ok 3, my $txn = $env->txn_begin() ;

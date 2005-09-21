@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_fid.c,v 11.19 2004/07/06 21:06:38 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_fid.c,v 11.15 2002/08/26 14:37:39 margo Exp $";
-#endif /* not lint */
 
 #include "db_int.h"
 
@@ -39,7 +37,7 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	 * but perhaps not on other platforms, and perhaps not over a network.
 	 * Can't think of a better solution right now.
 	 */
-	DB_FH fh;
+	DB_FH *fhp;
 	BY_HANDLE_FILE_INFORMATION fi;
 	BOOL retval = FALSE;
 
@@ -71,13 +69,13 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	 * First we open the file, because we're not given a handle to it.
 	 * If we can't open it, we're in trouble.
 	 */
-	if ((ret = __os_open(dbenv, fname, DB_OSO_RDONLY, _S_IREAD, &fh)) != 0)
+	if ((ret = __os_open(dbenv, fname, DB_OSO_RDONLY, _S_IREAD, &fhp)) != 0)
 		return (ret);
 
 	/* File open, get its info */
-	if ((retval = GetFileInformationByHandle(fh.handle, &fi)) == FALSE)
-		ret = __os_win32_errno();
-	__os_closehandle(dbenv, &fh);
+	if ((retval = GetFileInformationByHandle(fhp->handle, &fi)) == FALSE)
+		ret = __os_get_errno();
+	(void)__os_closehandle(dbenv, fhp);
 
 	if (retval == FALSE)
 		return (ret);

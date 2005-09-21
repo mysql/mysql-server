@@ -1,17 +1,15 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam.src,v 11.28 2002/04/17 19:03:13 krinsky Exp $
+ * $Id: qam.src,v 11.33 2004/06/17 17:35:22 bostic Exp $
  */
 
 PREFIX	__qam
 DBPRIVATE
 
-INCLUDE	#include "db_config.h"
-INCLUDE
 INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
@@ -26,7 +24,6 @@ INCLUDE #include "dbinc/db_dispatch.h"
 INCLUDE #include "dbinc/db_am.h"
 INCLUDE #include "dbinc/log.h"
 INCLUDE #include "dbinc/qam.h"
-INCLUDE #include "dbinc/rep.h"
 INCLUDE #include "dbinc/txn.h"
 INCLUDE
 
@@ -37,7 +34,7 @@ INCLUDE
 BEGIN incfirst		84
 DB	fileid		int32_t		ld
 ARG	recno		db_recno_t	lu
-WRLOCK	meta_pgno	db_pgno_t	lu
+ARG	meta_pgno	db_pgno_t	lu
 END
 
 /*
@@ -52,7 +49,7 @@ ARG	new_first	db_recno_t	lu
 ARG	old_cur		db_recno_t	lu
 ARG	new_cur		db_recno_t	lu
 POINTER	metalsn		DB_LSN *	lu
-WRLOCK	meta_pgno	db_pgno_t	lu
+ARG	meta_pgno	db_pgno_t	lu
 END
 
 
@@ -64,7 +61,7 @@ END
 BEGIN del		79
 DB	fileid		int32_t		ld
 POINTER	lsn		DB_LSN *	lu
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 ARG	indx		u_int32_t	lu
 ARG	recno		db_recno_t	lu
 END
@@ -78,7 +75,7 @@ END
 BEGIN add		80
 DB	fileid		int32_t		ld
 POINTER	lsn		DB_LSN *	lu
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 ARG	indx		u_int32_t	lu
 ARG	recno		db_recno_t	lu
 DBT	data		DBT		s

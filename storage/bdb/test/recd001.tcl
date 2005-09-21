@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd001.tcl,v 11.40 2002/05/08 19:36:18 sandstro Exp $
+# $Id: recd001.tcl,v 11.43 2004/01/28 03:36:28 bostic Exp $
 #
 # TEST	recd001
 # TEST	Per-operation recovery tests for non-duplicate, non-split
@@ -111,10 +111,10 @@ proc recd001 { method {select 0} args} {
 	{ {DB del -txn TXNID $key}		"Recd001.g: big data delete"}
 	{ {DB put -txn TXNID $key $data}	"Recd001.h: put (change state)"}
 	{ {DB put -txn TXNID $key $newdata}	"Recd001.i: overwrite"}
-	{ {DB put -txn TXNID -partial {$off $len} $key $partial_grow}
+	{ {DB put -txn TXNID -partial "$off $len" $key $partial_grow}
 	  "Recd001.j: partial put growing"}
 	{ {DB put -txn TXNID $key $newdata}	"Recd001.k: overwrite (fix)"}
-	{ {DB put -txn TXNID -partial {$off $len} $key $partial_shrink}
+	{ {DB put -txn TXNID -partial "$off $len" $key $partial_shrink}
 	  "Recd001.l: partial put shrinking"}
 	{ {DB put -txn TXNID -append $data}	"Recd001.m: put -append"}
 	{ {DB get -txn TXNID -consume}		"Recd001.n: db get -consume"}
@@ -208,7 +208,7 @@ proc recd001 { method {select 0} args} {
 	set part_data [replicate "abcdefgh" 32]
 	set p [list 0 $len]
 	set cmd [subst \
-	    {DB put -txn TXNID -partial {$len $len2} $key $part_data}]
+	    {DB put -txn TXNID -partial "$len $len2" $key $part_data}]
 	set msg "Recd001.o: partial put prepopulated/expanding"
 	foreach op {abort commit prepare-abort prepare-discard prepare-commit} {
 		env_cleanup $testdir

@@ -1,4 +1,4 @@
-# $Id: programs.ac,v 11.20 2001/09/24 02:09:25 bostic Exp $
+# $Id: programs.ac,v 11.22 2004/06/10 16:38:18 bostic Exp $
 
 # Check for programs used in building/installation.
 AC_DEFUN(AM_PROGRAMS_SET, [
@@ -16,15 +16,6 @@ fi
 AC_CHECK_TOOL(db_cv_path_cp, cp, missing_cp)
 if test "$db_cv_path_cp" = missing_cp; then
 	AC_MSG_ERROR([No cp utility found.])
-fi
-
-if test "$db_cv_rpm" = "yes"; then
-	AC_CHECK_TOOL(path_ldconfig, ldconfig, missing_ldconfig)
-	AC_PATH_PROG(db_cv_path_ldconfig, $path_ldconfig, missing_ldconfig)
-	if test "$db_cv_path_ldconfig" != missing_ldconfig; then
-		RPM_POST_INSTALL="%post -p $db_cv_path_ldconfig"
-		RPM_POST_UNINSTALL="%postun -p $db_cv_path_ldconfig"
-	fi
 fi
 
 AC_CHECK_TOOL(db_cv_path_ln, ln, missing_ln)
@@ -47,10 +38,10 @@ if test "$db_cv_path_rm" = missing_rm; then
 	AC_MSG_ERROR([No rm utility found.])
 fi
 
-if test "$db_cv_rpm" = "yes"; then
-	AC_CHECK_TOOL(db_cv_path_rpm, rpm, missing_rpm)
-	if test "$db_cv_path_rpm" = missing_rpm; then
-		AC_MSG_ERROR([No rpm utility found.])
+if test "$db_cv_rpc" = "yes"; then
+	AC_CHECK_TOOL(db_cv_path_rpcgen, rpcgen, missing_rpcgen)
+	if test "$db_cv_path_rpcgen" = missing_rpcgen; then
+		AC_MSG_ERROR([No rpcgen utility found.])
 	fi
 fi
 

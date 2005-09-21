@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd015.tcl,v 1.13 2002/09/05 17:23:06 sandstro Exp $
+# $Id: recd015.tcl,v 1.16 2004/01/28 03:36:29 bostic Exp $
 #
 # TEST	recd015
 # TEST	This is a recovery test for testing lots of prepared txns.
@@ -11,6 +11,8 @@
 # TEST	DB_FIRST flag and then DB_NEXT.
 proc recd015 { method args } {
 	source ./include.tcl
+	global rand_init
+	error_check_good set_random_seed [berkdb srand $rand_init] 0
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test008.tcl,v 11.23 2002/05/22 15:42:45 sue Exp $
+# $Id: test008.tcl,v 11.26 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test008
 # TEST	Small keys/large data
@@ -17,20 +17,20 @@
 # TEST	Take the source files and dbtest executable and enter their names as
 # TEST	the key with their contents as data.  After all are entered, begin
 # TEST	looping through the entries; deleting some pairs and then readding them.
-proc test008 { method {reopen 8} {debug 0} args} {
+proc test008 { method {reopen "008"} {debug 0} args} {
 	source ./include.tcl
 
-	set tnum test00$reopen
+	set tnum test$reopen
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
 	if { [is_record_based $method] == 1 } {
-		puts "Test00$reopen skipping for method $method"
+		puts "Test$reopen skipping for method $method"
 		return
 	}
 
 	puts -nonewline "$tnum: $method filename=key filecontents=data pairs"
-	if {$reopen == 9} {
+	if {$reopen == "009"} {
 		puts "(with close)"
 	} else {
 		puts ""
@@ -74,7 +74,7 @@ proc test008 { method {reopen 8} {debug 0} args} {
 	set file_list [get_file_list]
 
 	set count 0
-	puts "\tTest00$reopen.a: Initial put/get loop"
+	puts "\tTest$reopen.a: Initial put/get loop"
 	foreach f $file_list {
 		set names($count) $f
 		set key $f
@@ -99,13 +99,13 @@ proc test008 { method {reopen 8} {debug 0} args} {
 			error_check_good txn [$t commit] 0
 		}
 
-		error_check_good Test00$reopen:diff($f,$t4) \
+		error_check_good Test$reopen:diff($f,$t4) \
 		    [filecmp $f $t4] 0
 
 		incr count
 	}
 
-	if {$reopen == 9} {
+	if {$reopen == "009"} {
 		error_check_good db_close [$db close] 0
 
 		set db [eval {berkdb_open} $args $testfile]
@@ -115,7 +115,7 @@ proc test008 { method {reopen 8} {debug 0} args} {
 	# Now we will get step through keys again (by increments) and
 	# delete all the entries, then re-insert them.
 
-	puts "\tTest00$reopen.b: Delete re-add loop"
+	puts "\tTest$reopen.b: Delete re-add loop"
 	foreach i "1 2 4 8 16" {
 		for {set ndx 0} {$ndx < $count} { incr ndx $i} {
 			if { $txnenv == 1 } {
@@ -142,14 +142,14 @@ proc test008 { method {reopen 8} {debug 0} args} {
 		}
 	}
 
-	if {$reopen == 9} {
+	if {$reopen == "009"} {
 		error_check_good db_close [$db close] 0
 		set db [eval {berkdb_open} $args $testfile]
 		error_check_good dbopen [is_valid_db $db] TRUE
 	}
 
 	# Now, reopen the file and make sure the key/data pairs look right.
-	puts "\tTest00$reopen.c: Dump contents forward"
+	puts "\tTest$reopen.c: Dump contents forward"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -169,11 +169,11 @@ proc test008 { method {reopen 8} {debug 0} args} {
 	fileremove $t2.tmp
 	filesort $t1 $t3
 
-	error_check_good Test00$reopen:diff($t3,$t2) \
+	error_check_good Test$reopen:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 
 	# Now, reopen the file and run the last test again in reverse direction.
-	puts "\tTest00$reopen.d: Dump contents backward"
+	puts "\tTest$reopen.d: Dump contents backward"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -186,7 +186,7 @@ proc test008 { method {reopen 8} {debug 0} args} {
 
 	filesort $t1 $t3
 
-	error_check_good Test00$reopen:diff($t3,$t2) \
+	error_check_good Test$reopen:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 	error_check_good close:$db [$db close] 0
 }
