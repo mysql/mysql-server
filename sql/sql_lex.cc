@@ -160,6 +160,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->proc_list.first= 0;
+  thd->allow_sum_func= 0;
 }
 
 void lex_end(LEX *lex)
