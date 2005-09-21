@@ -522,6 +522,7 @@ public:
 extern struct show_table_type_st sys_table_types[];
 extern const char *ha_row_type[];
 extern TYPELIB tx_isolation_typelib;
+extern TYPELIB myisam_stats_method_typelib;
 
 	/* Wrapper functions */
 #define ha_commit_stmt(thd) (ha_commit_trans((thd), &((thd)->transaction.stmt)))
