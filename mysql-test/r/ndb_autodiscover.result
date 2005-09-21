@@ -110,7 +110,7 @@ t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(255) default NULL,
   PRIMARY KEY  (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
 select * from t3;
 id	name
 1	Explorer
@@ -147,7 +147,7 @@ flush tables;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t6	MyISAM	10	Fixed	1	260	#	#	#	0	NULL	#	#	NULL	#	NULL		#
-t7	ndbcluster	10	Fixed	1	276	#	#	#	0	NULL	#	#	NULL	#	NULL		#
+t7	NDBCLUSTER	10	Fixed	1	276	#	#	#	0	NULL	#	#	NULL	#	NULL		#
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	2
