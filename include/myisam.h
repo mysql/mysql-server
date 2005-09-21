@@ -390,7 +390,7 @@ typedef struct st_sort_key_blocks		/* Used when sorting */
 typedef enum 
 {
   /* Treat NULLs as inequal when collecting statistics (default for 4.1/5.0) */
-  MI_STATS_METHOD_NULLS_NOT_EQUAL=1,
+  MI_STATS_METHOD_NULLS_NOT_EQUAL,
   /* Treat NULLs as equal when collecting statistics (like 4.0 did) */
   MI_STATS_METHOD_NULLS_EQUAL
 } enum_mi_stats_method;
