@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test037.tcl,v 11.18 2002/03/15 16:30:54 sue Exp $
+# $Id: test037.tcl,v 11.20 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test037
 # TEST	Test DB_RMW

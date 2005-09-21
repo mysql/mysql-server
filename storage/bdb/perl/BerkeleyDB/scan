@@ -16,11 +16,17 @@ my $ignore_re = '^(' . join("|",
 		DB_TSL
 		MP
 		TXN
+                DB_TXN_GETPGNOS
 	)) . ')' ;
 
 my %ignore_def = map {$_, 1} qw() ;
 
 %ignore_enums = map {$_, 1} qw( ACTION db_status_t db_notices db_lockmode_t ) ;
+
+my %ignore_exact_enum = map { $_ => 1}
+	qw(
+                DB_TXN_GETPGNOS
+                );
 
 my $filler = ' ' x 26 ;
 
@@ -28,6 +34,8 @@ chdir "libraries" || die "Cannot chdir into './libraries': $!\n";
 
 foreach my $name (sort tuple glob "[2-9]*")
 {
+    next if $name =~ /(NC|private)$/;
+
     my $inc = "$name/include/db.h" ;
     next unless -f $inc ;
 
@@ -121,6 +129,7 @@ sub scan
             my $out = $filler ;
 	    foreach $name (@new)
 	    {
+                next if $ignore_exact_enum{$name} ;
 	        $out = $filler ;
 	        substr($out,0, length $name) = $name;
                 $result .= "\t$out => $value\n" ;

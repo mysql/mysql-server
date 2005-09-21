@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test029.tcl,v 11.20 2002/06/29 13:44:44 bostic Exp $
+# $Id: test029.tcl,v 11.24 2004/09/22 18:01:06 bostic Exp $
 #
 # TEST	test029
 # TEST	Test the Btree and Record number renumbering.
@@ -221,13 +221,15 @@ proc test029 { method {nentries 10000} args} {
 	    getn_after_cursor_del [lindex [lindex $ret 0] 1] $last_key
 
 	# Re-put the first key and make sure that we renumber the last
-	# key appropriately.
-	puts "\tTest029.e: put with cursor and verify renumber"
+	# key appropriately.  We can't do a c_put -current, so do
+	# a db put instead.
 	if { [string compare $omethod "-btree"] == 0 } {
-		set ret [eval {$dbc put} \
-		    $pflags {-current $first_key}]
-		error_check_good dbc_put:DB_CURRENT $ret 0
+		puts "\tTest029.e: put (non-cursor) and verify renumber"
+		set ret [eval {$db put} $txn \
+		    {$key [chop_data $method $first_key]}]
+		error_check_good db_put $ret 0
 	} else {
+		puts "\tTest029.e: put with cursor and verify renumber"
 		set ret [eval {$dbc put} $pflags {-before $first_key}]
 		error_check_bad dbc_put:DB_BEFORE $ret 0
 	}

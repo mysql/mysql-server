@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: upgrade.tcl,v 11.22 2002/07/28 03:22:41 krinsky Exp $
+# $Id: upgrade.tcl,v 11.37 2004/10/27 20:29:29 carol Exp $
 
 source ./include.tcl
 
@@ -13,6 +13,10 @@ set upgrade_dir "$test_path/upgrade/databases"
 
 global gen_upgrade
 set gen_upgrade 0
+global gen_chksum
+set gen_chksum 0
+global gen_upgrade_log
+set gen_upgrade_log 0
 
 global upgrade_dir
 global upgrade_be
@@ -22,80 +26,167 @@ global upgrade_name
 proc upgrade { { archived_test_loc "DEFAULT" } } {
 	source ./include.tcl
 	global upgrade_dir
+	global tcl_platform
+	global saved_logvers
 
 	set saved_upgrade_dir $upgrade_dir
 
-	puts -nonewline "Upgrade test: "
+	# Identify endianness of the machine running upgrade.
+	if { [big_endian] == 1 } {
+		set myendianness be
+	} else {
+		set myendianness le
+	}
+	set e $tcl_platform(byteOrder)
+
+	if { [file exists $archived_test_loc/logversion] == 1 } {
+		set fd [open $archived_test_loc/logversion r]
+		set saved_logvers [read $fd]
+		close $fd
+	} else {
+		puts "Old log version number must be available \
+		    in $archived_test_loc/logversion"
+		return
+	}
+
+	fileremove -f UPGRADE.OUT
+	set o [open UPGRADE.OUT a]
+
+	puts -nonewline $o "Upgrade test started at: "
+	puts $o [clock format [clock seconds] -format "%H:%M %D"]
+	puts $o [berkdb version -string]
+	puts $o "Testing $e files"
+
+	puts -nonewline "Upgrade test started at: "
+	puts [clock format [clock seconds] -format "%H:%M %D"]
+	puts [berkdb version -string]
+	puts "Testing $e files"
+
 	if { $archived_test_loc == "DEFAULT" } {
-		puts "using default archived databases in $upgrade_dir."
+		puts $o "Using default archived databases in $upgrade_dir."
+		puts "Using default archived databases in $upgrade_dir."
 	} else {
 		set upgrade_dir $archived_test_loc
-		puts "using archived databases in $upgrade_dir."
+		puts $o "Using archived databases in $upgrade_dir."
+		puts "Using archived databases in $upgrade_dir."
 	}
+	close $o
 
 	foreach version [glob $upgrade_dir/*] {
 		if { [string first CVS $version] != -1 } { continue }
 		regexp \[^\/\]*$ $version version
-		foreach method [glob $upgrade_dir/$version/*] {
-			regexp \[^\/\]*$ $method method
-			foreach file [glob $upgrade_dir/$version/$method/*] {
-				regexp (\[^\/\]*)\.tar\.gz$ $file dummy name
 
-				cleanup $testdir NULL 1
-				#puts  "$upgrade_dir/$version/$method/$name.tar.gz"
-				set curdir [pwd]
-				cd $testdir
-				set tarfd [open "|tar xf -" w]
-				cd $curdir
+		# Test only files where the endianness of the db matches
+		# the endianness of the test platform.  These are the
+		# meaningful tests:
+		# 1.  File generated on le, tested on le
+		# 2.  File generated on be, tested on be
+		# 3.  Byte-swapped file generated on le, tested on be
+		# 4.  Byte-swapped file generated on be, tested on le
+		#
+		set dbendianness [string range $version end-1 end]
+		if { [string compare $myendianness $dbendianness] != 0 } {
+			puts "Skipping test of $version \
+			    on $myendianness platform."
+		} else {
+			set release [string trim $version -lbe]
+			set o [open UPGRADE.OUT a]
+			puts $o "Files created on release $release"
+			close $o
+			puts "Files created on release $release"
 
-				catch {exec gunzip -c "$upgrade_dir/$version/$method/$name.tar.gz" >@$tarfd}
-				close $tarfd
+			foreach method [glob $upgrade_dir/$version/*] {
+				regexp \[^\/\]*$ $method method
+				set o [open UPGRADE.OUT a]
+				puts $o "\nTesting $method files"
+				close $o
+				puts "\tTesting $method files"
 
-				set f [open $testdir/$name.tcldump {RDWR CREAT}]
-				close $f
+				foreach file [lsort -dictionary \
+				    [glob -nocomplain \
+				    $upgrade_dir/$version/$method/*]] {
+					regexp (\[^\/\]*)\.tar\.gz$ \
+					    $file dummy name
 
-				# It may seem suboptimal to exec a separate
-				# tclsh for each subtest, but this is
-				# necessary to keep the testing process
-				# from consuming a tremendous amount of
-				# memory.
-				if { [file exists $testdir/$name-le.db] } {
-					set ret [catch {exec $tclsh_path\
-					    << "source $test_path/test.tcl;\
-					    _upgrade_test $testdir $version\
-					    $method\
-					    $name le"} message]
-					puts $message
-					if { $ret != 0 } {
-						#exit
+					cleanup $testdir NULL 1
+					set curdir [pwd]
+					cd $testdir
+					set tarfd [open "|tar xf -" w]
+					cd $curdir
+
+					catch {exec gunzip -c \
+					    "$upgrade_dir/$version/$method/$name.tar.gz" \
+					    >@$tarfd}
+					close $tarfd
+
+					set f [open $testdir/$name.tcldump \
+					    {RDWR CREAT}]
+					close $f
+
+					# We exec a separate tclsh for each
+					# separate subtest to keep the
+					# testing process from consuming a
+					# tremendous amount of memory.
+					#
+					# First we test the .db files.
+					if { [file exists \
+					    $testdir/$name-$myendianness.db] } {
+						if { [catch {exec $tclsh_path \
+						    << "source \
+						    $test_path/test.tcl;\
+						    _upgrade_test $testdir \
+						    $version $method $name \
+						    $myendianness" >>& \
+						    UPGRADE.OUT } message] } {
+							set o [open \
+							    UPGRADE.OUT a]
+							puts $o "FAIL: $message"
+							close $o
+						}
+						if { [catch {exec $tclsh_path\
+						    << "source \
+						    $test_path/test.tcl;\
+						    _db_load_test $testdir \
+						    $version $method $name" >>&\
+						    UPGRADE.OUT } message] } {
+							set o [open \
+							    UPGRADE.OUT a]
+							puts $o "FAIL: $message"
+							close $o
+						}
+					}
+					# Then we test log files.
+					if { [file exists \
+					    $testdir/$name.prlog] } {
+						if { [catch {exec $tclsh_path \
+						    << "source \
+						    $test_path/test.tcl;\
+						    global saved_logvers;\
+						    set saved_logvers \
+						    $saved_logvers;\
+						    _log_test $testdir \
+						    $release $method \
+						    $name" >>& \
+						    UPGRADE.OUT } message] } {
+							set o [open \
+							    UPGRADE.OUT a]
+							puts $o "FAIL: $message"
+							close $o
+						}
 					}
 				}
-
-				if { [file exists $testdir/$name-be.db] } {
-					set ret [catch {exec $tclsh_path\
-					    << "source $test_path/test.tcl;\
-					    _upgrade_test $testdir $version\
-					    $method\
-					    $name be"} message]
-					puts $message
-					if { $ret != 0 } {
-						#exit
-					}
-				}
-
-				set ret [catch {exec $tclsh_path\
-				    << "source $test_path/test.tcl;\
-				    _db_load_test $testdir $version $method\
-				    $name"} message]
-					puts $message
-				if { $ret != 0 } {
-					#exit
-				}
-
 			}
 		}
 	}
 	set upgrade_dir $saved_upgrade_dir
+
+	set o [open UPGRADE.OUT a]
+	puts -nonewline $o "Completed at: "
+	puts $o [clock format [clock seconds] -format "%H:%M %D"]
+	close $o
+
+	puts -nonewline "Completed at: "
+	puts [clock format [clock seconds] -format "%H:%M %D"]
 
 	# Don't provide a return value.
 	return
@@ -104,9 +195,14 @@ proc upgrade { { archived_test_loc "DEFAULT" } } {
 proc _upgrade_test { temp_dir version method file endianness } {
 	source include.tcl
 	global errorInfo
+	global encrypt
 
 	puts "Upgrade: $version $method $file $endianness"
 
+	# Check whether we're working with an encrypted file.
+	if { [string match c-* $file] } {
+		set encrypt 1
+	}
 	set ret [berkdb upgrade "$temp_dir/$file-$endianness.db"]
 	error_check_good dbupgrade $ret 0
 
@@ -122,7 +218,7 @@ proc _db_load_test { temp_dir version method file } {
 	source include.tcl
 	global errorInfo
 
-	puts "db_load: $version $method $file"
+	puts "Db_load: $version $method $file"
 
 	set ret [catch \
 	    {exec $util_path/db_load -f "$temp_dir/$file.dump" \
@@ -136,53 +232,393 @@ proc _db_load_test { temp_dir version method file } {
 	    [filecmp "$temp_dir/$file.tcldump" "$temp_dir/temp.dump"] 0
 }
 
-proc gen_upgrade { dir } {
+proc _log_test { temp_dir release method file } {
+	source ./include.tcl
+	global saved_logvers
+	global passwd
+	puts "Check log file: $temp_dir $release $method $file"
+
+	# Get log version number of current system
+	set env [berkdb_env -create -log -home $testdir]
+	error_check_good is_valid_env [is_valid_env $env] TRUE
+	set current_logvers [get_log_vers $env]
+	error_check_good env_close [$env close] 0
+	error_check_good env_remove [berkdb envremove -home $testdir] 0
+
+	# Rename recd001-x-log.000000000n to log.000000000n.
+	set logfiles [glob -nocomplain $temp_dir/*log.0*]
+	foreach logfile $logfiles {
+		set logname [string replace $logfile 0 \
+		    [string last - $logfile]]
+		file rename -force $logfile $temp_dir/$logname
+	}
+
+	# Use db_printlog to dump the logs.  If the current log file
+	# version is greater than the saved log file version, the log
+	# files are expected to be unreadable.  If the log file is
+	# readable, check that the current printlog dump matches the
+	# archived printlog.
+ 	#
+	set ret [catch {exec $util_path/db_printlog -h $temp_dir \
+	    > $temp_dir/logs.prlog} message]
+	if { [is_substr $message "magic number"] } {
+		# The failure is probably due to encryption, try
+		# crypto printlog.
+		set ret [catch {exec $util_path/db_printlog -h $temp_dir \
+		    -P $passwd > $temp_dir/logs.prlog} message]
+		if { $ret == 1 } {
+			# If the failure is because of a historic
+			# log version, that's okay.
+			if { $current_logvers <= $saved_logvers } {
+				puts "db_printlog failed: $message"
+		 	}	
+		}
+	}
+
+	if { $current_logvers > $saved_logvers } {
+		error_check_good historic_log_version \
+		    [is_substr $message "historic log version"] 1
+	} else {
+		error_check_good db_printlog:$message $ret 0
+		# Compare logs.prlog and $file.prlog (should match)
+		error_check_good "Compare printlogs" [filecmp \
+		    "$temp_dir/logs.prlog" "$temp_dir/$file.prlog"] 0
+	}
+}
+
+proc gen_upgrade { dir { save_crypto 1 } { save_non_crypto 1 } } {
 	global gen_upgrade
+	global gen_upgrade_log
+	global gen_chksum
 	global upgrade_dir
 	global upgrade_be
 	global upgrade_method
 	global upgrade_name
-	global num_test
+	global test_names
 	global parms
+	global encrypt
+	global passwd
 	source ./include.tcl
 
-	set gen_upgrade 1
 	set upgrade_dir $dir
+	env_cleanup $testdir
 
-	foreach i "btree rbtree hash recno rrecno frecno queue queueext" {
-		puts "Running $i tests"
-		set upgrade_method $i
-		set start 1
-		for { set j $start } { $j <= $num_test(test) } { incr j } {
-			set upgrade_name [format "test%03d" $j]
-			if { [info exists parms($upgrade_name)] != 1 } {
+	fileremove -f GENERATE.OUT
+	set o [open GENERATE.OUT a]
+
+	puts -nonewline $o "Generating upgrade files.  Started at: "
+	puts $o [clock format [clock seconds] -format "%H:%M %D"]
+	puts $o [berkdb version -string]
+
+	puts -nonewline "Generating upgrade files.  Started at: "
+	puts [clock format [clock seconds] -format "%H:%M %D"]
+	puts [berkdb version -string]
+
+	close $o
+
+	# Create a file that contains the log version number.
+	# If necessary, create the directory to contain the file.
+	set env [berkdb_env -create -log -home $testdir]
+	error_check_good is_valid_env [is_valid_env $env] TRUE
+
+	if { [file exists $dir] == 0 } {
+		file mkdir $dir
+	}
+	set lv [open $dir/logversion w]
+	puts $lv [get_log_vers $env]
+	close $lv
+
+	error_check_good env_close [$env close] 0
+
+	# Generate test databases for each access method and endianness.
+	set gen_upgrade 1
+	foreach method \
+	    "btree rbtree hash recno rrecno frecno queue queueext" {
+		set o [open GENERATE.OUT a]
+		puts $o "\nGenerating $method files"
+		close $o
+		puts "\tGenerating $method files"
+		set upgrade_method $method
+#set test_names(test) ""
+		foreach test $test_names(test) {
+			if { [info exists parms($test)] != 1 } {
 				continue
 			}
 
-			foreach upgrade_be { 0 1 } {
+			set o [open GENERATE.OUT a]
+			puts $o "\t\tGenerating files for $test"
+			close $o
+			puts "\t\tGenerating files for $test"
+
+			if { $save_non_crypto == 1 } {
+				set encrypt 0
+				foreach upgrade_be { 0 1 } {
+					set upgrade_name $test
+					if [catch {exec $tclsh_path \
+					    << "source $test_path/test.tcl;\
+					    global gen_upgrade upgrade_be;\
+					    global upgrade_method upgrade_name;\
+					    global encrypt;\
+					    set encrypt $encrypt;\
+					    set gen_upgrade 1;\
+					    set upgrade_be $upgrade_be;\
+					    set upgrade_method $upgrade_method;\
+					    set upgrade_name $upgrade_name;\
+					    run_method -$method $test" \
+					    >>& GENERATE.OUT} res] {
+						puts "FAIL: run_method \
+						    $test $method"
+					}
+					cleanup $testdir NULL 1
+				}
+				# Save checksummed files for only one test.
+				# Checksumming should work in all or no cases.
+				set gen_chksum 1
+				foreach upgrade_be { 0 1 } {
+					set upgrade_name $test
+					if { $test == "test001" } {
+						if { [catch {exec $tclsh_path \
+						    << "source $test_path/test.tcl;\
+						    global gen_upgrade;\
+						    global upgrade_be;\
+						    global upgrade_method;\
+						    global upgrade_name;\
+						    global encrypt gen_chksum;\
+						    set encrypt $encrypt;\
+						    set gen_upgrade 1;\
+						    set gen_chksum 1;\
+						    set upgrade_be $upgrade_be;\
+						    set upgrade_method \
+						    $upgrade_method;\
+						    set upgrade_name \
+						    $upgrade_name;\
+						    run_method -$method $test \
+						    0 1 stdout -chksum" \
+						    >>& GENERATE.OUT} res] } {
+							puts "FAIL: run_method \
+							    $test $method \
+							    -chksum: $res"
+						}
+						cleanup $testdir NULL 1
+					}
+				}
+				set gen_chksum 0
+			}
+			# Save encrypted db's only of native endianness.
+			# Encrypted files are not portable across endianness.
+			if { $save_crypto == 1 } {
+				set upgrade_be [big_endian]
+				set encrypt 1
+				set upgrade_name $test
 				if [catch {exec $tclsh_path \
 				    << "source $test_path/test.tcl;\
 				    global gen_upgrade upgrade_be;\
 				    global upgrade_method upgrade_name;\
+				    global encrypt passwd;\
+				    set encrypt $encrypt;\
+				    set passwd $passwd;\
 				    set gen_upgrade 1;\
 				    set upgrade_be $upgrade_be;\
 				    set upgrade_method $upgrade_method;\
 				    set upgrade_name $upgrade_name;\
-				    run_method -$i $j $j"} res] {
-					puts "FAIL: $upgrade_name $i"
+				    run_secmethod $method $test" \
+				    >>& GENERATE.OUT} res] {
+					puts "FAIL: run_secmethod \
+					    $test $method"
 				}
-				puts $res
 				cleanup $testdir NULL 1
 			}
 		}
 	}
 	set gen_upgrade 0
+	# Set upgrade_be to the native value so log files go to the
+	# right place.
+	set upgrade_be [big_endian]
+
+	# Generate log files.
+	set o [open GENERATE.OUT a]
+	puts $o "\tGenerating log files"
+	close $o
+	puts "\tGenerating log files"
+
+	set gen_upgrade_log 1
+	# Pass the global variables and their values to the new tclsh.
+	if { $save_non_crypto == 1 } {
+		set encrypt 0
+		if [catch {exec $tclsh_path  << "source $test_path/test.tcl;\
+		    global gen_upgrade_log upgrade_be upgrade_dir;\
+		    global encrypt;\
+		    set encrypt $encrypt;\
+		    set gen_upgrade_log $gen_upgrade_log; \
+		    set upgrade_be $upgrade_be;\
+		    set upgrade_dir $upgrade_dir;\
+		    run_recds" >>& GENERATE.OUT} res] {
+			puts "FAIL: run_recds: $res"
+		}
+	}
+	if { $save_crypto == 1 } {
+		set encrypt 1
+		if [catch {exec $tclsh_path  << "source $test_path/test.tcl;\
+		    global gen_upgrade_log upgrade_be upgrade_dir;\
+		    global encrypt;\
+		    set encrypt $encrypt;\
+		    set gen_upgrade_log $gen_upgrade_log; \
+		    set upgrade_be $upgrade_be;\
+		    set upgrade_dir $upgrade_dir;\
+		    run_recds "  >>& GENERATE.OUT} res] {
+			puts "FAIL: run_recds with crypto: $res"
+		}
+	}
+	set gen_upgrade_log 0
+
+	set o [open GENERATE.OUT a]
+	puts -nonewline $o "Completed at: "
+	puts $o [clock format [clock seconds] -format "%H:%M %D"]
+	puts -nonewline "Completed at: "
+	puts [clock format [clock seconds] -format "%H:%M %D"]
+	close $o
+}
+
+proc save_upgrade_files { dir } {
+	global upgrade_dir
+	global upgrade_be
+	global upgrade_method
+	global upgrade_name
+	global gen_upgrade
+	global gen_upgrade_log
+	global encrypt
+	global gen_chksum
+	global passwd
+	source ./include.tcl
+
+	set vers [berkdb version]
+	set maj [lindex $vers 0]
+	set min [lindex $vers 1]
+
+	# Is this machine big or little endian?  We want to mark
+	# the test directories appropriately, since testing
+	# little-endian databases generated by a big-endian machine,
+	# and/or vice versa, is interesting.
+	if { [big_endian] } {
+		set myendianness be
+	} else {
+		set myendianness le
+	}
+
+	if { $upgrade_be == 1 } {
+		set version_dir "$myendianness-$maj.${min}be"
+		set en be
+	} else {
+		set version_dir "$myendianness-$maj.${min}le"
+		set en le
+	}
+
+	set dest $upgrade_dir/$version_dir/$upgrade_method
+	exec mkdir -p $dest
+
+	if { $gen_upgrade == 1 } {
+		# Save db files from test001 - testxxx.
+		set dbfiles [glob -nocomplain $dir/*.db]
+		set dumpflag ""
+		# Encrypted files are identified by the prefix "c-".
+		if { $encrypt == 1 } {
+			set upgrade_name c-$upgrade_name
+			set dumpflag " -P $passwd "
+		}
+		# Checksummed files are identified by the prefix "s-".
+		if { $gen_chksum == 1 } {
+			set upgrade_name s-$upgrade_name
+		}
+		foreach dbfile $dbfiles {
+			set basename [string range $dbfile \
+			    [expr [string length $dir] + 1] end-3]
+
+			set newbasename $upgrade_name-$basename
+
+			# db_dump file
+			if { [catch {eval exec $util_path/db_dump -k $dumpflag \
+			    $dbfile > $dir/$newbasename.dump} res] } {
+				puts "FAIL: $res"
+			}
+
+			# tcl_dump file
+			upgrade_dump $dbfile $dir/$newbasename.tcldump
+
+			# Rename dbfile and any dbq files.
+			file rename $dbfile $dir/$newbasename-$en.db
+			foreach dbq \
+			    [glob -nocomplain $dir/__dbq.$basename.db.*] {
+				set s [string length $dir/__dbq.]
+				set newname [string replace $dbq $s \
+				    [expr [string length $basename] + $s - 1] \
+				    $newbasename-$en]
+				file rename $dbq $newname
+			}
+			set cwd [pwd]
+			cd $dir
+			catch {eval exec tar -cvf $dest/$newbasename.tar \
+			    [glob $newbasename* __dbq.$newbasename-$en.db.*]}
+			catch {exec gzip -9v $dest/$newbasename.tar} res
+			cd $cwd
+		}
+	}
+
+	if { $gen_upgrade_log == 1 } {
+		# Save log files from recd tests.
+		set logfiles [glob -nocomplain $dir/log.*]
+		if { [llength $logfiles] > 0 } {
+			# More than one log.0000000001 file may be produced
+			# per recd test, so we generate unique names:
+			# recd001-0-log.0000000001, recd001-1-log.0000000001,
+			# and so on.
+			# We may also have log.0000000001, log.0000000002,
+			# and so on, and they will all be dumped together
+			# by db_printlog.
+			set count 0
+			while { [file exists \
+			    $dest/$upgrade_name-$count-log.tar.gz] \
+			    == 1 } {
+				incr count
+			}
+			set newname $upgrade_name-$count-log
+
+			# Run db_printlog on all the log files
+			if {[catch {exec $util_path/db_printlog -h $dir > \
+			    $dir/$newname.prlog} res] != 0} {
+				puts "Regular printlog failed, try encryption"
+				eval {exec $util_path/db_printlog} -h $dir \
+				    -P $passwd > $dir/$newname.prlog
+			}
+
+			# Rename each log file so we can identify which
+			# recd test created it.
+			foreach logfile $logfiles {
+				set lognum [string range $logfile \
+				    end-9 end]
+				file rename $logfile $dir/$newname.$lognum
+			}
+
+			set cwd [pwd]
+			cd $dir
+
+			catch {eval exec tar -cvf $dest/$newname.tar \
+			    [glob $newname*]}
+			catch {exec gzip -9v $dest/$newname.tar}
+			cd $cwd
+		}
+	}
 }
 
 proc upgrade_dump { database file {stripnulls 0} } {
 	global errorInfo
+	global encrypt
+	global passwd
 
-	set db [berkdb open $database]
+	set encargs ""
+	if { $encrypt == 1 } {
+		set encargs " -encryptany $passwd "
+	}
+	set db [eval {berkdb open} -rdonly $encargs $database]
 	set dbc [$db cursor]
 
 	set f [open $file w+]
@@ -244,7 +680,8 @@ proc upgrade_dump { database file {stripnulls 0} } {
 		puts -nonewline $f $key
 		puts -nonewline $f [binary format i [llength $data_list]]
 		for { set j 0 } { $j < [llength $data_list] } { incr j } {
-			puts -nonewline $f [binary format i [string length [concat [lindex $data_list $j]]]]
+			puts -nonewline $f [binary format i [string length \
+			    [concat [lindex $data_list $j]]]]
 			puts -nonewline $f [concat [lindex $data_list $j]]
 		}
 		if { [llength $data_list] == 0 } {
@@ -292,3 +729,17 @@ proc strip_null { str } {
 
 	return $ret
 }
+
+proc get_log_vers { env } {
+	set stat [$env log_stat]
+	foreach pair $stat {
+		set msg [lindex $pair 0]
+		set val [lindex $pair 1]
+		if { $msg == "Log file Version" } {
+			return $val
+		}
+	}
+	puts "FAIL: Log file Version not found in log_stat"
+	return 0
+}
+

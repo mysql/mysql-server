@@ -1,14 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: mp_trickle.c,v 11.35 2004/10/15 16:59:43 bostic Exp $
  */
-#include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: mp_trickle.c,v 11.24 2002/08/06 06:13:53 bostic Exp $";
-#endif /* not lint */
+#include "db_config.h"
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -18,27 +17,50 @@ static const char revid[] = "$Id: mp_trickle.c,v 11.24 2002/08/06 06:13:53 bosti
 
 #include "db_int.h"
 #include "dbinc/db_shash.h"
+#include "dbinc/log.h"
 #include "dbinc/mp.h"
+
+static int __memp_trickle __P((DB_ENV *, int, int *));
+
+/*
+ * __memp_trickle_pp --
+ *	DB_ENV->memp_trickle pre/post processing.
+ *
+ * PUBLIC: int __memp_trickle_pp __P((DB_ENV *, int, int *));
+ */
+int
+__memp_trickle_pp(dbenv, pct, nwrotep)
+	DB_ENV *dbenv;
+	int pct, *nwrotep;
+{
+	int rep_check, ret;
+
+	PANIC_CHECK(dbenv);
+	ENV_REQUIRES_CONFIG(dbenv,
+	    dbenv->mp_handle, "memp_trickle", DB_INIT_MPOOL);
+
+	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
+	if (rep_check)
+		__env_rep_enter(dbenv);
+	ret = __memp_trickle(dbenv, pct, nwrotep);
+	if (rep_check)
+		__env_db_rep_exit(dbenv);
+	return (ret);
+}
 
 /*
  * __memp_trickle --
- *	Keep a specified percentage of the buffers clean.
- *
- * PUBLIC: int __memp_trickle __P((DB_ENV *, int, int *));
+ *	DB_ENV->memp_trickle.
  */
-int
+static int
 __memp_trickle(dbenv, pct, nwrotep)
 	DB_ENV *dbenv;
 	int pct, *nwrotep;
 {
 	DB_MPOOL *dbmp;
 	MPOOL *c_mp, *mp;
-	u_int32_t clean, dirty, i, total, dtmp;
-	int ret, wrote;
-
-	PANIC_CHECK(dbenv);
-	ENV_REQUIRES_CONFIG(dbenv,
-	    dbenv->mp_handle, "memp_trickle", DB_INIT_MPOOL);
+	u_int32_t dirty, i, total, dtmp, wrote;
+	int n, ret;
 
 	dbmp = dbenv->mp_handle;
 	mp = dbmp->reginfo[0].primary;
@@ -68,16 +90,19 @@ __memp_trickle(dbenv, pct, nwrotep)
 		dirty += dtmp;
 	}
 
-	clean = total - dirty;
-	if (clean == total || (clean * 100) / total >= (u_long)pct)
+	/*
+	 * !!!
+	 * Be careful in modifying this calculation, total may be 0.
+	 */
+	n = ((total * (u_int)pct) / 100) - (total - dirty);
+	if (dirty == 0 || n <= 0)
 		return (0);
 
-	if (nwrotep == NULL)
-		nwrotep = &wrote;
-	ret = __memp_sync_int(dbenv, NULL,
-	    ((total * pct) / 100) - clean, DB_SYNC_TRICKLE, nwrotep);
-
-	mp->stat.st_page_trickle += *nwrotep;
+	ret = __memp_sync_int(
+	    dbenv, NULL, (u_int32_t)n, DB_SYNC_TRICKLE, &wrote);
+	mp->stat.st_page_trickle += wrote;
+	if (nwrotep != NULL)
+		*nwrotep = (int)wrote;
 
 	return (ret);
 }

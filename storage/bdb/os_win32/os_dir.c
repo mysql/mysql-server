@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_dir.c,v 11.20 2004/10/13 19:12:17 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_dir.c,v 11.12 2002/07/12 18:56:54 bostic Exp $";
-#endif /* not lint */
 
 #include "db_int.h"
 
@@ -24,44 +22,62 @@ __os_dirlist(dbenv, dir, namesp, cntp)
 	char ***namesp;
 	int *cntp;
 {
-	struct _finddata_t fdata;
-#ifdef _WIN64
-	intptr_t dirhandle;
-#else
-	long dirhandle;
-#endif
-	int arraysz, cnt, finished, ret;
-	char **names, filespec[MAXPATHLEN];
+	HANDLE dirhandle;
+	WIN32_FIND_DATA fdata;
+	int arraysz, cnt, ret;
+	char **names, *onename;
+	_TCHAR tfilespec[MAXPATHLEN + 1];
 
 	if (DB_GLOBAL(j_dirlist) != NULL)
 		return (DB_GLOBAL(j_dirlist)(dir, namesp, cntp));
 
-	(void)snprintf(filespec, sizeof(filespec), "%s/*", dir);
-	if ((dirhandle = _findfirst(filespec, &fdata)) == -1)
+	(void)_sntprintf(tfilespec, MAXPATHLEN,
+	    _T("%hs%hc*"), dir, PATH_SEPARATOR[0]);
+	if ((dirhandle = FindFirstFile(tfilespec, &fdata))
+	    == INVALID_HANDLE_VALUE)
 		return (__os_get_errno());
 
 	names = NULL;
-	finished = 0;
-	for (arraysz = cnt = 0; finished != 1; ++cnt) {
+	arraysz = cnt = ret = 0;
+	for (;;) {
 		if (cnt >= arraysz) {
 			arraysz += 100;
 			if ((ret = __os_realloc(dbenv,
 			    arraysz * sizeof(names[0]), &names)) != 0)
-				goto nomem;
+				goto err;
 		}
-		if ((ret = __os_strdup(dbenv, fdata.name, &names[cnt])) != 0)
-			goto nomem;
-		if (_findnext(dirhandle, &fdata) != 0)
-			finished = 1;
+		/*
+		 * FROM_TSTRING doesn't necessarily allocate new memory, so we
+		 * must do that explicitly.  Unfortunately, when compiled with
+		 * UNICODE, we'll copy twice.
+		 */
+		FROM_TSTRING(dbenv, fdata.cFileName, onename, ret);
+		if (ret != 0)
+			goto err;
+		ret = __os_strdup(dbenv, onename, &names[cnt]);
+		FREE_STRING(dbenv, onename);
+		if (ret != 0)
+			goto err;
+		cnt++;
+		if (!FindNextFile(dirhandle, &fdata)) {
+			if (GetLastError() == ERROR_NO_MORE_FILES)
+				break;
+			else {
+				ret = __os_get_errno();
+				goto err;
+			}
+		}
 	}
-	_findclose(dirhandle);
 
-	*namesp = names;
-	*cntp = cnt;
-	return (0);
+err:	if (!FindClose(dirhandle) && ret == 0)
+		ret = __os_get_errno();
 
-nomem:	if (names != NULL)
+	if (ret == 0) {
+		*namesp = names;
+		*cntp = cnt;
+	} else if (names != NULL)
 		__os_dirfree(dbenv, names, cnt);
+
 	return (ret);
 }
 

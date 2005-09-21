@@ -1,9 +1,9 @@
 #!/bin/sh -
-#	$Id: s_rpc,v 11.18 2002/08/15 15:22:09 bostic Exp $
+#	$Id: s_rpc,v 11.20 2004/03/11 20:11:17 bostic Exp $
 #
 # Build the automatically generated RPC files
 
-echo "Building RPC client/server files"
+echo "Building RPC client/server files..."
 
 . ./RELEASE
 
@@ -13,122 +13,26 @@ trap 'rm -f $t ; exit 1' 1 2 3 13 15
 
 client_file=../rpc_client/gen_client.c
 ctmpl_file=./template/gen_client_ret
-dbinc_file=../dbinc/db.in
-defs_file=../dbinc_auto/rpc_defs.in
-header_file=../dbinc_auto/db_server.h
-proc_file=../rpc_server/c/db_server_proc.c
-rpcclnt_file=../rpc_client/db_server_clnt.c
-rpcsvc_file=../rpc_server/c/db_server_svc.c
-rpcxdr_file=../rpc_server/c/db_server_xdr.c
-sed_file=../rpc_server/c/db_server_proc.sed
 server_file=../rpc_server/c/gen_db_server.c
 stmpl_file=./template/db_server_proc
 xdr_file=../rpc_server/db_server.x
 
-rm -f   $client_file \
-	$ctmpl_file \
-	$header_file \
-	$rpcclnt_file \
-	$rpcsvc_file \
-	$proc_file \
-	$rpcxdr_file \
-	$sed_file \
-	$server_file \
-	$stmpl_file \
-	$xdr_file
+rm -f $client_file $ctmpl_file $server_file $stmpl_file $xdr_file
 
 #
 # Generate client/server/XDR code
 #
 xidsize=\
-`awk '/^#define/ { if ($2 == "DB_XIDDATASIZE") { print $3 }}' $dbinc_file`
+`awk '/^#define/ { if ($2 == "DB_XIDDATASIZE") { print $3 }}' ../dbinc/db.in`
 
 awk -f gen_rpc.awk \
-    -v major=$DB_VERSION_MAJOR \
-    -v minor=$DB_VERSION_MINOR \
-    -v xidsize=$xidsize \
     -v client_file=$client_file \
     -v ctmpl_file=$ctmpl_file \
-    -v sed_file=$sed_file \
+    -v major=$DB_VERSION_MAJOR \
+    -v minor=$DB_VERSION_MINOR \
     -v server_file=$server_file \
     -v stmpl_file=$stmpl_file \
-    -v xdr_file=$xdr_file < ../rpc_server/rpc.src
+    -v xdr_file=$xdr_file \
+    -v xidsize=$xidsize < ../rpc_server/rpc.src
+
 chmod 444 $client_file $server_file
-
-#
-# Now run rpcgen to generate all our sources from the XDR file
-#
-rpcgen -h $xdr_file > $header_file
-rpcgen -l $xdr_file > $rpcclnt_file
-rpcgen -s tcp $xdr_file > $rpcsvc_file
-rpcgen -c $xdr_file > $rpcxdr_file
-
-#
-# Run various server files through sed.
-#
-cat <<ENDOFSEDTEXT>$t
-s/^#include[	 ]"db_server.h"/#include "db_config.h"\\
-\\
-\\#ifndef NO_SYSTEM_INCLUDES\\
-\\#include <rpc\\/rpc.h>\\
-\\#include <rpc\\/pmap_clnt.h>/
-/^#include <netinet.in.h>/a\\
-\\#endif\\
-\\
-\\#include "db_int.h"\\
-\\#include "dbinc_auto/db_server.h"\\
-\\#include "dbinc/db_server_int.h"\\
-\\#include "dbinc_auto/rpc_server_ext.h"
-/^	return;/i\\
-\\	__dbsrv_timeout(0);
-s/svc_sendreply(transp, xdr_void,/svc_sendreply(transp, (xdrproc_t)xdr_void,/
-s/svc_getargs(transp, xdr_argument, &argument)/svc_getargs(transp, (xdrproc_t)xdr_argument, (char *)\&argument)/
-s/svc_sendreply(transp, xdr_result, result)/svc_sendreply(transp, (xdrproc_t)xdr_result, result)/
-s/svc_freeargs(transp, xdr_argument, &argument)/svc_freeargs(transp, (xdrproc_t)xdr_argument, (char *)\&argument)/
-s/^main/void __dbsrv_main/
-ENDOFSEDTEXT
-sed -f $t $rpcsvc_file > ${rpcsvc_file}.new
-mv ${rpcsvc_file}.new $rpcsvc_file
-
-sed -f $sed_file ${proc_file}.in > ${proc_file}
-
-# Run rpcgen files through sed to add HAVE_RPC ifdef and appropriate
-# includes.
-cat <<ENDOFSEDTEXT>$t
-1i\\
-\\#include "db_config.h"\\
-\\
-\\#ifdef HAVE_RPC
-/^#include "db_server.h"/c\\
-\\#ifndef NO_SYSTEM_INCLUDES\\
-\\#include <rpc/rpc.h>\\
-\\
-\\#include <strings.h>\\
-\\#endif\\
-\\
-\\#include "db_int.h"\\
-\\#include "dbinc_auto/db_server.h"
-\$a\\
-\\#endif /* HAVE_RPC */
-ENDOFSEDTEXT
-
-sed -f $t $rpcxdr_file > ${rpcxdr_file}.new
-mv ${rpcxdr_file}.new $rpcxdr_file
-sed -f $t $rpcclnt_file > ${rpcclnt_file}.new
-mv ${rpcclnt_file}.new $rpcclnt_file
-
-# Copy the DB_RPC SERVER #defines into a separate file so
-# they can be part of db.h.
-msgc="/* DO NOT EDIT: automatically built by dist/s_rpc. */"
-(echo  "" && echo "$msgc" &&
-    sed -n -e "/DB_RPC_SERVER/p" $header_file) > $defs_file
-
-# Fix up the header file:
-#	Remove the DB_RPC_SERVER #defines.
-#	Remove the <rpc/rpc.h> include, it needs to be included earlier
-#	than that.
-sed -e "/DB_RPC_SERVER/d"\
-    -e "/^#include.*<rpc\/rpc.h>/d" $header_file > ${header_file}.new
-mv ${header_file}.new $header_file
-
-chmod 444 $header_file $rpcclnt_file $rpcsvc_file $rpcxdr_file

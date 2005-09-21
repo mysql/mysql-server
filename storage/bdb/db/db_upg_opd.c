@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_upg_opd.c,v 11.21 2004/03/19 16:10:26 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_upg_opd.c,v 11.18 2002/08/06 06:11:18 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -102,26 +100,26 @@ __db_31_offdup(dbp, real_name, fhp, sorted, pgnop)
 	}
 
 	/* If we only have a single page, it's easy. */
-	if (cur_cnt > 1) {
-		/*
-		 * pgno_cur is the list of pages we just converted.  We're
-		 * going to walk that list, but we'll need to create a new
-		 * list while we do so.
-		 */
-		if ((ret = __os_malloc(dbp->dbenv,
-		    cur_cnt * sizeof(db_pgno_t), &pgno_next)) != 0)
-			goto err;
+	if (cur_cnt <= 1)
+		goto done;
 
-		/* Figure out where we can start allocating new pages. */
-		if ((ret = __db_lastpgno(dbp, real_name, fhp, &pgno_last)) != 0)
-			goto err;
+	/*
+	 * pgno_cur is the list of pages we just converted.  We're
+	 * going to walk that list, but we'll need to create a new
+	 * list while we do so.
+	 */
+	if ((ret = __os_malloc(dbp->dbenv,
+	    cur_cnt * sizeof(db_pgno_t), &pgno_next)) != 0)
+		goto err;
 
-		/* Allocate room for an internal page. */
-		if ((ret = __os_malloc(dbp->dbenv,
-		    dbp->pgsize, &ipage)) != 0)
-			goto err;
-		PGNO(ipage) = PGNO_INVALID;
-	}
+	/* Figure out where we can start allocating new pages. */
+	if ((ret = __db_lastpgno(dbp, real_name, fhp, &pgno_last)) != 0)
+		goto err;
+
+	/* Allocate room for an internal page. */
+	if ((ret = __os_malloc(dbp->dbenv, dbp->pgsize, &ipage)) != 0)
+		goto err;
+	PGNO(ipage) = PGNO_INVALID;
 
 	/*
 	 * Repeatedly walk the list of pages, building internal pages, until
@@ -181,7 +179,7 @@ __db_31_offdup(dbp, real_name, fhp, sorted, pgnop)
 		pgno_next = tmp;
 	}
 
-	*pgnop = pgno_cur[0];
+done:	*pgnop = pgno_cur[0];
 
 err:	if (pgno_cur != NULL)
 		__os_free(dbp->dbenv, pgno_cur);

@@ -1,21 +1,21 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: txn001.tcl,v 11.35 2002/05/10 17:44:28 sue Exp $
+# $Id: txn001.tcl,v 11.38 2004/01/28 03:36:32 bostic Exp $
 #
 
 # TEST	txn001
 # TEST	Begin, commit, abort testing.
-proc txn001 { {tnum "01"} { max 1024 } { ntxns 50 } } {
+proc txn001 { {tnum "001"} { max 1024 } { ntxns 50 } } {
 	source ./include.tcl
 	global txn_curid
 	global txn_maxid
 
-	puts -nonewline "Txn0$tnum: Basic begin, commit, abort"
+	puts -nonewline "Txn$tnum: Basic begin, commit, abort"
 
-	if { $tnum != "01"} {
+	if { $tnum != "001"} {
 		puts " (with ID wrap)"
 	} else {
 		puts ""
@@ -42,7 +42,7 @@ proc txn001_suba { ntxns env tnum } {
 	# We will create a bunch of transactions and commit them.
 	set txn_list {}
 	set tid_list {}
-	puts "\tTxn0$tnum.a: Beginning/Committing $ntxns Transactions in $env"
+	puts "\tTxn$tnum.a: Beginning/Committing $ntxns Transactions in $env"
 	for { set i 0 } { $i < $ntxns } { incr i } {
 		set txn [$env txn]
 		error_check_good txn_begin [is_valid_txn $txn $env] TRUE
@@ -65,7 +65,7 @@ proc txn001_subb { ntxns env tnum } {
 	# We will create a bunch of transactions and abort them.
 	set txn_list {}
 	set tid_list {}
-	puts "\tTxn0$tnum.b: Beginning/Aborting Transactions"
+	puts "\tTxn$tnum.b: Beginning/Aborting Transactions"
 	for { set i 0 } { $i < $ntxns } { incr i } {
 		set txn [$env txn]
 		error_check_good txn_begin [is_valid_txn $txn $env] TRUE
@@ -88,7 +88,7 @@ proc txn001_subc { ntxns env tnum } {
 	# We will create a bunch of transactions and commit them.
 	set txn_list {}
 	set tid_list {}
-	puts "\tTxn0$tnum.c: Beginning/Prepare/Committing Transactions"
+	puts "\tTxn$tnum.c: Beginning/Prepare/Committing Transactions"
 	for { set i 0 } { $i < $ntxns } { incr i } {
 		set txn [$env txn]
 		error_check_good txn_begin [is_valid_txn $txn $env] TRUE

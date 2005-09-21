@@ -1,10 +1,10 @@
                                    BerkeleyDB
 
-                                  Version 0.20
+                                  Version 0.26
 
-                                  2nd Sept 2002
+                                 10th Oct 2004
 
-	Copyright (c) 1997-2002 Paul Marquess. All rights reserved. This
+	Copyright (c) 1997-2004 Paul Marquess. All rights reserved. This
 	program is free software; you can redistribute it and/or modify
 	it under the same terms as Perl itself.
 
@@ -29,6 +29,10 @@ PREREQUISITES
 
 Before you can build BerkeleyDB you need to have the following
 installed on your system:
+
+    * To run the test harness for this module, you must make sure that the
+      directory where you have untarred this module is NOT a network
+      drive, e.g. NFS or AFS.
 
     * Perl 5.004_04 or greater.
 
@@ -56,7 +60,6 @@ Step 1 : If you are running Solaris 2.5, 2.7 or HP-UX 10 read either
          the Solaris Notes or HP-UX Notes sections below.
 	 If you are running Linux please read the Linux Notes section
          before proceeding.
-
 
 Step 2 : Edit the file config.in to suit you local installation.
          Instructions are given in the file.
@@ -279,10 +282,147 @@ Solution: Setting the LIB & INCLUDE variables in config.in to point to the
 	  If you are running Linux, please read the Linux Notes section below.
 
 
+
+Solaris build fails with "language optional software package not installed"
+---------------------------------------------------------------------------
+
+If you are trying to build this module under Solaris and you get an
+error message like this
+
+    /usr/ucb/cc: language optional software package not installed
+
+it means that Perl cannot find the C compiler on your system. The cryptic
+message is just Sun's way of telling you that you haven't bought their
+C compiler.
+
+When you build a Perl module that needs a C compiler, the Perl build
+system tries to use the same C compiler that was used to build perl
+itself. In this case your Perl binary was built with a C compiler that
+lived in /usr/ucb.
+
+To continue with building this module, you need to get a C compiler,
+or tell Perl where your C compiler is, if you already have one.
+
+Assuming you have now got a C compiler, what you do next will be dependant
+on what C compiler you have installed. If you have just installed Sun's
+C compiler, you shouldn't have to do anything. Just try rebuilding
+this module.
+
+If you have installed another C compiler, say gcc, you have to tell perl
+how to use it instead of /usr/ucb/cc.
+
+This set of options seems to work if you want to use gcc. Your mileage
+may vary.
+
+    perl Makefile.PL CC=gcc CCCDLFLAGS=-fPIC OPTIMIZE=" "
+    make test
+
+If that doesn't work for you, it's time to make changes to the Makefile
+by hand. Good luck!
+
+
+
+Solaris build fails with "gcc: unrecognized option `-KPIC'"
+-----------------------------------------------------------
+
+You are running Solaris and you get an error like this when you try to
+build this Perl module
+
+    gcc: unrecognized option `-KPIC'
+
+This symptom usually means that you are using a Perl binary that has been
+built with the Sun C compiler, but you are using gcc to build this module.
+
+When Perl builds modules that need a C compiler, it will attempt to use
+the same C compiler and command line options that was used to build perl
+itself. In this case "-KPIC" is a valid option for the Sun C compiler,
+but not for gcc. The equivalent option for gcc is "-fPIC".
+
+The solution is either:
+
+    1. Build both Perl and this module with the same C compiler, either
+       by using the Sun C compiler for both or gcc for both.
+
+    2. Try generating the Makefile for this module like this perl
+
+           perl Makefile.PL CC=gcc CCCDLFLAGS=-fPIC OPTIMIZE=" " LD=gcc
+           make test
+
+       This second option seems to work when mixing a Perl binary built
+       with the Sun C compiler and this module built with gcc. Your
+       mileage may vary.
+
+
+
+Network Drive
+-------------
+
+BerkeleyDB seems to have built correctly, but you get a series of errors
+like this when you run the test harness:
+
+
+t/btree........NOK 178Can't call method "txn_begin" on an undefined value at t/btree.t line 637.
+t/btree........dubious                                                       
+        Test returned status 11 (wstat 2816, 0xb00)
+DIED. FAILED tests 28, 178-244
+        Failed 68/244 tests, 72.13% okay
+t/db-3.0.......NOK 2Can't call method "set_mutexlocks" on an undefined value at t/db-3.0.t line 39.
+t/db-3.0.......dubious                                                       
+        Test returned status 11 (wstat 2816, 0xb00)
+DIED. FAILED tests 2-14
+        Failed 13/14 tests, 7.14% okay
+t/db-3.1.......ok                                                            
+t/db-3.2.......NOK 5Can't call method "set_flags" on an undefined value at t/db-3.2.t line 62.
+t/db-3.2.......dubious                                                       
+        Test returned status 11 (wstat 2816, 0xb00)
+DIED. FAILED tests 3, 5-6
+        Failed 3/6 tests, 50.00% okay
+t/db-3.3.......ok                  
+
+This pattern of errors happens if you have built the module in a directory
+that is network mounted (e.g. NFS ar AFS).
+
+The solution is to use a local drive. Berkeley DB doesn't support
+network drives.
+
+
+Berkeley DB library configured to support only DB_PRIVATE environments
+----------------------------------------------------------------------
+
+BerkeleyDB seems to have built correctly, but you get a series of errors
+like this when you run the test harness:
+
+  t/btree........ok 27/244
+  # : Berkeley DB library configured to support only DB_PRIVATE environments
+  t/btree........ok 177/244
+  # : Berkeley DB library configured to support only DB_PRIVATE environments
+  t/btree........NOK 178Can't call method "txn_begin" on an undefined value at t/btree.t line 638.
+  t/btree........dubious
+          Test returned status 2 (wstat 512, 0x200)
+  Scalar found where operator expected at (eval 153) line 1, near "'int'  $__val"
+        (Missing operator before   $__val?)
+  DIED. FAILED tests 28, 178-244
+          Failed 68/244 tests, 72.13% okay
+
+
+Some versions of Redhat Linux, and possibly some other Linux
+distributions, include a seriously restricted build of the
+Berkeley DB library that is incompatible with this module. See
+https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=91933 for an
+exhaustive discussion on the reasons for this.
+
+
+Solution:
+
+You will have to build a private copy of the Berkeley DB library and
+use it when building this Perl module.
+
+
+
 Linux Notes
 -----------
 
-Newer versions of Linux (e.g. RedHat 6, SuSe 6) ship with a C library
+Some versions of Linux (e.g. RedHat 6, SuSe 6) ship with a C library
 that has version 2.x of Berkeley DB linked into it. This makes it
 difficult to build this module with anything other than the version of
 Berkeley DB that shipped with your Linux release. If you do try to use
@@ -386,6 +526,7 @@ Sun patch 103187-25 (or later revisions) fixes this problem.
 To find out if you have the patch installed, the command "showrev -p"
 will display the patches that are currently installed on your system.
 
+
 Solaris 2.7 Notes
 -----------------
 
@@ -426,7 +567,14 @@ following steps should do the trick:
 FEEDBACK
 --------
 
+General feedback/questions/bug reports can be sent to me at pmqs@cpan.org.
+
+Alternatively, if you have Usenet access, you can try the
+comp.databases.berkeley-db or comp.lang.perl.modules groups.
+
+
 How to report a problem with BerkeleyDB.
+----------------------------------------
 
 To help me help you, I need of the following information:
 
@@ -441,6 +589,10 @@ To help me help you, I need of the following information:
 
        perl -MBerkeleyDB -e 'print qq{BerkeleyDB ver $BerkeleyDB::VERSION\n}'
 
+    If you are running windows use this
+
+       perl -MBerkeleyDB -e "print qq{BerkeleyDB ver $BerkeleyDB::VERSION\n}"
+
     If you haven't installed BerkeleyDB then search BerkeleyDB.pm for a
     line like this:
 
@@ -450,6 +602,10 @@ To help me help you, I need of the following information:
     successfully installed BerkeleyDB, this one-liner will tell you:
 
         perl -MBerkeleyDB -e 'print BerkeleyDB::DB_VERSION_STRING.qq{\n}'
+
+    If you are running windows use this
+
+        perl -MBerkeleyDB -e "print BerkeleyDB::DB_VERSION_STRING.qq{\n}"
 
     If you haven't installed BerkeleyDB then search db.h for a line
     like this:
@@ -480,5 +636,5 @@ CHANGES
 
 See the Changes file.
 
-Paul Marquess <Paul.Marquess@btinternet.com>
+Paul Marquess <pmqs@cpan.org>
 

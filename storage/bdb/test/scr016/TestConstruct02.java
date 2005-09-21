@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2002
+ * Copyright (c) 2000-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestConstruct02.java,v 1.6 2002/08/16 19:35:54 dda Exp $
+ * $Id: TestConstruct02.java,v 1.8 2004/01/28 03:36:34 bostic Exp $
  */
 
 /*

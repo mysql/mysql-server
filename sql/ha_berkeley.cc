@@ -93,7 +93,8 @@ u_int32_t berkeley_lock_types[]=
 TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names)-1,"",
 				berkeley_lock_names, NULL};
 
-static void berkeley_print_error(const char *db_errpfx, char *buffer);
+static void berkeley_print_error(const DB_ENV *db_env, const char *db_errpfx,
+                                 const char *buffer);
 static byte* bdb_get_key(BDB_SHARE *share,uint *length,
 			 my_bool not_used __attribute__((unused)));
 static BDB_SHARE *get_share(const char *table_name, TABLE *table);
@@ -176,7 +177,7 @@ handlerton *berkeley_init(void)
 
   if (opt_endinfo)
     db_env->set_verbose(db_env,
-			DB_VERB_CHKPOINT | DB_VERB_DEADLOCK | DB_VERB_RECOVERY,
+			DB_VERB_DEADLOCK | DB_VERB_RECOVERY,
 			1);
 
   db_env->set_cachesize(db_env, 0, berkeley_cache_size, 0);
@@ -248,7 +249,7 @@ static int berkeley_commit(THD *thd, bool all)
   DBUG_PRINT("trans",("ending transaction %s", all ? "all" : "stmt"));
   berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
   DB_TXN **txn= all ? &trx->all : &trx->stmt;
-  int error=txn_commit(*txn,0);
+  int error= (*txn)->commit(*txn,0);
   *txn=0;
 #ifndef DBUG_OFF
   if (error)
@@ -263,7 +264,7 @@ static int berkeley_rollback(THD *thd, bool all)
   DBUG_PRINT("trans",("aborting transaction %s", all ? "all" : "stmt"));
   berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
   DB_TXN **txn= all ? &trx->all : &trx->stmt;
-  int error=txn_abort(*txn);
+  int error= (*txn)->abort(*txn);
   *txn=0;
   DBUG_RETURN(error);
 }
@@ -321,7 +322,8 @@ err:
 }
 
 
-static void berkeley_print_error(const char *db_errpfx, char *buffer)
+static void berkeley_print_error(const DB_ENV *db_env, const char *db_errpfx,
+                                 const char *buffer)
 {
   sql_print_error("%s:  %s",db_errpfx,buffer); /* purecov: tested */
 }
@@ -612,7 +614,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 			  berkeley_cmp_packed_key));
     if (!hidden_primary_key)
       file->app_private= (void*) (table->key_info + table_share->primary_key);
-    if ((error= txn_begin(db_env, 0, (DB_TXN**) &transaction, 0)) ||
+    if ((error= db_env->txn_begin(db_env, NULL, (DB_TXN**) &transaction, 0)) ||
 	(error= (file->open(file, transaction,
 			    fn_format(name_buff, name, "", ha_berkeley_ext,
 				      2 | 4),
@@ -651,7 +653,8 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 	  DBUG_PRINT("bdb",("Setting DB_DUP for key %u", i));
 	  (*ptr)->set_flags(*ptr, DB_DUP);
 	}
-	if ((error= txn_begin(db_env, 0, (DB_TXN**) &transaction, 0)) ||
+	if ((error= db_env->txn_begin(db_env, NULL, (DB_TXN**) &transaction,
+                                      0)) ||
 	    (error=((*ptr)->open(*ptr, transaction, name_buff, part, DB_BTREE,
 				 open_mode, 0))) ||
 	    (error= transaction->commit(transaction, 0)))
@@ -1844,7 +1847,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 	/* We have to start a master transaction */
 	DBUG_PRINT("trans",("starting transaction all:  options: 0x%lx",
                             (ulong) thd->options));
-        if ((error=txn_begin(db_env, 0, &trx->all, 0)))
+        if ((error= db_env->txn_begin(db_env, NULL, &trx->all, 0)))
 	{
           trx->bdb_lock_count--;        // We didn't get the lock
           DBUG_RETURN(error);
@@ -1854,7 +1857,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 	  DBUG_RETURN(0);			// Don't create stmt trans
       }
       DBUG_PRINT("trans",("starting transaction stmt"));
-      if ((error=txn_begin(db_env, trx->all, &trx->stmt, 0)))
+      if ((error= db_env->txn_begin(db_env, trx->all, &trx->stmt, 0)))
       {
 	/* We leave the possible master transaction open */
         trx->bdb_lock_count--;                  // We didn't get the lock
@@ -1879,7 +1882,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 	   We must in this case commit the work to keep the row locks
 	*/
 	DBUG_PRINT("trans",("commiting non-updating transaction"));
-        error= txn_commit(trx->stmt,0);
+        error= trx->stmt->commit(trx->stmt,0);
         trx->stmt= transaction= 0;
       }
     }
@@ -1908,7 +1911,7 @@ int ha_berkeley::start_stmt(THD *thd)
   if (!trx->stmt)
   {
     DBUG_PRINT("trans",("starting transaction stmt"));
-    error=txn_begin(db_env, trx->all, &trx->stmt, 0);
+    error= db_env->txn_begin(db_env, trx->all, &trx->stmt, 0);
     trans_register_ha(thd, FALSE, &berkeley_hton);
   }
   transaction= trx->stmt;
@@ -2289,7 +2292,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if ((key_file[i]->stat)(key_file[i], (void*) &stat, 0))
+    if ((key_file[i]->stat)(key_file[i], NULL, (void*) &stat, 0))
       goto err; /* purecov: inspected */
     share->rec_per_key[i]= (stat->bt_ndata /
 			    (stat->bt_nkeys ? stat->bt_nkeys : 1));
@@ -2302,7 +2305,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if ((file->stat)(file, (void*) &stat, 0))
+    if ((file->stat)(file, NULL, (void*) &stat, 0))
       goto err; /* purecov: inspected */
   }
   pthread_mutex_lock(&share->mutex);

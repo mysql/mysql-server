@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: txn009.tcl,v 11.3 2002/05/10 17:55:55 sue Exp $
+# $Id: txn009.tcl,v 11.6 2004/01/28 03:36:33 bostic Exp $
 #
 
 # TEST	txn009
@@ -17,11 +17,11 @@ proc txn009 { } {
 	set orig_maxid $txn_maxid
 	puts "\tTxn009.1: wraparound txnids"
 	set txn_curid [expr $txn_maxid - 2]
-	txn003 "09.1"
+	txn003 "009.1"
 	puts "\tTxn009.2: closer wraparound txnids"
 	set txn_curid [expr $txn_maxid - 3]
 	set txn_maxid [expr $txn_maxid - 2]
-	txn003 "09.2"
+	txn003 "009.2"
 
 	puts "\tTxn009.3: test wraparound txnids"
 	txn_idwrap_check $testdir

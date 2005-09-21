@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -38,13 +38,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: dbm.c,v 11.18 2004/05/10 21:26:47 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: dbm.c,v 11.14 2002/02/22 16:11:10 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -76,14 +74,11 @@ static const char revid[] = "$Id: dbm.c,v 11.14 2002/02/22 16:11:10 bostic Exp $
  * EXTERN: int	 __db_ndbm_store __P((DBM *, datum, datum, int));
  *
  * EXTERN: int	 __db_dbm_close __P((void));
- * EXTERN: int	 __db_dbm_dbrdonly __P((void));
  * EXTERN: int	 __db_dbm_delete __P((datum));
- * EXTERN: int	 __db_dbm_dirf __P((void));
  * EXTERN: datum __db_dbm_fetch __P((datum));
  * EXTERN: datum __db_dbm_firstkey __P((void));
  * EXTERN: int	 __db_dbm_init __P((char *));
  * EXTERN: datum __db_dbm_nextkey __P((datum));
- * EXTERN: int	 __db_dbm_pagf __P((void));
  * EXTERN: int	 __db_dbm_store __P((datum, datum));
  *
  * EXTERN: #endif
@@ -101,7 +96,7 @@ __db_dbm_init(file)
 	char *file;
 {
 	if (__cur_db != NULL)
-		(void)dbm_close(__cur_db);
+		dbm_close(__cur_db);
 	if ((__cur_db =
 	    dbm_open(file, O_CREAT | O_RDWR, __db_omode("rw----"))) != NULL)
 		return (0);
@@ -289,7 +284,7 @@ __db_ndbm_fetch(dbm, key)
 
 	memset(&_key, 0, sizeof(DBT));
 	memset(&_data, 0, sizeof(DBT));
-	_key.size = key.dsize;
+	_key.size = (u_int32_t)key.dsize;
 	_key.data = key.dptr;
 
 	/*
@@ -299,7 +294,7 @@ __db_ndbm_fetch(dbm, key)
 	 */
 	if ((ret = dbc->dbp->get(dbc->dbp, NULL, &_key, &_data, 0)) == 0) {
 		data.dptr = _data.data;
-		data.dsize = _data.size;
+		data.dsize = (int)_data.size;
 	} else {
 		data.dptr = NULL;
 		data.dsize = 0;
@@ -334,7 +329,7 @@ __db_ndbm_firstkey(dbm)
 
 	if ((ret = dbc->c_get(dbc, &_key, &_data, DB_FIRST)) == 0) {
 		key.dptr = _key.data;
-		key.dsize = _key.size;
+		key.dsize = (int)_key.size;
 	} else {
 		key.dptr = NULL;
 		key.dsize = 0;
@@ -369,7 +364,7 @@ __db_ndbm_nextkey(dbm)
 
 	if ((ret = dbc->c_get(dbc, &_key, &_data, DB_NEXT)) == 0) {
 		key.dptr = _key.data;
-		key.dsize = _key.size;
+		key.dsize = (int)_key.size;
 	} else {
 		key.dptr = NULL;
 		key.dsize = 0;
@@ -401,7 +396,7 @@ __db_ndbm_delete(dbm, key)
 
 	memset(&_key, 0, sizeof(DBT));
 	_key.data = key.dptr;
-	_key.size = key.dsize;
+	_key.size = (u_int32_t)key.dsize;
 
 	if ((ret = dbc->dbp->del(dbc->dbp, NULL, &_key, 0)) == 0)
 		return (0);
@@ -435,11 +430,11 @@ __db_ndbm_store(dbm, key, data, flags)
 
 	memset(&_key, 0, sizeof(DBT));
 	_key.data = key.dptr;
-	_key.size = key.dsize;
+	_key.size = (u_int32_t)key.dsize;
 
 	memset(&_data, 0, sizeof(DBT));
 	_data.data = data.dptr;
-	_data.size = data.dsize;
+	_data.size = (u_int32_t)data.dsize;
 
 	if ((ret = dbc->dbp->put(dbc->dbp, NULL,
 	    &_key, &_data, flags == DBM_INSERT ? DB_NOOVERWRITE : 0)) == 0)

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: env002.tcl,v 11.15 2002/02/20 16:35:20 sandstro Exp $
+# $Id: env002.tcl,v 11.17 2004/01/28 03:36:27 bostic Exp $
 #
 # TEST	env002
 # TEST	Test of DB_LOG_DIR and env name resolution.

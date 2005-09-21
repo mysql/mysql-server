@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestLockVec.java,v 1.4 2002/08/16 19:35:55 dda Exp $
+ * $Id: TestLockVec.java,v 1.7 2004/01/28 03:36:34 bostic Exp $
  */
 
 /*
@@ -40,8 +40,8 @@ public class TestLockVec
                        Db.DB_CREATE | Db.DB_INIT_LOCK | Db.DB_INIT_MPOOL, 0);
             dbenv2.open(".",
                        Db.DB_CREATE | Db.DB_INIT_LOCK | Db.DB_INIT_MPOOL, 0);
-            locker1 = dbenv1.lock_id();
-            locker2 = dbenv1.lock_id();
+            locker1 = dbenv1.lockId();
+            locker2 = dbenv1.lockId();
             Db db1 = new Db(dbenv1, 0);
             db1.open(null, "my.db", null, Db.DB_BTREE, Db.DB_CREATE, 0);
             Db db2 = new Db(dbenv2, 0);
@@ -73,7 +73,7 @@ public class TestLockVec
             catch (DbException dbe1) {
                 expectedErrs += 1;
             }
-            DbLock tmplock = dbenv1.lock_get(locker1, Db.DB_LOCK_NOWAIT,
+            DbLock tmplock = dbenv1.lockGet(locker1, Db.DB_LOCK_NOWAIT,
                                             Akey, Db.DB_LOCK_READ);
             lock_check_held(dbenv2, Akey, Db.DB_LOCK_READ);
             try {
@@ -86,7 +86,7 @@ public class TestLockVec
                 System.err.println("lock check mechanism is broken");
                 System.exit(1);
             }
-            dbenv1.lock_put(tmplock);
+            dbenv1.lockPut(tmplock);
 
             /* Now on with the test, a series of lock_vec requests,
              * with checks between each call.
@@ -103,7 +103,7 @@ public class TestLockVec
             reqs[2] = new DbLockRequest(Db.DB_LOCK_GET, Db.DB_LOCK_READ,
                                         Bkeyagain, null);
 
-            dbenv1.lock_vec(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 3);
+            dbenv1.lockVector(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 3);
 
             /* Locks held: A(W), B(R), B(R) */
             lock_check_held(dbenv2, Bkey, Db.DB_LOCK_READ);
@@ -111,10 +111,10 @@ public class TestLockVec
 
             System.out.println("put a couple");
             /* Request: put A, B(first) */
-            reqs[0].set_op(Db.DB_LOCK_PUT);
-            reqs[1].set_op(Db.DB_LOCK_PUT);
+            reqs[0].setOp(Db.DB_LOCK_PUT);
+            reqs[1].setOp(Db.DB_LOCK_PUT);
 
-            dbenv1.lock_vec(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 2);
+            dbenv1.lockVector(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 2);
 
             /* Locks held: B(R) */
             lock_check_free(dbenv2, Akey);
@@ -122,9 +122,9 @@ public class TestLockVec
 
             System.out.println("put one more, test index offset");
             /* Request: put B(second) */
-            reqs[2].set_op(Db.DB_LOCK_PUT);
+            reqs[2].setOp(Db.DB_LOCK_PUT);
 
-            dbenv1.lock_vec(locker1, Db.DB_LOCK_NOWAIT, reqs, 2, 1);
+            dbenv1.lockVector(locker1, Db.DB_LOCK_NOWAIT, reqs, 2, 1);
 
             /* Locks held: <none> */
             lock_check_free(dbenv2, Akey);
@@ -138,7 +138,7 @@ public class TestLockVec
                                         Akeyagain, null);
             reqs[2] = new DbLockRequest(Db.DB_LOCK_GET, Db.DB_LOCK_READ,
                                         Bkey, null);
-            dbenv1.lock_vec(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 3);
+            dbenv1.lockVector(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 3);
 
             /* Locks held: A(R), B(R), B(R) */
             lock_check_held(dbenv2, Akey, Db.DB_LOCK_READ);
@@ -150,7 +150,7 @@ public class TestLockVec
                                         Bkey, null);
             reqs[2] = new DbLockRequest(Db.DB_LOCK_PUT_OBJ, 0,
                                         Akey, null);
-            dbenv1.lock_vec(locker1, Db.DB_LOCK_NOWAIT, reqs, 1, 2);
+            dbenv1.lockVector(locker1, Db.DB_LOCK_NOWAIT, reqs, 1, 2);
 
             /* Locks held: B(R), B(R) */
             lock_check_free(dbenv2, Akey);
@@ -160,7 +160,7 @@ public class TestLockVec
             /* Request: get A(W) */
             reqs[0] = new DbLockRequest(Db.DB_LOCK_GET, Db.DB_LOCK_WRITE,
                                         Akey, null);
-            dbenv1.lock_vec(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 1);
+            dbenv1.lockVector(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 1);
 
             /* Locks held: A(W), B(R), B(R) */
             lock_check_held(dbenv2, Akey, Db.DB_LOCK_WRITE);
@@ -170,7 +170,7 @@ public class TestLockVec
             /* Request: putall */
             reqs[0] = new DbLockRequest(Db.DB_LOCK_PUT_ALL, 0,
                                         null, null);
-            dbenv1.lock_vec(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 1);
+            dbenv1.lockVector(locker1, Db.DB_LOCK_NOWAIT, reqs, 0, 1);
 
             lock_check_free(dbenv2, Akey);
             lock_check_free(dbenv2, Bkey);
@@ -198,9 +198,9 @@ public class TestLockVec
     static void lock_check_free(DbEnv dbenv, Dbt dbt)
         throws DbException
     {
-        DbLock tmplock = dbenv.lock_get(locker2, Db.DB_LOCK_NOWAIT,
-                                        dbt, Db.DB_LOCK_WRITE);
-        dbenv.lock_put(tmplock);
+        DbLock tmplock = dbenv.lockGet(locker2, Db.DB_LOCK_NOWAIT,
+                                       dbt, Db.DB_LOCK_WRITE);
+        dbenv.lockPut(tmplock);
     }
 
     /* Verify that the lock is held with the mode, throw an exception if not.
@@ -215,15 +215,15 @@ public class TestLockVec
 
         try {
             if (mode == Db.DB_LOCK_WRITE) {
-                never = dbenv.lock_get(locker2, Db.DB_LOCK_NOWAIT,
-                                       dbt, Db.DB_LOCK_READ);
+                never = dbenv.lockGet(locker2, Db.DB_LOCK_NOWAIT,
+                                      dbt, Db.DB_LOCK_READ);
             }
             else if (mode == Db.DB_LOCK_READ) {
-                DbLock rlock = dbenv.lock_get(locker2, Db.DB_LOCK_NOWAIT,
-                                              dbt, Db.DB_LOCK_READ);
-                dbenv.lock_put(rlock);
-                never = dbenv.lock_get(locker2, Db.DB_LOCK_NOWAIT,
-                                              dbt, Db.DB_LOCK_WRITE);
+                DbLock rlock = dbenv.lockGet(locker2, Db.DB_LOCK_NOWAIT,
+                                             dbt, Db.DB_LOCK_READ);
+                dbenv.lockPut(rlock);
+                never = dbenv.lockGet(locker2, Db.DB_LOCK_NOWAIT,
+                                      dbt, Db.DB_LOCK_WRITE);
             }
             else {
                 throw new DbException("lock_check_held bad mode");
@@ -236,7 +236,7 @@ public class TestLockVec
         /* make sure we failed */
         if (never != null) {
           try {
-            dbenv.lock_put(never);
+            dbenv.lockPut(never);
           }
           catch (DbException dbe2) {
             System.err.println("Got some real troubles now");

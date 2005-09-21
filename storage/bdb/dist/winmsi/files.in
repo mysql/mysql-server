@@ -1,0 +1,87 @@
+# $Id: files.in,v 1.7 2005/04/15 19:00:36 philipr Exp $
+# Lists files needed to install particular
+# features in Windows.  Feature names must be
+# listed in features.in .
+
+# Note: columns below must be separated by tabs.
+
+# feature	source file				targdir	shortname
+
+CoreAPI		build_win32/Release/libdb43.dll		/bin/
+DCoreAPI	build_win32/Debug/libdb43d.dll		/bin/debug/
+DCoreAPI	build_win32/Debug/db_dll.pdb		/bin/debug/
+CoreAPI		build_win32/Release/libdb43.lib		/lib/
+DCoreAPI	build_win32/Debug/libdb43d.lib		/lib/
+CoreAPI		build_win32/Release/msvcr71.dll		/bin/
+DCoreAPI	build_win32/Debug/msvcr71d.dll		/bin/debug/
+CoreAPI		build_win32/Release/msvcp71.dll		/bin/
+DCoreAPI	build_win32/Debug/msvcp71d.dll		/bin/debug/
+
+# After the build process, we create an installed_include directory
+# housing all the needed include files, for user convenience
+CoreAPI		installed_include/			/include/
+
+CoreAPI		${PRODUCT_SHARED_WINMSIDIR}/images/webicon.ico	/installutil/
+CoreAPI		${PRODUCT_STAGE}/dbvars.bat		/
+
+# We don't include the .lib files for Java, nobody needs to
+# link C/C++ against the java library
+JavaAPI		build_win32/Release/libdb_java43.dll	/bin/	dbj43.dll
+DJavaAPI 	build_win32/Debug/libdb_java43d.dll	/bin/debug/	dbj43d.dll
+DJavaAPI 	build_win32/Debug/db_java.pdb		/bin/debug/
+JavaAPI		build_win32/Release/db.jar		/jar/
+DJavaAPI	build_win32/Debug/db.jar		/jar/debug/
+
+JavaEx		build_win32/Release/dbexamples.jar	/jar/	dbexam~1.jar
+DJavaEx		build_win32/Debug/dbexamples.jar	/jar/debug/	dbexam~1.jar
+
+# We don't include the .lib files for Tcl, nobody needs to
+# link C/C++ against the Tcl library
+DTclAPI		build_win32/Debug/libdb_tcl43d.dll	/bin/debug/	dbt43d.dll
+DTclAPI		build_win32/Debug/db_tcl.pdb		/bin/debug/
+TclAPI		build_win32/Release/libdb_tcl43.dll	/bin/	dbt43.dll
+
+PerlAPI		perl/BerkeleyDB/blib/			/lib/perl/
+
+CoreTools	build_win32/Release/db_archive.exe	/bin/	db_arc~1.exe
+CoreTools	build_win32/Release/db_checkpoint.exe	/bin/	db_che~1.exe
+CoreTools	build_win32/Release/db_deadlock.exe	/bin/	db_dea~1.exe
+CoreTools	build_win32/Release/db_dump.exe		/bin/	db_dump.exe
+CoreTools	build_win32/Release/db_load.exe		/bin/	db_load.exe
+CoreTools	build_win32/Release/db_printlog.exe	/bin/	db_pri~1.exe
+CoreTools	build_win32/Release/db_recover.exe	/bin/	db_rec~1.exe
+CoreTools	build_win32/Release/db_stat.exe		/bin/	db_sta~1.exe
+CoreTools	build_win32/Release/db_upgrade.exe	/bin/	db_upg~1.exe
+CoreTools	build_win32/Release/db_verify.exe	/bin/	db_ver~1.exe
+
+CoreEx		build_win32/Debug/ex_access.exe		/bin/debug/	ex_acc~1.exe
+CoreEx		build_win32/Debug/ex_access.pdb		/bin/debug/	ex_acc~1.pdb
+CoreEx		build_win32/Debug/ex_btrec.exe		/bin/debug/	ex_btr~1.exe
+CoreEx		build_win32/Debug/ex_btrec.pdb		/bin/debug/	ex_btr~1.pdb
+CoreEx		build_win32/Debug/ex_env.exe		/bin/debug/	ex_env.exe
+CoreEx		build_win32/Debug/ex_env.pdb		/bin/debug/	ex_env.pdb
+CoreEx		build_win32/Debug/ex_lock.exe		/bin/debug/	ex_loc~1.exe
+CoreEx		build_win32/Debug/ex_lock.pdb		/bin/debug/	ex_loc~1.pdb
+CoreEx		build_win32/Debug/ex_mpool.pdb		/bin/debug/	ex_mpo~1.pdb
+CoreEx		build_win32/Debug/ex_mpool.exe		/bin/debug/	ex_mpo~1.exe
+CoreEx		build_win32/Debug/ex_repquote.exe	/bin/debug/	ex_rep~1.exe
+CoreEx		build_win32/Debug/ex_repquote.pdb	/bin/debug/	ex_rep~1.pdb
+CoreEx		build_win32/Debug/ex_tpcb.exe		/bin/debug/	ex_tpcb.exe
+CoreEx		build_win32/Debug/ex_tpcb.pdb		/bin/debug/	ex_tpcb.pdb
+
+CoreEx		build_win32/Debug/excxx_access.exe	/bin/debug/	excxx_ac.exe
+CoreEx		build_win32/Debug/excxx_access.pdb	/bin/debug/	excxx_ac.pdb
+CoreEx		build_win32/Debug/excxx_btrec.exe	/bin/debug/	excxx_bt.exe
+CoreEx		build_win32/Debug/excxx_btrec.pdb	/bin/debug/	excxx_bt.pdb
+CoreEx		build_win32/Debug/excxx_env.exe		/bin/debug/	excxx_en.exe
+CoreEx		build_win32/Debug/excxx_env.pdb		/bin/debug/	excxx_en.pdb
+CoreEx		build_win32/Debug/excxx_lock.exe	/bin/debug/	excxx_lk.exe
+CoreEx		build_win32/Debug/excxx_lock.pdb	/bin/debug/	excxx_lk.pdb
+CoreEx		build_win32/Debug/excxx_mpool.exe	/bin/debug/	excxx_mp.exe
+CoreEx		build_win32/Debug/excxx_mpool.pdb	/bin/debug/	excxx_mp.pdb
+CoreEx		build_win32/Debug/excxx_tpcb.exe	/bin/debug/	excxx_tp.exe
+CoreEx		build_win32/Debug/excxx_tpcb.pdb	/bin/debug/	excxx_tp.pdb
+
+Docs		${PRODUCT_STAGE}/docs/			/docs/
+
+Sources		${PRODUCT_STAGE}/Sources/		/db-${PRODUCT_VERSION}/

@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_open.c,v 11.37 2004/10/05 14:55:35 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_open.c,v 11.21 2002/07/12 18:56:55 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -23,31 +21,58 @@ static const char revid[] = "$Id: os_open.c,v 11.21 2002/07/12 18:56:55 bostic E
 #include "db_int.h"
 
 /*
+ * __os_have_direct --
+ *	Check to see if we support direct I/O.
+ *
+ * PUBLIC: int __os_have_direct __P((void));
+ */
+int
+__os_have_direct()
+{
+	return (1);
+}
+
+/*
  * __os_open --
  *	Open a file descriptor.
  */
-int
-__os_open(dbenv, name, flags, mode, fhp)
+__os_open(dbenv, name, flags, mode, fhpp)
 	DB_ENV *dbenv;
 	const char *name;
 	u_int32_t flags;
 	int mode;
-	DB_FH *fhp;
+	DB_FH **fhpp;
 {
-	DWORD bytesWritten;
-	u_int32_t log_size, pagesize, sectorsize;
-	int access, attr, oflags, share, createflag;
-	int ret, nrepeat;
-	char *drive, dbuf[4]; /* <letter><colon><slosh><nul> */
+	return (__os_open_extend(dbenv, name, 0, flags, mode, fhpp));
+}
 
-#ifdef DIAGNOSTIC
+/*
+ * __os_open_extend --
+ *	Open a file descriptor (including page size and log size information).
+ */
+int
+__os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
+	DB_ENV *dbenv;
+	const char *name;
+	u_int32_t page_size, flags;
+	int mode;
+	DB_FH **fhpp;
+{
+	DB_FH *fhp;
+	DWORD cluster_size, sector_size, free_clusters, total_clusters;
+	int access, attr, createflag, nrepeat, oflags, ret, share;
+	_TCHAR *drive, *tname;
+	_TCHAR dbuf[4]; /* <letter><colon><slash><nul> */
+
+	fhp = NULL;
+	tname = NULL;
+
 #define	OKFLAGS								\
-	(DB_OSO_CREATE | DB_OSO_DIRECT | DB_OSO_EXCL | DB_OSO_LOG |	\
-	 DB_OSO_RDONLY | DB_OSO_REGION | DB_OSO_SEQ | DB_OSO_TEMP |	\
-	 DB_OSO_TRUNC)
+	(DB_OSO_CREATE | DB_OSO_DIRECT | DB_OSO_DSYNC | DB_OSO_EXCL |	\
+	 DB_OSO_LOG | DB_OSO_RDONLY | DB_OSO_REGION | DB_OSO_SEQ |	\
+	 DB_OSO_TEMP | DB_OSO_TRUNC)
 	if ((ret = __db_fchk(dbenv, "__os_open", flags, OKFLAGS)) != 0)
 		return (ret);
-#endif
 
 	/*
 	 * The "public" interface to the __os_open routine passes around POSIX
@@ -59,6 +84,10 @@ __os_open(dbenv, name, flags, mode, fhp)
 
 		if (LF_ISSET(DB_OSO_CREATE))
 			oflags |= O_CREAT;
+#ifdef O_DSYNC
+		if (LF_ISSET(DB_OSO_LOG) && LF_ISSET(DB_OSO_DSYNC))
+			oflags |= O_DSYNC;
+#endif
 
 		if (LF_ISSET(DB_OSO_EXCL))
 			oflags |= O_EXCL;
@@ -79,18 +108,15 @@ __os_open(dbenv, name, flags, mode, fhp)
 		if (LF_ISSET(DB_OSO_TRUNC))
 			oflags |= O_TRUNC;
 
-		return (__os_openhandle(dbenv, name, oflags, mode, fhp));
+		return (__os_openhandle(dbenv, name, oflags, mode, fhpp));
 	}
 
-	ret = 0;
+	TO_TSTRING(dbenv, name, tname, ret);
+	if (ret != 0)
+		goto err;
 
-	if (LF_ISSET(DB_OSO_LOG))
-		log_size = fhp->log_size;			/* XXX: Gag. */
-
-	pagesize = fhp->pagesize;
-
-	memset(fhp, 0, sizeof(*fhp));
-	fhp->fd = -1;
+	if ((ret = __os_calloc(dbenv, 1, sizeof(DB_FH), &fhp)) != 0)
+		goto err;
 
 	/*
 	 * Otherwise, use the Windows/32 CreateFile interface so that we can
@@ -130,7 +156,7 @@ __os_open(dbenv, name, flags, mode, fhp)
 	else
 		createflag = OPEN_EXISTING;	/* open only if existing */
 
-	if (LF_ISSET(DB_OSO_LOG)) {
+	if (LF_ISSET(DB_OSO_LOG) && LF_ISSET(DB_OSO_DSYNC)) {
 		F_SET(fhp, DB_FH_NOSYNC);
 		attr |= FILE_FLAG_WRITE_THROUGH;
 	}
@@ -149,21 +175,26 @@ __os_open(dbenv, name, flags, mode, fhp)
 	 * we call GetDiskFreeSpace, which expects a drive name like "d:\\"
 	 * or NULL for the current disk (i.e., a relative path)
 	 */
-	if (LF_ISSET(DB_OSO_DIRECT) && pagesize != 0 && name[0] != '\0') {
+	if (LF_ISSET(DB_OSO_DIRECT) && page_size != 0 && name[0] != '\0') {
 		if (name[1] == ':') {
 			drive = dbuf;
-			snprintf(dbuf, sizeof(dbuf), "%c:\\", name[0]);
+			_sntprintf(dbuf, sizeof(dbuf), _T("%c:\\"), tname[0]);
 		} else
 			drive = NULL;
 
-		if (GetDiskFreeSpace(drive, NULL, &sectorsize, NULL, NULL) &&
-		    pagesize % sectorsize == 0)
+		/*
+		 * We ignore all results except sectorsize, but some versions
+		 * of Windows require that the parameters are non-NULL.
+		 */
+		if (GetDiskFreeSpace(drive, &cluster_size,
+		    &sector_size, &free_clusters, &total_clusters) &&
+		    page_size % sector_size == 0)
 			attr |= FILE_FLAG_NO_BUFFERING;
 	}
 
 	for (nrepeat = 1;; ++nrepeat) {
 		fhp->handle =
-		    CreateFile(name, access, share, NULL, createflag, attr, 0);
+		    CreateFile(tname, access, share, NULL, createflag, attr, 0);
 		if (fhp->handle == INVALID_HANDLE_VALUE) {
 			/*
 			 * If it's a "temporary" error, we retry up to 3 times,
@@ -171,47 +202,27 @@ __os_open(dbenv, name, flags, mode, fhp)
 			 * if we can't open a database, an inability to open a
 			 * log file is cause for serious dismay.
 			 */
-			ret = __os_win32_errno();
+			ret = __os_get_errno();
 			if ((ret != ENFILE && ret != EMFILE && ret != ENOSPC) ||
 			    nrepeat > 3)
 				goto err;
 
-			(void)__os_sleep(dbenv, nrepeat * 2, 0);
+			__os_sleep(dbenv, nrepeat * 2, 0);
 		} else
 			break;
 	}
 
-	/*
-	 * Special handling needed for log files.  To get Windows to not update
-	 * the MFT metadata on each write, extend the file to its maximum size.
-	 * Windows will allocate all the data blocks and store them in the MFT
-	 * (inode) area.  In addition, flush the MFT area to disk.
-	 * This strategy only works for Win/NT; Win/9X does not
-	 * guarantee that the logs will be zero filled.
-	 */
-	if (LF_ISSET(DB_OSO_LOG) && log_size != 0 && __os_is_winnt()) {
-		if (SetFilePointer(fhp->handle,
-		    log_size - 1, NULL, FILE_BEGIN) == (DWORD)-1)
-			goto err;
-		if (WriteFile(fhp->handle, "\x00", 1, &bytesWritten, NULL) == 0)
-			goto err;
-		if (bytesWritten != 1)
-			goto err;
-		if (SetEndOfFile(fhp->handle) == 0)
-			goto err;
-		if (SetFilePointer(
-		    fhp->handle, 0, NULL, FILE_BEGIN) == (DWORD)-1)
-			goto err;
-		if (FlushFileBuffers(fhp->handle) == 0)
-			goto err;
-	}
+	FREE_STRING(dbenv, tname);
 
-	F_SET(fhp, DB_FH_VALID);
+	F_SET(fhp, DB_FH_OPENED);
+	*fhpp = fhp;
 	return (0);
 
 err:	if (ret == 0)
-		ret = __os_win32_errno();
-	if (fhp->handle != INVALID_HANDLE_VALUE)
-		(void)CloseHandle(fhp->handle);
+		ret = __os_get_errno();
+
+	FREE_STRING(dbenv, tname);
+	if (fhp != NULL)
+		(void)__os_closehandle(dbenv, fhp);
 	return (ret);
 }

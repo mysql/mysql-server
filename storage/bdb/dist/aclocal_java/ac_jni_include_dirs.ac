@@ -28,7 +28,7 @@ dnl Note: This macro can work with the autoconf M4 macros for Java programs.
 dnl This particular macro is not part of the original set of macros.
 dnl
 dnl @author Don Anderson <dda@sleepycat.com>
-dnl @version $Id: ac_jni_include_dirs.ac,v 1.8 2002/09/04 21:27:30 dda Exp $
+dnl @version $Id: ac_jni_include_dirs.ac,v 1.12 2003/10/05 18:10:06 dda Exp $
 dnl
 AC_DEFUN(AC_JNI_INCLUDE_DIR,[
 
@@ -54,18 +54,19 @@ esac
 # If we find jni.h in /usr/include, then it's not a java-only tree, so
 # don't add /usr/include or subdirectories to the list of includes.
 # An extra -I/usr/include can foul things up with newer gcc's.
-if test -f "$_JINC/jni.h"; then
+#
+# If we don't find jni.h, just keep going.  Hopefully javac knows where
+# to find its include files, even if we can't.
+if test -r "$_JINC/jni.h"; then
 	if test "$_JINC" != "/usr/include"; then
 		JNI_INCLUDE_DIRS="$JNI_INCLUDE_DIRS $_JINC"
 	fi
 else
 	_JTOPDIR=`echo "$_JTOPDIR" | sed -e 's:/[[^/]]*$::'`
-	if test -f "$_JTOPDIR/include/jni.h"; then
+	if test -r "$_JTOPDIR/include/jni.h"; then
 		if test "$_JTOPDIR" != "/usr"; then
 			JNI_INCLUDE_DIRS="$JNI_INCLUDE_DIRS $_JTOPDIR/include"
 		fi
-	else
-		AC_MSG_ERROR([cannot find java include files])
 	fi
 fi
 
@@ -74,6 +75,8 @@ if test "$_JTOPDIR" != "/usr"; then
 	case "$host_os" in
 	aix*)		_JNI_INC_SUBDIRS="aix";;
 	bsdi*)		_JNI_INC_SUBDIRS="bsdos";;
+	freebsd*)	_JNI_INC_SUBDIRS="freebsd";;
+	hp*)		_JNI_INC_SUBDIRS="hp-ux";;
 	linux*)		_JNI_INC_SUBDIRS="linux genunix";;
 	osf*)		_JNI_INC_SUBDIRS="alpha";;
 	solaris*)	_JNI_INC_SUBDIRS="solaris";;
@@ -109,4 +112,3 @@ while ls -ld "$_cur" 2>/dev/null | grep " -> " >/dev/null; do
 done
 _ACJNI_FOLLOWED="$_cur"
 ])# _ACJNI
-

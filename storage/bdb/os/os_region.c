@@ -1,19 +1,18 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_region.c,v 11.21 2004/06/10 17:20:57 bostic Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: os_region.c,v 11.15 2002/07/12 18:56:51 bostic Exp $";
-#endif /* not lint */
-
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
+#include <string.h>
 #endif
 
 #include "db_int.h"
@@ -31,6 +30,7 @@ __os_r_attach(dbenv, infop, rp)
 	REGION *rp;
 {
 	int ret;
+
 	/* Round off the requested size for the underlying VM. */
 	OS_VMROUNDOFF(rp->size);
 
@@ -68,21 +68,43 @@ __os_r_attach(dbenv, infop, rp)
 			return (EINVAL);
 		}
 #endif
-		if ((ret =
-		    __os_malloc(dbenv, rp->size, &infop->addr)) != 0)
+		/*
+		 * Pad out the allocation, we're going to align it to mutex
+		 * alignment.
+		 */
+		if ((ret = __os_malloc(dbenv,
+		    sizeof(REGENV) + (MUTEX_ALIGN - 1), &infop->addr)) != 0)
 			return (ret);
-#if defined(UMRW) && !defined(DIAGNOSTIC)
-		memset(infop->addr, CLEAR_BYTE, rp->size);
-#endif
-		return (0);
+
+		infop->max_alloc = rp->size;
+	} else {
+		/*
+		 * If the user replaced the map call, call through their
+		 * interface.
+		 */
+		if (DB_GLOBAL(j_map) != NULL && (ret = DB_GLOBAL(j_map)
+		    (infop->name, rp->size, 1, 0, &infop->addr)) != 0)
+			return (ret);
+
+		/* Get some space from the underlying system. */
+		if ((ret = __os_r_sysattach(dbenv, infop, rp)) != 0)
+			return (ret);
 	}
 
-	/* If the user replaced the map call, call through their interface. */
-	if (DB_GLOBAL(j_map) != NULL)
-		return (DB_GLOBAL(j_map)(infop->name,
-		    rp->size, 1, 0, &infop->addr));
+	/*
+	 * We may require alignment the underlying system or heap allocation
+	 * library doesn't supply.  Align the address if necessary, saving
+	 * the original values for restoration when the region is discarded.
+	 */
+	infop->addr_orig = infop->addr;
+	infop->addr = ALIGNP_INC(infop->addr_orig, MUTEX_ALIGN);
 
-	return (__os_r_sysattach(dbenv, infop, rp));
+	rp->size_orig = rp->size;
+	if (infop->addr != infop->addr_orig)
+		rp->size -=
+		    (u_int8_t *)infop->addr - (u_int8_t *)infop->addr_orig;
+
+	return (0);
 }
 
 /*
@@ -100,6 +122,12 @@ __os_r_detach(dbenv, infop, destroy)
 	REGION *rp;
 
 	rp = infop->rp;
+
+	/* Restore any address/size altered for alignment reasons. */
+	if (infop->addr != infop->addr_orig) {
+		infop->addr = infop->addr_orig;
+		rp->size = rp->size_orig;
+	}
 
 	/* If a region is private, free the memory. */
 	if (F_ISSET(dbenv, DB_ENV_PRIVATE)) {

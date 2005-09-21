@@ -1,17 +1,18 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test057.tcl,v 11.22 2002/05/22 15:42:56 sue Exp $
+# $Id: test057.tcl,v 11.26 2004/09/20 17:06:16 sue Exp $
 #
 # TEST	test057
 # TEST	Cursor maintenance during key deletes.
-# TEST	Check if we handle the case where we delete a key with the cursor on
-# TEST	it and then add the same key.  The cursor should not get the new item
-# TEST	returned, but the item shouldn't disappear.
-# TEST	Run test tests, one where the overwriting put is done with a put and
-# TEST	one where it's done with a cursor put.
+# TEST	1.  Delete a key with a cursor.  Add the key back with a regular
+# TEST	put.  Make sure the cursor can't get the new item.
+# TEST	2.  Put two cursors on one item.  Delete through one cursor,
+# TEST	check that the other sees the change.
+# TEST	3.  Same as 2, with the two cursors on a duplicate.
+
 proc test057 { method args } {
 	global errorInfo
 	source ./include.tcl
@@ -105,7 +106,7 @@ proc test057 { method args } {
 	error_check_good delete $r 0
 
 	# Now check the get current on the cursor.
-	error_check_good curs_get:del [$curs get -current] [list [list [] []]]
+	error_check_good curs_get:del [$curs get -current] ""
 
 	# Now do a put on the key
 	set r [eval {$db put} $txn $flags {$key_set(1) new_datum$key_set(1)}]
@@ -116,7 +117,7 @@ proc test057 { method args } {
 	error_check_good get [lindex [lindex $r 0] 1] new_datum$key_set(1)
 
 	# Recheck cursor
-	error_check_good curs_get:deleted [$curs get -current] [list [list [] []]]
+	error_check_good curs_get:deleted [$curs get -current] ""
 
 	# Move cursor and see if we get the key.
 	set r [$curs get -first]
@@ -149,37 +150,8 @@ proc test057 { method args } {
 	error_check_good curs1_del [$curs del] 0
 
 	# Verify gets on both 1 and 2
-	error_check_good curs_get:deleted [$curs get -current] \
-	    [list [list [] []]]
-	error_check_good curs_get:deleted [$curs2 get -current] \
-	    [list [list [] []]]
-
-	# Now do a replace through cursor 2
-	set pflags "-current"
-	if {[is_hash $method] == 1} {
-		error_check_good curs1_get_after_del [is_substr \
-		    [$curs2 put $pflags new_datum$key_set(3)] "DB_NOTFOUND"] 1
-
-		# Gets fail
-		error_check_good curs1_get:deleted  \
-		    [$curs get -current] \
-		    [list [list [] []]]
-		error_check_good curs2_get:deleted  \
-		    [$curs get -current] \
-		    [list [list [] []]]
-	} else {
-		# btree only, recno is skipped this test
-		set ret [$curs2 put $pflags new_datum$key_set(3)]
-		error_check_good curs_replace $ret 0
-	}
-
-	# Gets fail
-	#error_check_good curs1_get:deleted [catch {$curs get -current} r] 1
-	#error_check_good curs1_get_after_del \
-	    [is_substr $errorInfo "DB_KEYEMPTY"] 1
-	#error_check_good curs2_get:deleted [catch {$curs2 get -current} r] 1
-	#error_check_good curs2_get_after_del \
-	    [is_substr $errorInfo "DB_KEYEMPTY"] 1
+	error_check_good curs_get:deleted [$curs get -current] ""
+	error_check_good curs_get:deleted [$curs2 get -current] ""
 
 	puts "\tTest057.c:\
 	    Set two cursors on a dup, delete one, overwrite other"
@@ -217,27 +189,8 @@ proc test057 { method args } {
 	error_check_good curs1_del [$curs del] 0
 
 	# Verify gets on both 1 and 2
-	error_check_good curs_get:deleted [$curs get -current] \
-	    [list [list [] []]]
-	error_check_good curs_get:deleted [$curs2 get -current] \
-	    [list [list [] []]]
-
-	# Now do a replace through cursor 2 -- this will work on btree but
-	# not on hash
-	if {[is_hash $method] == 1} {
-		error_check_good hash_replace \
-		    [is_substr [$curs2 put -current new_dup_1] "DB_NOTFOUND"] 1
-	} else {
-		error_check_good curs_replace [$curs2 put -current new_dup_1] 0
-	}
-
-	# Both gets should fail
-	#error_check_good curs1_get:deleted [catch {$curs get -current} r] 1
-	#error_check_good curs1_get_after_del \
-	    [is_substr $errorInfo "DB_KEYEMPTY"] 1
-	#error_check_good curs2_get:deleted [catch {$curs2 get -current} r] 1
-	#error_check_good curs2_get_after_del \
-	    [is_substr $errorInfo "DB_KEYEMPTY"] 1
+	error_check_good curs_get:deleted [$curs get -current] ""
+	error_check_good curs_get:deleted [$curs2 get -current] ""
 
 	error_check_good curs2_close [$curs2 close] 0
 	error_check_good curs_close [$curs close] 0

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: dead004.tcl,v 11.11 2002/09/05 17:23:05 sandstro Exp $
+# $Id: dead004.tcl,v 11.15 2004/01/28 03:36:27 bostic Exp $
 #
 # Deadlock Test 4.
 # This test is designed to make sure that we handle youngest and oldest
@@ -20,17 +20,17 @@
 # a lock on (N+1) mod 4.  The deadlock detector ought to pick locker 1 or 4
 # to abort  and not 0 or 5.
 
-proc dead004 { } {
+proc dead004 { {tnum "004"} } {
 	source ./include.tcl
 	global lock_curid
 	global lock_maxid
 
 	foreach a { o y } {
-		puts "Dead004: Deadlock detector test -a $a"
+		puts "Dead$tnum: Deadlock detector test -a $a"
 		env_cleanup $testdir
 
 		# Create the environment.
-		puts "\tDead004.a: creating environment"
+		puts "\tDead$tnum.a: creating environment"
 		set env [berkdb_env -create -mode 0644 -lock -home $testdir]
 		error_check_good lock_env:open [is_valid_env $env] TRUE
 
@@ -47,15 +47,15 @@ proc dead004 { } {
 			error_check_good lock_id_set $ret 0
 
 			# Fire off the tests
-			puts "\tDead004: $n procs"
+			puts "\tDead$tnum: $n procs"
 			for { set i 0 } { $i < $n } { incr i } {
 				set locker [$env lock_id]
 				puts "$tclsh_path $test_path/wrap.tcl \
-				    $testdir/dead004.log.$i \
+				    $testdir/dead$tnum.log.$i \
 				    ddoyscript.tcl $testdir $locker $n $a $i"
 				set p [exec $tclsh_path \
 					$test_path/wrap.tcl \
-					ddoyscript.tcl $testdir/dead004.log.$i \
+					ddoyscript.tcl $testdir/dead$tnum.log.$i \
 					$testdir $locker $n $a $i &]
 				lappend pidlist $p
 			}
@@ -67,7 +67,7 @@ proc dead004 { } {
 		set clean 0
 		set other 0
 		for { set i 0 } { $i < $n } { incr i } {
-			set did [open $testdir/dead004.log.$i]
+			set did [open $testdir/dead$tnum.log.$i]
 			while { [gets $did val] != -1 } {
 				switch $val {
 					DEADLOCK { incr dead }
@@ -79,17 +79,17 @@ proc dead004 { } {
 		}
 		tclkill $dpid
 
-		puts "dead check..."
+		puts "\tDead$tnum: dead check..."
 		dead_check oldyoung $n 0 $dead $clean $other
 
 		# Now verify that neither the oldest nor the
 		# youngest were the deadlock.
-		set did [open $testdir/dead004.log.0]
+		set did [open $testdir/dead$tnum.log.0]
 		error_check_bad file:young [gets $did val] -1
 		error_check_good read:young $val 1
 		close $did
 
-		set did [open $testdir/dead004.log.[expr $procs - 1]]
+		set did [open $testdir/dead$tnum.log.[expr $procs - 1]]
 		error_check_bad file:old [gets $did val] -1
 		error_check_good read:old $val 1
 		close $did
@@ -101,7 +101,7 @@ proc dead004 { } {
 
 		# Remove log files
 		for { set i 0 } { $i < $n } { incr i } {
-			fileremove -f $testdir/dead004.log.$i
+			fileremove -f $testdir/dead$tnum.log.$i
 		}
 		error_check_good lock_env:close [$env close] 0
 	}

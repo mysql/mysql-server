@@ -7,16 +7,18 @@
 #    Change the path below to point to the directory where db.h is
 #    installed on your system.
 
-INCLUDE	= /usr/local/include
-#INCLUDE	= /usr/local/BerkeleyDB/include
+#INCLUDE	= /usr/local/include
+#INCLUDE	= ../..
+INCLUDE	= /usr/local/BerkeleyDB/include
 
 # 2. Where is libdb?
 #
 #    Change the path below to point to the directory where libdb is
 #    installed on your system.
 
-LIB	= /usr/local/lib
-#LIB	= /usr/local/BerkeleyDB/lib
+#LIB	= /usr/local/lib
+#LIB	= ../..
+LIB	= /usr/local/BerkeleyDB/lib
 
 # 3. Is the library called libdb?
 #

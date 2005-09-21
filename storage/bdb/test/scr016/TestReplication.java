@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TestReplication.java,v 1.3 2002/01/23 14:29:51 bostic Exp $
+ * $Id: TestReplication.java,v 1.7 2004/01/28 03:36:34 bostic Exp $
  */
 
 /*
@@ -39,7 +39,7 @@ public class TestReplication extends Thread
     {
         (new File(name)).mkdir();
     }
-    
+
 
     // The client thread runs this
     public void run()
@@ -66,7 +66,7 @@ public class TestReplication extends Thread
 
             while (running) {
                 int msgtype = 0;
-                
+
                 System.err.println("c30");
                 synchronized (queue) {
                     if (queue.size() == 0) {
@@ -79,7 +79,7 @@ public class TestReplication extends Thread
                         byte[] data;
 
                         System.err.println("c50 " + msgtype);
-                        
+
                         switch (msgtype) {
                             case -1:
                                 running = false;
@@ -105,12 +105,12 @@ public class TestReplication extends Thread
                                 rec.set_size(0);
                                 break;
                         }
-                        
+
                     }
                 }
                 System.err.println("c60");
                 if (msgtype == 3 || msgtype == 4) {
-                    System.out.println("cLIENT: Got message");
+                    System.out.println("client: Got message");
                     client_env.rep_process_message(control, rec,
                                                    processMsg);
                 }
@@ -140,9 +140,9 @@ public class TestReplication extends Thread
             System.err.println("Unexpected envid = " + envid);
             return 0;
         }
-        
+
         int nbytes = 0;
-        
+
         synchronized (queue) {
             System.out.println("Sending message");
             byte[] data = control.get_data();
@@ -153,11 +153,11 @@ public class TestReplication extends Thread
                 System.arraycopy(data, 0, newdata, 0, data.length);
                 queue.addElement(newdata);
             }
-            else 
+            else
             {
                 queue.addElement(new Integer(2));
             }
-            
+
             data = rec.get_data();
             if (data != null && data.length > 0) {
                 queue.addElement(new Integer(3));
@@ -166,7 +166,7 @@ public class TestReplication extends Thread
                 System.arraycopy(data, 0, newdata, 0, data.length);
                 queue.addElement(newdata);
             }
-            else 
+            else
             {
                 queue.addElement(new Integer(4));
             }
@@ -184,14 +184,14 @@ public class TestReplication extends Thread
         {
         }
     }
-    
+
     public void send_terminator()
     {
         synchronized (queue) {
             queue.addElement(new Integer(-1));
         }
     }
-    
+
     public void master()
     {
         try {
@@ -256,7 +256,7 @@ class TimelimitThread extends Thread
 {
     long nmillis;
     boolean finished = false;
-    
+
     TimelimitThread(long nmillis)
     {
         this.nmillis = nmillis;
@@ -266,12 +266,12 @@ class TimelimitThread extends Thread
     {
         finished = true;
     }
-    
+
     public void run()
     {
         long targetTime = System.currentTimeMillis() + nmillis;
         long curTime;
-        
+
         while (!finished &&
                ((curTime = System.currentTimeMillis()) < targetTime)) {
             long diff = targetTime - curTime;

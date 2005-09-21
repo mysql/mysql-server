@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_include,v 1.19 2002/03/27 04:31:50 bostic Exp $
+#	$Id: s_include,v 1.22 2004/04/19 18:27:17 mjc Exp $
 #
 # Build the automatically generated function prototype files.
 
@@ -71,14 +71,19 @@ head defonly _DB_INT_DEF_IN_ > $i_dfile
 
 # Process the standard directories, creating per-directory prototype
 # files and adding to the external prototype and #define files.
-for i in db btree clib common dbreg env fileops hash hmac \
-    lock log mp mutex os qam rep rpc_client rpc_server tcl txn xa; do
+for i in db btree clib common crypto dbreg env fileops hash hmac \
+    lock log mp mutex os qam rep rpc_client rpc_server sequence tcl txn xa; do
 	head "_${i}_ext_h_" > $i_pfile
 
-	f="../$i/*.c"
-	[ $i = os ] && f="$f ../os_win32/*.c"
-	[ $i = rpc_server ] && f="../$i/c/*.c"
-	[ $i = crypto ] && f="../$i/*.c ../$i/*/*.c"
+	if [ $i = os ] ; then
+		f=`ls ../$i/*.c ../os_win32/*.c`
+	elif [ $i = rpc_server ] ; then
+		f=`ls ../$i/c/*.c`
+	elif [ $i = crypto ] ; then
+		f=`ls ../$i/*.c ../$i/*/*.c`
+	else
+		f=`ls ../$i/*.c`
+	fi
 	awk -f gen_inc.awk \
 	    -v db_version_unique_name=$DB_VERSION_UNIQUE_NAME \
 	    -v e_dfile=$e_dfile \
@@ -96,7 +101,7 @@ done
 # Process directories which only add to the external prototype and #define
 # files.
 for i in dbm hsearch; do
-	f="../$i/*.c"
+	f=`ls ../$i/*.c`
 	awk -f gen_inc.awk \
 	    -v db_version_unique_name=$DB_VERSION_UNIQUE_NAME \
 	    -v e_dfile=$e_dfile \
@@ -104,16 +109,6 @@ for i in dbm hsearch; do
 	    -v i_dfile="" \
 	    -v i_pfile="" $f
 done
-
-# RPC uses rpcgen to generate a header file; post-process it to add more
-# interfaces to the internal #define file.
-sed -e '/extern bool_t xdr___/{' \
-    -e 's/.* //' \
-    -e 's/();//' \
-    -e 's/.*/#define & &@DB_VERSION_UNIQUE_NAME@/' \
-    -e 'p' \
-    -e '}' \
-    -e d < ../dbinc_auto/db_server.h >> $i_dfile
 
 # There are a few globals in DB -- add them to the external/internal
 # #define files.
@@ -141,7 +136,7 @@ cmp $i_dfile $f > /dev/null 2>&1 ||
 head space defonly _DB_EXT_185_DEF_IN_ > $e_dfile
 head space _DB_EXT_185_PROT_IN_ > $e_pfile
 
-f="../db185/*.c"
+f=`ls ../db185/*.c`
 awk -f gen_inc.awk \
     -v db_version_unique_name=$DB_VERSION_UNIQUE_NAME \
     -v e_dfile=$e_dfile \

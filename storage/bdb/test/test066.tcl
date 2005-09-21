@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test066.tcl,v 11.12 2002/05/24 15:24:56 sue Exp $
+# $Id: test066.tcl,v 11.15 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test066
 # TEST	Test of cursor overwrites of DB_CURRENT w/ duplicates.
@@ -14,14 +14,14 @@ proc test066 { method args } {
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]
 
-	set tnum 66
+	set tnum "066"
 
 	if { [is_record_based $method] || [is_rbtree $method] } {
-	    puts "Test0$tnum: Skipping for method $method."
+	    puts "Test$tnum: Skipping for method $method."
 	    return
 	}
 
-	puts "Test0$tnum: Test of cursor put to DB_CURRENT with duplicates."
+	puts "Test$tnum: Test of cursor put to DB_CURRENT with duplicates."
 
 	source ./include.tcl
 
@@ -95,5 +95,5 @@ proc test066 { method args } {
 	}
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum: Test completed successfully."
+	puts "\tTest$tnum: Test completed successfully."
 }

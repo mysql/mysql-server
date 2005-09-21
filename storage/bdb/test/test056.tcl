@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test056.tcl,v 11.18 2002/05/22 15:42:55 sue Exp $
+# $Id: test056.tcl,v 11.21 2004/09/20 17:06:16 sue Exp $
 #
 # TEST	test056
 # TEST	Cursor maintenance during deletes.
@@ -118,7 +118,7 @@ proc test056 { method args } {
 
 	# Now check the get current on the cursor.
 	set ret [$curs get -current]
-	error_check_good curs_after_del $ret [list [list [] []]]
+	error_check_good curs_after_del $ret ""
 
 	# Now check that the rest of the database looks intact.  There
 	# should be only two keys, 1 and 3.

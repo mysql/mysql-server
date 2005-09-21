@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: chk.db185,v 1.2 2001/10/12 17:55:38 bostic Exp $
+# $Id: chk.db185,v 1.3 2003/09/30 19:31:36 bostic Exp $
 #
 # Check to make sure we can run DB 1.85 code.
 
@@ -22,5 +22,8 @@ else
 	echo "FAIL: test program failed"
 	exit 1
 fi
+
+# Clean up so the next test doesn't get confused.
+rm -rf *
 
 exit 0

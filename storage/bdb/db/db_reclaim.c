@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_reclaim.c,v 11.42 2004/06/10 04:46:44 ubell Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_reclaim.c,v 11.28 2002/08/06 06:11:17 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -20,7 +18,7 @@ static const char revid[] = "$Id: db_reclaim.c,v 11.28 2002/08/06 06:11:17 bosti
 #include "dbinc/db_page.h"
 #include "dbinc/db_shash.h"
 #include "dbinc/btree.h"
-#include "dbinc/lock.h"
+#include "dbinc/mp.h"
 
 /*
  * __db_traverse_big
@@ -48,12 +46,18 @@ __db_traverse_big(dbp, pgno, callback, cookie)
 
 	do {
 		did_put = 0;
-		if ((ret = mpf->get(mpf, &pgno, 0, &p)) != 0)
+		if ((ret = __memp_fget(mpf, &pgno, 0, &p)) != 0)
 			return (ret);
+		/*
+		 * If we are freeing pages only process the overflow
+		 * chain if the head of the chain has a refcount of 1.
+		 */
 		pgno = NEXT_PGNO(p);
+		if (callback == __db_truncate_callback && OV_REF(p) != 1)
+			pgno = PGNO_INVALID;
 		if ((ret = callback(dbp, p, cookie, &did_put)) == 0 &&
 		    !did_put)
-			ret = mpf->put(mpf, p, 0);
+			ret = __memp_fput(mpf, p, 0);
 	} while (ret == 0 && pgno != PGNO_INVALID);
 
 	return (ret);
@@ -79,8 +83,15 @@ __db_reclaim_callback(dbp, p, cookie, putp)
 {
 	int ret;
 
-	COMPQUIET(dbp, NULL);
+	/*
+	 * We don't want to log the free of the root with the subdb.
+	 * If we abort then the subdb may not be openable to undo
+	 * the free.
+	 */
 
+	if ((dbp->type == DB_BTREE || dbp->type == DB_RECNO) &&
+	    PGNO(p) == ((BTREE *)dbp->bt_internal)->bt_root)
+		return (0);
 	if ((ret = __db_free(cookie, p)) != 0)
 		return (ret);
 	*putp = 1;
@@ -103,12 +114,9 @@ __db_truncate_callback(dbp, p, cookie, putp)
 	void *cookie;
 	int *putp;
 {
-	DBMETA *meta;
-	DBT ldbt;
-	DB_LOCK metalock;
 	DB_MPOOLFILE *mpf;
+	DBT ddbt, ldbt;
 	db_indx_t indx, len, off, tlen, top;
-	db_pgno_t pgno;
 	db_trunc_param *param;
 	u_int8_t *hk, type;
 	int ret;
@@ -147,7 +155,12 @@ __db_truncate_callback(dbp, p, cookie, putp)
 			*putp = 0;
 		break;
 	case P_LRECNO:
-		param->count += top;
+		for (indx = 0; indx < top; indx += O_INDX) {
+			type = GET_BKEYDATA(dbp, p, indx)->type;
+			if (!B_DISSET(type))
+				++param->count;
+		}
+
 		if (((BTREE *)dbp->bt_internal)->bt_root == PGNO(p)) {
 			type = P_LRECNO;
 			goto reinit;
@@ -165,8 +178,8 @@ __db_truncate_callback(dbp, p, cookie, putp)
 		for (indx = 0; indx < top; indx += P_INDX) {
 			switch (*H_PAIRDATA(dbp, p, indx)) {
 			case H_OFFDUP:
-			case H_OFFPAGE:
 				break;
+			case H_OFFPAGE:
 			case H_KEYDATA:
 				++param->count;
 				break;
@@ -174,12 +187,15 @@ __db_truncate_callback(dbp, p, cookie, putp)
 				tlen = LEN_HDATA(dbp, p, 0, indx);
 				hk = H_PAIRDATA(dbp, p, indx);
 				for (off = 0; off < tlen;
-				    off += len + 2 * sizeof (db_indx_t)) {
+				    off += len + 2 * sizeof(db_indx_t)) {
 					++param->count;
 					memcpy(&len,
 					    HKEYDATA_DATA(hk)
 					    + off, sizeof(db_indx_t));
 				}
+				break;
+			default:
+				return (__db_pgfmt(dbp->dbenv, p->pgno));
 			}
 		}
 		/* Don't free the head of the bucket. */
@@ -188,41 +204,16 @@ __db_truncate_callback(dbp, p, cookie, putp)
 
 reinit:			*putp = 0;
 			if (DBC_LOGGING(param->dbc)) {
-				pgno = PGNO_BASE_MD;
-				if ((ret = __db_lget(param->dbc, LCK_ALWAYS,
-				    pgno, DB_LOCK_WRITE, 0, &metalock)) != 0)
-					return (ret);
-				if ((ret = mpf->get(mpf,
-				    &pgno, 0, (PAGE **)&meta)) != 0) {
-					goto err;
-				}
 				memset(&ldbt, 0, sizeof(ldbt));
+				memset(&ddbt, 0, sizeof(ddbt));
 				ldbt.data = p;
 				ldbt.size = P_OVERHEAD(dbp);
-				if ((ret = __db_pg_free_log(dbp,
-				    param->dbc->txn, &LSN(meta), 0,
-				    p->pgno, &LSN(meta),
-				    PGNO_BASE_MD, &ldbt, meta->free)) != 0)
-					goto err;
-				LSN(p) = LSN(meta);
-
-				if ((ret =
-				    __db_pg_alloc_log(dbp,
-				    param->dbc->txn, &LSN(meta), 0,
-				    &LSN(meta), PGNO_BASE_MD,
-				    &p->lsn, p->pgno, type, meta->free)) != 0) {
-err:					(void)mpf->put(mpf, (PAGE *)meta, 0);
-					(void)__TLPUT(param->dbc, metalock);
-					return (ret);
-				}
-				LSN(p) = LSN(meta);
-
-				if ((ret = mpf->put(mpf,
-				    (PAGE *)meta, DB_MPOOL_DIRTY)) != 0) {
-					(void)__TLPUT(param->dbc, metalock);
-					return (ret);
-				}
-				if ((ret = __TLPUT(param->dbc, metalock)) != 0)
+				ldbt.size += p->entries * sizeof(db_indx_t);
+				ddbt.data = (u_int8_t *)p + p->hf_offset;
+				ddbt.size = dbp->pgsize - p->hf_offset;
+				if ((ret = __db_pg_init_log(dbp,
+				    param->dbc->txn, &LSN(p), 0,
+				    p->pgno, &ldbt, &ddbt)) != 0)
 					return (ret);
 			} else
 				LSN_NOT_LOGGED(LSN(p));
@@ -239,7 +230,7 @@ err:					(void)mpf->put(mpf, (PAGE *)meta, 0);
 		if ((ret = __db_free(param->dbc, p)) != 0)
 			return (ret);
 	} else {
-		if ((ret = mpf->put(mpf, p, DB_MPOOL_DIRTY)) != 0)
+		if ((ret = __memp_fput(mpf, p, DB_MPOOL_DIRTY)) != 0)
 			return (ret);
 		*putp = 1;
 	}

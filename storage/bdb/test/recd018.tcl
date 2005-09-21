@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd018.tcl,v 11.2 2002/03/13 21:04:20 sue Exp $
+# $Id: recd018.tcl,v 11.5 2004/01/28 03:36:29 bostic Exp $
 #
 # TEST	recd018
 # TEST	Test recover of closely interspersed checkpoints and commits.
@@ -15,11 +15,11 @@ proc recd018 { method {ndbs 10} args } {
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
-	set tnum 18
+	set tnum "018"
 
-	puts "Recd0$tnum ($args): $method recovery of checkpoints and commits."
+	puts "Recd$tnum ($args): $method recovery of checkpoints and commits."
 
-	set tname recd0$tnum.db
+	set tname recd$tnum.db
 	env_cleanup $testdir
 
 	set i 0
@@ -31,7 +31,7 @@ proc recd018 { method {ndbs 10} args } {
 		set key2 KEY2
 	}
 
-	puts "\tRecd0$tnum.a: Create environment and database."
+	puts "\tRecd$tnum.a: Create environment and database."
 	set flags "-create -txn -home $testdir"
 
 	set env_cmd "berkdb_env $flags"
@@ -52,7 +52,7 @@ proc recd018 { method {ndbs 10} args } {
 	# Do a commit immediately followed by a checkpoint after each one.
 	error_check_good "Initial Checkpoint" [$dbenv txn_checkpoint] 0
 
-	puts "\tRecd0$tnum.b Put/Commit/Checkpoint to $ndbs databases"
+	puts "\tRecd$tnum.b Put/Commit/Checkpoint to $ndbs databases"
 	for { set i 0 } { $i < $ndbs } { incr i } {
 		set testfile $tname.$i
 		set data $i
@@ -81,11 +81,11 @@ proc recd018 { method {ndbs 10} args } {
 
 	# Now, loop through and recover to each timestamp, verifying the
 	# expected increment.
-	puts "\tRecd0$tnum.c: Run recovery (no-op)"
+	puts "\tRecd$tnum.c: Run recovery (no-op)"
 	set ret [catch {exec $util_path/db_recover -h $testdir} r]
 	error_check_good db_recover $ret 0
 
-	puts "\tRecd0$tnum.d: Run recovery (initial file)"
+	puts "\tRecd$tnum.d: Run recovery (initial file)"
 	for { set i 0 } {$i < $ndbs } { incr i } {
 		set testfile $tname.$i
 		set file $testdir/$testfile.init
@@ -96,7 +96,7 @@ proc recd018 { method {ndbs 10} args } {
 	set ret [catch {exec $util_path/db_recover -h $testdir} r]
 	error_check_good db_recover $ret 0
 
-	puts "\tRecd0$tnum.e: Run recovery (after file)"
+	puts "\tRecd$tnum.e: Run recovery (after file)"
 	for { set i 0 } {$i < $ndbs } { incr i } {
 		set testfile $tname.$i
 		set file $testdir/$testfile.afterop

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test050.tcl,v 11.21 2002/05/24 14:15:13 bostic Exp $
+# $Id: test050.tcl,v 11.23 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test050
 # TEST	Overwrite test of small/big key/data with cursor checks for Recno.

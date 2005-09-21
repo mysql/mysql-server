@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd013.tcl,v 11.18 2002/02/25 16:44:27 sandstro Exp $
+# $Id: recd013.tcl,v 11.22 2004/09/20 17:06:15 sue Exp $
 #
 # TEST	recd013
 # TEST	Test of cursor adjustment on child transaction aborts. [#2373]
@@ -24,17 +24,17 @@ proc recd013 { method { nitems 100 } args } {
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
-	set tnum 13
+	set tnum "013"
 	set pgsz 512
 
-	puts "Recd0$tnum $method ($args): Test of aborted cursor adjustments."
+	puts "Recd$tnum $method ($args): Test of aborted cursor adjustments."
 	set pgindex [lsearch -exact $args "-pagesize"]
 	if { $pgindex != -1 } {
 		puts "Recd013: skipping for specific pagesizes"
 		return
 	}
 
-	set testfile recd0$tnum.db
+	set testfile recd$tnum.db
 	env_cleanup $testdir
 
 	set i 0
@@ -44,7 +44,7 @@ proc recd013 { method { nitems 100 } args } {
 		set keybase "key"
 	}
 
-	puts "\tRecd0$tnum.a:\
+	puts "\tRecd$tnum.a:\
 	    Create environment, database, and parent transaction."
 	set flags "-create -txn -home $testdir"
 
@@ -73,7 +73,7 @@ proc recd013 { method { nitems 100 } args } {
 		error_check_good fake_put($i) [$db put -txn $ctxn $key $data] 0
 		error_check_good ctxn_abort($i) [$ctxn abort] 0
 		for { set j 1 } { $j < $i } { incr j 2 } {
-			error_check_good dbc_get($j) [$dbc($j) get -current] \
+			error_check_good dbc_get($j):1 [$dbc($j) get -current] \
 			    [list [list $keybase$j \
 			    [pad_data $method $j$alphabet]]]
 		}
@@ -90,20 +90,20 @@ proc recd013 { method { nitems 100 } args } {
 		# And verify all the cursors, including the one we just
 		# created.
 		for { set j 1 } { $j <= $i } { incr j 2 } {
-			error_check_good dbc_get($j) [$dbc($j) get -current] \
+			error_check_good dbc_get($j):2 [$dbc($j) get -current] \
 			    [list [list $keybase$j \
 			    [pad_data $method $j$alphabet]]]
 		}
 	}
 
-	puts "\t\tRecd0$tnum.a.1: Verify cursor stability after init."
+	puts "\t\tRecd$tnum.a.1: Verify cursor stability after init."
 	for { set i 1 } { $i <= 2 * $nitems } { incr i 2 } {
-		error_check_good dbc_get($i) [$dbc($i) get -current] \
+		error_check_good dbc_get($i):3 [$dbc($i) get -current] \
 		    [list [list $keybase$i [pad_data $method $i$alphabet]]]
 	}
 
-	puts "\tRecd0$tnum.b: Put test."
-	puts "\t\tRecd0$tnum.b.1: Put items."
+	puts "\tRecd$tnum.b: Put test."
+	puts "\t\tRecd$tnum.b.1: Put items."
 	set ctxn [$env txn -parent $txn]
 	error_check_good txn [is_valid_txn $ctxn $env] TRUE
 	for { set i 2 } { $i <= 2 * $nitems } { incr i 2 } {
@@ -126,11 +126,11 @@ proc recd013 { method { nitems 100 } args } {
 		}
 	}
 
-	puts "\t\tRecd0$tnum.b.2: Verify cursor stability after abort."
+	puts "\t\tRecd$tnum.b.2: Verify cursor stability after abort."
 	error_check_good ctxn_abort [$ctxn abort] 0
 
 	for { set i 1 } { $i <= 2 * $nitems } { incr i 2 } {
-		error_check_good dbc_get($i) [$dbc($i) get -current] \
+		error_check_good dbc_get($i):4 [$dbc($i) get -current] \
 		    [list [list $keybase$i [pad_data $method $i$alphabet]]]
 	}
 
@@ -146,7 +146,7 @@ proc recd013 { method { nitems 100 } args } {
 
 	error_check_good db_sync [$db sync] 0
 	error_check_good db_verify \
-	    [verify_dir $testdir "\t\tRecd0$tnum.b.3: "] 0
+	    [verify_dir $testdir "\t\tRecd$tnum.b.3: "] 0
 
 	# Now put back all the even records, this time in the parent.
 	# Commit and re-begin the transaction so we can abort and
@@ -164,7 +164,7 @@ proc recd013 { method { nitems 100 } args } {
 	# in the parent and check cursor stability.  Then open a child
 	# transaction, and delete the odd ones.  Verify that the database
 	# is empty.
-	puts "\tRecd0$tnum.c: Delete test."
+	puts "\tRecd$tnum.c: Delete test."
 	unset dbc
 
 	# Create cursors pointing at each item.
@@ -176,7 +176,7 @@ proc recd013 { method { nitems 100 } args } {
 		    [list [list $keybase$i [pad_data $method $i$alphabet]]]
 	}
 
-	puts "\t\tRecd0$tnum.c.1: Delete even items in child txn and abort."
+	puts "\t\tRecd$tnum.c.1: Delete even items in child txn and abort."
 
 	if { [is_rrecno $method] != 1 } {
 		set init 2
@@ -198,11 +198,11 @@ proc recd013 { method { nitems 100 } args } {
 
 	# Verify that no items are deleted.
 	for { set i 1 } { $i <= 2 * $nitems } { incr i } {
-		error_check_good dbc_get($i) [$dbc($i) get -current] \
+		error_check_good dbc_get($i):5 [$dbc($i) get -current] \
 		    [list [list $keybase$i [pad_data $method $i$alphabet]]]
 	}
 
-	puts "\t\tRecd0$tnum.c.2: Delete even items in child txn and commit."
+	puts "\t\tRecd$tnum.c.2: Delete even items in child txn and commit."
 	set ctxn [$env txn -parent $txn]
 	for { set i $init } { $i <= $bound } { incr i $step } {
 		error_check_good del($i) [$db del -txn $ctxn $keybase$i] 0
@@ -216,15 +216,14 @@ proc recd013 { method { nitems 100 } args } {
 		} else {
 			set j [expr ($i - 1) / 2 + 1]
 		}
-		error_check_good dbc_get($i) [$dbc($i) get -current] \
+		error_check_good dbc_get($i):6 [$dbc($i) get -current] \
 		    [list [list $keybase$j [pad_data $method $i$alphabet]]]
 	}
 	for { set i 2 } { $i <= 2 * $nitems } { incr i 2 } {
-		error_check_good dbc_get($i) [$dbc($i) get -current] \
-		    [list [list "" ""]]
+		error_check_good dbc_get($i):7 [$dbc($i) get -current] ""
 	}
 
-	puts "\t\tRecd0$tnum.c.3: Delete odd items in child txn."
+	puts "\t\tRecd$tnum.c.3: Delete odd items in child txn."
 
 	set ctxn [$env txn -parent $txn]
 
@@ -246,7 +245,7 @@ proc recd013 { method { nitems 100 } args } {
 		    [llength [$db get -txn $ctxn $keybase$i]] 0
 	}
 
-	puts "\t\tRecd0$tnum.c.4: Verify cursor stability after abort."
+	puts "\t\tRecd$tnum.c.4: Verify cursor stability after abort."
 	error_check_good ctxn_abort [$ctxn abort] 0
 
 	# Verify that even items are deleted and odd items are not.
@@ -256,12 +255,11 @@ proc recd013 { method { nitems 100 } args } {
 		} else {
 			set j [expr ($i - 1) / 2 + 1]
 		}
-		error_check_good dbc_get($i) [$dbc($i) get -current] \
+		error_check_good dbc_get($i):8 [$dbc($i) get -current] \
 		    [list [list $keybase$j [pad_data $method $i$alphabet]]]
 	}
 	for { set i 2 } { $i <= 2 * $nitems } { incr i 2 } {
-		error_check_good dbc_get($i) [$dbc($i) get -current] \
-		    [list [list "" ""]]
+		error_check_good dbc_get($i):9 [$dbc($i) get -current] ""
 	}
 
 	# Clean up cursors.
@@ -272,14 +270,14 @@ proc recd013 { method { nitems 100 } args } {
 	# Sync and verify.
 	error_check_good db_sync [$db sync] 0
 	error_check_good db_verify \
-	    [verify_dir $testdir "\t\tRecd0$tnum.c.5: "] 0
+	    [verify_dir $testdir "\t\tRecd$tnum.c.5: "] 0
 
-	puts "\tRecd0$tnum.d: Clean up."
+	puts "\tRecd$tnum.d: Clean up."
 	error_check_good txn_commit [$txn commit] 0
 	error_check_good db_close [$db close] 0
 	error_check_good env_close [$env close] 0
 	error_check_good verify_dir \
-	    [verify_dir $testdir "\t\tRecd0$tnum.d.1: "] 0
+	    [verify_dir $testdir "\t\tRecd$tnum.d.1: "] 0
 
 	if { $log_log_record_types == 1 } {
 		logtrack_read $testdir

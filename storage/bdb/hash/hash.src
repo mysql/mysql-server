@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: hash.src,v 10.38 2002/04/17 19:03:10 krinsky Exp $
+ * $Id: hash.src,v 10.44 2004/06/17 17:35:21 bostic Exp $
  */
 /*
  * Copyright (c) 1995, 1996
@@ -45,8 +45,6 @@
 PREFIX	__ham
 DBPRIVATE
 
-INCLUDE	#include "db_config.h"
-INCLUDE
 INCLUDE #ifndef NO_SYSTEM_INCLUDES
 INCLUDE #include <sys/types.h>
 INCLUDE
@@ -60,7 +58,6 @@ INCLUDE #include "dbinc/db_page.h"
 INCLUDE #include "dbinc/db_dispatch.h"
 INCLUDE #include "dbinc/db_am.h"
 INCLUDE #include "dbinc/hash.h"
-INCLUDE #include "dbinc/rep.h"
 INCLUDE #include "dbinc/log.h"
 INCLUDE #include "dbinc/txn.h"
 INCLUDE
@@ -80,7 +77,7 @@ INCLUDE
 BEGIN insdel		21
 ARG	opcode		u_int32_t	lu
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 ARG	ndx		u_int32_t	lu
 POINTER	pagelsn		DB_LSN *	lu
 DBT	key		DBT		s
@@ -100,11 +97,11 @@ END
 BEGIN newpage		22
 ARG	opcode		u_int32_t	lu
 DB	fileid		int32_t		ld
-WRLOCKNZ prev_pgno	db_pgno_t	lu
+ARG	prev_pgno	db_pgno_t	lu
 POINTER	prevlsn		DB_LSN *	lu
-WRLOCKNZ new_pgno	db_pgno_t	lu
+ARG	new_pgno	db_pgno_t	lu
 POINTER	pagelsn		DB_LSN *	lu
-WRLOCKNZ next_pgno	db_pgno_t	lu
+ARG	next_pgno	db_pgno_t	lu
 POINTER	nextlsn		DB_LSN *	lu
 END
 
@@ -117,7 +114,7 @@ END
 BEGIN splitdata		24
 DB	fileid		int32_t		ld
 ARG	opcode		u_int32_t	lu
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 PGDBT	pageimage	DBT		s
 POINTER	pagelsn		DB_LSN *	lu
 END
@@ -136,7 +133,7 @@ END
  */
 BEGIN replace		25
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 ARG	ndx		u_int32_t	lu
 POINTER	pagelsn		DB_LSN *	lu
 ARG	off		int32_t		ld
@@ -157,11 +154,11 @@ END
  */
 BEGIN copypage		28
 DB	fileid		int32_t		ld
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 POINTER	pagelsn		DB_LSN *	lu
-WRLOCK	next_pgno	db_pgno_t	lu
+ARG	next_pgno	db_pgno_t	lu
 POINTER	nextlsn		DB_LSN *	lu
-WRLOCKNZ nnext_pgno	db_pgno_t	lu
+ARG	nnext_pgno	db_pgno_t	lu
 POINTER	nnextlsn	DB_LSN *	lu
 PGDBT	page		DBT		s
 END
@@ -185,17 +182,19 @@ END
  * newalloc:	1 indicates that this record did the actual allocation;
  *		0 indicates that the pages were already allocated from a
  *		previous (failed) allocation.
+ * last_pgno:	the last page in the file before this op.
  */
 BEGIN metagroup		29
 DB	fileid		int32_t		ld
 ARG	bucket		u_int32_t	lu
-WRLOCK  mmpgno		db_pgno_t	lu
+ARG	 mmpgno		db_pgno_t	lu
 POINTER	mmetalsn	DB_LSN *	lu
-WRLOCKNZ mpgno		db_pgno_t	lu
+ARG	mpgno		db_pgno_t	lu
 POINTER	metalsn		DB_LSN *	lu
-WRLOCK	pgno		db_pgno_t	lu
+ARG	pgno		db_pgno_t	lu
 POINTER	pagelsn		DB_LSN *	lu
 ARG	newalloc	u_int32_t	lu
+ARG	last_pgno	db_pgno_t	lu
 END
 
 /*
@@ -209,13 +208,15 @@ END
  * metalsn: meta-data lsn
  * start_pgno: starting page number
  * num: number of allocated pages
+ * last_pgno:	the last page in the file before this op.
  */
 BEGIN groupalloc	32
 DB	fileid		int32_t		ld
 POINTER	meta_lsn	DB_LSN *	lu
-WRLOCK	start_pgno	db_pgno_t	lu
+ARG	start_pgno	db_pgno_t	lu
 ARG	num		u_int32_t	lu
 ARG	free		db_pgno_t	lu
+ARG	last_pgno	db_pgno_t	lu
 END
 
 /*

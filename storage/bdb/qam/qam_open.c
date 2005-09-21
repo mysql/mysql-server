@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: qam_open.c,v 11.68 2004/02/27 12:38:31 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: qam_open.c,v 11.55 2002/09/04 19:06:45 margo Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -24,6 +22,7 @@ static const char revid[] = "$Id: qam_open.c,v 11.55 2002/09/04 19:06:45 margo E
 #include "dbinc/db_swap.h"
 #include "dbinc/db_am.h"
 #include "dbinc/lock.h"
+#include "dbinc/mp.h"
 #include "dbinc/qam.h"
 #include "dbinc/fop.h"
 
@@ -58,9 +57,13 @@ __qam_open(dbp, txn, name, base_pgno, mode, flags)
 	ret = 0;
 	qmeta = NULL;
 
+	if (name == NULL && t->page_ext != 0) {
+		__db_err(dbenv,
+	"Extent size may not be specified for in-memory queue database");
+		return (EINVAL);
+	}
+
 	/* Initialize the remaining fields/methods of the DB. */
-	dbp->stat = __qam_stat;
-	dbp->sync = __qam_sync;
 	dbp->db_am_remove = __qam_remove;
 	dbp->db_am_rename = __qam_rename;
 
@@ -70,9 +73,9 @@ __qam_open(dbp, txn, name, base_pgno, mode, flags)
 	 * In STD_LOCKING mode, we'll synchronize using the meta page
 	 * lock instead.
 	 */
-	if ((ret = dbp->cursor(dbp, txn, &dbc,
-	    LF_ISSET(DB_CREATE) && CDB_LOCKING(dbenv) ?  DB_WRITECURSOR : 0))
-	    != 0)
+	if ((ret = __db_cursor(dbp, txn, &dbc,
+	    LF_ISSET(DB_CREATE) && CDB_LOCKING(dbenv) ?
+	    DB_WRITECURSOR : 0)) != 0)
 		return (ret);
 
 	/*
@@ -83,8 +86,7 @@ __qam_open(dbp, txn, name, base_pgno, mode, flags)
 	if ((ret =
 	    __db_lget(dbc, 0, base_pgno, DB_LOCK_READ, 0, &metalock)) != 0)
 		goto err;
-	if ((ret =
-	    mpf->get(mpf, &base_pgno, 0, (PAGE **)&qmeta)) != 0)
+	if ((ret = __memp_fget(mpf, &base_pgno, 0, &qmeta)) != 0)
 		goto err;
 
 	/* If the magic number is incorrect, that's a fatal error. */
@@ -97,34 +99,12 @@ __qam_open(dbp, txn, name, base_pgno, mode, flags)
 	/* Setup information needed to open extents. */
 	t->page_ext = qmeta->page_ext;
 
-	if (t->page_ext != 0) {
-		t->pginfo.db_pagesize = dbp->pgsize;
-		t->pginfo.flags =
-		    F_ISSET(dbp, (DB_AM_CHKSUM | DB_AM_ENCRYPT | DB_AM_SWAP));
-		t->pginfo.type = dbp->type;
-		t->pgcookie.data = &t->pginfo;
-		t->pgcookie.size = sizeof(DB_PGINFO);
+	if (t->page_ext != 0 && (ret = __qam_set_ext_data(dbp, name)) != 0)
+		goto err;
 
-		if ((ret = __os_strdup(dbp->dbenv, name,  &t->path)) != 0)
-			return (ret);
-		t->dir = t->path;
-		if ((t->name = __db_rpath(t->path)) == NULL) {
-			t->name = t->path;
-			t->dir = PATH_DOT;
-		} else
-			*t->name++ = '\0';
-
-		if (mode == 0)
-			mode = __db_omode("rwrw--");
-		t->mode = mode;
-	}
-
-	if (name == NULL && t->page_ext != 0) {
-		__db_err(dbenv,
-	"Extent size may not be specified for in-memory queue database");
-		return (EINVAL);
-	}
-
+	if (mode == 0)
+		mode = __db_omode("rwrw--");
+	t->mode = mode;
 	t->re_pad = qmeta->re_pad;
 	t->re_len = qmeta->re_len;
 	t->rec_page = qmeta->rec_page;
@@ -132,16 +112,52 @@ __qam_open(dbp, txn, name, base_pgno, mode, flags)
 	t->q_meta = base_pgno;
 	t->q_root = base_pgno + 1;
 
-err:	if (qmeta != NULL && (t_ret = mpf->put(mpf, qmeta, 0)) != 0 && ret == 0)
+err:	if (qmeta != NULL &&
+	    (t_ret = __memp_fput(mpf, qmeta, 0)) != 0 && ret == 0)
 		ret = t_ret;
 
 	/* Don't hold the meta page long term. */
-	(void)__LPUT(dbc, metalock);
+	if ((t_ret = __LPUT(dbc, metalock)) != 0 && ret == 0)
+		ret = t_ret;
 
-	if ((t_ret = dbc->c_close(dbc)) != 0 && ret == 0)
+	if ((t_ret = __db_c_close(dbc)) != 0 && ret == 0)
 		ret = t_ret;
 
 	return (ret);
+}
+
+/*
+ * __qam_set_ext_data --
+ *	Setup DBP data for opening queue extents.
+ *
+ * PUBLIC: int __qam_set_ext_data __P((DB*, const char *));
+ */
+int
+__qam_set_ext_data(dbp, name)
+	DB *dbp;
+	const char *name;
+{
+	QUEUE *t;
+	int ret;
+
+	t = dbp->q_internal;
+	t->pginfo.db_pagesize = dbp->pgsize;
+	t->pginfo.flags =
+	    F_ISSET(dbp, (DB_AM_CHKSUM | DB_AM_ENCRYPT | DB_AM_SWAP));
+	t->pginfo.type = dbp->type;
+	t->pgcookie.data = &t->pginfo;
+	t->pgcookie.size = sizeof(DB_PGINFO);
+
+	if ((ret = __os_strdup(dbp->dbenv, name,  &t->path)) != 0)
+		return (ret);
+	t->dir = t->path;
+	if ((t->name = __db_rpath(t->path)) == NULL) {
+		t->name = t->path;
+		t->dir = PATH_DOT;
+	} else
+		*t->name++ = '\0';
+
+	return (0);
 }
 
 /*
@@ -264,8 +280,8 @@ __qam_init_meta(dbp, meta)
  * This code appears more complex than it is because of the two cases (named
  * and unnamed).  The way to read the code is that for each page being created,
  * there are three parts: 1) a "get page" chunk (which either uses malloc'd
- * memory or calls mpf->get), 2) the initialization, and 3) the "put page"
- * chunk which either does a fop write or an mpf->put.
+ * memory or calls __memp_fget), 2) the initialization, and 3) the "put page"
+ * chunk which either does a fop write or an __memp_fput.
  *
  * PUBLIC: int __qam_new_file __P((DB *, DB_TXN *, DB_FH *, const char *));
  */
@@ -294,7 +310,7 @@ __qam_new_file(dbp, txn, fhp, name)
 
 	if (name == NULL) {
 		pgno = PGNO_BASE_MD;
-		ret = mpf->get(mpf, &pgno, DB_MPOOL_CREATE, &meta);
+		ret = __memp_fget(mpf, &pgno, DB_MPOOL_CREATE, &meta);
 	} else {
 		ret = __os_calloc(dbp->dbenv, 1, dbp->pgsize, &buf);
 		meta = (QMETA *)buf;
@@ -306,7 +322,7 @@ __qam_new_file(dbp, txn, fhp, name)
 		goto err;
 
 	if (name == NULL)
-		ret = mpf->put(mpf, meta, DB_MPOOL_DIRTY);
+		ret = __memp_fput(mpf, meta, DB_MPOOL_DIRTY);
 	else {
 		pginfo.db_pagesize = dbp->pgsize;
 		pginfo.flags =
@@ -316,8 +332,9 @@ __qam_new_file(dbp, txn, fhp, name)
 		pdbt.size = sizeof(pginfo);
 		if ((ret = __db_pgout(dbenv, PGNO_BASE_MD, meta, &pdbt)) != 0)
 			goto err;
-		ret = __fop_write(dbenv,
-		    txn, name, DB_APP_DATA, fhp, 0, buf, dbp->pgsize, 1);
+		ret = __fop_write(dbenv, txn, name,
+		    DB_APP_DATA, fhp, dbp->pgsize, 0, 0, buf, dbp->pgsize, 1,
+		    F_ISSET(dbp, DB_AM_NOT_DURABLE) ? DB_LOG_NOT_DURABLE : 0);
 	}
 	if (ret != 0)
 		goto err;
@@ -326,6 +343,6 @@ __qam_new_file(dbp, txn, fhp, name)
 err:	if (name != NULL)
 		__os_free(dbenv, buf);
 	else if (meta != NULL)
-		(void)mpf->put(mpf, meta, 0);
+		(void)__memp_fput(mpf, meta, 0);
 	return (ret);
 }

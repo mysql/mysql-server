@@ -1,7 +1,7 @@
 Document file - DO NOT EDIT
 
 <BEGIN> BUILD_PENTIUM_debug_BUILDRULE
-BerkeleyDB.out
+BerkeleyDB20.out
 <END>
 
 <BEGIN> BUILD_PENTIUM_debug_MACRO_AR
@@ -9,7 +9,7 @@ ar386
 <END>
 
 <BEGIN> BUILD_PENTIUM_debug_MACRO_ARCHIVE
-$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB_sim.a
+$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB20_sim.a
 <END>
 
 <BEGIN> BUILD_PENTIUM_debug_MACRO_AS
@@ -109,7 +109,7 @@ size386
 <END>
 
 <BEGIN> BUILD_PENTIUM_release_BUILDRULE
-BerkeleyDB.out
+BerkeleyDB20.out
 <END>
 
 <BEGIN> BUILD_PENTIUM_release_MACRO_AR
@@ -117,7 +117,7 @@ ar386
 <END>
 
 <BEGIN> BUILD_PENTIUM_release_MACRO_ARCHIVE
-$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB_sim.a
+$(PRJ_DIR)/PENTIUMgnu/BerkeleyDB20_sim.a
 <END>
 
 <BEGIN> BUILD_PENTIUM_release_MACRO_AS
@@ -143,7 +143,7 @@ cc386
 	-DCPU=PENTIUM \
 	-O2 \
 	-I$(PRJ_DIR) \
-	-I$(PRJ_DIR)/.. 
+	-I$(PRJ_DIR)/..
 <END>
 
 <BEGIN> BUILD_PENTIUM_release_MACRO_CFLAGS_AS
@@ -217,11 +217,11 @@ size386
 ::tc_PENTIUMgnu
 <END>
 
-<BEGIN> BUILD_RULE_BerkeleyDB.out
+<BEGIN> BUILD_RULE_BerkeleyDB20.out
 
 <END>
 
-<BEGIN> BUILD_RULE_BerkeleyDB_sim.out
+<BEGIN> BUILD_RULE_BerkeleyDB20_sim.out
 
 <END>
 

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: chk.tags,v 1.10 2001/10/12 17:55:36 bostic Exp $
+# $Id: chk.tags,v 1.14 2004/10/07 20:30:32 bostic Exp $
 #
 # Check to make sure we don't need any more symbolic links to tags files.
 
@@ -20,14 +20,19 @@ t2=__2
 	-e '/^CVS$/d' \
 	-e '/^build_vxworks$/d' \
 	-e '/^build_win32$/d' \
+	-e '/^build_win64$/d' \
 	-e '/^docs$/d' \
 	-e '/^docs_book$/d' \
 	-e '/^docs_src$/d' \
+	-e '/^examples_java$/d' \
 	-e '/^java$/d' \
+	-e '/^mod_db4$/d' \
 	-e '/^perl$/d' \
+	-e '/^php_db4$/d' \
 	-e '/^test$/d' \
 	-e '/^test_cxx$/d' \
 	-e '/^test_purify$/d' \
+	-e '/^test_server$/d' \
 	-e '/^test_thread$/d' \
 	-e '/^test_vxworks$/d') > $t1
 

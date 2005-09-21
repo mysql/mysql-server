@@ -1,5 +1,12 @@
 # Features we don't test for, but want the #defines to exist for
 # other ports.
+AH_TEMPLATE(DB_WIN32,
+    [We use DB_WIN32 much as one would use _WIN32 -- to specify that
+    we're using an operating system environment that supports Win32
+    calls and semantics.  We don't use _WIN32 because Cygwin/GCC also
+    defines _WIN32, even though Cygwin/GCC closely emulates the Unix
+    environment.])
+
 AH_TEMPLATE(HAVE_VXWORKS, [Define to 1 if building VxWorks.])
 
 AH_TEMPLATE(HAVE_FILESYSTEM_NOTZERO,
@@ -48,4 +55,8 @@ AH_BOTTOM([/*
 #endif
 #ifndef	HAVE_VSNPRINTF
 #define	vsnprintf	__db_Cvsnprintf
+#endif
+
+#ifdef DB_WIN32
+#include "win_db.h"
 #endif])

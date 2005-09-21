@@ -1,22 +1,28 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: log004.tcl,v 11.28 2002/04/29 20:07:54 sue Exp $
+# $Id: log004.tcl,v 11.31 2004/07/19 16:08:36 carol Exp $
 #
 
 # TEST	log004
 # TEST	Make sure that if we do PREVs on a log, but the beginning of the
 # TEST	log has been truncated, we do the right thing.
 proc log004 { } {
+	foreach inmem { 1 0 } {
+		log004_body $inmem
+	}
+}
+
+proc log004_body { inmem } {
 	source ./include.tcl
 
 	puts "Log004: Prev on log when beginning of log has been truncated."
 	# Use archive test to populate log
 	env_cleanup $testdir
 	puts "\tLog004.a: Call archive to populate log."
-	archive
+	archive $inmem
 
 	# Delete all log files under 100
 	puts "\tLog004.b: Delete all log files under 100."

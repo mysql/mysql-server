@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: mutex.c,v 11.43 2004/10/15 16:59:44 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: mutex.c,v 11.37 2002/05/31 19:37:46 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -75,7 +73,7 @@ __db_mutex_setup(dbenv, infop, ptr, flags)
 	/*
 	 * Set up to initialize the mutex.
 	 */
-	iflags = LF_ISSET(MUTEX_THREAD | MUTEX_SELF_BLOCK);
+	iflags = LF_ISSET(MUTEX_LOGICAL_LOCK | MUTEX_THREAD | MUTEX_SELF_BLOCK);
 	switch (infop->type) {
 	case REGION_TYPE_LOCK:
 		offset = P_TO_UINT32(mutex) + DB_FCNTL_OFF_LOCK;
@@ -132,7 +130,7 @@ __db_mutex_alloc_int(dbenv, infop, storep)
 	 * we can free buffers until memory is available.
 	 */
 #if	defined(MUTEX_NO_MALLOC_LOCKS) || defined(HAVE_MUTEX_SYSTEM_RESOURCES)
-	ret = __db_shalloc(infop->addr, sizeof(DB_MUTEX), MUTEX_ALIGN, storep);
+	ret = __db_shalloc(infop, sizeof(DB_MUTEX), MUTEX_ALIGN, storep);
 
 	if (ret == ENOMEM && MPOOL_ON(dbenv)) {
 		DB_MPOOL *dbmp;
@@ -176,10 +174,10 @@ __db_mutex_free(dbenv, infop, mutexp)
 
 		dbmp = dbenv->mp_handle;
 		R_LOCK(dbenv, dbmp->reginfo);
-		__db_shalloc_free(dbmp->reginfo[0].addr, mutexp);
+		__db_shalloc_free(&dbmp->reginfo[0], mutexp);
 		R_UNLOCK(dbenv, dbmp->reginfo);
 	} else
-		__db_shalloc_free(infop->addr, mutexp);
+		__db_shalloc_free(infop, mutexp);
 	R_UNLOCK(dbenv, infop);
 #else
 	COMPQUIET(dbenv, NULL);
@@ -290,8 +288,7 @@ __db_shreg_locks_destroy(infop, rp)
 	for (i = 0; i < rp->reglocks; i++)
 		if (rp->regmutexes[i] != 0) {
 			rp->stat.st_destroys++;
-			__db_mutex_destroy((DB_MUTEX *)R_ADDR(infop,
-			    rp->regmutexes[i]));
+			__db_mutex_destroy(R_ADDR(infop, rp->regmutexes[i]));
 		}
 }
 
@@ -372,8 +369,8 @@ __db_mutex_maint(dbenv, infop)
 
 	switch (infop->type) {
 	case REGION_TYPE_LOCK:
-		moff = ((DB_LOCKREGION *)R_ADDR(infop,
-		    infop->rp->primary))->maint_off;
+		moff = ((DB_LOCKREGION *)
+		    R_ADDR(infop, infop->rp->primary))->maint_off;
 		break;
 	case REGION_TYPE_LOG:
 		moff = ((LOG *)R_ADDR(infop, infop->rp->primary))->maint_off;
@@ -382,8 +379,8 @@ __db_mutex_maint(dbenv, infop)
 		moff = ((MPOOL *)R_ADDR(infop, infop->rp->primary))->maint_off;
 		break;
 	case REGION_TYPE_TXN:
-		moff = ((DB_TXNREGION *)R_ADDR(infop,
-		    infop->rp->primary))->maint_off;
+		moff = ((DB_TXNREGION *)
+		    R_ADDR(infop, infop->rp->primary))->maint_off;
 		break;
 	default:
 		__db_err(dbenv,

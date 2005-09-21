@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2002
+ * Copyright (c) 2001-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_rename.c,v 11.216 2004/09/16 17:55:17 margo Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_rename.c,v 11.203 2002/08/07 16:16:47 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -23,28 +21,28 @@ static const char revid[] = "$Id: db_rename.c,v 11.203 2002/08/07 16:16:47 bosti
 #include "dbinc/fop.h"
 #include "dbinc/lock.h"
 #include "dbinc/log.h"
+#include "dbinc/mp.h"
 
-static int __db_subdb_rename __P(( DB *, DB_TXN *,
-		const char *, const char *, const char *));
+static int __dbenv_dbrename __P((DB_ENV *,
+	       DB_TXN *, const char *, const char *, const char *, int));
+static int __db_subdb_rename __P((DB *,
+	       DB_TXN *, const char *, const char *, const char *));
 
 /*
- * __dbenv_dbrename
- *	Rename method for DB_ENV.
+ * __dbenv_dbrename_pp
+ *	DB_ENV->dbrename pre/post processing.
  *
- * PUBLIC: int __dbenv_dbrename __P((DB_ENV *, DB_TXN *,
+ * PUBLIC: int __dbenv_dbrename_pp __P((DB_ENV *, DB_TXN *,
  * PUBLIC:     const char *, const char *, const char *, u_int32_t));
  */
 int
-__dbenv_dbrename(dbenv, txn, name, subdb, newname, flags)
+__dbenv_dbrename_pp(dbenv, txn, name, subdb, newname, flags)
 	DB_ENV *dbenv;
 	DB_TXN *txn;
 	const char *name, *subdb, *newname;
 	u_int32_t flags;
 {
-	DB *dbp;
-	int ret, t_ret, txn_local;
-
-	txn_local = 0;
+	int ret, txn_local;
 
 	PANIC_CHECK(dbenv);
 	ENV_ILLEGAL_BEFORE_OPEN(dbenv, "DB_ENV->dbrename");
@@ -53,67 +51,97 @@ __dbenv_dbrename(dbenv, txn, name, subdb, newname, flags)
 	if ((ret = __db_fchk(dbenv, "DB->rename", flags, DB_AUTO_COMMIT)) != 0)
 		return (ret);
 
-	if ((ret = db_create(&dbp, dbenv, 0)) != 0)
-		return (ret);
-
 	/*
 	 * Create local transaction as necessary, check for consistent
 	 * transaction usage.
 	 */
 	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto(dbp, &txn)) != 0)
+		if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
 			return (ret);
 		txn_local = 1;
-	} else
+	} else {
 		if (txn != NULL && !TXN_ON(dbenv))
 			return (__db_not_txn_env(dbenv));
+		txn_local = 0;
+	}
 
-	ret = __db_rename_i(dbp, txn, name, subdb, newname);
+	ret = __dbenv_dbrename(dbenv, txn, name, subdb, newname, txn_local);
 
-	/* Commit for DB_AUTO_COMMIT. */
+	return (txn_local ? __db_txn_auto_resolve(dbenv, txn, 0, ret) : ret);
+}
+
+/*
+ * __dbenv_dbrename
+ *	DB_ENV->dbrename.
+ */
+static int
+__dbenv_dbrename(dbenv, txn, name, subdb, newname, txn_local)
+	DB_ENV *dbenv;
+	DB_TXN *txn;
+	const char *name, *subdb, *newname;
+	int txn_local;
+{
+	DB *dbp;
+	int handle_check, ret, t_ret;
+
+	if ((ret = db_create(&dbp, dbenv, 0)) != 0)
+		return (ret);
+	if (txn != NULL)
+		F_SET(dbp, DB_AM_TXN);
+
+	handle_check = IS_REPLICATED(dbenv, dbp);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 1, txn != NULL)) != 0)
+		goto err;
+
+	ret = __db_rename_int(dbp, txn, name, subdb, newname);
+
 	if (txn_local) {
-		if (ret == 0)
-			ret = txn->commit(txn, 0);
-		else
-			if ((t_ret = txn->abort(txn)) != 0)
-				ret = __db_panic(dbenv, t_ret);
-
 		/*
-		 * We created the DBP here and when we committed/aborted,
-		 * we release all the tranasctional locks, which includes
-		 * the handle lock; mark the handle cleared explicitly.
+		 * We created the DBP here and when we commit/abort, we'll
+		 * release all the transactional locks, including the handle
+		 * lock; mark the handle cleared explicitly.
 		 */
 		LOCK_INIT(dbp->handle_lock);
 		dbp->lid = DB_LOCK_INVALIDID;
+	} else if (txn != NULL) {
+		/*
+		 * We created this handle locally so we need to close it
+		 * and clean it up.  Unfortunately, it's holding transactional
+		 * locks that need to persist until the end of transaction.
+		 * If we invalidate the locker id (dbp->lid), then the close
+		 * won't free these locks prematurely.
+		 */
+		 dbp->lid = DB_LOCK_INVALIDID;
 	}
 
-	/*
-	 * We never opened this dbp for real, so don't call the transactional
-	 * version of DB->close, and use NOSYNC to avoid calling into mpool.
-	 */
-	if ((t_ret = dbp->close(dbp, DB_NOSYNC)) != 0 && ret == 0)
+	if (handle_check)
+		__env_db_rep_exit(dbenv);
+
+err:
+	if ((t_ret = __db_close(dbp, txn, DB_NOSYNC)) != 0 && ret == 0)
 		ret = t_ret;
 
 	return (ret);
 }
 
 /*
- * __db_rename
- *	Rename method for DB.
+ * __db_rename_pp
+ *	DB->rename pre/post processing.
  *
- * PUBLIC: int __db_rename __P((DB *,
+ * PUBLIC: int __db_rename_pp __P((DB *,
  * PUBLIC:     const char *, const char *, const char *, u_int32_t));
  */
 int
-__db_rename(dbp, name, subdb, newname, flags)
+__db_rename_pp(dbp, name, subdb, newname, flags)
 	DB *dbp;
 	const char *name, *subdb, *newname;
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int ret, t_ret;
+	int handle_check, ret;
 
 	dbenv = dbp->dbenv;
+	handle_check = 0;
 
 	PANIC_CHECK(dbenv);
 
@@ -140,28 +168,54 @@ __db_rename(dbp, name, subdb, newname, flags)
 	if ((ret = __db_check_txn(dbp, NULL, DB_LOCK_INVALIDID, 0)) != 0)
 		goto err;
 
-	/* Rename the file. */
-	ret = __db_rename_i(dbp, NULL, name, subdb, newname);
+	handle_check = IS_REPLICATED(dbenv, dbp);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 1, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
-	/*
-	 * We never opened this dbp for real, use NOSYNC to avoid calling into
-	 * mpool.
-	 */
-err:	if ((t_ret = dbp->close(dbp, DB_NOSYNC)) != 0 && ret == 0)
+	/* Rename the file. */
+	ret = __db_rename(dbp, NULL, name, subdb, newname);
+
+err:	if (handle_check)
+		__env_db_rep_exit(dbenv);
+
+	return (ret);
+}
+
+/*
+ * __db_rename
+ *	DB->rename method.
+ *
+ * PUBLIC: int __db_rename
+ * PUBLIC:     __P((DB *, DB_TXN *, const char *, const char *, const char *));
+ */
+int
+__db_rename(dbp, txn, name, subdb, newname)
+	DB *dbp;
+	DB_TXN *txn;
+	const char *name, *subdb, *newname;
+{
+	int ret, t_ret;
+
+	ret = __db_rename_int(dbp, txn, name, subdb, newname);
+
+	if ((t_ret = __db_close(dbp, txn, DB_NOSYNC)) != 0 && ret == 0)
 		ret = t_ret;
 
 	return (ret);
 }
 
 /*
- * __db_rename_i
- *	Internal rename method for DB.
+ * __db_rename_int
+ *	Worker function for DB->rename method; the close of the dbp is
+ * left in the wrapper routine.
  *
- * PUBLIC: int __db_rename_i __P((DB *,
- * PUBLIC:      DB_TXN *, const char *, const char *, const char *));
+ * PUBLIC: int __db_rename_int
+ * PUBLIC:     __P((DB *, DB_TXN *, const char *, const char *, const char *));
  */
 int
-__db_rename_i(dbp, txn, name, subdb, newname)
+__db_rename_int(dbp, txn, name, subdb, newname)
 	DB *dbp;
 	DB_TXN *txn;
 	const char *name, *subdb, *newname;
@@ -180,9 +234,11 @@ __db_rename_i(dbp, txn, name, subdb, newname)
 		goto err;
 	}
 
-	/* From here on down, this pertains to files. */
-
-	/* Find the real name of the file. */
+	/*
+	 * From here on down, this pertains to files.
+	 *
+	 * Find the real name of the file.
+	 */
 	if ((ret = __db_appname(dbenv,
 	    DB_APP_DATA, name, 0, NULL, &real_name)) != 0)
 		goto err;
@@ -220,8 +276,7 @@ __db_rename_i(dbp, txn, name, subdb, newname)
 	DB_TEST_RECOVERY(dbp, DB_TEST_POSTDESTROY, ret, newname);
 
 DB_TEST_RECOVERY_LABEL
-err:
-	if (real_name != NULL)
+err:	if (real_name != NULL)
 		__os_free(dbenv, real_name);
 
 	return (ret);
@@ -265,14 +320,14 @@ __db_subdb_rename(dbp, txn, name, subdb, newname)
 	    MU_OPEN, NULL, 0)) != 0)
 		goto err;
 
-	if ((ret = mdbp->mpf->get(mdbp->mpf, &dbp->meta_pgno, 0, &meta)) != 0)
+	if ((ret = __memp_fget(mdbp->mpf, &dbp->meta_pgno, 0, &meta)) != 0)
 		goto err;
-	memcpy(&dbp->fileid, ((DBMETA *)meta)->uid, DB_FILE_ID_LEN);
+	memcpy(dbp->fileid, ((DBMETA *)meta)->uid, DB_FILE_ID_LEN);
 	if ((ret = __fop_lock_handle(dbenv,
-	    dbp, mdbp->lid, DB_LOCK_WRITE, NULL, 0)) != 0)
+	    dbp, mdbp->lid, DB_LOCK_WRITE, NULL, NOWAIT_FLAG(txn))) != 0)
 		goto err;
 
-	ret = mdbp->mpf->put(mdbp->mpf, meta, 0);
+	ret = __memp_fput(mdbp->mpf, meta, 0);
 	meta = NULL;
 	if (ret != 0)
 		goto err;
@@ -286,11 +341,11 @@ __db_subdb_rename(dbp, txn, name, subdb, newname)
 DB_TEST_RECOVERY_LABEL
 err:
 	if (meta != NULL &&
-	    (t_ret = mdbp->mpf->put(mdbp->mpf, meta, 0)) != 0 && ret == 0)
+	    (t_ret = __memp_fput(mdbp->mpf, meta, 0)) != 0 && ret == 0)
 		ret = t_ret;
 
 	if (mdbp != NULL &&
-	    (t_ret = __db_close_i(mdbp, txn, 0)) != 0 && ret == 0)
+	    (t_ret = __db_close(mdbp, txn, DB_NOSYNC)) != 0 && ret == 0)
 		ret = t_ret;
 
 	return (ret);

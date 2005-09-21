@@ -2,7 +2,7 @@
 #
 # SCCS: %I%, %G%     
 #
-# written by Paul Marquess <Paul.Marquess@btinternet.com>
+# written by Paul Marquess <pmqs@cpan.org>
 #
 #################################### DB SECTION
 #
@@ -61,6 +61,7 @@ BerkeleyDB_TxnMgr_type * T_IV
 BerkeleyDB_Txn_type *	T_IV
 BerkeleyDB__Cursor_type * T_IV
 DB *			T_IV
+DB_ENV *		T_IV
 
 INPUT
 
@@ -173,46 +174,60 @@ T_PTROBJ_AV
             croak(\"$var is not of type ${ntype}\")
 
 T_dbtkeydatum
-	DBM_ckFilter($arg, filter_store_key, \"filter_store_key\");
-	DBT_clear($var) ;
-	if (db->recno_or_queue) {
-	    Value = GetRecnoKey(db, SvIV($arg)) ; 
-	    $var.data = & Value; 
-	    $var.size = (int)sizeof(db_recno_t);
-	}
-	else {
-	    $var.data = SvPV($arg, PL_na);
-	    $var.size = (int)PL_na;
+	{
+	    SV* my_sv = $arg ;
+	    DBM_ckFilter(my_sv, filter_store_key, \"filter_store_key\");
+	    DBT_clear($var) ;
+            SvGETMAGIC($arg) ;
+	    if (db->recno_or_queue) {
+	        Value = GetRecnoKey(db, SvIV(my_sv)) ; 
+	        $var.data = & Value; 
+	        $var.size = (int)sizeof(db_recno_t);
+	    }
+	    else {
+	        $var.data = SvPV(my_sv, PL_na);
+	        $var.size = (int)PL_na;
+	    }
 	}
 
 T_dbtkeydatum_btree
-	DBM_ckFilter($arg, filter_store_key, \"filter_store_key\");
-	DBT_clear($var) ;
-	if (db->recno_or_queue ||
-		(db->type == DB_BTREE && flagSet(DB_SET_RECNO))) {
-	    Value = GetRecnoKey(db, SvIV($arg)) ; 
-	    $var.data = & Value; 
-	    $var.size = (int)sizeof(db_recno_t);
-	}
-	else {
-	    $var.data = SvPV($arg, PL_na);
-	    $var.size = (int)PL_na;
+	{
+	    SV* my_sv = $arg ;
+	    DBM_ckFilter(my_sv, filter_store_key, \"filter_store_key\");
+	    DBT_clear($var) ;
+            SvGETMAGIC($arg) ;
+	    if (db->recno_or_queue ||
+		    (db->type == DB_BTREE && flagSet(DB_SET_RECNO))) {
+	        Value = GetRecnoKey(db, SvIV(my_sv)) ; 
+	        $var.data = & Value; 
+	        $var.size = (int)sizeof(db_recno_t);
+	    }
+	    else {
+	        $var.data = SvPV(my_sv, PL_na);
+	        $var.size = (int)PL_na;
+	    }
 	}
 
 T_dbtdatum
-	DBM_ckFilter($arg, filter_store_value, \"filter_store_value\");
-	DBT_clear($var) ;
-	$var.data = SvPV($arg, PL_na);
-	$var.size = (int)PL_na;
-  	$var.flags = db->partial ;
-    	$var.dlen  = db->dlen ;
-	$var.doff  = db->doff ;
+	{
+	    SV* my_sv = $arg ;
+	    DBM_ckFilter(my_sv, filter_store_value, \"filter_store_value\");
+	    DBT_clear($var) ;
+            SvGETMAGIC($arg) ;
+	    $var.data = SvPV(my_sv, PL_na);
+	    $var.size = (int)PL_na;
+  	    $var.flags = db->partial ;
+    	    $var.dlen  = db->dlen ;
+	    $var.doff  = db->doff ;
+	}
 	
 T_dbtdatum_opt
 	DBT_clear($var) ;
 	if (flagSet(DB_GET_BOTH)) {
-	   DBM_ckFilter($arg, filter_store_value, \"filter_store_value\");
-	   $var.data = SvPV($arg, PL_na);
+	   SV* my_sv = $arg ;
+	   DBM_ckFilter(my_sv, filter_store_value, \"filter_store_value\");
+           SvGETMAGIC($arg) ;
+	   $var.data = SvPV(my_sv, PL_na);
 	   $var.size = (int)PL_na;
   	   $var.flags = db->partial ;
     	   $var.dlen  = db->dlen ;
@@ -222,8 +237,10 @@ T_dbtdatum_opt
 T_dbtdatum_btree
 	DBT_clear($var) ;
 	if (flagSet(DB_GET_BOTH)) {
-	    DBM_ckFilter($arg, filter_store_value, \"filter_store_value\");
-	    $var.data = SvPV($arg, PL_na);
+	    SV* my_sv = $arg ;
+	    DBM_ckFilter(my_sv, filter_store_value, \"filter_store_value\");
+            SvGETMAGIC($arg) ;
+	    $var.data = SvPV(my_sv, PL_na);
 	    $var.size = (int)PL_na;
   	    $var.flags = db->partial ;
     	    $var.dlen  = db->dlen ;

@@ -1,17 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: client.c,v 1.60 2004/09/21 16:09:54 sue Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: client.c,v 1.51 2002/08/06 06:18:15 bostic Exp $";
-#endif /* not lint */
-
-#ifdef HAVE_RPC
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
@@ -23,15 +20,14 @@ static const char revid[] = "$Id: client.c,v 1.51 2002/08/06 06:18:15 bostic Exp
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #endif
+
+#include "db_server.h"
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_am.h"
 #include "dbinc/txn.h"
-
-#include "dbinc_auto/db_server.h"
 #include "dbinc_auto/rpc_client_ext.h"
 
 static int __dbcl_c_destroy __P((DBC *));
@@ -89,6 +85,30 @@ __dbcl_envrpcserver(dbenv, clnt, host, tsec, ssec, flags)
 	dbenv->cl_handle = cl;
 
 	return (__dbcl_env_create(dbenv, ssec));
+}
+
+/*
+ * __dbcl_env_close_wrap --
+ *	Wrapper function for DB_ENV->close function for clients.
+ *	We need a wrapper function to deal with the case where we
+ *	either don't call dbenv->open or close gets an error.
+ *	We need to release the handle no matter what.
+ *
+ * PUBLIC: int __dbcl_env_close_wrap
+ * PUBLIC:     __P((DB_ENV *, u_int32_t));
+ */
+int
+__dbcl_env_close_wrap(dbenv, flags)
+	DB_ENV * dbenv;
+	u_int32_t flags;
+{
+	int ret, t_ret;
+
+	ret = __dbcl_env_close(dbenv, flags);
+	t_ret = __dbcl_refresh(dbenv);
+	if (ret == 0 && t_ret != 0)
+		ret = t_ret;
+	return (ret);
 }
 
 /*
@@ -202,11 +222,17 @@ __dbcl_retcopy(dbenv, dbt, data, len, memp, memsize)
 
 	/*
 	 * The RPC server handles DB_DBT_PARTIAL, so we mask it out here to
-	 * avoid the handling of partials in __db_retcopy.
+	 * avoid the handling of partials in __db_retcopy.  Check first whether
+	 * the data has actually changed, so we don't try to copy over
+	 * read-only keys, which the RPC server always returns regardless.
 	 */
 	orig_flags = dbt->flags;
 	F_CLR(dbt, DB_DBT_PARTIAL);
-	ret = __db_retcopy(dbenv, dbt, data, len, memp, memsize);
+	if (dbt->data != NULL && dbt->size == len &&
+	    memcmp(dbt->data, data, len) == 0)
+		ret = 0;
+	else
+		ret = __db_retcopy(dbenv, dbt, data, len, memp, memsize);
 	dbt->flags = orig_flags;
 	return (ret);
 }
@@ -215,7 +241,7 @@ __dbcl_retcopy(dbenv, dbt, data, len, memp, memsize)
  * __dbcl_txn_close --
  *	Clean up an environment's transactions.
  */
-int
+static int
 __dbcl_txn_close(dbenv)
 	DB_ENV *dbenv;
 {
@@ -377,11 +403,11 @@ __dbcl_c_refresh(dbc)
  * __dbcl_c_setup --
  *	Allocate a cursor.
  *
- * PUBLIC: int __dbcl_c_setup __P((long, DB *, DBC **));
+ * PUBLIC: int __dbcl_c_setup __P((u_int, DB *, DBC **));
  */
 int
 __dbcl_c_setup(cl_id, dbp, dbcp)
-	long cl_id;
+	u_int cl_id;
 	DB *dbp;
 	DBC **dbcp;
 {
@@ -461,4 +487,3 @@ __dbcl_dbclose_common(dbp)
 	__os_free(NULL, dbp);
 	return (ret);
 }
-#endif /* HAVE_RPC */

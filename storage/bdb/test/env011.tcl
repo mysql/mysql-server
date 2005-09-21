@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #       Sleepycat Software.  All rights reserved.
 #
-# $Id: env011.tcl,v 1.2 2002/02/20 17:08:21 sandstro Exp $
+# $Id: env011.tcl,v 1.4 2004/01/28 03:36:27 bostic Exp $
 #
 # TEST	env011
 # TEST	Run with region overwrite flag.

@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2002
+ * Copyright (c) 1997-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_seek.c,v 11.26 2004/09/17 22:00:31 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: os_seek.c,v 11.18 2002/07/12 18:56:52 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -26,13 +24,13 @@ static const char revid[] = "$Id: os_seek.c,v 11.18 2002/07/12 18:56:52 bostic E
  *	Seek to a page/byte offset in the file.
  *
  * PUBLIC: int __os_seek __P((DB_ENV *,
- * PUBLIC:      DB_FH *, size_t, db_pgno_t, u_int32_t, int, DB_OS_SEEK));
+ * PUBLIC:      DB_FH *, u_int32_t, db_pgno_t, u_int32_t, int, DB_OS_SEEK));
  */
 int
 __os_seek(dbenv, fhp, pgsize, pageno, relative, isrewind, db_whence)
 	DB_ENV *dbenv;
 	DB_FH *fhp;
-	size_t pgsize;
+	u_int32_t pgsize;
 	db_pgno_t pageno;
 	u_int32_t relative;
 	int isrewind;
@@ -40,6 +38,9 @@ __os_seek(dbenv, fhp, pgsize, pageno, relative, isrewind, db_whence)
 {
 	off_t offset;
 	int ret, whence;
+
+	/* Check for illegal usage. */
+	DB_ASSERT(F_ISSET(fhp, DB_FH_OPENED) && fhp->fd != -1);
 
 	switch (db_whence) {
 	case DB_OS_SEEK_CUR:
@@ -55,20 +56,20 @@ __os_seek(dbenv, fhp, pgsize, pageno, relative, isrewind, db_whence)
 		return (EINVAL);
 	}
 
-	if (DB_GLOBAL(j_seek) != NULL)
-		ret = DB_GLOBAL(j_seek)(fhp->fd,
-		    pgsize, pageno, relative, isrewind, whence);
-	else {
-		offset = (off_t)pgsize * pageno + relative;
-		if (isrewind)
-			offset = -offset;
-		do {
-			ret = lseek(fhp->fd, offset, whence) == -1 ?
-			    __os_get_errno() : 0;
-		} while (ret == EINTR);
-	}
+	offset = (off_t)pgsize * pageno + relative;
+	if (isrewind)
+		offset = -offset;
 
-	if (ret != 0)
+	if (DB_GLOBAL(j_seek) != NULL)
+		ret = DB_GLOBAL(j_seek)(fhp->fd, offset, whence);
+	else
+		RETRY_CHK((lseek(fhp->fd, offset, whence) == -1 ? 1 : 0), ret);
+
+	if (ret == 0) {
+		fhp->pgsize = pgsize;
+		fhp->pgno = pageno;
+		fhp->offset = relative;
+	} else
 		__db_err(dbenv, "seek: %lu %d %d: %s",
 		    (u_long)pgsize * pageno + relative,
 		    isrewind, db_whence, strerror(ret));

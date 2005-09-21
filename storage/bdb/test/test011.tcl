@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2002
+# Copyright (c) 1996-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test011.tcl,v 11.27 2002/06/11 14:09:56 sue Exp $
+# $Id: test011.tcl,v 11.30 2004/01/28 03:36:30 bostic Exp $
 #
 # TEST	test011
 # TEST	Duplicate test
@@ -18,7 +18,7 @@
 # TEST
 # TEST	To test if dups work when they fall off the main page, run this with
 # TEST	a very tiny page size.
-proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
+proc test011 { method {nentries 10000} {ndups 5} {tnum "011"} args } {
 	global dlist
 	global rand_init
 	source ./include.tcl
@@ -26,7 +26,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 	set dlist ""
 
 	if { [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $method"
+		puts "Test$tnum skipping for method $method"
 		return
 	}
 	if { [is_record_based $method] == 1 } {
@@ -49,10 +49,10 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -70,7 +70,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 		set testdir [get_home $env]
 	}
 
-	puts -nonewline "Test0$tnum: $method $nentries small $ndups dup "
+	puts -nonewline "Test$tnum: $method $nentries small $ndups dup "
 	puts "key/data pairs, cursor ops"
 
 	set t1 $testdir/t1
@@ -93,7 +93,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 	# We will add dups with values 1, 3, ... $ndups.  Then we'll add
 	# 0 and $ndups+1 using keyfirst/keylast.  We'll add 2 and 4 using
 	# add before and add after.
-	puts "\tTest0$tnum.a: put and get duplicate keys."
+	puts "\tTest$tnum.a: put and get duplicate keys."
 	set i ""
 	for { set i 1 } { $i <= $ndups } { incr i 2 } {
 		lappend dlist $i
@@ -135,12 +135,12 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 			set datastr [lindex [lindex $ret 0] 1]
 			set d [data_of $datastr]
 
-			error_check_good Test0$tnum:put $d $str
+			error_check_good Test$tnum:put $d $str
 			set id [ id_of $datastr ]
-			error_check_good Test0$tnum:dup# $id $x
+			error_check_good Test$tnum:dup# $id $x
 			incr x 2
 		}
-		error_check_good Test0$tnum:numdups $x $maxodd
+		error_check_good Test$tnum:numdups $x $maxodd
 		error_check_good curs_close [$dbc close] 0
 		if { $txnenv == 1 } {
 			error_check_good txn [$t commit] 0
@@ -151,7 +151,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 
 	# Now we will get each key from the DB and compare the results
 	# to the original.
-	puts "\tTest0$tnum.b: \
+	puts "\tTest$tnum.b: \
 	    traverse entire file checking duplicates before close."
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -169,7 +169,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 	filesort $t3 $t2
 	filesort $t1 $t3
 
-	error_check_good Test0$tnum:diff($t3,$t2) \
+	error_check_good Test$tnum:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 
 	error_check_good db_close [$db close] 0
@@ -177,7 +177,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 	set db [eval {berkdb_open} $args $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
-	puts "\tTest0$tnum.c: \
+	puts "\tTest$tnum.c: \
 	    traverse entire file checking duplicates after close."
 	if { $txnenv == 1 } {
 		set t [$env txn]
@@ -191,10 +191,10 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 
 	# Now compare the keys to see if they match the dictionary entries
 	filesort $t1 $t3
-	error_check_good Test0$tnum:diff($t3,$t2) \
+	error_check_good Test$tnum:diff($t3,$t2) \
 	    [filecmp $t3 $t2] 0
 
-	puts "\tTest0$tnum.d: Testing key_first functionality"
+	puts "\tTest$tnum.d: Testing key_first functionality"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -207,7 +207,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 		error_check_good txn [$t commit] 0
 	}
 
-	puts "\tTest0$tnum.e: Testing key_last functionality"
+	puts "\tTest$tnum.e: Testing key_last functionality"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -220,7 +220,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 		error_check_good txn [$t commit] 0
 	}
 
-	puts "\tTest0$tnum.f: Testing add_before functionality"
+	puts "\tTest$tnum.f: Testing add_before functionality"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -233,7 +233,7 @@ proc test011 { method {nentries 10000} {ndups 5} {tnum 11} args } {
 		error_check_good txn [$t commit] 0
 	}
 
-	puts "\tTest0$tnum.g: Testing add_after functionality"
+	puts "\tTest$tnum.g: Testing add_after functionality"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -277,7 +277,7 @@ proc add_dup {db txn nentries flag dataval iter} {
 	$dbc close
 }
 
-proc test011_recno { method {nentries 10000} {tnum 11} largs } {
+proc test011_recno { method {nentries 10000} {tnum "011"} largs } {
 	global dlist
 	source ./include.tcl
 
@@ -285,7 +285,7 @@ proc test011_recno { method {nentries 10000} {tnum 11} largs } {
 	set omethod [convert_method $method]
 	set renum [is_rrecno $method]
 
-	puts "Test0$tnum: \
+	puts "Test$tnum: \
 	    $method ($largs) $nentries test cursor insert functionality"
 
 	# Create the database and open the dictionary
@@ -295,10 +295,10 @@ proc test011_recno { method {nentries 10000} {tnum 11} largs } {
 	# Otherwise it is the test directory and the name.
 	set txnenv 0
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum.db
+		set testfile $testdir/test$tnum.db
 		set env NULL
 	} else {
-		set testfile test0$tnum.db
+		set testfile test$tnum.db
 		incr eindex
 		set env [lindex $largs $eindex]
 		set txnenv [is_txnenv $env]
@@ -365,7 +365,7 @@ proc test011_recno { method {nentries 10000} {tnum 11} largs } {
 		set txn "-txn $t"
 	}
 	set dbc [eval {$db cursor} $txn]
-	puts "\tTest0$tnum.a: put and get entries"
+	puts "\tTest$tnum.a: put and get entries"
 	while { [gets $did str] != -1 && $count < $nentries } {
 		# Pick a random key
 		set key [berkdb random_int 1 $count]
@@ -433,7 +433,7 @@ proc test011_recno { method {nentries 10000} {tnum 11} largs } {
 	}
 	close $oid
 
-	puts "\tTest0$tnum.b: dump file"
+	puts "\tTest$tnum.b: dump file"
 	if { $txnenv == 1 } {
 		set t [$env txn]
 		error_check_good txn [is_valid_txn $t $env] TRUE
@@ -443,23 +443,23 @@ proc test011_recno { method {nentries 10000} {tnum 11} largs } {
 	if { $txnenv == 1 } {
 		error_check_good txn [$t commit] 0
 	}
-	error_check_good Test0$tnum:diff($t2,$t1) \
+	error_check_good Test$tnum:diff($t2,$t1) \
 	    [filecmp $t2 $t1] 0
 
 	error_check_good db_close [$db close] 0
 
-	puts "\tTest0$tnum.c: close, open, and dump file"
+	puts "\tTest$tnum.c: close, open, and dump file"
 	open_and_dump_file $testfile $env $t1 test011_check \
 	    dump_file_direction "-first" "-next"
-	error_check_good Test0$tnum:diff($t2,$t1) \
+	error_check_good Test$tnum:diff($t2,$t1) \
 	    [filecmp $t2 $t1] 0
 
-	puts "\tTest0$tnum.d: close, open, and dump file in reverse direction"
+	puts "\tTest$tnum.d: close, open, and dump file in reverse direction"
 	open_and_dump_file $testfile $env $t1 test011_check \
 	    dump_file_direction "-last" "-prev"
 
 	filesort $t1 $t3 -n
-	error_check_good Test0$tnum:diff($t2,$t3) \
+	error_check_good Test$tnum:diff($t2,$t3) \
 	    [filecmp $t2 $t3] 0
 }
 

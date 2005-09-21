@@ -1,20 +1,16 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: hash_reclaim.c,v 11.17 2004/06/22 18:43:38 margo Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: hash_reclaim.c,v 11.12 2002/03/28 19:49:43 bostic Exp $";
-#endif /* not lint */
-
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
-
-#include <string.h>
 #endif
 
 #include "db_int.h"
@@ -43,7 +39,7 @@ __ham_reclaim(dbp, txn)
 	int ret;
 
 	/* Open up a cursor that we'll use for traversing. */
-	if ((ret = dbp->cursor(dbp, txn, &dbc, 0)) != 0)
+	if ((ret = __db_cursor(dbp, txn, &dbc, 0)) != 0)
 		return (ret);
 	hcp = (HASH_CURSOR *)dbc->internal;
 
@@ -53,7 +49,7 @@ __ham_reclaim(dbp, txn)
 	if ((ret = __ham_traverse(dbc,
 	    DB_LOCK_WRITE, __db_reclaim_callback, dbc, 1)) != 0)
 		goto err;
-	if ((ret = dbc->c_close(dbc)) != 0)
+	if ((ret = __db_c_close(dbc)) != 0)
 		goto err;
 	if ((ret = __ham_release_meta(dbc)) != 0)
 		goto err;
@@ -61,7 +57,7 @@ __ham_reclaim(dbp, txn)
 
 err:	if (hcp->hdr != NULL)
 		(void)__ham_release_meta(dbc);
-	(void)dbc->c_close(dbc);
+	(void)__db_c_close(dbc);
 	return (ret);
 }
 
@@ -70,42 +66,28 @@ err:	if (hcp->hdr != NULL)
  *	Reclaim the pages from a subdatabase and return them to the
  * parent free list.
  *
- * PUBLIC: int __ham_truncate __P((DB *, DB_TXN *txn, u_int32_t *));
+ * PUBLIC: int __ham_truncate __P((DBC *, u_int32_t *));
  */
 int
-__ham_truncate(dbp, txn, countp)
-	DB *dbp;
-	DB_TXN *txn;
+__ham_truncate(dbc, countp)
+	DBC *dbc;
 	u_int32_t *countp;
 {
-	DBC *dbc;
-	HASH_CURSOR *hcp;
 	db_trunc_param trunc;
-	int ret;
-
-	/* Open up a cursor that we'll use for traversing. */
-	if ((ret = dbp->cursor(dbp, txn, &dbc, 0)) != 0)
-		return (ret);
-	hcp = (HASH_CURSOR *)dbc->internal;
+	int ret, t_ret;
 
 	if ((ret = __ham_get_meta(dbc)) != 0)
-		goto err;
+		return (ret);
 
 	trunc.count = 0;
 	trunc.dbc = dbc;
 
-	if ((ret = __ham_traverse(dbc,
-	    DB_LOCK_WRITE, __db_truncate_callback, &trunc, 1)) != 0)
-		goto err;
-	if ((ret = __ham_release_meta(dbc)) != 0)
-		goto err;
-	if ((ret = dbc->c_close(dbc)) != 0)
-		goto err;
-	*countp = trunc.count;
-	return (0);
+	ret = __ham_traverse(dbc,
+	    DB_LOCK_WRITE, __db_truncate_callback, &trunc, 1);
 
-err:	if (hcp->hdr != NULL)
-		(void)__ham_release_meta(dbc);
-	(void)dbc->c_close(dbc);
+	if ((t_ret = __ham_release_meta(dbc)) != 0 && ret == 0)
+		ret = t_ret;
+
+	*countp = trunc.count;
 	return (ret);
 }

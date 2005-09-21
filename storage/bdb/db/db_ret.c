@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2002
+ * Copyright (c) 1996-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: db_ret.c,v 11.26 2004/02/05 02:25:13 mjc Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: db_ret.c,v 11.21 2002/03/28 19:21:47 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -92,6 +90,8 @@ __db_retcopy(dbenv, dbt, data, len, memp, memsize)
 {
 	int ret;
 
+	ret = 0;
+
 	/* If returning a partial record, reset the length. */
 	if (F_ISSET(dbt, DB_DBT_PARTIAL)) {
 		data = (u_int8_t *)data + dbt->doff;
@@ -102,14 +102,6 @@ __db_retcopy(dbenv, dbt, data, len, memp, memsize)
 		} else
 			len = 0;
 	}
-
-	/*
-	 * Return the length of the returned record in the DBT size field.
-	 * This satisfies the requirement that if we're using user memory
-	 * and insufficient memory was provided, return the amount necessary
-	 * in the size field.
-	 */
-	dbt->size = len;
 
 	/*
 	 * Allocate memory to be owned by the application: DB_DBT_MALLOC,
@@ -127,28 +119,36 @@ __db_retcopy(dbenv, dbt, data, len, memp, memsize)
 	 * memory pointer is allowed to be NULL.
 	 */
 	if (F_ISSET(dbt, DB_DBT_MALLOC)) {
-		if ((ret = __os_umalloc(dbenv, len, &dbt->data)) != 0)
-			return (ret);
+		ret = __os_umalloc(dbenv, len, &dbt->data);
 	} else if (F_ISSET(dbt, DB_DBT_REALLOC)) {
-		if ((ret = __os_urealloc(dbenv, len, &dbt->data)) != 0)
-			return (ret);
+		if (dbt->data == NULL || dbt->size == 0 || dbt->size < len)
+			ret = __os_urealloc(dbenv, len, &dbt->data);
 	} else if (F_ISSET(dbt, DB_DBT_USERMEM)) {
 		if (len != 0 && (dbt->data == NULL || dbt->ulen < len))
-			return (ENOMEM);
+			ret = DB_BUFFER_SMALL;
 	} else if (memp == NULL || memsize == NULL) {
-		return (EINVAL);
+		ret = EINVAL;
 	} else {
 		if (len != 0 && (*memsize == 0 || *memsize < len)) {
-			if ((ret = __os_realloc(dbenv, len, memp)) != 0) {
+			if ((ret = __os_realloc(dbenv, len, memp)) == 0)
+				*memsize = len;
+			else
 				*memsize = 0;
-				return (ret);
-			}
-			*memsize = len;
 		}
-		dbt->data = *memp;
+		if (ret == 0)
+			dbt->data = *memp;
 	}
 
-	if (len != 0)
+	if (ret == 0 && len != 0)
 		memcpy(dbt->data, data, len);
-	return (0);
+
+	/*
+	 * Return the length of the returned record in the DBT size field.
+	 * This satisfies the requirement that if we're using user memory
+	 * and insufficient memory was provided, return the amount necessary
+	 * in the size field.
+	 */
+	dbt->size = len;
+
+	return (ret);
 }

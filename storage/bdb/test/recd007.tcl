@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: recd007.tcl,v 11.60 2002/08/08 15:38:07 bostic Exp $
+# $Id: recd007.tcl,v 11.64 2004/07/07 19:08:21 carol Exp $
 #
 # TEST	recd007
 # TEST	File create/delete tests.
@@ -55,6 +55,9 @@ proc recd007 { method args} {
 
 	# Convert the args again because fixed_len is now real.
 	set opts [convert_args $method ""]
+	set save_opts $opts
+	set moreopts {" -lorder 1234 " " -lorder 1234 -chksum " \
+	    " -lorder 4321 " " -lorder 4321 -chksum "}
 
 	# List of recovery tests: {HOOKS MSG} pairs
 	# Where each HOOK is a list of {COPY ABORT}
@@ -85,8 +88,17 @@ proc recd007 { method args} {
 	foreach pair $rlist {
 		set cmd [lindex $pair 0]
 		set msg [lindex $pair 1]
+		#
+		# Run natively
+		#
 		file_recover_create $testdir $env_cmd $omethod \
-		    $opts $testfile $cmd $msg
+		    $save_opts $testfile $cmd $msg
+		foreach o $moreopts {
+			set opts $save_opts
+			append opts $o
+			file_recover_create $testdir $env_cmd $omethod \
+			    $opts $testfile $cmd $msg
+		}
 	}
 
 	set rlist {
@@ -103,7 +115,13 @@ proc recd007 { method args} {
 			set cmd [lindex $pair 0]
 			set msg [lindex $pair 1]
 			file_recover_delete $testdir $env_cmd $omethod \
-			$opts $testfile $cmd $msg $op
+			    $save_opts $testfile $cmd $msg $op
+			foreach o $moreopts {
+				set opts $save_opts
+				append opts $o
+				file_recover_delete $testdir $env_cmd $omethod \
+				    $opts $testfile $cmd $msg $op
+			}
 		}
 	}
 
@@ -118,6 +136,8 @@ proc recd007 { method args} {
 	    > $tmpfile} ret]
 	error_check_good db_printlog $stat 0
 	fileremove $tmpfile
+	set fixed_len $orig_fixed_len
+	return
 }
 
 proc file_recover_create { dir env_cmd method opts dbfile cmd msg } {
@@ -126,17 +146,17 @@ proc file_recover_create { dir env_cmd method opts dbfile cmd msg } {
 	# 1.  Creating just a database
 	# 2.  Creating a database with a subdb
 	# 3.  Creating a 2nd subdb in a database
-	puts "\t$msg create with a database"
+	puts "\t$msg ($opts) create with a database"
 	do_file_recover_create $dir $env_cmd $method $opts $dbfile \
 	    0 $cmd $msg
 	if { [is_queue $method] == 1 } {
 		puts "\tSkipping subdatabase tests for method $method"
 		return
 	}
-	puts "\t$msg create with a database and subdb"
+	puts "\t$msg ($opts) create with a database and subdb"
 	do_file_recover_create $dir $env_cmd $method $opts $dbfile \
 	    1 $cmd $msg
-	puts "\t$msg create with a database and 2nd subdb"
+	puts "\t$msg ($opts) create with a database and 2nd subdb"
 	do_file_recover_create $dir $env_cmd $method $opts $dbfile \
 	    2 $cmd $msg
 
@@ -346,17 +366,17 @@ proc file_recover_delete { dir env_cmd method opts dbfile cmd msg op } {
 	# 1.  Deleting/Renaming just a database
 	# 2.  Deleting/Renaming a database with a subdb
 	# 3.  Deleting/Renaming a 2nd subdb in a database
-	puts "\t$msg $op with a database"
+	puts "\t$msg $op ($opts) with a database"
 	do_file_recover_delete $dir $env_cmd $method $opts $dbfile \
 	    0 $cmd $msg $op
 	if { [is_queue $method] == 1 } {
 		puts "\tSkipping subdatabase tests for method $method"
 		return
 	}
-	puts "\t$msg $op with a database and subdb"
+	puts "\t$msg $op ($opts) with a database and subdb"
 	do_file_recover_delete $dir $env_cmd $method $opts $dbfile \
 	    1 $cmd $msg $op
-	puts "\t$msg $op with a database and 2nd subdb"
+	puts "\t$msg $op ($opts) with a database and 2nd subdb"
 	do_file_recover_delete $dir $env_cmd $method $opts $dbfile \
 	    2 $cmd $msg $op
 

@@ -1,64 +1,45 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: os_errno.c,v 11.14 2004/07/06 21:06:38 mjc Exp $
  */
 
 #include "db_config.h"
 
-#ifndef lint
-static const char revid[] = "$Id: os_errno.c,v 11.10 2002/07/12 04:05:00 mjc Exp $";
-#endif /* not lint */
-
 #include "db_int.h"
 
 /*
- * __os_get_errno --
- *	Return the value of errno.
+ * __os_get_errno_ret_zero --
+ *	Return the value of errno, even if it's zero.
  */
 int
-__os_get_errno()
+__os_get_errno_ret_zero()
 {
 	/* This routine must be able to return the same value repeatedly. */
 	return (errno);
 }
 
 /*
- * __os_set_errno --
- *	Set the value of errno.
- */
-void
-__os_set_errno(evalue)
-	int evalue;
-{
-	errno = evalue;
-}
-
-/*
- * __os_win32_errno --
+ * __os_get_errno --
  *	Return the last Windows error as an errno.
  *	We give generic error returns:
  *
  *	EFAULT means Win* call failed,
  *	  and GetLastError provided no extra info.
  *
- *	EIO means error on Win* call.
+ *	EIO means error on Win* call,
  *	  and we were unable to provide a meaningful errno for this Windows
  *	  error.  More information is only available by setting a breakpoint
  *	  here.
- *
- * PUBLIC: #if defined(DB_WIN32)
- * PUBLIC: int __os_win32_errno __P((void));
- * PUBLIC: #endif
  */
 int
-__os_win32_errno(void)
+__os_get_errno()
 {
 	DWORD last_error;
 	int ret;
-
-	/* Ignore errno - we used to check it here. */
 
 	last_error = GetLastError();
 
@@ -92,6 +73,7 @@ __os_win32_errno(void)
 
 	case ERROR_DISK_FULL:
 		ret = ENOSPC;
+		break;
 
 	case ERROR_ARENA_TRASHED:
 	case ERROR_BAD_COMMAND:
@@ -142,4 +124,15 @@ __os_win32_errno(void)
 	}
 
 	return (ret);
+}
+
+/*
+ * __os_set_errno --
+ *	Set the value of errno.
+ */
+void
+__os_set_errno(evalue)
+	int evalue;
+{
+	errno = evalue;
 }

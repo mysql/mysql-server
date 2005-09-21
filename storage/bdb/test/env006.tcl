@@ -1,12 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999-2002
+# Copyright (c) 1999-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: env006.tcl,v 11.8 2002/01/11 15:53:23 bostic Exp $
+# $Id: env006.tcl,v 11.11 2004/04/27 19:56:44 carol Exp $
 #
 # TEST	env006
 # TEST	Make sure that all the utilities exist and run.
+# TEST	Test that db_load -r options don't blow up.
 proc env006 { } {
 	source ./include.tcl
 
@@ -39,4 +40,52 @@ proc env006 { } {
 		#
 		error_check_good $cmd.err [is_substr $ret sage] 1
 	}
+
+	env_cleanup $testdir
+	set env [eval berkdb_env -create -home $testdir -txn]
+	error_check_good env_open [is_valid_env $env] TRUE
+
+	set sub SUBDB
+	foreach case { noenv env } {
+		if { $case == "env" } {
+			set envargs " -env $env "
+			set homeargs " -h $testdir "
+			set testfile env006.db
+		} else {
+			set envargs ""
+			set homeargs ""
+			set testfile $testdir/env006.db
+		}
+
+		puts "\tEnv006.i: Testing db_load -r with $case."
+		set db [eval berkdb_open -create $envargs -btree $testfile]
+		error_check_good db_open [is_valid_db $db] TRUE
+		error_check_good db_close [$db close] 0
+
+		set ret [eval \
+		    exec $util_path/db_load -r lsn $homeargs $testfile]
+		error_check_good db_load_r_lsn $ret ""
+		set ret [eval \
+		    exec $util_path/db_load -r fileid $homeargs $testfile]
+		error_check_good db_load_r_fileid $ret ""
+
+		error_check_good db_remove \
+		    [eval {berkdb dbremove} $envargs $testfile] 0
+
+		puts "\tEnv006.j: Testing db_load -r with $case and subdbs."
+		set db [eval berkdb_open -create $envargs -btree $testfile $sub]
+		error_check_good db_open [is_valid_db $db] TRUE
+		error_check_good db_close [$db close] 0
+
+		set ret [eval \
+		    exec {$util_path/db_load} -r lsn $homeargs $testfile]
+		error_check_good db_load_r_lsn $ret ""
+		set ret [eval \
+		    exec {$util_path/db_load} -r fileid $homeargs $testfile]
+		error_check_good db_load_r_fileid $ret ""
+
+		error_check_good \
+		    db_remove [eval {berkdb dbremove} $envargs $testfile] 0
+	}
+	error_check_good env_close [$env close] 0
 }

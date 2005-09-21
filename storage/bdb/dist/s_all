@@ -1,11 +1,9 @@
 #!/bin/sh -
-#	$Id: s_all,v 1.10 2001/08/04 14:01:44 bostic Exp $
+#	$Id: s_all,v 1.11 2002/10/30 15:26:36 bostic Exp $
 
-sh s_dir
-
-#sh s_perm		# permissions.
+sh s_perm		# permissions.
 sh s_symlink		# symbolic links.
-sh s_readme		# db/README file.
+sh s_readme		# distribution README file.
 
 #
 # The following order is important, s_include must run last.
@@ -17,7 +15,7 @@ sh s_include		# standard include files.
 
 sh s_win32		# Win32 include files.
 sh s_win32_dsp		# Win32 build environment.
-#sh s_vxworks		# VxWorks include files.
-#sh s_java		# Java support.
+sh s_vxworks		# VxWorks include files.
+sh s_java		# Java support.
 sh s_test		# Test suite support.
 sh s_tags		# Tags files.

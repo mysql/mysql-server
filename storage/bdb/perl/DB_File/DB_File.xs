@@ -2,13 +2,13 @@
 
  DB_File.xs -- Perl 5 interface to Berkeley DB 
 
- written by Paul Marquess <Paul.Marquess@btinternet.com>
- last modified 1st September 2002
- version 1.805
+ written by Paul Marquess <pmqs@cpan.org>
+ last modified 7th August 2004
+ version 1.810
 
  All comments/suggestions/problems are welcome
 
-     Copyright (c) 1995-2002 Paul Marquess. All rights reserved.
+     Copyright (c) 1995-2004 Paul Marquess. All rights reserved.
      This program is free software; you can redistribute it and/or
      modify it under the same terms as Perl itself.
 
@@ -105,6 +105,11 @@
         1.805 - recursion detection added to the callbacks
                 Support for 4.1.X added.
                 Filter code can now cope with read-only $_
+        1.806 - recursion detection beefed up.
+        1.807 - no change
+        1.808 - leak fixed in ParseOpenInfo
+        1.809 - no change
+        1.810 - no change
 
 */
 
@@ -393,9 +398,11 @@ typedef DBT DBTKEY ;
 
 #define OutputValue(arg, name)  					\
 	{ if (RETVAL == 0) {						\
+	      SvGETMAGIC(arg) ;          				\
 	      my_sv_setpvn(arg, name.data, name.size) ;			\
-	      TAINT;                                       	\
+	      TAINT;                                       		\
 	      SvTAINTED_on(arg);                                       	\
+	      SvUTF8_off(arg);                                       	\
 	      DBM_ckFilter(arg, filter_fetch_value,"filter_fetch_value") ; 	\
 	  }								\
 	}
@@ -403,13 +410,15 @@ typedef DBT DBTKEY ;
 #define OutputKey(arg, name)	 					\
 	{ if (RETVAL == 0) 						\
 	  { 								\
+		SvGETMAGIC(arg) ;          				\
 		if (db->type != DB_RECNO) {				\
 		    my_sv_setpvn(arg, name.data, name.size); 		\
 		}							\
 		else 							\
 		    sv_setiv(arg, (I32)*(I32*)name.data - 1); 		\
-	      TAINT;                                       	\
+	      TAINT;                                       		\
 	      SvTAINTED_on(arg);                                       	\
+	      SvUTF8_off(arg);                                       	\
 	      DBM_ckFilter(arg, filter_fetch_key,"filter_fetch_key") ; 	\
 	  } 								\
 	}
@@ -505,7 +514,6 @@ u_int		flags ;
 static void
 tidyUp(DB_File db)
 {
-    /* db_DESTROY(db); */
     db->aborted = TRUE ;
 }
 
@@ -543,7 +551,6 @@ const DBT * key2 ;
     void * data1, * data2 ;
     int retval ;
     int count ;
-    DB_File	keep_CurrentDB = CurrentDB;
     
 
     if (CurrentDB->in_compare) {
@@ -567,6 +574,10 @@ const DBT * key2 ;
 
     ENTER ;
     SAVETMPS;
+    SAVESPTR(CurrentDB);
+    CurrentDB->in_compare = FALSE;
+    SAVEINT(CurrentDB->in_compare);
+    CurrentDB->in_compare = TRUE;
 
     PUSHMARK(SP) ;
     EXTEND(SP,2) ;
@@ -574,12 +585,7 @@ const DBT * key2 ;
     PUSHs(sv_2mortal(newSVpvn(data2,key2->size)));
     PUTBACK ;
 
-    CurrentDB->in_compare = TRUE;
-
     count = perl_call_sv(CurrentDB->compare, G_SCALAR); 
-
-    CurrentDB = keep_CurrentDB;
-    CurrentDB->in_compare = FALSE;
 
     SPAGAIN ;
 
@@ -630,7 +636,6 @@ const DBT * key2 ;
     char * data1, * data2 ;
     int retval ;
     int count ;
-    DB_File	keep_CurrentDB = CurrentDB;
     
     if (CurrentDB->in_prefix){
         tidyUp(CurrentDB);
@@ -653,6 +658,10 @@ const DBT * key2 ;
 
     ENTER ;
     SAVETMPS;
+    SAVESPTR(CurrentDB);
+    CurrentDB->in_prefix = FALSE;
+    SAVEINT(CurrentDB->in_prefix);
+    CurrentDB->in_prefix = TRUE;
 
     PUSHMARK(SP) ;
     EXTEND(SP,2) ;
@@ -660,12 +669,7 @@ const DBT * key2 ;
     PUSHs(sv_2mortal(newSVpvn(data2,key2->size)));
     PUTBACK ;
 
-    CurrentDB->in_prefix = TRUE;
-
     count = perl_call_sv(CurrentDB->prefix, G_SCALAR); 
-
-    CurrentDB = keep_CurrentDB;
-    CurrentDB->in_prefix = FALSE;
 
     SPAGAIN ;
 
@@ -719,9 +723,8 @@ HASH_CB_SIZE_TYPE size ;
 #endif    
     dSP ;
     dMY_CXT;
-    int retval ;
+    int retval = 0;
     int count ;
-    DB_File	keep_CurrentDB = CurrentDB;
 
     if (CurrentDB->in_hash){
         tidyUp(CurrentDB);
@@ -736,18 +739,18 @@ HASH_CB_SIZE_TYPE size ;
      /* DGH - Next two lines added to fix corrupted stack problem */
     ENTER ;
     SAVETMPS;
+    SAVESPTR(CurrentDB);
+    CurrentDB->in_hash = FALSE;
+    SAVEINT(CurrentDB->in_hash);
+    CurrentDB->in_hash = TRUE;
 
     PUSHMARK(SP) ;
+
 
     XPUSHs(sv_2mortal(newSVpvn((char*)data,size)));
     PUTBACK ;
 
-    keep_CurrentDB->in_hash = TRUE;
-
     count = perl_call_sv(CurrentDB->hash, G_SCALAR); 
-
-    CurrentDB = keep_CurrentDB;
-    CurrentDB->in_hash = FALSE;
 
     SPAGAIN ;
 
@@ -765,6 +768,7 @@ HASH_CB_SIZE_TYPE size ;
     return (retval) ;
 }
 
+#if 0
 static void
 #ifdef CAN_PROTOTYPE
 db_errcall_cb(const char * db_errpfx, char * buffer)
@@ -774,6 +778,9 @@ const char * db_errpfx;
 char * buffer;
 #endif
 {
+#ifdef dTHX
+    dTHX;
+#endif    
     SV * sv = perl_get_sv(ERR_BUFF, FALSE) ;
     if (sv) {
         if (db_errpfx)
@@ -782,6 +789,7 @@ char * buffer;
             sv_setpv(sv, buffer) ;
     }
 } 
+#endif
 
 #if defined(TRACE) && defined(BERKELEY_DB_1_OR_2)
 
@@ -817,7 +825,7 @@ INFO * recno ;
     printf ("  cachesize = %d\n", recno->db_RE_cachesize) ;
     printf ("  psize     = %d\n", recno->db_RE_psize) ;
     printf ("  lorder    = %d\n", recno->db_RE_lorder) ;
-    printf ("  reclen    = %ul\n", (unsigned long)recno->db_RE_reclen) ;
+    printf ("  reclen    = %lu\n", (unsigned long)recno->db_RE_reclen) ;
     printf ("  bval      = %d 0x%x\n", recno->db_RE_bval, recno->db_RE_bval) ;
     printf ("  bfname    = %d [%s]\n", recno->db_RE_bfname, recno->db_RE_bfname) ;
 }
@@ -928,7 +936,10 @@ SV *   sv ;
     STRLEN	n_a;
     dMY_CXT;
 
-/* printf("In ParseOpenInfo name=[%s] flags=[%d] mode = [%d]\n", name, flags, mode) ;  */
+#ifdef TRACE    
+    printf("In ParseOpenInfo name=[%s] flags=[%d] mode=[%d] SV NULL=[%d]\n", 
+		    name, flags, mode, sv == NULL) ;  
+#endif
     Zero(RETVAL, 1, DB_File_type) ;
 
     /* Default to HASH */
@@ -1428,7 +1439,7 @@ SV *   sv ;
 	/* printf("open returned %d %s\n", status, db_strerror(status)) ; */
 
         if (status == 0) {
-	    RETVAL->dbp->set_errcall(RETVAL->dbp, db_errcall_cb) ;
+	    /* RETVAL->dbp->set_errcall(RETVAL->dbp, db_errcall_cb) ;*/
 
             status = (RETVAL->dbp->cursor)(RETVAL->dbp, NULL, &RETVAL->cursor,
 			0) ;
@@ -1455,7 +1466,10 @@ INCLUDE: constants.xs
 
 BOOT:
   {
-    SV * sv_err = perl_get_sv(ERR_BUFF, GV_ADD|GV_ADDMULTI) ;    
+#ifdef dTHX
+    dTHX;
+#endif    
+    /* SV * sv_err = perl_get_sv(ERR_BUFF, GV_ADD|GV_ADDMULTI) ;  */
     MY_CXT_INIT;
     __getBerkeleyDBInfo() ;
  
@@ -1485,8 +1499,10 @@ db_DoTie_(isHASH, dbtype, name=undef, flags=O_CREAT|O_RDWR, mode=0666, type=DB_H
 	        sv = ST(5) ;
 
 	    RETVAL = ParseOpenInfo(aTHX_ isHASH, name, flags, mode, sv) ;
-	    if (RETVAL->dbp == NULL)
+	    if (RETVAL->dbp == NULL) {
+	        Safefree(RETVAL);
 	        RETVAL = NULL ;
+	    }
 	}
 	OUTPUT:	
 	    RETVAL
@@ -1649,7 +1665,8 @@ unshift(db, ...)
 #endif
 	    for (i = items-1 ; i > 0 ; --i)
 	    {
-	        value.data = SvPV(ST(i), n_a) ;
+		DBM_ckFilter(ST(i), filter_store_value, "filter_store_value");
+	        value.data = SvPVbyte(ST(i), n_a) ;
 	        value.size = n_a ;
 	        One = 1 ;
 	        key.data = &One ;
@@ -1758,7 +1775,8 @@ push(db, ...)
 		    keyval = 0 ;
 	        for (i = 1 ; i < items ; ++i)
 	        {
-	            value.data = SvPV(ST(i), n_a) ;
+		    DBM_ckFilter(ST(i), filter_store_value, "filter_store_value");
+	            value.data = SvPVbyte(ST(i), n_a) ;
 	            value.size = n_a ;
 		    ++ keyval ;
 	            key.data = &keyval ;

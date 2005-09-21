@@ -1,13 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000-2002
+# Copyright (c) 2000-2004
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: test084.tcl,v 11.11 2002/07/13 18:09:14 margo Exp $
+# $Id: test084.tcl,v 11.15 2004/01/28 03:36:31 bostic Exp $
 #
 # TEST	test084
 # TEST	Basic sanity test (test001) with large (64K) pages.
-proc test084 { method {nentries 10000} {tnum 84} {pagesize 65536} args} {
+proc test084 { method {nentries 10000} {tnum "084"} {pagesize 65536} args} {
 	source ./include.tcl
 
 	set txnenv 0
@@ -16,10 +16,10 @@ proc test084 { method {nentries 10000} {tnum 84} {pagesize 65536} args} {
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
 	if { $eindex == -1 } {
-		set testfile $testdir/test0$tnum-empty.db
+		set testfile $testdir/test$tnum-empty.db
 		set env NULL
 	} else {
-		set testfile test0$tnum-empty.db
+		set testfile test$tnum-empty.db
 		incr eindex
 		set env [lindex $args $eindex]
 		set txnenv [is_txnenv $env]
@@ -39,7 +39,7 @@ proc test084 { method {nentries 10000} {tnum 84} {pagesize 65536} args} {
 
 	set args "-pagesize $pagesize $args"
 
-	eval {test001 $method $nentries 0 $tnum 0} $args
+	eval {test001 $method $nentries 0 0 $tnum} $args
 
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]

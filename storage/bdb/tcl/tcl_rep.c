@@ -1,15 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2002
+ * Copyright (c) 1999-2004
  *	Sleepycat Software.  All rights reserved.
+ *
+ * $Id: tcl_rep.c,v 11.106 2004/10/14 18:09:00 bostic Exp $
  */
 
 #include "db_config.h"
-
-#ifndef lint
-static const char revid[] = "$Id: tcl_rep.c,v 11.85 2002/08/06 04:45:44 bostic Exp $";
-#endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -22,7 +20,7 @@ static const char revid[] = "$Id: tcl_rep.c,v 11.85 2002/08/06 04:45:44 bostic E
 #include "db_int.h"
 #include "dbinc/tcl_db.h"
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_RepElect --
  *	Call DB_ENV->rep_elect().
@@ -37,23 +35,26 @@ tcl_RepElect(interp, objc, objv, dbenv)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *dbenv;			/* Environment pointer */
 {
-	int eid, nsites, pri, result, ret;
+	int eid, nsites, nvotes, pri, result, ret;
 	u_int32_t timeout;
 
-	if (objc != 5) {
-		Tcl_WrongNumArgs(interp, 5, objv, "nsites pri timeout");
+	if (objc != 6) {
+		Tcl_WrongNumArgs(interp, 6, objv, "nsites pri timeout");
 		return (TCL_ERROR);
 	}
 
 	if ((result = Tcl_GetIntFromObj(interp, objv[2], &nsites)) != TCL_OK)
 		return (result);
-	if ((result = Tcl_GetIntFromObj(interp, objv[3], &pri)) != TCL_OK)
+	if ((result = Tcl_GetIntFromObj(interp, objv[3], &nvotes)) != TCL_OK)
 		return (result);
-	if ((result = _GetUInt32(interp, objv[4], &timeout)) != TCL_OK)
+	if ((result = Tcl_GetIntFromObj(interp, objv[4], &pri)) != TCL_OK)
+		return (result);
+	if ((result = _GetUInt32(interp, objv[5], &timeout)) != TCL_OK)
 		return (result);
 
 	_debug_check();
-	if ((ret = dbenv->rep_elect(dbenv, nsites, pri, timeout, &eid)) != 0)
+	if ((ret = dbenv->rep_elect(dbenv, nsites, nvotes,
+	    pri, timeout, &eid, 0)) != 0)
 		return (_ReturnSetup(interp, ret, DB_RETOK_STD(ret),
 		    "env rep_elect"));
 
@@ -63,7 +64,7 @@ tcl_RepElect(interp, objc, objv, dbenv)
 }
 #endif
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_RepFlush --
  *	Call DB_ENV->rep_flush().
@@ -90,7 +91,7 @@ tcl_RepFlush(interp, objc, objv, dbenv)
 	return (_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "env rep_flush"));
 }
 #endif
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_RepLimit --
  *	Call DB_ENV->set_rep_limit().
@@ -128,7 +129,7 @@ tcl_RepLimit(interp, objc, objv, dbenv)
 }
 #endif
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_RepRequest --
  *	Call DB_ENV->set_rep_request().
@@ -166,7 +167,7 @@ tcl_RepRequest(interp, objc, objv, dbenv)
 }
 #endif
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_RepStart --
  *	Call DB_ENV->rep_start().
@@ -185,7 +186,7 @@ tcl_RepStart(interp, objc, objv, dbenv)
 	Tcl_Obj *CONST objv[];		/* The argument objects */
 	DB_ENV *dbenv;
 {
-	static char *tclrpstrt[] = {
+	static const char *tclrpstrt[] = {
 		"-client",
 		"-master",
 		NULL
@@ -233,7 +234,7 @@ tcl_RepStart(interp, objc, objv, dbenv)
 }
 #endif
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_RepProcessMessage --
  *	Call DB_ENV->rep_process_message().
@@ -249,10 +250,12 @@ tcl_RepProcessMessage(interp, objc, objv, dbenv)
 	DB_ENV *dbenv;			/* Environment pointer */
 {
 	DBT control, rec;
-	Tcl_Obj *res;
+	DB_LSN permlsn;
+	Tcl_Obj *lsnlist, *myobjv[2], *res;
 	void *ctmp, *rtmp;
+	char *msg;
 	int eid;
-	int freectl, freerec, result, ret;
+	int freectl, freerec, myobjc, result, ret;
 
 	if (objc != 5) {
 		Tcl_WrongNumArgs(interp, 5, objv, "id control rec");
@@ -283,32 +286,100 @@ tcl_RepProcessMessage(interp, objc, objv, dbenv)
 	}
 	rec.data = rtmp;
 	_debug_check();
-	ret = dbenv->rep_process_message(dbenv, &control, &rec, &eid);
-	result = _ReturnSetup(interp, ret, DB_RETOK_REPPMSG(ret),
+	ret = dbenv->rep_process_message(dbenv, &control, &rec, &eid, &permlsn);
+	/*
+	 * !!!
+	 * The TCL API diverges from the C++/Java APIs here.  For us, it
+	 * is OK to get DUPMASTER and HOLDELECTION for testing purposes.
+	 */
+	result = _ReturnSetup(interp, ret,
+	    DB_RETOK_REPPMSG(ret) || ret == DB_REP_DUPMASTER ||
+	    ret == DB_REP_HOLDELECTION,
 	    "env rep_process_message");
 
+	if (result != TCL_OK)
+		goto out;
+
 	/*
-	 * If we have a new master, return its environment ID.
-	 *
-	 * XXX
-	 * We should do something prettier to differentiate success
-	 * from an env ID, and figure out how to represent HOLDELECTION.
+	 * We have a valid return.  We need to return a variety of information.
+	 * It will be one of the following:
+	 * {0 0} -  Make a 0 return a list for consistent return structure.
+	 * {DUPMASTER 0} -  DUPMASTER, no other info needed.
+	 * {HOLDELECTION 0} -  HOLDELECTION, no other info needed.
+	 * {NEWMASTER #} - NEWMASTER and its ID.
+	 * {NEWSITE 0} - NEWSITE, no other info needed.
+	 * {STARTUPDONE 0} - STARTUPDONE, no other info needed.
+	 * {ISPERM {LSN list}} - ISPERM and the perm LSN.
+	 * {NOTPERM {LSN list}} - NOTPERM and this msg's LSN.
 	 */
-	if (result == TCL_OK && ret == DB_REP_NEWMASTER) {
-		res = Tcl_NewIntObj(eid);
-		Tcl_SetObjResult(interp, res);
+	myobjc = 2;
+	switch (ret) {
+	case 0:
+		myobjv[0] = Tcl_NewIntObj(0);
+		myobjv[1] = Tcl_NewIntObj(0);
+		break;
+	case DB_REP_DUPMASTER:
+		myobjv[0] = Tcl_NewByteArrayObj(
+		    (u_char *)"DUPMASTER", (int)strlen("DUPMASTER"));
+		myobjv[1] = Tcl_NewIntObj(0);
+		break;
+	case DB_REP_HOLDELECTION:
+		myobjv[0] = Tcl_NewByteArrayObj(
+		    (u_char *)"HOLDELECTION", (int)strlen("HOLDELECTION"));
+		myobjv[1] = Tcl_NewIntObj(0);
+		break;
+	case DB_REP_ISPERM:
+		myobjv[0] = Tcl_NewLongObj((long)permlsn.file);
+		myobjv[1] = Tcl_NewLongObj((long)permlsn.offset);
+		lsnlist = Tcl_NewListObj(myobjc, myobjv);
+		myobjv[0] = Tcl_NewByteArrayObj(
+		    (u_char *)"ISPERM", (int)strlen("ISPERM"));
+		myobjv[1] = lsnlist;
+		break;
+	case DB_REP_NEWMASTER:
+		myobjv[0] = Tcl_NewByteArrayObj(
+		    (u_char *)"NEWMASTER", (int)strlen("NEWMASTER"));
+		myobjv[1] = Tcl_NewIntObj(eid);
+		break;
+	case DB_REP_NEWSITE:
+		myobjv[0] = Tcl_NewByteArrayObj(
+		    (u_char *)"NEWSITE", (int)strlen("NEWSITE"));
+		myobjv[1] = Tcl_NewIntObj(0);
+		break;
+	case DB_REP_NOTPERM:
+		myobjv[0] = Tcl_NewLongObj((long)permlsn.file);
+		myobjv[1] = Tcl_NewLongObj((long)permlsn.offset);
+		lsnlist = Tcl_NewListObj(myobjc, myobjv);
+		myobjv[0] = Tcl_NewByteArrayObj(
+		    (u_char *)"NOTPERM", (int)strlen("NOTPERM"));
+		myobjv[1] = lsnlist;
+		break;
+	case DB_REP_STARTUPDONE:
+		myobjv[0] = Tcl_NewByteArrayObj(
+		    (u_char *)"STARTUPDONE", (int)strlen("STARTUPDONE"));
+		myobjv[1] = Tcl_NewIntObj(0);
+		break;
+	default:
+		msg = db_strerror(ret);
+		Tcl_AppendResult(interp, msg, NULL);
+		Tcl_SetErrorCode(interp, "BerkeleyDB", msg, NULL);
+		result = TCL_ERROR;
+		goto out;
 	}
+	res = Tcl_NewListObj(myobjc, myobjv);
+	if (res != NULL)
+		Tcl_SetObjResult(interp, res);
 out:
 	if (freectl)
-		(void)__os_free(NULL, ctmp);
+		__os_free(NULL, ctmp);
 	if (freerec)
-		(void)__os_free(NULL, rtmp);
+		__os_free(NULL, rtmp);
 
 	return (result);
 }
 #endif
 
-#if CONFIG_TEST
+#ifdef CONFIG_TEST
 /*
  * tcl_RepStat --
  *	Call DB_ENV->rep_stat().
@@ -362,12 +433,18 @@ tcl_RepStat(interp, objc, objv, dbenv)
 	/*
 	 * MAKE_STAT_* assumes 'res' and 'error' label.
 	 */
+	if (sp->st_status == DB_REP_MASTER)
+		MAKE_STAT_LIST("Master", 1);
+	else
+		MAKE_STAT_LIST("Client", 1);
 	MAKE_STAT_LSN("Next LSN expected", &sp->st_next_lsn);
 	MAKE_STAT_LSN("First missed LSN", &sp->st_waiting_lsn);
 	MAKE_STAT_LIST("Duplicate master conditions", sp->st_dupmasters);
 	MAKE_STAT_LIST("Environment ID", sp->st_env_id);
 	MAKE_STAT_LIST("Environment priority", sp->st_env_priority);
 	MAKE_STAT_LIST("Generation number", sp->st_gen);
+	MAKE_STAT_LIST("Election generation number", sp->st_egen);
+	MAKE_STAT_LIST("Startup complete", sp->st_startup_complete);
 	MAKE_STAT_LIST("Duplicate log records received", sp->st_log_duplicated);
 	MAKE_STAT_LIST("Current log records queued", sp->st_log_queued);
 	MAKE_STAT_LIST("Maximum log records queued", sp->st_log_queued_max);
@@ -383,9 +460,15 @@ tcl_RepStat(interp, objc, objv, dbenv)
 	MAKE_STAT_LIST("Message send failures", sp->st_msgs_send_failures);
 	MAKE_STAT_LIST("Messages sent", sp->st_msgs_sent);
 	MAKE_STAT_LIST("New site messages", sp->st_newsites);
+	MAKE_STAT_LIST("Number of sites in replication group", sp->st_nsites);
 	MAKE_STAT_LIST("Transmission limited", sp->st_nthrottles);
 	MAKE_STAT_LIST("Outdated conditions", sp->st_outdated);
 	MAKE_STAT_LIST("Transactions applied", sp->st_txns_applied);
+	MAKE_STAT_LIST("Next page expected", sp->st_next_pg);
+	MAKE_STAT_LIST("First missed page", sp->st_waiting_pg);
+	MAKE_STAT_LIST("Duplicate pages received", sp->st_pg_duplicated);
+	MAKE_STAT_LIST("Pages received", sp->st_pg_records);
+	MAKE_STAT_LIST("Pages requested", sp->st_pg_requested);
 	MAKE_STAT_LIST("Elections held", sp->st_elections);
 	MAKE_STAT_LIST("Elections won", sp->st_elections_won);
 	MAKE_STAT_LIST("Election phase", sp->st_election_status);
@@ -393,13 +476,14 @@ tcl_RepStat(interp, objc, objv, dbenv)
 	MAKE_STAT_LIST("Election generation number", sp->st_election_gen);
 	MAKE_STAT_LSN("Election max LSN", &sp->st_election_lsn);
 	MAKE_STAT_LIST("Election sites", sp->st_election_nsites);
+	MAKE_STAT_LIST("Election votes", sp->st_election_nvotes);
 	MAKE_STAT_LIST("Election priority", sp->st_election_priority);
 	MAKE_STAT_LIST("Election tiebreaker", sp->st_election_tiebreaker);
 	MAKE_STAT_LIST("Election votes", sp->st_election_votes);
 
 	Tcl_SetObjResult(interp, res);
 error:
-	free(sp);
+	__os_ufree(dbenv, sp);
 	return (result);
 }
 #endif
