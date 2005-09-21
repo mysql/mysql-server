@@ -251,3 +251,15 @@ f1	f2
 1	1
 2	2
 drop table t1,t2;
+create table t1(f1 int);
+select DATABASE();
+DATABASE()
+test
+update t1 set f1=1 where count(*)=1;
+ERROR HY000: Invalid use of group function
+select DATABASE();
+DATABASE()
+test
+delete from t1 where count(*)=1;
+ERROR HY000: Invalid use of group function
+drop table t1;
