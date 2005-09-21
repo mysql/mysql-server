@@ -5044,7 +5044,7 @@ ulong ha_ndbcluster::table_flags(void) const
 }
 const char * ha_ndbcluster::table_type() const 
 {
-  return("ndbcluster");
+  return("NDBCLUSTER");
 }
 uint ha_ndbcluster::max_supported_record_length() const
 { 

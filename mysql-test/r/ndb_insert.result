@@ -441,7 +441,7 @@ INSERT INTO t1 VALUES
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 ERROR 23000: Can't write; duplicate key in table 't1'
 commit;
-ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
 select * from t1 where pk1=1;
 pk1	b	c
 1	1	1
@@ -478,7 +478,7 @@ INSERT INTO t1 VALUES
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 ERROR 23000: Can't write; duplicate key in table 't1'
 SELECT * FROM t1 WHERE pk1=10;
-ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
 rollback;
 select * from t1 where pk1=1;
 pk1	b	c
@@ -498,11 +498,11 @@ INSERT INTO t1 VALUES
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 ERROR 23000: Can't write; duplicate key in table 't1'
 SELECT * FROM t1 WHERE pk1=10;
-ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
 SELECT * FROM t1 WHERE pk1=10;
-ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
 commit;
-ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
 select * from t1 where pk1=1;
 pk1	b	c
 1	1	1
@@ -521,7 +521,7 @@ INSERT INTO t1 VALUES
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 ERROR 23000: Can't write; duplicate key in table 't1'
 INSERT INTO t1 values (4000, 40, 44);
-ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
 rollback;
 select * from t1 where pk1=1;
 pk1	b	c
