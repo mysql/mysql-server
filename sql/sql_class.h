@@ -737,10 +737,12 @@ public:
   void set_query_arena(Query_arena *set);
 
   void free_items();
+  /* Close the active state associated with execution of this statement */
+  virtual void cleanup_stmt();
 };
 
 
-class Cursor;
+class Server_side_cursor;
 
 /*
   State of a single command executed against this connection.
@@ -816,7 +818,7 @@ public:
   */
   char *query;
   uint32 query_length;                          // current query length
-  Cursor *cursor;
+  Server_side_cursor *cursor;
 
 public:
 
@@ -833,8 +835,6 @@ public:
   void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
-  /* Close the cursor open for this statement, if there is one */
-  virtual void close_cursor();
 };
 
 
@@ -886,9 +886,6 @@ public:
     }
     hash_delete(&st_hash, (byte *) statement);
   }
-  void add_transient_cursor(Statement *stmt)
-  { transient_cursor_list.append(stmt); }
-  void erase_transient_cursor(Statement *stmt) { stmt->unlink(); }
   /*
     Close all cursors of this connection that use tables of a storage
     engine that has transaction-specific state and therefore can not
@@ -1812,18 +1809,21 @@ public:
   }
 };
 
-class select_union :public select_result_interceptor {
- public:
-  TABLE *table;
+class select_union :public select_result_interceptor
+{
   TMP_TABLE_PARAM tmp_table_param;
+public:
+  TABLE *table;
 
-  select_union(TABLE *table_par);
-  ~select_union();
+  select_union() :table(0) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
-  void set_table(TABLE *tbl) { table= tbl; }
+
+  bool create_result_table(THD *thd, List<Item> *column_types,
+                           bool is_distinct, ulonglong options,
+                           const char *alias);
 };
 
 /* Base subselect interface class */

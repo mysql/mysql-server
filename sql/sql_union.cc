@@ -23,6 +23,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
+#include "sql_cursor.h"
 
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
@@ -30,13 +31,9 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
   DBUG_ENTER("mysql_union");
   bool res;
   if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
-                           setup_tables_done_option, "")))
+                           setup_tables_done_option)))
     res= unit->exec();
-  if (!res && thd->cursor && thd->cursor->is_open())
-  {
-    thd->cursor->set_unit(unit);
-  }
-  else
+  if (res || !thd->cursor || !thd->cursor->is_open())
     res|= unit->cleanup();
   DBUG_RETURN(res);
 }
@@ -45,16 +42,6 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
 /***************************************************************************
 ** store records in temporary table for UNION
 ***************************************************************************/
-
-select_union::select_union(TABLE *table_par)
-  :table(table_par)
-{
-}
-
-select_union::~select_union()
-{
-}
-
 
 int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
@@ -103,6 +90,45 @@ bool select_union::flush()
   return 0;
 }
 
+/*
+  Create a temporary table to store the result of select_union.
+
+  SYNOPSIS
+    select_union::create_result_table()
+      thd                thread handle
+      column_types       a list of items used to define columns of the
+                         temporary table
+      is_union_distinct  if set, the temporary table will eliminate
+                         duplicates on insert
+      options            create options
+
+  DESCRIPTION
+    Create a temporary table that is used to store the result of a UNION,
+    derived table, or a materialized cursor.
+
+  RETURN VALUE
+    0                    The table has been created successfully.
+    1                    create_tmp_table failed.
+*/
+
+bool
+select_union::create_result_table(THD *thd, List<Item> *column_types,
+                                  bool is_union_distinct, ulonglong options,
+                                  const char *alias)
+{
+  DBUG_ASSERT(table == 0);
+  tmp_table_param.init();
+  tmp_table_param.field_count= column_types->elements;
+
+  if (! (table= create_tmp_table(thd, &tmp_table_param, *column_types,
+                                 (ORDER*) 0, is_union_distinct, 1,
+                                 options, HA_POS_ERROR, (char*) alias)))
+    return TRUE;
+  table->file->extra(HA_EXTRA_WRITE_CACHE);
+  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  return FALSE;
+}
+
 
 /*
   initialization procedures before fake_select_lex preparation()
@@ -133,11 +159,10 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
 
 
 bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
-                                 ulong additional_options,
-                                 const char *tmp_table_alias)
+                                 ulong additional_options)
 {
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
-  SELECT_LEX *sl, *first_select;
+  SELECT_LEX *sl, *first_sl= first_select();
   select_result *tmp_result;
   bool is_union;
   TABLE *empty_table= 0;
@@ -156,7 +181,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (describe)
     {
       /* fast reinit for EXPLAIN */
-      for (sl= first_select_in_union(); sl; sl= sl->next_select())
+      for (sl= first_sl; sl; sl= sl->next_select())
       {
 	sl->join->result= result;
 	select_limit_cnt= HA_POS_ERROR;
@@ -175,17 +200,16 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   prepared= 1;
   res= FALSE;
   
-  thd_arg->lex->current_select= sl= first_select= first_select_in_union();
-  found_rows_for_union= first_select->options & OPTION_FOUND_ROWS;
-  is_union= test(first_select->next_select());
+  thd_arg->lex->current_select= sl= first_sl;
+  found_rows_for_union= first_sl->options & OPTION_FOUND_ROWS;
+  is_union= test(first_sl->next_select());
 
   /* Global option */
 
   if (is_union)
   {
-    if (!(tmp_result= union_result= new select_union(0)))
+    if (!(tmp_result= union_result= new select_union))
       goto err;
-    union_result->tmp_table_param.init();
     if (describe)
       tmp_result= sel_result;
   }
@@ -238,8 +262,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       information about fields lengths and exact types
     */
     if (!is_union)
-      types= first_select_in_union()->item_list;
-    else if (sl == first_select)
+      types= first_sl->item_list;
+    else if (sl == first_sl)
     {
       /*
         We need to create an empty table object. It is used
@@ -287,7 +311,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       all collations together for UNION.
     */
     List_iterator_fast<Item> tp(types);
-    Query_arena *arena= thd->stmt_arena;
     Item *type;
     ulonglong create_options;
 
@@ -301,7 +324,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
     }
     
-    create_options= (first_select_in_union()->options | thd_arg->options |
+    create_options= (first_sl->options | thd_arg->options |
                      TMP_TABLE_ALL_COLUMNS);
     /*
       Force the temporary table to be a MyISAM table if we're going to use
@@ -312,47 +335,35 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (global_parameters->ftfunc_list->elements)
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
-    union_result->tmp_table_param.field_count= types.elements;
-    if (!(table= create_tmp_table(thd_arg,
-				  &union_result->tmp_table_param, types,
-				  (ORDER*) 0, (bool) union_distinct, 1, 
-                                  create_options, HA_POS_ERROR,
-                                  (char *) tmp_table_alias)))
+    if (union_result->create_result_table(thd, &types, test(union_distinct),
+                                          create_options, ""))
       goto err;
-    table->file->extra(HA_EXTRA_WRITE_CACHE);
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
-    result_table_list.table= table;
-    union_result->set_table(table);
+    result_table_list.table= table= union_result->table;
 
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
-      Field **field;
-      Query_arena *tmp_arena,backup;
-      tmp_arena= thd->activate_stmt_arena_if_needed(&backup);
+      Query_arena *arena, backup_arena;
 
-      for (field= table->field; *field; field++)
+      arena= thd->activate_stmt_arena_if_needed(&backup_arena);
+      
+      res= table->fill_item_list(&item_list);
+
+      if (arena)
+        thd->restore_active_arena(arena, &backup_arena);
+
+      if (res)
+        goto err;
+
+      if (thd->stmt_arena->is_stmt_prepare())
       {
-	Item_field *item= new Item_field(*field);
-	if (!item || item_list.push_back(item))
-	{
-          if (tmp_arena)
-	    thd->restore_active_arena(tmp_arena, &backup);
-	  DBUG_RETURN(TRUE);
-	}
-      }
-      if (tmp_arena)
-        thd->restore_active_arena(tmp_arena, &backup);
-      if (arena->is_stmt_prepare_or_first_sp_execute())
-      {
-	/* prepare fake select to initialize it correctly */
+        /* Validate the global parameters of this union */
+
 	init_prepare_fake_select_lex(thd);
-        /*
-          Should be done only once (the only item_list per statement).
-        */
+        /* Should be done only once (the only item_list per statement) */
         DBUG_ASSERT(fake_select_lex->join == 0);
 	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
 					      result)))
@@ -375,19 +386,14 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	fake_select_lex->table_list.empty();
       }
     }
-    else if (!arena->is_conventional())
+    else
     {
+      DBUG_ASSERT(!thd->stmt_arena->is_conventional());
       /*
         We're in execution of a prepared statement or stored procedure:
         reset field items to point at fields from the created temporary table.
       */
-      List_iterator_fast<Item> it(item_list);
-      for (Field **field= table->field; *field; field++)
-      {
-        Item_field *item_field= (Item_field*) it++;
-        DBUG_ASSERT(item_field != 0);
-        item_field->reset_field(*field);
-      }
+      table->reset_item_list(&item_list);
     }
   }
 
@@ -404,7 +410,7 @@ err:
 bool st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
-  SELECT_LEX *select_cursor=first_select_in_union();
+  SELECT_LEX *select_cursor=first_select();
   ulonglong add_rows=0;
   ha_rows examined_rows= 0;
   DBUG_ENTER("st_select_lex_unit::exec");
@@ -595,7 +601,7 @@ bool st_select_lex_unit::cleanup()
     table= 0; // Safety
   }
 
-  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     error|= sl->cleanup();
 
   if (fake_select_lex)
@@ -652,7 +658,7 @@ bool st_select_lex_unit::change_result(select_subselect *result,
                                        select_subselect *old_result)
 {
   bool res= FALSE;
-  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     if (sl->join && sl->join->result == old_result)
       if (sl->join->change_result(result))
@@ -663,6 +669,36 @@ bool st_select_lex_unit::change_result(select_subselect *result,
   return (res);
 }
 
+/*
+  Get column type information for this unit.
+
+  SYNOPSIS
+    st_select_lex_unit::get_unit_column_types()
+
+  DESCRIPTION
+    For a single-select the column types are taken
+    from the list of selected items. For a union this function
+    assumes that st_select_lex_unit::prepare has been called
+    and returns the type holders that were created for unioned
+    column types of all selects.
+
+  NOTES
+    The implementation of this function should be in sync with
+    st_select_lex_unit::prepare()
+*/
+
+List<Item> *st_select_lex_unit::get_unit_column_types()
+{
+  bool is_union= test(first_select()->next_select());
+
+  if (is_union)
+  {
+    DBUG_ASSERT(prepared);
+    /* Types are generated during prepare */
+    return &types;
+  }
+  return &first_select()->item_list;
+}
 
 bool st_select_lex::cleanup()
 {
