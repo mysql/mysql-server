@@ -578,3 +578,25 @@ DELETE FROM t1 WHERE NOT(a <=> 2);
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+#
+# BUG#13317: range optimization doesn't work for IN over VIEW.
+#
+create table t1 (a int, b int, primary key(a,b));
+create view v1 as select a, b from t1;
+
+INSERT INTO `t1` VALUES
+(0,0),(1,0),(2,0),(3,0),(4,0),(5,1),(6,1),(7,1),(8,1),(9,1),(10,2),(11,2),(12,2)
+,(13,2),(14,2),(15,3),(16,3),(17,3),(18,3),(19,3);
+
+--replace_column 9 #
+explain select * from t1 where a in (3,4)  and b in (1,2,3);
+--replace_column 9 #
+explain select * from v1 where a in (3,4)  and b in (1,2,3);
+--replace_column 9 #
+explain select * from t1 where a between 3 and 4 and b between 1 and 2;
+--replace_column 9 #
+explain select * from v1 where a between 3 and 4 and b between 1 and 2;
+ 
+drop view v1;
+drop table t1;
