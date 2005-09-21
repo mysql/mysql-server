@@ -1636,8 +1636,10 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
   *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1) ||
-                 (!strcmp(sp->m_definer_user.str, thd->priv_user) &&
-                  !strcmp(sp->m_definer_host.str, thd->priv_host)));
+                 (!strcmp(sp->m_definer_user.str,
+                          thd->security_ctx->priv_user) &&
+                  !strcmp(sp->m_definer_host.str,
+                          thd->security_ctx->priv_host)));
   if (!*full_access)
     return check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,
                                      sp->m_type == TYPE_ENUM_PROCEDURE);
@@ -2645,54 +2647,36 @@ sp_instr_error::print(String *str)
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-void
-sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+bool
+sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
 {
-  ctxp->changed= (sp->m_chistics->suid != SP_IS_NOT_SUID &&
-		   (strcmp(sp->m_definer_user.str, thd->priv_user) ||
-		    strcmp(sp->m_definer_host.str, thd->priv_host)));
-
-  if (ctxp->changed)
+  *backup= 0;
+  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
+      (strcmp(sp->m_definer_user.str,
+              thd->security_ctx->priv_user) ||
+       my_strcasecmp(system_charset_info, sp->m_definer_host.str,
+                     thd->security_ctx->priv_host)))
   {
-    ctxp->master_access= thd->master_access;
-    ctxp->db_access= thd->db_access;
-    ctxp->priv_user= thd->priv_user;
-    strncpy(ctxp->priv_host, thd->priv_host, sizeof(ctxp->priv_host));
-    ctxp->user= thd->user;
-    ctxp->host= thd->host;
-    ctxp->ip= thd->ip;
-
-    /* Change thise just to do the acl_getroot_no_password */
-    thd->user= sp->m_definer_user.str;
-    thd->host= thd->ip = sp->m_definer_host.str;
-
-    if (acl_getroot_no_password(thd))
-    {			// Failed, run as invoker for now
-      ctxp->changed= FALSE;
-      thd->master_access= ctxp->master_access;
-      thd->db_access= ctxp->db_access;
-      thd->priv_user= ctxp->priv_user;
-      strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
+    if (acl_getroot_no_password(&sp->m_security_ctx, sp->m_definer_user.str,
+                                sp->m_definer_host.str,
+                                sp->m_definer_host.str,
+                                sp->m_db.str))
+    {
+      my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
+               sp->m_definer_host.str);
+      return TRUE;
     }
-
-    /* Restore these immiediately */
-    thd->user= ctxp->user;
-    thd->host= ctxp->host;
-    thd->ip= ctxp->ip;
+    *backup= thd->security_ctx;
+    thd->security_ctx= &sp->m_security_ctx;
   }
+  return FALSE;
 }
 
 void
-sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+sp_restore_security_context(THD *thd, Security_context *backup)
 {
-  if (ctxp->changed)
-  {
-    ctxp->changed= FALSE;
-    thd->master_access= ctxp->master_access;
-    thd->db_access= ctxp->db_access;
-    thd->priv_user= ctxp->priv_user;
-    strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
-  }
+  if (backup)
+    thd->security_ctx= backup;
 }
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */

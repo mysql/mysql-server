@@ -4711,27 +4711,11 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   int res= -1;
   Sub_statement_state statement_state;
+  Security_context *save_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  st_sp_security_context save_ctx;
-#endif
-
-  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
-  {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx))
     goto error;
-  }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_routine_access(thd, EXECUTE_ACL, 
-			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error;
-  sp_change_security_context(thd, m_sp, &save_ctx);
-  if (save_ctx.changed && 
-      check_routine_access(thd, EXECUTE_ACL, 
-			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error_check_ctx;
-#endif
   /*
     Disable the binlogging if this is not a SELECT statement. If this is a
     SELECT, leave binlogging on, so execute_function() code writes the
@@ -4740,7 +4724,7 @@ Item_func_sp::execute(Item **itp)
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
   res= m_sp->execute_function(thd, args, arg_count, itp);
   thd->restore_sub_statement_state(&statement_state);
- 
+
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
        m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -4749,8 +4733,7 @@ Item_func_sp::execute(Item **itp)
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-error_check_ctx:
-  sp_restore_security_context(thd, m_sp, &save_ctx);
+  sp_restore_security_context(thd, save_ctx);
 #endif
 
 error:
@@ -4856,4 +4839,80 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
     res= Item_func::tmp_table_field(t_arg);
 
   DBUG_RETURN(res);
+}
+
+
+/*
+  Find the function and chack access rigths to the function
+
+  SYNOPSIS
+    find_and_check_access()
+    thd           thread handler
+    want_access   requested access
+    backup        backup of security context or 0
+
+  RETURN
+    FALSE    Access granted
+    TRUE     Requested access can't be granted or function doesn't exists
+
+  NOTES
+    Checks if requested access to function can be granted to user.
+    If function isn't found yet, it searches function first.
+    If function can't be found or user don't have requested access
+    error is raised.
+    If security context sp_ctx is provided and access can be granted then
+    switch back to previous context isn't performed.
+    In case of access error or if context is not provided then
+    find_and_check_access() switches back to previous security context.
+*/
+
+bool
+Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
+                                    Security_context **backup)
+{
+  bool res;
+  Security_context *local_save,
+                   **save= (backup ? backup : &local_save);
+  res= TRUE;
+  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
+  {
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    goto error;
+  }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (check_routine_access(thd, want_access,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
+  {
+    goto error;
+  }
+
+  sp_change_security_context(thd, m_sp, save);
+  if (*save &&
+      check_routine_access(thd, want_access,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
+  {
+    goto error_check_ctx;
+  }
+  res= FALSE;
+error_check_ctx:
+  if (*save && (res || !backup))
+    sp_restore_security_context(thd, local_save);
+error:
+#else
+  res= 0;
+error:
+#endif
+  return res;
+};
+
+bool
+Item_func_sp::fix_fields(THD *thd, Item **ref)
+{
+  bool res;
+  DBUG_ASSERT(fixed == 0);
+  res= Item_func::fix_fields(thd, ref);
+  if (!res && find_and_check_access(thd, EXECUTE_ACL, NULL))
+    res= 1;
+  return res;
 }
