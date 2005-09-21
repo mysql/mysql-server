@@ -1791,8 +1791,7 @@ private:
                        Uint32* const mainBuffer,
                        Uint32& noMainWords,
                        Uint32* const copyBuffer,
-                       Uint32& noCopyWords,
-		       bool xfrm);
+                       Uint32& noCopyWords);
 
   void sendTrigAttrInfo(Signal*        signal, 
                         Uint32*        data, 
