@@ -775,6 +775,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 			    uint pre_alloc_size);
 extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
+extern gptr multi_alloc_root(MEM_ROOT *mem_root, ...);
 extern void free_root(MEM_ROOT *root, myf MyFLAGS);
 extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,

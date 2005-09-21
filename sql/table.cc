@@ -1687,6 +1687,63 @@ db_type get_table_type(THD *thd, const char *name)
   DBUG_RETURN(ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0));
 }
 
+/*
+  Create Item_field for each column in the table.
+
+  SYNPOSIS
+    st_table::fill_item_list()
+      item_list          a pointer to an empty list used to store items
+
+  DESCRIPTION
+    Create Item_field object for each column in the table and
+    initialize it with the corresponding Field. New items are
+    created in the current THD memory root.
+
+  RETURN VALUE
+    0                    success
+    1                    out of memory
+*/
+
+bool st_table::fill_item_list(List<Item> *item_list) const
+{
+  /*
+    All Item_field's created using a direct pointer to a field
+    are fixed in Item_field constructor.
+  */
+  for (Field **ptr= field; *ptr; ptr++)
+  {
+    Item_field *item= new Item_field(*ptr);
+    if (!item || item_list->push_back(item))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+/*
+  Reset an existing list of Item_field items to point to the
+  Fields of this table.
+
+  SYNPOSIS
+    st_table::fill_item_list()
+      item_list          a non-empty list with Item_fields
+
+  DESCRIPTION
+    This is a counterpart of fill_item_list used to redirect
+    Item_fields to the fields of a newly created table.
+    The caller must ensure that number of items in the item_list
+    is the same as the number of columns in the table.
+*/
+
+void st_table::reset_item_list(List<Item> *item_list) const
+{
+  List_iterator_fast<Item> it(*item_list);
+  for (Field **ptr= field; *ptr; ptr++)
+  {
+    Item_field *item_field= (Item_field*) it++;
+    DBUG_ASSERT(item_field != 0);
+    item_field->reset_field(*ptr);
+  }
+}
 
 /*
   calculate md5 of query
