@@ -273,7 +273,7 @@ int check_user(THD *thd, enum enum_server_command command,
   DBUG_ENTER("check_user");
   
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
-  thd->ain_security_ctx.master_access= GLOBAL_ACLS;       // Full rights
+  thd->main_security_ctx.master_access= GLOBAL_ACLS;       // Full rights
   /* Change database if necessary */
   if (db && db[0])
   {
@@ -4490,10 +4490,10 @@ end_with_restore_list:
           mysql_bin_log.is_open())
       {
         String buff;
-        LEX_STRING command[3]=
-          {{STRING_WITH_LEN("CREATE ")},
-           {STRING_WITH_LEN("ALTER ")},
-           {STRING_WITH_LEN("CREATE OR REPLACE ")}};
+        const LEX_STRING command[3]=
+          {{(char *)STRING_WITH_LEN("CREATE ")},
+           {(char *)STRING_WITH_LEN("ALTER ")},
+           {(char *)STRING_WITH_LEN("CREATE OR REPLACE ")}};
         thd->clear_error();
 
         buff.append(command[thd->lex->create_view_mode].str,
