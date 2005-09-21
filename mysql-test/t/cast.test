@@ -20,6 +20,10 @@ select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
 select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
 select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
+select CAST(0xb3 as signed);
+select CAST(0x8fffffffffffffff as signed);
+select CAST(0xffffffffffffffff as unsigned);
+select CAST(0xfffffffffffffffe as signed);
 
 # out-of-range cases
 select cast('18446744073709551616' as unsigned);
