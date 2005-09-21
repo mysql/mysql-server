@@ -7175,8 +7175,11 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
                target_tbl->table_name, "MULTI DELETE");
       DBUG_RETURN(TRUE);
     }
-    target_tbl->table_name= walk->table_name;
-    target_tbl->table_name_length= walk->table_name_length;
+    if (!walk->derived)
+    {
+      target_tbl->table_name= walk->table_name;
+      target_tbl->table_name_length= walk->table_name_length;
+    }
     walk->updating= target_tbl->updating;
     walk->lock_type= target_tbl->lock_type;
     target_tbl->correspondent_table= walk;	// Remember corresponding table
