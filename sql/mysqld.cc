@@ -6767,6 +6767,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
       exit(1);
     }
+  }
   case OPT_MYISAM_STATS_METHOD:
   {
     myisam_stats_method_str= argument;
@@ -6776,7 +6777,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
       exit(1);
     }
-    global_system_variables.myisam_stats_method= method;
+    global_system_variables.myisam_stats_method= method-1;
     break;
   }
   case OPT_SQL_MODE:
