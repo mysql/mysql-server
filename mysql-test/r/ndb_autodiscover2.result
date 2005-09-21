@@ -9,5 +9,5 @@ Variable_name	Value
 Handler_discover	1
 drop table t9;
 select * from t10;
-ERROR HY000: Got error 4263 'Invalid blob attributes or invalid blob parts table' from ndbcluster
+ERROR HY000: Got error 4263 'Invalid blob attributes or invalid blob parts table' from NDBCLUSTER
 drop table t10;

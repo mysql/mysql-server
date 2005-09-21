@@ -29,7 +29,7 @@ drop table t1;
 create table t1 (a int) engine=ndbcluster;
 insert into t1 value (2);
 select * from t1;
-ERROR HY000: Got error 241 'Invalid schema object version' from ndbcluster
+ERROR HY000: Got error 241 'Invalid schema object version' from NDBCLUSTER
 select * from t1;
 a
 2
