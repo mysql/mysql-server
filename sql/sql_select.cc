@@ -7817,18 +7817,24 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     if (field->maybe_null && !field->field->maybe_null())
     {
       result= create_tmp_field_from_item(thd, item, table, NULL,
-                                       modify_item, convert_blob_length);
+                                         modify_item, convert_blob_length);
       *from_field= field->field;
       if (result && modify_item)
-        ((Item_field*)item)->result_field= result;
+        field->result_field= result;
     } 
-    else if (table_cant_handle_bit_fields && field->field->type() == FIELD_TYPE_BIT)
+    else if (table_cant_handle_bit_fields && field->field->type() ==
+             FIELD_TYPE_BIT)
+    {
+      *from_field= field->field;
       result= create_tmp_field_from_item(thd, item, table, copy_func,
                                         modify_item, convert_blob_length);
+      if (result && modify_item)
+        field->result_field= result;
+    }
     else
       result= create_tmp_field_from_field(thd, (*from_field= field->field),
                                        item->name, table,
-                                       modify_item ? (Item_field*) item :
+                                       modify_item ? field :
                                        NULL,
                                        convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
@@ -8071,7 +8077,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  Field *new_field=
             create_tmp_field(thd, table, arg, arg->type(), &copy_func,
                              tmp_from_field, group != 0,not_all_columns,
-                             group || distinct,
+                             distinct,
                              param->convert_blob_length);
 	  if (!new_field)
 	    goto err;					// Should be OOM
@@ -8082,6 +8088,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= (uint) (reg_field - table->field);
 	    blob_count++;
 	  }
+          if (new_field->type() == FIELD_TYPE_BIT)
+            total_uneven_bit_length+= new_field->field_length & 7;
           new_field->field_index= (uint) (reg_field - table->field);
 	  *(reg_field++)= new_field;
           if (new_field->real_type() == MYSQL_TYPE_STRING ||
@@ -8117,12 +8125,16 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	write rows to the temporary table.
 	We here distinguish between UNION and multi-table-updates by the fact
 	that in the later case group is set to the row pointer.
+
+        The test for item->marker == 4 is ensure we don't create a group-by
+        key over a bit field as heap tables can't handle that.
       */
       Field *new_field= (param->schema_table) ?
         create_tmp_field_for_schema(thd, item, table) :
         create_tmp_field(thd, table, item, type, &copy_func,
                          tmp_from_field, group != 0,
-                         not_all_columns || group != 0, 0,
+                         not_all_columns || group != 0,
+                         item->marker == 4,
                          param->convert_blob_length);
 
       if (!new_field)
@@ -8154,7 +8166,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
+    {
+      /*
+        This was the last hidden field; Remember how many hidden fields could
+        have null
+      */
       hidden_null_count=null_count;
+      null_count= 0;
+    }
   }
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
@@ -8189,8 +8208,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count++;
   }
   hidden_null_pack_length=(hidden_null_count+7)/8;
-  null_pack_length= hidden_null_count +
-                    (null_count + total_uneven_bit_length + 7) / 8;
+  null_pack_length= (hidden_null_pack_length +
+                     (null_count + total_uneven_bit_length + 7) / 8);
   reclength+=null_pack_length;
   if (!reclength)
     reclength=1;				// Dummy select
@@ -12161,6 +12180,11 @@ calc_group_buffer(JOIN *join,ORDER *group)
 	key_length+=MAX_BLOB_WIDTH;		// Can't be used as a key
       else if (field->type() == MYSQL_TYPE_VARCHAR)
         key_length+= field->field_length + HA_KEY_BLOB_LENGTH;
+      else if (field->type() == FIELD_TYPE_BIT)
+      {
+        /* Bit is usually stored as a longlong key for group fields */
+        key_length+= 8;                         // Big enough
+      }
       else
 	key_length+= field->pack_length();
     }
