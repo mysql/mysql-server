@@ -201,8 +201,14 @@ public:
 
   ~MgmtSrvr();
 
-  int status(int processId, 
-	     ndb_mgm_node_status * status, 
+  /**
+   * Get status on a node.
+   * address may point to a common area (e.g. from inet_addr)
+   * There is no gaurentee that it is preserved across calls.
+   * Copy the string if you are not going to use it immediately.
+   */
+  int status(int nodeId,
+	     ndb_mgm_node_status * status,
 	     Uint32 * version,
 	     Uint32 * phase,
 	     bool * systemShutdown,
