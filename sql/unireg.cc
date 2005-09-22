@@ -153,8 +153,8 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   {
     char buff[2];
     int2store(buff,create_info->connect_string.length);
-    if (my_write(file, buff, sizeof(buff), MYF(MY_NABP)) ||
-        my_write(file, create_info->connect_string.str,
+    if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+        my_write(file, (const byte*)create_info->connect_string.str,
                  create_info->connect_string.length, MYF(MY_NABP)))
       goto err;
   }

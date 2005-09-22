@@ -1456,11 +1456,9 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
-    if (!alloc_root_inited(&table->mem_root))	// If temporary table
-      ref=(byte*) sql_alloc(ALIGN_SIZE(ref_length)*2);
-    else
-      ref=(byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2);
-    if (!ref)
+    DBUG_ASSERT(alloc_root_inited(&table->mem_root));
+
+    if (!(ref= (byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2)))
     {
       close();
       error=HA_ERR_OUT_OF_MEM;
