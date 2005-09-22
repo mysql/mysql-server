@@ -39,7 +39,7 @@ run dist/s_vxworks 555
 run dist/s_win32 555
 run dist/s_win32_dsp 555
 run dist/vx_buildcd 555
-run mod_db4/configure 555
+#run mod_db4/configure 555
 
 run perl/BerkeleyDB/dbinfo 555
 run perl/BerkeleyDB/mkpod 555

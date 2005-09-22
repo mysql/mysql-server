@@ -55,7 +55,7 @@ fi
 ctags $flags $files 2>/dev/null
 chmod 444 $f
 
-f=../test_perf/tags
-echo "Building $f"
-(cd ../test_perf && ctags $flags *.[ch] 2>/dev/null)
-chmod 444 $f
+#f=../test_perf/tags
+#echo "Building $f"
+#(cd ../test_perf && ctags $flags *.[ch] 2>/dev/null)
+#chmod 444 $f
