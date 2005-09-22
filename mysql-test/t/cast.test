@@ -143,4 +143,9 @@ select cast(concat('184467440','73709551615') as signed);
 select cast(repeat('1',20) as unsigned);
 select cast(repeat('1',20) as signed);
 
+#
+# Bug #13344: cast of large decimal to signed int not handled correctly
+#
+select cast(1.0e+300 as signed int);
+
 # End of 4.1 tests

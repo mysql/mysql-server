@@ -252,3 +252,6 @@ cast(repeat('1',20) as signed)
 -7335632962598440505
 Warnings:
 Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+select cast(1.0e+300 as signed int);
+cast(1.0e+300 as signed int)
+9223372036854775807
