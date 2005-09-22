@@ -15,7 +15,7 @@ sh s_include		# standard include files.
 
 sh s_win32		# Win32 include files.
 sh s_win32_dsp		# Win32 build environment.
-sh s_vxworks		# VxWorks include files.
-sh s_java		# Java support.
+#sh s_vxworks		# VxWorks include files.
+#sh s_java		# Java support.
 sh s_test		# Test suite support.
 sh s_tags		# Tags files.
