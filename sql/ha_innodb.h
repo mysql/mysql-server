@@ -344,4 +344,4 @@ restored to a transaction read view. */
 void
 innobase_set_cursor_view(
 /*=====================*/
-	void*	curview);	/* in: Consistent read view to be closed */
+	void*	curview);	/* in: Consistent read view to be set */
