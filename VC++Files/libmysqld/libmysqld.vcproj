@@ -2299,7 +2299,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\sql\protocol_cursor.cpp">
+			RelativePath="..\sql\sql_cursor.cpp">
 			<FileConfiguration
 				Name="Debug|Win32">
 				<Tool
