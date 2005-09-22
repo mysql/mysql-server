@@ -588,12 +588,15 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_ENTER("ha_federated::parse_url");
 
   share->port= 0;
+  share->socket= 0;
   DBUG_PRINT("info", ("Length %d \n", table->s->connect_string.length));
   DBUG_PRINT("info", ("String %.*s \n", table->s->connect_string.length, 
                       table->s->connect_string.str));
-  share->scheme= my_strdup_with_length(table->s->connect_string.str,
-		                       table->s->connect_string.length+1,
-				       MYF(0));
+  share->scheme= my_strdup_with_length((const byte*)table->s->
+                                       connect_string.str, 
+                                       table->s->connect_string.length,
+                                       MYF(0));
+
   // Add a null for later termination of table name
   share->scheme[table->s->connect_string.length]= 0;
   DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
@@ -1374,13 +1377,9 @@ static int free_share(FEDERATED_SHARE *share)
 
   if (!--share->use_count)
   {
-    if (share->scheme)
-    {
-      my_free((gptr) share->scheme, MYF(0));
-      share->scheme= 0;
-    }
-
     hash_delete(&federated_open_tables, (byte*) share);
+    my_free((gptr) share->scheme, MYF(MY_ALLOW_ZERO_PTR));
+    share->scheme= 0;
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
@@ -2626,7 +2625,8 @@ int ha_federated::stash_remote_error()
 {
   DBUG_ENTER("ha_federated::stash_remote_error()");
   remote_error_number= mysql_errno(mysql);
-  snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, mysql_error(mysql));
+  my_snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, 
+              mysql_error(mysql));
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
 }
 

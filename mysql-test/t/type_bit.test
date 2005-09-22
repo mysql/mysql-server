@@ -224,3 +224,5 @@ select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2;
 select a1, a2, b1+0, b2+0 from t1 join t2 on a1 = a2 order by a1;
 select a1, a2, b1+0, b2+0 from t1 join t2 on b1 = b2;
 select sum(a1), b1+0, b2+0 from t1 join t2 on b1 = b2 group by b1 order by 1;
+select 1 from t1 join t2 on b1 = b2 group by b1 order by 1;
+select b1+0,sum(b1), sum(b2) from t1 join t2 on b1 = b2 group by b1 order by 1;

@@ -40,7 +40,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="libmysql.lib odbc32.lib odbccp32.lib"
-				OutputFile=".\release/myTest.exe"
+				OutputFile="..\client_release/myTest.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
 				AdditionalLibraryDirectories="..\lib_release"
@@ -74,7 +74,7 @@
 		</Configuration>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\debug"
+			OutputDirectory="..\client_debug"
 			IntermediateDirectory=".\debug"
 			ConfigurationType="1"
 			UseOfMFC="0"
@@ -100,7 +100,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="libmysql.lib odbc32.lib odbccp32.lib"
-				OutputFile=".\debug/myTest.exe"
+				OutputFile="../client_debug/myTest.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
 				AdditionalLibraryDirectories="..\lib_debug"

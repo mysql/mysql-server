@@ -52,6 +52,16 @@
 }
 
 {
+   pthread pthread_key_create
+   Memcheck:Leak
+   fun:malloc
+   fun:*
+   fun:*
+   fun:pthread_key_create
+   fun:my_thread_global_init
+}
+
+{
    pthread strstr uninit
    Memcheck:Cond
    fun:strstr
@@ -127,8 +137,18 @@
 {
    libz deflate
    Memcheck:Cond
-   obj:/usr/lib/libz.so.*
-   obj:/usr/lib/libz.so.*
+   obj:*/libz.so.*
+   obj:*/libz.so.*
    fun:deflate
    fun:compress2
+}
+
+{
+   libz deflate2
+   Memcheck:Cond
+   obj:*/libz.so.*
+   obj:*/libz.so.*
+   fun:deflate
+   obj:*/libz.so.*
+   fun:gzflush
 }
