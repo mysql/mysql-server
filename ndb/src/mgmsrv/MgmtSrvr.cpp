@@ -695,6 +695,16 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, const char **address)
   version= 0;
   if (getOwnNodeId() == nodeId)
   {
+    /**
+     * If we're inquiring about our own node id,
+     * We know what version we are (version implies connected for mgm)
+     * but would like to find out from elsewhere what address they're using
+     * to connect to us. This means that secondary mgm servers
+     * can list ip addresses for mgm servers.
+     *
+     * If we don't get an address (i.e. no db nodes),
+     * we get the address from the configuration.
+     */
     sendVersionReq(nodeId, version, address);
     version= NDB_VERSION;
     if(!*address)
