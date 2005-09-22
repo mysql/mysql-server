@@ -29,6 +29,10 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include "ObjectMap.hpp"
+#include <NdbIndexScanOperation.hpp>
+#include <NdbIndexOperation.hpp>
+#include "NdbUtil.hpp"
+#include <NdbBlob.hpp>
 
 class NdbGlobalEventBufferHandle;
 NdbGlobalEventBufferHandle *NdbGlobalEventBuffer_init(int);
