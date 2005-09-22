@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+drop view if exists v1;
 CREATE TABLE t1 (c int not null, d char (10) not null);
 insert into t1 values(1,""),(2,"a"),(3,"b");
 CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
@@ -99,32 +100,32 @@ Variable_name	Value
 Created_tmp_disk_tables	0
 Created_tmp_tables	2
 drop table t1;
-create temporary table t1 as select 'This is temp. table' A;
-create view t1 as select 'This is view' A;
-select * from t1;
+create temporary table v1 as select 'This is temp. table' A;
+create view v1 as select 'This is view' A;
+select * from v1;
 A
 This is temp. table
-show create table t1;
+show create table v1;
 Table	Create Table
-t1	CREATE TEMPORARY TABLE `t1` (
+v1	CREATE TEMPORARY TABLE `v1` (
   `A` varchar(19) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create view t1;
+show create view v1;
 View	Create View
-t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `t1` AS select _latin1'This is view' AS `A`
-drop view t1;
-select * from t1;
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _latin1'This is view' AS `A`
+drop view v1;
+select * from v1;
 A
 This is temp. table
-create view t1 as select 'This is view again' A;
-select * from t1;
+create view v1 as select 'This is view again' A;
+select * from v1;
 A
 This is temp. table
-drop table t1;
-select * from t1;
+drop table v1;
+select * from v1;
 A
 This is view again
-drop view t1;
+drop view v1;
 create table t1 (a int, b int, index(a), index(b));
 create table t2 (c int auto_increment, d varchar(255), primary key (c));
 insert into t1 values (3,1),(3,2);
