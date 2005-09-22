@@ -478,6 +478,8 @@ libmysqld/sql_cache.cc
 libmysqld/sql_class.cc
 libmysqld/sql_command
 libmysqld/sql_crypt.cc
+libmysqld/sql_cursor.cc
+libmysqld/sql_cursor.h
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
 libmysqld/sql_derived.cc
