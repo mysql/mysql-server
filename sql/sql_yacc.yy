@@ -4779,27 +4779,48 @@ simple_expr:
 	      $$= new Item_func_sp(Lex->current_context(), name);
 	    lex->safe_to_cache_query=0;
 	  }
-	| IDENT_sys '(' udf_expr_list ')'
+	| IDENT_sys '(' 
           {
 #ifdef HAVE_DLOPEN
-            udf_func *udf;
+            udf_func *udf= 0;
+            if (using_udf_functions &&
+                (udf= find_udf($1.str, $1.length)) &&
+                udf->type == UDFTYPE_AGGREGATE)
+            {
+              LEX *lex= Lex;
+              if (lex->current_select->inc_in_sum_expr())
+              {
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+              }
+            }
+            $<udf>$= udf;
+#endif
+          }
+          udf_expr_list ')'
+          {
+#ifdef HAVE_DLOPEN
+            udf_func *udf= $<udf>3;
             SELECT_LEX *sel= Select;
 
-            if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
+            if (udf)
             {
+              if (udf->type == UDFTYPE_AGGREGATE)
+                Select->in_sum_expr--;
+
               switch (udf->returns) {
               case STRING_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_str(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_str(udf, *$4);
                   else
                     $$ = new Item_func_udf_str(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_str(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_str(udf, *$4);
                   else
                     $$ = new Item_sum_udf_str(udf);
                 }
@@ -4807,15 +4828,15 @@ simple_expr:
               case REAL_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_float(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_float(udf, *$4);
                   else
                     $$ = new Item_func_udf_float(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_float(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_float(udf, *$4);
                   else
                     $$ = new Item_sum_udf_float(udf);
                 }
@@ -4823,15 +4844,15 @@ simple_expr:
               case INT_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_int(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_int(udf, *$4);
                   else
                     $$ = new Item_func_udf_int(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_int(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_int(udf, *$4);
                   else
                     $$ = new Item_sum_udf_int(udf);
                 }
@@ -4839,15 +4860,15 @@ simple_expr:
               case DECIMAL_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_decimal(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_decimal(udf, *$4);
                   else
                     $$ = new Item_func_udf_decimal(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_decimal(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_decimal(udf, *$4);
                   else
                     $$ = new Item_sum_udf_decimal(udf);
                 }
@@ -4863,8 +4884,8 @@ simple_expr:
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
               sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
-              if ($3)
-                $$= new Item_func_sp(Lex->current_context(), name, *$3);
+              if ($4)
+                $$= new Item_func_sp(Lex->current_context(), name, *$4);
               else
                 $$= new Item_func_sp(Lex->current_context(), name);
 	      lex->safe_to_cache_query=0;
