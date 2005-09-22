@@ -1327,6 +1327,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->keys_in_use_for_query= table->s->keys_in_use;
   table->insert_values= 0;
   table->used_keys= table->s->keys_for_keyread;
+  table->fulltext_searched= 0;
+  table->file->ft_handler= 0;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
