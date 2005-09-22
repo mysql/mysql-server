@@ -1378,7 +1378,7 @@ static int free_share(FEDERATED_SHARE *share)
   if (!--share->use_count)
   {
     hash_delete(&federated_open_tables, (byte*) share);
-    my_free((gptr) share->scheme, MYF(MY_ALLOW_ZERO_PTR0));
+    my_free((gptr) share->scheme, MYF(MY_ALLOW_ZERO_PTR));
     share->scheme= 0;
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
