@@ -4208,7 +4208,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       errmsg= 0;
       goto errorconn;
     }
-    thd->host= my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    thd->security_ctx->host= my_strdup(my_localhost, MYF(0)); /* Host is unknown */
     create_new_thread(thd);
     connect_number++;
     continue;

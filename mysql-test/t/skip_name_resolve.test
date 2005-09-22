@@ -8,3 +8,13 @@ REVOKE ALL ON test.* FROM mysqltest_1@'127.0.0.1/255.255.255.255';
 DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
 
 # End of 4.1 tests
+
+# Bug #13407 "Remote connecting crashes server".
+# Server crashed when one used USER() function in connection for which
+# was impossible to obtain peer hostname.
+connect (con1, 127.0.0.1, root, , test, $MASTER_MYPORT, );
+--replace_column 1 #
+select user();
+--replace_column 1 # 6 # 3 #
+show processlist;
+connection default;
