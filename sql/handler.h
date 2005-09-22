@@ -367,7 +367,6 @@ struct show_table_type_st {
 struct show_table_alias_st {
   const char *alias;
   const char *type;
-  show_table_type_st *st;
 };
 
 /* Possible flags of a handlerton */
