@@ -1625,7 +1625,7 @@ dict_index_add_col(
 	variable-length fields, so that the extern flag can be embedded in
 	the length word. */
 
-	if (field->fixed_len > DICT_MAX_COL_PREFIX_LEN) {
+	if (field->fixed_len > DICT_MAX_INDEX_COL_LEN) {
 		field->fixed_len = 0;
 	}
 
