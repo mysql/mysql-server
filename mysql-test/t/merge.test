@@ -312,7 +312,11 @@ create table t3 (
 ) engine=myisam;
 
 insert into t2 values ( null, '');
+# We may have insufficient accuracy for 16 digits of '9'.
+# Suppress a "truncate" warning due to accuracy problems.
+--disable_warnings
 insert into t2 values ( 9999999999.999999, '');
+--enable_warnings
 insert into t3 select * from t2;
 select min(a), max(a) from t1;
 flush tables;
