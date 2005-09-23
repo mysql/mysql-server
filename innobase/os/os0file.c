@@ -2249,6 +2249,29 @@ error_handling:
 }
 
 /***********************************************************************
+Rewind file to its start, read at most size - 1 bytes from it to str, and
+NUL-terminate str. All errors are silently ignored. This function is
+mostly meant to be used with temporary files. */
+
+void
+os_file_read_string(
+/*================*/
+	FILE*	file,	/* in: file to read from */
+	char*	str,	/* in: buffer where to read */
+	ulint	size)	/* in: size of buffer */
+{
+	size_t	flen;
+
+	if (size == 0) {
+		return;
+	}
+	
+	rewind(file);
+	flen = fread(str, 1, size - 1, file);
+	str[flen] = '\0';
+}
+
+/***********************************************************************
 Requests a synchronous write operation. */
 
 ibool
