@@ -44,11 +44,12 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
   MYRG_TABLE *table;
   MI_INFO *mi;
   int err;
+  DBUG_ENTER("myrg_rkey");
   LINT_INIT(key_buff);
   LINT_INIT(pack_key_length);
 
   if (_myrg_init_queue(info,inx,search_flag))
-    return my_errno;
+    DBUG_RETURN(my_errno);
 
   for (table=info->open_tables ; table != info->end_table ; table++)
   {
@@ -57,8 +58,9 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
     if (table == info->open_tables)
     {
       err=mi_rkey(mi,0,inx,key,key_len,search_flag);
+      /* Get the saved packed key and packed key length. */
       key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
-      pack_key_length=mi->last_rkey_length;
+      pack_key_length=mi->pack_key_length;
     }
     else
     {
@@ -72,16 +74,21 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
     {
       if (err == HA_ERR_KEY_NOT_FOUND)
 	continue;
-      return err;
+      DBUG_PRINT("exit", ("err: %d", err));
+      DBUG_RETURN(err);
     }
     /* adding to queue */
     queue_insert(&(info->by_key),(byte *)table);
 
   }
 
+  DBUG_PRINT("info", ("tables with matches: %u", info->by_key.elements));
   if (!info->by_key.elements)
-    return HA_ERR_KEY_NOT_FOUND;
+    DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
 
   mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
-  return _myrg_mi_read_record(mi,buf);
+  DBUG_PRINT("info", ("using table no: %d",
+                      info->current_table - info->open_tables + 1));
+  DBUG_DUMP("result key", (byte*) mi->lastkey, mi->lastkey_length);
+  DBUG_RETURN(_myrg_mi_read_record(mi,buf));
 }

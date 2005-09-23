@@ -1237,11 +1237,21 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
   reg1 MI_KEYSEG *keyseg;
   uchar *start_key,*page,*page_end,*from,*from_end;
   uint length,tmp;
+  DBUG_ENTER("_mi_get_binary_pack_key");
 
   page= *page_pos;
   page_end=page+MI_MAX_KEY_BUFF+1;
   start_key=key;
 
+  /*
+    Keys are compressed the following way:
+
+    prefix length    Packed length of prefix for the prev key. (1 or 3 bytes)
+    for each key segment:
+      [is null]        Null indicator if can be null (1 byte, zero means null)
+      [length]         Packed length if varlength (1 or 3 bytes)
+    pointer          Reference to the data file (last_keyseg->length).
+  */
   get_key_length(length,page);
   if (length)
   {
@@ -1251,7 +1261,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
                           length, keyinfo->maxlength, *page_pos));
       DBUG_DUMP("key",(char*) *page_pos,16);
       my_errno=HA_ERR_CRASHED;
-      return 0;                                 /* Wrong key */
+      DBUG_RETURN(0);                                 /* Wrong key */
     }
     from=key;  from_end=key+length;
   }
@@ -1312,12 +1322,12 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
     {
       DBUG_PRINT("error",("Error when unpacking key"));
       my_errno=HA_ERR_CRASHED;
-      return 0;                                 /* Error */
+      DBUG_RETURN(0);                                 /* Error */
     }
     memcpy((byte*) key,(byte*) from,(size_t) length);
     *page_pos= from+length;
   }
-  return((uint) (key-start_key)+keyseg->length);
+  DBUG_RETURN((uint) (key-start_key)+keyseg->length);
 }
 
 
