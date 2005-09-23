@@ -2140,7 +2140,6 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     field			Field used in comparision
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
-                                Is NULL for BETWEEN and IN
     usable_tables		Tables which can be used for key optimization
 
   NOTES
@@ -2325,7 +2324,8 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
       add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*)(cond_func->key_item()->real_item()))->field,
                     cond_func->argument_count() == 2 &&
-                    cond_func->functype() == Item_func::IN_FUNC,
+                    cond_func->functype() == Item_func::IN_FUNC &&
+                    !((Item_func_in*)cond_func)->negated,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
                     usable_tables);
     break;

@@ -1738,6 +1738,7 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
   lex->current_select= &lex->select_lex;
   if (lex->result)
     lex->result->cleanup();
+  thd->allow_sum_func= 0;
 }
 
 
