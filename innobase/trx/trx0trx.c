@@ -52,6 +52,32 @@ trx_start_if_not_started_noninline(
         trx_start_if_not_started(trx);
 }
 
+/*****************************************************************
+Set detailed error message for the transaction. */
+
+void
+trx_set_detailed_error(
+/*===================*/
+	trx_t*	trx,	/* in: transaction struct */
+	char*	msg)	/* in: detailed error message */
+{
+	ut_strlcpy(trx->detailed_error, msg, sizeof(trx->detailed_error));
+}
+
+/*****************************************************************
+Set detailed error message for the transaction from a file. Note that the
+file is rewinded before reading from it. */
+
+void
+trx_set_detailed_error_from_file(
+/*=============================*/
+	trx_t*	trx,	/* in: transaction struct */
+	FILE*	file)	/* in: file to read message from */
+{
+	os_file_read_string(file, trx->detailed_error,
+		sizeof(trx->detailed_error));
+}
+
 /********************************************************************
 Retrieves the error_info field from a trx. */
 
@@ -130,6 +156,7 @@ trx_create(
 	trx->undo_no_arr = NULL;
 	
 	trx->error_state = DB_SUCCESS;
+	trx->detailed_error[0] = '\0';
 
 	trx->sess = sess;
 	trx->que_state = TRX_QUE_RUNNING;

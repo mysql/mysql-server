@@ -4125,6 +4125,7 @@ int main(int argc, char **argv)
 	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
         q->last_argument= q->end;
+        query_executed= 1;
 	break;
       }
       case Q_QUERY:

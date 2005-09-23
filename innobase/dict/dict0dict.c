@@ -1625,7 +1625,7 @@ dict_index_add_col(
 	variable-length fields, so that the extern flag can be embedded in
 	the length word. */
 
-	if (field->fixed_len > DICT_MAX_COL_PREFIX_LEN) {
+	if (field->fixed_len > DICT_MAX_INDEX_COL_LEN) {
 		field->fixed_len = 0;
 	}
 
@@ -2189,7 +2189,7 @@ dict_foreign_error_report(
 	dict_foreign_error_report_low(file, fk->foreign_table_name);
 	fputs(msg, file);
 	fputs(" Constraint:\n", file);
-	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk);
+	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk, TRUE);
 	if (fk->foreign_index) {
 		fputs("\nThe index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, fk->foreign_index->name);
@@ -4330,9 +4330,10 @@ CREATE TABLE. */
 void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
-	FILE*		file,	/* in: file where to print */
-	trx_t*		trx,	/* in: transaction */
-	dict_foreign_t*	foreign)/* in: foreign key constraint */
+	FILE*		file,		/* in: file where to print */
+	trx_t*		trx,		/* in: transaction */
+	dict_foreign_t*	foreign,	/* in: foreign key constraint */
+	ibool		add_newline)	/* in: whether to add a newline */
 {
 	const char*	stripped_id;
 	ulint	i;
@@ -4345,7 +4346,16 @@ dict_print_info_on_foreign_key_in_create_format(
 		stripped_id = foreign->id;
 	}
 
-	fputs(",\n  CONSTRAINT ", file);
+	putc(',', file);
+	
+	if (add_newline) {
+		/* SHOW CREATE TABLE wants constraints each printed nicely
+		on its own line, while error messages want no newlines
+		inserted. */
+		fputs("\n ", file);
+	}
+	
+	fputs(" CONSTRAINT ", file);
 	ut_print_name(file, trx, stripped_id);
 	fputs(" FOREIGN KEY (", file);
 
@@ -4447,7 +4457,7 @@ dict_print_info_on_foreign_keys(
 	while (foreign != NULL) {
 		if (create_table_format) {
 			dict_print_info_on_foreign_key_in_create_format(
-						file, trx, foreign);
+						file, trx, foreign, TRUE);
 		} else {
 			ulint	i;
 			fputs("; (", file);

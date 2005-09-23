@@ -1608,7 +1608,7 @@ String *Item_func_user::val_str(String *str)
   else
   {
     user= thd->main_security_ctx.user;
-    host= thd->main_security_ctx.host;
+    host= thd->main_security_ctx.host_or_ip;
   }
 
   // For system threads (e.g. replication SQL thread) user may be empty
