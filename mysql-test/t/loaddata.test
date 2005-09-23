@@ -31,6 +31,33 @@ load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated 
 select * from t1;
 drop table t1;
 
+
+#
+# Bug #12053 LOAD DATA INFILE ignores NO_AUTO_VALUE_ON_ZERO setting
+#
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+create table t1(id integer not null auto_increment primary key);
+insert into t1 values(0);
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQL_TEST_DIR/var/tmp/t1' from t1;
+delete from t1;
+eval load data infile '$MYSQL_TEST_DIR/var/tmp/t1' into table t1;
+enable_query_log;
+select * from t1;
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1
+
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQL_TEST_DIR/var/tmp/t1'
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n'
+FROM t1;
+delete from t1;
+eval load data infile '$MYSQL_TEST_DIR/var/tmp/t1' into table t1
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n';
+enable_query_log;
+select * from t1;
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1
+SET @@SQL_MODE=@OLD_SQL_MODE;
+
 # End of 4.1 tests
 
 #

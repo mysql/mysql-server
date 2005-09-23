@@ -1367,8 +1367,8 @@ void Item_sum_hybrid::cleanup()
 
 void Item_sum_hybrid::no_rows_in_result()
 {
-  Item_sum::no_rows_in_result();
   was_values= FALSE;
+  clear();
 }
 
 

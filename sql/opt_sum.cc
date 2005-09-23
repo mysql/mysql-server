@@ -80,6 +80,8 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   List_iterator_fast<Item> it(all_fields);
   int const_result= 1;
   bool recalc_const_item= 0;
+  longlong count= 1;
+  bool is_exact_count= TRUE;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
   table_map where_tables= 0;
   Item *item;
@@ -88,9 +90,13 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   if (conds)
     where_tables= conds->used_tables();
 
-  /* Don't replace expression on a table that is part of an outer join */
+  /*
+    Analyze outer join dependencies, and, if possible, compute the number
+    of returned rows.
+  */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
+    /* Don't replace expression on a table that is part of an outer join */
     if (tl->on_expr)
     {
       outer_tables|= tl->table->map;
@@ -102,15 +108,31 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           WHERE t2.field IS NULL;
       */
       if (tl->table->map & where_tables)
-        return 0;
+        const_result= 0;
     }
     else
       used_tables|= tl->table->map;
+
+    /*
+      If the storage manager of 'tl' gives exact row count, compute the total
+      number of rows. If there are no outer table dependencies, this count
+      may be used as the real count.
+    */
+    if (tl->table->file->table_flags() & HA_NOT_EXACT_COUNT)
+      is_exact_count= FALSE;
+    else
+    {
+      tl->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+      count*= tl->table->file->records;
+    }
   }
 
+  if (!const_result)
+    return 0;
+
   /*
-    Iterate through item is select part and replace COUNT(), MIN() and MAX()
-    with constants (if possible)
+    Iterate through all items in the SELECT clause and replace
+    COUNT(), MIN() and MAX() with constants (if possible).
   */
 
   while ((item= it++))
@@ -122,9 +144,11 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       case Item_sum::COUNT_FUNC:
         /*
           If the expr in count(expr) can never be null we can change this
-          to the number of rows in the tables
+          to the number of rows in the tables if this number is exact and
+          there are no outer joins.
         */
-        if (!conds && !((Item_sum_count*) item)->args[0]->maybe_null)
+        if (!conds && !((Item_sum_count*) item)->args[0]->maybe_null &&
+            !outer_tables && is_exact_count)
         {
           longlong count= 1;
           TABLE_LIST *table;
@@ -143,7 +167,6 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           {
             ((Item_sum_count*) item)->make_const(count);
             recalc_const_item= 1;
-          }
         }
         else
           const_result= 0;
@@ -210,12 +233,27 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  }
           removed_tables|= table->map;
         }
-        else if (!expr->const_item())		// This is VERY seldom false
+        else if (!expr->const_item() || !is_exact_count)
         {
+          /*
+            The optimization is not applicable in both cases:
+            (a) 'expr' is a non-constant expression. Then we can't
+            replace 'expr' by a constant.
+            (b) 'expr' is a costant. According to ANSI, MIN/MAX must return
+            NULL if the query does not return any rows. Thus, if we are not
+            able to determine if the query returns any rows, we can't apply
+            the optimization and replace MIN/MAX with a constant.
+          */
           const_result= 0;
           break;
         }
-        ((Item_sum_min*) item_sum)->reset();
+        if (!count)
+        {
+          /* If count != 1, then we know that is_exact_count == TRUE. */
+          ((Item_sum_min*) item_sum)->clear(); /* Set to NULL. */
+        }
+        else
+          ((Item_sum_min*) item_sum)->reset(); /* Set to the constant value. */
         ((Item_sum_min*) item_sum)->make_const();
         recalc_const_item= 1;
         break;
@@ -282,13 +320,28 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  }
           removed_tables|= table->map;
         }
-        else if (!expr->const_item())		// This is VERY seldom false
+        else if (!expr->const_item() || !is_exact_count)
         {
+          /*
+            The optimization is not applicable in both cases:
+            (a) 'expr' is a non-constant expression. Then we can't
+            replace 'expr' by a constant.
+            (b) 'expr' is a costant. According to ANSI, MIN/MAX must return
+            NULL if the query does not return any rows. Thus, if we are not
+            able to determine if the query returns any rows, we can't apply
+            the optimization and replace MIN/MAX with a constant.
+          */
           const_result= 0;
           break;
         }
-        ((Item_sum_min*) item_sum)->reset();
-        ((Item_sum_min*) item_sum)->make_const();
+        if (!count)
+        {
+          /* If count != 1, then we know that is_exact_count == TRUE. */
+          ((Item_sum_max*) item_sum)->clear(); /* Set to NULL. */
+        }
+        else
+          ((Item_sum_max*) item_sum)->reset(); /* Set to the constant value. */
+        ((Item_sum_max*) item_sum)->make_const();
         recalc_const_item= 1;
         break;
       }

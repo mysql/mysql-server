@@ -66,6 +66,16 @@ a	b
 3	row 3
 0	
 drop table t1;
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+create table t1(id integer not null auto_increment primary key);
+insert into t1 values(0);
+select * from t1;
+id
+0
+select * from t1;
+id
+0
+SET @@SQL_MODE=@OLD_SQL_MODE;
 create table t1 (a int default 100, b int, c varchar(60));
 load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
 select * from t1;
