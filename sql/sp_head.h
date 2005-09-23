@@ -866,6 +866,12 @@ public:
 
   virtual void print(String *str);
 
+  /*
+    This call is used to cleanup the instruction when a sensitive
+    cursor is closed. For now stored procedures always use materialized
+    cursors and the call is not used.
+  */
+  virtual void cleanup_stmt() { /* no op */ }
 private:
 
   sp_lex_keeper m_lex_keeper;
@@ -1035,5 +1041,8 @@ TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
 		       thr_lock_type locktype);
+
+Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
+                        Item *reuse, bool use_callers_arena);
 
 #endif /* _SP_HEAD_H_ */

@@ -621,7 +621,7 @@ rec_set_nth_field_extern_bit_new(
 		if (field->fixed_len) {
 			/* fixed-length fields cannot be external
 			(Fixed-length fields longer than
-			DICT_MAX_COL_PREFIX_LEN will be treated as
+			DICT_MAX_INDEX_COL_LEN will be treated as
 			variable-length ones in dict_index_add_col().) */
 			ut_ad(i != ith);
 			continue;

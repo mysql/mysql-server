@@ -268,6 +268,16 @@ insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000
 select * from t1;
 drop table t1;
 
+#                                                                               
+# Bug #7589: a problem with update from column                                  
+#                                                                               
+                                                                                
+create table t1(a decimal(10,5), b decimal(10,1));                              
+insert into t1 values(123.12345, 123.12345);                                    
+update t1 set b=a;                                                              
+select * from t1;                                                               
+drop table t1;                                                                  
+
 # End of 4.1 tests
 
 #

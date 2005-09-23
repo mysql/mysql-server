@@ -553,3 +553,13 @@ sum(a1)	b1+0	b2+0
 2	0	0
 4	2	2
 8	1	1
+select 1 from t1 join t2 on b1 = b2 group by b1 order by 1;
+1
+1
+1
+1
+select b1+0,sum(b1), sum(b2) from t1 join t2 on b1 = b2 group by b1 order by 1;
+b1+0	sum(b1)	sum(b2)
+0	0	0
+1	4	4
+2	2	2
