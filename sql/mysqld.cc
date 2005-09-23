@@ -4016,8 +4016,8 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
       delete thd;
       continue;
     }
-    /* host name is unknown */
-    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    /* Host is unknown */
+    thd->security_ctx->host= my_strdup(my_localhost, MYF(0));
     create_new_thread(thd);
   }
 
