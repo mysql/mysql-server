@@ -3994,7 +3994,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     ...
     The 'unique' array is collected in one sequential scan through the entire
     index. This is done in two places: in chk_index() and in sort_key_write().
-    Statistics collection may consider NULLs as either equal or inequal (see
+    Statistics collection may consider NULLs as either equal or unequal (see
     SEARCH_NULL_ARE_NOT_EQUAL, MI_STATS_METHOD_*).
 
     Output is an array:
