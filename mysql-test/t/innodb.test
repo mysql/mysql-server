@@ -1482,3 +1482,49 @@ CREATE TEMPORARY TABLE t2
  FOREIGN KEY (b) REFERENCES test.t1(id)
 ) ENGINE=InnoDB;
 DROP TABLE t1;
+
+#
+# Test that index column max sizes are checked (bug #13315)
+#
+
+# prefix index
+create table t1 (col1 varchar(2000), index (col1(767)))
+ character set = latin1 engine = innodb;
+
+# normal indexes
+create table t2 (col1 char(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t3 (col1 binary(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t4 (col1 varchar(767), index (col1))
+ character set = latin1 engine = innodb;
+create table t5 (col1 varchar(767) primary key)
+ character set = latin1 engine = innodb;
+create table t6 (col1 varbinary(767) primary key)
+ character set = latin1 engine = innodb;
+create table t7 (col1 text, index(col1(767)))
+ character set = latin1 engine = innodb;
+create table t8 (col1 blob, index(col1(767)))
+ character set = latin1 engine = innodb;
+
+# multi-column indexes are allowed to be longer
+create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
+ character set = latin1 engine = innodb;
+
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+
+--error 1005
+create table t1 (col1 varchar(768), index (col1))
+ character set = latin1 engine = innodb;
+--error 1005
+create table t2 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1005
+create table t3 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1005
+create table t4 (col1 text, index(col1(768)))
+ character set = latin1 engine = innodb;
+--error 1005
+create table t5 (col1 blob, index(col1(768)))
+ character set = latin1 engine = innodb;
