@@ -101,7 +101,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib setargv.obj ..\lib_release\myisam.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\zlib.lib"
+				AdditionalDependencies="wsock32.lib setargv.obj"
 				OutputFile="../client_classic/myisamchk.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"

@@ -152,12 +152,12 @@ struct dict_col_struct{
 				in some of the functions below */
 };
 
-/* DICT_MAX_COL_PREFIX_LEN is measured in bytes. Starting from 4.1.6, we
-set max col prefix len to < 3 * 256, so that one can create a column prefix
-index on 255 characters of a TEXT field also in the UTF-8 charset. In that
-charset, a character may take at most 3 bytes. */
+/* DICT_MAX_INDEX_COL_LEN is measured in bytes and is the max index column
+length + 1. Starting from 4.1.6, we set it to < 3 * 256, so that one can
+create a column prefix index on 255 characters of a TEXT field also in the
+UTF-8 charset. In that charset, a character may take at most 3 bytes. */
 
-#define DICT_MAX_COL_PREFIX_LEN	768
+#define DICT_MAX_INDEX_COL_LEN		768
 
 /* Data structure for a field in an index */
 struct dict_field_struct{
@@ -169,12 +169,12 @@ struct dict_field_struct{
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
-					DICT_MAX_COL_PREFIX_LEN; NOTE that
+					DICT_MAX_INDEX_COL_LEN; NOTE that
 					in the UTF-8 charset, MySQL sets this
 					to 3 * the prefix len in UTF-8 chars */
 	ulint		fixed_len;	/* 0 or the fixed length of the
 					column if smaller than
-					DICT_MAX_COL_PREFIX_LEN */
+					DICT_MAX_INDEX_COL_LEN */
 	ulint		fixed_offs;	/* offset to the field, or
 					ULINT_UNDEFINED if it is not fixed
 					within the record (due to preceding
