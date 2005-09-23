@@ -127,9 +127,14 @@ my_bool my_init(void)
 
 void my_end(int infoflag)
 {
-  DBUG_ENTER("my_end");
+  /*
+    this code is suboptimal to workaround a bug in
+    Sun CC: Sun C++ 5.6 2004/06/02 for x86, and should not be
+    optimized until this compiler is not in use anymore
+  */
   FILE *info_file= DBUG_FILE;
-  bool print_info= (info_file != stderr);
+  my_bool print_info= (info_file != stderr);
+  DBUG_ENTER("my_end");
   if (!info_file)
   {
     info_file= stderr;
