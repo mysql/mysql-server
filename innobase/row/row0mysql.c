@@ -1973,13 +1973,20 @@ row_create_index_for_mysql(
 /*=======================*/
 					/* out: error number or DB_SUCCESS */
 	dict_index_t*	index,		/* in: index definition */
-	trx_t*		trx)		/* in: transaction handle */
+	trx_t*		trx,		/* in: transaction handle */
+	const ulint*	field_lengths)	/* in: if not NULL, must contain
+					dict_index_get_n_fields(index)
+					actual field lengths for the
+					index columns, which are
+					then checked for not being too
+					large. */
 {
 	ind_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
 	ulint		err;
 	ulint		i, j;
+	ulint		len;
 	
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -2018,10 +2025,16 @@ row_create_index_for_mysql(
 			}
 		}
 		
-		/* Check also that prefix_len < DICT_MAX_COL_PREFIX_LEN */
+		/* Check also that prefix_len and actual length
+		< DICT_MAX_INDEX_COL_LEN */
 
-		if (dict_index_get_nth_field(index, i)->prefix_len
-						>= DICT_MAX_COL_PREFIX_LEN) {
+		len = dict_index_get_nth_field(index, i)->prefix_len;
+
+		if (field_lengths) {
+			len = ut_max(len, field_lengths[i]);
+		}
+		
+		if (len >= DICT_MAX_INDEX_COL_LEN) {
 			err = DB_TOO_BIG_RECORD;
 
 			goto error_handling;

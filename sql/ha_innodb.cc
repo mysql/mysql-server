@@ -4492,7 +4492,8 @@ create_index(
 	ulint		is_unsigned;
   	ulint		i;
   	ulint		j;
-
+	ulint*		field_lengths;
+	
   	DBUG_ENTER("create_index");
 
 	key = form->key_info + key_num;
@@ -4514,6 +4515,10 @@ create_index(
 
 	index = dict_mem_index_create((char*) table_name, key->name, 0,
 						ind_type, n_fields);
+
+	field_lengths = (ulint*) my_malloc(sizeof(ulint) * n_fields,
+		MYF(MY_FAE));
+	
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
 
@@ -4568,6 +4573,8 @@ create_index(
 		        prefix_len = 0;
 		}
 
+		field_lengths[i] = key_part->length;
+
 		/* We assume all fields should be sorted in ascending
 		order, hence the '0': */
 
@@ -4576,10 +4583,12 @@ create_index(
 				0, prefix_len);
 	}
 
-	error = row_create_index_for_mysql(index, trx);
+	error = row_create_index_for_mysql(index, trx, field_lengths);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
+	my_free((gptr) field_lengths, MYF(0));
+	
 	DBUG_RETURN(error);
 }
 
@@ -4602,7 +4611,7 @@ create_clustered_index_when_no_primary(
 	index = dict_mem_index_create((char*) table_name,
 				      (char*) "GEN_CLUST_INDEX",
 				      0, DICT_CLUSTERED, 0);
-	error = row_create_index_for_mysql(index, trx);
+	error = row_create_index_for_mysql(index, trx, NULL);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
