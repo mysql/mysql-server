@@ -335,8 +335,14 @@ int
 row_create_index_for_mysql(
 /*=======================*/
 					/* out: error number or DB_SUCCESS */
-	dict_index_t*	index,		/* in: index defintion */
-	trx_t*		trx);		/* in: transaction handle */
+	dict_index_t*	index,		/* in: index definition */
+	trx_t*		trx,		/* in: transaction handle */
+	const ulint*	field_lengths); /* in: if not NULL, must contain
+					dict_index_get_n_fields(index)
+					actual field lengths for the
+					index columns, which are
+					then checked for not being too
+					large. */
 /*************************************************************************
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
