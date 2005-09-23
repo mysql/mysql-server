@@ -545,6 +545,7 @@ struct Hybrid_type_traits_fast_decimal: public
     val->traits->div(val, u);
   }
   static const Hybrid_type_traits_fast_decimal *instance();
+  Hybrid_type_traits_fast_decimal() {};
 };
 
 static const Hybrid_type_traits_fast_decimal fast_decimal_traits_instance;

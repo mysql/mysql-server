@@ -50,7 +50,7 @@
   in manner, similar to ``quit'' signals.
 */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
 
