@@ -6065,6 +6065,8 @@ ha_innobase::start_stmt(
 		}
 	}
 
+	trx->detailed_error[0] = '\0';
+
 	/* Set the MySQL flag to mark that there is an active transaction */
         if (trx->active_trans == 0) {
 
@@ -6138,6 +6140,8 @@ ha_innobase::external_lock(
 	if (lock_type != F_UNLCK) {
 		/* MySQL is setting a new table lock */
 
+		trx->detailed_error[0] = '\0';
+		
 		/* Set the MySQL flag to mark that there is an active
 		transaction */
                 if (trx->active_trans == 0) {
@@ -6939,6 +6943,18 @@ ha_innobase::reset_auto_increment(ulonglong value)
 	dict_table_autoinc_initialize(prebuilt->table, value);
 
 	DBUG_RETURN(0);
+}
+
+/* See comment in handler.cc */
+bool
+ha_innobase::get_error_message(int error, String *buf)
+{
+	trx_t*	    trx = check_trx_exists(current_thd);
+
+	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+		system_charset_info);
+
+	return FALSE;
 }
 
 /***********************************************************************

@@ -344,8 +344,8 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_READ_ONLY_TRANSACTION,  ER(ER_READ_ONLY_TRANSACTION));
   SETMSG(HA_ERR_LOCK_DEADLOCK,          ER(ER_LOCK_DEADLOCK));
   SETMSG(HA_ERR_CANNOT_ADD_FOREIGN,     ER(ER_CANNOT_ADD_FOREIGN));
-  SETMSG(HA_ERR_NO_REFERENCED_ROW,      ER(ER_NO_REFERENCED_ROW));
-  SETMSG(HA_ERR_ROW_IS_REFERENCED,      ER(ER_ROW_IS_REFERENCED));
+  SETMSG(HA_ERR_NO_REFERENCED_ROW,      ER(ER_NO_REFERENCED_ROW_2));
+  SETMSG(HA_ERR_ROW_IS_REFERENCED,      ER(ER_ROW_IS_REFERENCED_2));
   SETMSG(HA_ERR_NO_SAVEPOINT,           "No savepoint with that name");
   SETMSG(HA_ERR_NON_UNIQUE_BLOCK_SIZE,  "Non unique key block size");
   SETMSG(HA_ERR_NO_SUCH_TABLE,          "No such table: '%.64s'");
@@ -1798,11 +1798,19 @@ void handler::print_error(int error, myf errflag)
     textno=ER_CANNOT_ADD_FOREIGN;
     break;
   case HA_ERR_ROW_IS_REFERENCED:
-    textno=ER_ROW_IS_REFERENCED;
-    break;
+  {
+    String str;
+    get_error_message(error, &str);
+    my_error(ER_ROW_IS_REFERENCED_2, MYF(0), str.c_ptr_safe());
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_NO_REFERENCED_ROW:
-    textno=ER_NO_REFERENCED_ROW;
-    break;
+  {
+    String str;
+    get_error_message(error, &str);
+    my_error(ER_NO_REFERENCED_ROW_2, MYF(0), str.c_ptr_safe());
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_TABLE_DEF_CHANGED:
     textno=ER_TABLE_DEF_CHANGED;
     break;
