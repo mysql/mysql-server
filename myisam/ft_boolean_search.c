@@ -473,7 +473,8 @@ static int _ftb_check_phrase(const byte *s0, const byte *e0,
     for (;;)
     {
       n_word= (FT_WORD *)phrase_element->data;
-      if (my_strnncoll(cs, h_word.pos, h_word.len, n_word->pos, n_word->len))
+      if (my_strnncoll(cs, (const uchar *) h_word.pos, h_word.len,
+		       (const uchar *) n_word->pos, n_word->len))
         break;
       if (! (phrase_element= phrase_element->next))
         DBUG_RETURN(1);

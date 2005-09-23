@@ -142,7 +142,7 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   {
     if ((*wkb) > end - 8)
       return -1;
-    get_double(&ord, *wkb);
+    get_double(&ord, (const byte*) *wkb);
     (*wkb)+= 8;
     if (ord < *mbr)
       float8store((char*) mbr, ord);

@@ -679,10 +679,10 @@ extern uint read_pack_length(uint version, const uchar *buf, ulong *length);
 extern uint calc_pack_length(uint version, ulong length);
 
 uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite);
-char *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state);
+uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state);
 uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead);
 uint mi_base_info_write(File file, MI_BASE_INFO *base);
-char *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base);
+uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base);
 int mi_keyseg_write(File file, const HA_KEYSEG *keyseg);
 char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg);
 uint mi_keydef_write(File file, MI_KEYDEF *keydef);
