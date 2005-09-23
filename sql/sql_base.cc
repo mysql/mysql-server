@@ -4791,9 +4791,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   }
   DBUG_RETURN(test(thd->net.report_error));
 
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
 err_no_arena:
   DBUG_RETURN(1);
 }

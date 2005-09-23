@@ -25,6 +25,7 @@
 
 #include <sys/types.h>
 #include <fcntl.h>
+
 #if defined (HAVE_SYS_FILE_H)
 #  include <sys/file.h>
 #endif
@@ -1149,7 +1150,8 @@ compute_lcd_of_matches (match_list, matches, text)
 	      rl_completion_found_quote &&
 	      rl_filename_quoting_desired)
 	    {
-	      dtext = (*rl_filename_dequoting_function) (text, rl_completion_quote_character);
+	      dtext = (*rl_filename_dequoting_function)
+		((char*) text, rl_completion_quote_character);
 	      text = dtext;
 	    }
 

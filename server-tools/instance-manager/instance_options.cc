@@ -469,7 +469,7 @@ int Instance_options::add_option(const char* option)
        case SAVE_WHOLE:
          *(selected_options->value)= tmp;
          return 0;
-       defaut:
+       default:
          break;
        }
    }
