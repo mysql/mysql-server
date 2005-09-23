@@ -1253,9 +1253,10 @@ run_again:
 
 	if (check_table == NULL || check_table->ibd_file_missing) {
 		if (check_ref) {
+			FILE*	ef = dict_foreign_err_file;
+
 			row_ins_set_detailed(trx, foreign);
 			
-			FILE*	ef = dict_foreign_err_file;
 			mutex_enter(&dict_foreign_err_mutex);
 			rewind(ef);
 			ut_print_timestamp(ef);
