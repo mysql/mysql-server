@@ -39,7 +39,7 @@ const char *myisam_recover_names[] =
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names, NULL};
 
-const char *myisam_stats_method_names[] = {"nulls_inequal", "nulls_equal",
+const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
                                            NullS};
 TYPELIB myisam_stats_method_typelib= {
   array_elements(myisam_stats_method_names) - 1, "",
