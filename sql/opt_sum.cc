@@ -167,6 +167,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           {
             ((Item_sum_count*) item)->make_const(count);
             recalc_const_item= 1;
+          }
         }
         else
           const_result= 0;

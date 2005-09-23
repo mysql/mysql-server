@@ -76,6 +76,7 @@ select * from t1;
 id
 0
 SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1;
 create table t1 (a int default 100, b int, c varchar(60));
 load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
 select * from t1;
