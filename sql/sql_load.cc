@@ -429,6 +429,8 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
     while ((sql_field= (Item_field*) it++))
     {
       Field *field= sql_field->field;                  
+      if (field == table->next_number_field)
+        table->auto_increment_field_not_null= TRUE;
       if (pos == read_info.row_end)
       {
         thd->cuted_fields++;			/* Not enough fields */
@@ -520,6 +522,8 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       length=(uint) (read_info.row_end-pos);
       Field *field=sql_field->field;
 
+      if (field == table->next_number_field)
+        table->auto_increment_field_not_null= TRUE;
       if (!read_info.enclosed &&
 	  (enclosed_length && length == 4 && !memcmp(pos,"NULL",4)) ||
 	  (length == 1 && read_info.found_null))

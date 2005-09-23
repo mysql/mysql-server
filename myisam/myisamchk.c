@@ -67,7 +67,7 @@ static const char *field_pack[]=
  "no zeros", "blob", "constant", "table-lockup",
  "always zero","varchar","unique-hash","?","?"};
 
-static const char *myisam_stats_method_str="nulls_inequal";
+static const char *myisam_stats_method_str="nulls_unequal";
 
 static void get_options(int *argc,char * * *argv);
 static void print_version(void);
@@ -339,7 +339,7 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"stats_method", OPT_STATS_METHOD,
    "Specifies how index statistics collection code should threat NULLs. "
-   "Possible values of name are \"nulls_inequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
    (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -471,7 +471,7 @@ static void usage(void)
 
 #include <help_end.h>
 
-const char *myisam_stats_method_names[] = {"nulls_inequal", "nulls_equal",
+const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
                                            NullS};
 TYPELIB myisam_stats_method_typelib= {
   array_elements(myisam_stats_method_names) - 1, "",
@@ -698,8 +698,8 @@ get_one_option(int optid,
     break;
   case OPT_STATS_METHOD:
   {
-    myisam_stats_method_str= argument;
     int method;
+    myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
