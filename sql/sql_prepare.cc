@@ -71,6 +71,7 @@ When one supplies long data for a placeholder:
 
 #include "mysql_priv.h"
 #include "sql_select.h" // for JOIN
+#include "sql_cursor.h"
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
@@ -81,6 +82,18 @@ When one supplies long data for a placeholder:
 #include <mysql_com.h>
 #endif
 
+/* A result class used to send cursor rows using the binary protocol. */
+
+class Select_fetch_protocol_prep: public select_send
+{
+  Protocol_prep protocol;
+public:
+  Select_fetch_protocol_prep(THD *thd);
+  virtual bool send_fields(List<Item> &list, uint flags);
+  virtual bool send_data(List<Item> &items);
+  virtual bool send_eof();
+};
+
 /******************************************************************************
   Prepared_statement: a statement that can contain placeholders
 ******************************************************************************/
@@ -89,6 +102,7 @@ class Prepared_statement: public Statement
 {
 public:
   THD *thd;
+  Select_fetch_protocol_prep result;
   Protocol *protocol;
   Item_param **param_array;
   uint param_count;
@@ -109,8 +123,9 @@ public:
   virtual ~Prepared_statement();
   void setup_set_params();
   virtual Query_arena::Type type() const;
-  virtual void close_cursor();
+  virtual void cleanup_stmt();
   bool set_name(LEX_STRING *name);
+  inline void close_cursor() { delete cursor; cursor= 0; }
 
   bool prepare(const char *packet, uint packet_length);
   bool execute(String *expanded_query, bool open_cursor);
@@ -139,8 +154,6 @@ inline bool is_param_null(const uchar *pos, ulong param_no)
 {
   return pos[param_no/8] & (1 << (param_no & 7));
 }
-
-enum { STMT_QUERY_LOG_LENGTH= 8192 };
 
 /*
   Find a prepared statement in the statement map by id.
@@ -1264,7 +1277,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     It is not SELECT COMMAND for sure, so setup_tables will be called as
     usual, and we pass 0 as setup_tables_done_option
   */
-  if (unit->prepare(thd, 0, 0, ""))
+  if (unit->prepare(thd, 0, 0))
     goto error;
   if (!lex->describe && !text_protocol)
   {
@@ -1395,7 +1408,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   thd->used_tables= 0;                        // Updated by setup_fields
 
   /* Calls JOIN::prepare */
-  DBUG_RETURN(lex->unit.prepare(thd, 0, setup_tables_done_option, ""));
+  DBUG_RETURN(lex->unit.prepare(thd, 0, setup_tables_done_option));
 }
 
 /*
@@ -1782,19 +1795,6 @@ static bool init_param_array(Prepared_statement *stmt)
     }
   }
   return FALSE;
-}
-
-
-/* Cleanup PS after execute/prepare and restore THD state */
-
-static void cleanup_stmt_and_thd_after_use(Statement *stmt, THD *thd)
-{
-  DBUG_ENTER("cleanup_stmt_and_thd_after_use");
-  stmt->lex->unit.cleanup();
-  cleanup_items(stmt->free_list);
-  thd->rollback_item_tree_changes();
-  thd->cleanup_after_query();
-  DBUG_VOID_RETURN;
 }
 
 
@@ -2221,16 +2221,14 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
                     test(flags & (ulong) CURSOR_TYPE_READ_ONLY));
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
-  if (rc)
-    goto err;
 
-  mysql_log.write(thd, COM_STMT_EXECUTE, "[%lu] %s", stmt->id, thd->query);
+  if (rc == 0)
+    mysql_log.write(thd, COM_STMT_EXECUTE, "[%lu] %s", stmt->id, thd->query);
 
   DBUG_VOID_RETURN;
 
 set_params_data_err:
   my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_execute");
-err:
   reset_stmt_params(stmt);
   DBUG_VOID_RETURN;
 }
@@ -2285,13 +2283,15 @@ void mysql_sql_stmt_execute(THD *thd)
 
   if (stmt->set_params_from_vars(stmt, lex->prepared_stmt_params,
                                  &expanded_query))
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
-    DBUG_VOID_RETURN;
-  }
+    goto set_params_data_err;
 
   (void) stmt->execute(&expanded_query, FALSE);
 
+  DBUG_VOID_RETURN;
+
+set_params_data_err:
+  my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
+  reset_stmt_params(stmt);
   DBUG_VOID_RETURN;
 }
 
@@ -2313,7 +2313,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   ulong num_rows= uint4korr(packet+4);
   Prepared_statement *stmt;
   Statement stmt_backup;
-  Cursor *cursor;
+  Server_side_cursor *cursor;
   DBUG_ENTER("mysql_stmt_fetch");
 
   statistic_increment(thd->status_var.com_stmt_fetch, &LOCK_status);
@@ -2321,7 +2321,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
 
   cursor= stmt->cursor;
-  if (!cursor || !cursor->is_open())
+  if (!cursor)
   {
     my_error(ER_STMT_HAS_NO_OPEN_CURSOR, MYF(0), stmt_id);
     DBUG_VOID_RETURN;
@@ -2333,25 +2333,16 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), QUERY_PRIOR);
 
-  thd->protocol= stmt->protocol;                // Switch to binary protocol
   cursor->fetch(num_rows);
-  thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
   if (!cursor->is_open())
   {
-    /* We're done with the fetch: reset PS for next execution */
-    cleanup_stmt_and_thd_after_use(stmt, thd);
+    stmt->close_cursor();
+    thd->cursor= 0;
     reset_stmt_params(stmt);
-    /*
-      Must be the last, as some memory is still needed for
-      the previous calls.
-    */
-    free_root(cursor->mem_root, MYF(0));
-    if (cursor->close_at_commit)
-      thd->stmt_map.erase_transient_cursor(stmt);
   }
 
   thd->restore_backup_statement(stmt, &stmt_backup);
@@ -2384,14 +2375,19 @@ void mysql_stmt_reset(THD *thd, char *packet)
   /* There is always space for 4 bytes in buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
-  Cursor *cursor;
   DBUG_ENTER("mysql_stmt_reset");
 
   statistic_increment(thd->status_var.com_stmt_reset, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
 
-  stmt->close_cursor();                    /* will reset statement params */
+  stmt->close_cursor();
+
+  /*
+    Clear parameters from data which could be set by
+    mysql_stmt_send_long_data() call.
+  */
+  reset_stmt_params(stmt);
 
   stmt->state= Query_arena::PREPARED;
 
@@ -2533,11 +2529,65 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 }
 
 
+/***************************************************************************
+ Select_fetch_protocol_prep
+****************************************************************************/
+
+Select_fetch_protocol_prep::Select_fetch_protocol_prep(THD *thd)
+  :protocol(thd)
+{}
+
+bool Select_fetch_protocol_prep::send_fields(List<Item> &list, uint flags)
+{
+  bool rc;
+  Protocol *save_protocol= thd->protocol;
+
+  /*
+    Protocol::send_fields caches the information about column types:
+    this information is later used to send data. Therefore, the same
+    dedicated Protocol object must be used for all operations with
+    a cursor.
+  */
+  thd->protocol= &protocol;
+  rc= select_send::send_fields(list, flags);
+  thd->protocol= save_protocol;
+
+  return rc;
+}
+
+bool Select_fetch_protocol_prep::send_eof()
+{
+  Protocol *save_protocol= thd->protocol;
+
+  thd->protocol= &protocol;
+  ::send_eof(thd);
+  thd->protocol= save_protocol;
+  return FALSE;
+}
+
+
+bool
+Select_fetch_protocol_prep::send_data(List<Item> &fields)
+{
+  Protocol *save_protocol= thd->protocol;
+  bool rc;
+
+  thd->protocol= &protocol;
+  rc= select_send::send_data(fields);
+  thd->protocol= save_protocol;
+  return rc;
+}
+
+/***************************************************************************
+ Prepared_statement
+****************************************************************************/
+
 Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
   :Statement(INITIALIZED, ++thd_arg->statement_id_counter,
              thd_arg->variables.query_alloc_block_size,
              thd_arg->variables.query_prealloc_size),
   thd(thd_arg),
+  result(thd_arg),
   protocol(protocol_arg),
   param_array(0),
   param_count(0),
@@ -2585,17 +2635,7 @@ Prepared_statement::~Prepared_statement()
 {
   DBUG_ENTER("Prepared_statement::~Prepared_statement");
   DBUG_PRINT("enter",("stmt: %p  cursor: %p", this, cursor));
-  if (cursor)
-  {
-    if (cursor->is_open())
-    {
-      cursor->close(FALSE);
-      cleanup_items(free_list);
-      thd->rollback_item_tree_changes();
-      free_root(cursor->mem_root, MYF(0));
-    }
-    cursor->Cursor::~Cursor();
-  }
+  delete cursor;
   /*
     We have to call free on the items even if cleanup is called as some items,
     like Item_param, don't free everything until free_items()
@@ -2612,25 +2652,18 @@ Query_arena::Type Prepared_statement::type() const
 }
 
 
-void Prepared_statement::close_cursor()
+void Prepared_statement::cleanup_stmt()
 {
-  DBUG_ENTER("Prepared_statement::close_cursor");
+  DBUG_ENTER("Prepared_statement::cleanup_stmt");
   DBUG_PRINT("enter",("stmt: %p", this));
 
-  if (cursor && cursor->is_open())
-  {
-    thd->change_list= cursor->change_list;
-    cursor->close(FALSE);
-    cleanup_stmt_and_thd_after_use(this, thd);
-    free_root(cursor->mem_root, MYF(0));
-    if (cursor->close_at_commit)
-      thd->stmt_map.erase_transient_cursor(this);
-  }
-  /*
-    Clear parameters from data which could be set by
-    mysql_stmt_send_long_data() call.
-  */
-  reset_stmt_params(this);
+  /* The order is important */
+  lex->unit.cleanup();
+  cleanup_items(free_list);
+  thd->cleanup_after_query();
+  close_thread_tables(thd);
+  thd->rollback_item_tree_changes();
+
   DBUG_VOID_RETURN;
 }
 
@@ -2734,14 +2767,13 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   if (rc == 0)
     rc= check_prepared_statement(this, name.str != 0);
 
-  if (rc && thd->lex->sphead)
+  if (rc && lex->sphead)
   {
-    delete thd->lex->sphead;
-    thd->lex->sphead= NULL;
+    delete lex->sphead;
+    lex->sphead= NULL;
   }
   lex_end(lex);
-  close_thread_tables(thd);
-  cleanup_stmt_and_thd_after_use(this, thd);
+  cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
@@ -2781,7 +2813,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
   Item *old_free_list;
-  bool rc= 1;
+  bool rc= TRUE;
 
   statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);
 
@@ -2789,18 +2821,35 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   if (state == Query_arena::ERROR)
   {
     my_message(last_errno, last_error, MYF(0));
-    return 1;
+    return TRUE;
   }
   if (flags & IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));
-    return 1;
+    return TRUE;
   }
+
+  /*
+    For SHOW VARIABLES lex->result is NULL, as it's a non-SELECT
+    command. For such queries we don't return an error and don't
+    open a cursor -- the client library will recognize this case and
+    materialize the result set.
+    For SELECT statements lex->result is created in
+    check_prepared_statement. lex->result->simple_select() is FALSE
+    in INSERT ... SELECT and similar commands.
+  */
+
+  if (open_cursor && lex->result && !lex->result->simple_select())
+  {
+    DBUG_PRINT("info",("Cursor asked for not SELECT stmt"));
+    my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
+    return TRUE;
+  }
+
   /* In case the command has a call to SP which re-uses this statement name */
   flags|= IS_IN_USE;
 
-  if (cursor && cursor->is_open())
-    close_cursor();
+  close_cursor();
 
   /*
     If the free_list is not empty, we'll wrongly free some externally
@@ -2808,32 +2857,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
   DBUG_ASSERT(thd->change_list.is_empty());
   DBUG_ASSERT(thd->free_list == NULL);
-  if (open_cursor)
-  {
-    if (!lex->result || !lex->result->simple_select())
-    {
-      DBUG_PRINT("info",("Cursor asked for not SELECT stmt"));
-      /*
-        If lex->result is set in the parser, this is not a SELECT
-        statement: we can't open a cursor for it.
-      */
-      my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
-      goto error;
-    }
-
-    DBUG_PRINT("info",("Using READ_ONLY cursor"));
-    if (!cursor && !(cursor= new (mem_root) Cursor(thd)))
-      goto error;
-    /* If lex->result is set, mysql_execute_command will use it */
-    lex->result= &cursor->result;
-    protocol= &cursor->protocol;
-    thd->lock_id= &cursor->lock_id;
-    /*
-      Currently cursors can be used only from C API, so
-      we don't have to create an own memory root for them:
-      the one in THD is clean and can be used.
-    */
-  }
   thd->set_n_backup_statement(this, &stmt_backup);
   if (expanded_query->length() &&
       alloc_query(thd, (char*) expanded_query->ptr(),
@@ -2862,38 +2885,27 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   reinit_stmt_before_use(thd, lex);
 
   thd->protocol= protocol;                      /* activate stmt protocol */
-  mysql_execute_command(thd);
+  rc= open_cursor ? mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
+                                      &result, &cursor) :
+                    mysql_execute_command(thd);
   thd->protocol= &thd->protocol_simple;         /* use normal protocol */
 
-  if (cursor && cursor->is_open())
-  {
-    /*
-      It's safer if we grab THD state after mysql_execute_command is
-      finished and not in Cursor::open(), because currently the call to
-      Cursor::open is buried deep in JOIN::exec of the top level join.
-    */
-    cursor->init_from_thd(thd);
+  /* Assert that if an error, no cursor is open */
+  DBUG_ASSERT(! (rc && cursor));
 
-    if (cursor->close_at_commit)
-      thd->stmt_map.add_transient_cursor(this);
-  }
-  else
+  if (! cursor)
   {
-    close_thread_tables(thd);
-    cleanup_stmt_and_thd_after_use(this, thd);
+    cleanup_stmt();
     reset_stmt_params(this);
   }
 
   thd->set_statement(&stmt_backup);
-  thd->lock_id= &thd->main_lock_id;
   thd->stmt_arena= old_stmt_arena;
 
   if (state == Query_arena::PREPARED)
     state= Query_arena::EXECUTED;
 
-  rc= 0;
 error:
-  thd->lock_id= &thd->main_lock_id;
   flags&= ~IS_IN_USE;
   return rc;
 }

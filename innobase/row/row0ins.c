@@ -579,6 +579,30 @@ row_ins_cascade_calc_update_vec(
 }
 
 /*************************************************************************
+Set detailed error message associated with foreign key errors for
+the given transaction. */
+static
+void
+row_ins_set_detailed(
+/*=================*/
+	trx_t*		trx,		/* in: transaction */
+	dict_foreign_t*	foreign)	/* in: foreign key constraint */
+{
+		
+	FILE*	tf = os_file_create_tmpfile();
+
+	ut_a(tf);
+		
+	ut_print_name(tf, trx, foreign->foreign_table_name);
+	dict_print_info_on_foreign_key_in_create_format(tf, trx,
+		foreign, FALSE);
+
+	trx_set_detailed_error_from_file(trx, tf);
+
+	fclose(tf);
+}
+
+/*************************************************************************
 Reports a foreign key error associated with an update or a delete of a
 parent table index entry. */
 static
@@ -598,6 +622,8 @@ row_ins_foreign_report_err(
 	FILE*	ef	= dict_foreign_err_file;
 	trx_t*	trx	= thr_get_trx(thr);
 
+	row_ins_set_detailed(trx, foreign);
+
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
@@ -607,7 +633,8 @@ row_ins_foreign_report_err(
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(":\n", ef);
-	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign);
+	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
+		TRUE);
 	putc('\n', ef);
 	fputs(errstr, ef);
 	fputs(" in parent table, in index ", ef);
@@ -648,7 +675,9 @@ row_ins_foreign_report_add_err(
 					child table */
 {
 	FILE*	ef	= dict_foreign_err_file;
-
+	
+	row_ins_set_detailed(trx, foreign);
+	
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
@@ -657,7 +686,8 @@ row_ins_foreign_report_add_err(
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, foreign->foreign_table_name);
 	fputs(":\n", ef);
-	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign);
+	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
+		TRUE);
 	fputs("\nTrying to add in child table, in index ", ef);
 	ut_print_name(ef, trx, foreign->foreign_index->name);
 	if (entry) {
@@ -1223,6 +1253,8 @@ run_again:
 
 	if (check_table == NULL || check_table->ibd_file_missing) {
 		if (check_ref) {
+			row_ins_set_detailed(trx, foreign);
+			
 			FILE*	ef = dict_foreign_err_file;
 			mutex_enter(&dict_foreign_err_mutex);
 			rewind(ef);
@@ -1233,7 +1265,7 @@ run_again:
 			ut_print_name(ef, trx, foreign->foreign_table_name);
 			fputs(":\n", ef);
 			dict_print_info_on_foreign_key_in_create_format(ef,
-					trx, foreign);
+					trx, foreign, TRUE);
 			fputs("\nTrying to add to index ", ef);
 			ut_print_name(ef, trx, foreign->foreign_index->name);
 			fputs(" tuple:\n", ef);
