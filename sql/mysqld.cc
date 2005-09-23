@@ -369,7 +369,7 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
-const char *myisam_stats_method_str="nulls_inequal";
+const char *myisam_stats_method_str="nulls_unequal";
 const char *sql_mode_str="OFF";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
@@ -5212,7 +5212,7 @@ The minimum value for this variable is 4096.",
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
-   "Possible values of name are \"nulls_inequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
    (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
@@ -5767,7 +5767,7 @@ static void mysql_init_variables(void)
   query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
-  myisam_stats_method_str= "nulls_inequal";
+  myisam_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
@@ -5818,7 +5818,7 @@ static void mysql_init_variables(void)
   global_system_variables.old_passwords= 0;
   
   /*
-    Default behavior for 4.1 and 5.0 is to treat NULL values as inequal
+    Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
   */
   global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
