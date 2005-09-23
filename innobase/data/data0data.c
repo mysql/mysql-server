@@ -561,12 +561,12 @@ dtuple_convert_big_rec(
 		}
 	
 		/* We do not store externally fields which are smaller than
-		DICT_MAX_COL_PREFIX_LEN */
+		DICT_MAX_INDEX_COL_LEN */
 
-		ut_a(DICT_MAX_COL_PREFIX_LEN > REC_1BYTE_OFFS_LIMIT);
+		ut_a(DICT_MAX_INDEX_COL_LEN > REC_1BYTE_OFFS_LIMIT);
 
 		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
-						+ DICT_MAX_COL_PREFIX_LEN) {
+						+ DICT_MAX_INDEX_COL_LEN) {
 			/* Cannot shorten more */
 
 			mem_heap_free(heap);
@@ -588,10 +588,10 @@ dtuple_convert_big_rec(
 		dfield = dtuple_get_nth_field(entry, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
-		ut_a(dfield->len > DICT_MAX_COL_PREFIX_LEN);
+		ut_a(dfield->len > DICT_MAX_INDEX_COL_LEN);
 		
 		vector->fields[n_fields].len = dfield->len
-						- DICT_MAX_COL_PREFIX_LEN;
+						- DICT_MAX_INDEX_COL_LEN;
 
 		vector->fields[n_fields].data = mem_heap_alloc(heap,
 						vector->fields[n_fields].len);
