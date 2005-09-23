@@ -1252,7 +1252,7 @@ innobase_init(void)
 	copy of it: */
 
 	internal_innobase_data_file_path = my_strdup(innobase_data_file_path,
-						   MYF(MY_WME));
+						   MYF(MY_FAE));
 
 	ret = (bool) srv_parse_data_file_paths_and_sizes(
 				internal_innobase_data_file_path,
@@ -2386,7 +2386,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 	        free_share(share);
-    		my_free((char*) upd_buff, MYF(0));
+    		my_free((gptr) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
     		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -2404,7 +2404,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 	        free_share(share);
-    		my_free((char*) upd_buff, MYF(0));
+    		my_free((gptr) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table);
@@ -2498,7 +2498,7 @@ ha_innobase::close(void)
 
 	row_prebuilt_free((row_prebuilt_t*) innobase_prebuilt);
 
-    	my_free((char*) upd_buff, MYF(0));
+    	my_free((gptr) upd_buff, MYF(0));
         free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -5147,7 +5147,7 @@ ha_innobase::records_in_range(
 	mysql_byte*	key_val_buff2 	= (mysql_byte*) my_malloc(
 						  table->s->reclength
       					+ table->s->max_key_length + 100,
-								MYF(MY_WME));
+								MYF(MY_FAE));
 	ulint		buff2_len = table->s->reclength
       					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
@@ -5206,7 +5206,7 @@ ha_innobase::records_in_range(
 	dtuple_free_for_mysql(heap1);
 	dtuple_free_for_mysql(heap2);
 
-    	my_free((char*) key_val_buff2, MYF(0));
+    	my_free((gptr) key_val_buff2, MYF(0));
 
 	prebuilt->trx->op_info = (char*)"";
 
