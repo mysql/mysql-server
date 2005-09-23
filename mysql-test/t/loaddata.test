@@ -57,6 +57,7 @@ enable_query_log;
 select * from t1;
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1
 SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1;
 
 # End of 4.1 tests
 
