@@ -56,6 +56,22 @@ void
 trx_search_latch_release_if_reserved(
 /*=================================*/
         trx_t*     trx); /* in: transaction */
+/**********************************************************************
+Set detailed error message for the transaction. */
+void
+trx_set_detailed_error(
+/*===================*/
+	trx_t*	trx,	/* in: transaction struct */
+	char*	msg);	/* in: detailed error message */
+/*****************************************************************
+Set detailed error message for the transaction from a file. Note that the
+file is rewinded before reading from it. */
+
+void
+trx_set_detailed_error_from_file(
+/*=============================*/
+	trx_t*	trx,	/* in: transaction struct */
+	FILE*	file);	/* in: file to read message from */
 /********************************************************************
 Retrieves the error_info field from a trx. */
 
@@ -649,6 +665,9 @@ struct trx_struct{
 	trx_undo_arr_t*	undo_no_arr;	/* array of undo numbers of undo log
 					records which are currently processed
 					by a rollback operation */
+	/*------------------------------*/
+	char detailed_error[256];	/* detailed error message for last
+					error, or empty. */
 };
 
 #define TRX_MAX_N_THREADS	32	/* maximum number of concurrent
