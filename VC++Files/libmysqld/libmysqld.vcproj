@@ -24,7 +24,7 @@
 				AdditionalIncludeDirectories="../include,../libmysqld,../sql,../regex,../extra/yassl/include,../bdb/build_win32,../zlib"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;SAFEMALLOC;HAVE_BERKELEY_DB;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;HAVE_INNOBASE_DB;USE_TLS;__WIN__"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="0"
+				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/libmysqld.pch"
 				AssemblerListingLocation=".\debug/"
 				ObjectFile=".\debug/"
@@ -37,11 +37,11 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib ..\lib_debug\dbug_tls.lib ..\lib_debug\mysys_tls.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap_tls.lib ..\lib_debug\innodb.lib ..\extra\yassl\Debug\yassl.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib"
 				OutputFile="../lib_debug/libmysqld.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				IgnoreDefaultLibraryNames="LIBCMTD"
+				IgnoreDefaultLibraryNames=""
 				ModuleDefinitionFile=".\libmysqld.def"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile=".\debug/libmysqld.pdb"
@@ -106,7 +106,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib ..\extra\yassl\Release\yassl.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib"
 				OutputFile="../lib_pro/libmysqld.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -172,7 +172,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib ..\lib_release\zlib.lib ..\extra\yassl\Release\yassl.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib"
 				OutputFile="../lib_release/libmysqld.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -238,7 +238,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\zlib.lib ..\extra\yassl\Release\yassl.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib Wsock32.lib"
 				OutputFile="../lib_classic/libmysqld.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -2299,7 +2299,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\sql\protocol_cursor.cpp">
+			RelativePath="..\sql\sql_cursor.cpp">
 			<FileConfiguration
 				Name="Debug|Win32">
 				<Tool
