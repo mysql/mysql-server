@@ -255,6 +255,7 @@ struct st_myisam_info {
   uint	lastkey_length;			/* Length of key in lastkey */
   uint	last_rkey_length;		/* Last length in mi_rkey() */
   uint  save_lastkey_length;
+  uint  pack_key_length;                /* For MYISAMMRG */
   int	errkey;				/* Got last error on this key */
   int   lock_type;			/* How database was locked */
   int   tmp_lock_type;			/* When locked by readinfo */

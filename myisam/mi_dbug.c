@@ -40,12 +40,12 @@ void _mi_print_key(FILE *stream, register MI_KEYSEG *keyseg,
     end= key+ keyseg->length;
     if (keyseg->flag & HA_NULL_PART)
     {
-      if (!*key)
+      /* A NULL value is encoded by a 1-byte flag. Zero means NULL. */
+      if (! *(key++))
       {
 	fprintf(stream,"NULL");
 	continue;
       }
-      key++;
     }
 
     switch (keyseg->type) {
