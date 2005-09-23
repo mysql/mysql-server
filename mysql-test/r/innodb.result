@@ -1378,9 +1378,9 @@ insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
 insert into `t3`values ( 1 ) ;
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 ERROR 42S22: Unknown column 't1.id' in 'where clause'
 drop table t3,t2,t1;
@@ -1392,7 +1392,7 @@ foreign key(pid) references t1(id) on delete cascade) engine=innodb;
 insert into t1 values(0,0),(1,0),(2,1),(3,2),(4,3),(5,4),(6,5),(7,6),
 (8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14);
 delete from t1 where id=0;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`pid`) REFERENCES `t1` (`id`) ON DELETE CASCADE)
 delete from t1 where id=15;
 delete from t1 where id=0;
 drop table t1;
@@ -2559,3 +2559,26 @@ FOREIGN KEY (b) REFERENCES test.t1(id)
 ) ENGINE=InnoDB;
 Got one of the listed errors
 DROP TABLE t1;
+CREATE TABLE t1
+(
+id INT PRIMARY KEY
+) ENGINE=InnoDB;
+CREATE TABLE t2
+(
+v INT,
+CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+DELETE FROM t1 WHERE id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
+DROP TABLE t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+INSERT INTO t2 VALUES(3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
+DROP TABLE t2;
