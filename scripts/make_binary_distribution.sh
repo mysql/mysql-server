@@ -169,7 +169,8 @@ for i in \
   libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* \
   mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a \
   libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* \
-  libmysqld/libmysqld.a netware/libmysql.imp
+  libmysqld/libmysqld.a netware/libmysql.imp \
+  zlib/.libs/libz.a
 do
   if [ -f $i ]
   then

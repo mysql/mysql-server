@@ -205,7 +205,7 @@ trx_recover_for_mysql(
 	XID*    xid_list, 	/* in/out: prepared transactions */
 	ulint	len);		/* in: number of slots in xid_list */
 /***********************************************************************
-This function is used to commit one X/Open XA distributed transaction
+This function is used to find one X/Open XA distributed transaction
 which is in the prepared state */
 trx_t *
 trx_get_trx_by_xid(
