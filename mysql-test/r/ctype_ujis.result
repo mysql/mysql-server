@@ -2239,6 +2239,24 @@ select c1 from t1 where c1 like 'abcde111%' order by c1;
 c1
 abcde111
 drop table t1;
+select @@collation_connection;
+@@collation_connection
+ujis_japanese_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
 SET collation_connection='ujis_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -2270,4 +2288,22 @@ abcde111
 select c1 from t1 where c1 like 'abcde111%' order by c1;
 c1
 abcde111
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+ujis_bin
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
 drop table t1;
