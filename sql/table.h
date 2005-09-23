@@ -267,6 +267,9 @@ struct st_table {
   GRANT_INFO grant;
   FILESORT_INFO sort;
   TABLE_SHARE share_not_to_be_used;     /* To be deleted when true shares */
+
+  bool fill_item_list(List<Item> *item_list) const;
+  void reset_item_list(List<Item> *item_list) const;
 };
 
 
