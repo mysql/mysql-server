@@ -544,6 +544,8 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     while ((sql_field= (Item_field*) it++))
     {
       Field *field= sql_field->field;                  
+      if (field == table->next_number_field)
+        table->auto_increment_field_not_null= TRUE;
       /*
         No fields specified in fields_vars list can be null in this format.
         Mark field as not null, we should do this for each row because of
@@ -675,6 +677,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       pos=read_info.row_start;
       length=(uint) (read_info.row_end-pos);
 
+      if (field == table->next_number_field)
+        table->auto_increment_field_not_null= TRUE;
       if (!read_info.enclosed &&
 	  (enclosed_length && length == 4 && !memcmp(pos,"NULL",4)) ||
 	  (length == 1 && read_info.found_null))
