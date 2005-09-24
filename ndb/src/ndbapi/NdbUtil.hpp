@@ -31,6 +31,7 @@ Comment:
 
 #include <ndb_global.h>
 
+class Ndb;
 class NdbApiSignal;
 class NdbOperation;
 

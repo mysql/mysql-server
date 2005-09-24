@@ -174,6 +174,8 @@ class ha_innobase: public handler
 	void init_table_handle_for_HANDLER(); 
 	ulonglong get_auto_increment();
 	int reset_auto_increment(ulonglong value);
+
+	virtual bool get_error_message(int error, String *buf);
 	
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
         /*
@@ -344,4 +346,4 @@ restored to a transaction read view. */
 void
 innobase_set_cursor_view(
 /*=====================*/
-	void*	curview);	/* in: Consistent read view to be closed */
+	void*	curview);	/* in: Consistent read view to be set */

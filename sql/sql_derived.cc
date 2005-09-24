@@ -27,7 +27,7 @@
 
 
 /*
-  call given derived table processor (preparing or filling tables)
+  Call given derived table processor (preparing or filling tables)
 
   SYNOPSIS
     mysql_handle_derived()
@@ -36,7 +36,6 @@
 
   RETURN
     0	ok
-    -1	Error
     1	Error and error message given
 */
 
@@ -97,14 +96,14 @@ out:
 
   RETURN
     0	ok
-    1	Error
-    -1	Error and error message given
-  */
+    1	Error and an error message was given
+*/
 
 int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 {
   SELECT_LEX_UNIT *unit= orig_table_list->derived;
   int res= 0;
+  ulonglong create_options;
   DBUG_ENTER("mysql_derived_prepare");
   if (unit)
   {
@@ -118,21 +117,18 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     for (SELECT_LEX *sl= first_select; sl; sl= sl->next_select())
       sl->context.outer_context= 0;
 
-    if (!(derived_result= new select_union(0)))
+    if (!(derived_result= new select_union))
       DBUG_RETURN(1); // out of memory
 
     // st_select_lex_unit::prepare correctly work for single select
-    if ((res= unit->prepare(thd, derived_result, 0, orig_table_list->alias)))
+    if ((res= unit->prepare(thd, derived_result, 0)))
       goto exit;
 
-    if (check_duplicate_names(unit->types, 0))
-    {
-      res= -1;
+    if ((res= check_duplicate_names(unit->types, 0)))
       goto exit;
-    }
 
-    derived_result->tmp_table_param.init();
-    derived_result->tmp_table_param.field_count= unit->types.elements;
+    create_options= (first_select->options | thd->options |
+                     TMP_TABLE_ALL_COLUMNS);
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
       processed
@@ -143,18 +139,12 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       !unit->union_distinct->next_select() (i.e. it is union and last distinct
       SELECT is last SELECT of UNION).
     */
-    if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
-				  unit->types, (ORDER*) 0,
-				  FALSE, 1,
-				  (first_select->options | thd->options |
-				   TMP_TABLE_ALL_COLUMNS),
-				  HA_POS_ERROR,
-				  orig_table_list->alias)))
-    {
-      res= -1;
+    if ((res= derived_result->create_result_table(thd, &unit->types, FALSE,
+                                                 create_options,
+                                                 orig_table_list->alias)))
       goto exit;
-    }
-    derived_result->set_table(table);
+
+    table= derived_result->table;
 
 exit:
     /* Hide "Unknown column" or "Unknown function" error */
@@ -231,9 +221,8 @@ exit:
 
   RETURN
     0	ok
-    1	Error
-    -1	Error and error message given
-  */
+    1   Error and an error message was given
+*/
 
 int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 {

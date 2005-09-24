@@ -1252,7 +1252,7 @@ innobase_init(void)
 	copy of it: */
 
 	internal_innobase_data_file_path = my_strdup(innobase_data_file_path,
-						   MYF(MY_WME));
+						   MYF(MY_FAE));
 
 	ret = (bool) srv_parse_data_file_paths_and_sizes(
 				internal_innobase_data_file_path,
@@ -2386,7 +2386,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 	        free_share(share);
-    		my_free((char*) upd_buff, MYF(0));
+    		my_free((gptr) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
     		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -2404,7 +2404,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 	        free_share(share);
-    		my_free((char*) upd_buff, MYF(0));
+    		my_free((gptr) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table);
@@ -2498,7 +2498,7 @@ ha_innobase::close(void)
 
 	row_prebuilt_free((row_prebuilt_t*) innobase_prebuilt);
 
-    	my_free((char*) upd_buff, MYF(0));
+    	my_free((gptr) upd_buff, MYF(0));
         free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -4492,7 +4492,8 @@ create_index(
 	ulint		is_unsigned;
   	ulint		i;
   	ulint		j;
-
+	ulint*		field_lengths;
+	
   	DBUG_ENTER("create_index");
 
 	key = form->key_info + key_num;
@@ -4514,6 +4515,10 @@ create_index(
 
 	index = dict_mem_index_create((char*) table_name, key->name, 0,
 						ind_type, n_fields);
+
+	field_lengths = (ulint*) my_malloc(sizeof(ulint) * n_fields,
+		MYF(MY_FAE));
+	
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
 
@@ -4568,6 +4573,8 @@ create_index(
 		        prefix_len = 0;
 		}
 
+		field_lengths[i] = key_part->length;
+
 		/* We assume all fields should be sorted in ascending
 		order, hence the '0': */
 
@@ -4576,10 +4583,12 @@ create_index(
 				0, prefix_len);
 	}
 
-	error = row_create_index_for_mysql(index, trx);
+	error = row_create_index_for_mysql(index, trx, field_lengths);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
+	my_free((gptr) field_lengths, MYF(0));
+	
 	DBUG_RETURN(error);
 }
 
@@ -4602,7 +4611,7 @@ create_clustered_index_when_no_primary(
 	index = dict_mem_index_create((char*) table_name,
 				      (char*) "GEN_CLUST_INDEX",
 				      0, DICT_CLUSTERED, 0);
-	error = row_create_index_for_mysql(index, trx);
+	error = row_create_index_for_mysql(index, trx, NULL);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -5138,7 +5147,7 @@ ha_innobase::records_in_range(
 	mysql_byte*	key_val_buff2 	= (mysql_byte*) my_malloc(
 						  table->s->reclength
       					+ table->s->max_key_length + 100,
-								MYF(MY_WME));
+								MYF(MY_FAE));
 	ulint		buff2_len = table->s->reclength
       					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
@@ -5197,7 +5206,7 @@ ha_innobase::records_in_range(
 	dtuple_free_for_mysql(heap1);
 	dtuple_free_for_mysql(heap2);
 
-    	my_free((char*) key_val_buff2, MYF(0));
+    	my_free((gptr) key_val_buff2, MYF(0));
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -6065,6 +6074,8 @@ ha_innobase::start_stmt(
 		}
 	}
 
+	trx->detailed_error[0] = '\0';
+
 	/* Set the MySQL flag to mark that there is an active transaction */
         if (trx->active_trans == 0) {
 
@@ -6138,6 +6149,8 @@ ha_innobase::external_lock(
 	if (lock_type != F_UNLCK) {
 		/* MySQL is setting a new table lock */
 
+		trx->detailed_error[0] = '\0';
+		
 		/* Set the MySQL flag to mark that there is an active
 		transaction */
                 if (trx->active_trans == 0) {
@@ -6939,6 +6952,18 @@ ha_innobase::reset_auto_increment(ulonglong value)
 	dict_table_autoinc_initialize(prebuilt->table, value);
 
 	DBUG_RETURN(0);
+}
+
+/* See comment in handler.cc */
+bool
+ha_innobase::get_error_message(int error, String *buf)
+{
+	trx_t*	    trx = check_trx_exists(current_thd);
+
+	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+		system_charset_info);
+
+	return FALSE;
 }
 
 /***********************************************************************

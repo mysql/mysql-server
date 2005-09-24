@@ -1608,7 +1608,7 @@ String *Item_func_user::val_str(String *str)
   else
   {
     user= thd->main_security_ctx.user;
-    host= thd->main_security_ctx.host;
+    host= thd->main_security_ctx.host_or_ip;
   }
 
   // For system threads (e.g. replication SQL thread) user may be empty
@@ -1733,6 +1733,8 @@ String *Item_func_format::val_str(String *str)
   {
     my_decimal dec_val, rnd_dec, *res;
     res= args[0]->val_decimal(&dec_val);
+    if ((null_value=args[0]->null_value))
+      return 0; /* purecov: inspected */
     my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
     str_length= str->length();
