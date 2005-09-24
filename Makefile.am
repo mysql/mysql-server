@@ -106,12 +106,12 @@ MYSQL_TEST_NDB_PORT =		9350
 
 test:
 	cd mysql-test ; \
-	./mysql-test-run.pl \
+	./mysql-test-run \
 		--manager-port=$(MYSQL_TEST_MANAGER_PORT) \
 		--master_port=$(MYSQL_TEST_MASTER_PORT) \
 		--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
 		--ndbcluster_port=$(MYSQL_TEST_NDB_PORT) && \
-	./mysql-test-run.pl --ps-protocol \
+	./mysql-test-run --ps-protocol \
 		--manager-port=$(MYSQL_TEST_MANAGER_PORT) \
 		--master_port=$(MYSQL_TEST_MASTER_PORT) \
 		--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
@@ -121,3 +121,14 @@ test-force:
 	cd mysql-test; \
 	./mysql-test-run --force ;\
 	./mysql-test-run --ps-protocol --force
+
+# We are testing a new Perl version of the test script
+test-pl:
+	cd mysql-test; \
+	./mysql-test-run.pl && \
+	./mysql-test-run.pl --ps-protocol
+
+test-force-pl:
+	cd mysql-test; \
+	./mysql-test-run.pl --force ; \
+	./mysql-test-run.pl --ps-protocol --force

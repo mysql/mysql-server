@@ -105,9 +105,12 @@ embedded_libs="$ldflags -L$pkglibdir -lmysqld @LIBS@ @WRAPLIBS@ @innodb_system_l
 embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 
 # Remove some options that a client doesn't have to care about
+# FIXME until we have a --cxxflags, we need to remove -Xa
+#       and -xstrconst to make --cflags usable for Sun Forte C++
 for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
               DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
-              DEXTRA_DEBUG DHAVE_purify 'O[0-9]' 'W[-A-Za-z]*'
+              DEXTRA_DEBUG DHAVE_purify 'O[0-9]' 'W[-A-Za-z]*' \
+              Xa xstrconst
 do
   # The first option we might strip will always have a space before it because
   # we set -I$pkgincludedir as the first option
@@ -120,13 +123,13 @@ usage () {
 Usage: $0 [OPTIONS]
 Options:
         --cflags         [$cflags]
-	--include	 [$include]
+        --include        [$include]
         --libs           [$libs]
         --libs_r         [$libs_r]
         --socket         [$socket]
         --port           [$port]
         --version        [$version]
-	--libmysqld-libs [$embedded_libs]
+        --libmysqld-libs [$embedded_libs]
 EOF
         exit 1
 }
@@ -136,13 +139,13 @@ if test $# -le 0; then usage; fi
 while test $# -gt 0; do
         case $1 in
         --cflags)  echo "$cflags" ;;
-	--include) echo "$include" ;;
+        --include) echo "$include" ;;
         --libs)    echo "$libs" ;;
         --libs_r)  echo "$libs_r" ;;
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
-	--embedded-libs | --embedded | --libmysqld-libs) echo "$embedded_libs" ;;
+        --embedded-libs | --embedded | --libmysqld-libs) echo "$embedded_libs" ;;
         *)         usage ;;
         esac
 
