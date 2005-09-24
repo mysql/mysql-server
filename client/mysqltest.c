@@ -64,7 +64,11 @@
 #include <sys/wait.h>
 #endif
 #ifndef WEXITSTATUS
-# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+# ifdef __WIN__
+#  define WEXITSTATUS(stat_val) (stat_val)
+# else
+#  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+# endif
 #endif
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
