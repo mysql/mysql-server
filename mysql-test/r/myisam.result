@@ -610,7 +610,7 @@ test.t2	984116287
 drop table t1, t2;
 show variables like 'myisam_stats_method';
 Variable_name	Value
-myisam_stats_method	nulls_inequal
+myisam_stats_method	nulls_unequal
 create table t1 (a int, key(a));
 insert into t1 values (0),(1),(2),(3),(4);
 insert into t1 select NULL from t1;
@@ -651,7 +651,7 @@ t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE
 set myisam_stats_method=DEFAULT;
 show variables like 'myisam_stats_method';
 Variable_name	Value
-myisam_stats_method	nulls_inequal
+myisam_stats_method	nulls_unequal
 insert into t1 values (11);
 delete from t1 where a=11;
 analyze table t1;

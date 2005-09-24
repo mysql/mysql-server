@@ -216,6 +216,27 @@ private:
 }; // class sp_rcontext : public Sql_alloc
 
 
+/*
+  An interceptor of cursor result set used to implement
+  FETCH <cname> INTO <varlist>.
+*/
+
+class Select_fetch_into_spvars: public select_result_interceptor
+{
+  List<struct sp_pvar> *spvar_list;
+  uint field_count;
+public:
+  uint get_field_count() { return field_count; }
+  void set_spvar_list(List<struct sp_pvar> *vars) { spvar_list= vars; }
+
+  virtual bool send_eof() { return FALSE; }
+  virtual bool send_data(List<Item> &items);
+  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+};
+
+
+/* A mediator between stored procedures and server side cursors */
+
 class sp_cursor : public Sql_alloc
 {
 public:
@@ -227,12 +248,11 @@ public:
     destroy();
   }
 
-  // We have split this in two to make it easy for sp_instr_copen
-  // to reuse the sp_instr::exec_stmt() code.
   sp_lex_keeper *
-  pre_open(THD *thd);
-  void
-  post_open(THD *thd, my_bool was_opened);
+  get_lex_keeper() { return m_lex_keeper; }
+
+  int
+  open(THD *thd);
 
   int
   close(THD *thd);
@@ -240,7 +260,7 @@ public:
   inline my_bool
   is_open()
   {
-    return m_isopen;
+    return test(server_side_cursor);
   }
 
   int
@@ -251,18 +271,13 @@ public:
   {
     return m_i;
   }
-  
+
 private:
 
-  MEM_ROOT m_mem_root;		// My own mem_root
+  Select_fetch_into_spvars result;
   sp_lex_keeper *m_lex_keeper;
-  Protocol_cursor *m_prot;
-  my_bool m_isopen;
-  my_bool m_nseof;		// Original no_send_eof
-  Protocol *m_oprot;		// Original protcol
-  MYSQL_ROWS *m_current_row;
+  Server_side_cursor *server_side_cursor;
   sp_instr_cpush *m_i;		// My push instruction
-  
   void
   destroy();
 

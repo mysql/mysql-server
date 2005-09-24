@@ -1011,3 +1011,9 @@ t
 1000000
 1      
 drop table t1;
+create table t1 (d decimal default null);
+insert into t1 values (null);
+select format(d, 2) from t1;
+format(d, 2)
+NULL
+drop table t1;

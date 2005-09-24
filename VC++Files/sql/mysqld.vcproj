@@ -4578,7 +4578,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="protocol_cursor.cpp">
+			RelativePath="sql_cursor.cpp">
 			<FileConfiguration
 				Name="classic nt|Win32">
 				<Tool
