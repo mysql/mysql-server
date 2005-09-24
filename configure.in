@@ -37,7 +37,7 @@ romanian russian serbian slovak spanish swedish ukrainian"
 
 # Generate make rules for all error messages
 AVAILABLE_LANGUAGES_ERRORS=
-AVAILABLE_LANGUAGES_ERRORS_RULES=$srcdir/ac_available_languages_fragment
+AVAILABLE_LANGUAGES_ERRORS_RULES=ac_available_languages_fragment
 rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 for i in $AVAILABLE_LANGUAGES
 do
@@ -2310,6 +2310,7 @@ then
     echo "Warning: extra-tools disabled because --enable-thread-safe-client wasn't used"
   else
     tools_dirs="tools"
+    AC_CONFIG_FILES(tools/Makefile)
   fi
 fi
 AC_SUBST(tools_dirs)
@@ -2320,9 +2321,12 @@ MYSQL_CHECK_VIO
 MYSQL_CHECK_OPENSSL
 
 libmysqld_dirs=
+linked_libmysqld_targets=
 if test "$with_embedded_server" = "yes"
 then
   libmysqld_dirs=libmysqld
+  linked_libmysqld_targets="linked_libmysqld_sources linked_libmysqldex_sources"
+  AC_CONFIG_FILES(libmysqld/Makefile libmysqld/examples/Makefile)
   # We can't build embedded library without building the server, because
   # we depend on libmysys, libmystrings, libmyisam, etc.
   with_server=yes
@@ -2331,6 +2335,7 @@ fi
 # mysql_config --libmysqld-libs will print out something like
 # -L/path/to/lib/mysql -lmysqld -lmyisam -lmysys -lmystrings -ldbug ...
 AC_SUBST([libmysqld_dirs])
+AC_SUBST([linked_libmysqld_targets])
 
 # Shall we build the docs?
 AC_ARG_WITH(docs,
@@ -2921,6 +2926,7 @@ if test "$THREAD_SAFE_CLIENT" != "no"
 then
   sql_client_dirs="libmysql_r $sql_client_dirs"
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
+  AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])
 fi
 
@@ -3275,12 +3281,11 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
- libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
  sql-common/Makefile SSL/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
- include/Makefile sql-bench/Makefile tools/Makefile dnl
+ include/Makefile sql-bench/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
