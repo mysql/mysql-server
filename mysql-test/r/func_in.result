@@ -193,6 +193,15 @@ select * from t1 where a in (NULL, 'aa');
 a
 aa
 drop table t1;
+create table t1 (id int, key(id));
+insert into t1 values (1),(2),(3);
+select count(*) from t1 where id not in (1);
+count(*)
+2
+select count(*) from t1 where id not in (1,2);
+count(*)
+1
+drop table t1;
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 VALUES (44), (45), (46);
 SELECT * FROM t1 WHERE a IN (45);

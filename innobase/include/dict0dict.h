@@ -375,9 +375,10 @@ CREATE TABLE. */
 void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
-	FILE*		file,	/* in: file where to print */
-	trx_t*		trx,	/* in: transaction */
-	dict_foreign_t*	foreign);/* in: foreign key constraint */
+	FILE*		file,		/* in: file where to print */
+	trx_t*		trx,		/* in: transaction */
+	dict_foreign_t*	foreign,	/* in: foreign key constraint */
+	ibool		add_newline);	/* in: whether to add a newline */
 /************************************************************************
 Displays the names of the index and the table. */
 void

@@ -432,7 +432,7 @@ char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
-const char *myisam_stats_method_str="nulls_inequal";
+const char *myisam_stats_method_str="nulls_unequal";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
@@ -4016,8 +4016,8 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
       delete thd;
       continue;
     }
-    /* host name is unknown */
-    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    /* Host is unknown */
+    thd->security_ctx->host= my_strdup(my_localhost, MYF(0));
     create_new_thread(thd);
   }
 
@@ -4208,7 +4208,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       errmsg= 0;
       goto errorconn;
     }
-    thd->host= my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    thd->security_ctx->host= my_strdup(my_localhost, MYF(0)); /* Host is unknown */
     create_new_thread(thd);
     connect_number++;
     continue;
@@ -5519,7 +5519,7 @@ The minimum value for this variable is 4096.",
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
-   "Possible values of name are \"nulls_inequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
    (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
@@ -5827,10 +5827,10 @@ struct show_var_st status_vars[]= {
   {"Com_show_fields",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]), SHOW_LONG_STATUS},
   {"Com_show_grants",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
   {"Com_show_innodb_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_INNODB_STATUS]), SHOW_LONG_STATUS},
-  {"Com_show_ndb_status",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NDBCLUSTER_STATUS]), SHOW_LONG_STATUS},
   {"Com_show_keys",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
   {"Com_show_logs",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_LOGS]), SHOW_LONG_STATUS},
   {"Com_show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
+  {"Com_show_ndb_status",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NDBCLUSTER_STATUS]), SHOW_LONG_STATUS},
   {"Com_show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
   {"Com_show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
   {"Com_show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
@@ -6106,7 +6106,7 @@ static void mysql_init_variables(void)
   query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
-  myisam_stats_method_str= "nulls_inequal";
+  myisam_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
@@ -6157,7 +6157,7 @@ static void mysql_init_variables(void)
   global_system_variables.old_passwords= 0;
   
   /*
-    Default behavior for 4.1 and 5.0 is to treat NULL values as inequal
+    Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
   */
   global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
