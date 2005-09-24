@@ -43,33 +43,33 @@ link_sources:
 	  vs=`echo $(vio_objects) | sed "s;\.lo;.c;g"`; \
 	  scs=`echo $(sql_cmn_objects) | sed "s;\.lo;.c;g"`; \
 	  for f in $$ss; do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../strings/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
 	  done; \
 	  for f in $$vs $(vioheaders); do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../vio/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/vio/$$f $$f; \
 	  done; \
 	  for f in $$scs; do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../sql-common/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/sql-common/$$f $$f; \
 	  done; \
 	  for f in $(mystringsextra); do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../strings/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
 	  done; \
 	  for f in $$ds; do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../dbug/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/dbug/$$f $$f; \
 	  done; \
 	  for f in $$ms $(mysysheaders); do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../mysys/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/mysys/$$f $$f; \
 	  done; \
-	  rm -f $(srcdir)/net.c; \
-	  @LN_CP_F@ $(srcdir)/../sql/net_serv.cc $(srcdir)/net.c ; \
-	  rm -f $(srcdir)/password.c; \
-	  @LN_CP_F@ $(srcdir)/../sql/password.c $(srcdir)/password.c
+	  rm -f net.c; \
+	  @LN_CP_F@ $(top_srcdir)/sql/net_serv.cc net.c ; \
+	  rm -f password.c; \
+	  @LN_CP_F@ $(top_srcdir)/sql/password.c password.c
 
 # This part requires GNUmake
 #

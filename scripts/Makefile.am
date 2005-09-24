@@ -85,12 +85,13 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
+			mysql_explain_log \
+			mysql_tableinfo \
 			mysqld_multi \
 			make_win_src_distribution \
-			make_win_binary_distribution \
 			mysql_create_system_tables
 
-SUPERCLEANFILES =	mysqlbug
+DISTCLEANFILES =	mysqlbug
 
 # We want the right version and configure comand line in mysqlbug
 mysqlbug: ${top_builddir}/config.status mysqlbug.sh

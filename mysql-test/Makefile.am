@@ -82,6 +82,9 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/lib/init_db.sql $(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 
+uninstall-local:
+	@RM@ -f -r $(DESTDIR)$(testdir)
+
 std_data/client-key.pem:
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
 std_data/client-cert.pem:
