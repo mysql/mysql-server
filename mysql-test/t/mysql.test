@@ -19,16 +19,16 @@ insert into t1 values(1);
 --disable_query_log
 # Test delimiter : supplied on the command line
 select "Test delimiter : from command line" as " ";
---exec $MYSQL test --delimiter=':' -e 'select * from t1:'
+--exec $MYSQL test --delimiter=":" -e "select * from t1:"
 # Test delimiter :; supplied on the command line
 select "Test delimiter :; from command line" as " ";
---exec $MYSQL test --delimiter=':;' -e 'select * from t1:;'
+--exec $MYSQL test --delimiter=":;" -e "select * from t1:;"
 # Test 'go' command (vertical output) \G
 select "Test 'go' command(vertical output) \G" as " ";
---exec $MYSQL test -e 'select * from t1\G'
+--exec $MYSQL test -e "select * from t1\G"
 # Test 'go' command \g
 select "Test  'go' command \g" as " ";
---exec $MYSQL test -e 'select * from t1\g'
+--exec $MYSQL test -e "select * from t1\g"
 --enable_query_log
 drop table t1;
 
@@ -37,7 +37,7 @@ drop table t1;
 #
 create table t1(a int);
 lock tables t1 write;
---exec $MYSQL -e 'use test; select database();'
+--exec $MYSQL -e "use test; select database();"
 unlock tables;
 drop table t1;
 
