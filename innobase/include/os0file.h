@@ -432,6 +432,17 @@ os_file_read(
 				offset */
 	ulint		n);	/* in: number of bytes to read */	
 /***********************************************************************
+Rewind file to its start, read at most size - 1 bytes from it to str, and
+NUL-terminate str. All errors are silently ignored. This function is
+mostly meant to be used with temporary files. */
+
+void
+os_file_read_string(
+/*================*/
+	FILE*	file,	/* in: file to read from */
+	char*	str,	/* in: buffer where to read */
+	ulint	size);	/* in: size of buffer */
+/***********************************************************************
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE. */
 

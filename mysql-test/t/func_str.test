@@ -665,3 +665,13 @@ select rpad(i, 7, ' ') as t from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #13361: SELECT FORMAT(<decimal field with null>, 2) crashes
+#
+create table t1 (d decimal default null);
+insert into t1 values (null);
+select format(d, 2) from t1;
+drop table t1;
+
+# End of 5.0 tests

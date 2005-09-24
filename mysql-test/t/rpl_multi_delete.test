@@ -24,7 +24,7 @@ connection master;
 delete from t1;
 delete from t2;
 
-connection slave;
+sync_slave_with_master;
 # force a difference to see if master's multi-DELETE will correct it
 insert into t1 values(1);
 insert into t2 values(1);
