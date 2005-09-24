@@ -544,6 +544,8 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     while ((sql_field= (Item_field*) it++))
     {
       Field *field= sql_field->field;                  
+      if (field == table->next_number_field)
+        table->auto_increment_field_not_null= TRUE;
       /*
         No fields specified in fields_vars list can be null in this format.
         Mark field as not null, we should do this for each row because of
@@ -684,6 +686,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           Field *field= ((Item_field *)item)->field;
           field->reset();
           field->set_null();
+          if (field == table->next_number_field)
+            table->auto_increment_field_not_null= TRUE;
           if (!field->maybe_null())
           {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
@@ -701,9 +705,12 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       if (item->type() == Item::FIELD_ITEM)
       {
+
         Field *field= ((Item_field *)item)->field;
         field->set_notnull();
         read_info.row_end[0]=0;			// Safe to change end marker
+        if (field == table->next_number_field)
+          table->auto_increment_field_not_null= TRUE;
         field->store((char*) pos, length, read_info.read_charset);
       }
       else

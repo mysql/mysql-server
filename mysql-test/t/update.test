@@ -215,4 +215,16 @@ UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
 select * from t1;
 drop table t1,t2;
 
+#
+# Bug #13180 sometimes server accepts sum func in update/delete where condition
+#
+create table t1(f1 int);
+select DATABASE();
+--error 1111
+update t1 set f1=1 where count(*)=1;
+select DATABASE();
+--error 1111
+delete from t1 where count(*)=1;
+drop table t1;
+
 # End of 4.1 tests

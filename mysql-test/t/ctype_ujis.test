@@ -1151,3 +1151,45 @@ SET collation_connection='ujis_bin';
 -- source include/ctype_innodb_like.inc
 
 # End of 4.1 tests
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+set names ujis;
+set character_set_database = ujis;
+set character_set_server = ujis;
+
+CREATE TABLE t1(c1 char(2)) default charset = ujis;
+CREATE TABLE t2(c2 char(2)) default charset = ujis;
+
+INSERT INTO t1 VALUES(_ujis 0xA4A2);
+
+DELIMITER |;
+CREATE PROCEDURE sp1()
+BEGIN
+  DECLARE a CHAR(1);
+  DECLARE cur1 CURSOR FOR SELECT c1 FROM t1;
+  OPEN cur1;
+  FETCH cur1 INTO a;
+  INSERT INTO t2 VALUES (a);
+  CLOSE cur1;
+END|
+DELIMITER ;|
+CALL sp1();
+
+#The data in t1 and t2 should be the same but different
+SELECT c1,c2 FROM t1,t2;
+
+#Since the result of hex(convert(_latin1 0xA4A2 using ujis))
+#equals to hex(c2), it seems that the value which was inserted 
+#by using cursor is interpreted as latin1 character set
+SELECT hex(convert(_latin1 0xA4A2 using ujis)),hex(c2) FROM t1,t2;
+
+DROP PROCEDURE sp1;
+DROP TABLE t1;
+DROP TABLE t2;
+
+set names default;
+set character_set_database=default;
+set character_set_server=default;

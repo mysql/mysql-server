@@ -119,12 +119,12 @@ struct show_table_type_st sys_table_types[]=
 
 struct show_table_alias_st sys_table_aliases[]=
 {
-  {"INNOBASE",	"InnoDB", NULL },
-  {"NDB", "NDBCLUSTER", NULL},
-  {"BDB", "BERKELEYDB", NULL},
-  {"HEAP", "MEMORY", NULL},
-  {"MERGE", "MRG_MYISAM", NULL},
-  {NullS, NullS, NULL}
+  {"INNOBASE",	"InnoDB"},
+  {"NDB", "NDBCLUSTER"},
+  {"BDB", "BERKELEYDB"},
+  {"HEAP", "MEMORY"},
+  {"MERGE", "MRG_MYISAM"},
+  {NullS, NullS}
 };
 
 const char *ha_row_type[] = {
@@ -145,28 +145,32 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
   THD *thd= current_thd;
   show_table_alias_st *table_alias;
   show_table_type_st *types;
+  const char *ptr= name;
 
-  if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
+  if (thd && !my_strcasecmp(&my_charset_latin1, ptr, "DEFAULT"))
     return (enum db_type) thd->variables.table_type;
-  }
 
+retest:
   for (types= sys_table_types; types->type; types++)
   {
-    if (!my_strcasecmp(&my_charset_latin1, name, types->type))
+    if (!my_strcasecmp(&my_charset_latin1, ptr, types->type))
       return (enum db_type) types->db_type;
   }
 
   /*
-    We check for the historical aliases next.
+    We check for the historical aliases.
   */
   for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
   {
-    if (!my_strcasecmp(&my_charset_latin1, name, table_alias->alias) && table_alias->st)
-      return (enum db_type) table_alias->st->db_type;
+    if (!my_strcasecmp(&my_charset_latin1, ptr, table_alias->alias))
+    {
+      ptr= table_alias->type;
+      goto retest;
+    }
   }
+
   return DB_TYPE_UNKNOWN;
 }
-
 const char *ha_get_storage_engine(enum db_type db_type)
 {
   show_table_type_st *types;
@@ -340,8 +344,8 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_READ_ONLY_TRANSACTION,  ER(ER_READ_ONLY_TRANSACTION));
   SETMSG(HA_ERR_LOCK_DEADLOCK,          ER(ER_LOCK_DEADLOCK));
   SETMSG(HA_ERR_CANNOT_ADD_FOREIGN,     ER(ER_CANNOT_ADD_FOREIGN));
-  SETMSG(HA_ERR_NO_REFERENCED_ROW,      ER(ER_NO_REFERENCED_ROW));
-  SETMSG(HA_ERR_ROW_IS_REFERENCED,      ER(ER_ROW_IS_REFERENCED));
+  SETMSG(HA_ERR_NO_REFERENCED_ROW,      ER(ER_NO_REFERENCED_ROW_2));
+  SETMSG(HA_ERR_ROW_IS_REFERENCED,      ER(ER_ROW_IS_REFERENCED_2));
   SETMSG(HA_ERR_NO_SAVEPOINT,           "No savepoint with that name");
   SETMSG(HA_ERR_NON_UNIQUE_BLOCK_SIZE,  "Non unique key block size");
   SETMSG(HA_ERR_NO_SUCH_TABLE,          "No such table: '%.64s'");
@@ -398,29 +402,20 @@ int ha_init()
   if (ha_init_errors())
     return 1;
 
+  /*
+    This will go away soon.
+  */
   for (types= sys_table_types; types->type; types++)
   {
     switch (types->db_type) {
     case DB_TYPE_HEAP:
       types->ht= &heap_hton;
-      for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
-      {
-        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, 
-                           table_alias->type))
-          table_alias->st= types;
-      }
       break;
     case DB_TYPE_MYISAM:
       types->ht= &myisam_hton;
       break;
     case DB_TYPE_MRG_MYISAM:
       types->ht= &myisammrg_hton;
-      for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
-      {
-        if (!my_strcasecmp(&my_charset_latin1, types->ht->name, 
-                           table_alias->type))
-          table_alias->st= types;
-      }
       break;
 #ifdef HAVE_BERKELEY_DB
     case DB_TYPE_BERKELEY_DB:
@@ -434,11 +429,6 @@ int ha_init()
         else
         {
           types->ht= &berkeley_hton;
-          for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
-          {
-            if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
-              table_alias->st= types;
-          }
           ha_was_inited_ok(ht++);
         }
       }
@@ -457,11 +447,6 @@ int ha_init()
         {
           ha_was_inited_ok(ht++);
           types->ht= &innobase_hton;
-          for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
-          {
-            if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
-              table_alias->st= types;
-          }
         }
       }
       break;
@@ -479,11 +464,6 @@ int ha_init()
         {
           ha_was_inited_ok(ht++);
           types->ht= &ndbcluster_hton;
-          for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
-          {
-            if (!my_strcasecmp(&my_charset_latin1, types->ht->name, table_alias->type))
-              table_alias->st= types;
-          }
         }
       }
       break;
@@ -1456,11 +1436,9 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
-    if (!alloc_root_inited(&table->mem_root))	// If temporary table
-      ref=(byte*) sql_alloc(ALIGN_SIZE(ref_length)*2);
-    else
-      ref=(byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2);
-    if (!ref)
+    DBUG_ASSERT(alloc_root_inited(&table->mem_root));
+
+    if (!(ref= (byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2)))
     {
       close();
       error=HA_ERR_OUT_OF_MEM;
@@ -1820,11 +1798,19 @@ void handler::print_error(int error, myf errflag)
     textno=ER_CANNOT_ADD_FOREIGN;
     break;
   case HA_ERR_ROW_IS_REFERENCED:
-    textno=ER_ROW_IS_REFERENCED;
-    break;
+  {
+    String str;
+    get_error_message(error, &str);
+    my_error(ER_ROW_IS_REFERENCED_2, MYF(0), str.c_ptr_safe());
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_NO_REFERENCED_ROW:
-    textno=ER_NO_REFERENCED_ROW;
-    break;
+  {
+    String str;
+    get_error_message(error, &str);
+    my_error(ER_NO_REFERENCED_ROW_2, MYF(0), str.c_ptr_safe());
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_TABLE_DEF_CHANGED:
     textno=ER_TABLE_DEF_CHANGED;
     break;
