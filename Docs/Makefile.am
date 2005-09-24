@@ -18,10 +18,10 @@ noinst_SCRIPTS =	Support/generate-text-files.pl
 
 EXTRA_DIST =		$(noinst_SCRIPTS) mysql.info INSTALL-BINARY
 
-all:			txt_files
-
-txt_files:		../INSTALL-SOURCE ../INSTALL-WIN-SOURCE ../EXCEPTIONS-CLIENT \
+TXT_FILES=		../INSTALL-SOURCE ../INSTALL-WIN-SOURCE ../EXCEPTIONS-CLIENT \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
+
+all-local:		$(TXT_FILES)
 
 # make sure that "make install" installs the info page, too
 # automake only seems to take care of this automatically,
@@ -30,28 +30,32 @@ install-data-hook:	mysql.info
 	$(mkinstalldirs) $(DESTDIR)$(infodir)
 	$(INSTALL_DATA) $(srcdir)/mysql.info $(DESTDIR)$(infodir)
 
-CLEAN_FILES:		$(txt_files)
-	touch $(txt_files)
+uninstall-local:
+	@RM@ -f $(DESTDIR)$(infodir)/mysql.info
+
+# This target is not used in builds, just for convinience
+CLEAN_FILES:		$(TXT_FILES)
+	touch $(TXT_FILES)
 
 GT = $(srcdir)/Support/generate-text-files.pl
 
 ../INSTALL-SOURCE:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "installing-source" "windows-source-build" > $@
+	perl -w $(GT) $< "installing-source" "windows-source-build" > $@
 
 ../INSTALL-WIN-SOURCE:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "windows-source-build" "post-installation" > $@
+	perl -w $(GT) $< "windows-source-build" "post-installation" > $@
 
 # We put the description for the binary installation here so that
 # people who download source wont have to see it. It is moved up to
 # the toplevel by the script that makes the binary tar files.
 INSTALL-BINARY:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "installing-binary" "installing-source" > $@
+	perl -w $(GT) $< "installing-binary" "installing-source" > $@
 
 ../EXCEPTIONS-CLIENT: mysql.info $(GT)
-	perl -w $(GT) mysql.info "mysql-floss-license-exception" "function-index" > $@
+	perl -w $(GT) $< "mysql-floss-license-exception" "function-index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
-	perl -w $(GT) mysql.info "mac-os-x-installation" "netware-installation" > $@
+	perl -w $(GT) $< "mac-os-x-installation" "netware-installation" > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
