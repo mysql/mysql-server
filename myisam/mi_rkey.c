@@ -31,8 +31,8 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   HA_KEYSEG *last_used_keyseg;
   uint pack_key_length, use_key_length, nextflag;
   DBUG_ENTER("mi_rkey");
-  DBUG_PRINT("enter",("base: %lx  inx: %d  search_flag: %d",
-		      info,inx,search_flag));
+  DBUG_PRINT("enter", ("base: %p  buf: %p  inx: %d  search_flag: %d",
+                       info, buf, inx, search_flag));
 
   if ((inx = _mi_check_index(info,inx)) < 0)
     DBUG_RETURN(my_errno);
@@ -56,9 +56,12 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   {
     if (key_len == 0)
       key_len=USE_WHOLE_KEY;
+    /* Save the packed key for later use in the second buffer of lastkey. */
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length=_mi_pack_key(info,(uint) inx, key_buff, (uchar*) key,
 				 key_len, &last_used_keyseg);
+    /* Save packed_key_length for use by the MERGE engine. */
+    info->pack_key_length= pack_key_length;
     DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE, keyinfo->seg,
 				     key_buff, pack_key_length););
   }
