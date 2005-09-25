@@ -426,6 +426,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
   tables.alias= table_list->alias;
+  thd->allow_sum_func= 0;
 
   if (setup_tables(update_table_list) ||
       setup_conds(thd, update_table_list, conds) ||
