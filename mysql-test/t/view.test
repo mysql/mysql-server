@@ -2043,6 +2043,7 @@ drop view v1;
 drop table t1;
 # BUG#12941
 #
+--disable_warnings
 create table t1 (
   r_object_id char(16) NOT NULL,
   group_name varchar(32) NOT NULL
@@ -2053,6 +2054,7 @@ create table t2 (
   i_position int(11) NOT NULL, 
   users_names varchar(32) default NULL
 ) Engine = InnoDB;
+--enable_warnings
 
 create view v1 as select r_object_id, group_name from t1;
 create view v2 as select r_object_id, i_position, users_names from t2;
