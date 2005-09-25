@@ -993,13 +993,13 @@ static int read_lines(bool execute_commands)
       unsigned long clen;
       do
       {
-        line= my_cgets(tmpbuf.c_ptr(), tmpbuf.alloced_length(), &clen);
+        line= my_cgets(tmpbuf.ptr(), tmpbuf.alloced_length()-1, &clen);
         buffer.append(line, clen);
         /* 
            if we got buffer fully filled than there is a chance that
            something else is still in console input buffer
         */
-      } while (tmpbuf.alloced_length() <= clen + 1);
+      } while (tmpbuf.alloced_length() <= clen);
       line= buffer.c_ptr();
 #else /* OS2 */
       buffer.length(0);
