@@ -1148,7 +1148,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-	if (f_is_blob(sql_field->pack_flag))
+	if (f_is_blob(sql_field->pack_flag) ||
+            (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
 	{
 	  if (!(file->table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
