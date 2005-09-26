@@ -31,12 +31,12 @@
 
 sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
-    m_hfound(-1), m_ccount(0)
+    m_ihsp(0), m_hfound(-1), m_ccount(0)
 {
-  in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
   m_hstack= (uint *)sql_alloc(hmax * sizeof(uint));
+  m_in_handler= (uint *)sql_alloc(hmax * sizeof(uint));
   m_cstack= (sp_cursor **)sql_alloc(cmax * sizeof(sp_cursor *));
   m_saved.empty();
 }
@@ -68,8 +68,6 @@ bool
 sp_rcontext::find_handler(uint sql_errno,
                           MYSQL_ERROR::enum_warning_level level)
 {
-  if (in_handler)
-    return 0;			// Already executing a handler
   if (m_hfound >= 0)
     return 1;			// Already got one
 
@@ -79,6 +77,13 @@ sp_rcontext::find_handler(uint sql_errno,
   while (i--)
   {
     sp_cond_type_t *cond= m_handler[i].cond;
+    int j= m_ihsp;
+
+    while (j--)
+      if (m_in_handler[j] == m_handler[i].handler)
+	break;
+    if (j >= 0)
+      continue;                 // Already executing this handler
 
     switch (cond->type)
     {

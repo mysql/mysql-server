@@ -4229,6 +4229,42 @@ drop procedure bug12979_2|
 
 
 #
+# BUG#6127: Stored procedure handlers within handlers don't work
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug6127|
+--enable_warnings
+create table t3 (s1 int unique)|
+
+set @sm=@@sql_mode|
+set sql_mode='traditional'|
+
+create procedure bug6127()
+begin
+  declare continue handler for sqlstate '23000'
+    begin
+      declare continue handler for sqlstate '22003'
+        insert into t3 values (0);
+
+      insert into t3 values (1000000000000000);
+    end;
+
+  insert into t3 values (1);
+  insert into t3 values (1);
+end|
+
+call bug6127()|
+select * from t3|
+--error ER_DUP_ENTRY
+call bug6127()|
+select * from t3|
+set sql_mode=@sm|
+drop table t3|
+drop procedure bug6127|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

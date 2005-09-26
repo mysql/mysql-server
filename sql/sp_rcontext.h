@@ -58,7 +58,6 @@ class sp_rcontext : public Sql_alloc
 
  public:
 
-  bool in_handler;
   /*
     Arena used to (re) allocate items on . E.g. reallocate INOUT/OUT
     SP parameters when they don't fit into prealloced items. This
@@ -169,6 +168,18 @@ class sp_rcontext : public Sql_alloc
     return m_hstack[--m_hsp];
   }
 
+  inline void
+  enter_handler(int hid)
+  {
+    m_in_handler[m_ihsp++]= hid;
+  }
+
+  inline void
+  exit_handler()
+  {
+    m_ihsp-= 1;
+  }
+
   // Save variables starting at fp and up
   void
   save_variables(uint fp);
@@ -203,12 +214,14 @@ private:
 
   Item *m_result;		// For FUNCTIONs
 
-  sp_handler_t *m_handler;
-  uint m_hcount;
-  uint *m_hstack;
-  uint m_hsp;
-  int m_hfound;			// Set by find_handler; -1 if not found
-  List<Item> m_saved;		// Saved variables
+  sp_handler_t *m_handler;      // Visible handlers
+  uint m_hcount;                // Stack pointer for m_handler
+  uint *m_hstack;               // Return stack for continue handlers
+  uint m_hsp;                   // Stack pointer for m_hstack
+  uint *m_in_handler;           // Active handler, for recursion check
+  uint m_ihsp;                  // Stack pointer for m_in_handler
+  int m_hfound;                 // Set by find_handler; -1 if not found
+  List<Item> m_saved;           // Saved variables during handler exec.
 
   sp_cursor **m_cstack;
   uint m_ccount;
