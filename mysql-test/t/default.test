@@ -40,7 +40,6 @@ CREATE TABLE t1 (a varchar(30) binary NOT NULL DEFAULT ' ',
 ENGINE=InnoDB DEFAULT CHARACTER SET = latin1 COLLATE latin1_bin;
 --enable_warnings
 
-SHOW CREATE TABLE t1;
 INSERT into t1 (b) values ('1');
 SHOW WARNINGS;
 SELECT * from t1;

@@ -29,38 +29,6 @@ z varchar(20) binary NOT NULL DEFAULT ' ',
 a1 varchar(30) binary NOT NULL DEFAULT ' ',
 b1 tinyblob NULL)
 ENGINE=InnoDB DEFAULT CHARACTER SET = latin1 COLLATE latin1_bin;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` varchar(30) collate latin1_bin NOT NULL default ' ',
-  `b` varchar(1) collate latin1_bin NOT NULL default ' ',
-  `c` varchar(4) collate latin1_bin NOT NULL default '0000',
-  `d` tinyblob,
-  `e` tinyblob,
-  `f` tinyblob,
-  `g` tinyblob,
-  `h` tinyblob,
-  `i` tinyblob,
-  `j` tinyblob,
-  `k` tinyblob,
-  `l` tinyblob,
-  `m` tinyblob,
-  `n` tinyblob,
-  `o` tinyblob,
-  `p` tinyblob,
-  `q` varchar(30) collate latin1_bin NOT NULL default ' ',
-  `r` varchar(30) collate latin1_bin NOT NULL default ' ',
-  `s` tinyblob,
-  `t` varchar(4) collate latin1_bin NOT NULL default ' ',
-  `u` varchar(1) collate latin1_bin NOT NULL default ' ',
-  `v` varchar(30) collate latin1_bin NOT NULL default ' ',
-  `w` varchar(30) collate latin1_bin NOT NULL default ' ',
-  `x` tinyblob,
-  `y` varchar(5) collate latin1_bin NOT NULL default ' ',
-  `z` varchar(20) collate latin1_bin NOT NULL default ' ',
-  `a1` varchar(30) collate latin1_bin NOT NULL default ' ',
-  `b1` tinyblob
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 INSERT into t1 (b) values ('1');
 SHOW WARNINGS;
 Level	Code	Message
