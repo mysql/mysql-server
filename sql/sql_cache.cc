@@ -1295,7 +1295,8 @@ void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
       DUMP(this);
       for (; tables_used; tables_used= tables_used->next_local)
       {
-	if (tables_used->lock_type & (TL_WRITE_LOW_PRIORITY | TL_WRITE))
+        if (tables_used->lock_type & (TL_WRITE_LOW_PRIORITY | TL_WRITE) &&
+            tables_used->table)
 	  invalidate_table(tables_used->table);
       }
     }
