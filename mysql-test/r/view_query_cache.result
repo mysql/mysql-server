@@ -123,4 +123,13 @@ select * from v3;
 a	b
 drop view v3;
 drop table t1, t2;
+create table t1(f1 int);
+insert into t1 values(1),(2),(3);
+create view v1 as select * from t1;
+set query_cache_wlock_invalidate=1;
+lock tables v1 read /*!32311 local */;
+unlock tables;
+set query_cache_wlock_invalidate=default;
+drop view v1;
+drop table t1;
 set GLOBAL query_cache_size=default;
