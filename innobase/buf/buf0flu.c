@@ -230,7 +230,7 @@ buf_flush_buffered_writes(void)
 	ulint		len2;
 	ulint		i;
 
-	if (trx_doublewrite == NULL) {
+	if (!srv_use_doublewrite_buf || trx_doublewrite == NULL) {
 		os_aio_simulated_wake_handler_threads();
 
 		return;
@@ -507,7 +507,7 @@ buf_flush_write_block_low(
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
 		 			(void*)block->frame, (void*)block);
-	} else {
+	} else if (srv_use_doublewrite_buf) {
 		buf_flush_post_to_doublewrite_buf(block);
 	}
 }
