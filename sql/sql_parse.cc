@@ -5814,18 +5814,30 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
       new_field->decimals= NOT_FIXED_DEC;
       break;
     }
-    if (!length)
+    if (!length && !decimals)
     {
       new_field->length =  FLT_DIG+6;
       new_field->decimals= NOT_FIXED_DEC;
     }
+    if (new_field->length < new_field->decimals &&
+        new_field->decimals != NOT_FIXED_DEC)
+    {
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
+      DBUG_RETURN(NULL);
+    }
     break;
   case FIELD_TYPE_DOUBLE:
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    if (!length)
+    if (!length && !decimals)
     {
       new_field->length = DBL_DIG+7;
       new_field->decimals=NOT_FIXED_DEC;
+    }
+    if (new_field->length < new_field->decimals &&
+        new_field->decimals != NOT_FIXED_DEC)
+    {
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
+      DBUG_RETURN(NULL);
     }
     break;
   case FIELD_TYPE_TIMESTAMP:
