@@ -3310,19 +3310,15 @@ select 1|
 1
 call bug12379_1()|
 bug12379()
+NULL
 42
 42
-Warnings:
-Error	1062	Duplicate entry 'X' for key 1
-Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
 select 2|
 2
 2
 call bug12379_2()|
 bug12379()
-Warnings:
-Error	1062	Duplicate entry 'X' for key 1
-Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
+NULL
 select 3|
 3
 3
@@ -3390,4 +3386,91 @@ s1
 set sql_mode=@sm|
 drop table t3|
 drop procedure bug6127|
+drop table if exists t3|
+drop procedure if exists bug7049_1|
+drop procedure if exists bug7049_2|
+drop procedure if exists bug7049_3|
+drop procedure if exists bug7049_4|
+drop procedure if exists bug7049_5|
+drop procedure if exists bug7049_6|
+drop function if exists bug7049_1|
+drop function if exists bug7049_2|
+create table t3 ( x int unique )|
+create procedure bug7049_1()
+begin
+insert into t3 values (42);
+insert into t3 values (42);
+end|
+create procedure bug7049_2()
+begin
+declare exit handler for sqlexception
+select 'Caught it' as 'Result';
+call bug7049_1();
+select 'Missed it' as 'Result';
+end|
+create procedure bug7049_3()
+call bug7049_1()|
+create procedure bug7049_4()
+begin
+declare exit handler for sqlexception
+select 'Caught it' as 'Result';
+call bug7049_3();
+select 'Missed it' as 'Result';
+end|
+create procedure bug7049_5()
+begin
+declare x decimal(2,1);
+set x = 'zap';
+end|
+create procedure bug7049_6()
+begin
+declare exit handler for sqlwarning
+select 'Caught it' as 'Result';
+call bug7049_5();
+select 'Missed it' as 'Result';
+end|
+create function bug7049_1()
+returns int
+begin
+insert into t3 values (42);
+insert into t3 values (42);
+return 42;
+end|
+create function bug7049_2()
+returns int
+begin
+declare x int default 0;
+declare continue handler for sqlexception
+set x = 1;
+set x = bug7049_1();
+return x;
+end|
+call bug7049_2()|
+Result
+Caught it
+select * from t3|
+x
+42
+delete from t3|
+call bug7049_4()|
+Result
+Caught it
+select * from t3|
+x
+42
+call bug7049_6()|
+Result
+Caught it
+select bug7049_2()|
+bug7049_2()
+1
+drop table t3|
+drop procedure bug7049_1|
+drop procedure bug7049_2|
+drop procedure bug7049_3|
+drop procedure bug7049_4|
+drop procedure bug7049_5|
+drop procedure bug7049_6|
+drop function bug7049_1|
+drop function bug7049_2|
 drop table t1,t2;
