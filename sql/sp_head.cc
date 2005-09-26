@@ -1015,7 +1015,7 @@ int sp_head::execute(THD *thd)
 	ip= hip;
 	ret= 0;
 	ctx->clear_handler();
-	ctx->in_handler= TRUE;
+	ctx->enter_handler(hip);
         thd->clear_error();
 	thd->killed= THD::NOT_KILLED;
 	continue;
@@ -2378,7 +2378,7 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
     thd->spcont->restore_variables(m_frame);
     *nextp= thd->spcont->pop_hstack();
   }
-  thd->spcont->in_handler= FALSE;
+  thd->spcont->exit_handler();
   DBUG_RETURN(0);
 }
 
