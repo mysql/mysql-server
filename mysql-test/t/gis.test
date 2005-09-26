@@ -395,3 +395,11 @@ show create function fn3;
 select astext(fn3());
 drop function fn3;
 
+#
+# Bug #12267 (primary key over GIS)
+#
+create table t1(pt POINT);
+--error 1170
+alter table t1 add primary key pti(pt);
+alter table t1 add primary key pti(pt(20));
+drop table t1;
