@@ -429,8 +429,6 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
     while ((sql_field= (Item_field*) it++))
     {
       Field *field= sql_field->field;                  
-      if (field == table->next_number_field)
-        table->auto_increment_field_not_null= TRUE;
       if (pos == read_info.row_end)
       {
         thd->cuted_fields++;			/* Not enough fields */
@@ -443,11 +441,13 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
       {
 	uint length;
 	byte save_chr;
+        if (field == table->next_number_field)
+          table->auto_increment_field_not_null= TRUE;
 	if ((length=(uint) (read_info.row_end-pos)) >
 	    field->field_length)
 	  length=field->field_length;
 	save_chr=pos[length]; pos[length]='\0'; // Safeguard aganst malloc
-  field->store((char*) pos,length,read_info.read_charset);
+        field->store((char*) pos,length,read_info.read_charset);
 	pos[length]=save_chr;
 	if ((pos+=length) > read_info.row_end)
 	  pos= read_info.row_end;	/* Fills rest with space */
@@ -522,8 +522,6 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       length=(uint) (read_info.row_end-pos);
       Field *field=sql_field->field;
 
-      if (field == table->next_number_field)
-        table->auto_increment_field_not_null= TRUE;
       if (!read_info.enclosed &&
 	  (enclosed_length && length == 4 && !memcmp(pos,"NULL",4)) ||
 	  (length == 1 && read_info.found_null))
@@ -540,6 +538,8 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	}
 	continue;
       }
+      if (field == table->next_number_field)
+        table->auto_increment_field_not_null= TRUE;
       field->set_notnull();
       read_info.row_end[0]=0;			// Safe to change end marker
       field->store((char*) read_info.row_start,length,read_info.read_charset);
