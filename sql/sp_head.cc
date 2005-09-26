@@ -1110,7 +1110,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     DBUG_RETURN(-1);
 
   // QQ Should have some error checking here? (types, etc...)
-  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+  if (!(nctx= new sp_rcontext(octx, csize, hmax, cmax)))
     goto end;
   for (i= 0 ; i < argcount ; i++)
   {
@@ -1254,7 +1254,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
   save_spcont= octx= thd->spcont;
   if (! octx)
   {				// Create a temporary old context
-    if (!(octx= new sp_rcontext(csize, hmax, cmax)))
+    if (!(octx= new sp_rcontext(octx, csize, hmax, cmax)))
       DBUG_RETURN(-1);
     thd->spcont= octx;
 
@@ -1262,7 +1262,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont->callers_arena= thd;
   }
 
-  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+  if (!(nctx= new sp_rcontext(octx, csize, hmax, cmax)))
   {
     thd->spcont= save_spcont;
     DBUG_RETURN(-1);
@@ -2390,7 +2390,10 @@ sp_instr_hreturn::print(String *str)
   str->append("hreturn ");
   str->qs_append(m_frame);
   if (m_dest)
+  {
+    str->append(' ');
     str->qs_append(m_dest);
+  }
 }
 
 
