@@ -147,3 +147,12 @@ select * from t1 where reckey=1.09E2;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# bug #12694 (float(m,d) specifications)
+#
+
+--error 1443
+create table t1 (s1 float(0,2));
+--error 1443
+create table t1 (s1 float(1,2));
