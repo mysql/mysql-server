@@ -5419,3 +5419,5 @@ ER_ROW_IS_REFERENCED_2 23000
 	eng "Cannot delete or update a parent row: a foreign key constraint fails (%.192s)"
 ER_NO_REFERENCED_ROW_2 23000
 	eng "Cannot add or update a child row: a foreign key constraint fails (%.192s)"
+ER_M_BIGGER_THAN_D 42000 S1009
+        eng "For float(M,D) or double(M,D), M must be >= D (column '%-.64s')."

@@ -591,15 +591,17 @@ row_ins_set_detailed(
 		
 	FILE*	tf = os_file_create_tmpfile();
 
-	ut_a(tf);
-		
-	ut_print_name(tf, trx, foreign->foreign_table_name);
-	dict_print_info_on_foreign_key_in_create_format(tf, trx,
-		foreign, FALSE);
+	if (tf) {
+		ut_print_name(tf, trx, foreign->foreign_table_name);
+		dict_print_info_on_foreign_key_in_create_format(tf, trx,
+			foreign, FALSE);
 
-	trx_set_detailed_error_from_file(trx, tf);
+		trx_set_detailed_error_from_file(trx, tf);
 
-	fclose(tf);
+		fclose(tf);
+	} else {
+		trx_set_detailed_error(trx, "temp file creation failed");
+	}
 }
 
 /*************************************************************************
