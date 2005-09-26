@@ -3360,4 +3360,34 @@ call bug12979_2()|
 internal_var
 NULL
 drop procedure bug12979_2|
+drop table if exists t3|
+drop procedure if exists bug6127|
+create table t3 (s1 int unique)|
+set @sm=@@sql_mode|
+set sql_mode='traditional'|
+create procedure bug6127()
+begin
+declare continue handler for sqlstate '23000'
+    begin
+declare continue handler for sqlstate '22003'
+        insert into t3 values (0);
+insert into t3 values (1000000000000000);
+end;
+insert into t3 values (1);
+insert into t3 values (1);
+end|
+call bug6127()|
+select * from t3|
+s1
+0
+1
+call bug6127()|
+ERROR 23000: Duplicate entry '0' for key 1
+select * from t3|
+s1
+0
+1
+set sql_mode=@sm|
+drop table t3|
+drop procedure bug6127|
 drop table t1,t2;
