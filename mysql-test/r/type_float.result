@@ -247,6 +247,6 @@ d
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `d` double(61,9) default NULL
+  `d` double(22,9) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2, t3;
