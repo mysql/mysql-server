@@ -273,25 +273,25 @@ drop table t1, t2;
 # non-debug build. But there is no guarantee that this will be always so.
 #
 create table t1 (
- a double(16,6),
+ a double(14,4),
  b varchar(10),
  index (a,b)
 ) engine=merge union=(t2,t3);
 
 create table t2 (
- a double(16,6),
+ a double(14,4),
  b varchar(10),
  index (a,b)
 ) engine=myisam;
 
 create table t3 (
- a double(16,6),
+ a double(14,4),
  b varchar(10),
  index (a,b)
 ) engine=myisam;
 
 insert into t2 values ( null, '');
-insert into t2 values ( 9999999999.999999, '');
+insert into t2 values ( 9999999999.9999, '');
 insert into t3 select * from t2;
 select min(a), max(a) from t1;
 flush tables;
