@@ -45,7 +45,8 @@ struct vector_base {
     vector_base() : start_(0), finish_(0), end_of_storage_(0) {}
     vector_base(size_t n)
     {
-        start_ = static_cast<T*>(malloc(n * sizeof(T)));
+        // Don't allow malloc(0), if n is 0 use 1
+        start_ = static_cast<T*>(malloc((n ? n : 1) * sizeof(T)));
         if (!start_) abort();
         finish_ = start_;
         end_of_storage_ = start_ + n;
