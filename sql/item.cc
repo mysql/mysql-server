@@ -2983,7 +2983,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
   for (ORDER *cur_group= group_list ; cur_group ; cur_group= cur_group->next)
   {
-    if ((*(cur_group->item))->type() == Item::FIELD_ITEM)
+    if ((*(cur_group->item))->real_item()->type() == Item::FIELD_ITEM)
     {
       cur_field= (Item_field*) *cur_group->item;
       cur_match_degree= 0;
