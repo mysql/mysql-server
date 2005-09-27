@@ -1703,6 +1703,6 @@ int ha_myisam::ft_read(byte * buf)
 
 uint ha_myisam::checksum() const
 {
-  return (uint)file->s->state.checksum;
+  return (uint)file->state->checksum;
 }
 
