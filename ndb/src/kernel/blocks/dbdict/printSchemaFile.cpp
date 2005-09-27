@@ -1,11 +1,3 @@
-#if 0
-make -f Makefile -f - printSchemaFile <<'_eof_'
-printSchemaFile: printSchemaFile.cpp
-	$(CXXCOMPILE) -o $@ $@.cpp -L../../../common/util/.libs -lgeneral
-_eof_
-exit $?
-#endif
-
 /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -58,8 +50,7 @@ print(const char * filename, const SchemaFile * file){
     SchemaFile::TableEntry te = file->TableEntries[i];
     if(te.m_tableState != SchemaFile::INIT){
       ndbout << "Table " << i << ": State = " << te.m_tableState 
-	     << " version = " << table_version_major(te.m_tableVersion) <<
-	     << "(" << table_version_minor(te.m_tableVersion) << ")"
+	     << " version = " << te.m_tableVersion
              << " type = " << te.m_tableType
 	     << " noOfPages = " << te.m_noOfPages
 	     << " gcp: " << te.m_gcp << endl;
