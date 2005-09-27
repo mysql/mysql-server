@@ -2959,7 +2959,7 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 
 char check_if_ignore_table(const char *table_name, char *table_type)
 {
-  bool result= IGNORE_NONE;
+  char result= IGNORE_NONE;
   char buff[FN_REFLEN+80], show_name_buff[FN_REFLEN];
   MYSQL_RES *res;
   MYSQL_ROW row;
@@ -2977,7 +2977,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
 	fprintf(stderr,
 		"-- Warning: Couldn't get status information for table %s (%s)\n",
 		table_name,mysql_error(sock));
-      DBUG_RETURN(IGNORE_NONE);                       /* assume table is ok */
+      DBUG_RETURN(result);                       /* assume table is ok */
     }
   }
   if (!(row= mysql_fetch_row(res)))
@@ -2986,10 +2986,10 @@ char check_if_ignore_table(const char *table_name, char *table_type)
 	    "Error: Couldn't read status information for table %s (%s)\n",
 	    table_name, mysql_error(sock));
     mysql_free_result(res);
-    DBUG_RETURN(IGNORE_NONE);                         /* assume table is ok */
+    DBUG_RETURN(result);                         /* assume table is ok */
   }
   if (!(row[1]))
-      strcpy(table_type,"VIEW");
+      strmake(table_type,"VIEW", NAME_LEN-1);
   else
   {
     /*
@@ -2998,7 +2998,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
       these types, but we do want to use delayed inserts in the dump if
       the table type is _NOT_ one of these types
     */
-    sprintf(table_type, "%s",row[1]);
+    strmake(table_type, row[1], NAME_LEN-1);
     if (opt_delayed)
     {
       if (strcmp(table_type,"MyISAM") &&
