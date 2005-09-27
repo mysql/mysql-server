@@ -2965,7 +2965,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
     share->state.key_root[key]= HA_OFFSET_ERROR;
   for (key=0 ; key < share->state.header.max_block_size ; key++)
     share->state.key_del[key]= HA_OFFSET_ERROR;
-  share->state.checksum=crc;		/* Save crc here */
+  isam_file->state->checksum=crc;       /* Save crc here */
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;
@@ -3001,7 +3001,7 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   state.dellink= HA_OFFSET_ERROR;
   state.version=(ulong) time((time_t*) 0);
   mi_clear_all_keys_active(state.key_map);
-  state.checksum=crc;
+  state.state.checksum=crc;
   if (isam_file->s->base.keys)
     isamchk_neaded=1;
   state.changed=STATE_CHANGED | STATE_NOT_ANALYZED; /* Force check of table */
