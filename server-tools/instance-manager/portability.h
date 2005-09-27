@@ -1,6 +1,10 @@
 #ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_PORTABILITY_H
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_PORTABILITY_H
 
+#if defined(__SCO_DS) && !defined(SHUT_RDWR)
+#define SHUT_RDWR 2
+#endif
+
 #ifdef __WIN__
 
 #define vsnprintf _vsnprintf
