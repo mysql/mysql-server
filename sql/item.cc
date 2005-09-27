@@ -3205,9 +3205,14 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
+  uint max_length_orig= max_length;
+  uint decimals_orig= decimals;
   max_length= max(max_length, display_length(item));
+  decimals= max(decimals, item->decimals);
   fld_type= Field::field_type_merge(fld_type, get_real_type(item));
-  if (Field::result_merge_type(fld_type) == STRING_RESULT)
+  switch (Field::result_merge_type(fld_type))
+  {
+  case STRING_RESULT:
   {
     const char *old_cs, *old_derivation;
     old_cs= collation.collation->name;
@@ -3221,8 +3226,23 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       "UNION");
       return TRUE;
     }
+    break;
   }
-  decimals= max(decimals, item->decimals);
+  case REAL_RESULT:
+  {
+    decimals= max(decimals, item->decimals);
+    if (decimals != NOT_FIXED_DEC)
+    {
+      int delta1= max_length_orig - decimals_orig;
+      int delta2= item->max_length - item->decimals;
+      max_length= max(delta1, delta2) + decimals;
+    }
+    else
+      max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
+    break;
+  }
+  default:;
+  };
   maybe_null|= item->maybe_null;
   get_full_info(item);
   return FALSE;
