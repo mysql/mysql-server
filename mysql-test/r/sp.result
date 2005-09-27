@@ -3390,4 +3390,49 @@ s1
 set sql_mode=@sm|
 drop table t3|
 drop procedure bug6127|
+drop procedure if exists bug12589_1|
+drop procedure if exists bug12589_2|
+drop procedure if exists bug12589_3|
+create procedure bug12589_1()
+begin
+declare spv1 decimal(3,3);
+set spv1= 123.456;
+set spv1 = 'test';
+create temporary table tm1 as select spv1;
+show create table tm1;
+drop temporary table tm1;
+end|
+create procedure bug12589_2()
+begin
+declare spv1 decimal(6,3);
+set spv1= 123.456;
+create temporary table tm1 as select spv1;
+show create table tm1;
+drop temporary table tm1;
+end|
+create procedure bug12589_3()
+begin
+declare spv1 decimal(6,3);
+set spv1= -123.456;
+create temporary table tm1 as select spv1;
+show create table tm1;
+drop temporary table tm1;
+end|
+call bug12589_1()|
+Table	Create Table
+tm1	CREATE TEMPORARY TABLE `tm1` (
+  `spv1` decimal(1,0) unsigned default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'test'
+call bug12589_2()|
+Table	Create Table
+tm1	CREATE TEMPORARY TABLE `tm1` (
+  `spv1` decimal(6,3) unsigned default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+call bug12589_3()|
+Table	Create Table
+tm1	CREATE TEMPORARY TABLE `tm1` (
+  `spv1` decimal(6,3) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
