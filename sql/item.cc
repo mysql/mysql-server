@@ -3230,12 +3230,12 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   case REAL_RESULT:
   {
-    decimals= max(decimals, item->decimals);
     if (decimals != NOT_FIXED_DEC)
     {
       int delta1= max_length_orig - decimals_orig;
       int delta2= item->max_length - item->decimals;
-      max_length= max(delta1, delta2) + decimals;
+      max_length= min(max(delta1, delta2) + decimals,
+                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
     }
     else
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
