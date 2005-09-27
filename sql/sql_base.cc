@@ -3459,7 +3459,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         }
       }
     }
-    else if (!table_name && (item->eq(find,0) ||
+    else if (!table_name && (find->eq(item,0) ||
 			     find->name && item->name &&
 			     !my_strcasecmp(system_charset_info, 
 					    item->name,find->name)))
