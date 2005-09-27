@@ -61,8 +61,8 @@ Set detailed error message for the transaction. */
 void
 trx_set_detailed_error(
 /*===================*/
-	trx_t*	trx,	/* in: transaction struct */
-	char*	msg);	/* in: detailed error message */
+	trx_t*		trx,	/* in: transaction struct */
+	const char*	msg);	/* in: detailed error message */
 /*****************************************************************
 Set detailed error message for the transaction from a file. Note that the
 file is rewinded before reading from it. */
