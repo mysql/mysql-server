@@ -652,30 +652,30 @@ create table t3 engine=merge union=(t1, t2) select * from t2;
 ERROR HY000: You can't specify target table 't2' for update in FROM clause
 drop table t1, t2;
 create table t1 (
-a double(16,6),
+a double(14,4),
 b varchar(10),
 index (a,b)
 ) engine=merge union=(t2,t3);
 create table t2 (
-a double(16,6),
+a double(14,4),
 b varchar(10),
 index (a,b)
 ) engine=myisam;
 create table t3 (
-a double(16,6),
+a double(14,4),
 b varchar(10),
 index (a,b)
 ) engine=myisam;
 insert into t2 values ( null, '');
-insert into t2 values ( 9999999999.999999, '');
+insert into t2 values ( 9999999999.9999, '');
 insert into t3 select * from t2;
 select min(a), max(a) from t1;
 min(a)	max(a)
-9999999999.999998	9999999999.999998
+9999999999.9999	9999999999.9999
 flush tables;
 select min(a), max(a) from t1;
 min(a)	max(a)
-9999999999.999998	9999999999.999998
+9999999999.9999	9999999999.9999
 drop table t1, t2, t3;
 create table t1 (a int,b int,c int, index (a,b,c));
 create table t2 (a int,b int,c int, index (a,b,c));
