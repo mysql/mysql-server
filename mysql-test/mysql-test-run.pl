@@ -2137,7 +2137,8 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $master->[$idx]->{'path_myerr'},
-                         $master->[$idx]->{'path_myerr'}, "") )
+                         $master->[$idx]->{'path_myerr'}, "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($master->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
@@ -2148,7 +2149,8 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $slave->[$idx]->{'path_myerr'},
-                         $slave->[$idx]->{'path_myerr'}, "") )
+                         $slave->[$idx]->{'path_myerr'}, "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($slave->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
