@@ -2139,3 +2139,29 @@ SELECT * FROM v3;
 
 DROP TABLE t1;
 DROP VIEW  v1, v2, v3;
+
+#
+# Bug #13411: crash when using non-qualified view column in HAVING clause 
+#
+
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING a > 1;
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING a > 1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #13410: failed name resolution for qualified view column in HAVING 
+#
+
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING t1.a > 1;
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING v1.a > 1;
+
+DROP VIEW v1;
+DROP TABLE t1;
