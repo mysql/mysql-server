@@ -5255,6 +5255,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
         }
       }
     }
+    break;
   }
   case REAL_RESULT:
   {						// It must REAL_RESULT
@@ -5276,7 +5277,6 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                (Item*) new Item_decimal(name, result, length, decimals));
     break;
   }
-  case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
   }
