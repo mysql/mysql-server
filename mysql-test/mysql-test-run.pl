@@ -467,6 +467,7 @@ sub command_line_setup () {
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
+  Getopt::Long::Configure("pass_through");
   GetOptions(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
@@ -554,7 +555,21 @@ sub command_line_setup () {
     usage("");
   }
 
-  @opt_cases= @ARGV;
+  foreach my $arg ( @ARGV )
+  {
+    if ( $arg =~ /^--skip-/ )
+    {
+      push(@opt_extra_mysqld_opt, $arg);
+    }
+    elsif ( $arg =~ /^-/ )
+    {
+      usage("Invalid option \"$arg\"");
+    }
+    else
+    {
+      push(@opt_cases, $arg);
+    }
+  }
 
   # --------------------------------------------------------------------------
   # Set the "var/" directory, as it is the base for everything else
