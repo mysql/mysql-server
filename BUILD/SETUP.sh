@@ -10,7 +10,7 @@ prefix_configs="--prefix=/usr/local/mysql"
 just_print=
 just_configure=
 full_debug=
-if test ! -z $MYSQL_BUILD_PREFIX
+if test -n "$MYSQL_BUILD_PREFIX"
 then
   prefix_configs="--prefix=$MYSQL_BUILD_PREFIX"
 fi
