@@ -67,9 +67,11 @@ drop table t1;
 SET collation_connection='sjis_japanese_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
 SET collation_connection='sjis_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
 
 # Check parsing of string literals in SJIS with multibyte characters that
 # have an embedded \ in them. (Bug #8303)
