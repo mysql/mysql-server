@@ -514,8 +514,8 @@ void *create_embedded_thd(int client_flag, char *db)
   thd->db= db;
   thd->db_length= db ? strip_sp(db) : 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  thd->db_access= DB_ACLS;
-  thd->master_access= ~NO_ACCESS;
+  thd->security_ctx->db_access= DB_ACLS;
+  thd->security_ctx->master_access= ~NO_ACCESS;
 #endif
   thd->net.query_cache_query= 0;
 
@@ -542,26 +542,27 @@ int check_embedded_connection(MYSQL *mysql)
 int check_embedded_connection(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
+  Security_context *sctx= thd->security_ctx;
   int result;
   char scramble_buff[SCRAMBLE_LENGTH];
   int passwd_len;
 
   if (mysql->options.client_ip)
   {
-    thd->host= my_strdup(mysql->options.client_ip, MYF(0));
-    thd->ip= my_strdup(thd->host, MYF(0));
+    sctx->host= my_strdup(mysql->options.client_ip, MYF(0));
+    sctx->ip= my_strdup(sctx->host, MYF(0));
   }
   else
-    thd->host= (char*)my_localhost;
-  thd->host_or_ip= thd->host;
+    sctx->host= (char*)my_localhost;
+  sctx->host_or_ip= sctx->host;
 
-  if (acl_check_host(thd->host,thd->ip))
+  if (acl_check_host(sctx->host, sctx->ip))
   {
     result= ER_HOST_NOT_PRIVILEGED;
     goto err;
   }
 
-  thd->user= my_strdup(mysql->user, MYF(0));
+  sctx->user= my_strdup(mysql->user, MYF(0));
   if (mysql->passwd && mysql->passwd[0])
   {
     memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
