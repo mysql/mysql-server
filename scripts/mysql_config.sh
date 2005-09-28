@@ -101,7 +101,7 @@ libs_r="$ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@"
 libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
-embedded_libs="$ldflags -L$pkglibdir -lmysqld @LIBS@ @WRAPLIBS@ @innodb_system_libs@ $client_libs"
+embedded_libs="$ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @innodb_system_libs@"
 embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 
 # Remove some options that a client doesn't have to care about
