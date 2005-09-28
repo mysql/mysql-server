@@ -2,36 +2,34 @@
 # -*- cperl -*-
 
 # This is a transformation of the "mysql-test-run" Bourne shell script
-# to Perl. This is just an intermediate step, the goal is to rewrite
-# the Perl script to C. The complexity of the mysql-test-run script
-# makes it a bit hard to write and debug it as a C program directly,
-# so this is considered a prototype.
+# to Perl. There are reasons this rewrite is not the prettiest Perl
+# you have seen
 #
-# Because of this the Perl coding style may in some cases look a bit
-# funny. The rules used are
+#   - The original script is huge and for most part uncommented,
+#     not even a usage description of the flags.
 #
-#   - The coding style is as close as possible to the C/C++ MySQL
-#     coding standard.
+#   - There has been an attempt to write a replacement in C for the
+#     original Bourne shell script. It was kind of working but lacked
+#     lot of functionality to really be a replacement. Not to redo
+#     that mistake and catch all the obscure features of the original
+#     script, the rewrite in Perl is more close to the original script
+#     meaning it also share some of the ugly parts as well.
 #
-#   - Where NULL is to be returned, the undefined value is used.
+#   - The original intention was that this script was to be a prototype
+#     to be the base for a new C version with full functionality. Since
+#     then it was decided that the Perl version should replace the
+#     Bourne shell version, but the Perl style still reflects the wish
+#     to make the Perl to C step easy.
 #
-#   - Regexp comparisons are simple and can be translated to strcmp
-#     and other string functions. To ease this transformation matching
-#     is done in the lib "lib/mtr_match.pl", i.e. regular expressions
-#     should be avoided in the main program.
+# Some coding style from the original intent has been kept
 #
-#   - The "unless" construct is not to be used. It is the same as "if !".
-#
-#   - opendir/readdir/closedir is used instead of glob()/<*>.
+#   - To make this Perl script easy to alter even for those that not
+#     code Perl that often, the coding style is as close as possible to
+#     the C/C++ MySQL coding standard.
 #
 #   - All lists of arguments to send to commands are Perl lists/arrays,
 #     not strings we append args to. Within reason, most string
 #     concatenation for arguments should be avoided.
-#
-#   - sprintf() is to be used, within reason, for all string creation.
-#     This mtr_add_arg() function is also based on sprintf(), i.e. you
-#     use a format string and put the variable argument in the argument
-#     list.
 #
 #   - Functions defined in the main program are not to be prefixed,
 #     functions in "library files" are to be prefixed with "mtr_" (for
@@ -758,47 +756,62 @@ sub command_line_setup () {
 
   # Put this into a hash, will be a C struct
 
-  $master->[0]->{'path_myddir'}=  "$opt_vardir/master-data";
-  $master->[0]->{'path_myerr'}=   "$opt_vardir/log/master.err";
-  $master->[0]->{'path_mylog'}=   "$opt_vardir/log/master.log";
-  $master->[0]->{'path_mypid'}=   "$opt_vardir/run/master.pid";
-  $master->[0]->{'path_mysock'}=  "$opt_tmpdir/master.sock";
-  $master->[0]->{'path_myport'}=   $opt_master_myport;
-  $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
+  $master->[0]=
+  {
+   path_myddir   => "$opt_vardir/master-data",
+   path_myerr    => "$opt_vardir/log/master.err",
+   path_mylog    => "$opt_vardir/log/master.log",
+   path_mypid    => "$opt_vardir/run/master.pid",
+   path_mysock   => "$opt_tmpdir/master.sock",
+   path_myport   =>  $opt_master_myport,
+   start_timeout =>  400, # enough time create innodb tables
 
-  $master->[0]->{'ndbcluster'}= 1; # ndbcluster not started
+   ndbcluster    =>  1, # ndbcluster not started
+  };
 
-  $master->[1]->{'path_myddir'}=  "$opt_vardir/master1-data";
-  $master->[1]->{'path_myerr'}=   "$opt_vardir/log/master1.err";
-  $master->[1]->{'path_mylog'}=   "$opt_vardir/log/master1.log";
-  $master->[1]->{'path_mypid'}=   "$opt_vardir/run/master1.pid";
-  $master->[1]->{'path_mysock'}=  "$opt_tmpdir/master1.sock";
-  $master->[1]->{'path_myport'}=   $opt_master_myport + 1;
-  $master->[1]->{'start_timeout'}= 400; # enough time create innodb tables
+  $master->[1]=
+  {
+   path_myddir   => "$opt_vardir/master1-data",
+   path_myerr    => "$opt_vardir/log/master1.err",
+   path_mylog    => "$opt_vardir/log/master1.log",
+   path_mypid    => "$opt_vardir/run/master1.pid",
+   path_mysock   => "$opt_tmpdir/master1.sock",
+   path_myport   => $opt_master_myport + 1,
+   start_timeout => 400, # enough time create innodb tables
+  };
 
-  $slave->[0]->{'path_myddir'}=   "$opt_vardir/slave-data";
-  $slave->[0]->{'path_myerr'}=    "$opt_vardir/log/slave.err";
-  $slave->[0]->{'path_mylog'}=    "$opt_vardir/log/slave.log";
-  $slave->[0]->{'path_mypid'}=    "$opt_vardir/run/slave.pid";
-  $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
-  $slave->[0]->{'path_myport'}=    $opt_slave_myport;
-  $slave->[0]->{'start_timeout'}=  400;
+  $slave->[0]=
+  {
+   path_myddir   => "$opt_vardir/slave-data",
+   path_myerr    => "$opt_vardir/log/slave.err",
+   path_mylog    => "$opt_vardir/log/slave.log",
+   path_mypid    => "$opt_vardir/run/slave.pid",
+   path_mysock   => "$opt_tmpdir/slave.sock",
+   path_myport   => $opt_slave_myport,
+   start_timeout => 400,
+  };
 
-  $slave->[1]->{'path_myddir'}=   "$opt_vardir/slave1-data";
-  $slave->[1]->{'path_myerr'}=    "$opt_vardir/log/slave1.err";
-  $slave->[1]->{'path_mylog'}=    "$opt_vardir/log/slave1.log";
-  $slave->[1]->{'path_mypid'}=    "$opt_vardir/run/slave1.pid";
-  $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
-  $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
-  $slave->[1]->{'start_timeout'}=  300;
+  $slave->[1]=
+  {
+   path_myddir   => "$opt_vardir/slave1-data",
+   path_myerr    => "$opt_vardir/log/slave1.err",
+   path_mylog    => "$opt_vardir/log/slave1.log",
+   path_mypid    => "$opt_vardir/run/slave1.pid",
+   path_mysock   => "$opt_tmpdir/slave1.sock",
+   path_myport   => $opt_slave_myport + 1,
+   start_timeout => 300,
+  };
 
-  $slave->[2]->{'path_myddir'}=   "$opt_vardir/slave2-data";
-  $slave->[2]->{'path_myerr'}=    "$opt_vardir/log/slave2.err";
-  $slave->[2]->{'path_mylog'}=    "$opt_vardir/log/slave2.log";
-  $slave->[2]->{'path_mypid'}=    "$opt_vardir/run/slave2.pid";
-  $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
-  $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
-  $slave->[2]->{'start_timeout'}=  300;
+  $slave->[2]=
+  {
+   path_myddir   => "$opt_vardir/slave2-data",
+   path_myerr    => "$opt_vardir/log/slave2.err",
+   path_mylog    => "$opt_vardir/log/slave2.log",
+   path_mypid    => "$opt_vardir/run/slave2.pid",
+   path_mysock   => "$opt_tmpdir/slave2.sock",
+   path_myport   => $opt_slave_myport + 2,
+   start_timeout => 300,
+  };
 
   if ( $opt_extern )
   {
@@ -1971,7 +1984,9 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $master->[$idx]->{'path_myerr'},
-                         $master->[$idx]->{'path_myerr'}, "") )
+                         $master->[$idx]->{'path_myerr'},
+                         "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($master->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
@@ -1982,7 +1997,9 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $slave->[$idx]->{'path_myerr'},
-                         $slave->[$idx]->{'path_myerr'}, "") )
+                         $slave->[$idx]->{'path_myerr'},
+                         "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($slave->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
