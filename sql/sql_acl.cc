@@ -693,8 +693,8 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
   SYNOPSIS
     acl_getroot()
     thd         thread handle. If all checks are OK,
-                thd->priv_user, thd->master_access are updated.
-                thd->host, thd->ip, thd->user are used for checks.
+                thd->security_ctx->priv_user/master_access are updated.
+                thd->security_ctx->host/ip/user are used for checks.
     mqh         user resources; on success mqh is reset, else
                 unchanged
     passwd      scrambled & crypted password, received from client
