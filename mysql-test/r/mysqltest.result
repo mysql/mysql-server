@@ -179,6 +179,7 @@ source database
 echo message echo message
 
 mysqltest: At line 1: Empty variable
+mysqltest: At line 1: command "false" failed
 mysqltest: At line 1: Missing argument in exec
 MySQL
 "MySQL"
@@ -300,6 +301,7 @@ mysqltest: At line 1: First argument to dec must be a variable (start with $)
 mysqltest: At line 1: End of line junk detected: "1000"
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: Missing arguments to system, nothing to do!
+mysqltest: At line 1: system command 'false' failed
 test
 test2
 test3
@@ -343,6 +345,10 @@ mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: End of line junk detected: "!"
 mysqltest: At line 1: Invalid integer argument "a"
+Output from mysqltest-x.inc
+Output from mysqltest-x.inc
+Output from mysqltest-x.inc
+mysqltest: Could not open ./non_existing_file.inc: errno = 2
 failing_statement;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing_statement' at line 1
 failing_statement;
