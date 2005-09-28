@@ -1157,11 +1157,17 @@ static bool add_line(String &buffer,char *line,char *in_string,
 #ifdef USE_MB
     int l;
     if (use_mb(charset_info) &&
-        (l = my_ismbchar(charset_info, pos, strend))) {
-	while (l--)
-	    *out++ = *pos++;
-	pos--;
-	continue;
+        (l= my_ismbchar(charset_info, pos, strend)))
+    {
+      if (!*ml_comment)
+      {
+        while (l--)
+          *out++ = *pos++;
+        pos--;
+      }
+      else
+        pos+= l - 1;
+      continue;
     }
 #endif
     if (!*ml_comment && inchar == '\\')
