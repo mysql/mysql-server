@@ -598,8 +598,8 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         blob_ptr= (char*)"";
       }
 
-      DBUG_PRINT("value", ("set blob ptr=%x len=%u",
-                           (unsigned)blob_ptr, blob_len));
+      DBUG_PRINT("value", ("set blob ptr=%p len=%u",
+			   blob_ptr, blob_len));
       DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
 
       if (set_blob_value)
