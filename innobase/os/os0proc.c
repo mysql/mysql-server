@@ -292,6 +292,9 @@ os_awe_allocate_physical_mem(
 
 	return(TRUE);	
 #else
+	UT_NOT_USED(n_megabytes);
+	UT_NOT_USED(page_info);
+	
 	return(FALSE);
 #endif
 }
@@ -349,6 +352,8 @@ os_awe_allocate_virtual_mem_window(
 
 	return(ptr);
 #else
+	UT_NOT_USED(size);
+	
 	return(NULL);
 #endif
 }
@@ -476,6 +481,10 @@ os_awe_map_physical_mem_to_window(
 
 	return(TRUE);
 #else
+	UT_NOT_USED(ptr);
+	UT_NOT_USED(n_mem_pages);
+	UT_NOT_USED(page_info);
+
 	return(FALSE);
 #endif
 }	
