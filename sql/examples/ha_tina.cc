@@ -17,18 +17,22 @@
 /*
   Make sure to look at ha_tina.h for more details.
 
-  First off, this is a play thing for me, there are a number of things wrong with it:
- *) It was designed for csv and therefor its performance is highly questionable.
- *) Indexes have not been implemented. This is because the files can be traded in
- and out of the table directory without having to worry about rebuilding anything.
- *) NULLs and "" are treated equally (like a spreadsheet).
- *) There was in the beginning no point to anyone seeing this other then me, so there
- is a good chance that I haven't quite documented it well.
- *) Less design, more "make it work"
+  First off, this is a play thing for me, there are a number of things
+  wrong with it:
+    *) It was designed for csv and therefore its performance is highly
+       questionable.
+    *) Indexes have not been implemented. This is because the files can
+       be traded in and out of the table directory without having to worry
+       about rebuilding anything.
+    *) NULLs and "" are treated equally (like a spreadsheet).
+    *) There was in the beginning no point to anyone seeing this other
+       then me, so there is a good chance that I haven't quite documented
+       it well.
+    *) Less design, more "make it work"
 
- Now there are a few cool things with it:
- *) Errors can result in corrupted data files.
- *) Data files can be read by spreadsheets directly.
+  Now there are a few cool things with it:
+    *) Errors can result in corrupted data files.
+    *) Data files can be read by spreadsheets directly.
 
 TODO:
  *) Move to a block system for larger files
@@ -78,7 +82,7 @@ static handlerton tina_hton= {
  ** TINA tables
  *****************************************************************************/
 
-/* 
+/*
   Used for sorting  chains.
 */
 int sort_set (tina_set *a, tina_set *b)
@@ -106,7 +110,7 @@ int get_mmap(TINA_SHARE *share, int write)
   if (my_fstat(share->data_file, &share->file_stat, MYF(MY_WME)) == -1)
     DBUG_RETURN(1);
 
-  if (share->file_stat.st_size) 
+  if (share->file_stat.st_size)
   {
     if (write)
       share->mapped_file= (byte *)my_mmap(NULL, share->file_stat.st_size,
@@ -116,7 +120,7 @@ int get_mmap(TINA_SHARE *share, int write)
       share->mapped_file= (byte *)my_mmap(NULL, share->file_stat.st_size,
                                           PROT_READ, MAP_PRIVATE,
                                           share->data_file, 0);
-    if ((share->mapped_file ==(caddr_t)-1)) 
+    if ((share->mapped_file ==(caddr_t)-1))
     {
       /*
         Bad idea you think? See the problem is that nothing actually checks
@@ -129,7 +133,7 @@ int get_mmap(TINA_SHARE *share, int write)
       DBUG_RETURN(1);
     }
   }
-  else 
+  else
     share->mapped_file= NULL;
 
   DBUG_RETURN(0);
@@ -167,17 +171,18 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
                          &share, sizeof(*share),
                          &tmp_name, length+1,
-                         NullS)) 
+                         NullS))
     {
       pthread_mutex_unlock(&tina_mutex);
       return NULL;
     }
 
-    share->use_count=0;
-    share->table_name_length=length;
-    share->table_name=tmp_name;
-    strmov(share->table_name,table_name);
-    fn_format(data_file_name, table_name, "", ".CSV",MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    share->use_count= 0;
+    share->table_name_length= length;
+    share->table_name= tmp_name;
+    strmov(share->table_name, table_name);
+    fn_format(data_file_name, table_name, "", ".CSV",
+              MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     if (my_hash_insert(&tina_open_tables, (byte*) share))
       goto error;
     thr_lock_init(&share->lock);
@@ -186,11 +191,14 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     if ((share->data_file= my_open(data_file_name, O_RDWR, MYF(0))) == -1)
       goto error2;
 
-    /* We only use share->data_file for writing, so we scan to the end to append */
+    /*
+      We only use share->data_file for writing, so we scan to
+      the end to append
+    */
     if (my_seek(share->data_file, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
       goto error2;
 
-    share->mapped_file= NULL; // We don't know the state since we just allocated it
+    share->mapped_file= NULL; // We don't know the state as we just allocated it
     if (get_mmap(share, 0) > 0)
       goto error3;
   }
@@ -212,7 +220,7 @@ error:
 }
 
 
-/* 
+/*
   Free lock controls.
 */
 static int free_share(TINA_SHARE *share)
@@ -222,7 +230,7 @@ static int free_share(TINA_SHARE *share)
   int result_code= 0;
   if (!--share->use_count){
     /* Drop the mapped file */
-    if (share->mapped_file) 
+    if (share->mapped_file)
       my_munmap(share->mapped_file, share->file_stat.st_size);
     result_code= my_close(share->data_file,MYF(0));
     hash_delete(&tina_open_tables, (byte*) share);
@@ -236,13 +244,13 @@ static int free_share(TINA_SHARE *share)
 }
 
 
-/* 
+/*
   Finds the end of a line.
   Currently only supports files written on a UNIX OS.
 */
-byte * find_eoln(byte *data, off_t begin, off_t end) 
+byte * find_eoln(byte *data, off_t begin, off_t end)
 {
-  for (off_t x= begin; x < end; x++) 
+  for (off_t x= begin; x < end; x++)
     if (data[x] == '\n')
       return data + x;
 
@@ -256,7 +264,8 @@ ha_tina::ha_tina(TABLE *table_arg)
     These definitions are found in hanler.h
     These are not probably completely right.
   */
-  current_position(0), next_position(0), chain_alloced(0), chain_size(DEFAULT_CHAIN_LENGTH)
+  current_position(0), next_position(0), chain_alloced(0),
+  chain_size(DEFAULT_CHAIN_LENGTH)
 {
   /* Set our original buffers from pre-allocated memory */
   buffer.set(byte_buffer, IO_SIZE, system_charset_info);
@@ -266,7 +275,7 @@ ha_tina::ha_tina(TABLE *table_arg)
 /*
   Encode a buffer into the quoted format.
 */
-int ha_tina::encode_quote(byte *buf) 
+int ha_tina::encode_quote(byte *buf)
 {
   char attribute_buffer[1024];
   String attribute(attribute_buffer, sizeof(attribute_buffer), &my_charset_bin);
@@ -324,13 +333,15 @@ int ha_tina::encode_quote(byte *buf)
 }
 
 /*
-  chain_append() adds delete positions to the chain that we use to keep track of space.
+  chain_append() adds delete positions to the chain that we use to keep
+  track of space. Then the chain will be used to cleanup "holes", occured
+  due to deletes and updates.
 */
 int ha_tina::chain_append()
 {
   if ( chain_ptr != chain && (chain_ptr -1)->end == current_position)
     (chain_ptr -1)->end= next_position;
-  else 
+  else
   {
     /* We set up for the next position */
     if ((off_t)(chain_ptr - chain) == (chain_size -1))
@@ -340,12 +351,14 @@ int ha_tina::chain_append()
       if (chain_alloced)
       {
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
-        if ((chain= (tina_set *)my_realloc((gptr)chain,chain_size,MYF(MY_WME))) == NULL)
+        if ((chain= (tina_set *) my_realloc((gptr)chain,
+                                            chain_size, MYF(MY_WME))) == NULL)
           return -1;
       }
       else
       {
-        tina_set *ptr= (tina_set *)my_malloc(chain_size * sizeof(tina_set),MYF(MY_WME));
+        tina_set *ptr= (tina_set *) my_malloc(chain_size * sizeof(tina_set),
+                                              MYF(MY_WME));
         memcpy(ptr, chain, DEFAULT_CHAIN_LENGTH * sizeof(tina_set));
         chain= ptr;
         chain_alloced++;
@@ -361,7 +374,7 @@ int ha_tina::chain_append()
 }
 
 
-/* 
+/*
   Scans for a row.
 */
 int ha_tina::find_current_row(byte *buf)
@@ -371,7 +384,8 @@ int ha_tina::find_current_row(byte *buf)
   DBUG_ENTER("ha_tina::find_current_row");
 
   /* EOF should be counted as new line */
-  if ((end_ptr=  find_eoln(share->mapped_file, current_position, share->file_stat.st_size)) == 0)
+  if ((end_ptr=  find_eoln(share->mapped_file, current_position,
+                           share->file_stat.st_size)) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   for (Field **field=table->field ; *field ; field++)
@@ -380,14 +394,15 @@ int ha_tina::find_current_row(byte *buf)
     mapped_ptr++; // Increment past the first quote
     for(;mapped_ptr != end_ptr; mapped_ptr++)
     {
-      //Need to convert line feeds!
-      if (*mapped_ptr == '"' && 
-          (((mapped_ptr[1] == ',') && (mapped_ptr[2] == '"')) || (mapped_ptr == end_ptr -1 )))
+      // Need to convert line feeds!
+      if (*mapped_ptr == '"' &&
+          (((mapped_ptr[1] == ',') && (mapped_ptr[2] == '"')) ||
+           (mapped_ptr == end_ptr -1 )))
       {
         mapped_ptr += 2; // Move past the , and the "
         break;
-      } 
-      if (*mapped_ptr == '\\' && mapped_ptr != (end_ptr - 1)) 
+      }
+      if (*mapped_ptr == '\\' && mapped_ptr != (end_ptr - 1))
       {
         mapped_ptr++;
         if (*mapped_ptr == 'r')
@@ -401,7 +416,7 @@ int ha_tina::find_current_row(byte *buf)
           buffer.append('\\');
           buffer.append(*mapped_ptr);
         }
-      } 
+      }
       else
         buffer.append(*mapped_ptr);
     }
@@ -429,7 +444,7 @@ const char **ha_tina::bas_ext() const
 }
 
 
-/* 
+/*
   Open a database file. Keep in mind that tables are caches, so
   this will not be called for every request. Any sort of positions
   that need to be reset should be kept in the ::extra() call.
@@ -457,7 +472,7 @@ int ha_tina::close(void)
   DBUG_RETURN(free_share(share));
 }
 
-/* 
+/*
   This is an INSERT. At the moment this handler just seeks to the end
   of the file and appends the data. In an error case it really should
   just truncate to the original position (this is not done yet).
@@ -477,22 +492,22 @@ int ha_tina::write_row(byte * buf)
   if (my_write(share->data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
-  /* 
-    Ok, this is means that we will be doing potentially bad things 
+  /*
+    Ok, this is means that we will be doing potentially bad things
     during a bulk insert on some OS'es. What we need is a cleanup
     call for ::write_row that would let us fix up everything after the bulk
     insert. The archive handler does this with an extra mutx call, which
     might be a solution for this.
   */
-  if (get_mmap(share, 0) > 0) 
+  if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
 
-/* 
+/*
   This is called for an update.
-  Make sure you put in code to increment the auto increment, also 
+  Make sure you put in code to increment the auto increment, also
   update any timestamp data. Currently auto increment is not being
   fixed since autoincrements have yet to be added to this table handler.
   This will be called in a table scan right before the previous ::rnd_next()
@@ -520,18 +535,20 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
 }
 
 
-/* 
-  Deletes a row. First the database will find the row, and then call this method.
-  In the case of a table scan, the previous call to this will be the ::rnd_next()
-  that found this row.
-  The exception to this is an ORDER BY. This will cause the table handler to walk
-  the table noting the positions of all rows that match a query. The table will
-  then be deleted/positioned based on the ORDER (so RANDOM, DESC, ASC).
+/*
+  Deletes a row. First the database will find the row, and then call this
+  method. In the case of a table scan, the previous call to this will be
+  the ::rnd_next() that found this row.
+  The exception to this is an ORDER BY. This will cause the table handler
+  to walk the table noting the positions of all rows that match a query.
+  The table will then be deleted/positioned based on the ORDER (so RANDOM,
+  DESC, ASC).
 */
 int ha_tina::delete_row(const byte * buf)
 {
   DBUG_ENTER("ha_tina::delete_row");
-  statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_delete_count,
+                      &LOCK_status);
 
   if (chain_append())
     DBUG_RETURN(-1);
@@ -542,7 +559,7 @@ int ha_tina::delete_row(const byte * buf)
 }
 
 /*
-  Fill buf with value from key. Simply this is used for a single index read 
+  Fill buf with value from key. Simply this is used for a single index read
   with a key.
 */
 int ha_tina::index_read(byte * buf, const byte * key,
@@ -556,7 +573,7 @@ int ha_tina::index_read(byte * buf, const byte * key,
 }
 
 /*
-  Fill buf with value from key. Simply this is used for a single index read 
+  Fill buf with value from key. Simply this is used for a single index read
   with a key.
   Whatever the current key is we will use it. This is what will be in "index".
 */
@@ -613,8 +630,8 @@ int ha_tina::index_last(byte * buf)
   DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 }
 
-/* 
-  All table scans call this first. 
+/*
+  All table scans call this first.
   The order of a table scan is:
 
   ha_tina::store_lock
@@ -638,8 +655,8 @@ int ha_tina::index_last(byte * buf)
   ha_tina::extra
   ENUM HA_EXTRA_RESET   Reset database to after open
 
-  Each call to ::rnd_next() represents a row returned in the can. When no more 
-  rows can be returned, rnd_next() returns a value of HA_ERR_END_OF_FILE. 
+  Each call to ::rnd_next() represents a row returned in the can. When no more
+  rows can be returned, rnd_next() returns a value of HA_ERR_END_OF_FILE.
   The ::info() call is just for the optimizer.
 
 */
@@ -653,22 +670,26 @@ int ha_tina::rnd_init(bool scan)
   chain_ptr= chain;
 #ifdef HAVE_MADVISE
   if (scan)
-    (void)madvise(share->mapped_file,share->file_stat.st_size,MADV_SEQUENTIAL);
+    (void) madvise(share->mapped_file, share->file_stat.st_size,
+                   MADV_SEQUENTIAL);
 #endif
 
   DBUG_RETURN(0);
 }
 
 /*
-  ::rnd_next() does all the heavy lifting for a table scan. You will need to populate *buf
-  with the correct field data. You can walk the field to determine at what position you 
-  should store the data (take a look at how ::find_current_row() works). The structure
-  is something like:
+  ::rnd_next() does all the heavy lifting for a table scan. You will need to
+  populate *buf with the correct field data. You can walk the field to
+  determine at what position you should store the data (take a look at how
+  ::find_current_row() works). The structure is something like:
   0Foo  Dog  Friend
-  The first offset is for the first attribute. All space before that is reserved for null count.
-  Basically this works as a mask for which rows are nulled (compared to just empty).
-  This table handler doesn't do nulls and does not know the difference between NULL and "". This
-  is ok since this table handler is for spreadsheets and they don't know about them either :)
+  The first offset is for the first attribute. All space before that is
+  reserved for null count.
+  Basically this works as a mask for which rows are nulled (compared to just
+  empty).
+  This table handler doesn't do nulls and does not know the difference between
+  NULL and "". This is ok since this table handler is for spreadsheets and
+  they don't know about them either :)
 */
 int ha_tina::rnd_next(byte *buf)
 {
@@ -678,9 +699,9 @@ int ha_tina::rnd_next(byte *buf)
 		      &LOCK_status);
 
   current_position= next_position;
-  if (!share->mapped_file) 
+  if (!share->mapped_file)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  if (HA_ERR_END_OF_FILE == find_current_row(buf) ) 
+  if (HA_ERR_END_OF_FILE == find_current_row(buf) )
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   records++;
@@ -689,11 +710,11 @@ int ha_tina::rnd_next(byte *buf)
 
 /*
   In the case of an order by rows will need to be sorted.
-  ::position() is called after each call to ::rnd_next(), 
+  ::position() is called after each call to ::rnd_next(),
   the data it stores is to a byte array. You can store this
-  data via my_store_ptr(). ref_length is a variable defined to the 
-  class that is the sizeof() of position being stored. In our case  
-  its just a position. Look at the bdb code if you want to see a case 
+  data via my_store_ptr(). ref_length is a variable defined to the
+  class that is the sizeof() of position being stored. In our case
+  its just a position. Look at the bdb code if you want to see a case
   where something other then a number is stored.
 */
 void ha_tina::position(const byte *record)
@@ -704,8 +725,8 @@ void ha_tina::position(const byte *record)
 }
 
 
-/* 
-  Used to fetch a row from a posiion stored with ::position(). 
+/*
+  Used to fetch a row from a posiion stored with ::position().
   my_get_ptr() retrieves the data for you.
 */
 
@@ -727,7 +748,7 @@ void ha_tina::info(uint flag)
 {
   DBUG_ENTER("ha_tina::info");
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
-  if (records < 2) 
+  if (records < 2)
     records= 2;
   DBUG_VOID_RETURN;
 }
@@ -743,7 +764,7 @@ int ha_tina::extra(enum ha_extra_function operation)
   DBUG_RETURN(0);
 }
 
-/* 
+/*
   This is no longer used.
 */
 int ha_tina::reset(void)
@@ -755,8 +776,10 @@ int ha_tina::reset(void)
 
 
 /*
-  Called after deletes, inserts, and updates. This is where we clean up all of
-  the dead space we have collected while writing the file. 
+  Called after each table scan. In particular after deletes,
+  and updates. In the last case we employ chain of deleted
+  slots to clean up all of the dead space we have collected while
+  performing deletes/updates.
 */
 int ha_tina::rnd_end()
 {
@@ -768,11 +791,11 @@ int ha_tina::rnd_end()
     tina_set *ptr;
     off_t length;
 
-    /* 
+    /*
       Setting up writable map, this will contain all of the data after the
       get_mmap call that we have added to the file.
     */
-    if (get_mmap(share, 1) > 0) 
+    if (get_mmap(share, 1) > 0)
       DBUG_RETURN(-1);
     length= share->file_stat.st_size;
 
@@ -781,7 +804,8 @@ int ha_tina::rnd_end()
       It also sorts so that we move the final blocks to the
       beginning so that we move the smallest amount of data possible.
     */
-    qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set), (qsort_cmp)sort_set);
+    qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
+          (qsort_cmp)sort_set);
     for (ptr= chain; ptr < chain_ptr; ptr++)
     {
       /* We peek a head to see if this is the last chain */
@@ -789,7 +813,8 @@ int ha_tina::rnd_end()
         memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
                 length - (size_t)ptr->end);
       else
-        memmove((caddr_t)share->mapped_file + ptr->begin, (caddr_t)share->mapped_file + ptr->end,
+        memmove((caddr_t)share->mapped_file + ptr->begin,
+                (caddr_t)share->mapped_file + ptr->end,
                 (size_t)((ptr++)->begin - ptr->end));
       length= length - (size_t)(ptr->end - ptr->begin);
     }
@@ -803,15 +828,15 @@ int ha_tina::rnd_end()
 
     /* We set it to null so that get_mmap() won't try to unmap it */
     share->mapped_file= NULL;
-    if (get_mmap(share, 0) > 0) 
+    if (get_mmap(share, 0) > 0)
       DBUG_RETURN(-1);
   }
 
   DBUG_RETURN(0);
 }
 
-/* 
-  Truncate table and others of its ilk call this. 
+/*
+  Truncate table and others of its ilk call this.
 */
 int ha_tina::delete_all_rows()
 {
@@ -819,7 +844,7 @@ int ha_tina::delete_all_rows()
 
   int rc= my_chsize(share->data_file, 0, 0, MYF(MY_WME));
 
-  if (get_mmap(share, 0) > 0) 
+  if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
 
   DBUG_RETURN(rc);
@@ -834,7 +859,7 @@ int ha_tina::external_lock(THD *thd, int lock_type)
   DBUG_RETURN(0);          // No external locking
 }
 
-/* 
+/*
   Called by the database to lock the table. Keep in mind that this
   is an internal lock.
 */
@@ -848,33 +873,32 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
   return to;
 }
 
-/* 
+/*
   Range optimizer calls this.
   I need to update the information on this.
 */
-ha_rows ha_tina::records_in_range(int inx,
-                                  const byte *start_key,uint start_key_len,
-                                  enum ha_rkey_function start_search_flag,
-                                  const byte *end_key,uint end_key_len,
-                                  enum ha_rkey_function end_search_flag)
+ha_rows ha_tina::records_in_range(uint inx, key_range *min_key,
+                                  key_range *max_key)
 {
   DBUG_ENTER("ha_tina::records_in_range ");
   DBUG_RETURN(records); // Good guess
 }
 
 
-/* 
+/*
   Create a table. You do not want to leave the table open after a call to
   this (the database will call ::open() if it needs to).
 */
 
-int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_info)
+int ha_tina::create(const char *name, TABLE *table_arg,
+                    HA_CREATE_INFO *create_info)
 {
   char name_buff[FN_REFLEN];
   File create_file;
   DBUG_ENTER("ha_tina::create");
 
-  if ((create_file= my_create(fn_format(name_buff,name,"",".CSV",MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
+  if ((create_file= my_create(fn_format(name_buff, name, "", ".CSV",
+                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
                               O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
     DBUG_RETURN(-1);
 
