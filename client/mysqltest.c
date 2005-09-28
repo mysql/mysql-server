@@ -585,7 +585,8 @@ static void die(const char *fmt, ...)
     if (cur_file && cur_file != file_stack)
       fprintf(stderr, "In included file \"%s\": ",
               cur_file->file_name);
-    fprintf(stderr, "At line %u: ", start_lineno);
+    if (start_lineno != 0)
+      fprintf(stderr, "At line %u: ", start_lineno);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
     fflush(stderr);
@@ -618,7 +619,9 @@ static void verbose_msg(const char *fmt, ...)
 
   va_start(args, fmt);
 
-  fprintf(stderr, "mysqltest: At line %u: ", start_lineno);
+  fprintf(stderr, "mysqltest: ");
+  if (start_lineno > 0)
+    fprintf(stderr, "At line %u: ", start_lineno);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
@@ -1068,8 +1071,8 @@ static void do_exec(struct st_query *query)
           (query->expected_errno[i].code.errnum == status))
       {
         ok= 1;
-        verbose_msg("command \"%s\" failed with expected error: %d",
-                    cmd, status);
+        DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
+                            cmd, status));
       }
     }
     if (!ok)
@@ -1354,9 +1357,7 @@ int do_sync_with_master2(long offset)
   int rpl_parse;
 
   if (!master_pos.file[0])
-  {
-    die("Line %u: Calling 'sync_with_master' without calling 'save_master_pos'", start_lineno);
-  }
+    die("Calling 'sync_with_master' without calling 'save_master_pos'");
   rpl_parse= mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
 
@@ -1366,14 +1367,13 @@ int do_sync_with_master2(long offset)
 wait_for_position:
 
   if (mysql_query(mysql, query_buf))
-    die("line %u: failed in %s: %d: %s", start_lineno, query_buf,
-	mysql_errno(mysql), mysql_error(mysql));
+    die("failed in %s: %d: %s", query_buf, mysql_errno(mysql),
+        mysql_error(mysql));
 
   if (!(last_result= res= mysql_store_result(mysql)))
-    die("line %u: mysql_store_result() returned NULL for '%s'", start_lineno,
-	query_buf);
+    die("mysql_store_result() returned NULL for '%s'", query_buf);
   if (!(row= mysql_fetch_row(res)))
-    die("line %u: empty result in %s", start_lineno, query_buf);
+    die("empty result in %s", query_buf);
   if (!row[0])
   {
     /*
@@ -1381,10 +1381,7 @@ wait_for_position:
       SLAVE has been issued ?
     */
     if (tries++ == 3)
-    {
-      die("line %u: could not sync with master ('%s' returned NULL)", 
-          start_lineno, query_buf);
-    }
+      die("could not sync with master ('%s' returned NULL)", query_buf);
     sleep(1); /* So at most we will wait 3 seconds and make 4 tries */
     mysql_free_result(res);
     goto wait_for_position;
@@ -1430,10 +1427,9 @@ int do_save_master_pos()
 	mysql_errno(mysql), mysql_error(mysql));
 
   if (!(last_result =res = mysql_store_result(mysql)))
-    die("line %u: mysql_store_result() retuned NULL for '%s'", start_lineno,
-	query);
+    die("mysql_store_result() retuned NULL for '%s'", query);
   if (!(row = mysql_fetch_row(res)))
-    die("line %u: empty result in show master status", start_lineno);
+    die("empty result in show master status");
   strnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
   mysql_free_result(res); last_result=0;
@@ -2571,7 +2567,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fn_format(buff, argument, "", "", 4);
       DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
       if (!(cur_file->file=
-            my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
+            my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
 	die("Could not open %s: errno = %d", buff, errno);
       cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
       break;
@@ -2677,7 +2673,7 @@ void str_to_file(const char *fname, char *str, int size)
     fname=buff;
   }
   fn_format(buff,fname,"","",4);
-
+  
   if ((fd = my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", buff, errno);
@@ -4074,12 +4070,20 @@ int main(int argc, char **argv)
     if (res_info.st_size)
       error|= (RESULT_CONTENT_MISMATCH | RESULT_LENGTH_MISMATCH);
   }
-  if (result_file && ds_res.length && !error)
+  if (ds_res.length && !error)
   {
-    if (!record)
-      error |= check_result(&ds_res, result_file, q->require_file);
+    if (result_file)
+    {
+      if (!record)
+        error |= check_result(&ds_res, result_file, q->require_file);
+      else
+        str_to_file(result_file, ds_res.str, ds_res.length);
+    }
     else
-      str_to_file(result_file, ds_res.str, ds_res.length);
+    {
+      // Print the result to stdout
+      printf("%s", ds_res.str);
+    }
   }
   dynstr_free(&ds_res);
 
