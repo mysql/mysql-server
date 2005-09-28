@@ -5227,6 +5227,35 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                (Item*) new Item_int(name, result, length));
     break;
   }
+  case ROW_RESULT:
+  {
+    new_item= 0;
+    /*
+      If item and comp_item are both Item_rows and have same number of cols
+      then process items in Item_row one by one. If Item_row contain nulls
+      substitute it by Item_null. Otherwise just return.
+    */
+    if (item->result_type() == comp_item->result_type() &&
+        ((Item_row*)item)->cols() == ((Item_row*)comp_item)->cols())
+    {
+      Item_row *item_row= (Item_row*)item,*comp_item_row= (Item_row*)comp_item;
+      if (item_row->null_inside())
+        new_item= (Item*) new Item_null(name);
+      else
+      {
+        int i= item_row->cols() - 1;
+        for (; i >= 0; i--)
+        {
+          if (item_row->maybe_null && item_row->el(i)->is_null())
+          {
+            new_item= (Item*) new Item_null(name);
+            break;
+          }
+          resolve_const_item(thd, item_row->addr(i), comp_item_row->el(i));
+        }
+      }
+    }
+  }
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();
