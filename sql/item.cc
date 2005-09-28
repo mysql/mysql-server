@@ -1687,7 +1687,7 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
     return 0;
   
   Item_field *item_field= (Item_field*) item;
-  if (item_field->field)
+  if (item_field->field && field)
     return item_field->field == field;
   /*
     We may come here when we are trying to find a function in a GROUP BY
@@ -1701,10 +1701,10 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
   */
   return (!my_strcasecmp(system_charset_info, item_field->name,
 			 field_name) &&
-	  (!item_field->table_name ||
+	  (!item_field->table_name || !table_name ||
 	   (!my_strcasecmp(table_alias_charset, item_field->table_name,
 			   table_name) &&
-	    (!item_field->db_name ||
+	    (!item_field->db_name || !db_name ||
 	     (item_field->db_name && !strcmp(item_field->db_name,
 					     db_name))))));
 }
@@ -2983,7 +2983,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
   for (ORDER *cur_group= group_list ; cur_group ; cur_group= cur_group->next)
   {
-    if ((*(cur_group->item))->type() == Item::FIELD_ITEM)
+    if ((*(cur_group->item))->real_item()->type() == Item::FIELD_ITEM)
     {
       cur_field= (Item_field*) *cur_group->item;
       cur_match_degree= 0;
