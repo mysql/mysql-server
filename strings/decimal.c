@@ -1033,7 +1033,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
   {
     ulonglong y=x;
     x=x*DIG_BASE + *buf++;
-    if (unlikely(y > (ULONGLONG_MAX/DIG_BASE) || x < y))
+    if (unlikely(y > ((ulonglong) ULONGLONG_MAX/DIG_BASE) || x < y))
     {
       *to=y;
       return E_DEC_OVERFLOW;
