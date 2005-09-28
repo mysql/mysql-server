@@ -85,8 +85,7 @@ print_old(const char * filename, const SchemaFile * sf)
          te.m_tableState != SchemaFile::DROP_TABLE_COMMITTED)) {
       ndbout << "Table " << i << ":"
              << " State = " << te.m_tableState 
-	     << " version = " << table_version_major(te.m_tableVersion) <<
-	     << "(" << table_version_minor(te.m_tableVersion) << ")"
+	     << " version = " << te.m_tableVersion
              << " type = " << te.m_tableType
 	     << " noOfPages = " << te.m_noOfPages
 	     << " gcp: " << te.m_gcp << endl;
