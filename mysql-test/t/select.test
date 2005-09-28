@@ -2181,6 +2181,16 @@ select found_rows();
 
 DROP TABLE t1;
 
+#
+# Bug #13356 assertion failed in resolve_const_item()
+#
+create table t1(f1 int, f2 int);
+create table t2(f3 int);
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,1));
+select f1 from t1,t2 where f1=f2 and (f1,NULL) = ((1,1));
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,NULL));
+drop table t1,t2; 
+
 # End of 4.1 tests
 
 #
