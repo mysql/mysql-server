@@ -108,7 +108,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           WHERE t2.field IS NULL;
       */
       if (tl->table->map & where_tables)
-        const_result= 0;
+        return 0;
     }
     else
       used_tables|= tl->table->map;
@@ -119,16 +119,16 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       may be used as the real count.
     */
     if (tl->table->file->table_flags() & HA_NOT_EXACT_COUNT)
+    {
       is_exact_count= FALSE;
+      count= 1;                                 // ensure count != 0
+    }
     else
     {
       tl->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
       count*= tl->table->file->records;
     }
   }
-
-  if (!const_result)
-    return 0;
 
   /*
     Iterate through all items in the SELECT clause and replace
@@ -250,7 +250,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
         }
         if (!count)
         {
-          /* If count != 1, then we know that is_exact_count == TRUE. */
+          /* If count == 0, then we know that is_exact_count == TRUE. */
           ((Item_sum_min*) item_sum)->clear(); /* Set to NULL. */
         }
         else

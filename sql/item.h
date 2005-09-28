@@ -1502,6 +1502,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
