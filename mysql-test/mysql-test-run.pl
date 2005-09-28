@@ -2197,7 +2197,7 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
 
   # ----------------------------------------------------------------------
-  # Add args that should not go into the MYSQL_TEST environment var
+  # Add arguments that should not go into the MYSQL_TEST env var
   # ----------------------------------------------------------------------
 
   mtr_add_arg($args, "-R");
