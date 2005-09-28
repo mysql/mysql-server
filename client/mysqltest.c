@@ -4315,7 +4315,7 @@ int main(int argc, char **argv)
     }
     else
     {
-      // Print the result to stdout
+      /* Print the result to stdout */
       printf("%s", ds_res.str);
     }
   }
