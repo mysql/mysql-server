@@ -72,6 +72,8 @@ Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
 CAST(DATE "2004-01-22 21:45:33" AS BINARY(4))
 2004
+Warnings:
+Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
 select CAST(0xb3 as signed);
 CAST(0xb3 as signed)
 179
@@ -84,8 +86,6 @@ CAST(0xffffffffffffffff as unsigned)
 select CAST(0xfffffffffffffffe as signed);
 CAST(0xfffffffffffffffe as signed)
 -2
-Warnings:
-Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
 select cast('-10a' as signed integer);
 cast('-10a' as signed integer)
 -10
