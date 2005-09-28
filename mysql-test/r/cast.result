@@ -54,6 +54,18 @@ CONVERT(DATE "2004-01-22 21:45:33",BINARY(4))
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
 CAST(DATE "2004-01-22 21:45:33" AS BINARY(4))
 2004
+select CAST(0xb3 as signed);
+CAST(0xb3 as signed)
+179
+select CAST(0x8fffffffffffffff as signed);
+CAST(0x8fffffffffffffff as signed)
+-8070450532247928833
+select CAST(0xffffffffffffffff as unsigned);
+CAST(0xffffffffffffffff as unsigned)
+18446744073709551615
+select CAST(0xfffffffffffffffe as signed);
+CAST(0xfffffffffffffffe as signed)
+-2
 select cast('18446744073709551616' as unsigned);
 cast('18446744073709551616' as unsigned)
 18446744073709551615

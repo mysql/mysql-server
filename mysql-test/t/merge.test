@@ -286,6 +286,42 @@ create table t3 engine=merge union=(t1, t2) select * from t1;
 create table t3 engine=merge union=(t1, t2) select * from t2;
 drop table t1, t2;
 
+#
+# Bug#9112 - Merge table with composite index producing invalid results with some queries
+# This test case will fail only without the bugfix and some
+# non-deterministic circumstances. It depends on properly initialized
+# "un-initialized" memory. At the time it happens with a standard
+# non-debug build. But there is no guarantee that this will be always so.
+#
+create table t1 (
+ a double(16,6),
+ b varchar(10),
+ index (a,b)
+) engine=merge union=(t2,t3);
+
+create table t2 (
+ a double(16,6),
+ b varchar(10),
+ index (a,b)
+) engine=myisam;
+
+create table t3 (
+ a double(16,6),
+ b varchar(10),
+ index (a,b)
+) engine=myisam;
+
+insert into t2 values ( null, '');
+# We may have insufficient accuracy for 16 digits of '9'.
+# Suppress a "truncate" warning due to accuracy problems.
+--disable_warnings
+insert into t2 values ( 9999999999.999999, '');
+--enable_warnings
+insert into t3 select * from t2;
+select min(a), max(a) from t1;
+flush tables;
+select min(a), max(a) from t1;
+drop table t1, t2, t3;
 # BUG#6699 : no sorting on 'ref' retrieval 
 create table t1 (a int,b int,c int, index (a,b,c));
 create table t2 (a int,b int,c int, index (a,b,c));
