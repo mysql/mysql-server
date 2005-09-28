@@ -2617,3 +2617,12 @@ select found_rows();
 found_rows()
 1
 DROP TABLE t1;
+create table t1(f1 int, f2 int);
+create table t2(f3 int);
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,1));
+f1
+select f1 from t1,t2 where f1=f2 and (f1,NULL) = ((1,1));
+f1
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,NULL));
+f1
+drop table t1,t2;
