@@ -6688,6 +6688,13 @@ ha_innobase::store_lock(
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
+		} else if (thd->lex->sql_command == SQLCOM_CHECKSUM) {
+			/* Use consistent read for checksum table and
+			convert lock type to the TL_READ */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+			lock.type = TL_READ;
 		} else {
 			prebuilt->select_lock_type = LOCK_S;
 			prebuilt->stored_select_lock_type = LOCK_S;
