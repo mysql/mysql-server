@@ -246,7 +246,7 @@ end:
 
   SYNOPSIS
     check_user()
-    thd          thread handle, thd->{host,user,ip} are used
+    thd          thread handle, thd->security_ctx->{host,user,ip} are used
     command      originator of the check: now check_user is called
                  during connect and change user procedures; used for 
                  logging.
@@ -261,8 +261,8 @@ end:
     are 'IN'.
 
   RETURN VALUE
-    0  OK; thd->user, thd->master_access, thd->priv_user, thd->db and
-       thd->db_access are updated; OK is sent to client;
+    0  OK; thd->security_ctx->user/master_access/priv_user/db_access and
+       thd->db are updated; OK is sent to client;
    -1  access denied or handshake error; error is sent to client;
    >0  error, not sent to client
 */

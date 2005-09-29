@@ -37,7 +37,7 @@ SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
                         my_time.c
-sqlexamplessources =	ha_example.cc ha_archive.cc ha_tina.cc
+sqlexamplessources =	ha_example.cc ha_tina.cc
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
@@ -63,7 +63,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
-	ha_blackhole.cc
+	ha_blackhole.cc ha_archive.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources) $(sqlexamplessources)
 libmysqld_a_SOURCES=

@@ -1687,7 +1687,7 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
     return 0;
   
   Item_field *item_field= (Item_field*) item;
-  if (item_field->field)
+  if (item_field->field && field)
     return item_field->field == field;
   /*
     We may come here when we are trying to find a function in a GROUP BY
@@ -1701,10 +1701,10 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
   */
   return (!my_strcasecmp(system_charset_info, item_field->name,
 			 field_name) &&
-	  (!item_field->table_name ||
+	  (!item_field->table_name || !table_name ||
 	   (!my_strcasecmp(table_alias_charset, item_field->table_name,
 			   table_name) &&
-	    (!item_field->db_name ||
+	    (!item_field->db_name || !db_name ||
 	     (item_field->db_name && !strcmp(item_field->db_name,
 					     db_name))))));
 }
@@ -2983,7 +2983,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
   for (ORDER *cur_group= group_list ; cur_group ; cur_group= cur_group->next)
   {
-    if ((*(cur_group->item))->type() == Item::FIELD_ITEM)
+    if ((*(cur_group->item))->real_item()->type() == Item::FIELD_ITEM)
     {
       cur_field= (Item_field*) *cur_group->item;
       cur_match_degree= 0;
@@ -5227,6 +5227,36 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                (Item*) new Item_int(name, result, length));
     break;
   }
+  case ROW_RESULT:
+  {
+    new_item= 0;
+    /*
+      If item and comp_item are both Item_rows and have same number of cols
+      then process items in Item_row one by one. If Item_row contain nulls
+      substitute it by Item_null. Otherwise just return.
+    */
+    if (item->result_type() == comp_item->result_type() &&
+        ((Item_row*)item)->cols() == ((Item_row*)comp_item)->cols())
+    {
+      Item_row *item_row= (Item_row*)item,*comp_item_row= (Item_row*)comp_item;
+      if (item_row->null_inside())
+        new_item= (Item*) new Item_null(name);
+      else
+      {
+        int i= item_row->cols() - 1;
+        for (; i >= 0; i--)
+        {
+          if (item_row->maybe_null && item_row->el(i)->is_null())
+          {
+            new_item= (Item*) new Item_null(name);
+            break;
+          }
+          resolve_const_item(thd, item_row->addr(i), comp_item_row->el(i));
+        }
+      }
+    }
+    break;
+  }
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();
@@ -5247,7 +5277,6 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                (Item*) new Item_decimal(name, result, length, decimals));
     break;
   }
-  case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
   }
