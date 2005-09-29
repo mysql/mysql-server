@@ -4265,6 +4265,56 @@ drop procedure bug6127|
 
 
 #
+# BUG#12589: Assert when creating temp. table from decimal stored procedure
+#            variable
+#
+--disable_warnings
+drop procedure if exists bug12589_1|
+drop procedure if exists bug12589_2|
+drop procedure if exists bug12589_3|
+--enable_warnings
+create procedure bug12589_1()
+begin
+  declare spv1 decimal(3,3);
+  set spv1= 123.456;
+
+  set spv1 = 'test';
+  create temporary table tm1 as select spv1;
+  show create table tm1;
+  drop temporary table tm1;
+end|
+
+create procedure bug12589_2()
+begin
+  declare spv1 decimal(6,3);
+  set spv1= 123.456;
+
+  create temporary table tm1 as select spv1;
+  show create table tm1;
+  drop temporary table tm1;
+end|
+
+create procedure bug12589_3()
+begin
+  declare spv1 decimal(6,3);
+  set spv1= -123.456;
+
+  create temporary table tm1 as select spv1;
+  show create table tm1;
+  drop temporary table tm1;
+end|
+
+# Note: The type of the field will match the value, not the declared
+#       type of the variable. (This is a type checking issue which
+#       might be changed later.)
+
+# Warning expected from "set spv1 = 'test'", the value is set to decimal "0".
+call bug12589_1()|
+# No warnings here
+call bug12589_2()|
+call bug12589_3()|
+
+#
 # BUG#7049: Stored procedure CALL errors are ignored
 #
 --disable_warnings
