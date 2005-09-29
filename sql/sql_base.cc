@@ -2988,7 +2988,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     are the same as the table reference we are going to search for the field.
 
     We exclude from the test below NATURAL/USING joins and any nested join
-    that is an operand of NATURAL/USING join, because each column in such
+    because each column in such
     joins may potentially originate from a different table. However, base
     tables and views that are under some NATURAL/USING join are searched
     as usual base tables/views.
@@ -3001,8 +3001,8 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     TODO: Ensure that table_name, db_name and tables->db always points to
           something !
   */
-  if (/* Exclude natural joins and nested joins underlying natural joins. */
-      (!(table_list->nested_join && table_list->join_columns) ||
+  if (/* Exclude nested joins. */
+      (!table_list->nested_join ||
        /* Include merge views and information schema tables. */
        table_list->field_translation) &&
       /*
@@ -3025,13 +3025,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                  register_tree_change)))
       *actual_table= table_list;
   }
-  else if (!(table_list->nested_join && table_list->join_columns))
+  else if (!table_list->nested_join)
   {
-    /*
-      'table_list' is a stored table. It is so because the only type of nested
-      join passed to this procedure is a NATURAL/USING join or an operand of a
-      NATURAL/USING join.
-    */
+    /* 'table_list' is a stored table. */
+    DBUG_ASSERT(table_list->table);
     if ((fld= find_field_in_table(thd, table_list->table, name, length,
                                   check_grants_table, allow_rowid,
                                   cached_field_index_ptr)))

@@ -801,3 +801,34 @@ SELECT * FROM
 
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3,t4;
+
+#
+# Bug #13545: problem with NATURAL/USING joins.
+#
+
+CREATE TABLE t1(a int);
+CREATE TABLE t2(b int);
+CREATE TABLE t3(c int, d int);
+CREATE TABLE t4(d int);
+CREATE TABLE t5(e int, f int);
+CREATE TABLE t6(f int);
+CREATE VIEW v1 AS 
+  SELECT e FROM t5 JOIN t6 ON t5.e=t6.f;
+CREATE VIEW v2 AS 
+  SELECT e FROM t5 NATURAL JOIN t6;
+
+SELECT t1.a FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c JOIN t4 USING(d);
+--error 1054
+SELECT t1.x FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c JOIN t4 USING(d);
+SELECT t1.a FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c NATURAL JOIN t4;
+--error 1054
+SELECT t1.x FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c NATURAL JOIN t4;
+SELECT v1.e FROM v1 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+--error 1054
+SELECT v1.x FROM v1 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+SELECT v2.e FROM v2 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+--error 1054
+SELECT v2.x FROM v2 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+
+DROP VIEW v1, v2;
+DROP TABLE t1, t2, t3, t4, t5, t6;
