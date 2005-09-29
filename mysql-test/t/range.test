@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2;
+drop table if exists t1, t2, t3;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -600,3 +600,29 @@ explain select * from v1 where a between 3 and 4 and b between 1 and 2;
  
 drop view v1;
 drop table t1;
+
+# BUG#13455: 
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (a varchar(10), filler char(200), key(a)) charset=binary;
+insert into t1 values ('a','');
+insert into t1 values ('a ','');
+insert into t1 values ('a  ', '');
+insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
+  from t3 A, t3 B, t3 C;
+
+create table t2 (a varchar(10), filler char(200), key(a));
+insert into t2 select * from t1;
+
+--replace_column 9 #
+explain select * from t1 where a between 'a' and 'a '; 
+--replace_column 9 #
+explain select * from t1 where a = 'a' or a='a ';
+
+--replace_column 9 #
+explain select * from t2 where a between 'a' and 'a '; 
+--replace_column 9 #
+explain select * from t2 where a = 'a' or a='a ';
+
+drop table t1,t2,t3;
