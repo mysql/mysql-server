@@ -1963,7 +1963,7 @@ Ndbcntr::execRESUME_REQ(Signal* signal){
   
   jamEntry();
 
-  signal->theData[0] = EventReport::SingleUser;
+  signal->theData[0] = NDB_LE_SingleUser;
   signal->theData[1] = 2;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
@@ -2248,7 +2248,7 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
 
     c_stopRec.stopReq.senderRef = 0; // the command is done
 
-    signal->theData[0] = EventReport::SingleUser;
+    signal->theData[0] = NDB_LE_SingleUser;
     signal->theData[1] = 1;
     signal->theData[2] = c_stopRec.stopReq.singleUserApi;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
