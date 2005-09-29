@@ -1191,7 +1191,7 @@ Opens an InnoDB database. */
 handlerton*
 innobase_init(void)
 /*===============*/
-			/* out: TRUE if error */
+			/* out: &innobase_hton, or NULL on error */
 {
 	static char	current_dir[3];		/* Set if using current lib */
 	int		err;
@@ -2492,7 +2492,7 @@ Closes a handle to an InnoDB table. */
 int
 ha_innobase::close(void)
 /*====================*/
-				/* out: error number */
+				/* out: 0 */
 {
   	DBUG_ENTER("ha_innobase::close");
 
