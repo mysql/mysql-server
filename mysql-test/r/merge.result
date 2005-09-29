@@ -635,13 +635,13 @@ b varchar(10),
 index (a,b)
 ) engine=myisam;
 insert into t2 values ( null, '');
-insert into t2 values ( 9999999999.9999, '');
+insert into t2 values ( 9999999999.999, '');
 insert into t3 select * from t2;
 select min(a), max(a) from t1;
 min(a)	max(a)
-9999999999.9999	9999999999.9999
+9999999999.9990	9999999999.9990
 flush tables;
 select min(a), max(a) from t1;
 min(a)	max(a)
-9999999999.9999	9999999999.9999
+9999999999.9990	9999999999.9990
 drop table t1, t2, t3;
