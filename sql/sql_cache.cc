@@ -801,6 +801,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
                                    CLIENT_PROTOCOL_41);
     flags.more_results_exists= test(thd->server_status &
                                     SERVER_MORE_RESULTS_EXISTS);
+    flags.pkt_nr= net->pkt_nr;
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
@@ -814,12 +815,13 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.sql_mode= thd->variables.sql_mode;
     flags.max_sort_length= thd->variables.max_sort_length;
     flags.group_concat_max_len= thd->variables.group_concat_max_len;
-    DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, \
+    DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.more_results_exists,
+                          flags.pkt_nr,
                           flags.character_set_client_num,
                           flags.character_set_results_num,
                           flags.collation_connection_num,
@@ -1019,6 +1021,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
                                  CLIENT_PROTOCOL_41);
   flags.more_results_exists= test(thd->server_status &
                                   SERVER_MORE_RESULTS_EXISTS);
+  flags.pkt_nr= thd->net.pkt_nr;
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
     (thd->variables.character_set_results ?
@@ -1030,12 +1033,13 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.sql_mode= thd->variables.sql_mode;
   flags.max_sort_length= thd->variables.max_sort_length;
   flags.group_concat_max_len= thd->variables.group_concat_max_len;
-  DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, \
+  DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
                           (int)flags.more_results_exists,
+                          flags.pkt_nr,
                           flags.character_set_client_num,
                           flags.character_set_results_num,
                           flags.collation_connection_num,
