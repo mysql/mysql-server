@@ -1269,46 +1269,6 @@ select min(a) from t1;
 select min(b) from t1 where a='8';
 drop table t1;
 
-#
-# Test that checksum table uses a consistent read Bug #12669
-#
-connect (a,localhost,root,,);
-connect (b,localhost,root,,);
-connection a;
-create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
-insert into test_checksum values (1),(2);
-set autocommit=0;
-checksum table test_checksum;
-connection b;
-insert into test_checksum values(3);
-connection a;
-#
-# Here checksum should not see insert
-#
-checksum table test_checksum;
-connection a;
-commit;
-checksum table test_checksum;
-commit;
-drop table test_checksum;
-#
-# autocommit = 1
-#
-connection a;
-create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
-insert into test_checksum values (1),(2);
-set autocommit=1;
-checksum table test_checksum;
-connection b;
-set autocommit=1;
-insert into test_checksum values(3);
-connection a;
-#
-# Here checksum sees insert
-#
-checksum table test_checksum;
-drop table test_checksum;
-
 # End of 4.1 tests
 
 #
@@ -1605,3 +1565,42 @@ SET FOREIGN_KEY_CHECKS=1;
 INSERT INTO t2 VALUES(3);
 
 DROP TABLE t2;
+#
+# Test that checksum table uses a consistent read Bug #12669
+#
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into test_checksum values (1),(2);
+set autocommit=0;
+checksum table test_checksum;
+connection b;
+insert into test_checksum values(3);
+connection a;
+#
+# Here checksum should not see insert
+#
+checksum table test_checksum;
+connection a;
+commit;
+checksum table test_checksum;
+commit;
+drop table test_checksum;
+#
+# autocommit = 1
+#
+connection a;
+create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into test_checksum values (1),(2);
+set autocommit=1;
+checksum table test_checksum;
+connection b;
+set autocommit=1;
+insert into test_checksum values(3);
+connection a;
+#
+# Here checksum sees insert
+#
+checksum table test_checksum;
+drop table test_checksum;
