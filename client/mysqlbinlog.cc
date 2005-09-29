@@ -525,7 +525,7 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
       fprintf(result_file, "# at %s\n",llstr(pos,ll_buff));
 
     /* Set pos to 0 if hexdump is disabled */
-    pos= (opt_hexdump ? pos : 0);
+    if (!opt_hexdump) pos= 0;
 
     switch (ev_type) {
     case QUERY_EVENT:
@@ -674,8 +674,9 @@ static struct my_option my_long_options[] =
    0, 0},
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"hexdump", 'H', "Augment output with hexadecimal and ascii data dump.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"hexdump", 'H', "Augment output with hexadecimal and ASCII event dump.",
+   (gptr*) &opt_hexdump, (gptr*) &opt_hexdump, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"host", 'h', "Get the binlog from server.", (gptr*) &host, (gptr*) &host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"offset", 'o', "Skip the first N entries.", (gptr*) &offset, (gptr*) &offset,
@@ -854,9 +855,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   case 'd':
     one_database = 1;
-    break;
-  case 'H':
-    opt_hexdump= 1;
     break;
   case 'p':
     if (argument)
