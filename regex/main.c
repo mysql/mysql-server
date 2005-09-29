@@ -1,9 +1,9 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <sys/types.h>
-#include <regex.h>
 #include <assert.h>
 
+#include "my_regex.h"
 #include "main.ih"
 
 char *progname;
@@ -27,9 +27,9 @@ int main(argc, argv)
 int argc;
 char *argv[];
 {
-	regex_t re;
+	my_regex_t re;
 #	define	NS	10
-	regmatch_t subs[NS];
+	my_regmatch_t subs[NS];
 	char erbuf[100];
 	int err;
 	size_t len;
@@ -74,9 +74,9 @@ char *argv[];
 		exit(status);
 	}
 
-	err = regcomp(&re, argv[optind++], copts, &my_charset_latin1);
+	err = my_regcomp(&re, argv[optind++], copts, &my_charset_latin1);
 	if (err) {
-		len = regerror(err, &re, erbuf, sizeof(erbuf));
+		len = my_regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "error %s, %d/%d `%s'\n",
 			eprint(err), len, (int) sizeof(erbuf), erbuf);
 		exit(status);
@@ -84,7 +84,7 @@ char *argv[];
 	regprint(&re, stdout);
 
 	if (optind >= argc) {
-		regfree(&re);
+		my_regfree(&re);
 		exit(status);
 	}
 
@@ -92,9 +92,9 @@ char *argv[];
 		subs[0].rm_so = startoff;
 		subs[0].rm_eo = strlen(argv[optind]) - endoff;
 	}
-	err = regexec(&re, argv[optind], (size_t)NS, subs, eopts);
+	err = my_regexec(&re, argv[optind], (size_t)NS, subs, eopts);
 	if (err) {
-		len = regerror(err, &re, erbuf, sizeof(erbuf));
+		len = my_regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "error %s, %d/%d `%s'\n",
 			eprint(err), (int) len, (int) sizeof(erbuf), erbuf);
 		exit(status);
@@ -136,7 +136,7 @@ FILE *in;
 	const char *badpat = "invalid regular expression";
 #	define	SHORT	10
 	const char *bpname = "REG_BADPAT";
-	regex_t re;
+	my_regex_t re;
 
 	while (fgets(inbuf, sizeof(inbuf), in) != NULL) {
 		line++;
@@ -163,27 +163,27 @@ FILE *in;
 					options('c', f[1]) &~ REG_EXTENDED);
 	}
 
-	ne = regerror(REG_BADPAT, (regex_t *)NULL, erbuf, sizeof(erbuf));
+	ne = my_regerror(REG_BADPAT, (my_regex_t *)NULL, erbuf, sizeof(erbuf));
 	if (strcmp(erbuf, badpat) != 0 || ne != strlen(badpat)+1) {
 		fprintf(stderr, "end: regerror() test gave `%s' not `%s'\n",
 							erbuf, badpat);
 		status = 1;
 	}
-	ne = regerror(REG_BADPAT, (regex_t *)NULL, erbuf, (size_t)SHORT);
+	ne = my_regerror(REG_BADPAT, (my_regex_t *)NULL, erbuf, (size_t)SHORT);
 	if (strncmp(erbuf, badpat, SHORT-1) != 0 || erbuf[SHORT-1] != '\0' ||
 						ne != strlen(badpat)+1) {
 		fprintf(stderr, "end: regerror() short test gave `%s' not `%.*s'\n",
 						erbuf, SHORT-1, badpat);
 		status = 1;
 	}
-	ne = regerror(REG_ITOA|REG_BADPAT, (regex_t *)NULL, erbuf, sizeof(erbuf));
+	ne = my_regerror(REG_ITOA|REG_BADPAT, (my_regex_t *)NULL, erbuf, sizeof(erbuf));
 	if (strcmp(erbuf, bpname) != 0 || ne != strlen(bpname)+1) {
 		fprintf(stderr, "end: regerror() ITOA test gave `%s' not `%s'\n",
 						erbuf, bpname);
 		status = 1;
 	}
 	re.re_endp = bpname;
-	ne = regerror(REG_ATOI, &re, erbuf, sizeof(erbuf));
+	ne = my_regerror(REG_ATOI, &re, erbuf, sizeof(erbuf));
 	if (atoi(erbuf) != (int)REG_BADPAT) {
 		fprintf(stderr, "end: regerror() ATOI test gave `%s' not `%ld'\n",
 						erbuf, (long)REG_BADPAT);
@@ -208,9 +208,9 @@ char *f3;
 char *f4;
 int opts;			/* may not match f1 */
 {
-	regex_t re;
+	my_regex_t re;
 #	define	NSUBS	10
-	regmatch_t subs[NSUBS];
+	my_regmatch_t subs[NSUBS];
 #	define	NSHOULD	15
 	char *should[NSHOULD];
 	int nshould;
@@ -226,10 +226,10 @@ int opts;			/* may not match f1 */
 	strcpy(f0copy, f0);
 	re.re_endp = (opts&REG_PEND) ? f0copy + strlen(f0copy) : NULL;
 	fixstr(f0copy);
-	err = regcomp(&re, f0copy, opts, &my_charset_latin1);
+	err = my_regcomp(&re, f0copy, opts, &my_charset_latin1);
 	if (err != 0 && (!opt('C', f1) || err != efind(f2))) {
 		/* unexpected error or wrong error */
-		len = regerror(err, &re, erbuf, sizeof(erbuf));
+		len = my_regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "%d: %s error %s, %d/%d `%s'\n",
 					line, type, eprint(err), len,
 					(int) sizeof(erbuf), erbuf);
@@ -243,7 +243,7 @@ int opts;			/* may not match f1 */
 	}
 
 	if (err != 0) {
-		regfree(&re);
+		my_regfree(&re);
 		return;
 	}
 
@@ -256,11 +256,11 @@ int opts;			/* may not match f1 */
 		subs[0].rm_so = strchr(f2, '(') - f2 + 1;
 		subs[0].rm_eo = strchr(f2, ')') - f2;
 	}
-	err = regexec(&re, f2copy, NSUBS, subs, options('e', f1));
+	err = my_regexec(&re, f2copy, NSUBS, subs, options('e', f1));
 
 	if (err != 0 && (f3 != NULL || err != REG_NOMATCH)) {
 		/* unexpected error or wrong error */
-		len = regerror(err, &re, erbuf, sizeof(erbuf));
+		len = my_regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "%d: %s exec error %s, %d/%d `%s'\n",
 					line, type, eprint(err), len,
 					(int) sizeof(erbuf), erbuf);
@@ -282,7 +282,7 @@ int opts;			/* may not match f1 */
 	}
 
 	if (err != 0 || f4 == NULL) {
-		regfree(&re);
+		my_regfree(&re);
 		return;
 	}
 
@@ -303,7 +303,7 @@ int opts;			/* may not match f1 */
 		}
 	}
 
-	regfree(&re);
+	my_regfree(&re);
 }
 
 /*
@@ -404,7 +404,7 @@ register char *p;
 char *				/* NULL or complaint */
 check(str, sub, should)
 char *str;
-regmatch_t sub;
+my_regmatch_t sub;
 char *should;
 {
 	register int len;
@@ -485,7 +485,7 @@ int err;
 	static char epbuf[100];
 	size_t len;
 
-	len = regerror(REG_ITOA|err, (regex_t *)NULL, epbuf, sizeof(epbuf));
+	len = my_regerror(REG_ITOA|err, (my_regex_t *)NULL, epbuf, sizeof(epbuf));
 	assert(len <= sizeof(epbuf));
 	return(epbuf);
 }
@@ -499,11 +499,11 @@ efind(name)
 char *name;
 {
 	static char efbuf[100];
-	regex_t re;
+	my_regex_t re;
 
 	sprintf(efbuf, "REG_%s", name);
 	assert(strlen(efbuf) < sizeof(efbuf));
 	re.re_endp = efbuf;
-	(void) regerror(REG_ATOI, &re, efbuf, sizeof(efbuf));
+	(void) my_regerror(REG_ATOI, &re, efbuf, sizeof(efbuf));
 	return(atoi(efbuf));
 }
