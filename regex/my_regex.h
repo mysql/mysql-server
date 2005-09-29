@@ -20,15 +20,15 @@ typedef struct {
 	const char *re_endp;	/* end pointer for REG_PEND */
 	struct re_guts *re_g;	/* none of your business :-) */
 	CHARSET_INFO *charset;	/* For ctype things */
-} regex_t;
+} my_regex_t;
 typedef struct {
 	regoff_t rm_so;		/* start of match */
 	regoff_t rm_eo;		/* end of match */
-} regmatch_t;
+} my_regmatch_t;
 
 
 /* === regcomp.c === */
-extern int regcomp(regex_t *, const char *, int, CHARSET_INFO *charset);
+extern int my_regcomp(my_regex_t *, const char *, int, CHARSET_INFO *charset);
 #define	REG_BASIC	0000
 #define	REG_EXTENDED	0001
 #define	REG_ICASE	0002
@@ -58,11 +58,11 @@ extern int regcomp(regex_t *, const char *, int, CHARSET_INFO *charset);
 #define	REG_INVARG	16
 #define	REG_ATOI	255	/* convert name to number (!) */
 #define	REG_ITOA	0400	/* convert number to name (!) */
-extern size_t regerror(int, const regex_t *, char *, size_t);
+extern size_t my_regerror(int, const my_regex_t *, char *, size_t);
 
 
 /* === regexec.c === */
-extern int regexec(const regex_t *, const char *, size_t, regmatch_t [], int);
+extern int my_regexec(const my_regex_t *, const char *, size_t, my_regmatch_t [], int);
 #define	REG_NOTBOL	00001
 #define	REG_NOTEOL	00002
 #define	REG_STARTEND	00004
@@ -72,12 +72,12 @@ extern int regexec(const regex_t *, const char *, size_t, regmatch_t [], int);
 
 
 /* === regfree.c === */
-extern void regfree(regex_t *);
+extern void my_regfree(my_regex_t *);
 
 /* === reginit.c === */
 
-extern void regex_init(CHARSET_INFO *cs);	/* Should be called for multithread progs */
-extern void regex_end(void);	/* If one wants a clean end */
+extern void my_regex_init(CHARSET_INFO *cs);	/* Should be called for multithread progs */
+extern void my_regex_end(void);	/* If one wants a clean end */
 
 #ifdef __cplusplus
 }
