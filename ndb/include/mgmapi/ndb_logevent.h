@@ -148,9 +148,9 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_INFO */
     NDB_LE_InfoEvent = 49,
 
-    /* GREP */
-    NDB_LE_GrepSubscriptionInfo = 52,
-    NDB_LE_GrepSubscriptionAlert = 53,
+    /* SINGLE USER */
+    NDB_LE_SingleUser = 52,
+    /* NDB_LE_ UNUSED = 53, */
 
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupStarted = 54,
@@ -593,6 +593,10 @@ extern "C" {
 	unsigned backup_id;
 	unsigned error;
       } BackupAborted;
+      /** Log event data @ref NDB_LE_SingleUser */
+      struct {
+        unsigned node_id;
+      } SingleUser;
 #ifndef DOXYGEN_FIX
     };
 #else

@@ -289,6 +289,7 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( BackupAborted,       "backup_id",     2, backup_id),
   ROW( BackupAborted,       "error",         3, error),
 
+  ROW( SingleUser,          "node_id",	     1, node_id),
   { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
 };
 
