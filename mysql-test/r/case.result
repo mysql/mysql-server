@@ -103,8 +103,8 @@ t1	CREATE TABLE `t1` (
   `c2` varchar(1) character set latin1 collate latin1_danish_ci NOT NULL default '',
   `c3` varbinary(1) NOT NULL default '',
   `c4` varbinary(1) NOT NULL default '',
-  `c5` varbinary(4) NOT NULL default '',
-  `c6` varbinary(4) NOT NULL default '',
+  `c5` varbinary(3) NOT NULL default '',
+  `c6` varbinary(3) NOT NULL default '',
   `c7` decimal(2,1) NOT NULL default '0.0',
   `c8` decimal(2,1) NOT NULL default '0.0',
   `c9` decimal(2,1) default NULL,
@@ -152,11 +152,11 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `COALESCE(1)` int(1) NOT NULL default '0',
-  `COALESCE(1.0)` decimal(2,1) NOT NULL default '0.0',
+  `COALESCE(1.0)` decimal(2,1) unsigned NOT NULL default '0.0',
   `COALESCE('a')` varchar(1) NOT NULL default '',
   `COALESCE(1,1.0)` decimal(2,1) NOT NULL default '0.0',
   `COALESCE(1,'1')` varbinary(1) NOT NULL default '',
-  `COALESCE(1.1,'1')` varbinary(4) NOT NULL default '',
+  `COALESCE(1.1,'1')` varbinary(3) NOT NULL default '',
   `COALESCE('a' COLLATE latin1_bin,'b')` varchar(1) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
