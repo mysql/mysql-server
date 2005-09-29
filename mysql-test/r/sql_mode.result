@@ -65,7 +65,7 @@ sql_mode	NO_FIELD_OPTIONS,MYSQL323,MYSQL40,HIGH_NOT_PRECEDENCE
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL auto_increment,
+  `a` int(11) NOT NULL,
   `pseudo` varchar(35) NOT NULL default '',
   `email` varchar(60) NOT NULL default '',
   PRIMARY KEY  (`a`),
@@ -79,8 +79,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
   "a" int(11) NOT NULL,
-  "pseudo" varchar(35) NOT NULL default '',
-  "email" varchar(60) NOT NULL default '',
+  "pseudo" varchar(35) character set latin2 NOT NULL default '',
+  "email" varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  ("a"),
   UNIQUE KEY "email" ("email")
 )
@@ -457,4 +457,24 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER="root"@"localhost" SQL SECURITY DEFINER VI
 create view v2 as select a from t2 where a in (select a from v1);
 drop view v2, v1;
 drop table t1, t2;
+set session sql_mode=ansi;
+create table t1
+(f1 integer auto_increment primary key,
+f2 timestamp default current_timestamp on update current_timestamp);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "f1" int(11) NOT NULL auto_increment,
+  "f2" timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  ("f1")
+)
+set session sql_mode=no_field_options;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` timestamp NOT NULL default CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`f1`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
