@@ -1191,7 +1191,7 @@ Opens an InnoDB database. */
 handlerton*
 innobase_init(void)
 /*===============*/
-			/* out: TRUE if error */
+			/* out: &innobase_hton, or NULL on error */
 {
 	static char	current_dir[3];		/* Set if using current lib */
 	int		err;
@@ -2116,7 +2116,7 @@ innobase_rollback_to_savepoint(
 
         /* TODO: use provided savepoint data area to store savepoint data */
 
-        longlong2str((ulonglong)savepoint, name, 36);
+        longlong2str((ulint)savepoint, name, 36);
 
         error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
@@ -2145,7 +2145,7 @@ innobase_release_savepoint(
 
         /* TODO: use provided savepoint data area to store savepoint data */
 
-        longlong2str((ulonglong)savepoint, name, 36);
+        longlong2str((ulint)savepoint, name, 36);
 
 	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
@@ -2186,7 +2186,7 @@ innobase_savepoint(
 
         /* TODO: use provided savepoint data area to store savepoint data */
         char name[64];
-        longlong2str((ulonglong)savepoint,name,36);
+        longlong2str((ulint)savepoint,name,36);
 
         error = (int) trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
@@ -2492,7 +2492,7 @@ Closes a handle to an InnoDB table. */
 int
 ha_innobase::close(void)
 /*====================*/
-				/* out: error number */
+				/* out: 0 */
 {
   	DBUG_ENTER("ha_innobase::close");
 
@@ -6685,6 +6685,11 @@ ha_innobase::store_lock(
 			INSERT INTO...SELECT or UPDATE ... = (SELECT ...)
 			without FOR UPDATE or IN SHARE MODE in select, then
 			we use consistent read for select. */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+		} else if (thd->lex->sql_command == SQLCOM_CHECKSUM) {
+			/* Use consistent read for checksum table */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;

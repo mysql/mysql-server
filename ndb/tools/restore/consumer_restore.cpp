@@ -38,7 +38,7 @@ BackupRestore::init()
   m_cluster_connection = new Ndb_cluster_connection(g_connect_string);
   if(m_cluster_connection->connect(12, 5, 1) != 0)
   {
-    return -1;
+    return false;
   }
 
   m_ndb = new Ndb(m_cluster_connection);

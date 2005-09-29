@@ -56,12 +56,12 @@ private:
     T     mac_;
 
     // MSVC 6 HACK, gives compiler error if calculated in array
-    enum { BSIZE = T::BLOCK_SIZE  / sizeof(word32),
-           DSIZE = T::DIGEST_SIZE / sizeof(word32) };
+    enum { HMAC_BSIZE = T::BLOCK_SIZE  / sizeof(word32),
+           HMAC_DSIZE = T::DIGEST_SIZE / sizeof(word32) };
 
-    word32 ip_[BSIZE];          // align ipad_ on word32
-    word32 op_[BSIZE];          // align opad_ on word32
-    word32 innerH_[DSIZE];      // align innerHash_ on word32
+    word32 ip_[HMAC_BSIZE];          // align ipad_ on word32
+    word32 op_[HMAC_BSIZE];          // align opad_ on word32
+    word32 innerH_[HMAC_DSIZE];      // align innerHash_ on word32
 
     void KeyInnerHash();
 

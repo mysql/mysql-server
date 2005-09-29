@@ -1098,7 +1098,7 @@ void clean_up(bool print_message)
     my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
 #endif /* HAVE_OPENSSL */
 #ifdef USE_REGEX
-  regex_end();
+  my_regex_end();
 #endif
 
   if (print_message && errmesg)
@@ -2605,7 +2605,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   set_var_init();
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  regex_init(&my_charset_latin1);
+  my_regex_init(&my_charset_latin1);
 #endif
   if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
 						    MY_CS_PRIMARY,
@@ -6219,7 +6219,7 @@ static void mysql_init_variables(void)
 #else
   have_openssl=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_BROKEN_REALPATH
+#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
   have_symlink=SHOW_OPTION_NO;
 #else
   have_symlink=SHOW_OPTION_YES;
@@ -6916,7 +6916,7 @@ static void get_options(int argc,char **argv)
     usage();
     exit(0);
   }
-#if defined(HAVE_BROKEN_REALPATH)
+#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
   my_disable_symlinks=1;
   have_symlink=SHOW_OPTION_NO;
