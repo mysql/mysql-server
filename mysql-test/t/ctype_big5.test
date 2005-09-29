@@ -15,9 +15,11 @@ SET NAMES big5;
 SET collation_connection='big5_chinese_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
 SET collation_connection='big5_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
 
 #
 # Bugs#9357: TEXT columns break string with special word in BIG5 charset.
