@@ -2,36 +2,34 @@
 # -*- cperl -*-
 
 # This is a transformation of the "mysql-test-run" Bourne shell script
-# to Perl. This is just an intermediate step, the goal is to rewrite
-# the Perl script to C. The complexity of the mysql-test-run script
-# makes it a bit hard to write and debug it as a C program directly,
-# so this is considered a prototype.
+# to Perl. There are reasons this rewrite is not the prettiest Perl
+# you have seen
 #
-# Because of this the Perl coding style may in some cases look a bit
-# funny. The rules used are
+#   - The original script is huge and for most part uncommented,
+#     not even a usage description of the flags.
 #
-#   - The coding style is as close as possible to the C/C++ MySQL
-#     coding standard.
+#   - There has been an attempt to write a replacement in C for the
+#     original Bourne shell script. It was kind of working but lacked
+#     lot of functionality to really be a replacement. Not to redo
+#     that mistake and catch all the obscure features of the original
+#     script, the rewrite in Perl is more close to the original script
+#     meaning it also share some of the ugly parts as well.
 #
-#   - Where NULL is to be returned, the undefined value is used.
+#   - The original intention was that this script was to be a prototype
+#     to be the base for a new C version with full functionality. Since
+#     then it was decided that the Perl version should replace the
+#     Bourne shell version, but the Perl style still reflects the wish
+#     to make the Perl to C step easy.
 #
-#   - Regexp comparisons are simple and can be translated to strcmp
-#     and other string functions. To ease this transformation matching
-#     is done in the lib "lib/mtr_match.pl", i.e. regular expressions
-#     should be avoided in the main program.
+# Some coding style from the original intent has been kept
 #
-#   - The "unless" construct is not to be used. It is the same as "if !".
-#
-#   - opendir/readdir/closedir is used instead of glob()/<*>.
+#   - To make this Perl script easy to alter even for those that not
+#     code Perl that often, the coding style is as close as possible to
+#     the C/C++ MySQL coding standard.
 #
 #   - All lists of arguments to send to commands are Perl lists/arrays,
 #     not strings we append args to. Within reason, most string
 #     concatenation for arguments should be avoided.
-#
-#   - sprintf() is to be used, within reason, for all string creation.
-#     This mtr_add_arg() function is also based on sprintf(), i.e. you
-#     use a format string and put the variable argument in the argument
-#     list.
 #
 #   - Functions defined in the main program are not to be prefixed,
 #     functions in "library files" are to be prefixed with "mtr_" (for
@@ -476,6 +474,7 @@ sub command_line_setup () {
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
+  Getopt::Long::Configure("pass_through");
   GetOptions(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
@@ -566,7 +565,21 @@ sub command_line_setup () {
     usage("");
   }
 
-  @opt_cases= @ARGV;
+  foreach my $arg ( @ARGV )
+  {
+    if ( $arg =~ /^--skip-/ )
+    {
+      push(@opt_extra_mysqld_opt, $arg);
+    }
+    elsif ( $arg =~ /^-/ )
+    {
+      usage("Invalid option \"$arg\"");
+    }
+    else
+    {
+      push(@opt_cases, $arg);
+    }
+  }
 
   # --------------------------------------------------------------------------
   # Set the "var/" directory, as it is the base for everything else
@@ -755,78 +768,96 @@ sub command_line_setup () {
 
   # Put this into a hash, will be a C struct
 
-  $master->[0]->{'path_myddir'}=  "$opt_vardir/master-data";
-  $master->[0]->{'path_myerr'}=   "$opt_vardir/log/master.err";
-  $master->[0]->{'path_mylog'}=   "$opt_vardir/log/master.log";
-  $master->[0]->{'path_mypid'}=   "$opt_vardir/run/master.pid";
-  $master->[0]->{'path_mysock'}=  "$opt_tmpdir/master.sock";
-  $master->[0]->{'path_myport'}=   $opt_master_myport;
-  $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
+  $master->[0]=
+  {
+   path_myddir   => "$opt_vardir/master-data",
+   path_myerr    => "$opt_vardir/log/master.err",
+   path_mylog    => "$opt_vardir/log/master.log",
+   path_mypid    => "$opt_vardir/run/master.pid",
+   path_mysock   => "$opt_tmpdir/master.sock",
+   path_myport   =>  $opt_master_myport,
+   start_timeout =>  400, # enough time create innodb tables
 
-  $master->[0]->{'ndbcluster'}= 1; # ndbcluster not started
+   ndbcluster    =>  1, # ndbcluster not started
+  };
 
-  $master->[1]->{'path_myddir'}=  "$opt_vardir/master1-data";
-  $master->[1]->{'path_myerr'}=   "$opt_vardir/log/master1.err";
-  $master->[1]->{'path_mylog'}=   "$opt_vardir/log/master1.log";
-  $master->[1]->{'path_mypid'}=   "$opt_vardir/run/master1.pid";
-  $master->[1]->{'path_mysock'}=  "$opt_tmpdir/master1.sock";
-  $master->[1]->{'path_myport'}=   $opt_master_myport + 1;
-  $master->[1]->{'start_timeout'}= 400; # enough time create innodb tables
+  $master->[1]=
+  {
+   path_myddir   => "$opt_vardir/master1-data",
+   path_myerr    => "$opt_vardir/log/master1.err",
+   path_mylog    => "$opt_vardir/log/master1.log",
+   path_mypid    => "$opt_vardir/run/master1.pid",
+   path_mysock   => "$opt_tmpdir/master1.sock",
+   path_myport   => $opt_master_myport + 1,
+   start_timeout => 400, # enough time create innodb tables
+  };
 
-  $slave->[0]->{'path_myddir'}=   "$opt_vardir/slave-data";
-  $slave->[0]->{'path_myerr'}=    "$opt_vardir/log/slave.err";
-  $slave->[0]->{'path_mylog'}=    "$opt_vardir/log/slave.log";
-  $slave->[0]->{'path_mypid'}=    "$opt_vardir/run/slave.pid";
-  $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
-  $slave->[0]->{'path_myport'}=    $opt_slave_myport;
-  $slave->[0]->{'start_timeout'}=  400;
+  $slave->[0]=
+  {
+   path_myddir   => "$opt_vardir/slave-data",
+   path_myerr    => "$opt_vardir/log/slave.err",
+   path_mylog    => "$opt_vardir/log/slave.log",
+   path_mypid    => "$opt_vardir/run/slave.pid",
+   path_mysock   => "$opt_tmpdir/slave.sock",
+   path_myport   => $opt_slave_myport,
+   start_timeout => 400,
+  };
 
-  $slave->[1]->{'path_myddir'}=   "$opt_vardir/slave1-data";
-  $slave->[1]->{'path_myerr'}=    "$opt_vardir/log/slave1.err";
-  $slave->[1]->{'path_mylog'}=    "$opt_vardir/log/slave1.log";
-  $slave->[1]->{'path_mypid'}=    "$opt_vardir/run/slave1.pid";
-  $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
-  $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
-  $slave->[1]->{'start_timeout'}=  300;
+  $slave->[1]=
+  {
+   path_myddir   => "$opt_vardir/slave1-data",
+   path_myerr    => "$opt_vardir/log/slave1.err",
+   path_mylog    => "$opt_vardir/log/slave1.log",
+   path_mypid    => "$opt_vardir/run/slave1.pid",
+   path_mysock   => "$opt_tmpdir/slave1.sock",
+   path_myport   => $opt_slave_myport + 1,
+   start_timeout => 300,
+  };
 
-  $slave->[2]->{'path_myddir'}=   "$opt_vardir/slave2-data";
-  $slave->[2]->{'path_myerr'}=    "$opt_vardir/log/slave2.err";
-  $slave->[2]->{'path_mylog'}=    "$opt_vardir/log/slave2.log";
-  $slave->[2]->{'path_mypid'}=    "$opt_vardir/run/slave2.pid";
-  $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
-  $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
-  $slave->[2]->{'start_timeout'}=  300;
+  $slave->[2]=
+  {
+   path_myddir   => "$opt_vardir/slave2-data",
+   path_myerr    => "$opt_vardir/log/slave2.err",
+   path_mylog    => "$opt_vardir/log/slave2.log",
+   path_mypid    => "$opt_vardir/run/slave2.pid",
+   path_mysock   => "$opt_tmpdir/slave2.sock",
+   path_myport   => $opt_slave_myport + 2,
+   start_timeout => 300,
+  };
 
-  $instance_manager->{'path_err'}=        "$opt_vardir/log/im.err";
-  $instance_manager->{'path_log'}=        "$opt_vardir/log/im.log";
-  $instance_manager->{'path_pid'}=        "$opt_vardir/run/im.pid";
-  $instance_manager->{'path_sock'}=       "$opt_tmpdir/im.sock";
-  $instance_manager->{'port'}=            $im_port;
-  $instance_manager->{'start_timeout'}=   $master->[0]->{'start_timeout'};
-  $instance_manager->{'admin_login'}=     'im_admin';
-  $instance_manager->{'admin_password'}=  'im_admin_secret';
-  $instance_manager->{'admin_sha1'}=      '*598D51AD2DFF7792045D6DF3DDF9AA1AF737B295';
-  $instance_manager->{'password_file'}=   "$opt_vardir/im.passwd";
-  $instance_manager->{'defaults_file'}=   "$opt_vardir/im.cnf";
-  
-  $instance_manager->{'instances'}->[0]->{'server_id'}= 1;
-  $instance_manager->{'instances'}->[0]->{'port'}= $im_mysqld1_port;
-  $instance_manager->{'instances'}->[0]->{'path_datadir'}=
-    "$opt_vardir/im_mysqld_1.data";
-  $instance_manager->{'instances'}->[0]->{'path_sock'}=
-    "$opt_vardir/mysqld_1.sock";
-  $instance_manager->{'instances'}->[0]->{'path_pid'}=
-    "$opt_vardir/mysqld_1.pid";
+  $instance_manager=
+  {
+   path_err =>        "$opt_vardir/log/im.err",
+   path_log =>        "$opt_vardir/log/im.log",
+   path_pid =>        "$opt_vardir/run/im.pid",
+   path_sock =>       "$opt_tmpdir/im.sock",
+   port =>            $im_port,
+   start_timeout =>   $master->[0]->{'start_timeout'},
+   admin_login =>     'im_admin',
+   admin_password =>  'im_admin_secret',
+   admin_sha1 =>      '*598D51AD2DFF7792045D6DF3DDF9AA1AF737B295',
+   password_file =>   "$opt_vardir/im.passwd",
+   defaults_file =>   "$opt_vardir/im.cnf",
+  };
 
-  $instance_manager->{'instances'}->[1]->{'server_id'}= 2;
-  $instance_manager->{'instances'}->[1]->{'port'}= $im_mysqld2_port;
-  $instance_manager->{'instances'}->[1]->{'path_datadir'}=
-    "$opt_vardir/im_mysqld_2.data";
-  $instance_manager->{'instances'}->[1]->{'path_sock'}=
-    "$opt_vardir/mysqld_2.sock";
-  $instance_manager->{'instances'}->[1]->{'path_pid'}=
-    "$opt_vardir/mysqld_2.pid";
-  $instance_manager->{'instances'}->[1]->{'nonguarded'}= 1;
+  $instance_manager->{'instances'}->[0]=
+  {
+   server_id    => 1,
+   port         => $im_mysqld1_port,
+   path_datadir => "$opt_vardir/im_mysqld_1.data",
+   path_sock    => "$opt_vardir/mysqld_1.sock",
+   path_pid     => "$opt_vardir/mysqld_1.pid",
+  };
+
+  $instance_manager->{'instances'}->[1]=
+  {
+   server_id    => 2,
+   port         => $im_mysqld2_port,
+   path_datadir => "$opt_vardir/im_mysqld_2.data",
+   path_sock    => "$opt_vardir/mysqld_2.sock",
+   path_pid     => "$opt_vardir/mysqld_2.pid",
+   nonguarded   => 1,
+  };
 
   if ( $opt_extern )
   {
@@ -2137,7 +2168,9 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $master->[$idx]->{'path_myerr'},
-                         $master->[$idx]->{'path_myerr'}, "") )
+                         $master->[$idx]->{'path_myerr'},
+                         "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($master->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
@@ -2148,7 +2181,9 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $slave->[$idx]->{'path_myerr'},
-                         $slave->[$idx]->{'path_myerr'}, "") )
+                         $slave->[$idx]->{'path_myerr'},
+                         "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($slave->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
@@ -2490,7 +2525,7 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
 
   # ----------------------------------------------------------------------
-  # Add args that should not go into the MYSQL_TEST environment var
+  # Add arguments that should not go into the MYSQL_TEST env var
   # ----------------------------------------------------------------------
 
   mtr_add_arg($args, "-R");

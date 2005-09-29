@@ -58,8 +58,8 @@ Set detailed error message for the transaction. */
 void
 trx_set_detailed_error(
 /*===================*/
-	trx_t*	trx,	/* in: transaction struct */
-	char*	msg)	/* in: detailed error message */
+	trx_t*		trx,	/* in: transaction struct */
+	const char*	msg)	/* in: detailed error message */
 {
 	ut_strlcpy(trx->detailed_error, msg, sizeof(trx->detailed_error));
 }
