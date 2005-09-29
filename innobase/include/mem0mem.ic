@@ -371,8 +371,7 @@ mem_heap_free_top(
 /*********************************************************************
 NOTE: Use the corresponding macros instead of this function. Creates a
 memory heap which allocates memory from dynamic space. For debugging
-purposes, takes also the file name and line as argument in the debug
-version. */
+purposes, takes also the file name and line as argument. */
 UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(
