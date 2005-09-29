@@ -589,10 +589,10 @@ public:
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event *description_event);
   /* print*() functions are used by mysqlbinlog */
-  virtual void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  virtual void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 		     LAST_EVENT_INFO* last_event_info= 0) = 0;
   void print_timestamp(FILE* file, time_t *ts = 0);
-  void print_header(FILE* file, my_off_t start_pos= 0);
+  void print_header(FILE* file, my_off_t hexdump_from= 0);
 #endif
 
   static void *operator new(size_t size)
@@ -753,9 +753,9 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   void print_query_header(FILE* file, bool short_form= 0,
-			  my_off_t start_pos= 0,
+			  my_off_t hexdump_from= 0,
 			  LAST_EVENT_INFO* last_event_info= 0);
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -810,7 +810,7 @@ public:
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -899,9 +899,9 @@ public:
 		 bool use_rli_only_for_errors);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info = 0);
-  void print(FILE* file, bool short_form, my_off_t start_pos,
+  void print(FILE* file, bool short_form, my_off_t hexdump_from,
 	     LAST_EVENT_INFO* last_event_info, bool commented);
 #endif
 
@@ -991,7 +991,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1087,7 +1087,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1129,7 +1129,7 @@ class Rand_log_event: public Log_event
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1167,7 +1167,7 @@ class Xid_log_event: public Log_event
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1210,7 +1210,7 @@ public:
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1237,7 +1237,7 @@ public:
   {}
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1277,7 +1277,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1331,9 +1331,9 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
-  void print(FILE* file, bool short_form, my_off_t start_pos,
+  void print(FILE* file, bool short_form, my_off_t hexdump_from,
 	     LAST_EVENT_INFO* last_event_info, bool enable_local);
 #endif
 
@@ -1401,7 +1401,7 @@ public:
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1437,9 +1437,9 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
-  void print(FILE* file, bool short_form, my_off_t start_pos,
+  void print(FILE* file, bool short_form, my_off_t hexdump_from,
 	     LAST_EVENT_INFO* last_event_info, bool enable_local);
 #endif
 
@@ -1475,7 +1475,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
@@ -1561,10 +1561,10 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
              LAST_EVENT_INFO* last_event_info= 0);
   /* Prints the query as LOAD DATA LOCAL and with rewritten filename */
-  void print(FILE* file, bool short_form, my_off_t start_pos,
+  void print(FILE* file, bool short_form, my_off_t hexdump_from,
 	     LAST_EVENT_INFO* last_event_info, const char *local_fname);
 #endif
   Execute_load_query_log_event(const char* buf, uint event_len,
@@ -1594,7 +1594,7 @@ public:
     Log_event(buf, description_event)
   {}
   ~Unknown_log_event() {}
-  void print(FILE* file, bool short_form= 0, my_off_t start_pos= 0,
+  void print(FILE* file, bool short_form= 0, my_off_t hexdump_from= 0,
 	     LAST_EVENT_INFO* last_event_info= 0);
   Log_event_type get_type_code() { return UNKNOWN_EVENT;}
   bool is_valid() const { return 1; }

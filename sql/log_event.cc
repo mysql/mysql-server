@@ -24,8 +24,6 @@
 #include  "mysql_priv.h"
 #include "slave.h"
 #include <my_dir.h>
-#else
-#include <ctype.h>  /* For isalnum() */
 #endif /* MYSQL_CLIENT */
 
 #define log_cs	&my_charset_latin1
@@ -883,53 +881,66 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   Log_event::print_header()
 */
 
-void Log_event::print_header(FILE* file, my_off_t start_pos)
+void Log_event::print_header(FILE* file, my_off_t hexdump_from)
 {
   char llbuff[22];
   fputc('#', file);
   print_timestamp(file);
   fprintf(file, " server id %d  end_log_pos %s ", server_id,
-	  llstr(log_pos,llbuff)); 
+	  llstr(log_pos,llbuff));
 
-  if (start_pos)
+  /* mysqlbinlog --hexdump */
+  if (hexdump_from)
   {
     fprintf(file, "\n");
-    unsigned char *ptr= (unsigned char*)temp_buf;
+    uchar *ptr= (uchar*)temp_buf;
+    my_off_t size=
+      uint4korr(ptr + EVENT_LEN_OFFSET) - LOG_EVENT_MINIMAL_HEADER_LEN;
     my_off_t i;
 
-    char position[8+1] = {0};
-    char b[3+1] = {0};
-    char hex_string[16*3+1+1] = {0};
-    char char_string[16+1] = {0};
+    /* Header len * 4 >= header len * (2 chars + space + extra space) */
+    char *h, hex_string[LOG_EVENT_MINIMAL_HEADER_LEN*4]= {0};
+    char *c, char_string[16+1]= {0};
 
-    for (i= 0; i < (log_pos-start_pos); i++, ptr++)
+    /* Common header of event */
+    fprintf(file, "# Position  Timestamp   Type   Master ID        "
+	    "Size      Master Pos    Flags \n");
+    fprintf(file, "# %8.8lx %02x %02x %02x %02x   %02x   "
+	    "%02x %02x %02x %02x   %02x %02x %02x %02x   "
+	    "%02x %02x %02x %02x   %02x %02x\n",
+	    hexdump_from, ptr[0], ptr[1], ptr[2], ptr[3], ptr[4],
+	    ptr[5], ptr[6], ptr[7], ptr[8], ptr[9], ptr[10], ptr[11],
+	    ptr[12], ptr[13], ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
+    ptr += LOG_EVENT_MINIMAL_HEADER_LEN;
+    hexdump_from += LOG_EVENT_MINIMAL_HEADER_LEN;
+
+    /* Rest of event (without common header) */
+    for (i= 0, c= char_string, h=hex_string;
+	 i < size;
+	 i++, ptr++)
     {
-      if (i % 16 == 0)
-	snprintf(position, sizeof(position), "%.8x",
-		 (unsigned int) (start_pos+i));
+      my_snprintf(h, 4, "%02x ", *ptr);
+      h += 3;
 
-      snprintf(b, sizeof(b), "%02X ", *ptr);
-      strncat(hex_string, b, sizeof(hex_string)-strlen(hex_string)-1);
-
-      snprintf(b, sizeof(b), "%c", isalnum(*ptr) ? *ptr : '.');
-      strncat(char_string, b, sizeof(char_string)-strlen(char_string)-1);
+      *c++= my_isalnum(&my_charset_bin, *ptr) ? *ptr : '.';
 
       if (i % 16 == 15)
       {
-	fprintf(file, "# %8.8s %-48.48s |%16s|\n",
-		position, hex_string, char_string);
-	hex_string[0] = 0;
-	char_string[0] = 0;
+	fprintf(file, "# %8.8lx %-48.48s |%16s|\n",
+		hexdump_from + (i & 0xfffffff0), hex_string, char_string);
+	hex_string[0]= 0;
+	char_string[0]= 0;
+	c= char_string;
+	h= hex_string;
       }
-      else if (i % 8 == 7)
-      {
-	/* Middle space */
-	strncat(hex_string, " ", sizeof(hex_string)-strlen(hex_string)-1);
-      }
+      else if (i % 8 == 7) *h++ = ' ';
     }
+    *c= '\0';
 
-    if (strlen(hex_string)) {
-      printf("# %8.8s %-48.48s |%s|\n# ", position, hex_string, char_string);
+    /* Non-full last line */
+    if (hex_string[0]) {
+      printf("# %8.8lx %-48.48s |%s|\n# ",
+	     hexdump_from + (i & 0xfffffff0), hex_string, char_string);
     }
   }
 }
@@ -1418,7 +1429,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
 #ifdef MYSQL_CLIENT
 void Query_log_event::print_query_header(FILE* file, bool short_form,
-					 my_off_t start_pos,
+					 my_off_t hexdump_from,
                                          LAST_EVENT_INFO* last_event_info)
 {
   // TODO: print the catalog ??
@@ -1428,7 +1439,7 @@ void Query_log_event::print_query_header(FILE* file, bool short_form,
 
   if (!short_form)
   {
-    print_header(file, start_pos);
+    print_header(file, hexdump_from);
     fprintf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
 	    get_type_str(), (ulong) thread_id, (ulong) exec_time, error_code);
   }
@@ -1549,10 +1560,10 @@ void Query_log_event::print_query_header(FILE* file, bool short_form,
 }
 
 
-void Query_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Query_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
                             LAST_EVENT_INFO* last_event_info)
 {
-  print_query_header(file, short_form, start_pos, last_event_info);
+  print_query_header(file, short_form, hexdump_from, last_event_info);
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fputs(";\n", file);
 }
@@ -1850,12 +1861,12 @@ void Start_log_event_v3::pack_info(Protocol *protocol)
 */
 
 #ifdef MYSQL_CLIENT
-void Start_log_event_v3::print(FILE* file, bool short_form, my_off_t start_pos,
+void Start_log_event_v3::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			       LAST_EVENT_INFO* last_event_info)
 {
   if (!short_form)
   {
-    print_header(file, start_pos);
+    print_header(file, hexdump_from);
     fprintf(file, "\tStart: binlog v %d, server v %s created ", binlog_version,
             server_version);
     print_timestamp(file);
@@ -2579,20 +2590,20 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 */
 
 #ifdef MYSQL_CLIENT
-void Load_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Load_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			   LAST_EVENT_INFO* last_event_info)
 {
-  print(file, short_form, start_pos, last_event_info, 0);
+  print(file, short_form, hexdump_from, last_event_info, 0);
 }
 
 
-void Load_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Load_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			   LAST_EVENT_INFO* last_event_info, bool commented)
 {
   DBUG_ENTER("Load_log_event::print");
   if (!short_form)
   {
-    print_header(file, start_pos);
+    print_header(file, hexdump_from);
     fprintf(file, "\tQuery\tthread_id=%ld\texec_time=%ld\n",
 	    thread_id, exec_time);
   }
@@ -2997,14 +3008,14 @@ void Rotate_log_event::pack_info(Protocol *protocol)
 */
 
 #ifdef MYSQL_CLIENT
-void Rotate_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Rotate_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			     LAST_EVENT_INFO* last_event_info)
 {
   char buf[22];
 
   if (short_form)
     return;
-  print_header(file, start_pos);
+  print_header(file, hexdump_from);
   fprintf(file, "\tRotate to ");
   if (new_log_ident)
     my_fwrite(file, (byte*) new_log_ident, (uint)ident_len, 
@@ -3200,7 +3211,7 @@ bool Intvar_log_event::write(IO_CACHE* file)
 */
 
 #ifdef MYSQL_CLIENT
-void Intvar_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Intvar_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
                              LAST_EVENT_INFO* last_event_info)
 {
   char llbuff[22];
@@ -3209,7 +3220,7 @@ void Intvar_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
 
   if (!short_form)
   {
-    print_header(file, start_pos);
+    print_header(file, hexdump_from);
     fprintf(file, "\tIntvar\n");
   }
 
@@ -3290,13 +3301,13 @@ bool Rand_log_event::write(IO_CACHE* file)
 
 
 #ifdef MYSQL_CLIENT
-void Rand_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Rand_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			   LAST_EVENT_INFO* last_event_info)
 {
   char llbuff[22],llbuff2[22];
   if (!short_form)
   {
-    print_header(file, start_pos);
+    print_header(file, hexdump_from);
     fprintf(file, "\tRand\n");
   }
   fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s;\n",
@@ -3361,7 +3372,7 @@ bool Xid_log_event::write(IO_CACHE* file)
 
 
 #ifdef MYSQL_CLIENT
-void Xid_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Xid_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			  LAST_EVENT_INFO* last_event_info)
 {
   if (!short_form)
@@ -3369,7 +3380,7 @@ void Xid_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
     char buf[64];
     longlong10_to_str(xid, buf, 10);
 
-    print_header(file, start_pos);
+    print_header(file, hexdump_from);
     fprintf(file, "\tXid = %s\n", buf);
     fflush(file);
   }
@@ -3560,12 +3571,12 @@ bool User_var_log_event::write(IO_CACHE* file)
 */
 
 #ifdef MYSQL_CLIENT
-void User_var_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void User_var_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			       LAST_EVENT_INFO* last_event_info)
 {
   if (!short_form)
   {
-    print_header(file, start_pos);
+    print_header(file, hexdump_from);
     fprintf(file, "\tUser_var\n");
   }
 
@@ -3736,12 +3747,12 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 
 #ifdef HAVE_REPLICATION
 #ifdef MYSQL_CLIENT
-void Unknown_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Unknown_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			      LAST_EVENT_INFO* last_event_info)
 {
   if (short_form)
     return;
-  print_header(file, start_pos);
+  print_header(file, hexdump_from);
   fputc('\n', file);
   fprintf(file, "# %s", "Unknown event\n");
 }
@@ -3808,13 +3819,13 @@ Slave_log_event::~Slave_log_event()
 
 
 #ifdef MYSQL_CLIENT
-void Slave_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Slave_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			    LAST_EVENT_INFO* last_event_info)
 {
   char llbuff[22];
   if (short_form)
     return;
-  print_header(file, start_pos);
+  print_header(file, hexdump_from);
   fputc('\n', file);
   fprintf(file, "\
 Slave: master_host: '%s'  master_port: %d  master_log: '%s'  master_pos: %s\n",
@@ -3894,13 +3905,13 @@ int Slave_log_event::exec_event(struct st_relay_log_info* rli)
 */
 
 #ifdef MYSQL_CLIENT
-void Stop_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Stop_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 			   LAST_EVENT_INFO* last_event_info)
 {
   if (short_form)
     return;
 
-  print_header(file, start_pos);
+  print_header(file, hexdump_from);
   fprintf(file, "\tStop\n");
   fflush(file);
 }
@@ -4074,19 +4085,19 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
 */
 
 #ifdef MYSQL_CLIENT
-void Create_file_log_event::print(FILE* file, bool short_form, my_off_t start_pos,
+void Create_file_log_event::print(FILE* file, bool short_form, my_off_t hexdump_from,
 				  LAST_EVENT_INFO* last_event_info, bool enable_local)
 {
   if (short_form)
   {
     if (enable_local && check_fname_outside_temp_buf())
-      Load_log_event::print(file, 1, start_pos, last_event_info);
+      Load_log_event::print(file, 1, hexdump_from, last_event_info);
     return;
   }
 
   if (enable_local)
   {
-    Load_log_event::print(file, short_form, start_pos, last_event_info, 
+    Load_log_event::print(file, short_form, hexdump_from, last_event_info, 
 			  !check_fname_outside_temp_buf());
     /* 
        That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
@@ -4100,10 +4111,10 @@ void Create_file_log_event::print(FILE* file, bool short_form, my_off_t start_po
 
 
 void Create_file_log_event::print(FILE* file, bool short_form,
-				  my_off_t start_pos,
+				  my_off_t hexdump_from,
 				  LAST_EVENT_INFO* last_event_info)
 {
-  print(file, short_form, start_pos, last_event_info, 0);
+  print(file, short_form, hexdump_from, last_event_info, 0);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -4264,12 +4275,12 @@ bool Append_block_log_event::write(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT  
 void Append_block_log_event::print(FILE* file, bool short_form,
-				   my_off_t start_pos,
+				   my_off_t hexdump_from,
 				   LAST_EVENT_INFO* last_event_info)
 {
   if (short_form)
     return;
-  print_header(file, start_pos);
+  print_header(file, hexdump_from);
   fputc('\n', file);
   fprintf(file, "#%s: file_id: %d  block_len: %d\n",
 	  get_type_str(), file_id, block_len);
@@ -4409,12 +4420,12 @@ bool Delete_file_log_event::write(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT  
 void Delete_file_log_event::print(FILE* file, bool short_form,
-				  my_off_t start_pos,
+				  my_off_t hexdump_from,
 				  LAST_EVENT_INFO* last_event_info)
 {
   if (short_form)
     return;
-  print_header(file, start_pos);
+  print_header(file, hexdump_from);
   fputc('\n', file);
   fprintf(file, "#Delete_file: file_id=%u\n", file_id);
 }
@@ -4506,12 +4517,12 @@ bool Execute_load_log_event::write(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT  
 void Execute_load_log_event::print(FILE* file, bool short_form,
-				   my_off_t start_pos,
+				   my_off_t hexdump_from,
 				   LAST_EVENT_INFO* last_event_info)
 {
   if (short_form)
     return;
-  print_header(file, start_pos);
+  print_header(file, hexdump_from);
   fputc('\n', file);
   fprintf(file, "#Exec_load: file_id=%d\n",
 	  file_id);
@@ -4719,19 +4730,19 @@ Execute_load_query_log_event::write_post_header_for_derived(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT
 void Execute_load_query_log_event::print(FILE* file, bool short_form,
-					 my_off_t start_pos,
+					 my_off_t hexdump_from,
                                          LAST_EVENT_INFO* last_event_info)
 {
-  print(file, short_form, start_pos, last_event_info, 0);
+  print(file, short_form, hexdump_from, last_event_info, 0);
 }
 
 
 void Execute_load_query_log_event::print(FILE* file, bool short_form,
-					 my_off_t start_pos,
+					 my_off_t hexdump_from,
                                          LAST_EVENT_INFO* last_event_info,
                                          const char *local_fname)
 {
-  print_query_header(file, short_form, start_pos, last_event_info);
+  print_query_header(file, short_form, hexdump_from, last_event_info);
 
   if (local_fname)
   {
