@@ -425,7 +425,7 @@ fi
 
 # Clean up the BuildRoot
 %clean
-[ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
+[ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
 
 %files server
 %defattr(-,root,root,0755)
@@ -562,6 +562,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Sep 29 2005 Lenz Grimmer <lenz@mysql.com>
+
+- fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
+  $RBR variable did not get expanded, thus leaving old build roots behind)
+
 * Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Fixed the creation of the mysql user group account in the postinstall
