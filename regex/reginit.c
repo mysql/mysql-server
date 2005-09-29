@@ -7,7 +7,7 @@
 
 static bool regex_inited=0;
 
-void regex_init(CHARSET_INFO *cs)
+void my_regex_init(CHARSET_INFO *cs)
 {
   char buff[CCLASS_LAST][256];
   int  count[CCLASS_LAST];
@@ -67,7 +67,7 @@ void regex_init(CHARSET_INFO *cs)
   return;
 }
 
-void regex_end()
+void my_regex_end()
 {
   if (regex_inited)
   {
