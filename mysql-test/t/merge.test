@@ -291,7 +291,7 @@ create table t3 (
 ) engine=myisam;
 
 insert into t2 values ( null, '');
-insert into t2 values ( 9999999999.9999, '');
+insert into t2 values ( 9999999999.999, '');
 insert into t3 select * from t2;
 select min(a), max(a) from t1;
 flush tables;
