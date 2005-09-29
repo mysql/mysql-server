@@ -83,9 +83,6 @@ public:
   void setClusterLogLevel(Parser_t::Context &ctx, 
 			  const class Properties &args);
   void setLogFilter(Parser_t::Context &ctx, const class Properties &args);
-  void configLock(Parser_t::Context &ctx, const class Properties &args);
-  void configUnlock(Parser_t::Context &ctx, const class Properties &args);
-  void configChange(Parser_t::Context &ctx, const class Properties &args);
 
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
   void listen_event(Parser_t::Context &ctx, const class Properties &args);
