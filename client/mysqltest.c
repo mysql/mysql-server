@@ -59,7 +59,7 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <violite.h>
-#include <regex.h>                        /* Our own version of lib */
+#include "my_regex.h"                     /* Our own version of lib */
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -212,7 +212,7 @@ static int got_end_timer= FALSE;
 static void timer_output(void);
 static ulonglong timer_now(void);
 
-static regex_t ps_re; /* Holds precompiled re for valid PS statements */
+static my_regex_t ps_re; /* Holds precompiled re for valid PS statements */
 static void ps_init_re(void);
 static int ps_match_re(char *);
 static char *ps_eprint(int);
@@ -3767,12 +3767,13 @@ static void ps_init_re(void)
     "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
     "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
 
-  int err= regcomp(&ps_re, ps_re_str, (REG_EXTENDED | REG_ICASE | REG_NOSUB),
-                   &my_charset_latin1);
+  int err= my_regcomp(&ps_re, ps_re_str,
+                      (REG_EXTENDED | REG_ICASE | REG_NOSUB),
+                      &my_charset_latin1);
   if (err)
   {
     char erbuf[100];
-    int len= regerror(err, &ps_re, erbuf, sizeof(erbuf));
+    int len= my_regerror(err, &ps_re, erbuf, sizeof(erbuf));
     fprintf(stderr, "error %s, %d/%d `%s'\n",
             ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
     exit(1);
@@ -3782,7 +3783,7 @@ static void ps_init_re(void)
 
 static int ps_match_re(char *stmt_str)
 {
-  int err= regexec(&ps_re, stmt_str, (size_t)0, NULL, 0);
+  int err= my_regexec(&ps_re, stmt_str, (size_t)0, NULL, 0);
 
   if (err == 0)
     return 1;
@@ -3791,7 +3792,7 @@ static int ps_match_re(char *stmt_str)
   else
   {
     char erbuf[100];
-    int len= regerror(err, &ps_re, erbuf, sizeof(erbuf));
+    int len= my_regerror(err, &ps_re, erbuf, sizeof(erbuf));
     fprintf(stderr, "error %s, %d/%d `%s'\n",
             ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
     exit(1);
@@ -3801,7 +3802,7 @@ static int ps_match_re(char *stmt_str)
 static char *ps_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= regerror(REG_ITOA|err, (regex_t *)NULL, epbuf, sizeof(epbuf));
+  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL, epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }
@@ -3809,7 +3810,7 @@ static char *ps_eprint(int err)
 
 static void ps_free_reg(void)
 {
-  regfree(&ps_re);
+  my_regfree(&ps_re);
 }
 
 /****************************************************************************/

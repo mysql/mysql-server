@@ -12,7 +12,7 @@ group client_global_pch =
             'm_ctype.h', 'mysqld_error.h',
             'my_list.h', 'my_sys.h', 'my_net.h',
             'myisam.h', 'myisampack.h', '.\myisam\myisamdef.h',
-            '.\regex\regex.h'
+            '.\regex\my_regex.h'
 
 group server_global_pch =
             'os2.h',
@@ -38,7 +38,7 @@ group server_global_pch =
             'my_tree.h', '..\mysys\my_static.h', 'netdb.h',
             'thr_alarm.h', 'heap.h', '..\myisam\fulltext.h',
             '..\myisam\ftdefs.h', 'myisammrg.h',
-            '.\regex\regex.h'
+            '.\regex\my_regex.h'
 
 group server_pch =
             'ha_heap.h', 'ha_myisammrg.h', 'opt_ft.h',

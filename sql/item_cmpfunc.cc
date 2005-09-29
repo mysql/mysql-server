@@ -3072,14 +3072,14 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
       return FALSE;
     }
     int error;
-    if ((error= regcomp(&preg,res->c_ptr(),
-                        ((cmp_collation.collation->state &
-                          (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                         REG_EXTENDED | REG_NOSUB :
-                         REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                        cmp_collation.collation)))
+    if ((error= my_regcomp(&preg,res->c_ptr(),
+                           ((cmp_collation.collation->state &
+                             (MY_CS_BINSORT | MY_CS_CSSORT)) ?
+                            REG_EXTENDED | REG_NOSUB :
+                            REG_EXTENDED | REG_NOSUB | REG_ICASE),
+                           cmp_collation.collation)))
     {
-      (void) regerror(error,&preg,buff,sizeof(buff));
+      (void) my_regerror(error,&preg,buff,sizeof(buff));
       my_error(ER_REGEXP_ERROR, MYF(0), buff);
       return TRUE;
     }
@@ -3121,15 +3121,15 @@ longlong Item_func_regex::val_int()
       prev_regexp.copy(*res2);
       if (regex_compiled)
       {
-	regfree(&preg);
+	my_regfree(&preg);
 	regex_compiled=0;
       }
-      if (regcomp(&preg,res2->c_ptr_safe(),
-                  ((cmp_collation.collation->state &
-                    (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                   REG_EXTENDED | REG_NOSUB :
-                   REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                   cmp_collation.collation))
+      if (my_regcomp(&preg,res2->c_ptr_safe(),
+                     ((cmp_collation.collation->state &
+                       (MY_CS_BINSORT | MY_CS_CSSORT)) ?
+                      REG_EXTENDED | REG_NOSUB :
+                      REG_EXTENDED | REG_NOSUB | REG_ICASE),
+                     cmp_collation.collation))
       {
 	null_value=1;
 	return 0;
@@ -3138,7 +3138,7 @@ longlong Item_func_regex::val_int()
     }
   }
   null_value=0;
-  return regexec(&preg,res->c_ptr(),0,(regmatch_t*) 0,0) ? 0 : 1;
+  return my_regexec(&preg,res->c_ptr(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
 }
 
 
@@ -3148,7 +3148,7 @@ void Item_func_regex::cleanup()
   Item_bool_func::cleanup();
   if (regex_compiled)
   {
-    regfree(&preg);
+    my_regfree(&preg);
     regex_compiled=0;
   }
   DBUG_VOID_RETURN;
