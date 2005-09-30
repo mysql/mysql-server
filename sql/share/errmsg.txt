@@ -5366,12 +5366,12 @@ ER_TOO_BIG_SCALE 42000 S1009
         eng "Too big scale %d specified for column '%-.64s'. Maximum is %d."
 ER_TOO_BIG_PRECISION 42000 S1009
         eng "Too big precision %d specified for column '%-.64s'. Maximum is %d."
-ER_SCALE_BIGGER_THAN_PRECISION 42000 S1009
-        eng "Scale may not be larger than the precision (column '%-.64s')."
+ER_M_BIGGER_THAN_D 42000 S1009
+        eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.64s')."
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system '%-.64s.%-.64s' table with other tables"
 ER_CONNECT_TO_FOREIGN_DATA_SOURCE
-        eng "Unable to connect to foreign data source - database '%s'!"
+        eng "Unable to connect to foreign data source - database '%.64s'!"
 ER_QUERY_ON_FOREIGN_DATA_SOURCE
         eng "There was a problem processing the query on the foreign data source. Data source error: '%-.64s'"
 ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST
@@ -5400,7 +5400,7 @@ ER_DATETIME_FUNCTION_OVERFLOW 22008
 ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
         eng "Can't update table '%-.64s' in stored function/trigger because it is already used by statement which invoked this stored function/trigger."
 ER_VIEW_PREVENT_UPDATE
-        eng "The definition of table '%-.64s' prevents operation %s on table '%-.64s'."
+        eng "The definition of table '%-.64s' prevents operation %.64s on table '%-.64s'."
 ER_PS_NO_RECURSION
         eng "The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner"
 ER_SP_CANT_SET_AUTOCOMMIT
@@ -5419,5 +5419,3 @@ ER_ROW_IS_REFERENCED_2 23000
 	eng "Cannot delete or update a parent row: a foreign key constraint fails (%.192s)"
 ER_NO_REFERENCED_ROW_2 23000
 	eng "Cannot add or update a child row: a foreign key constraint fails (%.192s)"
-ER_M_BIGGER_THAN_D 42000 S1009
-        eng "For float(M,D) or double(M,D), M must be >= D (column '%-.64s')."
