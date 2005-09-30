@@ -5750,7 +5750,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     }
     if (new_field->length < new_field->decimals)
     {
-      my_error(ER_SCALE_BIGGER_THAN_PRECISION, MYF(0), field_name);
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
       DBUG_RETURN(NULL);
     }
     new_field->length=

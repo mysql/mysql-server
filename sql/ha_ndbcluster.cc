@@ -1209,7 +1209,8 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
   DBUG_ENTER("ha_ndbcluster::index_flags");
   DBUG_PRINT("info", ("idx_no: %d", idx_no));
   DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
-  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)]);
+  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)] | 
+              HA_KEY_SCAN_NOT_ROR);
 }
 
 static void shrink_varchar(Field* field, const byte* & ptr, char* buf)

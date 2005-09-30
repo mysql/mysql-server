@@ -38,6 +38,7 @@ typedef struct st_mi_status_info
   my_off_t key_empty;			/* lost space in indexfile */
   my_off_t key_file_length;
   my_off_t data_file_length;
+  ha_checksum checksum;
 } MI_STATUS_INFO;
 
 typedef struct st_mi_state_info
@@ -75,7 +76,6 @@ typedef struct st_mi_state_info
   ulong sec_index_changed;		/* Updated when new sec_index */
   ulong sec_index_used;			/* which extra index are in use */
   ulonglong key_map;			/* Which keys are in use */
-  ha_checksum checksum;
   ulong version;			/* timestamp of create */
   time_t create_time;			/* Time when created database */
   time_t recover_time;			/* Time for last recover */
