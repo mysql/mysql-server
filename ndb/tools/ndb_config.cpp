@@ -168,6 +168,11 @@ main(int argc, char** argv){
   else
     conf = fetch_configuration();
 
+  if (conf == 0)
+  {
+    return -1;
+  }
+  
   Vector<Apply*> select_list;
   Vector<Match*> where_clause;
 
