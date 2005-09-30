@@ -1894,7 +1894,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
   Under LOCK TABLES, each used tables will force a call to start_stmt.
 */
 
-int ha_berkeley::start_stmt(THD *thd)
+int ha_berkeley::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   int error=0;
   DBUG_ENTER("ha_berkeley::start_stmt");
