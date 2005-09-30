@@ -199,7 +199,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       DBUG_PRINT("warning",("saved_base_info_length: %d  base_info_length: %d",
 			    len,MI_BASE_INFO_SIZE))
     }
-    disk_pos=my_n_base_info_read((uchar*) disk_cache + base_pos, &share->base);
+    disk_pos= (char*) 
+      my_n_base_info_read((uchar*) disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
 
     if (!(open_flags & HA_OPEN_FOR_REPAIR) &&
@@ -863,7 +864,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
 }
 
 
-char *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
+uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 {
   uint i,keys,key_parts,key_blocks;
   memcpy_fixed(&state->header,ptr, sizeof(state->header));
@@ -974,7 +975,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
 }
 
 
-char *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
+uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
 {
   base->keystart = mi_sizekorr(ptr);			ptr +=8;
   base->max_data_file_length = mi_sizekorr(ptr);	ptr +=8;
