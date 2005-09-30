@@ -2635,7 +2635,7 @@ innobase_convert_and_store_changed_col(
 				&& cset <= 144/*ucs2_persian_ci*/)) {
 			/* space=0x0020 */
 			/* Trim "half-chars", just in case. */
-			len &= ~1;
+			len = len - (len % 2); /* len &= ~1; */
 
 			while (len && data[len - 2] == 0x00
 					&& data[len - 1] == 0x20) {
