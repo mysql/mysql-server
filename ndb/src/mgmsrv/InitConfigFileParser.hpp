@@ -34,11 +34,12 @@ class ConfigInfo;
  * object if the config file has correct syntax and semantic. 
  */
 class InitConfigFileParser {
+  FILE * m_errstream;
 public:
   /**
    *   Constructor
    */
-  InitConfigFileParser();
+  InitConfigFileParser(FILE * errstream = stdout);
   ~InitConfigFileParser();
 
   /**
@@ -50,6 +51,7 @@ public:
    */
   Config * parseConfig(FILE * file);
   Config * parseConfig(const char * filename);
+  Config * parse_mycnf();
 
   /**
    * Parser context struct
@@ -60,7 +62,7 @@ public:
    *   Context = Which section in init config file we are currently parsing
    */
   struct Context {
-    Context(const ConfigInfo *);
+    Context(const ConfigInfo *, FILE * out);
     ~Context();
 
     ContextSectionType  type; ///< Section type (e.g. default section,section)
@@ -82,6 +84,7 @@ public:
     ConfigValuesFactory m_configValues;  //
 
   public:
+    FILE * m_errstream;
     void reportError(const char * msg, ...);
     void reportWarning(const char * msg, ...);
   };
@@ -122,6 +125,21 @@ private:
    *   Information about parameters (min, max values etc)
    */
   ConfigInfo* m_info;
+
+  bool handle_mycnf_defaults(Vector<struct my_option>& options,
+			     InitConfigFileParser::Context& ctx, 
+			     const char * name);
+  
+  bool load_mycnf_groups(Vector<struct my_option> & options,
+			 InitConfigFileParser::Context& ctx,
+			 const char * name,
+			 const char *groups[]);
+
+  bool store_in_properties(Vector<struct my_option>& options, 
+			   InitConfigFileParser::Context& ctx,
+			   const char * name);
+  
+  Config* run_config_rules(Context& ctx);
 };
 
 #endif // InitConfigFileParser_H
