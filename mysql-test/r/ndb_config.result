@@ -3,3 +3,5 @@ ndbd,1,localhost ndbd,2,localhost ndb_mgmd,3,localhost mysqld,4, mysqld,5, mysql
 1 localhost 41943040 12582912
 2 localhost 41943040 12582912
 1 2
+ndbd,1,localhost ndbd,2,localhost ndb_mgmd,3,localhost mysqld,4, mysqld,5, mysqld,6, mysqld,7,
+ndbd,1,localhost,52428800,26214400 ndbd,2,localhost,52428800,36700160 ndbd,3,localhost,52428800,52428800 ndbd,4,localhost,52428800,52428800 ndb_mgmd,5,localhost,, mysqld,6,localhost,,
