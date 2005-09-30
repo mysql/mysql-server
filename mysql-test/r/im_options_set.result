@@ -1,0 +1,20 @@
+server_id           =1
+server_id           =2
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
+SET mysqld1.server_id = 11;
+server_id =11
+server_id           =2
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
+SET mysqld2.server_id = 12;
+server_id =11
+server_id =12
+FLUSH INSTANCES;
+server_id =11
+server_id =12
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
