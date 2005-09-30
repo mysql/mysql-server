@@ -9,3 +9,5 @@
 --exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=type,nodeid,host --config-file=$NDB_BACKUP_DIR/config.ini 2> /dev/null
 
 # End of 4.1 tests
+
+--exec $NDB_TOOLS_DIR/ndb_config --defaults-group-suffix=.jonas --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf1.cnf --query=type,nodeid,host,IndexMemory,DataMemory --mycnf 2> /dev/null

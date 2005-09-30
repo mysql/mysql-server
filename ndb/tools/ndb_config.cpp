@@ -41,6 +41,7 @@ static const char * g_host = 0;
 static const char * g_field_delimiter=",";
 static const char * g_row_delimiter=" ";
 static const char * g_config_file = 0;
+static int g_mycnf = 0;
 
 int g_print_full_config, opt_ndb_shm;
 my_bool opt_core;
@@ -94,6 +95,9 @@ static struct my_option my_long_options[] =
   { "config-file", 256, "Path to config.ini",
     (gptr*) &g_config_file, (gptr*) &g_config_file,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "mycnf", 256, "Read config from my.cnf",
+    (gptr*) &g_mycnf, (gptr*) &g_mycnf,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -163,10 +167,15 @@ main(int argc, char** argv){
 
   ndb_mgm_configuration * conf = 0;
 
-  if (g_config_file)
+  if (g_config_file || g_mycnf)
     conf = load_configuration();
   else
     conf = fetch_configuration();
+
+  if (conf == 0)
+  {
+    return -1;
+  }
 
   Vector<Apply*> select_list;
   Vector<Match*> where_clause;
@@ -437,10 +446,20 @@ ndb_mgm_configuration*
 load_configuration()
 {  
   InitConfigFileParser parser(stderr);
-  if (g_verbose)
-    fprintf(stderr, "Using config.ini : %s", g_config_file);
+  if (g_config_file)
+  {
+    if (g_verbose)
+      fprintf(stderr, "Using config.ini : %s", g_config_file);
+    
+    Config* conf = parser.parseConfig(g_config_file);
+    if (conf)
+      return conf->m_configValues;
+  }
   
-  Config* conf = parser.parseConfig(g_config_file);
+  if (g_verbose)
+    fprintf(stderr, "Using my.cnf");
+  
+  Config* conf = parser.parse_mycnf();
   if (conf)
     return conf->m_configValues;
 

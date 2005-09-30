@@ -843,7 +843,7 @@ InitConfigFileParser::parse_mycnf()
   }
 
   
-  Context ctx(m_info); 
+  Context ctx(m_info, m_errstream); 
   const char *groups[]= { "cluster_config", 0 };
   if (load_defaults(options, groups))
     goto end;
