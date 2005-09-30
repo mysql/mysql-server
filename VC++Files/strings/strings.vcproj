@@ -304,6 +304,25 @@
 			</FileConfiguration>
 		</File>
 		<File
+			RelativePath="ctype-eucjpms.c">
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+		</File>
+		<File
 			RelativePath="ctype-extra.c">
 			<FileConfiguration
 				Name="Release|Win32">
@@ -570,6 +589,25 @@
 			</FileConfiguration>
 		</File>
 		<File
+			RelativePath="decimal.c">
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+		</File>
+		<File
 			RelativePath="int2str.c">
 			<FileConfiguration
 				Name="Release|Win32">
@@ -720,6 +758,9 @@
 					AdditionalIncludeDirectories=""
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
+		</File>
+		<File
+			RelativePath=".\str_alloc.c">
 		</File>
 		<File
 			RelativePath="strcend.c">
