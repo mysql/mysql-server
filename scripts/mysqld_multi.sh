@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.14";
+$VER="2.15";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -326,7 +326,6 @@ sub start_mysqlds()
       }
       else
       {
-	$options[$j]=~ s/;/\\;/g;
 	$options[$j]= quote_opt_arg($options[$j]);
 	$tmp.= " $options[$j]";
       }
