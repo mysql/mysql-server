@@ -28,6 +28,6 @@ SET @`var2`:=_latin1 0x61 COLLATE `latin1_swedish_ci`;
 SET TIMESTAMP=10000;
 insert into t1 values (@var1),(@var2);
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 drop table t1;

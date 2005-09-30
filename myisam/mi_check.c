@@ -1092,7 +1092,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 			 "Keypointers and record positions doesn't match");
     error=1;
   }
-  else if (param->glob_crc != info->s->state.checksum &&
+  else if (param->glob_crc != info->state->checksum &&
 	   (info->s->options &
 	    (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD)))
   {
@@ -1388,7 +1388,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     info->state->data_file_length=sort_param.max_pos;
   }
   if (param->testflag & T_CALC_CHECKSUM)
-    share->state.checksum=param->glob_crc;
+    info->state->checksum=param->glob_crc;
 
   if (!(param->testflag & T_SILENT))
   {
@@ -2156,7 +2156,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 			       my_errno);
   }
   if (param->testflag & T_CALC_CHECKSUM)
-    share->state.checksum=param->glob_crc;
+    info->state->checksum=param->glob_crc;
 
   if (my_chsize(share->kfile,info->state->key_file_length,0,MYF(0)))
     mi_check_print_warning(param,
@@ -2577,7 +2577,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			       my_errno);
   }
   if (param->testflag & T_CALC_CHECKSUM)
-    share->state.checksum=param->glob_crc;
+    info->state->checksum=param->glob_crc;
 
   if (my_chsize(share->kfile,info->state->key_file_length,0,MYF(0)))
     mi_check_print_warning(param,
@@ -3808,7 +3808,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     (*org_info)->s->state.create_time=share.state.create_time;
   (*org_info)->s->state.unique=(*org_info)->this_unique=
     share.state.unique;
-  (*org_info)->s->state.checksum=share.state.checksum;
+  (*org_info)->state->checksum=info.state->checksum;
   (*org_info)->state->del=info.state->del;
   (*org_info)->s->state.dellink=share.state.dellink;
   (*org_info)->state->empty=info.state->empty;

@@ -22,14 +22,16 @@
 #include <NdbCondition.h>
 #include <mgmapi.h>
 
-
+#include <NdbTCP.h>
+#include <ConfigRetriever.hpp>
 #include <Vector.hpp>
 #include <NodeBitmask.hpp>
 #include <signaldata/ManagementServer.hpp>
-#include "SignalQueue.hpp"
 #include <ndb_version.h>
 #include <EventLogger.hpp>
 #include <signaldata/EventSubscribeReq.hpp>
+
+#include <SignalSender.hpp>
 
 /**
  * @desc Block number for Management server.
@@ -200,50 +202,25 @@ public:
 
   ~MgmtSrvr();
 
-  int status(int processId, 
-	     ndb_mgm_node_status * status, 
+  /**
+   * Get status on a node.
+   * address may point to a common area (e.g. from inet_addr)
+   * There is no gaurentee that it is preserved across calls.
+   * Copy the string if you are not going to use it immediately.
+   */
+  int status(int nodeId,
+	     ndb_mgm_node_status * status,
 	     Uint32 * version,
 	     Uint32 * phase,
 	     bool * systemShutdown,
 	     Uint32 * dynamicId,
 	     Uint32 * nodeGroup,
-	     Uint32 * connectCount);
+	     Uint32 * connectCount,
+	     const char **address);
   
   // All the functions below may return any of this error codes:
   // NO_CONTACT_WITH_PROCESS, PROCESS_NOT_CONFIGURED, WRONG_PROCESS_TYPE,
   // COULD_NOT_ALLOCATE_MEMORY, SEND_OR_RECEIVE_FAILED
-
-
-  typedef void (* StopCallback)(int nodeId, void * anyData, int errorCode);
-
-  typedef void (* VersionCallback)(int nodeId, int version,
-				   void * anyData, int errorCode);
-
-
-  typedef void (* EnterSingleCallback)(int nodeId, void * anyData, 
-				       int errorCode);
-  typedef void (* ExitSingleCallback)(int nodeId, void * anyData, 
-				      int errorCode);
-
-  /**
-   * Lock configuration
-   */
-  int lockConf();
-
-  /**
-   * Unlock configuration, and commit it if commit is true
-   */
-  int unlockConf(bool commit);
-
-  /**
-   * Commit new configuration
-   */
-  int commitConfig();
-
-  /**
-   * Rollback configuration
-   */
-  int rollbackConfig();
 
   /**
    * Save a configuration to permanent storage
@@ -273,12 +250,12 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int stopNode(int nodeId, bool abort = false, StopCallback = 0, void *any= 0);
+  int stopNode(int nodeId, bool abort = false);
 
   /**
    *   Stop the system
    */
-  int stop(int * cnt = 0, bool abort = false, StopCallback = 0, void *any = 0);
+  int stop(int * cnt = 0, bool abort = false);
 
   /**
    *   print version info about a node
@@ -286,27 +263,18 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int versionNode(int nodeId, bool abort = false, 
-		  VersionCallback = 0, void *any= 0);
+  int versionNode(int nodeId, Uint32 &version, const char **address);
 
-  /**
-   *   print version info about all node in the system
-   */
-  int version(int * cnt = 0, bool abort = false, 
-	      VersionCallback = 0, void *any = 0);
-  
   /**
    *   Maintenance on the system
    */
-  int enterSingleUser(int * cnt = 0, Uint32 singleuserNodeId = 0,
-		      EnterSingleCallback = 0, void *any = 0);
+  int enterSingleUser(int * cnt = 0, Uint32 singleuserNodeId = 0);
 
 
   /**
    *   Resume from maintenance on the system
    */
-  int exitSingleUser(int * cnt = 0, bool abort = false, 
-	     ExitSingleCallback = 0, void *any = 0);
+  int exitSingleUser(int * cnt = 0, bool abort = false);
 
   /**
    *   Start DB process.
@@ -320,15 +288,14 @@ public:
    *   @param processId: Id of the DB process to start
    */
   int restartNode(int processId, bool nostart, bool initialStart, 
-		  bool abort = false,
-		  StopCallback = 0, void * anyData = 0);
+		  bool abort = false);
   
   /**
    *   Restart the system
    */
   int restart(bool nostart, bool initialStart, 
 	      bool abort = false,
-	      int * stopCount = 0, StopCallback = 0, void * anyData = 0);
+	      int * stopCount = 0);
   
   struct BackupEvent {
     enum Event {
@@ -483,24 +450,12 @@ public:
   const Config * getConfig() const;
 
   /**
-   *   Change configuration paramter
-   */
-  bool changeConfig(const BaseString &section,
-		    const BaseString &param,
-		    const BaseString &value);
-
-  /**
    * Returns the node count for the specified node type.
    *
    *  @param type The node type.
    *  @return The number of nodes of the specified type.
    */
   int getNodeCount(enum ndb_mgm_node_type type) const;
-
-  /**
-   * Returns the nodeId of the management master
-   */
-  NodeId getPrimaryNode() const;
 
   /**
    * Returns the port number.
@@ -528,8 +483,17 @@ public:
 private:
   //**************************************************************************
 
-  int setEventReportingLevel(int processId, LogLevel::EventCategory, Uint32); 
-  
+  int send(SignalSender &ss, SimpleSignal &ssig, Uint32 node, Uint32 node_type);
+
+  int sendSTOP_REQ(NodeId nodeId,
+		   NodeBitmask &stoppedNodes,
+		   Uint32 singleUserNodeId,
+		   bool abort,
+		   bool stop,
+		   bool restart,
+		   bool nostart,
+		   bool initialStart);
+ 
   /**
    *   Check if it is possible to send a signal to a (DB) process
    *
@@ -593,9 +557,6 @@ private:
   // Returns: -
   //**************************************************************************
 
-  void handle_MGM_LOCK_CONFIG_REQ(NdbApiSignal *signal);
-  void handle_MGM_UNLOCK_CONFIG_REQ(NdbApiSignal *signal);
-
   //**************************************************************************
   // Specific signal handling data
   //**************************************************************************
@@ -619,59 +580,8 @@ private:
   enum WaitSignalType { 
     NO_WAIT,			// We don't expect to receive any signal
     WAIT_SET_VAR,		// Accept SET_VAR_CONF and SET_VAR_REF
-    WAIT_SUBSCRIBE_CONF,	// Accept event subscription confirmation
-    WAIT_STOP,
-    WAIT_BACKUP_STARTED,
-    WAIT_BACKUP_COMPLETED,
-    WAIT_VERSION,
-    WAIT_NODEFAILURE
+    WAIT_SUBSCRIBE_CONF 	// Accept event subscription confirmation
   };
-
-  /**
-   *   Get an unused signal
-   *   @return  A signal if succeeded, NULL otherwise
-   */
-  NdbApiSignal* getSignal();
-
-  /**
-   *   Add a signal to the list of unused signals
-   *   @param  signal: The signal to add
-   */
-  void releaseSignal(NdbApiSignal* signal);
-
-  /**
-   *   Remove a signal from the list of unused signals and delete
-   *   the memory for it.
-   */
-  void freeSignal();
-  
-  /**
-   *   Send a signal
-   *   @param   processId: Id of the receiver process
-   *   @param   waitState: State denoting a set of signals we accept to receive
-   *   @param   signal: The signal to send
-   *   @return  0 if succeeded, -1 otherwise
-   */
-  int sendSignal(Uint16 processId, WaitSignalType waitState, 
-		 NdbApiSignal* signal, bool force = false);
-  
-  /**
-   *   Send a signal and wait for an answer signal
-   *   @param   processId: Id of the receiver process
-   *   @param   waitState: State denoting a set of signals we accept to receive.
-   *   @param   signal: The signal to send
-   *   @return  0 if succeeded, -1 otherwise (for example failed to send or 
-   *            failed to receive expected signal).
-   */
-  int sendRecSignal(Uint16 processId, WaitSignalType waitState, 
-		    NdbApiSignal* signal, bool force = false,
-		    int waitTime = WAIT_FOR_RESPONSE_TIMEOUT);
-  
-  /**
-   *   Wait for a signal to arrive.
-   *   @return  0 if signal arrived, -1 otherwise
-   */
-  int receiveOptimisedResponse(int waitTime);
   
   /**
    *   This function is called from "outside" of MgmtSrvr
@@ -682,7 +592,7 @@ private:
   static void signalReceivedNotification(void* mgmtSrvr, 
 					 NdbApiSignal* signal, 
 					 struct LinearSectionPtr ptr[3]);
-  
+
   /**
    *   Called from "outside" of MgmtSrvr when a DB process has died.
    *   @param  mgmtSrvr:   The MgmtSrvr object wreceiveOptimisedResponsehich 
@@ -719,31 +629,7 @@ private:
 
   class TransporterFacade * theFacade;
 
-  class SignalQueue m_signalRecvQueue;
-
-  struct StopRecord {
-    StopRecord(){ inUse = false; callback = 0; singleUserMode = false;}
-    bool inUse;
-    bool singleUserMode;
-    int sentCount;
-    int reply;
-    int nodeId;
-    void * anyData;
-    StopCallback callback;
-  };
-  StopRecord m_stopRec;
-
-  struct VersionRecord {
-    VersionRecord(){ inUse = false; callback = 0;}
-    bool inUse;
-    Uint32 version[MAX_NODES];
-    VersionCallback callback;
-  };
-  VersionRecord m_versionRec;
-  int  sendVersionReq( int processId);
-
-
-  void handleStopReply(NodeId nodeId, Uint32 errCode);
+  int  sendVersionReq( int processId, Uint32 &version, const char **address);
   int translateStopRef(Uint32 errCode);
   
   bool _isStopThread;
@@ -764,13 +650,7 @@ private:
   static void *logLevelThread_C(void *);
   void logLevelThreadRun();
   
-  struct NdbThread *m_signalRecvThread;
-  static void *signalRecvThread_C(void *);
-  void signalRecvThreadRun();
-  
   Config *_props;
-
-  int send(class NdbApiSignal* signal, Uint32 node, Uint32 node_type);
 
   ConfigRetriever *m_config_retriever;
 };

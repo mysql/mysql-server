@@ -936,7 +936,7 @@ ERROR 42000: Too big scale 31 specified for column 'sl'. Maximum is 30.
 create table t1 (sl decimal(0,38));
 ERROR 42000: Too big scale 38 specified for column 'sl'. Maximum is 30.
 create table t1 (sl decimal(0,30));
-ERROR 42000: Scale may not be larger than the precision (column 'sl').
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'sl').
 create table t1 (sl decimal(5, 5));
 show create table t1;
 Table	Create Table

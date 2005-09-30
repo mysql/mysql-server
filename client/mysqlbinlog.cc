@@ -1434,7 +1434,7 @@ int main(int argc, char** argv)
     of transaction.
   */
   fprintf(result_file,
-          "# End of log file\nROLLBACK;\n"
+          "# End of log file\nROLLBACK /* added by mysqlbinlog */;\n"
           "/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;\n");
   if (disable_log_bin)
     fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
