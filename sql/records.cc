@@ -29,7 +29,59 @@ static int rr_from_cache(READ_RECORD *info);
 static int init_rr_cache(READ_RECORD *info);
 static int rr_cmp(uchar *a,uchar *b);
 
-	/* init struct for read with info->read_record */
+static int rr_index(READ_RECORD *info);
+
+
+
+/*
+  Initialize READ_RECORD structure to perform full index scan
+
+  SYNOPSIS 
+    init_read_record_idx()
+      info         READ_RECORD structure to initialize.
+      thd          Thread handle
+      table        Table to be accessed 
+      print_error  If true, call table->file->print_error() if an error
+                   occurs (except for end-of-records error)
+      idx          index to scan
+  
+  DESCRIPTION
+    Initialize READ_RECORD structure to perform full index scan (in forward
+    direction) using read_record.read_record() interface.
+    
+    This function has been added at late stage and is used only by
+    UPDATE/DELETE. Other statements perform index scans using
+    join_read_first/next functions.
+*/
+
+void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
+                          bool print_error, uint idx)
+{
+  bzero((char*) info,sizeof(*info));
+  info->thd=thd;
+  info->table=table;
+  info->file= table->file;
+  info->forms= &info->table;		/* Only one table */
+    
+  info->record= table->record[0];
+  info->ref_length= table->file->ref_length;
+
+  info->select=NULL;
+  info->print_error=print_error;
+  info->ignore_not_found_rows= 0;
+  table->status=0;			/* And it's always found */
+
+  if (!table->file->inited)
+  {
+    table->file->ha_index_init(idx);
+    table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+  }
+  info->read_record= rr_index;
+  info->first= TRUE;
+}
+
+
+/* init struct for read with info->read_record */
 
 void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 		      SQL_SELECT *select,
@@ -181,6 +233,57 @@ static int rr_quick(READ_RECORD *info)
   return tmp;
 }
 
+
+/*
+  Read next index record. The calling convention of this function is 
+  compatible with READ_RECORD::read_record.
+
+  SYNOPSIS
+    rr_index()
+      info  Scan info
+
+  RETURN
+    0   Ok
+    -1  End of records 
+    1   Error   
+*/
+
+static int rr_index(READ_RECORD *info)
+{
+  int tmp;
+  while (1)
+  {
+    if (info->first)
+    {
+      info->first= FALSE;
+      tmp= info->file->index_first(info->record);
+    }
+    else
+      tmp= info->file->index_next(info->record);
+    
+    if (!tmp)
+      break;
+    if (info->thd->killed)
+    {
+      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      return 1;
+    }
+    if (tmp != HA_ERR_RECORD_DELETED)
+    {
+      if (tmp == HA_ERR_END_OF_FILE)
+	tmp= -1;
+      else
+      {
+	if (info->print_error)
+	  info->table->file->print_error(tmp,MYF(0));
+	if (tmp < 0)				// Fix negative BDB errno
+	  tmp=1;
+      }
+      break;
+    }
+  }
+  return tmp;
+}
 
 static int rr_sequential(READ_RECORD *info)
 {
