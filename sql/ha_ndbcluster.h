@@ -501,7 +501,7 @@ class ha_ndbcluster: public handler
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);
-  int start_stmt(THD *thd);
+  int start_stmt(THD *thd, thr_lock_type lock_type);
   const char * table_type() const;
   const char ** bas_ext() const;
   ulong table_flags(void) const;
