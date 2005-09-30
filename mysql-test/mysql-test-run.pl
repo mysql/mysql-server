@@ -671,11 +671,6 @@ sub command_line_setup () {
     mtr_error("Coverage test needs the source - please use source dist");
   }
 
-  if ( $glob_use_embedded_server and ! $opt_source_dist )
-  {
-    mtr_error("Embedded server needs source tree - please use source dist");
-  }
-
   if ( $opt_gdb )
   {
     $opt_wait_timeout=  300;
@@ -902,7 +897,7 @@ sub executable_setup () {
     if ( $glob_use_embedded_server )
     {
       my $path_examples= "$glob_basedir/libmysqld/examples";
-      $exe_mysqltest=    mtr_exe_exists("$path_examples/mysqltest");
+      $exe_mysqltest=    mtr_exe_exists("$path_examples/mysqltest_embedded");
       $exe_mysql_client_test=
         mtr_exe_exists("$path_examples/mysql_client_test_embedded",
 		       "/usr/bin/false");
@@ -929,7 +924,6 @@ sub executable_setup () {
   else
   {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
-    $exe_mysqltest=      mtr_exe_exists("$path_client_bindir/mysqltest");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
