@@ -1261,7 +1261,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
 	     share->base.raid_chunksize);
     }
     if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
-      printf("Checksum:  %23s\n",llstr(info->s->state.checksum,llbuff));
+      printf("Checksum:  %23s\n",llstr(info->state->checksum,llbuff));
 ;
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)
       printf("Keys are only flushed at close\n");
@@ -1576,7 +1576,7 @@ static int mi_sort_records(MI_CHECK *param,
   old_record_count=info->state->records;
   info->state->records=0;
   if (sort_info.new_data_file_type != COMPRESSED_RECORD)
-    share->state.checksum=0;
+    info->state->checksum=0;
 
   if (sort_record_index(&sort_param,info,keyinfo,share->state.key_root[sort_key],
 			temp_buff, sort_key,new_file,update_index) ||

@@ -823,7 +823,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   mi_sizestore(ptr,state->state.empty);		ptr +=8;
   mi_sizestore(ptr,state->state.key_empty);	ptr +=8;
   mi_int8store(ptr,state->auto_increment);	ptr +=8;
-  mi_int8store(ptr,(ulonglong) state->checksum);ptr +=8;
+  mi_int8store(ptr,(ulonglong) state->state.checksum);ptr +=8;
   mi_int4store(ptr,state->process);		ptr +=4;
   mi_int4store(ptr,state->unique);		ptr +=4;
   mi_int4store(ptr,state->status);		ptr +=4;
@@ -885,7 +885,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
   state->state.empty	= mi_sizekorr(ptr);	ptr +=8;
   state->state.key_empty= mi_sizekorr(ptr);	ptr +=8;
   state->auto_increment=mi_uint8korr(ptr);	ptr +=8;
-  state->checksum=(ha_checksum) mi_uint8korr(ptr);	ptr +=8;
+  state->state.checksum=(ha_checksum) mi_uint8korr(ptr);	ptr +=8;
   state->process= mi_uint4korr(ptr);		ptr +=4;
   state->unique = mi_uint4korr(ptr);		ptr +=4;
   state->status = mi_uint4korr(ptr);		ptr +=4;
