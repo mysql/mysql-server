@@ -93,7 +93,7 @@ int mi_delete(MI_INFO *info,const byte *record)
 
   if ((*share->delete_record)(info))
     goto err;				/* Remove record from database */
-  info->s->state.checksum-=info->checksum;
+  info->state->checksum-=info->checksum;
 
   info->update= HA_STATE_CHANGED+HA_STATE_DELETED+HA_STATE_ROW_CHANGED;
   info->state->records--;
