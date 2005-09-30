@@ -1,11 +1,11 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#include <regex.h>
 #ifdef __WIN__
 #include  <limits.h>
 #endif
 
+#include "my_regex.h"
 #include "utils.h"
 #include "regex2.h"
 
@@ -100,8 +100,8 @@ static int never = 0;		/* for use in asserts; shuts lint up */
  = #define	REG_DUMP	0200
  */
 int				/* 0 success, otherwise REG_something */
-regcomp(preg, pattern, cflags, charset)
-regex_t *preg;
+my_regcomp(preg, pattern, cflags, charset)
+my_regex_t *preg;
 const char *pattern;
 int cflags;
 CHARSET_INFO *charset;
@@ -117,7 +117,7 @@ CHARSET_INFO *charset;
 #	define	GOODFLAGS(f)	((f)&~REG_DUMP)
 #endif
 
-	regex_init(charset);	/* Init cclass if neaded */
+	my_regex_init(charset);	/* Init cclass if neaded */
 	preg->charset=charset;
 	cflags = GOODFLAGS(cflags);
 	if ((cflags&REG_EXTENDED) && (cflags&REG_NOSPEC))
@@ -199,7 +199,7 @@ CHARSET_INFO *charset;
 
 	/* win or lose, we're done */
 	if (p->error != 0)	/* lose */
-		regfree(preg);
+		my_regfree(preg);
 	return(p->error);
 }
 

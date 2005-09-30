@@ -1,4 +1,4 @@
-drop table if exists t1, t2;
+drop table if exists t1, t2, t3;
 CREATE TABLE t1 (
 event_date date DEFAULT '0000-00-00' NOT NULL,
 type int(11) DEFAULT '0' NOT NULL,
@@ -787,3 +787,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
 drop view v1;
 drop table t1;
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a varchar(10), filler char(200), key(a)) charset=binary;
+insert into t1 values ('a','');
+insert into t1 values ('a ','');
+insert into t1 values ('a  ', '');
+insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
+  from t3 A, t3 B, t3 C;
+create table t2 (a varchar(10), filler char(200), key(a));
+insert into t2 select * from t1;
+explain select * from t1 where a between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+explain select * from t1 where a = 'a' or a='a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+explain select * from t2 where a between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	a	a	13	const	#	Using where
+explain select * from t2 where a = 'a' or a='a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	a	a	13	const	#	Using where
+drop table t1,t2,t3;

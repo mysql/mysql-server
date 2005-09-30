@@ -2620,6 +2620,15 @@ select found_rows();
 found_rows()
 1
 DROP TABLE t1;
+create table t1(f1 int, f2 int);
+create table t2(f3 int);
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,1));
+f1
+select f1 from t1,t2 where f1=f2 and (f1,NULL) = ((1,1));
+f1
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,NULL));
+f1
+drop table t1,t2;
 CREATE TABLE t1 ( city char(30) );
 INSERT INTO t1 VALUES ('London');
 INSERT INTO t1 VALUES ('Paris');
@@ -3029,3 +3038,26 @@ id
 102
 drop table t1, t2;
 drop view v1, v2, v3;
+create table a (
+id int(11) not null default '0'
+) engine=myisam default charset=latin1;
+insert into a values (123),(191),(192);
+create table b (
+id char(16) character set utf8 not null default ''
+) engine=myisam default charset=latin1;
+insert into b values ('58013'),('58014'),('58015'),('58016');
+create table c (
+a_id int(11) not null default '0',
+b_id char(16) character set utf8 default null
+) engine=myisam default charset=latin1;
+insert into c values
+(123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
+select count(*)
+from a inner join (c left join b on b.id = c.b_id) on a.id = c.a_id;
+count(*)
+6
+select count(*)
+from a inner join (b right join c on b.id = c.b_id) on a.id = c.a_id;
+count(*)
+6
+drop table a, b, c;

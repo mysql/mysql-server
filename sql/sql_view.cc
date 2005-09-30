@@ -1394,12 +1394,13 @@ int view_checksum(THD *thd, TABLE_LIST *view)
 */
 bool
 mysql_rename_view(THD *thd,
-		   const char *new_name,
-           TABLE_LIST *view)
+                  const char *new_name,
+                  TABLE_LIST *view)
 {
   LEX_STRING pathstr, file;
   File_parser *parser;
   char view_path[FN_REFLEN];
+  bool error= TRUE;
 
   DBUG_ENTER("mysql_rename_view");
 
@@ -1411,19 +1412,20 @@ mysql_rename_view(THD *thd,
   pathstr.length= strlen(view_path);
 
   if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
-       is_equal(&view_type, parser->type())) {
+       is_equal(&view_type, parser->type()))
+  {
     char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
 
     /* get view definition and source */
     if (mysql_make_view(parser, view) ||
         parser->parse((gptr)view, thd->mem_root,
                       view_parameters + source_number_position, 1))
-      DBUG_RETURN(1);
+      goto err;
 
     /* rename view and it's backups */
     if (rename_in_schema_file(view->db, view->table_name, new_name, 
                               view->revision - 1, num_view_backups))
-      DBUG_RETURN(1);
+      goto err;
 
     strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", view->db, "/", NullS);
     (void) unpack_filename(dir_buff, dir_buff);
@@ -1436,11 +1438,13 @@ mysql_rename_view(THD *thd,
                   - file_buff);
 
     if (sql_create_definition_file(&pathstr, &file, view_file_type,
-      (gptr)view, view_parameters, num_view_backups)) {
+                                   (gptr)view, view_parameters, 
+                                   num_view_backups)) 
+    {
       /* restore renamed view in case of error */
       rename_in_schema_file(view->db, new_name, view->table_name, 
                              view->revision - 1, num_view_backups);
-      DBUG_RETURN(1);
+      goto err;
     }
   } else
     DBUG_RETURN(1);  
@@ -1448,5 +1452,13 @@ mysql_rename_view(THD *thd,
   /* remove cache entries */
   query_cache_invalidate3(thd, view, 0);
   sp_cache_invalidate();
-  DBUG_RETURN(0);
+  error= FALSE;
+
+err:
+  /*
+   We have to explicitly call destructor for view's LEX since it won't
+   be called otherwise.
+  */
+  delete view->view;
+  DBUG_RETURN(error);
 }
