@@ -2987,11 +2987,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     Check that the table and database that qualify the current field name
     are the same as the table reference we are going to search for the field.
 
-    We exclude from the test below NATURAL/USING joins and any nested join
-    because each column in such
-    joins may potentially originate from a different table. However, base
-    tables and views that are under some NATURAL/USING join are searched
-    as usual base tables/views.
+    Exclude from the test below nested joins because the columns in a
+    nested join generally originate from different tables. Nested joins
+    also have no table name, except when a nested join is a merge view
+    or an information schema table.
 
     We include explicitly table references with a 'field_translation' table,
     because if there are views over natural joins we don't want to search
