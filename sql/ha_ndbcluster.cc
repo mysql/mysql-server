@@ -3401,7 +3401,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   startTransaction for each transaction/statement.
 */
 
-int ha_ndbcluster::start_stmt(THD *thd)
+int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   int error=0;
   DBUG_ENTER("start_stmt");
