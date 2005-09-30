@@ -482,8 +482,6 @@ err:
 
 /* index of revision number in following table */
 static const int revision_number_position= 8;
-/* index of source */
-static const int source_number_position= 11;
 /* index of last required parameter for making view */
 static const int required_view_parameters= 10;
 /* number of backups */
@@ -1414,17 +1412,27 @@ mysql_rename_view(THD *thd,
   if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
        is_equal(&view_type, parser->type()))
   {
+    TABLE_LIST view_def;
     char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
 
+    /*
+      To be PS-friendly we should either to restore state of
+      TABLE_LIST object pointed by 'view' after using it for
+      view definition parsing or use temporary 'view_def'
+      object for it.
+    */
+    bzero(&view_def, sizeof(view_def));
+    view_def.timestamp.str= view_def.timestamp_buffer;
+    view_def.view_suid= TRUE;
+
     /* get view definition and source */
-    if (mysql_make_view(parser, view) ||
-        parser->parse((gptr)view, thd->mem_root,
-                      view_parameters + source_number_position, 1))
+    if (parser->parse((gptr)&view_def, thd->mem_root, view_parameters,
+                      sizeof(view_parameters)/sizeof(view_parameters[0])-1))
       goto err;
 
     /* rename view and it's backups */
     if (rename_in_schema_file(view->db, view->table_name, new_name, 
-                              view->revision - 1, num_view_backups))
+                              view_def.revision - 1, num_view_backups))
       goto err;
 
     strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", view->db, "/", NullS);
@@ -1438,12 +1446,12 @@ mysql_rename_view(THD *thd,
                   - file_buff);
 
     if (sql_create_definition_file(&pathstr, &file, view_file_type,
-                                   (gptr)view, view_parameters, 
+                                   (gptr)&view_def, view_parameters,
                                    num_view_backups)) 
     {
       /* restore renamed view in case of error */
       rename_in_schema_file(view->db, new_name, view->table_name, 
-                             view->revision - 1, num_view_backups);
+                            view_def.revision - 1, num_view_backups);
       goto err;
     }
   } else
@@ -1455,10 +1463,5 @@ mysql_rename_view(THD *thd,
   error= FALSE;
 
 err:
-  /*
-   We have to explicitly call destructor for view's LEX since it won't
-   be called otherwise.
-  */
-  delete view->view;
   DBUG_RETURN(error);
 }
