@@ -183,6 +183,23 @@ const char *ha_get_storage_engine(enum db_type db_type)
   return "none";
 }
 
+bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
+{
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if (db_type == types->db_type)
+    {
+      if (types->ht->flags & flag)
+        return TRUE;
+      else
+        return FALSE;
+    }
+  }
+
+  return FALSE;
+}
+
 
 my_bool ha_storage_engine_is_enabled(enum db_type database_type)
 {
