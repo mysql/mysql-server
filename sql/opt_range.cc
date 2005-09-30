@@ -5117,6 +5117,8 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
     if (cpk_scan)
       param->is_ror_scan= TRUE;
   }
+  if (param->table->file->index_flags(key, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
+    param->is_ror_scan= FALSE;
   DBUG_PRINT("exit", ("Records: %lu", (ulong) records));
   DBUG_RETURN(records);
 }
