@@ -98,6 +98,13 @@
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
 
+/*
+  Index scan will not return records in rowid order. Not guaranteed to be
+  set for unordered (e.g. HASH) indexes.
+*/
+#define HA_KEY_SCAN_NOT_ROR     128 
+
+
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
 #define HA_KEY_SWITCH_ALL          1
