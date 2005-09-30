@@ -595,6 +595,7 @@ extern "C" {
       } BackupAborted;
       /** Log event data @ref NDB_LE_SingleUser */
       struct {
+        unsigned type;
         unsigned node_id;
       } SingleUser;
 #ifndef DOXYGEN_FIX
