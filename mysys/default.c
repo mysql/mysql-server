@@ -42,6 +42,7 @@
 #include <winbase.h>
 #endif
 
+const char *defaults_file=0;
 const char *defaults_group_suffix=0;
 char *defaults_extra_file=0;
 
@@ -140,6 +141,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (forced_extra_defaults)
     defaults_extra_file= forced_extra_defaults;
   
+  if (forced_default_file)
+    defaults_file= forced_default_file;
+
   /*
     We can only handle 'defaults-group-suffix' if we are called from
     load_defaults() as otherwise we can't know the type of 'func_ctx'
