@@ -152,7 +152,7 @@ drop table t1;
 # bug #12694 (float(m,d) specifications)
 #
 
---error 1453
+--error 1427
 create table t1 (s1 float(0,2));
---error 1453
+--error 1427
 create table t1 (s1 float(1,2));
