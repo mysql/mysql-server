@@ -2575,3 +2575,37 @@ select * from v1 left join v3 using (id);
 
 drop table t1, t2;
 drop view v1, v2, v3;
+
+#
+# Bug #13597 Column in ON condition not resolved if references a table in
+# nested right join.
+#
+
+create table a (
+  id int(11) not null default '0'
+) engine=myisam default charset=latin1;
+
+insert into a values (123),(191),(192);
+
+create table b (
+  id char(16) character set utf8 not null default ''
+) engine=myisam default charset=latin1;
+
+insert into b values ('58013'),('58014'),('58015'),('58016');
+
+create table c (
+  a_id int(11) not null default '0',
+  b_id char(16) character set utf8 default null
+) engine=myisam default charset=latin1;
+
+insert into c values
+(123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
+
+-- both queries are equivalent
+select count(*)
+from a inner join (c left join b on b.id = c.b_id) on a.id = c.a_id;
+
+select count(*)
+from a inner join (b right join c on b.id = c.b_id) on a.id = c.a_id;
+
+drop table a, b, c;
