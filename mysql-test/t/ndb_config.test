@@ -6,5 +6,6 @@
 --exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
 --exec $NDB_TOOLS_DIR/ndb_config --no-defaults -r \\n -f " " --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
 --exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=nodeid --type=ndbd --host=localhost 2> /dev/null
+--exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=type,nodeid,host --config-file=$NDB_BACKUP_DIR/config.ini 2> /dev/null
 
 # End of 4.1 tests

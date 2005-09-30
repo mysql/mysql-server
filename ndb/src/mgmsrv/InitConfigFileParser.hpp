@@ -34,11 +34,12 @@ class ConfigInfo;
  * object if the config file has correct syntax and semantic. 
  */
 class InitConfigFileParser {
+  FILE * m_errstream;
 public:
   /**
    *   Constructor
    */
-  InitConfigFileParser();
+  InitConfigFileParser(FILE * errstream = stdout);
   ~InitConfigFileParser();
 
   /**
@@ -61,7 +62,7 @@ public:
    *   Context = Which section in init config file we are currently parsing
    */
   struct Context {
-    Context(const ConfigInfo *);
+    Context(const ConfigInfo *, FILE * out);
     ~Context();
 
     ContextSectionType  type; ///< Section type (e.g. default section,section)
@@ -83,6 +84,7 @@ public:
     ConfigValuesFactory m_configValues;  //
 
   public:
+    FILE * m_errstream;
     void reportError(const char * msg, ...);
     void reportWarning(const char * msg, ...);
   };
