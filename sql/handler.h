@@ -654,7 +654,7 @@ public:
   virtual int reset() { return extra(HA_EXTRA_RESET); }
   virtual int external_lock(THD *thd, int lock_type) { return 0; }
   virtual void unlock_row() {}
-  virtual int start_stmt(THD *thd) {return 0;}
+  virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
   /*
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
