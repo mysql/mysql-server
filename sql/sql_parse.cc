@@ -246,7 +246,7 @@ end:
 
   SYNOPSIS
     check_user()
-    thd          thread handle, thd->{host,user,ip} are used
+    thd          thread handle, thd->security_ctx->{host,user,ip} are used
     command      originator of the check: now check_user is called
                  during connect and change user procedures; used for 
                  logging.
@@ -261,8 +261,8 @@ end:
     are 'IN'.
 
   RETURN VALUE
-    0  OK; thd->user, thd->master_access, thd->priv_user, thd->db and
-       thd->db_access are updated; OK is sent to client;
+    0  OK; thd->security_ctx->user/master_access/priv_user/db_access and
+       thd->db are updated; OK is sent to client;
    -1  access denied or handshake error; error is sent to client;
    >0  error, not sent to client
 */
@@ -5644,8 +5644,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
        and so on, the display width is ignored.
     */
     char buf[32];
-    my_snprintf(buf, sizeof(buf),
-                "TIMESTAMP(%s)", length, system_charset_info);
+    my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
     push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DEPRECATED_SYNTAX,
                         ER(ER_WARN_DEPRECATED_SYNTAX),
@@ -5751,7 +5750,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     }
     if (new_field->length < new_field->decimals)
     {
-      my_error(ER_SCALE_BIGGER_THAN_PRECISION, MYF(0), field_name);
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
       DBUG_RETURN(NULL);
     }
     new_field->length=

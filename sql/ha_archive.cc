@@ -18,7 +18,7 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "../mysql_priv.h"
+#include "mysql_priv.h"
 
 #ifdef HAVE_ARCHIVE_DB
 #include "ha_archive.h"
