@@ -73,7 +73,7 @@ handlerton myisam_hton= {
     MyISAM doesn't support transactions and doesn't have
     transaction-dependent context: cursors can survive a commit.
   */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 // collect errors printed by mi_check routines

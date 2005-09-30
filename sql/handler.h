@@ -377,8 +377,10 @@ struct show_table_alias_st {
 };
 
 /* Possible flags of a handlerton */
-#define HTON_NO_FLAGS 0
-#define HTON_CLOSE_CURSORS_AT_COMMIT 1
+#define HTON_NO_FLAGS                 0
+#define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
+#define HTON_ALTER_NOT_SUPPORTED     (1 << 1)
+#define HTON_CAN_RECREATE            (1 << 2)
 
 typedef struct st_thd_trans
 {
@@ -848,18 +850,13 @@ extern ulong total_ha, total_ha_2pc;
 #define ha_commit(thd) (ha_commit_trans((thd), TRUE))
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
-#define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
-                                 T != DB_TYPE_BERKELEY_DB && \
-                                 T != DB_TYPE_ARCHIVE_DB && \
-                                 T != DB_TYPE_FEDERATED_DB && \
-                                 T != DB_TYPE_NDBCLUSTER)
-
 /* lookups */
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
 enum db_type ha_checktype(THD *thd, enum db_type database_type,
                           bool no_substitute, bool report_error);
+bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag);
 
 /* basic stuff */
 int ha_init(void);
