@@ -31,8 +31,10 @@ static void require(bool v) { if(!v) abort();}
 //****************************************************************************
 //  Ctor / Dtor
 //****************************************************************************
-InitConfigFileParser::InitConfigFileParser(){
+InitConfigFileParser::InitConfigFileParser(FILE * out)
+{
   m_info = new ConfigInfo();
+  m_errstream = out ? out : stdout;
 }
 
 InitConfigFileParser::~InitConfigFileParser() {
@@ -42,11 +44,12 @@ InitConfigFileParser::~InitConfigFileParser() {
 //****************************************************************************
 //  Read Config File
 //****************************************************************************
-InitConfigFileParser::Context::Context(const ConfigInfo * info)
+InitConfigFileParser::Context::Context(const ConfigInfo * info, FILE * out)
   :  m_userProperties(true), m_configValues(1000, 20) {
 
   m_config = new Properties(true);
   m_defaults = new Properties(true);
+  m_errstream = out;
 }
 
 InitConfigFileParser::Context::~Context(){
@@ -61,10 +64,10 @@ Config *
 InitConfigFileParser::parseConfig(const char * filename) {
   FILE * file = fopen(filename, "r");
   if(file == 0){
-    ndbout << "Error opening file: " << filename << endl;
+    fprintf(m_errstream, "Error opening file: %s\n", filename);
     return 0;
   }
-
+  
   Config * ret = parseConfig(file);
   fclose(file);
   return ret;
@@ -75,7 +78,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
 
   char line[MAX_LINE_LENGTH];
 
-  Context ctx(m_info); 
+  Context ctx(m_info, m_errstream); 
   ctx.m_lineno = 0;
   ctx.m_currentSection = 0;
 
@@ -160,6 +163,13 @@ InitConfigFileParser::parseConfig(FILE * file) {
     ctx.reportError("Could not store section of configuration file.");
     return 0;
   }
+
+  return run_config_rules(ctx);
+}
+
+Config*
+InitConfigFileParser::run_config_rules(Context& ctx)
+{
   for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != 0; i++){
     ctx.type             = InitConfigFileParser::Undefined;
     ctx.m_currentSection = 0;
@@ -267,10 +277,10 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line)
   }
   if (status == ConfigInfo::CI_DEPRICATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
-    if(desc){
+    if(desc && desc[0]){
       ctx.reportWarning("[%s] %s is depricated, use %s instead", 
 			ctx.fname, fname, desc);
-    } else {
+    } else if (desc == 0){
       ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
     } 
   }
@@ -571,8 +581,9 @@ InitConfigFileParser::Context::reportError(const char * fmt, ...){
   va_start(ap, fmt);
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  ndbout << "Error line " << m_lineno << ": " << buf << endl;
   va_end(ap);
+  fprintf(m_errstream, "Error line %d: %s\n",
+	  m_lineno, buf);
 
   //m_currentSection->print();
 }
@@ -585,6 +596,358 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
   va_start(ap, fmt);
   if (fmt != 0)
     BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  ndbout << "Warning line " << m_lineno << ": " << buf << endl;
   va_end(ap);
+  fprintf(m_errstream, "Warning line %d: %s\n",
+	  m_lineno, buf);
 }
+
+#include <my_sys.h>
+#include <my_getopt.h>
+
+static int order = 1;
+static 
+my_bool 
+parse_mycnf_opt(int, const struct my_option * opt, char * value)
+{
+  if(opt->comment)
+    ((struct my_option *)opt)->app_type++;
+  else
+    ((struct my_option *)opt)->app_type = order++;
+  return 0;
+}
+
+bool
+InitConfigFileParser::store_in_properties(Vector<struct my_option>& options, 
+					  InitConfigFileParser::Context& ctx,
+					  const char * name)
+{
+  for(unsigned i = 0; i<options.size(); i++)
+  {
+    if(options[i].comment && 
+       options[i].app_type && 
+       strcmp(options[i].comment, name) == 0)
+    {
+      Uint64 value_int;
+      switch(options[i].var_type){
+      case GET_INT:
+	value_int = *(Uint32*)options[i].value;
+	break;
+      case GET_LL:
+	value_int = *(Uint64*)options[i].value;
+	break;
+      case GET_STR:
+	ctx.m_currentSection->put(options[i].name, (char*)options[i].value);
+	continue;
+      default:
+	abort();
+      }
+
+      const char * fname = options[i].name;
+      if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
+	ctx.reportError("Illegal value %lld for parameter %s.\n"
+			"Legal values are between %Lu and %Lu", 
+			value_int, fname,
+			m_info->getMin(ctx.m_currentInfo, fname), 
+			m_info->getMax(ctx.m_currentInfo, fname));
+	return false;
+      }
+      if (options[i].var_type == GET_INT)
+	ctx.m_currentSection->put(options[i].name, (Uint32)value_int);
+      else
+	ctx.m_currentSection->put(options[i].name, value_int);	
+    }
+  }
+  return true;
+}
+
+bool
+InitConfigFileParser::handle_mycnf_defaults(Vector<struct my_option>& options,
+					    InitConfigFileParser::Context& ctx, 
+					    const char * name)
+{
+  strcpy(ctx.fname, name);
+  ctx.type = InitConfigFileParser::DefaultSection;
+  ctx.m_currentSection = new Properties(true);
+  ctx.m_userDefaults   = NULL;
+  require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
+  require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname)) != 0);
+  if(store_in_properties(options, ctx, name))
+    return storeSection(ctx);
+  return false;
+}
+
+static
+int
+load_defaults(Vector<struct my_option>& options, const char* groups[])
+{
+  int argc = 1;
+  const char * argv[] = { "ndb_mgmd", 0, 0, 0, 0 };
+  BaseString file;
+  BaseString extra_file;
+  BaseString group_suffix;
+
+  const char *save_file = defaults_file;
+  char *save_extra_file = defaults_extra_file;
+  const char *save_group_suffix = defaults_group_suffix;
+
+  if (defaults_file)
+  {
+    file.assfmt("--defaults-file=%s", defaults_file);
+    argv[argc++] = file.c_str();
+  }
+
+  if (defaults_extra_file)
+  {
+    extra_file.assfmt("--defaults-extra-file=%s", defaults_extra_file);
+    argv[argc++] = extra_file.c_str();
+  }
+
+  if (defaults_group_suffix)
+  {
+    group_suffix.assfmt("--defaults-group-suffix=%s", defaults_group_suffix);
+    argv[argc++] = group_suffix.c_str();
+  }
+
+  char ** tmp = (char**)argv;
+  int ret = load_defaults("my", groups, &argc, &tmp);
+  
+  defaults_file = save_file;
+  defaults_extra_file = save_extra_file;
+  defaults_group_suffix = save_group_suffix;
+  
+  if (ret == 0)
+  {
+    return handle_options(&argc, &tmp, options.getBase(), parse_mycnf_opt);
+  }
+  
+  return ret;
+}
+
+bool
+InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
+					InitConfigFileParser::Context& ctx,
+					const char * name,
+					const char *groups[])
+{
+  unsigned i;
+  Vector<struct my_option> copy;
+  for(i = 0; i<options.size(); i++)
+  {
+    if(options[i].comment && strcmp(options[i].comment, name) == 0)
+    {
+      options[i].app_type = 0;
+      copy.push_back(options[i]);
+    }
+  }
+
+  struct my_option end;
+  bzero(&end, sizeof(end));
+  copy.push_back(end);
+
+  if (load_defaults(copy, groups))
+    return false;
+  
+  return store_in_properties(copy, ctx, name);
+}
+
+Config *
+InitConfigFileParser::parse_mycnf() 
+{
+  int i;
+  Config * res = 0;
+  Vector<struct my_option> options;
+  for(i = 0; i<ConfigInfo::m_NoOfParams; i++)
+  {
+    if (strcmp(ConfigInfo::m_ParamInfo[i]._section, "DB") == 0 ||
+	strcmp(ConfigInfo::m_ParamInfo[i]._section, "API") == 0 ||
+	strcmp(ConfigInfo::m_ParamInfo[i]._section, "MGM") == 0)
+    {
+      struct my_option opt;
+      bzero(&opt, sizeof(opt));
+      const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
+      switch(param._type){
+      case ConfigInfo::CI_BOOL:
+	opt.value = (gptr*)malloc(sizeof(int));
+	opt.var_type = GET_INT;
+	break;
+      case ConfigInfo::CI_INT: 
+	opt.value = (gptr*)malloc(sizeof(int));
+	opt.var_type = GET_INT;
+	require(convertStringToUint64(param._min, (Uint64&)opt.min_value));
+	require(convertStringToUint64(param._max, (Uint64&)opt.max_value));
+	break;
+      case ConfigInfo::CI_INT64:
+	opt.value = (gptr*)malloc(sizeof(Int64));
+	opt.var_type = GET_LL;
+	require(convertStringToUint64(param._min, (Uint64&)opt.min_value));
+	require(convertStringToUint64(param._max, (Uint64&)opt.max_value));
+	break;
+      case ConfigInfo::CI_STRING: 
+	opt.value = (gptr*)malloc(sizeof(char *));
+	opt.var_type = GET_STR;
+	break;
+      default:
+	continue;
+      }
+      opt.name = param._fname;
+      opt.id = 256;
+      opt.app_type = 0;
+      opt.arg_type = REQUIRED_ARG;
+      opt.comment = param._section;
+      options.push_back(opt);
+    }
+  }
+  
+  struct my_option *ndbd, *ndb_mgmd, *mysqld, *api;
+
+  /**
+   * Add ndbd, ndb_mgmd, api/mysqld
+   */
+  {
+    struct my_option opt;
+    bzero(&opt, sizeof(opt));
+    opt.name = "ndbd";
+    opt.id = 256;
+    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.var_type = GET_STR;
+    opt.arg_type = REQUIRED_ARG;
+    options.push_back(opt);
+    ndbd = &options.back();
+
+    opt.name = "ndb_mgmd";
+    opt.id = 256;
+    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.var_type = GET_STR;
+    opt.arg_type = REQUIRED_ARG;
+    options.push_back(opt);
+    ndb_mgmd = &options.back();
+
+    opt.name = "mysqld";
+    opt.id = 256;
+    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.var_type = GET_STR;
+    opt.arg_type = REQUIRED_ARG;
+    options.push_back(opt);
+    mysqld = &options.back();
+
+    opt.name = "api";
+    opt.id = 256;
+    opt.value = (gptr*)malloc(sizeof(char*));
+    opt.var_type = GET_STR;
+    opt.arg_type = REQUIRED_ARG;
+    options.push_back(opt);
+    api = &options.back();
+
+    bzero(&opt, sizeof(opt));
+    options.push_back(opt);
+  }
+
+  
+  Context ctx(m_info, m_errstream); 
+  const char *groups[]= { "cluster_config", 0 };
+  if (load_defaults(options, groups))
+    goto end;
+
+  ctx.m_lineno = 0;
+  if(!handle_mycnf_defaults(options, ctx, "DB"))
+    goto end;
+  if(!handle_mycnf_defaults(options, ctx, "API"))
+    goto end;
+  if(!handle_mycnf_defaults(options, ctx, "MGM"))
+    goto end;
+
+  {
+    struct sect { struct my_option* src; const char * name; } sections[] = 
+      {
+	{ ndb_mgmd, "MGM" }
+	,{ ndbd, "DB" }
+	,{ mysqld, "API" }
+	,{ api, "API" }
+	,{ 0, 0 }, { 0, 0 }
+      };
+    
+    for(i = 0; sections[i].src; i++)
+    {
+      for(int j = i + 1; sections[j].src; j++)
+      {
+	if (sections[j].src->app_type < sections[i].src->app_type)
+	{
+	  sect swap = sections[i];
+	  sections[i] = sections[j];
+	  sections[j] = swap;
+	}
+      }
+    }
+    
+    ctx.type = InitConfigFileParser::Section;
+    ctx.m_sectionLineno  = ctx.m_lineno;      
+    for(i = 0; sections[i].src; i++)
+    {
+      if (sections[i].src->app_type)
+      {
+	strcpy(ctx.fname, sections[i].name);
+	BaseString str(*(char**)sections[i].src->value);
+	Vector<BaseString> list;
+	str.split(list, ",");
+	
+	const char * defaults_groups[] = { 0,  0, 0 };
+	for(unsigned j = 0; j<list.size(); j++)
+	{
+	  BaseString group_idx;
+	  BaseString group_host;
+	  group_idx.assfmt("%s.%s.%d", groups[0], 
+			   sections[i].src->name, j + 1);
+	  group_host.assfmt("%s.%s.%s", groups[0], 
+			    sections[i].src->name, list[j].c_str());
+	  defaults_groups[0] = group_idx.c_str();
+	  if(list[j].length())
+	    defaults_groups[1] = group_host.c_str();
+	  else
+	    defaults_groups[1] = 0;
+	  
+	  ctx.m_currentSection = new Properties(true);
+	  ctx.m_userDefaults = getSection(ctx.fname, ctx.m_defaults);
+	  require((ctx.m_currentInfo = m_info->getInfo(ctx.fname)) != 0);
+	  require((ctx.m_systemDefaults = m_info->getDefaults(ctx.fname))!= 0);
+	  ctx.m_currentSection->put("HostName", list[j].c_str());
+	  if(!load_mycnf_groups(options, ctx, sections[i].name, 
+				defaults_groups))
+	    goto end;
+	  
+	  if(!storeSection(ctx))
+	    goto end;
+	}
+      }
+    }
+  }
+
+  res = run_config_rules(ctx);
+
+end:
+  for(i = 0; options[i].name; i++)
+    free(options[i].value);
+
+  return res;
+}
+
+template class Vector<struct my_option>;
+
+#if 0
+struct my_option
+{
+  const char *name;                     /* Name of the option */
+  int        id;                        /* unique id or short option */
+  const char *comment;                  /* option comment, for autom. --help */
+  gptr       *value;                    /* The variable value */
+  gptr       *u_max_value;              /* The user def. max variable value */
+  const char **str_values;              /* Pointer to possible values */
+  ulong     var_type;
+  enum get_opt_arg_type arg_type;
+  longlong   def_value;                 /* Default value */
+  longlong   min_value;                 /* Min allowed value */
+  longlong   max_value;                 /* Max allowed value */
+  longlong   sub_size;                  /* Subtract this from given value */
+  long       block_size;                /* Value should be a mult. of this */
+  int        app_type;                  /* To be used by an application */
+};
+#endif

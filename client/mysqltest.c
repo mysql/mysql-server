@@ -553,7 +553,7 @@ static void close_cons()
 static void close_files()
 {
   DBUG_ENTER("close_files");
-  for (; cur_file != (file_stack-1) ; cur_file--)
+  for (; cur_file >= file_stack; cur_file--)
   {
     DBUG_PRINT("info", ("file_name: %s", cur_file->file_name));
     if (cur_file->file && cur_file->file != stdin)
