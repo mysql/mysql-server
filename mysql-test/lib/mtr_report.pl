@@ -257,11 +257,11 @@ sub mtr_print_header () {
   print "\n";
   if ( $::opt_timer )
   {
-    print "TEST                            RESULT        TIME (ms)\n";
+    print "TEST                           RESULT         TIME (ms)\n";
   }
   else
   {
-    print "TEST                            RESULT\n";
+    print "TEST                           RESULT\n";
   }
   mtr_print_line();
   print "\n";
