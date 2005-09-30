@@ -365,6 +365,44 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 			</FileConfiguration>
 		</File>
 		<File
+			RelativePath="..\strings\ctype-euc_kr.c">
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\strings\ctype-eucjpms.c">
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+			</FileConfiguration>
+		</File>
+		<File
 			RelativePath="..\strings\ctype-extra.c">
 			<FileConfiguration
 				Name="Debug|Win32">
@@ -651,6 +689,25 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 		</File>
 		<File
 			RelativePath="..\mysys\default.c">
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\mysys\default_modify.c">
 			<FileConfiguration
 				Name="Debug|Win32">
 				<Tool
@@ -1566,25 +1623,6 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 		</File>
 		<File
 			RelativePath="..\mysys\my_symlink2.c">
-			<FileConfiguration
-				Name="Debug|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="0"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32">
-				<Tool
-					Name="VCCLCompilerTool"
-					Optimization="2"
-					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\mysys\my_tempnam.c">
 			<FileConfiguration
 				Name="Debug|Win32">
 				<Tool
