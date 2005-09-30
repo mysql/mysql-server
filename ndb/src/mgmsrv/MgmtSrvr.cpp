@@ -393,8 +393,6 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   m_newConfig = NULL;
   if (config_filename)
     m_configFilename.assign(config_filename);
-  else
-    m_configFilename.assign("config.ini");
 
   m_nextConfigGenerationNumber = 0;
 
@@ -429,7 +427,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
     _config= readConfig();
     if (_config == 0) {
       ndbout << "Unable to read config file" << endl;
-      require(false);
+      exit(-1);
     }
   }
 

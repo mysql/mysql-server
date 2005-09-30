@@ -102,6 +102,7 @@ static int opt_daemon;   // NOT bool, bool need not be int
 static int opt_non_interactive;
 static int opt_interactive;
 static const char * opt_config_filename= 0;
+static int opt_mycnf = 0;
   
 struct MgmGlobals {
   MgmGlobals();
@@ -166,6 +167,10 @@ static struct my_option my_long_options[] =
     "Don't run as daemon, but don't read from stdin",
     (gptr*) &opt_non_interactive, (gptr*) &opt_non_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "mycnf", 256,
+    "Read cluster config from my.cnf",
+    (gptr*) &opt_mycnf, (gptr*) &opt_mycnf, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -199,7 +204,7 @@ int main(int argc, char** argv)
 #endif
 
   global_mgmt_server_check = 1;
-
+  
   const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
 
@@ -217,13 +222,26 @@ int main(int argc, char** argv)
     opt_daemon= 0;
   }
 
+  if (opt_mycnf && opt_config_filename)
+  {
+    ndbout_c("Both --mycnf and -f is not supported");
+    return 0;
+  }
+
+  if (opt_mycnf == 0 && opt_config_filename == 0)
+  {
+    struct stat buf;
+    if (stat("config.ini", &buf) != -1)
+      opt_config_filename = "config.ini";
+  }
+  
   glob->socketServer = new SocketServer();
 
   MgmApiService * mapi = new MgmApiService();
 
   glob->mgmObject = new MgmtSrvr(glob->socketServer,
-				opt_config_filename,
-				opt_connect_str);
+				 opt_config_filename,
+				 opt_connect_str);
 
   if (g_print_full_config)
     goto the_end;

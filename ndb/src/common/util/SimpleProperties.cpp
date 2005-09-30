@@ -51,11 +51,12 @@ SimpleProperties::Writer::add(const char * value, int len){
   union {
     Uint32 lastWord;
     char lastBytes[4];
-  };
-  memcpy(lastBytes,
+  } tmp;
+  tmp.lastWord =0 ;
+  memcpy(tmp.lastBytes,
          value + putLen*4,
          len - putLen*4);
-  return putWord(lastWord);
+  return putWord(tmp.lastWord);
 }
 
 bool
