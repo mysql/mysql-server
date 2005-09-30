@@ -1299,7 +1299,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
 
-    if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
+    if (field->has_charset() && 
+        !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
     {
       if (field->charset() != table->table_charset)
       {
@@ -1337,7 +1338,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     
     has_default= (field->type() != FIELD_TYPE_BLOB &&
 		  field->unireg_check != Field::NEXT_NUMBER &&
-                  !((foreign_db_mode || limited_mysql_mode) &&
+                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
                     has_now_default));
 
     if (has_default)
@@ -1367,12 +1368,13 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         packet->append(tmp);
     }
 
-    if (!foreign_db_mode && !limited_mysql_mode &&
+    if (!(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
         table->timestamp_field == field && 
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
       packet->append(" on update CURRENT_TIMESTAMP",28);
 
-    if (field->unireg_check == Field::NEXT_NUMBER && !foreign_db_mode)
+    if (field->unireg_check == Field::NEXT_NUMBER && 
+        !(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS))
       packet->append(" auto_increment", 15 );
 
     if (field->comment.length)
