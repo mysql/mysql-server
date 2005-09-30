@@ -705,7 +705,7 @@ get_one_option(int optid,
       fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
       exit(1);
     }
-    check_param.stats_method= method-1;
+    check_param.stats_method= (enum_mi_stats_method) (method-1);
     break;
   }
 #ifdef DEBUG					/* Only useful if debugging */
