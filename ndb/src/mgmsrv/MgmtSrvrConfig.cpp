@@ -274,7 +274,15 @@ Config *
 MgmtSrvr::readConfig() {
   Config *conf;
   InitConfigFileParser parser;
-  conf = parser.parseConfig(m_configFilename.c_str());
+  if (m_configFilename.length())
+  {
+    conf = parser.parseConfig(m_configFilename.c_str());
+  }
+  else 
+  {
+    ndbout_c("Reading cluster configuration using my.cnf");
+    conf = parser.parse_mycnf();
+  }
   return conf;
 }
 
