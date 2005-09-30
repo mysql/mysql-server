@@ -4074,7 +4074,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);
 
-    t= table->table= open_ltable(thd, table, TL_READ_NO_INSERT);
+    t= table->table= open_ltable(thd, table, TL_READ);
     thd->clear_error();			// these errors shouldn't get client
 
     protocol->prepare_for_resend();

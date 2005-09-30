@@ -41,7 +41,7 @@ int mi_delete_all_rows(MI_INFO *info)
   info->state->key_file_length=share->base.keystart;
   info->state->data_file_length=0;
   info->state->empty=info->state->key_empty=0;
-  state->checksum=0;
+  info->state->checksum=0;
 
   for (i=share->base.max_key_block_length/MI_MIN_KEY_BLOCK_LENGTH ; i-- ; )
     state->key_del[i]= HA_OFFSET_ERROR;
