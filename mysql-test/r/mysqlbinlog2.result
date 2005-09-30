@@ -40,7 +40,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
@@ -67,7 +67,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
@@ -84,7 +84,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
@@ -107,7 +107,7 @@ SET INSERT_ID=3;
 SET TIMESTAMP=1579609944;
 insert into t1 values(null, "c");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
@@ -128,7 +128,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
@@ -148,7 +148,7 @@ SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Local with 2 binlogs on command line --
@@ -184,7 +184,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
@@ -218,7 +218,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
@@ -242,7 +242,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
@@ -272,7 +272,7 @@ SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 SET INSERT_ID=6;
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
@@ -300,7 +300,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
@@ -320,7 +320,7 @@ SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Remote --
@@ -349,7 +349,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
@@ -376,7 +376,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
@@ -393,7 +393,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
@@ -416,7 +416,7 @@ SET INSERT_ID=3;
 SET TIMESTAMP=1579609944;
 insert into t1 values(null, "c");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
@@ -437,7 +437,7 @@ SET INSERT_ID=5;
 SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
@@ -457,7 +457,7 @@ SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Remote with 2 binlogs on command line --
@@ -493,7 +493,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- offset --
@@ -527,7 +527,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-position --
@@ -551,7 +551,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-position --
@@ -581,7 +581,7 @@ SET TIMESTAMP=1579609946;
 insert into t1 values(null, "e");
 SET INSERT_ID=6;
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- start-datetime --
@@ -609,7 +609,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- stop-datetime --
@@ -629,7 +629,7 @@ SET INSERT_ID=2;
 SET TIMESTAMP=1579609942;
 insert into t1 values(null, "b");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- to-last-log --
@@ -661,7 +661,7 @@ SET INSERT_ID=6;
 SET TIMESTAMP=1579609943;
 insert into t1 values(null, "f");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- end of test --
