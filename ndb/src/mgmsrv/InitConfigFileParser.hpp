@@ -50,6 +50,7 @@ public:
    */
   Config * parseConfig(FILE * file);
   Config * parseConfig(const char * filename);
+  Config * parse_mycnf();
 
   /**
    * Parser context struct
@@ -122,6 +123,21 @@ private:
    *   Information about parameters (min, max values etc)
    */
   ConfigInfo* m_info;
+
+  bool handle_mycnf_defaults(Vector<struct my_option>& options,
+			     InitConfigFileParser::Context& ctx, 
+			     const char * name);
+  
+  bool load_mycnf_groups(Vector<struct my_option> & options,
+			 InitConfigFileParser::Context& ctx,
+			 const char * name,
+			 const char *groups[]);
+
+  bool store_in_properties(Vector<struct my_option>& options, 
+			   InitConfigFileParser::Context& ctx,
+			   const char * name);
+  
+  Config* run_config_rules(Context& ctx);
 };
 
 #endif // InitConfigFileParser_H
