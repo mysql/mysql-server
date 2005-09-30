@@ -2291,8 +2291,10 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
     List_iterator_fast<TABLE_LIST> it(cur_nested_join->join_list);
     cur_table_ref= it++;
     /*
-      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
-      order, thus the first operand is already at the front of the list.
+      If the current nested join is a RIGHT JOIN, the operands in
+      'join_list' are in reverse order, thus the first operand is
+      already at the front of the list. Otherwise the first operand
+      is in the end of the list of join operands.
     */
     if (!(cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
     {
@@ -2343,9 +2345,11 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
        cur_nested_join;
        cur_nested_join= cur_table_ref->nested_join)
   {
+    cur_table_ref= cur_nested_join->join_list.head();
     /*
-      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
-      order, thus the last operand is in the end of the list.
+      If the current nested is a RIGHT JOIN, the operands in
+      'join_list' are in reverse order, thus the last operand is in the
+      end of the list.
     */
     if ((cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
     {
@@ -2355,8 +2359,6 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
       while ((next= it++))
         cur_table_ref= next;
     }
-    else
-      cur_table_ref= cur_nested_join->join_list.head();
     if (cur_table_ref->is_leaf_for_name_resolution())
       break;
   }

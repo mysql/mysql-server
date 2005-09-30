@@ -8,11 +8,10 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#include <regex.h>
 #ifdef __WIN__
 #include  <limits.h>
 #endif
-
+#include "my_regex.h"
 #include "utils.h"
 #include "regex2.h"
 
@@ -110,11 +109,11 @@ static int nope = 0;		/* for use in asserts; shuts lint up */
  * have been prototyped.
  */
 int				/* 0 success, REG_NOMATCH failure */
-regexec(preg, str, nmatch, pmatch, eflags)
-const regex_t *preg;
+my_regexec(preg, str, nmatch, pmatch, eflags)
+const my_regex_t *preg;
 const char *str;
 size_t nmatch;
-regmatch_t pmatch[];
+my_regmatch_t pmatch[];
 int eflags;
 {
 	register struct re_guts *g = preg->re_g;

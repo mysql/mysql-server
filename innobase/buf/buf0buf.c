@@ -321,7 +321,9 @@ buf_page_is_corrupted(
 			fprintf(stderr,
 "  InnoDB: Error: page %lu log sequence number %lu %lu\n"
 "InnoDB: is in the future! Current system log sequence number %lu %lu.\n"
-"InnoDB: Your database may be corrupt.\n",
+"InnoDB: Your database may be corrupt or you may have copied the InnoDB\n"
+"InnoDB: tablespace but not the InnoDB log files. See\n"
+"http://dev.mysql.com/doc/mysql/en/backing-up.html for more information.\n",
 		        (ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
 			(ulong) ut_dulint_get_high(
 				mach_read_from_8(read_buf + FIL_PAGE_LSN)),

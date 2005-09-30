@@ -1997,10 +1997,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 alter table t1 add unique(v);
 ERROR 23000: Duplicate entry '{ ' for key 1
 alter table t1 add key(v);
@@ -2188,10 +2188,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where
@@ -2268,10 +2268,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	33	NULL	#	Using where
 explain select count(*) from t1 where v between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	33	NULL	#	Using where
+1	SIMPLE	t1	ref	v	v	33	const	#	Using where
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	33	NULL	#	Using where
+1	SIMPLE	t1	ref	v	v	33	const	#	Using where
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	33	const	#	Using where
@@ -2616,3 +2616,31 @@ SET FOREIGN_KEY_CHECKS=1;
 INSERT INTO t2 VALUES(3);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
 DROP TABLE t2;
+create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into test_checksum values (1),(2);
+set autocommit=0;
+checksum table test_checksum;
+Table	Checksum
+test.test_checksum	1531596814
+insert into test_checksum values(3);
+checksum table test_checksum;
+Table	Checksum
+test.test_checksum	2605035534
+commit;
+checksum table test_checksum;
+Table	Checksum
+test.test_checksum	127268899
+commit;
+drop table test_checksum;
+create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into test_checksum values (1),(2);
+set autocommit=1;
+checksum table test_checksum;
+Table	Checksum
+test.test_checksum	1531596814
+set autocommit=1;
+insert into test_checksum values(3);
+checksum table test_checksum;
+Table	Checksum
+test.test_checksum	127268899
+drop table test_checksum;

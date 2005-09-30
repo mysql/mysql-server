@@ -38,7 +38,7 @@ extern handlerton blackhole_hton;
 extern handlerton example_hton;
 #endif
 #ifdef HAVE_ARCHIVE_DB
-#include "examples/ha_archive.h"
+#include "ha_archive.h"
 extern handlerton archive_hton;
 #endif
 #ifdef HAVE_CSV_DB

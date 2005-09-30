@@ -24,7 +24,7 @@
 #include <my_sys.h>
 #include <hash.h>
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
 
