@@ -280,7 +280,7 @@ enum loglevel {
 
 enum cache_type
 {
-  TYPE_NOT_SET, READ_CACHE, WRITE_CACHE,
+  TYPE_NOT_SET= 0, READ_CACHE, WRITE_CACHE,
   SEQ_READ_APPEND		/* sequential read or append */,
   READ_FIFO, READ_NET,WRITE_NET};
 

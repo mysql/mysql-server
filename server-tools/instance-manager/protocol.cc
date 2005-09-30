@@ -74,7 +74,7 @@ int net_send_error(struct st_net *net, uint sql_errno)
             MYSQL_ERRMSG_SIZE];                 // message
   char *pos= buff;
 
-  int ERROR_PACKET_CODE= 255;
+  const int ERROR_PACKET_CODE= 255;
   *pos++= ERROR_PACKET_CODE;
   int2store(pos, sql_errno);
   pos+= 2;
@@ -95,7 +95,7 @@ int net_send_error_323(struct st_net *net, uint sql_errno)
             MYSQL_ERRMSG_SIZE];                 // message
   char *pos= buff;
 
-  int ERROR_PACKET_CODE= 255;
+  const int ERROR_PACKET_CODE= 255;
   *pos++= ERROR_PACKET_CODE;
   int2store(pos, sql_errno);
   pos+= 2;
