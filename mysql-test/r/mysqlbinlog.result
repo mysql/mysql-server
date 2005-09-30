@@ -40,7 +40,7 @@ load data LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/SQL_LOAD_MB-3-0' INTO table t1;
 SET TIMESTAMP=1000000000;
 load data LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/SQL_LOAD_MB-4-0' INTO table t1;
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Broken LOAD DATA --
@@ -53,7 +53,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values ("Alas");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- --database --
@@ -62,7 +62,7 @@ ROLLBACK;
 ROLLBACK;
 SET INSERT_ID=1;
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- --position --
@@ -75,7 +75,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values ("Alas");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Remote --
@@ -106,7 +106,7 @@ load data LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/SQL_LOAD_MB-3-2' INTO table t1;
 SET TIMESTAMP=1000000000;
 load data LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/SQL_LOAD_MB-4-2' INTO table t1;
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Broken LOAD DATA --
@@ -119,7 +119,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values ("Alas");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- --database --
@@ -128,7 +128,7 @@ ROLLBACK;
 ROLLBACK;
 SET INSERT_ID=1;
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- --position --
@@ -141,7 +141,7 @@ SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t1 values ("Alas");
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- reading stdin --
@@ -154,7 +154,7 @@ BEGIN;
 SET TIMESTAMP=1108844555;
 insert t1 values (1);
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
@@ -164,6 +164,6 @@ BEGIN;
 SET TIMESTAMP=1108844555;
 insert t1 values (1);
 # End of log file
-ROLLBACK;
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 drop table t1, t2;
