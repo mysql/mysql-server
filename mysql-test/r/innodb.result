@@ -2625,11 +2625,11 @@ test.test_checksum	1531596814
 insert into test_checksum values(3);
 checksum table test_checksum;
 Table	Checksum
-test.test_checksum	1531596814
+test.test_checksum	2605035534
 commit;
 checksum table test_checksum;
 Table	Checksum
-test.test_checksum	2050879373
+test.test_checksum	127268899
 commit;
 drop table test_checksum;
 create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
@@ -2642,5 +2642,5 @@ set autocommit=1;
 insert into test_checksum values(3);
 checksum table test_checksum;
 Table	Checksum
-test.test_checksum	2050879373
+test.test_checksum	127268899
 drop table test_checksum;
