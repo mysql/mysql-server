@@ -2148,7 +2148,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
     DBUG_RETURN(1);
   }
-  if ((error=table->file->start_stmt(thd)))
+  if ((error=table->file->start_stmt(thd, lock_type)))
   {
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
