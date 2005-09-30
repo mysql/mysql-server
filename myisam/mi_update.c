@@ -162,7 +162,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
   if (auto_key_changed)
     update_auto_increment(info,newrec);
   if (share->calc_checksum)
-    share->state.checksum+=(info->checksum - old_checksum);
+    info->state->checksum+=(info->checksum - old_checksum);
 
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | HA_STATE_AKTIV |
 		 key_changed);
