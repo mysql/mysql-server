@@ -262,6 +262,7 @@ extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
 extern const char *defaults_group_suffix;
+extern const char *defaults_file;
 
 extern my_bool timed_mutexes;
 

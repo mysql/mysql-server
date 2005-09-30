@@ -241,6 +241,9 @@ struct DepricationTransform {
 static
 const DepricationTransform f_deprication[] = {
   { DB_TOKEN, "Discless", "Diskless", 0, 1 },
+  { DB_TOKEN, "Id", "nodeid", 0, 1 },
+  { API_TOKEN, "Id", "nodeid", 0, 1 },
+  { MGM_TOKEN, "Id", "nodeid", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
 
@@ -405,8 +408,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    CFG_NODE_ID,
+    KEY_INTERNAL,
     "Id",
+    DB_TOKEN,
+    "",
+    ConfigInfo::CI_DEPRICATED,
+    false,
+    ConfigInfo::CI_INT,
+    MANDATORY,
+    "1",
+    STR_VALUE(MAX_NODES) },
+
+  {
+    CFG_NODE_ID,
+    "nodeid",
     DB_TOKEN,
     "Number identifying the database node ("DB_TOKEN_PRINT")",
     ConfigInfo::CI_USED,
@@ -1244,8 +1259,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    CFG_NODE_ID,
+    KEY_INTERNAL,
     "Id",
+    API_TOKEN,
+    "",
+    ConfigInfo::CI_DEPRICATED,
+    false,
+    ConfigInfo::CI_INT,
+    MANDATORY,
+    "1",
+    STR_VALUE(MAX_NODES) },
+
+  {
+    CFG_NODE_ID,
+    "nodeid",
     API_TOKEN,
     "Number identifying application node ("API_TOKEN_PRINT")",
     ConfigInfo::CI_USED,
@@ -1375,8 +1402,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    CFG_NODE_ID,
+    KEY_INTERNAL,
     "Id",
+    MGM_TOKEN,
+    "",
+    ConfigInfo::CI_DEPRICATED,
+    false,
+    ConfigInfo::CI_INT,
+    MANDATORY,
+    "1",
+    STR_VALUE(MAX_NODES) },
+  
+  {
+    CFG_NODE_ID,
+    "nodeid",
     MGM_TOKEN,
     "Number identifying the management server node ("MGM_TOKEN_PRINT")",
     ConfigInfo::CI_USED,
@@ -2516,14 +2555,14 @@ bool
 transformNode(InitConfigFileParser::Context & ctx, const char * data){
 
   Uint32 id;
-  if(!ctx.m_currentSection->get("Id", &id)){
+  if(!ctx.m_currentSection->get("nodeid", &id) && !ctx.m_currentSection->get("Id", &id)){
     Uint32 nextNodeId= 1;
     ctx.m_userProperties.get("NextNodeId", &nextNodeId);
     id= nextNodeId;
     while (ctx.m_userProperties.get("AllocatedNodeId_", id, &id))
       id++;
     ctx.m_userProperties.put("NextNodeId", id+1, true);
-    ctx.m_currentSection->put("Id", id);
+    ctx.m_currentSection->put("nodeid", id);
 #if 0
     ctx.reportError("Mandatory parameter Id missing from section "
 		    "[%s] starting at line: %d",
@@ -2531,7 +2570,7 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
     return false;
 #endif
   } else if(ctx.m_userProperties.get("AllocatedNodeId_", id, &id)) {
-    ctx.reportError("Duplicate Id in section "
+    ctx.reportError("Duplicate nodeid in section "
 		    "[%s] starting at line: %d",
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
@@ -3356,6 +3395,7 @@ transform(InitConfigFileParser::Context & ctx,
   PropertiesType oldType;
   require(ctx.m_currentSection->getTypeOf(oldName, &oldType));
   ConfigInfo::Type newType = ctx.m_info->getType(ctx.m_currentInfo, newName);  
+
   if(!((oldType == PropertiesType_Uint32 || oldType == PropertiesType_Uint64) 
        && (newType == ConfigInfo::CI_INT || newType == ConfigInfo::CI_INT64 || newType == ConfigInfo::CI_BOOL))){
     ndbout << "oldType: " << (int)oldType << ", newType: " << (int)newType << endl;
