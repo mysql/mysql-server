@@ -5644,8 +5644,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
        and so on, the display width is ignored.
     */
     char buf[32];
-    my_snprintf(buf, sizeof(buf),
-                "TIMESTAMP(%s)", length, system_charset_info);
+    my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
     push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DEPRECATED_SYNTAX,
                         ER(ER_WARN_DEPRECATED_SYNTAX),
