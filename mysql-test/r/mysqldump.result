@@ -1735,22 +1735,65 @@ create  view v1 as
 select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
 create  view v2 as
 select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
-drop view v1, v2, v3;
-drop table t1;
-show full tables;
-Tables_in_test	Table_type
-t1	BASE TABLE
-v1	VIEW
-v2	VIEW
-v3	VIEW
-show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `v3`.`a` AS `a`,`v3`.`b` AS `b`,`v3`.`c` AS `c` from `v3` where (`v3`.`b` in (1,2,3,4,5,6,7))
-select * from v1;
-a	b	c
-1	2	one
-2	4	two
-3	6	three
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL,
+  `c` varchar(30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
+LOCK TABLES `t1` WRITE;
+INSERT INTO `t1` VALUES (1,2,'one'),(2,4,'two'),(3,6,'three');
+UNLOCK TABLES;
+/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+DROP TABLE IF EXISTS `v1`;
+/*!50001 DROP VIEW IF EXISTS `v1`*/;
+/*!50001 CREATE TABLE `v1` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL,
+  `c` varchar(30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
+DROP TABLE IF EXISTS `v2`;
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+/*!50001 CREATE TABLE `v2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
+DROP TABLE IF EXISTS `v3`;
+/*!50001 DROP VIEW IF EXISTS `v3`*/;
+/*!50001 CREATE TABLE `v3` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL,
+  `c` varchar(30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1*/;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP VIEW IF EXISTS `v1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `v3`.`a` AS `a`,`v3`.`b` AS `b`,`v3`.`c` AS `c` from `v3` where (`v3`.`b` in (1,2,3,4,5,6,7))*/;
+/*!50001 DROP TABLE IF EXISTS `v2`*/;
+/*!50001 DROP VIEW IF EXISTS `v2`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v3`.`a` AS `a` from (`v3` join `v1`) where ((`v1`.`a` = `v3`.`a`) and (`v3`.`b` = 3)) limit 1*/;
+/*!50001 DROP TABLE IF EXISTS `v3`*/;
+/*!50001 DROP VIEW IF EXISTS `v3`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c` from `t1`*/;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
 drop view v1, v2, v3;
 drop table t1;
 CREATE TABLE t1 (a int, b bigint default NULL);
