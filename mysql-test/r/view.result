@@ -2286,5 +2286,15 @@ SELECT v1.a FROM v1 GROUP BY v1.a HAVING v1.a > 1;
 a
 2
 3
+SELECT t_1.a FROM t1 AS t_1 GROUP BY t_1.a HAVING t_1.a IN (1,2,3);
+a
+1
+2
+3
+SELECT v_1.a FROM v1 AS v_1 GROUP BY v_1.a HAVING v_1.a IN (1,2,3);
+a
+1
+2
+3
 DROP VIEW v1;
 DROP TABLE t1;

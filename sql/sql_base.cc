@@ -3357,9 +3357,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 
   for (uint i= 0; (item=li++); i++)
   {
-    if (field_name && item->type() == Item::FIELD_ITEM)
+    if (field_name && item->real_item()->type() == Item::FIELD_ITEM)
     {
-      Item_field *item_field= (Item_field*) item;
+      Item_ident *item_field= (Item_ident*) item;
 
       /*
 	In case of group_concat() with ORDER BY condition in the QUERY
