@@ -1017,10 +1017,14 @@ sub environment_setup () {
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
+  $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
+
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
+  $ENV{'IM_MYSQLD1_PATH_PID'}=$instance_manager->{instances}->[0]->{path_pid};
   $ENV{'IM_MYSQLD2_SOCK'}=    $instance_manager->{instances}->[1]->{path_sock};
   $ENV{'IM_MYSQLD2_PORT'}=    $instance_manager->{instances}->[1]->{port};
+  $ENV{'IM_MYSQLD2_PATH_PID'}=$instance_manager->{instances}->[1]->{path_pid};
 
   if ( $glob_cygwin_perl )
   {
@@ -2316,6 +2320,12 @@ sub im_stop($) {
   {
     return;
   }
+
+  # Re-read pid from the file, since during tests Instance Manager could have
+  # been restarted, so its pid could have been changed.
+
+  $instance_manager->{'pid'} =
+    mtr_get_pid_from_file($instance_manager->{'path_pid'});
 
   # Inspired from mtr_stop_mysqld_servers().
 
