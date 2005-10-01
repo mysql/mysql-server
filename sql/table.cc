@@ -2424,22 +2424,6 @@ Field *Natural_join_column::field()
 const char *Natural_join_column::table_name()
 {
   return table_ref->alias;
-  /*
-    TODO:
-    I think that it is sufficient to return just
-    table->alias, which is correctly set to either
-    the view name, the table name, or the alias to
-    the table reference (view or stored table).
-  */
-#ifdef NOT_YET
-  if (view_field)
-    return table_ref->view_name.str;
-
-  DBUG_ASSERT(!strcmp(table_ref->table_name,
-                      table_ref->table->s->table_name));
-  return table_ref->table_name;
-}
-#endif
 }
 
 
@@ -2575,7 +2559,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     DBUG_RETURN(field);
   }
   Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->view_name.str,
+                                       field_ref, view->alias,
                                        name);
   DBUG_RETURN(item);
 }
