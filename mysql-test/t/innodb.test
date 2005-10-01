@@ -1571,36 +1571,67 @@ DROP TABLE t2;
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);
 connection a;
-create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
-insert into test_checksum values (1),(2);
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
 set autocommit=0;
-checksum table test_checksum;
+checksum table t1;
 connection b;
-insert into test_checksum values(3);
+insert into t1 values(3);
 connection a;
 #
 # Here checksum should not see insert
 #
-checksum table test_checksum;
+checksum table t1;
 connection a;
 commit;
-checksum table test_checksum;
+checksum table t1;
 commit;
-drop table test_checksum;
+drop table t1;
 #
 # autocommit = 1
 #
 connection a;
-create table test_checksum(a int not null) engine=innodb DEFAULT CHARSET=latin1;
-insert into test_checksum values (1),(2);
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
 set autocommit=1;
-checksum table test_checksum;
+checksum table t1;
 connection b;
 set autocommit=1;
-insert into test_checksum values(3);
+insert into t1 values(3);
 connection a;
 #
 # Here checksum sees insert
 #
-checksum table test_checksum;
-drop table test_checksum;
+checksum table t1;
+drop table t1;
+
+#
+# BUG#11238 - in prelocking mode SELECT .. FOR UPDATE is changed to
+# non-blocking SELECT
+#
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+delimiter |;
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+delimiter ;|
+start transaction;
+select f1();
+connection b;
+send update t1 set col2=0 where col1=1;
+connection default;
+select * from t1;
+connection a;
+rollback;
+connection b;
+reap;
+rollback;
+connection default;
+drop table t1;
+drop function f1;
+disconnect a;
+disconnect b;
+
