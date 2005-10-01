@@ -1252,7 +1252,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="examples\ha_archive.cpp">
+			RelativePath="ha_archive.cpp">
 			<FileConfiguration
 				Name="classic nt|Win32">
 				<Tool
