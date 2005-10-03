@@ -8158,7 +8158,7 @@ void Dbacc::srReadPagesLab(Signal* signal)
   for (Uint32 i = 0; i < limitLoop; i++) {
     jam();
     seizePage(signal);
-    ndbrequire(tresult <= ZLIMIT_OF_ERROR);
+    ndbrequireErr(tresult <= ZLIMIT_OF_ERROR, NDBD_EXIT_SR_OUT_OF_INDEXMEMORY);
     fragrecptr.p->datapages[i] = spPageptr.i;
     signal->theData[i + 6] = spPageptr.i;
   }//for

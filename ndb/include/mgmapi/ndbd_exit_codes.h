@@ -102,6 +102,10 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 /* TC  6200-> */
 /* DIH 6300-> */
 #define NDBD_EXIT_MAX_CRASHED_REPLICAS        6300
+/* ACC 6600-> */
+#define NDBD_EXIT_SR_OUT_OF_INDEXMEMORY       6600
+/* TUP 6800-> */
+#define NDBD_EXIT_SR_OUT_OF_DATAMEMORY        6800
 /* LQH 7200-> */
 
 

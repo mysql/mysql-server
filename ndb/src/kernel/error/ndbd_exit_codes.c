@@ -71,7 +71,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_INVALID_CONFIG, XCE,
     "Invalid Configuration fetched from Management Server" },
 
-   // VM
+   /* VM */
    {NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,    XCE,
     "Signal lost, out of long signal memory"},
    {NDBD_EXIT_WATCHDOG_TERMINATE,           XIE, "WatchDog terminate"},
@@ -80,10 +80,18 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_SIGNAL_LOST,    XIE, "Signal lost (unknown reason)"},
    {NDBD_EXIT_ILLEGAL_SIGNAL, XCE, "Illegal signal (version mismatch?)"},
 
-   // DIH
+   /* DIH */
    {NDBD_EXIT_MAX_CRASHED_REPLICAS, XFI, "To many crasched replicas"},
 
-   // Ndbfs error messages
+   /* ACC */
+   {NDBD_EXIT_SR_OUT_OF_INDEXMEMORY, XCE,
+    "Out of index memory during system restart"},
+
+   /* TUP */
+   {NDBD_EXIT_SR_OUT_OF_DATAMEMORY, XCE,
+    "Out of data memory during system restart"},
+
+   /* Ndbfs error messages */
    {NDBD_EXIT_AFS_NOPATH,       XCE, "No file system path"},
    {2802,                       XIE, "Channel is full"},
    {2803,                       XIE, "No more threads"},
@@ -102,7 +110,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_AFS_NO_SUCH_FILE          , XFI, "File not found"},
    {NDBD_EXIT_AFS_READ_UNDERFLOW        , XIE, "Read underflow"},
 
-   // Sentinel
+   /* Sentinel */
    {0, XUE, "No message slogan found"}
 };
 
