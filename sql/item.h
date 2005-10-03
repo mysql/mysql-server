@@ -1622,7 +1622,7 @@ public:
   }
   Item *real_item()
   {
-    return (*ref)->real_item();
+    return (ref && *ref) ? (*ref)->real_item() : this;
   }
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }
