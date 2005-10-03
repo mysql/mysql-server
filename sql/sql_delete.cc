@@ -787,7 +787,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     TABLE *table= *table_ptr;
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
     db_type table_type= table->s->db_type;
-    if (!ha_supports_generate(table_type))
+    if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
     strmov(path, table->s->path);
     *table_ptr= table->next;			// Unlink table from list
@@ -818,7 +818,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_supports_generate(table_type) || thd->lex->sphead)
+    if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE)
+        || thd->lex->sphead)
       goto trunc_by_del;
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(TRUE);
