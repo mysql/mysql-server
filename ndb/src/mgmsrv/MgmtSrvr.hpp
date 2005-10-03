@@ -605,7 +605,7 @@ private:
   /**
    * An event from <i>nodeId</i> has arrived
    */
-  void eventReport(NodeId nodeId, const Uint32 * theData);
+  void eventReport(const Uint32 * theData);
  
 
   //**************************************************************************

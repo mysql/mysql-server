@@ -17,22 +17,27 @@
 #ifndef ERRORHANDLINGMACROS_H
 #define ERRORHANDLINGMACROS_H
 
+#include <ndbd_exit_codes.h>
 #include "ErrorReporter.hpp"
-#include "Error.hpp"
 
 extern const char programName[];
 
-#define ERROR_SET_SIGNAL(messageCategory, messageID, problemData, objectRef) \
-        ErrorReporter::handleError(messageCategory, messageID, problemData, objectRef, NST_ErrorHandlerSignal)
-#define ERROR_SET(messageCategory, messageID, problemData, objectRef) \
-        ErrorReporter::handleError(messageCategory, messageID, problemData, objectRef)
+enum NotUsed
+{
+   warning,
+   ecError,
+   fatal,
+   assert
+};
+
+#define ERROR_SET_SIGNAL(not_used, messageID, problemData, objectRef) \
+        ErrorReporter::handleError(messageID, problemData, objectRef, NST_ErrorHandlerSignal)
+#define ERROR_SET(not_used, messageID, problemData, objectRef) \
+        ErrorReporter::handleError(messageID, problemData, objectRef)
         // Description:
         //      Call ErrorHandler with the supplied arguments. The
         //      ErrorHandler decides how to report the error.
         // Parameters:
-        //      messageCategory IN      A hint to the error handler how the 
-        //                              error should be reported. Can be
-        //                              error, fatal (or warning, use WARNING_SET instead).
         //      messageID       IN      Code identifying the error. If less
         //                              than 1000 a unix error is assumed. If
         //                              greater than 1000 the code is treated 

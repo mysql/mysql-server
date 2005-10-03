@@ -691,5 +691,7 @@ int ndb_error_string(int err_no, char *str, unsigned int size)
 		ndberror_classification_message(error.classification));
   str[size-1]= '\0';
   
-  return len;
+  if (error.classification != UE)
+    return len;
+  return -len;
 }

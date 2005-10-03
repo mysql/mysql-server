@@ -700,11 +700,11 @@ void Qmgr::execCM_REGREF(Signal* signal)
     break;
   case CmRegRef::ZNOT_IN_CFG:
     jam();
-    progError(__LINE__, ERR_NODE_NOT_IN_CONFIG);
+    progError(__LINE__, NDBD_EXIT_NODE_NOT_IN_CONFIG);
     break;
   case CmRegRef::ZNOT_DEAD:
     jam();
-    progError(__LINE__, ERR_NODE_NOT_DEAD);
+    progError(__LINE__, NDBD_EXIT_NODE_NOT_DEAD);
     break;
   case CmRegRef::ZELECTION:
     jam();
@@ -2680,7 +2680,7 @@ void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line,
 	   "Node was shutdown during startup because node %d failed",
 	   failedNodeId);
 
-  progError(line, ERR_SR_OTHERNODEFAILED, buf);  
+  progError(line, NDBD_EXIT_SR_OTHERNODEFAILED, buf);  
 }
 
 
@@ -3786,7 +3786,8 @@ Qmgr::stateArbitCrash(Signal* signal)
   if (! (arbitRec.getTimediff() > getArbitTimeout()))
     return;
 #endif
-  progError(__LINE__, ERR_ARBIT_SHUTDOWN, "Arbitrator decided to shutdown this node");
+  progError(__LINE__, NDBD_EXIT_ARBIT_SHUTDOWN,
+            "Arbitrator decided to shutdown this node");
 }
 
 /**

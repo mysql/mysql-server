@@ -1594,8 +1594,13 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   case GSN_EVENT_SUBSCRIBE_REF:
     break;
   case GSN_EVENT_REP:
-    eventReport(refToNode(signal->theSendersBlockRef), signal->getDataPtr());
+  {
+    EventReport *rep = CAST_PTR(EventReport, signal->getDataPtrSend());
+    if (rep->getNodeId() == 0)
+      rep->setNodeId(refToNode(signal->theSendersBlockRef));
+    eventReport(signal->getDataPtr());
     break;
+  }
 
   case GSN_NF_COMPLETEREP:
     break;
@@ -1620,19 +1625,22 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
 {
   DBUG_ENTER("MgmtSrvr::handleStatus");
   Uint32 theData[25];
+  EventReport *rep = (EventReport *)theData;
+
   theData[1] = nodeId;
   if (alive) {
     m_started_nodes.push_back(nodeId);
-    theData[0] = NDB_LE_Connected;
+    rep->setEventType(NDB_LE_Connected);
   } else {
-    theData[0] = NDB_LE_Disconnected;
+    rep->setEventType(NDB_LE_Connected);
     if(nfComplete)
     {
       DBUG_VOID_RETURN;
     }
   }
   
-  eventReport(_ownNodeId, theData);
+  rep->setNodeId(_ownNodeId);
+  eventReport(theData);
   DBUG_VOID_RETURN;
 }
 
@@ -1964,10 +1972,11 @@ MgmtSrvr::getNextNodeId(NodeId * nodeId, enum ndb_mgm_node_type type) const
 #include "Services.hpp"
 
 void
-MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
+MgmtSrvr::eventReport(const Uint32 * theData)
 {
   const EventReport * const eventReport = (EventReport *)&theData[0];
   
+  NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   // Log event
   g_eventLogger.log(type, theData, nodeId, 

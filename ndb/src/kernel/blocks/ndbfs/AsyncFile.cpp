@@ -18,7 +18,6 @@
 #include <my_sys.h>
 #include <my_pthread.h>
 
-#include <Error.hpp>
 #include "AsyncFile.hpp"
 
 #include <ErrorHandlingMacros.hpp>

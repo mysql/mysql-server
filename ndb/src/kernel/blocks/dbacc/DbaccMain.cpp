@@ -56,7 +56,7 @@ Dbacc::remainingUndoPages(){
   if (Remaining <= 0){
     // No more undolog, crash node
     progError(__LINE__,
-	      ERR_NO_MORE_UNDOLOG,
+	      NDBD_EXIT_NO_MORE_UNDOLOG,
 	      "There are more than 1Mbyte undolog writes outstanding");
   }
   return Remaining;
@@ -5303,8 +5303,7 @@ void Dbacc::execDEBUG_SIG(Signal* signal)
   jamEntry();
   expPageptr.i = signal->theData[0];
 
-  progError(__LINE__,
-	    ERR_SR_UNDOLOG);
+  progError(__LINE__, NDBD_EXIT_SR_UNDOLOG);
   return;
 }//Dbacc::execDEBUG_SIG()
 

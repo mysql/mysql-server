@@ -233,6 +233,13 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
           j = length;
         }
 	break;
+      case NdbDictionary::Column::Varbinary:
+        {
+          unsigned len = *(const unsigned char*)r.aRef();
+          ndbrecattr_print_string(out,"Varbinary", r.aRef()+1,len);
+          j = length;
+        }
+	break;
       case NdbDictionary::Column::Float:
 	out << r.float_value();
 	break;
