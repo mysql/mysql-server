@@ -63,6 +63,7 @@ extern handlerton federated_hton;
 extern handlerton myisam_hton;
 extern handlerton myisammrg_hton;
 extern handlerton heap_hton;
+extern handlerton binlog_hton;
 
 
 	/* static functions defined in this file */
@@ -80,41 +81,38 @@ ulong total_ha_2pc;
 ulong savepoint_alloc_size;
 
 /*
-  This structure will go away in the future.
+  This array is used for processing compiled in engines.
 */
-struct show_table_type_st sys_table_types[]=
+handlerton *sys_table_types[]=
 {
-  {"MyISAM",	&have_yes,
-   "Default engine as of MySQL 3.23 with great performance", DB_TYPE_MYISAM,
-   NULL},
-  {"MEMORY",	&have_yes,
-   "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP,
-   NULL},
-  {"MRG_MYISAM",	&have_yes,
-   "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM, NULL},
-  {"ISAM",	&have_isam,
-   "Obsolete storage engine, now replaced by MyISAM", DB_TYPE_ISAM, NULL},
-  {"MRG_ISAM",  &have_isam,
-   "Obsolete storage engine, now replaced by MERGE", DB_TYPE_MRG_ISAM, NULL},
-  {"InnoDB",	&have_innodb,
-   "Supports transactions, row-level locking, and foreign keys", DB_TYPE_INNODB,
-   NULL},
-  {"BERKELEYDB",	&have_berkeley_db,
-   "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB, NULL},
-  {"NDBCLUSTER", &have_ndbcluster,
-   "Clustered, fault-tolerant, memory-based tables", DB_TYPE_NDBCLUSTER, NULL},
-  {"EXAMPLE",&have_example_db,
-   "Example storage engine", DB_TYPE_EXAMPLE_DB, NULL},
-  {"ARCHIVE",&have_archive_db,
-   "Archive storage engine", DB_TYPE_ARCHIVE_DB, NULL},
-  {"CSV",&have_csv_db,
-   "CSV storage engine", DB_TYPE_CSV_DB, NULL},
-  {"FEDERATED",&have_federated_db,
-   "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB, NULL},
-  {"BLACKHOLE",&have_blackhole_db,
-   "/dev/null storage engine (anything you write to it disappears)",
-   DB_TYPE_BLACKHOLE_DB, NULL},
-  {NullS, NULL, NullS, DB_TYPE_UNKNOWN, NULL}
+  &myisam_hton,
+  &heap_hton,
+#ifdef HAVE_INNOBASE_DB
+  &innobase_hton,
+#endif
+#ifdef HAVE_BERKELEY_DB
+  &berkeley_hton,
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+  &blackhole_hton,
+#endif
+#ifdef HAVE_EXAMPLE_DB
+  &example_hton,
+#endif
+#ifdef HAVE_ARCHIVE_DB
+  &archive_hton,
+#endif
+#ifdef HAVE_CSV_DB
+  &tina_hton,
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  &ndbcluster_hton,
+#endif
+#ifdef HAVE_FEDERATED_DB
+  &federated_hton,
+#endif
+  &myisammrg_hton,
+  NULL
 };
 
 struct show_table_alias_st sys_table_aliases[]=
@@ -144,17 +142,17 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
   THD *thd= current_thd;
   show_table_alias_st *table_alias;
-  show_table_type_st *types;
+  handlerton **types;
   const char *ptr= name;
 
   if (thd && !my_strcasecmp(&my_charset_latin1, ptr, "DEFAULT"))
     return (enum db_type) thd->variables.table_type;
 
 retest:
-  for (types= sys_table_types; types->type; types++)
+  for (types= sys_table_types; *types; types++)
   {
-    if (!my_strcasecmp(&my_charset_latin1, ptr, types->type))
-      return (enum db_type) types->db_type;
+    if (!my_strcasecmp(&my_charset_latin1, ptr, (*types)->name))
+      return (enum db_type) (*types)->db_type;
   }
 
   /*
@@ -173,11 +171,11 @@ retest:
 }
 const char *ha_get_storage_engine(enum db_type db_type)
 {
-  show_table_type_st *types;
-  for (types= sys_table_types; types->type; types++)
+  handlerton **types;
+  for (types= sys_table_types; *types; types++)
   {
-    if (db_type == types->db_type)
-      return types->type;
+    if (db_type == (*types)->db_type)
+      return (*types)->name;
   }
 
   return "none";
@@ -203,18 +201,18 @@ bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
 
 my_bool ha_storage_engine_is_enabled(enum db_type database_type)
 {
-  show_table_type_st *types;
-  for (types= sys_table_types; types->type; types++)
+  handlerton **types;
+  for (types= sys_table_types; *types; types++)
   {
-    if ((database_type == types->db_type) &&
-	(*types->value == SHOW_OPTION_YES))
+    if ((database_type == (*types)->db_type) &&
+	((*types)->state == SHOW_OPTION_YES))
       return TRUE;
   }
   return FALSE;
 }
 
 
-	/* Use other database handler if databasehandler is not incompiled */
+/* Use other database handler if databasehandler is not compiled in */
 
 enum db_type ha_checktype(THD *thd, enum db_type database_type,
                           bool no_substitute, bool report_error)
@@ -412,7 +410,7 @@ int ha_init()
 {
   int error= 0;
   handlerton **ht= handlertons;
-  show_table_type_st *types;
+  handlerton **types;
   show_table_alias_st *table_alias;
   total_ha= savepoint_alloc_size= 0;
 
@@ -422,132 +420,35 @@ int ha_init()
   /*
     This will go away soon.
   */
-  for (types= sys_table_types; types->type; types++)
+  for (types= sys_table_types; *types; types++)
   {
-    switch (types->db_type) {
-    case DB_TYPE_HEAP:
-      types->ht= &heap_hton;
-      break;
-    case DB_TYPE_MYISAM:
-      types->ht= &myisam_hton;
-      break;
-    case DB_TYPE_MRG_MYISAM:
-      types->ht= &myisammrg_hton;
-      break;
-#ifdef HAVE_BERKELEY_DB
-    case DB_TYPE_BERKELEY_DB:
-      if (have_berkeley_db == SHOW_OPTION_YES)
-      {
-        if (!(*ht= berkeley_init()))
-        {
-          have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-          error= 1;
-        }
-        else
-        {
-          types->ht= &berkeley_hton;
-          ha_was_inited_ok(ht++);
-        }
-      }
-      break;
-#endif
-#ifdef HAVE_INNOBASE_DB
-    case DB_TYPE_INNODB:
-      if (have_innodb == SHOW_OPTION_YES)
-      {
-        if (!(*ht= innobase_init()))
-        {
-          have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-          error= 1;
-        }
-        else
-        {
-          ha_was_inited_ok(ht++);
-          types->ht= &innobase_hton;
-        }
-      }
-      break;
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
-    case DB_TYPE_NDBCLUSTER:
-      if (have_ndbcluster == SHOW_OPTION_YES)
-      {
-        if (!(*ht= ndbcluster_init()))
-        {
-          have_ndbcluster= SHOW_OPTION_DISABLED;
-          error= 1;
-        }
-        else
-        {
-          ha_was_inited_ok(ht++);
-          types->ht= &ndbcluster_hton;
-        }
-      }
-      break;
-#endif
-#ifdef HAVE_EXAMPLE_DB
-    case DB_TYPE_EXAMPLE_DB:
-      types->ht= &example_hton;
-      break;
-#endif
-#ifdef HAVE_ARCHIVE_DB
-    case DB_TYPE_ARCHIVE_DB:
-      if (have_archive_db == SHOW_OPTION_YES)
-      {
-        if (!(*ht= archive_db_init()))
-        {
-          have_archive_db= SHOW_OPTION_DISABLED;
-          error= 1;
-        }
-        else
-        {
-          ha_was_inited_ok(ht++);
-          types->ht= &archive_hton;
-        }
-      }
-      break;
-#endif
-#ifdef HAVE_CSV_DB
-    case DB_TYPE_CSV_DB:
-      types->ht= &tina_hton;
-      break;
-#endif
-#ifdef HAVE_FEDERATED_DB
-    case DB_TYPE_FEDERATED_DB:
-      if (have_federated_db == SHOW_OPTION_YES)
-      {
-        if (federated_db_init())
-        {
-          have_federated_db= SHOW_OPTION_DISABLED;
-          error= 1;
-        }
-        else 
-        {
-          types->ht= &federated_hton;
-        }
-      }
-      break;
-#endif
-#ifdef HAVE_BLACKHOLE_DB
-    case DB_TYPE_BLACKHOLE_DB:
-      types->ht= &blackhole_hton;
-      break;
-#endif
-    default:
-      types->ht= NULL;
+    /*
+      FUTURE -
+      We need to collapse sys_table_types and handlertons variables into 
+      one variable.
+    */
+    *ht= *types;
+    ht++;
+    if ((*types)->init)
+    {
+      if (!(*types)->init())
+        ha_was_inited_ok(types); 
     }
   }
 
   if (opt_bin_log)
   {
-    if (!(*ht= binlog_init()))                  // Always succeed
+    if (0) // Should fail until binlog is a bit more se like
     {
       mysql_bin_log.close(LOG_CLOSE_INDEX);     // Never used
       opt_bin_log= 0;                           // Never used
       error= 1;                                 // Never used
     }
     else
-      ha_was_inited_ok(ht++);
+    {
+      *types= &binlog_hton;
+      ha_was_inited_ok(types);
+    }
   }
   DBUG_ASSERT(total_ha < MAX_HA);
   /*
@@ -2542,7 +2443,7 @@ TYPELIB *ha_known_exts(void)
 {
   if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
-    show_table_type_st *types;
+    handlerton **types;
     List<char> found_exts;
     List_iterator_fast<char> it(found_exts);
     const char **ext, *old_ext;
@@ -2550,11 +2451,11 @@ TYPELIB *ha_known_exts(void)
     known_extensions_id= mysys_usage_id;
     found_exts.push_back((char*) triggers_file_ext);
     found_exts.push_back((char*) trigname_file_ext);
-    for (types= sys_table_types; types->type; types++)
+    for (types= sys_table_types; *types; types++)
     {
-      if (*types->value == SHOW_OPTION_YES)
+      if ((*types)->state == SHOW_OPTION_YES)
       {
-	handler *file= get_new_handler(0,(enum db_type) types->db_type);
+	handler *file= get_new_handler(0,(enum db_type) (*types)->db_type);
 	for (ext= file->bas_ext(); *ext; ext++)
 	{
 	  while ((old_ext= it++))
