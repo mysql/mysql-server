@@ -3615,6 +3615,15 @@ err:
   pthread_mutex_lock(&mi->run_lock);
   mi->slave_running = 0;
   mi->io_thd = 0;
+
+  /* Close log file and free buffers */
+  if (mi->rli.cur_log_fd >= 0)
+  {
+    end_io_cache(&mi->rli.cache_buf);
+    my_close(mi->rli.cur_log_fd, MYF(MY_WME));
+    mi->rli.cur_log_fd= -1;
+  }
+
   /* Forget the relay log's format */
   delete mi->rli.relay_log.description_event_for_queue;
   mi->rli.relay_log.description_event_for_queue= 0;
@@ -3830,6 +3839,14 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   /* we die so won't remember charset - re-update them on next thread start */
   rli->cached_charset_invalidate();
   rli->save_temporary_tables = thd->temporary_tables;
+
+  /* Close log file and free buffers if it's already open */
+  if (rli->cur_log_fd >= 0)
+  {
+    end_io_cache(&rli->cache_buf);
+    my_close(rli->cur_log_fd, MYF(MY_WME));
+    rli->cur_log_fd = -1;
+  }
 
   /*
     TODO: see if we can do this conditionally in next_event() instead
