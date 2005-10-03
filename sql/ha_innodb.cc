@@ -6000,7 +6000,8 @@ int
 ha_innobase::start_stmt(
 /*====================*/
 	              /* out: 0 or error code */
-	THD*    thd)  /* in: handle to the user thread */
+	THD*    thd,  /* in: handle to the user thread */
+        thr_lock_type lock_type)
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
@@ -6041,7 +6042,7 @@ ha_innobase::start_stmt(
 	} else {
 		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
 		    && thd->lex->sql_command == SQLCOM_SELECT
-		    && thd->lex->lock_option == TL_READ) {
+		    && lock_type == TL_READ) {
 	
 			/* For other than temporary tables, we obtain
 			no lock for consistent read (plain SELECT). */
