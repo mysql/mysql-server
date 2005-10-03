@@ -43,10 +43,10 @@ AM_MAKEFLAGS="-j 4"
 # The following warning flag will give too many warnings:
 # -Wshadow -Wunused  -Winline (The later isn't usable in C++ as
 # __attribute()__ doesn't work with gnu C++)
-global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings -ansi"
+global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings"
 #debug_extra_warnings="-Wuninitialized"
 c_warnings="$global_warnings -Wunused"
-cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
+cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor -ansi"
 
 base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-raid --with-openssl --with-raid --with-vio"
 max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-raid --with-openssl --with-raid --with-vio --with-embedded-server"
