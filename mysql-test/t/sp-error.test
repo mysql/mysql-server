@@ -991,6 +991,7 @@ P1: BEGIN
   SELECT 'end of proc';
 END P1|
 delimiter ;|
+--error 1326
 call SP001();
 drop procedure SP001;
 drop table t1, t2;
@@ -1187,7 +1188,30 @@ delimiter ;|
 create trigger bug12712
   before insert on t1 for each row set session autocommit = 0;
 
-
+#
+# BUG#9367: Stored procedures: client hang after "show warnings"
+#
+--disable_parsing
+--disable_warnings
+drop procedure if exists bug9367;
+--enable_warnings
+create table t1 (s1 int);
+select s1 from t1;
+delimiter |;
+create procedure bug9367()
+begin
+  declare v int;
+  declare c cursor for select s1 from t1;
+  open c;
+  show warnings;
+  fetch c into v;
+  select v;
+end|
+delimiter ;|
+call bug9367();
+drop procedure bug9367;
+drop table t1;
+--enable_parsing
 #
 # BUG#NNNN: New bug synopsis
 #
