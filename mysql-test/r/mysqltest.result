@@ -134,7 +134,6 @@ select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1000...
-mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1000...
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 1064 as "after_--enable_abort_on_error" ;
@@ -143,7 +142,6 @@ after_--enable_abort_on_error
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1064...
-mysqltest: At line 1: query 'select 3 from t1' failed: 1146: Table 'test.t1' doesn't exist
 hello
 hello
 ;;;;;;;;
