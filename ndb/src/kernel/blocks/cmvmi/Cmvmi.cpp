@@ -189,6 +189,12 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   //-----------------------------------------------------------------------
   EventReport * const eventReport = (EventReport *)&signal->theData[0]; 
   Ndb_logevent_type eventType = eventReport->getEventType();
+  Uint32 nodeId= eventReport->getNodeId();
+  if (nodeId == 0)
+  {
+    nodeId= refToNode(signal->getSendersBlockRef());
+    eventReport->setNodeId(nodeId);
+  }
 
   jamEntry();
   

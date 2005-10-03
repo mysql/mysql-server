@@ -182,12 +182,6 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
 
-  /**
-   *  Global Replication
-   */
-  MGM_CMD("rep", &MgmApiSession::repCommand, ""),
-    MGM_ARG("request", Int, Mandatory, "Command"),
-
   MGM_CMD("stop", &MgmApiSession::stop, ""),
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("abort", Int, Mandatory, "Node"),
@@ -252,6 +246,10 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("transporter connect", &MgmApiSession::transporter_connect, ""),
 
   MGM_CMD("get mgmd nodeid", &MgmApiSession::get_mgmd_nodeid, ""),
+
+  MGM_CMD("report event", &MgmApiSession::report_event, ""),
+    MGM_ARG("length", Int, Mandatory, "Length"),
+    MGM_ARG("data", String, Mandatory, "Data"),
 
   MGM_END()
 };
@@ -693,30 +691,6 @@ MgmApiSession::abortBackup(Parser<MgmApiSession>::Context &,
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("");
-}
-
-/*****************************************************************************
- * Global Replication
- *****************************************************************************/
-
-void
-MgmApiSession::repCommand(Parser<MgmApiSession>::Context &,
-			  Properties const &args) {
-  
-  Uint32 request = 0;
-  args.get("request", &request);
-  
-  Uint32 repReqId;
-  int result = m_mgmsrv.repCommand(&repReqId, request, true);
-  
-  m_output->println("global replication reply");
-  if(result != 0)
-    m_output->println("result: %s", get_error_text(result));
-  else{
-    m_output->println("result: Ok");
-    m_output->println("id: %d", repReqId);
-  }
   m_output->println("");
 }
 
@@ -1573,5 +1547,31 @@ MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
   m_output->println("");
 }
 
+void
+MgmApiSession::report_event(Parser_t::Context &ctx,
+			    Properties const &args)
+{
+  Uint32 length;
+  const char *data_string;
+  Uint32 data[25];
+
+  args.get("length", &length);
+  args.get("data", &data_string);
+
+  BaseString tmp(data_string);
+  Vector<BaseString> item;
+  tmp.split(item, " ");
+  for (int i = 0; i < length ; i++)
+  {
+    sscanf(item[i].c_str(), "%u", data+i);
+  }
+
+  m_mgmsrv.eventReport(data);
+  m_output->println("report event reply");
+  m_output->println("result: ok");
+  m_output->println("");
+}
+
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
+template class Vector<BaseString>;

@@ -49,6 +49,10 @@
 #include <NdbOut.hpp>
 #include <NdbTick.h>
 
+// used during shutdown for reporting current startphase
+// accessed from Emulator.cpp, NdbShutdown()
+Uint32 g_currentStartPhase;
+
 /**
  * ALL_BLOCKS Used during start phases and while changing node state
  *
@@ -117,7 +121,7 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
       else
 	tmp.appfmt(" %d", to_3);
       
-      progError(__LINE__, ERR_SYSTEM_ERROR, tmp.c_str());
+      progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, tmp.c_str());
     }
     
     signal->theData[0] = ZSTARTUP;
@@ -192,7 +196,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   }
 
   progError(__LINE__, 
-	    ERR_SYSTEM_ERROR,
+	    NDBD_EXIT_SYSTEM_ERROR,
 	    buf);
   return;
 }//Ndbcntr::execSYSTEM_ERROR()
@@ -1402,21 +1406,21 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
 
     if(tMasterFailed){
       progError(__LINE__,
-		ERR_SR_OTHERNODEFAILED,
+		NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure during restart");
     }
     
     if(tStartConf && tStarting){
       // One of other starting nodes has crashed...
       progError(__LINE__,
-		ERR_SR_OTHERNODEFAILED,
+		NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure of starting node during restart");
     }
 
     if(tStartConf && tStarted){
       // One of other started nodes has crashed...      
       progError(__LINE__,
-		ERR_SR_OTHERNODEFAILED,
+		NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure of started node during restart");
     }
     
@@ -2513,11 +2517,12 @@ void Ndbcntr::Missra::execSTTORRY(Signal* signal){
 
 void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
 
-  for(; currentStartPhase < 255 ; currentStartPhase++){
+  for(; currentStartPhase < 255 ;
+      currentStartPhase++, g_currentStartPhase = currentStartPhase){
     jam();
     
     const Uint32 start = currentBlockIndex;
-    
+
     if (currentStartPhase == ZSTART_PHASE_6)
     {
       // Ndbd has passed the critical startphases.

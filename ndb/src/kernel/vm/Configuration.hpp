@@ -75,6 +75,8 @@ public:
 private:
   friend class Cmvmi;
   friend class Qmgr;
+  friend int reportShutdown(class Configuration *config, int error, int restart);
+
   ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
 
   Uint32 _stopOnError;
@@ -90,6 +92,8 @@ private:
   ndb_mgm_configuration_iterator * m_ownConfigIterator;
   
   ConfigRetriever *m_config_retriever;
+
+  Vector<BaseString> m_mgmds;
 
   /**
    * arguments to NDB process
