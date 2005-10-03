@@ -56,6 +56,10 @@ static int tina_init= 0;
 
 handlerton tina_hton= {
   "CSV",
+  SHOW_OPTION_YES,
+  "CSV storage engine", 
+  DB_TYPE_CSV_DB,
+  NULL,    /* One needs to be written! */
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */

@@ -54,6 +54,10 @@ TYPELIB myisam_stats_method_typelib= {
 
 handlerton myisam_hton= {
   "MyISAM",
+  SHOW_OPTION_YES,
+  "Default engine as of MySQL 3.23 with great performance", 
+  DB_TYPE_MYISAM,
+  NULL,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */

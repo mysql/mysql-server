@@ -25,6 +25,10 @@
 
 handlerton heap_hton= {
   "MEMORY",
+  SHOW_OPTION_YES,
+  "Hash based, stored in memory, useful for temporary tables", 
+  DB_TYPE_HEAP,
+  NULL,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
