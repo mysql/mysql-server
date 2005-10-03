@@ -14910,7 +14910,7 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
 	   signal->theData[2], signal->theData[3], signal->theData[4],
 	   signal->theData[5], signal->theData[6], signal->theData[7]);
 
-  progError(__LINE__, ERR_SR_REDOLOG, buf);  
+  progError(__LINE__, NDBD_EXIT_SR_REDOLOG, buf);  
 
   return;
 }//Dblqh::execDEBUG_SIG()
@@ -15800,7 +15800,7 @@ void Dblqh::buildLinkedLogPageList(Signal* signal)
 //     Uint32 checkSum = bllLogPagePtr.p->logPageWord[ZPOS_CHECKSUM];
 //     if (checkSum != calcCheckSum) {
 //       ndbout << "Redolog: Checksum failure." << endl;
-//       progError(__LINE__, ERR_NDBREQUIRE, "Redolog: Checksum failure.");
+//       progError(__LINE__, NDBD_EXIT_NDBREQUIRE, "Redolog: Checksum failure.");
 //     }
 // #endif
 
@@ -18519,7 +18519,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
     if(arg== 2305)
     {
-      progError(__LINE__, ERR_SYSTEM_ERROR, 
+      progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
 		"Shutting down node due to failed handling of GCP_SAVEREQ");
       
     }

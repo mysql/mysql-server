@@ -19,7 +19,6 @@
 
 #include "Emulator.hpp"
 #include "VMSignal.hpp"
-#include <Error.hpp>
 
 #include <SignalLoggerManager.hpp>
 #include <BlockNumbers.h>
@@ -444,21 +443,21 @@ void FastScheduler::dumpSignalMemory(FILE * output)
 void
 FastScheduler::prio_level_error()
 {
-  ERROR_SET(ecError, ERROR_WRONG_PRIO_LEVEL, 
+  ERROR_SET(ecError, NDBD_EXIT_WRONG_PRIO_LEVEL, 
 	    "Wrong Priority Level", "FastScheduler.C");
 }
 
 void 
 jbuf_error()
 {
-  ERROR_SET(ecError, BLOCK_ERROR_JBUFCONGESTION, 
+  ERROR_SET(ecError, NDBD_EXIT_BLOCK_JBUFCONGESTION, 
 	    "Job Buffer Full", "APZJobBuffer.C");
 }
 
 void 
 bnr_error()
 {
-  ERROR_SET(ecError, BLOCK_ERROR_BNR_ZERO, 
+  ERROR_SET(ecError, NDBD_EXIT_BLOCK_BNR_ZERO, 
 	    "Block Number Zero", "FastScheduler.C");
 }
 

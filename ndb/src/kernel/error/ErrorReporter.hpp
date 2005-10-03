@@ -20,7 +20,6 @@
 #include <ndb_global.h>
 
 #include "TimeModule.hpp"
-#include "Error.hpp"
 #include <Emulator.hpp>
 
 class ErrorReporter
@@ -31,23 +30,16 @@ public:
 			   const char* file, 
 			   int line);
   
-  static void handleThreadAssert(const char* message, 
-     		                 const char* file, 
-		                 int line);
-  
-  static void handleError(ErrorCategory type, 
-			  int faultID, 
+  static void handleError(int faultID, 
 			  const char* problemData,
                           const char* objRef,
 			  enum NdbShutdownType = NST_ErrorHandler);
   
-  static void handleWarning(ErrorCategory type, 
-			    int faultID, 
+  static void handleWarning(int faultID, 
 			    const char* problemData,
                             const char* objRef);
   
-  static void formatMessage(ErrorCategory type, 
-			    int faultID, 
+  static void formatMessage(int faultID, 
 			    const char* problemData,
                             const char* objRef, 
 			    const char* theNameOfTheTraceFile,

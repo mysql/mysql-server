@@ -1051,17 +1051,23 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   const ndb_mgm_configuration_iterator * p = 
     theConfiguration.getOwnConfigIterator();
-  ndbrequire(p != 0);
+  ndbrequireErr(p != 0, NDBD_EXIT_INVALID_CONFIG);
 
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
-				       &capiConnectFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_CONNECT,&cconnectFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
-					&cfragstoreFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_REPLICAS, 
-					&creplicaFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize))
-    cfileFileSize = (2 * ctabFileSize) + 2;
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
+					   &capiConnectFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_CONNECT,
+					   &cconnectFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
+					   &cfragstoreFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_REPLICAS, 
+					   &creplicaFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  cfileFileSize = (2 * ctabFileSize) + 2;
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
   return;
@@ -1466,7 +1472,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 	       " Initial start needs to be performed "
 	       " when changing no of storage nodes (node %d)", i);
       progError(__LINE__, 
-		ERR_INVALID_CONFIG,
+		NDBD_EXIT_INVALID_CONFIG,
 		buf);
     }
   }
@@ -3529,7 +3535,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
 	       " when changing no of replicas (%d != %d)", 
 	       node_groups[nodePtr.i], cnoReplicas);
       progError(__LINE__, 
-		ERR_INVALID_CONFIG,
+		NDBD_EXIT_INVALID_CONFIG,
 		buf);
     }
   }
@@ -3812,7 +3818,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     if(getNodeState().getNodeRestartInProgress()){
       jam();
       progError(__LINE__, 
-		ERR_SYSTEM_ERROR,
+		NDBD_EXIT_SYSTEM_ERROR,
 		"Unhandle master failure during node restart");
     }
   }
@@ -8220,7 +8226,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	  /* --------------------------------------------------------------- */
 	  /* THE NODE IS ALIVE AND KICKING AND ACTIVE, LET'S USE IT.         */
 	  /* --------------------------------------------------------------- */
-	  arrGuard(noCrashedReplicas, 8);
+	  arrGuardErr(noCrashedReplicas, 8, NDBD_EXIT_MAX_CRASHED_REPLICAS);
 	  Uint32 lastGci = replicaPtr.p->replicaLastGci[noCrashedReplicas];
 	  if(lastGci >= newestRestorableGCI){
 	    jam();
@@ -8700,7 +8706,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
 	     "table: %d fragment: %d gci: %d",
 	     tableId, fragId, SYSFILE->newestRestorableGCI);
     progError(__LINE__, 
-	      ERR_SYSTEM_ERROR,
+	      NDBD_EXIT_SYSTEM_ERROR,
 	      buf);
     ndbrequire(false);
     return;
@@ -10582,7 +10588,7 @@ void Dbdih::checkEscalation()
     jam();
     if (TnodeGroup[i] == ZFALSE) {
       jam();
-      progError(__LINE__, ERR_SYSTEM_ERROR, "Lost node group");
+      progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, "Lost node group");
     }//if
   }//for
 }//Dbdih::checkEscalation()

@@ -19,7 +19,6 @@
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
 #include "Filename.hpp"
-#include "Error.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
@@ -557,7 +556,7 @@ Ndbfs::createAsyncFile(){
       AsyncFile* file = theFiles[i];
       ndbout_c("%2d (0x%x): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
-    ERROR_SET(fatal, AFS_ERROR_MAXOPEN,""," Ndbfs::createAsyncFile");
+    ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 
   AsyncFile* file = new AsyncFile;
