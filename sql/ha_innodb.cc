@@ -208,6 +208,10 @@ static int innobase_release_savepoint(THD* thd, void *savepoint);
 
 handlerton innobase_hton = {
   "InnoDB",
+  SHOW_OPTION_YES,
+  "Supports transactions, row-level locking, and foreign keys", 
+  DB_TYPE_INNODB,
+  innobase_init,
   0,				/* slot */
   sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
   innobase_close_connection,
@@ -1188,7 +1192,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 /*************************************************************************
 Opens an InnoDB database. */
 
-handlerton*
+bool
 innobase_init(void)
 /*===============*/
 			/* out: &innobase_hton, or NULL on error */
@@ -1199,6 +1203,9 @@ innobase_init(void)
 	char 	        *default_path;
 
   	DBUG_ENTER("innobase_init");
+
+         if (have_innodb != SHOW_OPTION_YES)
+           goto error;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -1267,7 +1274,7 @@ innobase_init(void)
 			"InnoDB: syntax error in innodb_data_file_path");
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-	  	DBUG_RETURN(0);
+                goto error;
 	}
 
 	/* -------------- Log files ---------------------------*/
@@ -1298,7 +1305,7 @@ innobase_init(void)
 
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		DBUG_RETURN(0);
+                goto error;
 	}
 
 	/* --------------------------------------------------*/
@@ -1386,7 +1393,7 @@ innobase_init(void)
 	if (err != DB_SUCCESS) {
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		DBUG_RETURN(0);
+                goto error;
 	}
 
 	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
@@ -1413,7 +1420,11 @@ innobase_init(void)
 		glob_mi.pos = trx_sys_mysql_master_log_pos;
 	}
 */
-	DBUG_RETURN(&innobase_hton);
+	DBUG_RETURN(FALSE);
+error:
+        have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+        innobase_hton.state= SHOW_OPTION_DISABLED;
+        DBUG_RETURN(TRUE);
 }
 
 /***********************************************************************

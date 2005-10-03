@@ -74,7 +74,11 @@
 
 
 handlerton example_hton= {
-  "CSV",
+  "EXAMPLE",
+  SHOW_OPTION_YES,
+  "Example storage engine", 
+  DB_TYPE_EXAMPLE_DB,
+  NULL,    /* We do need to write one! */
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */

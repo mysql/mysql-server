@@ -716,7 +716,7 @@ private:
 
 extern struct show_var_st ndb_status_variables[];
 
-handlerton *ndbcluster_init(void);
+bool ndbcluster_init(void);
 bool ndbcluster_end(void);
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,

@@ -161,7 +161,7 @@ extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
 
-handlerton *berkeley_init(void);
+bool berkeley_init(void);
 bool berkeley_end(void);
 bool berkeley_flush_logs(void);
 int berkeley_show_logs(Protocol *protocol);
