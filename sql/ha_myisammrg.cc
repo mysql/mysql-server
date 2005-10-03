@@ -36,6 +36,10 @@
 
 handlerton myisammrg_hton= {
   "MRG_MYISAM",
+  SHOW_OPTION_YES,
+  "Collection of identical MyISAM tables", 
+  DB_TYPE_MRG_MYISAM,
+  NULL,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */

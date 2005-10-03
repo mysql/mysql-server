@@ -241,7 +241,7 @@ extern ulong srv_commit_concurrency;
 
 extern TYPELIB innobase_lock_typelib;
 
-handlerton *innobase_init(void);
+bool innobase_init(void);
 bool innobase_end(void);
 bool innobase_flush_logs(void);
 uint innobase_get_free_space(void);
