@@ -2973,7 +2973,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   const char *field_name;
   ORDER      *found_group= NULL;
   int         found_match_degree= 0;
-  Item_field *cur_field;
+  Item_ident *cur_field;
   int         cur_match_degree= 0;
 
   if (find_item->type() == Item::FIELD_ITEM ||
@@ -2992,7 +2992,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   {
     if ((*(cur_group->item))->real_item()->type() == Item::FIELD_ITEM)
     {
-      cur_field= (Item_field*) *cur_group->item;
+      cur_field= (Item_ident*) *cur_group->item;
       cur_match_degree= 0;
       
       DBUG_ASSERT(cur_field->field_name != 0);
