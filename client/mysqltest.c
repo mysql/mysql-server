@@ -3155,7 +3155,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
     goto end;
   }
 
-  // If we come here the query is both executed and read successfully
+  /* If we come here the query is both executed and read successfully */
   if (handle_no_error(q))
   {
     error= 1;
