@@ -773,14 +773,10 @@ InitConfigFileParser::parse_mycnf()
       case ConfigInfo::CI_INT: 
 	opt.value = (gptr*)malloc(sizeof(int));
 	opt.var_type = GET_INT;
-	require(convertStringToUint64(param._min, (Uint64&)opt.min_value));
-	require(convertStringToUint64(param._max, (Uint64&)opt.max_value));
 	break;
       case ConfigInfo::CI_INT64:
 	opt.value = (gptr*)malloc(sizeof(Int64));
 	opt.var_type = GET_LL;
-	require(convertStringToUint64(param._min, (Uint64&)opt.min_value));
-	require(convertStringToUint64(param._max, (Uint64&)opt.max_value));
 	break;
       case ConfigInfo::CI_STRING: 
 	opt.value = (gptr*)malloc(sizeof(char *));
