@@ -43,6 +43,11 @@ class ha_tina: public handler
   off_t next_position;     /* Next position in the file scan */
   byte byte_buffer[IO_SIZE];
   String buffer;
+  /*
+    The chain contains "holes" in the file, occured because of
+    deletes/updates. It is used in rnd_end() to get rid of them
+    in the end of the query.
+  */
   tina_set chain_buffer[DEFAULT_CHAIN_LENGTH];
   tina_set *chain;
   tina_set *chain_ptr;
@@ -78,7 +83,11 @@ public:
    */
   virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
   /* The next method will never be called */
-  virtual double read_time(ha_rows rows) { DBUG_ASSERT(0); return((double) rows /  20.0+1); }
+  virtual double read_time(uint index, uint ranges, ha_rows rows)
+  {
+    DBUG_ASSERT(0);
+    return((double) rows /  20.0+1);
+  }
   virtual bool fast_key_read() { return 1;}
   /* 
     TODO: return actual upper bound of number of records in the table.
@@ -110,10 +119,8 @@ public:
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
-      enum ha_rkey_function start_search_flag,
-      const byte *end_key,uint end_key_len,
-      enum ha_rkey_function end_search_flag);
+  ha_rows records_in_range(uint inx, key_range *min_key,
+                                   key_range *max_key);
 //  int delete_table(const char *from);
 //  int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);

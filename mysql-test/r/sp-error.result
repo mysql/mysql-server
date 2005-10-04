@@ -692,6 +692,7 @@ END P1|
 call SP001();
 TEMP_SUM
 0
+ERROR 24000: Cursor is not open
 drop procedure SP001;
 drop table t1, t2;
 drop function if exists bug11394|
