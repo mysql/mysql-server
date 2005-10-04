@@ -4110,6 +4110,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
       {
 	/* calculating table's checksum */
 	ha_checksum crc= 0;
+        uchar null_mask=256 -  (1 << t->s->last_null_bit_pos);
 
 	/* InnoDB must be told explicitly to retrieve all columns, because
 	this function does not set field->query_id in the columns to the
@@ -4130,9 +4131,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
                 continue;
               break;
             }
-	    if (t->record[0] != (byte*) t->field[0]->ptr)
-	      row_crc= my_checksum(row_crc, t->record[0],
-				   ((byte*) t->field[0]->ptr) - t->record[0]);
+	    if (t->s->null_bytes)
+            {
+              /* fix undefined null bits */
+              t->record[0][t->s->null_bytes-1] |= null_mask;
+	      row_crc= my_checksum(row_crc, t->record[0], t->s->null_bytes);
+            }
 
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
@@ -4176,9 +4180,9 @@ static bool check_engine(THD *thd, const char *table_name,
                          enum db_type *new_engine)
 {
   enum db_type req_engine= *new_engine;
-  bool no_substitution= 
+  bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
-  if ((*new_engine= 
+  if ((*new_engine=
        ha_checktype(thd, req_engine, no_substitution, 1)) == DB_TYPE_UNKNOWN)
     return TRUE;
 
