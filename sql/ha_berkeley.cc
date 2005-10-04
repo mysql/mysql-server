@@ -210,7 +210,6 @@ bool berkeley_init(void)
   DBUG_RETURN(FALSE);
 error:
   have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-  berkeley_hton.state= SHOW_OPTION_DISABLED;
   DBUG_RETURN(TRUE);
 }
 

@@ -854,7 +854,6 @@ extern handlerton *sys_table_types[];
 extern const char *ha_row_type[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
-extern handlerton *handlertons[MAX_HA];
 extern ulong total_ha, total_ha_2pc;
 
 	/* Wrapper functions */

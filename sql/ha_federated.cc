@@ -428,7 +428,6 @@ bool federated_db_init()
   }
 error:
   have_federated_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-  federated_hton.state= SHOW_OPTION_DISABLED;
   DBUG_RETURN(TRUE);
 }
 

@@ -25,37 +25,87 @@
 #include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
+
+
+/*
+  We have dummy hanldertons in case the handler has not been compiled
+  in. This will be removed in 5.1.
+*/
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 extern handlerton berkeley_hton;
+#else
+handlerton berkeley_hton = { "BerkeleyDB", SHOW_OPTION_NO, 
+  "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB, NULL, 
+  0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  NULL, NULL, HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_BLACKHOLE_DB
 #include "ha_blackhole.h"
 extern handlerton blackhole_hton;
+#else
+handlerton blackhole_hton = { "BLACKHOLE", SHOW_OPTION_NO,
+  "/dev/null storage engine (anything you write to it disappears)",
+  DB_TYPE_BLACKHOLE_DB, NULL, 0, 0, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
 extern handlerton example_hton;
+#else
+handlerton example_hton = { "EXAMPLE", SHOW_OPTION_NO,
+  "Example storage engine", 
+  DB_TYPE_EXAMPLE_DB, NULL, 0, 0, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_ARCHIVE_DB
 #include "ha_archive.h"
 extern handlerton archive_hton;
+#else
+handlerton archive_hton = { "ARCHIVE", SHOW_OPTION_NO,
+  "Archive storage engine", DB_TYPE_ARCHIVE_DB, NULL, 0, 0, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_CSV_DB
 #include "examples/ha_tina.h"
 extern handlerton tina_hton;
+#else
+handlerton tina_hton = { "CSV", SHOW_OPTION_NO, "CSV storage engine", 
+  DB_TYPE_CSV_DB, NULL, 0, 0, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 extern handlerton innobase_hton;
+#else
+handlerton innobase_hton = { "InnoDB", SHOW_OPTION_NO,
+  "Supports transactions, row-level locking, and foreign keys", 
+  DB_TYPE_INNODB, NULL, 0, 0, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #include "ha_ndbcluster.h"
 extern handlerton ndbcluster_hton;
+#else
+handlerton ndbcluster_hton = { "ndbcluster", SHOW_OPTION_NO,
+  "Clustered, fault-tolerant, memory-based tables", 
+  DB_TYPE_NDBCLUSTER, NULL, 0, 0, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_FEDERATED_DB
 #include "ha_federated.h"
 extern handlerton federated_hton;
+#else
+handlerton federated_hton = { "FEDERATED", SHOW_OPTION_NO, 
+  "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB, NULL, 0, 0, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #include <myisampack.h>
 #include <errno.h>
@@ -65,13 +115,17 @@ extern handlerton myisammrg_hton;
 extern handlerton heap_hton;
 extern handlerton binlog_hton;
 
+/*
+  Obsolete
+*/
+handlerton isam_hton = { "ISAM", SHOW_OPTION_NO, "Obsolete storage engine", 
+  DB_TYPE_ISAM, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, HTON_NO_FLAGS };
 
-	/* static functions defined in this file */
+
+/* static functions defined in this file */
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
-
-/* list of all available storage engines (of their handlertons) */
-handlerton *handlertons[MAX_HA]={0};
 
 /* number of entries in handlertons[] */
 ulong total_ha;
@@ -87,31 +141,17 @@ handlerton *sys_table_types[]=
 {
   &myisam_hton,
   &heap_hton,
-#ifdef HAVE_INNOBASE_DB
   &innobase_hton,
-#endif
-#ifdef HAVE_BERKELEY_DB
   &berkeley_hton,
-#endif
-#ifdef HAVE_BLACKHOLE_DB
   &blackhole_hton,
-#endif
-#ifdef HAVE_EXAMPLE_DB
   &example_hton,
-#endif
-#ifdef HAVE_ARCHIVE_DB
   &archive_hton,
-#endif
-#ifdef HAVE_CSV_DB
   &tina_hton,
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
   &ndbcluster_hton,
-#endif
-#ifdef HAVE_FEDERATED_DB
   &federated_hton,
-#endif
   &myisammrg_hton,
+  &binlog_hton,
+  &isam_hton,
   NULL
 };
 
@@ -183,12 +223,12 @@ const char *ha_get_storage_engine(enum db_type db_type)
 
 bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
 {
-  show_table_type_st *types;
-  for (types= sys_table_types; types->type; types++)
+  handlerton **types;
+  for (types= sys_table_types; *types; types++)
   {
-    if (db_type == types->db_type)
+    if (db_type == (*types)->db_type)
     {
-      if (types->ht->flags & flag)
+      if ((*types)->flags & flag)
         return TRUE;
       else
         return FALSE;
@@ -409,7 +449,6 @@ static inline void ha_was_inited_ok(handlerton **ht)
 int ha_init()
 {
   int error= 0;
-  handlerton **ht= handlertons;
   handlerton **types;
   show_table_alias_st *table_alias;
   total_ha= savepoint_alloc_size= 0;
@@ -418,38 +457,16 @@ int ha_init()
     return 1;
 
   /*
-    This will go away soon.
+    We now initialize everything here.
   */
   for (types= sys_table_types; *types; types++)
   {
-    /*
-      FUTURE -
-      We need to collapse sys_table_types and handlertons variables into 
-      one variable.
-    */
-    *ht= *types;
-    ht++;
-    if ((*types)->init)
-    {
-      if (!(*types)->init())
-        ha_was_inited_ok(types); 
-    }
+    if (!(*types)->init || !(*types)->init())
+      ha_was_inited_ok(types); 
+    else
+      (*types)->state= SHOW_OPTION_DISABLED;
   }
 
-  if (opt_bin_log)
-  {
-    if (0) // Should fail until binlog is a bit more se like
-    {
-      mysql_bin_log.close(LOG_CLOSE_INDEX);     // Never used
-      opt_bin_log= 0;                           // Never used
-      error= 1;                                 // Never used
-    }
-    else
-    {
-      *types= &binlog_hton;
-      ha_was_inited_ok(types);
-    }
-  }
   DBUG_ASSERT(total_ha < MAX_HA);
   /*
     Check if there is a transaction-capable storage engine besides the
@@ -521,9 +538,10 @@ void ha_drop_database(char* path)
 /* don't bother to rollback here, it's done already */
 void ha_close_connection(THD* thd)
 {
-  for (uint i=0; i < total_ha; i++)
-    if (thd->ha_data[i])
-      (*handlertons[i]->close_connection)(thd);
+  handlerton **types;
+  for (types= sys_table_types; *types; types++)
+    if (thd->ha_data[(*types)->slot])
+      (*types)->close_connection(thd);
 }
 
 /* ========================================================================
@@ -834,13 +852,13 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 {
-  handlerton **ht= handlertons, **end_ht=ht+total_ha;
+  handlerton **types;
   int res= 1;
 
-  for ( ; ht < end_ht ; ht++)
-    if ((*ht)->recover)
+  for (types= sys_table_types; *types; types++)
+    if ((*types)->state == SHOW_OPTION_YES && (*types)->recover)
       res= res &&
-        (*(commit ? (*ht)->commit_by_xid : (*ht)->rollback_by_xid))(xid);
+        (*(commit ? (*types)->commit_by_xid : (*types)->rollback_by_xid))(xid);
   return res;
 }
 
@@ -919,7 +937,7 @@ static char* xid_to_str(char *buf, XID *xid)
 int ha_recover(HASH *commit_list)
 {
   int len, got, found_foreign_xids=0, found_my_xids=0;
-  handlerton **ht= handlertons, **end_ht=ht+total_ha;
+  handlerton **types;
   XID *list=0;
   bool dry_run=(commit_list==0 && tc_heuristic_recover==0);
   DBUG_ENTER("ha_recover");
@@ -955,14 +973,14 @@ int ha_recover(HASH *commit_list)
     DBUG_RETURN(1);
   }
 
-  for ( ; ht < end_ht ; ht++)
+  for (types= sys_table_types; *types; types++)
   {
-    if (!(*ht)->recover)
+    if ((*types)->state != SHOW_OPTION_YES || !(*types)->recover)
       continue;
-    while ((got=(*(*ht)->recover)(list, len)) > 0 )
+    while ((got=(*(*types)->recover)(list, len)) > 0 )
     {
       sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, (*ht)->name);
+                            got, (*types)->name);
       for (int i=0; i < got; i ++)
       {
         my_xid x=list[i].get_my_xid();
@@ -990,7 +1008,7 @@ int ha_recover(HASH *commit_list)
           char buf[XIDDATASIZE*4+6]; // see xid_to_str
           sql_print_information("commit xid %s", xid_to_str(buf, list+i));
 #endif
-          (*(*ht)->commit_by_xid)(list+i);
+          (*(*types)->commit_by_xid)(list+i);
         }
         else
         {
@@ -998,7 +1016,7 @@ int ha_recover(HASH *commit_list)
           char buf[XIDDATASIZE*4+6]; // see xid_to_str
           sql_print_information("rollback xid %s", xid_to_str(buf, list+i));
 #endif
-          (*(*ht)->rollback_by_xid)(list+i);
+          (*(*types)->rollback_by_xid)(list+i);
         }
       }
       if (got < len)
