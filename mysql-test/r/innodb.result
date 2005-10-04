@@ -2625,11 +2625,11 @@ test.t1	1531596814
 insert into t1 values(3);
 checksum table t1;
 Table	Checksum
-test.t1	2605035534
+test.t1	1531596814
 commit;
 checksum table t1;
 Table	Checksum
-test.t1	127268899
+test.t1	2050879373
 commit;
 drop table t1;
 create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
@@ -2642,7 +2642,7 @@ set autocommit=1;
 insert into t1 values(3);
 checksum table t1;
 Table	Checksum
-test.t1	127268899
+test.t1	2050879373
 drop table t1;
 create table t1 (col1 integer primary key, col2 integer) engine=innodb;
 insert t1 values (1,100);
