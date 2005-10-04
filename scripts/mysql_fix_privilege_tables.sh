@@ -97,9 +97,11 @@ fi
 
 # Find where 'mysql' command is located
 
+dirname=`dirname "$0"`
+
 if test -z "$bindir"
 then
-  for i in @bindir@ $basedir/bin client
+  for i in @bindir@ $basedir/bin "$dirname/../client"
   do
     if test -f $i/mysql
     then
@@ -107,6 +109,13 @@ then
       break
     fi
   done
+fi
+
+if test -z "$bindir"
+then
+  echo "Could not find MySQL command-line client (mysql)."
+  echo "Please use --basedir to specify the directory where MySQL is installed."
+  exit 1
 fi
 
 cmd="$bindir/mysql --no-defaults --force --user=$user --host=$host"
@@ -128,7 +137,7 @@ fi
 
 # Find where first mysql_fix_privilege_tables.sql is located
 for i in $basedir/support-files $basedir/share $basedir/share/mysql \
-        $basedir/scripts $pkgdatadir . ./scripts
+        $basedir/scripts $pkgdatadir . "$dirname"
 do
   if test -f $i/$file
   then
