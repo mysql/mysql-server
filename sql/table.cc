@@ -874,6 +874,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   /* the correct null_bytes can now be set, since bitfields have been taken into account */
   share->null_bytes= null_pos - (uchar*) outparam->null_flags + (null_bit_pos + 7) / 8;
+  share->last_null_bit_pos= null_bit_pos;
 
   /* The table struct is now initialized;  Open the table */
   error=2;
