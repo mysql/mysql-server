@@ -21,14 +21,15 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
+#endif
+
 #include "config_readline.h"
 
 #include <sys/types.h>
 
 /* To get SuSE 9.3 to define wcwidth() (in wchar.h) */
-#ifndef __USE_XOPEN
-#define __USE_XOPEN
-#endif
 
 #include <fcntl.h>
 
@@ -61,10 +62,6 @@ extern int errno;
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
 #include "rlmbutil.h"
-
-#ifdef HAVE_WCHAR_H
-#include <wchar.h>
-#endif
 
 /* Some standard library routines. */
 #include "readline.h"
