@@ -173,6 +173,7 @@ private:
 
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execTCSEIZECONF(Signal* signal);
   void execTCSEIZEREF(Signal* signal);

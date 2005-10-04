@@ -75,6 +75,7 @@ Qmgr::Qmgr(const class Configuration & conf)
   // Received signals
   addRecSignal(GSN_CONNECT_REP, &Qmgr::execCONNECT_REP);
   addRecSignal(GSN_NDB_FAILCONF, &Qmgr::execNDB_FAILCONF);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Qmgr::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Qmgr::execSTTOR);
   addRecSignal(GSN_CLOSE_COMCONF, &Qmgr::execCLOSE_COMCONF);
   addRecSignal(GSN_API_REGREQ, &Qmgr::execAPI_REGREQ);

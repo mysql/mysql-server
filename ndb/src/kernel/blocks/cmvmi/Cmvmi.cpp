@@ -72,6 +72,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   addRecSignal(GSN_SET_LOGLEVELORD,  &Cmvmi::execSET_LOGLEVELORD);
   addRecSignal(GSN_EVENT_REP,  &Cmvmi::execEVENT_REP);
   addRecSignal(GSN_STTOR,  &Cmvmi::execSTTOR);
+  addRecSignal(GSN_READ_CONFIG_REQ,  &Cmvmi::execREAD_CONFIG_REQ);
   addRecSignal(GSN_CLOSE_COMREQ,  &Cmvmi::execCLOSE_COMREQ);
   addRecSignal(GSN_ENABLE_COMORD,  &Cmvmi::execENABLE_COMORD);
   addRecSignal(GSN_OPEN_COMREQ,  &Cmvmi::execOPEN_COMREQ);
@@ -306,6 +307,27 @@ void Cmvmi::sendSTTORRY(Signal* signal)
   sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
 }//Cmvmi::sendSTTORRY
 
+
+void 
+Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
+}
 
 void Cmvmi::execSTTOR(Signal* signal)
 {

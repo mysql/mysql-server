@@ -120,6 +120,64 @@ Suma::getNodeGroupMembers(Signal* signal) {
 #endif
 }
 
+void 
+Suma::execREAD_CONFIG_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  // SumaParticipant
+  Uint32 noTables;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
+			    &noTables);
+
+  /**
+   * @todo: fix pool sizes
+   */
+  c_tablePool_.setSize(noTables);
+  c_tables.setSize(noTables);
+  
+  c_subscriptions.setSize(20); //10
+  c_subscriberPool.setSize(64);
+  
+  c_subscriptionPool.setSize(64); //2
+  c_syncPool.setSize(20); //2
+  c_dataBufferPool.setSize(128);
+  
+  {
+    SLList<SyncRecord> tmp(c_syncPool);
+    Ptr<SyncRecord> ptr;
+    while(tmp.seize(ptr))
+      new (ptr.p) SyncRecord(* this, c_dataBufferPool);
+    tmp.release();
+  }
+
+  // Suma
+  c_nodePool.setSize(MAX_NDB_NODES);
+  c_masterNodeId = getOwnNodeId();
+
+  c_nodeGroup = c_noNodesInGroup = c_idInNodeGroup = 0;
+  for (int i = 0; i < MAX_REPLICAS; i++) {
+    c_nodesInGroup[i]   = 0;
+  }
+
+  c_subCoordinatorPool.setSize(10);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
+}
+
 void
 Suma::execSTTOR(Signal* signal) {
   jamEntry();                            
@@ -271,40 +329,6 @@ Suma::execREAD_NODESCONF(Signal* signal){
 
   sendSTTORRY(signal);
 }
-
-#if 0
-void
-Suma::execREAD_CONFIG_REQ(Signal* signal) 
-{
-  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
-  Uint32 ref = req->senderRef;
-  Uint32 senderData = req->senderData;
-  ndbrequire(req->noOfParameters == 0);
-
-  jamEntry();
-
-  const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
-  ndbrequire(p != 0);
-  
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_FILES, 
-					&cnoLogFiles));
-  ndbrequire(cnoLogFiles > 0);
-
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &cfragrecFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
-					&ctcConnectrecFileSize));
-  clogFileFileSize       = 4 * cnoLogFiles;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
-  cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_SCANS_PER_FRAG;
-
-  initRecords();
-  initialiseRecordsLab(signal, 0, ref, senderData);
-  
-  return;
-}//Dblqh::execSIZEALT_REP()
-#endif
 
 void
 Suma::sendSTTORRY(Signal* signal){

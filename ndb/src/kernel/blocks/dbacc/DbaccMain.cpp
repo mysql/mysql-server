@@ -679,6 +679,20 @@ void Dbacc::execREAD_CONFIG_REQ(Signal* signal)
     theConfiguration.getOwnConfigIterator();
   ndbrequire(p != 0);
   
+  Uint32 log_page_size= 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_UNDO_INDEX_BUFFER,  
+			    &log_page_size);
+
+  /**
+   * Always set page size in half MBytes
+   */
+  cundopagesize= (log_page_size / sizeof(Undopage));
+  Uint32 mega_byte_part= cundopagesize & 15;
+  if (mega_byte_part != 0) {
+    jam();
+    cundopagesize+= (16 - mega_byte_part);
+  }
+
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_DIR_RANGE, &cdirrangesize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_DIR_ARRAY, &cdirarraysize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_FRAGMENT, &cfragmentsize));

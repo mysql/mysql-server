@@ -25,7 +25,7 @@
 #include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
-#include <NdbMem.h>
+#include "ndbd_malloc.hpp"
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ContinueFragmented.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
@@ -141,7 +141,6 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_UTIL_LOCK_CONF]   = &SimulatedBlock::execUTIL_LOCK_CONF;
   a[GSN_UTIL_UNLOCK_REF]  = &SimulatedBlock::execUTIL_UNLOCK_REF;
   a[GSN_UTIL_UNLOCK_CONF] = &SimulatedBlock::execUTIL_UNLOCK_CONF;
-  a[GSN_READ_CONFIG_REQ] = &SimulatedBlock::execREAD_CONFIG_REQ;
   a[GSN_FSOPENREF]    = &SimulatedBlock::execFSOPENREF;
   a[GSN_FSCLOSEREF]   = &SimulatedBlock::execFSCLOSEREF;
   a[GSN_FSWRITEREF]   = &SimulatedBlock::execFSWRITEREF;
@@ -668,7 +667,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear)
 	     n,
 	     size);
 #endif
-    p = NdbMem_Allocate(size);
+    p = ndbd_malloc(size);
     if (p == NULL){
       char buf1[255];
       char buf2[255];
@@ -699,11 +698,9 @@ void
 SimulatedBlock::deallocRecord(void ** ptr, 
 			      const char * type, size_t s, size_t n){
   (void)type;
-  (void)s;
-  (void)n;
 
   if(* ptr != 0){
-    NdbMem_Free(* ptr);
+      ndbd_free(* ptr, n*s);
     * ptr = 0;
   }
 }
@@ -1740,20 +1737,6 @@ void SimulatedBlock::execUTIL_UNLOCK_REF(Signal* signal){
 void SimulatedBlock::execUTIL_UNLOCK_CONF(Signal* signal){
   ljamEntry();
   c_mutexMgr.execUTIL_UNLOCK_CONF(signal);
-}
-
-void 
-SimulatedBlock::execREAD_CONFIG_REQ(Signal* signal){
-  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
-
-  Uint32 ref = req->senderRef;
-  Uint32 senderData = req->senderData;
-
-  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
-	     ReadConfigConf::SignalLength, JBB);
 }
 
 void

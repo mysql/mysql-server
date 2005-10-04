@@ -1053,6 +1053,8 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     theConfiguration.getOwnConfigIterator();
   ndbrequireErr(p != 0, NDBD_EXIT_INVALID_CONFIG);
 
+  initData();
+
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
 					   &capiConnectFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
