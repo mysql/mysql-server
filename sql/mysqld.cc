@@ -2461,6 +2461,7 @@ You should consider changing lower_case_table_names to 1 or 2",
     unireg_abort(1);
   }
   query_cache_result_size_limit(query_cache_limit);
+  query_cache_init();
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
