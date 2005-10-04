@@ -18,6 +18,7 @@
 #define ARRAY_POOL_HPP
 
 #include <ndb_global.h>
+#include "ndbd_malloc.hpp"
 
 #include <pc.hpp>
 #include <ErrorReporter.hpp>
@@ -201,7 +202,7 @@ template <class T>
 inline
 ArrayPool<T>::~ArrayPool(){
   if(theArray != 0){
-    NdbMem_Free(theArray);
+    ndbd_free(theArray, size * sizeof(T));
     theArray = 0;
 #ifdef ARRAY_GUARD
     delete []theAllocatedBitmask;
@@ -222,7 +223,7 @@ ArrayPool<T>::setSize(Uint32 noOfElements, bool exit_on_error){
   if(size == 0){
     if(noOfElements == 0)
       return true;
-    theArray = (T *)NdbMem_Allocate(noOfElements * sizeof(T));
+    theArray = (T *)ndbd_malloc(noOfElements * sizeof(T));
     if(theArray == 0)
     {
       if (!exit_on_error)

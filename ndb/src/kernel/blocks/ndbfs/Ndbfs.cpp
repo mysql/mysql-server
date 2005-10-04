@@ -56,26 +56,10 @@ Ndbfs::Ndbfs(const Configuration & conf) :
   theLastId(0),
   m_maxOpenedFiles(0)
 {
-  theFileSystemPath = conf.fileSystemPath();
-  theBackupFilePath = conf.backupFilePath();
-
-  theRequestPool = new Pool<Request>;
-
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
-  ndbrequire(p != 0);
-
-  m_maxFiles = 40;
-  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
-  
-  // Create idle AsyncFiles
-  Uint32 noIdleFiles = m_maxFiles > 27  ? 27 : m_maxFiles ;
-  for (Uint32 i = 0; i < noIdleFiles; i++){
-    theIdleFiles.push_back(createAsyncFile());
-  }
-
   BLOCK_CONSTRUCTOR(Ndbfs);
 
   // Set received signals
+  addRecSignal(GSN_READ_CONFIG_REQ, &Ndbfs::execREAD_CONFIG_REQ);
   addRecSignal(GSN_DUMP_STATE_ORD,  &Ndbfs::execDUMP_STATE_ORD);
   addRecSignal(GSN_STTOR,  &Ndbfs::execSTTOR);
   addRecSignal(GSN_FSOPENREQ, &Ndbfs::execFSOPENREQ);
@@ -102,6 +86,39 @@ Ndbfs::~Ndbfs()
   theFiles.clear();
 
   delete theRequestPool;
+}
+
+void 
+Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
+{
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  theFileSystemPath = theConfiguration.fileSystemPath();
+  theBackupFilePath = theConfiguration.backupFilePath();
+
+  theRequestPool = new Pool<Request>;
+
+  m_maxFiles = 40;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
+  
+  // Create idle AsyncFiles
+  Uint32 noIdleFiles = m_maxFiles > 27  ? 27 : m_maxFiles ;
+  for (Uint32 i = 0; i < noIdleFiles; i++){
+    theIdleFiles.push_back(createAsyncFile());
+  }
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }
 
 /* Received a restart signal.

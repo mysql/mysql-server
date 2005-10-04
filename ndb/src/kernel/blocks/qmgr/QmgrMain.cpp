@@ -166,6 +166,27 @@ void Qmgr::execPRES_TOREQ(Signal* signal)
   return;
 }//Qmgr::execPRES_TOREQ()
 
+void 
+Qmgr::execREAD_CONFIG_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
+}
+
 /*
 4.2  ADD NODE MODULE*/
 /*##########################################################################*/

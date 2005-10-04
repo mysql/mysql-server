@@ -17,6 +17,8 @@
 #ifndef CARRAY_HPP
 #define CARRAY_HPP
 
+#include "ndbd_malloc.hpp"
+
 /**
  * Template class used for implementing an c - array
  */
@@ -69,7 +71,7 @@ template <class T>
 inline
 CArray<T>::~CArray(){
   if(theArray != 0){
-    NdbMem_Free(theArray);
+    ndbd_free(theArray, size * sizeof(T));
     theArray = 0;
   }
 }
@@ -86,7 +88,7 @@ CArray<T>::setSize(Uint32 noOfElements, bool exit_on_error){
   if(size == noOfElements)
     return true;
   
-  theArray = (T *)NdbMem_Allocate(noOfElements * sizeof(T));
+  theArray = (T *)ndbd_malloc(noOfElements * sizeof(T));
   if(theArray == 0)
   {
     if (!exit_on_error)

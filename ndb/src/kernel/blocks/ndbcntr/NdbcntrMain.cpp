@@ -85,6 +85,24 @@ static BlockInfo ALL_BLOCKS[] = {
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
 
+static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
+  DBTUP_REF,
+  DBACC_REF,
+  DBTC_REF,
+  DBLQH_REF,
+  DBTUX_REF,
+  DBDICT_REF,
+  DBDIH_REF,
+  NDBFS_REF,
+  NDBCNTR_REF,
+  QMGR_REF,
+  CMVMI_REF,
+  TRIX_REF,
+  BACKUP_REF,
+  DBUTIL_REF,
+  SUMA_REF
+};
+
 /*******************************/
 /*  CONTINUEB                  */
 /*******************************/
@@ -200,6 +218,27 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
 	    buf);
   return;
 }//Ndbcntr::execSYSTEM_ERROR()
+
+void 
+Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
+}
 
 void Ndbcntr::execSTTOR(Signal* signal) 
 {
@@ -2458,7 +2497,7 @@ void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
     req->senderRef = cntr.reference();
     req->noOfParameters = 0;
     
-    const BlockReference ref = ALL_BLOCKS[currentBlockIndex].Ref;
+    const BlockReference ref = readConfigOrder[currentBlockIndex];
 
 #if 0 
     ndbout_c("sending READ_CONFIG_REQ to %s(ref=%x index=%d)", 
@@ -2489,7 +2528,8 @@ void Ndbcntr::Missra::execREAD_CONFIG_CONF(Signal* signal){
   const ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtr();
 
   const Uint32 ref = conf->senderRef;
-  ndbrequire(refToBlock(ALL_BLOCKS[currentBlockIndex].Ref) == refToBlock(ref));
+  ndbrequire(refToBlock(readConfigOrder[currentBlockIndex])
+	     == refToBlock(ref));
 
   currentBlockIndex++;
   sendNextREAD_CONFIG_REQ(signal);
