@@ -1855,7 +1855,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
     if (commit_event->write(&log_file))
       goto err;
+#ifndef DBUG_OFF
 DBUG_skip_commit:
+#endif
     if (flush_and_sync())
       goto err;
     DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););

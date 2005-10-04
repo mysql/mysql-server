@@ -25,6 +25,11 @@
 
 #include <sys/types.h>
 
+/* To get SuSE 9.3 to define wcwidth() (in wchar.h) */
+#ifndef __USE_XOPEN
+#define __USE_XOPEN
+#endif
+
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -42,6 +47,10 @@
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
 #include "rlmbutil.h"
+
+#ifdef HAVE_WCHAR_H
+#include <wchar.h>
+#endif
 
 /* Termcap library stuff. */
 #include "tcap.h"

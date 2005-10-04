@@ -40,7 +40,8 @@ HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
-bool table_rules_on= 0, replicate_same_server_id;
+bool table_rules_on= 0;
+my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
 /*
