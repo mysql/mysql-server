@@ -304,6 +304,27 @@ typedef struct
     storage engine name as it should be printed to a user
   */
   const char *name;
+
+  /*
+    Historical marker for if the engine is available of not 
+  */
+  SHOW_COMP_OPTION state;
+
+  /*
+    A comment used by SHOW to describe an engine.
+  */
+  const char *comment;
+
+  /*
+    Historical number used for frm file to determine the correct storage engine.
+    This is going away and new engines will just use "name" for this.
+  */
+  enum db_type db_type;
+  /* 
+    Method that initizlizes a storage engine
+  */
+  bool (*init)();
+
   /*
     each storage engine has it's own memory area (actually a pointer)
     in the thd, for storing per-connection information.
@@ -362,14 +383,6 @@ typedef struct
    void (*close_cursor_read_view)(void *);
    uint32 flags;                                /* global handler flags */
 } handlerton;
-
-struct show_table_type_st {
-  const char *type;
-  SHOW_COMP_OPTION *value;
-  const char *comment;
-  enum db_type db_type;
-  handlerton *ht;
-};
 
 struct show_table_alias_st {
   const char *alias;
@@ -837,11 +850,10 @@ public:
 
 	/* Some extern variables used with handlers */
 
-extern struct show_table_type_st sys_table_types[];
+extern handlerton *sys_table_types[];
 extern const char *ha_row_type[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
-extern handlerton *handlertons[MAX_HA];
 extern ulong total_ha, total_ha_2pc;
 
 	/* Wrapper functions */
