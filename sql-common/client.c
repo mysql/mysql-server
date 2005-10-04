@@ -1474,6 +1474,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 	      const char *capath __attribute__((unused)),
 	      const char *cipher __attribute__((unused)))
 {
+  DBUG_ENTER("mysql_ssl_set");
 #ifdef HAVE_OPENSSL
   mysql->options.ssl_key=    strdup_if_not_null(key);
   mysql->options.ssl_cert=   strdup_if_not_null(cert);
@@ -1481,7 +1482,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
 #endif /* HAVE_OPENSSL */
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1494,6 +1495,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 static void
 mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 {
+  DBUG_ENTER("mysql_ssl_free");
   my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
@@ -1507,6 +1509,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   mysql->options.ssl_cipher= 0;
   mysql->options.use_ssl = FALSE;
   mysql->connector_fd = 0;
+  DBUG_VOID_RETURN;
 }
 #endif /* HAVE_OPENSSL */
 
