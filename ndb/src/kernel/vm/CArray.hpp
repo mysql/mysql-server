@@ -31,7 +31,7 @@ public:
    *
    * Note, can currently only be called once
    */
-  bool setSize(Uint32 noOfElements);
+  bool setSize(Uint32 noOfElements, bool exit_on_error = true);
 
   /**
    * Get size
@@ -82,13 +82,19 @@ CArray<T>::~CArray(){
 template <class T>
 inline
 bool
-CArray<T>::setSize(Uint32 noOfElements){
+CArray<T>::setSize(Uint32 noOfElements, bool exit_on_error){
   if(size == noOfElements)
     return true;
   
   theArray = (T *)NdbMem_Allocate(noOfElements * sizeof(T));
   if(theArray == 0)
-    return false;
+  {
+    if (!exit_on_error)
+      return false;
+    ErrorReporter::handleAssert("CArray<T>::setSize malloc failed",
+				__FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
+    return false; // not reached
+  }
   size = noOfElements;
   return true;
 }

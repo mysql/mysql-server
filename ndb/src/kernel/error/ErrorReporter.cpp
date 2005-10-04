@@ -165,7 +165,7 @@ ErrorReporter::setErrorHandlerShutdownType(NdbShutdownType nst)
 void childReportError(int error);
 
 void
-ErrorReporter::handleAssert(const char* message, const char* file, int line)
+ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
 {
   char refMessage[100];
 
@@ -179,10 +179,10 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line)
   BaseString::snprintf(refMessage, 100, "%s line: %d (block: %s)",
 	   file, line, blockName);
 #endif
-  WriteMessage(NDBD_EXIT_PRGERR, message, refMessage,
+  WriteMessage(ec, message, refMessage,
 	       theEmulatedJamIndex, theEmulatedJam);
 
-  childReportError(NDBD_EXIT_PRGERR);
+  childReportError(ec);
 
   NdbShutdown(s_errorHandlerShutdownType);
 }
