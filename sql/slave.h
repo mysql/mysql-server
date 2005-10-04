@@ -581,7 +581,8 @@ extern HASH replicate_do_table, replicate_ignore_table;
 extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;
 extern bool do_table_inited, ignore_table_inited,
 	    wild_do_table_inited, wild_ignore_table_inited;
-extern bool table_rules_on, replicate_same_server_id;
+extern bool table_rules_on;
+extern my_bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 

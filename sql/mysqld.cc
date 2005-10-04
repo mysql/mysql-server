@@ -294,7 +294,7 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 /*
   Used with --help for detailed option
 */
-static bool opt_help= 0, opt_verbose= 0;
+static my_bool opt_help= 0, opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -338,9 +338,10 @@ static my_bool opt_sync_bdb_logs;
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
-bool opt_character_set_client_handshake= 1;
+my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
-bool opt_endinfo,using_udf_functions, locked_in_memory;
+bool opt_endinfo,using_udf_functions;
+my_bool locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress, grant_option;
@@ -572,7 +573,7 @@ Query_cache query_cache;
 #endif
 #ifdef HAVE_SMEM
 char *shared_memory_base_name= default_shared_memory_base_name;
-bool opt_enable_shared_memory;
+my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
 #endif
 
