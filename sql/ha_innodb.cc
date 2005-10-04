@@ -1423,7 +1423,6 @@ innobase_init(void)
 	DBUG_RETURN(FALSE);
 error:
         have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-        innobase_hton.state= SHOW_OPTION_DISABLED;
         DBUG_RETURN(TRUE);
 }
 

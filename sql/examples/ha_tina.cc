@@ -862,21 +862,6 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
 }
 
 /* 
-  Range optimizer calls this.
-  I need to update the information on this.
-*/
-ha_rows ha_tina::records_in_range(int inx,
-                                  const byte *start_key,uint start_key_len,
-                                  enum ha_rkey_function start_search_flag,
-                                  const byte *end_key,uint end_key_len,
-                                  enum ha_rkey_function end_search_flag)
-{
-  DBUG_ENTER("ha_tina::records_in_range ");
-  DBUG_RETURN(records); // Good guess
-}
-
-
-/* 
   Create a table. You do not want to leave the table open after a call to
   this (the database will call ::open() if it needs to).
 */

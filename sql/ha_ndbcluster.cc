@@ -4837,7 +4837,6 @@ ndbcluster_init_error:
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
   have_ndbcluster= SHOW_OPTION_DISABLED;	// If we couldn't use handler
-  ndbcluster_hton.state= SHOW_OPTION_DISABLED;
   DBUG_RETURN(TRUE);
 }
 
