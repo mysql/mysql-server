@@ -309,6 +309,8 @@ Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
 Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
+Q_DISABLE_SSL, Q_ENABLE_SSL,
+Q_DISABLE_COMPRESS, Q_ENABLE_COMPRESS,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
@@ -395,6 +397,10 @@ const char *command_names[]=
   "delimiter",
   "disable_abort_on_error",
   "enable_abort_on_error",
+  "disable_ssl",
+  "enable_ssl",
+  "disable_compress",
+  "enable_compress",
   "vertical_results",
   "horizontal_results",
   "query_vertical",
@@ -4047,6 +4053,12 @@ int main(int argc, char **argv)
       case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
       case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;
       case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
+#ifdef HAVE_OPENSSL
+      case Q_ENABLE_SSL:  opt_use_ssl=1; break;
+      case Q_DISABLE_SSL: opt_use_ssl=0; break;
+#endif
+      case Q_ENABLE_COMPRESS:  opt_compress=1; break;
+      case Q_DISABLE_COMPRESS: opt_compress=0; break;
       case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
