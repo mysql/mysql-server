@@ -1,0 +1,25 @@
+# Turn on compression between the client and server
+# and run a number of tests
+
+-- source include/have_openssl.inc
+-- source include/have_compress.inc
+
+enable_compress;
+enable_ssl;
+
+# Reconnect to turn ssl and compress on for
+# default connection
+disconnect default;
+connect (default,localhost,root,,);
+
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
+
+# Check compression turned on
+SHOW STATUS LIKE 'Compression';
+
+# Source select test case
+-- source t/select.test
+
+disable_compress;
+disable_ssl;

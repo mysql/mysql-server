@@ -1,6 +1,6 @@
 # We test openssl. Result set is optimized to be compiled with --with-openssl.
 # Use mysql-test-run with --with-openssl option.
--- source include/have_openssl_1.inc
+-- source include/have_openssl.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -13,27 +13,36 @@ grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA
 grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com";
 grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/Email=abstract.mysql.developer@mysql.com";
 flush privileges;
+enable_ssl;
 connect (con1,localhost,ssl_user1,,);
 connect (con2,localhost,ssl_user2,,);
 connect (con3,localhost,ssl_user3,,);
 connect (con4,localhost,ssl_user4,,);
 
 connection con1;
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error 1142
 delete from t1;
 
 connection con2;
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error 1142
 delete from t1;
 
 connection con3;
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error 1142
 delete from t1;
 
 connection con4;
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error 1142
 delete from t1;
