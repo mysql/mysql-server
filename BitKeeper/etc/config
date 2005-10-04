@@ -72,5 +72,6 @@ hours:
 [nick:]checkout:get
 [jonas:]checkout:get
 [tomas:]checkout:get
+[guilhem:]checkout:get
 checkout:edit
 eoln:unix

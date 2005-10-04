@@ -1,0 +1,29 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium64_cflags $debug_cflags -USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify -DMYSQL_SERVER_SUFFIX=-valgrind-max"
+c_warnings="$c_warnings $debug_extra_warnings"
+cxx_warnings="$cxx_warnings $debug_extra_warnings"
+extra_configs="$pentium_configs $debug_configs"
+
+# We want to test isam when building with valgrind
+extra_configs="$extra_configs --with-berkeley-db --with-innodb --with-isam --with-embedded-server --with-openssl --with-raid --with-ndbcluster"
+
+. "$path/FINISH.sh"
+
+if test -z "$just_print"
+then
+  set +v +x
+  echo "\
+******************************************************************************
+Note that by default BUILD/compile-pentium-valgrind-max calls 'configure' with
+--enable-assembler. When Valgrind detects an error involving an assembly
+function (for example an uninitialized value used as an argument of an
+assembly function), Valgrind will not print the stacktrace and 'valgrind
+--gdb-attach=yes' will not work either. If you need a stacktrace in those
+cases, you have to run BUILD/compile-pentium-valgrind-max with the
+--disable-assembler argument.
+******************************************************************************"
+fi
