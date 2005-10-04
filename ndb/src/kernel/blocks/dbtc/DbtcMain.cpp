@@ -608,6 +608,8 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
     theConfiguration.getOwnConfigIterator();
   ndbrequire(p != 0);
   
+  initData();
+  
   UintR apiConnect;
   UintR tcConnect;
   UintR tables;

@@ -502,7 +502,6 @@ private:
   void execUTIL_UNLOCK_REF(Signal* signal);
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
-  void execREAD_CONFIG_REQ(Signal* signal);
 protected:
   void execUPGRADE(Signal* signal);
 
