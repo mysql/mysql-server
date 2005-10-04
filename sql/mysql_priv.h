@@ -1070,7 +1070,6 @@ bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
-handlerton *binlog_init();
 
 /* mysqld.cc */
 extern void yyerror(const char*);
