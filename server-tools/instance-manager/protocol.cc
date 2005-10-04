@@ -23,6 +23,7 @@
 
 
 static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
+static const char ERROR_PACKET_CODE= (char) 255;
 
 
 int net_send_ok(struct st_net *net, unsigned long connection_id,
@@ -74,7 +75,6 @@ int net_send_error(struct st_net *net, uint sql_errno)
             MYSQL_ERRMSG_SIZE];                 // message
   char *pos= buff;
 
-  const int ERROR_PACKET_CODE= 255;
   *pos++= ERROR_PACKET_CODE;
   int2store(pos, sql_errno);
   pos+= 2;
@@ -95,7 +95,6 @@ int net_send_error_323(struct st_net *net, uint sql_errno)
             MYSQL_ERRMSG_SIZE];                 // message
   char *pos= buff;
 
-  const int ERROR_PACKET_CODE= 255;
   *pos++= ERROR_PACKET_CODE;
   int2store(pos, sql_errno);
   pos+= 2;
@@ -195,7 +194,7 @@ int send_fields(struct st_net *net, LIST *fields)
     int2store(send_buff.buffer + position, 1);          /* charsetnr */
     int4store(send_buff.buffer + position + 2,
               field->length);                           /* field length */
-    send_buff.buffer[position+6]= (uint) FIELD_TYPE_STRING;    /* type */
+    send_buff.buffer[position+6]= (char) FIELD_TYPE_STRING;    /* type */
     int2store(send_buff.buffer + position + 7, 0);      /* flags */
     send_buff.buffer[position + 9]= (char) 0;           /* decimals */
     send_buff.buffer[position + 10]= 0;
