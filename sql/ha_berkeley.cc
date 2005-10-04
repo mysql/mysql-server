@@ -109,6 +109,10 @@ static int berkeley_rollback(THD *thd, bool all);
 
 handlerton berkeley_hton = {
   "BerkeleyDB",
+  SHOW_OPTION_YES,
+  "Supports transactions and page-level locking", 
+  DB_TYPE_BERKELEY_DB,
+  berkeley_init,
   0, /* slot */
   0, /* savepoint size */
   berkeley_close_connection,
@@ -135,9 +139,12 @@ typedef struct st_berkeley_trx_data {
 
 /* General functions */
 
-handlerton *berkeley_init(void)
+bool berkeley_init(void)
 {
   DBUG_ENTER("berkeley_init");
+
+  if (have_berkeley_db != SHOW_OPTION_YES)
+    goto error;
 
   if (!berkeley_tmpdir)
     berkeley_tmpdir=mysql_tmpdir;
@@ -164,7 +171,7 @@ handlerton *berkeley_init(void)
   berkeley_log_file_size= max(berkeley_log_file_size, 10*1024*1024L);
 
   if (db_env_create(&db_env,0))
-    DBUG_RETURN(0);
+    goto error;
   db_env->set_errcall(db_env,berkeley_print_error);
   db_env->set_errpfx(db_env,"bdb");
   db_env->set_noticecall(db_env, berkeley_noticecall);
@@ -194,13 +201,16 @@ handlerton *berkeley_init(void)
   {
     db_env->close(db_env,0);
     db_env=0;
-    DBUG_RETURN(0);
+    goto error;
   }
 
   (void) hash_init(&bdb_open_tables,system_charset_info,32,0,0,
 		   (hash_get_key) bdb_get_key,0,0);
   pthread_mutex_init(&bdb_mutex,MY_MUTEX_INIT_FAST);
-  DBUG_RETURN(&berkeley_hton);
+  DBUG_RETURN(FALSE);
+error:
+  have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 

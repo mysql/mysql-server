@@ -51,6 +51,10 @@ static int ndbcluster_rollback(THD *thd, bool all);
 
 handlerton ndbcluster_hton = {
   "ndbcluster",
+  SHOW_OPTION_YES,
+  "Clustered, fault-tolerant, memory-based tables", 
+  DB_TYPE_NDBCLUSTER,
+  ndbcluster_init,
   0, /* slot */
   0, /* savepoint size */
   ndbcluster_close_connection,
@@ -4735,11 +4739,14 @@ static int connect_callback()
   return 0;
 }
 
-handlerton *
-ndbcluster_init()
+bool ndbcluster_init()
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
+
+  if (have_ndbcluster != SHOW_OPTION_YES)
+    goto ndbcluster_init_error;
+
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
     DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
@@ -4820,16 +4827,17 @@ ndbcluster_init()
   }
   
   ndbcluster_inited= 1;
-  DBUG_RETURN(&ndbcluster_hton);
+  DBUG_RETURN(FALSE);
 
- ndbcluster_init_error:
+ndbcluster_init_error:
   if (g_ndb)
     delete g_ndb;
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
-  DBUG_RETURN(NULL);
+  have_ndbcluster= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 
