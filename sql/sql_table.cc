@@ -4135,6 +4135,9 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
             {
               /* fix undefined null bits */
               t->record[0][t->s->null_bytes-1] |= null_mask;
+              if (!(t->s->db_create_options & HA_OPTION_PACK_RECORD))
+                t->record[0][0] |= 1;
+
 	      row_crc= my_checksum(row_crc, t->record[0], t->s->null_bytes);
             }
 
