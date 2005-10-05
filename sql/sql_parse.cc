@@ -134,6 +134,12 @@ static bool end_active_trans(THD *thd)
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
   }
+  if (thd->transaction.xid_state.xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0),
+             xa_state_names[thd->transaction.xid_state.xa_state]);
+    DBUG_RETURN(1);
+  }
   if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
@@ -1366,6 +1372,12 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+    DBUG_RETURN(1);
+  }
+  if (thd->transaction.xid_state.xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0),
+             xa_state_names[thd->transaction.xid_state.xa_state]);
     DBUG_RETURN(1);
   }
   switch (completion) {
@@ -3926,6 +3938,12 @@ end_with_restore_list:
     break;
 
   case SQLCOM_BEGIN:
+    if (thd->transaction.xid_state.xa_state != XA_NOTR)
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xid_state.xa_state]);
+      break;
+    }
     if (begin_trans(thd))
       goto error;
     send_ok(thd);
