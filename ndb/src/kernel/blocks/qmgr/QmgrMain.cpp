@@ -2713,7 +2713,7 @@ void Qmgr::systemErrorLab(Signal* signal, Uint32 line, const char * message)
 
   // If it's known why shutdown occured
   // an error message has been passed to this function
-  progError(line, 0, message);  
+  progError(line, NDBD_EXIT_NDBREQUIRE, message);  
 
   return;
 }//Qmgr::systemErrorLab()

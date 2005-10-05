@@ -308,7 +308,7 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
        (::access(buf2, W_OK) != 0))
 #endif
   {
-    ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH, path, " Filename::init()");
+    ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH, path, param_string);
   }
   
   if (strcmp(&buf2[strlen(buf2) - 1], DIR_SEPARATOR))

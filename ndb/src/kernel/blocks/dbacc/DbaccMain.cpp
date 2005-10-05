@@ -55,8 +55,7 @@ Dbacc::remainingUndoPages(){
   // There can not be more than cundopagesize remaining
   if (Remaining <= 0){
     // No more undolog, crash node
-    progError(__LINE__,
-	      NDBD_EXIT_NO_MORE_UNDOLOG,
+    progError(__LINE__, NDBD_EXIT_NO_MORE_UNDOLOG,
 	      "There are more than 1Mbyte undolog writes outstanding");
   }
   return Remaining;
@@ -5630,7 +5629,7 @@ Uint32 Dbacc::checkScanShrink(Signal* signal)
 	  //-------------------------------------------------------------
         } else {
           jam();
-          sendSystemerror(signal);
+          sendSystemerror(signal, __LINE__);
           return TreturnCode;
         }//if
       }//if
@@ -6058,7 +6057,7 @@ void Dbacc::shrinkcontainer(Signal* signal)
   fragrecptr.p->expReceiveForward = tidrForward;
   if (tshrRemLen < tshrInc) {
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
   }//if
   tshrRemLen = tshrRemLen - tshrInc;
   if (tshrRemLen != 0) {
@@ -6093,7 +6092,7 @@ void Dbacc::nextcontainerinfoExp(Signal* signal)
     cexcForward = cminusOne;
   } else {
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
     cexcForward = 0;	/* DUMMY FOR COMPILER */
   }//if
   if (tnciNextSamePage == ZFALSE) {
@@ -6592,7 +6591,7 @@ void Dbacc::execACC_SAVE_PAGES(Signal* signal)
   ptrCheckGuard(lcpConnectptr, clcpConnectsize, lcpConnectrec);
   if (lcpConnectptr.p->lcpstate != LCP_ACTIVE) {
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
     return;
   }//if
   if (ERROR_INSERTED(3000)) {
@@ -6778,7 +6777,7 @@ void Dbacc::saveOverPagesLab(Signal* signal)
 	releaseOverpage(signal);
       } else {
         jam();
-	sendSystemerror(signal);
+	sendSystemerror(signal, __LINE__);
       }
     }//if
   }
@@ -6918,7 +6917,7 @@ void Dbacc::checkSyncUndoPagesLab(Signal* signal)
     break;
   default:
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
     return;
     break;
   }//switch
@@ -7201,7 +7200,7 @@ void Dbacc::lcpCopyPage(Signal* signal)
     /*empty*/;
   } else {
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
     return;
   }//if
   /*-----------------------------------------------------------------*/
@@ -7222,7 +7221,7 @@ void Dbacc::lcpCopyPage(Signal* signal)
     /*empty*/;
   } else {
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
     return;
   }//if
   lcnCopyPageptr.p->word32[ZPOS_CHECKSUM] = tlcnChecksum;
@@ -7269,7 +7268,7 @@ void Dbacc::lcpUpdatePage(Signal* signal)
   }//while
   if (tlupConLen < ZCON_HEAD_SIZE) {
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
   }//if
 }//Dbacc::lcpUpdatePage()
 
@@ -7542,7 +7541,7 @@ void Dbacc::undoWritingProcess(Signal* signal)
       /* ONLY PAGE INFO AND OVERFLOW PAGE INFO CAN BE LOGGED BY THIS ROUTINE. A      */
       /* SERIOUS ERROR.                                                              */
       /* --------------------------------------------------------------------------- */
-      sendSystemerror(signal);
+      sendSystemerror(signal, __LINE__);
     }
   } else {
     if (fragrecptr.p->fragState == LCP_SEND_OVER_PAGES) {
@@ -8545,7 +8544,7 @@ void Dbacc::startActiveUndo(Signal* signal)
     /*---------------------------------------------------------------------------*/
     if (cfsFirstfreeconnect == RNIL) {
       jam();
-      sendSystemerror(signal);
+      sendSystemerror(signal, __LINE__);
     }//if
     seizeFsConnectRec(signal);
     cactiveSrFsPtr = fsConnectptr.i;
@@ -8722,7 +8721,8 @@ void Dbacc::srDoUndoLab(Signal* signal)
       ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
     } else {
       jam();
-      progError(__LINE__, 0, "Invalid local fragment id in undo log");
+      progError(__LINE__, NDBD_EXIT_SR_UNDOLOG,
+		"Invalid local fragment id in undo log");
       return;
     }//if
   }//if
@@ -8899,7 +8899,7 @@ void Dbacc::srDoUndoLab(Signal* signal)
 
   default:
     jam();
-    progError(__LINE__, 0, "Invalid pagetype in undo log");
+    progError(__LINE__, NDBD_EXIT_SR_UNDOLOG, "Invalid pagetype in undo log");
     break;
 
   }//switch(tpageType)
@@ -9369,7 +9369,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 	    /* --------------------------------------------------------------------------------- */
             if (scanPtr.p->minBucketIndexToRescan != 0) {
               jam();
-              sendSystemerror(signal);
+              sendSystemerror(signal, __LINE__);
               return;
             }//if
             scanPtr.p->maxBucketIndexToRescan = fragrecptr.p->p + fragrecptr.p->maxp;
@@ -9534,7 +9534,7 @@ void Dbacc::checkNextFragmentLab(Signal* signal)
     } else {
       jam();
       /* ALL ELEMENTS ARE SENT */
-      sendSystemerror(signal);
+      sendSystemerror(signal, __LINE__);
     }//if
   }//if
   /* --------------------------------------------------------------------------------- */
@@ -10132,7 +10132,7 @@ void Dbacc::releaseScanContainer(Signal* signal)
   if (trscContainerlen < 4) {
     if (trscContainerlen != ZCON_HEAD_SIZE) {
       jam();
-      sendSystemerror(signal);
+      sendSystemerror(signal, __LINE__);
     }//if
     return;	/* 2 IS THE MINIMUM SIZE OF THE ELEMENT */
   }//if
@@ -10167,7 +10167,7 @@ void Dbacc::releaseScanContainer(Signal* signal)
   } while (trscElemlens > 1);
   if (trscElemlens != 0) {
     jam();
-    sendSystemerror(signal);
+    sendSystemerror(signal, __LINE__);
   }//if
 }//Dbacc::releaseScanContainer()
 
@@ -11284,9 +11284,9 @@ void Dbacc::seizeSrVerRec(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* SEND_SYSTEMERROR                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::sendSystemerror(Signal* signal) 
+void Dbacc::sendSystemerror(Signal* signal, int line)
 {
-  progError(0, 0);
+  progError(line, NDBD_EXIT_PRGERR);
 }//Dbacc::sendSystemerror()
 
 /* --------------------------------------------------------------------------------- */

@@ -616,11 +616,15 @@ handler_error(int signum){
       NdbSleep_MilliSleep(10);
   thread_id= my_thread_id();
   g_eventLogger.info("Received signal %d. Running error handler.", signum);
-  writeChildInfo("signal", signum);
+  childReportSignal(signum);
   // restart the system
-  char errorData[40];
-  BaseString::snprintf(errorData, 40, "Signal %d received", signum);
-  ERROR_SET_SIGNAL(fatal, 0, errorData, __FILE__);
+  char errorData[64], *info= 0;
+#ifdef HAVE_STRSIGNAL
+  info= strsignal(signum);
+#endif
+  BaseString::snprintf(errorData, sizeof(errorData), "Signal %d received; %s", signum,
+		       info ? info : "No text for signal available");
+  ERROR_SET_SIGNAL(fatal, NDBD_EXIT_OS_SIGNAL_RECEIVED, errorData, __FILE__);
 }
 
 extern "C"

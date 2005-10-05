@@ -1473,9 +1473,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 	       "Illegal configuration change."
 	       " Initial start needs to be performed "
 	       " when changing no of storage nodes (node %d)", i);
-      progError(__LINE__, 
-		NDBD_EXIT_INVALID_CONFIG,
-		buf);
+      progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
     }
   }
   
@@ -3536,9 +3534,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
 	       " Initial start needs to be performed "
 	       " when changing no of replicas (%d != %d)", 
 	       node_groups[nodePtr.i], cnoReplicas);
-      progError(__LINE__, 
-		NDBD_EXIT_INVALID_CONFIG,
-		buf);
+      progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
     }
   }
 }//Dbdih::selectMasterCandidate()
@@ -3819,9 +3815,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
 
     if(getNodeState().getNodeRestartInProgress()){
       jam();
-      progError(__LINE__, 
-		NDBD_EXIT_SYSTEM_ERROR,
-		"Unhandle master failure during node restart");
+      progError(__LINE__, NDBD_EXIT_MASTER_FAILURE_DURING_NR);
     }
   }
 
@@ -8702,14 +8696,10 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     /*   THIS WILL DECREASE THE GCI TO RESTORE WHICH HOPEFULLY WILL MAKE IT  */
     /*   POSSIBLE TO RESTORE THE SYSTEM.                                     */
     /* --------------------------------------------------------------------- */
-    char buf[100];
-    BaseString::snprintf(buf, sizeof(buf), 
-	     "Unable to find restorable replica for "
-	     "table: %d fragment: %d gci: %d",
-	     tableId, fragId, SYSFILE->newestRestorableGCI);
-    progError(__LINE__, 
-	      NDBD_EXIT_SYSTEM_ERROR,
-	      buf);
+    char buf[64];
+    BaseString::snprintf(buf, sizeof(buf), "table: %d fragment: %d gci: %d",
+			 tableId, fragId, SYSFILE->newestRestorableGCI);
+    progError(__LINE__, NDBD_EXIT_NO_RESTORABLE_REPLICA, buf);
     ndbrequire(false);
     return;
   }//if
@@ -10557,7 +10547,7 @@ void Dbdih::calculateHotSpare()
     break;
   default:
     jam();
-    progError(0, 0);
+    ndbrequire(false);
     break;
   }//switch
 }//Dbdih::calculateHotSpare()
@@ -10590,7 +10580,7 @@ void Dbdih::checkEscalation()
     jam();
     if (TnodeGroup[i] == ZFALSE) {
       jam();
-      progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, "Lost node group");
+      progError(__LINE__, NDBD_EXIT_LOST_NODE_GROUP, "Lost node group");
     }//if
   }//for
 }//Dbdih::checkEscalation()

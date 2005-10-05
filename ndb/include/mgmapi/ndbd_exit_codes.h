@@ -44,8 +44,7 @@ typedef enum
   ndbd_exit_st_unknown = 1,
   ndbd_exit_st_permanent = 2,
   ndbd_exit_st_temporary = 3,
-  ndbd_exit_st_temporary_i = 4,
-  ndbd_exit_st_bug = 5
+  ndbd_exit_st_filesystem_error = 4
 } ndbd_exit_status_enum;
 
 typedef enum
@@ -58,7 +57,8 @@ typedef enum
   ndbd_exit_cl_restart_error = 5,
   ndbd_exit_cl_resource_configuration_error = 6,
   ndbd_exit_cl_filesystem_full_error = 7,
-  ndbd_exit_cl_filesystem_inconsistency_error = 8
+  ndbd_exit_cl_filesystem_inconsistency_error = 8,
+  ndbd_exit_cl_filesystem_limit = 9
 } ndbd_exit_classification_enum;
 
 typedef ndbd_exit_status_enum ndbd_exit_status;
@@ -93,15 +93,24 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_INVALID_CONFIG              2350
 #define NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY   2351
 
-/* VM 6000-> */
-#define NDBD_EXIT_WATCHDOG_TERMINATE          6000
-#define NDBD_EXIT_SIGNAL_LOST                 6001
-#define NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL 6002
-#define NDBD_EXIT_ILLEGAL_SIGNAL              6003
+#define NDBD_EXIT_OS_SIGNAL_RECEIVED          6000
+
+/* VM 6050-> */
+#define NDBD_EXIT_WATCHDOG_TERMINATE          6050
+#define NDBD_EXIT_SIGNAL_LOST                 6051
+#define NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL 6052
+#define NDBD_EXIT_ILLEGAL_SIGNAL              6053
+
+/* NDBCNTR 6100-> */
+#define NDBD_EXIT_RESTART_TIMEOUT             6100
 
 /* TC  6200-> */
 /* DIH 6300-> */
 #define NDBD_EXIT_MAX_CRASHED_REPLICAS        6300
+#define NDBD_EXIT_MASTER_FAILURE_DURING_NR    6301
+#define NDBD_EXIT_LOST_NODE_GROUP             6302
+#define NDBD_EXIT_NO_RESTORABLE_REPLICA       6303
+
 /* ACC 6600-> */
 #define NDBD_EXIT_SR_OUT_OF_INDEXMEMORY       6600
 /* TUP 6800-> */

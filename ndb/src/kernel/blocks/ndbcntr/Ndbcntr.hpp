@@ -225,7 +225,7 @@ private:
   CheckNodeGroups::Output checkNodeGroups(Signal*, const NdbNodeBitmask &);
   
   // Generated statement blocks
-  void systemErrorLab(Signal* signal);
+  void systemErrorLab(Signal* signal, int line);
 
   void createSystableLab(Signal* signal, unsigned index);
   void crSystab7Lab(Signal* signal);
