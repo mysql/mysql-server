@@ -2443,7 +2443,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     String *escape_str= escape_item->val_str(&tmp_value1);
     if (escape_str)
     {
-      if (use_mb(cmp_collation.collation))
+      if (use_mb(cmp.cmp_collation.collation))
       {
         CHARSET_INFO *cs= escape_str->charset();
         my_wc_t wc;
