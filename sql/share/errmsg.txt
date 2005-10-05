@@ -5311,7 +5311,8 @@ ER_XAER_NOTA XAE04
 ER_XAER_INVAL XAE05
         eng "XAER_INVAL: Invalid arguments (or unsupported command)"
 ER_XAER_RMFAIL XAE07
-        eng "XAER_RMFAIL: The command cannot be executed in the %.64s state"
+        eng "XAER_RMFAIL: The command cannot be executed when global transaction is in the  %.64s state"
+        rus "XAER_RMFAIL: эту команду нельзя выполнять когда глобальная транзакция находится в состоянии '%.64s'"
 ER_XAER_OUTSIDE XAE09
         eng "XAER_OUTSIDE: Some work is done outside global transaction"
 ER_XAER_RMERR XAE03
