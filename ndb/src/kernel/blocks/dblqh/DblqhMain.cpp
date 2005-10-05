@@ -168,11 +168,11 @@ void Dblqh::execTUP_COM_UNBLOCK(Signal* signal)
 /* -------               SEND SYSTEM ERROR                           ------- */
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
-void Dblqh::systemError(Signal* signal) 
+void Dblqh::systemError(Signal* signal, int line)
 {
   signal->theData[0] = 2304;
   execDUMP_STATE_ORD(signal);
-  progError(0, 0);
+  progError(line, NDBD_EXIT_NDBREQUIRE);
 }//Dblqh::systemError()
 
 /* *************** */
@@ -5120,7 +5120,7 @@ void Dblqh::errorReport(Signal* signal, int place)
     jam();
     break;
   }//switch
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Dblqh::errorReport()
 
@@ -5181,7 +5181,7 @@ void Dblqh::execCOMMITREQ(Signal* signal)
   Uint32 transid2 = signal->theData[4];
   Uint32 tcOprec = signal->theData[6];
   if (ERROR_INSERTED(5004)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }
   if (ERROR_INSERTED(5017)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -5303,7 +5303,7 @@ void Dblqh::execCOMPLETEREQ(Signal* signal)
   Uint32 transid2 = signal->theData[3];
   Uint32 tcOprec = signal->theData[5];
   if (ERROR_INSERTED(5005)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }
   if (ERROR_INSERTED(5018)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -5932,7 +5932,7 @@ void Dblqh::execABORTREQ(Signal* signal)
   Uint32 transid2 = signal->theData[3];
   Uint32 tcOprec = signal->theData[5];
   if (ERROR_INSERTED(5006)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }
   if (ERROR_INSERTED(5016)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -6743,7 +6743,7 @@ void Dblqh::lqhTransNextLab(Signal* signal)
 	      /* ------------------------------------------------------------
 	       * THIS IS AN ERROR THAT SHOULD NOT OCCUR. WE CRASH THE SYSTEM.
 	       * ------------------------------------------------------------ */
-               systemErrorLab(signal);
+               systemErrorLab(signal, __LINE__);
                return;
             }//if
           }//if
@@ -6920,7 +6920,7 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
 void Dblqh::execNEXT_SCANREF(Signal* signal) 
 {
   jamEntry();
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Dblqh::execNEXT_SCANREF()
 
@@ -9199,7 +9199,7 @@ void Dblqh::storedProcConfCopyLab(Signal* signal)
     jam();
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
     break;
   }//switch
@@ -9491,7 +9491,7 @@ void Dblqh::copyCompletedLab(Signal* signal)
 // Make sure that something is in progress. Otherwise we will simply stop
 // and nothing more will happen.
 /*---------------------------------------------------------------------------*/
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
   return;
@@ -9510,7 +9510,7 @@ void Dblqh::nextRecordCopy(Signal* signal)
 // scans on the same record and this will certainly lead to unexpected
 // behaviour.
 /*---------------------------------------------------------------------------*/
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
   scanptr.p->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
@@ -9537,7 +9537,7 @@ void Dblqh::nextRecordCopy(Signal* signal)
     jam();
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
     break;
   }//switch
@@ -9611,7 +9611,7 @@ void Dblqh::closeCopyLab(Signal* signal)
     jam();
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
     break;
   }//switch
@@ -10632,7 +10632,7 @@ void Dblqh::restartOperationsAfterStopLab(Signal* signal)
     break;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
     break;
   }//switch
@@ -11456,7 +11456,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   const GCPSaveReq * const saveReq = (GCPSaveReq *)&signal->theData[0];
 
   if (ERROR_INSERTED(5000)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }
 
   if (ERROR_INSERTED(5007)){
@@ -11822,7 +11822,7 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
     return;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 }//Dblqh::execFSCLOSECONF()
@@ -11897,7 +11897,7 @@ void Dblqh::execFSOPENCONF(Signal* signal)
     return;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 }//Dblqh::execFSOPENCONF()
@@ -11956,7 +11956,7 @@ void Dblqh::execFSREADCONF(Signal* signal)
     return;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 }//Dblqh::execFSREADCONF()
@@ -12058,7 +12058,7 @@ void Dblqh::execFSWRITECONF(Signal* signal)
     return;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 }//Dblqh::execFSWRITECONF()
@@ -12102,7 +12102,7 @@ void Dblqh::execFSWRITEREF(Signal* signal)
     break;
   case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   default:
     jam();
     break;
@@ -12316,7 +12316,7 @@ void Dblqh::writeLogfileLab(Signal* signal)
     break;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
     break;
   }//switch
@@ -13550,7 +13550,7 @@ void Dblqh::execACC_SRCONF(Signal* signal)
   ptrCheckGuard(lcpLocptr, clcpLocrecFileSize, lcpLocRecord);
   if (lcpLocptr.p->lcpLocstate != LcpLocRecord::SR_ACC_STARTED) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
 
@@ -13572,7 +13572,7 @@ void Dblqh::execACC_SRREF(Signal* signal)
 {
   jamEntry();
   terrorCode = signal->theData[1];
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Dblqh::execACC_SRREF()
 
@@ -13712,7 +13712,7 @@ void Dblqh::execTUP_SRREF(Signal* signal)
 {
   jamEntry();
   terrorCode = signal->theData[1];
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Dblqh::execTUP_SRREF()
 
@@ -14012,7 +14012,7 @@ void Dblqh::execEXEC_FRAGREF(Signal* signal)
 {
   jamEntry();
   terrorCode = signal->theData[1];
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Dblqh::execEXEC_FRAGREF()
 
@@ -14104,7 +14104,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
 	 *  PROBLEM.  THIS SHOULD NOT OCCUR. IF IT OCCURS ANYWAY THEN WE 
 	 *  HAVE TO FIND A CURE FOR THIS PROBLEM.
 	 * ----------------------------------------------------------------- */
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         return;
       }//if
       signal->theData[0] = ZSR_LOG_LIMITS;
@@ -14631,7 +14631,7 @@ void Dblqh::execSr(Signal* signal)
       break;
     default:
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
       break;
     }//switch
@@ -14982,12 +14982,12 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
   jam();
   if (logPartPtr.p->logExecState != LogPartRecord::LES_EXEC_LOG_INVALIDATE) {
     jam();
-    systemError(signal);
+    systemError(signal, __LINE__);
   }
 
   if (logFilePtr.p->fileNo != logPartPtr.p->invalidateFileNo) {
     jam();
-    systemError(signal);
+    systemError(signal, __LINE__);
   }
 
   switch (lfoPtr.p->lfoState) {
@@ -15042,7 +15042,7 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
 
   default:
     jam();
-    systemError(signal);
+    systemError(signal, __LINE__);
     return;
     break;
   }
@@ -15190,7 +15190,7 @@ void Dblqh::execLogComp(Signal* signal)
     if (logPartPtr.p->logPartState != LogPartRecord::SR_THIRD_PHASE_COMPLETED) {
       if (logPartPtr.p->logPartState != LogPartRecord::SR_THIRD_PHASE_STARTED) {
         jam();
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         return;
       } else {
         jam();
@@ -15448,7 +15448,7 @@ void Dblqh::openSrFourthZeroSkipInitLab(Signal* signal)
        *  THE HEADER PAGE IN THE LOG IS PAGE ZERO IN FILE ZERO. 
        *  THIS SHOULD NEVER OCCUR.
        * ------------------------------------------------------------------- */
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
     }//if
   }//if
@@ -15502,7 +15502,7 @@ void Dblqh::srFourthComp(Signal* signal)
     if (logPartPtr.p->logPartState != LogPartRecord::SR_FOURTH_PHASE_COMPLETED) {
       if (logPartPtr.p->logPartState != LogPartRecord::SR_FOURTH_PHASE_STARTED) {
         jam();
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         return;
       } else {
         jam();
@@ -15563,11 +15563,6 @@ void Dblqh::srFourthComp(Signal* signal)
 /* #######                            ERROR MODULE                   ####### */
 /*                                                                           */
 /* ######################################################################### */
-void Dblqh::warningHandlerLab(Signal* signal) 
-{
-  systemErrorLab(signal);
-  return;
-}//Dblqh::warningHandlerLab()
 
 /*---------------------------------------------------------------------------*/
 /* AN ERROR OCCURRED THAT WE WILL NOT TREAT AS SYSTEM ERROR. MOST OFTEN THIS */
@@ -15588,10 +15583,10 @@ void Dblqh::warningHandlerLab(Signal* signal)
 /*      THE COMMIT, COMPLETE OR ABORT PHASE, WE PERFORM A CRASH OF THE AXE VM*/
 /*---------------------------------------------------------------------------*/
 
-void Dblqh::systemErrorLab(Signal* signal) 
+void Dblqh::systemErrorLab(Signal* signal, int line) 
 {
-  systemError(signal);
-  progError(0, 0);
+  systemError(signal, line);
+  progError(line, NDBD_EXIT_NDBREQUIRE);
 /*************************************************************************>*/
 /*       WE WANT TO INVOKE AN IMMEDIATE ERROR HERE SO WE GET THAT BY       */
 /*       INSERTING A CERTAIN POINTER OUT OF RANGE.                         */
@@ -15926,7 +15921,7 @@ CSC_ACC_DOWHILE:
     jam();
     if (cscLcpLocptr.p->lcpLocstate != LcpLocRecord::SR_ACC_STARTED) {
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
     }//if
     return;
@@ -15943,7 +15938,7 @@ CSC_TUP_DOWHILE:
     jam();
     if (cscLcpLocptr.p->lcpLocstate != LcpLocRecord::SR_TUP_STARTED) {
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
     }//if
     return;
@@ -17511,7 +17506,7 @@ void Dblqh::releaseAccList(Signal* signal)
   racTcNextConnectptr.i = tcConnectptr.p->nextTc;
   if (tcConnectptr.p->listState != TcConnectionrec::ACC_BLOCK_LIST) {
     jam();
-    systemError(signal);
+    systemError(signal, __LINE__);
   }//if
   tcConnectptr.p->listState = TcConnectionrec::NOT_IN_LIST;
   if (racTcNextConnectptr.i != RNIL) {
@@ -17690,7 +17685,7 @@ void Dblqh::releaseWaitQueue(Signal* signal)
   rwaTcNextConnectptr.i = tcConnectptr.p->nextTc;
   if (tcConnectptr.p->listState != TcConnectionrec::WAIT_QUEUE_LIST) {
     jam();
-    systemError(signal);
+    systemError(signal, __LINE__);
   }//if
   tcConnectptr.p->listState = TcConnectionrec::NOT_IN_LIST;
   if (rwaTcNextConnectptr.i != RNIL) {
@@ -18254,7 +18249,7 @@ void Dblqh::writeNextLog(Signal* signal)
 /*       CAN INVOKE THIS SYSTEM CRASH. HOWEVER ONLY   */
 /*       VERY SERIOUS TIMING PROBLEMS.                */
 /* -------------------------------------------------- */
-      systemError(signal);
+      systemError(signal, __LINE__);
     }//if
   }//if
   if (logFilePtr.p->currentMbyte == (ZNO_MBYTES_IN_FILE - 1)) {
@@ -18520,6 +18515,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     if(arg== 2305)
     {
       progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
+		"Please report this as a bug. "
+		"Provide as much info as possible, expecially all the "
+		"ndb_*_out.log files, Thanks. "
 		"Shutting down node due to failed handling of GCP_SAVEREQ");
       
     }

@@ -51,7 +51,7 @@ Filename::init(Uint32 nodeid,
   DBUG_ENTER("Filename::init");
 
   if (pFileSystemPath == NULL) {
-    ERROR_SET(fatal, NDBD_EXIT_AFS_NOPATH, ""," Filename::init()");
+    ERROR_SET(fatal, NDBD_EXIT_AFS_NOPATH, "","Missing FileSystemPath");
     return;
   }
 
