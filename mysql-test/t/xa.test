@@ -33,6 +33,8 @@ connection con1;
 
 --error 1440
 xa start 'testa','testb';
+--error 1440
+xa start 'testa','testb', 123;
 
 #        gtrid [ , bqual [ , formatID ] ]
 xa start 0x7465737462, 0x2030405060, 0xb;
