@@ -131,7 +131,8 @@ static struct languages *parse_charset_string(char *str);
 static struct errors *parse_error_string(char *ptr, int er_count);
 static struct message *parse_message_string(struct message *new_message,
 					    char *str);
-static struct message *find_message(struct errors *err, const char *lang);
+static struct message *find_message(struct errors *err, const char *lang,
+                                    my_bool no_default);
 static int parse_input_file(const char *file_name, struct errors **top_error,
 			    struct languages **top_language);
 static int get_options(int *argc, char ***argv);
@@ -305,7 +306,7 @@ static int create_sys_files(struct languages *lang_head,
     for (tmp_error= error_head; tmp_error; tmp_error= tmp_error->next_error)
     {
       /* dealing with messages */
-      tmp= find_message(tmp_error, tmp_lang->lang_short_name);
+      tmp= find_message(tmp_error, tmp_lang->lang_short_name, FALSE);
 
       if (!tmp)
       {
@@ -450,6 +451,13 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 		current_error->er_name);
 	DBUG_RETURN(0);
       }
+      if (find_message(current_error, current_message.lang_short_name, TRUE))
+      {
+	fprintf(stderr, "Duplicate message string for error '%s'"
+                        " in language '%s'\n",
+		current_error->er_name, current_message.lang_short_name);
+	DBUG_RETURN(0);
+      }
       if (insert_dynamic(&current_error->msg, (byte *) & current_message))
 	DBUG_RETURN(0);
       continue;
@@ -556,11 +564,19 @@ static char *parse_default_language(char *str)
 
 
 /*
-  For given error, finds message in given language; if does not exist,
-  returns english.
-*/
+  Find the message in a particular language
 
-static struct message *find_message(struct errors *err, const char *lang)
+  SYNOPSIS
+    find_message()
+    err             Error to find message for
+    lang            Language of message to find
+    no_default      Don't return default (English) if does not exit
+
+  RETURN VALUE
+    Returns the message structure if one is found, or NULL if not.
+*/
+static struct message *find_message(struct errors *err, const char *lang,
+                                    my_bool no_default)
 {
   struct message *tmp, *return_val= 0;
   uint i, count;
@@ -579,7 +595,7 @@ static struct message *find_message(struct errors *err, const char *lang)
       return_val= tmp;
     }
   }
-  DBUG_RETURN(return_val);
+  DBUG_RETURN(no_default ? NULL : return_val);
 }
 
 
