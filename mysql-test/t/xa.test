@@ -26,7 +26,16 @@ select * from t1;
 
 xa start 'testa','testb';
 insert t1 values (30);
+
+--error 1399
+commit;
+
 xa end 'testa','testb';
+
+--error 1399
+begin;
+--error 1399
+create table t2 (a int);
 
 connect (con1,localhost,,,);
 connection con1;
@@ -41,6 +50,9 @@ xa start 0x7465737462, 0x2030405060, 0xb;
 insert t1 values (40);
 xa end 'testb',' 0@P`',11;
 xa prepare 'testb',0x2030405060,11;
+
+--error 1399
+start transaction;
 
 xa recover;
 
