@@ -228,7 +228,7 @@ struct xid_t {
   char data[XIDDATASIZE];  // not \0-terminated !
 
   bool eq(struct xid_t *xid)
-  { return !memcmp(this, xid, length()); }
+  { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
   { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
   void set(struct xid_t *xid)
@@ -275,6 +275,14 @@ struct xid_t {
   {
     return sizeof(formatID)+sizeof(gtrid_length)+sizeof(bqual_length)+
            gtrid_length+bqual_length;
+  }
+  byte *key()
+  {
+    return (byte *)&gtrid_length;
+  }
+  uint key_length()
+  {
+    return sizeof(gtrid_length)+sizeof(bqual_length)+gtrid_length+bqual_length;
   }
 };
 typedef struct xid_t XID;
