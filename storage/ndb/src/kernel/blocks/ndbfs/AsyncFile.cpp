@@ -18,12 +18,11 @@
 #include <my_sys.h>
 #include <my_pthread.h>
 
-#include <Error.hpp>
 #include "AsyncFile.hpp"
 
 #include <ErrorHandlingMacros.hpp>
 #include <kernel_types.h>
-#include <NdbMem.h>
+#include <ndbd_malloc.hpp>
 #include <NdbThread.h>
 #include <signaldata/FsOpenReq.hpp>
 
@@ -162,7 +161,7 @@ AsyncFile::run()
   theStartFlag = true;
   // Create write buffer for bigger writes
   theWriteBufferSize = WRITEBUFFERSIZE;
-  theWriteBuffer = (char *) NdbMem_Allocate(theWriteBufferSize); 
+  theWriteBuffer = (char *) ndbd_malloc(theWriteBufferSize); 
   NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
   
@@ -517,7 +516,7 @@ AsyncFile::extendfile(Request* request) {
   DEBUG(ndbout_c("extendfile: maxOffset=%d, size=%d", maxOffset, maxSize));
 
   // Allocate a buffer and fill it with zeros
-  void* pbuf = NdbMem_Allocate(maxSize);
+  void* pbuf = ndbd_malloc(maxSize);
   memset(pbuf, 0, maxSize);
   for (int p = 0; p <= maxOffset; p = p + maxSize) {
     int return_value;
@@ -525,16 +524,18 @@ AsyncFile::extendfile(Request* request) {
                          p,
                          SEEK_SET);
     if((return_value == -1 ) || (return_value != p)) {
+      ndbd_free(pbuf,maxSize);
       return -1;
     }
     return_value = ::write(theFd, 
                            pbuf,
                            maxSize);
     if ((return_value == -1) || (return_value != maxSize)) {
+      ndbd_free(pbuf,maxSize);
       return -1;
     }
   }
-  free(pbuf);
+  ndbd_free(pbuf,maxSize);
   
   DEBUG(ndbout_c("extendfile: \"%s\" OK!", theFileName.c_str()));
   return 0;
@@ -884,7 +885,7 @@ AsyncFile::rmrfReq(Request * request, char * path, bool removePath){
 void AsyncFile::endReq()
 {
   // Thread is ended with return
-  if (theWriteBuffer) NdbMem_Free(theWriteBuffer);
+  if (theWriteBuffer) ndbd_free(theWriteBuffer, theWriteBufferSize);
 }
 
 

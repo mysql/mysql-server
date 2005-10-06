@@ -1021,6 +1021,8 @@ extern "C" {
 				   int param, const char  ** value);
   int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
   int ndb_mgm_check_connection(NdbMgmHandle handle);
+
+  int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length);
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED

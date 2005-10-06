@@ -36,6 +36,7 @@ Suma::Suma(const Configuration & conf) :
   }
   
   // Add received signals
+  addRecSignal(GSN_READ_CONFIG_REQ, &Suma::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Suma::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &Suma::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &Suma::execDUMP_STATE_ORD);

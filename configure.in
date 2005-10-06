@@ -1873,7 +1873,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask \
-  snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
+  snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
 
 #

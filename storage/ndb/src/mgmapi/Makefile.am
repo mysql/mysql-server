@@ -1,7 +1,7 @@
 
 noinst_LTLIBRARIES = libmgmapi.la
 
-libmgmapi_la_SOURCES = mgmapi.cpp ndb_logevent.cpp mgmapi_configuration.cpp LocalConfig.cpp
+libmgmapi_la_SOURCES = mgmapi.cpp ndb_logevent.cpp mgmapi_configuration.cpp LocalConfig.cpp ../kernel/error/ndbd_exit_codes.c
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/mgmapi
 

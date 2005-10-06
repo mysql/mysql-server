@@ -2282,4 +2282,33 @@ ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle)
   DBUG_RETURN(nodeid);
 }
 
+extern "C"
+int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
+{
+  DBUG_ENTER("ndb_mgm_report_event");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+
+  Properties args;
+  args.put("length", length);
+  BaseString data_string;
+
+  for (int i = 0; i < length; i++)
+    data_string.appfmt(" %u", data[i]);
+
+  args.put("data", data_string.c_str());
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("report event reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Result"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "report event", &args);
+  CHECK_REPLY(prop, -1);
+
+  DBUG_RETURN(0);
+}
+
 template class Vector<const ParserRow<ParserDummy>*>;

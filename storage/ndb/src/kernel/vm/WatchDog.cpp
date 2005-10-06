@@ -95,39 +95,40 @@ WatchDog::run(){
       globalData.incrementWatchDogCounter(0);
       alerts = 0;
     } else {
+      const char *last_stuck_action;
       alerts++;
-      ndbout << "Ndb kernel is stuck in: ";
       switch (oldIPValue) {
       case 1:
-        ndbout << "Job Handling" << endl;
+        last_stuck_action = "Job Handling";
         break;
       case 2:
-        ndbout << "Scanning Timers" << endl;
+        last_stuck_action = "Scanning Timers";
         break;
       case 3:
-        ndbout << "External I/O" << endl;
+        last_stuck_action = "External I/O";
         break;
       case 4:
-        ndbout << "Print Job Buffers at crash" << endl;
+        last_stuck_action = "Print Job Buffers at crash";
         break;
       case 5:
-        ndbout << "Checking connections" << endl;
+        last_stuck_action = "Checking connections";
         break;
       case 6:
-        ndbout << "Performing Send" << endl;
+        last_stuck_action = "Performing Send";
         break;
       case 7:
-        ndbout << "Polling for Receive" << endl;
+        last_stuck_action = "Polling for Receive";
         break;
       case 8:
-        ndbout << "Performing Receive" << endl;
+        last_stuck_action = "Performing Receive";
         break;
       default:
-        ndbout << "Unknown place" << endl;
+        last_stuck_action = "Unknown place";
         break;
       }//switch
+      ndbout << "Ndb kernel is stuck in: " << last_stuck_action << endl;
       if(alerts == 3){
-	shutdownSystem();
+	shutdownSystem(last_stuck_action);
       }
     }
   }
@@ -135,11 +136,10 @@ WatchDog::run(){
 }
 
 void
-WatchDog::shutdownSystem(){
+WatchDog::shutdownSystem(const char *last_stuck_action){
   
-  ErrorReporter::handleError(ecError,
-			     ERR_PROGRAMERROR,
-			     "WatchDog terminate",
+  ErrorReporter::handleError(NDBD_EXIT_WATCHDOG_TERMINATE,
+			     last_stuck_action,
 			     __FILE__,
 			     NST_Watchdog);
 }

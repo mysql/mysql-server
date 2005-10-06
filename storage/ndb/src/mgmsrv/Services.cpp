@@ -247,6 +247,10 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("get mgmd nodeid", &MgmApiSession::get_mgmd_nodeid, ""),
 
+  MGM_CMD("report event", &MgmApiSession::report_event, ""),
+    MGM_ARG("length", Int, Mandatory, "Length"),
+    MGM_ARG("data", String, Mandatory, "Data"),
+
   MGM_END()
 };
 
@@ -1543,5 +1547,31 @@ MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
   m_output->println("");
 }
 
+void
+MgmApiSession::report_event(Parser_t::Context &ctx,
+			    Properties const &args)
+{
+  Uint32 length;
+  const char *data_string;
+  Uint32 data[25];
+
+  args.get("length", &length);
+  args.get("data", &data_string);
+
+  BaseString tmp(data_string);
+  Vector<BaseString> item;
+  tmp.split(item, " ");
+  for (int i = 0; i < length ; i++)
+  {
+    sscanf(item[i].c_str(), "%u", data+i);
+  }
+
+  m_mgmsrv.eventReport(data);
+  m_output->println("report event reply");
+  m_output->println("result: ok");
+  m_output->println("");
+}
+
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
+template class Vector<BaseString>;

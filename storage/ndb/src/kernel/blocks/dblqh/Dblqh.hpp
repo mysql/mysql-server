@@ -2412,7 +2412,7 @@ private:
   void startNextExecSr(Signal* signal);
   void startTimeSupervision(Signal* signal);
   void stepAhead(Signal* signal, Uint32 stepAheadWords);
-  void systemError(Signal* signal);
+  void systemError(Signal* signal, int line);
   void writeAbortLog(Signal* signal);
   void writeCommitLog(Signal* signal, LogPartRecordPtr regLogPartPtr);
   void writeCompletedGciLog(Signal* signal);
@@ -2431,7 +2431,7 @@ private:
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
 
   // Generated statement blocks
-  void systemErrorLab(Signal* signal);
+  void systemErrorLab(Signal* signal, int line);
   void initFourth(Signal* signal);
   void packLqhkeyreqLab(Signal* signal);
   void sendNdbSttorryLab(Signal* signal);
@@ -2441,7 +2441,6 @@ private:
   void srLogLimits(Signal* signal);
   void srGciLimits(Signal* signal);
   void srPhase3Start(Signal* signal);
-  void warningHandlerLab(Signal* signal);
   void checkStartCompletedLab(Signal* signal);
   void continueAbortLab(Signal* signal);
   void abortContinueAfterBlockedLab(Signal* signal, bool canBlock);
