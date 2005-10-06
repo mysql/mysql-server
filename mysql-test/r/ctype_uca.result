@@ -2506,6 +2506,24 @@ utf8_unicode_ci	6109
 utf8_unicode_ci	61
 utf8_unicode_ci	6120
 drop table t1;
+select @@collation_connection;
+@@collation_connection
+utf8_unicode_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
 CREATE TABLE t1 (id int, a varchar(30) character set utf8);
 INSERT INTO t1 VALUES (1, _ucs2 0x01310069), (2, _ucs2 0x01310131);
 INSERT INTO t1 VALUES (3, _ucs2 0x00690069), (4, _ucs2 0x01300049);
