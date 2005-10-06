@@ -262,8 +262,6 @@ Dbdih::Dbdih(const class Configuration & config):
 
   addRecSignal(GSN_CREATE_FRAGMENTATION_REQ, 
 	       &Dbdih::execCREATE_FRAGMENTATION_REQ);
-  
-  initData();
 }//Dbdih::Dbdih()
 
 Dbdih::~Dbdih() 

@@ -19,7 +19,6 @@
 #include <GlobalData.hpp>
 #include <FastScheduler.hpp>
 #include <VMSignal.hpp>
-#include <Error.hpp>
 
 static const int MAX_TIME_QUEUE_VALUE = 32000;
 
@@ -70,7 +69,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
     if (regShortIndex == 0){
       theShortQueue[0].copy_struct = newEntry.copy_struct;
     } else if (regShortIndex >= MAX_NO_OF_SHORT_TQ - 1) {
-      ERROR_SET(ecError, ERROR_TIME_QUEUE_SHORT, 
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_SHORT, 
 		"Too many in Short Time Queue", "TimeQueue.C" );
     } else {
       for (i = 0; i < regShortIndex; i++) {
@@ -99,7 +98,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
     if (regLongIndex == 0) {
       theLongQueue[0].copy_struct = newEntry.copy_struct;
     } else if (regLongIndex >= MAX_NO_OF_LONG_TQ - 1) {
-      ERROR_SET(ecError, ERROR_TIME_QUEUE_LONG, 
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_LONG, 
 		"Too many in Long Time Queue", "TimeQueue.C" );
     } else {
       for (i = 0; i < regLongIndex; i++) {
@@ -124,7 +123,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
     }
     globalData.theLongTQIndex = regLongIndex + 1;
   } else {
-    ERROR_SET(ecError, ERROR_TIME_QUEUE_DELAY, 
+    ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_DELAY, 
 	      "Too long delay for Time Queue", "TimeQueue.C" );
   }
 }
@@ -194,7 +193,7 @@ TimeQueue::getIndex()
   Uint32 retValue = globalData.theFirstFreeTQIndex;
   globalData.theFirstFreeTQIndex = (Uint32)theFreeIndex[retValue];
   if (retValue >= MAX_NO_OF_TQ)
-    ERROR_SET(fatal, ERROR_TIME_QUEUE_INDEX, 
+    ERROR_SET(fatal, NDBD_EXIT_TIME_QUEUE_INDEX, 
 	      "Index out of range", "TimeQueue.C" );
   return retValue;
 }
