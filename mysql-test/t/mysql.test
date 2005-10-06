@@ -14,7 +14,7 @@ create table t1(a int);
 insert into t1 values(1);
 
 # Test delimiters
---exec $MYSQL test < "./t/mysql_delimiter.sql"
+--exec $MYSQL test 2>&1 < "./t/mysql_delimiter.sql"
 
 --disable_query_log
 # Test delimiter : supplied on the command line

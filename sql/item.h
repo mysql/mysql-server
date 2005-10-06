@@ -718,13 +718,7 @@ class Item_splocal : public Item
 
 public:
   LEX_STRING m_name;
-
-  /*
-    Buffer, pointing to the string value of the item. We need it to
-    protect internal buffer from changes. See comment to analogous
-    member in Item_param for more details.
-  */
-  String str_value_ptr;
+  THD	     *thd;
 
   /* 
     Position of this reference to SP variable in the statement (the
@@ -736,10 +730,10 @@ public:
     Value of 0 means that this object doesn't corresponding to reference to
     SP variable in query text.
   */
-  int pos_in_query;
+  uint pos_in_query;
 
-  Item_splocal(LEX_STRING name, uint offset, int pos_in_q=0)
-    : m_offset(offset), m_name(name), pos_in_query(pos_in_q)
+  Item_splocal(LEX_STRING name, uint offset, uint pos_in_q=0)
+    : m_offset(offset), m_name(name), thd(0), pos_in_query(pos_in_q)
   {
     maybe_null= TRUE;
   }
@@ -1502,6 +1496,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
