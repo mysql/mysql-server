@@ -1450,10 +1450,12 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   const char *end=ptr+ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
+  uint charlen= res_length / cs->mbmaxlen;
   
-  for (; ptr + 1 < end && min_str + 1 < min_end ; ptr+=2)
+  for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
+        ; ptr+=2, charlen--)
   {
-    if (ptr[0] == '\0' && ptr[1] == escape && ptr+2 < end)
+    if (ptr[0] == '\0' && ptr[1] == escape && ptr + 1 < end)
     {
       ptr+=2;					/* Skip escape */
       *min_str++= *max_str++ = ptr[0];
