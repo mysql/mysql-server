@@ -295,7 +295,7 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 /*
   Used with --help for detailed option
 */
-static bool opt_help= 0, opt_verbose= 0;
+static my_bool opt_help= 0, opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -339,9 +339,10 @@ static my_bool opt_sync_bdb_logs;
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
-bool opt_character_set_client_handshake= 1;
+my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
-bool opt_endinfo,using_udf_functions, locked_in_memory;
+bool opt_endinfo,using_udf_functions;
+my_bool locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress, grant_option;
@@ -439,6 +440,7 @@ char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
+const char *myisam_stats_method_str="nulls_unequal";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
@@ -577,7 +579,7 @@ Query_cache query_cache;
 #endif
 #ifdef HAVE_SMEM
 char *shared_memory_base_name= default_shared_memory_base_name;
-bool opt_enable_shared_memory;
+my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
 #endif
 
@@ -782,7 +784,9 @@ static void close_connections(void)
     {
       if (global_system_variables.log_warnings)
         sql_print_warning(ER(ER_FORCING_CLOSE),my_progname,
-                          tmp->thread_id,tmp->user ? tmp->user : "");
+                          tmp->thread_id,
+                          (tmp->main_security_ctx.user ?
+                           tmp->main_security_ctx.user : ""));
       close_connection(tmp,0,0);
     }
 #endif
@@ -1098,7 +1102,7 @@ void clean_up(bool print_message)
     my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
 #endif /* HAVE_OPENSSL */
 #ifdef USE_REGEX
-  regex_end();
+  my_regex_end();
 #endif
 
   if (print_message && errmesg)
@@ -2605,7 +2609,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   set_var_init();
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  regex_init(&my_charset_latin1);
+  my_regex_init(&my_charset_latin1);
 #endif
   if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
 						    MY_CS_PRIMARY,
@@ -3593,7 +3597,7 @@ static void bootstrap(FILE *file)
   thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
-  thd->master_access= ~(ulong)0;
+  thd->security_ctx->master_access= ~(ulong)0;
   thd->thread_id=thread_id++;
   thread_count++;
 
@@ -3933,7 +3937,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
       continue;
     }
     if (sock == unix_sock)
-      thd->host=(char*) my_localhost;
+      thd->security_ctx->host=(char*) my_localhost;
 #ifdef __WIN__
     /* Set default wait_timeout */
     ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
@@ -4024,8 +4028,8 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
       delete thd;
       continue;
     }
-    /* host name is unknown */
-    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    /* Host is unknown */
+    thd->security_ctx->host= my_strdup(my_localhost, MYF(0));
     create_new_thread(thd);
   }
 
@@ -4216,7 +4220,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       errmsg= 0;
       goto errorconn;
     }
-    thd->host= my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    thd->security_ctx->host= my_strdup(my_localhost, MYF(0)); /* Host is unknown */
     create_new_thread(thd);
     connect_number++;
     continue;
@@ -4372,6 +4376,7 @@ enum options_mysqld
   OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
+  OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
   OPT_OPEN_FILES_LIMIT,
@@ -5555,6 +5560,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+  {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
+   "Specifies how MyISAM index statistics collection code should threat NULLs. "
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
    "Buffer length for TCP/IP and socket communication.",
    (gptr*) &global_system_variables.net_buffer_length,
@@ -5863,6 +5873,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_keys",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
   {"Com_show_logs",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_LOGS]), SHOW_LONG_STATUS},
   {"Com_show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
+  {"Com_show_ndb_status",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NDBCLUSTER_STATUS]), SHOW_LONG_STATUS},
   {"Com_show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
   {"Com_show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
   {"Com_show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
@@ -6138,6 +6149,7 @@ static void mysql_init_variables(void)
   query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
+  myisam_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
@@ -6180,6 +6192,12 @@ static void mysql_init_variables(void)
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
+  
+  /*
+    Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
+    when collecting index statistics for MyISAM tables.
+  */
+  global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -6249,7 +6267,7 @@ static void mysql_init_variables(void)
 #else
   have_openssl=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_BROKEN_REALPATH
+#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
   have_symlink=SHOW_OPTION_NO;
 #else
   have_symlink=SHOW_OPTION_YES;
@@ -6795,6 +6813,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
       exit(1);
     }
+  }
+  case OPT_MYISAM_STATS_METHOD:
+  {
+    myisam_stats_method_str= argument;
+    int method;
+    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
+    {
+      fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
+      exit(1);
+    }
+    global_system_variables.myisam_stats_method= method-1;
     break;
   }
   case OPT_SQL_MODE:
@@ -6930,7 +6959,7 @@ static void get_options(int argc,char **argv)
     usage();
     exit(0);
   }
-#if defined(HAVE_BROKEN_REALPATH)
+#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
   my_disable_symlinks=1;
   have_symlink=SHOW_OPTION_NO;

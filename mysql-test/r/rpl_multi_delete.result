@@ -19,4 +19,13 @@ a
 select * from t2;
 a
 1
+delete from t1;
+delete from t2;
+insert into t1 values(1);
+insert into t2 values(1);
+DELETE t1.*, t2.* from t1, t2;
+select * from t1;
+a
+select * from t2;
+a
 drop table t1,t2;

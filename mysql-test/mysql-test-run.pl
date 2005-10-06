@@ -2,36 +2,34 @@
 # -*- cperl -*-
 
 # This is a transformation of the "mysql-test-run" Bourne shell script
-# to Perl. This is just an intermediate step, the goal is to rewrite
-# the Perl script to C. The complexity of the mysql-test-run script
-# makes it a bit hard to write and debug it as a C program directly,
-# so this is considered a prototype.
+# to Perl. There are reasons this rewrite is not the prettiest Perl
+# you have seen
 #
-# Because of this the Perl coding style may in some cases look a bit
-# funny. The rules used are
+#   - The original script is huge and for most part uncommented,
+#     not even a usage description of the flags.
 #
-#   - The coding style is as close as possible to the C/C++ MySQL
-#     coding standard.
+#   - There has been an attempt to write a replacement in C for the
+#     original Bourne shell script. It was kind of working but lacked
+#     lot of functionality to really be a replacement. Not to redo
+#     that mistake and catch all the obscure features of the original
+#     script, the rewrite in Perl is more close to the original script
+#     meaning it also share some of the ugly parts as well.
 #
-#   - Where NULL is to be returned, the undefined value is used.
+#   - The original intention was that this script was to be a prototype
+#     to be the base for a new C version with full functionality. Since
+#     then it was decided that the Perl version should replace the
+#     Bourne shell version, but the Perl style still reflects the wish
+#     to make the Perl to C step easy.
 #
-#   - Regexp comparisons are simple and can be translated to strcmp
-#     and other string functions. To ease this transformation matching
-#     is done in the lib "lib/mtr_match.pl", i.e. regular expressions
-#     should be avoided in the main program.
+# Some coding style from the original intent has been kept
 #
-#   - The "unless" construct is not to be used. It is the same as "if !".
-#
-#   - opendir/readdir/closedir is used instead of glob()/<*>.
+#   - To make this Perl script easy to alter even for those that not
+#     code Perl that often, the coding style is as close as possible to
+#     the C/C++ MySQL coding standard.
 #
 #   - All lists of arguments to send to commands are Perl lists/arrays,
 #     not strings we append args to. Within reason, most string
 #     concatenation for arguments should be avoided.
-#
-#   - sprintf() is to be used, within reason, for all string creation.
-#     This mtr_add_arg() function is also based on sprintf(), i.e. you
-#     use a format string and put the variable argument in the argument
-#     list.
 #
 #   - Functions defined in the main program are not to be prefixed,
 #     functions in "library files" are to be prefixed with "mtr_" (for
@@ -241,8 +239,10 @@ our $opt_ps_protocol;
 
 our $opt_sleep_time_after_restart=  1;
 our $opt_sleep_time_for_delete=    10;
-our $opt_testcase_timeout=          5; # 5 min max
-our $opt_suite_timeout=           120; # 2 hours max
+our $opt_testcase_timeout;
+our $opt_suite_timeout;
+my  $default_testcase_timeout=     10; # 10 min max
+my  $default_suite_timeout=       120; # 2 hours max
 
 our $opt_socket;
 
@@ -260,6 +260,7 @@ our $opt_user;
 our $opt_user_test;
 
 our $opt_valgrind;
+our $opt_valgrind_mysqltest;
 our $opt_valgrind_all;
 our $opt_valgrind_options;
 
@@ -473,6 +474,7 @@ sub command_line_setup () {
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
+  Getopt::Long::Configure("pass_through");
   GetOptions(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
@@ -521,8 +523,9 @@ sub command_line_setup () {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
-             'valgrind'                 => \$opt_valgrind,
-             'valgrind-all'             => \$opt_valgrind_all,
+             'valgrind:s'               => \$opt_valgrind,
+             'valgrind-mysqltest:s'     => \$opt_valgrind_mysqltest,
+             'valgrind-all:s'           => \$opt_valgrind_all,
              'valgrind-options=s'       => \$opt_valgrind_options,
 
              # Misc
@@ -562,7 +565,21 @@ sub command_line_setup () {
     usage("");
   }
 
-  @opt_cases= @ARGV;
+  foreach my $arg ( @ARGV )
+  {
+    if ( $arg =~ /^--skip-/ )
+    {
+      push(@opt_extra_mysqld_opt, $arg);
+    }
+    elsif ( $arg =~ /^-/ )
+    {
+      usage("Invalid option \"$arg\"");
+    }
+    else
+    {
+      push(@opt_cases, $arg);
+    }
+  }
 
   # --------------------------------------------------------------------------
   # Set the "var/" directory, as it is the base for everything else
@@ -654,11 +671,6 @@ sub command_line_setup () {
     mtr_error("Coverage test needs the source - please use source dist");
   }
 
-  if ( $glob_use_embedded_server and ! $opt_source_dist )
-  {
-    mtr_error("Embedded server needs source tree - please use source dist");
-  }
-
   if ( $opt_gdb )
   {
     $opt_wait_timeout=  300;
@@ -700,29 +712,42 @@ sub command_line_setup () {
     $opt_with_ndbcluster= 0;
   }
 
-  # FIXME
+  # The ":s" in the argument spec, means we have three different cases
+  #
+  #   undefined    option not set
+  #   ""           option set with no argument
+  #   "somestring" option is name/path of valgrind executable
 
-  #if ( $opt_valgrind or $opt_valgrind_all )
-  #{
-    # VALGRIND=`which valgrind` # this will print an error if not found FIXME
-    # Give good warning to the user and stop
-  #  if ( ! $VALGRIND )
-  #  {
-  #    print "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://valgrind.kde.org.\n"
-  #    exit 1
-  #  }
+  # Take executable path from any of them, if any
+  $opt_valgrind= $opt_valgrind_mysqltest if $opt_valgrind_mysqltest;
+  $opt_valgrind= $opt_valgrind_all       if $opt_valgrind_all;
+
+  # If valgrind flag not defined, define if other valgrind flags are
+  unless ( defined $opt_valgrind )
+  {
+    $opt_valgrind= ""
+      if defined $opt_valgrind_mysqltest or defined $opt_valgrind_all;
+  }
+
+  if ( ! $opt_testcase_timeout )
+  {
+    $opt_testcase_timeout= $default_testcase_timeout;
+    $opt_testcase_timeout*= 10 if defined $opt_valgrind;
+  }
+
+  if ( ! $opt_suite_timeout )
+  {
+    $opt_suite_timeout= $default_suite_timeout;
+    $opt_suite_timeout*= 4 if defined $opt_valgrind;
+  }
+
+  if ( defined $opt_valgrind )
+  {
+    $opt_sleep_time_after_restart= 10;
+    $opt_sleep_time_for_delete= 60;
     # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
-  #  valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
-  #  VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16"
-  #  $opt_extra_mysqld_opt.= " --skip-safemalloc --skip-bdb";
-  #  SLEEP_TIME_AFTER_RESTART=10
-  #  $opt_sleep_time_for_delete=  60
-  #  $glob_use_running_server= ""
-  #  if ( "$1"=  "--valgrind-all" )
-  #  {
-  #    VALGRIND="$VALGRIND -v --show-reachable=yes"
-  #  }
-  #}
+    #  valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
+  }
 
   if ( ! $opt_user )
   {
@@ -738,78 +763,96 @@ sub command_line_setup () {
 
   # Put this into a hash, will be a C struct
 
-  $master->[0]->{'path_myddir'}=  "$opt_vardir/master-data";
-  $master->[0]->{'path_myerr'}=   "$opt_vardir/log/master.err";
-  $master->[0]->{'path_mylog'}=   "$opt_vardir/log/master.log";
-  $master->[0]->{'path_mypid'}=   "$opt_vardir/run/master.pid";
-  $master->[0]->{'path_mysock'}=  "$opt_tmpdir/master.sock";
-  $master->[0]->{'path_myport'}=   $opt_master_myport;
-  $master->[0]->{'start_timeout'}= 400; # enough time create innodb tables
+  $master->[0]=
+  {
+   path_myddir   => "$opt_vardir/master-data",
+   path_myerr    => "$opt_vardir/log/master.err",
+   path_mylog    => "$opt_vardir/log/master.log",
+   path_mypid    => "$opt_vardir/run/master.pid",
+   path_mysock   => "$opt_tmpdir/master.sock",
+   path_myport   =>  $opt_master_myport,
+   start_timeout =>  400, # enough time create innodb tables
 
-  $master->[0]->{'ndbcluster'}= 1; # ndbcluster not started
+   ndbcluster    =>  1, # ndbcluster not started
+  };
 
-  $master->[1]->{'path_myddir'}=  "$opt_vardir/master1-data";
-  $master->[1]->{'path_myerr'}=   "$opt_vardir/log/master1.err";
-  $master->[1]->{'path_mylog'}=   "$opt_vardir/log/master1.log";
-  $master->[1]->{'path_mypid'}=   "$opt_vardir/run/master1.pid";
-  $master->[1]->{'path_mysock'}=  "$opt_tmpdir/master1.sock";
-  $master->[1]->{'path_myport'}=   $opt_master_myport + 1;
-  $master->[1]->{'start_timeout'}= 400; # enough time create innodb tables
+  $master->[1]=
+  {
+   path_myddir   => "$opt_vardir/master1-data",
+   path_myerr    => "$opt_vardir/log/master1.err",
+   path_mylog    => "$opt_vardir/log/master1.log",
+   path_mypid    => "$opt_vardir/run/master1.pid",
+   path_mysock   => "$opt_tmpdir/master1.sock",
+   path_myport   => $opt_master_myport + 1,
+   start_timeout => 400, # enough time create innodb tables
+  };
 
-  $slave->[0]->{'path_myddir'}=   "$opt_vardir/slave-data";
-  $slave->[0]->{'path_myerr'}=    "$opt_vardir/log/slave.err";
-  $slave->[0]->{'path_mylog'}=    "$opt_vardir/log/slave.log";
-  $slave->[0]->{'path_mypid'}=    "$opt_vardir/run/slave.pid";
-  $slave->[0]->{'path_mysock'}=   "$opt_tmpdir/slave.sock";
-  $slave->[0]->{'path_myport'}=    $opt_slave_myport;
-  $slave->[0]->{'start_timeout'}=  400;
+  $slave->[0]=
+  {
+   path_myddir   => "$opt_vardir/slave-data",
+   path_myerr    => "$opt_vardir/log/slave.err",
+   path_mylog    => "$opt_vardir/log/slave.log",
+   path_mypid    => "$opt_vardir/run/slave.pid",
+   path_mysock   => "$opt_tmpdir/slave.sock",
+   path_myport   => $opt_slave_myport,
+   start_timeout => 400,
+  };
 
-  $slave->[1]->{'path_myddir'}=   "$opt_vardir/slave1-data";
-  $slave->[1]->{'path_myerr'}=    "$opt_vardir/log/slave1.err";
-  $slave->[1]->{'path_mylog'}=    "$opt_vardir/log/slave1.log";
-  $slave->[1]->{'path_mypid'}=    "$opt_vardir/run/slave1.pid";
-  $slave->[1]->{'path_mysock'}=   "$opt_tmpdir/slave1.sock";
-  $slave->[1]->{'path_myport'}=    $opt_slave_myport + 1;
-  $slave->[1]->{'start_timeout'}=  300;
+  $slave->[1]=
+  {
+   path_myddir   => "$opt_vardir/slave1-data",
+   path_myerr    => "$opt_vardir/log/slave1.err",
+   path_mylog    => "$opt_vardir/log/slave1.log",
+   path_mypid    => "$opt_vardir/run/slave1.pid",
+   path_mysock   => "$opt_tmpdir/slave1.sock",
+   path_myport   => $opt_slave_myport + 1,
+   start_timeout => 300,
+  };
 
-  $slave->[2]->{'path_myddir'}=   "$opt_vardir/slave2-data";
-  $slave->[2]->{'path_myerr'}=    "$opt_vardir/log/slave2.err";
-  $slave->[2]->{'path_mylog'}=    "$opt_vardir/log/slave2.log";
-  $slave->[2]->{'path_mypid'}=    "$opt_vardir/run/slave2.pid";
-  $slave->[2]->{'path_mysock'}=   "$opt_tmpdir/slave2.sock";
-  $slave->[2]->{'path_myport'}=    $opt_slave_myport + 2;
-  $slave->[2]->{'start_timeout'}=  300;
+  $slave->[2]=
+  {
+   path_myddir   => "$opt_vardir/slave2-data",
+   path_myerr    => "$opt_vardir/log/slave2.err",
+   path_mylog    => "$opt_vardir/log/slave2.log",
+   path_mypid    => "$opt_vardir/run/slave2.pid",
+   path_mysock   => "$opt_tmpdir/slave2.sock",
+   path_myport   => $opt_slave_myport + 2,
+   start_timeout => 300,
+  };
 
-  $instance_manager->{'path_err'}=        "$opt_vardir/log/im.err";
-  $instance_manager->{'path_log'}=        "$opt_vardir/log/im.log";
-  $instance_manager->{'path_pid'}=        "$opt_vardir/run/im.pid";
-  $instance_manager->{'path_sock'}=       "$opt_tmpdir/im.sock";
-  $instance_manager->{'port'}=            $im_port;
-  $instance_manager->{'start_timeout'}=   $master->[0]->{'start_timeout'};
-  $instance_manager->{'admin_login'}=     'im_admin';
-  $instance_manager->{'admin_password'}=  'im_admin_secret';
-  $instance_manager->{'admin_sha1'}=      '*598D51AD2DFF7792045D6DF3DDF9AA1AF737B295';
-  $instance_manager->{'password_file'}=   "$opt_vardir/im.passwd";
-  $instance_manager->{'defaults_file'}=   "$opt_vardir/im.cnf";
-  
-  $instance_manager->{'instances'}->[0]->{'server_id'}= 1;
-  $instance_manager->{'instances'}->[0]->{'port'}= $im_mysqld1_port;
-  $instance_manager->{'instances'}->[0]->{'path_datadir'}=
-    "$opt_vardir/im_mysqld_1.data";
-  $instance_manager->{'instances'}->[0]->{'path_sock'}=
-    "$opt_vardir/mysqld_1.sock";
-  $instance_manager->{'instances'}->[0]->{'path_pid'}=
-    "$opt_vardir/mysqld_1.pid";
+  $instance_manager=
+  {
+   path_err =>        "$opt_vardir/log/im.err",
+   path_log =>        "$opt_vardir/log/im.log",
+   path_pid =>        "$opt_vardir/run/im.pid",
+   path_sock =>       "$opt_tmpdir/im.sock",
+   port =>            $im_port,
+   start_timeout =>   $master->[0]->{'start_timeout'},
+   admin_login =>     'im_admin',
+   admin_password =>  'im_admin_secret',
+   admin_sha1 =>      '*598D51AD2DFF7792045D6DF3DDF9AA1AF737B295',
+   password_file =>   "$opt_vardir/im.passwd",
+   defaults_file =>   "$opt_vardir/im.cnf",
+  };
 
-  $instance_manager->{'instances'}->[1]->{'server_id'}= 2;
-  $instance_manager->{'instances'}->[1]->{'port'}= $im_mysqld2_port;
-  $instance_manager->{'instances'}->[1]->{'path_datadir'}=
-    "$opt_vardir/im_mysqld_2.data";
-  $instance_manager->{'instances'}->[1]->{'path_sock'}=
-    "$opt_vardir/mysqld_2.sock";
-  $instance_manager->{'instances'}->[1]->{'path_pid'}=
-    "$opt_vardir/mysqld_2.pid";
-  $instance_manager->{'instances'}->[1]->{'nonguarded'}= 1;
+  $instance_manager->{'instances'}->[0]=
+  {
+   server_id    => 1,
+   port         => $im_mysqld1_port,
+   path_datadir => "$opt_vardir/im_mysqld_1.data",
+   path_sock    => "$opt_vardir/mysqld_1.sock",
+   path_pid     => "$opt_vardir/mysqld_1.pid",
+  };
+
+  $instance_manager->{'instances'}->[1]=
+  {
+   server_id    => 2,
+   port         => $im_mysqld2_port,
+   path_datadir => "$opt_vardir/im_mysqld_2.data",
+   path_sock    => "$opt_vardir/mysqld_2.sock",
+   path_pid     => "$opt_vardir/mysqld_2.pid",
+   nonguarded   => 1,
+  };
 
   if ( $opt_extern )
   {
@@ -854,7 +897,7 @@ sub executable_setup () {
     if ( $glob_use_embedded_server )
     {
       my $path_examples= "$glob_basedir/libmysqld/examples";
-      $exe_mysqltest=    mtr_exe_exists("$path_examples/mysqltest");
+      $exe_mysqltest=    mtr_exe_exists("$path_examples/mysqltest_embedded");
       $exe_mysql_client_test=
         mtr_exe_exists("$path_examples/mysql_client_test_embedded",
 		       "/usr/bin/false");
@@ -881,7 +924,6 @@ sub executable_setup () {
   else
   {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
-    $exe_mysqltest=      mtr_exe_exists("$path_client_bindir/mysqltest");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
@@ -975,10 +1017,14 @@ sub environment_setup () {
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
+  $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
+
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
+  $ENV{'IM_MYSQLD1_PATH_PID'}=$instance_manager->{instances}->[0]->{path_pid};
   $ENV{'IM_MYSQLD2_SOCK'}=    $instance_manager->{instances}->[1]->{path_sock};
   $ENV{'IM_MYSQLD2_PORT'}=    $instance_manager->{instances}->[1]->{port};
+  $ENV{'IM_MYSQLD2_PATH_PID'}=$instance_manager->{instances}->[1]->{path_pid};
 
   if ( $glob_cygwin_perl )
   {
@@ -1883,7 +1929,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
-  if ( $opt_valgrind )
+  if ( defined $opt_valgrind )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
     mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -2109,29 +2155,9 @@ sub mysqld_start ($$$$) {
 
   mtr_init_args(\$args);
 
-  if ( $opt_valgrind )
+  if ( defined $opt_valgrind )
   {
-
-    mtr_add_arg($args, "--tool=memcheck");
-    mtr_add_arg($args, "--alignment=8");
-    mtr_add_arg($args, "--leak-check=yes");
-    mtr_add_arg($args, "--num-callers=16");
-
-    if ( $opt_valgrind_all )
-    {
-      mtr_add_arg($args, "-v");
-      mtr_add_arg($args, "--show-reachable=yes");
-    }
-
-    if ( $opt_valgrind_options )
-    {
-      # FIXME split earlier and put into @glob_valgrind_*
-      mtr_add_arg($args, split(' ', $opt_valgrind_options));
-    }
-
-    mtr_add_arg($args, $exe);
-
-    $exe=  $opt_valgrind;
+    valgrind_arguments($args, \$exe);
   }
 
   mysqld_arguments($args,$type,$idx,$extra_opt,$slave_master_info);
@@ -2140,7 +2166,9 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $master->[$idx]->{'path_myerr'},
-                         $master->[$idx]->{'path_myerr'}, "") )
+                         $master->[$idx]->{'path_myerr'},
+                         "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($master->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
@@ -2151,7 +2179,9 @@ sub mysqld_start ($$$$) {
   {
     if ( $pid= mtr_spawn($exe, $args, "",
                          $slave->[$idx]->{'path_myerr'},
-                         $slave->[$idx]->{'path_myerr'}, "") )
+                         $slave->[$idx]->{'path_myerr'},
+                         "",
+                         { append_log_file => 1 }) )
     {
       return sleep_until_file_created($slave->[$idx]->{'path_mypid'},
                                       $master->[$idx]->{'start_timeout'}, $pid);
@@ -2291,6 +2321,12 @@ sub im_stop($) {
     return;
   }
 
+  # Re-read pid from the file, since during tests Instance Manager could have
+  # been restarted, so its pid could have been changed.
+
+  $instance_manager->{'pid'} =
+    mtr_get_pid_from_file($instance_manager->{'path_pid'});
+
   # Inspired from mtr_stop_mysqld_servers().
 
   start_reap_all();
@@ -2403,6 +2439,11 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
+  if ( defined $opt_valgrind_mysqltest )
+  {
+    valgrind_arguments($args, \$exe);
+  }
+
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "-v");
@@ -2448,11 +2489,6 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--big-test");
   }
 
-  if ( $opt_record )
-  {
-    mtr_add_arg($args, "--record");
-  }
-
   if ( $opt_compress )
   {
     mtr_add_arg($args, "--compress");
@@ -2478,9 +2514,6 @@ sub run_mysqltest ($) {
                 $glob_mysql_test_dir);
   }
 
-  mtr_add_arg($args, "-R");
-  mtr_add_arg($args, $tinfo->{'result_file'});
-
   # ----------------------------------------------------------------------
   # If embedded server, we create server args to give mysqltest to pass on
   # ----------------------------------------------------------------------
@@ -2495,8 +2528,50 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   $ENV{'MYSQL_TEST'}= "$exe_mysqltest " . join(" ", @$args);
 
+  # ----------------------------------------------------------------------
+  # Add arguments that should not go into the MYSQL_TEST env var
+  # ----------------------------------------------------------------------
+
+  mtr_add_arg($args, "-R");
+  mtr_add_arg($args, $tinfo->{'result_file'});
+
+  if ( $opt_record )
+  {
+    mtr_add_arg($args, "--record");
+  }
+
   return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
 }
+
+
+sub valgrind_arguments {
+  my $args= shift;
+  my $exe=  shift;
+
+  mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
+  mtr_add_arg($args, "--alignment=8");
+  mtr_add_arg($args, "--leak-check=yes");
+  mtr_add_arg($args, "--num-callers=16");
+  mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
+    if -f "$glob_mysql_test_dir/valgrind.supp";
+
+  if ( defined $opt_valgrind_all )
+  {
+    mtr_add_arg($args, "-v");
+    mtr_add_arg($args, "--show-reachable=yes");
+  }
+
+  if ( $opt_valgrind_options )
+  {
+    # FIXME split earlier and put into @glob_valgrind_*
+    mtr_add_arg($args, split(' ', $opt_valgrind_options));
+  }
+
+  mtr_add_arg($args, $$exe);
+
+  $$exe= $opt_valgrind || "valgrind";
+}
+
 
 ##############################################################################
 #
@@ -2562,8 +2637,11 @@ Options for coverage, profiling etc
 
   gcov                  FIXME
   gprof                 FIXME
-  valgrind              FIXME
-  valgrind-all          FIXME
+  valgrind[=EXE]        Run the "mysqltest" executable as well as the "mysqld"
+                        server using valgrind, optionally specifying the
+                        executable path/name
+  valgrind-mysqltest[=EXE] In addition, run the "mysqltest" executable with valgrind
+  valgrind-all[=EXE]    Adds verbose flag, and --show-reachable to valgrind
   valgrind-options=ARGS Extra options to give valgrind
 
 Misc options

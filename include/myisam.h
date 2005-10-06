@@ -381,6 +381,20 @@ typedef struct st_sort_key_blocks		/* Used when sorting */
 } SORT_KEY_BLOCKS;
 
 
+/* 
+  MyISAM supports several statistics collection methods. Currently statistics 
+  collection method is not stored in MyISAM file and has to be specified for 
+  each table analyze/repair operation in  MI_CHECK::stats_method.
+*/
+
+typedef enum 
+{
+  /* Treat NULLs as inequal when collecting statistics (default for 4.1/5.0) */
+  MI_STATS_METHOD_NULLS_NOT_EQUAL,
+  /* Treat NULLs as equal when collecting statistics (like 4.0 did) */
+  MI_STATS_METHOD_NULLS_EQUAL
+} enum_mi_stats_method;
+
 typedef struct st_mi_check_param
 {
   ulonglong auto_increment_value;
@@ -411,6 +425,7 @@ typedef struct st_mi_check_param
   void *thd;
   const char *db_name, *table_name;
   const char *op_name;
+  enum_mi_stats_method stats_method;
 } MI_CHECK;
 
 typedef struct st_sort_ft_buf

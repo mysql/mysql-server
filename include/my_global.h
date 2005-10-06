@@ -326,7 +326,7 @@ C_MODE_END
 
 
 /* Fix a bug in gcc 2.8.0 on IRIX 6.2 */
-#if SIZEOF_LONG == 4 && defined(__LONG_MAX__)
+#if SIZEOF_LONG == 4 && defined(__LONG_MAX__) && (__GNUC__ == 2 && __GNUC_MINOR__ == 8)
 #undef __LONG_MAX__             /* Is a longlong value in gcc 2.8.0 ??? */
 #define __LONG_MAX__ 2147483647
 #endif

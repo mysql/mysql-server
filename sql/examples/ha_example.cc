@@ -73,8 +73,12 @@
 #include "ha_example.h"
 
 
-static handlerton example_hton= {
-  "CSV",
+handlerton example_hton= {
+  "EXAMPLE",
+  SHOW_OPTION_YES,
+  "Example storage engine", 
+  DB_TYPE_EXAMPLE_DB,
+  NULL,    /* We do need to write one! */
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -90,7 +94,7 @@ static handlerton example_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 /* Variables for example share methods */

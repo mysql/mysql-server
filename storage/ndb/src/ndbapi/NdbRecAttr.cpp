@@ -22,7 +22,7 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbTCP.h>
 
-NdbRecAttr::NdbRecAttr()
+NdbRecAttr::NdbRecAttr(Ndb*)
 {
   init();
 }
@@ -98,7 +98,7 @@ NdbRecAttr::copyout()
 
 NdbRecAttr *
 NdbRecAttr::clone() const {
-  NdbRecAttr * ret = new NdbRecAttr();
+  NdbRecAttr * ret = new NdbRecAttr(0);
 
   ret->theAttrId = theAttrId;
   ret->theNULLind = theNULLind;

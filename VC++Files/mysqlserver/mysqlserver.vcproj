@@ -12,7 +12,7 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\Debug"
+			OutputDirectory="..\lib_debug"
 			IntermediateDirectory=".\Debug"
 			ConfigurationType="4"
 			UseOfMFC="0"
@@ -38,7 +38,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile=".\Debug\mysqlserver.lib"
+				OutputFile="$(OutDir)\mysqlserver.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -63,7 +63,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\release"
+			OutputDirectory="..\lib_release"
 			IntermediateDirectory=".\release"
 			ConfigurationType="4"
 			UseOfMFC="0"
@@ -90,7 +90,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile=".\release\mysqlserver.lib"
+				OutputFile="$(OutDir)\mysqlserver.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -117,6 +117,9 @@
 	<References>
 	</References>
 	<Files>
+		<File
+			RelativePath=".\dummy.cpp">
+		</File>
 	</Files>
 	<Globals>
 	</Globals>

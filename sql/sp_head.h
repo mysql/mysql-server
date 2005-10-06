@@ -151,6 +151,12 @@ public:
   // Pointers set during parsing
   uchar *m_param_begin, *m_param_end, *m_body_begin;
 
+  /*
+    Security context for stored routine which should be run under
+    definer privileges.
+  */
+  Security_context m_security_ctx;
+
   static void *
   operator new(size_t size);
 
@@ -860,6 +866,12 @@ public:
 
   virtual void print(String *str);
 
+  /*
+    This call is used to cleanup the instruction when a sensitive
+    cursor is closed. For now stored procedures always use materialized
+    cursors and the call is not used.
+  */
+  virtual void cleanup_stmt() { /* no op */ }
 private:
 
   sp_lex_keeper m_lex_keeper;
@@ -1017,28 +1029,20 @@ private:
 }; // class sp_instr_error : public sp_instr
 
 
-struct st_sp_security_context
-{
-  bool changed;
-  uint master_access;
-  uint db_access;
-  char *priv_user;
-  char priv_host[MAX_HOSTNAME];
-  char *user;
-  char *host;
-  char *ip;
-};
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool
+sp_change_security_context(THD *thd, sp_head *sp,
+                           Security_context **backup);
 void
-sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp);
-void
-sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
+sp_restore_security_context(THD *thd, Security_context *backup);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
 		       thr_lock_type locktype);
+
+Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
+                        Item *reuse, bool use_callers_arena);
 
 #endif /* _SP_HEAD_H_ */

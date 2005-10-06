@@ -142,7 +142,7 @@ drop table t1;
 --exec $MYSQL_DUMP --skip-comments --databases test
 
 create database mysqldump_test_db character set latin2 collate latin2_bin;
---exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db;
+--exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db
 drop database mysqldump_test_db;
 
 #
@@ -758,17 +758,7 @@ select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
 create  view v2 as
 select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
 
---exec $MYSQL_DUMP test > var/tmp/bug10927.sql
-drop view v1, v2, v3;
-drop table t1;
---exec $MYSQL test < var/tmp/bug10927.sql
-
-# Without dropping the original tables in between
---exec $MYSQL_DUMP test > var/tmp/bug10927.sql
---exec $MYSQL test < var/tmp/bug10927.sql
-show full tables;
-show create view v1;
-select * from v1;
+--exec $MYSQL_DUMP --skip-comments test
 
 drop view v1, v2, v3;
 drop table t1;

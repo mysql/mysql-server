@@ -266,19 +266,12 @@ cleanup:
 
   delete select;
   transactional_table= table->file->has_transactions();
-  /*
-    We write to the binary log even if we deleted no row, because maybe the
-    user is using this command to ensure that a table is clean on master *and
-    on slave*. Think of the case of a user having played separately with the
-    master's table and slave's table and wanting to take a fresh identical
-    start now.
-    error < 0 means "really no error". error <= 0 means "maybe some error".
-  */
-  if ((deleted || (error < 0)) && (error <= 0 || !transactional_table))
+  /* See similar binlogging code in sql_update.cc, for comments */
+  if ((error < 0) || (deleted && !transactional_table))
   {
     if (mysql_bin_log.is_open())
     {
-      if (error <= 0)
+      if (error < 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_table, FALSE);
@@ -328,6 +321,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
 
+  thd->allow_sum_func= 0;
   if (setup_tables(thd, &thd->lex->select_lex.context,
                    &thd->lex->select_lex.top_join_list,
                    table_list, conds, &select_lex->leaf_tables,
@@ -736,6 +730,9 @@ bool multi_delete::send_eof()
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
   int local_error= do_deletes();		// returns 0 if success
 
+  /* compute a total error to know if something failed */
+  local_error= local_error || error;
+
   /* reset used flags */
   thd->proc_info="end";
 
@@ -748,19 +745,11 @@ bool multi_delete::send_eof()
     query_cache_invalidate3(thd, delete_tables, 1);
   }
 
-  /*
-    Write the SQL statement to the binlog if we deleted
-    rows and we succeeded, or also in an error case when there
-    was a non-transaction-safe table involved, since
-    modifications in it cannot be rolled back.
-    Note that if we deleted nothing we don't write to the binlog (TODO:
-    fix this).
-  */
-  if (deleted && ((error <= 0 && !local_error) || normal_tables))
+  if ((local_error == 0) || (deleted && normal_tables))
   {
     if (mysql_bin_log.is_open())
     {
-      if (error <= 0 && !local_error)
+      if (local_error == 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);
@@ -816,7 +805,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     TABLE *table= *table_ptr;
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
     db_type table_type= table->s->db_type;
-    if (!ha_supports_generate(table_type))
+    if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
     strmov(path, table->s->path);
     *table_ptr= table->next;			// Unlink table from list
@@ -847,7 +836,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_supports_generate(table_type) || thd->lex->sphead)
+    if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE)
+        || thd->lex->sphead)
       goto trunc_by_del;
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(TRUE);

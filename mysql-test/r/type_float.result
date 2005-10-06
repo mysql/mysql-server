@@ -225,3 +225,7 @@ select * from t1 where reckey=1.09E2;
 reckey	recdesc
 109	Has 109 as key
 drop table t1;
+create table t1 (s1 float(0,2));
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
+create table t1 (s1 float(1,2));
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').

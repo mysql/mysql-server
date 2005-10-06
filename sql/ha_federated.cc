@@ -363,6 +363,33 @@ pthread_mutex_t federated_mutex;                // This is the mutex we use to
 static int federated_init= FALSE;               // Variable for checking the
                                                 // init state of hash
 
+/* Federated storage engine handlerton */
+
+handlerton federated_hton= {
+  "FEDERATED",
+  SHOW_OPTION_YES,
+  "Federated MySQL storage engine", 
+  DB_TYPE_FEDERATED_DB,
+  federated_db_init,
+  0,       /* slot */
+  0,       /* savepoint size. */
+  NULL,    /* close_connection */
+  NULL,    /* savepoint */
+  NULL,    /* rollback to savepoint */
+  NULL,    /* release savepoint */
+  NULL,    /* commit */
+  NULL,    /* rollback */
+  NULL,    /* prepare */
+  NULL,    /* recover */
+  NULL,    /* commit_by_xid */
+  NULL,    /* rollback_by_xid */
+  NULL,    /* create_cursor_read_view */
+  NULL,    /* set_cursor_read_view */
+  NULL,    /* close_cursor_read_view */
+  HTON_ALTER_NOT_SUPPORTED
+};
+
+
 /* Function we use in the creation of our hash to get key.  */
 
 static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
@@ -386,10 +413,22 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
 
 bool federated_db_init()
 {
-  federated_init= 1;
-  VOID(pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST));
-  return (hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
-                    (hash_get_key) federated_get_key, 0, 0));
+  DBUG_ENTER("federated_db_init");
+  if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
+    goto error;
+  if (hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
+                    (hash_get_key) federated_get_key, 0, 0))
+  {
+    VOID(pthread_mutex_destroy(&federated_mutex));
+  }
+  else
+  {
+    federated_init= TRUE;
+    DBUG_RETURN(FALSE);
+  }
+error:
+  have_federated_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -588,12 +627,15 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_ENTER("ha_federated::parse_url");
 
   share->port= 0;
+  share->socket= 0;
   DBUG_PRINT("info", ("Length %d \n", table->s->connect_string.length));
   DBUG_PRINT("info", ("String %.*s \n", table->s->connect_string.length, 
                       table->s->connect_string.str));
-  share->scheme= my_strdup_with_length(table->s->connect_string.str,
-		                       table->s->connect_string.length+1,
-				       MYF(0));
+  share->scheme= my_strdup_with_length((const byte*)table->s->
+                                       connect_string.str, 
+                                       table->s->connect_string.length,
+                                       MYF(0));
+
   // Add a null for later termination of table name
   share->scheme[table->s->connect_string.length]= 0;
   DBUG_PRINT("info",("parse_url alloced share->scheme %lx", share->scheme));
@@ -689,29 +731,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 error:
   DBUG_RETURN(parse_url_error(share, table, error_num));
 }
-
-
-/* Federated storage engine handlerton */
-
-static handlerton federated_hton= {
-  "FEDERATED",
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  HTON_NO_FLAGS
-};
 
 
 /*****************************************************************************
@@ -1374,13 +1393,9 @@ static int free_share(FEDERATED_SHARE *share)
 
   if (!--share->use_count)
   {
-    if (share->scheme)
-    {
-      my_free((gptr) share->scheme, MYF(0));
-      share->scheme= 0;
-    }
-
     hash_delete(&federated_open_tables, (byte*) share);
+    my_free((gptr) share->scheme, MYF(MY_ALLOW_ZERO_PTR));
+    share->scheme= 0;
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
@@ -2601,7 +2616,8 @@ int ha_federated::stash_remote_error()
 {
   DBUG_ENTER("ha_federated::stash_remote_error()");
   remote_error_number= mysql_errno(mysql);
-  snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, mysql_error(mysql));
+  my_snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, 
+              mysql_error(mysql));
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
 }
 

@@ -67,6 +67,7 @@ static const char *field_pack[]=
  "no zeros", "blob", "constant", "table-lockup",
  "always zero","varchar","unique-hash","?","?"};
 
+static const char *myisam_stats_method_str="nulls_unequal";
 
 static void get_options(int *argc,char * * *argv);
 static void print_version(void);
@@ -155,7 +156,7 @@ enum options_mc {
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
-  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE
+  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD
 };
 
 static struct my_option my_long_options[] =
@@ -336,6 +337,11 @@ static struct my_option my_long_options[] =
     "Use stopwords from this file instead of built-in list.",
     (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"stats_method", OPT_STATS_METHOD,
+   "Specifies how index statistics collection code should threat NULLs. "
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -464,6 +470,12 @@ static void usage(void)
 }
 
 #include <help_end.h>
+
+const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
+                                           NullS};
+TYPELIB myisam_stats_method_typelib= {
+  array_elements(myisam_stats_method_names) - 1, "",
+  myisam_stats_method_names, NULL};
 
 	 /* Read options */
 
@@ -684,6 +696,18 @@ get_one_option(int optid,
     else
       check_param.testflag|= T_CALC_CHECKSUM;
     break;
+  case OPT_STATS_METHOD:
+  {
+    int method;
+    myisam_stats_method_str= argument;
+    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
+    {
+      fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
+      exit(1);
+    }
+    check_param.stats_method= (enum_mi_stats_method) (method-1);
+    break;
+  }
 #ifdef DEBUG					/* Only useful if debugging */
   case OPT_START_CHECK_POS:
     check_param.start_check_pos= strtoull(argument, NULL, 0);
@@ -1237,7 +1261,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
 	     share->base.raid_chunksize);
     }
     if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
-      printf("Checksum:  %23s\n",llstr(info->s->state.checksum,llbuff));
+      printf("Checksum:  %23s\n",llstr(info->state->checksum,llbuff));
 ;
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)
       printf("Keys are only flushed at close\n");
@@ -1552,7 +1576,7 @@ static int mi_sort_records(MI_CHECK *param,
   old_record_count=info->state->records;
   info->state->records=0;
   if (sort_info.new_data_file_type != COMPRESSED_RECORD)
-    share->state.checksum=0;
+    info->state->checksum=0;
 
   if (sort_record_index(&sort_param,info,keyinfo,share->state.key_root[sort_key],
 			temp_buff, sort_key,new_file,update_index) ||

@@ -290,8 +290,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
 
-  share->null_bytes= null_pos - (uchar*) outparam->null_flags + (null_bit_pos + 7) / 8;
-
   share->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
@@ -351,7 +349,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     char *buff;
     if (!(buff= alloc_root(&outparam->mem_root, n_length)))
       goto err;
-    if (my_pread(file, buff, n_length, record_offset + share->reclength,
+    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
       goto err;
     share->connect_string.length= uint2korr(buff);
@@ -473,6 +471,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   {
     outparam->null_flags=null_pos=(uchar*) record+1;
     null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
+    /* null_bytes below is only correct under the condition that
+       there are no bit fields.  Correct values is set below after the
+       table struct is initialized */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
   else
@@ -885,6 +886,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	(*save++)= i;
     }
   }
+
   if (outparam->file->ha_allocate_read_write_set(share->fields))
     goto err;
 
@@ -895,6 +897,10 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 #endif
       goto err;
   
+  /* the correct null_bytes can now be set, since bitfields have been taken into account */
+  share->null_bytes= null_pos - (uchar*) outparam->null_flags + (null_bit_pos + 7) / 8;
+  share->last_null_bit_pos= null_bit_pos;
+
   /* The table struct is now initialized;  Open the table */
   error=2;
   if (db_stat)
@@ -1725,6 +1731,63 @@ db_type get_table_type(THD *thd, const char *name)
   DBUG_RETURN(ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0));
 }
 
+/*
+  Create Item_field for each column in the table.
+
+  SYNPOSIS
+    st_table::fill_item_list()
+      item_list          a pointer to an empty list used to store items
+
+  DESCRIPTION
+    Create Item_field object for each column in the table and
+    initialize it with the corresponding Field. New items are
+    created in the current THD memory root.
+
+  RETURN VALUE
+    0                    success
+    1                    out of memory
+*/
+
+bool st_table::fill_item_list(List<Item> *item_list) const
+{
+  /*
+    All Item_field's created using a direct pointer to a field
+    are fixed in Item_field constructor.
+  */
+  for (Field **ptr= field; *ptr; ptr++)
+  {
+    Item_field *item= new Item_field(*ptr);
+    if (!item || item_list->push_back(item))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+/*
+  Reset an existing list of Item_field items to point to the
+  Fields of this table.
+
+  SYNPOSIS
+    st_table::fill_item_list()
+      item_list          a non-empty list with Item_fields
+
+  DESCRIPTION
+    This is a counterpart of fill_item_list used to redirect
+    Item_fields to the fields of a newly created table.
+    The caller must ensure that number of items in the item_list
+    is the same as the number of columns in the table.
+*/
+
+void st_table::reset_item_list(List<Item> *item_list) const
+{
+  List_iterator_fast<Item> it(*item_list);
+  for (Field **ptr= field; *ptr; ptr++)
+  {
+    Item_field *item_field= (Item_field*) it++;
+    DBUG_ASSERT(item_field != 0);
+    item_field->reset_field(*ptr);
+  }
+}
 
 /*
   calculate md5 of query
@@ -2268,8 +2331,10 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
     List_iterator_fast<TABLE_LIST> it(cur_nested_join->join_list);
     cur_table_ref= it++;
     /*
-      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
-      order, thus the first operand is already at the front of the list.
+      If the current nested join is a RIGHT JOIN, the operands in
+      'join_list' are in reverse order, thus the first operand is
+      already at the front of the list. Otherwise the first operand
+      is in the end of the list of join operands.
     */
     if (!(cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
     {
@@ -2320,9 +2385,11 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
        cur_nested_join;
        cur_nested_join= cur_table_ref->nested_join)
   {
+    cur_table_ref= cur_nested_join->join_list.head();
     /*
-      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
-      order, thus the last operand is in the end of the list.
+      If the current nested is a RIGHT JOIN, the operands in
+      'join_list' are in reverse order, thus the last operand is in the
+      end of the list.
     */
     if ((cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
     {
@@ -2332,8 +2399,6 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
       while ((next= it++))
         cur_table_ref= next;
     }
-    else
-      cur_table_ref= cur_nested_join->join_list.head();
     if (cur_table_ref->is_leaf_for_name_resolution())
       break;
   }
@@ -2401,22 +2466,6 @@ Field *Natural_join_column::field()
 const char *Natural_join_column::table_name()
 {
   return table_ref->alias;
-  /*
-    TODO:
-    I think that it is sufficient to return just
-    table->alias, which is correctly set to either
-    the view name, the table name, or the alias to
-    the table reference (view or stored table).
-  */
-#ifdef NOT_YET
-  if (view_field)
-    return table_ref->view_name.str;
-
-  DBUG_ASSERT(!strcmp(table_ref->table_name,
-                      table_ref->table->s->table_name));
-  return table_ref->table_name;
-}
-#endif
 }
 
 
@@ -2552,7 +2601,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     DBUG_RETURN(field);
   }
   Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->view_name.str,
+                                       field_ref, view->alias,
                                        name);
   DBUG_RETURN(item);
 }

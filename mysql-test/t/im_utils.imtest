@@ -1,0 +1,115 @@
+###########################################################################
+#
+# This file contains test for (2) test suite.
+#
+# Consult WL#2789 for more information.
+#
+###########################################################################
+
+--source include/im_check_os.inc
+
+###########################################################################
+
+#
+# Check starting conditions. This test case assumes that:
+#  - two mysqld-instances are registered;
+#  - the first instance is online;
+#  - the second instance is offline;
+#
+
+SHOW INSTANCES;
+
+#
+# Check 'SHOW INSTANCE OPTIONS' command:
+#  - check that options of both offline and online instances are accessible;
+#  - since configuration of an mysqld-instance contains directories, we should
+#    completely ignore the second column (values) in order to make the test
+#    case produce the same results on different installations;
+#    TODO: ignore values of only directory-specific options.
+#
+
+--replace_column 2 VALUE
+SHOW INSTANCE OPTIONS mysqld1;
+
+--replace_column 2 VALUE
+SHOW INSTANCE OPTIONS mysqld2;
+
+#
+# Before checking log files, we should start the second instance (mysqld2) to
+# give it a chance to create log files.
+#
+
+START INSTANCE mysqld2;
+
+# FIXME
+-- sleep 3
+
+STOP INSTANCE mysqld2;
+
+#
+# Check 'SHOW LOG FILES' command:
+#  - check that log files of both offline and online instances are accessible;
+#  - since placement of the log files is installation-specific, we should
+#    ignore it in comparisson;
+#  - also, we should ignore log file size, since it may depend on the version
+#    being tested;
+#
+
+--replace_column 2 PATH 3 FILE_SIZE
+SHOW mysqld1 LOG FILES;
+
+--replace_column 2 PATH 3 FILE_SIZE
+SHOW mysqld2 LOG FILES;
+
+#
+# Check 'SHOW LOG' command:
+#  - check that all three kinds of logs are available for both offline and
+#    online instances;
+#  - we should ignore the value, because it is very specific and depends on
+#    many factors; we only check that Instance Manager is able to provide log
+#    files.
+#
+
+# mysqld1 (online) w/o the optional argument.
+
+--replace_column 1 LOG_DATA
+SHOW mysqld1 LOG ERROR 10;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld1 LOG SLOW 10;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld1 LOG GENERAL 10;
+
+# mysqld1 (online) with the optional argument.
+
+--replace_column 1 LOG_DATA
+SHOW mysqld1 LOG ERROR 10, 2;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld1 LOG SLOW 10, 2;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld1 LOG GENERAL 10, 2;
+
+# mysqld2 (offline) w/o the optional argument.
+
+--replace_column 1 LOG_DATA
+SHOW mysqld2 LOG ERROR 10;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld2 LOG SLOW 10;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld2 LOG GENERAL 10;
+
+# mysqld2 (offline) with the optional argument.
+
+--replace_column 1 LOG_DATA
+SHOW mysqld2 LOG ERROR 10, 2;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld2 LOG SLOW 10, 2;
+
+--replace_column 1 LOG_DATA
+SHOW mysqld2 LOG GENERAL 10, 2;

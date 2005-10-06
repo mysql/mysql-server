@@ -1002,11 +1002,11 @@ public:
 
 #ifdef USE_REGEX
 
-#include <regex.h>
+#include "my_regex.h"
 
 class Item_func_regex :public Item_bool_func
 {
-  regex_t preg;
+  my_regex_t preg;
   bool regex_compiled;
   bool regex_is_const;
   String prev_regexp;

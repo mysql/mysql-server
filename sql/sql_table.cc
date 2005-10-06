@@ -3867,6 +3867,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type= table->s->row_type;
 
+  DBUG_PRINT("info", ("old type: %d new type: %d", old_db_type, new_db_type));
+  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED)
+      || ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
+  {
+    DBUG_PRINT("info", ("doesn't support alter"));
+    my_error(ER_ILLEGAL_HA, MYF(0), table_name);
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_PRINT("info", ("supports alter"));
+  
   thd->proc_info="setup";
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
       !table->s->tmp_table) // no need to touch frm
@@ -4880,7 +4890,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);
 
-    t= table->table= open_ltable(thd, table, TL_READ_NO_INSERT);
+    t= table->table= open_ltable(thd, table, TL_READ);
     thd->clear_error();			// these errors shouldn't get client
 
     protocol->prepare_for_resend();
@@ -4906,6 +4916,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
       {
 	/* calculating table's checksum */
 	ha_checksum crc= 0;
+        uchar null_mask=256 -  (1 << t->s->last_null_bit_pos);
 
         /*
           Set all bits in read set and inform InnoDB that we are reading all
@@ -4927,9 +4938,15 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
                 continue;
               break;
             }
-	    if (t->record[0] != (byte*) t->field[0]->ptr)
-	      row_crc= my_checksum(row_crc, t->record[0],
-				   ((byte*) t->field[0]->ptr) - t->record[0]);
+	    if (t->s->null_bytes)
+            {
+              /* fix undefined null bits */
+              t->record[0][t->s->null_bytes-1] |= null_mask;
+              if (!(t->s->db_create_options & HA_OPTION_PACK_RECORD))
+                t->record[0][0] |= 1;
+
+	      row_crc= my_checksum(row_crc, t->record[0], t->s->null_bytes);
+            }
 
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
@@ -4973,9 +4990,9 @@ static bool check_engine(THD *thd, const char *table_name,
                          enum db_type *new_engine)
 {
   enum db_type req_engine= *new_engine;
-  bool no_substitution= 
+  bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
-  if ((*new_engine= 
+  if ((*new_engine=
        ha_checktype(thd, req_engine, no_substitution, 1)) == DB_TYPE_UNKNOWN)
     return TRUE;
 

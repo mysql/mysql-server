@@ -2181,6 +2181,16 @@ select found_rows();
 
 DROP TABLE t1;
 
+#
+# Bug #13356 assertion failed in resolve_const_item()
+#
+create table t1(f1 int, f2 int);
+create table t2(f3 int);
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,1));
+select f1 from t1,t2 where f1=f2 and (f1,NULL) = ((1,1));
+select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,NULL));
+drop table t1,t2; 
+
 # End of 4.1 tests
 
 #
@@ -2523,3 +2533,79 @@ select * from t1, t2 join t3 on (t2.b = t3.b and t1.a = t3.a);
 select * from t1 join t2 join t3 join t4 on (t1.a = t4.c and t2.b = t4.c);
 select * from t1 join t2 join t4 using (c);
 drop table t1, t2, t3, t4;
+
+#
+# Bug #12291 Table wasn't reinited for index scan after sequential scan 
+#
+create table t1(x int, y int);
+create table t2(x int, y int);
+create table t3(x int, primary key(x));
+insert into t1 values (1, 1), (2, 1), (3, 1), (4, 3), (5, 6), (6, 6);
+insert into t2 values (1, 1), (2, 1), (3, 3), (4, 6), (5, 6);
+insert into t3 values (1), (2), (3), (4), (5);
+select t1.x, t3.x from t1, t2, t3  where t1.x = t2.x and t3.x >= t1.y and t3.x <= t2.y;
+drop table t1,t2,t3;
+
+#
+# Bug #13127 LEFT JOIN against a VIEW returns NULL instead of correct value
+#
+
+create table t1 (id char(16) not null default '', primary key  (id));
+insert into t1 values ('100'),('101'),('102');
+create table t2 (id char(16) default null);
+insert into t2 values (1);
+create view v1 as select t1.id from t1;
+create view v2 as select t2.id from t2;
+create view v3 as select (t1.id+2) as id from t1 natural left join t2;
+
+# all queries must return the same result
+select t1.id from t1 left join v2 using (id);
+select t1.id from v2 right join t1 using (id);
+select t1.id from t1 left join v3 using (id);
+select * from t1 left join v2 using (id);
+select * from v2 right join t1 using (id);
+select * from t1 left join v3 using (id);
+
+select v1.id from v1 left join v2 using (id);
+select v1.id from v2 right join v1 using (id);
+select v1.id from v1 left join v3 using (id);
+select * from v1 left join v2 using (id);
+select * from v2 right join v1 using (id);
+select * from v1 left join v3 using (id);
+
+drop table t1, t2;
+drop view v1, v2, v3;
+
+#
+# Bug #13597 Column in ON condition not resolved if references a table in
+# nested right join.
+#
+
+create table a (
+  id int(11) not null default '0'
+) engine=myisam default charset=latin1;
+
+insert into a values (123),(191),(192);
+
+create table b (
+  id char(16) character set utf8 not null default ''
+) engine=myisam default charset=latin1;
+
+insert into b values ('58013'),('58014'),('58015'),('58016');
+
+create table c (
+  a_id int(11) not null default '0',
+  b_id char(16) character set utf8 default null
+) engine=myisam default charset=latin1;
+
+insert into c values
+(123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
+
+-- both queries are equivalent
+select count(*)
+from a inner join (c left join b on b.id = c.b_id) on a.id = c.a_id;
+
+select count(*)
+from a inner join (b right join c on b.id = c.b_id) on a.id = c.a_id;
+
+drop table a, b, c;
