@@ -141,7 +141,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       AC_DEFINE([HAVE_NDBCLUSTER_DB], [1], [Using Ndb Cluster DB])
       AC_DEFINE([HAVE_PARTITION_DB], [1], [Builds Partition DB])
       have_ndbcluster="yes"
-      ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_builddir)/storage/ndb/include/ndbapi"
+      ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_builddir)/storage/ndb/include/ndbapi -I\$(top_builddir)/storage/ndb/include/mgmapi"
       ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
       ndbcluster_system_libs=""
       ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"

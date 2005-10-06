@@ -1071,7 +1071,7 @@ private:
   void seizeRootfragrec(Signal* signal);
   void seizeScanRec(Signal* signal);
   void seizeSrVerRec(Signal* signal);
-  void sendSystemerror(Signal* signal);
+  void sendSystemerror(Signal* signal, int line);
   void takeRecOutOfFreeOverdir(Signal* signal);
   void takeRecOutOfFreeOverpage(Signal* signal);
   void sendScanHbRep(Signal* signal, Uint32);

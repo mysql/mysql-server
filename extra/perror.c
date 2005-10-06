@@ -25,6 +25,7 @@
 #include <my_getopt.h>
 #ifdef HAVE_NDBCLUSTER_DB
 #include "../storage/ndb/src/ndbapi/ndberror.c"
+#include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #endif
 
 static my_bool verbose, print_all_codes;
@@ -235,8 +236,11 @@ int main(int argc,char *argv[])
 #ifdef HAVE_NDBCLUSTER_DB
       if (ndb_code)
       {
-	if (ndb_error_string(code, ndb_string,  sizeof(ndb_string)) < 0)
-	  msg= 0;
+	if ((ndb_error_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
+	    (ndbd_exit_string(code, ndb_string, sizeof(ndb_string)) < 0))
+	{
+	    msg= 0;
+	}
 	else
 	  msg= ndb_string;
       }

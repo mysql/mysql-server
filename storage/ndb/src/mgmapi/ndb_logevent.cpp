@@ -152,6 +152,15 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
 
   ROW( NDBStopStarted, "stoptype", 1, stoptype),
 
+  ROW( NDBStopCompleted, "action",         1, action),
+  ROW( NDBStopCompleted, "signum",         2, signum),
+
+  ROW( NDBStopForced, "action",         1, action),
+  ROW( NDBStopForced, "signum",         2, signum),
+  ROW( NDBStopForced, "error",          3, error),
+  ROW( NDBStopForced, "sphase",         4, sphase),
+  ROW( NDBStopForced, "extra",          5, extra),
+
 //  ROW( NDBStopAborted),
 
   ROW( StartREDOLog, "node",           1, node),

@@ -60,6 +60,7 @@ DbUtil::DbUtil(const Configuration & conf) :
   BLOCK_CONSTRUCTOR(DbUtil);
   
   // Add received signals
+  addRecSignal(GSN_READ_CONFIG_REQ, &DbUtil::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &DbUtil::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &DbUtil::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &DbUtil::execDUMP_STATE_ORD);
@@ -111,47 +112,6 @@ DbUtil::DbUtil(const Configuration & conf) :
   addRecSignal(GSN_UTIL_RELEASE_REQ,  &DbUtil::execUTIL_RELEASE_REQ);
   addRecSignal(GSN_UTIL_RELEASE_CONF, &DbUtil::execUTIL_RELEASE_CONF);
   addRecSignal(GSN_UTIL_RELEASE_REF,  &DbUtil::execUTIL_RELEASE_REF);
-
-  c_pagePool.setSize(10);
-  c_preparePool.setSize(1);            // one parallel prepare at a time
-  c_preparedOperationPool.setSize(5);  // three hardcoded, two for test
-  c_operationPool.setSize(64);         // 64 parallel operations
-  c_transactionPool.setSize(32);       // 16 parallel transactions
-  c_attrMappingPool.setSize(100);
-  c_dataBufPool.setSize(6000);	       // 6000*11*4 = 264K > 8k+8k*16 = 256k
-  {
-    SLList<Prepare> tmp(c_preparePool);
-    PreparePtr ptr;
-    while(tmp.seize(ptr))
-      new (ptr.p) Prepare(c_pagePool);
-    tmp.release();
-  }
-  {
-    SLList<Operation> tmp(c_operationPool);
-    OperationPtr ptr;
-    while(tmp.seize(ptr))
-      new (ptr.p) Operation(c_dataBufPool, c_dataBufPool, c_dataBufPool);
-    tmp.release();
-  }
-  {
-    SLList<PreparedOperation> tmp(c_preparedOperationPool);
-    PreparedOperationPtr ptr;
-    while(tmp.seize(ptr))
-      new (ptr.p) PreparedOperation(c_attrMappingPool, 
-				    c_dataBufPool, c_dataBufPool);
-    tmp.release();
-  }
-  {
-    SLList<Transaction> tmp(c_transactionPool);
-    TransactionPtr ptr;
-    while(tmp.seize(ptr))
-      new (ptr.p) Transaction(c_pagePool, c_operationPool);
-    tmp.release();
-  }
-
-  c_lockQueuePool.setSize(5);
-  c_lockElementPool.setSize(5);
-  c_lockQueues.setSize(8);
 }
 
 DbUtil::~DbUtil()
@@ -195,6 +155,68 @@ DbUtil::releaseTransaction(TransactionPtr transPtr){
   }
   transPtr.p->operations.release();
   c_runningTransactions.release(transPtr);
+}
+
+void 
+DbUtil::execREAD_CONFIG_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  c_pagePool.setSize(10);
+  c_preparePool.setSize(1);            // one parallel prepare at a time
+  c_preparedOperationPool.setSize(5);  // three hardcoded, two for test
+  c_operationPool.setSize(64);         // 64 parallel operations
+  c_transactionPool.setSize(32);       // 16 parallel transactions
+  c_attrMappingPool.setSize(100);
+  c_dataBufPool.setSize(6000);	       // 6000*11*4 = 264K > 8k+8k*16 = 256k
+  {
+    SLList<Prepare> tmp(c_preparePool);
+    PreparePtr ptr;
+    while(tmp.seize(ptr))
+      new (ptr.p) Prepare(c_pagePool);
+    tmp.release();
+  }
+  {
+    SLList<Operation> tmp(c_operationPool);
+    OperationPtr ptr;
+    while(tmp.seize(ptr))
+      new (ptr.p) Operation(c_dataBufPool, c_dataBufPool, c_dataBufPool);
+    tmp.release();
+  }
+  {
+    SLList<PreparedOperation> tmp(c_preparedOperationPool);
+    PreparedOperationPtr ptr;
+    while(tmp.seize(ptr))
+      new (ptr.p) PreparedOperation(c_attrMappingPool, 
+				    c_dataBufPool, c_dataBufPool);
+    tmp.release();
+  }
+  {
+    SLList<Transaction> tmp(c_transactionPool);
+    TransactionPtr ptr;
+    while(tmp.seize(ptr))
+      new (ptr.p) Transaction(c_pagePool, c_operationPool);
+    tmp.release();
+  }
+
+  c_lockQueuePool.setSize(5);
+  c_lockElementPool.setSize(5);
+  c_lockQueues.setSize(8);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }
 
 void

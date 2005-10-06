@@ -61,6 +61,7 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
   
   // Received signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Ndbcntr::execDUMP_STATE_ORD);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Ndbcntr::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Ndbcntr::execSTTOR);
   addRecSignal(GSN_TCSEIZECONF, &Ndbcntr::execTCSEIZECONF);
   addRecSignal(GSN_TCSEIZEREF, &Ndbcntr::execTCSEIZEREF);

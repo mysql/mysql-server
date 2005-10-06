@@ -392,6 +392,8 @@ public:
 
   void getNodeGroupMembers(Signal* signal);
 
+  void execREAD_CONFIG_REQ(Signal* signal);
+
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);
   void execNDB_STTOR(Signal* signal);

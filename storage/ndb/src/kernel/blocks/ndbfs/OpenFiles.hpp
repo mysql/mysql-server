@@ -88,7 +88,7 @@ inline bool OpenFiles::insert(AsyncFile* file, Uint16 id){
       names.assfmt("open: >%s< existing: >%s<",
 		   file->theFileName.c_str(),
 		   m_files[i].m_file->theFileName.c_str());
-      ERROR_SET(fatal, AFS_ERROR_ALLREADY_OPEN, names.c_str(),
+      ERROR_SET(fatal, NDBD_EXIT_AFS_ALREADY_OPEN, names.c_str(),
 		"OpenFiles::insert()");    
     }
   }
