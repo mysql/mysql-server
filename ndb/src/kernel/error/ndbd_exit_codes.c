@@ -50,7 +50,7 @@ static const ErrStruct errArray[] =
     "node id in the configuration has the wrong type, (i.e. not an NDB node)"},
    {NDBD_EXIT_SYSTEM_ERROR, XIE,
     "System error, node killed during node restart by other node"},
-   {NDBD_EXIT_INDEX_NOTINRANGE, XIE, "Index too large"},
+   {NDBD_EXIT_INDEX_NOTINRANGE, XIE, "Array index out of range"},
    {NDBD_EXIT_ARBIT_SHUTDOWN, XAE, "Arbitrator shutdown, "
     "please investigate error(s) on other node(s)"},
    {NDBD_EXIT_POINTER_NOTINRANGE, XIE, "Pointer too large"},
@@ -73,14 +73,13 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_TIME_QUEUE_DELAY, XIE, "Error in time queue, too long delay"},
    {NDBD_EXIT_TIME_QUEUE_INDEX, XIE, "Time queue index out of range"},
    {NDBD_EXIT_BLOCK_BNR_ZERO, XIE, "Send signal error"},
-   {NDBD_EXIT_WRONG_PRIO_LEVEL, XIE, "Wrong prio level when sending signal"},
+   {NDBD_EXIT_WRONG_PRIO_LEVEL, XIE, "Wrong priority level when sending signal"},
    {NDBD_EXIT_NDBREQUIRE, XIE, "Internal program error (failed ndbrequire)"},
    {NDBD_EXIT_NDBASSERT, XIE, "Internal program error (failed ndbassert)"},
    {NDBD_EXIT_ERROR_INSERT, XNE, "Error insert executed" },
    /* this error message is complemented by additional info when generated */
    {NDBD_EXIT_INVALID_CONFIG, XCE,
-    "Invalid Configuration fetched from Management Server" },
-
+    "Invalid configuration received from Management Server"},
    /* this error message is complemented by additional info when
       generated, such as signal, and text
    */
@@ -88,11 +87,11 @@ static const ErrStruct errArray[] =
 
    /* VM */
    {NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,    XCR,
-    "Signal lost, out of long signal memory, increase LongMessageBuffer"},
+    "Signal lost, out of long signal memory, please increase LongMessageBuffer"},
    {NDBD_EXIT_WATCHDOG_TERMINATE, XIE, "WatchDog terminate, internal error "
     "or massive overload on the machine running this node"},
    {NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL, XCR,
-    "Signal lost, out of send buffer memory, increase SendBufferMemory"},
+    "Signal lost, out of send buffer memory, please increase SendBufferMemory"},
    {NDBD_EXIT_SIGNAL_LOST,    XIE, "Signal lost (unknown reason)"},
    {NDBD_EXIT_ILLEGAL_SIGNAL, XIE,
     "Illegal signal (version mismatch a possibility)"},
@@ -104,21 +103,21 @@ static const ErrStruct errArray[] =
 
    /* DIH */
    {NDBD_EXIT_MAX_CRASHED_REPLICAS, XFL,
-    "Too many crasched replicas (8 consecutive node restart failures)"},
+    "Too many crashed replicas (8 consecutive node restart failures)"},
    {NDBD_EXIT_MASTER_FAILURE_DURING_NR, XRE,
     "Unhandled master failure during node restart"},
    {NDBD_EXIT_LOST_NODE_GROUP, XAE,
     "All nodes in a node group are unavailable"},
    {NDBD_EXIT_NO_RESTORABLE_REPLICA, XFI,
-    "Unable to find restorable replica"},
+    "Unable to find a restorable replica"},
 
    /* ACC */
    {NDBD_EXIT_SR_OUT_OF_INDEXMEMORY, XCR,
-    "Out of index memory during system restart, increase IndexMemory"},
+    "Out of index memory during system restart, please increase IndexMemory"},
 
    /* TUP */
    {NDBD_EXIT_SR_OUT_OF_DATAMEMORY, XCR,
-    "Out of data memory during system restart, increase DataMemory"},
+    "Out of data memory during system restart, please increase DataMemory"},
 
    /* Ndbfs error messages */
    /* Most codes will have additional info, such as OS error code */
@@ -128,13 +127,13 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_AFS_PARAMETER,    XIE, "Bad parameter"},
    {NDBD_EXIT_AFS_INVALIDPATH,  XCE, "Illegal file system path"},
    {NDBD_EXIT_AFS_MAXOPEN,      XCR,
-    "Max number of open files exceeded, increase MaxNoOfOpenFiles"},
+    "Max number of open files exceeded, please increase MaxNoOfOpenFiles"},
    {NDBD_EXIT_AFS_ALREADY_OPEN, XIE, "File has already been opened"},
 
    {NDBD_EXIT_AFS_ENVIRONMENT           , XIE, "Environment error using file"},
    {NDBD_EXIT_AFS_TEMP_NO_ACCESS        , XIE, "Temporary on access to file"},
-   {NDBD_EXIT_AFS_DISK_FULL             , XFF, "The file system full"},
-   {NDBD_EXIT_AFS_PERMISSION_DENIED     , XCE, "Permission denied for file"},
+   {NDBD_EXIT_AFS_DISK_FULL             , XFF, "The file system is full"},
+   {NDBD_EXIT_AFS_PERMISSION_DENIED     , XCE, "Received permission denied for file"},
    {NDBD_EXIT_AFS_INVALID_PARAM         , XCE, "Invalid parameter for file"},
    {NDBD_EXIT_AFS_UNKNOWN               , XIE, "Unknown file system error"},
    {NDBD_EXIT_AFS_NO_MORE_RESOURCES     , XIE,
@@ -168,7 +167,7 @@ StatusExitMessage StatusExitMessageMapping[] = {
   { XST_U ,"Unknown"},
   { XST_P, "Permanent error, external action needed"},
   { XST_R, "Temporary error, restart node"},
-  { XST_I, "File system error, restart node initial"}
+  { XST_I, "Ndbd file system error, restart node initial"}
 };
 
 static
@@ -187,8 +186,8 @@ StatusExitClassification StatusExitClassificationMapping[] = {
   { XST_R, XRE, "Restart error"},
   { XST_P, XCR, "Resource configuration error"},
   { XST_P, XFF, "File system full"},
-  { XST_I, XFI, "File system inconsistency error, please report a bug"},
-  { XST_I, XFL, "File system limit exceeded"}
+  { XST_I, XFI, "Ndbd file system inconsistency error, please report a bug"},
+  { XST_I, XFL, "Ndbd file system limit exceeded"}
 };
 
 static const int NbExitClassification =
