@@ -293,10 +293,10 @@ if [ x$NDBCLUSTER = x1 ]; then
 fi
 
 # Change the distribution to a long descriptive name
-NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version-$PLATFORM$SUFFIX
+NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version-$platform$SUFFIX
 
 # Print the platform name for build logs
-echo "PLATFORM NAME: $PLATFORM"
+echo "PLATFORM NAME: $platform"
 
 BASE2=$TMP/$NEW_NAME
 rm -rf $BASE2
