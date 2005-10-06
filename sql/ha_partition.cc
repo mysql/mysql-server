@@ -69,6 +69,10 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
 
 static handlerton partition_hton = {
   "partition",
+  SHOW_OPTION_YES,
+  "", /* A comment used by SHOW to describe an engine */
+  DB_TYPE_PARTITION_DB,
+  0, /* Method that initizlizes a storage engine */
   0, /* slot */
   0, /* savepoint size */
   NULL /*ndbcluster_close_connection*/,
@@ -1048,7 +1052,7 @@ THR_LOCK_DATA **ha_partition::store_lock(THD *thd,
 }
 
 
-int ha_partition::start_stmt(THD *thd)
+int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   int error= 0;
   handler **file;
@@ -1056,7 +1060,7 @@ int ha_partition::start_stmt(THD *thd)
   file= m_file;
   do
   {
-    if ((error= (*file)->start_stmt(thd)))
+    if ((error= (*file)->start_stmt(thd, lock_type)))
       break;
   } while (*(++file));
   DBUG_RETURN(error);

@@ -228,7 +228,7 @@ public:
     When table is locked a statement is started by calling start_stmt
     instead of external_lock
   */
-  virtual int start_stmt(THD * thd);
+  virtual int start_stmt(THD * thd, thr_lock_type lock_type);
   /*
     Lock count is number of locked underlying handlers (I assume)
   */
