@@ -17,10 +17,11 @@ MV="mv"
 STRIP=1
 DEBUG=0
 SILENT=0
-PLATFORM="$system-$machine"
+MACHINE=""
+PLATFORM=""
 TMP=/tmp
 SUFFIX=""
-NDBCLUSTER=
+NDBCLUSTER=""
 
 for arg do
   case "$arg" in
@@ -28,6 +29,7 @@ for arg do
     --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
     --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
     --no-strip) STRIP=0 ;;
+    --machine=*) MACHINE=`echo "$arg" | sed -e "s;--machine=;;"` ;;
     --platform=*) PLATFORM=`echo "$arg" | sed -e "s;--platform=;;"` ;;
     --silent)   SILENT=1 ;;
     --with-ndbcluster) NDBCLUSTER=1 ;;
@@ -37,6 +39,16 @@ for arg do
       ;;
   esac
 done
+
+if [ x"$MACHINE" != x"" ] ; then
+  machine=$MACHINE
+fi
+
+if [ x"$PLATFORM" != x"" ] ; then
+  platform="$PLATFORM"
+else
+  platform="$system-$machine"
+fi
 
 # FIXME This should really be integrated with automake and not duplicate the
 # installation list.
@@ -78,7 +90,8 @@ copyfileto()
 {
   destdir=$1
   shift
-  for i ; do
+  for i
+  do
     if [ -f $i ] ; then
       $CP $i $destdir
     elif [ -d $i ] ; then
@@ -293,11 +306,9 @@ BASE=$BASE2
 # If we are compiling with gcc, copy libgcc.a to the distribution as libmygcc.a
 #
 
-if [ x"@GXX@" = x"yes" ]
-then
+if [ x"@GXX@" = x"yes" ] ; then
   gcclib=`@CC@ --print-libgcc-file`
-  if [ $? -ne 0 ]
-  then
+  if [ $? -ne 0 ] ; then
     print "Warning: Couldn't find libgcc.a!"
   else
     $CP $gcclib $BASE/lib/libmygcc.a
@@ -323,8 +334,7 @@ which_1 ()
     do
       for file in $d/$cmd
       do
-	if [ -x $file -a ! -d $file ]
-	then
+	if [ -x $file -a ! -d $file ] ; then
 	  echo $file
 	  exit 0
 	fi
@@ -341,8 +351,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   #
 
   tar=`which_1 gnutar gtar`
-  if [ "$?" = "1" -o x"$tar" = x"" ]
-  then
+  if [ "$?" = "1" -o x"$tar" = x"" ] ; then
     tar=tar
   fi
 
