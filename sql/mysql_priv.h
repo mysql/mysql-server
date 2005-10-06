@@ -1175,7 +1175,7 @@ extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_routine_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
-extern bool opt_enable_shared_memory;
+extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
