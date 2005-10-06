@@ -198,7 +198,18 @@ Suma::execSTTOR(Signal* signal) {
     }
     
     if(!m_active_buckets.isclear())
-      m_gcp_complete_rep_count = 1; // I contribute 1 gcp complete rep
+    {
+      NdbNodeBitmask tmp;
+      Uint32 bucket = 0;
+      while (m_active_buckets.find(bucket) != Bucket_mask::NotFound)
+      {
+	tmp.set(get_responsible_node(bucket, c_nodes_in_nodegroup_mask));
+	bucket++;
+      }
+      
+      ndbassert(tmp.get(getOwnNodeId()));
+      m_gcp_complete_rep_count = tmp.count();// I contribute 1 gcp complete rep
+    }
     else
       m_gcp_complete_rep_count = 0; // I contribute 1 gcp complete rep
     
