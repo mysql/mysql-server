@@ -7039,19 +7039,15 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         */
         if (thd->query_id == cur_field->query_id)
         {
-          bool is_covered= FALSE;
           KEY_PART_INFO *key_part= cur_index_info->key_part;
           KEY_PART_INFO *key_part_end= key_part + cur_index_info->key_parts;
-          for (; key_part != key_part_end ; key_part++)
+          for (;;)
           {
             if (key_part->field == cur_field)
-            {
-              is_covered= TRUE;
               break;
-            }
+            if (++key_part == key_part_end)
+              goto next_index;                  // Field was not part of key
           }
-          if (!is_covered)
-            goto next_index;
         }
       }
     }

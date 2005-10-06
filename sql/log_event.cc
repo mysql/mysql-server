@@ -121,8 +121,9 @@ static char *pretty_print_str(char *packet, char *str, int len)
 static inline char* slave_load_file_stem(char*buf, uint file_id,
 					 int event_server_id)
 {
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", 
-	    MY_UNPACK_FILENAME | MY_UNIX_PATH);
+  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+  to_unix_path(buf);
+
   buf = strend(buf);
   buf = int10_to_str(::server_id, buf, 10);
   *buf++ = '-';
