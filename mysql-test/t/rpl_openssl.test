@@ -7,7 +7,7 @@ source include/master-slave.inc;
 # creating replication user for whom ssl auth is required
 # preparing playground
 connection master;
-grant replication slave on *.* to replssl@'%' require ssl;
+grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
 save_master_pos;
 
