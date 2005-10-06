@@ -76,5 +76,5 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL default '0',
   `d` int(11) default NULL,
   PRIMARY KEY  USING HASH (`a`,`b`,`c`)
-) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1 PARTITION BY KEY (b) 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (b) 
 DROP TABLE t1;
