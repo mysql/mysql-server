@@ -5326,7 +5326,10 @@ void Dbdict::execWAIT_GCP_REF(Signal* signal)
 /* ---------------------------------------------------------------- */
 // Error Handling code needed
 /* ---------------------------------------------------------------- */
-  progError(ref->errorCode, 0);
+  char buf[32];
+  BaseString::snprintf(buf, sizeof(buf), "WAIT_GCP_REF ErrorCode=%d",
+		       ref->errorCode);
+  progError(__LINE__, NDBD_EXIT_NDBREQUIRE, buf);
 }//execWAIT_GCP_REF()
 
 

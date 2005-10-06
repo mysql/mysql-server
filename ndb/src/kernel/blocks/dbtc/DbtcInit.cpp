@@ -291,8 +291,6 @@ Dbtc::Dbtc(const class Configuration & conf):
   
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtc::execALTER_TAB_REQ);
 
-  initData();
-  
 #ifdef VM_TRACE
   {
     void* tmp[] = { &apiConnectptr, 

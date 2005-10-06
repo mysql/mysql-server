@@ -20,7 +20,6 @@
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
 #include "Filename.hpp"
-#include "Error.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>

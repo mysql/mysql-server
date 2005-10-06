@@ -14,9 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ERROR_MESSAGES_H
-#define ERROR_MESSAGES_H
+#ifndef NDBD_MALLOC_H
+#define NDBD_MALLOC_H
 
-const char* lookupErrorMessage(int faultId);
+/**
+ * common memory allocation function for ndbd kernel
+ */
+void *ndbd_malloc(size_t size);
+void ndbd_free(void *p, size_t size);
 
-#endif
+#endif 

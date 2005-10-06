@@ -34,7 +34,6 @@
 #include "LongSignal.hpp"
 #include <SignalLoggerManager.hpp>
 
-#include <Error.hpp>
 #include <ErrorReporter.hpp>
 #include <ErrorHandlingMacros.hpp>
 
@@ -503,7 +502,6 @@ private:
   void execUTIL_UNLOCK_REF(Signal* signal);
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
-  void execREAD_CONFIG_REQ(Signal* signal);
 protected:
   void execUPGRADE(Signal* signal);
 
@@ -564,11 +562,11 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn, Signal* signal){
   char errorMsg[255];
   if (!(gsn <= MAX_GSN)) {
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d too high)", gsn);
-    ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
+    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
   if (!(theExecArray[gsn] != 0)) {
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
-    ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
+    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
   ndbrequire(false);
 }

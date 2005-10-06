@@ -608,6 +608,8 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
     theConfiguration.getOwnConfigIterator();
   ndbrequire(p != 0);
   
+  initData();
+  
   UintR apiConnect;
   UintR tcConnect;
   UintR tables;
@@ -1029,7 +1031,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
         /*********************************************************************/
         // Not implemented yet.
         /*********************************************************************/
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         break;
       case CS_RESTART:
         jam();
@@ -1053,7 +1055,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
         /*********************************************************************/
       default:
         jam();
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         break;
       }//switch
     } else {
@@ -1392,7 +1394,7 @@ void Dbtc::printState(Signal* signal, int place)
 	     << " keylen = " << regCachePtr->keylen << endl;
     } else {
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
     }//if
   }//if
 #endif
@@ -1446,7 +1448,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     return;
   case 6:
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
 
   case 7:
@@ -1467,7 +1469,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 10:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 11:
@@ -1498,7 +1500,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
       /*       PARTICULAR TC CONNECT RECORD. THIS MUST BE CAUSED BY NDB   */
       /*       INTERNAL ERROR.                                            */
       /********************************************************************/
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
     }//switch
     return;
@@ -1511,17 +1513,17 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 16:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 17:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 18:
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
 
   case 19:
@@ -1530,22 +1532,22 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 20:
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
 
   case 21:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 22:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 23:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 24:
@@ -1555,7 +1557,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 25:
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
 
   case 26:
@@ -1563,7 +1565,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     return;
 
   case 27:
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     jam();
     return;
 
@@ -1574,92 +1576,92 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 29:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 30:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 31:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 32:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 33:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 34:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 35:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 36:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 37:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 38:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 39:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 40:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 41:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 42:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 43:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 44:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 45:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 46:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 47:
@@ -1681,7 +1683,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 50:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
 
   case 51:
@@ -1757,7 +1759,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 }
@@ -1770,7 +1772,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   tmaxData = 20;
   if (apiConnectptr.i >= capiConnectFilesize) {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//if
   ptrAss(apiConnectptr, apiConnectRecord);
@@ -1817,7 +1819,7 @@ void Dbtc::execKEYINFO(Signal* signal)
     return;
   default:
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//switch
 
@@ -3083,7 +3085,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
       break;
     default:
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
     }//switch
     attrinfoDihReceivedLab(signal);
@@ -3150,7 +3152,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   CacheRecord * const regCachePtr = cachePtr.p;
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8002)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   if (ERROR_INSERTED(8007)) {
     if (apiConnectptr.p->apiConnectstate == CS_STARTED) {
@@ -3409,7 +3411,7 @@ void Dbtc::releaseAttrinfo()
     regApiPtr->cachePtr = RNIL;
     return;
   }//if
-  systemErrorLab(0);
+  systemErrorLab(0, __LINE__);
   return;
 }//Dbtc::releaseAttrinfo()
 
@@ -3522,7 +3524,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
   Tlength = signal->length();
   if (Tlength > 25) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
   Uint32* TpackDataPtr;
@@ -3577,7 +3579,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       Tstep += LqhKeyConf::SignalLength;
       break;
     default:
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
     }//switch
   }//while
@@ -3655,7 +3657,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8029)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   if (ERROR_INSERTED(8003)) {
     if (regApiPtr->apiConnectstate == CS_STARTED) {
@@ -4140,7 +4142,7 @@ void Dbtc::diverify010Lab(Signal* signal)
   signal->theData[0] = apiConnectptr.i;
   if (ERROR_INSERTED(8022)) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   if (TfirstfreeApiConnectCopy != RNIL) {
     seizeApiConnectCopy(signal);
@@ -4488,7 +4490,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
     return;
   }//if
   if (ERROR_INSERTED(8030)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   if (ERROR_INSERTED(8025)) {
     SET_ERROR_INSERT_VALUE(8026);
@@ -4542,7 +4544,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
   }//if
   if (ERROR_INSERTED(8020)) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   /*-------------------------------------------------------*/
   /* THE ENTIRE TRANSACTION IS NOW COMMITED                */
@@ -4779,7 +4781,7 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal){
   m_commitAckMarkerHash.release(removedMarker, key);
   if (removedMarker.i == RNIL) {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//if
   sendRemoveMarkers(signal, removedMarker.p);
@@ -4841,7 +4843,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
 
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8031)) {
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   if (ERROR_INSERTED(8019)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -4900,7 +4902,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
   }//if
   if (ERROR_INSERTED(8021)) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   apiConnectptr = localApiConnectptr;
   releaseTransResources(signal);
@@ -5340,7 +5342,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
       return;
       break;
     default:
-      warningHandlerLab(signal);
+      warningHandlerLab(signal, __LINE__);
       return;
     }//switch
     TcCommitRef * const commitRef = (TcCommitRef*)&signal->theData[0];
@@ -5353,7 +5355,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
     return;
   } else /** apiConnectptr.i < capiConnectFilesize */ {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }
 }//Dbtc::execTC_COMMITREQ()
@@ -5449,12 +5451,12 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
 
 TC_ROLL_warning:
   jam();
-  warningHandlerLab(signal);
+  warningHandlerLab(signal, __LINE__);
   return;
 
 TC_ROLL_system_error:
   jam();
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Dbtc::execTCROLLBACKREQ()
 
@@ -5695,7 +5697,7 @@ void Dbtc::errorReport(Signal* signal, int place)
     jam();
     break;
   }//switch
-  systemErrorLab(signal);
+  systemErrorLab(signal, __LINE__);
   return;
 }//Dbtc::errorReport()
 
@@ -5752,7 +5754,7 @@ void Dbtc::execABORTED(Signal* signal)
   }//if
   if (ERROR_INSERTED(8024)) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
 
   /**
@@ -5925,12 +5927,12 @@ ABORT020:
   case OS_ABORT_SENT:
     jam();
     DEBUG("ABORT_SENT state in abort015Lab(), not expected");
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   default:
     jam();
     DEBUG("tcConnectstate = " << tcConnectptr.p->tcConnectstate);
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 
@@ -6046,7 +6048,7 @@ void Dbtc::checkStartTimeout(Signal* signal)
       ctimeOutMissedHeartbeats++;
       if (ctimeOutMissedHeartbeats > 100){
 	jam();
-	systemErrorLab(signal);
+	systemErrorLab(signal, __LINE__);
       }
     }
     ctimeOutCheckLastHeartbeat = ctimeOutCheckHeartbeat;
@@ -6235,7 +6237,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
     if (((ctcTimer - getApiConTimer(apiConnectptr.i)) > (10 * ctimeOutValue)) &&
         ((ctcTimer - getApiConTimer(apiConnectptr.i)) > 500)) {
         jam();
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
     }//if
     break;
   case CS_COMMIT_SENT:
@@ -6383,7 +6385,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
     /*       AN IMPOSSIBLE STATE IS SET. CRASH THE SYSTEM.              */
     /*------------------------------------------------------------------*/
     DEBUG("State = " << apiConnectptr.p->apiConnectstate);
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
   return;
@@ -6653,7 +6655,7 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
     break;
   default:
     DEBUG("execSCAN_HBREP: scanFragState="<<scanFragptr.p->scanFragState);
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     break;
   }
 
@@ -6751,7 +6753,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
      * version. In a release version we will simply set the time-out to zero.
      *-----------------------------------------------------------------------*/
 #ifdef VM_TRACE
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
 #endif
     scanFragptr.p->stopFragTimer();
     break;
@@ -6760,7 +6762,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     /*-----------------------------------------------------------------------
      * Non-existent state. Crash.
      *-----------------------------------------------------------------------*/
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     break;
   }//switch
   
@@ -7098,7 +7100,7 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
     break;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 }//Dbtc::execTAKE_OVERTCCONF()
@@ -7327,7 +7329,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
   arrGuard(TtakeOverInd, MAX_NDB_NODES);
   if (tcNodeFailptr.p->takeOverProcState[TtakeOverInd] != ZTAKE_OVER_ACTIVE) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//if
   tcNodeFailptr.p->takeOverProcState[TtakeOverInd] = ZTAKE_OVER_IDLE;
@@ -7454,7 +7456,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     break;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
   }//switch
 }//Dbtc::completeTransAtTakeOverDoOne()
@@ -7580,7 +7582,7 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
         break;
       default:
         jam();
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         return;
       }//switch
     }//if
@@ -7689,7 +7691,7 @@ void Dbtc::execCOMMITCONF(Signal* signal)
   }//if
   if (ERROR_INSERTED(8026)) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   tcurrentReplicaNo = (Uint8)Z8NIL;
   tcConnectptr.p->tcConnectstate = OS_COMMITTED;
@@ -7739,7 +7741,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
         break;
       default:
         jam();
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         return;
         break;
       }//switch
@@ -7834,7 +7836,7 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
   }//if
   if (ERROR_INSERTED(8028)) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   tcConnectptr.p->tcConnectstate = OS_COMPLETED;
   tcurrentReplicaNo = (Uint8)Z8NIL;
@@ -7949,7 +7951,7 @@ FAF_LOOP:
     jam();
     if (cfirstfreeApiConnectFail == RNIL) {
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       return;
     }//if
     seizeApiConnectFail(signal);
@@ -7993,7 +7995,7 @@ void Dbtc::findTcConnectFail(Signal* signal)
       jam();
       if (cfirstfreeTcConnectFail == RNIL) {
         jam();
-        systemErrorLab(signal);
+        systemErrorLab(signal, __LINE__);
         return;
       }//if
       seizeTcConnectFail(signal);
@@ -8052,7 +8054,7 @@ void Dbtc::initApiConnectFail(Signal* signal)
     break;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   apiConnectptr.p->commitAckMarker = RNIL;
   if(LqhTransConf::getMarkerFlag(treqinfo)){
@@ -8174,7 +8176,7 @@ void Dbtc::setupFailData(Signal* signal)
       break;
     default:
       jam();
-      sendSystemError(signal);
+      sendSystemError(signal, __LINE__);
       break;
     }//switch
     if (tabortInd != ZCOMMIT_SETUP) {
@@ -8261,7 +8263,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
       break;
     default:
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       break;
     }//switch
     break;
@@ -8284,7 +8286,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
       break;
     default:
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       break;
     }//switch
     break;
@@ -8294,7 +8296,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
     case CS_FAIL_COMMITTING:
     case CS_FAIL_COMMITTED:
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       break;
     case CS_FAIL_PREPARED:
       jam();
@@ -8307,7 +8309,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
       break;
     default:
       jam();
-      systemErrorLab(signal);
+      systemErrorLab(signal, __LINE__);
       break;
     }//switch
     break;
@@ -8316,7 +8318,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
     break;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     break;
   }//switch
 }//Dbtc::updateApiStateFail()
@@ -8434,14 +8436,14 @@ void Dbtc::releaseAtErrorLab(Signal* signal)
   abortErrorLab(signal);
 }//Dbtc::releaseAtErrorLab()
 
-void Dbtc::warningHandlerLab(Signal* signal) 
+void Dbtc::warningHandlerLab(Signal* signal, int line) 
 {
   ndbassert(false);
 }//Dbtc::warningHandlerLab()
 
-void Dbtc::systemErrorLab(Signal* signal) 
+void Dbtc::systemErrorLab(Signal* signal, int line) 
 {
-  progError(0, 0);
+  progError(line, NDBD_EXIT_NDBREQUIRE);
 }//Dbtc::systemErrorLab()
 
 
@@ -8571,7 +8573,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if (apiConnectptr.i >= capiConnectFilesize)
   {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//if
 
@@ -9211,7 +9213,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
   transid1 = transid1 | transid2;
   if (transid1 != 0) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
 
   /**
@@ -9307,7 +9309,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   transid1 = transid1 | transid2;
   if (transid1 != 0) {
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
   }//if
   
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
@@ -9395,7 +9397,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   apiConnectptr.i = req->apiConnectPtr;
   if (apiConnectptr.i >= capiConnectFilesize) {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//if
   ptrAss(apiConnectptr, apiConnectRecord);
@@ -10044,7 +10046,7 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
     break;
   default:
     jam();
-    systemErrorLab(signal);
+    systemErrorLab(signal, __LINE__);
     return;
     break;
   }//switch
@@ -10281,7 +10283,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
     if(!ok){
       jam();
       ndbout_c("returnsignal = %d", apiConnectptr.p->returnsignal);
-      sendSystemError(signal);
+      sendSystemError(signal, __LINE__);
     }//if
 
   }
@@ -10508,9 +10510,9 @@ void Dbtc::sendKeyinfo(Signal* signal, BlockReference TBRef, Uint32 len)
   sendSignal(TBRef, GSN_KEYINFO, signal, 3 + len, JBB);
 }//Dbtc::sendKeyinfo()
 
-void Dbtc::sendSystemError(Signal* signal) 
+void Dbtc::sendSystemError(Signal* signal, int line) 
 {
-  progError(0, 0);
+  progError(line, NDBD_EXIT_NDBREQUIRE);
 }//Dbtc::sendSystemError()
 
 /* ========================================================================= */
@@ -10531,7 +10533,7 @@ void Dbtc::unlinkGcp(Signal* signal)
      * WE ARE TRYING TO REMOVE A GLOBAL CHECKPOINT WHICH WAS NOT THE OLDEST. 
      * THIS IS A SYSTEM ERROR.                                              
      * ------------------------------------------------------------------- */
-    sendSystemError(signal);
+    sendSystemError(signal, __LINE__);
   }//if
   gcpPtr.p->nextGcp = cfirstfreeGcp;
   cfirstfreeGcp = gcpPtr.i;
@@ -11260,7 +11262,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   transPtr.i = TapiIndex;
   if (transPtr.i >= capiConnectFilesize) {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//if
   ptrAss(transPtr, apiConnectRecord);
@@ -11414,7 +11416,7 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
   transPtr.i = TconnectIndex;
   if (transPtr.i >= capiConnectFilesize) {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//if
   ptrAss(transPtr, apiConnectRecord);
@@ -11447,7 +11449,7 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
   transPtr.i = TconnectIndex;
   if (transPtr.i >= capiConnectFilesize) {
     jam();
-    warningHandlerLab(signal);
+    warningHandlerLab(signal, __LINE__);
     return;
   }//if
   ptrAss(transPtr, apiConnectRecord);
