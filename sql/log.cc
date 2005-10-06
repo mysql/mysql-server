@@ -66,7 +66,7 @@ handlerton binlog_hton = {
   NULL,                         /* rollback_by_xid */
   NULL,                         /* create_cursor_read_view */
   NULL,                         /* set_cursor_read_view */
-  NULL,    			/* close_cursor_read_view */
+  NULL,                         /* close_cursor_read_view */
   HTON_NO_FLAGS
 };
 
@@ -78,7 +78,7 @@ handlerton binlog_hton = {
 
 bool binlog_init()
 {
-  return false;
+  return !opt_bin_log;
 }
 
 static int binlog_close_connection(THD *thd)
