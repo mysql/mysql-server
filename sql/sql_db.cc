@@ -1094,6 +1094,7 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   bool system_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
+  Security_context *sctx= thd->security_ctx;
 #endif
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'",name));
@@ -1131,22 +1132,20 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!no_access_check)
   {
-    if (test_all_bits(thd->master_access,DB_ACLS))
+    if (test_all_bits(sctx->master_access, DB_ACLS))
       db_access=DB_ACLS;
     else
-      db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-                  thd->master_access);
+      db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
+                  sctx->master_access);
     if (!(db_access & DB_ACLS) && (!grant_option ||
                                    check_grant_db(thd,dbname)))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-               thd->priv_user,
-               thd->priv_host,
+               sctx->priv_user,
+               sctx->priv_host,
                dbname);
-      mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-                      thd->priv_user,
-                      thd->priv_host,
-                      dbname);
+      mysql_log.write(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
+                      sctx->priv_user, sctx->priv_host, dbname);
       my_free(dbname,MYF(0));
       DBUG_RETURN(1);
     }
@@ -1168,7 +1167,7 @@ end:
   thd->db_length=db_length;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!no_access_check)
-    thd->db_access=db_access;
+    sctx->db_access= db_access;
 #endif
   if (system_db)
   {

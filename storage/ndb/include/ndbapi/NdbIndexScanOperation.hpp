@@ -168,9 +168,10 @@ private:
   int compare(Uint32 key, Uint32 cols, const NdbReceiver*, const NdbReceiver*);
 
   Uint32 m_sort_columns;
-  
   Uint32 m_this_bound_start;
   Uint32 * m_first_bound_word;
+
+  friend struct Ndb_free_list_t<NdbIndexScanOperation>;
 };
 
 #endif

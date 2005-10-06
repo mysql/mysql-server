@@ -285,7 +285,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
-  bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
+  bool log_on= (thd->options & OPTION_BIN_LOG) ||
+    (!(thd->security_ctx->master_access & SUPER_ACL));
   bool transactional_table;
   uint value_count;
   ulong counter = 1;
@@ -1277,8 +1278,8 @@ public:
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
   {
-    thd.user=thd.priv_user=(char*) delayed_user;
-    thd.host=(char*) my_localhost;
+    thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
+    thd.security_ctx->host=(char*) my_localhost;
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
@@ -1288,7 +1289,7 @@ public:
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
     bzero((char*) &table_list, sizeof(table_list));	// Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
-    thd.host_or_ip= "";
+    thd.security_ctx->host_or_ip= "";
     bzero((char*) &info,sizeof(info));
     pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
     pthread_cond_init(&cond,NULL);
@@ -1311,7 +1312,7 @@ public:
     pthread_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
     x_free(thd.query);
-    thd.user=thd.host=0;
+    thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));

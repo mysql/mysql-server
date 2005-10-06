@@ -1,11 +1,19 @@
-#SUBDIRS = printSchemafile
-
 noinst_LIBRARIES = libdbdict.a
+EXTRA_PROGRAMS = printSchemaFile
 
 libdbdict_a_SOURCES = Dbdict.cpp
 
+printSchemaFile_SOURCES = printSchemaFile.cpp
+
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
+
+LDADD +=  \
+         $(top_builddir)/storage/ndb/src/common/util/libgeneral.la \
+         $(top_builddir)/storage/ndb/src/common/portlib/libportlib.la \
+         $(top_builddir)/dbug/libdbug.a \
+         $(top_builddir)/mysys/libmysys.a \
+         $(top_builddir)/strings/libmystrings.a
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

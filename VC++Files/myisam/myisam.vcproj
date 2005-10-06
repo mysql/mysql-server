@@ -2,8 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="7.10"
-	Name="bdb"
-	ProjectGUID="{FB168572-FFF4-4503-9331-4E958459DC9D}"
+	Name="myisam"
 	SccProjectName=""
 	SccLocalPath="">
 	<Platforms>
@@ -12,35 +11,33 @@
 	</Platforms>
 	<Configurations>
 		<Configuration
-			Name="Max|Win32"
-			OutputDirectory=".\max"
-			IntermediateDirectory=".\max"
+			Name="Debug|Win32"
+			OutputDirectory=".\debug"
+			IntermediateDirectory=".\debug"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-max"
-				Optimization="2"
-				InlineFunctionExpansion="1"
+				Optimization="0"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../bdb/build_win32,../bdb"
-				PreprocessorDefinitions="NDEBUG;DBUG_OFF;_WINDOWS"
+				AdditionalIncludeDirectories="../include"
+				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS"
 				StringPooling="TRUE"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="TRUE"
-				PrecompiledHeaderFile=".\max/bdb.pch"
-				AssemblerListingLocation=".\max/"
-				ObjectFile="max/"
-				ProgramDataBaseFileName="max/"
+				RuntimeLibrary="1"
+				PrecompiledHeaderFile=".\debug/myisam.pch"
+				AssemblerListingLocation=".\debug/"
+				ObjectFile=".\debug/"
+				ProgramDataBaseFileName=".\debug/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
+				DebugInformationFormat="1"
 				CompileAs="0"/>
 			<Tool
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\lib_release\bdb.lib"
+				OutputFile="..\lib_Debug\myisam.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -64,9 +61,111 @@
 				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
 		</Configuration>
 		<Configuration
-			Name="Debug|Win32"
-			OutputDirectory=".\Debug"
-			IntermediateDirectory=".\Debug"
+			Name="Release|Win32"
+			OutputDirectory=".\release"
+			IntermediateDirectory=".\release"
+			ConfigurationType="4"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="1"
+				OptimizeForProcessor="2"
+				AdditionalIncludeDirectories="../include"
+				PreprocessorDefinitions="DBUG_OFF;_WINDOWS;NDEBUG"
+				StringPooling="TRUE"
+				RuntimeLibrary="0"
+				EnableFunctionLevelLinking="TRUE"
+				PrecompiledHeaderFile=".\release/myisam.pch"
+				AssemblerListingLocation=".\release/"
+				ObjectFile=".\release/"
+				ProgramDataBaseFileName=".\release/"
+				WarningLevel="3"
+				SuppressStartupBanner="TRUE"
+				CompileAs="0"/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLibrarianTool"
+				OutputFile="..\lib_release\myisam.lib"
+				SuppressStartupBanner="TRUE"/>
+			<Tool
+				Name="VCMIDLTool"/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+			<Tool
+				Name="VCPreLinkEventTool"/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1033"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
+		<Configuration
+			Name="TLS|Win32"
+			OutputDirectory=".\myisam___Win32_TLS"
+			IntermediateDirectory=".\myisam___Win32_TLS"
+			ConfigurationType="4"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="1"
+				OptimizeForProcessor="2"
+				AdditionalIncludeDirectories="../include"
+				PreprocessorDefinitions="DBUG_OFF;_WINDOWS;NDEBUG;USE_TLS"
+				StringPooling="TRUE"
+				RuntimeLibrary="0"
+				EnableFunctionLevelLinking="TRUE"
+				PrecompiledHeaderFile=".\myisam___Win32_TLS/myisam.pch"
+				AssemblerListingLocation=".\myisam___Win32_TLS/"
+				ObjectFile=".\myisam___Win32_TLS/"
+				ProgramDataBaseFileName=".\myisam___Win32_TLS/"
+				WarningLevel="3"
+				SuppressStartupBanner="TRUE"
+				CompileAs="0"/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLibrarianTool"
+				OutputFile="..\lib_release\myisam_tls.lib"
+				SuppressStartupBanner="TRUE"/>
+			<Tool
+				Name="VCMIDLTool"/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+			<Tool
+				Name="VCPreLinkEventTool"/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="1033"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
+		<Configuration
+			Name="TLS_DEBUG|Win32"
+			OutputDirectory=".\myisam___Win32_TLS_DEBUG"
+			IntermediateDirectory=".\myisam___Win32_TLS_DEBUG"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE">
@@ -74,12 +173,12 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../bdb/build_win32,../bdb,../bdb/dbinc"
-				PreprocessorDefinitions="__WIN32__;_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS"
+				AdditionalIncludeDirectories="../include"
+				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS;USE_TLS"
 				StringPooling="TRUE"
 				RuntimeLibrary="1"
-				PrecompiledHeaderFile=".\Debug/bdb.pch"
-				AssemblerListingLocation=".\Debug/"
+				PrecompiledHeaderFile=".\myisam___Win32_TLS_DEBUG/myisam.pch"
+				AssemblerListingLocation=".\myisam___Win32_TLS_DEBUG/"
 				ObjectFile=".\Debug/"
 				ProgramDataBaseFileName=".\Debug/"
 				WarningLevel="3"
@@ -90,7 +189,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\lib_debug\bdb.lib"
+				OutputFile="..\lib_Debug\myisam_tls.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -121,1023 +220,8 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
-				RelativePath="btree\bt_compare.c">
+				RelativePath="ft_boolean_search.c">
 				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_conv.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_curadj.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_cursor.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_delete.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_method.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_open.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_put.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_rec.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_reclaim.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_recno.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_rsearch.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_search.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_split.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_stat.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_upgrade.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\bt_verify.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="btree\btree_auto.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\crdel_auto.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\crdel_rec.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_am.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_auto.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="common\db_byteorder.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_cam.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_conv.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_dispatch.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_dup.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="common\db_err.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="common\db_getlong.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="common\db_idspace.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_iface.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_join.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="common\db_log2.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_meta.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_method.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_open.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_overflow.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_pr.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_rec.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_reclaim.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_remove.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_rename.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_ret.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="env\db_salloc.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="env\db_shash.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_truncate.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_upg.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_upg_opd.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_vrfy.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="db\db_vrfyutil.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="dbm\dbm.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="dbreg\dbreg.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="dbreg\dbreg_auto.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
 					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1145,30 +229,16 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="dbreg\dbreg_rec.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="dbreg\dbreg_util.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1176,7 +246,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1185,15 +255,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="env\env_file.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
+				RelativePath="ft_nlq_search.c">
 				<FileConfiguration
 					Name="Debug|Win32">
 					<Tool
@@ -1202,30 +264,16 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="env\env_method.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="env\env_open.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1233,7 +281,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1242,15 +290,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="env\env_recover.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
+				RelativePath="ft_parser.c">
 				<FileConfiguration
 					Name="Debug|Win32">
 					<Tool
@@ -1259,30 +299,16 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="env\env_region.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="fileops\fileops_auto.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1290,7 +316,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1299,15 +325,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="fileops\fop_basic.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
+				RelativePath="ft_static.c">
 				<FileConfiguration
 					Name="Debug|Win32">
 					<Tool
@@ -1316,30 +334,16 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="fileops\fop_rec.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="fileops\fop_util.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1347,7 +351,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1356,28 +360,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hash\hash.c">
+				RelativePath="ft_stem.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hash\hash_auto.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1385,7 +386,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1394,28 +395,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hash\hash_conv.c">
+				RelativePath="ft_stopwords.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hash\hash_dup.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1423,7 +421,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1432,28 +430,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hash\hash_func.c">
+				RelativePath="ft_update.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hash\hash_meta.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1461,7 +456,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1470,28 +465,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hash\hash_method.c">
+				RelativePath="mi_cache.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hash\hash_open.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1499,7 +491,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1508,28 +500,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hash\hash_page.c">
+				RelativePath="mi_changed.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hash\hash_rec.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1537,7 +526,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1546,28 +535,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hash\hash_reclaim.c">
+				RelativePath="mi_check.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hash\hash_stat.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1575,7 +561,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1584,28 +570,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hash\hash_upgrade.c">
+				RelativePath="mi_checksum.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hash\hash_verify.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1613,7 +596,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1622,28 +605,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="hmac\hmac.c">
+				RelativePath="mi_close.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hsearch\hsearch.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1651,7 +631,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1660,28 +640,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="lock\lock.c">
+				RelativePath="mi_create.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="lock\lock_deadlock.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1689,7 +666,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1698,28 +675,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="lock\lock_method.c">
+				RelativePath="mi_dbug.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="lock\lock_region.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1727,7 +701,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1736,28 +710,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="lock\lock_stat.c">
+				RelativePath="mi_delete.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="lock\lock_util.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1765,7 +736,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1774,28 +745,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="log\log.c">
+				RelativePath="mi_delete_all.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="log\log_archive.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1803,7 +771,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1812,28 +780,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="log\log_compare.c">
+				RelativePath="mi_delete_table.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="log\log_get.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1841,7 +806,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1850,28 +815,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="log\log_method.c">
+				RelativePath="mi_dynrec.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="log\log_put.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1879,7 +841,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1888,28 +850,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mp\mp_alloc.c">
+				RelativePath="mi_extra.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mp\mp_bh.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1917,7 +876,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1926,28 +885,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mp\mp_fget.c">
+				RelativePath="mi_info.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mp\mp_fopen.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1955,7 +911,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -1964,28 +920,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mp\mp_fput.c">
+				RelativePath="mi_key.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mp\mp_fset.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -1993,7 +946,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2002,28 +955,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mp\mp_method.c">
+				RelativePath="mi_keycache.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mp\mp_region.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2031,7 +981,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2040,28 +990,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mp\mp_register.c">
+				RelativePath="mi_locking.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mp\mp_stat.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2069,7 +1016,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2078,28 +1025,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mp\mp_sync.c">
+				RelativePath="mi_log.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mp\mp_trickle.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2107,7 +1051,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2116,28 +1060,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mutex\mut_tas.c">
+				RelativePath="mi_open.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mutex\mut_win32.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2145,7 +1086,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2154,28 +1095,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="mutex\mutex.c">
+				RelativePath="mi_packrec.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_abs.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2183,7 +1121,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2192,28 +1130,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os\os_alloc.c">
+				RelativePath="mi_page.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_clock.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2221,7 +1156,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2230,28 +1165,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os_win32\os_config.c">
+				RelativePath="mi_panic.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_dir.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2259,7 +1191,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2268,28 +1200,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os_win32\os_errno.c">
+				RelativePath="mi_preload.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_fid.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2297,7 +1226,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2306,28 +1235,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os_win32\os_fsync.c">
+				RelativePath="mi_range.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_handle.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2335,7 +1261,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2344,28 +1270,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os\os_id.c">
+				RelativePath="mi_rename.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_map.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2373,7 +1296,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2382,28 +1305,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os\os_method.c">
+				RelativePath="mi_rfirst.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os\os_oflags.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2411,7 +1331,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2420,28 +1340,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os_win32\os_open.c">
+				RelativePath="mi_rkey.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os\os_region.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2449,7 +1366,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2458,28 +1375,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os_win32\os_rename.c">
+				RelativePath="mi_rlast.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os\os_root.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2487,7 +1401,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2496,28 +1410,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os\os_rpath.c">
+				RelativePath="mi_rnext.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_rw.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2525,7 +1436,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2534,28 +1445,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os_win32\os_seek.c">
+				RelativePath="mi_rnext_same.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_sleep.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2563,7 +1471,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2572,28 +1480,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os_win32\os_spin.c">
+				RelativePath="mi_rprev.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_stat.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2601,7 +1506,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2610,28 +1515,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os\os_tmpdir.c">
+				RelativePath="mi_rrnd.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="os_win32\os_type.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2639,7 +1541,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2648,28 +1550,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="os\os_unlink.c">
+				RelativePath="mi_rsame.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="qam\qam.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2677,7 +1576,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2686,28 +1585,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="qam\qam_auto.c">
+				RelativePath="mi_rsamepos.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="qam\qam_conv.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2715,7 +1611,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2724,28 +1620,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="qam\qam_files.c">
+				RelativePath="mi_scan.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="qam\qam_method.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2753,7 +1646,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2762,28 +1655,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="qam\qam_open.c">
+				RelativePath="mi_search.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="qam\qam_rec.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2791,7 +1681,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2800,28 +1690,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="qam\qam_stat.c">
+				RelativePath="mi_static.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="qam\qam_upgrade.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2829,7 +1716,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2838,28 +1725,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="qam\qam_verify.c">
+				RelativePath="mi_statrec.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="rep\rep_method.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2867,7 +1751,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2876,28 +1760,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="rep\rep_record.c">
+				RelativePath="mi_unique.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="rep\rep_region.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2905,7 +1786,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2914,28 +1795,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="rep\rep_util.c">
+				RelativePath="mi_update.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="hmac\sha1.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2943,7 +1821,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2952,28 +1830,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="clib\strcasecmp.c">
+				RelativePath="mi_write.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="txn\txn.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -2981,7 +1856,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -2990,28 +1865,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="txn\txn_auto.c">
+				RelativePath="rt_index.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="txn\txn_method.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -3019,7 +1891,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -3028,28 +1900,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="txn\txn_rec.c">
+				RelativePath="rt_key.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="txn\txn_recover.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -3057,7 +1926,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -3066,28 +1935,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="txn\txn_region.c">
+				RelativePath="rt_mbr.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="txn\txn_stat.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -3095,7 +1961,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -3104,28 +1970,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="txn\txn_util.c">
+				RelativePath="rt_split.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="common\util_log.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -3133,7 +1996,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -3142,28 +2005,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="common\util_sig.c">
+				RelativePath="sort.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="xa\xa.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -3171,7 +2031,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -3180,28 +2040,25 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="xa\xa_db.c">
+				RelativePath="sp_key.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="Debug|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="2"
+						Optimization="0"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="Release|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
-						Optimization="0"
+						Optimization="2"
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="xa\xa_map.c">
 				<FileConfiguration
-					Name="Max|Win32">
+					Name="TLS|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="2"
@@ -3209,7 +2066,7 @@
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="Debug|Win32">
+					Name="TLS_DEBUG|Win32">
 					<Tool
 						Name="VCCLCompilerTool"
 						Optimization="0"
@@ -3221,6 +2078,15 @@
 		<Filter
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl">
+			<File
+				RelativePath="ft_eval.h">
+			</File>
+			<File
+				RelativePath="myisamdef.h">
+			</File>
+			<File
+				RelativePath="rt_index.h">
+			</File>
 		</Filter>
 	</Files>
 	<Globals>

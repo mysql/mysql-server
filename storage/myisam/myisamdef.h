@@ -38,6 +38,7 @@ typedef struct st_mi_status_info
   my_off_t key_empty;			/* lost space in indexfile */
   my_off_t key_file_length;
   my_off_t data_file_length;
+  ha_checksum checksum;
 } MI_STATUS_INFO;
 
 typedef struct st_mi_state_info
@@ -75,7 +76,6 @@ typedef struct st_mi_state_info
   ulong sec_index_changed;		/* Updated when new sec_index */
   ulong sec_index_used;			/* which extra index are in use */
   ulonglong key_map;			/* Which keys are in use */
-  ha_checksum checksum;
   ulong version;			/* timestamp of create */
   time_t create_time;			/* Time when created database */
   time_t recover_time;			/* Time for last recover */
@@ -261,6 +261,7 @@ struct st_myisam_info {
   uint	last_rkey_length;		/* Last length in mi_rkey() */
   enum ha_rkey_function last_key_func;  /* CONTAIN, OVERLAP, etc */
   uint  save_lastkey_length;
+  uint  pack_key_length;                /* For MYISAMMRG */
   int	errkey;				/* Got last error on this key */
   int   lock_type;			/* How database was locked */
   int   tmp_lock_type;			/* When locked by readinfo */
@@ -679,10 +680,10 @@ extern uint read_pack_length(uint version, const uchar *buf, ulong *length);
 extern uint calc_pack_length(uint version, ulong length);
 
 uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite);
-char *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state);
+uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state);
 uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead);
 uint mi_base_info_write(File file, MI_BASE_INFO *base);
-char *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base);
+uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base);
 int mi_keyseg_write(File file, const HA_KEYSEG *keyseg);
 char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg);
 uint mi_keydef_write(File file, MI_KEYDEF *keydef);

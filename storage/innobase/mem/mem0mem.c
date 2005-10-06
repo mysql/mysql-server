@@ -187,9 +187,7 @@ mem_heap_create_block(
 	}
 
 	block->magic_n = MEM_BLOCK_MAGIC_N;
-	ut_memcpy(&(block->file_name), file_name + ut_strlen(file_name) - 7,
-									7);
-	block->file_name[7]='\0';
+	ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name));
 	block->line = line;
 
 #ifdef MEM_PERIODIC_CHECK	

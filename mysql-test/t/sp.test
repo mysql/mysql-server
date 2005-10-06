@@ -4038,6 +4038,27 @@ end|
 drop function bug9048|
 
 #
+# BUG#12812 create view calling a function works without execute right
+#           on function
+--disable_warnings
+drop function if exists bug12812|
+--enable_warnings
+create function bug12812() returns char(2)
+begin
+  return 'ok';
+end;
+create user user_bug12812@localhost IDENTIFIED BY 'ABC'|
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (test_user_12812,localhost,user_bug12812,ABC,test)|
+--error 1370
+SELECT test.bug12812()|
+--error 1370
+CREATE VIEW v1 AS SELECT test.bug12812()|
+# Cleanup
+connection default|
+disconnect test_user_12812|
+DROP USER user_bug12812@localhost|
+drop function bug12812|
 # Bug #12849 Stored Procedure: Crash on procedure call with CHAR type
 # 'INOUT' parameter
 #
@@ -4205,6 +4226,93 @@ select internal_var;
 end|
 call bug12979_2()|
 drop procedure bug12979_2|
+
+
+#
+# BUG#6127: Stored procedure handlers within handlers don't work
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug6127|
+--enable_warnings
+create table t3 (s1 int unique)|
+
+set @sm=@@sql_mode|
+set sql_mode='traditional'|
+
+create procedure bug6127()
+begin
+  declare continue handler for sqlstate '23000'
+    begin
+      declare continue handler for sqlstate '22003'
+        insert into t3 values (0);
+
+      insert into t3 values (1000000000000000);
+    end;
+
+  insert into t3 values (1);
+  insert into t3 values (1);
+end|
+
+call bug6127()|
+select * from t3|
+--error ER_DUP_ENTRY
+call bug6127()|
+select * from t3|
+set sql_mode=@sm|
+drop table t3|
+drop procedure bug6127|
+
+
+#
+# BUG#12589: Assert when creating temp. table from decimal stored procedure
+#            variable
+#
+--disable_warnings
+drop procedure if exists bug12589_1|
+drop procedure if exists bug12589_2|
+drop procedure if exists bug12589_3|
+--enable_warnings
+create procedure bug12589_1()
+begin
+  declare spv1 decimal(3,3);
+  set spv1= 123.456;
+
+  set spv1 = 'test';
+  create temporary table tm1 as select spv1;
+  show create table tm1;
+  drop temporary table tm1;
+end|
+
+create procedure bug12589_2()
+begin
+  declare spv1 decimal(6,3);
+  set spv1= 123.456;
+
+  create temporary table tm1 as select spv1;
+  show create table tm1;
+  drop temporary table tm1;
+end|
+
+create procedure bug12589_3()
+begin
+  declare spv1 decimal(6,3);
+  set spv1= -123.456;
+
+  create temporary table tm1 as select spv1;
+  show create table tm1;
+  drop temporary table tm1;
+end|
+
+# Note: The type of the field will match the value, not the declared
+#       type of the variable. (This is a type checking issue which
+#       might be changed later.)
+
+# Warning expected from "set spv1 = 'test'", the value is set to decimal "0".
+call bug12589_1()|
+# No warnings here
+call bug12589_2()|
+call bug12589_3()|
 
 
 #

@@ -145,7 +145,7 @@ typedef struct st_table_share
   enum tmp_table_type tmp_table;
 
   uint blob_ptr_size;			/* 4 or 8 */
-  uint null_bytes;
+  uint null_bytes, last_null_bit_pos;
   uint key_length;			/* Length of table_cache_key */
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
@@ -274,6 +274,9 @@ struct st_table {
   GRANT_INFO grant;
   FILESORT_INFO sort;
   TABLE_SHARE share_not_to_be_used;     /* To be deleted when true shares */
+
+  bool fill_item_list(List<Item> *item_list) const;
+  void reset_item_list(List<Item> *item_list) const;
 };
 
 

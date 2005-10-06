@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
+    <meta name="keywords" content="MySQL Cluster" />
+    <title>MySQL Cluster size estimate for <TMPL_VAR NAME="db" ESCAPE="HTML"></title>
+<style type="text/css">
+table   { border-collapse: collapse }
+td,th { border: 1px solid black }
+</style>
+  </head>
+<body>
+<h1>MySQL Cluster analysis for <TMPL_VAR NAME="db" escape="html"></h1>
+<p>This is an automated analysis of the <TMPL_VAR NAME="DSN" escape="html"> database for migration into <a href="http://www.mysql.com/">MySQL</a> Cluster. No warranty is made to the accuracy of the information.</p>
+
+<p>This information should be valid for MySQL 4.1</p>
+
+<ul>
+<TMPL_LOOP NAME="tables">
+<li><TMPL_VAR NAME="table"></li>
+</TMPL_LOOP>
+</ul>
+
+<hr/>
+
+<TMPL_LOOP NAME="tables">
+<h2><TMPL_VAR NAME="table"></h2>
+<table>
+  <tr>
+    <th>Column</th>
+    <th>Type</th>
+    <th>Size</th>
+    <th>Key</th>
+    <TMPL_LOOP NAME=releases>
+      <th><TMPL_VAR NAME=rel> NDB Size</th>
+    </TMPL_LOOP>
+  </tr>
+  <TMPL_LOOP NAME="columns">
+    <tr>
+      <td><TMPL_VAR NAME=name></td>
+      <td><TMPL_VAR NAME=type></td>
+      <td><TMPL_VAR NAME=size></td>
+      <td><TMPL_VAR NAME=key></td>
+      <TMPL_LOOP NAME=datamemory>
+      <td><TMPL_VAR NAME=val></td>
+      </TMPL_LOOP>
+    </tr>
+  </TMPL_LOOP>
+</table>
+
+<p>&nbsp;</p>
+
+<h3>Indexes</h3>
+
+<p>We assume that indexes are ORDERED (not created USING HASH). If order is not required, 10 bytes of data memory can be saved per row if the index is created USING HASH</p>
+<table>
+<tr>
+ <th>Index</th>
+ <th>Type</th>
+ <th>Columns</th>
+ <TMPL_LOOP NAME=releases>
+  <th><TMPL_VAR NAME=rel> IdxMem</th>
+ </TMPL_LOOP>
+ <TMPL_LOOP NAME=releases>
+  <th><TMPL_VAR NAME=rel> DatMem</th>
+ </TMPL_LOOP>
+</tr>
+<TMPL_LOOP NAME="indexes">
+  <tr>
+    <td><TMPL_VAR NAME=name></td>
+    <td><TMPL_VAR NAME=type></td>
+    <td><TMPL_VAR NAME=columns></td>
+    <TMPL_LOOP NAME=indexmemory>
+    <td><TMPL_VAR NAME=val></td>
+    </TMPL_LOOP>
+    <TMPL_LOOP NAME=datamemory>
+    <td><TMPL_VAR NAME=val></td>
+    </TMPL_LOOP>
+  </tr>
+</TMPL_LOOP> 
+</table>
+
+<h3>DataMemory Usage</h3>
+<table>
+<tr>
+ <th>&nbsp;</th>
+ <TMPL_LOOP NAME=releases>
+  <th><TMPL_VAR NAME=rel></th>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Row Overhead</th>
+ <TMPL_LOOP NAME=releases>
+  <td>16</td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Column DataMemory/Row</th>
+ <TMPL_LOOP NAME=RowDataMemory>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Index DataMemory/Row</th>
+ <TMPL_LOOP NAME=IndexDataMemory>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Total DataMemory/Row</th>
+ <TMPL_LOOP NAME=TotalDataMemory>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Rows per 32kb page</th>
+ <TMPL_LOOP NAME=RowPerPage>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Current number of rows</th>
+ <TMPL_LOOP NAME=count>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Total DataMemory (kb)</th>
+ <TMPL_LOOP NAME=DataMemory>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+</table>
+
+<h3>IndexMemory Usage</h3>
+<table>
+<tr>
+ <th>&nbsp;</th>
+ <TMPL_LOOP NAME=releases>
+  <th><TMPL_VAR NAME=rel></th>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>IndexMemory/Row</th>
+ <TMPL_LOOP NAME=RowIndexMemory>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Rows per 8kb page</th>
+ <TMPL_LOOP NAME=RowPerIndexPage>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Current number of rows</th>
+ <TMPL_LOOP NAME=count>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+<tr>
+ <th>Total IndexMemory (kb)</th>
+ <TMPL_LOOP NAME=IndexMemory>
+  <td><TMPL_VAR NAME=val></td>
+ </TMPL_LOOP>
+</tr>
+</table>
+
+<hr/>
+</TMPL_LOOP>
+
+<p>This is the output of ndb_size.pl.</p>
+</body>
+</html>
+

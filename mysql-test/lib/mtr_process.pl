@@ -680,7 +680,8 @@ sub mtr_mysqladmin_shutdown {
     mtr_add_arg($args, "shutdown");
     # We don't wait for termination of mysqladmin
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
-                       "", $::path_manager_log, $::path_manager_log, "");
+                       "", $::path_manager_log, $::path_manager_log, "",
+                       { append_log_file => 1 });
     $mysql_admin_pids{$pid}= 1;
   }
 
@@ -847,14 +848,16 @@ sub sleep_until_file_created ($$$) {
 sub mtr_kill_processes ($) {
   my $pids = shift;
 
-  foreach my $sig (15,9)
+  foreach my $sig (15, 9)
   {
-    my $retries= 20;                    # FIXME 20 seconds, this is silly!
-    kill($sig, @{$pids});
-    while ( $retries-- and  kill(0, @{$pids}) )
+    my $retries= 10;
+    while (1)
     {
-      mtr_debug("Sleep 1 second waiting for processes to die");
-      sleep(1)                      # Wait one second
+      kill($sig, @{$pids});
+      last unless kill (0, @{$pids}) and $retries--;
+
+      mtr_debug("Sleep 2 second waiting for processes to die");
+      sleep(2);
     }
   }
 }

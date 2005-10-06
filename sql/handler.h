@@ -107,6 +107,13 @@
 #define HA_ONLINE_ADD_EMPTY_PARTITION 1
 #define HA_ONLINE_DROP_PARTITION 2
 
+/*
+  Index scan will not return records in rowid order. Not guaranteed to be
+  set for unordered (e.g. HASH) indexes.
+*/
+#define HA_KEY_SCAN_NOT_ROR     128 
+
+
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
 #define HA_KEY_SWITCH_ALL          1
@@ -187,13 +194,6 @@ enum db_type
   DB_TYPE_DEFAULT // Must be last
 };
 
-struct show_table_type_st {
-  const char *type;
-  SHOW_COMP_OPTION *value;
-  const char *comment;
-  enum db_type db_type;
-};
-
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT };
@@ -241,7 +241,7 @@ struct xid_t {
   char data[XIDDATASIZE];  // not \0-terminated !
 
   bool eq(struct xid_t *xid)
-  { return !memcmp(this, xid, length()); }
+  { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
   { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
   void set(struct xid_t *xid)
@@ -289,6 +289,14 @@ struct xid_t {
     return sizeof(formatID)+sizeof(gtrid_length)+sizeof(bqual_length)+
            gtrid_length+bqual_length;
   }
+  byte *key()
+  {
+    return (byte *)&gtrid_length;
+  }
+  uint key_length()
+  {
+    return sizeof(gtrid_length)+sizeof(bqual_length)+gtrid_length+bqual_length;
+  }
 };
 typedef struct xid_t XID;
 
@@ -317,6 +325,27 @@ typedef struct
     storage engine name as it should be printed to a user
   */
   const char *name;
+
+  /*
+    Historical marker for if the engine is available of not 
+  */
+  SHOW_COMP_OPTION state;
+
+  /*
+    A comment used by SHOW to describe an engine.
+  */
+  const char *comment;
+
+  /*
+    Historical number used for frm file to determine the correct storage engine.
+    This is going away and new engines will just use "name" for this.
+  */
+  enum db_type db_type;
+  /* 
+    Method that initizlizes a storage engine
+  */
+  bool (*init)();
+
   /*
     each storage engine has it's own memory area (actually a pointer)
     in the thd, for storing per-connection information.
@@ -376,9 +405,16 @@ typedef struct
    uint32 flags;                                /* global handler flags */
 } handlerton;
 
+struct show_table_alias_st {
+  const char *alias;
+  const char *type;
+};
+
 /* Possible flags of a handlerton */
-#define HTON_NO_FLAGS 0
-#define HTON_CLOSE_CURSORS_AT_COMMIT 1
+#define HTON_NO_FLAGS                 0
+#define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
+#define HTON_ALTER_NOT_SUPPORTED     (1 << 1)
+#define HTON_CAN_RECREATE            (1 << 2)
 
 typedef struct st_thd_trans
 {
@@ -1121,7 +1157,7 @@ public:
   { return extra(operation); }
   virtual int external_lock(THD *thd, int lock_type) { return 0; }
   virtual void unlock_row() {}
-  virtual int start_stmt(THD *thd) {return 0;}
+  virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
   /*
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
@@ -1338,10 +1374,10 @@ public:
 
 	/* Some extern variables used with handlers */
 
-extern struct show_table_type_st sys_table_types[];
+extern handlerton *sys_table_types[];
 extern const char *ha_row_type[];
 extern TYPELIB tx_isolation_typelib;
-extern handlerton *handlertons[MAX_HA];
+extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;
 
 	/* Wrapper functions */
@@ -1350,18 +1386,13 @@ extern ulong total_ha, total_ha_2pc;
 #define ha_commit(thd) (ha_commit_trans((thd), TRUE))
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
-#define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
-                                 T != DB_TYPE_BERKELEY_DB && \
-                                 T != DB_TYPE_ARCHIVE_DB && \
-                                 T != DB_TYPE_FEDERATED_DB && \
-                                 T != DB_TYPE_NDBCLUSTER)
-
 /* lookups */
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
 enum db_type ha_checktype(THD *thd, enum db_type database_type,
                           bool no_substitute, bool report_error);
+bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag);
 
 /* basic stuff */
 int ha_init(void);

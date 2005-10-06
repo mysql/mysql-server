@@ -669,6 +669,27 @@ void getTextBackupAborted(QQQQ) {
 		       theData[3]);
 }
 
+void getTextSingleUser(QQQQ) {
+  switch (theData[1])
+  {
+  case 0:
+    BaseString::snprintf(m_text, m_text_len, "Entering single user mode");
+    break;
+  case 1:
+    BaseString::snprintf(m_text, m_text_len,
+			 "Entered single user mode "
+			 "Node %d has exclusive access", theData[2]);
+    break;
+  case 2:
+    BaseString::snprintf(m_text, m_text_len,"Exiting single user mode");
+    break;
+  default:
+    BaseString::snprintf(m_text, m_text_len,
+			 "Unknown single user report %d", theData[1]);
+    break;
+  }
+}
+
 #if 0
 BaseString::snprintf(m_text, 
 		     m_text_len, 
@@ -752,6 +773,9 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(CreateLogBytes,          LogLevel::llInfo,  11, Logger::LL_INFO ),
   ROW(InfoEvent,               LogLevel::llInfo,   2, Logger::LL_INFO ),
   ROW(EventBufferStatus,       LogLevel::llInfo,   7, Logger::LL_INFO ),
+
+  //Single User
+  ROW(SingleUser,              LogLevel::llInfo,   7, Logger::LL_INFO ),
 
   // Backup
   ROW(BackupStarted,           LogLevel::llBackup, 7, Logger::LL_INFO ),

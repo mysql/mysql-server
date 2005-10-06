@@ -31,44 +31,53 @@ Comment:
 
 #include <ndb_global.h>
 
+class Ndb;
 class NdbApiSignal;
 class NdbOperation;
 
-class NdbLabel
+template<class T>
+struct Free_list_element 
+{
+  Free_list_element() { theNext = 0;}
+  void next(T* obj) { theNext = obj;}
+  T* next() { return theNext;}
+
+  T* theNext;
+};
+
+class NdbLabel : public Free_list_element<NdbLabel>
 {
 friend class NdbOperation;
 friend class Ndb;
-
-private:
-  NdbLabel();
+public:
+  NdbLabel(Ndb*);
   ~NdbLabel();
 
-  NdbLabel* theNext;
+private:
   Uint32   theSubroutine[16];
   Uint32   theLabelAddress[16];
   Uint32   theLabelNo[16];
 };
 
-class NdbSubroutine
+class NdbSubroutine : public Free_list_element<NdbSubroutine>
 {
 friend class NdbOperation;
 friend class Ndb;
 
-private:
-  NdbSubroutine();
+public:
+  NdbSubroutine(Ndb*);
   ~NdbSubroutine();
 
-  NdbSubroutine* theNext;
   Uint32   theSubroutineAddress[16];
 };
 
-class NdbBranch
+class NdbBranch : public Free_list_element<NdbBranch>
 {
 friend class NdbOperation;
 friend class Ndb;
 
-private:
-  NdbBranch();
+public:
+  NdbBranch(Ndb*);
   ~NdbBranch();
 
   NdbApiSignal* theSignal;
@@ -76,22 +85,20 @@ private:
   Uint32       theBranchAddress;
   Uint32	theBranchLabel;
   Uint32	theSubroutine;
-  NdbBranch*	theNext;
 };
 
-class NdbCall
+class NdbCall : public Free_list_element<NdbCall>
 {
 friend class NdbOperation;
 friend class Ndb;
 
-private:
-  NdbCall();
+public:
+  NdbCall(Ndb*);
   ~NdbCall();
 
   NdbApiSignal* theSignal;
   Uint32       theSignalAddress;
   Uint32	theSubroutine;
-  NdbCall*	theNext;
 };
 
 #endif

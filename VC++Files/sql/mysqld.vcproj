@@ -335,7 +335,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../storage/bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
+				AdditionalIncludeDirectories="../bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
 				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/mysqld.pch"
@@ -1252,7 +1252,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="examples\ha_archive.cpp">
+			RelativePath="ha_archive.cpp">
 			<FileConfiguration
 				Name="classic nt|Win32">
 				<Tool
@@ -3745,7 +3745,79 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\storage\myisammrg\myrg_rnext_same.c">
+			RelativePath="..\myisammrg\myrg_rnext_same.c">
+			<FileConfiguration
+				Name="classic nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Max|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Max nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="pro nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="pro|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="classic|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
 		</File>
 		<File
 			RelativePath="mysqld.cpp">
@@ -4506,7 +4578,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="protocol_cursor.cpp">
+			RelativePath="sql_cursor.cpp">
 			<FileConfiguration
 				Name="classic nt|Win32">
 				<Tool
@@ -4730,9 +4802,6 @@
 					AdditionalIncludeDirectories=""
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
-		</File>
-		<File
-			RelativePath=".\rpl_filter.cpp">
 		</File>
 		<File
 			RelativePath="set_var.cpp">
@@ -6922,9 +6991,6 @@
 					AdditionalIncludeDirectories=""
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
-		</File>
-		<File
-			RelativePath=".\sql_partition.cpp">
 		</File>
 		<File
 			RelativePath="sql_prepare.cpp">

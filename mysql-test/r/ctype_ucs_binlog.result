@@ -17,6 +17,7 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
 insert into t2 values (@v);
-ROLLBACK;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 drop table t2;

@@ -4,6 +4,7 @@
 
 --disable_warnings
 drop table if exists t1,t2;
+drop view if exists v1;
 --enable_warnings
 
 CREATE TABLE t1 (c int not null, d char (10) not null);
@@ -91,18 +92,18 @@ show status like "created_tmp%tables";
 drop table t1;
 
 # Fix for BUG#8921: Check that temporary table is ingored by view commands.
-create temporary table t1 as select 'This is temp. table' A;
-create view t1 as select 'This is view' A;
-select * from t1;
-show create table t1;
-show create view t1;
-drop view t1;
-select * from t1;
-create view t1 as select 'This is view again' A;
-select * from t1;
-drop table t1;
-select * from t1;
-drop view t1;
+create temporary table v1 as select 'This is temp. table' A;
+create view v1 as select 'This is view' A;
+select * from v1;
+show create table v1;
+show create view v1;
+drop view v1;
+select * from v1;
+create view v1 as select 'This is view again' A;
+select * from v1;
+drop table v1;
+select * from v1;
+drop view v1;
 
 # Bug #8497: tmpdir with extra slashes would cause failures
 #

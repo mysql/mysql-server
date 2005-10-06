@@ -476,7 +476,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(0,11));
-ERROR 42000: Scale may not be larger than the precision (column 'a_dec').
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'a_dec').
 create table t1(a decimal(7,3));
 insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
 select * from t1;
@@ -671,6 +671,17 @@ a
 9999.999
 9999.999
 0000.000
+drop table t1;
+create table t1(a decimal(10,5), b decimal(10,1));
+insert into t1 values(123.12345, 123.12345);
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
+update t1 set b=a;
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
+select * from t1;
+a	b
+123.12345	123.1
 drop table t1;
 CREATE TABLE t1
 (EMPNUM   CHAR(3) NOT NULL,

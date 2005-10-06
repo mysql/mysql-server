@@ -978,9 +978,9 @@ create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) 
 insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
 insert into `t3`values ( 1 ) ;
---error 1217
+--error 1451
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
---error 1217
+--error 1451
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 --error 1054
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
@@ -996,7 +996,7 @@ create table t1(
 	foreign key(pid) references t1(id) on delete cascade) engine=innodb;
 insert into t1 values(0,0),(1,0),(2,1),(3,2),(4,3),(5,4),(6,5),(7,6),
 	(8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14);
--- error 1217
+-- error 1451
 delete from t1 where id=0;
 delete from t1 where id=15;
 delete from t1 where id=0;
@@ -1259,6 +1259,16 @@ select * from t1 order by a,b,c,d;
 explain select * from t1 order by a,b,c,d;
 drop table t1;
 
+#
+# BUG#11039,#13218 Wrong key length in min()
+#
+
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+select min(b) from t1 where a='8';
+drop table t1;
+
 # End of 4.1 tests
 
 #
@@ -1473,3 +1483,155 @@ CREATE TEMPORARY TABLE t2
  FOREIGN KEY (b) REFERENCES test.t1(id)
 ) ENGINE=InnoDB;
 DROP TABLE t1;
+
+#
+# Test that index column max sizes are checked (bug #13315)
+#
+
+# prefix index
+create table t1 (col1 varchar(2000), index (col1(767)))
+ character set = latin1 engine = innodb;
+
+# normal indexes
+create table t2 (col1 char(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t3 (col1 binary(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t4 (col1 varchar(767), index (col1))
+ character set = latin1 engine = innodb;
+create table t5 (col1 varchar(767) primary key)
+ character set = latin1 engine = innodb;
+create table t6 (col1 varbinary(767) primary key)
+ character set = latin1 engine = innodb;
+create table t7 (col1 text, index(col1(767)))
+ character set = latin1 engine = innodb;
+create table t8 (col1 blob, index(col1(767)))
+ character set = latin1 engine = innodb;
+
+# multi-column indexes are allowed to be longer
+create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
+ character set = latin1 engine = innodb;
+
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+
+--error 1005
+create table t1 (col1 varchar(768), index (col1))
+ character set = latin1 engine = innodb;
+--error 1005
+create table t2 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1005
+create table t3 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1005
+create table t4 (col1 text, index(col1(768)))
+ character set = latin1 engine = innodb;
+--error 1005
+create table t5 (col1 blob, index(col1(768)))
+ character set = latin1 engine = innodb;
+
+#
+# Test improved foreign key error messages (bug #3443)
+#
+
+CREATE TABLE t1
+(
+ id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+CREATE TABLE t2
+(
+ v INT,
+ CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=InnoDB;
+
+--error 1452
+INSERT INTO t2 VALUES(2);
+
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--error 1451
+DELETE FROM t1 WHERE id = 1;
+
+--error 1217
+DROP TABLE t1;
+
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+
+--error 1452
+INSERT INTO t2 VALUES(3);
+
+DROP TABLE t2;
+#
+# Test that checksum table uses a consistent read Bug #12669
+#
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=0;
+checksum table t1;
+connection b;
+insert into t1 values(3);
+connection a;
+#
+# Here checksum should not see insert
+#
+checksum table t1;
+connection a;
+commit;
+checksum table t1;
+commit;
+drop table t1;
+#
+# autocommit = 1
+#
+connection a;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=1;
+checksum table t1;
+connection b;
+set autocommit=1;
+insert into t1 values(3);
+connection a;
+#
+# Here checksum sees insert
+#
+checksum table t1;
+drop table t1;
+
+#
+# BUG#11238 - in prelocking mode SELECT .. FOR UPDATE is changed to
+# non-blocking SELECT
+#
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+delimiter |;
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+delimiter ;|
+start transaction;
+select f1();
+connection b;
+send update t1 set col2=0 where col1=1;
+connection default;
+select * from t1;
+connection a;
+rollback;
+connection b;
+reap;
+rollback;
+connection default;
+drop table t1;
+drop function f1;
+disconnect a;
+disconnect b;
+

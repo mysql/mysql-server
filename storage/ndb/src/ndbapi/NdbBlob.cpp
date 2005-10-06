@@ -141,7 +141,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
 
 // initialization
 
-NdbBlob::NdbBlob()
+NdbBlob::NdbBlob(Ndb*)
 {
   init();
 }

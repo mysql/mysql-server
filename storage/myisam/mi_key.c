@@ -358,7 +358,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
   byte *blob_ptr;
   DBUG_ENTER("_mi_put_key_in_record");
 
-  blob_ptr= info->lastkey2;                     /* Place to put blob parts */
+  blob_ptr= (byte*) info->lastkey2;             /* Place to put blob parts */
   key=(byte*) info->lastkey;                    /* KEy that was read */
   key_end=key+info->lastkey_length;
   for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type ;keyseg++)

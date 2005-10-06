@@ -34,8 +34,12 @@
 
 /* MyISAM MERGE handlerton */
 
-static handlerton myisammrg_hton= {
-  "MRG_MyISAM",
+handlerton myisammrg_hton= {
+  "MRG_MYISAM",
+  SHOW_OPTION_YES,
+  "Collection of identical MyISAM tables", 
+  DB_TYPE_MRG_MYISAM,
+  NULL,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -51,7 +55,7 @@ static handlerton myisammrg_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 

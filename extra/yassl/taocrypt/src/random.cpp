@@ -95,7 +95,11 @@ OS_Seed::OS_Seed()
 {
     fd_ = open("/dev/urandom",O_RDONLY);
     if (fd_ == -1)
+    {
+      fd_ = open("/dev/random",O_RDONLY);
+      if (fd_ == -1)
         error_.SetError(OPEN_RAN_E);
+    }
 }
 
 

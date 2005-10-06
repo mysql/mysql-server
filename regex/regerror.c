@@ -1,8 +1,8 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#include <regex.h>
 
+#include "my_regex.h"
 #include "utils.h"
 #include "regerror.ih"
 
@@ -56,7 +56,7 @@ static struct rerr {
  */
 /* ARGSUSED */
 size_t
-regerror(int errcode, const regex_t *preg, char *errbuf, size_t errbuf_size)
+my_regerror(int errcode, const my_regex_t *preg, char *errbuf, size_t errbuf_size)
 {
 	register struct rerr *r;
 	register size_t len;
@@ -101,7 +101,7 @@ regerror(int errcode, const regex_t *preg, char *errbuf, size_t errbuf_size)
  */
 static char *
 regatoi(preg, localbuf)
-const regex_t *preg;
+const my_regex_t *preg;
 char *localbuf;
 {
 	register struct rerr *r;

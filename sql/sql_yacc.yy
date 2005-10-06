@@ -5370,27 +5370,48 @@ simple_expr:
 	      $$= new Item_func_sp(Lex->current_context(), name);
 	    lex->safe_to_cache_query=0;
 	  }
-	| IDENT_sys '(' udf_expr_list ')'
+	| IDENT_sys '(' 
           {
 #ifdef HAVE_DLOPEN
-            udf_func *udf;
+            udf_func *udf= 0;
+            if (using_udf_functions &&
+                (udf= find_udf($1.str, $1.length)) &&
+                udf->type == UDFTYPE_AGGREGATE)
+            {
+              LEX *lex= Lex;
+              if (lex->current_select->inc_in_sum_expr())
+              {
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+              }
+            }
+            $<udf>$= udf;
+#endif
+          }
+          udf_expr_list ')'
+          {
+#ifdef HAVE_DLOPEN
+            udf_func *udf= $<udf>3;
             SELECT_LEX *sel= Select;
 
-            if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
+            if (udf)
             {
+              if (udf->type == UDFTYPE_AGGREGATE)
+                Select->in_sum_expr--;
+
               switch (udf->returns) {
               case STRING_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_str(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_str(udf, *$4);
                   else
                     $$ = new Item_func_udf_str(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_str(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_str(udf, *$4);
                   else
                     $$ = new Item_sum_udf_str(udf);
                 }
@@ -5398,15 +5419,15 @@ simple_expr:
               case REAL_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_float(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_float(udf, *$4);
                   else
                     $$ = new Item_func_udf_float(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_float(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_float(udf, *$4);
                   else
                     $$ = new Item_sum_udf_float(udf);
                 }
@@ -5414,15 +5435,15 @@ simple_expr:
               case INT_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_int(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_int(udf, *$4);
                   else
                     $$ = new Item_func_udf_int(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_int(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_int(udf, *$4);
                   else
                     $$ = new Item_sum_udf_int(udf);
                 }
@@ -5430,15 +5451,15 @@ simple_expr:
               case DECIMAL_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_decimal(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_decimal(udf, *$4);
                   else
                     $$ = new Item_func_udf_decimal(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_decimal(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_decimal(udf, *$4);
                   else
                     $$ = new Item_sum_udf_decimal(udf);
                 }
@@ -5454,8 +5475,8 @@ simple_expr:
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
               sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
-              if ($3)
-                $$= new Item_func_sp(Lex->current_context(), name, *$3);
+              if ($4)
+                $$= new Item_func_sp(Lex->current_context(), name, *$4);
               else
                 $$= new Item_func_sp(Lex->current_context(), name);
 	      lex->safe_to_cache_query=0;
@@ -7145,15 +7166,16 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
 	    THD *thd= lex->thd;
+            Security_context *sctx= thd->security_ctx;
 	    LEX_USER *curr_user;
             if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            curr_user->user.str= thd->priv_user;
-            curr_user->user.length= strlen(thd->priv_user);
-            if (*thd->priv_host != 0)
+            curr_user->user.str= sctx->priv_user;
+            curr_user->user.length= strlen(sctx->priv_user);
+            if (*sctx->priv_host != 0)
             {
-              curr_user->host.str= thd->priv_host;
-              curr_user->host.length= strlen(thd->priv_host);
+              curr_user->host.str= sctx->priv_host;
+              curr_user->host.length= strlen(sctx->priv_host);
             }
             else
             {
@@ -7239,6 +7261,9 @@ show_engine_param:
 	STATUS_SYM
 	  {
 	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_NDBCLUSTER:
+	      Lex->sql_command = SQLCOM_SHOW_NDBCLUSTER_STATUS;
+	      break;
 	    case DB_TYPE_INNODB:
 	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
 	      break;
@@ -8054,14 +8079,15 @@ user:
 	| CURRENT_USER optional_braces
 	{
           THD *thd= YYTHD;
+          Security_context *sctx= thd->security_ctx;
           if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
             YYABORT;
-          $$->user.str= thd->priv_user;
-          $$->user.length= strlen(thd->priv_user);
-          if (*thd->priv_host != 0)
+          $$->user.str= sctx->priv_user;
+          $$->user.length= strlen(sctx->priv_user);
+          if (*sctx->priv_host != 0)
           {
-            $$->host.str= thd->priv_host;
-            $$->host.length= strlen(thd->priv_host);
+            $$->host.str= sctx->priv_host;
+            $$->host.length= strlen(sctx->priv_host);
           }
           else
           {
@@ -8588,7 +8614,7 @@ option_value:
 	    if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
 	      YYABORT;
 	    user->host=null_lex_str;
-	    user->user.str=thd->priv_user;
+	    user->user.str=thd->security_ctx->priv_user;
 	    thd->lex->var_list.push_back(new set_var_password(user, $3));
 	  }
 	| PASSWORD FOR_SYM user equal text_or_password
@@ -9521,7 +9547,8 @@ view_user:
             if (!(thd->lex->create_view_definer=
                   (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            if (default_view_definer(thd, thd->lex->create_view_definer))
+            if (default_view_definer(thd->security_ctx,
+                                     thd->lex->create_view_definer))
               YYABORT;
           }
         | CURRENT_USER optional_braces
@@ -9530,7 +9557,8 @@ view_user:
             if (!(thd->lex->create_view_definer=
                   (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            if (default_view_definer(thd, thd->lex->create_view_definer))
+            if (default_view_definer(thd->security_ctx,
+                                     thd->lex->create_view_definer))
               YYABORT;
           }
 	| DEFINER_SYM EQ ident_or_text '@' ident_or_text

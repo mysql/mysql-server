@@ -214,12 +214,13 @@ bool mysql_create_view(THD *thd,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (strcmp(lex->create_view_definer->user.str, thd->priv_user) != 0 ||
+  if (strcmp(lex->create_view_definer->user.str,
+             thd->security_ctx->priv_user) != 0 ||
       my_strcasecmp(system_charset_info,
                     lex->create_view_definer->host.str,
-                    thd->priv_host) != 0)
+                    thd->security_ctx->priv_host) != 0)
   {
-    if (!(thd->master_access & SUPER_ACL))
+    if (!(thd->security_ctx->master_access & SUPER_ACL))
     {
       my_error(ER_VIEW_OTHER_USER, MYF(0), lex->create_view_definer->user.str,
                lex->create_view_definer->host.str);
@@ -275,7 +276,8 @@ bool mysql_create_view(THD *thd,
       if (check_some_access(thd, VIEW_ANY_ACL, tbl))
       {
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                 "ANY", thd->priv_user, thd->host_or_ip, tbl->table_name);
+                 "ANY", thd->security_ctx->priv_user,
+                 thd->security_ctx->priv_host, tbl->table_name);
         res= TRUE;
         goto err;
       }
@@ -378,7 +380,7 @@ bool mysql_create_view(THD *thd,
 
   /* prepare select to resolve all fields */
   lex->view_prepare_mode= 1;
-  if (unit->prepare(thd, 0, 0, view->view_name.str))
+  if (unit->prepare(thd, 0, 0))
   {
     /*
       some errors from prepare are reported to user, if is not then
@@ -441,7 +443,8 @@ bool mysql_create_view(THD *thd,
         {
           /* VIEW column has more privileges */
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-                   "create view", thd->priv_user, thd->host_or_ip, item->name,
+                   "create view", thd->security_ctx->priv_user,
+                   thd->security_ctx->priv_host, item->name,
                    view->table_name);
           res= TRUE;
           goto err;
@@ -481,6 +484,8 @@ err:
 static const int revision_number_position= 8;
 /* index of last required parameter for making view */
 static const int required_view_parameters= 10;
+/* number of backups */
+static const int num_view_backups= 3;
 
 /*
   table of VIEW .frm field descriptors
@@ -708,7 +713,7 @@ loop_out:
   }
 
   if (sql_create_definition_file(&dir, &file, view_file_type,
-				 (gptr)view, view_parameters, 3))
+				 (gptr)view, view_parameters, num_view_backups))
   {
     DBUG_RETURN(thd->net.report_error? -1 : 1);
   }
@@ -786,7 +791,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
-    if (default_view_definer(thd, &table->definer))
+    if (default_view_definer(thd->security_ctx, &table->definer))
       goto err;
   }
 
@@ -1165,7 +1170,7 @@ frm_type_enum mysql_frm_type(char *path)
   int length;
   DBUG_ENTER("mysql_frm_type");
 
-  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(MY_WME))) < 0)
+  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
     DBUG_RETURN(FRMTYPE_ERROR);
   }
@@ -1368,4 +1373,95 @@ int view_checksum(THD *thd, TABLE_LIST *view)
   return (strncmp(md5, view->md5.str, 32) ?
           HA_ADMIN_WRONG_CHECKSUM :
           HA_ADMIN_OK);
+}
+
+/*
+  rename view
+
+  Synopsis:
+    renames a view
+
+  Parameters:
+    thd        thread handler
+    new_name   new name of view
+    view       view
+
+  Return values:
+    FALSE      Ok 
+    TRUE       Error
+*/
+bool
+mysql_rename_view(THD *thd,
+                  const char *new_name,
+                  TABLE_LIST *view)
+{
+  LEX_STRING pathstr, file;
+  File_parser *parser;
+  char view_path[FN_REFLEN];
+  bool error= TRUE;
+
+  DBUG_ENTER("mysql_rename_view");
+
+  strxnmov(view_path, FN_REFLEN, mysql_data_home, "/", view->db, "/",
+           view->table_name, reg_ext, NullS);
+  (void) unpack_filename(view_path, view_path);
+
+  pathstr.str= (char *)view_path;
+  pathstr.length= strlen(view_path);
+
+  if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
+       is_equal(&view_type, parser->type()))
+  {
+    TABLE_LIST view_def;
+    char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
+
+    /*
+      To be PS-friendly we should either to restore state of
+      TABLE_LIST object pointed by 'view' after using it for
+      view definition parsing or use temporary 'view_def'
+      object for it.
+    */
+    bzero(&view_def, sizeof(view_def));
+    view_def.timestamp.str= view_def.timestamp_buffer;
+    view_def.view_suid= TRUE;
+
+    /* get view definition and source */
+    if (parser->parse((gptr)&view_def, thd->mem_root, view_parameters,
+                      sizeof(view_parameters)/sizeof(view_parameters[0])-1))
+      goto err;
+
+    /* rename view and it's backups */
+    if (rename_in_schema_file(view->db, view->table_name, new_name, 
+                              view_def.revision - 1, num_view_backups))
+      goto err;
+
+    strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", view->db, "/", NullS);
+    (void) unpack_filename(dir_buff, dir_buff);
+
+    pathstr.str=    (char*)dir_buff;
+    pathstr.length= strlen(dir_buff);
+
+    file.str= file_buff;
+    file.length= (strxnmov(file_buff, FN_REFLEN, new_name, reg_ext, NullS) 
+                  - file_buff);
+
+    if (sql_create_definition_file(&pathstr, &file, view_file_type,
+                                   (gptr)&view_def, view_parameters,
+                                   num_view_backups)) 
+    {
+      /* restore renamed view in case of error */
+      rename_in_schema_file(view->db, new_name, view->table_name, 
+                            view_def.revision - 1, num_view_backups);
+      goto err;
+    }
+  } else
+    DBUG_RETURN(1);  
+
+  /* remove cache entries */
+  query_cache_invalidate3(thd, view, 0);
+  sp_cache_invalidate();
+  error= FALSE;
+
+err:
+  DBUG_RETURN(error);
 }

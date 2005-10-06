@@ -147,7 +147,7 @@ Variable_name	Value
 storage_engine	MEMORY
 show global variables like 'storage_engine';
 Variable_name	Value
-storage_engine	MERGE
+storage_engine	MRG_MYISAM
 set GLOBAL query_cache_size=100000;
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';

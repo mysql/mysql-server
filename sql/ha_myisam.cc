@@ -39,6 +39,12 @@ const char *myisam_recover_names[] =
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names, NULL};
 
+const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
+                                           NullS};
+TYPELIB myisam_stats_method_typelib= {
+  array_elements(myisam_stats_method_names) - 1, "",
+  myisam_stats_method_names, NULL};
+
 
 /*****************************************************************************
 ** MyISAM tables
@@ -46,8 +52,12 @@ TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 
 /* MyISAM handlerton */
 
-static handlerton myisam_hton= {
+handlerton myisam_hton= {
   "MyISAM",
+  SHOW_OPTION_YES,
+  "Default engine as of MySQL 3.23 with great performance", 
+  DB_TYPE_MYISAM,
+  NULL,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -67,7 +77,7 @@ static handlerton myisam_hton= {
     MyISAM doesn't support transactions and doesn't have
     transaction-dependent context: cursors can survive a commit.
   */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 // collect errors printed by mi_check routines
@@ -324,6 +334,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.db_name=    table->s->db;
   param.table_name= table->alias;
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
+  param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
 
   if (!(table->db_stat & HA_READ_ONLY))
     param.testflag|= T_STATISTICS;
@@ -413,6 +424,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
+  param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
 
   if (!(share->state.changed & STATE_NOT_ANALYZED))
     return HA_ADMIN_ALREADY_DONE;
@@ -967,6 +979,7 @@ int ha_myisam::enable_indexes(uint mode)
                      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
+    param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
     param.tmpdir=&mysql_tmpdir_list;
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
@@ -1694,7 +1707,7 @@ int ha_myisam::ft_read(byte * buf)
 
 uint ha_myisam::checksum() const
 {
-  return (uint)file->s->state.checksum;
+  return (uint)file->state->checksum;
 }
 
 

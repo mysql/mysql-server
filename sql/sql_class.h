@@ -510,6 +510,7 @@ struct system_variables
   ulong multi_range_count;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
+  ulong myisam_stats_method;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
@@ -742,10 +743,12 @@ public:
   void set_query_arena(Query_arena *set);
 
   void free_items();
+  /* Close the active state associated with execution of this statement */
+  virtual void cleanup_stmt();
 };
 
 
-class Cursor;
+class Server_side_cursor;
 
 /*
   State of a single command executed against this connection.
@@ -828,7 +831,7 @@ public:
   */
   char *query;
   uint32 query_length;                          // current query length
-  Cursor *cursor;
+  Server_side_cursor *cursor;
 
 public:
 
@@ -845,8 +848,6 @@ public:
   void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
-  /* Close the cursor open for this statement, if there is one */
-  virtual void close_cursor();
 };
 
 
@@ -898,9 +899,6 @@ public:
     }
     hash_delete(&st_hash, (byte *) statement);
   }
-  void add_transient_cursor(Statement *stmt)
-  { transient_cursor_list.append(stmt); }
-  void erase_transient_cursor(Statement *stmt) { stmt->unlink(); }
   /*
     Close all cursors of this connection that use tables of a storage
     engine that has transaction-specific state and therefore can not
@@ -952,6 +950,34 @@ XID_STATE *xid_cache_search(XID *xid);
 bool xid_cache_insert(XID *xid, enum xa_states xa_state);
 bool xid_cache_insert(XID_STATE *xid_state);
 void xid_cache_delete(XID_STATE *xid_state);
+
+
+class Security_context {
+public:
+  /*
+    host - host of the client
+    user - user of the client, set to NULL until the user has been read from
+    the connection
+    priv_user - The user privilege we are using. May be "" for anonymous user.
+    ip - client IP
+  */
+  char   *host, *user, *priv_user, *ip;
+  /* The host privilege we are using */
+  char   priv_host[MAX_HOSTNAME];
+  /* points to host if host is available, otherwise points to ip */
+  const char *host_or_ip;
+  ulong master_access;                 /* Global privileges from mysql.user */
+  ulong db_access;                     /* Privileges for current db */
+
+  void init();
+  void destroy();
+  void skip_grants();
+  inline char *priv_host_name()
+  {
+    return (*priv_host ? priv_host : (char *)"%");
+  }
+};
+
 
 /*
   A registry for item tree transformations performed during
@@ -1125,13 +1151,8 @@ public:
   char	  *thread_stack;
 
   /*
-    host - host of the client
-    user - user of the client, set to NULL until the user has been read from
-     the connection
-    priv_user - The user privilege we are using. May be '' for anonymous user.
     db - currently selected database
     catalog - currently selected catalog
-    ip - client IP
     WARNING: some members of THD (currently 'db', 'catalog' and 'query')  are
     set and alloced by the slave SQL thread (for the THD of that thread); that
     thread is (and must remain, for now) the only responsible for freeing these
@@ -1140,8 +1161,10 @@ public:
     properly. For details see the 'err:' label of the pthread_handler_decl of
     the slave SQL thread, in sql/slave.cc.
    */
-  char	  *host,*user,*priv_user,*db,*catalog,*ip;
-  char	  priv_host[MAX_HOSTNAME];
+  char   *db, *catalog;
+  Security_context main_security_ctx;
+  Security_context *security_ctx;
+
   /* remote (peer) port */
   uint16 peer_port;
   /*
@@ -1150,13 +1173,9 @@ public:
     a time-consuming piece that MySQL can get stuck in for a long time.
   */
   const char *proc_info;
-  /* points to host if host is available, otherwise points to ip */
-  const char *host_or_ip;
 
   ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
-  ulong master_access;			/* Global privileges from mysql.user */
-  ulong db_access;			/* Privileges for current db */
 
   HASH		handler_tables_hash;
   /*
@@ -1824,18 +1843,21 @@ public:
   }
 };
 
-class select_union :public select_result_interceptor {
- public:
-  TABLE *table;
+class select_union :public select_result_interceptor
+{
   TMP_TABLE_PARAM tmp_table_param;
+public:
+  TABLE *table;
 
-  select_union(TABLE *table_par);
-  ~select_union();
+  select_union() :table(0) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
-  void set_table(TABLE *tbl) { table= tbl; }
+
+  bool create_result_table(THD *thd, List<Item> *column_types,
+                           bool is_distinct, ulonglong options,
+                           const char *alias);
 };
 
 /* Base subselect interface class */

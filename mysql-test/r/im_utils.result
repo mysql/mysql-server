@@ -1,0 +1,91 @@
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	offline
+SHOW INSTANCE OPTIONS mysqld1;
+option_name	value
+instance_name	VALUE
+mysqld-path	VALUE
+socket	VALUE
+pid-file	VALUE
+port	VALUE
+datadir	VALUE
+log	VALUE
+log-error	VALUE
+log-slow-queries	VALUE
+language	VALUE
+character-sets-dir	VALUE
+basedir	VALUE
+server_id	VALUE
+skip-stack-trace	VALUE
+skip-innodb	VALUE
+skip-bdb	VALUE
+skip-ndbcluster	VALUE
+SHOW INSTANCE OPTIONS mysqld2;
+option_name	value
+instance_name	VALUE
+mysqld-path	VALUE
+nonguarded	VALUE
+socket	VALUE
+pid-file	VALUE
+port	VALUE
+datadir	VALUE
+log	VALUE
+log-error	VALUE
+log-slow-queries	VALUE
+language	VALUE
+character-sets-dir	VALUE
+basedir	VALUE
+server_id	VALUE
+skip-stack-trace	VALUE
+skip-innodb	VALUE
+skip-bdb	VALUE
+skip-ndbcluster	VALUE
+START INSTANCE mysqld2;
+STOP INSTANCE mysqld2;
+SHOW mysqld1 LOG FILES;
+Logfile	Path	File size
+ERROR LOG	PATH	FILE_SIZE
+GENERAL LOG	PATH	FILE_SIZE
+SLOW LOG	PATH	FILE_SIZE
+SHOW mysqld2 LOG FILES;
+Logfile	Path	File size
+ERROR LOG	PATH	FILE_SIZE
+GENERAL LOG	PATH	FILE_SIZE
+SLOW LOG	PATH	FILE_SIZE
+SHOW mysqld1 LOG ERROR 10;
+Log
+LOG_DATA
+SHOW mysqld1 LOG SLOW 10;
+Log
+LOG_DATA
+SHOW mysqld1 LOG GENERAL 10;
+Log
+LOG_DATA
+SHOW mysqld1 LOG ERROR 10, 2;
+Log
+LOG_DATA
+SHOW mysqld1 LOG SLOW 10, 2;
+Log
+LOG_DATA
+SHOW mysqld1 LOG GENERAL 10, 2;
+Log
+LOG_DATA
+SHOW mysqld2 LOG ERROR 10;
+Log
+LOG_DATA
+SHOW mysqld2 LOG SLOW 10;
+Log
+LOG_DATA
+SHOW mysqld2 LOG GENERAL 10;
+Log
+LOG_DATA
+SHOW mysqld2 LOG ERROR 10, 2;
+Log
+LOG_DATA
+SHOW mysqld2 LOG SLOW 10, 2;
+Log
+LOG_DATA
+SHOW mysqld2 LOG GENERAL 10, 2;
+Log
+LOG_DATA

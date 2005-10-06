@@ -23,13 +23,14 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
 
     # System specific checks
     yassl_integer_extra_cxxflags=""
-    case $SYSTEM_TYPE--$CXX_VERSION in
-       sparc*solaris*--*Sun*C++*5.6*)
+    case $host_cpu--$CXX_VERSION in
+        sparc*--*Sun*C++*5.6*)
 	# Disable inlining when compiling taocrypt/src/integer.cpp
 	yassl_integer_extra_cxxflags="+d"
+        AC_MSG_NOTICE([disabling inlining for yassl/taocrypt/src/integer.cpp])
         ;;
     esac
-   AC_SUBST([yassl_integer_extra_cxxflags])
+    AC_SUBST([yassl_integer_extra_cxxflags])
 
   else
     yassl_dir=""
