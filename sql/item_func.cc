@@ -2015,7 +2015,6 @@ String *Item_func_min_max::val_str(String *str)
   {
     String *res;
     LINT_INIT(res);
-    null_value= 0;
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -2030,14 +2029,11 @@ String *Item_func_min_max::val_str(String *str)
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
-        else
-          res= 0;
       }
       if ((null_value= args[i]->null_value))
-        break;
+        return 0;
     }
-    if (res)					// If !NULL
-      res->set_charset(collation.collation);
+    res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -2054,7 +2050,6 @@ double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2076,7 +2071,6 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2097,21 +2091,21 @@ longlong Item_func_min_max::val_int()
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *res= NULL;
-  null_value= 0;
+  my_decimal tmp_buf, *tmp, *res;
+  LINT_INIT(res);
+
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
       res= args[i]->val_decimal(dec);
     else
     {
-      tmp= args[i]->val_decimal(&tmp_buf);
-      if (args[i]->null_value)
-        res= 0;
-      else if ((my_decimal_cmp(tmp, res) * cmp_sign) < 0)
+      tmp= args[i]->val_decimal(&tmp_buf);      // Zero if NULL
+      if (tmp && (my_decimal_cmp(tmp, res) * cmp_sign) < 0)
       {
         if (tmp == &tmp_buf)
         {
+          /* Move value out of tmp_buf as this will be reused on next loop */
           my_decimal2decimal(tmp, dec);
           res= dec;
         }
@@ -2120,7 +2114,10 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
       }
     }
     if ((null_value= args[i]->null_value))
+    {
+      res= 0;
       break;
+    }
   }
   return res;
 }

@@ -1709,15 +1709,19 @@ Statement_map::Statement_map() :
 
 int Statement_map::insert(Statement *statement)
 {
-  int rc= my_hash_insert(&st_hash, (byte *) statement);
+  int res= my_hash_insert(&st_hash, (byte *) statement);
+  if (res)
+    return res;
   if (statement->name.str)
   {
-    if ((rc= my_hash_insert(&names_hash, (byte*)statement)))
+    if ((res= my_hash_insert(&names_hash, (byte*)statement)))
+    {
       hash_delete(&st_hash, (byte*)statement);
+      return res;
+    }
   }
-  if (rc == 0)
-    last_found_statement= statement;
-  return rc;
+  last_found_statement= statement;
+  return res;
 }
 
 

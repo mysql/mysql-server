@@ -1315,7 +1315,6 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     query.append(FEDERATED_FROM);
     query.append(FEDERATED_BTICK);
 
-
     if (!(share= (FEDERATED_SHARE *)
           my_multi_malloc(MYF(MY_WME),
                           &share, sizeof(*share),

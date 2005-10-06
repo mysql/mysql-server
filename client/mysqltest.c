@@ -135,7 +135,8 @@ typedef struct
   long        code;
 } st_error;
 
-static st_error global_error[] = {
+static st_error global_error[] =
+{
 #include <mysqld_ername.h>
   { 0, 0 }
 };
@@ -210,7 +211,8 @@ static int ps_match_re(char *);
 static char *ps_eprint(int);
 static void ps_free_reg(void);
 
-static const char *embedded_server_groups[] = {
+static const char *embedded_server_groups[]=
+{
   "server",
   "embedded",
   "mysqltest_SERVER",
@@ -1273,7 +1275,7 @@ int do_modify_var(struct st_query *query, const char *name,
   if (*p != '$')
     die("First argument to %s must be a variable (start with $)", name);
   v= var_get(p, &p, 1, 0);
-  switch (operator){
+  switch (operator) {
   case DO_DEC:
     v->int_val--;
     break;

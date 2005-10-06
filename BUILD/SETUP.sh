@@ -98,6 +98,10 @@ else
   make=make
 fi
 
+if test -z "$CC" ; then
+  CC=gcc
+fi
+
 if test -z "$CXX" ; then
   CXX=gcc
 fi

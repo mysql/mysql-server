@@ -1,6 +1,10 @@
 # Can't run test of external client with embedded server
 -- source include/not_embedded.inc
 
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
 #
 ## Bug #5036 mysqlshow is missing a column
 #

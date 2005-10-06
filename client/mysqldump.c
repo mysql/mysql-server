@@ -1188,23 +1188,25 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   This function has logic to print the appropriate syntax depending on whether
   this is a procedure or functions
 
-  RETURN 0 succes, 1 if error
+  RETURN
+    0  Success
+    1  Error
 */
 
-static uint dump_routines_for_db (char *db)
+static uint dump_routines_for_db(char *db)
 {
   char       query_buff[512];
-  const char *routine_type[]={"FUNCTION", "PROCEDURE"};
-  char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3], *routine_name;
+  const char *routine_type[]= {"FUNCTION", "PROCEDURE"};
+  char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3];
+  char       *routine_name;
   int        i;
-  FILE       *sql_file = md_result_file;
+  FILE       *sql_file= md_result_file;
   MYSQL_RES  *routine_res, *routine_list_res;
   MYSQL_ROW  row, routine_list_row;
-
   DBUG_ENTER("dump_routines_for_db");
+  DBUG_PRINT("enter", ("db: '%s'", db));
 
   mysql_real_escape_string(sock, db_name_buff, db, strlen(db));
-  DBUG_PRINT("enter", ("db: '%s'", db_name_buff));
 
   /* nice comments */
   if (opt_comments)
@@ -1217,10 +1219,10 @@ static uint dump_routines_for_db (char *db)
   if (lock_tables)
     mysql_query(sock, "LOCK TABLES mysql.proc READ");
 
-  fprintf(sql_file, "DELIMITER //\n");
+  fprintf(sql_file, "DELIMITER ;;\n");
 
   /* 0, retrieve and dump functions, 1, procedures */
-  for (i=0; i <= 1; i++)
+  for (i= 0; i <= 1; i++)
   {
     my_snprintf(query_buff, sizeof(query_buff),
                 "SHOW %s STATUS WHERE Db = '%s'",
@@ -1232,18 +1234,18 @@ static uint dump_routines_for_db (char *db)
     if (mysql_num_rows(routine_list_res))
     {
 
-      while((routine_list_row= mysql_fetch_row(routine_list_res)))
+      while ((routine_list_row= mysql_fetch_row(routine_list_res)))
       {
         DBUG_PRINT("info", ("retrieving CREATE %s for %s", routine_type[i],
                             name_buff));
-        routine_name=quote_name(routine_list_row[1], name_buff, 0);
+        routine_name= quote_name(routine_list_row[1], name_buff, 0);
         my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
                     routine_type[i], routine_name);
 
         if (mysql_query_with_error_report(sock, &routine_res, query_buff))
           DBUG_RETURN(1);
 
-        while ((row=mysql_fetch_row(routine_res)))
+        while ((row= mysql_fetch_row(routine_res)))
         {
           /*
             if the user has EXECUTE privilege he see routine names, but NOT the
@@ -1254,16 +1256,18 @@ static uint dump_routines_for_db (char *db)
           if (strlen(row[2]))
           {
             if (opt_drop)
-              fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */ //\n",
+              fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;;\n",
                       routine_type[i], routine_name);
             /*
-              we need to change sql_mode only for the CREATE PROCEDURE/FUNCTION
-              otherwise we may need to re-quote routine_name
+              we need to change sql_mode only for the CREATE
+              PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
             */;
-            fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/ //\n",
+            fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/;;\n",
                     row[1] /* sql_mode */);
-            fprintf(sql_file, "/*!50003 %s */ //\n", row[2]);
-            fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/ //\n");
+            fprintf(sql_file, "/*!50003 %s */;;\n", row[2]);
+            fprintf(sql_file,
+                    "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/"
+                    ";;\n");
           }
         } /* end of routine printing */
       } /* end of list of routines */
@@ -1741,7 +1745,6 @@ static void dump_triggers_for_table (char *table, char *db)
   char	     name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
   char       query_buff[512];
   FILE       *sql_file = md_result_file;
-
   DBUG_ENTER("dump_triggers_for_table");
   DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
   result_table=     quote_name(table, table_buff, 1);
@@ -1759,11 +1762,11 @@ static void dump_triggers_for_table (char *table, char *db)
   }
   if (mysql_num_rows(result))
     fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
-DELIMITER //;\n");
+DELIMITER ;;\n");
   while ((row=mysql_fetch_row(result)))
   {
-    fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */ //\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */ //\n\n",
+    fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n\
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */;;\n\n",
             row[6], /* sql_mode */
             quote_name(row[0], name_buff, 0), /* Trigger */
             row[4], /* Timing */
@@ -1773,8 +1776,8 @@ DELIMITER //;\n");
   }
   if (mysql_num_rows(result))
     fprintf(sql_file,
-            "DELIMITER ;//\n\
-/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;");
+            "DELIMITER ;\n"
+            "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;\n");
   mysql_free_result(result);
   DBUG_VOID_RETURN;
 }
@@ -1800,10 +1803,10 @@ static char *add_load_option(char *ptr,const char *object,
 
 
 /*
-** Allow the user to specify field terminator strings like:
-** "'", "\", "\\" (escaped backslash), "\t" (tab), "\n" (newline)
-** This is done by doubleing ' and add a end -\ if needed to avoid
-** syntax errors from the SQL parser.
+  Allow the user to specify field terminator strings like:
+  "'", "\", "\\" (escaped backslash), "\t" (tab), "\n" (newline)
+  This is done by doubling ' and add a end -\ if needed to avoid
+  syntax errors from the SQL parser.
 */
 
 static char *field_escape(char *to,const char *from,uint length)
