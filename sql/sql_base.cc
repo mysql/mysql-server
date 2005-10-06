@@ -1327,6 +1327,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->keys_in_use_for_query= table->s->keys_in_use;
   table->insert_values= 0;
   table->used_keys= table->s->keys_for_keyread;
+  table->fulltext_searched= 0;
+  table->file->ft_handler= 0;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
@@ -2146,7 +2148,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
     DBUG_RETURN(1);
   }
-  if ((error=table->file->start_stmt(thd)))
+  if ((error=table->file->start_stmt(thd, lock_type)))
   {
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
@@ -2953,6 +2955,18 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
                                  belongs - differs from 'table_list' only for
                                  NATURAL_USING joins.
 
+  DESCRIPTION
+    Find a field in a table reference depending on the type of table
+    reference. There are three types of table references with respect
+    to the representation of their result columns:
+    - an array of Field_translator objects for MERGE views and some
+      information_schema tables,
+    - an array of Field objects (and possibly a name hash) for stored
+      tables,
+    - a list of Natural_join_column objects for NATURAL/USING joins.
+    This procedure detects the type of the table reference 'table_list'
+    and calls the corresponding search routine.
+
   RETURN
     0			field is not found
     view_ref_found	found value in VIEW (real result is in *ref)
@@ -2976,16 +2990,29 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 
   /*
     Check that the table and database that qualify the current field name
-    are the same as the table we are going to search for the field.
-    This is done differently for NATURAL/USING joins or nested joins that
-    are operands of NATURAL/USING joins because there we can't simply
-    compare the qualifying table and database names with the ones of
-    'table_list' because each field in such a join may originate from a
-    different table.
+    are the same as the table reference we are going to search for the field.
+
+    Exclude from the test below nested joins because the columns in a
+    nested join generally originate from different tables. Nested joins
+    also have no table name, except when a nested join is a merge view
+    or an information schema table.
+
+    We include explicitly table references with a 'field_translation' table,
+    because if there are views over natural joins we don't want to search
+    inside the view, but we want to search directly in the view columns
+    which are represented as a 'field_translation'.
+
     TODO: Ensure that table_name, db_name and tables->db always points to
           something !
   */
-  if (!(table_list->nested_join && table_list->join_columns) &&
+  if (/* Exclude nested joins. */
+      (!table_list->nested_join ||
+       /* Include merge views and information schema tables. */
+       table_list->field_translation) &&
+      /*
+        Test if the field qualifiers match the table reference we plan
+        to search.
+      */
       table_name && table_name[0] &&
       (my_strcasecmp(table_alias_charset, table_list->alias, table_name) ||
        (db_name && db_name[0] && table_list->db && table_list->db[0] &&
@@ -2993,25 +3020,45 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(0);
 
   *actual_table= NULL;
+
   if (table_list->field_translation)
   {
+    /* 'table_list' is a view or an information schema table. */
     if ((fld= find_field_in_view(thd, table_list, name, item_name, length,
                                  ref, check_grants_view,
                                  register_tree_change)))
       *actual_table= table_list;
   }
-  else if (table_list->nested_join && table_list->join_columns)
+  else if (!table_list->nested_join)
+  {
+    /* 'table_list' is a stored table. */
+    DBUG_ASSERT(table_list->table);
+    if ((fld= find_field_in_table(thd, table_list->table, name, length,
+                                  check_grants_table, allow_rowid,
+                                  cached_field_index_ptr)))
+      *actual_table= table_list;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    /* check for views with temporary table algorithm */
+    if (check_grants_view && table_list->view &&
+        fld && fld != WRONG_GRANT &&
+        check_grant_column(thd, &table_list->grant,
+                           table_list->view_db.str,
+                           table_list->view_name.str,
+                           name, length))
+    fld= WRONG_GRANT;
+#endif
+  }
+  else
   {
     /*
-      If this is a NATURAL/USING join, or an operand of such join which is a
-      join itself, and the field name is qualified, then search for the field
-      in the operands of the join.
+      'table_list' is a NATURAL/USING join, or an operand of such join that
+      is a nested join itself.
+
+      If the field name we search for is qualified, then search for the field
+      in the table references used by NATURAL/USING the join.
     */
     if (table_name && table_name[0])
     {
-      /*
-        Qualified field; Search for it in the tables used by the natural join.
-      */
       List_iterator<TABLE_LIST> it(table_list->nested_join->join_list);
       TABLE_LIST *table;
       while ((table= it++))
@@ -3036,23 +3083,6 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                     /* TIMOUR_TODO: check this with Sanja */
                                     check_grants_table || check_grants_view,
                                     register_tree_change, actual_table);
-  }
-  else
-  {
-    if ((fld= find_field_in_table(thd, table_list->table, name, length,
-                                  check_grants_table, allow_rowid,
-                                  cached_field_index_ptr)))
-      *actual_table= table_list;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    /* check for views with temporary table algorithm */
-    if (check_grants_view && table_list->view &&
-        fld && fld != WRONG_GRANT &&
-        check_grant_column(thd, &table_list->grant,
-                           table_list->view_db.str,
-                           table_list->view_name.str,
-                           name, length))
-    fld= WRONG_GRANT;
-#endif
   }
 
   DBUG_RETURN(fld);
@@ -3364,9 +3394,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 
   for (uint i= 0; (item=li++); i++)
   {
-    if (field_name && item->type() == Item::FIELD_ITEM)
+    if (field_name && item->real_item()->type() == Item::FIELD_ITEM)
     {
-      Item_field *item_field= (Item_field*) item;
+      Item_ident *item_field= (Item_ident*) item;
 
       /*
 	In case of group_concat() with ORDER BY condition in the QUERY
@@ -3466,7 +3496,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         }
       }
     }
-    else if (!table_name && (item->eq(find,0) ||
+    else if (!table_name && (find->eq(item,0) ||
 			     find->name && item->name &&
 			     !my_strcasecmp(system_charset_info, 
 					    item->name,find->name)))
@@ -4617,7 +4647,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
                VIEW_ANY_ACL)))
         {
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0), "ANY",
-                   thd->priv_user, thd->host_or_ip,
+                   thd->security_ctx->priv_user,
+                   thd->security_ctx->host_or_ip,
                    fld->field_name, field_table_name);
           DBUG_RETURN(TRUE);
         }
@@ -4805,9 +4836,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   }
   DBUG_RETURN(test(thd->net.report_error));
 
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
 err_no_arena:
   DBUG_RETURN(1);
 }

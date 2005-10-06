@@ -3440,7 +3440,7 @@ int Field_long::store(longlong nr, bool unsigned_val)
   else
   {
     if (nr < 0 && unsigned_val)
-      nr= INT_MAX32+1;                           // Generate overflow
+      nr= ((longlong) INT_MAX32) + 1;           // Generate overflow
     if (nr < (longlong) INT_MIN32) 
     {
       res=(int32) INT_MIN32;

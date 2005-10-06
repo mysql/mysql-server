@@ -39,6 +39,7 @@ ulong sync_binlog_counter= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
+static bool binlog_init();
 static int binlog_close_connection(THD *thd);
 static int binlog_savepoint_set(THD *thd, void *sv);
 static int binlog_savepoint_rollback(THD *thd, void *sv);
@@ -46,8 +47,12 @@ static int binlog_commit(THD *thd, bool all);
 static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
-static handlerton binlog_hton = {
+handlerton binlog_hton = {
   "binlog",
+  SHOW_OPTION_YES,
+  "This is a meta storage engine to represent the binlog in a transaction",
+  DB_TYPE_UNKNOWN,              /* IGNORE  for now */
+  binlog_init,
   0,
   sizeof(my_off_t),             /* savepoint size = binlog offset */
   binlog_close_connection,
@@ -72,9 +77,9 @@ static handlerton binlog_hton = {
   should be moved here.
 */
 
-handlerton *binlog_init()
+bool binlog_init()
 {
-  return &binlog_hton;
+  return false;
 }
 
 static int binlog_close_connection(THD *thd)
@@ -1477,7 +1482,7 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
       {						// Normal thread
 	if ((thd->options & OPTION_LOG_OFF)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	    && (thd->master_access & SUPER_ACL)
+	    && (thd->security_ctx->master_access & SUPER_ACL)
 #endif
 )
 	{
@@ -1852,7 +1857,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
     if (commit_event->write(&log_file))
       goto err;
+#ifndef DBUG_OFF
 DBUG_skip_commit:
+#endif
     if (flush_and_sync())
       goto err;
     DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
@@ -1917,6 +1924,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     }
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT) || query_start_arg)
     {
+      Security_context *sctx= thd->security_ctx;
       current_time=time(NULL);
       if (current_time != last_time)
       {
@@ -1937,10 +1945,12 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
           tmp_errno=errno;
       }
       if (my_b_printf(&log_file, "# User@Host: %s[%s] @ %s [%s]\n",
-                      thd->priv_user ? thd->priv_user : "",
-                      thd->user ? thd->user : "",
-                      thd->host ? thd->host : "",
-                      thd->ip ? thd->ip : "") == (uint) -1)
+                      sctx->priv_user ?
+                      sctx->priv_user : "",
+                      sctx->user ? sctx->user : "",
+                      sctx->host ? sctx->host : "",
+                      sctx->ip ? sctx->ip : "") ==
+          (uint) -1)
         tmp_errno=errno;
     }
     if (query_start_arg)
@@ -2792,7 +2802,7 @@ void TC_LOG_MMAP::close()
   case 3:
     my_free((gptr)pages, MYF(0));
   case 2:
-    my_munmap(data, (size_t)file_length);
+    my_munmap((byte*)data, (size_t)file_length);
   case 1:
     my_close(fd, MYF(0));
   }

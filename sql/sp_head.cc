@@ -199,11 +199,18 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
   Item *it= sp_prepare_func_item(thd, it_addr);
   uint rsize;
   Query_arena backup_arena;
+  Item *old_item_next, *old_free_list, **p_free_list;
   DBUG_PRINT("info", ("type: %d", type));
 
   if (!it)
-  {
     DBUG_RETURN(NULL);
+
+  if (reuse)
+  {
+    old_item_next= reuse->next;
+    p_free_list= use_callers_arena ? &thd->spcont->callers_arena->free_list :
+                                     &thd->free_list;
+    old_free_list= *p_free_list;
   }
 
   switch (sp_map_result_type(type)) {
@@ -312,15 +319,23 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
   default:
     DBUG_ASSERT(0);
   }
-  it->rsize= rsize;
-
-  DBUG_RETURN(it);
+  goto end;
 
 return_null_item:
   CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_null(),
                     use_callers_arena, &backup_arena);
+end:
   it->rsize= rsize;
 
+  if (reuse && it == reuse)
+  {
+    /*
+      The Item constructor registered itself in the arena free list,
+      while the item slot is reused, so we have to restore the list.
+    */
+    it->next= old_item_next;
+    *p_free_list= old_free_list;
+  }
   DBUG_RETURN(it);
 }
 
@@ -1000,7 +1015,7 @@ int sp_head::execute(THD *thd)
 	ip= hip;
 	ret= 0;
 	ctx->clear_handler();
-	ctx->in_handler= TRUE;
+	ctx->enter_handler(hip);
         thd->clear_error();
 	thd->killed= THD::NOT_KILLED;
 	continue;
@@ -1358,14 +1373,6 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  uint offset= static_cast<Item_splocal *>(it)->get_offset();
 	  Item *val= nctx->get_item(i);
 	  Item *orig= octx->get_item(offset);
-	  Item *o_item_next;
-          /* we'll use callers_arena in sp_eval_func_item */
-	  Item *o_free_list= thd->spcont->callers_arena->free_list;
-
-	  LINT_INIT(o_item_next);
-
-	  if (orig)
-	    o_item_next= orig->next;
 
           /*
             We might need to allocate new item if we weren't able to
@@ -1380,15 +1387,6 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  }
 	  if (copy != orig)
 	    octx->set_item(offset, copy);
-	  if (orig && copy == orig)
-	  {
-	    /*
-              A reused item slot, where the constructor put it in the
-              free_list, so we have to restore the list.
-            */
-	    thd->spcont->callers_arena->free_list= o_free_list;
-	    copy->next= o_item_next;
-	  }
 	}
 	else
 	{
@@ -1636,8 +1634,10 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
   *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1) ||
-                 (!strcmp(sp->m_definer_user.str, thd->priv_user) &&
-                  !strcmp(sp->m_definer_host.str, thd->priv_host)));
+                 (!strcmp(sp->m_definer_user.str,
+                          thd->security_ctx->priv_user) &&
+                  !strcmp(sp->m_definer_host.str,
+                          thd->security_ctx->priv_host)));
   if (!*full_access)
     return check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,
                                      sp->m_type == TYPE_ENUM_PROCEDURE);
@@ -2378,7 +2378,7 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
     thd->spcont->restore_variables(m_frame);
     *nextp= thd->spcont->pop_hstack();
   }
-  thd->spcont->in_handler= FALSE;
+  thd->spcont->exit_handler();
   DBUG_RETURN(0);
 }
 
@@ -2476,6 +2476,10 @@ sp_instr_cpop::backpatch(uint dest, sp_pcontext *dst_ctx)
 int
 sp_instr_copen::execute(THD *thd, uint *nextp)
 {
+  /*
+    We don't store a pointer to the cursor in the instruction to be
+    able to reuse the same instruction among different threads in future.
+  */
   sp_cursor *c= thd->spcont->get_cursor(m_cursor);
   int res;
   DBUG_ENTER("sp_instr_copen::execute");
@@ -2484,41 +2488,33 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
     res= -1;
   else
   {
-    sp_lex_keeper *lex_keeper= c->pre_open(thd);
-    if (!lex_keeper)                            // cursor already open or OOM
-    {
-      res= -1;
-      *nextp= m_ip+1;
-    }
-    else
-    {
-      Query_arena *old_arena= thd->stmt_arena;
+    sp_lex_keeper *lex_keeper= c->get_lex_keeper();
+    Query_arena *old_arena= thd->stmt_arena;
 
-      /*
-        Get the Query_arena from the cpush instruction, which contains
-        the free_list of the query, so new items (if any) are stored in
-        the right free_list, and we can cleanup after each open.
-      */
-      thd->stmt_arena= c->get_instr();
-      res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
-      /* Cleanup the query's items */
-      if (thd->stmt_arena->free_list)
-        cleanup_items(thd->stmt_arena->free_list);
-      thd->stmt_arena= old_arena;
-      /*
-        Work around the fact that errors in selects are not returned properly
-        (but instead converted into a warning), so if a condition handler
-        caught, we have lost the result code.
-      */
-      if (!res)
-      {
-        uint dummy1, dummy2;
+    /*
+      Get the Query_arena from the cpush instruction, which contains
+      the free_list of the query, so new items (if any) are stored in
+      the right free_list, and we can cleanup after each open.
+    */
+    thd->stmt_arena= c->get_instr();
+    res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
+    /* Cleanup the query's items */
+    if (thd->stmt_arena->free_list)
+      cleanup_items(thd->stmt_arena->free_list);
+    thd->stmt_arena= old_arena;
+    /*
+      Work around the fact that errors in selects are not returned properly
+      (but instead converted into a warning), so if a condition handler
+      caught, we have lost the result code.
+    */
+    if (!res)
+    {
+      uint dummy1, dummy2;
 
-        if (thd->spcont->found_handler(&dummy1, &dummy2))
-  	  res= -1;
-      }
-      c->post_open(thd, res ? FALSE : TRUE);
+      if (thd->spcont->found_handler(&dummy1, &dummy2))
+        res= -1;
     }
+    /* TODO: Assert here that we either have an error or a cursor */
   }
   DBUG_RETURN(res);
 }
@@ -2527,7 +2523,8 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
 int
 sp_instr_copen::exec_core(THD *thd, uint *nextp)
 {
-  int res= mysql_execute_command(thd);
+  sp_cursor *c= thd->spcont->get_cursor(m_cursor);
+  int res= c->open(thd);
   *nextp= m_ip+1;
   return res;
 }
@@ -2582,14 +2579,7 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
   Query_arena backup_arena;
   DBUG_ENTER("sp_instr_cfetch::execute");
 
-  if (! c)
-    res= -1;
-  else
-  {
-    thd->set_n_backup_active_arena(thd->spcont->callers_arena, &backup_arena);
-    res= c->fetch(thd, &m_varlist);
-    thd->restore_active_arena(thd->spcont->callers_arena, &backup_arena);
-  }
+  res= c ? c->fetch(thd, &m_varlist) : -1;
 
   *nextp= m_ip+1;
   DBUG_RETURN(res);
@@ -2645,54 +2635,36 @@ sp_instr_error::print(String *str)
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-void
-sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+bool
+sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
 {
-  ctxp->changed= (sp->m_chistics->suid != SP_IS_NOT_SUID &&
-		   (strcmp(sp->m_definer_user.str, thd->priv_user) ||
-		    strcmp(sp->m_definer_host.str, thd->priv_host)));
-
-  if (ctxp->changed)
+  *backup= 0;
+  if (sp->m_chistics->suid != SP_IS_NOT_SUID &&
+      (strcmp(sp->m_definer_user.str,
+              thd->security_ctx->priv_user) ||
+       my_strcasecmp(system_charset_info, sp->m_definer_host.str,
+                     thd->security_ctx->priv_host)))
   {
-    ctxp->master_access= thd->master_access;
-    ctxp->db_access= thd->db_access;
-    ctxp->priv_user= thd->priv_user;
-    strncpy(ctxp->priv_host, thd->priv_host, sizeof(ctxp->priv_host));
-    ctxp->user= thd->user;
-    ctxp->host= thd->host;
-    ctxp->ip= thd->ip;
-
-    /* Change thise just to do the acl_getroot_no_password */
-    thd->user= sp->m_definer_user.str;
-    thd->host= thd->ip = sp->m_definer_host.str;
-
-    if (acl_getroot_no_password(thd))
-    {			// Failed, run as invoker for now
-      ctxp->changed= FALSE;
-      thd->master_access= ctxp->master_access;
-      thd->db_access= ctxp->db_access;
-      thd->priv_user= ctxp->priv_user;
-      strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
+    if (acl_getroot_no_password(&sp->m_security_ctx, sp->m_definer_user.str,
+                                sp->m_definer_host.str,
+                                sp->m_definer_host.str,
+                                sp->m_db.str))
+    {
+      my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
+               sp->m_definer_host.str);
+      return TRUE;
     }
-
-    /* Restore these immiediately */
-    thd->user= ctxp->user;
-    thd->host= ctxp->host;
-    thd->ip= ctxp->ip;
+    *backup= thd->security_ctx;
+    thd->security_ctx= &sp->m_security_ctx;
   }
+  return FALSE;
 }
 
 void
-sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+sp_restore_security_context(THD *thd, Security_context *backup)
 {
-  if (ctxp->changed)
-  {
-    ctxp->changed= FALSE;
-    thd->master_access= ctxp->master_access;
-    thd->db_access= ctxp->db_access;
-    thd->priv_user= ctxp->priv_user;
-    strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
-  }
+  if (backup)
+    thd->security_ctx= backup;
 }
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */

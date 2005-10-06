@@ -18,7 +18,7 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "../mysql_priv.h"
+#include "mysql_priv.h"
 
 #ifdef HAVE_ARCHIVE_DB
 #include "ha_archive.h"
@@ -116,7 +116,7 @@
 */
 
 /* If the archive storage engine has been inited */
-static bool archive_inited= 0;
+static bool archive_inited= FALSE;
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
@@ -136,8 +136,12 @@ static HASH archive_open_tables;
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
 /* dummy handlerton - only to have something to return from archive_db_init */
-static handlerton archive_hton = {
-  "archive",
+handlerton archive_hton = {
+  "ARCHIVE",
+  SHOW_OPTION_YES,
+  "Archive storage engine", 
+  DB_TYPE_ARCHIVE_DB,
+  archive_db_init,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -176,18 +180,28 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
     void
 
   RETURN
-    &archive_hton OK
-    0             Error
+    FALSE       OK
+    TRUE        Error
 */
 
-handlerton *archive_db_init()
+bool archive_db_init()
 {
-  archive_inited= 1;
-  VOID(pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST));
+  DBUG_ENTER("archive_db_init");
+  if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
+    goto error;
   if (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
                 (hash_get_key) archive_get_key, 0, 0))
-    return 0;
-  return &archive_hton;
+  {
+    VOID(pthread_mutex_destroy(&archive_mutex));
+  }
+  else
+  {
+    archive_inited= TRUE;
+    DBUG_RETURN(FALSE);
+  }
+error:
+  have_archive_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 /*

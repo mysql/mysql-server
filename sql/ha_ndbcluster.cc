@@ -51,8 +51,12 @@ static int ndbcluster_close_connection(THD *thd);
 static int ndbcluster_commit(THD *thd, bool all);
 static int ndbcluster_rollback(THD *thd, bool all);
 
-static handlerton ndbcluster_hton = {
+handlerton ndbcluster_hton = {
   "ndbcluster",
+  SHOW_OPTION_YES,
+  "Clustered, fault-tolerant, memory-based tables", 
+  DB_TYPE_NDBCLUSTER,
+  ndbcluster_init,
   0, /* slot */
   0, /* savepoint size */
   ndbcluster_close_connection,
@@ -1239,7 +1243,8 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
   DBUG_ENTER("ha_ndbcluster::index_flags");
   DBUG_PRINT("info", ("idx_no: %d", idx_no));
   DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
-  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)]);
+  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)] | 
+              HA_KEY_SCAN_NOT_ROR);
 }
 
 static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
@@ -3390,7 +3395,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   startTransaction for each transaction/statement.
 */
 
-int ha_ndbcluster::start_stmt(THD *thd)
+int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   int error=0;
   DBUG_ENTER("start_stmt");
@@ -4701,11 +4706,14 @@ static int connect_callback()
   return 0;
 }
 
-handlerton *
-ndbcluster_init()
+bool ndbcluster_init()
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
+
+  if (have_ndbcluster != SHOW_OPTION_YES)
+    goto ndbcluster_init_error;
+
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
     DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
@@ -4786,16 +4794,17 @@ ndbcluster_init()
   }
   
   ndbcluster_inited= 1;
-  DBUG_RETURN(&ndbcluster_hton);
+  DBUG_RETURN(FALSE);
 
- ndbcluster_init_error:
+ndbcluster_init_error:
   if (g_ndb)
     delete g_ndb;
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
-  DBUG_RETURN(NULL);
+  have_ndbcluster= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -7472,6 +7481,50 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   DBUG_RETURN(0);
 }
 
+int
+ndbcluster_show_status(THD* thd)
+{
+  Protocol *protocol= thd->protocol;
+  
+  DBUG_ENTER("ndbcluster_show_status");
+  
+  if (have_ndbcluster != SHOW_OPTION_YES) 
+  {
+    my_message(ER_NOT_SUPPORTED_YET,
+	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is defined",
+	       MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("free_list", 255));
+  field_list.push_back(new Item_return_int("created", 10,MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("free", 10,MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("sizeof", 10,MYSQL_TYPE_LONG));
+
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+  
+  if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
+  {
+    Ndb* ndb= (get_thd_ndb(thd))->ndb;
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (ndb->get_free_list_usage(&tmp))
+    {
+      protocol->prepare_for_resend();
+      
+      protocol->store(tmp.m_name, &my_charset_bin);
+      protocol->store((uint)tmp.m_created);
+      protocol->store((uint)tmp.m_free);
+      protocol->store((uint)tmp.m_sizeof);
+      if (protocol->write())
+	DBUG_RETURN(TRUE);
+    }
+  }
+  send_eof(thd);
+  
+  DBUG_RETURN(FALSE);
+}
 
 /*
   Create a table in NDB Cluster

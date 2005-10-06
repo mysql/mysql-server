@@ -904,6 +904,7 @@ bool Item_splocal::fix_fields(THD *, Item **)
   DBUG_ASSERT(it->fixed);
   max_length= it->max_length;
   decimals= it->decimals;
+  unsigned_flag= it->unsigned_flag;
   fixed= 1;
   return FALSE;
 }
@@ -1687,7 +1688,7 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
     return 0;
   
   Item_field *item_field= (Item_field*) item;
-  if (item_field->field)
+  if (item_field->field && field)
     return item_field->field == field;
   /*
     We may come here when we are trying to find a function in a GROUP BY
@@ -1701,10 +1702,10 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
   */
   return (!my_strcasecmp(system_charset_info, item_field->name,
 			 field_name) &&
-	  (!item_field->table_name ||
+	  (!item_field->table_name || !table_name ||
 	   (!my_strcasecmp(table_alias_charset, item_field->table_name,
 			   table_name) &&
-	    (!item_field->db_name ||
+	    (!item_field->db_name || !db_name ||
 	     (item_field->db_name && !strcmp(item_field->db_name,
 					     db_name))))));
 }
@@ -1804,6 +1805,7 @@ Item_decimal::Item_decimal(const char *str_arg, uint length,
   name= (char*) str_arg;
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
+  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1813,6 +1815,7 @@ Item_decimal::Item_decimal(longlong val, bool unsig)
   int2my_decimal(E_DEC_FATAL_ERROR, val, unsig, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
+  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1823,6 +1826,7 @@ Item_decimal::Item_decimal(double val, int precision, int scale)
   double2my_decimal(E_DEC_FATAL_ERROR, val, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
+  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1835,6 +1839,7 @@ Item_decimal::Item_decimal(const char *str, const my_decimal *val_arg,
   name= (char*) str;
   decimals= (uint8) decimal_par;
   max_length= length;
+  unsigned_flag= !decimal_value.sign();
   fixed= 1;
 }
 
@@ -1844,8 +1849,9 @@ Item_decimal::Item_decimal(my_decimal *value_par)
   my_decimal2decimal(value_par, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
+  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
-                                             decimals, !decimal_value.sign());
+                                             decimals, unsigned_flag);
 }
 
 
@@ -1855,8 +1861,9 @@ Item_decimal::Item_decimal(const char *bin, int precision, int scale)
                     &decimal_value, precision, scale);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
+  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(precision, decimals,
-                                             !decimal_value.sign());
+                                             unsigned_flag);
 }
 
 
@@ -2966,7 +2973,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   const char *field_name;
   ORDER      *found_group= NULL;
   int         found_match_degree= 0;
-  Item_field *cur_field;
+  Item_ident *cur_field;
   int         cur_match_degree= 0;
 
   if (find_item->type() == Item::FIELD_ITEM ||
@@ -2983,9 +2990,9 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
   for (ORDER *cur_group= group_list ; cur_group ; cur_group= cur_group->next)
   {
-    if ((*(cur_group->item))->type() == Item::FIELD_ITEM)
+    if ((*(cur_group->item))->real_item()->type() == Item::FIELD_ITEM)
     {
-      cur_field= (Item_field*) *cur_group->item;
+      cur_field= (Item_ident*) *cur_group->item;
       cur_match_degree= 0;
       
       DBUG_ASSERT(cur_field->field_name != 0);
@@ -3448,8 +3455,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                             VIEW_ANY_ACL)))
     {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-               "ANY", thd->priv_user, thd->host_or_ip,
-               field_name, tab);
+               "ANY", thd->security_ctx->priv_user,
+               thd->security_ctx->host_or_ip, field_name, tab);
       goto error;
     }
   }
@@ -5232,6 +5239,36 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                (Item*) new Item_int(name, result, length));
     break;
   }
+  case ROW_RESULT:
+  {
+    new_item= 0;
+    /*
+      If item and comp_item are both Item_rows and have same number of cols
+      then process items in Item_row one by one. If Item_row contain nulls
+      substitute it by Item_null. Otherwise just return.
+    */
+    if (item->result_type() == comp_item->result_type() &&
+        ((Item_row*)item)->cols() == ((Item_row*)comp_item)->cols())
+    {
+      Item_row *item_row= (Item_row*)item,*comp_item_row= (Item_row*)comp_item;
+      if (item_row->null_inside())
+        new_item= (Item*) new Item_null(name);
+      else
+      {
+        int i= item_row->cols() - 1;
+        for (; i >= 0; i--)
+        {
+          if (item_row->maybe_null && item_row->el(i)->is_null())
+          {
+            new_item= (Item*) new Item_null(name);
+            break;
+          }
+          resolve_const_item(thd, item_row->addr(i), comp_item_row->el(i));
+        }
+      }
+    }
+    break;
+  }
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();
@@ -5252,7 +5289,6 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                (Item*) new Item_decimal(name, result, length, decimals));
     break;
   }
-  case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
   }

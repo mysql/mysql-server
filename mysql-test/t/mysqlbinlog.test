@@ -102,10 +102,10 @@ select "--- --position --" as "";
 select "--- reading stdin --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec cat $MYSQL_TEST_DIR/std_data/trunc_binlog.000001 | $MYSQL_BINLOG --short-form - 
+--exec $MYSQL_BINLOG --short-form - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec cat $MYSQL_TEST_DIR/std_data/trunc_binlog.000001 | $MYSQL_BINLOG --short-form --position=79 - 
+--exec $MYSQL_BINLOG --short-form --position=79 - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
 
 # clean up
 drop table t1, t2;

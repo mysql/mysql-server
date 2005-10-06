@@ -23,16 +23,6 @@ special big record storage structure */
 
 #define	BTR_PAGE_MAX_REC_SIZE	(UNIV_PAGE_SIZE / 2 - 200)
 
-/* Maximum key size in a B-tree: the records on non-leaf levels must be
-shorter than this */
-
-#define	BTR_PAGE_MAX_KEY_SIZE	1024
-
-/* If data in page drops below this limit, we try to compress it.
-NOTE! The value has to be > 2 * BTR_MAX_KEY_SIZE */
-
-#define BTR_COMPRESS_LIMIT	(UNIV_PAGE_SIZE / 4 + 1);
-
 /* Latching modes for the search function (in btr0cur.*) */
 #define BTR_SEARCH_LEAF		RW_S_LATCH
 #define BTR_MODIFY_LEAF		RW_X_LATCH

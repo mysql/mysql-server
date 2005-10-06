@@ -1004,8 +1004,19 @@ Dbtup::read_pseudo(Uint32 attrId, Uint32* outBuffer){
     return 1;
   case AttributeHeader::FRAGMENT_MEMORY:
     {
-      Uint64 tmp= fragptr.p->noOfPages;
-      tmp*= 32768;
+      Uint64 tmp = 0;
+      tmp += fragptr.p->noOfPages;
+      {
+        /**
+         * Each fragment is split into 2...get #pages from other as well
+         */
+        Uint32 twin = fragptr.p->fragmentId ^ 1;
+        FragrecordPtr twinPtr;
+        getFragmentrec(twinPtr, twin, tabptr.p);
+        ndbrequire(twinPtr.p != 0);
+        tmp += twinPtr.p->noOfPages;
+      }
+      tmp *= 32768;
       memcpy(outBuffer,&tmp,8);
     }
     return 2;

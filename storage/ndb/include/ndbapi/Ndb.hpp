@@ -986,9 +986,9 @@ class NdbBlob;
 class NdbReceiver;
 class TransporterFacade;
 class PollGuard;
+template <class T> struct Ndb_free_list_t;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
-
 
 #if defined NDB_OSE
 /**
@@ -1473,7 +1473,19 @@ public:
    */
   NdbTransaction* hupp( NdbTransaction* );
   Uint32 getReference() const { return theMyRef;}
+
+  struct Free_list_usage
+  {
+    const char * m_name;
+    Uint32 m_created;
+    Uint32 m_free;
+    Uint32 m_sizeof;
+  };
+
+  Free_list_usage * get_free_list_usage(Free_list_usage*);
 #endif
+
+  
 
 /*****************************************************************************
  *	These are service routines used by the other classes in the NDBAPI.
@@ -1650,22 +1662,8 @@ private:
   class NdbDictionaryImpl* theDictionary;
   class NdbEventBuffer* theEventBuffer;
 
-  NdbTransaction*	theConIdleList;	// First connection in idle list.
-
-  NdbOperation*		theOpIdleList;	// First operation in the idle list. 
-
-  NdbIndexScanOperation* theScanOpIdleList;	// First scan operation in the idle list. 
-  NdbIndexOperation*	theIndexOpIdleList;	// First index operation in the idle list. 
   NdbTransaction*	theTransactionList;
   NdbTransaction**      theConnectionArray;
-  NdbRecAttr*		theRecAttrIdleList;  
-  NdbApiSignal*		theSignalIdleList;   // First signal in idlelist.
-  NdbLabel*		theLabelList;	     // First label descriptor in list
-  NdbBranch*		theBranchList;	     // First branch descriptor in list
-  NdbSubroutine*	theSubroutineList;   // First subroutine descriptor in
-  NdbCall*		theCallList;	     // First call descriptor in list
-  NdbReceiver*          theScanList;
-  NdbBlob*              theNdbBlobIdleList;
 
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node

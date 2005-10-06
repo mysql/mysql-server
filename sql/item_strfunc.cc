@@ -473,7 +473,8 @@ String *Item_func_des_decrypt::val_str(String *str)
   {
     uint key_number=(uint) (*res)[0] & 127;
     // Check if automatic key and that we have privilege to uncompress using it
-    if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
+    if (!(current_thd->security_ctx->master_access & SUPER_ACL) ||
+        key_number > 9)
       goto error;
 
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
@@ -1601,13 +1602,13 @@ String *Item_func_user::val_str(String *str)
 
   if (is_current)
   {
-    user= thd->priv_user;
-    host= thd->priv_host;
+    user= thd->security_ctx->priv_user;
+    host= thd->security_ctx->priv_host;
   }
   else
   {
-    user= thd->user;
-    host= thd->host_or_ip;
+    user= thd->main_security_ctx.user;
+    host= thd->main_security_ctx.host_or_ip;
   }
 
   // For system threads (e.g. replication SQL thread) user may be empty
@@ -1732,6 +1733,8 @@ String *Item_func_format::val_str(String *str)
   {
     my_decimal dec_val, rnd_dec, *res;
     res= args[0]->val_decimal(&dec_val);
+    if ((null_value=args[0]->null_value))
+      return 0; /* purecov: inspected */
     my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
     str_length= str->length();
@@ -1980,6 +1983,33 @@ b1:        str->append((char)(num>>8));
   }
   str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
+
+  /* Check whether we got a well-formed string */
+  CHARSET_INFO *cs= collation.collation;
+  int well_formed_error;
+  uint wlen= cs->cset->well_formed_len(cs,
+                                       str->ptr(), str->ptr() + str->length(),
+                                       str->length(), &well_formed_error);
+  if (wlen < str->length())
+  {
+    THD *thd= current_thd;
+    char hexbuf[7];
+    enum MYSQL_ERROR::enum_warning_level level;
+    uint diff= str->length() - wlen;
+    set_if_smaller(diff, 3);
+    octet2hex(hexbuf, (const uchar*) str->ptr() + wlen, diff);
+    if (thd->variables.sql_mode &
+        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+      null_value= 1;
+      str= 0;
+    }
+    else
+      level= MYSQL_ERROR::WARN_LEVEL_WARN;
+    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+  }
   return str;
 }
 
@@ -2518,7 +2548,7 @@ String *Item_load_file::val_str(String *str)
 
   if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      || !(current_thd->master_access & FILE_ACL)
+      || !(current_thd->security_ctx->master_access & FILE_ACL)
 #endif
       )
     goto err;

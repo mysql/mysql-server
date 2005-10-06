@@ -67,18 +67,18 @@ bool mysqld_show_storage_engines(THD *thd)
   const char *default_type_name= 
     ha_get_storage_engine((enum db_type)thd->variables.table_type);
 
-  show_table_type_st *types;
-  for (types= sys_table_types; types->type; types++)
+  handlerton **types;
+  for (types= sys_table_types; *types; types++)
   {
     protocol->prepare_for_resend();
-    protocol->store(types->type, system_charset_info);
-    const char *option_name= show_comp_option_name[(int) *types->value];
+    protocol->store((*types)->name, system_charset_info);
+    const char *option_name= show_comp_option_name[(int) (*types)->state];
 
-    if (*types->value == SHOW_OPTION_YES &&
-	!my_strcasecmp(system_charset_info, default_type_name, types->type))
+    if ((*types)->state == SHOW_OPTION_YES &&
+	!my_strcasecmp(system_charset_info, default_type_name, (*types)->name))
       option_name= "DEFAULT";
     protocol->store(option_name, system_charset_info);
-    protocol->store(types->comment, system_charset_info);
+    protocol->store((*types)->comment, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
@@ -415,8 +415,9 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 bool mysqld_show_create_db(THD *thd, char *dbname,
                            HA_CREATE_INFO *create_info)
 {
+  Security_context *sctx= thd->security_ctx;
   int length;
-  char	path[FN_REFLEN];
+  char path[FN_REFLEN];
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -435,17 +436,17 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (test_all_bits(thd->master_access,DB_ACLS))
+  if (test_all_bits(sctx->master_access, DB_ACLS))
     db_access=DB_ACLS;
   else
-    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-		thd->master_access);
+    db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
+		sctx->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             thd->priv_user, thd->host_or_ip, dbname);
+             sctx->priv_user, sctx->host_or_ip, dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-		    thd->priv_user, thd->host_or_ip, dbname);
+		    sctx->priv_user, sctx->host_or_ip, dbname);
     DBUG_RETURN(TRUE);
   }
 #endif
@@ -793,7 +794,8 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
 
-    if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
+    if (field->has_charset() && 
+        !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
     {
       if (field->charset() != share->table_charset)
       {
@@ -832,7 +834,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     has_default= (field->type() != FIELD_TYPE_BLOB &&
                   !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
 		  field->unireg_check != Field::NEXT_NUMBER &&
-                  !((foreign_db_mode || limited_mysql_mode) &&
+                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
                     has_now_default));
 
     if (has_default)
@@ -862,12 +864,13 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
         packet->append(tmp);
     }
 
-    if (!foreign_db_mode && !limited_mysql_mode &&
+    if (!(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
         table->timestamp_field == field && 
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
       packet->append(" on update CURRENT_TIMESTAMP",28);
 
-    if (field->unireg_check == Field::NEXT_NUMBER && !foreign_db_mode)
+    if (field->unireg_check == Field::NEXT_NUMBER && 
+        !(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS))
       packet->append(" auto_increment", 15 );
 
     if (field->comment.length)
@@ -1210,24 +1213,26 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
+      Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp->user && !strcmp(tmp->user,user))))
+          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
       {
-        thread_info *thd_info=new thread_info;
+        thread_info *thd_info= new thread_info;
 
         thd_info->thread_id=tmp->thread_id;
-        thd_info->user=thd->strdup(tmp->user ? tmp->user :
-				   (tmp->system_thread ?
-				    "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp->host || tmp->ip) && thd->host_or_ip[0])
+        thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
+                                    (tmp->system_thread ?
+                                     "system user" : "unauthenticated user"));
+	if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
+            thd->security_ctx->host_or_ip[0])
 	{
 	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
-			"%s:%u", tmp->host_or_ip, tmp->peer_port);
+			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
 	}
 	else
-	  thd_info->host= thd->strdup(tmp->host_or_ip);
+	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
@@ -1278,6 +1283,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thread_info *thd_info;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *sctx;
+#endif
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
@@ -2014,7 +2022,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   enum enum_schema_tables schema_table_idx;
   List<char> bases;
   List_iterator_fast<char> it(bases);
-  COND *partial_cond; 
+  COND *partial_cond;
+  Security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_state open_tables_state_backup;
@@ -2086,8 +2095,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!check_access(thd,SELECT_ACL, base_name, 
                       &thd->col_access, 0, 1, with_i_schema) ||
-        thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(thd->host, thd->ip, thd->priv_user, base_name,0) ||
+        sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
+	acl_get(sctx->host, sctx->ip, sctx->priv_user, base_name,0) ||
 	(grant_option && !check_grant_db(thd, base_name)))
 #endif
     {
@@ -2219,6 +2228,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
+  Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("fill_schema_shemata");
 
   if (make_db_list(thd, &files, &idx_field_vals,
@@ -2237,8 +2247,8 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
       continue;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(thd->host, thd->ip, thd->priv_user, file_name,0) ||
+    if (sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
+	acl_get(sctx->host, sctx->ip, sctx->priv_user, file_name,0) ||
 	(grant_option && !check_grant_db(thd, file_name)))
 #endif
     {
@@ -2839,7 +2849,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("fill_schema_proc");
 
-  strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
+  strxmov(definer, thd->security_ctx->priv_user, "@",
+          thd->security_ctx->priv_host, NullS);
   /* We use this TABLE_LIST instance only for checking of privileges. */
   bzero((char*) &proc_tables,sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
@@ -2977,7 +2988,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_views_record");
   char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
-  uint defiler_len;
+  uint definer_len;
   if (!res)
   {
     if (tables->view)
@@ -3002,9 +3013,9 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
         table->field[5]->store(STRING_WITH_LEN("YES"), cs);
       else
         table->field[5]->store(STRING_WITH_LEN("NO"), cs);
-      defiler_len= (strxmov(definer, tables->definer.user.str, "@",
-                            tables->definer.host.str, NullS) - definer) - 1;
-      table->field[6]->store(definer, defiler_len, cs);
+      definer_len= (strxmov(definer, tables->definer.user.str, "@",
+                            tables->definer.host.str, NullS) - definer);
+      table->field[6]->store(definer, definer_len, cs);
       if (tables->view_suid)
         table->field[7]->store(STRING_WITH_LEN("DEFINER"), cs);
       else

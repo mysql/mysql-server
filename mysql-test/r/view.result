@@ -845,6 +845,15 @@ select * from v1;
 cast(1 as char(3))
 1
 drop view v1;
+create table t1 (a int);
+create view v1 as select a from t1;
+create database seconddb;
+rename table v1 to seconddb.v1;
+ERROR HY000: Changing schema from 'test' to 'seconddb' is not allowed.
+rename table v1 to v2;
+drop table t1;
+drop view v2;
+drop database seconddb;
 create view v1 as select 'a',1;
 create view v2 as select * from v1 union all select * from v1;
 create view v3 as select * from v2 where 1 = (select `1` from v2);
@@ -2253,3 +2262,39 @@ WEEKDAY(date)
 1
 DROP TABLE t1;
 DROP VIEW  v1, v2, v3;
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING a > 1;
+a
+2
+3
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING a > 1;
+a
+2
+3
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING t1.a > 1;
+a
+2
+3
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING v1.a > 1;
+a
+2
+3
+SELECT t_1.a FROM t1 AS t_1 GROUP BY t_1.a HAVING t_1.a IN (1,2,3);
+a
+1
+2
+3
+SELECT v_1.a FROM v1 AS v_1 GROUP BY v_1.a HAVING v_1.a IN (1,2,3);
+a
+1
+2
+3
+DROP VIEW v1;
+DROP TABLE t1;

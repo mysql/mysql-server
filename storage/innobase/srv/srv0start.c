@@ -1540,7 +1540,7 @@ NetWare. */
 #endif
 	sync_order_checks_on = TRUE;
 
-        if (srv_use_doublewrite_buf && trx_doublewrite == NULL) {
+        if (trx_doublewrite == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 
 		trx_sys_create_doublewrite_buf();

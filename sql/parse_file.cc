@@ -333,6 +333,59 @@ err_w_file:
   DBUG_RETURN(TRUE);
 }
 
+/*
+  Renames a frm file (including backups) in same schema
+
+  SYNOPSIS
+    rename_in_schema_file
+    schema            name of given schema           
+    old_name          original file name
+    new_name          new file name
+    revision          revision number
+    num_view_backups  number of backups
+
+  RETURN
+    0 - OK 
+    1 - Error (only if renaming of frm failed)
+
+*/
+my_bool rename_in_schema_file(const char *schema, const char *old_name, 
+                              const char *new_name, ulonglong revision, 
+                              uint num_view_backups)
+{
+  char old_path[FN_REFLEN], new_path[FN_REFLEN], arc_path[FN_REFLEN];
+
+  strxnmov(old_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
+           old_name, reg_ext, NullS);
+  (void) unpack_filename(old_path, old_path);
+
+  strxnmov(new_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
+           new_name, reg_ext, NullS);
+  (void) unpack_filename(new_path, new_path);
+
+  if (my_rename(old_path, new_path, MYF(MY_WME)))
+    return 1;
+
+  /* check if arc_dir exists */
+  strxnmov(arc_path, FN_REFLEN, mysql_data_home, "/", schema, "/arc", NullS);
+  (void) unpack_filename(arc_path, arc_path);
+  
+  if (revision > 0 && !access(arc_path, F_OK))
+  {
+    ulonglong limit= (revision > num_view_backups) ? revision - num_view_backups : 0;
+    while (revision > limit) {
+      my_snprintf(old_path, FN_REFLEN, "%s/%s%s-%04lu",
+		  arc_path, old_name, reg_ext, (ulong)revision);
+      (void) unpack_filename(old_path, old_path);
+      my_snprintf(new_path, FN_REFLEN, "%s/%s%s-%04lu",
+		  arc_path, new_name, reg_ext, (ulong)revision);
+      (void) unpack_filename(new_path, new_path);
+      my_rename(old_path, new_path, MYF(0));
+      revision--;
+    }
+  }
+  return 0;
+}
 
 /*
   Prepare frm to parse (read to memory)

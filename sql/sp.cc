@@ -494,7 +494,8 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   else
   {
     restore_record(table, s->default_values); // Get default values for fields
-    strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
+    strxmov(definer, thd->security_ctx->priv_user, "@",
+            thd->security_ctx->priv_host, NullS);
 
     if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
     {
@@ -569,7 +570,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 	  goto done;
 	}
       }
-      if (!(thd->master_access & SUPER_ACL))
+      if (!(thd->security_ctx->master_access & SUPER_ACL))
       {
 	my_message(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,
 		   ER(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER), MYF(0));

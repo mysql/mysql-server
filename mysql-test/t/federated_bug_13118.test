@@ -1,0 +1,42 @@
+source include/federated.inc;
+
+
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.bug_13118_table;
+--enable_warnings
+
+CREATE TABLE federated.bug_13118_table (
+  `foo` integer,
+  `bar` integer
+  );
+
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    `foo` integer,
+    `bar` integer
+    ) ENGINE="FEDERATED"
+    CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/bug_13118_table';
+
+SELECT * from federated.t1;
+
+INSERT INTO federated.t1 VALUES (1,1);
+SELECT * FROM federated.t1;
+
+INSERT INTO federated.t1 VALUES (1,1);
+SELECT * FROM federated.t1;
+
+
+DROP TABLE federated.t1;
+connection slave;
+DROP TABLE federated.bug_13118_table;
+
+
+source include/federated_cleanup.inc;
+

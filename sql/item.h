@@ -164,6 +164,7 @@ struct Hybrid_type_traits
   virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
   static const Hybrid_type_traits *instance();
+  Hybrid_type_traits() {};
 };
 
 
@@ -185,6 +186,7 @@ struct Hybrid_type_traits_decimal: public Hybrid_type_traits
   { return &val->dec_buf[val->used_dec_buf_no]; }
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
   static const Hybrid_type_traits_decimal *instance();
+  Hybrid_type_traits_decimal() {};
 };
 
 
@@ -215,6 +217,7 @@ struct Hybrid_type_traits_integer: public Hybrid_type_traits
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const
   { buf->set(val->integer, &my_charset_bin); return buf;}
   static const Hybrid_type_traits_integer *instance();
+  Hybrid_type_traits_integer() {};
 };
 
 
@@ -1502,6 +1505,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
@@ -1618,7 +1622,7 @@ public:
   }
   Item *real_item()
   {
-    return (*ref)->real_item();
+    return (ref && *ref) ? (*ref)->real_item() : this;
   }
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }

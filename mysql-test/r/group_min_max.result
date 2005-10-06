@@ -1972,29 +1972,23 @@ a
 b
 c
 d
-create table bug12672 (
+create table t4 (
 pk_col int auto_increment primary key, a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
 ) engine=innodb;
-insert into bug12672 (a1, a2, b, c, d, dummy) select * from t1;
-create index idx12672_0 on bug12672 (a1);
-create index idx12672_1 on bug12672 (a1,a2,b,c);
-create index idx12672_2 on bug12672 (a1,a2,b);
+insert into t4 (a1, a2, b, c, d, dummy) select * from t1;
+create index idx12672_0 on t4 (a1);
+create index idx12672_1 on t4 (a1,a2,b,c);
+create index idx12672_2 on t4 (a1,a2,b);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
-explain select distinct a1 from bug12672 where pk_col not in (1,2,3,4);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	bug12672	range	PRIMARY	PRIMARY	4	NULL	#	Using where; Using temporary
-select distinct a1 from bug12672 where pk_col not in (1,2,3,4);
+select distinct a1 from t4 where pk_col not in (1,2,3,4);
 a1
 a
 b
 c
 d
-drop table bug12672;
-drop table t1;
-drop table t2;
-drop table t3;
+drop table t1,t2,t3,t4;
 create table t1 (
 a varchar(30), b varchar(30), primary key(a), key(b)
 ) engine=innodb;

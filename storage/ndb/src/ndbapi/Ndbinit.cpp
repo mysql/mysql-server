@@ -29,6 +29,10 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include "ObjectMap.hpp"
+#include <NdbIndexScanOperation.hpp>
+#include <NdbIndexOperation.hpp>
+#include "NdbUtil.hpp"
+#include <NdbBlob.hpp>
 #include "NdbEventOperationImpl.hpp"
 
 #include <EventLogger.hpp>
@@ -62,20 +66,8 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theRemainingStartTransactions= 0;
   theMaxNoOfTransactions= 0;
   theMinNoOfEventsToWakeUp= 0;
-  theConIdleList= NULL;
-  theOpIdleList= NULL;
-  theScanOpIdleList= NULL;
-  theIndexOpIdleList= NULL;
   theTransactionList= NULL;
   theConnectionArray= NULL;
-  theRecAttrIdleList= NULL;
-  theSignalIdleList= NULL;
-  theLabelList= NULL;
-  theBranchList= NULL;
-  theSubroutineList= NULL;
-  theCallList= NULL;
-  theScanList= NULL;
-  theNdbBlobIdleList= NULL;
   the_last_check_time= 0;
   theFirstTransId= 0;
   theRestartGCI= 0;
@@ -160,33 +152,6 @@ Ndb::~Ndb()
     TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
   }
   
-//  if (theSchemaConToNdbList != NULL)
-//    closeSchemaTransaction(theSchemaConToNdbList);
-  while ( theConIdleList != NULL )
-    freeNdbCon();
-  while (theOpIdleList != NULL)
-    freeOperation();
-  while (theScanOpIdleList != NULL)
-    freeScanOperation();
-  while (theIndexOpIdleList != NULL)
-    freeIndexOperation();
-  while (theLabelList != NULL)
-    freeNdbLabel();
-  while (theBranchList != NULL)
-    freeNdbBranch();
-   while (theSubroutineList != NULL)
-    freeNdbSubroutine();
-   while (theCallList != NULL)
-    freeNdbCall();
-  while (theScanList != NULL)
-    freeNdbScanRec();
-  while (theNdbBlobIdleList != NULL)
-    freeNdbBlob();
-  while (theRecAttrIdleList != NULL)
-    freeRecAttr(); 
-  while ( theSignalIdleList != NULL )
-    freeSignal();
-  
   releaseTransactionArrays();
 
   delete []theConnectionArray;
@@ -242,7 +207,8 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
     m_dictionary(ndb),
     theCurrentConnectIndex(0),
-    theNdbObjectIdMap(1024,1024),
+    theNdbObjectIdMap(ndb_cluster_connection->m_impl.m_transporter_facade->theMutexPtr,
+		      1024,1024),
     theNoOfDBnodes(0),
     m_ev_op(0)
 {

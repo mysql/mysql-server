@@ -3255,8 +3255,8 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
   lreq->gci = tablePtr.p->gciTableCreated;
   lreq->requestType = AlterTabReq::AlterTablePrepare;
   
-  sendSignal(rg, GSN_ALTER_TAB_REQ, signal, 
-	     AlterTabReq::SignalLength, JBB);
+  sendFragmentedSignal(rg, GSN_ALTER_TAB_REQ, signal, 
+		       AlterTabReq::SignalLength, JBB);
 }
 
 void Dbdict::alterTableRef(Signal * signal, 
@@ -3740,8 +3740,8 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
 	lreq->gci = gci;
 	lreq->requestType = AlterTabReq::AlterTableCommit;
 	
-	sendSignal(rg, GSN_ALTER_TAB_REQ, signal, 
-		   AlterTabReq::SignalLength, JBB);
+	sendFragmentedSignal(rg, GSN_ALTER_TAB_REQ, signal, 
+			     AlterTabReq::SignalLength, JBB);
       }
     }
     else {

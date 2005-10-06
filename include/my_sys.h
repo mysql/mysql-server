@@ -262,6 +262,7 @@ extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
 extern const char *defaults_group_suffix;
+extern const char *defaults_file;
 
 extern my_bool timed_mutexes;
 
@@ -280,7 +281,7 @@ enum loglevel {
 
 enum cache_type
 {
-  READ_CACHE,WRITE_CACHE,
+  TYPE_NOT_SET= 0, READ_CACHE, WRITE_CACHE,
   SEQ_READ_APPEND		/* sequential read or append */,
   READ_FIFO, READ_NET,WRITE_NET};
 
@@ -775,6 +776,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 			    uint pre_alloc_size);
 extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
+extern gptr multi_alloc_root(MEM_ROOT *mem_root, ...);
 extern void free_root(MEM_ROOT *root, myf MyFLAGS);
 extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
@@ -886,6 +888,9 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
                             DWORD owner_rights, DWORD everybody_rights);
 
 void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
+
+/* implemented in my_conio.c */
+char* my_cgets(char *string, unsigned long clen, unsigned long* plen);
 
 #endif
 #ifdef __NETWARE__

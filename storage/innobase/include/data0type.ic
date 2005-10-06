@@ -420,7 +420,7 @@ dtype_get_fixed_size(
 }
 
 /***************************************************************************
-Returns the size of a fixed size data type, 0 if not a fixed size type. */
+Returns the minimum size of a data type. */
 UNIV_INLINE
 ulint
 dtype_get_min_size(

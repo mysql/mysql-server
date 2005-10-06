@@ -750,10 +750,9 @@ int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
 
-  if (file->inited == handler::NONE)
-    DBUG_RETURN(error= file->ha_index_init(index, 1));
-  error= 0;
-  DBUG_RETURN(0);
+  if (file->inited != handler::NONE)
+    file->ha_index_or_rnd_end();
+  DBUG_RETURN(error= file->ha_index_init(index, 1));
 }
 
 
@@ -3539,17 +3538,17 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 
   switch (cond_func->functype()) {
   case Item_func::BETWEEN:
-    if (cond_func->arguments()[0]->type() != Item::FIELD_ITEM)
+    if (cond_func->arguments()[0]->real_item()->type() != Item::FIELD_ITEM)
       DBUG_RETURN(0);
-    field_item= (Item_field*) (cond_func->arguments()[0]);
+    field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
     value= NULL;
     break;
   case Item_func::IN_FUNC:
   {
     Item_func_in *func=(Item_func_in*) cond_func;
-    if (func->key_item()->type() != Item::FIELD_ITEM)
+    if (func->key_item()->real_item()->type() != Item::FIELD_ITEM)
       DBUG_RETURN(0);
-    field_item= (Item_field*) (func->key_item());
+    field_item= (Item_field*) (func->key_item()->real_item());
     value= NULL;
     break;
   }
@@ -5123,6 +5122,8 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
     if (cpk_scan)
       param->is_ror_scan= TRUE;
   }
+  if (param->table->file->index_flags(key, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
+    param->is_ror_scan= FALSE;
   DBUG_PRINT("exit", ("Records: %lu", (ulong) records));
   DBUG_RETURN(records);
 }

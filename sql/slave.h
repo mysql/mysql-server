@@ -552,7 +552,7 @@ extern "C" pthread_handler_decl(handle_slave_sql,arg);
 extern bool volatile abort_loop;
 extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
 extern LIST master_list;
-extern bool replicate_same_server_id;
+extern my_bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 

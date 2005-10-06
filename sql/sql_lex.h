@@ -54,7 +54,7 @@ enum enum_sql_command {
 
   SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
   SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_LOGS, SQLCOM_SHOW_STATUS,
-  SQLCOM_SHOW_INNODB_STATUS, SQLCOM_SHOW_MUTEX_STATUS,
+  SQLCOM_SHOW_INNODB_STATUS, SQLCOM_SHOW_NDBCLUSTER_STATUS, SQLCOM_SHOW_MUTEX_STATUS,
   SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
   SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
   SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB, SQLCOM_SHOW_TABLE_STATUS,
@@ -433,10 +433,6 @@ public:
   {
     return my_reinterpret_cast(st_select_lex*)(slave);
   }
-  st_select_lex* first_select_in_union() 
-  { 
-    return my_reinterpret_cast(st_select_lex*)(slave);
-  }
   st_select_lex_unit* next_unit()
   {
     return my_reinterpret_cast(st_select_lex_unit*)(next);
@@ -446,8 +442,7 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  bool prepare(THD *thd, select_result *result, ulong additional_options,
-               const char *tmp_table_alias);
+  bool prepare(THD *thd, select_result *result, ulong additional_options);
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
@@ -463,7 +458,10 @@ public:
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
+
+  List<Item> *get_unit_column_types();
 };
+
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /*

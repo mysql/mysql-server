@@ -1,4 +1,5 @@
-DROP TABLE IF EXISTS t0,t1,t2,t3,t5;
+DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
+DROP VIEW IF EXISTS v1;
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -361,11 +362,11 @@ show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
-NULL	test	v0	select sql_no_cache `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhos	DEFINER
-NULL	test	v1	select sql_no_cache `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO	root@localhos	DEFINER
-NULL	test	v2	select sql_no_cache `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO	root@localhos	DEFINER
-NULL	test	v3	select sql_no_cache `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO	root@localhos	DEFINER
-NULL	test	v4	select sql_no_cache `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO	root@localhos	DEFINER
+NULL	test	v0	select sql_no_cache `schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER
+NULL	test	v1	select sql_no_cache `tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`tables`.`TABLE_NAME` = _utf8'v1')	NONE	NO	root@localhost	DEFINER
+NULL	test	v2	select sql_no_cache `columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`columns`.`TABLE_NAME` = _utf8'v2')	NONE	NO	root@localhost	DEFINER
+NULL	test	v3	select sql_no_cache `character_sets`.`CHARACTER_SET_NAME` AS `c` from `information_schema`.`character_sets` where (`character_sets`.`CHARACTER_SET_NAME` like _utf8'latin1%')	NONE	NO	root@localhost	DEFINER
+NULL	test	v4	select sql_no_cache `collations`.`COLLATION_NAME` AS `c` from `information_schema`.`collations` where (`collations`.`COLLATION_NAME` like _utf8'latin1%')	NONE	NO	root@localhost	DEFINER
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -456,9 +457,9 @@ create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE
-NULL	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhos	DEFINER
-NULL	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhos	DEFINER
-NULL	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhos	DEFINER
+NULL	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER
+NULL	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER
+NULL	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
@@ -638,8 +639,8 @@ use test;
 create function sub1(i int) returns int
 return i+1;
 create table t1(f1 int);
-create view t2 (c) as select f1 from t1;
-create view t3 (c) as select sub1(1);
+create view v2 (c) as select f1 from t1;
+create view v3 (c) as select sub1(1);
 create table t4(f1 int, KEY f1_key (f1));
 drop table t1;
 drop function sub1;
@@ -647,29 +648,29 @@ select table_name from information_schema.views
 where table_schema='test';
 table_name
 Warnings:
-Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
-Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s)
 select table_name from information_schema.views
 where table_schema='test';
 table_name
 Warnings:
-Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
-Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s)
 select column_name from information_schema.columns
 where table_schema='test';
 column_name
 f1
 Warnings:
-Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
-Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s)
 select index_name from information_schema.statistics where table_schema='test';
 index_name
 f1_key
 select constraint_name from information_schema.table_constraints
 where table_schema='test';
 constraint_name
-drop view t2;
-drop view t3;
+drop view v2;
+drop view v3;
 drop table t4;
 select * from information_schema.table_names;
 ERROR 42S02: Unknown table 'table_names' in information_schema

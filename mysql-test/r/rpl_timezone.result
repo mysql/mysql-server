@@ -63,7 +63,8 @@ delete from t1;
 SET TIMESTAMP=100000000;
 SET @@session.time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000'), ('20040611093902');
-ROLLBACK;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 delete from t1;
 set time_zone='UTC';

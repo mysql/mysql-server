@@ -4,7 +4,7 @@ extern "C" {
 #endif
 
 /* === engine.c === */
-static int matcher(CHARSET_INFO *charset,register struct re_guts *g, char *string, size_t nmatch, regmatch_t pmatch[], int eflags);
+static int matcher(CHARSET_INFO *charset,register struct re_guts *g, char *string, size_t nmatch, my_regmatch_t pmatch[], int eflags);
 static char *dissect(CHARSET_INFO *charset,register struct match *m, char *start, char *stop, sopno startst, sopno stopst);
 static char *backref(CHARSET_INFO *charset, register struct match *m, char *start, char *stop, sopno startst, sopno stopst, sopno lev);
 static char *fast(CHARSET_INFO *charset, register struct match *m, char *start, char *stop, sopno startst, sopno stopst);

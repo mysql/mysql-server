@@ -59,12 +59,16 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <violite.h>
-#include <regex.h>                        /* Our own version of lib */
+#include "my_regex.h"                     /* Our own version of lib */
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 #ifndef WEXITSTATUS
-# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+# ifdef __WIN__
+#  define WEXITSTATUS(stat_val) (stat_val)
+# else
+#  define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+# endif
 #endif
 /* MAX_QUERY is 256K -- there is a test in sp-big that is >128K */
 #define MAX_QUERY     (256*1024)
@@ -97,6 +101,10 @@
 #define SLAVE_POLL_INTERVAL 300000 /* 0.3 of a sec */
 #define DEFAULT_DELIMITER ";"
 #define MAX_DELIMITER 16
+
+#define RESULT_OK 0
+#define RESULT_CONTENT_MISMATCH 1
+#define RESULT_LENGTH_MISMATCH 2
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
@@ -204,7 +212,7 @@ static int got_end_timer= FALSE;
 static void timer_output(void);
 static ulonglong timer_now(void);
 
-static regex_t ps_re; /* Holds precompiled re for valid PS statements */
+static my_regex_t ps_re; /* Holds precompiled re for valid PS statements */
 static void ps_init_re(void);
 static int ps_match_re(char *);
 static char *ps_eprint(int);
@@ -545,7 +553,7 @@ static void close_cons()
 static void close_files()
 {
   DBUG_ENTER("close_files");
-  for (; cur_file != (file_stack-1) ; cur_file--)
+  for (; cur_file >= file_stack; cur_file--)
   {
     DBUG_PRINT("info", ("file_name: %s", cur_file->file_name));
     if (cur_file->file && cur_file->file != stdin)
@@ -605,7 +613,8 @@ static void die(const char *fmt, ...)
     if (cur_file && cur_file != file_stack)
       fprintf(stderr, "In included file \"%s\": ",
               cur_file->file_name);
-    fprintf(stderr, "At line %u: ", start_lineno);
+    if (start_lineno != 0)
+      fprintf(stderr, "At line %u: ", start_lineno);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
     fflush(stderr);
@@ -638,7 +647,9 @@ static void verbose_msg(const char *fmt, ...)
 
   va_start(args, fmt);
 
-  fprintf(stderr, "mysqltest: At line %u: ", start_lineno);
+  fprintf(stderr, "mysqltest: ");
+  if (start_lineno > 0)
+    fprintf(stderr, "At line %u: ", start_lineno);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
@@ -679,7 +690,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
 		       ds->length, stat_info.st_size));
     DBUG_PRINT("info",("result: '%s'", ds->str));
-    DBUG_RETURN(2);
+    DBUG_RETURN(RESULT_LENGTH_MISMATCH);
   }
   if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
@@ -696,7 +707,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     res_ptr = res_ds.str;
     if ((res_len = res_ds.length) != ds->length)
     {
-      res = 2;
+      res= RESULT_LENGTH_MISMATCH;
       goto err;
     }
   }
@@ -706,7 +717,8 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     res_len = stat_info.st_size;
   }
 
-  res = (memcmp(res_ptr, ds->str, res_len)) ?  1 : 0;
+  res= (memcmp(res_ptr, ds->str, res_len)) ?
+    RESULT_CONTENT_MISMATCH : RESULT_OK;
 
 err:
   if (res && eval_result)
@@ -723,22 +735,23 @@ err:
 static int check_result(DYNAMIC_STRING* ds, const char *fname,
 			my_bool require_option)
 {
-  int error = 0;
-  int res=dyn_string_cmp(ds, fname);
+  int error= RESULT_OK;
+  int res= dyn_string_cmp(ds, fname);
+
   DBUG_ENTER("check_result");
 
   if (res && require_option)
     abort_not_supported_test();
   switch (res) {
-  case 0:
+  case RESULT_OK:
     break; /* ok */
-  case 2:
+  case RESULT_LENGTH_MISMATCH:
     verbose_msg("Result length mismatch");
-    error = 1;
+    error= RESULT_LENGTH_MISMATCH;
     break;
-  case 1:
+  case RESULT_CONTENT_MISMATCH:
     verbose_msg("Result content mismatch");
-    error = 1;
+    error= RESULT_CONTENT_MISMATCH;
     break;
   default: /* impossible */
     die("Unknown error code from dyn_string_cmp()");
@@ -1091,8 +1104,8 @@ static void do_exec(struct st_query *query)
           (query->expected_errno[i].code.errnum == status))
       {
         ok= 1;
-        verbose_msg("command \"%s\" failed with expected error: %d",
-                    cmd, status);
+        DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
+                            cmd, status));
       }
     }
     if (!ok)
@@ -1377,9 +1390,7 @@ int do_sync_with_master2(long offset)
   int rpl_parse;
 
   if (!master_pos.file[0])
-  {
-    die("Line %u: Calling 'sync_with_master' without calling 'save_master_pos'", start_lineno);
-  }
+    die("Calling 'sync_with_master' without calling 'save_master_pos'");
   rpl_parse= mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
 
@@ -1389,14 +1400,13 @@ int do_sync_with_master2(long offset)
 wait_for_position:
 
   if (mysql_query(mysql, query_buf))
-    die("line %u: failed in %s: %d: %s", start_lineno, query_buf,
-	mysql_errno(mysql), mysql_error(mysql));
+    die("failed in %s: %d: %s", query_buf, mysql_errno(mysql),
+        mysql_error(mysql));
 
   if (!(last_result= res= mysql_store_result(mysql)))
-    die("line %u: mysql_store_result() returned NULL for '%s'", start_lineno,
-	query_buf);
+    die("mysql_store_result() returned NULL for '%s'", query_buf);
   if (!(row= mysql_fetch_row(res)))
-    die("line %u: empty result in %s", start_lineno, query_buf);
+    die("empty result in %s", query_buf);
   if (!row[0])
   {
     /*
@@ -1404,10 +1414,7 @@ wait_for_position:
       SLAVE has been issued ?
     */
     if (tries++ == 3)
-    {
-      die("line %u: could not sync with master ('%s' returned NULL)", 
-          start_lineno, query_buf);
-    }
+      die("could not sync with master ('%s' returned NULL)", query_buf);
     sleep(1); /* So at most we will wait 3 seconds and make 4 tries */
     mysql_free_result(res);
     goto wait_for_position;
@@ -1453,10 +1460,9 @@ int do_save_master_pos()
 	mysql_errno(mysql), mysql_error(mysql));
 
   if (!(last_result =res = mysql_store_result(mysql)))
-    die("line %u: mysql_store_result() retuned NULL for '%s'", start_lineno,
-	query);
+    die("mysql_store_result() retuned NULL for '%s'", query);
   if (!(row = mysql_fetch_row(res)))
-    die("line %u: empty result in show master status", start_lineno);
+    die("empty result in show master status");
   strnmov(master_pos.file, row[0], sizeof(master_pos.file)-1);
   master_pos.pos = strtoul(row[1], (char**) 0, 10);
   mysql_free_result(res); last_result=0;
@@ -2762,7 +2768,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fn_format(buff, argument, "", "", 4);
       DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
       if (!(cur_file->file=
-            my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
+            my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
 	die("Could not open %s: errno = %d", buff, errno);
       cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
       break;
@@ -2868,7 +2874,7 @@ void str_to_file(const char *fname, char *str, int size)
     fname=buff;
   }
   fn_format(buff,fname,"","",4);
-
+  
   if ((fd = my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", buff, errno);
@@ -3149,7 +3155,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
     goto end;
   }
 
-  // If we come here the query is both executed and read successfully
+  /* If we come here the query is both executed and read successfully */
   if (handle_no_error(q))
   {
     error= 1;
@@ -3725,12 +3731,13 @@ static void ps_init_re(void)
     "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
     "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
 
-  int err= regcomp(&ps_re, ps_re_str, (REG_EXTENDED | REG_ICASE | REG_NOSUB),
-                   &my_charset_latin1);
+  int err= my_regcomp(&ps_re, ps_re_str,
+                      (REG_EXTENDED | REG_ICASE | REG_NOSUB),
+                      &my_charset_latin1);
   if (err)
   {
     char erbuf[100];
-    int len= regerror(err, &ps_re, erbuf, sizeof(erbuf));
+    int len= my_regerror(err, &ps_re, erbuf, sizeof(erbuf));
     fprintf(stderr, "error %s, %d/%d `%s'\n",
             ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
     exit(1);
@@ -3740,7 +3747,7 @@ static void ps_init_re(void)
 
 static int ps_match_re(char *stmt_str)
 {
-  int err= regexec(&ps_re, stmt_str, (size_t)0, NULL, 0);
+  int err= my_regexec(&ps_re, stmt_str, (size_t)0, NULL, 0);
 
   if (err == 0)
     return 1;
@@ -3749,7 +3756,7 @@ static int ps_match_re(char *stmt_str)
   else
   {
     char erbuf[100];
-    int len= regerror(err, &ps_re, erbuf, sizeof(erbuf));
+    int len= my_regerror(err, &ps_re, erbuf, sizeof(erbuf));
     fprintf(stderr, "error %s, %d/%d `%s'\n",
             ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
     exit(1);
@@ -3759,7 +3766,7 @@ static int ps_match_re(char *stmt_str)
 static char *ps_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= regerror(REG_ITOA|err, (regex_t *)NULL, epbuf, sizeof(epbuf));
+  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL, epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }
@@ -3767,7 +3774,7 @@ static char *ps_eprint(int err)
 
 static void ps_free_reg(void)
 {
-  regfree(&ps_re);
+  my_regfree(&ps_re);
 }
 
 /****************************************************************************/
@@ -3908,8 +3915,10 @@ int main(int argc, char **argv)
 {
   int error = 0;
   struct st_query *q;
-  my_bool require_file=0, q_send_flag=0, abort_flag= 0;
+  my_bool require_file=0, q_send_flag=0, abort_flag= 0,
+          query_executed= 0;
   char save_file[FN_REFLEN];
+  MY_STAT res_info;
   MY_INIT(argv[0]);
 
   /* Use all time until exit if no explicit 'start_timer' */
@@ -4081,6 +4090,7 @@ int main(int argc, char **argv)
 	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
         q->last_argument= q->end;
+        query_executed= 1;
 	break;
       }
       case Q_QUERY:
@@ -4105,6 +4115,7 @@ int main(int argc, char **argv)
 	  save_file[0]=0;
 	}
 	error |= run_query(&cur_con->mysql, q, flags);
+	query_executed= 1;
         q->last_argument= q->end;
 	break;
       }
@@ -4125,6 +4136,7 @@ int main(int argc, char **argv)
 	  is given on this connection.
 	 */
 	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
+	query_executed= 1;
         q->last_argument= q->end;
 	break;
       case Q_RESULT:
@@ -4165,6 +4177,7 @@ int main(int argc, char **argv)
 	break;
       case Q_EXEC:
 	do_exec(q);
+	query_executed= 1;
 	break;
       case Q_START_TIMER:
 	/* Overwrite possible earlier start of timer */
@@ -4244,12 +4257,32 @@ int main(int argc, char **argv)
     parser.current_line += current_line_inc;
   }
 
-  if (result_file && ds_res.length && !error)
+  if (!query_executed && result_file && my_stat(result_file, &res_info, 0))
   {
-    if (!record)
-      error |= check_result(&ds_res, result_file, q->require_file);
+    /*
+      my_stat() successful on result file. Check if we have not run a
+      single query, but we do have a result file that contains data.
+      Note that we don't care, if my_stat() fails. For example for
+      non-existing or non-readable file we assume it's fine to have
+      no query output from the test file, e.g. regarded as no error.
+    */
+    if (res_info.st_size)
+      error|= (RESULT_CONTENT_MISMATCH | RESULT_LENGTH_MISMATCH);
+  }
+  if (ds_res.length && !error)
+  {
+    if (result_file)
+    {
+      if (!record)
+        error |= check_result(&ds_res, result_file, q->require_file);
+      else
+        str_to_file(result_file, ds_res.str, ds_res.length);
+    }
     else
-      str_to_file(result_file, ds_res.str, ds_res.length);
+    {
+      /* Print the result to stdout */
+      printf("%s", ds_res.str);
+    }
   }
   dynstr_free(&ds_res);
 
