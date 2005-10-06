@@ -46,6 +46,7 @@ public:
 protected:
 
   void execSTTOR(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);

@@ -25,11 +25,12 @@
 #include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
-#include <NdbMem.h>
+#include "ndbd_malloc.hpp"
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ContinueFragmented.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
 #include <signaldata/FsRef.hpp>
+#include <signaldata/SignalDroppedRep.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
 
@@ -140,7 +141,6 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_UTIL_LOCK_CONF]   = &SimulatedBlock::execUTIL_LOCK_CONF;
   a[GSN_UTIL_UNLOCK_REF]  = &SimulatedBlock::execUTIL_UNLOCK_REF;
   a[GSN_UTIL_UNLOCK_CONF] = &SimulatedBlock::execUTIL_UNLOCK_CONF;
-  a[GSN_READ_CONFIG_REQ] = &SimulatedBlock::execREAD_CONFIG_REQ;
   a[GSN_FSOPENREF]    = &SimulatedBlock::execFSOPENREF;
   a[GSN_FSCLOSEREF]   = &SimulatedBlock::execFSCLOSEREF;
   a[GSN_FSWRITEREF]   = &SimulatedBlock::execFSWRITEREF;
@@ -158,8 +158,8 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
   if(gsn > MAX_GSN || (!force &&  theExecArray[gsn] != 0)){
     char errorMsg[255];
     BaseString::snprintf(errorMsg, 255, 
- 	     "Illeagal signal (%d %d)", gsn, MAX_GSN); 
-    ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
+ 	     "GSN %d(%d))", gsn, MAX_GSN); 
+    ERROR_SET(fatal, NDBD_EXIT_ILLEGAL_SIGNAL, errorMsg, errorMsg);
   }
   theExecArray[gsn] = f;
 }
@@ -175,8 +175,7 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 	   "Signal (GSN: %d, Length: %d, Rec Block No: %d)", 
 	   gsn, len, recBlockNo);
   
-  ErrorReporter::handleError(ecError, 
-			     BLOCK_ERROR_BNR_ZERO,
+  ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
 			     probData, 
 			     objRef);
 }
@@ -670,7 +669,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear)
 	     n,
 	     size);
 #endif
-    p = NdbMem_Allocate(size);
+    p = ndbd_malloc(size);
     if (p == NULL){
       char buf1[255];
       char buf2[255];
@@ -678,7 +677,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear)
 	       getBlockName(number()), type);
       BaseString::snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", 
 	       (Uint32)s, (Uint32)n, (Uint32)size);
-      ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
+      ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, buf1, buf2);
     }
 
     if(clear){
@@ -701,11 +700,9 @@ void
 SimulatedBlock::deallocRecord(void ** ptr, 
 			      const char * type, size_t s, size_t n){
   (void)type;
-  (void)s;
-  (void)n;
 
   if(* ptr != 0){
-    NdbMem_Free(* ptr);
+      ndbd_free(* ptr, n*s);
     * ptr = 0;
   }
 }
@@ -735,7 +732,7 @@ SimulatedBlock::progError(int line, int err_code, const char* extra) const {
   BaseString::snprintf(&buf[0], 100, "%s (Line: %d) 0x%.8x", 
 	   aBlockName, line, magicStatus);
 
-  ErrorReporter::handleError(ecError, err_code, extra, buf);
+  ErrorReporter::handleError(err_code, extra, buf);
 
 }
 
@@ -856,9 +853,12 @@ SimulatedBlock::execNDB_TAMPER(Signal * signal){
 
 void
 SimulatedBlock::execSIGNAL_DROPPED_REP(Signal * signal){
-  ErrorReporter::handleError(ecError,
-			     ERR_OUT_OF_LONG_SIGNAL_MEMORY,
-			     "Signal lost, out of long signal memory",
+  char msg[64];
+  const SignalDroppedRep * const rep = (SignalDroppedRep *)&signal->theData[0];
+  snprintf(msg, sizeof(msg), "%s GSN: %u (%u,%u)", getBlockName(number()),
+	   rep->originalGsn, rep->originalLength,rep->originalSectionCount);
+  ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
+			     msg,
 			     __FILE__,
 			     NST_ErrorHandler);
 }
@@ -1749,20 +1749,6 @@ void SimulatedBlock::execUTIL_UNLOCK_REF(Signal* signal){
 void SimulatedBlock::execUTIL_UNLOCK_CONF(Signal* signal){
   ljamEntry();
   c_mutexMgr.execUTIL_UNLOCK_CONF(signal);
-}
-
-void 
-SimulatedBlock::execREAD_CONFIG_REQ(Signal* signal){
-  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
-
-  Uint32 ref = req->senderRef;
-  Uint32 senderData = req->senderData;
-
-  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
-	     ReadConfigConf::SignalLength, JBB);
 }
 
 void

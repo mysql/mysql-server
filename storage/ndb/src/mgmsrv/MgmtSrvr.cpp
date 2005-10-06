@@ -1589,8 +1589,10 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   case GSN_EVENT_SUBSCRIBE_REF:
     break;
   case GSN_EVENT_REP:
+  {
     eventReport(signal->getDataPtr());
     break;
+  }
 
   case GSN_NF_COMPLETEREP:
     break;
@@ -1628,7 +1630,6 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
       DBUG_VOID_RETURN;
     }
   }
-
   rep->setNodeId(_ownNodeId);
   eventReport(theData);
   DBUG_VOID_RETURN;
@@ -1966,6 +1967,7 @@ MgmtSrvr::eventReport(const Uint32 * theData)
 {
   const EventReport * const eventReport = (EventReport *)&theData[0];
   
+  NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   Uint32 nodeId= eventReport->getNodeId();
 

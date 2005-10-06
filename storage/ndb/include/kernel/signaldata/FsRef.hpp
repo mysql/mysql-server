@@ -17,6 +17,7 @@
 #ifndef FS_REF_H
 #define FS_REF_H
 
+#include <ndbd_exit_codes.h>
 #include "SignalData.hpp"
 
 /**
@@ -37,17 +38,15 @@ struct FsRef {
  */
   enum NdbfsErrorCodeType {
     fsErrNone=0,
-    fsErrHardwareFailed=1,
-    fsErrUserError=2,
-    fsErrEnvironmentError=3,
-    fsErrTemporaryNotAccessible=4,
-    fsErrNoSpaceLeftOnDevice=5,
-    fsErrPermissionDenied=6,
-    fsErrInvalidParameters=7,
-    fsErrUnknown=8,
-    fsErrNoMoreResources=9,
-    fsErrFileDoesNotExist=10,
-    fsErrReadUnderflow = 11,
+    fsErrEnvironmentError=NDBD_EXIT_AFS_ENVIRONMENT,
+    fsErrTemporaryNotAccessible=NDBD_EXIT_AFS_TEMP_NO_ACCESS,
+    fsErrNoSpaceLeftOnDevice=NDBD_EXIT_AFS_DISK_FULL,
+    fsErrPermissionDenied=NDBD_EXIT_AFS_PERMISSION_DENIED,
+    fsErrInvalidParameters=NDBD_EXIT_AFS_INVALID_PARAM,
+    fsErrUnknown=NDBD_EXIT_AFS_UNKNOWN,
+    fsErrNoMoreResources=NDBD_EXIT_AFS_NO_MORE_RESOURCES,
+    fsErrFileDoesNotExist=NDBD_EXIT_AFS_NO_SUCH_FILE,
+    fsErrReadUnderflow = NDBD_EXIT_AFS_READ_UNDERFLOW,
     fsErrMax
   };
   /**

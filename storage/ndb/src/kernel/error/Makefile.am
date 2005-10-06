@@ -2,7 +2,7 @@ noinst_LIBRARIES = liberror.a
 
 liberror_a_SOURCES = TimeModule.cpp \
 	ErrorReporter.cpp \
-	ErrorMessages.cpp
+	ndbd_exit_codes.c
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am

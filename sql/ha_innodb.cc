@@ -5772,7 +5772,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		fclose(file);
 	} else {
 		/* unable to create temporary file */
-          	str = my_malloc(1, MYF(MY_ZEROFILL));
+          	str = my_strdup(
+"/* Error: cannot display foreign key constraints */", MYF(0));
 	}
 
   	return(str);
