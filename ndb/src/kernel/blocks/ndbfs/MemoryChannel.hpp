@@ -70,7 +70,6 @@
 #else
 
 #include "ErrorHandlingMacros.hpp"
-#include "Error.hpp"
 #include "CircularIndex.hpp"
 #include "NdbMutex.h"
 #include "NdbCondition.h"

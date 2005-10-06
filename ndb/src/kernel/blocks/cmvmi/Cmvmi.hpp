@@ -48,6 +48,7 @@ private:
   void execNDB_TAMPER(Signal* signal);
   void execSET_LOGLEVELORD(Signal* signal);
   void execEVENT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCLOSE_COMREQ(Signal* signal);
   void execENABLE_COMORD(Signal* signal);

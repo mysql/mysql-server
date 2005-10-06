@@ -139,6 +139,7 @@ private:
   ArrayList<SubscriptionRecord> c_theSubscriptions;
 
   // System start
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execNDB_STTOR(Signal* signal);
 
