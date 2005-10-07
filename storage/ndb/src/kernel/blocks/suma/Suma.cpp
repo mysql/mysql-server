@@ -279,7 +279,7 @@ Suma::execSTTOR(Signal* signal) {
     {
       NdbNodeBitmask tmp;
       Uint32 bucket = 0;
-      while (m_active_buckets.find(bucket) != Bucket_mask::NotFound)
+      while ((bucket = m_active_buckets.find(bucket)) != Bucket_mask::NotFound)
       {
 	tmp.set(get_responsible_node(bucket, c_nodes_in_nodegroup_mask));
 	bucket++;
