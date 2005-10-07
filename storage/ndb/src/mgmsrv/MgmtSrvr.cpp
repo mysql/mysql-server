@@ -1969,8 +1969,6 @@ MgmtSrvr::eventReport(const Uint32 * theData)
   
   NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
-  Uint32 nodeId= eventReport->getNodeId();
-
   // Log event
   g_eventLogger.log(type, theData, nodeId, 
 		    &m_event_listner[0].m_logLevel);  
