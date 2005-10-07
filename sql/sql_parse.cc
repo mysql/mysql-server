@@ -5002,7 +5002,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   for (; tables; tables= tables->next_global)
   {
     if (tables->schema_table && 
-        (want_access & ~(SELECT_ACL | EXTRA_ACL)))
+        (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
