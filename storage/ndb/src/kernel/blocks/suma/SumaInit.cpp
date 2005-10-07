@@ -28,13 +28,6 @@ Suma::Suma(const Configuration & conf) :
   Restart(*this),
   c_gcp_list(c_gcp_pool)
 {
-  c_masterNodeId = getOwnNodeId();
-
-  c_no_of_buckets = c_nodeGroup = c_noNodesInGroup = 0;
-  for (int i = 0; i < MAX_REPLICAS; i++) {
-    c_nodesInGroup[i] = 0;
-  }
-  
   // Add received signals
   addRecSignal(GSN_READ_CONFIG_REQ, &Suma::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Suma::execSTTOR);
@@ -128,59 +121,6 @@ Suma::Suma(const Configuration & conf) :
   
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
 	       &Suma::execSUB_GCP_COMPLETE_REP);
-  
-  /**
-   * @todo: fix pool sizes
-   */
-  Uint32 noTables, noAttrs;
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
-  ndbrequire(p != 0);
-
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
-			    &noTables);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES,  
-			    &noAttrs);
-
-  c_tablePool.setSize(noTables);
-  c_tables.setSize(noTables);
-  
-  c_subscriptions.setSize(noTables);
-  c_subscriberPool.setSize(2*noTables);
-  
-  c_subscriptionPool.setSize(noTables);
-  c_syncPool.setSize(2);
-  c_dataBufferPool.setSize(noAttrs);
-  c_gcp_pool.setSize(10);
-
-  m_first_free_page= RNIL;
-  c_page_chunk_pool.setSize(50);
-  
-  {
-    SLList<SyncRecord> tmp(c_syncPool);
-    Ptr<SyncRecord> ptr;
-    while(tmp.seize(ptr))
-      new (ptr.p) SyncRecord(* this, c_dataBufferPool);
-    tmp.release();
-  }
-
-  memset(c_buckets, 0, sizeof(c_buckets));
-  for(Uint32 i = 0; i<NO_OF_BUCKETS; i++)
-  {
-    Bucket* bucket= c_buckets+i;
-    bucket->m_buffer_tail = RNIL;
-    bucket->m_buffer_head.m_page_id = RNIL;
-    bucket->m_buffer_head.m_page_pos = Buffer_page::DATA_WORDS;
-  }
-  
-  m_max_seen_gci = 0;      // FIRE_TRIG_ORD
-  m_max_sent_gci = 0;      // FIRE_TRIG_ORD -> send
-  m_last_complete_gci = 0; // SUB_GCP_COMPLETE_REP
-  m_gcp_complete_rep_count = 0;
-  m_out_of_buffer_gci = 0;
- 
-  c_startup.m_wait_handover= false; 
-  c_failedApiNodes.clear();
-  c_startup.m_restart_server_node_id = 0; // Server for my NR
 }
 
 Suma::~Suma()
