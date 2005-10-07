@@ -104,6 +104,7 @@ protected:
   BLOCK_DEFINES(VoidFs);
 
   // The signal processing functions
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execFSOPENREQ(Signal* signal);
   void execFSCLOSEREQ(Signal* signal);
