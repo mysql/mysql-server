@@ -167,7 +167,8 @@ copyfileto $BASE/lib \
   libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* \
   mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a \
   libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* \
-  libmysqld/libmysqld.a netware/libmysql.imp
+  libmysqld/libmysqld.a netware/libmysql.imp \
+  zlib/.libs/libz.a
 
 # convert the .a to .lib for NetWare
 if [ $BASE_SYSTEM = "netware" ] ; then
@@ -204,10 +205,12 @@ rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 copyfileto $BASE/mysql-test \
          mysql-test/mysql-test-run mysql-test/install_test_db \
          mysql-test/mysql-test-run.pl mysql-test/README \
+	 mysql-test/valgrind.supp \
          netware/mysql_test_run.nlm netware/install_test_db.ncf
 
 $CP mysql-test/lib/*.pl  $BASE/mysql-test/lib
 $CP mysql-test/lib/*.sql $BASE/mysql-test/lib
+$CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.*001 \
     $BASE/mysql-test/std_data
