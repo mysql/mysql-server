@@ -1014,7 +1014,6 @@ static int read_and_execute(bool interactive)
       unsigned long clen;
       do
       {
-        line= my_cgets((char*)tmpbuf.ptr(), tmpbuf.alloced_length()-1, &clen);
         buffer.append(line, clen);
         /* 
            if we got buffer fully filled than there is a chance that

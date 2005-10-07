@@ -20,11 +20,12 @@ t
 1
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	replssl	MASTER_MYPORT	1	master-bin.000001	398	#	#	master-bin.000001	Yes	Yes							0		0	398	#	None		0	Yes	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
+#	127.0.0.1	replssl	MASTER_MYPORT	1	master-bin.000001	404	#	#	master-bin.000001	Yes	Yes							0		0	398	#	None		0	Yes	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
 stop slave;
 change master to master_user='root',master_password='', master_ssl=0;
 start slave;
 drop table t1;
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	474	#	#	master-bin.000001	Yes	Yes							0		0	474	#	None		0	No	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	480	#	#	master-bin.000001	Yes	Yes							0		0	474	#	None		0	No	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
+
