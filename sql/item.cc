@@ -2872,32 +2872,21 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   }
   else if (res_type == ROW_RESULT)
   {
+    Item_row *item_row= (Item_row*) item;
+    Item_row *comp_item_row= (Item_row*) comp_item;
+    uint col;
     new_item= 0;
     /*
       If item and comp_item are both Item_rows and have same number of cols
-      then process items in Item_row one by one. If Item_row contain nulls
-      substitute it by Item_null. Otherwise just return.
+      then process items in Item_row one by one.
+      We can't ignore NULL values here as this item may be used with <=>, in
+      which case NULL's are significant.
     */
-    if (item->result_type() == comp_item->result_type() &&
-        ((Item_row*)item)->cols() == ((Item_row*)comp_item)->cols())
-    {
-      Item_row *item_row= (Item_row*)item,*comp_item_row= (Item_row*)comp_item;
-      if (item_row->null_inside())
-        new_item= (Item*) new Item_null(name);
-      else
-      {
-        int i= item_row->cols() - 1;
-        for (; i >= 0; i--)
-        {
-          if (item_row->maybe_null && item_row->el(i)->is_null())
-          {
-            new_item= (Item*) new Item_null(name);
-            break;
-          }
-          resolve_const_item(thd, item_row->addr(i), comp_item_row->el(i));
-        }
-      }
-    }
+    DBUG_ASSERT(item->result_type() == comp_item->result_type());
+    DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
+    col= item_row->cols();
+    while (col-- > 0)
+      resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
   }
   else
   {						// It must REAL_RESULT
