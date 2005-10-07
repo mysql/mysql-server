@@ -162,23 +162,25 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
 
   // SumaParticipant
-  Uint32 noTables;
+  Uint32 noTables, noAttrs;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
 			    &noTables);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES,  
+			    &noAttrs);
 
-  /**
-   * @todo: fix pool sizes
-   */
-  c_tablePool_.setSize(noTables);
+  c_tablePool.setSize(noTables);
   c_tables.setSize(noTables);
   
-  c_subscriptions.setSize(20); //10
-  c_subscriberPool.setSize(64);
+  c_subscriptions.setSize(noTables);
+  c_subscriberPool.setSize(2*noTables);
   
-  c_subscriptionPool.setSize(64); //2
-  c_syncPool.setSize(20); //2
-  c_dataBufferPool.setSize(128);
+  c_subscriptionPool.setSize(noTables);
+  c_syncPool.setSize(2);
+  c_dataBufferPool.setSize(noAttrs);
+  c_gcp_pool.setSize(10);
   
+  c_page_chunk_pool.setSize(50);
+
   {
     SLList<SyncRecord> tmp(c_syncPool);
     Ptr<SyncRecord> ptr;
@@ -188,15 +190,33 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   // Suma
-  c_nodePool.setSize(MAX_NDB_NODES);
   c_masterNodeId = getOwnNodeId();
 
-  c_nodeGroup = c_noNodesInGroup = c_idInNodeGroup = 0;
+  c_nodeGroup = c_noNodesInGroup = 0;
   for (int i = 0; i < MAX_REPLICAS; i++) {
     c_nodesInGroup[i]   = 0;
   }
 
-  c_subCoordinatorPool.setSize(10);
+  m_first_free_page= RNIL;
+  
+  memset(c_buckets, 0, sizeof(c_buckets));
+  for(Uint32 i = 0; i<NO_OF_BUCKETS; i++)
+  {
+    Bucket* bucket= c_buckets+i;
+    bucket->m_buffer_tail = RNIL;
+    bucket->m_buffer_head.m_page_id = RNIL;
+    bucket->m_buffer_head.m_page_pos = Buffer_page::DATA_WORDS;
+  }
+  
+  m_max_seen_gci = 0;      // FIRE_TRIG_ORD
+  m_max_sent_gci = 0;      // FIRE_TRIG_ORD -> send
+  m_last_complete_gci = 0; // SUB_GCP_COMPLETE_REP
+  m_gcp_complete_rep_count = 0;
+  m_out_of_buffer_gci = 0;
+ 
+  c_startup.m_wait_handover= false; 
+  c_failedApiNodes.clear();
+  c_startup.m_restart_server_node_id = 0; // Server for my NR
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -695,7 +715,7 @@ Suma::execNODE_FAILREP(Signal* signal){
 	} 
 	else if(state & Bucket::BUCKET_STARTING)
 	{
-	  progError(__LINE__, ERR_SYSTEM_ERROR, 
+	  progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
 		    "Nodefailure during SUMA takeover");
 	}
       }
@@ -4326,7 +4346,7 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   
   if(m_out_of_buffer_gci)
   {
-    progError(__LINE__, ERR_SYSTEM_ERROR, 
+    progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
 	      "Nodefailure while out of event buffer");
     return;
   }
