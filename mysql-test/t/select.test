@@ -2172,6 +2172,10 @@ create table t2(f3 int);
 select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,1));
 select f1 from t1,t2 where f1=f2 and (f1,NULL) = ((1,1));
 select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,NULL));
+insert into t1 values(1,1),(2,null);
+insert into t2 values(2);
+select * from t1,t2 where f1=f3 and (f1,f2) = (2,null);
+select * from t1,t2 where f1=f3 and (f1,f2) <=> (2,null);
 drop table t1,t2; 
 
 # End of 4.1 tests
