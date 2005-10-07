@@ -44,6 +44,7 @@ VoidFs::VoidFs(const Configuration & conf) :
   BLOCK_CONSTRUCTOR(VoidFs);
   
   // Set received signals
+  addRecSignal(GSN_READ_CONFIG_REQ, &VoidFs::execREAD_CONFIG_REQ);
   addRecSignal(GSN_DUMP_STATE_ORD,  &VoidFs::execDUMP_STATE_ORD);
   addRecSignal(GSN_STTOR,  &VoidFs::execSTTOR);
   addRecSignal(GSN_FSOPENREQ, &VoidFs::execFSOPENREQ);
@@ -58,6 +59,21 @@ VoidFs::VoidFs(const Configuration & conf) :
 
 VoidFs::~VoidFs()
 {
+}
+
+void 
+VoidFs::execREAD_CONFIG_REQ(Signal* signal)
+{
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }
 
 void
