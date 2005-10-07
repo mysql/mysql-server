@@ -7042,7 +7042,7 @@ ha_innobase::cmp_ref(
 						    (const char*)ref1, len1,
 			                            (const char*)ref2, len2);
 		} else {
-			result = field->cmp((const char*)ref1,
+			result = field->key_cmp((const char*)ref1,
 					    (const char*)ref2);
 		}
 
