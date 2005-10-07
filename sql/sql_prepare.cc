@@ -2792,6 +2792,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     my_error(ER_PS_NO_RECURSION, MYF(0));
     return 1;
   }
+  /* In case the command has a call to SP which re-uses this statement name */
+  flags|= (uint) IS_IN_USE;
 
   if (cursor && cursor->is_open())
     close_cursor();
