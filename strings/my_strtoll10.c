@@ -21,8 +21,8 @@
 #undef  ULONGLONG_MAX
 /* Needed under MetroWerks Compiler, since MetroWerks compiler does not properly handle a constant expression containing a mod operator */
 #if defined(__NETWARE__) && defined(__MWERKS__) 
-ulonglong tmp;
-#define ULONGLONG_MAX (tmp =(~(ulonglong) 0))
+static ulonglong ulonglong_max= ~(ulonglong) 0;
+#define ULONGLONG_MAX ulonglong_max
 #else
 #define ULONGLONG_MAX		(~(ulonglong) 0)
 #endif /* __NETWARE__ && __MWERKS__ */

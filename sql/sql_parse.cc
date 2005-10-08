@@ -4526,7 +4526,8 @@ end_with_restore_list:
                     command[thd->lex->create_view_mode].length);
         view_store_options(thd, first_table, &buff);
         buff.append("VIEW ", 5);
-        if (!first_table->current_db_used)
+        /* Test if user supplied a db (ie: we did not use thd->db) */
+        if (first_table->db != thd->db && first_table->db[0])
         {
           append_identifier(thd, &buff, first_table->db,
                             first_table->db_length);
@@ -4852,7 +4853,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   bool  db_is_pattern= test(want_access & GRANT_ACL);
 #endif
   ulong dummy;
-  const char *db_name;
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
                       db ? db : "", want_access, sctx->master_access));
@@ -4870,15 +4870,16 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
-  db_name= db ? db : thd->db;
   if (schema_db)
   {
     if (want_access & ~(SELECT_ACL | EXTRA_ACL))
     {
       if (!no_errors)
+      {
+        const char *db_name= db ? db : thd->db;
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 sctx->priv_user,
-                 sctx->priv_host, db_name);
+                 sctx->priv_user, sctx->priv_host, db_name);
+      }
       DBUG_RETURN(TRUE);
     }
     else
@@ -6144,14 +6145,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   {
     ptr->db= thd->db;
     ptr->db_length= thd->db_length;
-    ptr->current_db_used= 1;
   }
   else
   {
     /* The following can't be "" as we may do 'casedn_str()' on it */
     ptr->db= empty_c_string;
     ptr->db_length= 0;
-    ptr->current_db_used= 1;
   }
   if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
     ptr->db= thd->strdup(ptr->db);
@@ -7451,9 +7450,9 @@ Item *negate_expression(THD *thd, Item *expr)
   Assign as view definer current user
 
   SYNOPSIS
-    default_definer()
-    Secytity_context     current decurity context
-    definer              structure where it should be assigned
+    default_view_definer()
+    sctx		current security context
+    definer             structure where it should be assigned
 
   RETURN
     FALSE   OK
@@ -7464,15 +7463,14 @@ bool default_view_definer(Security_context *sctx, st_lex_user *definer)
 {
   definer->user.str= sctx->priv_user;
   definer->user.length= strlen(sctx->priv_user);
-  if (*sctx->priv_host != 0)
-  {
-    definer->host.str= sctx->priv_host;
-    definer->host.length= strlen(sctx->priv_host);
-  }
-  else
+
+  if (!*sctx->priv_host)
   {
     my_error(ER_NO_VIEW_USER, MYF(0));
     return TRUE;
   }
+
+  definer->host.str= sctx->priv_host;
+  definer->host.length= strlen(sctx->priv_host);
   return FALSE;
 }
