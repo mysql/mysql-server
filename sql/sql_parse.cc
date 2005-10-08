@@ -2944,7 +2944,7 @@ end_with_restore_list:
     To prevent that, refuse SLAVE STOP if the
     client thread has locked tables
   */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables || thd->active_transaction() || thd->global_read_lock)
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
