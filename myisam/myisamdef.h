@@ -728,7 +728,7 @@ int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);
 #ifdef THREAD
-pthread_handler_decl(thr_find_all_keys,arg);
+pthread_handler_t thr_find_all_keys(void *arg);
 #endif
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 

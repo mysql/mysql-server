@@ -372,10 +372,7 @@ void Listener_thread::handle_new_mysql_connection(Vio *vio)
 }
 
 
-C_MODE_START
-
-
-pthread_handler_decl(listener, arg)
+pthread_handler_t listener(void *arg)
 {
   Listener_thread_args *args= (Listener_thread_args *) arg;
   Listener_thread listener(*args);
@@ -386,7 +383,4 @@ pthread_handler_decl(listener, arg)
   */
   return 0;
 }
-
-
-C_MODE_END
 
