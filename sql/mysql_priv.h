@@ -610,8 +610,8 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
-extern "C" pthread_handler_decl(handle_one_connection,arg);
-extern "C" pthread_handler_decl(handle_bootstrap,arg);
+pthread_handler_t handle_one_connection(void *arg);
+pthread_handler_t handle_bootstrap(void *arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
 bool mysql_execute_command(THD *thd);
@@ -1035,7 +1035,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
-extern "C" pthread_handler_decl(handle_manager, arg);
+pthread_handler_t handle_manager(void *arg);
 
 /* sql_test.cc */
 #ifndef DBUG_OFF
