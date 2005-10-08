@@ -43,8 +43,6 @@ typedef pid_t My_process_info;
 typedef PROCESS_INFORMATION My_process_info;
 #endif
 
-C_MODE_START
-
 /*
   Proxy thread is a simple way to avoid all pitfalls of the threads
   implementation in the OS (e.g. LinuxThreads). With such a thread we
@@ -52,16 +50,13 @@ C_MODE_START
   to do it in a portable way.
 */
 
-pthread_handler_decl(proxy, arg)
+pthread_handler_t proxy(void *arg)
 {
   Instance *instance= (Instance *) arg;
   start_and_monitor_instance(&instance->options,
                              instance->get_map());
   return 0;
 }
-
-C_MODE_END
-
 
 /*
   Wait for an instance

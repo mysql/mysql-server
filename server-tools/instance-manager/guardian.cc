@@ -33,17 +33,12 @@
 
 
 
-C_MODE_START
-
-pthread_handler_decl(guardian, arg)
+pthread_handler_t guardian(void *arg)
 {
   Guardian_thread *guardian_thread= (Guardian_thread *) arg;
   guardian_thread->run();
   return 0;
 }
-
-C_MODE_END
-
 
 Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
                                  Instance_map *instance_map_arg,
