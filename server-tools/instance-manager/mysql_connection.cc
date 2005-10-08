@@ -364,9 +364,7 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
 }
 
 
-C_MODE_START
-
-pthread_handler_decl(mysql_connection, arg)
+pthread_handler_t mysql_connection(void *arg)
 {
   Mysql_connection_thread_args *args= (Mysql_connection_thread_args *) arg;
   Mysql_connection_thread mysql_connection_thread(*args);
@@ -380,9 +378,6 @@ pthread_handler_decl(mysql_connection, arg)
   }
   return 0;
 }
-
-C_MODE_END
-
 
 /*
   vim: fdm=marker 

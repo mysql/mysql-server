@@ -307,7 +307,7 @@ static ha_rows NEAR_F find_all_keys(MI_SORT_PARAM *info, uint keys,
 #ifdef THREAD
 /* Search after all keys and place them in a temp. file */
 
-pthread_handler_decl(thr_find_all_keys,arg)
+pthread_handler_t thr_find_all_keys(void *arg)
 {
   MI_SORT_PARAM *info= (MI_SORT_PARAM*) arg;
   int error;
