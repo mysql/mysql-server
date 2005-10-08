@@ -320,7 +320,7 @@ static void initialize_readline (char *name);
 static void fix_history(String *final_command);
 #endif
 
-static COMMANDS *find_command (char *name,char cmd_name);
+static COMMANDS *find_command(char *name,char cmd_name);
 static bool add_line(String &buffer,char *line,char *in_string,
                      bool *ml_comment);
 static void remove_cntrl(String &buffer);
@@ -1109,10 +1109,12 @@ static int read_and_execute(bool interactive)
 }
 
 
-static COMMANDS *find_command (char *name,char cmd_char)
+static COMMANDS *find_command(char *name,char cmd_char)
 {
   uint len;
   char *end;
+  DBUG_ENTER("find_command");
+  DBUG_PRINT("enter",("name: '%s'  char: %d", name ? name : "NULL", cmd_char));
 
   if (!name)
   {
@@ -1124,12 +1126,16 @@ static COMMANDS *find_command (char *name,char cmd_char)
     while (my_isspace(charset_info,*name))
       name++;
     /*
-      As special case we allow row that starts with word delimiter
-      to be able to change delimiter if someone has delimiter 'delimiter'.
+      If there is an \\g in the row or if the row has a delimiter but
+      this is not a delimiter command, let add_line() take care of
+      parsing the row and calling find_command()
     */
     if (strstr(name, "\\g") || (strstr(name, delimiter) &&
-				strncmp(name, "delimiter", 9)))
-      return ((COMMANDS *) 0);
+                                strlen(name) >= 9 &&
+                                my_strnncoll(charset_info,(uchar*) name,
+                                             9,
+                                             (const uchar*) "delimiter", 9)))
+      DBUG_RETURN((COMMANDS *) 0);
     if ((end=strcont(name," \t")))
     {
       len=(uint) (end - name);
@@ -1145,15 +1151,18 @@ static COMMANDS *find_command (char *name,char cmd_char)
   for (uint i= 0; commands[i].name; i++)
   {
     if (commands[i].func &&
-	((name && 
+	((name &&
 	  !my_strnncoll(charset_info,(uchar*)name,len,
 				     (uchar*)commands[i].name,len) &&
 	  !commands[i].name[len] &&
 	  (!end || (end && commands[i].takes_params))) ||
 	 !name && commands[i].cmd_char == cmd_char))
-      return (&commands[i]);
+    {
+      DBUG_PRINT("exit",("found command: %s", commands[i].name));
+      DBUG_RETURN(&commands[i]);
+    }
   }
-  return ((COMMANDS *) 0);
+  DBUG_RETURN((COMMANDS *) 0);
 }
 
 
@@ -1164,15 +1173,16 @@ static bool add_line(String &buffer,char *line,char *in_string,
   char buff[80], *pos, *out;
   COMMANDS *com;
   bool need_space= 0;
+  DBUG_ENTER("add_line");
 
   if (!line[0] && buffer.is_empty())
-    return 0;
+    DBUG_RETURN(0);
 #ifdef HAVE_READLINE
   if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
 #ifdef USE_MB
-  char *strend=line+(uint) strlen(line);
+  char *end_of_line=line+(uint) strlen(line);
 #endif
 
   for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
@@ -1181,13 +1191,14 @@ static bool add_line(String &buffer,char *line,char *in_string,
         buffer.is_empty())
       continue;
 #ifdef USE_MB
-    int l;
+    int length;
     if (use_mb(charset_info) &&
-        (l = my_ismbchar(charset_info, pos, strend))) {
-	while (l--)
-	    *out++ = *pos++;
-	pos--;
-	continue;
+        (length= my_ismbchar(charset_info, pos, end_of_line)))
+    {
+      while (length--)
+        *out++ = *pos++;
+      pos--;
+      continue;
     }
 #endif
     if (!*ml_comment && inchar == '\\')
@@ -1207,7 +1218,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	const String tmp(line,(uint) (out-line), charset_info);
 	buffer.append(tmp);
 	if ((*com->func)(&buffer,pos-1) > 0)
-	  return 1;				// Quit
+	  DBUG_RETURN(1);                       // Quit
 	if (com->takes_params)
 	{
 	  for (pos++ ;
@@ -1225,29 +1236,40 @@ static bool add_line(String &buffer,char *line,char *in_string,
       {
 	sprintf(buff,"Unknown command '\\%c'.",inchar);
 	if (put_info(buff,INFO_ERROR) > 0)
-	  return 1;
+	  DBUG_RETURN(1);
 	*out++='\\';
 	*out++=(char) inchar;
 	continue;
       }
     }
-
-    else if (!*ml_comment && (*pos == *delimiter &&
-			      is_prefix(pos + 1, delimiter + 1)) &&
-	     !*in_string)
+    else if (!*ml_comment && !*in_string &&
+             (*pos == *delimiter && is_prefix(pos + 1, delimiter + 1) ||
+              buffer.length() == 0 && (out - line) >= 9 &&
+              !my_strcasecmp(charset_info, line, "delimiter")))
     {					
       uint old_delimiter_length= delimiter_length;
       if (out != line)
 	buffer.append(line, (uint) (out - line));	// Add this line
       if ((com= find_command(buffer.c_ptr(), 0)))
       {
+        if (com->func == com_delimiter)
+        {
+          /*
+            Delimiter wants the get rest of the given line as argument to
+            allow one to change ';' to ';;' and back
+          */
+          char *end= strend(pos);
+          buffer.append(pos, (uint) (end - pos));
+          /* Ensure pos will point at \0 after the pos+= below */
+          pos= end - old_delimiter_length + 1;
+        }
 	if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
-	  return 1;				// Quit
+	  DBUG_RETURN(1);                       // Quit
       }
       else
       {
 	if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
-	  return 1;
+	  DBUG_RETURN(1);
       }
       buffer.length(0);
       out= line;
@@ -1299,9 +1321,9 @@ static bool add_line(String &buffer,char *line,char *in_string,
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
     if (!(*ml_comment) && buffer.append(line,length))
-      return 1;
+      DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*****************************************************************
