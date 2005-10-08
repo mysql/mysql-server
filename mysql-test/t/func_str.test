@@ -467,6 +467,7 @@ SELECT lpad(12345, 5, "#");
 #
  
 SELECT conv(71, 10, 36), conv('1Z', 36, 10);
+SELECT conv(71, 10, 37), conv('1Z', 37, 10), conv(0,1,10),conv(0,0,10), conv(0,-1,10);
 
 #
 # Bug in SUBSTRING when mixed with CONCAT and ORDER BY (Bug #3089)

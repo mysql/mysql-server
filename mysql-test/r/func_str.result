@@ -818,6 +818,9 @@ lpad(12345, 5, "#")
 SELECT conv(71, 10, 36), conv('1Z', 36, 10);
 conv(71, 10, 36)	conv('1Z', 36, 10)
 1Z	71
+SELECT conv(71, 10, 37), conv('1Z', 37, 10), conv(0,1,10),conv(0,0,10), conv(0,-1,10);
+conv(71, 10, 37)	conv('1Z', 37, 10)	conv(0,1,10)	conv(0,0,10)	conv(0,-1,10)
+NULL	NULL	NULL	NULL	NULL
 create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
 insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
 create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;

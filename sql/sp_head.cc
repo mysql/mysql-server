@@ -794,6 +794,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
          splocal < sp_vars_uses.back(); splocal++)
     {
       Item *val;
+      (*splocal)->thd= thd;            // fix_fields() is not yet done
       /* append the text between sp ref occurences */
       res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
       prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
