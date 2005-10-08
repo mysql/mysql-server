@@ -2601,7 +2601,7 @@ unsent_create_error:
     To prevent that, refuse SLAVE STOP if the
     client thread has locked tables
   */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables || thd->active_transaction() || thd->global_read_lock)
   {
     send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
     break;
