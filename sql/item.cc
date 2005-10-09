@@ -348,7 +348,18 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
   {
     Field *tmp;
     if (!(tmp=find_field_in_tables(thd,this,tables)))
+    {
+      if (thd->lex.select_lex.is_item_list_lookup)
+      {
+        Item** res= find_item_in_list(this, thd->lex.select_lex.item_list);
+        if (res && *res && (*res)->type() == Item::FIELD_ITEM)
+        {
+          set_field((*((Item_field**)res))->field);
+          return 0;
+        }
+      }
       return 1;
+    }
     set_field(tmp);
   }
   else if (thd && thd->set_query_id && field->query_id != thd->query_id)
