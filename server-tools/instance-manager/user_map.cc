@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
-#pragma interface
+#pragma implementation
 #endif
 
 #include "user_map.h"

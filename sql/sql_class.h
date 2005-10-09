@@ -1158,8 +1158,8 @@ public:
     thread is (and must remain, for now) the only responsible for freeing these
     3 members. If you add members here, and you add code to set them in
     replication, don't forget to free_them_and_set_them_to_0 in replication
-    properly. For details see the 'err:' label of the pthread_handler_decl of
-    the slave SQL thread, in sql/slave.cc.
+    properly. For details see the 'err:' label of the handle_slave_sql()
+    in sql/slave.cc.
    */
   char   *db, *catalog;
   Security_context main_security_ctx;

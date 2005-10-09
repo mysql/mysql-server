@@ -28,7 +28,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup, bool ignore,
 			 char *query, uint query_length, bool log_on);
 static void end_delayed_insert(THD *thd);
-extern "C" pthread_handler_decl(handle_delayed_insert,arg);
+pthread_handler_t handle_delayed_insert(void *arg);
 static void unlink_blobs(register TABLE *table);
 #endif
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
@@ -1704,7 +1704,7 @@ void kill_delayed_threads(void)
  * Create a new delayed insert thread
 */
 
-extern "C" pthread_handler_decl(handle_delayed_insert,arg)
+pthread_handler_t handle_delayed_insert(void *arg)
 {
   delayed_insert *di=(delayed_insert*) arg;
   THD *thd= &di->thd;

@@ -1279,10 +1279,6 @@ SOURCE=.\protocol.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\protocol_cursor.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\records.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
