@@ -51,7 +51,7 @@ void win_pthread_init(void)
 ** in the new thread.
 */
 
-static pthread_handler_decl(pthread_start,param)
+pthread_handler_t pthread_start(void *param)
 {
   DBUG_ENTER("pthread_start");
   pthread_handler func=((struct pthread_map *) param)->func;
