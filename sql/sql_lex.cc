@@ -154,6 +154,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->slave_thd_opt=0;
   lex->sql_command=SQLCOM_END;
   bzero((char *)&lex->mi,sizeof(lex->mi));
+  lex->select_lex.is_item_list_lookup= 0;
   return lex;
 }
 

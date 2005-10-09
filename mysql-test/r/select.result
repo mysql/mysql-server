@@ -2431,3 +2431,13 @@ AND FK_firma_id = 2;
 COUNT(*)
 0
 drop table t1;
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+a	c
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+a	c
+drop table t1;

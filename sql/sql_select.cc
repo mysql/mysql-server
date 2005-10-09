@@ -6845,8 +6845,14 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     return 0;
   }
   order->in_field_list=0;
+  /* Allow lookup in select's item_list to find aliased fields */
+  thd->lex.select_lex.is_item_list_lookup= 1;
   if ((*order->item)->fix_fields(thd,tables) || thd->fatal_error)
+  {
+    thd->lex.select_lex.is_item_list_lookup= 0;
     return 1;					// Wrong field
+  }
+  thd->lex.select_lex.is_item_list_lookup= 0;
   all_fields.push_front(*order->item);		// Add new field to field list
   order->item=(Item**) all_fields.head_ref();
   return 0;
