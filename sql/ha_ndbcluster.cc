@@ -132,7 +132,7 @@ static int ndb_get_table_statistics(Ndb*, const char *,
 static pthread_t ndb_util_thread;
 pthread_mutex_t LOCK_ndb_util_thread;
 pthread_cond_t COND_ndb_util_thread;
-extern "C" pthread_handler_decl(ndb_util_thread_func, arg);
+pthread_handler_t ndb_util_thread_func(void *arg);
 ulong ndb_cache_check_time;
 
 /*
@@ -6004,8 +6004,7 @@ ha_ndbcluster::update_table_comment(
 
 
 // Utility thread main loop
-extern "C" pthread_handler_decl(ndb_util_thread_func,
-                                arg __attribute__((unused)))
+pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   Ndb* ndb;

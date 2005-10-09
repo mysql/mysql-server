@@ -85,7 +85,7 @@ const char *Ndb_cluster_connection::get_connectstring(char *buf,
   return 0;
 }
 
-extern "C" pthread_handler_decl(run_ndb_cluster_connection_connect_thread, me)
+pthread_handler_t run_ndb_cluster_connection_connect_thread(void *me)
 {
   g_run_connect_thread= 1;
   ((Ndb_cluster_connection_impl*) me)->connect_thread();

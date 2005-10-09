@@ -547,8 +547,8 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli);
 void rotate_relay_log(MASTER_INFO* mi);
 
-extern "C" pthread_handler_decl(handle_slave_io,arg);
-extern "C" pthread_handler_decl(handle_slave_sql,arg);
+pthread_handler_t handle_slave_io(void *arg);
+pthread_handler_t handle_slave_sql(void *arg);
 extern bool volatile abort_loop;
 extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
 extern LIST master_list;

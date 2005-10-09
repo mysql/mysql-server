@@ -1048,7 +1048,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 }
 
 
-pthread_handler_decl(handle_one_connection,arg)
+pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd=(THD*) arg;
   uint launch_time  =
@@ -1184,7 +1184,7 @@ end_thread:
   Used when creating the initial grant tables
 */
 
-extern "C" pthread_handler_decl(handle_bootstrap,arg)
+pthread_handler_t handle_bootstrap(void *arg)
 {
   THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
@@ -2946,7 +2946,7 @@ end_with_restore_list:
     To prevent that, refuse SLAVE STOP if the
     client thread has locked tables
   */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables || thd->active_transaction() || thd->global_read_lock)
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -5004,7 +5004,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   for (; tables; tables= tables->next_global)
   {
     if (tables->schema_table && 
-        (want_access & ~(SELECT_ACL | EXTRA_ACL)))
+        (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
