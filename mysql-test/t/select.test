@@ -1983,3 +1983,12 @@ AND FK_firma_id = 2;
 
 drop table t1;
 
+#
+# Bug 7672 Unknown column error in order clause
+#
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+drop table t1;

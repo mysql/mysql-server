@@ -121,7 +121,7 @@ typedef struct st_select_lex
 		      ignore_index, *ignore_index_ptr;
   List<Item_func_match> ftfunc_list;
   uint in_sum_expr, sort_default;
-  bool	create_refs, braces;
+  bool	create_refs, braces, is_item_list_lookup;
   st_select_lex *next;
 } SELECT_LEX;
 
