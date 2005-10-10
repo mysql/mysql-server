@@ -71,6 +71,8 @@ Ndbfs::Ndbfs(const Configuration & conf) :
   addRecSignal(GSN_FSAPPENDREQ, &Ndbfs::execFSAPPENDREQ);
   addRecSignal(GSN_FSREMOVEREQ, &Ndbfs::execFSREMOVEREQ);
    // Set send signals
+
+  theRequestPool = 0;
 }
 
 Ndbfs::~Ndbfs()
@@ -85,7 +87,8 @@ Ndbfs::~Ndbfs()
   }//for
   theFiles.clear();
 
-  delete theRequestPool;
+  if (theRequestPool)
+    delete theRequestPool;
 }
 
 void 
