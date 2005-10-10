@@ -841,9 +841,6 @@ bool mysql_multi_update(THD *thd,
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
-  if (mysql_multi_update_prepare(thd))
-    DBUG_RETURN(TRUE);
-
   if (!(result= new multi_update(table_list,
 				 thd->lex->select_lex.leaf_tables,
 				 fields, values,
