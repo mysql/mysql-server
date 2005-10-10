@@ -558,8 +558,12 @@ InitConfigFileParser::storeSection(Context& ctx){
       }
     }
   }
-  if(ctx.type == InitConfigFileParser::DefaultSection)
-    require(ctx.m_defaults->put(ctx.pname, ctx.m_currentSection));
+  if(ctx.type == InitConfigFileParser::DefaultSection &&
+     !ctx.m_defaults->put(ctx.pname, ctx.m_currentSection))
+  {
+    ctx.reportError("Duplicate default section not allowed");
+    return false;
+  }
   if(ctx.type == InitConfigFileParser::Section)
     require(ctx.m_config->put(ctx.pname, ctx.m_currentSection));
   delete ctx.m_currentSection; ctx.m_currentSection = NULL;
