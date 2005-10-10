@@ -2628,6 +2628,13 @@ select f1 from t1,t2 where f1=f2 and (f1,NULL) = ((1,1));
 f1
 select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,NULL));
 f1
+insert into t1 values(1,1),(2,null);
+insert into t2 values(2);
+select * from t1,t2 where f1=f3 and (f1,f2) = (2,null);
+f1	f2	f3
+select * from t1,t2 where f1=f3 and (f1,f2) <=> (2,null);
+f1	f2	f3
+2	NULL	2
 drop table t1,t2;
 CREATE TABLE t1 ( city char(30) );
 INSERT INTO t1 VALUES ('London');

@@ -3209,7 +3209,7 @@ end_with_restore_list:
 	break;
 
       /* Check slave filtering rules */
-      if (thd->slave_thread && all_tables_not_ok(thd,tables))
+      if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
       {
 	/* we warn the slave SQL thread */
 	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
