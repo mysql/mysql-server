@@ -300,6 +300,44 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
 #endif
 
+  record_offset= (ulong) (uint2korr(head+6)+
+                          ((uint2korr(head+14) == 0xffff ?
+                            uint4korr(head+47) : uint2korr(head+14))));
+ 
+  if ((n_length= uint2korr(head+55)))
+  {
+    /* Read extra data segment */
+    char *buff, *next_chunk, *buff_end;
+    if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
+      goto err;
+    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
+                 MYF(MY_NABP)))
+    {
+      my_free(buff, MYF(0));
+      goto err;
+    }
+    if (share->db_type == DB_TYPE_FEDERATED_DB)
+    {
+      share->connect_string.length= uint2korr(buff);
+      if (! (share->connect_string.str= strmake_root(&outparam->mem_root,
+              next_chunk + 2, share->connect_string.length)))
+      {
+        my_free(buff, MYF(0));
+        goto err;
+      }
+      next_chunk+= share->connect_string.length + 2;
+    }
+    buff_end= buff + n_length;
+    if (next_chunk + 2 < buff_end)
+    {
+      uint str_db_type_length= uint2korr(next_chunk);
+      share->db_type= ha_resolve_by_name(next_chunk + 2, str_db_type_length);
+      DBUG_PRINT("enter", ("Setting dbtype to: %d - %d - '%.*s'\n", share->db_type,
+            str_db_type_length, str_db_type_length, next_chunk + 2));
+      next_chunk+= str_db_type_length + 2;
+    }
+    my_free(buff, MYF(0));
+  }
   /* Allocate handler */
   if (!(outparam->file= get_new_handler(outparam, share->db_type)))
     goto err;
@@ -322,9 +360,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     goto err;                                   /* purecov: inspected */
   share->default_values= (byte *) record;
 
-  record_offset= (ulong) (uint2korr(head+6)+
-                          ((uint2korr(head+14) == 0xffff ?
-                            uint4korr(head+47) : uint2korr(head+14))));
   if (my_pread(file,(byte*) record, (uint) share->reclength,
                record_offset, MYF(MY_NABP)))
     goto err; /* purecov: inspected */
@@ -342,20 +377,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
-
-  if ((n_length= uint2korr(head+55)))
-  {
-    /* Read extra block information */
-    char *buff;
-    if (!(buff= alloc_root(&outparam->mem_root, n_length)))
-      goto err;
-    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
-                 MYF(MY_NABP)))
-      goto err;
-    share->connect_string.length= uint2korr(buff);
-    share->connect_string.str= buff+2;
-  }
-
+ 
 #ifdef HAVE_purify
   /*
     We need this because when we read var-length rows, we are not updating
@@ -1371,14 +1393,9 @@ File create_frm(THD *thd, my_string name, const char *db,
   ulong length;
   char fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
-  uint extra_size;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
-
-  extra_size= 0;
-  if (create_info->connect_string.length)
-    extra_size= 2+create_info->connect_string.length;
 
 #if SIZEOF_OFF_T > 4
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
@@ -1407,7 +1424,8 @@ File create_frm(THD *thd, my_string name, const char *db,
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
-    length= next_io_size((ulong) (IO_SIZE+key_length+reclength+extra_size));
+    length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
+                                  create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
     int2store(fileinfo+14,tmp_key_length);
@@ -1429,7 +1447,7 @@ File create_frm(THD *thd, my_string name, const char *db,
     int4store(fileinfo+47, key_length);
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
-    int2store(fileinfo+55, extra_size);
+    int2store(fileinfo+55, create_info->extra_size);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
