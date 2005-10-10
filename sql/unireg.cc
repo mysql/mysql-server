@@ -122,8 +122,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   str_db_type.str= (char *)ha_get_storage_engine(create_info->db_type);
   str_db_type.length= strlen(str_db_type.str);
   create_info->extra_size= 2 + str_db_type.length;
-  if (create_info->db_type == DB_TYPE_FEDERATED_DB)
-    create_info->extra_size+= create_info->connect_string.length + 2;
+  create_info->extra_size+= create_info->connect_string.length + 2;
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
@@ -159,14 +158,12 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 		     create_fields,reclength, data_offset))
     goto err;
 
-  if (create_info->db_type == DB_TYPE_FEDERATED_DB)
-  {
-    int2store(buff, create_info->connect_string.length);
-    if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
-        my_write(file, (const byte*)create_info->connect_string.str,
-                 create_info->connect_string.length, MYF(MY_NABP)))
+  int2store(buff, create_info->connect_string.length);
+  if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+      my_write(file, (const byte*)create_info->connect_string.str,
+               create_info->connect_string.length, MYF(MY_NABP)))
       goto err;
-  }
+
   int2store(buff, str_db_type.length);
   if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
       my_write(file, (const byte*)str_db_type.str,

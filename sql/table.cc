@@ -316,17 +316,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       my_free(buff, MYF(0));
       goto err;
     }
-    if (share->db_type == DB_TYPE_FEDERATED_DB)
+    share->connect_string.length= uint2korr(buff);
+    if (! (share->connect_string.str= strmake_root(&outparam->mem_root,
+            next_chunk + 2, share->connect_string.length)))
     {
-      share->connect_string.length= uint2korr(buff);
-      if (! (share->connect_string.str= strmake_root(&outparam->mem_root,
-              next_chunk + 2, share->connect_string.length)))
-      {
-        my_free(buff, MYF(0));
-        goto err;
-      }
-      next_chunk+= share->connect_string.length + 2;
+      my_free(buff, MYF(0));
+      goto err;
     }
+    next_chunk+= share->connect_string.length + 2;
     buff_end= buff + n_length;
     if (next_chunk + 2 < buff_end)
     {
