@@ -262,6 +262,18 @@ Dbdih::Dbdih(const class Configuration & config):
 
   addRecSignal(GSN_CREATE_FRAGMENTATION_REQ, 
 	       &Dbdih::execCREATE_FRAGMENTATION_REQ);
+
+  apiConnectRecord = 0;  
+  connectRecord = 0;  
+  fileRecord = 0;  
+  fragmentstore = 0;
+  pageRecord = 0;  
+  replicaRecord = 0;  
+  tabRecord = 0;
+  createReplicaRecord = 0;  
+  nodeGroupRecord = 0;  
+  nodeRecord = 0;
+  takeOverRecord = 0;
 }//Dbdih::Dbdih()
 
 Dbdih::~Dbdih() 
