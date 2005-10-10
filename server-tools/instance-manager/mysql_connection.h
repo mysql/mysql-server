@@ -24,12 +24,7 @@
 #include <my_pthread.h>
 
 
-C_MODE_START
-
-pthread_handler_decl(mysql_connection, arg);
-
-C_MODE_END
-
+pthread_handler_t mysql_connection(void *arg);
 
 class Thread_registry;
 class User_map;
