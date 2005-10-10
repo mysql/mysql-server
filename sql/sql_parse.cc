@@ -3208,6 +3208,7 @@ end_with_restore_list:
       if ((res= mysql_multi_update_prepare(thd)))
 	break;
 
+#ifdef HAVE_REPLICATION
       /* Check slave filtering rules */
       if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
       {
@@ -3215,6 +3216,7 @@ end_with_restore_list:
 	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
 	break;
       }
+#endif /* HAVE_REPLICATION */
 
       res= mysql_multi_update(thd, all_tables,
                               &select_lex->item_list,
