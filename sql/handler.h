@@ -436,6 +436,7 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   uint merge_insert_method;
+  uint extra_size;                      /* length of extra data segment */
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
