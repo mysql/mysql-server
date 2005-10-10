@@ -358,7 +358,8 @@ invalid value '%s'\n",
 	      continue;
 	    }
 	    get_one_option(optp->id, optp,
-			   value ? (char*) "1" : disabled_my_option);
+			   *((my_bool*) value) ?
+			   (char*) "1" : disabled_my_option);
 	    continue;
 	  }
 	  argument= optend;
@@ -599,16 +600,27 @@ static int setval(const struct my_option *opts, gptr *value, char *argument,
   return 0;
 }
 
+
 /* 
-  function: findopt
+  Find option
 
-  Arguments: opt_pattern, length of opt_pattern, opt_struct, first found
-  name (ffname)
+  SYNOPSIS
+    findopt()
+    optpat	Prefix of option to find (with - or _)
+    length	Length of optpat
+    opt_res	Options
+    ffname	Place for pointer to first found name
 
-  Go through all options in the my_option struct. Return number
-  of options found that match the pattern and in the argument
-  list the option found, if any. In case of ambiguous option, store
-  the name in ffname argument
+  IMPLEMENTATION
+    Go through all options in the my_option struct. Return number
+    of options found that match the pattern and in the argument
+    list the option found, if any. In case of ambiguous option, store
+    the name in ffname argument
+
+    RETURN
+    0    No matching options
+    #   Number of matching options
+        ffname points to first matching option
 */
 
 static int findopt(char *optpat, uint length,
@@ -623,12 +635,21 @@ static int findopt(char *optpat, uint length,
     if (!getopt_compare_strings(opt->name, optpat, length)) /* match found */
     {
       (*opt_res)= opt;
-      if (!count)
-	*ffname= (char *) opt->name;	/* We only need to know one prev */
       if (!opt->name[length])		/* Exact match */
 	return 1;
-      if (!count || strcmp(*ffname, opt->name)) /* Don't count synonyms */
+      if (!count)
+      {
+	count= 1;
+	*ffname= (char *) opt->name;	/* We only need to know one prev */
+      }
+      else if (strcmp(*ffname, opt->name))
+      {
+	/*
+	  The above test is to not count same option twice
+	  (see mysql.cc, option "help")
+	*/
 	count++;
+      }
     }
   }
   return count;
