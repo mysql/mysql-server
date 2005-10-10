@@ -126,6 +126,22 @@ Dbtup::Dbtup(const class Configuration & conf)
   addRecSignal(GSN_ACC_CHECK_SCAN, &Dbtup::execACC_CHECK_SCAN);
 
   initData();
+
+  attrbufrec = 0;  
+  checkpointInfo = 0;  
+  diskBufferSegmentInfo = 0;  
+  fragoperrec = 0;
+  fragrecord = 0;  
+  hostBuffer = 0;  
+  localLogInfo = 0;  
+  operationrec = 0;
+  page = 0;  
+  pageRange = 0;
+  pendingFileOpenInfo = 0;  
+  restartInfoRecord = 0;  
+  tablerec = 0;  
+  tableDescriptor = 0;  
+  undoPage = 0;
 }//Dbtup::Dbtup()
 
 Dbtup::~Dbtup() 
