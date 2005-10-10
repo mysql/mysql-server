@@ -32,7 +32,7 @@ pthread_t manager_thread;
 pthread_mutex_t LOCK_manager;
 pthread_cond_t COND_manager;
 
-extern "C" pthread_handler_decl(handle_manager,arg __attribute__((unused)))
+pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 {
   int error = 0;
   ulong status;
