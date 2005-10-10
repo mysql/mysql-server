@@ -2006,7 +2006,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
-#endif /* !HAVE_REPLICATION */
+#endif /* HAVE_REPLICATION */
 
   /*
     When option readonly is set deny operations which change tables.
@@ -2841,6 +2841,7 @@ unsent_create_error:
 				      select_lex)))
       break;
 
+#ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
     if (thd->slave_thread)
       if (all_tables_not_ok(thd,tables))
@@ -2849,6 +2850,7 @@ unsent_create_error:
 	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
 	break;
       }
+#endif /* HAVE_REPLICATION */
 
     res= mysql_multi_update(thd,tables,
 			    &select_lex->item_list,
