@@ -121,8 +121,9 @@ static char *pretty_print_str(char *packet, char *str, int len)
 static inline char* slave_load_file_stem(char*buf, uint file_id,
 					 int event_server_id)
 {
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", 
-	    MY_UNPACK_FILENAME | MY_UNIX_PATH);
+  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+  to_unix_path(buf);
+
   buf = strend(buf);
   buf = int10_to_str(::server_id, buf, 10);
   *buf++ = '-';
@@ -211,24 +212,18 @@ static inline int read_str(char **buf, char *buf_end, char **str,
 /*
   Transforms a string into "" or its expression in 0x... form.
 */
+
 char *str_to_hex(char *to, const char *from, uint len)
 {
-  char *p= to;
   if (len)
   {
-    p= strmov(p, "0x");
-    for (uint i= 0; i < len; i++, p+= 2)
-    {
-      /* val[i] is char. Casting to uchar helps greatly if val[i] < 0 */
-      uint tmp= (uint) (uchar) from[i];
-      p[0]= _dig_vec_upper[tmp >> 4];
-      p[1]= _dig_vec_upper[tmp & 15];
-    }
-    *p= 0;
+    *to++= '0';
+    *to++= 'x';
+    to= octet2hex(to, from, len);
   }
   else
-    p= strmov(p, "\"\"");
-  return p; // pointer to end 0 of 'to'
+    to= strmov(to, "\"\"");
+  return to;                               // pointer to end 0 of 'to'
 }
 
 /*

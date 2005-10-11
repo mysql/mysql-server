@@ -817,9 +817,12 @@ String *Item_splocal::val_str(String *sp)
 {
   DBUG_ASSERT(fixed);
   Item *it= this_item();
-  String *ret= it->val_str(sp);
+  String *res= it->val_str(sp);
 
   null_value= it->null_value;
+  if (!res)
+    return NULL;
+
   /*
     This way we mark returned value of val_str as const,
     so that various functions (e.g. CONCAT) won't try to
@@ -836,12 +839,11 @@ String *Item_splocal::val_str(String *sp)
     Item_param class contain some more details on the topic.
   */
 
-  if (!ret)
-    return NULL;
-
-  str_value_ptr.set(ret->ptr(), ret->length(),
-                    ret->charset());
-  return &str_value_ptr;
+  if (res != &str_value)
+    str_value.set(res->ptr(), res->length(), res->charset());
+  else
+    res->mark_as_const();
+  return &str_value;
 }
 
 
@@ -858,17 +860,13 @@ my_decimal *Item_splocal::val_decimal(my_decimal *decimal_value)
 bool Item_splocal::is_null()
 {
   Item *it= this_item();
-  bool ret= it->is_null();
-  null_value= it->null_value;
-  return ret;
+  return it->is_null();
 }
 
 
 Item *
 Item_splocal::this_item()
 {
-  THD *thd= current_thd;
-
   return thd->spcont->get_item(m_offset);
 }
 
@@ -882,25 +880,23 @@ Item_splocal::this_item_addr(THD *thd, Item **addr)
 Item *
 Item_splocal::this_const_item() const
 {
-  THD *thd= current_thd;
-
   return thd->spcont->get_item(m_offset);
 }
 
 Item::Type
 Item_splocal::type() const
 {
-  THD *thd= current_thd;
-
-  if (thd->spcont)
+  if (thd && thd->spcont)
     return thd->spcont->get_item(m_offset)->type();
   return NULL_ITEM;		// Anything but SUBSELECT_ITEM
 }
 
 
-bool Item_splocal::fix_fields(THD *, Item **)
+bool Item_splocal::fix_fields(THD *thd_arg, Item **ref)
 {
-  Item *it= this_item();
+  Item *it;
+  thd= thd_arg;                 // Must be set before this_item()
+  it= this_item();
   DBUG_ASSERT(it->fixed);
   max_length= it->max_length;
   decimals= it->decimals;
@@ -928,6 +924,7 @@ void Item_splocal::print(String *str)
 /*****************************************************************************
   Item_name_const methods
 *****************************************************************************/
+
 double Item_name_const::val_real()
 {
   DBUG_ASSERT(fixed);
@@ -966,9 +963,7 @@ my_decimal *Item_name_const::val_decimal(my_decimal *decimal_value)
 
 bool Item_name_const::is_null()
 {
-  bool ret= value_item->is_null();
-  null_value= value_item->null_value;
-  return ret;
+  return value_item->is_null();
 }
 
 Item::Type Item_name_const::type() const
@@ -977,7 +972,7 @@ Item::Type Item_name_const::type() const
 }
 
 
-bool Item_name_const::fix_fields(THD *thd, Item **)
+bool Item_name_const::fix_fields(THD *thd, Item **ref)
 {
   char buf[128];
   String *item_name;
@@ -2783,7 +2778,7 @@ int Item_copy_string::save_in_field(Field *field, bool no_conversions)
 */
 
 /* ARGSUSED */
-bool Item::fix_fields(THD *thd, Item ** ref)
+bool Item::fix_fields(THD *thd, Item **ref)
 {
 
   // We do not check fields which are fixed during construction
@@ -4765,8 +4760,7 @@ String *Item_ref::val_str(String* tmp)
 bool Item_ref::is_null()
 {
   DBUG_ASSERT(fixed);
-  (void) (*ref)->val_int_result();
-  return (*ref)->null_value;
+  return (*ref)->is_null();
 }
 
 
