@@ -1023,6 +1023,11 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(" COMMENT=", 9);
       append_unescaped(packet, share->comment, strlen(share->comment));
     }
+    if (share->connect_string.length)
+    {
+      packet->append(" CONNECTION=", 12);
+      append_unescaped(packet, share->connect_string.str, share->connect_string.length);
+    }
     if (file->raid_type)
     {
       uint length;
