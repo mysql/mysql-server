@@ -1760,6 +1760,16 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if ((tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
 	not_found_field)
     {
+      if (thd->lex.select_lex.is_item_list_lookup)
+      {
+        Item** res= find_item_in_list(this, thd->lex.select_lex.item_list);
+        if (res && *res && (*res)->type() == Item::FIELD_ITEM)
+        {
+          set_field((*((Item_field**)res))->field);
+          return 0;
+        }
+      }
+
       /*
 	We can't find table field in table list of current select,
 	consequently we have to find it in outer subselect(s).
