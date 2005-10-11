@@ -368,7 +368,7 @@ reportError(void * callbackObj, NodeId nodeId,
     break;
   }
  
-  if(errorCode &  & TE_DO_DISCONNECT){
+  if(errorCode & TE_DO_DISCONNECT){
     reportDisconnect(callbackObj, nodeId, errorCode);
   }
   
