@@ -100,6 +100,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_SIGNAL_LOST                 6051
 #define NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL 6052
 #define NDBD_EXIT_ILLEGAL_SIGNAL              6053
+#define NDBD_EXIT_CONNECTION_SETUP_FAILED     6054
 
 /* NDBCNTR 6100-> */
 #define NDBD_EXIT_RESTART_TIMEOUT             6100
