@@ -846,7 +846,7 @@ static void __cdecl kill_server(int sig_ptr)
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
-  signal(sig,SIG_IGN);
+  my_sigset(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
   else
@@ -894,11 +894,6 @@ extern "C" pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 }
 #endif
 
-#if defined(__amiga__)
-#undef sigset
-#define sigset signal
-#endif
-
 extern "C" sig_handler print_signal_warning(int sig)
 {
   if (!DBUG_IN_USE)
@@ -908,7 +903,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 		      sig,my_thread_id());
   }
 #ifdef DONT_REMEMBER_SIGNAL
-  sigset(sig,print_signal_warning);		/* int. thread system calls */
+  my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   if (sig == SIGALRM)
@@ -1570,23 +1565,6 @@ void flush_thread_cache()
 }
 
 
-/*
-  Aborts a thread nicely. Commes here on SIGPIPE
-  TODO: One should have to fix that thr_alarm know about this
-  thread too.
-*/
-
-#ifdef THREAD_SPECIFIC_SIGPIPE
-extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  DBUG_ENTER("abort_thread");
-  if (thd)
-    thd->killed=1;
-  DBUG_VOID_RETURN;
-}
-#endif
-
 /******************************************************************************
   Setup a signal thread with handles all signals.
   Because Linux doesn't support schemas use a mutex to check that
@@ -2002,8 +1980,8 @@ static void init_signals(void)
   DBUG_ENTER("init_signals");
 
   if (test_flags & TEST_SIGINT)
-    sigset(THR_KILL_SIGNAL,end_thread_signal);
-  sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
+    my_sigset(THR_KILL_SIGNAL,end_thread_signal);
+  my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2037,13 +2015,8 @@ static void init_signals(void)
   }
 #endif
   (void) sigemptyset(&set);
-#ifdef THREAD_SPECIFIC_SIGPIPE
-  sigset(SIGPIPE,abort_thread);
+  my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-#else
-  (void) signal(SIGPIPE,SIG_IGN);		// Can't know which thread
-  sigaddset(&set,SIGPIPE);
-#endif
   sigaddset(&set,SIGINT);
 #ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
