@@ -199,6 +199,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
 
   m_first_free_page= RNIL;
   
+  c_no_of_buckets = 0;
   memset(c_buckets, 0, sizeof(c_buckets));
   for(Uint32 i = 0; i<NO_OF_BUCKETS; i++)
   {
