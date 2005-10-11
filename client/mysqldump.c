@@ -30,7 +30,7 @@
 ** master/autocommit code by Brian Aker <brian@tangent.org>
 ** SSL by
 ** Andrei Errapart <andreie@no.spam.ee>
-** Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
+** TÃµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
@@ -1287,7 +1287,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 {
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
-  my_bool    init=0;
+  my_bool    init=0, delayed, write_data, complete_insert;
   uint       num_fields;
   char	     *result_table, *opt_quoted_table;
   const char *insert_option;
@@ -1296,31 +1296,33 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   char       query_buff[512];
   FILE       *sql_file = md_result_file;
   int        len;
-
   DBUG_ENTER("get_table_structure");
-  DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
+  DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
   *ignore_flag= check_if_ignore_table(table, table_type);
 
-  if (opt_delayed && (*ignore_flag & IGNORE_INSERT_DELAYED))
+  delayed= opt_delayed;
+  if (delayed && (*ignore_flag & IGNORE_INSERT_DELAYED))
+  {
+    delayed= 0;
     if (verbose)
       fprintf(stderr,
-	      "-- Unable to use delayed inserts for table '%s' because it's of\
- type %s\n", table, table_type);
+              "-- Warning: Unable to use delayed inserts for table '%s' "
+              "because it's of type %s\n", table, table_type);
+  }
 
-  if (!(*ignore_flag & IGNORE_DATA))
+  complete_insert= 0;
+  if ((write_data= !(*ignore_flag & IGNORE_DATA)))
   {
+    complete_insert= opt_complete_insert;
     if (!insert_pat_inited)
       insert_pat_inited= init_dynamic_string(&insert_pat, "", 1024, 1024);
     else
       dynstr_set(&insert_pat, "");
   }
 
-  insert_option= ((opt_delayed && opt_ignore &&
-                   !(*ignore_flag & IGNORE_INSERT_DELAYED)) ?
-                  " DELAYED IGNORE " :
-                  opt_delayed && !(*ignore_flag & IGNORE_INSERT_DELAYED) ? " DELAYED " :
-                  opt_ignore ? " IGNORE " : "");
+  insert_option= ((delayed && opt_ignore) ? " DELAYED IGNORE " :
+                  delayed ? " DELAYED " : opt_ignore ? " IGNORE " : "");
 
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
@@ -1452,17 +1454,18 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     }
 
     /*
-      if *ignore_flag & IGNORE_DATA is true, then we don't build up insert statements 
-      for the table's data. Note: in subsequent lines of code, this test will 
-      have to be performed each time we are appending to insert_pat.
+      If write_data is true, then we build up insert statements for
+      the table's data. Note: in subsequent lines of code, this test
+      will have to be performed each time we are appending to
+      insert_pat.
     */
-    if (!(*ignore_flag & IGNORE_DATA))
+    if (write_data)
     {
       dynstr_append_mem(&insert_pat, "INSERT ", 7);
       dynstr_append(&insert_pat, insert_option);
       dynstr_append_mem(&insert_pat, "INTO ", 5);
       dynstr_append(&insert_pat, opt_quoted_table);
-      if (opt_complete_insert)
+      if (complete_insert)
       {
         dynstr_append_mem(&insert_pat, " (", 2);
       }
@@ -1476,15 +1479,16 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
     while ((row=mysql_fetch_row(tableRes)))
     {
-      if (init)
+      if (complete_insert)
       {
-        if (opt_complete_insert && !(*ignore_flag & IGNORE_DATA))
+        if (init)
+        {
           dynstr_append_mem(&insert_pat, ", ", 2);
-      }
-      init=1;
-      if (opt_complete_insert && !(*ignore_flag & IGNORE_DATA))
+        }
+        init=1;
         dynstr_append(&insert_pat,
                       quote_name(row[SHOW_FIELDNAME], name_buff, 0));
+      }
     }
     num_fields= (uint) mysql_num_rows(tableRes);
     mysql_free_result(tableRes);
@@ -1532,7 +1536,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       check_io(sql_file);
     }
 
-    if (!(*ignore_flag & IGNORE_DATA))
+    if (write_data)
     {
       dynstr_append_mem(&insert_pat, "INSERT ", 7);
       dynstr_append(&insert_pat, insert_option);
@@ -1558,11 +1562,11 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 	  fputs(",\n",sql_file);
 	  check_io(sql_file);
 	}
-        if (opt_complete_insert && !(*ignore_flag & IGNORE_DATA))
+        if (complete_insert)
           dynstr_append_mem(&insert_pat, ", ", 2);
       }
       init=1;
-      if (opt_complete_insert && !(*ignore_flag & IGNORE_DATA))
+      if (opt_complete_insert)
         dynstr_append(&insert_pat,
                       quote_name(row[SHOW_FIELDNAME], name_buff, 0));
       if (!tFlag)
@@ -1723,7 +1727,7 @@ continue_xml:
       check_io(sql_file);
     }
   }
-  if (opt_complete_insert && !(*ignore_flag & IGNORE_DATA))
+  if (opt_complete_insert)
   {
     dynstr_append_mem(&insert_pat, ") VALUES ", 9);
     if (!extended_insert)
@@ -1877,7 +1881,7 @@ static void dump_table(char *table, char *db)
 {
   char ignore_flag;
   char query_buf[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
-  char    table_type[NAME_LEN];
+  char table_type[NAME_LEN];
   char *result_table, table_buff2[NAME_LEN*2+3], *opt_quoted_table;
   char *query= query_buf;
   int error= 0;
@@ -1892,7 +1896,7 @@ static void dump_table(char *table, char *db)
     Make sure you get the create table info before the following check for
     --no-data flag below. Otherwise, the create table info won't be printed.
   */
-  num_fields= get_table_structure(table, db, (char *)&table_type, &ignore_flag);
+  num_fields= get_table_structure(table, db, table_type, &ignore_flag);
 
   /* Check --no-data flag */
   if (dFlag)
@@ -1904,7 +1908,9 @@ static void dump_table(char *table, char *db)
     DBUG_VOID_RETURN;
   }
 
-  DBUG_PRINT("info", ("ignore_flag %x num_fields %d", ignore_flag, num_fields));
+  DBUG_PRINT("info",
+             ("ignore_flag: %x  num_fields: %d", (int) ignore_flag,
+              num_fields));
   /*
     If the table type is a merge table or any type that has to be
      _completely_ ignored and no data dumped
@@ -1913,7 +1919,7 @@ static void dump_table(char *table, char *db)
   {
     if (verbose)
       fprintf(stderr,
-	      "-- Skipping data for table '%s' because it's of type %s\n",
+	      "-- Warning: Skipping data for table '%s' because it's of type %s\n",
 	      table, table_type);
     DBUG_VOID_RETURN;
   }
@@ -1929,7 +1935,6 @@ static void dump_table(char *table, char *db)
 
   result_table= quote_name(table,table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
-
 
   if (verbose)
     fprintf(stderr, "-- Sending SELECT query...\n");
@@ -2992,7 +2997,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
     DBUG_RETURN(result);                         /* assume table is ok */
   }
   if (!(row[1]))
-      strmake(table_type,"VIEW", NAME_LEN-1);
+    strmake(table_type, "VIEW", NAME_LEN-1);
   else
   {
     /*

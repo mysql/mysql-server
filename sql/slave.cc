@@ -2747,7 +2747,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     else
       pthread_cond_wait(&data_cond, &data_lock);
     DBUG_PRINT("info",("Got signal of master update or timed out"));
-    if (error == ETIMEDOUT)
+    if (error == ETIMEDOUT || error == ETIME)
     {
       error= -1;
       break;

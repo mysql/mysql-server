@@ -316,18 +316,21 @@ void create_random_string(char *to, uint length, struct rand_struct *rand_st)
     octet2hex()
     buf       OUT output buffer. Must be at least 2*len+1 bytes
     str, len  IN  the beginning and the length of the input string
+
+  RETURN
+    buf+len*2
 */
 
-void
-octet2hex(char *to, const unsigned char *str, uint len)
+char *octet2hex(char *to, const char *str, uint len)
 {
-  const uint8 *str_end= str + len; 
+  const byte *str_end= str + len; 
   for (; str != str_end; ++str)
   {
-    *to++= _dig_vec_upper[(*str & 0xF0) >> 4];
-    *to++= _dig_vec_upper[*str & 0x0F];
+    *to++= _dig_vec_upper[((uchar) *str) >> 4];
+    *to++= _dig_vec_upper[((uchar) *str) & 0x0F];
   }
   *to= '\0';
+  return to;
 }
 
 

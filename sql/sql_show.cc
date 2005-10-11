@@ -1258,9 +1258,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thread_info *thd_info;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *sctx;
-#endif
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
