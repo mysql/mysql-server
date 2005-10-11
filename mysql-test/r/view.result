@@ -2298,3 +2298,25 @@ a
 3
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t3 VALUES (1),(2),(3);
+CREATE VIEW v1 AS SELECT t1.* FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
+CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
+EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
+1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	2	Using where; Using index
+EXPLAIN SELECT * FROM v1 WHERE a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+1	PRIMARY	t2	ref	a	a	10	const,test.t1.b	2	Using where; Using index
+EXPLAIN SELECT * FROM v2 WHERE a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
