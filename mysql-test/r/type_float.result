@@ -229,3 +229,18 @@ create table t1 (s1 float(0,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
 create table t1 (s1 float(1,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
+create table t1 (d double(10,1));
+create table t2 (d double(10,9));
+insert into t1 values ("100000000.0");
+insert into t2 values ("1.23456780");
+create table t3 select * from t2 union select * from t1;
+select * from t3;
+d
+1.234567800
+100000000.000000000
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `d` double(22,9) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2, t3;
