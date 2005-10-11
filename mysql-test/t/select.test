@@ -2053,6 +2053,7 @@ AND FK_firma_id = 2;
 drop table t1;
 
 #
+#
 # Test for Bug#8009, SELECT failed on bigint unsigned when using HEX
 #
 
@@ -2165,3 +2166,11 @@ select found_rows();
 DROP TABLE t1;
 
 # End of 4.1 tests
+# Bug 7672 Unknown column error in order clause
+#
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+drop table t1;
