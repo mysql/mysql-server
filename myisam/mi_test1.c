@@ -237,7 +237,7 @@ static int run_test(const char *filename)
       pos=HA_OFFSET_ERROR;
     }
     if (found != row_count)
-      printf("Found %ld of %ld rows\n", found,row_count);
+      printf("Found %ld of %ld rows\n", (ulong) found, (ulong) row_count);
   }
 
   if (!silent)
@@ -303,7 +303,8 @@ static int run_test(const char *filename)
     if ((error=mi_rrnd(file,read_record,i == 1 ? 0L : HA_OFFSET_ERROR)) == -1)
     {
       if (found != row_count-deleted)
-	printf("Found only %ld of %ld rows\n",found,row_count-deleted);
+	printf("Found only %ld of %ld rows\n", (ulong) found,
+	       (ulong) (row_count - deleted));
       break;
     }
     if (!error)

@@ -25,7 +25,10 @@
 #endif
 
 #ifdef  __cplusplus
+#define EXTERN_C extern "C"
 extern "C" {
+#else
+#define EXTERN_C
 #endif /* __cplusplus */ 
 
 #if defined(__WIN__) || defined(OS2)
@@ -77,10 +80,10 @@ struct timespec {		/* For pthread_cond_timedwait() */
 typedef int pthread_mutexattr_t;
 #define win_pthread_self my_thread_var->pthread_self
 #ifdef OS2
-#define pthread_handler_decl(A,B) void * _Optlink A(void *B)
+#define pthread_handler_t EXTERN_C void * _Optlink
 typedef void * (_Optlink *pthread_handler)(void *);
 #else
-#define pthread_handler_decl(A,B) void * __cdecl A(void *B)
+#define pthread_handler_t EXTERN_C void * __cdecl
 typedef void * (__cdecl *pthread_handler)(void *);
 #endif
 
@@ -144,7 +147,7 @@ extern int pthread_mutex_destroy (pthread_mutex_t *);
 #define pthread_kill(A,B) raise(B)
 #define pthread_exit(A) pthread_dummy()
 #else
-#define pthread_mutex_init(A,B)  InitializeCriticalSection(A)
+#define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
 #define pthread_mutex_trylock(A) (WaitForSingleObject((A), 0) == WAIT_TIMEOUT)
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
@@ -184,7 +187,7 @@ typedef int pthread_attr_t;			/* Needed by Unixware 7.0.0 */
 #define pthread_key_create(A,B) thr_keycreate((A),(B))
 #define pthread_key_delete(A) thr_keydelete(A)
 
-#define pthread_handler_decl(A,B) void *A(void *B)
+#define pthread_handler_t EXTERN_C void *
 #define pthread_key(T,V) pthread_key_t V
 
 void *	my_pthread_getspecific_imp(pthread_key_t key);
@@ -262,7 +265,7 @@ extern int my_pthread_getprio(pthread_t thread_id);
 #define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))
 #define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,(void*) (V))
 #define pthread_detach_this_thread()
-#define pthread_handler_decl(A,B) void *A(void *B)
+#define pthread_handler_t EXTERN_C void *
 typedef void *(* pthread_handler)(void *);
 
 /* Test first for RTS or FSU threads */

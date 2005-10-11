@@ -2148,7 +2148,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
     DBUG_RETURN(1);
   }
-  if ((error=table->file->start_stmt(thd)))
+  if ((error=table->file->start_stmt(thd, lock_type)))
   {
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
@@ -2987,11 +2987,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     Check that the table and database that qualify the current field name
     are the same as the table reference we are going to search for the field.
 
-    We exclude from the test below NATURAL/USING joins and any nested join
-    that is an operand of NATURAL/USING join, because each column in such
-    joins may potentially originate from a different table. However, base
-    tables and views that are under some NATURAL/USING join are searched
-    as usual base tables/views.
+    Exclude from the test below nested joins because the columns in a
+    nested join generally originate from different tables. Nested joins
+    also have no table name, except when a nested join is a merge view
+    or an information schema table.
 
     We include explicitly table references with a 'field_translation' table,
     because if there are views over natural joins we don't want to search
@@ -3001,8 +3000,8 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     TODO: Ensure that table_name, db_name and tables->db always points to
           something !
   */
-  if (/* Exclude natural joins and nested joins underlying natural joins. */
-      (!(table_list->nested_join && table_list->join_columns) ||
+  if (/* Exclude nested joins. */
+      (!table_list->nested_join ||
        /* Include merge views and information schema tables. */
        table_list->field_translation) &&
       /*
@@ -3025,13 +3024,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                  register_tree_change)))
       *actual_table= table_list;
   }
-  else if (!(table_list->nested_join && table_list->join_columns))
+  else if (!table_list->nested_join)
   {
-    /*
-      'table_list' is a stored table. It is so because the only type of nested
-      join passed to this procedure is a NATURAL/USING join or an operand of a
-      NATURAL/USING join.
-    */
+    /* 'table_list' is a stored table. */
+    DBUG_ASSERT(table_list->table);
     if ((fld= find_field_in_table(thd, table_list->table, name, length,
                                   check_grants_table, allow_rowid,
                                   cached_field_index_ptr)))
@@ -3357,9 +3353,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 
   for (uint i= 0; (item=li++); i++)
   {
-    if (field_name && item->type() == Item::FIELD_ITEM)
+    if (field_name && item->real_item()->type() == Item::FIELD_ITEM)
     {
-      Item_field *item_field= (Item_field*) item;
+      Item_ident *item_field= (Item_ident*) item;
 
       /*
 	In case of group_concat() with ORDER BY condition in the QUERY
@@ -4791,9 +4787,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   }
   DBUG_RETURN(test(thd->net.report_error));
 
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
 err_no_arena:
   DBUG_RETURN(1);
 }

@@ -40,7 +40,8 @@ HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
-bool table_rules_on= 0, replicate_same_server_id;
+bool table_rules_on= 0;
+my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
 /*
@@ -3324,7 +3325,7 @@ on this slave.\
 
 /* Slave I/O Thread entry point */
 
-extern "C" pthread_handler_decl(handle_slave_io,arg)
+pthread_handler_t handle_slave_io(void *arg)
 {
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql;
@@ -3633,7 +3634,7 @@ err:
 #ifndef DBUG_OFF
   if (abort_slave_event_count && !events_till_abort)
     goto slave_begin;
-#endif  
+#endif
   my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);				// Can't return anything here
@@ -3642,11 +3643,11 @@ err:
 
 /* Slave SQL Thread entry point */
 
-extern "C" pthread_handler_decl(handle_slave_sql,arg)
+pthread_handler_t handle_slave_sql(void *arg)
 {
   THD *thd;			/* needs to be first for thread_stack */
   char llbuff[22],llbuff1[22];
-  RELAY_LOG_INFO* rli = &((MASTER_INFO*)arg)->rli; 
+  RELAY_LOG_INFO* rli = &((MASTER_INFO*)arg)->rli;
   const char *errmsg;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
@@ -3654,7 +3655,7 @@ extern "C" pthread_handler_decl(handle_slave_sql,arg)
   DBUG_ENTER("handle_slave_sql");
 
 #ifndef DBUG_OFF
-slave_begin:  
+slave_begin:
 #endif  
 
   DBUG_ASSERT(rli->inited);

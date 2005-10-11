@@ -284,7 +284,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 /* Flag set if setup_tables already done */
 #define OPTION_SETUP_TABLES_DONE        (1L << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (1L << 31) // THD, user
+#define OPTION_SQL_NOTES                (1UL << 31) // THD, user
 /* 
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
@@ -538,6 +538,7 @@ struct Query_cache_query_flags
   unsigned int client_long_flag:1;
   unsigned int client_protocol_41:1;
   unsigned int more_results_exists:1;
+  unsigned int pkt_nr;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;
@@ -609,8 +610,8 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
-extern "C" pthread_handler_decl(handle_one_connection,arg);
-extern "C" pthread_handler_decl(handle_bootstrap,arg);
+pthread_handler_t handle_one_connection(void *arg);
+pthread_handler_t handle_bootstrap(void *arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
 bool mysql_execute_command(THD *thd);
@@ -1034,7 +1035,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
-extern "C" pthread_handler_decl(handle_manager, arg);
+pthread_handler_t handle_manager(void *arg);
 
 /* sql_test.cc */
 #ifndef DBUG_OFF
@@ -1069,7 +1070,6 @@ bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
-handlerton *binlog_init();
 
 /* mysqld.cc */
 extern void yyerror(const char*);
@@ -1154,12 +1154,13 @@ extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;
-extern bool opt_endinfo, using_udf_functions, locked_in_memory;
+extern bool opt_endinfo, using_udf_functions;
+extern my_bool locked_in_memory;
 extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
-extern bool opt_character_set_client_handshake;
+extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern bool mysql_proc_table_exists;
 extern uint volatile thread_count, thread_running, global_read_lock;
@@ -1174,7 +1175,7 @@ extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_routine_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
-extern bool opt_enable_shared_memory;
+extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;

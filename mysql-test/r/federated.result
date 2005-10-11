@@ -1457,6 +1457,32 @@ federated.t1	repair	status	OK
 REPAIR TABLE federated.t1 USE_FRM;
 Table	Op	Msg_type	Msg_text
 federated.t1	repair	status	OK
+DROP TABLE IF EXISTS federated.normal_table;
+CREATE TABLE federated.normal_table (
+`id` int(4) NOT NULL,
+`name` varchar(10) default NULL
+) DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.alter_me;
+CREATE TABLE federated.alter_me (
+`id` int(4) NOT NULL,
+`name` varchar(10) default NULL,
+PRIMARY KEY (`id`)
+) ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/normal_table';
+INSERT INTO federated.alter_me (id, name) VALUES (1, 'Monty');
+INSERT INTO federated.alter_me (id, name) VALUES (2, 'David');
+SELECT * FROM federated.alter_me;
+id	name
+1	Monty
+2	David
+ALTER TABLE federated.alter_me MODIFY COLUMN id int(16) NOT NULL;
+ERROR HY000: Table storage engine for 'alter_me' doesn't have this option
+SELECT * FROM federated.alter_me;
+id	name
+1	Monty
+2	David
+DROP TABLE federated.alter_me;
+DROP TABLE federated.normal_table;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

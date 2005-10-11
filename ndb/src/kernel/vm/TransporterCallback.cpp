@@ -314,18 +314,14 @@ reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode){
 #endif
 
   if(errorCode == TE_SIGNAL_LOST_SEND_BUFFER_FULL){
-    ErrorReporter::handleError(ecError,
-			       ERR_PROGRAMERROR,
-			       "Signal lost, send buffer full",
-			       __FILE__,
+    ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL,
+			       "", __FILE__,
 			       NST_ErrorHandler);
   }
 
   if(errorCode == TE_SIGNAL_LOST){
-    ErrorReporter::handleError(ecError,
-			       ERR_PROGRAMERROR,
-			       "Signal lost (unknown reason)",
-			       __FILE__,
+    ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST,
+			       "", __FILE__,
 			       NST_ErrorHandler);
   }
   

@@ -23,6 +23,7 @@
 
 
 static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
+static const char ERROR_PACKET_CODE= (char) 255;
 
 
 int net_send_ok(struct st_net *net, unsigned long connection_id,
@@ -74,7 +75,6 @@ int net_send_error(struct st_net *net, uint sql_errno)
             MYSQL_ERRMSG_SIZE];                 // message
   char *pos= buff;
 
-  enum { ERROR_PACKET_CODE= 255 };
   *pos++= ERROR_PACKET_CODE;
   int2store(pos, sql_errno);
   pos+= 2;
@@ -95,7 +95,6 @@ int net_send_error_323(struct st_net *net, uint sql_errno)
             MYSQL_ERRMSG_SIZE];                 // message
   char *pos= buff;
 
-  enum { ERROR_PACKET_CODE= 255 };
   *pos++= ERROR_PACKET_CODE;
   int2store(pos, sql_errno);
   pos+= 2;
@@ -148,14 +147,14 @@ int store_to_protocol_packet(Buffer *buf, const char *string, uint *position)
 
 int send_eof(struct st_net *net)
 {
-  char buff[1 + /* eof packet code */
-            2 + /* warning count */
-            2]; /* server status */
+  uchar buff[1 + /* eof packet code */
+	     2 + /* warning count */
+	     2]; /* server status */
 
   buff[0]=254;
   int2store(buff+1, 0);
   int2store(buff+3, 0);
-  return my_net_write(net, buff, sizeof buff);
+  return my_net_write(net, (char*) buff, sizeof buff);
 }
 
 int send_fields(struct st_net *net, LIST *fields)
@@ -195,7 +194,7 @@ int send_fields(struct st_net *net, LIST *fields)
     int2store(send_buff.buffer + position, 1);          /* charsetnr */
     int4store(send_buff.buffer + position + 2,
               field->length);                           /* field length */
-    send_buff.buffer[position+6]= FIELD_TYPE_STRING;    /* type */
+    send_buff.buffer[position+6]= (char) FIELD_TYPE_STRING;    /* type */
     int2store(send_buff.buffer + position + 7, 0);      /* flags */
     send_buff.buffer[position + 9]= (char) 0;           /* decimals */
     send_buff.buffer[position + 10]= 0;

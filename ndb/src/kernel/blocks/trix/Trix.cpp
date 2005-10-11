@@ -52,6 +52,7 @@ Trix::Trix(const Configuration & conf) :
   BLOCK_CONSTRUCTOR(Trix);
 
   // Add received signals
+  addRecSignal(GSN_READ_CONFIG_REQ,  &Trix::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR,  &Trix::execSTTOR);
   addRecSignal(GSN_NDB_STTOR,  &Trix::execNDB_STTOR); // Forwarded from DICT
   addRecSignal(GSN_READ_NODESCONF, &Trix::execREAD_NODESCONF);
@@ -85,6 +86,28 @@ Trix::Trix(const Configuration & conf) :
   addRecSignal(GSN_SUB_SYNC_CONTINUE_REQ, &Trix::execSUB_SYNC_CONTINUE_REQ);
   addRecSignal(GSN_SUB_META_DATA, &Trix::execSUB_META_DATA);
   addRecSignal(GSN_SUB_TABLE_DATA, &Trix::execSUB_TABLE_DATA);
+}
+
+/**
+ *
+ */
+Trix::~Trix()
+{
+}
+
+void 
+Trix::execREAD_CONFIG_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
 
   // Allocate pool sizes
   c_theAttrOrderBufferPool.setSize(100);
@@ -96,13 +119,12 @@ Trix::Trix(const Configuration & conf) :
     new (subptr.p) SubscriptionRecord(c_theAttrOrderBufferPool);
   }
   subscriptions.release();
-}
 
-/**
- *
- */
-Trix::~Trix()
-{
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }
 
 /**

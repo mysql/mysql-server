@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
 #pragma implementation
 #endif
 
@@ -372,10 +372,7 @@ void Listener_thread::handle_new_mysql_connection(Vio *vio)
 }
 
 
-C_MODE_START
-
-
-pthread_handler_decl(listener, arg)
+pthread_handler_t listener(void *arg)
 {
   Listener_thread_args *args= (Listener_thread_args *) arg;
   Listener_thread listener(*args);
@@ -386,7 +383,4 @@ pthread_handler_decl(listener, arg)
   */
   return 0;
 }
-
-
-C_MODE_END
 

@@ -124,7 +124,7 @@ class ha_berkeley: public handler
   int extra(enum ha_extra_function operation);
   int reset(void);
   int external_lock(THD *thd, int lock_type);
-  int start_stmt(THD *thd);
+  int start_stmt(THD *thd, thr_lock_type lock_type);
   void position(byte *record);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
@@ -161,7 +161,7 @@ extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
 
-handlerton *berkeley_init(void);
+bool berkeley_init(void);
 bool berkeley_end(void);
 bool berkeley_flush_logs(void);
 int berkeley_show_logs(Protocol *protocol);

@@ -396,10 +396,6 @@ SOURCE=..\sql\protocol.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\sql\protocol_cursor.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\sql\records.cpp
 # End Source File
 # Begin Source File

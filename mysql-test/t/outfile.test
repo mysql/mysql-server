@@ -65,3 +65,21 @@ EXPLAIN
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+#
+# Bug#13202  SELECT * INTO OUTFILE ... FROM information_schema.schemata now fails
+#
+disable_query_log;
+eval SELECT * INTO OUTFILE "$MYSQL_TEST_DIR/var/tmp/outfile-test.4"
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+FROM information_schema.schemata LIMIT 0, 5;
+# enable_query_log;
+--exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.4
+
+use information_schema;
+# disable_query_log;
+eval SELECT * INTO OUTFILE "$MYSQL_TEST_DIR/var/tmp/outfile-test.4"
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+FROM schemata LIMIT 0, 5;
+enable_query_log;
+--exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.4

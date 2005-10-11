@@ -208,6 +208,10 @@ static int innobase_release_savepoint(THD* thd, void *savepoint);
 
 handlerton innobase_hton = {
   "InnoDB",
+  SHOW_OPTION_YES,
+  "Supports transactions, row-level locking, and foreign keys", 
+  DB_TYPE_INNODB,
+  innobase_init,
   0,				/* slot */
   sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
   innobase_close_connection,
@@ -1188,7 +1192,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 /*************************************************************************
 Opens an InnoDB database. */
 
-handlerton*
+bool
 innobase_init(void)
 /*===============*/
 			/* out: &innobase_hton, or NULL on error */
@@ -1199,6 +1203,9 @@ innobase_init(void)
 	char 	        *default_path;
 
   	DBUG_ENTER("innobase_init");
+
+         if (have_innodb != SHOW_OPTION_YES)
+           goto error;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -1267,7 +1274,7 @@ innobase_init(void)
 			"InnoDB: syntax error in innodb_data_file_path");
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-	  	DBUG_RETURN(0);
+                goto error;
 	}
 
 	/* -------------- Log files ---------------------------*/
@@ -1298,7 +1305,7 @@ innobase_init(void)
 
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		DBUG_RETURN(0);
+                goto error;
 	}
 
 	/* --------------------------------------------------*/
@@ -1386,7 +1393,7 @@ innobase_init(void)
 	if (err != DB_SUCCESS) {
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		DBUG_RETURN(0);
+                goto error;
 	}
 
 	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
@@ -1413,7 +1420,10 @@ innobase_init(void)
 		glob_mi.pos = trx_sys_mysql_master_log_pos;
 	}
 */
-	DBUG_RETURN(&innobase_hton);
+	DBUG_RETURN(FALSE);
+error:
+        have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+        DBUG_RETURN(TRUE);
 }
 
 /***********************************************************************
@@ -5760,7 +5770,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		fclose(file);
 	} else {
 		/* unable to create temporary file */
-          	str = my_malloc(1, MYF(MY_ZEROFILL));
+          	str = my_strdup(
+"/* Error: cannot display foreign key constraints */", MYF(0));
 	}
 
   	return(str);
@@ -6000,7 +6011,8 @@ int
 ha_innobase::start_stmt(
 /*====================*/
 	              /* out: 0 or error code */
-	THD*    thd)  /* in: handle to the user thread */
+	THD*    thd,  /* in: handle to the user thread */
+        thr_lock_type lock_type)
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
@@ -6041,7 +6053,7 @@ ha_innobase::start_stmt(
 	} else {
 		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
 		    && thd->lex->sql_command == SQLCOM_SELECT
-		    && thd->lex->lock_option == TL_READ) {
+		    && lock_type == TL_READ) {
 	
 			/* For other than temporary tables, we obtain
 			no lock for consistent read (plain SELECT). */
@@ -7030,7 +7042,7 @@ ha_innobase::cmp_ref(
 						    (const char*)ref1, len1,
 			                            (const char*)ref2, len2);
 		} else {
-			result = field->cmp((const char*)ref1,
+			result = field->key_cmp((const char*)ref1,
 					    (const char*)ref2);
 		}
 

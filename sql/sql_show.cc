@@ -67,18 +67,18 @@ bool mysqld_show_storage_engines(THD *thd)
   const char *default_type_name= 
     ha_get_storage_engine((enum db_type)thd->variables.table_type);
 
-  show_table_type_st *types;
-  for (types= sys_table_types; types->type; types++)
+  handlerton **types;
+  for (types= sys_table_types; *types; types++)
   {
     protocol->prepare_for_resend();
-    protocol->store(types->type, system_charset_info);
-    const char *option_name= show_comp_option_name[(int) *types->value];
+    protocol->store((*types)->name, system_charset_info);
+    const char *option_name= show_comp_option_name[(int) (*types)->state];
 
-    if (*types->value == SHOW_OPTION_YES &&
-	!my_strcasecmp(system_charset_info, default_type_name, types->type))
+    if ((*types)->state == SHOW_OPTION_YES &&
+	!my_strcasecmp(system_charset_info, default_type_name, (*types)->name))
       option_name= "DEFAULT";
     protocol->store(option_name, system_charset_info);
-    protocol->store(types->comment, system_charset_info);
+    protocol->store((*types)->comment, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }

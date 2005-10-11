@@ -76,6 +76,10 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_NDBStopStarted = 17,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
+    NDB_LE_NDBStopCompleted = 53,
+    /** NDB_MGM_EVENT_CATEGORY_STARTUP */
+    NDB_LE_NDBStopForced = 59,
+    /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_NDBStopAborted = 18,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_StartREDOLog = 19,
@@ -148,9 +152,12 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_INFO */
     NDB_LE_InfoEvent = 49,
 
-    /* GREP */
-    NDB_LE_GrepSubscriptionInfo = 52,
-    NDB_LE_GrepSubscriptionAlert = 53,
+    /* 50 used */
+    /* 51 used */
+
+    /* SINGLE USER */
+    NDB_LE_SingleUser = 52,
+    /* 53 used */
 
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupStarted = 54,
@@ -160,6 +167,13 @@ extern "C" {
     NDB_LE_BackupCompleted = 56,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupAborted = 57
+
+    /* 58 used in 5.1  */
+    /* 59 used */
+    /* 60 unused */
+    /* 61 unused */
+    /* 62 unused */
+
   };
 
   /**
@@ -389,6 +403,19 @@ extern "C" {
       } NDBStopStarted;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
+	unsigned action;
+	unsigned signum;
+      } NDBStopCompleted;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
+      struct {
+	unsigned action;
+	unsigned signum;
+	unsigned error;
+	unsigned sphase;
+	unsigned extra;
+      } NDBStopForced;
+      /** Log event specific data for for corresponding NDB_LE_ log event */
+      struct {
       } NDBStopAborted;
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
@@ -593,6 +620,11 @@ extern "C" {
 	unsigned backup_id;
 	unsigned error;
       } BackupAborted;
+      /** Log event data @ref NDB_LE_SingleUser */
+      struct {
+        unsigned type;
+        unsigned node_id;
+      } SingleUser;
 #ifndef DOXYGEN_FIX
     };
 #else

@@ -22,7 +22,7 @@
 #include <my_sys.h>
 #include <my_list.h>
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
 
@@ -31,11 +31,7 @@ class Instance_map;
 class Thread_registry;
 struct GUARD_NODE;
 
-C_MODE_START
-
-pthread_handler_decl(guardian, arg);
-
-C_MODE_END
+pthread_handler_t guardian(void *arg);
 
 struct Guardian_thread_args
 {

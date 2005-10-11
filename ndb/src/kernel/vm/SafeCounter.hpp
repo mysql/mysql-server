@@ -63,7 +63,7 @@ class SafeCounterManager {
 public:
   SafeCounterManager(class SimulatedBlock &);
   
-  bool setSize(Uint32 maxNoOfActiveMutexes);
+  bool setSize(Uint32 maxNoOfActiveMutexes, bool exit_on_error = true);
   Uint32 getSize() const ;
 
   void execNODE_FAILREP(Signal*); 

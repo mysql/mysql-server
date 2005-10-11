@@ -54,6 +54,10 @@ TYPELIB myisam_stats_method_typelib= {
 
 handlerton myisam_hton= {
   "MyISAM",
+  SHOW_OPTION_YES,
+  "Default engine as of MySQL 3.23 with great performance", 
+  DB_TYPE_MYISAM,
+  NULL,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -73,7 +77,7 @@ handlerton myisam_hton= {
     MyISAM doesn't support transactions and doesn't have
     transaction-dependent context: cursors can survive a commit.
   */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 // collect errors printed by mi_check routines
@@ -1703,6 +1707,6 @@ int ha_myisam::ft_read(byte * buf)
 
 uint ha_myisam::checksum() const
 {
-  return (uint)file->s->state.checksum;
+  return (uint)file->state->checksum;
 }
 

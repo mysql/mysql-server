@@ -28,6 +28,10 @@
 
 handlerton blackhole_hton= {
   "BLACKHOLE",
+  SHOW_OPTION_YES,
+  "/dev/null storage engine (anything you write to it disappears)",
+  DB_TYPE_BLACKHOLE_DB,
+  NULL,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -43,7 +47,7 @@ handlerton blackhole_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 /*****************************************************************************

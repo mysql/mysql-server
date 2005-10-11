@@ -62,7 +62,7 @@ comment='Host privileges;  Merged with database privileges';
 CREATE TABLE user (
   Host char(60) binary DEFAULT '' NOT NULL,
   User char(16) binary DEFAULT '' NOT NULL,
-  Password char(41) binary DEFAULT '' NOT NULL,
+  Password binary(41) DEFAULT '' NOT NULL,
   Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
