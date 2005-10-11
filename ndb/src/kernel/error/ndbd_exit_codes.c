@@ -95,6 +95,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_SIGNAL_LOST,    XIE, "Signal lost (unknown reason)"},
    {NDBD_EXIT_ILLEGAL_SIGNAL, XIE,
     "Illegal signal (version mismatch a possibility)"},
+   {NDBD_EXIT_CONNECTION_SETUP_FAILED, XCE, "Connection setup failed"},
 
    /* Ndbcntr */
    {NDBD_EXIT_RESTART_TIMEOUT, XCE,

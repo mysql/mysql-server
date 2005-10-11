@@ -1508,8 +1508,8 @@ TransporterRegistry::startReceiving()
     {
       DBUG_PRINT("error",("Install failed"));
       g_eventLogger.error("Failed to install signal handler for"
-			  " SHM transporter errno: %d (%s)", errno, 
-			  strerror(errno));
+			  " SHM transporter, signum %d, errno: %d (%s)",
+			  g_ndb_shm_signum, errno, strerror(errno));
     }
   }
 #endif // NDB_SHM_TRANSPORTER

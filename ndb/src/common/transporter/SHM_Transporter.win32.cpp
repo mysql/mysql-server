@@ -26,6 +26,12 @@
 #include <windows.h>
 
 
+void SHM_Transporter::make_error_info(char info[], int sz)
+{
+  snprintf(info,sz,"Shm key=%d sz=%d",
+	   shmKey, shmSize);
+}
+
 bool
 SHM_Transporter::connectServer(Uint32 timeOutMillis){
   if(!_shmSegCreated)

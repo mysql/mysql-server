@@ -150,7 +150,6 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SCI",  fixPortNumber, 0 }, // has to come after fixHostName
-  { "SHM",  fixShmKey, 0 },
 
   /**
    * fixExtConnection must be after fixNodeId
@@ -163,6 +162,8 @@ ConfigInfo::m_SectionRules[] = {
   { "*",    applyDefaultValues, "user" },
   { "*",    fixDepricated, 0 },
   { "*",    applyDefaultValues, "system" },
+
+  { "SHM",  fixShmKey, 0 }, // has to come after apply default values
 
   { DB_TOKEN,   checkLocalhostHostnameMix, 0 },
   { API_TOKEN,  checkLocalhostHostnameMix, 0 },
@@ -1798,7 +1799,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "0",
+    UNDEFINED,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
