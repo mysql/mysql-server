@@ -74,6 +74,12 @@ CREATE TABLE federated.t2 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SHOW CREATE TABLE federated.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(20) NOT NULL,
+  `name` varchar(32) NOT NULL default ''
+) ENGINE=FEDERATED DEFAULT CHARSET=latin1 CONNECTION='mysql://root@127.0.0.1:9308/federated/t1'
 INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t2 (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.t2;
