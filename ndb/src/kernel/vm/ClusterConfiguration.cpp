@@ -359,12 +359,12 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
     if(!db.get(tmp[i].attrib, tmp[i].storage)){
       char buf[255];
       BaseString::snprintf(buf, sizeof(buf), "%s not found", tmp[i].attrib);
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
     }
   }
 
   if(!p.get("NoOfNodes", &cd.SizeAltData.noOfNodes)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "NoOfNodes missing");
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "NoOfNodes missing");
   }
   
   Properties::Iterator it(&p);
@@ -378,36 +378,36 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
       const Properties * node;
       
       if(!p.get(name, &node)){
-	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "Node data missing");
+	ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data missing");
       }
       
       if(!node->get("Id", &nodeId)){
-	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "Node data (Id) missing");
+	ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Id) missing");
       }
       
       if(!node->get("Type", &nodeType)){
-	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "Node data (Type) missing");
+	ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Type) missing");
       }
       
       if(nodeId > MAX_NODES){
 	char buf[255];
 	snprintf(buf, sizeof(buf),
 		 "Maximum DB node id allowed is: %d", MAX_NDB_NODES);
-	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+	ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
       }
       
       if(nodeId == 0){
 	char buf[255];
 	snprintf(buf, sizeof(buf),
 		 "Minimum node id allowed in the cluster is: 1");
-	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+	ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
       }
 
       for(unsigned j = 0; j<nodeNo; j++){
 	if(cd.nodeData[j].nodeId == nodeId){
 	  char buf[255];
 	  BaseString::snprintf(buf, sizeof(buf), "Two node can not have the same node id");
-	  ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+	  ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
 	}
       }
       
@@ -430,14 +430,14 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
 	if(nodeId > MAX_NDB_NODES){
 	  char buf[255];
 	  BaseString::snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", MAX_NDB_NODES);
-	  ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+	  ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
 	}
 	if(cd.SizeAltData.noOfNDBNodes > MAX_NDB_NODES){
 	  char buf[255];
 	  BaseString::snprintf(buf, sizeof(buf),
 		   "Maximum %d ndb nodes is allowed in the cluster", 
 		  MAX_NDB_NODES);
-	  ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+	  ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
 	}
       } else if(strcmp("API", nodeType) == 0){
 	cd.nodeData[nodeNo].nodeType = NodeInfo::API;
@@ -452,7 +452,7 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
 	cd.SizeAltData.noOfMGMNodes++; // No of MGM processes
 	tmpApiMgmProperties = "MGM";
       } else {
-	ERROR_SET(fatal, ERR_INVALID_CONFIG, 
+	ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, 
 		  "Invalid configuration: Unknown node type",
 		  nodeType);
       }
@@ -462,7 +462,7 @@ void ClusterConfiguration::init(const Properties & p, const Properties & db){
 	  const Properties* q = 0;
 	  
 	  if (!p.get(tmpApiMgmProperties, nodeId, &q)) {
-	  ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, tmpApiMgmProperties);
+	  ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, tmpApiMgmProperties);
 	  } else {
 	*/
         Uint32 rank = 0;

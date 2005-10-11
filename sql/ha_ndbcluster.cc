@@ -51,6 +51,10 @@ static int ndbcluster_rollback(THD *thd, bool all);
 
 handlerton ndbcluster_hton = {
   "ndbcluster",
+  SHOW_OPTION_YES,
+  "Clustered, fault-tolerant, memory-based tables", 
+  DB_TYPE_NDBCLUSTER,
+  ndbcluster_init,
   0, /* slot */
   0, /* savepoint size */
   ndbcluster_close_connection,
@@ -117,7 +121,7 @@ static int ndb_get_table_statistics(Ndb*, const char *,
 static pthread_t ndb_util_thread;
 pthread_mutex_t LOCK_ndb_util_thread;
 pthread_cond_t COND_ndb_util_thread;
-extern "C" pthread_handler_decl(ndb_util_thread_func, arg);
+pthread_handler_t ndb_util_thread_func(void *arg);
 ulong ndb_cache_check_time;
 
 /*
@@ -1209,7 +1213,8 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
   DBUG_ENTER("ha_ndbcluster::index_flags");
   DBUG_PRINT("info", ("idx_no: %d", idx_no));
   DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
-  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)]);
+  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)] | 
+              HA_KEY_SCAN_NOT_ROR);
 }
 
 static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
@@ -3400,7 +3405,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   startTransaction for each transaction/statement.
 */
 
-int ha_ndbcluster::start_stmt(THD *thd)
+int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   int error=0;
   DBUG_ENTER("start_stmt");
@@ -4734,11 +4739,14 @@ static int connect_callback()
   return 0;
 }
 
-handlerton *
-ndbcluster_init()
+bool ndbcluster_init()
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
+
+  if (have_ndbcluster != SHOW_OPTION_YES)
+    goto ndbcluster_init_error;
+
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
     DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
@@ -4819,16 +4827,17 @@ ndbcluster_init()
   }
   
   ndbcluster_inited= 1;
-  DBUG_RETURN(&ndbcluster_hton);
+  DBUG_RETURN(FALSE);
 
- ndbcluster_init_error:
+ndbcluster_init_error:
   if (g_ndb)
     delete g_ndb;
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
-  DBUG_RETURN(NULL);
+  have_ndbcluster= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -5917,8 +5926,7 @@ ha_ndbcluster::update_table_comment(
 
 
 // Utility thread main loop
-extern "C" pthread_handler_decl(ndb_util_thread_func,
-                                arg __attribute__((unused)))
+pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   Ndb* ndb;

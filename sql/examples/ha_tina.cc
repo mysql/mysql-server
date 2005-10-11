@@ -56,6 +56,10 @@ static int tina_init= 0;
 
 handlerton tina_hton= {
   "CSV",
+  SHOW_OPTION_YES,
+  "CSV storage engine", 
+  DB_TYPE_CSV_DB,
+  NULL,    /* One needs to be written! */
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -71,7 +75,7 @@ handlerton tina_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 /*****************************************************************************
@@ -856,21 +860,6 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
   *to++= &lock;
   return to;
 }
-
-/* 
-  Range optimizer calls this.
-  I need to update the information on this.
-*/
-ha_rows ha_tina::records_in_range(int inx,
-                                  const byte *start_key,uint start_key_len,
-                                  enum ha_rkey_function start_search_flag,
-                                  const byte *end_key,uint end_key_len,
-                                  enum ha_rkey_function end_search_flag)
-{
-  DBUG_ENTER("ha_tina::records_in_range ");
-  DBUG_RETURN(records); // Good guess
-}
-
 
 /* 
   Create a table. You do not want to leave the table open after a call to

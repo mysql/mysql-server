@@ -38,6 +38,7 @@ ulong sync_binlog_counter= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
+static bool binlog_init();
 static int binlog_close_connection(THD *thd);
 static int binlog_savepoint_set(THD *thd, void *sv);
 static int binlog_savepoint_rollback(THD *thd, void *sv);
@@ -45,8 +46,12 @@ static int binlog_commit(THD *thd, bool all);
 static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
-static handlerton binlog_hton = {
+handlerton binlog_hton = {
   "binlog",
+  SHOW_OPTION_YES,
+  "This is a meta storage engine to represent the binlog in a transaction",
+  DB_TYPE_UNKNOWN,              /* IGNORE  for now */
+  binlog_init,
   0,
   sizeof(my_off_t),             /* savepoint size = binlog offset */
   binlog_close_connection,
@@ -61,7 +66,7 @@ static handlerton binlog_hton = {
   NULL,                         /* rollback_by_xid */
   NULL,                         /* create_cursor_read_view */
   NULL,                         /* set_cursor_read_view */
-  NULL,    			/* close_cursor_read_view */
+  NULL,                         /* close_cursor_read_view */
   HTON_NO_FLAGS
 };
 
@@ -71,9 +76,9 @@ static handlerton binlog_hton = {
   should be moved here.
 */
 
-handlerton *binlog_init()
+bool binlog_init()
 {
-  return &binlog_hton;
+  return !opt_bin_log;
 }
 
 static int binlog_close_connection(THD *thd)
@@ -1850,7 +1855,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
     if (commit_event->write(&log_file))
       goto err;
+#ifndef DBUG_OFF
 DBUG_skip_commit:
+#endif
     if (flush_and_sync())
       goto err;
     DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););

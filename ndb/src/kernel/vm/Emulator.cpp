@@ -35,11 +35,16 @@
 
 #include <EventLogger.hpp>
 
+void childExit(int code, Uint32 currentStartPhase);
+void childAbort(int code, Uint32 currentStartPhase);
+
 extern "C" {
   extern void (* ndb_new_handler)();
 }
 extern EventLogger g_eventLogger;
 extern my_bool opt_core;
+// instantiated and updated in NdbcntrMain.cpp
+extern Uint32 g_currentStartPhase;
 
 /**
  * Declare the global variables 
@@ -76,7 +81,7 @@ EmulatorData::EmulatorData(){
 
 void
 ndb_new_handler_impl(){
-  ERROR_SET(fatal, ERR_MEMALLOC, "New handler", "");
+  ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, "New handler", "");
 }
 
 void
@@ -111,8 +116,8 @@ EmulatorData::destroy(){
 
 void
 NdbShutdown(NdbShutdownType type,
-	    NdbRestartType restartType){
-  
+	    NdbRestartType restartType)
+{
   if(type == NST_ErrorInsert){
     type = NST_Restart;
     restartType = (NdbRestartType)
@@ -181,12 +186,11 @@ NdbShutdown(NdbShutdownType type,
       g_eventLogger.info("Watchdog shutdown completed - %s", exitAbort);
       if (opt_core)
       {
-	signal(6, SIG_DFL);
-	abort();
+	childAbort(-1,g_currentStartPhase);
       }
       else
       {
-	exit(-1);
+	childExit(-1,g_currentStartPhase);
       }
     }
 
@@ -241,12 +245,11 @@ NdbShutdown(NdbShutdownType type,
       g_eventLogger.info("Error handler shutdown completed - %s", exitAbort);
       if (opt_core)
       {
-	signal(6, SIG_DFL);
-	abort();
+	childAbort(-1,g_currentStartPhase);
       }
       else
       {
-	exit(-1);
+	childExit(-1,g_currentStartPhase);
       }
     }
     
@@ -254,7 +257,7 @@ NdbShutdown(NdbShutdownType type,
      * This is a normal restart, depend on angel
      */
     if(type == NST_Restart){
-      exit(restartType);
+      childExit(restartType,g_currentStartPhase);
     }
     
     g_eventLogger.info("Shutdown completed - exiting");
@@ -269,10 +272,9 @@ NdbShutdown(NdbShutdownType type,
     if (type== NST_Watchdog){
       g_eventLogger.info("Watchdog is killing system the hard way");
 #if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
-      signal(6, SIG_DFL);
-      abort();
+      childAbort(-1,g_currentStartPhase);
 #else
-      exit(-1);
+      childExit(-1,g_currentStartPhase);
 #endif
     }
     

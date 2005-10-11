@@ -2973,7 +2973,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   const char *field_name;
   ORDER      *found_group= NULL;
   int         found_match_degree= 0;
-  Item_field *cur_field;
+  Item_ident *cur_field;
   int         cur_match_degree= 0;
 
   if (find_item->type() == Item::FIELD_ITEM ||
@@ -2992,7 +2992,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   {
     if ((*(cur_group->item))->real_item()->type() == Item::FIELD_ITEM)
     {
-      cur_field= (Item_field*) *cur_group->item;
+      cur_field= (Item_ident*) *cur_group->item;
       cur_match_degree= 0;
       
       DBUG_ASSERT(cur_field->field_name != 0);
@@ -5236,32 +5236,21 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   }
   case ROW_RESULT:
   {
+    Item_row *item_row= (Item_row*) item;
+    Item_row *comp_item_row= (Item_row*) comp_item;
+    uint col;
     new_item= 0;
     /*
       If item and comp_item are both Item_rows and have same number of cols
-      then process items in Item_row one by one. If Item_row contain nulls
-      substitute it by Item_null. Otherwise just return.
+      then process items in Item_row one by one.
+      We can't ignore NULL values here as this item may be used with <=>, in
+      which case NULL's are significant.
     */
-    if (item->result_type() == comp_item->result_type() &&
-        ((Item_row*)item)->cols() == ((Item_row*)comp_item)->cols())
-    {
-      Item_row *item_row= (Item_row*)item,*comp_item_row= (Item_row*)comp_item;
-      if (item_row->null_inside())
-        new_item= (Item*) new Item_null(name);
-      else
-      {
-        int i= item_row->cols() - 1;
-        for (; i >= 0; i--)
-        {
-          if (item_row->maybe_null && item_row->el(i)->is_null())
-          {
-            new_item= (Item*) new Item_null(name);
-            break;
-          }
-          resolve_const_item(thd, item_row->addr(i), comp_item_row->el(i));
-        }
-      }
-    }
+    DBUG_ASSERT(item->result_type() == comp_item->result_type());
+    DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
+    col= item_row->cols();
+    while (col-- > 0)
+      resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
     break;
   }
   case REAL_RESULT:
@@ -5716,6 +5705,8 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
+  uint max_length_orig= max_length;
+  uint decimals_orig= decimals;
   DBUG_ENTER("Item_type_holder::join_types");
   DBUG_PRINT("info:", ("was type %d len %d, dec %d name %s",
                        fld_type, max_length, decimals,
@@ -5742,7 +5733,10 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   else
     max_length= max(max_length, display_length(item));
-  if (Field::result_merge_type(fld_type) == STRING_RESULT)
+ 
+  switch (Field::result_merge_type(fld_type))
+  {
+  case STRING_RESULT:
   {
     const char *old_cs, *old_derivation;
     old_cs= collation.collation->name;
@@ -5756,7 +5750,23 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       "UNION");
       DBUG_RETURN(TRUE);
     }
+    break;
   }
+  case REAL_RESULT:
+  {
+    if (decimals != NOT_FIXED_DEC)
+    {
+      int delta1= max_length_orig - decimals_orig;
+      int delta2= item->max_length - item->decimals;
+      max_length= min(max(delta1, delta2) + decimals,
+                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+    }
+    else
+      max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
+    break;
+  }
+  default:;
+  };
   maybe_null|= item->maybe_null;
   get_full_info(item);
 

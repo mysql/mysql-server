@@ -459,7 +459,9 @@ event_thread_run(void* m)
 
   NdbMgmHandle handle= *(NdbMgmHandle*)m;
 
-  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+		   1, NDB_MGM_EVENT_CATEGORY_STARTUP,
+		   0 };
   int fd = ndb_mgm_listen_event(handle, filter);
   if (fd != NDB_INVALID_SOCKET)
   {
@@ -1443,9 +1445,8 @@ CommandInterpreter::executeEnterSingleUser(char* parameters)
     ndbout_c("Entering single user mode for node %d failed", nodeId);
     printError();
   } else {
-    ndbout_c("Entering single user mode");
-    ndbout_c("Access will be granted for API node %d only.", nodeId);
-    ndbout_c("Use ALL STATUS to see when single user mode has been entered.");
+    ndbout_c("Single user mode entered");
+    ndbout_c("Access is granted for API node %d only.", nodeId);
   }
 }
 
@@ -1458,7 +1459,7 @@ CommandInterpreter::executeExitSingleUser(char* parameters)
     printError();
   } else {
     ndbout_c("Exiting single user mode in progress.");
-    ndbout_c("Use ALL STATUS to see when single user mode has been exited.");
+    ndbout_c("Use ALL STATUS or SHOW to see when single user mode has been exited.");
   }
 }
 

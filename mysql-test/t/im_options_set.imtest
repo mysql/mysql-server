@@ -1,0 +1,142 @@
+###########################################################################
+#
+# This file contains test for (3) test suite.
+#
+# Consult WL#2789 for more information.
+#
+###########################################################################
+
+#
+# Check the options-management commands:
+#  - SET;
+#  - FLUSH INSTANCES;
+#
+# Let's test the commands on the option 'server_id'. It's expected that
+# originally the instances have the following server ids:
+#  - mysqld1: 1
+#  - mysqld2: 2
+#
+#  1. SET <instance_id>.server_id= SERVER_ID); where SERVER_ID is 11 or 12.
+#   1.1. check that the configuration file has been updated (i.e.  contains
+#     server_id=SERVER_ID for the instance);
+#   1.2. (for mysqld1) check that the running instance has not been affected:
+#     connect to the instance and check that 'SHOW VARIABLES LIKE 'server_id''
+#     returns zero;
+#   1.3. check that internal cache of Instance Manager has not been affected
+#     (i.e.  SHOW INSTANCE OPTIONS <instance> does not contain updated value).
+#
+#  2. FLUSH INSTANCES;
+#   2.1. check that the configuration file has not been updated;
+#   2.2. (for mysqld1) check that the running instance has not been affected:
+#     connect to the instance and check that 'SHOW VARIABLES LIKE 'server_id''
+#     returns zero value;
+#   2.3. check that internal cache of Instance Manager has been updated (i.e.
+#     SHOW INSTANCE OPTIONS <instance> contains 'server_id=SERVER_ID' line).
+#
+#  3. Restore options.
+#
+
+###########################################################################
+
+--source include/im_check_os.inc
+
+###########################################################################
+#
+# 0. Check starting conditions.
+#
+###########################################################################
+
+# - check the configuration file;
+
+--exec grep server_id $MYSQL_TEST_DIR/var/im.cnf ;
+
+# - check the running instances.
+
+--connect (mysql1_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
+
+--connection mysql1_con
+
+SHOW VARIABLES LIKE 'server_id';
+
+--connection default
+
+# - check the internal cache.
+#   TODO: we should check only server_id option here.
+
+# SHOW INSTANCE OPTIONS mysqld1;
+# SHOW INSTANCE OPTIONS mysqld2;
+
+###########################################################################
+#
+#  1. SET <instance_id>.server_id= SERVER_ID); where SERVER_ID is 11 or 12.
+#
+###########################################################################
+
+# * mysqld1
+
+SET mysqld1.server_id = 11;
+
+#   - check that the configuration file has been updated (i.e. contains
+#     server_id=SERVER_ID for the instance);
+
+--exec grep server_id $MYSQL_TEST_DIR/var/im.cnf ;
+
+#   - (for mysqld1) check that the running instance has not been affected:
+#     connect to the instance and check that 'SHOW VARIABLES LIKE 'server_id''
+#     returns zero;
+
+--connection mysql1_con
+
+SHOW VARIABLES LIKE 'server_id';
+
+--connection default
+
+#   - check that internal cache of Instance Manager has not been affected
+#     (i.e.  SHOW INSTANCE OPTIONS <instance> does not contain updated value).
+#     TODO: we should check only server_id option here.
+
+# SHOW INSTANCE OPTIONS mysqld1;
+
+# * mysqld2
+
+SET mysqld2.server_id = 12;
+
+#   - check that the configuration file has been updated (i.e.  contains
+#     server_id=SERVER_ID for the instance);
+
+--exec grep server_id $MYSQL_TEST_DIR/var/im.cnf ;
+
+#   - check that internal cache of Instance Manager has not been affected
+#     (i.e.  SHOW INSTANCE OPTIONS <instance> does not contain updated value).
+#     TODO: we should check only server_id option here.
+
+# SHOW INSTANCE OPTIONS mysqld2;
+
+###########################################################################
+#
+# 2. FLUSH INSTANCES;
+#
+###########################################################################
+
+FLUSH INSTANCES;
+
+#   - check that the configuration file has not been updated;
+
+--exec grep server_id $MYSQL_TEST_DIR/var/im.cnf ;
+
+#   - (for mysqld1) check that the running instance has not been affected:
+#     connect to the instance and check that 'SHOW VARIABLES LIKE 'server_id''
+#     returns zero value;
+
+--connection mysql1_con
+
+SHOW VARIABLES LIKE 'server_id';
+
+--connection default
+
+#   - check that internal cache of Instance Manager has been updated (i.e.
+#     SHOW INSTANCE OPTIONS <instance> contains 'server_id=' line).
+#     TODO: we should check only server_id option here.
+
+# SHOW INSTANCE OPTIONS mysqld1;
+# SHOW INSTANCE OPTIONS mysqld2;

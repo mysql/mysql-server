@@ -2409,6 +2409,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         !field->table->maybe_null || field->null_ptr)
       return;					// Not a key. Skip it
     exists_optimize= KEY_OPTIMIZE_EXISTS;
+    DBUG_ASSERT(num_values == 1);
   }
   else
   {
@@ -2460,7 +2461,26 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func is NEVER true when num_values > 1
        */
       if (!eq_func)
-        return;
+      {
+        /* 
+          Additional optimization: if we're processing
+          "t.key BETWEEN c1 AND c1" then proceed as if we were processing
+          "t.key = c1".
+          TODO: This is a very limited fix. A more generic fix is possible. 
+          There are 2 options:
+          A) Make equality propagation code be able to handle BETWEEN
+             (including cases like t1.key BETWEEN t2.key AND t3.key)
+          B) Make range optimizer to infer additional "t.key = c" equalities
+             and use them in equality propagation process (see details in
+             OptimizerKBAndTodo)
+        */
+        if ((cond->functype() == Item_func::BETWEEN) && 
+             value[0]->eq(value[1], field->binary()))
+          eq_func= TRUE;
+        else
+          return;
+      }
+
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -2487,7 +2507,6 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
       }
     }
   }
-  DBUG_ASSERT(num_values == 1);
   /*
     For the moment eq_func is always true. This slot is reserved for future
     extensions where we want to remembers other things than just eq comparisons

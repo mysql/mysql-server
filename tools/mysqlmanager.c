@@ -332,8 +332,8 @@ static int client_msg_raw(NET* net,int err_code,int pre,const char* fmt,
 static int authenticate(struct manager_thd* thd);
 /* returns pointer to end of line */
 static char* read_line(struct manager_thd* thd);
-static pthread_handler_decl(process_connection, arg);
-static pthread_handler_decl(process_launcher_messages, arg);
+pthread_handler_t process_connection(void *arg);
+pthread_handler_t process_launcher_messages(void *arg);
 static int exec_line(struct manager_thd* thd,char* buf,char* buf_end);
 
 #ifdef DO_STACKTRACE
@@ -1089,8 +1089,7 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
   pthread_mutex_unlock(&lock_log);
 }
 
-static pthread_handler_decl(process_launcher_messages,
-			    args __attribute__((unused)))
+pthread_handler_t process_launcher_messages(void *arg __attribute__((unused)))
 {
   my_thread_init();
   for (;!in_shutdown;)
@@ -1146,7 +1145,7 @@ static pthread_handler_decl(process_launcher_messages,
   return 0;
 }
 
-static pthread_handler_decl(process_connection,arg)
+pthread_handler_t process_connection(void *arg)
 {
   struct manager_thd* thd = (struct manager_thd*)arg;
   my_thread_init();

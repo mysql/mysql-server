@@ -650,7 +650,7 @@ fi
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/sql-bench
 %attr(-, root, root) %{_datadir}/mysql-test
-%attr(755, rott, root) %{_bindir}/mysql_client_test
+%attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysqltestmanager
 %attr(755, root, root) %{_bindir}/mysqltestmanager-pwgen
 %attr(755, root, root) %{_bindir}/mysqltestmanagerc

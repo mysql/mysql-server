@@ -578,7 +578,7 @@ int find_recovery_captain(THD* thd, MYSQL* mysql)
 }
 
 
-pthread_handler_decl(handle_failsafe_rpl,arg)
+pthread_handler_t handle_failsafe_rpl(void *arg)
 {
   DBUG_ENTER("handle_failsafe_rpl");
   THD *thd = new THD;
