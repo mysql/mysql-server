@@ -280,7 +280,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
       DBUG_PRINT("info", ("STRING_RESULT: null"));
       goto return_null_item;
     }
-    DBUG_PRINT("info",("STRING_RESULT: %*s",
+    DBUG_PRINT("info",("STRING_RESULT: %.*s",
                        s->length(), s->c_ptr_quick()));
     /*
       Reuse mechanism in sp_eval_func_item() is only employed for assignments
@@ -354,7 +354,7 @@ sp_name::init_qname(THD *thd)
     return;
   m_qname.length= m_sroutines_key.length - 1;
   m_qname.str= m_sroutines_key.str + 1;
-  sprintf(m_qname.str, "%*s.%*s",
+  sprintf(m_qname.str, "%.*s.%.*s",
 	  m_db.length, (m_db.length ? m_db.str : ""),
 	  m_name.length, m_name.str);
 }
