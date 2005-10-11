@@ -5420,3 +5420,5 @@ ER_ROW_IS_REFERENCED_2 23000
 	eng "Cannot delete or update a parent row: a foreign key constraint fails (%.192s)"
 ER_NO_REFERENCED_ROW_2 23000
 	eng "Cannot add or update a child row: a foreign key constraint fails (%.192s)"
+ER_SP_BAD_VAR_SHADOW 42000
+	eng "Variable '%-.64s' must be quoted with `...`, or renamed"
