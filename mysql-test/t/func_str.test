@@ -15,6 +15,7 @@ select bit_length('\n\t\r\b\0\_\%\\');
 select char_length('\n\t\r\b\0\_\%\\');
 select length(_latin1'\n\t\n\b\0\\_\\%\\');
 select concat('monty',' was here ','again'),length('hello'),char(ascii('h')),ord('h');
+select hex(char(256));
 select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE'); 
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');

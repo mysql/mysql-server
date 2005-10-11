@@ -737,9 +737,7 @@ err:
 static int check_result(DYNAMIC_STRING* ds, const char *fname,
 			my_bool require_option)
 {
-  int error= RESULT_OK;
   int res= dyn_string_cmp(ds, fname);
-
   DBUG_ENTER("check_result");
 
   if (res && require_option)
@@ -749,18 +747,16 @@ static int check_result(DYNAMIC_STRING* ds, const char *fname,
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
     verbose_msg("Result length mismatch");
-    error= RESULT_LENGTH_MISMATCH;
     break;
   case RESULT_CONTENT_MISMATCH:
     verbose_msg("Result content mismatch");
-    error= RESULT_CONTENT_MISMATCH;
     break;
   default: /* impossible */
     die("Unknown error code from dyn_string_cmp()");
   }
-  if (error)
+  if (res != RESULT_OK)
     reject_dump(fname, ds->str, ds->length);
-  DBUG_RETURN(error);
+  DBUG_RETURN(res);
 }
 
 

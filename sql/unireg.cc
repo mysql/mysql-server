@@ -474,16 +474,10 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
           char *dst;
           uint length= field->interval->type_lengths[pos], hex_length;
           const char *src= field->interval->type_names[pos];
-          const char *srcend= src + length;
           hex_length= length * 2;
           field->interval->type_lengths[pos]= hex_length;
           field->interval->type_names[pos]= dst= sql_alloc(hex_length + 1);
-          for ( ; src < srcend; src++)
-          {
-            *dst++= _dig_vec_upper[((uchar) *src) >> 4];
-            *dst++= _dig_vec_upper[((uchar) *src) & 15];
-          }
-          *dst= '\0';
+          octet2hex(dst, src, length);
         }
       }
 

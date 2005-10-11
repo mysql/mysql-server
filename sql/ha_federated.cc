@@ -821,13 +821,8 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
 
     *buf++= '0';
     *buf++= 'x';
-    for (; len; ptr++,len--)
-    {
-      uint tmp= (uint)(uchar) *ptr;
-      *buf++= _dig_vec_upper[tmp >> 4];
-      *buf++= _dig_vec_upper[tmp & 15];
-    }
-    if (to->append(buff, (uint)(buf - buff)))
+    buf= octet2hex(buf, (char*) ptr, len);
+    if (to->append((char*) buff, (uint)(buf - buff)))
       DBUG_RETURN(1);
   }
   else if (part->key_part_flag & HA_BLOB_PART)

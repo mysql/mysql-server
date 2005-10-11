@@ -1427,7 +1427,7 @@ mysql_rename_view(THD *thd,
 
     /* get view definition and source */
     if (parser->parse((gptr)&view_def, thd->mem_root, view_parameters,
-                      sizeof(view_parameters)/sizeof(view_parameters[0])-1))
+                      array_elements(view_parameters)-1))
       goto err;
 
     /* rename view and it's backups */

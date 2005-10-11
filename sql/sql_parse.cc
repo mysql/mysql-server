@@ -5054,11 +5054,16 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
   tables->db= db;
   tables->table_name= tables->alias= name;
   
-  if ((thd->security_ctx->master_access & want_access) == want_access &&
-      !thd->db)
+  /*
+    The following test is just a shortcut for check_access() (to avoid
+    calculating db_access) under the assumption that it's common to
+    give persons global right to execute all stored SP (but not
+    necessary to create them).
+  */
+  if ((thd->security_ctx->master_access & want_access) == want_access)
     tables->grant.privilege= want_access;
   else if (check_access(thd,want_access,db,&tables->grant.privilege,
-			0, no_errors, test(tables->schema_table)))
+			0, no_errors, 0))
     return TRUE;
   
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

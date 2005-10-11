@@ -474,7 +474,7 @@ int Instance::stop()
     status= pthread_cond_timedwait(&COND_instance_stopped,
                                    &LOCK_instance,
                                    &timeout);
-    if (status == ETIMEDOUT)
+    if (status == ETIMEDOUT || status == ETIME)
       break;
   }
 
