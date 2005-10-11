@@ -514,8 +514,22 @@ HANDLE smem_event_connect_request= 0;
 
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
+#include <openssl/crypto.h>
+
+typedef struct CRYPTO_dynlock_value
+{
+  rw_lock_t lock;
+} openssl_lock_t;
+
 char *des_key_file;
 struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
+static openssl_lock_t *openssl_stdlocks;
+
+static openssl_lock_t *openssl_dynlock_create(const char *, int);
+static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
+static void openssl_lock_function(int, int, const char *, int);
+static void openssl_lock(int, openssl_lock_t *, const char *, int);
+static unsigned long openssl_id_function();
 #endif /* HAVE_OPENSSL */
 
 
@@ -1097,6 +1111,9 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_user_conn);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
+  for (int i= 0; i < CRYPTO_num_locks(); ++i)
+    (void) rwlock_destroy(&openssl_stdlocks[i].lock);
+  OPENSSL_free(openssl_stdlocks);
 #endif
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
@@ -2675,8 +2692,88 @@ static int init_thread_environment()
     sql_print_error("Can't create thread-keys");
     return 1;
   }
+#ifdef HAVE_OPENSSL
+  openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
+                                                     sizeof(openssl_lock_t));
+  for (int i= 0; i < CRYPTO_num_locks(); ++i)
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
+  CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
+  CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
+  CRYPTO_set_dynlock_lock_callback(openssl_lock);
+  CRYPTO_set_locking_callback(openssl_lock_function);
+  CRYPTO_set_id_callback(openssl_id_function);
+#endif
   return 0;
 }
+
+
+#ifdef HAVE_OPENSSL
+static unsigned long openssl_id_function()
+{ 
+  return (unsigned long) pthread_self();
+} 
+
+
+static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+{ 
+  openssl_lock_t *lock= new openssl_lock_t;
+  my_rwlock_init(&lock->lock, NULL);
+  return lock;
+}
+
+
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
+				    int line)
+{
+  rwlock_destroy(&lock->lock);
+  delete lock;
+}
+
+
+static void openssl_lock_function(int mode, int n, const char *file, int line)
+{
+  if (n < 0 || n > CRYPTO_num_locks())
+  {
+    /* Lock number out of bounds. */
+    sql_print_error("Fatal: OpenSSL interface problem (n = %d)", n);
+    abort();
+  }
+  openssl_lock(mode, &openssl_stdlocks[n], file, line);
+}
+
+
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
+			 int line)
+{
+  int err;
+  char const *what;
+
+  switch (mode) {
+  case CRYPTO_LOCK|CRYPTO_READ:
+    what = "read lock";
+    err = rw_rdlock(&lock->lock);
+    break;
+  case CRYPTO_LOCK|CRYPTO_WRITE:
+    what = "write lock";
+    err = rw_wrlock(&lock->lock);
+    break;
+  case CRYPTO_UNLOCK|CRYPTO_READ:
+  case CRYPTO_UNLOCK|CRYPTO_WRITE:
+    what = "unlock";
+    err = rw_unlock(&lock->lock);
+    break;
+  default:
+    /* Unknown locking mode. */
+    sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
+    abort();
+  }
+  if (err) 
+  {
+    sql_print_error("Fatal: can't %s OpenSSL %s lock", what);
+    abort();
+  }
+}
+#endif /* HAVE_OPENSSL */
 
 
 static void init_ssl()
