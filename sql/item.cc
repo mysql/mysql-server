@@ -5705,6 +5705,8 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
+  uint max_length_orig= max_length;
+  uint decimals_orig= decimals;
   DBUG_ENTER("Item_type_holder::join_types");
   DBUG_PRINT("info:", ("was type %d len %d, dec %d name %s",
                        fld_type, max_length, decimals,
@@ -5731,7 +5733,10 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   else
     max_length= max(max_length, display_length(item));
-  if (Field::result_merge_type(fld_type) == STRING_RESULT)
+ 
+  switch (Field::result_merge_type(fld_type))
+  {
+  case STRING_RESULT:
   {
     const char *old_cs, *old_derivation;
     old_cs= collation.collation->name;
@@ -5745,7 +5750,23 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       "UNION");
       DBUG_RETURN(TRUE);
     }
+    break;
   }
+  case REAL_RESULT:
+  {
+    if (decimals != NOT_FIXED_DEC)
+    {
+      int delta1= max_length_orig - decimals_orig;
+      int delta2= item->max_length - item->decimals;
+      max_length= min(max(delta1, delta2) + decimals,
+                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+    }
+    else
+      max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
+    break;
+  }
+  default:;
+  };
   maybe_null|= item->maybe_null;
   get_full_info(item);
 
