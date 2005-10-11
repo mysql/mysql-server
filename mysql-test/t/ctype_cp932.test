@@ -424,3 +424,13 @@ SET collation_connection='cp932_japanese_ci';
 -- source include/ctype_filesort.inc
 SET collation_connection='cp932_bin';
 -- source include/ctype_filesort.inc
+
+#
+# Bug#12547: Inserting long string into varchar causes table crash in cp932
+#
+create table t1 (col1 varchar(1)) character set cp932;
+insert into t1 values ('a');
+insert into t1 values ('ab');
+select * from t1;
+insert into t1 values ('abc');
+select * from t1;
