@@ -790,13 +790,16 @@ drop view v1;
 #
 create table t1 (a int);
 create view v1 as select a from t1;
-create database seconddb;
+create view v3 as select a from t1;
+create database mysqltest;
 -- error 1450
-rename table v1 to seconddb.v1;
+rename table v1 to mysqltest.v1;
 rename table v1 to v2;
+--error 1050
+rename table v3 to v1, v2 to t1;
 drop table t1;
-drop view v2;
-drop database seconddb;
+drop view v2,v3;
+drop database mysqltest;
 
 #
 # bug handling from VIEWs
