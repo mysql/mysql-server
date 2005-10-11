@@ -377,7 +377,7 @@ reportError(void * callbackObj, NodeId nodeId,
   memset(&signal.header, 0, sizeof(signal.header));
 
 
-  if(errorCode & 0x8000)
+  if(errorCode & TE_DO_DISCONNECT)
     signal.theData[0] = NDB_LE_TransporterError;
   else
     signal.theData[0] = NDB_LE_TransporterWarning;
