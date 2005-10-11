@@ -2617,3 +2617,13 @@ select found_rows();
 found_rows()
 1
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+a	c
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+a	c
+drop table t1;
