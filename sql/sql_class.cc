@@ -1982,8 +1982,8 @@ HASH xid_cache;
 static byte *xid_get_hash_key(const byte *ptr,uint *length,
                                   my_bool not_used __attribute__((unused)))
 {
-  *length=((XID_STATE*)ptr)->xid.length();
-  return (byte *)&((XID_STATE*)ptr)->xid;
+  *length=((XID_STATE*)ptr)->xid.key_length();
+  return ((XID_STATE*)ptr)->xid.key();
 }
 
 static void xid_free_hash (void *ptr)
@@ -2011,7 +2011,7 @@ void xid_cache_free()
 XID_STATE *xid_cache_search(XID *xid)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, (byte *)xid, xid->length());
+  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, xid->key(), xid->key_length());
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
@@ -2022,7 +2022,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
   XID_STATE *xs;
   my_bool res;
   pthread_mutex_lock(&LOCK_xid_cache);
-  if (hash_search(&xid_cache, (byte *)xid, xid->length()))
+  if (hash_search(&xid_cache, xid->key(), xid->key_length()))
     res=0;
   else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
     res=1;
@@ -2041,8 +2041,8 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(hash_search(&xid_cache, (byte *)&xid_state->xid,
-                          xid_state->xid.length())==0);
+  DBUG_ASSERT(hash_search(&xid_cache, xid_state->xid.key(),
+                          xid_state->xid.key_length())==0);
   my_bool res=my_hash_insert(&xid_cache, (byte*)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;

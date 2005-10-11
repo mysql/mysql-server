@@ -294,7 +294,7 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 /*
   Used with --help for detailed option
 */
-static bool opt_help= 0, opt_verbose= 0;
+static my_bool opt_help= 0, opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -338,9 +338,10 @@ static my_bool opt_sync_bdb_logs;
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
-bool opt_character_set_client_handshake= 1;
+my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
-bool opt_endinfo,using_udf_functions, locked_in_memory;
+bool opt_endinfo,using_udf_functions;
+my_bool locked_in_memory;
 bool opt_using_transactions, using_update_log;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress, grant_option;
@@ -572,7 +573,7 @@ Query_cache query_cache;
 #endif
 #ifdef HAVE_SMEM
 char *shared_memory_base_name= default_shared_memory_base_name;
-bool opt_enable_shared_memory;
+my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
 #endif
 
@@ -586,25 +587,25 @@ struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
 /* Function declarations */
 
 static void start_signal_handler(void);
-static pthread_handler_decl(signal_hand, arg);
+pthread_handler_t signal_hand(void *arg);
 static void mysql_init_variables(void);
 static void get_options(int argc,char **argv);
 static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
-extern "C" pthread_handler_decl(handle_connections_sockets,arg);
-extern "C" pthread_handler_decl(kill_server_thread,arg);
+pthread_handler_t handle_connections_sockets(void *arg);
+pthread_handler_t kill_server_thread(void *arg);
 static void bootstrap(FILE *file);
 static void close_server_sock();
 static bool read_init_file(char *file_name);
 #ifdef __NT__
-extern "C" pthread_handler_decl(handle_connections_namedpipes,arg);
+pthread_handler_t handle_connections_namedpipes(void *arg);
 #endif
 #ifdef HAVE_SMEM
-static pthread_handler_decl(handle_connections_shared_memory,arg);
+pthread_handler_t handle_connections_shared_memory(void *arg);
 #endif
-extern "C" pthread_handler_decl(handle_slave,arg);
+pthread_handler_t handle_slave(void *arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
@@ -953,7 +954,7 @@ static void __cdecl kill_server(int sig_ptr)
 
 
 #if defined(USE_ONE_SIGNAL_HAND) || (defined(__NETWARE__) && defined(SIGNALS_DONT_BREAK_READ))
-extern "C" pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
+pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 {
   my_thread_init();				// Initialize new thread
   kill_server(0);
@@ -2166,7 +2167,7 @@ static void start_signal_handler(void)
 /* This threads handles all signals and alarms */
 
 /* ARGSUSED */
-static void *signal_hand(void *arg __attribute__((unused)))
+pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 {
   sigset_t set;
   int sig;
@@ -2387,7 +2388,7 @@ int uname(struct utsname *a)
 }
 
 
-extern "C" pthread_handler_decl(handle_shutdown,arg)
+pthread_handler_t handle_shutdown(void *arg)
 {
   MSG msg;
   my_thread_init();
@@ -2416,7 +2417,7 @@ int STDCALL handle_kill(ulong ctrl_type)
 
 
 #ifdef OS2
-extern "C" pthread_handler_decl(handle_shutdown,arg)
+pthread_handler_t handle_shutdown(void *arg)
 {
   my_thread_init();
 
@@ -3730,8 +3731,7 @@ inline void kill_broken_server()
 	/* Handle new connections and spawn new process to handle them */
 
 #ifndef EMBEDDED_LIBRARY
-extern "C" pthread_handler_decl(handle_connections_sockets,
-				arg __attribute__((unused)))
+pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 {
   my_socket sock,new_sock;
   uint error_count=0;
@@ -3945,7 +3945,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
 
 
 #ifdef __NT__
-extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
+pthread_handler_t handle_connections_namedpipes(void *arg)
 {
   HANDLE hConnectedPipe;
   BOOL fConnected;
@@ -4031,17 +4031,16 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
   Thread of shared memory's service
 
   SYNOPSIS
-    pthread_handler_decl()
-    handle_connections_shared_memory Thread handle
+    handle_connections_shared_memory()
     arg                              Arguments of thread
 */
 
 #ifdef HAVE_SMEM
-pthread_handler_decl(handle_connections_shared_memory,arg)
+pthread_handler_t handle_connections_shared_memory(void *arg)
 {
   /* file-mapping object, use for create shared memory */
   HANDLE handle_connect_file_map= 0;
-  char  *handle_connect_map= 0;  		// pointer on shared memory
+  char  *handle_connect_map= 0;                 // pointer on shared memory
   HANDLE event_connect_answer= 0;
   ulong smem_buffer_length= shared_memory_buffer_length + 4;
   ulong connect_number= 1;

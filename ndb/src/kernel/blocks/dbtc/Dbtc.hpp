@@ -1465,7 +1465,7 @@ private:
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendKeyinfo(Signal* signal, BlockReference TBRef, Uint32 len);
   void sendlqhkeyreq(Signal* signal, BlockReference TBRef);
-  void sendSystemError(Signal* signal);
+  void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void sendTcIndxConf(Signal* signal, UintR TcommitFlag);
   void unlinkApiConnect(Signal* signal);
@@ -1541,8 +1541,8 @@ private:
                             bool holdOperation = false);
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   // Generated statement blocks
-  void warningHandlerLab(Signal* signal);
-  void systemErrorLab(Signal* signal);
+  void warningHandlerLab(Signal* signal, int line);
+  void systemErrorLab(Signal* signal, int line);
   void sendSignalErrorRefuseLab(Signal* signal);
   void scanTabRefLab(Signal* signal, Uint32 errCode);
   void diFcountReqLab(Signal* signal, ScanRecordPtr);

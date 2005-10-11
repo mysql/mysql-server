@@ -37,6 +37,8 @@
 
 #include <NdbAutoPtr.hpp>
 
+#include <Properties.hpp>
+
 #include <mgmapi_debug.h>
 
 #if defined NDB_SOLARIS // ok
@@ -61,15 +63,180 @@ extern "C" void handler_sigusr1(int signum);  // child signalling failed restart
 void systemInfo(const Configuration & conf,
 		const LogLevel & ll); 
 
+static FILE *child_info_file_r= 0;
+static FILE *child_info_file_w= 0;
+
+static void writeChildInfo(const char *token, int val)
+{
+  fprintf(child_info_file_w, "%s=%d\n", token, val);
+  fflush(child_info_file_w);
+}
+
+void childReportSignal(int signum)
+{
+  writeChildInfo("signal", signum);
+}
+
+void childReportError(int error)
+{
+  writeChildInfo("error", error);
+}
+
+void childExit(int code, Uint32 currentStartPhase)
+{
+  writeChildInfo("sphase", currentStartPhase);
+  writeChildInfo("exit", code);
+  fprintf(child_info_file_w, "\n");
+  fclose(child_info_file_r);
+  fclose(child_info_file_w);
+  exit(code);
+}
+
+void childAbort(int code, Uint32 currentStartPhase)
+{
+  writeChildInfo("sphase", currentStartPhase);
+  writeChildInfo("exit", code);
+  fprintf(child_info_file_w, "\n");
+  fclose(child_info_file_r);
+  fclose(child_info_file_w);
+  signal(6, SIG_DFL);
+  abort();
+}
+
+static int insert(const char * pair, Properties & p)
+{
+  BaseString tmp(pair);
+  
+  tmp.trim(" \t\n\r");
+  Vector<BaseString> split;
+  tmp.split(split, ":=", 2);
+  if(split.size() != 2)
+    return -1;
+  p.put(split[0].trim().c_str(), split[1].trim().c_str()); 
+  return 0;
+}
+
+static int readChildInfo(Properties &info)
+{
+  fclose(child_info_file_w);
+  char buf[128];
+  while (fgets(buf,sizeof(buf),child_info_file_r))
+    insert(buf,info);
+  fclose(child_info_file_r);
+  return 0;
+}
+
+static bool get_int_property(Properties &info,
+			     const char *token, Uint32 *int_val)
+{
+  const char *str_val= 0;
+  if (!info.get(token, &str_val))
+    return false;
+  char *endptr;
+  long int tmp= strtol(str_val, &endptr, 10);
+  if (str_val == endptr)
+    return false;
+  *int_val = tmp;
+  return true;
+}
+
+int reportShutdown(class Configuration *config, int error_exit, int restart)
+{
+  Uint32 error= 0, signum= 0, sphase= 256;
+  Properties info;
+  readChildInfo(info);
+
+  get_int_property(info, "signal", &signum);
+  get_int_property(info, "error", &error);
+  get_int_property(info, "sphase", &sphase);
+
+  Uint32 length, theData[25];
+  EventReport *rep = (EventReport *)theData;
+
+  rep->setNodeId(globalData.ownId);
+  if (restart)
+    theData[1] =                                    1      |
+      (globalData.theRestartFlag == initial_state ? 2 : 0) |
+      (config->getInitialStart()                  ? 4 : 0);
+  else
+    theData[1] = 0;
+
+  if (error_exit == 0)
+  {
+    rep->setEventType(NDB_LE_NDBStopCompleted);
+    theData[2] = signum;
+    length = 3;
+  }
+  else
+  {
+    rep->setEventType(NDB_LE_NDBStopForced);
+    theData[2] = signum;
+    theData[3] = error;
+    theData[4] = sphase;
+    theData[5] = 0; // extra
+    length = 6;
+  }
+
+  { // Log event
+    const EventReport * const eventReport = (EventReport *)&theData[0];
+    g_eventLogger.log(eventReport->getEventType(), theData,
+		      eventReport->getNodeId(), 0);
+  }
+
+  for (unsigned n = 0; n < config->m_mgmds.size(); n++)
+  {
+    NdbMgmHandle h = ndb_mgm_create_handle();
+    if (h == 0 ||
+	ndb_mgm_set_connectstring(h, config->m_mgmds[n].c_str()) ||
+	ndb_mgm_connect(h,
+			1, //no_retries
+			0, //retry_delay_in_seconds
+			0  //verbose
+			))
+      goto handle_error;
+
+    {
+      if (ndb_mgm_report_event(h, theData, length))
+	goto handle_error;
+    }
+    goto do_next;
+
+handle_error:
+    if (h)
+    {
+      BaseString tmp(ndb_mgm_get_latest_error_msg(h));
+      tmp.append(" : ");
+      tmp.append(ndb_mgm_get_latest_error_desc(h));
+      g_eventLogger.warning("Unable to report shutdown reason to %s: %s",
+			    config->m_mgmds[n].c_str(), tmp.c_str());
+    }
+    else
+    {
+      g_eventLogger.error("Unable to report shutdown reason to %s",
+			  config->m_mgmds[n].c_str());
+    }
+do_next:
+    if (h)
+    {
+      ndb_mgm_disconnect(h);
+      ndb_mgm_destroy_handle(&h);
+    }
+  }
+  return 0;
+}
+
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("ndbd");
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_INFO);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
+
+  g_eventLogger.m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
   globalEmulatorData.create();
 
@@ -103,10 +270,38 @@ int main(int argc, char** argv)
 #ifndef NDB_WIN32
   signal(SIGUSR1, handler_sigusr1);
 
-  for(pid_t child = fork(); child != 0; child = fork()){
+  pid_t child;
+  while (1)
+  {
+    // setup reporting between child and parent
+    int filedes[2];
+    if (pipe(filedes))
+    {
+      g_eventLogger.error("pipe() failed with errno=%d (%s)",
+			  errno, strerror(errno));
+      return 1;
+    }
+    else
+    {
+      if (!(child_info_file_w= fdopen(filedes[1],"w")))
+      {
+	g_eventLogger.error("fdopen() failed with errno=%d (%s)",
+			    errno, strerror(errno));
+      }
+      if (!(child_info_file_r= fdopen(filedes[0],"r")))
+      {
+	g_eventLogger.error("fdopen() failed with errno=%d (%s)",
+			    errno, strerror(errno));
+      }
+    }
+
+    if ((child = fork()) <= 0)
+      break; // child or error
+
     /**
      * Parent
      */
+
     catchsigs(true);
 
     /**
@@ -115,12 +310,13 @@ int main(int argc, char** argv)
      */
     theConfig->closeConfiguration();
 
-    int status = 0;
+    int status = 0, error_exit = 0, signum = 0;
     while(waitpid(child, &status, 0) != child);
     if(WIFEXITED(status)){
       switch(WEXITSTATUS(status)){
       case NRT_Default:
 	g_eventLogger.info("Angel shutting down");
+	reportShutdown(theConfig, 0, 0);
 	exit(0);
 	break;
       case NRT_NoStart_Restart:
@@ -136,10 +332,12 @@ int main(int argc, char** argv)
 	globalData.theRestartFlag = perform_start;
 	break;
       default:
+	error_exit = 1;
 	if(theConfig->stopOnError()){
 	  /**
 	   * Error shutdown && stopOnError()
 	   */
+	  reportShutdown(theConfig, error_exit, 0);
 	  exit(0);
 	}
 	// Fall-through
@@ -148,12 +346,27 @@ int main(int argc, char** argv)
 	globalData.theRestartFlag = perform_start;
 	break;
       }
-    } else if(theConfig->stopOnError()){
-      /**
-       * Error shutdown && stopOnError()
-       */
-      exit(0);
+    } else {
+      error_exit = 1;
+      if (WIFSIGNALED(status))
+      {
+	signum = WTERMSIG(status);
+	childReportSignal(signum);
+      }
+      else
+      {
+	signum = 127;
+	g_eventLogger.info("Unknown exit reason. Stopped.");
+      }
+      if(theConfig->stopOnError()){
+	/**
+	 * Error shutdown && stopOnError()
+	 */
+	reportShutdown(theConfig, error_exit, 0);
+	exit(0);
+      }
     }
+
     if (!failed_startup_flag)
     {
       // Reset the counter for consecutive failed startups
@@ -164,15 +377,21 @@ int main(int argc, char** argv)
       /**
        * Error shutdown && stopOnError()
        */
-      g_eventLogger.alert("Ndbd has failed %u consecutive startups. Not restarting", failed_startups);
+      g_eventLogger.alert("Ndbd has failed %u consecutive startups. "
+			  "Not restarting", failed_startups);
+      reportShutdown(theConfig, error_exit, 0);
       exit(0);
     }
     failed_startup_flag = false;
+    reportShutdown(theConfig, error_exit, 1);
     g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
     theConfig->fetch_configuration();
   }
 
-  g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+  if (child >= 0)
+    g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+  else
+    g_eventLogger.info("Ndb pid: %d", getpid());
 #else
   g_eventLogger.info("Ndb started");
 #endif
@@ -226,7 +445,7 @@ int main(int argc, char** argv)
   // Re-use the mgm handle as a transporter
   if(!globalTransporterRegistry.connect_client(
 		 theConfig->get_config_retriever()->get_mgmHandlePtr()))
-      ERROR_SET(fatal, ERR_INVALID_CONFIG,
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
 		"Connection to mgmd terminated before setup was complete", 
 		"StopOnError missing");
 
@@ -371,6 +590,8 @@ extern "C"
 void 
 handler_shutdown(int signum){
   g_eventLogger.info("Received signal %d. Performing stop.", signum);
+  childReportError(0);
+  childReportSignal(signum);
   globalData.theRestartFlag = perform_stop;
 }
 
@@ -395,10 +616,15 @@ handler_error(int signum){
       NdbSleep_MilliSleep(10);
   thread_id= my_thread_id();
   g_eventLogger.info("Received signal %d. Running error handler.", signum);
+  childReportSignal(signum);
   // restart the system
-  char errorData[40];
-  BaseString::snprintf(errorData, 40, "Signal %d received", signum);
-  ERROR_SET_SIGNAL(fatal, 0, errorData, __FILE__);
+  char errorData[64], *info= 0;
+#ifdef HAVE_STRSIGNAL
+  info= strsignal(signum);
+#endif
+  BaseString::snprintf(errorData, sizeof(errorData), "Signal %d received; %s", signum,
+		       info ? info : "No text for signal available");
+  ERROR_SET_SIGNAL(fatal, NDBD_EXIT_OS_SIGNAL_RECEIVED, errorData, __FILE__);
 }
 
 extern "C"

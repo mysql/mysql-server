@@ -134,6 +134,12 @@ static bool end_active_trans(THD *thd)
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
   }
+  if (thd->transaction.xid_state.xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0),
+             xa_state_names[thd->transaction.xid_state.xa_state]);
+    DBUG_RETURN(1);
+  }
   if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
@@ -1040,7 +1046,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 }
 
 
-pthread_handler_decl(handle_one_connection,arg)
+pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd=(THD*) arg;
   uint launch_time  =
@@ -1176,7 +1182,7 @@ end_thread:
   Used when creating the initial grant tables
 */
 
-extern "C" pthread_handler_decl(handle_bootstrap,arg)
+pthread_handler_t handle_bootstrap(void *arg)
 {
   THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
@@ -1366,6 +1372,12 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   if (unlikely(thd->in_sub_stmt))
   {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+    DBUG_RETURN(1);
+  }
+  if (thd->transaction.xid_state.xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0),
+             xa_state_names[thd->transaction.xid_state.xa_state]);
     DBUG_RETURN(1);
   }
   switch (completion) {
@@ -2305,8 +2317,6 @@ mysql_execute_command(THD *thd)
   LEX	*lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
-  bool slave_fake_lock= 0;
-  MYSQL_LOCK *fake_prev_lock= 0;
   /* first table of first SELECT_LEX */
   TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
   /* list of all tables in query */
@@ -2355,34 +2365,21 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
-    if (lex->sql_command == SQLCOM_UPDATE_MULTI)
-    {
-      DBUG_PRINT("info",("need faked locked tables"));
-      
-      if (check_multi_update_lock(thd))
-        goto error;
-
-      /* Fix for replication, the tables are opened and locked,
-         now we pretend that we have performed a LOCK TABLES action */
-	 
-      fake_prev_lock= thd->locked_tables;
-      if (thd->lock)
-        thd->locked_tables= thd->lock;
-      thd->lock= 0;
-      slave_fake_lock= 1;
-    }
     /*
-      Skip if we are in the slave thread, some table rules have been
-      given and the table list says the query should not be replicated.
+      Check if statment should be skipped because of slave filtering
+      rules
 
       Exceptions are:
+      - UPDATE MULTI: For this statement, we want to check the filtering
+        rules later in the code
       - SET: we always execute it (Not that many SET commands exists in
         the binary log anyway -- only 4.1 masters write SET statements,
 	in 5.0 there are no SET statements in the binary log)
       - DROP TEMPORARY TABLE IF EXISTS: we always execute it (otherwise we
         have stale files on slave caused by exclusion of one tmp table).
     */
-    if (!(lex->sql_command == SQLCOM_SET_OPTION) &&
+    if (!(lex->sql_command == SQLCOM_UPDATE_MULTI) &&
+	!(lex->sql_command == SQLCOM_SET_OPTION) &&
 	!(lex->sql_command == SQLCOM_DROP_TABLE &&
           lex->drop_temporary && lex->drop_if_exists) &&
         all_tables_not_ok(thd, all_tables))
@@ -2932,7 +2929,7 @@ end_with_restore_list:
     To prevent that, refuse SLAVE STOP if the
     client thread has locked tables
   */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables || thd->active_transaction() || thd->global_read_lock)
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -3207,6 +3204,19 @@ end_with_restore_list:
       }
       else
         res= 0;
+
+      if ((res= mysql_multi_update_prepare(thd)))
+	break;
+
+#ifdef HAVE_REPLICATION
+      /* Check slave filtering rules */
+      if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
+      {
+	/* we warn the slave SQL thread */
+	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+	break;
+      }
+#endif /* HAVE_REPLICATION */
 
       res= mysql_multi_update(thd, all_tables,
                               &select_lex->item_list,
@@ -3926,6 +3936,12 @@ end_with_restore_list:
     break;
 
   case SQLCOM_BEGIN:
+    if (thd->transaction.xid_state.xa_state != XA_NOTR)
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xid_state.xa_state]);
+      break;
+    }
     if (begin_trans(thd))
       goto error;
     send_ok(thd);
@@ -4756,14 +4772,6 @@ error:
   res= 1;
 
 cleanup:
-  if (unlikely(slave_fake_lock))
-  {
-    DBUG_PRINT("info",("undoing faked lock"));
-    thd->lock= thd->locked_tables;
-    thd->locked_tables= fake_prev_lock;
-    if (thd->lock == thd->locked_tables)
-      thd->lock= 0;
-  }
   DBUG_RETURN(res || thd->net.report_error);
 }
 
@@ -4984,7 +4992,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   for (; tables; tables= tables->next_global)
   {
     if (tables->schema_table && 
-        (want_access & ~(SELECT_ACL | EXTRA_ACL)))
+        (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
@@ -5644,8 +5652,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
        and so on, the display width is ignored.
     */
     char buf[32];
-    my_snprintf(buf, sizeof(buf),
-                "TIMESTAMP(%s)", length, system_charset_info);
+    my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
     push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DEPRECATED_SYNTAX,
                         ER(ER_WARN_DEPRECATED_SYNTAX),
@@ -5751,7 +5758,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
     }
     if (new_field->length < new_field->decimals)
     {
-      my_error(ER_SCALE_BIGGER_THAN_PRECISION, MYF(0), field_name);
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
       DBUG_RETURN(NULL);
     }
     new_field->length=
@@ -6895,57 +6902,6 @@ bool check_simple_select()
     return 1;
   }
   return 0;
-}
-
-/*
-  Setup locking for multi-table updates. Used by the replication slave.
-  Replication slave SQL thread examines (all_tables_not_ok()) the
-  locking state of referenced tables to determine if the query has to
-  be executed or ignored. Since in multi-table update, the 
-  'default' lock is read-only, this lock is corrected early enough by
-  calling this function, before the slave decides to execute/ignore.
-
-  SYNOPSIS
-    check_multi_update_lock()
-    thd		Current thread
-
-  RETURN VALUES
-    0	ok
-    1	error
-*/
-static bool check_multi_update_lock(THD *thd)
-{
-  bool res= 1;
-  LEX *lex= thd->lex;
-  TABLE_LIST *table, *tables= lex->query_tables;
-  DBUG_ENTER("check_multi_update_lock");
-  
-  if (check_db_used(thd, tables))
-    goto error;
-
-  /*
-    Ensure that we have UPDATE or SELECT privilege for each table
-    The exact privilege is checked in mysql_multi_update()
-  */
-  for (table= tables ; table ; table= table->next_local)
-  {
-    TABLE_LIST *save= table->next_local;
-    table->next_local= 0;
-    if ((check_access(thd, UPDATE_ACL, table->db, 
-                      &table->grant.privilege,0,1, test(table->schema_table)) ||
-         (grant_option && check_grant(thd, UPDATE_ACL, table,0,1,1))) &&
-	check_one_table_access(thd, SELECT_ACL, table))
-      goto error;
-    table->next_local= save;
-  }
-    
-  if (mysql_multi_update_prepare(thd))
-    goto error;
-  
-  res= 0;
-  
-error:
-  DBUG_RETURN(res);
 }
 
 

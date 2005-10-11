@@ -363,6 +363,33 @@ pthread_mutex_t federated_mutex;                // This is the mutex we use to
 static int federated_init= FALSE;               // Variable for checking the
                                                 // init state of hash
 
+/* Federated storage engine handlerton */
+
+handlerton federated_hton= {
+  "FEDERATED",
+  SHOW_OPTION_YES,
+  "Federated MySQL storage engine", 
+  DB_TYPE_FEDERATED_DB,
+  federated_db_init,
+  0,       /* slot */
+  0,       /* savepoint size. */
+  NULL,    /* close_connection */
+  NULL,    /* savepoint */
+  NULL,    /* rollback to savepoint */
+  NULL,    /* release savepoint */
+  NULL,    /* commit */
+  NULL,    /* rollback */
+  NULL,    /* prepare */
+  NULL,    /* recover */
+  NULL,    /* commit_by_xid */
+  NULL,    /* rollback_by_xid */
+  NULL,    /* create_cursor_read_view */
+  NULL,    /* set_cursor_read_view */
+  NULL,    /* close_cursor_read_view */
+  HTON_ALTER_NOT_SUPPORTED
+};
+
+
 /* Function we use in the creation of our hash to get key.  */
 
 static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
@@ -386,10 +413,22 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
 
 bool federated_db_init()
 {
-  federated_init= 1;
-  VOID(pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST));
-  return (hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
-                    (hash_get_key) federated_get_key, 0, 0));
+  DBUG_ENTER("federated_db_init");
+  if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
+    goto error;
+  if (hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
+                    (hash_get_key) federated_get_key, 0, 0))
+  {
+    VOID(pthread_mutex_destroy(&federated_mutex));
+  }
+  else
+  {
+    federated_init= TRUE;
+    DBUG_RETURN(FALSE);
+  }
+error:
+  have_federated_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -692,29 +731,6 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 error:
   DBUG_RETURN(parse_url_error(share, table, error_num));
 }
-
-
-/* Federated storage engine handlerton */
-
-handlerton federated_hton= {
-  "FEDERATED",
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  HTON_NO_FLAGS
-};
 
 
 /*****************************************************************************

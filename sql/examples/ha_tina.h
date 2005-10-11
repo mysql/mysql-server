@@ -78,7 +78,6 @@ public:
    */
   virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
   /* The next method will never be called */
-  virtual double read_time(ha_rows rows) { DBUG_ASSERT(0); return((double) rows /  20.0+1); }
   virtual bool fast_key_read() { return 1;}
   /* 
     TODO: return actual upper bound of number of records in the table.
@@ -110,12 +109,6 @@ public:
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
-      enum ha_rkey_function start_search_flag,
-      const byte *end_key,uint end_key_len,
-      enum ha_rkey_function end_search_flag);
-//  int delete_table(const char *from);
-//  int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

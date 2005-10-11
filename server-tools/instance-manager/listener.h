@@ -16,7 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
 
@@ -24,11 +24,7 @@
 #include <my_pthread.h>
 
 
-C_MODE_START
-
-pthread_handler_decl(listener, arg);
-
-C_MODE_END
+pthread_handler_t listener(void *arg);
 
 class Thread_registry;
 struct Options;

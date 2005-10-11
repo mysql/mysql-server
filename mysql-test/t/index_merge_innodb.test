@@ -204,3 +204,47 @@ and (zeit1.geloescht = 0);
 select * from v1 where oid = 21;
 drop view v1;
 drop table t1;
+##
+CREATE TABLE t1(
+  t_cpac varchar(2) NOT NULL,
+  t_vers varchar(4) NOT NULL,
+  t_rele varchar(2) NOT NULL,
+  t_cust varchar(4) NOT NULL,
+  filler1 char(250) default NULL,
+  filler2 char(250) default NULL,
+  PRIMARY KEY (t_cpac,t_vers,t_rele,t_cust),
+  UNIQUE KEY IX_4 (t_cust,t_cpac,t_vers,t_rele),
+  KEY IX_5 (t_vers,t_rele,t_cust)
+) ENGINE=InnoDB;
+
+insert into t1 values
+('tm','2.5 ','a ','    ','',''), ('tm','2.5U','a ','stnd','',''),
+('da','3.3 ','b ','    ','',''), ('da','3.3U','b ','stnd','',''),
+('tl','7.6 ','a ','    ','',''), ('tt','7.6 ','a ','    ','',''),
+('bc','B61 ','a ','    ','',''), ('bp','B61 ','a ','    ','',''),
+('ca','B61 ','a ','    ','',''), ('ci','B61 ','a ','    ','',''),
+('cp','B61 ','a ','    ','',''), ('dm','B61 ','a ','    ','',''),
+('ec','B61 ','a ','    ','',''), ('ed','B61 ','a ','    ','',''),
+('fm','B61 ','a ','    ','',''), ('nt','B61 ','a ','    ','',''),
+('qm','B61 ','a ','    ','',''), ('tc','B61 ','a ','    ','',''),
+('td','B61 ','a ','    ','',''), ('tf','B61 ','a ','    ','',''),
+('tg','B61 ','a ','    ','',''), ('ti','B61 ','a ','    ','',''),
+('tp','B61 ','a ','    ','',''), ('ts','B61 ','a ','    ','',''),
+('wh','B61 ','a ','    ','',''), ('bc','B61U','a ','stnd','',''),
+('bp','B61U','a ','stnd','',''), ('ca','B61U','a ','stnd','',''),
+('ci','B61U','a ','stnd','',''), ('cp','B61U','a ','stnd','',''),
+('dm','B61U','a ','stnd','',''), ('ec','B61U','a ','stnd','',''),
+('fm','B61U','a ','stnd','',''), ('nt','B61U','a ','stnd','',''),
+('qm','B61U','a ','stnd','',''), ('tc','B61U','a ','stnd','',''),
+('td','B61U','a ','stnd','',''), ('tf','B61U','a ','stnd','',''),
+('tg','B61U','a ','stnd','',''), ('ti','B61U','a ','stnd','',''),
+('tp','B61U','a ','stnd','',''), ('ts','B61U','a ','stnd','',''),
+('wh','B61U','a ','stnd','','');
+show create table t1;
+
+select t_vers,t_rele,t_cust,filler1 from t1 where t_vers = '7.6';
+select t_vers,t_rele,t_cust,filler1 from t1 where t_vers = '7.6'
+  and t_rele='a' and t_cust = ' ';
+
+drop table t1;
+

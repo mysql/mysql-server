@@ -25,6 +25,8 @@
 #include <NodeState.hpp>
 #include <version.h>
 
+#include <ndbd_exit_codes.h>
+
 //
 // PUBLIC
 //
@@ -83,6 +85,57 @@ void getTextNDBStopStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len,
 		       "%s shutdown initiated", 
 		       (theData[1] == 1 ? "Cluster" : "Node"));
+}
+void getRestartAction(Uint32 action, BaseString &str)
+{
+  if (action == 0)
+    return;
+  str.appfmt(", restarting");
+  if (action & 2)
+    str.appfmt(", no start");
+  if (action & 4)
+    str.appfmt(", initial");
+}
+void getTextNDBStopCompleted(QQQQ) {
+  BaseString action_str("");
+  BaseString signum_str("");
+  getRestartAction(theData[1], action_str);
+  if (theData[2])
+    signum_str.appfmt(" Initiated by signal %d.", theData[2]);
+  BaseString::snprintf(m_text, m_text_len,
+		       "Node shutdown completed%s.%s",
+		       action_str.c_str(),
+		       signum_str.c_str());
+}
+void getTextNDBStopForced(QQQQ) {
+  BaseString action_str("");
+  BaseString reason_str("");
+  BaseString sphase_str("");
+  int signum        = theData[2];
+  int error         = theData[3];
+  int sphase        = theData[4];
+  int extra         = theData[5];
+  getRestartAction(theData[1],action_str);
+  if (signal)
+    reason_str.appfmt(" Initiated by signal %d.", signum);
+  if (error)
+  {
+    ndbd_exit_classification cl;
+    ndbd_exit_status st;
+    const char *msg = ndbd_exit_message(error, &cl);
+    const char *cl_msg = ndbd_exit_classification_message(cl, &st);
+    const char *st_msg = ndbd_exit_status_message(st);
+    reason_str.appfmt(" Caused by error %d: \'%s(%s). %s\'.",
+		      error, msg, cl_msg, st_msg);
+    if (extra != 0)
+      reason_str.appfmt(" (extra info %d)", extra);
+  }
+  if (sphase < 255)
+    sphase_str.appfmt(" Occured during startphase %u.", sphase);
+  BaseString::snprintf(m_text, m_text_len,
+		       "Forced node shutdown completed%s.%s%s",
+		       action_str.c_str(), sphase_str.c_str(),
+		       reason_str.c_str());
 }
 void getTextNDBStopAborted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len,
@@ -633,6 +686,27 @@ void getTextBackupAborted(QQQQ) {
 		       theData[3]);
 }
 
+void getTextSingleUser(QQQQ) {
+  switch (theData[1])
+  {
+  case 0:
+    BaseString::snprintf(m_text, m_text_len, "Entering single user mode");
+    break;
+  case 1:
+    BaseString::snprintf(m_text, m_text_len,
+			 "Entered single user mode "
+			 "Node %d has exclusive access", theData[2]);
+    break;
+  case 2:
+    BaseString::snprintf(m_text, m_text_len,"Exiting single user mode");
+    break;
+  default:
+    BaseString::snprintf(m_text, m_text_len,
+			 "Unknown single user report %d", theData[1]);
+    break;
+  }
+}
+
 #if 0
 BaseString::snprintf(m_text, 
 		     m_text_len, 
@@ -675,6 +749,8 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(CM_REGREF,               LogLevel::llStartUp,     8, Logger::LL_INFO ),
   ROW(FIND_NEIGHBOURS,         LogLevel::llStartUp,     8, Logger::LL_INFO ),
   ROW(NDBStopStarted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(NDBStopCompleted,        LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(NDBStopForced,           LogLevel::llStartUp,     1, Logger::LL_ALERT ),
   ROW(NDBStopAborted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
   ROW(StartREDOLog,            LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
@@ -715,6 +791,9 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(SentHeartbeat,           LogLevel::llInfo,  12, Logger::LL_INFO ),
   ROW(CreateLogBytes,          LogLevel::llInfo,  11, Logger::LL_INFO ),
   ROW(InfoEvent,               LogLevel::llInfo,   2, Logger::LL_INFO ),
+
+  //Single User
+  ROW(SingleUser,              LogLevel::llInfo,   7, Logger::LL_INFO ),
 
   // Backup
   ROW(BackupStarted,           LogLevel::llBackup, 7, Logger::LL_INFO ),

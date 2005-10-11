@@ -165,7 +165,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
 		      (ulong) info, (int) type, (ulong) seek_offset));
 
   info->file= file;
-  info->type= 0;		/* Don't set it until mutex are created */
+  info->type= TYPE_NOT_SET;	    /* Don't set it until mutex are created */
   info->pos_in_file= seek_offset;
   info->pre_close = info->pre_read = info->post_read = 0;
   info->arg = 0;
@@ -1246,7 +1246,7 @@ int end_io_cache(IO_CACHE *info)
   if (info->type == SEQ_READ_APPEND)
   {
     /* Destroy allocated mutex */
-    info->type=0;
+    info->type= TYPE_NOT_SET;
 #ifdef THREAD
     pthread_mutex_destroy(&info->append_buffer_lock);
 #endif

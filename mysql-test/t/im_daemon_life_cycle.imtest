@@ -1,0 +1,15 @@
+###########################################################################
+#
+# This file contains test for (1.2) test suite.
+#
+# Consult WL#2789 for more information.
+#
+###########################################################################
+
+--source include/im_check_os.inc
+
+###########################################################################
+
+SHOW INSTANCES;
+
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted
