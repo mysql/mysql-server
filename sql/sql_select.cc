@@ -2474,11 +2474,11 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
              and use them in equality propagation process (see details in
              OptimizerKBAndTodo)
         */
-        if ((cond->functype() == Item_func::BETWEEN) && 
-             value[0]->eq(value[1], field->binary()))
-          eq_func= TRUE;
-        else
+        if ((cond->functype() != Item_func::BETWEEN) ||
+            ((Item_func_between*) cond)->negated ||
+            !value[0]->eq(value[1], field->binary()))
           return;
+        eq_func= TRUE;
       }
 
       if (field->result_type() == STRING_RESULT)
