@@ -212,24 +212,18 @@ static inline int read_str(char **buf, char *buf_end, char **str,
 /*
   Transforms a string into "" or its expression in 0x... form.
 */
+
 char *str_to_hex(char *to, const char *from, uint len)
 {
-  char *p= to;
   if (len)
   {
-    p= strmov(p, "0x");
-    for (uint i= 0; i < len; i++, p+= 2)
-    {
-      /* val[i] is char. Casting to uchar helps greatly if val[i] < 0 */
-      uint tmp= (uint) (uchar) from[i];
-      p[0]= _dig_vec_upper[tmp >> 4];
-      p[1]= _dig_vec_upper[tmp & 15];
-    }
-    *p= 0;
+    *to++= '0';
+    *to++= 'x';
+    to= octet2hex(to, from, len);
   }
   else
-    p= strmov(p, "\"\"");
-  return p; // pointer to end 0 of 'to'
+    to= strmov(to, "\"\"");
+  return to;                               // pointer to end 0 of 'to'
 }
 
 /*

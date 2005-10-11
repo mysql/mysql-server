@@ -847,13 +847,16 @@ cast(1 as char(3))
 drop view v1;
 create table t1 (a int);
 create view v1 as select a from t1;
-create database seconddb;
-rename table v1 to seconddb.v1;
-ERROR HY000: Changing schema from 'test' to 'seconddb' is not allowed.
+create view v3 as select a from t1;
+create database mysqltest;
+rename table v1 to mysqltest.v1;
+ERROR HY000: Changing schema from 'test' to 'mysqltest' is not allowed.
 rename table v1 to v2;
+rename table v3 to v1, v2 to t1;
+ERROR 42S01: Table 't1' already exists
 drop table t1;
-drop view v2;
-drop database seconddb;
+drop view v2,v3;
+drop database mysqltest;
 create view v1 as select 'a',1;
 create view v2 as select * from v1 union all select * from v1;
 create view v3 as select * from v2 where 1 = (select `1` from v2);

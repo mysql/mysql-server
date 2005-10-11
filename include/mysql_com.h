@@ -409,7 +409,7 @@ my_bool check_scramble(const char *reply, const char *message,
                        const unsigned char *hash_stage2);
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
-void octet2hex(char *to, const unsigned char *str, unsigned int len);
+char *octet2hex(char *to, const char *str, unsigned int len);
 
 /* end of password.c */
 

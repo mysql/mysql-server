@@ -3156,15 +3156,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type= table->s->row_type;
 
-  DBUG_PRINT("info", ("old type: %d new type: %d", old_db_type, new_db_type));
-  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED)
-      || ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
+  DBUG_PRINT("info", ("old type: %d  new type: %d", old_db_type, new_db_type));
+  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
+      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
   {
     DBUG_PRINT("info", ("doesn't support alter"));
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
     DBUG_RETURN(TRUE);
   }
-  DBUG_PRINT("info", ("supports alter"));
   
   thd->proc_info="setup";
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&

@@ -145,6 +145,7 @@ int Thread_registry::cond_timedwait(Thread_info *info, pthread_cond_t *cond,
                                     pthread_mutex_t *mutex,
                                     struct timespec *wait_time)
 {
+  int rc;
   pthread_mutex_lock(&LOCK_thread_registry);
   if (shutdown_in_progress)
   {
@@ -154,7 +155,8 @@ int Thread_registry::cond_timedwait(Thread_info *info, pthread_cond_t *cond,
   info->current_cond= cond;
   pthread_mutex_unlock(&LOCK_thread_registry);
   /* sic: race condition here, cond can be signaled in deliver_shutdown */
-  int rc= pthread_cond_timedwait(cond, mutex, wait_time);
+  if ((rc= pthread_cond_timedwait(cond, mutex, wait_time)) == ETIME)
+    rc= ETIMEDOUT;                             // For easier usage
   pthread_mutex_lock(&LOCK_thread_registry);
   info->current_cond= 0;
   pthread_mutex_unlock(&LOCK_thread_registry);
@@ -172,6 +174,7 @@ void Thread_registry::deliver_shutdown()
 {
   Thread_info *info;
   struct timespec shutdown_time;
+  int error;
   set_timespec(shutdown_time, 1);
 
   pthread_mutex_lock(&LOCK_thread_registry);
@@ -204,11 +207,13 @@ void Thread_registry::deliver_shutdown()
     released - the only case when the predicate is false is when no other
     threads exist.
   */
-  while (pthread_cond_timedwait(&COND_thread_registry_is_empty,
-                                &LOCK_thread_registry,
-                                &shutdown_time) != ETIMEDOUT &&
+  while (((error= pthread_cond_timedwait(&COND_thread_registry_is_empty,
+                                          &LOCK_thread_registry,
+                                          &shutdown_time)) != ETIMEDOUT &&
+          error != ETIME) &&
          head.next != &head)
     ;
+
   /*
     If previous signals did not reach some threads, they must be sleeping
     in pthread_cond_wait or in a blocking syscall. Wake them up:

@@ -2887,7 +2887,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->protocol= &thd->protocol_simple;         /* use normal protocol */
 
   /* Assert that if an error, no cursor is open */
-  DBUG_ASSERT(! (rc && cursor));
+  DBUG_ASSERT(! (error && cursor));
 
   if (! cursor)
   {

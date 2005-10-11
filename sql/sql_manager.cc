@@ -58,12 +58,14 @@ extern "C" pthread_handler_decl(handle_manager,arg __attribute__((unused)))
 	set_timespec(abstime, flush_time);
         reset_flush_time = FALSE;
       }
-      while (!manager_status && !error && !abort_loop)
-        error = pthread_cond_timedwait(&COND_manager, &LOCK_manager, &abstime);
+      while (!manager_status && (!error || error == EINTR) && !abort_loop)
+        error= pthread_cond_timedwait(&COND_manager, &LOCK_manager, &abstime);
     }
     else
-      while (!manager_status && !error && !abort_loop)
-        error = pthread_cond_wait(&COND_manager, &LOCK_manager);
+    {
+      while (!manager_status && (!error || error == EINTR) && !abort_loop)
+        error= pthread_cond_wait(&COND_manager, &LOCK_manager);
+    }
     status = manager_status;
     manager_status = 0;
     pthread_mutex_unlock(&LOCK_manager);
@@ -71,7 +73,7 @@ extern "C" pthread_handler_decl(handle_manager,arg __attribute__((unused)))
     if (abort_loop)
       break;
 
-    if (error)  /* == ETIMEDOUT */
+    if (error == ETIMEDOUT || error == ETIME)
     {
       flush_tables();
       error = 0;
