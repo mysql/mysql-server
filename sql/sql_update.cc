@@ -672,9 +672,6 @@ int mysql_multi_update(THD *thd,
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res= mysql_multi_update_lock(thd, table_list, fields, select_lex)))
-    DBUG_RETURN(res);
-
   /* Setup timestamp handling */
   for (tl= update_list; tl; tl= tl->next)
   {

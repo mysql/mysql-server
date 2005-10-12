@@ -4,7 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-grant replication slave on *.* to replssl@'%' require ssl;
+grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
 stop slave;
 change master to master_user='replssl',master_password='';
@@ -20,11 +20,11 @@ t
 1
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	replssl	MASTER_MYPORT	1	master-bin.000001	289	slave-relay-bin.000001	108	master-bin.000001	Yes	Yes							0		0	289	108	None		0	Yes	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
+#	127.0.0.1	replssl	MASTER_MYPORT	1	master-bin.000001	295	slave-relay-bin.000001	108	master-bin.000001	Yes	Yes							0		0	295	108	None		0	Yes	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
 stop slave;
 change master to master_user='root',master_password='', master_ssl=0;
 start slave;
 drop table t1;
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	337	slave-relay-bin.000001	96	master-bin.000001	Yes	Yes							0		0	337	96	None		0	No	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	343	slave-relay-bin.000001	96	master-bin.000001	Yes	Yes							0		0	343	96	None		0	No	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#

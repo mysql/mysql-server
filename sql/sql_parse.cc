@@ -1941,8 +1941,6 @@ mysql_execute_command(THD *thd)
 {
   int	res= 0;
   LEX	*lex= thd->lex;
-  bool slave_fake_lock= 0;
-  MYSQL_LOCK *fake_prev_lock= 0;
   SELECT_LEX *select_lex= &lex->select_lex;
   TABLE_LIST *tables= (TABLE_LIST*) select_lex->table_list.first;
   SELECT_LEX_UNIT *unit= &lex->unit;
@@ -1971,35 +1969,21 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
-    if (lex->sql_command == SQLCOM_UPDATE_MULTI)
-    {
-      DBUG_PRINT("info",("need faked locked tables"));
-      
-      if (check_multi_update_lock(thd, tables, &select_lex->item_list,
-				  select_lex))
-        goto error;
-
-      /* Fix for replication, the tables are opened and locked,
-         now we pretend that we have performed a LOCK TABLES action */
-	 
-      fake_prev_lock= thd->locked_tables;
-      if (thd->lock)
-        thd->locked_tables= thd->lock;
-      thd->lock= 0;
-      slave_fake_lock= 1;
-    }
     /*
-      Skip if we are in the slave thread, some table rules have been
-      given and the table list says the query should not be replicated.
+      Check if statment should be skipped because of slave filtering
+      rules
 
       Exceptions are:
+      - UPDATE MULTI: For this statement, we want to check the filtering
+        rules later in the code
       - SET: we always execute it (Not that many SET commands exists in
         the binary log anyway -- only 4.1 masters write SET statements,
 	in 5.0 there are no SET statements in the binary log)
       - DROP TEMPORARY TABLE IF EXISTS: we always execute it (otherwise we
         have stale files on slave caused by exclusion of one tmp table).
     */
-    if (!(lex->sql_command == SQLCOM_SET_OPTION) &&
+    if (!(lex->sql_command == SQLCOM_UPDATE_MULTI) &&
+	!(lex->sql_command == SQLCOM_SET_OPTION) &&
 	!(lex->sql_command == SQLCOM_DROP_TABLE &&
           lex->drop_temporary && lex->drop_if_exists) &&
         all_tables_not_ok(thd,tables))
@@ -2022,7 +2006,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
-#endif /* !HAVE_REPLICATION */
+#endif /* HAVE_REPLICATION */
 
   /*
     When option readonly is set deny operations which change tables.
@@ -2601,7 +2585,7 @@ unsent_create_error:
     To prevent that, refuse SLAVE STOP if the
     client thread has locked tables
   */
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables || thd->active_transaction() || thd->global_read_lock)
   {
     send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
     break;
@@ -2852,6 +2836,22 @@ unsent_create_error:
   {
     if ((res= multi_update_precheck(thd, tables)))
       break;
+
+    if ((res= mysql_multi_update_lock(thd, tables, &select_lex->item_list,
+				      select_lex)))
+      break;
+
+#ifdef HAVE_REPLICATION
+    /* Check slave filtering rules */
+    if (thd->slave_thread)
+      if (all_tables_not_ok(thd,tables))
+      {
+	/* we warn the slave SQL thread */
+	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+	break;
+      }
+#endif /* HAVE_REPLICATION */
+
     res= mysql_multi_update(thd,tables,
 			    &select_lex->item_list,
 			    &lex->value_list,
@@ -3764,14 +3764,6 @@ purposes internal to the MySQL server", MYF(0));
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 
 error:
-  if (unlikely(slave_fake_lock))
-  {
-    DBUG_PRINT("info",("undoing faked lock"));
-    thd->lock= thd->locked_tables;
-    thd->locked_tables= fake_prev_lock;
-    if (thd->lock == thd->locked_tables)
-      thd->lock= 0;
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -5301,58 +5293,6 @@ bool check_simple_select()
     return 1;
   }
   return 0;
-}
-
-/*
-  Setup locking for multi-table updates. Used by the replication slave.
-  Replication slave SQL thread examines (all_tables_not_ok()) the
-  locking state of referenced tables to determine if the query has to
-  be executed or ignored. Since in multi-table update, the 
-  'default' lock is read-only, this lock is corrected early enough by
-  calling this function, before the slave decides to execute/ignore.
-
-  SYNOPSIS
-    check_multi_update_lock()
-    thd		Current thread
-    tables	List of user-supplied tables
-    fields	List of fields requiring update
-
-  RETURN VALUES
-    0	ok
-    1	error
-*/
-static bool check_multi_update_lock(THD *thd, TABLE_LIST *tables, 
-				    List<Item> *fields, SELECT_LEX *select_lex)
-{
-  bool res= 1;
-  TABLE_LIST *table;
-  DBUG_ENTER("check_multi_update_lock");
-  
-  if (check_db_used(thd, tables))
-    goto error;
-
-  /*
-    Ensure that we have UPDATE or SELECT privilege for each table
-    The exact privilege is checked in mysql_multi_update()
-  */
-  for (table= tables ; table ; table= table->next)
-  {
-    TABLE_LIST *save= table->next;
-    table->next= 0;
-    if ((check_access(thd, UPDATE_ACL, table->db, &table->grant.privilege,0,1) ||
-        (grant_option && check_grant(thd, UPDATE_ACL, table,0,1,1))) &&
-	check_one_table_access(thd, SELECT_ACL, table))
-	goto error;
-    table->next= save;
-  }
-    
-  if (mysql_multi_update_lock(thd, tables, fields, select_lex))
-    goto error;
-  
-  res= 0;
-  
-error:
-  DBUG_RETURN(res);
 }
 
 
