@@ -2402,7 +2402,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
-#endif /* !HAVE_REPLICATION */
+#endif /* HAVE_REPLICATION */
 
   /*
     When option readonly is set deny operations which change tables.
@@ -3194,36 +3194,36 @@ end_with_restore_list:
     if (result != 2)
       break;
   case SQLCOM_UPDATE_MULTI:
+  {
+    DBUG_ASSERT(first_table == all_tables && first_table != 0);
+    /* if we switched from normal update, rights are checked */
+    if (result != 2)
     {
-      DBUG_ASSERT(first_table == all_tables && first_table != 0);
-      /* if we switched from normal update, rights are checked */
-      if (result != 2)
-      {
-        if ((res= multi_update_precheck(thd, all_tables)))
-          break;
-      }
-      else
-        res= 0;
+      if ((res= multi_update_precheck(thd, all_tables)))
+        break;
+    }
+    else
+      res= 0;
 
-      if ((res= mysql_multi_update_prepare(thd)))
-	break;
+    if ((res= mysql_multi_update_prepare(thd)))
+      break;
 
 #ifdef HAVE_REPLICATION
-      /* Check slave filtering rules */
-      if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
-      {
-	/* we warn the slave SQL thread */
-	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-	break;
-      }
+    /* Check slave filtering rules */
+    if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
+    {
+      /* we warn the slave SQL thread */
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      break;
+    }
 #endif /* HAVE_REPLICATION */
 
-      res= mysql_multi_update(thd, all_tables,
-                              &select_lex->item_list,
-                              &lex->value_list,
-                              select_lex->where,
-                              select_lex->options,
-                              lex->duplicates, lex->ignore, unit, select_lex);
+    res= mysql_multi_update(thd, all_tables,
+                            &select_lex->item_list,
+                            &lex->value_list,
+                            select_lex->where,
+                            select_lex->options,
+                            lex->duplicates, lex->ignore, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:
@@ -4524,7 +4524,8 @@ end_with_restore_list:
                     command[thd->lex->create_view_mode].length);
         view_store_options(thd, first_table, &buff);
         buff.append("VIEW ", 5);
-        if (!first_table->current_db_used)
+        /* Test if user supplied a db (ie: we did not use thd->db) */
+        if (first_table->db != thd->db && first_table->db[0])
         {
           append_identifier(thd, &buff, first_table->db,
                             first_table->db_length);
@@ -4842,7 +4843,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   bool  db_is_pattern= test(want_access & GRANT_ACL);
 #endif
   ulong dummy;
-  const char *db_name;
   DBUG_ENTER("check_access");
   DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
                       db ? db : "", want_access, sctx->master_access));
@@ -4860,15 +4860,16 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
-  db_name= db ? db : thd->db;
   if (schema_db)
   {
     if (want_access & ~(SELECT_ACL | EXTRA_ACL))
     {
       if (!no_errors)
+      {
+        const char *db_name= db ? db : thd->db;
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 sctx->priv_user,
-                 sctx->priv_host, db_name);
+                 sctx->priv_user, sctx->priv_host, db_name);
+      }
       DBUG_RETURN(TRUE);
     }
     else
@@ -5043,11 +5044,16 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
   tables->db= db;
   tables->table_name= tables->alias= name;
   
-  if ((thd->security_ctx->master_access & want_access) == want_access &&
-      !thd->db)
+  /*
+    The following test is just a shortcut for check_access() (to avoid
+    calculating db_access) under the assumption that it's common to
+    give persons global right to execute all stored SP (but not
+    necessary to create them).
+  */
+  if ((thd->security_ctx->master_access & want_access) == want_access)
     tables->grant.privilege= want_access;
   else if (check_access(thd,want_access,db,&tables->grant.privilege,
-			0, no_errors, test(tables->schema_table)))
+			0, no_errors, 0))
     return TRUE;
   
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -6134,14 +6140,12 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   {
     ptr->db= thd->db;
     ptr->db_length= thd->db_length;
-    ptr->current_db_used= 1;
   }
   else
   {
     /* The following can't be "" as we may do 'casedn_str()' on it */
     ptr->db= empty_c_string;
     ptr->db_length= 0;
-    ptr->current_db_used= 1;
   }
   if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
     ptr->db= thd->strdup(ptr->db);
@@ -7390,9 +7394,9 @@ Item *negate_expression(THD *thd, Item *expr)
   Assign as view definer current user
 
   SYNOPSIS
-    default_definer()
-    Secytity_context     current decurity context
-    definer              structure where it should be assigned
+    default_view_definer()
+    sctx		current security context
+    definer             structure where it should be assigned
 
   RETURN
     FALSE   OK
@@ -7403,15 +7407,14 @@ bool default_view_definer(Security_context *sctx, st_lex_user *definer)
 {
   definer->user.str= sctx->priv_user;
   definer->user.length= strlen(sctx->priv_user);
-  if (*sctx->priv_host != 0)
-  {
-    definer->host.str= sctx->priv_host;
-    definer->host.length= strlen(sctx->priv_host);
-  }
-  else
+
+  if (!*sctx->priv_host)
   {
     my_error(ER_NO_VIEW_USER, MYF(0));
     return TRUE;
   }
+
+  definer->host.str= sctx->priv_host;
+  definer->host.length= strlen(sctx->priv_host);
   return FALSE;
 }

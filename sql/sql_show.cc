@@ -1023,6 +1023,11 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(" COMMENT=", 9);
       append_unescaped(packet, share->comment, strlen(share->comment));
     }
+    if (share->connect_string.length)
+    {
+      packet->append(" CONNECTION=", 12);
+      append_unescaped(packet, share->connect_string.str, share->connect_string.length);
+    }
     if (file->raid_type)
     {
       uint length;
@@ -1258,9 +1263,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thread_info *thd_info;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *sctx;
-#endif
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
