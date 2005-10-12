@@ -20,6 +20,10 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
+connect(localhost,root,z,test2,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
+connect(localhost,root,z,test,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 grant ALL on *.* to test@localhost identified by "gambling";
 grant ALL on *.* to test@127.0.0.1 identified by "gambling";
 show tables;
@@ -43,6 +47,14 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
+connect(localhost,test,,test2,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,,"",9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,zorro,test2,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
+connect(localhost,test,zorro,test,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
 set password="";
@@ -70,6 +82,14 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
+connect(localhost,test,,test2,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,,test,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
+connect(localhost,test,zorro,test2,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
+connect(localhost,test,zorro,test,9306,MYSQL_TEST_DIR/var/tmp/master.sock);
+ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 delete from mysql.user where user=_binary"test";
 flush privileges;
 create table t1 (id integer not null auto_increment primary key);

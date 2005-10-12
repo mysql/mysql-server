@@ -344,6 +344,18 @@ mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: End of line junk detected: "!"
 mysqltest: At line 1: Invalid integer argument "a"
+mysqltest: At line 1: Syntax error in connect - expected '(' found 'mysqltest: At line 1: Missing connection host
+mysqltest: At line 1: Missing connection host
+mysqltest: At line 1: Missing connection user
+mysqltest: At line 1: Missing connection user
+mysqltest: At line 1: Missing connection password
+mysqltest: At line 1: Missing connection db
+mysqltest: At line 1: Could not open connection 'con2': Unknown database 'illegal_db'
+mysqltest: At line 1: Illegal argument for port: 'illegal_port'
+mysqltest: At line 1: Illegal option to connect: SMTP
+mysqltest: In included file "./var/tmp/con.sql": At line 7: Connection limit exhausted - increase MAX_CONS in mysqltest.c
+mysqltest: In included file "./var/tmp/con.sql": At line 3: connection 'test_con1' not found in connection pool
+mysqltest: In included file "./var/tmp/con.sql": At line 2: Connection test_con1 already exists
 failing_statement;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing_statement' at line 1
 failing_statement;
