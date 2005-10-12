@@ -2992,12 +2992,9 @@ Rotate_log_event::Rotate_log_event(THD* thd_arg,
 #endif
 
 
-Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
-				   bool old_format)
-  :Log_event(buf, old_format), new_log_ident(0), flags(DUP_NAME)
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                                    const Format_description_log_event* description_event)
-  :Log_event(buf, description_event) ,new_log_ident(NULL),alloced(0)
+  :Log_event(buf, description_event) ,new_log_ident(0), flags(DUP_NAME)
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
   // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
@@ -3027,7 +3024,6 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
 bool Rotate_log_event::write(IO_CACHE* file)
 {
   char buf[ROTATE_HEADER_LEN];
-  DBUG_ASSERT(!(flags & ZERO_LEN)); // such an event cannot be written
   int8store(buf + R_POS_OFFSET, pos);
   return (write_header(file, ROTATE_HEADER_LEN + ident_len) ||
           my_b_safe_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
