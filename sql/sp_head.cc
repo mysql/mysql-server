@@ -1051,8 +1051,10 @@ int sp_head::execute(THD *thd)
      original thd->db will then have been freed */
   if (dbchanged)
   {
+    /* No access check when changing back to where we came from.
+       (It would generate an error from mysql_change_db() when olddb=="") */
     if (! thd->killed)
-      ret= mysql_change_db(thd, olddb, 0);
+      ret= mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_RETURN(ret);
