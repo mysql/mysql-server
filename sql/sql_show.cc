@@ -462,6 +462,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   TABLE *table;
   Protocol *protocol= thd->protocol;
   TIME time;
+  int res= 0;
   DBUG_ENTER("mysqld_extend_show_tables");
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
@@ -632,10 +633,15 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       close_thread_tables(thd,0);
     }
     if (protocol->write())
-      DBUG_RETURN(-1);
+    {
+      res= -1;
+      break;
+    }
   }
-  send_eof(thd);
-  DBUG_RETURN(0);
+  thd->insert_id(0);
+  if (!res)
+    send_eof(thd);
+  DBUG_RETURN(res);
 }
 
 
