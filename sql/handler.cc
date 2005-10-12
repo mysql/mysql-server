@@ -215,6 +215,8 @@ retest:
 
   return DB_TYPE_UNKNOWN;
 }
+
+
 const char *ha_get_storage_engine(enum db_type db_type)
 {
   handlerton **types;
@@ -223,9 +225,9 @@ const char *ha_get_storage_engine(enum db_type db_type)
     if (db_type == (*types)->db_type)
       return (*types)->name;
   }
-
-  return "none";
+  return "*NONE*";
 }
+
 
 bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
 {
@@ -233,15 +235,9 @@ bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
   for (types= sys_table_types; *types; types++)
   {
     if (db_type == (*types)->db_type)
-    {
-      if ((*types)->flags & flag)
-        return TRUE;
-      else
-        return FALSE;
-    }
+      return test((*types)->flags & flag);
   }
-
-  return FALSE;
+  return FALSE;                                 // No matching engine
 }
 
 
@@ -856,17 +852,24 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
+
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 {
   handlerton **types;
   int res= 1;
 
   for (types= sys_table_types; *types; types++)
+  {
     if ((*types)->state == SHOW_OPTION_YES && (*types)->recover)
-      res= res &&
-        (*(commit ? (*types)->commit_by_xid : (*types)->rollback_by_xid))(xid);
+    {
+      if ((*(commit ? (*types)->commit_by_xid :
+             (*types)->rollback_by_xid))(xid));
+      res= 0;
+    }
+  }
   return res;
 }
+
 
 #ifndef DBUG_OFF
 /* this does not need to be multi-byte safe or anything */

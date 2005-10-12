@@ -1964,21 +1964,16 @@ String *Item_func_char::val_str(String *str)
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
     {
-#ifdef USE_MB
-      if (use_mb(collation.collation))
-      {
-        if (num&0xFF000000L) {
-           str->append((char)(num>>24));
-           goto b2;
-        } else if (num&0xFF0000L) {
-b2:        str->append((char)(num>>16));
-           goto b1;
-        } else if (num&0xFF00L) {
-b1:        str->append((char)(num>>8));
-        }
+      if (num&0xFF000000L) {
+        str->append((char)(num>>24));
+        goto b2;
+      } else if (num&0xFF0000L) {
+    b2:        str->append((char)(num>>16));
+        goto b1;
+      } else if (num&0xFF00L) {
+    b1:        str->append((char)(num>>8));
       }
-#endif
-      str->append((char)num);
+      str->append((char) num);
     }
   }
   str->set_charset(collation.collation);
@@ -1997,7 +1992,7 @@ b1:        str->append((char)(num>>8));
     enum MYSQL_ERROR::enum_warning_level level;
     uint diff= str->length() - wlen;
     set_if_smaller(diff, 3);
-    octet2hex(hexbuf, (const uchar*) str->ptr() + wlen, diff);
+    octet2hex(hexbuf, str->ptr() + wlen, diff);
     if (thd->variables.sql_mode &
         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
     {
@@ -2436,6 +2431,7 @@ String *Item_func_collation::val_str(String *str)
 
 String *Item_func_hex::val_str(String *str)
 {
+  String *res;
   DBUG_ASSERT(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
@@ -2464,24 +2460,16 @@ String *Item_func_hex::val_str(String *str)
   }
 
   /* Convert given string to a hex string, character by character */
-  String *res= args[0]->val_str(str);
-  const char *from, *end;
-  char *to;
-  if (!res || tmp_value.alloc(res->length()*2))
+  res= args[0]->val_str(str);
+  if (!res || tmp_value.alloc(res->length()*2+1))
   {
     null_value=1;
     return 0;
   }
   null_value=0;
   tmp_value.length(res->length()*2);
-  for (from=res->ptr(), end=from+res->length(), to= (char*) tmp_value.ptr();
-       from < end ;
-       from++, to+=2)
-  {
-    uint tmp=(uint) (uchar) *from;
-    to[0]=_dig_vec_upper[tmp >> 4];
-    to[1]=_dig_vec_upper[tmp & 15];
-  }
+
+  octet2hex((char*) tmp_value.ptr(), res->ptr(), res->length());
   return &tmp_value;
 }
 

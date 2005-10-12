@@ -280,7 +280,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
       DBUG_PRINT("info", ("STRING_RESULT: null"));
       goto return_null_item;
     }
-    DBUG_PRINT("info",("STRING_RESULT: %*s",
+    DBUG_PRINT("info",("STRING_RESULT: %.*s",
                        s->length(), s->c_ptr_quick()));
     /*
       Reuse mechanism in sp_eval_func_item() is only employed for assignments
@@ -354,7 +354,7 @@ sp_name::init_qname(THD *thd)
     return;
   m_qname.length= m_sroutines_key.length - 1;
   m_qname.str= m_sroutines_key.str + 1;
-  sprintf(m_qname.str, "%*s.%*s",
+  sprintf(m_qname.str, "%.*s.%.*s",
 	  m_db.length, (m_db.length ? m_db.str : ""),
 	  m_name.length, m_name.str);
 }
@@ -794,6 +794,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
          splocal < sp_vars_uses.back(); splocal++)
     {
       Item *val;
+      (*splocal)->thd= thd;            // fix_fields() is not yet done
       /* append the text between sp ref occurences */
       res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
       prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
@@ -1051,8 +1052,10 @@ int sp_head::execute(THD *thd)
      original thd->db will then have been freed */
   if (dbchanged)
   {
+    /* No access check when changing back to where we came from.
+       (It would generate an error from mysql_change_db() when olddb=="") */
     if (! thd->killed)
-      ret= mysql_change_db(thd, olddb, 0);
+      ret= mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_RETURN(ret);
