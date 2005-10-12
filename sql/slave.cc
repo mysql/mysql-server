@@ -4438,10 +4438,12 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     if (buf[EVENT_TYPE_OFFSET]!=FORMAT_DESCRIPTION_EVENT &&
         buf[EVENT_TYPE_OFFSET]!=ROTATE_EVENT &&
         buf[EVENT_TYPE_OFFSET]!=STOP_EVENT)
+    {
       mi->master_log_pos+= inc_pos;
-    memcpy(rli->ign_master_log_name_end, mi->master_log_name, FN_REFLEN);
-    DBUG_ASSERT(rli->ign_master_log_name_end[0]);
-    rli->ign_master_log_pos_end= mi->master_log_pos;
+      memcpy(rli->ign_master_log_name_end, mi->master_log_name, FN_REFLEN);
+      DBUG_ASSERT(rli->ign_master_log_name_end[0]);
+      rli->ign_master_log_pos_end= mi->master_log_pos;
+    }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
     DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
   }  
@@ -4850,8 +4852,7 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
           DBUG_PRINT("info",("seeing an ignored end segment"));
           ev= new Rotate_log_event(thd, rli->ign_master_log_name_end,
                                    0, rli->ign_master_log_pos_end,
-                                   Rotate_log_event::DUP_NAME |
-                                   Rotate_log_event::ZERO_LEN);
+                                   Rotate_log_event::DUP_NAME);
           rli->ign_master_log_name_end[0]= 0;
           if (unlikely(!ev))
           {

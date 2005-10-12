@@ -640,13 +640,6 @@ public:
 				   const char **error,
                                    const Format_description_log_event
                                    *description_event);
-  virtual int get_event_len()
-  {
-    return (cached_event_len ? cached_event_len :
-	    (cached_event_len = LOG_EVENT_HEADER_LEN + get_data_size()));
-  }
-  static Log_event* read_log_event(const char* buf, int event_len,
-				   const char **error, bool old_format);
   /* returns the human readable name of the event's type */
   const char* get_type_str();
 };
@@ -1255,7 +1248,6 @@ class Rotate_log_event: public Log_event
 {
 public:
   enum {
-    ZERO_LEN= 1, // if event should report 0 as its length
     DUP_NAME= 2 // if constructor should dup the string argument
   };
   const char* new_log_ident;
@@ -1282,14 +1274,6 @@ public:
       my_free((gptr) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
-  virtual int get_event_len()
-  {
-    if (flags & ZERO_LEN)
-      return 0;
-    if (cached_event_len == 0)
-      cached_event_len= LOG_EVENT_HEADER_LEN + get_data_size();
-    return cached_event_len;
-  }
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
   bool is_valid() const { return new_log_ident != 0; }
 #ifndef MYSQL_CLIENT
