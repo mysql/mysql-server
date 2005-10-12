@@ -20,7 +20,7 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
     -L\$(top_builddir)/extra/yassl/taocrypt/src -ltaocrypt"
     openssl_includes="-I\$(top_srcdir)/extra/yassl/include"
     AC_DEFINE([HAVE_OPENSSL], [1], [Defined by configure. Using yaSSL for OpenSSL emulation.])
-
+    AC_DEFINE([HAVE_YASSL], [1], [Defined by configure. Using yaSSL for OpenSSL emulation.])
     # System specific checks
     yassl_integer_extra_cxxflags=""
     case $host_cpu--$CXX_VERSION in

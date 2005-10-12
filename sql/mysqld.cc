@@ -580,21 +580,21 @@ HANDLE smem_event_connect_request= 0;
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
-
+#ifndef HAVE_YASSL
 typedef struct CRYPTO_dynlock_value
 {
   rw_lock_t lock;
 } openssl_lock_t;
 
-char *des_key_file;
-struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
 static openssl_lock_t *openssl_stdlocks;
-
 static openssl_lock_t *openssl_dynlock_create(const char *, int);
 static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
 static void openssl_lock_function(int, int, const char *, int);
 static void openssl_lock(int, openssl_lock_t *, const char *, int);
 static unsigned long openssl_id_function();
+#endif
+char *des_key_file;
+struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
 
@@ -1184,9 +1184,11 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_user_conn);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
+#ifndef HAVE_YASSL
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     (void) rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
+#endif
 #endif
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
@@ -2743,6 +2745,17 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
+#ifndef HAVE_YASSL
+  openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
+                                                     sizeof(openssl_lock_t));
+  for (int i= 0; i < CRYPTO_num_locks(); ++i)
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
+  CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
+  CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
+  CRYPTO_set_dynlock_lock_callback(openssl_lock);
+  CRYPTO_set_locking_callback(openssl_lock_function);
+  CRYPTO_set_id_callback(openssl_id_function);
+#endif
 #endif
   (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
   (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
@@ -2771,22 +2784,11 @@ static int init_thread_environment()
     sql_print_error("Can't create thread-keys");
     return 1;
   }
-#ifdef HAVE_OPENSSL
-  openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
-                                                     sizeof(openssl_lock_t));
-  for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
-  CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
-  CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
-  CRYPTO_set_dynlock_lock_callback(openssl_lock);
-  CRYPTO_set_locking_callback(openssl_lock_function);
-  CRYPTO_set_id_callback(openssl_id_function);
-#endif
   return 0;
 }
 
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static unsigned long openssl_id_function()
 { 
   return (unsigned long) pthread_self();

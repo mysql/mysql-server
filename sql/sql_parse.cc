@@ -3194,36 +3194,36 @@ end_with_restore_list:
     if (result != 2)
       break;
   case SQLCOM_UPDATE_MULTI:
+  {
+    DBUG_ASSERT(first_table == all_tables && first_table != 0);
+    /* if we switched from normal update, rights are checked */
+    if (result != 2)
     {
-      DBUG_ASSERT(first_table == all_tables && first_table != 0);
-      /* if we switched from normal update, rights are checked */
-      if (result != 2)
-      {
-        if ((res= multi_update_precheck(thd, all_tables)))
-          break;
-      }
-      else
-        res= 0;
+      if ((res= multi_update_precheck(thd, all_tables)))
+        break;
+    }
+    else
+      res= 0;
 
-      if ((res= mysql_multi_update_prepare(thd)))
-	break;
+    if ((res= mysql_multi_update_prepare(thd)))
+      break;
 
 #ifdef HAVE_REPLICATION
-      /* Check slave filtering rules */
-      if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
-      {
-	/* we warn the slave SQL thread */
-	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-	break;
-      }
+    /* Check slave filtering rules */
+    if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
+    {
+      /* we warn the slave SQL thread */
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      break;
+    }
 #endif /* HAVE_REPLICATION */
 
-      res= mysql_multi_update(thd, all_tables,
-                              &select_lex->item_list,
-                              &lex->value_list,
-                              select_lex->where,
-                              select_lex->options,
-                              lex->duplicates, lex->ignore, unit, select_lex);
+    res= mysql_multi_update(thd, all_tables,
+                            &select_lex->item_list,
+                            &lex->value_list,
+                            select_lex->where,
+                            select_lex->options,
+                            lex->duplicates, lex->ignore, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:
