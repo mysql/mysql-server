@@ -2402,7 +2402,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
-#endif /* !HAVE_REPLICATION */
+#endif /* HAVE_REPLICATION */
 
   /*
     When option readonly is set deny operations which change tables.
