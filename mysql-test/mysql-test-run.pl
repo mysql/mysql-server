@@ -191,7 +191,6 @@ our $opt_compress;
 our $opt_ssl;
 our $opt_skip_ssl;
 our $opt_ssl_supported;
-our $opt_with_openssl;           # Deprecated flag
 our $opt_ps_protocol;
 
 our $opt_current_test;
@@ -480,8 +479,7 @@ sub command_line_setup () {
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
-             'with-openssl'             => \$opt_with_openssl,
-             'ssl'                      => \$opt_ssl,
+             'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
              'bench'                    => \$opt_bench,
@@ -1100,13 +1098,6 @@ sub kill_and_cleanup () {
 
 
 sub check_ssl_support () {
-
-
-  # Convert deprecated --with-openssl to --ssl
-  if ( $opt_with_openssl )
-  {
-    $opt_ssl= 1;
-  }
 
   if ($opt_skip_ssl)
   {
@@ -2597,7 +2588,7 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster       Use cluster, and enable test cases that requres it
-  skip-ndb[cluster]     Use cluster, and enable test cases that requres it
+  skip-ndb[cluster]     Skip the ndb test cases, don't start cluster
   do-test=PREFIX        Run test cases which name are prefixed with PREFIX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite=NAME            Run the test suite named NAME. The default is "main"

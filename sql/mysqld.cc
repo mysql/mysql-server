@@ -5858,9 +5858,7 @@ struct show_var_st status_vars[]= {
   {"Com_xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
   {"Com_xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
   {"Com_xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
-#ifdef HAVE_COMPRESS
   {"Compression",              (char*) 0,                        SHOW_NET_COMPRESSION},
-#endif /* HAVE_COMPRESS */
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
