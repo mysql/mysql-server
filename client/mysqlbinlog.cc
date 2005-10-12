@@ -1003,7 +1003,8 @@ static int dump_remote_log_entries(const char* logname)
 {
   char buf[128];
   LAST_EVENT_INFO last_event_info;
-  uint len, logname_len;
+  ulong len;
+  uint logname_len;
   NET* net;
   int error= 0;
   my_off_t old_off= start_position_mot;
