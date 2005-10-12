@@ -1353,7 +1353,8 @@ void MYSQL_LOG::new_file(bool need_lock)
         to change base names at some point.
       */
       THD *thd = current_thd; /* may be 0 if we are reacting to SIGHUP */
-      Rotate_log_event r(thd,new_name+dirname_length(new_name));
+      Rotate_log_event r(thd,new_name+dirname_length(new_name),
+                         0, LOG_EVENT_OFFSET, 0);
       r.write(&log_file);
       bytes_written += r.data_written;
     }
@@ -1432,7 +1433,7 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
 
-  pthread_mutex_lock(&LOCK_log);
+  safe_mutex_assert_owner(&LOCK_log);
   do
   {
     if (my_b_append(&log_file,(byte*) buf,len))
@@ -1447,7 +1448,6 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
     new_file(0);
 
 err:
-  pthread_mutex_unlock(&LOCK_log);
   if (!error)
     signal_update();
   DBUG_RETURN(error);
