@@ -160,7 +160,6 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->proc_list.first= 0;
-  lex->select_lex.is_item_list_lookup= 0;
 }
 
 void lex_end(LEX *lex)
@@ -1084,6 +1083,7 @@ void st_select_lex::init_query()
   prep_where= 0;
   subquery_in_having= explicit_limit= 0;
   parsing_place= NO_MATTER;
+  is_item_list_lookup= 0;
 }
 
 void st_select_lex::init_select()
@@ -1110,6 +1110,7 @@ void st_select_lex::init_select()
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
   with_sum_func= 0;
+
 }
 
 /*
