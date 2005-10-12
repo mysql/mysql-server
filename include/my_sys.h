@@ -158,7 +158,8 @@ extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strdup_with_length(const byte *from, uint length,
 				   myf MyFlags);
-#define my_free(PTR,FG) my_no_flags_free(PTR)
+/* we do use FG (as a no-op) in below so that a typo on FG is caught */
+#define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */
