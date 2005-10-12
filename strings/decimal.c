@@ -2018,7 +2018,7 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
   if (to->buf < buf1)
   {
     dec1 *cur_d= to->buf;
-    for (; d_to_move; d_to_move--, cur_d++, buf1++)
+    for (; d_to_move--; cur_d++, buf1++)
       *cur_d= *buf1;
   }
   return error;

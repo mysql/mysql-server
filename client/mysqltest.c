@@ -143,7 +143,8 @@ typedef struct
   long        code;
 } st_error;
 
-static st_error global_error[] = {
+static st_error global_error[] =
+{
 #include <mysqld_ername.h>
   { 0, 0 }
 };
@@ -218,7 +219,8 @@ static int ps_match_re(char *);
 static char *ps_eprint(int);
 static void ps_free_reg(void);
 
-static const char *embedded_server_groups[] = {
+static const char *embedded_server_groups[]=
+{
   "server",
   "embedded",
   "mysqltest_SERVER",
@@ -735,9 +737,7 @@ err:
 static int check_result(DYNAMIC_STRING* ds, const char *fname,
 			my_bool require_option)
 {
-  int error= RESULT_OK;
   int res= dyn_string_cmp(ds, fname);
-
   DBUG_ENTER("check_result");
 
   if (res && require_option)
@@ -747,18 +747,16 @@ static int check_result(DYNAMIC_STRING* ds, const char *fname,
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
     verbose_msg("Result length mismatch");
-    error= RESULT_LENGTH_MISMATCH;
     break;
   case RESULT_CONTENT_MISMATCH:
     verbose_msg("Result content mismatch");
-    error= RESULT_CONTENT_MISMATCH;
     break;
   default: /* impossible */
     die("Unknown error code from dyn_string_cmp()");
   }
-  if (error)
+  if (res != RESULT_OK)
     reject_dump(fname, ds->str, ds->length);
-  DBUG_RETURN(error);
+  DBUG_RETURN(res);
 }
 
 
@@ -1286,7 +1284,7 @@ int do_modify_var(struct st_query *query, const char *name,
   if (*p != '$')
     die("First argument to %s must be a variable (start with $)", name);
   v= var_get(p, &p, 1, 0);
-  switch (operator){
+  switch (operator) {
   case DO_DEC:
     v->int_val--;
     break;
