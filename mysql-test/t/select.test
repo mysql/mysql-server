@@ -2178,4 +2178,14 @@ select * from t1,t2 where f1=f3 and (f1,f2) = (2,null);
 select * from t1,t2 where f1=f3 and (f1,f2) <=> (2,null);
 drop table t1,t2; 
 
+#
+# Bug #13535
+#
+create table t1 (f1 int not null auto_increment primary key, f2 varchar(10));
+create table t11 like t1;
+insert into t1 values(1,""),(2,"");
+--replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+show table status like 't1%';
+select 123 as a from t1 where f1 is null;
+drop table t1,t11;
 # End of 4.1 tests
