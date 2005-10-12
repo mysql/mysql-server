@@ -2868,7 +2868,14 @@ static void init_ssl()
 					  opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
+    {
       opt_use_ssl = 0;
+      have_openssl= SHOW_OPTION_DISABLED;
+    }
+  }
+  else
+  {
+    have_openssl= SHOW_OPTION_DISABLED;
   }
   if (des_key_file)
     load_des_key_file(des_key_file);
@@ -5959,6 +5966,7 @@ struct show_var_st status_vars[]= {
   {"Com_xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
   {"Com_xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
   {"Com_xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
+  {"Compression",              (char*) 0,                        SHOW_NET_COMPRESSION},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},

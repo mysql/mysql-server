@@ -703,6 +703,7 @@ insert into t1 values (10),(11),(12);
 select * from t1;
 check table t1;
 drop table t1;
+disconnect con1;
 
 # Same test with dynamic record length
 create table t1 (a int, b varchar(30) default "hello");
@@ -727,7 +728,9 @@ insert into t1 (a) values (10),(11),(12);
 select a from t1;
 check table t1;
 drop table t1;
+disconnect con1;
 set global concurrent_insert=@save_concurrent_insert;
+
 
 # BUG#9622 - ANALYZE TABLE and ALTER TABLE .. ENABLE INDEX produce
 # different statistics on the same table with NULL values.

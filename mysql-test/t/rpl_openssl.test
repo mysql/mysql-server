@@ -1,4 +1,4 @@
-source include/have_openssl_1.inc;
+source include/have_openssl.inc;
 source include/master-slave.inc;
 
 # We don't test all types of ssl auth params here since it's a bit hard 

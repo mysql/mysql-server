@@ -186,6 +186,11 @@ our $opt_big_test= 0;            # Send --big-test to mysqltest
 our @opt_extra_mysqld_opt;
 
 our $opt_compress;
+our $opt_ssl;
+our $opt_skip_ssl;
+our $opt_ssl_supported;
+our $opt_ps_protocol;
+
 our $opt_current_test;
 our $opt_ddd;
 our $opt_debug;
@@ -235,7 +240,6 @@ our $opt_skip_rpl;
 our $opt_skip_test;
 
 our $opt_sleep;
-our $opt_ps_protocol;
 
 our $opt_sleep_time_after_restart=  1;
 our $opt_sleep_time_for_delete=    10;
@@ -276,7 +280,6 @@ our $opt_udiff;
 
 our $opt_skip_ndbcluster;
 our $opt_with_ndbcluster;
-our $opt_with_openssl;
 
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
@@ -297,7 +300,8 @@ sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
 sub kill_and_cleanup ();
-sub ndbcluster_support ();
+sub check_ssl_support ();
+sub check_ndbcluster_support ();
 sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
@@ -332,11 +336,9 @@ sub main () {
   initial_setup();
   command_line_setup();
   executable_setup();
-  
-  if (! $opt_skip_ndbcluster and ! $opt_with_ndbcluster)
-  {
-    $opt_with_ndbcluster= ndbcluster_support();
-  }
+
+  check_ndbcluster_support();
+  check_ssl_support();
 
   environment_setup();
   signal_setup();
@@ -479,6 +481,9 @@ sub command_line_setup () {
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
+             'ssl|with-openssl'         => \$opt_ssl,
+             'skip-ssl'                 => \$opt_skip_ssl,
+             'compress'                 => \$opt_compress,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
              'no-manager'               => \$opt_no_manager, # Currently not used
@@ -530,7 +535,6 @@ sub command_line_setup () {
 
              # Misc
              'big-test'                 => \$opt_big_test,
-             'compress'                 => \$opt_compress,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
              'local'                    => \$opt_local,
@@ -555,7 +559,6 @@ sub command_line_setup () {
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
-             'with-openssl'             => \$opt_with_openssl,
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
@@ -1140,13 +1143,59 @@ sub kill_and_cleanup () {
 }
 
 
+sub check_ssl_support () {
+
+  if ($opt_skip_ssl)
+  {
+    mtr_report("Skipping SSL");
+    $opt_ssl_supported= 0;
+    $opt_ssl= 0;
+    return;
+  }
+
+  # check ssl support by testing using a switch
+  # that is only available in that case
+  if ( mtr_run($exe_mysqld,
+	       ["--no-defaults",
+	        "--ssl",
+	        "--help"],
+	       "", "/dev/null", "/dev/null", "") != 0 )
+  {
+    if ( $opt_ssl)
+    {
+      mtr_error("Couldn't find support for SSL");
+      return;
+    }
+    mtr_report("Skipping SSL, mysqld does not support it");
+    $opt_ssl_supported= 0;
+    $opt_ssl= 0;
+    return;
+  }
+  mtr_report("Setting mysqld to support SSL connections");
+  $opt_ssl_supported= 1;
+}
+
+
 ##############################################################################
 #
 #  Start the ndb cluster
 #
 ##############################################################################
 
-sub ndbcluster_support () {
+sub check_ndbcluster_support () {
+
+  if ($opt_skip_ndbcluster)
+  {
+    mtr_report("Skipping ndbcluster");
+    $opt_with_ndbcluster= 0;
+    return;
+  }
+
+  if ($opt_with_ndbcluster)
+  {
+    mtr_report("Using ndbcluster");
+    return;
+  }
 
   # check ndbcluster support by testing using a switch
   # that is only available in that case
@@ -1156,11 +1205,13 @@ sub ndbcluster_support () {
 	        "--help"],
 	       "", "/dev/null", "/dev/null", "") != 0 )
   {
-    mtr_report("No ndbcluster support");
-    return 0;
+    mtr_report("Skipping ndbcluster, mysqld does not support it");
+    $opt_with_ndbcluster= 0;
+    return;
   }
-  mtr_report("Has ndbcluster support");
-  return 1;
+  mtr_report("Using ndbcluster, mysqld supports it");
+  $opt_with_ndbcluster= 1;
+  return;
 }
 
 # FIXME why is there a different start below?!
@@ -2049,7 +2100,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
   mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
 
-  if ( $opt_with_openssl )
+  if ( $opt_ssl_supported )
   {
     mtr_add_arg($args, "%s--ssl-ca=%s/std_data/cacert.pem", $prefix,
                 $glob_mysql_test_dir);
@@ -2504,14 +2555,26 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir);
   }
 
-  if ( $opt_with_openssl )
+  if ( $opt_ssl_supported )
   {
     mtr_add_arg($args, "--ssl-ca=%s/std_data/cacert.pem",
-                $glob_mysql_test_dir);
+	        $glob_mysql_test_dir);
     mtr_add_arg($args, "--ssl-cert=%s/std_data/client-cert.pem",
-                $glob_mysql_test_dir);
+	        $glob_mysql_test_dir);
     mtr_add_arg($args, "--ssl-key=%s/std_data/client-key.pem",
-                $glob_mysql_test_dir);
+	        $glob_mysql_test_dir);
+  }
+
+  # Turn on SSL for all test cases
+  if ( $opt_ssl )
+  {
+    mtr_add_arg($args, "--ssl",
+		$glob_mysql_test_dir);
+  }
+  elsif ( $opt_ssl_supported )
+  {
+    mtr_add_arg($args, "--skip-ssl",
+		$glob_mysql_test_dir);
   }
 
   # ----------------------------------------------------------------------
@@ -2590,6 +2653,9 @@ Options to control what engine/variation to run
 
   embedded-server       Use the embedded server, i.e. no mysqld daemons
   ps-protocol           Use the binary protocol between client and server
+  compress              Use the compressed protocol between client and server
+  ssl                   Use ssl protocol between client and server
+  skip-ssl              Dont start sterver with support for ssl connections
   bench                 Run the benchmark suite FIXME
   small-bench           FIXME
 
@@ -2597,6 +2663,7 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster       Use cluster, and enable test cases that requres it
+  skip-ndb[cluster]     Skip the ndb test cases, don't start cluster
   do-test=PREFIX        Run test cases which name are prefixed with PREFIX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite=NAME            Run the test suite named NAME. The default is "main"
@@ -2620,7 +2687,7 @@ Options that pass on options
 Options to run test on running server
 
   extern                Use running server for tests FIXME DANGEROUS
-  ndbconnectstring=STR  Use running cluster, and connect using STR      
+  ndbconnectstring=STR  Use running cluster, and connect using STR
   user=USER             User for connect to server
 
 Options for debugging the product
@@ -2648,7 +2715,6 @@ Misc options
 
   verbose               Verbose output from this script
   script-debug          Debug this script itself
-  compress              Use the compressed protocol between client and server
   timer                 Show test case execution time
   start-and-exit        Only initiate and start the "mysqld" servers, use the startup
                         settings for the specified test case if any
@@ -2660,6 +2726,9 @@ Misc options
 
   testcase-timeout=MINUTES Max test case run time (default 5)
   suite-timeout=MINUTES    Max test suite run time (default 120)
+
+Deprecated options
+  with-openssl          Deprecated option for ssl
 
 
 Options not yet described, or that I want to look into more
@@ -2677,7 +2746,6 @@ Options not yet described, or that I want to look into more
   wait-timeout=SECONDS  
   warnings              
   log-warnings          
-  with-openssl          
 
 HERE
   mtr_exit(1);
