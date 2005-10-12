@@ -231,8 +231,11 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     Uint32 server_port= 0;
     if(iter.get(CFG_CONNECTION_SERVER_PORT, &server_port)) break;
     
+    Uint32 nodeIdServer= 0;
+    if(iter.get(CFG_CONNECTION_NODE_ID_SERVER, &nodeIdServer)) break;
+
     /*
-      We check the node type. MGM node becomes server.
+      We check the node type.
     */
     Uint32 node1type, node2type;
     ndb_mgm_configuration_iterator node1iter(config, CFG_SECTION_NODE);
@@ -242,20 +245,12 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     node1iter.get(CFG_TYPE_OF_SECTION,&node1type);
     node2iter.get(CFG_TYPE_OF_SECTION,&node2type);
 
-    conf.serverNodeId= (nodeId1 < nodeId2)? nodeId1:nodeId2;
+    if(node1type==NODE_TYPE_MGM || node2type==NODE_TYPE_MGM)
+      conf.isMgmConnection= true;
+    else
+      conf.isMgmConnection= false;
 
-    conf.isMgmConnection= false;
-    if(node2type==NODE_TYPE_MGM)
-    {
-      conf.isMgmConnection= true;
-      conf.serverNodeId= nodeId2;
-    }
-    else if(node1type==NODE_TYPE_MGM)
-    {
-      conf.isMgmConnection= true;
-      conf.serverNodeId= nodeId1;
-    }
-    else if (nodeId == conf.serverNodeId) {
+    if (nodeId == nodeIdServer && !conf.isMgmConnection) {
       tr.add_transporter_interface(remoteNodeId, localHostName, server_port);
     }
 
@@ -279,6 +274,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     conf.s_port         = server_port;
     conf.localHostName  = localHostName;
     conf.remoteHostName = remoteHostName;
+    conf.serverNodeId   = nodeIdServer;
 
     switch(type){
     case CONNECTION_TYPE_SHM:

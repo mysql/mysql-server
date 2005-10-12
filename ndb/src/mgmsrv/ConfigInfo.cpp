@@ -57,7 +57,6 @@ ConfigInfo::m_sectionNameAliases[]={
 const char* 
 ConfigInfo::m_sectionNames[]={
   "SYSTEM",
-  "EXTERNAL SYSTEM",
   "COMPUTER",
 
   DB_TOKEN,
@@ -78,9 +77,7 @@ sizeof(m_sectionNames)/sizeof(char*);
  ****************************************************************************/
 static bool transformComputer(InitConfigFileParser::Context & ctx, const char *);
 static bool transformSystem(InitConfigFileParser::Context & ctx, const char *);
-static bool transformExternalSystem(InitConfigFileParser::Context & ctx, const char *);
 static bool transformNode(InitConfigFileParser::Context & ctx, const char *);
-static bool transformExtNode(InitConfigFileParser::Context & ctx, const char *);
 static bool checkConnectionSupport(InitConfigFileParser::Context & ctx, const char *);
 static bool transformConnection(InitConfigFileParser::Context & ctx, const char *);
 static bool applyDefaultValues(InitConfigFileParser::Context & ctx, const char *);
@@ -93,7 +90,6 @@ static bool checkTCPConstraints(InitConfigFileParser::Context &, const char *);
 static bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
-static bool fixExtConnection(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
 static bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
 static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data);
@@ -104,7 +100,6 @@ static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const
 const ConfigInfo::SectionRule 
 ConfigInfo::m_SectionRules[] = {
   { "SYSTEM", transformSystem, 0 },
-  { "EXTERNAL SYSTEM", transformExternalSystem, 0 },
   { "COMPUTER", transformComputer, 0 },
 
   { DB_TOKEN,   transformNode, 0 },
@@ -151,14 +146,6 @@ ConfigInfo::m_SectionRules[] = {
   { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SCI",  fixPortNumber, 0 }, // has to come after fixHostName
 
-  /**
-   * fixExtConnection must be after fixNodeId
-   */
-  { "TCP",  fixExtConnection, 0 },
-  { "SHM",  fixExtConnection, 0 },
-  { "SCI",  fixExtConnection, 0 },
-  { "OSE",  fixExtConnection, 0 },
-  
   { "*",    applyDefaultValues, "user" },
   { "*",    fixDepricated, 0 },
   { "*",    applyDefaultValues, "system" },
@@ -174,9 +161,6 @@ ConfigInfo::m_SectionRules[] = {
 
   { DB_TOKEN,   checkDbConstraints, 0 },
 
-  /**
-   * checkConnectionConstraints must be after fixExtConnection
-   */
   { "TCP",  checkConnectionConstraints, 0 },
   { "SHM",  checkConnectionConstraints, 0 },
   { "SCI",  checkConnectionConstraints, 0 },
@@ -214,9 +198,6 @@ static bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 static bool set_connection_priorities(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 				 struct InitConfigFileParser::Context &ctx, 
 				 const char * rule_data);
-static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-		      struct InitConfigFileParser::Context &ctx, 
-		      const char * rule_data);
 static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 			    struct InitConfigFileParser::Context &ctx, 
 			    const char * rule_data);
@@ -226,7 +207,6 @@ ConfigInfo::m_ConfigRules[] = {
   { sanity_checks, 0 },
   { add_node_connections, 0 },
   { set_connection_priorities, 0 },
-  { add_server_ports, 0 },
   { check_node_vs_replicas, 0 },
   { 0, 0 }
 };
@@ -242,9 +222,9 @@ struct DepricationTransform {
 static
 const DepricationTransform f_deprication[] = {
   { DB_TOKEN, "Discless", "Diskless", 0, 1 },
-  { DB_TOKEN, "Id", "nodeid", 0, 1 },
-  { API_TOKEN, "Id", "nodeid", 0, 1 },
-  { MGM_TOKEN, "Id", "nodeid", 0, 1 },
+  { DB_TOKEN, "Id", "NodeId", 0, 1 },
+  { API_TOKEN, "Id", "NodeId", 0, 1 },
+  { MGM_TOKEN, "Id", "NodeId", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
 
@@ -422,7 +402,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   {
     CFG_NODE_ID,
-    "nodeid",
+    "NodeId",
     DB_TOKEN,
     "Number identifying the database node ("DB_TOKEN_PRINT")",
     ConfigInfo::CI_USED,
@@ -1273,7 +1253,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   {
     CFG_NODE_ID,
-    "nodeid",
+    "NodeId",
     API_TOKEN,
     "Number identifying application node ("API_TOKEN_PRINT")",
     ConfigInfo::CI_USED,
@@ -1416,7 +1396,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   
   {
     CFG_NODE_ID,
-    "nodeid",
+    "NodeId",
     MGM_TOKEN,
     "Number identifying the management server node ("MGM_TOKEN_PRINT")",
     ConfigInfo::CI_USED,
@@ -1577,6 +1557,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "55",
     "0", "200" },
+
+  {
+    CFG_CONNECTION_NODE_ID_SERVER,
+    "NodeIdServer",
+    "TCP",
+    "",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    MANDATORY,
+    "1", "63" },
 
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1767,6 +1758,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0", "200" },
 
   {
+    CFG_CONNECTION_NODE_ID_SERVER,
+    "NodeIdServer",
+    "SHM",
+    "",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    MANDATORY,
+    "1", "63" },
+
+  {
     CFG_CONNECTION_SEND_SIGNAL_ID,
     "SendSignalId",
     "SHM",
@@ -1886,6 +1888,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "15",
     "0", "200" },
+
+  {
+    CFG_CONNECTION_NODE_ID_SERVER,
+    "NodeIdServer",
+    "SCI",
+    "",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    MANDATORY,
+    "1", "63" },
 
   {
     CFG_CONNECTION_HOSTNAME_1,
@@ -2555,29 +2568,32 @@ void ConfigInfo::print(const Properties * section,
 bool
 transformNode(InitConfigFileParser::Context & ctx, const char * data){
 
-  Uint32 id;
-  if(!ctx.m_currentSection->get("nodeid", &id) && !ctx.m_currentSection->get("Id", &id)){
+  Uint32 id, line;
+  if(!ctx.m_currentSection->get("NodeId", &id) && !ctx.m_currentSection->get("Id", &id)){
     Uint32 nextNodeId= 1;
     ctx.m_userProperties.get("NextNodeId", &nextNodeId);
     id= nextNodeId;
-    while (ctx.m_userProperties.get("AllocatedNodeId_", id, &id))
+    while (ctx.m_userProperties.get("AllocatedNodeId_", id, &line))
       id++;
-    ctx.m_userProperties.put("NextNodeId", id+1, true);
-    ctx.m_currentSection->put("nodeid", id);
-#if 0
-    ctx.reportError("Mandatory parameter Id missing from section "
-		    "[%s] starting at line: %d",
-		    ctx.fname, ctx.m_sectionLineno);
-    return false;
-#endif
-  } else if(ctx.m_userProperties.get("AllocatedNodeId_", id, &id)) {
+    if (id != nextNodeId)
+    {
+      ndbout_c("Cluster configuration warning line %d: "
+	       "Could not use next node id %d for section [%s], "
+	       "using next unused node id %d.",
+	       ctx.m_sectionLineno, nextNodeId, ctx.fname, id);
+    }
+    ctx.m_currentSection->put("NodeId", id);
+  } else if(ctx.m_userProperties.get("AllocatedNodeId_", id, &line)) {
     ctx.reportError("Duplicate nodeid in section "
-		    "[%s] starting at line: %d",
-		    ctx.fname, ctx.m_sectionLineno);
+		    "[%s] starting at line: %d. Previously used on line %d.",
+		    ctx.fname, ctx.m_sectionLineno, line);
     return false;
   }
 
-  ctx.m_userProperties.put("AllocatedNodeId_", id, id);
+  // next node id _always_ next numbers after last used id
+  ctx.m_userProperties.put("NextNodeId", id+1, true);
+
+  ctx.m_userProperties.put("AllocatedNodeId_", id, ctx.m_sectionLineno);
   BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "Node_%d", id);
   
   ctx.m_currentSection->put("Type", ctx.fname);
@@ -2691,38 +2707,6 @@ fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data){
   return false;
 }
 
-bool
-transformExtNode(InitConfigFileParser::Context & ctx, const char * data){
-
-  Uint32 id;
-  const char * systemName;
-
-  if(!ctx.m_currentSection->get("Id", &id)){
-    ctx.reportError("Mandatory parameter 'Id' missing from section "
-		    "[%s] starting at line: %d",
-		    ctx.fname, ctx.m_sectionLineno);
-    return false;
-  }
-
-  if(!ctx.m_currentSection->get("System", &systemName)){
-    ctx.reportError("Mandatory parameter 'System' missing from section "
-		    "[%s] starting at line: %d",
-		    ctx.fname, ctx.m_sectionLineno);
-    return false;
-  }
-
-  ctx.m_currentSection->put("Type", ctx.fname);
-
-  Uint32 nodes = 0;
-  ctx.m_userProperties.get("ExtNoOfNodes", &nodes);
-  require(ctx.m_userProperties.put("ExtNoOfNodes",++nodes, true));
-
-  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "EXTERNAL SYSTEM_%s:Node_%d", 
-	   systemName, id);
-
-  return true;
-}
-
 /**
  * Connection rule: Check support of connection
  */
@@ -2794,23 +2778,6 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
   ndbout << "transformSystem " << name << endl;
 
   BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
-  
-  return true;
-}
-
-/**
- * External system rule: Just add it
- */
-bool
-transformExternalSystem(InitConfigFileParser::Context & ctx, const char * data){
-  const char * name;
-  if(!ctx.m_currentSection->get("Name", &name)){
-    ctx.reportError("Mandatory parameter Name missing from section "
-		    "[%s] starting at line: %d",
-		    ctx.fname, ctx.m_sectionLineno);
-    return false;
-  }
-  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "EXTERNAL SYSTEM_%s", name);
   
   return true;
 }
@@ -2991,87 +2958,6 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data)
 }
 
 /**
- * @returns true if connection is external (one node is external)
- * Also returns: 
- * - name of external system in parameter extSystemName, and 
- * - nodeId of external node in parameter extSystemNodeId.
- */
-static bool 
-isExtConnection(InitConfigFileParser::Context & ctx, 
-		const char **extSystemName, Uint32 * extSystemNodeId){
-
-  Uint32 nodeId1, nodeId2;
-
-  if (ctx.m_currentSection->contains("System1") &&
-      ctx.m_currentSection->get("System1", extSystemName) &&
-      ctx.m_currentSection->get("NodeId1", &nodeId1)) {
-    *extSystemNodeId = nodeId1;
-    return true;
-  }
-
-  if (ctx.m_currentSection->contains("System2") &&
-      ctx.m_currentSection->get("System2", extSystemName) &&
-      ctx.m_currentSection->get("NodeId2", &nodeId2)) {
-    *extSystemNodeId = nodeId2;
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * External Connection Rule: 
- * If connection is to an external system, then move connection into
- * external system configuration (i.e. a sub-property).
- */
-static bool
-fixExtConnection(InitConfigFileParser::Context & ctx, const char * data){
-
-  const char * extSystemName;
-  Uint32 extSystemNodeId;
-
-  if (isExtConnection(ctx, &extSystemName, &extSystemNodeId)) {
-
-    Uint32 connections = 0;
-    ctx.m_userProperties.get("ExtNoOfConnections", &connections);
-    require(ctx.m_userProperties.put("ExtNoOfConnections",++connections, true));
-
-    char tmpLine1[MAX_LINE_LENGTH];
-    BaseString::snprintf(tmpLine1, MAX_LINE_LENGTH, "Connection_%d", connections-1);
-
-    /**
-     *  Section:   EXTERNAL SYSTEM_<Ext System Name>
-     */
-    char extSystemPropName[MAX_LINE_LENGTH];
-    strncpy(extSystemPropName, "EXTERNAL SYSTEM_", MAX_LINE_LENGTH);
-    strncat(extSystemPropName, extSystemName, MAX_LINE_LENGTH);
-    strncat(extSystemPropName, ":", MAX_LINE_LENGTH);
-    strncat(extSystemPropName, tmpLine1, MAX_LINE_LENGTH);
-
-    /**
-     * Increase number of external connections for the system
-     *
-     * @todo Limitation: Only one external system is allowed
-     */
-    require(ctx.m_userProperties.put("ExtSystem", extSystemName, true));
-    
-    /**
-     * Make sure section is stored in right place
-     */
-    strncpy(ctx.pname, extSystemPropName, MAX_LINE_LENGTH);
-
-    /**
-     * Since this is an external connection, 
-     * decrease number of internal connections
-     */
-    require(ctx.m_userProperties.get("NoOfConnections", &connections));
-    require(ctx.m_userProperties.put("NoOfConnections", --connections, true));
-  }
-
-  return true;
-}
-
-/**
  * Connection rule: Fix hostname
  * 
  * Unless Hostname is not already specified, do steps:
@@ -3113,7 +2999,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
   DBUG_ENTER("fixPortNumber");
 
-  Uint32 id1= 0, id2= 0;
+  Uint32 id1, id2;
   const char *hostName1;
   const char *hostName2;
   require(ctx.m_currentSection->get("NodeId1", &id1));
@@ -3123,17 +3009,46 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   DBUG_PRINT("info",("NodeId1=%d HostName1=\"%s\"",id1,hostName1));
   DBUG_PRINT("info",("NodeId2=%d HostName2=\"%s\"",id2,hostName2));
 
-  if (id1 > id2) {
-    Uint32 tmp= id1;
-    const char *tmp_name= hostName1;
-    hostName1= hostName2;
-    id1= id2;
-    hostName2= tmp_name;
-    id2= tmp;
-  }
+  const Properties *node1, *node2;
+  require(ctx.m_config->get("Node", id1, &node1));
+  require(ctx.m_config->get("Node", id2, &node2));
 
-  const Properties * node;
-  require(ctx.m_config->get("Node", id1, &node));
+  const char *type1, *type2;
+  require(node1->get("Type", &type1));
+  require(node2->get("Type", &type2));
+
+  /* add NodeIdServer info */
+  {
+    Uint32 nodeIdServer = id1 < id2 ? id1 : id2;
+    if(strcmp(type1, API_TOKEN) == 0 || strcmp(type2, MGM_TOKEN) == 0)
+      nodeIdServer = id2;
+    else if(strcmp(type2, API_TOKEN) == 0 || strcmp(type1, MGM_TOKEN) == 0)
+      nodeIdServer = id1;
+    ctx.m_currentSection->put("NodeIdServer", nodeIdServer);
+
+    if (id2 == nodeIdServer) {
+      {
+	const char *tmp= hostName1;
+	hostName1= hostName2;
+	hostName2= tmp;
+      }
+      {
+	Uint32 tmp= id1;
+	id1= id2;
+	id2= tmp;
+      }
+      {
+	const Properties *tmp= node1;
+	node1= node2;
+	node2= tmp;
+      }
+      {
+	const char *tmp= type1;
+	type1= type2;
+	type2= tmp;
+      }
+    }
+  }
 
   BaseString hostname(hostName1);
   
@@ -3144,21 +3059,13 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   Uint32 port= 0;
-  const char * type1;
-  const char * type2;
-  const Properties * node2;
-
-  node->get("Type", &type1);
-  ctx.m_config->get("Node", id2, &node2);
-  node2->get("Type", &type2);
-
   if(strcmp(type1, MGM_TOKEN)==0)
-    node->get("PortNumber",&port);
+    node1->get("PortNumber",&port);
   else if(strcmp(type2, MGM_TOKEN)==0)
     node2->get("PortNumber",&port);
 
   if (!port && 
-      !node->get("ServerPort", &port) &&
+      !node1->get("ServerPort", &port) &&
       !ctx.m_userProperties.get("ServerPort_", id1, &port))
   {
     Uint32 base= 0;
@@ -3309,11 +3216,6 @@ checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
   ctx.m_currentSection->get("NodeId1", &id1);
   ctx.m_currentSection->get("NodeId2", &id2);
   
-  // If external connection, just accept it
-  if (ctx.m_currentSection->contains("System1") ||
-      ctx.m_currentSection->contains("System2")) 
-    return true;
-
   if(id1 == id2){
     ctx.reportError("Illegal connection from node to itself"
 		    " - [%s] starting at line: %d",
@@ -3346,12 +3248,10 @@ checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
    * Report error if the following are true
    * -# None of the nodes is of type DB
    * -# Not both of them are MGMs
-   * -# None of them contain a "SystemX" name
    */
   if((strcmp(type1, DB_TOKEN) != 0 && strcmp(type2, DB_TOKEN) != 0) &&
-     !(strcmp(type1, MGM_TOKEN) == 0 && strcmp(type2, MGM_TOKEN) == 0) &&
-     !ctx.m_currentSection->contains("System1") &&
-     !ctx.m_currentSection->contains("System2")){
+     !(strcmp(type1, MGM_TOKEN) == 0 && strcmp(type2, MGM_TOKEN) == 0))
+  {
     ctx.reportError("Invalid connection between node %d (%s) and node %d (%s)"
 		    " - [%s] starting at line: %d",
 		    id1, type1, id2, type2, 
@@ -3441,11 +3341,11 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
       if(strcmp(p->m_section, ctx.fname) == 0){
 	double mul = p->m_mul;
 	double add = p->m_add;
-	if(strcmp(name, p->m_oldName) == 0){
+	if(strcasecmp(name, p->m_oldName) == 0){
 	  if(!transform(ctx, tmp, name, p->m_newName, add, mul)){
 	    return false;
 	  }
-	} else if(strcmp(name, p->m_newName) == 0) {
+	} else if(strcasecmp(name, p->m_newName) == 0) {
 	  if(!transform(ctx, tmp, name, p->m_oldName, -add/mul,1.0/mul)){
 	    return false;
 	  }
@@ -3722,45 +3622,6 @@ static bool set_connection_priorities(Vector<ConfigInfo::ConfigRuleSection>&sect
 {
   DBUG_ENTER("set_connection_priorities");
   DBUG_RETURN(true);
-}
-
-static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-		      struct InitConfigFileParser::Context &ctx, 
-		      const char * rule_data)
-{
-#if 0
-  Properties * props= ctx.m_config;
-  Properties computers(true);
-  Uint32 port_base = NDB_TCP_BASE_PORT;
-
-  Uint32 nNodes;
-  ctx.m_userProperties.get("NoOfNodes", &nNodes);
-
-  for (Uint32 i= 0, n= 0; n < nNodes; i++){
-    Properties * tmp;
-    if(!props->get("Node", i, &tmp)) continue;
-    n++;
-
-    const char * type;
-    if(!tmp->get("Type", &type)) continue;
-
-    Uint32 port;
-    if (tmp->get("ServerPort", &port)) continue;
-
-    Uint32 computer;
-    if (!tmp->get("ExecuteOnComputer", &computer)) continue;
-
-    Uint32 adder= 0;
-    computers.get("",computer, &adder);
-
-    if (strcmp(type,DB_TOKEN) == 0) {
-      adder++;
-      tmp->put("ServerPort", port_base+adder);
-      computers.put("",computer, adder);
-    }
-  }
-#endif
-  return true;
 }
 
 static bool

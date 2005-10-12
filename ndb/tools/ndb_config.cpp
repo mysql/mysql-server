@@ -33,7 +33,7 @@
 static int g_verbose = 0;
 static int try_reconnect = 3;
 
-static int g_nodes = 1;
+static int g_nodes, g_connections, g_section;
 static const char * g_connectstring = 0;
 static const char * g_query = 0;
 
@@ -70,13 +70,19 @@ static struct my_option my_long_options[] =
     "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", 
     (gptr*) &g_connectstring, (gptr*) &g_connectstring, 
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "ndb-shm", 256, "Print nodes",
+    (gptr*) &opt_ndb_shm, (gptr*) &opt_ndb_shm,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "nodes", 256, "Print nodes",
     (gptr*) &g_nodes, (gptr*) &g_nodes,
-    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "connections", 256, "Print connections",
+    (gptr*) &g_connections, (gptr*) &g_connections,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "query", 'q', "Query option(s)",
     (gptr*) &g_query, (gptr*) &g_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "host", 257, "Host",
+  { "host", 256, "Host",
     (gptr*) &g_host, (gptr*) &g_host,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "type", 258, "Type of node/connection",
@@ -155,6 +161,11 @@ struct NodeTypeApply : public Apply
   virtual int apply(const Iter&);
 };
 
+struct ConnectionTypeApply : public Apply
+{
+  virtual int apply(const Iter&);
+};
+
 static int parse_query(Vector<Apply*>&, int &argc, char**& argv);
 static int parse_where(Vector<Match*>&, int &argc, char**& argv);
 static int eval(const Iter&, const Vector<Match*>&);
@@ -171,6 +182,15 @@ main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     return -1;
+
+  if (g_nodes && g_connections)
+  {
+    ndbout_c("Only one option of --nodes and --connections allowed");
+  }
+
+  g_section = CFG_SECTION_NODE; //default
+  if (g_connections)
+    g_section = CFG_SECTION_CONNECTION;
 
   ndb_mgm_configuration * conf = 0;
 
@@ -202,7 +222,7 @@ main(int argc, char** argv){
     exit(0);
   }
 
-  Iter iter(* conf, CFG_SECTION_NODE);
+  Iter iter(* conf, g_section);
   bool prev= false;
   iter.first();
   for(iter.first(); iter.valid(); iter.next())
@@ -231,13 +251,32 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
     for(unsigned i = 0; i<list.size(); i++)
     {
       const char * str= list[i].c_str();
-      if(strcasecmp(str, "id") == 0 || strcasecmp(str, "nodeid") == 0)
-	select.push_back(new Apply(CFG_NODE_ID));
-      else if(strncasecmp(str, "host", 4) == 0)
-	select.push_back(new Apply(CFG_NODE_HOST));
-      else if(strcasecmp(str, "type") == 0)
-	select.push_back(new NodeTypeApply());
-      else if(g_nodes)
+      if(g_section == CFG_SECTION_NODE)
+      {
+	if(strcasecmp(str, "id") == 0 || strcasecmp(str, "nodeid") == 0)
+	{
+	  select.push_back(new Apply(CFG_NODE_ID));
+	  continue;
+	}
+	else if(strncasecmp(str, "host", 4) == 0)
+	{
+	  select.push_back(new Apply(CFG_NODE_HOST));
+	  continue;
+	}
+	else if(strcasecmp(str, "type") == 0)
+	{
+	  select.push_back(new NodeTypeApply());
+	  continue;
+	}
+      }
+      else if (g_section == CFG_SECTION_CONNECTION)
+      {
+	if(strcasecmp(str, "type") == 0)
+	{
+	  select.push_back(new ConnectionTypeApply());
+	  continue;
+	}
+      }
       {
 	bool found = false;
 	for(int p = 0; p<ConfigInfo::m_NoOfParams; p++)
@@ -245,9 +284,15 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
 	  if(0)ndbout_c("%s %s",
 			ConfigInfo::m_ParamInfo[p]._section,
 			ConfigInfo::m_ParamInfo[p]._fname);
-	  if(strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
-	     strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
-	     strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0)
+	  if(g_section == CFG_SECTION_CONNECTION &&
+	     (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
+	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
+	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0)
+	     ||
+	     g_section == CFG_SECTION_NODE &&
+	     (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
+	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
+	      strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
 	  {
 	    if(strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
 	    {
@@ -262,11 +307,6 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
 	  fprintf(stderr, "Unknown query option: %s\n", str);
 	  return 1;
 	}
-      }
-      else
-      {
-	fprintf(stderr, "Unknown query option: %s\n", str);
-	return 1;
       }
     }
   }
@@ -421,6 +461,31 @@ NodeTypeApply::apply(const Iter& iter)
   if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
   {
     printf("%s", ndb_mgm_get_node_type_alias_string((ndb_mgm_node_type)val32, 0));
+  } 
+  return 0;
+}
+
+int
+ConnectionTypeApply::apply(const Iter& iter)
+{
+  Uint32 val32;
+  if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
+  {
+    switch (val32)
+    {
+    case CONNECTION_TYPE_TCP:
+      printf("tcp");
+      break;
+    case CONNECTION_TYPE_SCI:
+      printf("sci");
+      break;
+    case CONNECTION_TYPE_SHM:
+      printf("shm");
+      break;
+    default:
+      printf("<unknown>");
+      break;
+    }
   } 
   return 0;
 }
