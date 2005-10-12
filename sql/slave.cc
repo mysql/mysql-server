@@ -1722,9 +1722,26 @@ static int init_relay_log_info(RELAY_LOG_INFO* rli,
   {
     char buf[FN_REFLEN];
     const char *ln;
+    static bool name_warning_sent= 0;
     ln= rli->relay_log.generate_name(opt_relay_logname, "-relay-bin",
                                      1, buf);
-
+    /* We send the warning only at startup, not after every RESET SLAVE */
+    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
+    {
+      /*
+        User didn't give us info to name the relay log index file.
+        Picking `hostname`-relay-bin.index like we do, causes replication to
+        fail if this slave's hostname is changed later. So, we would like to
+        instead require a name. But as we don't want to break many existing
+        setups, we only give warning, not error.
+      */
+      sql_print_warning("Neither --relay-log nor --relay-log-index were used;"
+                        " so replication "
+                        "may break when this MySQL server acts as a "
+                        "slave and has his hostname changed!! Please "
+                        "use '--relay-log=%s' to avoid this problem.", ln);
+      name_warning_sent= 1;
+    }
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
