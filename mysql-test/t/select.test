@@ -2165,7 +2165,7 @@ select found_rows();
 
 DROP TABLE t1;
 
-# End of 4.1 tests
+#
 # Bug 7672 Unknown column error in order clause
 #
 CREATE TABLE t1 (a INT, b INT);
@@ -2174,3 +2174,4 @@ CREATE TABLE t1 (a INT, b INT);
 SELECT a, b AS c FROM t1 ORDER BY c+1;
 SELECT a, b AS c FROM t1 ORDER BY b+1;
 drop table t1;
+# End of 4.1 tests
