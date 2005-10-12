@@ -1760,10 +1760,15 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if ((tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
 	not_found_field)
     {
-      if (thd->lex.select_lex.is_item_list_lookup)
+      /* Look up in current select's item_list to find aliased fields */
+      if (thd->lex->current_select->is_item_list_lookup)
       {
-        Item** res= find_item_in_list(this, thd->lex.select_lex.item_list);
-        if (res && *res && (*res)->type() == Item::FIELD_ITEM)
+        uint counter;
+        bool not_used;
+        Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
+                                      &counter, REPORT_EXCEPT_NOT_FOUND,
+                                      &not_used);
+        if (res != not_found_item && (*res)->type() == Item::FIELD_ITEM)
         {
           set_field((*((Item_field**)res))->field);
           return 0;
