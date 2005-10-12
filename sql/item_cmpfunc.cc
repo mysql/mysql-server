@@ -2443,9 +2443,9 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     String *escape_str= escape_item->val_str(&tmp_value1);
     if (escape_str)
     {
-      CHARSET_INFO *cs= cmp.cmp_collation.collation;
-      if (use_mb(cs))
+      if (use_mb(cmp.cmp_collation.collation))
       {
+        CHARSET_INFO *cs= escape_str->charset();
         my_wc_t wc;
         int rc= cs->cset->mb_wc(cs, &wc,
                                 (const uchar*) escape_str->ptr(),
@@ -2460,6 +2460,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
           code instead of Unicode code as "escape" argument.
           Convert to "cs" if charset of escape differs.
         */
+        CHARSET_INFO *cs= cmp.cmp_collation.collation;
         uint32 unused;
         if (escape_str->needs_conversion(escape_str->length(),
                                          escape_str->charset(), cs, &unused))
