@@ -404,23 +404,6 @@ int sigwait(sigset_t *setp, int *sigp)
 #endif /* DONT_USE_SIGSUSPEND */
 #endif /* HAVE_SIGWAIT */
 
-/*****************************************************************************
-** Implement pthread_signal for systems that can't use signal() with threads
-** Currently this is only used with BSDI 3.0
-*****************************************************************************/
-
-#ifdef USE_PTHREAD_SIGNAL
-
-int pthread_signal(int sig, void (*func)())
-{
-  struct sigaction sact;
-  sact.sa_flags= 0;
-  sact.sa_handler= func;
-  sigemptyset(&sact.sa_mask);
-  sigaction(sig, &sact, (struct sigaction*) 0);
-  return 0;
-}
-#endif
 
 /****************************************************************************
  The following functions fixes that all pthread functions should work
