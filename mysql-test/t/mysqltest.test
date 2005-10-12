@@ -358,11 +358,11 @@ select 3 from t1 ;
 # Missing delimiter
 # The comment will be "sucked into" the sleep command since
 # delimiter is missing until after "show status"
---system echo "sleep 4" > var/log/mysqltest.sql
---system echo "# A comment" >> var/log/mysqltest.sql
---system echo "show status;" >> var/log/mysqltest.sql
+--system echo "sleep 4" > var/tmp/mysqltest.sql
+--system echo "# A comment" >> var/tmp/mysqltest.sql
+--system echo "show status;" >> var/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < var/tmp/mysqltest.sql 2>&1
 
 #
 # Extra delimiter
@@ -805,6 +805,66 @@ select "a" as col1, "c" as col2;
 --exec echo "save_master_pos; sync_with_master 10 !;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "save_master_pos; sync_with_master a;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# Test connect
+# ----------------------------------------------------------------------------
+
+--error 1
+--exec echo "connect;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect ();" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2,);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2,localhost);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2, localhost, root);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2,  localhost, root,);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2,localhost,root,,illegal_db);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con1,localhost,root,,,illegal_port,);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con1,localhost,root,,,,,SMTP POP);" | $MYSQL_TEST 2>&1
+
+# Repeat connect/disconnect
+--exec echo "let \$i=100;"                              > var/tmp/con.sql
+--exec echo "while (\$i)"                              >> var/tmp/con.sql
+--exec echo "{"                                        >> var/tmp/con.sql
+--exec echo " connect (test_con1,localhost,root,,); "  >> var/tmp/con.sql
+--exec echo " disconnect test_con1; "                  >> var/tmp/con.sql
+--exec echo " dec \$i;                               " >> var/tmp/con.sql
+--exec echo "}"                                        >> var/tmp/con.sql
+--exec echo "source var/tmp/con.sql;" | $MYSQL_TEST 2>&1
+
+# Repeat connect/disconnect, exceed max number of connections
+--exec echo "let \$i=200;"                              > var/tmp/con.sql
+--exec echo "while (\$i)"                              >> var/tmp/con.sql
+--exec echo "{"                                        >> var/tmp/con.sql
+--exec echo " connect (test_con1,localhost,root,,); "  >> var/tmp/con.sql
+--exec echo " disconnect test_con1; "                  >> var/tmp/con.sql
+--exec echo " dec \$i;                               " >> var/tmp/con.sql
+--exec echo "}"                                        >> var/tmp/con.sql
+--error 1
+--exec echo "source var/tmp/con.sql;" | $MYSQL_TEST 2>&1
+
+# Select disconnected connection
+--exec echo "connect (test_con1,localhost,root,,);"    > var/tmp/con.sql
+--exec echo "disconnect test_con1; "                  >> var/tmp/con.sql
+--exec echo "connection test_con1;"                   >> var/tmp/con.sql
+--error 1
+--exec echo "source var/tmp/con.sql;" | $MYSQL_TEST 2>&1
+
+# Connection name already used
+--exec echo "connect (test_con1,localhost,root,,);"    > var/tmp/con.sql
+--exec echo "connect (test_con1,localhost,root,,);"   >> var/tmp/con.sql
+--error 1
+--exec echo "source var/tmp/con.sql;" | $MYSQL_TEST 2>&1
+
 
 
 # ----------------------------------------------------------------------------

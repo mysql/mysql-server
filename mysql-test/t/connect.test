@@ -1,7 +1,6 @@
 # This test is to check various cases of connections
-# with right and wrong password, with and without database 
-# Unfortunately the check is incomplete as we can't handle errors on connect
-# Also we can't connect without database
+# with right and wrong password, with and without database
+# Unfortunately the check is incomplete as we can't connect without database
 
 # This test makes no sense with the embedded server
 --source include/not_embedded.inc
@@ -10,69 +9,72 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+
 #connect (con1,localhost,root,,"");
 #show tables;
 connect (con1,localhost,root,,mysql);
 show tables;
-connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
 show tables;
 
-# Re enable this one day if error handling on connect will take place
-
-#connect (con1,localhost,root,z,test2);
-#--error 1045
-#connect (con1,localhost,root,z,);
-#--error 1045
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,root,z,test2);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,root,z,);
 
 grant ALL on *.* to test@localhost identified by "gambling";
 grant ALL on *.* to test@127.0.0.1 identified by "gambling";
 
 # Now check this user with different databases
-
 #connect (con1,localhost,test,gambling,"");
 #show tables;
-connect (con1,localhost,test,gambling,mysql);
+connect (con3,localhost,test,gambling,mysql);
 show tables;
-connect (con1,localhost,test,gambling,test);
+connect (con4,localhost,test,gambling,test);
 show tables;
 
-# Re enable this one day if error handling on connect will take place
-
-#connect (con1,localhost,test,,test2);
-#--error 1045
-#connect (con1,localhost,test,,"");
-#--error 1045
-#connect (con1,localhost,test,zorro,test2);
-#--error 1045
-#connect (con1,localhost,test,zorro,);
-#--error 1045
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,,test2);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,,"");
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,zorro,test2);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,zorro,);
 
 
 # check if old password version also works
 update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
 
-#connect (con1,localhost,test,gambling2,"");
-#show tables;
-connect (con1,localhost,test,gambling2,mysql);
+connect (con10,localhost,test,gambling2,);
+connect (con5,localhost,test,gambling2,mysql);
 set password="";
 --error 1372
 set password='gambling3';
 set password=old_password('gambling3');
 show tables;
-connect (con1,localhost,test,gambling3,test);
+connect (con6,localhost,test,gambling3,test);
 show tables;
 
-# Re enable this one day if error handling on connect will take place
-
-#connect (con1,localhost,test,,test2);
-#--error 1045
-#connect (con1,localhost,test,,);
-#--error 1045
-#connect (con1,localhost,test,zorro,test2);
-#--error 1045
-#connect (con1,localhost,test,zorro,);
-#--error 1045
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,,test2);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,,);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,zorro,test2);
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1045
+connect (fail_con,localhost,test,zorro,);
 
 
 # remove user 'test' so that other tests which may use 'test'
@@ -84,13 +86,13 @@ flush privileges;
 #
 # Bug#12517: Clear user variables and replication events before 
 #            closing temp tables in thread cleanup.
-connect (con2,localhost,root,,test);
-connection con2;
+connect (con7,localhost,root,,test);
+connection con7;
 create table t1 (id integer not null auto_increment primary key);
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
 delete from t1 where id like @id;
-disconnect con2;
+disconnect con7;
 --sleep 5
 connection default;
 drop table t1;

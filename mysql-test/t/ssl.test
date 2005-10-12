@@ -1,0 +1,18 @@
+# Turn on ssl between the client and server
+# and run a number of tests
+
+-- source include/have_openssl.inc
+
+# Reconnect to turn ssl on for
+# default connection
+disconnect default;
+connect (default,localhost,root,,,,,SSL);
+
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
+
+# Source select test case
+-- source t/select.test
+
+
+
