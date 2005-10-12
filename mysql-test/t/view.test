@@ -790,13 +790,16 @@ drop view v1;
 #
 create table t1 (a int);
 create view v1 as select a from t1;
-create database seconddb;
+create view v3 as select a from t1;
+create database mysqltest;
 -- error 1450
-rename table v1 to seconddb.v1;
+rename table v1 to mysqltest.v1;
 rename table v1 to v2;
+--error 1050
+rename table v3 to v1, v2 to t1;
 drop table t1;
-drop view v2;
-drop database seconddb;
+drop view v2,v3;
+drop database mysqltest;
 
 #
 # bug handling from VIEWs
@@ -2167,3 +2170,23 @@ SELECT v_1.a FROM v1 AS v_1 GROUP BY v_1.a HAVING v_1.a IN (1,2,3);
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug #13327 view wasn't using index for const condition
+#
+
+CREATE TABLE t1 (a INT, b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t3 VALUES (1),(2),(3);
+CREATE VIEW v1 AS SELECT t1.* FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
+CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
+EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
+EXPLAIN SELECT * FROM v1 WHERE a=1;
+EXPLAIN SELECT * FROM v2 WHERE a=1;
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
+
+

@@ -1212,6 +1212,59 @@ call bug9367();
 drop procedure bug9367;
 drop table t1;
 --enable_parsing
+
+#
+# BUG#13510: Setting password local variable changes current password
+#
+delimiter |;
+--disable_warnings
+drop procedure if exists bug13510_1|
+drop procedure if exists bug13510_2|
+drop procedure if exists bug13510_3|
+drop procedure if exists bug13510_4|
+--enable_warnings
+
+--error ER_SP_BAD_VAR_SHADOW
+create procedure bug13510_1()
+begin
+  declare password varchar(10);
+
+  set password = 'foo1';
+  select password;
+end|
+
+--error ER_SP_BAD_VAR_SHADOW
+create procedure bug13510_2()
+begin
+  declare names varchar(10);
+
+  set names = 'foo2';
+  select names;
+end|
+
+create procedure bug13510_3()
+begin
+  declare password varchar(10);
+
+  set `password` = 'foo3';
+  select password;
+end|
+
+create procedure bug13510_4()
+begin
+  declare names varchar(10);
+
+  set `names` = 'foo4';
+  select names;
+end|
+
+call bug13510_3()|
+call bug13510_4()|
+
+drop procedure bug13510_3|
+drop procedure bug13510_4|
+delimiter ;|
+
 #
 # BUG#NNNN: New bug synopsis
 #

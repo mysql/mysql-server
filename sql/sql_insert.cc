@@ -1809,7 +1809,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
 #endif
 	if (thd->killed || di->status)
 	  break;
-	if (error == ETIMEDOUT)
+	if (error == ETIMEDOUT || error == ETIME)
 	{
 	  thd->killed= THD::KILL_CONNECTION;
 	  break;

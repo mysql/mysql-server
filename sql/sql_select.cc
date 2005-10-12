@@ -2474,11 +2474,11 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
              and use them in equality propagation process (see details in
              OptimizerKBAndTodo)
         */
-        if ((cond->functype() == Item_func::BETWEEN) && 
-             value[0]->eq(value[1], field->binary()))
-          eq_func= TRUE;
-        else
+        if ((cond->functype() != Item_func::BETWEEN) ||
+            ((Item_func_between*) cond)->negated ||
+            !value[0]->eq(value[1], field->binary()))
           return;
+        eq_func= TRUE;
       }
 
       if (field->result_type() == STRING_RESULT)
@@ -6254,6 +6254,21 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
   {
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
+
+    if (left_item->type() == Item::REF_ITEM &&
+        ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
+    {
+      if (((Item_ref*)left_item)->depended_from)
+        return FALSE;
+      left_item= left_item->real_item();
+    }
+    if (right_item->type() == Item::REF_ITEM &&
+        ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
+    {
+      if (((Item_ref*)right_item)->depended_from)
+        return FALSE;
+      right_item= right_item->real_item();
+    }
     if (left_item->type() == Item::FIELD_ITEM &&
         right_item->type() == Item::FIELD_ITEM &&
         !((Item_field*)left_item)->depended_from &&

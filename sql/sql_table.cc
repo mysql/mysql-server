@@ -1571,7 +1571,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(TRUE);
   }
   if (wait_if_global_read_lock(thd, 0, 1))
-    DBUG_RETURN(error);
+    DBUG_RETURN(TRUE);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
@@ -1636,20 +1636,20 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     mysql_bin_log.write(&qinfo);
   }
   error= FALSE;
-  goto end; 
-
-warn:
-  error= 0;
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                      ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                      alias);
-  create_info->table_existed= 1;		// Mark that table existed
 
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
   start_waiting_global_read_lock(thd);
   thd->proc_info="After create";
   DBUG_RETURN(error);
+
+warn:
+  error= FALSE;
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                      ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                      alias);
+  create_info->table_existed= 1;		// Mark that table existed
+  goto end;
 }
 
 /*
@@ -3156,15 +3156,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type= table->s->row_type;
 
-  DBUG_PRINT("info", ("old type: %d new type: %d", old_db_type, new_db_type));
-  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED)
-      || ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
+  DBUG_PRINT("info", ("old type: %d  new type: %d", old_db_type, new_db_type));
+  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
+      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
   {
     DBUG_PRINT("info", ("doesn't support alter"));
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
     DBUG_RETURN(TRUE);
   }
-  DBUG_PRINT("info", ("supports alter"));
   
   thd->proc_info="setup";
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
