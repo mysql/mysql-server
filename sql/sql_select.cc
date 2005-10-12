@@ -8348,11 +8348,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
 
     'it' reassigned in if condition because fix_field can change it.
   */
+  thd->lex->current_select->is_item_list_lookup= 1;
   if (!it->fixed &&
       (it->fix_fields(thd, tables, order->item) ||
        (it= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
+  {
+    thd->lex->current_select->is_item_list_lookup= 0;
     return 1;					// Wrong field 
+  }
+  thd->lex->current_select->is_item_list_lookup= 0;
   uint el= all_fields.elements;
   all_fields.push_front(it);		        // Add new field to field list
   ref_pointer_array[el]= it;
