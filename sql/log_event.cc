@@ -2013,18 +2013,44 @@ void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
 #endif /* MYSQL_CLIENT */
 
 
+
 /*
-  Rotate_log_event::Rotate_log_event()
+  Rotate_log_event::Rotate_log_event() (2 constructors)
 */
+
+
+#ifndef MYSQL_CLIENT
+Rotate_log_event::Rotate_log_event(THD* thd_arg,
+                                   const char* new_log_ident_arg,
+                                   uint ident_len_arg, ulonglong pos_arg,
+                                   uint flags_arg)
+  :Log_event(), new_log_ident(new_log_ident_arg),
+   pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
+                          (uint) strlen(new_log_ident_arg)), flags(flags_arg)
+{
+#ifndef DBUG_OFF
+  char buff[22];
+  DBUG_ENTER("Rotate_log_event::Rotate_log_event(THD*,...)");
+  DBUG_PRINT("enter",("new_log_ident %s pos %s flags %lu", new_log_ident_arg,
+                      llstr(pos_arg, buff), flags));
+#endif
+  if (flags & DUP_NAME)
+    new_log_ident= my_strdup_with_length(new_log_ident_arg,
+                                         ident_len,
+                                         MYF(MY_WME));
+  DBUG_VOID_RETURN;
+}
+#endif
+
 
 Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
 				   bool old_format)
-  :Log_event(buf, old_format),new_log_ident(NULL),alloced(0)
+  :Log_event(buf, old_format), new_log_ident(0), flags(DUP_NAME)
 {
   // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
   int header_size = (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   uint ident_offset;
-  DBUG_ENTER("Rotate_log_event");
+  DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
 
   if (event_len < header_size)
     DBUG_VOID_RETURN;
@@ -2043,12 +2069,9 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
     ident_offset = ROTATE_HEADER_LEN;
   }
   set_if_smaller(ident_len,FN_REFLEN-1);
-  if (!(new_log_ident= my_strdup_with_length((byte*) buf +
-					     ident_offset,
-					     (uint) ident_len,
-					     MYF(MY_WME))))
-    DBUG_VOID_RETURN;
-  alloced = 1;
+  new_log_ident= my_strdup_with_length((byte*) buf + ident_offset,
+                                       (uint) ident_len,
+                                       MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 
@@ -2060,6 +2083,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
 int Rotate_log_event::write_data(IO_CACHE* file)
 {
   char buf[ROTATE_HEADER_LEN];
+  DBUG_ASSERT(!(flags & ZERO_LEN)); // such an event cannot be written
   int8store(buf + R_POS_OFFSET, pos);
   return (my_b_safe_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
 	  my_b_safe_write(file, (byte*)new_log_ident, (uint) ident_len));
