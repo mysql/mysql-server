@@ -75,7 +75,8 @@ eval CREATE TABLE federated.t2 (
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
   CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
 
-SHOW CREATE TABLE federated.t2;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval SHOW CREATE TABLE federated.t2;
 
 INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t2 (id, name) VALUES (2, 'fee');
