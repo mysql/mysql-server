@@ -5930,7 +5930,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   Ndb* ndb;
-  int error= 0;
   struct timespec abstime;
 
   my_thread_init();
@@ -5959,9 +5958,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   {
 
     pthread_mutex_lock(&LOCK_ndb_util_thread);
-    error= pthread_cond_timedwait(&COND_ndb_util_thread,
-                                  &LOCK_ndb_util_thread,
-                                  &abstime);
+    pthread_cond_timedwait(&COND_ndb_util_thread,
+                           &LOCK_ndb_util_thread,
+                           &abstime);
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
     DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %d",

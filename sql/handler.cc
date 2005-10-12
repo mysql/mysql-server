@@ -183,15 +183,18 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
   THD *thd= current_thd;
   show_table_alias_st *table_alias;
   handlerton **types;
-  const char *ptr= name;
 
-  if (thd && !my_strcasecmp(&my_charset_latin1, ptr, "DEFAULT"))
+  if (thd && !my_strnncoll(&my_charset_latin1,
+        (const uchar *)name, namelen,
+        (const uchar *)"DEFAULT", 7))
     return (enum db_type) thd->variables.table_type;
 
 retest:
   for (types= sys_table_types; *types; types++)
   {
-    if (!my_strcasecmp(&my_charset_latin1, ptr, (*types)->name))
+    if (!my_strnncoll(&my_charset_latin1,
+          (const uchar *)name, namelen,
+          (const uchar *)(*types)->name, strlen((*types)->name)))
       return (enum db_type) (*types)->db_type;
   }
 
@@ -200,15 +203,20 @@ retest:
   */
   for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
   {
-    if (!my_strcasecmp(&my_charset_latin1, ptr, table_alias->alias))
+    if (!my_strnncoll(&my_charset_latin1,
+          (const uchar *)name, namelen,
+          (const uchar *)table_alias->alias, strlen(table_alias->alias)))
     {
-      ptr= table_alias->type;
+      name= table_alias->type;
+      namelen= strlen(name);
       goto retest;
     }
   }
 
   return DB_TYPE_UNKNOWN;
 }
+
+
 const char *ha_get_storage_engine(enum db_type db_type)
 {
   handlerton **types;
@@ -217,9 +225,9 @@ const char *ha_get_storage_engine(enum db_type db_type)
     if (db_type == (*types)->db_type)
       return (*types)->name;
   }
-
-  return "none";
+  return "*NONE*";
 }
+
 
 bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
 {
@@ -227,15 +235,9 @@ bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
   for (types= sys_table_types; *types; types++)
   {
     if (db_type == (*types)->db_type)
-    {
-      if ((*types)->flags & flag)
-        return TRUE;
-      else
-        return FALSE;
-    }
+      return test((*types)->flags & flag);
   }
-
-  return FALSE;
+  return FALSE;                                 // No matching engine
 }
 
 
@@ -850,17 +852,24 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
+
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 {
   handlerton **types;
   int res= 1;
 
   for (types= sys_table_types; *types; types++)
+  {
     if ((*types)->state == SHOW_OPTION_YES && (*types)->recover)
-      res= res &&
-        (*(commit ? (*types)->commit_by_xid : (*types)->rollback_by_xid))(xid);
+    {
+      if ((*(commit ? (*types)->commit_by_xid :
+             (*types)->rollback_by_xid))(xid));
+      res= 0;
+    }
+  }
   return res;
 }
+
 
 #ifndef DBUG_OFF
 /* this does not need to be multi-byte safe or anything */

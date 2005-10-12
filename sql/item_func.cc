@@ -32,6 +32,11 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+#define sp_restore_security_context(A,B) while (0) {}
+#endif
+
+
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -2015,7 +2020,6 @@ String *Item_func_min_max::val_str(String *str)
   {
     String *res;
     LINT_INIT(res);
-    null_value= 0;
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -2030,14 +2034,11 @@ String *Item_func_min_max::val_str(String *str)
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
-        else
-          res= 0;
       }
       if ((null_value= args[i]->null_value))
-        break;
+        return 0;
     }
-    if (res)					// If !NULL
-      res->set_charset(collation.collation);
+    res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -2054,7 +2055,6 @@ double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2076,7 +2076,6 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2097,21 +2096,21 @@ longlong Item_func_min_max::val_int()
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *res= NULL;
-  null_value= 0;
+  my_decimal tmp_buf, *tmp, *res;
+  LINT_INIT(res);
+
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
       res= args[i]->val_decimal(dec);
     else
     {
-      tmp= args[i]->val_decimal(&tmp_buf);
-      if (args[i]->null_value)
-        res= 0;
-      else if ((my_decimal_cmp(tmp, res) * cmp_sign) < 0)
+      tmp= args[i]->val_decimal(&tmp_buf);      // Zero if NULL
+      if (tmp && (my_decimal_cmp(tmp, res) * cmp_sign) < 0)
       {
         if (tmp == &tmp_buf)
         {
+          /* Move value out of tmp_buf as this will be reused on next loop */
           my_decimal2decimal(tmp, dec);
           res= dec;
         }
@@ -2120,7 +2119,10 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
       }
     }
     if ((null_value= args[i]->null_value))
+    {
+      res= 0;
       break;
+    }
   }
   return res;
 }
@@ -3031,9 +3033,13 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   thd->mysys_var->current_cond=  &ull->cond;
 
   set_timespec(abstime,lock_timeout);
-  while (!thd->killed &&
-         pthread_cond_timedwait(&ull->cond, &LOCK_user_locks,
-                                &abstime) != ETIMEDOUT && ull->locked) ;
+  while (ull->locked && !thd->killed)
+  {
+    int error= pthread_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+  }
+
   if (ull->locked)
   {
     if (!--ull->count)
@@ -3077,7 +3083,7 @@ longlong Item_func_get_lock::val_int()
   struct timespec abstime;
   THD *thd=current_thd;
   User_level_lock *ull;
-  int error=0;
+  int error;
 
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
@@ -3133,22 +3139,29 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_cond=  &ull->cond;
 
   set_timespec(abstime,timeout);
-  while (!thd->killed &&
-	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-         != ETIMEDOUT && error != EINVAL && ull->locked) ;
-  if (thd->killed)
-    error=EINTR;				// Return NULL
+  error= 0;
+  while (ull->locked && !thd->killed)
+  {
+    error= pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+    error= 0;
+  }
+
   if (ull->locked)
   {
     if (!--ull->count)
+    {
+      DBUG_ASSERT(0);
       delete ull;				// Should never happen
-    if (error != ETIMEDOUT)
+    }
+    if (!error)                                 // Killed (thd->killed != 0)
     {
       error=1;
       null_value=1;				// Return NULL
     }
   }
-  else
+  else                                          // We got the lock
   {
     ull->locked=1;
     ull->thread=thd->real_id;
@@ -3270,6 +3283,7 @@ void Item_func_benchmark::print(String *str)
   str->append(')');
 }
 
+
 /* This function is just used to create tests with time gaps */
 
 longlong Item_func_sleep::val_int()
@@ -3290,10 +3304,14 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
-  while (!thd->killed &&
-         (error= pthread_cond_timedwait(&cond, &LOCK_user_locks,
-                                        &abstime)) != ETIMEDOUT &&
-         error != EINVAL) ;
+  error= 0;
+  while (!thd->killed)
+  {
+    error= pthread_cond_timedwait(&cond, &LOCK_user_locks, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+    error= 0;
+  }
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -3303,7 +3321,7 @@ longlong Item_func_sleep::val_int()
   pthread_mutex_unlock(&LOCK_user_locks);
   pthread_cond_destroy(&cond);
 
-  return (error == ETIMEDOUT) ? 0 : 1;
+  return test(!error); 		// Return 1 killed
 }
 
 
@@ -4732,10 +4750,7 @@ Item_func_sp::execute(Item **itp)
                  ER_FAILED_ROUTINE_BREAK_BINLOG,
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, save_ctx);
-#endif
-
 error:
   DBUG_RETURN(res);
 }
@@ -4849,11 +4864,12 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
     find_and_check_access()
     thd           thread handler
     want_access   requested access
-    backup        backup of security context or 0
+    save          backup of security context
 
   RETURN
     FALSE    Access granted
     TRUE     Requested access can't be granted or function doesn't exists
+	     In this case security context is not changed and *save = 0
 
   NOTES
     Checks if requested access to function can be granted to user.
@@ -4868,12 +4884,11 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
 
 bool
 Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
-                                    Security_context **backup)
+                                    Security_context **save)
 {
-  bool res;
-  Security_context *local_save,
-                   **save= (backup ? backup : &local_save);
-  res= TRUE;
+  bool res= TRUE;
+
+  *save= 0;                                     // Safety if error
   if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
@@ -4883,26 +4898,31 @@ Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, want_access,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-  {
     goto error;
-  }
 
   sp_change_security_context(thd, m_sp, save);
+  /*
+    If we changed context to run as another user, we need to check the
+    access right for the new context again as someone may have deleted
+    this person the right to use the procedure
+
+    TODO:
+      Cache if the definer has the right to use the object on the first
+      usage and only reset the cache if someone does a GRANT statement
+      that 'may' affect this.
+  */
   if (*save &&
       check_routine_access(thd, want_access,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
   {
-    goto error_check_ctx;
+    sp_restore_security_context(thd, *save);
+    *save= 0;                                   // Safety
+    goto error;
   }
-  res= FALSE;
-error_check_ctx:
-  if (*save && (res || !backup))
-    sp_restore_security_context(thd, local_save);
-error:
-#else
-  res= 0;
-error:
 #endif
+  res= FALSE;                                   // no error
+
+error:
   return res;
 }
 
@@ -4912,7 +4932,11 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   bool res;
   DBUG_ASSERT(fixed == 0);
   res= Item_func::fix_fields(thd, ref);
-  if (!res && find_and_check_access(thd, EXECUTE_ACL, NULL))
-    res= 1;
+  if (!res)
+  {
+    Security_context *save_ctx;
+    if (!(res= find_and_check_access(thd, EXECUTE_ACL, &save_ctx)))
+      sp_restore_security_context(thd, save_ctx);
+  }
   return res;
 }

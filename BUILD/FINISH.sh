@@ -14,7 +14,7 @@ path=`dirname $0`
 if [ -z "$just_clean" ]
 then
 commands="$commands
-CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" \
+CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" \
 $configure"
 fi
 

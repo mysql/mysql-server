@@ -480,6 +480,7 @@ static int check_foreign_data_source(
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
   MYSQL *mysql;
   DBUG_ENTER("ha_federated::check_foreign_data_source");
+
   /* Zero the length, otherwise the string will have misc chars */
   query.length(0);
 
@@ -564,6 +565,7 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   char buf[FEDERATED_QUERY_BUFFER_SIZE];
   int buf_len;
   DBUG_ENTER("ha_federated parse_url_error");
+
   if (share->scheme)
   {
     DBUG_PRINT("info",
@@ -572,11 +574,9 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
     my_free((gptr) share->scheme, MYF(0));
     share->scheme= 0;
   }
-  buf_len= (table->s->connect_string.length > (FEDERATED_QUERY_BUFFER_SIZE - 1)) 
-    ? FEDERATED_QUERY_BUFFER_SIZE - 1 : table->s->connect_string.length;
-  
-  strnmov(buf, table->s->connect_string.str, buf_len);
-  buf[buf_len]= '\0';
+  buf_len= min(table->s->connect_string.length,
+               FEDERATED_QUERY_BUFFER_SIZE-1);
+  strmake(buf, table->s->connect_string.str, buf_len);
   my_error(error_num, MYF(0), buf);
   DBUG_RETURN(error_num);
 }
@@ -767,12 +767,9 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
 {
   ulong *lengths;
   Field **field;
-
   DBUG_ENTER("ha_federated::convert_row_to_internal_format");
 
-  // num_fields= mysql_num_fields(stored_result);
   lengths= mysql_fetch_lengths(stored_result);
-
   memset(record, 0, table->s->null_bytes);
 
   for (field= table->field; *field; field++)
@@ -824,13 +821,8 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
 
     *buf++= '0';
     *buf++= 'x';
-    for (; len; ptr++,len--)
-    {
-      uint tmp= (uint)(uchar) *ptr;
-      *buf++= _dig_vec_upper[tmp >> 4];
-      *buf++= _dig_vec_upper[tmp & 15];
-    }
-    if (to->append(buff, (uint)(buf - buff)))
+    buf= octet2hex(buf, (char*) ptr, len);
+    if (to->append((char*) buff, (uint)(buf - buff)))
       DBUG_RETURN(1);
   }
   else if (part->key_part_flag & HA_BLOB_PART)
@@ -1127,8 +1119,8 @@ bool ha_federated::create_where_from_key(String *to,
   char tmpbuff[FEDERATED_QUERY_BUFFER_SIZE];
   String tmp(tmpbuff, sizeof(tmpbuff), system_charset_info);
   const key_range *ranges[2]= { start_key, end_key };
-
   DBUG_ENTER("ha_federated::create_where_from_key");
+
   tmp.length(0); 
   if (start_key == NULL && end_key == NULL)
     DBUG_RETURN(1);
@@ -1334,7 +1326,6 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     query.append(FEDERATED_FROM);
     query.append(FEDERATED_BTICK);
 
-
     if (!(share= (FEDERATED_SHARE *)
           my_multi_malloc(MYF(MY_WME),
                           &share, sizeof(*share),
@@ -1389,8 +1380,8 @@ error:
 static int free_share(FEDERATED_SHARE *share)
 {
   DBUG_ENTER("free_share");
-  pthread_mutex_lock(&federated_mutex);
 
+  pthread_mutex_lock(&federated_mutex);
   if (!--share->use_count)
   {
     hash_delete(&federated_open_tables, (byte*) share);
@@ -1581,7 +1572,6 @@ int ha_federated::write_row(byte *buf)
   values_string.length(0);
   insert_string.length(0);
   insert_field_value_string.length(0);
-
   DBUG_ENTER("ha_federated::write_row");
   DBUG_PRINT("info",
              ("table charset name %s csname %s",
@@ -1708,7 +1698,6 @@ int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
   char query_buffer[STRING_BUFFER_USUAL_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
-
   DBUG_ENTER("ha_federated::optimize");
   
   query.length(0);
@@ -1732,7 +1721,6 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   char query_buffer[STRING_BUFFER_USUAL_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
-  
   DBUG_ENTER("ha_federated::repair");
 
   query.length(0);
@@ -1778,14 +1766,16 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
 int ha_federated::update_row(const byte *old_data, byte *new_data)
 {
   /*
-    This used to control how the query was built. If there was a primary key,
-    the query would be built such that there was a where clause with only
-    that column as the condition. This is flawed, because if we have a multi-part
-    primary key, it would only use the first part! We don't need to do this anyway,
-    because read_range_first will retrieve the correct record, which is what is used
-    to build the WHERE clause. We can however use this to append a LIMIT to the end
-    if there is NOT a primary key. Why do this? Because we only are updating one
-    record, and LIMIT enforces this.
+    This used to control how the query was built. If there was a
+    primary key, the query would be built such that there was a where
+    clause with only that column as the condition. This is flawed,
+    because if we have a multi-part primary key, it would only use the
+    first part! We don't need to do this anyway, because
+    read_range_first will retrieve the correct record, which is what
+    is used to build the WHERE clause. We can however use this to
+    append a LIMIT to the end if there is NOT a primary key. Why do
+    this? Because we only are updating one record, and LIMIT enforces
+    this.
   */
   bool has_a_primary_key= (table->s->primary_key == 0 ? TRUE : FALSE);
   /* 
@@ -1812,7 +1802,6 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   String where_string(where_buffer,
                       sizeof(where_buffer),
                       &my_charset_bin);
-
   DBUG_ENTER("ha_federated::update_row");
   /* 
     set string lengths to 0 to avoid misc chars in string
@@ -2007,12 +1996,10 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
                    sizeof(sql_query_buffer),
                    &my_charset_bin);
   key_range range;
+  DBUG_ENTER("ha_federated::index_read_idx");
 
   index_string.length(0);
   sql_query.length(0);
-
-  DBUG_ENTER("ha_federated::index_read_idx");
-
   statistic_increment(table->in_use->status_var.ha_read_key_count,
                       &LOCK_status);
 
@@ -2101,8 +2088,8 @@ int ha_federated::read_range_first(const key_range *start_key,
   String sql_query(sql_query_buffer,
                    sizeof(sql_query_buffer),
                    &my_charset_bin);
-
   DBUG_ENTER("ha_federated::read_range_first");
+
   if (start_key == NULL && end_key == NULL)
     DBUG_RETURN(0);
 
@@ -2417,7 +2404,6 @@ void ha_federated::info(uint flag)
   MYSQL_RES *result= 0;
   MYSQL_ROW row;
   String status_query_string(status_buf, sizeof(status_buf), &my_charset_bin);
-
   DBUG_ENTER("ha_federated::info");
 
   error_code= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
@@ -2508,10 +2494,10 @@ error:
 
 int ha_federated::delete_all_rows()
 {
-  DBUG_ENTER("ha_federated::delete_all_rows");
-
   char query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
+  DBUG_ENTER("ha_federated::delete_all_rows");
+
   query.length(0);
 
   query.set_charset(system_charset_info);
@@ -2606,32 +2592,14 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
 int ha_federated::create(const char *name, TABLE *table_arg,
                          HA_CREATE_INFO *create_info)
 {
-  int retval= 0;
-  /*
-    only a temporary share, to test the url
-  */
-  FEDERATED_SHARE tmp_share;
+  int retval;
+  FEDERATED_SHARE tmp_share; // Only a temporary share, to test the url
   DBUG_ENTER("ha_federated::create");
 
-  if ((retval= parse_url(&tmp_share, table_arg, 1)))
-    goto error;
+  if (!(retval= parse_url(&tmp_share, table_arg, 1)))
+    retval= check_foreign_data_source(&tmp_share, 1);
 
-  if ((retval= check_foreign_data_source(&tmp_share, 1)))
-    goto error;
-
-  if (tmp_share.scheme)
-  {
-    my_free((gptr) tmp_share.scheme, MYF(0));
-    tmp_share.scheme= 0;
-  }
-  DBUG_RETURN(retval);
-
-error:
-  if (tmp_share.scheme)
-  {
-    my_free((gptr) tmp_share.scheme, MYF(0));
-    tmp_share.scheme= 0;
-  }
+  my_free((gptr) tmp_share.scheme, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(retval);
 
 }

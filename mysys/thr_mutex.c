@@ -239,7 +239,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
   pthread_mutex_unlock(&mp->global);
   error=pthread_cond_timedwait(cond,&mp->mutex,abstime);
 #ifdef EXTRA_DEBUG
-  if (error && (error != EINTR && error != ETIMEDOUT))
+  if (error && (error != EINTR && error != ETIMEDOUT && error != ETIME))
   {
     fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_mutex_timedwait at %s, line %d\n", error, errno, file, line);
   }

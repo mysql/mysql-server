@@ -132,7 +132,7 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp)
       return;                                   // End of memory error
     c->version= Cversion;      // No need to lock when reading long variable
   }
-  DBUG_PRINT("info",("sp_cache: inserting: %*s", sp->m_qname.length,
+  DBUG_PRINT("info",("sp_cache: inserting: %.*s", sp->m_qname.length,
                      sp->m_qname.str));
   c->insert(sp);
   *cp= c;                                       // Update *cp if it was NULL
