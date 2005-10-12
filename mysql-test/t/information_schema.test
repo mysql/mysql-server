@@ -499,8 +499,8 @@ drop table t1;
 #
 
 grant select on test.* to mysqltest_4@localhost;
-connect (user4,localhost,mysqltest_4,,);
-connection user4;
+connect (user10261,localhost,mysqltest_4,,);
+connection user10261;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 connection default;
