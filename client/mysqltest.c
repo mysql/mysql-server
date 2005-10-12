@@ -73,7 +73,6 @@
 #define PAD_SIZE	128
 #define MAX_CONS	128
 #define MAX_INCLUDE_DEPTH 16
-#define LAZY_GUESS_BUF_SIZE 8192
 #define INIT_Q_LINES	  1024
 #define MIN_VAR_ALLOC	  32
 #define BLOCK_STACK_DEPTH  32
@@ -309,8 +308,6 @@ Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
 Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
-Q_DISABLE_SSL, Q_ENABLE_SSL,
-Q_DISABLE_COMPRESS, Q_ENABLE_COMPRESS,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
@@ -397,10 +394,6 @@ const char *command_names[]=
   "delimiter",
   "disable_abort_on_error",
   "enable_abort_on_error",
-  "disable_ssl",
-  "enable_ssl",
-  "disable_compress",
-  "enable_compress",
   "vertical_results",
   "horizontal_results",
   "query_vertical",
@@ -1839,6 +1832,19 @@ void free_replace()
   DBUG_VOID_RETURN;
 }
 
+struct connection * find_connection_by_name(const char *name)
+{
+  struct connection *con;
+  for (con= cons; con < next_con; con++)
+  {
+    if (!strcmp(con->name, name))
+    {
+      return con;
+    }
+  }
+  return 0; /* Connection not found */
+}
+
 
 int select_connection_name(const char *name)
 {
@@ -1846,16 +1852,9 @@ int select_connection_name(const char *name)
   DBUG_ENTER("select_connection2");
   DBUG_PRINT("enter",("name: '%s'", name));
 
-  for (con= cons; con < next_con; con++)
-  {
-    if (!strcmp(con->name, name))
-    {
-      cur_con= con;
-      DBUG_RETURN(0);
-    }
-  }
-  die("connection '%s' not found in connection pool", name);
-  DBUG_RETURN(1);				/* Never reached */
+  if (!(cur_con= find_connection_by_name(name)))
+    die("connection '%s' not found in connection pool", name);
+  DBUG_RETURN(0);
 }
 
 
@@ -1885,7 +1884,7 @@ int close_connection(struct st_query *q)
   DBUG_PRINT("enter",("name: '%s'",p));
 
   if (!*p)
-    die("Missing connection name in connect");
+    die("Missing connection name in disconnect");
   name= p;
   while (*p && !my_isspace(charset_info,*p))
     p++;
@@ -1908,6 +1907,14 @@ int close_connection(struct st_query *q)
       }
 #endif
       mysql_close(&con->mysql);
+      my_free(con->name, MYF(0));
+      /*
+         When the connection is closed set name to "closed_connection"
+         to make it possible to reuse the connection name.
+         The connection slot will not be reused
+       */
+      if (!(con->name = my_strdup("closed_connection", MYF(MY_WME))))
+        die("Out of memory");
       DBUG_RETURN(0);
     }
   }
@@ -1923,18 +1930,22 @@ int close_connection(struct st_query *q)
    ) are delimiters/terminators
 */
 
-char* safe_get_param(char *str, char** arg, const char *msg)
+char* safe_get_param(char *str, char** arg, const char *msg, bool required)
 {
   DBUG_ENTER("safe_get_param");
+  if(!*str)
+  {
+    if (required)
+      die(msg);
+    *arg= str;
+    DBUG_RETURN(str);
+  }
   while (*str && my_isspace(charset_info,*str))
     str++;
   *arg= str;
-  for (; *str && *str != ',' && *str != ')' ; str++)
-  {
-    if (my_isspace(charset_info,*str))
-      *str= 0;
-  }
-  if (!*str)
+  while (*str && *str != ',' && *str != ')')
+    str++;
+  if (required && !*arg)
     die(msg);
 
   *str++= 0;
@@ -2119,13 +2130,39 @@ err:
 }
 
 
+/*
+  Open a new connection to MySQL Server with the parameters
+  specified
+
+  SYNOPSIS
+   do_connect()
+    q	       called command
+
+  DESCRIPTION
+    connect(<name>,<host>,<user>,<pass>,<db>,[<port>,<sock>[<opts>]]);
+
+      <name> - name of the new connection
+      <host> - hostname of server
+      <user> - user to connect as
+      <pass> - password used when connecting
+      <db>   - initial db when connected
+      <port> - server port
+      <sock> - server socket
+      <opts> - options to use for the connection
+               SSL - use SSL if available
+               COMPRESS - use compression if available
+
+ */
+
 int do_connect(struct st_query *q)
 {
   char *con_name, *con_user,*con_pass, *con_host, *con_port_str,
-    *con_db, *con_sock;
-  char *p= q->first_argument;
+    *con_db, *con_sock, *con_options;
+  char *con_buf, *p;
   char buff[FN_REFLEN];
   int con_port;
+  bool con_ssl= 0;
+  bool con_compress= 0;
   int free_con_sock= 0;
   int error= 0;
   int create_conn= 1;
@@ -2133,57 +2170,97 @@ int do_connect(struct st_query *q)
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
 
+  /* Make a copy of query before parsing, safe_get_param will modify */
+  if (!(con_buf= my_strdup(q->first_argument, MYF(MY_WME))))
+    die("Could not allocate con_buf");
+  p= con_buf;
+
   if (*p != '(')
     die("Syntax error in connect - expected '(' found '%c'", *p);
   p++;
-  p= safe_get_param(p, &con_name, "missing connection name");
-  p= safe_get_param(p, &con_host, "missing connection host");
-  p= safe_get_param(p, &con_user, "missing connection user");
-  p= safe_get_param(p, &con_pass, "missing connection password");
-  p= safe_get_param(p, &con_db, "missing connection db");
-  if (!*p || *p == ';')				/* Default port and sock */
+  p= safe_get_param(p, &con_name, "Missing connection name", 1);
+  p= safe_get_param(p, &con_host, "Missing connection host", 1);
+  p= safe_get_param(p, &con_user, "Missing connection user", 1);
+  p= safe_get_param(p, &con_pass, "Missing connection password", 1);
+  p= safe_get_param(p, &con_db, "Missing connection db", 1);
+
+  /* Port */
+  VAR* var_port;
+  p= safe_get_param(p, &con_port_str, "Missing connection port", 0);
+  if (*con_port_str)
   {
-    con_port= port;
-    con_sock= (char*) unix_sock;
-  }
-  else
-  {
-    VAR* var_port, *var_sock;
-    p= safe_get_param(p, &con_port_str, "missing connection port");
     if (*con_port_str == '$')
     {
       if (!(var_port= var_get(con_port_str, 0, 0, 0)))
-	die("Unknown variable '%s'", con_port_str+1);
+        die("Unknown variable '%s'", con_port_str+1);
       con_port= var_port->int_val;
     }
     else
+    {
       con_port= atoi(con_port_str);
-    p= safe_get_param(p, &con_sock, "missing connection socket");
+      if (con_port == 0)
+        die("Illegal argument for port: '%s'", con_port_str);
+    }
+  }
+  else
+  {
+    con_port= port;
+  }
+
+  /* Sock */
+  VAR *var_sock;
+  p= safe_get_param(p, &con_sock, "Missing connection socket", 0);
+  if (*con_sock)
+  {
     if (*con_sock == '$')
     {
       if (!(var_sock= var_get(con_sock, 0, 0, 0)))
-	die("Unknown variable '%s'", con_sock+1);
+        die("Unknown variable '%s'", con_sock+1);
       if (!(con_sock= (char*)my_malloc(var_sock->str_val_len+1, MYF(0))))
-	die("Out of memory");
+        die("Out of memory");
       free_con_sock= 1;
       memcpy(con_sock, var_sock->str_val, var_sock->str_val_len);
       con_sock[var_sock->str_val_len]= 0;
     }
+  }
+  else
+  {
+    con_sock= (char*) unix_sock;
+  }
+
+  /* Options */
+  p= safe_get_param(p, &con_options, "Missing options", 0);
+  while (*con_options)
+  {
+    char* str= con_options;
+    while (*str && !my_isspace(charset_info, *str))
+      str++;
+    *str++= 0;
+    if (!strcmp(con_options, "SSL"))
+      con_ssl= 1;
+    else if (!strcmp(con_options, "COMPRESS"))
+      con_compress= 1;
+    else
+      die("Illegal option to connect: %s", con_options);
+    con_options= str;
   }
   q->last_argument= p;
 
   if (next_con == cons_end)
     die("Connection limit exhausted - increase MAX_CONS in mysqltest.c");
 
+  if (find_connection_by_name(con_name))
+    die("Connection %s already exists", con_name);
+
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
-  if (opt_compress)
+  if (opt_compress || con_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
   mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
+  if (opt_use_ssl || con_ssl)
     mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
@@ -2214,6 +2291,7 @@ int do_connect(struct st_query *q)
   }
   if (free_con_sock)
     my_free(con_sock, MYF(MY_WME));
+  my_free(con_buf, MYF(MY_WME));
   DBUG_RETURN(error);
 }
 
@@ -4053,12 +4131,6 @@ int main(int argc, char **argv)
       case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
       case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;
       case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
-#ifdef HAVE_OPENSSL
-      case Q_ENABLE_SSL:  opt_use_ssl=1; break;
-      case Q_DISABLE_SSL: opt_use_ssl=0; break;
-#endif
-      case Q_ENABLE_COMPRESS:  opt_compress=1; break;
-      case Q_DISABLE_COMPRESS: opt_compress=0; break;
       case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
