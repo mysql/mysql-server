@@ -4715,7 +4715,10 @@ purge_option:
         }
 	| BEFORE_SYM expr
 	{
-	  if ($2->check_cols(1) || $2->fix_fields(Lex->thd, 0, &$2))
+	  if (!$2)
+	    /* Can only be an out of memory situation, no need for a message */
+	    YYABORT;
+	  if ($2->fix_fields(Lex->thd, 0, &$2) || $2->check_cols(1))
 	  {
 	    net_printf(Lex->thd, ER_WRONG_ARGUMENTS, "PURGE LOGS BEFORE");
 	    YYABORT;
