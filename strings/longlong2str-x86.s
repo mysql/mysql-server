@@ -26,95 +26,88 @@
 	.type	 longlong2str_with_dig_vector,@function
 	
 longlong2str_with_dig_vector:
-	subl $80,%esp
+	subl  $80,%esp          # Temporary buffer for up to 64 radix-2 digits
 	pushl %ebp
 	pushl %esi
 	pushl %edi
 	pushl %ebx
-	movl 100(%esp),%esi	# Lower part of val 
-	movl 112(%esp),%ebx	# Radix 
-	movl 104(%esp),%ebp	# Higher part of val 
-	movl %ebx,%eax
-	movl 108(%esp),%edi	# get dst 
-	testl %eax,%eax
-	jge .L144
+	movl 100(%esp),%esi	# esi = Lower part of val 
+	movl 112(%esp),%ebx	# ebx = Radix 
+	movl 104(%esp),%ebp	# ebp = Higher part of val 
+	movl 108(%esp),%edi	# edi = dst
 
-	addl $36,%eax
-	cmpl $34,%eax
-	ja .Lerror		# Wrong radix 
-	testl %ebp,%ebp
-	jge .L146
+	testl %ebx,%ebx
+	jge .L144		# Radix was positive
+	negl %ebx		# Change radix to positive 
+	testl %ebp,%ebp		# Test if given value is negative
+	jge .L144
 	movb $45,(%edi)		# Add sign 
 	incl %edi		# Change sign of val 
 	negl %esi
 	adcl $0,%ebp
 	negl %ebp
-.L146:
-	negl %ebx		# Change radix to positive 
-	jmp .L148
-	.align 4
-.L144:
-	addl $-2,%eax
+	
+.L144:	# Test that radix is between 2 and 36
+	movl %ebx, %eax
+	addl $-2,%eax		# Test that radix is between 2 and 36
 	cmpl $34,%eax
-	ja .Lerror		# Radix in range 
+	ja .Lerror		# Radix was not in range
 
-.L148:
-	movl %esi,%eax		# Test if zero (for easy loop) 
-	orl %ebp,%eax
-	jne .L150
-	movb $48,(%edi)
-	incl %edi
-	jmp .L10_end
-	.align 4
-
-.L150:
 	leal 92(%esp),%ecx	# End of buffer 
 	movl %edi, 108(%esp)    # Store possible modified dest
 	movl 116(%esp), %edi    # dig_vec_upper
-	jmp  .L155
-	.align 4
+	testl %ebp,%ebp		# Test if value > 0xFFFFFFFF
+	jne .Llongdiv
+	cmpl %ebx, %esi		# Test if <= radix, for easy loop
+	movl %esi, %eax		# Value in eax (for Llow)
+	jae .Llow
 
-.L153:
-	# val is stored in in ebp:esi 
+	# Value is one digit (negative or positive)
+	movb (%eax,%edi),%bl
+	movl 108(%esp),%edi	# get dst
+	movb %bl,(%edi)
+	incl %edi		# End null here
+	jmp .L10_end
 
-	movl %ebp,%eax		# High part of value 
+.Llongdiv:
+	# Value in ebp:esi. div the high part by the radix,
+        # then div remainder + low part by the radix.
+	movl %ebp,%eax		# edx=0,eax=high(from ebp)
 	xorl %edx,%edx
+	decl %ecx
 	divl %ebx
-	movl %eax,%ebp
+	movl %eax,%ebp		# edx=result of last, eax=low(from esi)
 	movl %esi,%eax
 	divl %ebx
-	decl %ecx
-	movl %eax,%esi		# quotent in ebp:esi 
-	movb (%edx,%edi),%al    # al is faster than dl 
-	movb %al,(%ecx)		# store value in buff 
-	.align 4
-.L155:
+	movl %eax,%esi		# ebp:esi = quotient
+	movb (%edx,%edi),%dl	# Store result number in temporary buffer
 	testl %ebp,%ebp
-	ja .L153
-	testl %esi,%esi		# rest value 
-	jl .L153
-	je .L160		# Ready 
-	movl %esi,%eax
+	movb %dl,(%ecx)		# store value in buff 
+	ja .Llongdiv		# (Higher part of val still > 0)
+	
 	.align 4
-
-.L154:				# Do rest with integer precision 
-	cltd
-	divl %ebx
+.Llow:				# Do rest with integer precision 
+	# Value in 0:eax. div 0 + low part by the radix.
+	xorl  %edx,%edx
 	decl %ecx
+	divl %ebx
 	movb (%edx,%edi),%dl	# bh is always zero as ebx=radix < 36 
 	testl %eax,%eax
 	movb %dl,(%ecx)
-	jne .L154
+	jne .Llow
 
 .L160:
 	movl 108(%esp),%edi	# get dst 
-	
-.L10_mov:
-	movl %ecx,%esi
-	leal 92(%esp),%ecx	# End of buffer 
-	subl %esi,%ecx
-	rep
-	movsb
+
+.Lcopy_end:	
+	leal 92(%esp),%esi	# End of buffer 
+.Lmov:				# mov temporary buffer to result (%ecx -> %edi)
+	movb (%ecx), %al
+	movb %al, (%edi)
+	incl %ecx
+	incl %edi
+	cmpl  %ecx,%esi
+	jne  .Lmov
 
 .L10_end:
 	movl %edi,%eax		# Pointer to end null 
@@ -166,21 +159,23 @@ longlong10_to_str:
 	negl %esi		# Change sign of val (ebp:esi)
 	adcl $0,%ebp
 	negl %ebp
-	.align 4
 
 .L10_10:
 	leal 92(%esp),%ecx	# End of buffer 
-	movl %esi,%eax		# Test if zero (for easy loop) 
-	orl %ebp,%eax
-	jne .L10_30		# Not zero
+	testl %ebp,%ebp		# Test if value > 0xFFFFFFFF
+	jne .L10_longdiv
+	cmpl $10, %esi		# Test if <= radix, for easy loop
+	movl %esi, %ebx		# Value in eax (for L10_low)
+	jae .L10_low
 
-	# Here when value is zero
-	movb $48,(%edi)
+	# Value is one digit (negative or positive)
+	addb $48, %bl
+	movb %bl,(%edi)
 	incl %edi
 	jmp .L10_end
 	.align 4
 
-.L10_20:
+.L10_longdiv:
 	# val is stored in in ebp:esi 
 	movl %ebp,%eax		# High part of value 
 	xorl %edx,%edx
@@ -195,17 +190,15 @@ longlong10_to_str:
 
 .L10_30:
 	testl %ebp,%ebp
-	ja .L10_20
-	testl %esi,%esi		# rest value 
-	jl .L10_20		# Unsigned, do ulonglong div once more
-	je .L10_mov		# Ready
+	ja .L10_longdiv
 	movl %esi,%ebx		# Move val to %ebx
 
+.L10_low:
 	# The following code uses some tricks to change division by 10 to
 	# multiplication and shifts
 	movl $0xcccccccd,%esi
 		
-.L10_40:
+.L10_40:			# Divide %ebx with 10
         movl %ebx,%eax
         mull %esi
         decl %ecx
@@ -218,7 +211,7 @@ longlong10_to_str:
         movl %edx,%ebx
         testl %ebx,%ebx
 	jne .L10_40
-	jmp .L10_mov		# Shared end with longlong10_to_str
+	jmp .Lcopy_end		# Shared end with longlong2str
 
 .L10end:
 	.size	 longlong10_to_str,.L10end-longlong10_to_str
