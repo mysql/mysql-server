@@ -1814,4 +1814,10 @@ SELECT * FROM t1
 
 DROP TABLE t1,t2,t3;
 
+#
+# BUG #10308: purge log with subselect
+#
+
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
+
 # End of 4.1 tests
