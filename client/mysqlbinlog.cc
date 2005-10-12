@@ -496,6 +496,7 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();
   DBUG_ENTER("process_event");
+  last_event_info->short_form= short_form;
 
   /*
     Format events are not concerned by --offset and such, we always need to
@@ -524,14 +525,16 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
     if (!short_form)
       fprintf(result_file, "# at %s\n",llstr(pos,ll_buff));
 
-    /* Set pos to 0 if hexdump is disabled */
-    if (!opt_hexdump) pos= 0;
+    if (!opt_hexdump)
+      last_event_info->hexdump_from= 0; /* Disabled */
+    else
+      last_event_info->hexdump_from= pos;
 
     switch (ev_type) {
     case QUERY_EVENT:
       if (check_database(((Query_log_event*)ev)->db))
         goto end;
-      ev->print(result_file, short_form, pos, last_event_info);
+      ev->print(result_file, last_event_info);
       break;
     case CREATE_FILE_EVENT:
     {
@@ -551,7 +554,7 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
-      ce->print(result_file, short_form, pos, last_event_info, TRUE);
+      ce->print(result_file, last_event_info, TRUE);
 
       // If this binlog is not 3.23 ; why this test??
       if (description_event->binlog_version >= 3)
@@ -563,13 +566,13 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
       break;
     }
     case APPEND_BLOCK_EVENT:
-      ev->print(result_file, short_form, pos, last_event_info);
+      ev->print(result_file, last_event_info);
       if (load_processor.process((Append_block_log_event*) ev))
 	break;					// Error
       break;
     case EXEC_LOAD_EVENT:
     {
-      ev->print(result_file, short_form, pos, last_event_info);
+      ev->print(result_file, last_event_info);
       Execute_load_log_event *exv= (Execute_load_log_event*)ev;
       Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
       /*
@@ -579,7 +582,7 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
       */
       if (ce)
       {
-	ce->print(result_file, short_form, pos, last_event_info, TRUE);
+	ce->print(result_file, last_event_info, TRUE);
 	my_free((char*)ce->fname,MYF(MY_WME));
 	delete ce;
       }
@@ -591,7 +594,8 @@ Create_file event for file_id: %u\n",exv->file_id);
     case FORMAT_DESCRIPTION_EVENT:
       delete description_event;
       description_event= (Format_description_log_event*) ev;
-      ev->print(result_file, short_form, pos, last_event_info);
+      last_event_info->common_header_len= description_event->common_header_len;
+      ev->print(result_file, last_event_info);
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -601,7 +605,7 @@ Create_file event for file_id: %u\n",exv->file_id);
       ev= 0;
       break;
     case BEGIN_LOAD_QUERY_EVENT:
-      ev->print(result_file, short_form, pos, last_event_info);
+      ev->print(result_file, last_event_info);
       load_processor.process((Begin_load_query_log_event*) ev);
       break;
     case EXECUTE_LOAD_QUERY_EVENT:
@@ -618,7 +622,7 @@ Create_file event for file_id: %u\n",exv->file_id);
 
       if (fname)
       {
-	exlq->print(result_file, short_form, pos, last_event_info, fname);
+	exlq->print(result_file, last_event_info, fname);
 	my_free(fname, MYF(MY_WME));
       }
       else
@@ -627,7 +631,7 @@ Begin_load_query event for file_id: %u\n", exlq->file_id);
       break;
     }
     default:
-      ev->print(result_file, short_form, pos, last_event_info);
+      ev->print(result_file, last_event_info);
     }
   }
 
