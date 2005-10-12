@@ -2577,9 +2577,9 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
       id++;
     if (id != nextNodeId)
     {
-      ndbout_c("Cluster configuration warning line %d: "
+      fprintf(stderr,"Cluster configuration warning line %d: "
 	       "Could not use next node id %d for section [%s], "
-	       "using next unused node id %d.",
+	       "using next unused node id %d.\n",
 	       ctx.m_sectionLineno, nextNodeId, ctx.fname, id);
     }
     ctx.m_currentSection->put("NodeId", id);
