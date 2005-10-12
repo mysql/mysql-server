@@ -185,7 +185,9 @@ main(int argc, char** argv){
 
   if (g_nodes && g_connections)
   {
-    ndbout_c("Only one option of --nodes and --connections allowed");
+    fprintf(stderr,
+	    "Only one option of --nodes and --connections allowed\n");
+    return -1;
   }
 
   g_section = CFG_SECTION_NODE; //default
