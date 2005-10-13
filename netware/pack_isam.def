@@ -4,6 +4,7 @@
 MODULE	libc.nlm
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL ISAM Table Pack Tool"
+SCREENNAME "MySQL ISAM Table Pack Tool"
 VERSION 4, 0
 XDCDATA ../netware/mysql.xdc
 #DEBUG
