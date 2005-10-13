@@ -7992,6 +7992,18 @@ option_value:
 	  $2= $2 ? $2: global_system_variables.character_set_client;
 	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.collation_database,$2));
 	}
+        | NAMES_SYM equal expr
+	  {
+	    LEX *lex= Lex;
+            sp_pcontext *spc= lex->spcont;
+	    LEX_STRING names;
+
+	    names.str= (char *)"names";
+	    names.length= 5;
+	    if (spc && spc->find_pvar(&names))
+              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
+	    YYABORT;
+	  }
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
 	  LEX *lex= Lex;
@@ -8009,6 +8021,17 @@ option_value:
 	  {
 	    THD *thd=YYTHD;
 	    LEX_USER *user;
+	    LEX *lex= Lex;	    
+            sp_pcontext *spc= lex->spcont;
+	    LEX_STRING pw;
+
+	    pw.str= (char *)"password";
+	    pw.length= 8;
+	    if (spc && spc->find_pvar(&pw))
+	    {
+              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
+	      YYABORT;
+	    }
 	    if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
 	      YYABORT;
 	    user->host=null_lex_str;
