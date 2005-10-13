@@ -975,6 +975,22 @@ static my_bool test_if_special_chars(const char *str)
 
 
 
+/*
+  quote_name(name, buff, force)
+
+  Quotes char string, taking into account compatible mode 
+
+  Args
+
+  name                 Unquoted string containing that which will be quoted
+  buff                 The buffer that contains the quoted value, also returned
+  force                Flag to make it ignore 'test_if_special_chars' 
+
+  Returns
+
+  buff                 quoted string
+
+*/
 static char *quote_name(const char *name, char *buff, my_bool force)
 {
   char *to= buff;
@@ -1782,14 +1798,19 @@ continue_xml:
 
 static void dump_triggers_for_table (char *table, char *db)
 {
-  MYSQL_RES  *result;
-  MYSQL_ROW  row;
   char	     *result_table;
   char	     name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
   char       query_buff[512];
+  uint old_opt_compatible_mode=opt_compatible_mode;
   FILE       *sql_file = md_result_file;
+  MYSQL_RES  *result;
+  MYSQL_ROW  row;
+
   DBUG_ENTER("dump_triggers_for_table");
   DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
+
+  /* Do not use ANSI_QUOTES on triggers in dump */
+  opt_compatible_mode&= ~MASK_ANSI_QUOTES;
   result_table=     quote_name(table, table_buff, 1);
 
   my_snprintf(query_buff, sizeof(query_buff),
@@ -1822,6 +1843,11 @@ DELIMITER ;;\n");
             "DELIMITER ;\n"
             "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;\n");
   mysql_free_result(result);
+  /*
+    make sure to set back opt_compatible mode to 
+    original value
+  */
+  opt_compatible_mode=old_opt_compatible_mode;
   DBUG_VOID_RETURN;
 }
 
