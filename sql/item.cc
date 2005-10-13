@@ -351,8 +351,8 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
     {
       if (thd->lex.select_lex.is_item_list_lookup)
       {
-        Item** res= find_item_in_list(this, thd->lex.select_lex.item_list);
-        if (res && *res && (*res)->type() == Item::FIELD_ITEM)
+        Item **res= find_item_in_list(this, thd->lex.select_lex.item_list);
+        if (res && (*res)->type() == Item::FIELD_ITEM)
         {
           set_field((*((Item_field**)res))->field);
           return 0;
