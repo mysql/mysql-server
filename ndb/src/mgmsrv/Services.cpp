@@ -25,13 +25,14 @@
 #include <signaldata/SetLogLevelOrd.hpp>
 #include <LogLevel.hpp>
 #include <BaseString.hpp>
-#include <Base64.hpp>
 
 #include <ConfigValues.hpp>
 #include <mgmapi_configuration.hpp>
 #include <Vector.hpp>
 #include "Services.hpp"
 #include "../mgmapi/ndb_logevent.hpp"
+
+#include <base64.h>
 
 extern bool g_StopServer;
 
@@ -598,17 +599,18 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
   cfg->pack(src);
   NdbMutex_Unlock(m_mgmsrv.m_configMutex);
   
-  BaseString str;
-  int res = base64_encode(src, str);
+  char *tmp_str = (char *) malloc(base64_needed_encoded_length(src.length()));
+  int res = base64_encode(src.get_data(), src.length(), tmp_str);
   
   m_output->println("get config reply");
   m_output->println("result: Ok");
-  m_output->println("Content-Length: %d", str.length());
+  m_output->println("Content-Length: %d", strlen(tmp_str));
   m_output->println("Content-Type: ndbconfig/octet-stream");
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->println("");
-  m_output->println(str.c_str());
+  m_output->println(tmp_str);
 
+  free(tmp_str);
   return;
 }
 
