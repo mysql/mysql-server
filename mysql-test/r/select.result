@@ -2617,6 +2617,16 @@ select found_rows();
 found_rows()
 1
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+a	c
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+a	c
+drop table t1;
 create table t1(f1 int, f2 int);
 create table t2(f3 int);
 select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,1));

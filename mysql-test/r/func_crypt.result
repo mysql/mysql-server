@@ -92,3 +92,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select password(_latin1'idkfa ') AS `password('idkfa ')`,old_password(_latin1'idkfa') AS `old_password('idkfa')`
+select encrypt('1234','_.');
+encrypt('1234','_.')
+#
