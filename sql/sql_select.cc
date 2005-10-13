@@ -5718,6 +5718,7 @@ void JOIN_TAB::cleanup()
   end_read_record(&read_record);
 }
 
+
 /*
   Partially cleanup JOIN after it has executed: close index or rnd read
   (table cursors), free quick selects.
