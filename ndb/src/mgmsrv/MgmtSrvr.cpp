@@ -277,15 +277,13 @@ static ErrorItem errorTable[] =
   {MgmtSrvr::NOT_POSSIBLE_TO_SEND_CONFIG_UPDATE_TO_PROCESS_TYPE, 
    "It is not possible to send an update of a configuration variable "
    "to this kind of process."},
-  {5026, "Node shutdown in progress" },
-  {5027, "System shutdown in progress" },
-  {5028, "Node shutdown would cause system crash" },
-  {5029, "Only one shutdown at a time is possible via mgm server" },
-  {5060, "Operation not allowed in single user mode." }, 
-  {5061, "DB is not in single user mode." },
-  {5062, "The specified node is not an API node." },
-  {5063, 
-   "Cannot enter single user mode. DB nodes in inconsistent startlevel."},
+  {MgmtSrvr::NODE_SHUTDOWN_IN_PROGESS, "Node shutdown in progress" },
+  {MgmtSrvr::SYSTEM_SHUTDOWN_IN_PROGRESS, "System shutdown in progress" },
+  {MgmtSrvr::NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH,
+   "Node shutdown would cause system crash" },
+  {MgmtSrvr::NODE_NOT_API_NODE, "The specified node is not an API node." },
+  {MgmtSrvr::OPERATION_NOT_ALLOWED_START_STOP, 
+   "Operation not allowed while nodes are starting or stopping."},
   {MgmtSrvr::NO_CONTACT_WITH_DB_NODES, "No contact with database nodes" }
 };
 
@@ -293,13 +291,13 @@ int MgmtSrvr::translateStopRef(Uint32 errCode)
 {
   switch(errCode){
   case StopRef::NodeShutdownInProgress:
-    return 5026;
+    return NODE_SHUTDOWN_IN_PROGESS;
     break;
   case StopRef::SystemShutdownInProgress:
-    return 5027;
+    return SYSTEM_SHUTDOWN_IN_PROGRESS;
     break;
   case StopRef::NodeShutdownWouldCauseSystemCrash:
-    return 5028;
+    return NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH;
     break;
   }
   return 4999;
@@ -989,6 +987,18 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
 
 int MgmtSrvr::stopNode(int nodeId, bool abort)
 {
+  if (!abort)
+  {
+    NodeId nodeId = 0;
+    ClusterMgr::Node node;
+    while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+    {
+      node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+      if((node.m_state.startLevel != NodeState::SL_STARTED) && 
+	 (node.m_state.startLevel != NodeState::SL_NOTHING))
+	return OPERATION_NOT_ALLOWED_START_STOP;
+    }
+  }
   NodeBitmask nodes;
   return sendSTOP_REQ(nodeId,
 		      nodes,
@@ -1027,7 +1037,7 @@ int MgmtSrvr::stop(int * stopCount, bool abort)
 int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
 {
   if (getNodeType(singleUserNodeId) != NDB_MGM_NODE_TYPE_API)
-    return 5062;
+    return NODE_NOT_API_NODE;
   NodeId nodeId = 0;
   ClusterMgr::Node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
@@ -1035,7 +1045,7 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
     if((node.m_state.startLevel != NodeState::SL_STARTED) && 
        (node.m_state.startLevel != NodeState::SL_NOTHING))
-      return 5063;
+      return OPERATION_NOT_ALLOWED_START_STOP;
   }
   NodeBitmask nodes;
   int ret = sendSTOP_REQ(0,
