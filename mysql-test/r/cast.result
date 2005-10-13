@@ -231,7 +231,7 @@ t1	CREATE TABLE `t1` (
   `c5` varchar(2) character set utf8 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (a binary(10), b char(10) character set koi8r);
+create table t1 (a binary(4), b char(4) character set koi8r);
 insert into t1 values (_binary'тест',_binary'тест');
 select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
 a	b	cast(a as char character set cp1251)	cast(b as binary)
