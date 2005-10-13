@@ -626,6 +626,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {
     order=0;					// The output has only one row
     simple_order=1;
+    select_distinct= 0;                       // No need in distinct for 1 row
   }
 
   calc_group_buffer(&join,group);
