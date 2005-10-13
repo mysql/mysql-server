@@ -146,7 +146,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
       reports that the socket is set for non-blocking when it really will
       block.
     */
-    fcntl(sd, F_SETFL, vio->fcntl_mode);
+    fcntl(sd, F_SETFL, 0);
     vio->fcntl_mode= fcntl(sd, F_GETFL);
 #elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
     /* Non blocking sockets doesn't work good on HPUX 11.0 */
