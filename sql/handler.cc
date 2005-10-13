@@ -185,16 +185,16 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
   handlerton **types;
 
   if (thd && !my_strnncoll(&my_charset_latin1,
-        (const uchar *)name, namelen,
-        (const uchar *)"DEFAULT", 7))
+                           (const uchar *)name, namelen,
+                           (const uchar *)"DEFAULT", 7))
     return (enum db_type) thd->variables.table_type;
 
 retest:
   for (types= sys_table_types; *types; types++)
   {
     if (!my_strnncoll(&my_charset_latin1,
-          (const uchar *)name, namelen,
-          (const uchar *)(*types)->name, strlen((*types)->name)))
+                      (const uchar *)name, namelen,
+                      (const uchar *)(*types)->name, strlen((*types)->name)))
       return (enum db_type) (*types)->db_type;
   }
 
@@ -204,8 +204,9 @@ retest:
   for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
   {
     if (!my_strnncoll(&my_charset_latin1,
-          (const uchar *)name, namelen,
-          (const uchar *)table_alias->alias, strlen(table_alias->alias)))
+                      (const uchar *)name, namelen,
+                      (const uchar *)table_alias->alias,
+                      strlen(table_alias->alias)))
     {
       name= table_alias->type;
       namelen= strlen(name);

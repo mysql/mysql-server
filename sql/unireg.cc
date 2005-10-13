@@ -119,10 +119,10 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   reclength=uint2korr(forminfo+266);
 
   /* Calculate extra data segment length */
-  str_db_type.str= (char *)ha_get_storage_engine(create_info->db_type);
+  str_db_type.str= (char *) ha_get_storage_engine(create_info->db_type);
   str_db_type.length= strlen(str_db_type.str);
-  create_info->extra_size= 2 + str_db_type.length;
-  create_info->extra_size+= create_info->connect_string.length + 2;
+  create_info->extra_size= (2 + str_db_type.length +
+                            2 + create_info->connect_string.length);
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
