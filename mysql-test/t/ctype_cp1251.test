@@ -21,7 +21,7 @@ drop table t1;
 #
 # Test of binary and upper/lower
 #
-create table t1 (a char(15) binary, b binary(15)) character set cp1251;
+create table t1 (a char(3) binary, b binary(3)) character set cp1251;
 insert into t1 values ('aaa','bbb'),('AAA','BBB');
 select upper(a),upper(b) from t1;
 select lower(a),lower(b) from t1;

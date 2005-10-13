@@ -1623,6 +1623,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
@@ -1654,6 +1655,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler
