@@ -104,6 +104,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 
 /* NDBCNTR 6100-> */
 #define NDBD_EXIT_RESTART_TIMEOUT             6100
+#define NDBD_EXIT_RESTART_DURING_SHUTDOWN     6101
 
 /* TC  6200-> */
 /* DIH 6300-> */
