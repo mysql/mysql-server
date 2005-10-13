@@ -569,7 +569,9 @@ int mysql_multi_update_lock(THD *thd,
         }
 	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
 	tl->lock_type= thd->lex->multi_lock_option;
-	tl->updating= 1;
+        tl->updating= 1;               // loacal or only list
+        if (tl->table_list)
+          tl->table_list->updating= 1; // global list (if we have 2 lists)
 	wants= UPDATE_ACL;
       }
       else
@@ -579,7 +581,9 @@ int mysql_multi_update_lock(THD *thd,
 	// correct order of statements. Otherwise, we use a TL_READ lock to
 	// improve performance.
 	tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
-	tl->updating= 0;
+        tl->updating= 0;               // loacal or only list
+        if (tl->table_list)
+          tl->table_list->updating= 0; // global list (if we have 2 lists)
 	wants= SELECT_ACL;
       }
 
