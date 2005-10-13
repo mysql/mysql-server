@@ -986,7 +986,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
     }
     DBUG_PRINT("info",("key: %lx  from: %lx  length: %u",
 		       (long) key, (long) from, length));
-    memcpy_overlap((byte*) key, (byte*) from, (size_t) length);
+    memmove((byte*) key, (byte*) from, (size_t) length);
     key+=length;
     from+=length;
   }
