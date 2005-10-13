@@ -358,7 +358,7 @@ class JOIN :public Sql_alloc
     the end of execution in order to increase concurrency and reduce
     memory consumption.
   */
-  void join_free(bool full);
+  void join_free();
   /* Cleanup this JOIN, possibly for reuse */
   void cleanup(bool full);
   void clear();
