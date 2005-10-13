@@ -11410,7 +11410,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     ulong total_length= 0;
     for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
     {
-      uint length= (*ptr)->pack_length();
+      uint length= (*ptr)->sort_length();
       (*field_length++)= length;
       total_length+= length;
     }
