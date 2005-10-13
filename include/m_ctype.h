@@ -231,6 +231,7 @@ typedef struct charset_info_st
   uint      mbmaxlen;
   uint16    min_sort_char;
   uint16    max_sort_char; /* For LIKE optimization */
+  uchar     pad_char;
   my_bool   escape_with_backslash_is_dangerous;
   
   MY_CHARSET_HANDLER *cset;

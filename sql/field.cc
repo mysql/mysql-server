@@ -5881,7 +5881,8 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
-			      field_length-copy_length,' ');
+			      field_length-copy_length,
+                              field_charset->pad_char);
   
   if ((copy_length < length) && table->in_use->count_cuted_fields)
   {					// Check if we loosed some info

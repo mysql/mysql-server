@@ -351,7 +351,7 @@ DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
     `id` int NOT NULL auto_increment,
     `name` char(32) NOT NULL DEFAULT '',
-    `bincol` binary(4) NOT NULL,
+    `bincol` binary(1) NOT NULL,
     `floatval` decimal(5,2) NOT NULL DEFAULT 0.0,
     `other` int NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
@@ -366,7 +366,7 @@ DROP TABLE IF EXISTS federated.t1;
 eval CREATE TABLE federated.t1 (
     `id` int NOT NULL auto_increment,
     `name` char(32) NOT NULL DEFAULT '',
-    `bincol` binary(4) NOT NULL,
+    `bincol` binary(1) NOT NULL,
     `floatval` decimal(5,2) NOT NULL DEFAULT 0.0,
     `other` int NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
