@@ -3,16 +3,15 @@
 
 -- source include/have_openssl.inc
 
-# Reconnect to turn ssl on for
-# default connection
-disconnect default;
-connect (default,localhost,root,,,,,SSL);
+connect (ssl_con,localhost,root,,,,,SSL);
 
 # Check ssl turned on
 SHOW STATUS LIKE 'Ssl_cipher';
 
 # Source select test case
--- source t/select.test
+-- source include/common-tests.inc
 
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
 
 

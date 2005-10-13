@@ -3,15 +3,13 @@
 
 -- source include/have_compress.inc
 
-
-# Reconnect to turn compress on for
-# default connection
-disconnect default;
-connect (default,localhost,root,,,,,COMPRESS);
+connect (comp_con,localhost,root,,,,,COMPRESS);
 
 # Check compression turned on
 SHOW STATUS LIKE 'Compression';
 
 # Source select test case
--- source t/select.test
+-- source include/common-tests.inc
 
+# Check compression turned on
+SHOW STATUS LIKE 'Compression';
