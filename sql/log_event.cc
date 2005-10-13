@@ -2962,13 +2962,39 @@ void Rotate_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_
 #endif /* MYSQL_CLIENT */
 
 
+
 /*
-  Rotate_log_event::Rotate_log_event()
+  Rotate_log_event::Rotate_log_event() (2 constructors)
 */
+
+
+#ifndef MYSQL_CLIENT
+Rotate_log_event::Rotate_log_event(THD* thd_arg,
+                                   const char* new_log_ident_arg,
+                                   uint ident_len_arg, ulonglong pos_arg,
+                                   uint flags_arg)
+  :Log_event(), new_log_ident(new_log_ident_arg),
+   pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
+                          (uint) strlen(new_log_ident_arg)), flags(flags_arg)
+{
+#ifndef DBUG_OFF
+  char buff[22];
+  DBUG_ENTER("Rotate_log_event::Rotate_log_event(THD*,...)");
+  DBUG_PRINT("enter",("new_log_ident %s pos %s flags %lu", new_log_ident_arg,
+                      llstr(pos_arg, buff), flags));
+#endif
+  if (flags & DUP_NAME)
+    new_log_ident= my_strdup_with_length(new_log_ident_arg,
+                                         ident_len,
+                                         MYF(MY_WME));
+  DBUG_VOID_RETURN;
+}
+#endif
+
 
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                                    const Format_description_log_event* description_event)
-  :Log_event(buf, description_event) ,new_log_ident(NULL),alloced(0)
+  :Log_event(buf, description_event) ,new_log_ident(0), flags(DUP_NAME)
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
   // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
@@ -2983,12 +3009,9 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                      (header_size+post_header_len)); 
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
-  if (!(new_log_ident= my_strdup_with_length((byte*) buf +
-					     ident_offset,
-					     (uint) ident_len,
-					     MYF(MY_WME))))
-    DBUG_VOID_RETURN;
-  alloced = 1;
+  new_log_ident= my_strdup_with_length((byte*) buf + ident_offset,
+                                       (uint) ident_len,
+                                       MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 
