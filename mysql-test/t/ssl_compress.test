@@ -4,11 +4,7 @@
 -- source include/have_openssl.inc
 -- source include/have_compress.inc
 
-
-# Reconnect to turn ssl and compress on for
-# default connection
-disconnect default;
-connect (default,localhost,root,,,,,SSL COMPRESS);
+connect (ssl_compress_con,localhost,root,,,,,SSL COMPRESS);
 
 # Check ssl turned on
 SHOW STATUS LIKE 'Ssl_cipher';
@@ -17,5 +13,10 @@ SHOW STATUS LIKE 'Ssl_cipher';
 SHOW STATUS LIKE 'Compression';
 
 # Source select test case
--- source t/select.test
+-- source include/common-tests.inc
 
+# Check ssl turned on
+SHOW STATUS LIKE 'Ssl_cipher';
+
+# Check compression turned on
+SHOW STATUS LIKE 'Compression';

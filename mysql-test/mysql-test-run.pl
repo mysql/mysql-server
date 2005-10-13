@@ -1166,7 +1166,7 @@ sub check_ssl_support () {
       mtr_error("Couldn't find support for SSL");
       return;
     }
-    mtr_report("Skipping SSL, mysqld does not support it");
+    mtr_report("Skipping SSL, mysqld not compiled with SSL");
     $opt_ssl_supported= 0;
     $opt_ssl= 0;
     return;
@@ -1205,7 +1205,7 @@ sub check_ndbcluster_support () {
 	        "--help"],
 	       "", "/dev/null", "/dev/null", "") != 0 )
   {
-    mtr_report("Skipping ndbcluster, mysqld does not support it");
+    mtr_report("Skipping ndbcluster, mysqld not compiled with ndbcluster");
     $opt_with_ndbcluster= 0;
     return;
   }
