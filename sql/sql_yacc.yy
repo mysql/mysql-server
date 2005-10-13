@@ -4536,6 +4536,8 @@ simple_expr:
 	  { $$= new Item_func_atan($3,$5); }
 	| CHAR_SYM '(' expr_list ')'
 	  { $$= new Item_func_char(*$3); }
+	| CHAR_SYM '(' expr_list USING charset_name ')'
+	  { $$= new Item_func_char(*$3, $5); }
 	| CHARSET '(' expr ')'
 	  { $$= new Item_func_charset($3); }
 	| COALESCE '(' expr_list ')'
