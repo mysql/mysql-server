@@ -2653,60 +2653,6 @@ t11	MyISAM	9	Dynamic	0	0	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL
 select 123 as a from t1 where f1 is null;
 a
 drop table t1,t11;
-CREATE TABLE t1 (
-kunde_intern_id int(10) unsigned NOT NULL default '0',
-kunde_id int(10) unsigned NOT NULL default '0',
-FK_firma_id int(10) unsigned NOT NULL default '0',
-aktuell enum('Ja','Nein') NOT NULL default 'Ja',
-vorname varchar(128) NOT NULL default '',
-nachname varchar(128) NOT NULL default '',
-geloescht enum('Ja','Nein') NOT NULL default 'Nein',
-firma varchar(128) NOT NULL default ''
-);
-INSERT INTO t1 VALUES 
-(3964,3051,1,'Ja','Vorname1','1Nachname','Nein','Print Schau XXXX'),
-(3965,3051111,1,'Ja','Vorname1111','1111Nachname','Nein','Print Schau XXXX');
-SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname, geloescht FROM t1
-WHERE
-(
-(
-( '' != '' AND firma LIKE CONCAT('%', '', '%'))
-OR
-(vorname LIKE CONCAT('%', 'Vorname1', '%') AND 
-nachname LIKE CONCAT('%', '1Nachname', '%') AND 
-'Vorname1' != '' AND 'xxxx' != '')
-)
-AND
-(
-aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
-)
-)
-;
-kunde_id	FK_firma_id	aktuell	vorname	nachname	geloescht
-SELECT kunde_id ,FK_firma_id ,aktuell, vorname, nachname,
-geloescht FROM t1
-WHERE
-(
-(
-aktuell = 'Ja' AND geloescht = 'Nein' AND FK_firma_id = 2
-)
-AND
-(
-( '' != '' AND firma LIKE CONCAT('%', '', '%')  )
-OR
-(  vorname LIKE CONCAT('%', 'Vorname1', '%') AND
-nachname LIKE CONCAT('%', '1Nachname', '%') AND 'Vorname1' != '' AND
-'xxxx' != '')
-)
-)
-;
-kunde_id	FK_firma_id	aktuell	vorname	nachname	geloescht
-SELECT COUNT(*) FROM t1 WHERE 
-( 0 OR (vorname LIKE '%Vorname1%' AND nachname LIKE '%1Nachname%' AND 1)) 
-AND FK_firma_id = 2;
-COUNT(*)
-0
-drop table t1;
 CREATE TABLE t1 (a INT, b INT);
 (SELECT a, b AS c FROM t1) ORDER BY c+1;
 a	c
@@ -2717,7 +2663,6 @@ a	c
 SELECT a, b AS c FROM t1 ORDER BY b+1;
 a	c
 drop table t1;
-DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, UNIQUE idx (a,b) );
 INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4);
 CREATE TABLE t2 ( a INT NOT NULL, b INT NOT NULL, c INT );
