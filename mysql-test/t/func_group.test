@@ -2,6 +2,8 @@
 # simple test of all group functions
 #
 
+--source include/have_innodb.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
