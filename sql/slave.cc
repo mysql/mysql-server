@@ -4330,7 +4330,8 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
         time_t save_timestamp= rli->last_master_timestamp;
         rli->last_master_timestamp= 0;
 
-	DBUG_ASSERT(rli->relay_log.get_open_count() == rli->cur_log_old_open_count);
+	DBUG_ASSERT(rli->relay_log.get_open_count() ==
+                    rli->cur_log_old_open_count);
 
         if (rli->ign_master_log_name_end[0])
         {
@@ -4341,13 +4342,13 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
                                    Rotate_log_event::DUP_NAME |
                                    Rotate_log_event::ZERO_LEN);
           rli->ign_master_log_name_end[0]= 0;
+          pthread_mutex_unlock(log_lock);
           if (unlikely(!ev))
           {
             errmsg= "Slave SQL thread failed to create a Rotate event "
               "(out of memory?), SHOW SLAVE STATUS may be inaccurate";
             goto err;
           }
-          pthread_mutex_unlock(log_lock);
           ev->server_id= 0; // don't be ignored by slave SQL thread
           DBUG_RETURN(ev);
         }
