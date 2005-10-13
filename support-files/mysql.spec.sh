@@ -10,6 +10,7 @@
 %endif
 %define license GPL
 %define mysqld_user		mysql
+%define mysqld_group	mysql
 %define server_suffix -standard
 %define mysqldatadir /var/lib/mysql
 
@@ -313,6 +314,8 @@ make test-force || true
 # Save mysqld-max
 mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+# Save the perror binary so it supports the NDB error codes (BUG#13740)
+mv extra/perror extra/perror.ndb
 
 # Install the ndb binaries
 (cd ndb; make install DESTDIR=$RBR)
@@ -321,7 +324,7 @@ nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
 install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Include libgcc.a in the devel subpackage (BUG 4921)
-if [ "$CC" = gcc ]
+if expr "$CC" : ".*gcc.*" > /dev/null ;
 then
   libgcc=`$CC --print-libgcc-file`
   if [ -f $libgcc ]
@@ -385,6 +388,9 @@ make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 # install saved mysqld-max
 install -s -m755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
 
+# install saved perror binary with NDB support (BUG#13740)
+install -s -m755 $MBD/extra/perror.ndb $RBR%{_bindir}/perror
+
 # install symbol files ( for stack trace resolution)
 install -m644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
 install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
@@ -442,18 +448,20 @@ fi
 
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
-groupadd -r %{mysqld_user} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_user} %{mysqld_user} 2> /dev/null || true 
+groupadd -r %{mysqld_group} 2> /dev/null || true
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true 
+# The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
+usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
 # Change permissions so that the user that will run the MySQL daemon
 # owns all database files.
-chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # Initiate databases
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
-chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # Fix permissions for the permission database so that only the user
 # can read them.
@@ -668,6 +676,15 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Oct 13 2005 Lenz Grimmer <lenz@mysql.com>
+
+- added a usermod call to assign a potential existing mysql user to the
+  correct user group (BUG#12823)
+- Save the perror binary built during Max build so it supports the NDB
+  error codes (BUG#13740)
+- added a separate macro "mysqld_group" to be able to define the
+  user group of the mysql user seperately, if desired.
+
 * Thu Sep 29 2005 Lenz Grimmer <lenz@mysql.com>
 
 - fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
