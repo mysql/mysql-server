@@ -386,12 +386,12 @@ protected:
   select_result *result;
   ulong found_rows_for_union;
   bool res;
+public:
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
     cleaned;
 
-public:
   // list of fields which points to temporary table for union
   List<Item> item_list;
   /*
@@ -638,6 +638,11 @@ public:
     SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
   */
   bool cleanup();
+  /*
+    Recursively cleanup the join of this select lex and of all nested
+    select lexes.
+  */
+  void cleanup_all_joins(bool full);
 };
 typedef class st_select_lex SELECT_LEX;
 
