@@ -254,8 +254,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
       >> $BASE/bin/init_db.sql
   sh ./scripts/mysql_create_system_tables.sh test "" "%" 0 \
       > $BASE/bin/test_db.sql
-#  cp ./netware/static_init_db.sql ./netware/init_db.sql
-#  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
+  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
 fi
 
 #
