@@ -271,6 +271,10 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh \
 if [ $BASE_SYSTEM = "netware" ] ; then
   echo "CREATE DATABASE mysql;" > $BASE/bin/init_db.sql
   echo "CREATE DATABASE test;" >> $BASE/bin/init_db.sql
+  sh ./scripts/mysql_create_system_tables.sh real "" "%" 0 \
+      >> $BASE/bin/init_db.sql
+  sh ./scripts/mysql_create_system_tables.sh test "" "%" 0 \
+      > $BASE/bin/test_db.sql
   sh ./scripts/mysql_create_system_tables.sh real >> $BASE/bin/init_db.sql
   sh ./scripts/mysql_create_system_tables.sh test > $BASE/bin/test_db.sql
 fi
