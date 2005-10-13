@@ -1916,7 +1916,7 @@ select bug3788()|
 bug3788()
 2005-03-04
 drop function bug3788|
-create function bug3788() returns binary(5) return 5|
+create function bug3788() returns binary(1) return 5|
 select bug3788()|
 bug3788()
 5

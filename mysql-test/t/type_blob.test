@@ -67,9 +67,9 @@ select * from t1;
 drop table t1;
 
 #
-# test of blob, text, char and char binary
+# test of blob, text, char and varbinary
 #
-create table t1 (t text,c char(10),b blob, d binary(10));
+create table t1 (t text,c char(10),b blob, d varbinary(10));
 insert into t1 values (NULL,NULL,NULL,NULL);
 insert into t1 values ("","","","");
 insert into t1 values ("hello","hello","hello","hello");
