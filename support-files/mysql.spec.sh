@@ -2,6 +2,7 @@
 %define release			0
 %define license GPL
 %define mysqld_user		mysql
+%define mysqld_group	mysql
 %define server_suffix -standard
 %define mysqldatadir /var/lib/mysql
 
@@ -371,18 +372,20 @@ fi
 
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
-groupadd -r %{mysqld_user} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_user} %{mysqld_user} 2> /dev/null || true 
+groupadd -r %{mysqld_group} 2> /dev/null || true
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true 
+# The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
+usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
 # Change permissions so that the user that will run the MySQL daemon
 # owns all database files.
-chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # Initiate databases
 %{_bindir}/mysql_install_db -IN-RPM --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
-chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # Fix permissions for the permission database so that only the user
 # can read them.
@@ -562,6 +565,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Oct 13 2005 Lenz Grimmer <lenz@mysql.com>
+
+- added a usermod call to assign a potential existing mysql user to the
+  correct user group (BUG#12823)
 * Thu Sep 29 2005 Lenz Grimmer <lenz@mysql.com>
 
 - fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
