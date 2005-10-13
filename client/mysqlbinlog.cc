@@ -49,7 +49,7 @@ static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
 static const char* host = 0;
-static int port = MYSQL_PORT;
+static int port= 0;
 static const char* sock= 0;
 static const char* user = 0;
 static char* pass = 0;
@@ -462,7 +462,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to connect to remote server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Use port to connect to the remote server.",
-   (gptr*) &port, (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0,
+   (gptr*) &port, (gptr*) &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"position", 'j', "Deprecated. Use --start-position instead.",
    (gptr*) &start_position, (gptr*) &start_position, 0, GET_ULL,
