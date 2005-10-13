@@ -4628,7 +4628,7 @@ void Item_ref::cleanup()
 
 void Item_ref::print(String *str)
 {
-  if (ref && *ref)
+  if (ref)
     (*ref)->print(str);
   else
     Item_ident::print(str);
@@ -4814,7 +4814,7 @@ void Item_ref::make_field(Send_field *field)
 void Item_ref_null_helper::print(String *str)
 {
   str->append("<ref_null_helper>(", 18);
-  if (ref && *ref)
+  if (ref)
     (*ref)->print(str);
   else
     str->append('?');
