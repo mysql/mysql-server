@@ -404,3 +404,22 @@ alter table t1 add primary key (a,b,c(255),d);
 alter table t1 add key (a,b,d,e);
 show create table t1;
 drop table t1;
+
+#
+# Test that blob's and varbinary are sorted according to length
+#
+
+CREATE table t1 (a blob);
+insert into t1 values ('b'),('a\0'),('a'),('a '),('aa'),(NULL);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
+alter table t1 modify a varbinary(5);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
+alter table t1 modify a char(5);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
+alter table t1 modify a binary(5);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
+drop table t1;

@@ -6402,6 +6402,17 @@ int Field_varstring::key_cmp(const byte *a,const byte *b)
 void Field_varstring::sort_string(char *to,uint length)
 {
   uint tot_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+
+  if (field_charset == &my_charset_bin)
+  {
+    /* Store length last in high-byte order to sort longer strings first */
+    if (length_bytes == 1)
+      to[length-1]= tot_length;
+    else
+      mi_int2store(to+length-2, tot_length);
+    length-= length_bytes;
+  }
+ 
   tot_length= my_strnxfrm(field_charset,
 			  (uchar*) to, length,
 			  (uchar*) ptr + length_bytes,
@@ -7093,6 +7104,13 @@ int Field_blob::key_cmp(const byte *a,const byte *b)
 }
 
 
+uint32 Field_blob::sort_length() const
+{
+  return (uint32) (current_thd->variables.max_sort_length + 
+                   (field_charset == &my_charset_bin ? 0 : packlength));
+}
+
+
 void Field_blob::sort_string(char *to,uint length)
 {
   char *blob;
@@ -7102,6 +7120,31 @@ void Field_blob::sort_string(char *to,uint length)
     bzero(to,length);
   else
   {
+    if (field_charset == &my_charset_bin)
+    {
+      char *pos;
+
+      /*
+        Store length of blob last in blob to shorter blobs before longer blobs
+      */
+      length-= packlength;
+      pos= to+length;
+
+      switch (packlength) {
+      case 1:
+        *pos= (char) blob_length;
+        break;
+      case 2:
+        mi_int2store(pos, blob_length);
+        break;
+      case 3:
+        mi_int3store(pos, blob_length);
+        break;
+      case 4:
+        mi_int4store(pos, blob_length);
+        break;
+      }
+    }
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
     
     blob_length=my_strnxfrm(field_charset,
