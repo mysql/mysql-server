@@ -3078,3 +3078,13 @@ from a inner join (b right join c on b.id = c.b_id) on a.id = c.a_id;
 count(*)
 6
 drop table a, b, c;
+create table t1 (f1 int not null auto_increment primary key, f2 varchar(10));
+create table t11 like t1;
+insert into t1 values(1,""),(2,"");
+show table status like 't1%';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	2	20	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+t11	MyISAM	9	Dynamic	0	0	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+select 123 as a from t1 where f1 is null;
+a
+drop table t1,t11;
