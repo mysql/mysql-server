@@ -19,7 +19,10 @@
 #include <m_string.h>
 
 #undef  ULONGLONG_MAX
-/* Needed under MetroWerks Compiler, since MetroWerks compiler does not properly handle a constant expression containing a mod operator */
+/*
+  Needed under MetroWerks Compiler, since MetroWerks compiler does not
+  properly handle a constant expression containing a mod operator
+*/
 #if defined(__NETWARE__) && defined(__MWERKS__) 
 static ulonglong ulonglong_max= ~(ulonglong) 0;
 #define ULONGLONG_MAX ulonglong_max
