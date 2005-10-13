@@ -367,3 +367,6 @@ DROP TABLE t1;
 select cast(NULL as decimal(6)) as t1;
 t1
 NULL
+select cast(1.0e+300 as signed int);
+cast(1.0e+300 as signed int)
+9223372036854775807

@@ -1331,6 +1331,14 @@ public:
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
+    if (value <= (double) LONGLONG_MIN)
+    {
+       return LONGLONG_MIN;
+    }
+    else if (value >= (double) (ulonglong) LONGLONG_MAX)
+    {
+      return LONGLONG_MAX;
+    }
     return (longlong) (value+(value > 0 ? 0.5 : -0.5));
   }
   String *val_str(String*);
