@@ -3115,7 +3115,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   tab->cached_eq_ref_table=1;
   if (tab->type == JT_CONST)			// We can skip const tables
     return (tab->eq_ref_table=1);		/* purecov: inspected */
-  if (tab->type != JT_EQ_REF)
+  if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
   Item **ref_item=tab->ref.items;
   Item **end=ref_item+tab->ref.key_parts;
