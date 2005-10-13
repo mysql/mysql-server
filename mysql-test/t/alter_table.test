@@ -278,7 +278,7 @@ insert into t1 values ('тест');
 select a,hex(a) from t1;
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
-alter table t1 change a a binary(10);
+alter table t1 change a a binary(4);
 select a,hex(a) from t1;
 alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;

@@ -67,7 +67,7 @@ select * from t1;
 a
 Where
 drop table t1;
-create table t1 (t text,c char(10),b blob, d binary(10));
+create table t1 (t text,c char(10),b blob, d varbinary(10));
 insert into t1 values (NULL,NULL,NULL,NULL);
 insert into t1 values ("","","","");
 insert into t1 values ("hello","hello","hello","hello");
@@ -83,14 +83,14 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		#	
 c	char(10)	latin1_swedish_ci	YES		NULL		#	
 b	blob	NULL	YES		NULL		#	
-d	binary(10)	NULL	YES		NULL		#	
+d	varbinary(10)	NULL	YES		NULL		#	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		#	
 c	char(10)	latin1_swedish_ci	YES		NULL		#	
 b	blob	NULL	YES		NULL		#	
-d	binary(10)	NULL	YES		NULL		#	
+d	varbinary(10)	NULL	YES		NULL		#	
 unlock tables;
 select t from t1 where t like "hello";
 t
