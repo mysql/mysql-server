@@ -6962,8 +6962,7 @@ static void test_frm_bug()
     fprintf(stdout, "\n test cancelled");
     exit(1);
   }
-  if (!opt_silent)
-    fprintf(test_file, "this is a junk file for test");
+  fprintf(test_file, "this is a junk file for test");
 
   rc= mysql_query(mysql, "SHOW TABLE STATUS like 'test_frm_bug'");
   myquery(rc);
