@@ -907,3 +907,24 @@ DROP PROCEDURE bug9056_proc1;
 DROP PROCEDURE bug9056_proc2;
 drop table t1;
 
+#
+# BUG# 13052 - mysqldump timestamp reloads broken
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (`d` timestamp, unique (`d`));
+set time_zone='+00:00';
+insert into t1 values ('2003-10-25 22:00:00'),('2003-10-25 23:00:00');
+# results should show two different time values
+select * from t1;
+set time_zone='Europe/Moscow';
+# results should show two same time values, despite unique
+select * from t1;
+set global time_zone='Europe/Moscow';
+--exec $MYSQL_DUMP --skip-comments --databases test
+--exec $MYSQL_DUMP --skip-tz-utc --skip-comments --databases test
+drop table t1;
+set global time_zone=default;
+set time_zone=default;

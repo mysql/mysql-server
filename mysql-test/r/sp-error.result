@@ -834,3 +834,41 @@ ERROR HY000: Not allowed to set autocommit from a stored function or trigger
 create trigger bug12712
 before insert on t1 for each row set session autocommit = 0;
 ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+drop procedure if exists bug13510_1|
+drop procedure if exists bug13510_2|
+drop procedure if exists bug13510_3|
+drop procedure if exists bug13510_4|
+create procedure bug13510_1()
+begin
+declare password varchar(10);
+set password = 'foo1';
+select password;
+end|
+ERROR 42000: Variable 'password' must be quoted with `...`, or renamed
+create procedure bug13510_2()
+begin
+declare names varchar(10);
+set names = 'foo2';
+select names;
+end|
+ERROR 42000: Variable 'names' must be quoted with `...`, or renamed
+create procedure bug13510_3()
+begin
+declare password varchar(10);
+set `password` = 'foo3';
+select password;
+end|
+create procedure bug13510_4()
+begin
+declare names varchar(10);
+set `names` = 'foo4';
+select names;
+end|
+call bug13510_3()|
+password
+foo3
+call bug13510_4()|
+names
+foo4
+drop procedure bug13510_3|
+drop procedure bug13510_4|

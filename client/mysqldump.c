@@ -92,7 +92,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
                 opt_complete_insert= 0, opt_drop_database= 0,
-                opt_dump_triggers= 0, opt_routines=0;
+                opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static my_bool insert_pat_inited=0;
@@ -385,6 +385,9 @@ static struct my_option my_long_options[] =
    {"triggers", OPT_TRIGGERS, "Dump triggers for each dumped table",
      (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
      NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"tz-utc", OPT_TZ_UTC,
+    "SET TIME_ZONE='UTC' at top of dump to allow dumping of date types between servers with different time zones.",
+    (gptr*) &opt_tz_utc, (gptr*) &opt_tz_utc, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.",
    (gptr*) &current_user, (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG,
@@ -509,6 +512,13 @@ static void write_header(FILE *sql_file, char *db_name)
 "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
 "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
 "\n/*!40101 SET NAMES %s */;\n",default_charset);
+
+    if (opt_tz_utc)
+    {
+      fprintf(sql_file, "/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;\n");
+      fprintf(sql_file, "/*!40103 SET TIME_ZONE='+00:00' */;\n");
+    }
+
     if (!path)
     {
       fprintf(md_result_file,"\
@@ -535,6 +545,9 @@ static void write_footer(FILE *sql_file)
   }
   else if (!opt_compact)
   {
+    if (opt_tz_utc)
+      fprintf(sql_file,"/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;\n");
+
     fprintf(sql_file,"\n/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n");
     if (!path)
     {
@@ -901,6 +914,20 @@ static int dbConnect(char *host, char *user,char *passwd)
     mysql_close(sock);
     safe_exit(EX_MYSQLERR);
     return 1;
+  }
+  /*
+    set time_zone to UTC to allow dumping date types between servers with 
+    different time zone settings
+  */
+  if (opt_tz_utc)
+  {
+    my_snprintf(buff, sizeof(buff), "/*!40103 SET TIME_ZONE='+00:00' */");
+    if (mysql_query_with_error_report(sock, 0, buff))
+    {
+      mysql_close(sock);
+      safe_exit(EX_MYSQLERR);
+      return 1;
+    }
   }
   return 0;
 } /* dbConnect */
