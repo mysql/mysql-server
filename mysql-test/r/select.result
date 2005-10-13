@@ -2737,6 +2737,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
 1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
 DROP TABLE t1, t2;
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+a	c
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+a	c
+drop table t1;
 create table t1 (a int, b int);
 create table t2 like t1;
 select t1.a from (t1 inner join t2 on t1.a=t2.a) where t2.a=1;
