@@ -3177,7 +3177,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       PRINT_OPTION_FLAGS(thd);
 
-      if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK))) 
+      if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
       {
         // Autocommit transaction
         DBUG_ASSERT(!thd->transaction.stmt.ndb_tid);
@@ -3328,11 +3328,11 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 }
 
 /*
-  When using LOCK TABLE's external_lock is only called when the actual
-  TABLE LOCK is done.
-  Under LOCK TABLES, each used tables will force a call to start_stmt.
-  Ndb doesn't currently support table locks, and will do ordinary
-  startTransaction for each transaction/statement.
+  Start a transaction for running a statement if one is not
+  already running in a transaction. This will be the case in
+  a BEGIN; COMMIT; block
+  When using LOCK TABLE's external_lock will start a transaction
+  since ndb does not currently does not support table locking
 */
 
 int ha_ndbcluster::start_stmt(THD *thd)
@@ -3341,16 +3341,13 @@ int ha_ndbcluster::start_stmt(THD *thd)
   DBUG_ENTER("start_stmt");
   PRINT_OPTION_FLAGS(thd);
 
-  NdbConnection *trans= (NdbConnection*)thd->transaction.stmt.ndb_tid;
+  NdbConnection *trans= 
+    (thd->transaction.stmt.ndb_tid)
+    ? (NdbConnection *)(thd->transaction.stmt.ndb_tid)
+    : (NdbConnection *)(thd->transaction.all.ndb_tid);
   if (!trans){
     Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
     DBUG_PRINT("trans",("Starting transaction stmt"));  
-    
-    NdbConnection *tablock_trans= 
-      (NdbConnection*)thd->transaction.all.ndb_tid;
-    DBUG_PRINT("info", ("tablock_trans: %x", (UintPtr)tablock_trans));
-    DBUG_ASSERT(tablock_trans);
-//    trans= ndb->hupp(tablock_trans);
     trans= ndb->startTransaction();
     if (trans == NULL)
       ERR_RETURN(ndb->getNdbError());
@@ -4041,7 +4038,12 @@ longlong ha_ndbcluster::get_auto_increment()
            --retries &&
            ndb->getNdbError().status == NdbError::TemporaryError);
   if (auto_value == NDB_FAILED_AUTO_INCREMENT)
-    ERR_RETURN(ndb->getNdbError());
+  {
+    const NdbError err= ndb->getNdbError();
+    sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                    (ulong) err.code, err.message);
+    DBUG_RETURN(~(ulonglong) 0);
+  }
   DBUG_RETURN((longlong)auto_value);
 }
 
