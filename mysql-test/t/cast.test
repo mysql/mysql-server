@@ -20,6 +20,10 @@ select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
 select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
 select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
+select CAST(0xb3 as signed);
+select CAST(0x8fffffffffffffff as signed);
+select CAST(0xffffffffffffffff as unsigned);
+select CAST(0xfffffffffffffffe as signed);
 
 # out-of-range cases
 select cast('18446744073709551616' as unsigned);
@@ -142,5 +146,10 @@ select cast(concat('184467440','73709551615') as signed);
 
 select cast(repeat('1',20) as unsigned);
 select cast(repeat('1',20) as signed);
+
+#
+# Bug #13344: cast of large decimal to signed int not handled correctly
+#
+select cast(1.0e+300 as signed int);
 
 # End of 4.1 tests

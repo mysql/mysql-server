@@ -262,7 +262,7 @@ private:
   // for keeping in lists
   NdbBlob* theNext;
   // initialization
-  NdbBlob();
+  NdbBlob(Ndb*);
   void init();
   void release();
   // classify operations
@@ -314,6 +314,10 @@ private:
   int getOperationType() const;
   friend class NdbOut& operator<<(NdbOut&, const NdbBlob&);
 #endif
+
+  void next(NdbBlob* obj) { theNext= obj;}
+  NdbBlob* next() { return theNext;}
+  friend struct Ndb_free_list_t<NdbBlob>;
 };
 
 #endif

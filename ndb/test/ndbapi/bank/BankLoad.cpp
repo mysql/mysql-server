@@ -321,7 +321,7 @@ int Bank::loadGl(){
     
   m_ndb.closeTransaction(pTrans);      
   return NDBT_OK;
-}; 
+} 
 
 
 int Bank::getBalanceForAccountType(const Uint32 accountType,
@@ -460,7 +460,7 @@ int Bank::loadAccountType(){
     
   m_ndb.closeTransaction(pTrans);      
   return NDBT_OK;
-};
+}
   
 /**
  * Load ACCOUNT table

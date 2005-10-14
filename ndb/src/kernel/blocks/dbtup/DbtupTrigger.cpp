@@ -622,7 +622,8 @@ void Dbtup::executeTrigger(Signal* signal,
                        mainBuffer,
                        noMainWords,
                        copyBuffer,
-                       noCopyWords)) {
+                       noCopyWords,
+		       (ref == BACKUP ? false : true))) {
     ljam();
     return;
   }//if
@@ -727,7 +728,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
                             Uint32*  const mainBuffer,
                             Uint32& noMainWords,
                             Uint32* const copyBuffer,
-                            Uint32& noCopyWords)
+                            Uint32& noCopyWords,
+			    bool xfrm)
 {
   noCopyWords = 0;
   noMainWords = 0;
@@ -757,7 +759,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			  regTabPtr->noOfKeyAttr,
 			  keyBuffer,
 			  ZATTR_BUFFER_SIZE,
-			  true);
+			  xfrm);
   ndbrequire(ret != -1);
   noPrimKey= ret;
 
@@ -800,7 +802,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			    numAttrsToRead,
 			    mainBuffer,
 			    ZATTR_BUFFER_SIZE,
-			    true);
+			    xfrm);
     ndbrequire(ret != -1);
     noMainWords= ret;
   } else {
@@ -826,7 +828,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			    numAttrsToRead,
 			    copyBuffer,
 			    ZATTR_BUFFER_SIZE,
-			    true);
+			    xfrm);
 
     ndbrequire(ret != -1);
     noCopyWords = ret;

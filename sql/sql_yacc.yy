@@ -644,7 +644,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	NUM_literal
 
 %type <item_list>
-	expr_list udf_expr_list when_list ident_list ident_list_arg
+	expr_list udf_expr_list udf_sum_expr_list when_list ident_list 
+        ident_list_arg
 
 %type <key_type>
 	key_type opt_unique_or_fulltext constraint_key_type
@@ -3137,21 +3138,21 @@ simple_expr:
 	  { $$= new Item_func_trim($5,$3); }
 	| TRUNCATE_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_round($3,$5,1); }
-	| UDA_CHAR_SUM '(' udf_expr_list ')'
+	| UDA_CHAR_SUM '(' udf_sum_expr_list ')'
 	  {
 	    if ($3 != NULL)
 	      $$ = new Item_sum_udf_str($1, *$3);
 	    else
 	      $$ = new Item_sum_udf_str($1);
 	  }
-	| UDA_FLOAT_SUM '(' udf_expr_list ')'
+	| UDA_FLOAT_SUM '(' udf_sum_expr_list ')'
 	  {
 	    if ($3 != NULL)
 	      $$ = new Item_sum_udf_float($1, *$3);
 	    else
 	      $$ = new Item_sum_udf_float($1);
 	  }
-	| UDA_INT_SUM '(' udf_expr_list ')'
+	| UDA_INT_SUM '(' udf_sum_expr_list ')'
 	  {
 	    if ($3 != NULL)
 	      $$ = new Item_sum_udf_int($1, *$3);
@@ -3288,6 +3289,21 @@ fulltext_options:
 udf_expr_list:
 	/* empty */	{ $$= NULL; }
 	| expr_list	{ $$= $1;};
+
+udf_sum_expr_list:
+	{
+	  LEX *lex= Lex;
+	  if (lex->current_select->inc_in_sum_expr())
+	  {
+	    yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+	  }
+	}
+	udf_expr_list
+	{
+	  Select->in_sum_expr--;
+	  $$= $2;
+	};
 
 sum_expr:
 	AVG_SYM '(' in_sum_expr ')'
@@ -4295,12 +4311,10 @@ single_multi:
 	}
 	where_clause opt_order_clause
 	delete_limit_clause {}
-	| table_wild_list
-	  { mysql_init_multi_delete(Lex); }
-          FROM join_table_list where_clause
-	| FROM table_wild_list
-	  { mysql_init_multi_delete(Lex); }
-	  USING join_table_list where_clause
+	| table_wild_list {mysql_init_multi_delete(Lex);}
+          FROM join_table_list {fix_multi_delete_lex(Lex);} where_clause
+	| FROM table_wild_list { mysql_init_multi_delete(Lex);}
+	  USING join_table_list {fix_multi_delete_lex(Lex);} where_clause
 	  {}
 	;
 
@@ -4533,6 +4547,9 @@ show_engine_param:
 	STATUS_SYM
 	  {
 	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_NDBCLUSTER:
+	      Lex->sql_command = SQLCOM_SHOW_NDBCLUSTER_STATUS;
+	      break;
 	    case DB_TYPE_INNODB:
 	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
 	      break;
@@ -4698,7 +4715,10 @@ purge_option:
         }
 	| BEFORE_SYM expr
 	{
-	  if ($2->check_cols(1) || $2->fix_fields(Lex->thd, 0, &$2))
+	  if (!$2)
+	    /* Can only be an out of memory situation, no need for a message */
+	    YYABORT;
+	  if ($2->fix_fields(Lex->thd, 0, &$2) || $2->check_cols(1))
 	  {
 	    net_printf(Lex->thd, ER_WRONG_ARGUMENTS, "PURGE LOGS BEFORE");
 	    YYABORT;

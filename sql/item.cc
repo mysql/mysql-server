@@ -1760,6 +1760,21 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if ((tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
 	not_found_field)
     {
+      /* Look up in current select's item_list to find aliased fields */
+      if (thd->lex->current_select->is_item_list_lookup)
+      {
+        uint counter;
+        bool not_used;
+        Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
+                                      &counter, REPORT_EXCEPT_NOT_FOUND,
+                                      &not_used);
+        if (res != not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        {
+          set_field((*((Item_field**)res))->field);
+          return 0;
+        }
+      }
+
       /*
 	We can't find table field in table list of current select,
 	consequently we have to find it in outer subselect(s).
@@ -2870,6 +2885,24 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     new_item= (null_value ? (Item*) new Item_null(name) :
                (Item*) new Item_int(name, result, length));
   }
+  else if (res_type == ROW_RESULT)
+  {
+    Item_row *item_row= (Item_row*) item;
+    Item_row *comp_item_row= (Item_row*) comp_item;
+    uint col;
+    new_item= 0;
+    /*
+      If item and comp_item are both Item_rows and have same number of cols
+      then process items in Item_row one by one.
+      We can't ignore NULL values here as this item may be used with <=>, in
+      which case NULL's are significant.
+    */
+    DBUG_ASSERT(item->result_type() == comp_item->result_type());
+    DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
+    col= item_row->cols();
+    while (col-- > 0)
+      resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
+  }
   else
   {						// It must REAL_RESULT
     double result=item->val();
@@ -3205,9 +3238,14 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
+  uint max_length_orig= max_length;
+  uint decimals_orig= decimals;
   max_length= max(max_length, display_length(item));
+  decimals= max(decimals, item->decimals);
   fld_type= Field::field_type_merge(fld_type, get_real_type(item));
-  if (Field::result_merge_type(fld_type) == STRING_RESULT)
+  switch (Field::result_merge_type(fld_type))
+  {
+  case STRING_RESULT:
   {
     const char *old_cs, *old_derivation;
     old_cs= collation.collation->name;
@@ -3221,8 +3259,23 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       "UNION");
       return TRUE;
     }
+    break;
   }
-  decimals= max(decimals, item->decimals);
+  case REAL_RESULT:
+  {
+    if (decimals != NOT_FIXED_DEC)
+    {
+      int delta1= max_length_orig - decimals_orig;
+      int delta2= item->max_length - item->decimals;
+      max_length= min(max(delta1, delta2) + decimals,
+                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+    }
+    else
+      max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
+    break;
+  }
+  default:;
+  };
   maybe_null|= item->maybe_null;
   get_full_info(item);
   return FALSE;

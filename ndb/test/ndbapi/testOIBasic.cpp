@@ -2187,7 +2187,7 @@ pkinsert(Par par)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 pkupdate(Par par)
@@ -2250,7 +2250,7 @@ pkupdate(Par par)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 pkdelete(Par par)
@@ -2306,7 +2306,7 @@ pkdelete(Par par)
   }
   con.closeTransaction();
   return 0;
-};
+}
 
 static int
 pkread(Par par)

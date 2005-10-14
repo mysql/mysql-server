@@ -46,7 +46,8 @@
 class NdbApiSignal : public SignalHeader
  {
 public:  
-  			NdbApiSignal(BlockReference myRef);
+  			NdbApiSignal(Ndb* ndb);
+  			NdbApiSignal(BlockReference ref);
   			NdbApiSignal(const NdbApiSignal &);
                         NdbApiSignal(const SignalHeader &header)
 			  : SignalHeader(header), theNextSignal(0), theRealData(0) {};

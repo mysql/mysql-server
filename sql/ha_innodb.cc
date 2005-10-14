@@ -2614,7 +2614,7 @@ innobase_convert_and_store_changed_col(
 	mysql_byte*	data,	/* in: column data to store */
 	ulint		len,	/* in: data len */
 	ulint		col_type,/* in: data type in InnoDB type numbers */
-	ulint		is_unsigned)/* in: != 0 if an unsigned integer type */
+	ulint		prtype)	/* InnoDB precise data type and flags */
 {
 	uint	i;
 
@@ -2622,10 +2622,31 @@ innobase_convert_and_store_changed_col(
 		data = NULL;
 	} else if (col_type == DATA_VARCHAR || col_type == DATA_BINARY
 		   || col_type == DATA_VARMYSQL) {
-	        /* Remove trailing spaces */
-        	while (len > 0 && data[len - 1] == ' ') {
-	                len--;
-	        }
+		/* Remove trailing spaces. */
+
+		/* Handle UCS2 strings differently.  As no new
+		collations will be introduced in 4.1, we hardcode the
+		charset-collation codes here.  In 5.0, the logic will
+		be based on mbminlen. */
+		ulint	cset	= dtype_get_charset_coll_noninline(prtype);
+		if (cset == 35/*ucs2_general_ci*/
+				|| cset == 90/*ucs2_bin*/
+				|| (cset >= 128/*ucs2_unicode_ci*/
+				&& cset <= 144/*ucs2_persian_ci*/)) {
+			/* space=0x0020 */
+			/* Trim "half-chars", just in case. */
+			len = len - (len % 2); /* len &= ~1; */
+
+			while (len && data[len - 2] == 0x00
+					&& data[len - 1] == 0x20) {
+				len -= 2;
+			}
+		} else {
+			/* space=0x20 */
+			while (len && data[len - 1] == 0x20) {
+				len--;
+			}
+		}
 	} else if (col_type == DATA_INT) {
 		/* Store integer data in InnoDB in a big-endian
 		format, sign bit negated, if signed */
@@ -2634,7 +2655,7 @@ innobase_convert_and_store_changed_col(
 			buf[len - 1 - i] = data[i];
 		}
 
-		if (!is_unsigned) {
+		if (!(prtype & DATA_UNSIGNED)) {
 			buf[0] = buf[0] ^ 128;
 		}
 
@@ -2677,7 +2698,7 @@ calc_row_difference(
         byte*	        buf;
 	upd_field_t*	ufield;
 	ulint		col_type;
-	ulint		is_unsigned;
+	ulint		prtype;
 	ulint		n_changed = 0;
 	uint		i;
 
@@ -2702,8 +2723,7 @@ calc_row_difference(
 		n_len = field->pack_length();
 
 		col_type = prebuilt->table->cols[i].type.mtype;
-		is_unsigned = prebuilt->table->cols[i].type.prtype &
-								DATA_UNSIGNED;
+		prtype = prebuilt->table->cols[i].type.prtype;
 		switch (col_type) {
 
 		case DATA_BLOB:
@@ -2743,7 +2763,7 @@ calc_row_difference(
                           innobase_convert_and_store_changed_col(ufield,
 					  (mysql_byte*)buf,
 					  (mysql_byte*)n_ptr, n_len, col_type,
-						is_unsigned);
+						prtype);
 			ufield->exp = NULL;
 			ufield->field_no = prebuilt->table->cols[i].clust_pos;
 			n_changed++;
@@ -4828,7 +4848,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		fclose(file);
 	} else {
 		/* unable to create temporary file */
-          	str = my_malloc(1, MYF(MY_ZEROFILL));
+          	str = my_strdup(
+"/* Error: cannot display foreign key constraints */", MYF(0));
 	}
 
   	return(str);
@@ -5421,6 +5442,13 @@ ha_innobase::store_lock(
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
+		} else if (thd->lex->sql_command == SQLCOM_CHECKSUM) {
+			/* Use consistent read for checksum table and
+			convert lock type to the TL_READ */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+			lock.type = TL_READ;
 		} else {
 			prebuilt->select_lock_type = LOCK_S;
 			prebuilt->stored_select_lock_type = LOCK_S;

@@ -426,6 +426,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
   tables.alias= table_list->alias;
+  thd->allow_sum_func= 0;
 
   if (setup_tables(update_table_list) ||
       setup_conds(thd, update_table_list, conds) ||
@@ -568,7 +569,9 @@ int mysql_multi_update_lock(THD *thd,
         }
 	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
 	tl->lock_type= thd->lex->multi_lock_option;
-	tl->updating= 1;
+        tl->updating= 1;               // loacal or only list
+        if (tl->table_list)
+          tl->table_list->updating= 1; // global list (if we have 2 lists)
 	wants= UPDATE_ACL;
       }
       else
@@ -578,7 +581,9 @@ int mysql_multi_update_lock(THD *thd,
 	// correct order of statements. Otherwise, we use a TL_READ lock to
 	// improve performance.
 	tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
-	tl->updating= 0;
+        tl->updating= 0;               // loacal or only list
+        if (tl->table_list)
+          tl->table_list->updating= 0; // global list (if we have 2 lists)
 	wants= SELECT_ACL;
       }
 
@@ -670,9 +675,6 @@ int mysql_multi_update(THD *thd,
   List<Item> total_list;
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
-
-  if ((res= mysql_multi_update_lock(thd, table_list, fields, select_lex)))
-    DBUG_RETURN(res);
 
   /* Setup timestamp handling */
   for (tl= update_list; tl; tl= tl->next)
