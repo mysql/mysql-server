@@ -249,7 +249,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-readline ;
+	    --with-readline ; \
 	    # Add this for more debugging support
 	    # --with-debug
 	    "
@@ -302,8 +302,15 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
+	        --with-big-tables \
 		--with-comment=\"MySQL Community Edition - Experimental (GPL)\" \
 		--with-server-suffix='-max'"
+
+# We might want to save the config log file
+if test -n "$MYSQL_MAXCONFLOG_DEST"
+then
+  cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
+fi
 
 make test-force || true
 
@@ -353,8 +360,15 @@ BuildMySQL "--disable-shared \
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
 		--with-archive-storage-engine \
-		--with-innodb"
+		--with-innodb \
+		--with-big-tables"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
+
+# We might want to save the config log file
+if test -n "$MYSQL_CONFLOG_DEST"
+then
+  cp -fp config.log "$MYSQL_CONFLOG_DEST"
+fi
 
 make test-force || true
 
