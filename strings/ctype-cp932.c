@@ -5522,6 +5522,7 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
+    ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_ci_handler
@@ -5553,6 +5554,7 @@ CHARSET_INFO my_charset_cp932_bin=
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
+    ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_mb_bin_handler

@@ -101,6 +101,9 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_RESTART_TIMEOUT, XCE,
     "Total restart time too long, consider increasing StartFailureTimeout "
     "or investigate error(s) on other node(s)"},
+   {NDBD_EXIT_RESTART_DURING_SHUTDOWN, XRE,
+    "Node started while node shutdown in progress. "
+    "Please wait until shutdown complete before starting node"},
 
    /* DIH */
    {NDBD_EXIT_MAX_CRASHED_REPLICAS, XFL,

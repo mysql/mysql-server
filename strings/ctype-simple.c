@@ -1316,6 +1316,7 @@ static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(uint))
 {
   cs->caseup_multiply= 1;
   cs->casedn_multiply= 1;
+  cs->pad_char= ' ';
   return create_fromuni(cs, alloc);
 }
 
