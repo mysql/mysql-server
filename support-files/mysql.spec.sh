@@ -323,9 +323,6 @@ mv extra/perror extra/perror.ndb
 # Install the ndb binaries
 (cd ndb; make install DESTDIR=$RBR)
 
-# Install embedded server library in the build root
-install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
-
 # Include libgcc.a in the devel subpackage (BUG 4921)
 if expr "$CC" : ".*gcc.*" > /dev/null ;
 then
@@ -393,18 +390,22 @@ make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 (cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
 
 # install saved mysqld-max
-install -s -m755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
+install -s -m 755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
 
 # install saved perror binary with NDB support (BUG#13740)
-install -s -m755 $MBD/extra/perror.ndb $RBR%{_bindir}/perror
+install -s -m 755 $MBD/extra/perror.ndb $RBR%{_bindir}/perror
 
 # install symbol files ( for stack trace resolution)
-install -m644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
-install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
+install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
+install -m 644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
 
 # Install logrotate and autostart
-install -m644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+
+# Install embedded server library in the build root
+# FIXME No libmysqld on 5.0 yet
+#install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -438,7 +439,7 @@ fi
 mysql_datadir=%{mysqldatadir}
 
 # Create data directory if needed
-if test ! -d $mysql_datadir; then mkdir -m755 $mysql_datadir; fi
+if test ! -d $mysql_datadir; then mkdir -m 755 $mysql_datadir; fi
 if test ! -d $mysql_datadir/mysql; then mkdir $mysql_datadir/mysql; fi
 if test ! -d $mysql_datadir/test; then mkdir $mysql_datadir/test; fi
 
@@ -485,7 +486,7 @@ sleep 2
 mysql_clusterdir=/var/lib/mysql-cluster
 
 # Create cluster directory if needed
-if test ! -d $mysql_clusterdir; then mkdir -m755 $mysql_clusterdir; fi
+if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
 
 
 %post Max
@@ -677,12 +678,33 @@ fi
 
 %files embedded
 %defattr(-, root, root, 0755)
-%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
+# %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+
+* Sat Oct 15 2005 Kent Boortz <kent@mysql.com>
+
+- Give mode arguments the same way in all places
+- Moved copy of mysqld.a to "standard" build, but
+  disabled it as we don't do embedded yet in 5.0
+
+* Fri Oct 14 2005 Kent Boortz <kent@mysql.com>
+
+- For 5.x, always compile with --with-big-tables
+- Copy the config.log file to location outside
+  the build tree
+
+* Fri Oct 14 2005 Kent Boortz <kent@mysql.com>
+
+- Removed unneeded/obsolte configure options
+- Added archive engine to standard server
+- Removed the embedded server from experimental server
+- Changed suffix "-Max" => "-max"
+- Changed comment string "Max" => "Experimental"
+
 * Thu Oct 13 2005 Lenz Grimmer <lenz@mysql.com>
 
 - added a usermod call to assign a potential existing mysql user to the
