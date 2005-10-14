@@ -1064,45 +1064,55 @@ xxx
 yyy
 DROP TABLE t1;
 set names utf8;
-select hex(char(1));
-hex(char(1))
+select hex(char(1 using utf8));
+hex(char(1 using utf8))
 01
-select char(0xd1,0x8f);
-char(0xd1,0x8f)
+select char(0xd1,0x8f using utf8);
+char(0xd1,0x8f using utf8)
 —è
-select char(0xd18f);
-char(0xd18f)
+select char(0xd18f using utf8);
+char(0xd18f using utf8)
 —è
-select char(53647);
-char(53647)
+select char(53647 using utf8);
+char(53647 using utf8)
 —è
-select char(0xff,0x8f);
-char(0xff,0x8f)
+select char(0xff,0x8f using utf8);
+char(0xff,0x8f using utf8)
 ˇè
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF8F'
 set sql_mode=traditional;
-select char(0xff,0x8f);
-char(0xff,0x8f)
-ˇè
-select convert(char(0xff,0x8f) using utf8);
-convert(char(0xff,0x8f) using utf8)
-ˇè
-select char(195);
-char(195)
-√
-select convert(char(195) using utf8);
-convert(char(195) using utf8)
-√
-select char(196);
-char(196)
-ƒ
-select convert(char(196) using utf8);
-convert(char(196) using utf8)
-ƒ
+select char(0xff,0x8f using utf8);
+char(0xff,0x8f using utf8)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF8F'
+select char(195 using utf8);
+char(195 using utf8)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'C3'
+select char(196 using utf8);
+char(196 using utf8)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'C4'
+select char(2557 using utf8);
+char(2557 using utf8)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FD'
+select hex(convert(char(2557 using latin1) using utf8));
+hex(convert(char(2557 using latin1) using utf8))
+09C3BD
+select hex(char(195));
+hex(char(195))
+C3
+select hex(char(196));
+hex(char(196))
+C4
 select hex(char(2557));
 hex(char(2557))
-09FD
-select hex(convert(char(2557) using utf8));
-hex(convert(char(2557) using utf8))
 09FD
 set names utf8;
 create table t1 (a char(1)) default character set utf8;
