@@ -186,6 +186,7 @@ THD::THD()
   variables.pseudo_thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
+  query_id= 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
   mysys_var=0;
@@ -196,6 +197,7 @@ THD::THD()
   net.vio=0;
 #endif
   net.last_error[0]=0;				// If error on boot
+  client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread=cleanup_done=0;
   peer_port= 0;					// For SHOW PROCESSLIST
