@@ -143,15 +143,6 @@ Ndb::init(int aMaxNoOfTransactions)
 error_handler:
   ndbout << "error_handler" << endl;
   releaseTransactionArrays();
-  while ( theConIdleList != NULL )
-    freeNdbCon();
-  while ( theSignalIdleList != NULL )
-    freeSignal();
-  while (theRecAttrIdleList != NULL)
-    freeRecAttr(); 
-  while (theOpIdleList != NULL)
-    freeOperation();
-  
   delete theDictionary;
   TransporterFacade::instance()->close(theNdbBlockNumber, 0);
   DBUG_RETURN(-1);

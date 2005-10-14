@@ -680,7 +680,8 @@ sub mtr_mysqladmin_shutdown {
     mtr_add_arg($args, "shutdown");
     # We don't wait for termination of mysqladmin
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
-                       "", $::path_manager_log, $::path_manager_log, "");
+                       "", $::path_manager_log, $::path_manager_log, "",
+                       { append_log_file => 1 });
     $mysql_admin_pids{$pid}= 1;
   }
 

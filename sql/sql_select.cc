@@ -2140,7 +2140,6 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     field			Field used in comparision
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
-                                Is NULL for BETWEEN and IN
     usable_tables		Tables which can be used for key optimization
 
   NOTES
@@ -2325,7 +2324,8 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
       add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*)(cond_func->key_item()->real_item()))->field,
                     cond_func->argument_count() == 2 &&
-                    cond_func->functype() == Item_func::IN_FUNC,
+                    cond_func->functype() == Item_func::IN_FUNC &&
+                    !((Item_func_in*)cond_func)->negated,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
                     usable_tables);
     break;
@@ -4135,7 +4135,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   tab->cached_eq_ref_table=1;
   if (tab->type == JT_CONST)			// We can skip const tables
     return (tab->eq_ref_table=1);		/* purecov: inspected */
-  if (tab->type != JT_EQ_REF)
+  if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
   Item **ref_item=tab->ref.items;
   Item **end=ref_item+tab->ref.key_parts;
@@ -8348,11 +8348,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
 
     'it' reassigned in if condition because fix_field can change it.
   */
+  thd->lex->current_select->is_item_list_lookup= 1;
   if (!it->fixed &&
       (it->fix_fields(thd, tables, order->item) ||
        (it= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
+  {
+    thd->lex->current_select->is_item_list_lookup= 0;
     return 1;					// Wrong field 
+  }
+  thd->lex->current_select->is_item_list_lookup= 0;
   uint el= all_fields.elements;
   all_fields.push_front(it);		        // Add new field to field list
   ref_pointer_array[el]= it;

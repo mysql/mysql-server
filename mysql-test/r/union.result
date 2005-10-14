@@ -565,7 +565,7 @@ a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` double(53,1) NOT NULL default '0.0'
+  `a` double(21,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
@@ -780,21 +780,6 @@ t1	CREATE TABLE `t1` (
   `b` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
-create table t1 (d decimal(10,1));
-create table t2 (d decimal(10,9));
-insert into t1 values ("100000000.0");
-insert into t2 values ("1.23456780");
-create table t3 select * from t2 union select * from t1;
-select * from t3;
-d
-1.234567800
-100000000.0
-show create table t3;
-Table	Create Table
-t3	CREATE TABLE `t3` (
-  `d` decimal(10,9) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1,t2,t3;
 create table t1 select 1 union select -1;
 select * from t1;
 1

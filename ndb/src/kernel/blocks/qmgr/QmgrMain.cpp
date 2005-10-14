@@ -2012,6 +2012,8 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   else
     conf->version =  0;
   conf->nodeId = nodeId;
+  struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
+  conf->inet_addr= in.s_addr;
 
   sendSignal(senderRef, 
 	     GSN_API_VERSION_CONF,

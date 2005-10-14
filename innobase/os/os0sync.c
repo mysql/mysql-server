@@ -631,7 +631,21 @@ os_fast_mutex_free(
 
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
-	ut_a(0 == pthread_mutex_destroy(fast_mutex));
+	int	ret;
+	
+	ret = pthread_mutex_destroy(fast_mutex);
+
+	if (ret != 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: error: return value %lu when calling\n"
+"InnoDB: pthread_mutex_destroy().\n", (ulint)ret);
+		fprintf(stderr,
+"InnoDB: Byte contents of the pthread mutex at %p:\n", fast_mutex);
+		ut_print_buf(stderr, (const byte*)fast_mutex,
+						sizeof(os_fast_mutex_t));
+		fprintf(stderr, "\n");
+	}
 #endif
 	if (os_sync_mutex_inited) {
 		/* When freeing the last mutexes, we have

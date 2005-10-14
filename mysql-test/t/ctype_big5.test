@@ -15,9 +15,11 @@ SET NAMES big5;
 SET collation_connection='big5_chinese_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
 SET collation_connection='big5_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
 
 #
 # Bugs#9357: TEXT columns break string with special word in BIG5 charset.
@@ -35,5 +37,20 @@ CREATE TABLE t1 (a CHAR(50) CHARACTER SET big5 NOT NULL, FULLTEXT(a));
 INSERT INTO t1 VALUES(0xA741ADCCA66EB6DC20A7DAADCCABDCA66E);
 SELECT HEX(a) FROM t1 WHERE MATCH(a) AGAINST (0xA741ADCCA66EB6DC IN BOOLEAN MODE);
 DROP TABLE t1;
+
+#
+# Bug#12476 Some big5 codes are still missing.
+#
+set names big5;
+create table t1 (a char character set big5);
+insert into t1 values (0xF9D6),(0xF9D7),(0xF9D8),(0xF9D9);
+insert into t1 values (0xF9DA),(0xF9DB),(0xF9DC);
+# Check round trip
+select hex(a) a, hex(@u:=convert(a using utf8)) b,
+hex(convert(@u using big5)) c from t1 order by a;
+# Check that there is no "illegal mix of collations" error with Unicode.
+alter table t1 convert to character set utf8;
+select hex(a) from t1 where a = _big5 0xF9DC;
+drop table t1;
 
 # End of 4.1 tests

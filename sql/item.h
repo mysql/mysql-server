@@ -703,6 +703,14 @@ public:
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
+    if (value <= (double) LONGLONG_MIN)
+    {
+       return LONGLONG_MIN;
+    }
+    else if (value >= (double) (ulonglong) LONGLONG_MAX)
+    {
+      return LONGLONG_MAX;
+    }
     return (longlong) (value+(value > 0 ? 0.5 : -0.5));
   }
   String *val_str(String*);
@@ -842,6 +850,7 @@ public:
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
