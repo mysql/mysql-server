@@ -1056,3 +1056,8 @@ hex(a)
 5B
 E880BD
 drop table t1;
+set names 'latin1';
+create table t1 (a varchar(255)) default charset=utf8;
+select * from t1 where find_in_set('-1', a);
+a
+drop table t1;
