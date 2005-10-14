@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+drop table if exists t1,t2;
 CREATE TABLE t1 (
 a int unsigned not null auto_increment primary key,
 b int unsigned
@@ -40,3 +41,15 @@ SELECT * FROM t2 ORDER BY a;
 a	b
 1	0
 2	1
+drop table t1,t2;
+reset master;
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (0);
+UPDATE t1, (SELECT 3 as b) AS x SET t1.a = x.b;
+select * from t1;
+a
+3
+select * from t1;
+a
+3
+drop table t1;
