@@ -101,7 +101,7 @@ drop table t1;
 # Bug 2202
 # CAST from BINARY to non-BINARY and from non-BINARY to BINARY
 #
-create table t1 (a binary(10), b char(10) character set koi8r);
+create table t1 (a binary(4), b char(4) character set koi8r);
 insert into t1 values (_binary'тест',_binary'тест');
 select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
 set names koi8r;

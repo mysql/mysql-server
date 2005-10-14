@@ -310,6 +310,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     char *buff, *next_chunk, *buff_end;
     if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
       goto err;
+    buff_end= buff + n_length;
     if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
     {
@@ -324,13 +325,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       goto err;
     }
     next_chunk+= share->connect_string.length + 2;
-    buff_end= buff + n_length;
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
       share->db_type= ha_resolve_by_name(next_chunk + 2, str_db_type_length);
-      DBUG_PRINT("enter", ("Setting dbtype to: %d - %d - '%.*s'\n", share->db_type,
-            str_db_type_length, str_db_type_length, next_chunk + 2));
+      DBUG_PRINT("enter", ("Setting dbtype to: %d - %d - '%.*s'\n",
+                           share->db_type,
+                           str_db_type_length, str_db_type_length,
+                           next_chunk + 2));
       next_chunk+= str_db_type_length + 2;
     }
     my_free(buff, MYF(0));
