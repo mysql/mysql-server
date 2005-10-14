@@ -1454,7 +1454,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  agg_arg_collations_for_comparison(cmp_collation, args, 2);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
 }
 
 static const char separator=',';

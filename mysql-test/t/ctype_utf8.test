@@ -865,4 +865,12 @@ insert into t1 values (_utf8 0x5b);
 select hex(a) from t1;
 drop table t1;
 
+#
+# Bug#13751 find_in_set: Illegal mix of collations
+#
+set names 'latin1';
+create table t1 (a varchar(255)) default charset=utf8;
+select * from t1 where find_in_set('-1', a);
+drop table t1;
+
 # End of 4.1 tests
