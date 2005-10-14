@@ -18,7 +18,7 @@ SHARED_LIB_VERSION=15:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=16
+NDB_VERSION_BUILD=15
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
