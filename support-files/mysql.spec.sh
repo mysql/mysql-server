@@ -252,8 +252,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --with-readline ;
 	    # Add this for more debugging support
 	    # --with-debug
-	    # Add this for MyISAM RAID support:
-	    # --with-raid
 	    "
 
  # benchdir does not fit in above model. Maybe a separate bench distribution
@@ -296,7 +294,6 @@ then
 fi
 
 BuildMySQL "--enable-shared \
-		--without-openssl \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
@@ -305,9 +302,8 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
-		--with-embedded-server \
-		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
-		--with-server-suffix='-Max'"
+		--with-comment=\"MySQL Community Edition - Experimental (GPL)\" \
+		--with-server-suffix='-max'"
 
 make test-force || true
 
@@ -356,11 +352,8 @@ BuildMySQL "--disable-shared \
 %endif
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
-		--without-embedded-server \
-		--without-berkeley-db \
-		--with-innodb \
-		--without-vio \
-		--without-openssl"
+		--with-archive-storage-engine \
+		--with-innodb"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 make test-force || true
