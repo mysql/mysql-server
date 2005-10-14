@@ -851,6 +851,14 @@ insert into t1 values (_utf8 0x5b);
 select hex(a) from t1;
 drop table t1;
 
+#
+# Bug#13751 find_in_set: Illegal mix of collations
+#
+set names 'latin1';
+create table t1 (a varchar(255)) default charset=utf8;
+select * from t1 where find_in_set('-1', a);
+drop table t1;
+
 # End of 4.1 tests
 
 #
@@ -871,22 +879,32 @@ DROP TABLE t1;
 #
 set names utf8;
 # correct value
-select hex(char(1));
-select char(0xd1,0x8f);
-select char(0xd18f);
-select char(53647);
+select hex(char(1 using utf8));
+select char(0xd1,0x8f using utf8);
+select char(0xd18f using utf8);
+select char(53647 using utf8);
 # incorrect value: return with warning
-select char(0xff,0x8f);
+select char(0xff,0x8f using utf8);
 # incorrect value in strict mode: return NULL with "Error" level warning
 set sql_mode=traditional;
-select char(0xff,0x8f);
-select convert(char(0xff,0x8f) using utf8);
-select char(195);
-select convert(char(195) using utf8);
-select char(196);
-select convert(char(196) using utf8);
+select char(0xff,0x8f using utf8);
+select char(195 using utf8);
+select char(196 using utf8);
+select char(2557 using utf8);
+
+#
+# Check convert + char + using
+#
+select hex(convert(char(2557 using latin1) using utf8));
+
+#
+# char() without USING returns "binary" by default, any argument is ok
+#
+select hex(char(195));
+select hex(char(196));
 select hex(char(2557));
-select hex(convert(char(2557) using utf8));
+
+
 
 #
 # Bug#12891: UNION doesn't return DISTINCT result for multi-byte characters

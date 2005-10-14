@@ -480,12 +480,15 @@ public:
 class Item_func_char :public Item_str_func
 {
 public:
-  Item_func_char(List<Item> &list) :Item_str_func(list) {}
+  Item_func_char(List<Item> &list) :Item_str_func(list)
+  { collation.set(&my_charset_bin); }
+  Item_func_char(List<Item> &list, CHARSET_INFO *cs) :Item_str_func(list)
+  { collation.set(cs); }  
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    collation.set(&my_charset_bin);
-    maybe_null=0; max_length=arg_count;
+    maybe_null=0;
+    max_length=arg_count * collation.collation->mbmaxlen;
   }
   const char *func_name() const { return "char"; }
 };

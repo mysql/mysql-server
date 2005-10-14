@@ -5906,7 +5906,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   tab->cached_eq_ref_table=1;
   if (tab->type == JT_CONST)			// We can skip const tables
     return (tab->eq_ref_table=1);		/* purecov: inspected */
-  if (tab->type != JT_EQ_REF)
+  if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
   Item **ref_item=tab->ref.items;
   Item **end=ref_item+tab->ref.key_parts;
@@ -11410,7 +11410,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     ulong total_length= 0;
     for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
     {
-      uint length= (*ptr)->pack_length();
+      uint length= (*ptr)->sort_length();
       (*field_length++)= length;
       total_length+= length;
     }
@@ -11950,11 +11950,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
   */
+  thd->lex->current_select->is_item_list_lookup= 1;
   if (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
+  {
+    thd->lex->current_select->is_item_list_lookup= 0;
     return TRUE; /* Wrong field. */
+  }
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
