@@ -279,3 +279,5 @@ int ndbcluster_table_exists_in_engine(THD* thd,
 int ndbcluster_drop_database(const char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
+
+int ndbcluster_show_status(THD*);

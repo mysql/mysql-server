@@ -49,7 +49,7 @@ enum enum_sql_command {
 
   SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
   SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_LOGS, SQLCOM_SHOW_STATUS,
-  SQLCOM_SHOW_INNODB_STATUS,
+  SQLCOM_SHOW_INNODB_STATUS,SQLCOM_SHOW_NDBCLUSTER_STATUS,
   SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
   SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
   SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB,
@@ -426,6 +426,7 @@ public:
   List<Item>          item_list; /* list of fields & expressions */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
+  bool	              is_item_list_lookup;
   /* 
     Usualy it is pointer to ftfunc_list_alloc, but in union used to create fake
     select_lex for calling mysql_select under results of union

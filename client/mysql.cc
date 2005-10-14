@@ -938,10 +938,15 @@ static int get_options(int argc, char **argv)
 
 static int read_lines(bool execute_commands)
 {
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined(OS2) || defined(__NETWARE__)
   char linebuffer[254];
   String buffer;
 #endif
+#if defined(__WIN__)
+  String tmpbuf;
+  String buffer;
+#endif
+
   char	*line;
   char	in_string=0;
   ulong line_number=0;
@@ -972,7 +977,7 @@ static int read_lines(bool execute_commands)
 
 #if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
       tee_fputs(prompt, stdout);
-#ifdef __NETWARE__
+#if defined(__NETWARE__)
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
       /* Remove the '\n' */
       if (line)
@@ -981,7 +986,22 @@ static int read_lines(bool execute_commands)
         if (p != NULL)
           *p = '\0';
       }
-#else
+#elif defined(__WIN__)
+      if (!tmpbuf.is_alloced())
+        tmpbuf.alloc(65535);
+      buffer.length(0);
+      unsigned long clen;
+      do
+      {
+        line= my_cgets((char *) tmpbuf.ptr(), tmpbuf.alloced_length()-1, &clen);
+        buffer.append(line, clen);
+        /* 
+           if we got buffer fully filled than there is a chance that
+           something else is still in console input buffer
+        */
+      } while (tmpbuf.alloced_length() <= clen);
+      line= buffer.c_ptr();
+#else /* OS2 */
       buffer.length(0);
       /* _cgets() expects the buffer size - 3 as the first byte */
       linebuffer[0]= (char) sizeof(linebuffer) - 3;
@@ -1057,9 +1077,14 @@ static int read_lines(bool execute_commands)
 	status.exit_status=0;
     }
   }
+
 #if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
   buffer.free();
 #endif
+#if defined( __WIN__)
+  tmpbuf.free();
+#endif
+
   return status.exit_status;
 }
 

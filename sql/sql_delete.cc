@@ -27,8 +27,8 @@
 #include "ha_innodb.h"
 #include "sql_select.h"
 
-int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
-                 ha_rows limit, ulong options)
+int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
+                 SQL_LIST *order, ha_rows limit, ulong options)
 {
   int		error;
   TABLE		*table;
@@ -266,6 +266,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 				  select_lex.table_list.first);
   DBUG_ENTER("mysql_prepare_delete");
 
+  thd->allow_sum_func= 0;
   if (setup_conds(thd, delete_table_list, conds) || 
       setup_ftfuncs(&thd->lex->select_lex))
     DBUG_RETURN(-1);

@@ -369,6 +369,7 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
+const char *myisam_stats_method_str="nulls_unequal";
 const char *sql_mode_str="OFF";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
@@ -513,8 +514,22 @@ HANDLE smem_event_connect_request= 0;
 
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
+#include <openssl/crypto.h>
+
+typedef struct CRYPTO_dynlock_value
+{
+  rw_lock_t lock;
+} openssl_lock_t;
+
 char *des_key_file;
 struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
+static openssl_lock_t *openssl_stdlocks;
+
+static openssl_lock_t *openssl_dynlock_create(const char *, int);
+static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
+static void openssl_lock_function(int, int, const char *, int);
+static void openssl_lock(int, openssl_lock_t *, const char *, int);
+static unsigned long openssl_id_function();
 #endif /* HAVE_OPENSSL */
 
 
@@ -845,7 +860,7 @@ static void __cdecl kill_server(int sig_ptr)
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
-  signal(sig,SIG_IGN);
+  my_sigset(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
   else
@@ -893,11 +908,6 @@ extern "C" pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 }
 #endif
 
-#if defined(__amiga__)
-#undef sigset
-#define sigset signal
-#endif
-
 extern "C" sig_handler print_signal_warning(int sig)
 {
   if (!DBUG_IN_USE)
@@ -907,7 +917,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 		      sig,my_thread_id());
   }
 #ifdef DONT_REMEMBER_SIGNAL
-  sigset(sig,print_signal_warning);		/* int. thread system calls */
+  my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   if (sig == SIGALRM)
@@ -1027,7 +1037,7 @@ void clean_up(bool print_message)
     my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
 #endif /* HAVE_OPENSSL */
 #ifdef USE_REGEX
-  regex_end();
+  my_regex_end();
 #endif
 
   if (print_message && errmesg)
@@ -1096,6 +1106,9 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_user_conn);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
+  for (int i= 0; i < CRYPTO_num_locks(); ++i)
+    (void) rwlock_destroy(&openssl_stdlocks[i].lock);
+  OPENSSL_free(openssl_stdlocks);
 #endif
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
@@ -1569,23 +1582,6 @@ void flush_thread_cache()
 }
 
 
-/*
-  Aborts a thread nicely. Commes here on SIGPIPE
-  TODO: One should have to fix that thr_alarm know about this
-  thread too.
-*/
-
-#ifdef THREAD_SPECIFIC_SIGPIPE
-extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  DBUG_ENTER("abort_thread");
-  if (thd)
-    thd->killed=1;
-  DBUG_VOID_RETURN;
-}
-#endif
-
 /******************************************************************************
   Setup a signal thread with handles all signals.
   Because Linux doesn't support schemas use a mutex to check that
@@ -2001,8 +1997,8 @@ static void init_signals(void)
   DBUG_ENTER("init_signals");
 
   if (test_flags & TEST_SIGINT)
-    sigset(THR_KILL_SIGNAL,end_thread_signal);
-  sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
+    my_sigset(THR_KILL_SIGNAL,end_thread_signal);
+  my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2036,13 +2032,8 @@ static void init_signals(void)
   }
 #endif
   (void) sigemptyset(&set);
-#ifdef THREAD_SPECIFIC_SIGPIPE
-  sigset(SIGPIPE,abort_thread);
+  my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-#else
-  (void) signal(SIGPIPE,SIG_IGN);		// Can't know which thread
-  sigaddset(&set,SIGPIPE);
-#endif
   sigaddset(&set,SIGINT);
 #ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
@@ -2528,7 +2519,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   set_var_init();
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  regex_init(&my_charset_latin1);
+  my_regex_init(&my_charset_latin1);
 #endif
   if (!(default_charset_info= get_charset_by_csname(default_character_set_name,
 						    MY_CS_PRIMARY,
@@ -2674,8 +2665,88 @@ static int init_thread_environment()
     sql_print_error("Can't create thread-keys");
     return 1;
   }
+#ifdef HAVE_OPENSSL
+  openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
+                                                     sizeof(openssl_lock_t));
+  for (int i= 0; i < CRYPTO_num_locks(); ++i)
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
+  CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
+  CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
+  CRYPTO_set_dynlock_lock_callback(openssl_lock);
+  CRYPTO_set_locking_callback(openssl_lock_function);
+  CRYPTO_set_id_callback(openssl_id_function);
+#endif
   return 0;
 }
+
+
+#ifdef HAVE_OPENSSL
+static unsigned long openssl_id_function()
+{ 
+  return (unsigned long) pthread_self();
+} 
+
+
+static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+{ 
+  openssl_lock_t *lock= new openssl_lock_t;
+  my_rwlock_init(&lock->lock, NULL);
+  return lock;
+}
+
+
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
+				    int line)
+{
+  rwlock_destroy(&lock->lock);
+  delete lock;
+}
+
+
+static void openssl_lock_function(int mode, int n, const char *file, int line)
+{
+  if (n < 0 || n > CRYPTO_num_locks())
+  {
+    /* Lock number out of bounds. */
+    sql_print_error("Fatal: OpenSSL interface problem (n = %d)", n);
+    abort();
+  }
+  openssl_lock(mode, &openssl_stdlocks[n], file, line);
+}
+
+
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
+			 int line)
+{
+  int err;
+  char const *what;
+
+  switch (mode) {
+  case CRYPTO_LOCK|CRYPTO_READ:
+    what = "read lock";
+    err = rw_rdlock(&lock->lock);
+    break;
+  case CRYPTO_LOCK|CRYPTO_WRITE:
+    what = "write lock";
+    err = rw_wrlock(&lock->lock);
+    break;
+  case CRYPTO_UNLOCK|CRYPTO_READ:
+  case CRYPTO_UNLOCK|CRYPTO_WRITE:
+    what = "unlock";
+    err = rw_unlock(&lock->lock);
+    break;
+  default:
+    /* Unknown locking mode. */
+    sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
+    abort();
+  }
+  if (err) 
+  {
+    sql_print_error("Fatal: can't %s OpenSSL %s lock", what);
+    abort();
+  }
+}
+#endif /* HAVE_OPENSSL */
 
 
 static void init_ssl()
@@ -4169,6 +4240,7 @@ enum options_mysqld
   OPT_MAX_ERROR_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
+  OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
   OPT_OPEN_FILES_LIMIT,
@@ -5208,6 +5280,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+  {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
+   "Specifies how MyISAM index statistics collection code should threat NULLs. "
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
    "Buffer length for TCP/IP and socket communication.",
    (gptr*) &global_system_variables.net_buffer_length,
@@ -5495,6 +5572,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_keys",	       (char*) (com_stat+(uint) SQLCOM_SHOW_KEYS),SHOW_LONG},
   {"Com_show_logs",	       (char*) (com_stat+(uint) SQLCOM_SHOW_LOGS),SHOW_LONG},
   {"Com_show_master_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_MASTER_STAT),SHOW_LONG},
+  {"Com_show_ndb_status",      (char*) (com_stat+(uint) SQLCOM_SHOW_NDBCLUSTER_STATUS),SHOW_LONG},
   {"Com_show_new_master",      (char*) (com_stat+(uint) SQLCOM_SHOW_NEW_MASTER),SHOW_LONG},
   {"Com_show_open_tables",     (char*) (com_stat+(uint) SQLCOM_SHOW_OPEN_TABLES),SHOW_LONG},
   {"Com_show_privileges",      (char*) (com_stat+(uint) SQLCOM_SHOW_PRIVILEGES),SHOW_LONG},
@@ -5759,6 +5837,7 @@ static void mysql_init_variables(void)
   query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
+  myisam_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
@@ -5807,6 +5886,12 @@ static void mysql_init_variables(void)
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
+  
+  /*
+    Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
+    when collecting index statistics for MyISAM tables.
+  */
+  global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -5864,7 +5949,7 @@ static void mysql_init_variables(void)
 #else
   have_openssl=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_BROKEN_REALPATH
+#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
   have_symlink=SHOW_OPTION_NO;
 #else
   have_symlink=SHOW_OPTION_YES;
@@ -6388,6 +6473,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
     break;
   }
+  case OPT_MYISAM_STATS_METHOD:
+  {
+    myisam_stats_method_str= argument;
+    int method;
+    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
+    {
+      fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
+      exit(1);
+    }
+    global_system_variables.myisam_stats_method= 
+      test(method-1)? MI_STATS_METHOD_NULLS_EQUAL : 
+                      MI_STATS_METHOD_NULLS_NOT_EQUAL;
+    break;
+  }
   case OPT_SQL_MODE:
   {
     sql_mode_str= argument;
@@ -6521,7 +6620,7 @@ static void get_options(int argc,char **argv)
     usage();
     exit(0);
   }
-#if defined(HAVE_BROKEN_REALPATH)
+#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
   my_disable_symlinks=1;
   have_symlink=SHOW_OPTION_NO;

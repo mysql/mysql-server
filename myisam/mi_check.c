@@ -80,6 +80,7 @@ void myisamchk_init(MI_CHECK *param)
   param->start_check_pos=0;
   param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
+  param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 }
 
 	/* Check the status flags for the table */
@@ -558,10 +559,11 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 		     ha_checksum *key_checksum, uint level)
 {
   int flag;
-  uint used_length,comp_flag,nod_flag,key_length=0,not_used;
+  uint used_length,comp_flag,nod_flag,key_length=0;
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
   my_off_t next_page,record;
   char llbuff[22];
+  uint diff_pos;
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
@@ -619,7 +621,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     }
     if ((*keys)++ &&
 	(flag=ha_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
-			 comp_flag, &not_used)) >=0)
+			 comp_flag, &diff_pos)) >=0)
     {
       DBUG_DUMP("old",(byte*) info->lastkey, info->lastkey_length);
       DBUG_DUMP("new",(byte*) key, key_length);
@@ -635,11 +637,11 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     {
       if (*keys != 1L)				/* not first_key */
       {
-	uint diff;
-	ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
-		   SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
-		   &diff);
-	param->unique_count[diff-1]++;
+        if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
+          ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
+                     SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
+                     &diff_pos);
+	param->unique_count[diff_pos-1]++;
       }
     }
     (*key_checksum)+= mi_byte_checksum((byte*) key,
@@ -2013,7 +2015,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_param.sort_info=&sort_info;
   sort_param.fix_datafile= (my_bool) (! rep_quick);
   sort_param.master =1;
-
+  
   del=info->state->del;
   param->glob_crc=0;
   if (param->testflag & T_CALC_CHECKSUM)
@@ -3249,9 +3251,10 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
     cmp=ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
 		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
 		   &diff_pos);
-    ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
-               (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
-               &diff_pos);
+    if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
+      ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
+                 (uchar*) a, USE_WHOLE_KEY, 
+                 SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, &diff_pos);
     sort_param->unique[diff_pos-1]++;
   }
   else
@@ -3989,9 +3992,10 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     unique[0]= (#different values of {keypart1}) - 1
     unique[1]= (#different values of {keypart2,keypart1} tuple) - unique[0] - 1
     ...
-    Here we assume that NULL != NULL (see SEARCH_NULL_ARE_NOT_EQUAL). The
-    'unique' array is collected in one sequential scan through the entire
+    The 'unique' array is collected in one sequential scan through the entire
     index. This is done in two places: in chk_index() and in sort_key_write().
+    Statistics collection may consider NULLs as either equal or unequal (see
+    SEARCH_NULL_ARE_NOT_EQUAL, MI_STATS_METHOD_*).
 
     Output is an array:
     rec_per_key_part[k] = 

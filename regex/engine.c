@@ -32,7 +32,7 @@
 struct match {
 	struct re_guts *g;
 	int eflags;
-	regmatch_t *pmatch;	/* [nsub+1] (0 element unused) */
+	my_regmatch_t *pmatch;	/* [nsub+1] (0 element unused) */
 	char *offp;		/* offsets work from here */
 	char *beginp;		/* start of string -- virtual NUL precedes */
 	char *endp;		/* end of string -- virtual NUL here */
@@ -68,7 +68,7 @@ CHARSET_INFO *charset;
 register struct re_guts *g;
 char *str;
 size_t nmatch;
-regmatch_t pmatch[];
+my_regmatch_t pmatch[];
 int eflags;
 {
 	register char *endp;
@@ -148,8 +148,8 @@ int eflags;
 
 		/* oh my, he wants the subexpressions... */
 		if (m->pmatch == NULL)
-			m->pmatch = (regmatch_t *)malloc((m->g->nsub + 1) *
-							sizeof(regmatch_t));
+			m->pmatch = (my_regmatch_t *)malloc((m->g->nsub + 1) *
+							sizeof(my_regmatch_t));
 		if (m->pmatch == NULL) {
 		  	if (m->lastpos != NULL)
 		    	free((char *)m->lastpos);

@@ -842,6 +842,24 @@ utf8_general_ci	6109
 utf8_general_ci	61
 utf8_general_ci	6120
 drop table t1;
+select @@collation_connection;
+@@collation_connection
+utf8_general_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
 SET collation_connection='utf8_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -851,6 +869,24 @@ collation(a)	hex(a)
 utf8_bin	6109
 utf8_bin	61
 utf8_bin	6120
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+utf8_bin
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
 drop table t1;
 CREATE TABLE t1 (
 user varchar(255) NOT NULL default ''
@@ -1019,4 +1055,9 @@ select hex(a) from t1;
 hex(a)
 5B
 E880BD
+drop table t1;
+set names 'latin1';
+create table t1 (a varchar(255)) default charset=utf8;
+select * from t1 where find_in_set('-1', a);
+a
 drop table t1;
