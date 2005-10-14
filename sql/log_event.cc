@@ -1160,7 +1160,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     But it's likely that we don't want to use 32 bits for 3 bits; in the future
     we will probably want to reclaim the 29 bits. So we need the &.
   */
-  flags2= thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG;
+  flags2= (uint32) (thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG);
   DBUG_ASSERT(thd->variables.character_set_client->number < 256*256);
   DBUG_ASSERT(thd->variables.collation_connection->number < 256*256);
   DBUG_ASSERT(thd->variables.collation_server->number < 256*256);
@@ -2984,9 +2984,8 @@ Rotate_log_event::Rotate_log_event(THD* thd_arg,
                       llstr(pos_arg, buff), flags));
 #endif
   if (flags & DUP_NAME)
-    new_log_ident= my_strdup_with_length(new_log_ident_arg,
-                                         ident_len,
-                                         MYF(MY_WME));
+    new_log_ident= my_strdup_with_length((const byte*) new_log_ident_arg,
+                                         ident_len, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 #endif
