@@ -250,3 +250,25 @@ t3	CREATE TABLE `t3` (
   `d` double(22,9) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2, t3;
+create table t1 select  105213674794682365.00 + 0.0 x;
+show warnings;
+Level	Code	Message
+desc  t1;
+Field	Type	Null	Key	Default	Extra
+x	double			0	
+drop table t1;
+create table t1 select 0.0 x;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+x	double(3,1)			0.0	
+create table t2 select 105213674794682365.00 y;
+desc t2;
+Field	Type	Null	Key	Default	Extra
+y	double(21,2)			0.00	
+create table t3 select x+y a from t1,t2;
+show warnings;
+Level	Code	Message
+desc t3;
+Field	Type	Null	Key	Default	Extra
+a	double			0	
+drop table t1,t2,t3;
