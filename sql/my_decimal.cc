@@ -185,7 +185,7 @@ int str2my_decimal(uint mask, const char *from, uint length,
       }
     }
   }
-  check_result(mask, err);
+  check_result_and_overflow(mask, err, decimal_value);
   return err;
 }
 
