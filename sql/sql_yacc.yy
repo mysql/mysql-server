@@ -2969,7 +2969,9 @@ type:
 spatial_type:
 	GEOMETRY_SYM	      { $$= Field::GEOM_GEOMETRY; }
 	| GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
-	| POINT_SYM           { $$= Field::GEOM_POINT; }
+	| POINT_SYM           { Lex->length= (char*)"21";
+                                $$= Field::GEOM_POINT;
+                              }
 	| MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
 	| LINESTRING          { $$= Field::GEOM_LINESTRING; }
 	| MULTILINESTRING     { $$= Field::GEOM_MULTILINESTRING; }
