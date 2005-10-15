@@ -162,4 +162,21 @@ show create table t3;
 drop table t1, t2, t3;
 
 
+#
+# Bug #9855 (inconsistent column type for create select
+#
+create table t1 select  105213674794682365.00 + 0.0 x;
+show warnings;
+desc  t1;
+drop table t1;
+
+create table t1 select 0.0 x;
+desc t1;
+create table t2 select 105213674794682365.00 y;
+desc t2;
+create table t3 select x+y a from t1,t2;
+show warnings;
+desc t3;
+drop table t1,t2,t3;
+
 # End of 4.1 tests
