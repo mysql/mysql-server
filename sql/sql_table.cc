@@ -1156,6 +1156,9 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	    my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
 	  }
+          if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
+              Field::GEOM_POINT)
+            column->length= 21;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name);
