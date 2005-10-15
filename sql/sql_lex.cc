@@ -181,6 +181,9 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->sroutines_list.empty();
   lex->sroutines_list_own_last= lex->sroutines_list.next;
   lex->sroutines_list_own_elements= 0;
+  lex->nest_level=0 ;
+  lex->allow_sum_func= 0;
+  lex->in_sum_func= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -1138,6 +1141,7 @@ void st_select_lex::init_query()
   first_cond_optimization= 1;
   parsing_place= NO_MATTER;
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
+  nest_level= 0;
   link_next= 0;
 }
 
@@ -1157,6 +1161,7 @@ void st_select_lex::init_select()
   interval_list.empty();
   use_index.empty();
   ftfunc_list_alloc.empty();
+  inner_sum_func_list= 0;
   ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
   order_list.elements= 0;

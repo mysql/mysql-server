@@ -2125,7 +2125,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     lex->result->cleanup();
     lex->result->set_thd(thd);
   }
-  thd->allow_sum_func= 0;
+  lex->allow_sum_func= 0;
+  lex->in_sum_func= NULL;
   DBUG_VOID_RETURN;  
 }
 
