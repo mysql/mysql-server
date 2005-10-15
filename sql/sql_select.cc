@@ -270,21 +270,20 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       ORDER *order,
 			       ORDER *group, bool *hidden_group_fields)
 {
-  bool save_allow_sum_func;
   int res;
+  nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
   DBUG_ENTER("setup_without_group");
 
-  save_allow_sum_func= thd->allow_sum_func;
-  thd->allow_sum_func= 0;
+  thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
 
-  thd->allow_sum_func= save_allow_sum_func;
+  thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
                           order);
-  thd->allow_sum_func= 0;
+  thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= res || setup_group(thd, ref_pointer_array, tables, fields, all_fields,
                           group, hidden_group_fields);
-  thd->allow_sum_func= save_allow_sum_func;
+  thd->lex->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(res);
 }
 
@@ -351,8 +350,9 @@ JOIN::prepare(Item ***rref_pointer_array,
   
   if (having)
   {
+    nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
-    thd->allow_sum_func=1;
+    thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
     select_lex->having_fix_field= 1;
     bool having_fix_rc= (!having->fixed &&
 			 (having->fix_fields(thd, &having) ||
@@ -362,6 +362,18 @@ JOIN::prepare(Item ***rref_pointer_array,
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
       having->split_sum_func(thd, ref_pointer_array, all_fields);
+    thd->lex->allow_sum_func= save_allow_sum_func;
+  }
+  if (select_lex->inner_sum_func_list)
+  {
+    Item_sum *end=select_lex->inner_sum_func_list;
+    Item_sum *item_sum= end;  
+    do
+    { 
+      item_sum= item_sum->next;
+      item_sum->split_sum_func2(thd, ref_pointer_array,
+                                all_fields, item_sum->ref_by, FALSE);
+    } while (item_sum != end);
   }
 
   if (!thd->lex->view_prepare_mode)
@@ -5165,7 +5177,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         join->const_table_map|=RAND_TABLE_BIT;
       {						// Check const tables
         COND *const_cond=
-	  make_cond_for_table(cond,join->const_table_map,(table_map) 0);
+	  make_cond_for_table(cond,
+                              join->const_table_map,
+                              (table_map) 0);
         DBUG_EXECUTE("where",print_where(const_cond,"constants"););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
