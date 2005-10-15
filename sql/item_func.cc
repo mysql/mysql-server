@@ -359,10 +359,19 @@ String *Item_num_func::val_str(String *str)
 
 void Item_func::fix_num_length_and_dec()
 {
+  uint fl_length= 0;
   decimals=0;
   for (uint i=0 ; i < arg_count ; i++)
+  {
     set_if_bigger(decimals,args[i]->decimals);
+    set_if_bigger(fl_length, args[i]->max_length);
+  }
   max_length=float_length(decimals);
+  if (fl_length > max_length)
+  {
+    decimals= NOT_FIXED_DEC;
+    max_length= float_length(NOT_FIXED_DEC);
+  }
 }
 
 Item *Item_func::get_tmp_table_item(THD *thd)
