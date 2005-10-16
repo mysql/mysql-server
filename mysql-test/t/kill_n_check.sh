@@ -39,7 +39,7 @@ new_pid=""
 
 # echo "New PID: $new_pid"
 
-if [ "$expected_result" == "restarted" ]; then
+if [ "$expected_result" = "restarted" ]; then
 
   if [ -z "$new_pid" ]; then
     echo "Error: the process was killed."
@@ -54,7 +54,7 @@ if [ "$expected_result" == "restarted" ]; then
   echo "Success: the process was restarted."
   exit 0
   
-else # $expected_result == killed
+else # $expected_result = killed
     
   if [ "$new_pid" -a "$new_pid" -ne "$original_pid" ]; then
     echo "Error: the process was restarted."
