@@ -67,13 +67,14 @@
 
 class Thread_info
 {
+public:
+  Thread_info();
+  Thread_info(pthread_t thread_id_arg);
+  friend class Thread_registry;
+private:
   pthread_cond_t *current_cond;
   Thread_info *prev, *next;
   pthread_t thread_id;
-  Thread_info() {}
-  friend class Thread_registry;
-public:
-  Thread_info(pthread_t thread_id_arg) : thread_id(thread_id_arg) {}
 };
 
 

@@ -53,7 +53,8 @@ dist-hook:
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(srcdir)/t/*.slave-mi $(distdir)/t
+	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.slave-mi $(distdir)/t
+	$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(distdir)/std_data
@@ -79,7 +80,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(DESTDIR)$(testdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t
+	$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.slave-mi $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/r/*.require $(DESTDIR)$(testdir)/r
