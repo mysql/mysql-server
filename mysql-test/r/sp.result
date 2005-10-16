@@ -3206,18 +3206,6 @@ set f1= concat( 'hello', f1 );
 return f1;
 end|
 drop function bug9048|
-drop function if exists bug12812|
-create function bug12812() returns char(2)
-begin
-return 'ok';
-end;
-create user user_bug12812@localhost IDENTIFIED BY 'ABC'|
-SELECT test.bug12812()|
-ERROR 42000: execute command denied to user 'user_bug12812'@'localhost' for routine 'test.bug12812'
-CREATE VIEW v1 AS SELECT test.bug12812()|
-ERROR 42000: execute command denied to user 'user_bug12812'@'localhost' for routine 'test.bug12812'
-DROP USER user_bug12812@localhost|
-drop function bug12812|
 drop procedure if exists bug12849_1|
 create procedure bug12849_1(inout x char) select x into x|
 set @var='a'|
