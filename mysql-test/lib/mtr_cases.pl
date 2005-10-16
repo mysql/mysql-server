@@ -68,7 +68,7 @@ sub collect_test_cases ($) {
       # 
       # Otherwise, try to guess the target component.
 
-      if ( defined $component_id )
+      if ( $component_id )
       {
         if ( ! -f "$testdir/$elem")
         {
@@ -80,11 +80,11 @@ sub collect_test_cases ($) {
         my $mysqld_test_exists = -f "$testdir/$tname.test";
         my $im_test_exists = -f "$testdir/$tname.imtest";
 
-        if ( $mysqld_test_exists && $im_test_exists )
+        if ( $mysqld_test_exists and $im_test_exists )
         {
           mtr_error("Ambiguos test case name ($tname)");
         }
-        elsif ( ! $mysqld_test_exists && !$im_test_exists )
+        elsif ( ! $mysqld_test_exists and ! $im_test_exists )
         {
           mtr_error("Test case $tname is not found");
         }
@@ -405,7 +405,7 @@ sub collect_one_test_case($$$$$$$) {
         "Instance Manager tests are not run with --ps-protocol. " .
         "Test case '$tname' is skipped.");
     }
-    elsif ( !$::exe_im )
+    elsif ( $::opt_skip_im )
     {
       $tinfo->{'skip'}= 1;
 
