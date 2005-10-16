@@ -4037,28 +4037,6 @@ begin
 end|
 drop function bug9048|
 
-#
-# BUG#12812 create view calling a function works without execute right
-#           on function
---disable_warnings
-drop function if exists bug12812|
---enable_warnings
-create function bug12812() returns char(2)
-begin
-  return 'ok';
-end;
-create user user_bug12812@localhost IDENTIFIED BY 'ABC'|
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
-connect (test_user_12812,localhost,user_bug12812,ABC,test)|
---error 1370
-SELECT test.bug12812()|
---error 1370
-CREATE VIEW v1 AS SELECT test.bug12812()|
-# Cleanup
-connection default|
-disconnect test_user_12812|
-DROP USER user_bug12812@localhost|
-drop function bug12812|
 # Bug #12849 Stored Procedure: Crash on procedure call with CHAR type
 # 'INOUT' parameter
 #
