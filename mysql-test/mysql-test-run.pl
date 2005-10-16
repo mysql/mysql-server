@@ -840,8 +840,8 @@ sub command_line_setup () {
    server_id    => 1,
    port         => $im_mysqld1_port,
    path_datadir => "$opt_vardir/im_mysqld_1.data",
-   path_sock    => "$opt_vardir/mysqld_1.sock",
-   path_pid     => "$opt_vardir/mysqld_1.pid",
+   path_sock    => "$opt_tmpdir/mysqld_1.sock",
+   path_pid     => "$opt_vardir/run/mysqld_1.pid",
   };
 
   $instance_manager->{'instances'}->[1]=
@@ -849,8 +849,8 @@ sub command_line_setup () {
    server_id    => 2,
    port         => $im_mysqld2_port,
    path_datadir => "$opt_vardir/im_mysqld_2.data",
-   path_sock    => "$opt_vardir/mysqld_2.sock",
-   path_pid     => "$opt_vardir/mysqld_2.pid",
+   path_sock    => "$opt_tmpdir/mysqld_2.sock",
+   path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
   };
 
