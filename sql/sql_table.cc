@@ -1950,8 +1950,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   {
     char* backup_dir= thd->lex->backup_dir;
     char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-    char* table_name = table->table_name;
-    char* db = thd->db ? thd->db : table->db;
+    char* table_name= table->table_name;
+    char* db= table->db;
 
     if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
 					reg_ext))
@@ -1987,12 +1987,15 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     Now we should be able to open the partially restored table
     to finish the restore in the handler later on
   */
-  if (!(table->table = reopen_name_locked_table(thd, table)))
+  pthread_mutex_lock(&LOCK_open);
+  if (reopen_name_locked_table(thd, table))
   {
-    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table);
     pthread_mutex_unlock(&LOCK_open);
+    DBUG_RETURN(send_check_errmsg(thd, table, "restore",
+                                  "Failed to open partially restored table"));
   }
+  pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 
@@ -2089,12 +2092,16 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (!(table_list->table = reopen_name_locked_table(thd, table_list)))
+  pthread_mutex_lock(&LOCK_open);
+  if (reopen_name_locked_table(thd, table_list))
   {
-    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+                             "Failed to open partially repaired table");
+    goto end;
   }
+  pthread_mutex_unlock(&LOCK_open);
 
 end:
   if (table == &tmp_table)

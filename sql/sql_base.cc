@@ -976,32 +976,57 @@ void wait_for_refresh(THD *thd)
 }
 
 
-TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
-{
-  DBUG_ENTER("reopen_name_locked_table");
-  if (thd->killed)
-    DBUG_RETURN(0);
-  TABLE *table;
-  TABLE_SHARE *share;
-  if (!(table = table_list->table))
-    DBUG_RETURN(0);
+/*
+  Open table which is already name-locked by this thread.
 
-  char* db = thd->db ? thd->db : table_list->db;
-  char* table_name = table_list->table_name;
-  char	key[MAX_DBKEY_LENGTH];
-  uint	key_length;
+  SYNOPSIS
+    reopen_name_locked_table()
+      thd         Thread handle
+      table_list  TABLE_LIST object for table to be open, TABLE_LIST::table
+                  member should point to TABLE object which was used for
+                  name-locking.
+
+  NOTE
+    This function assumes that its caller already acquired LOCK_open mutex.
+
+  RETURN VALUE
+    FALSE - Success
+    TRUE  - Error
+*/
+
+bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
+{
+  TABLE *table= table_list->table;
+  TABLE_SHARE *share;
+  char *db= table_list->db;
+  char *table_name= table_list->table_name;
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length;
+  TABLE orig_table;
+  DBUG_ENTER("reopen_name_locked_table");
+
+  safe_mutex_assert_owner(&LOCK_open);
+
+  if (thd->killed || !table)
+    DBUG_RETURN(TRUE);
+
+  orig_table= *table;
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
-  pthread_mutex_lock(&LOCK_open);
   if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
                         thd->mem_root) ||
       !(table->s->table_cache_key= memdup_root(&table->mem_root, (char*) key,
                                                key_length)))
   {
-    delete table->triggers;
-    closefrm(table);
-    pthread_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(0);
+    intern_close_table(table);
+    /*
+      If there was an error during opening of table (for example if it
+      does not exist) '*table' object can be wiped out. To be able
+      properly release name-lock in this case we should restore this
+      object to its original state.
+    */
+    *table= orig_table;
+    DBUG_RETURN(TRUE);
   }
 
   share= table->s;
@@ -1011,7 +1036,6 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   share->flush_version=0;
   table->in_use = thd;
   check_unused();
-  pthread_mutex_unlock(&LOCK_open);
   table->next = thd->open_tables;
   thd->open_tables = table;
   table->tablenr=thd->current_tablenr++;
@@ -1021,7 +1045,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= share->keys_in_use;
   table->used_keys= share->keys_for_keyread;
-  DBUG_RETURN(table);
+  DBUG_RETURN(FALSE);
 }
 
 
