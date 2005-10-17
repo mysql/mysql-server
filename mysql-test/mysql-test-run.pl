@@ -233,6 +233,7 @@ our $opt_result_ext;
 our $opt_skip;
 our $opt_skip_rpl;
 our $opt_skip_test;
+our $opt_skip_im;
 
 our $opt_sleep;
 our $opt_ps_protocol;
@@ -490,6 +491,7 @@ sub command_line_setup () {
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
+             'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
 
              # Specify ports
@@ -840,8 +842,8 @@ sub command_line_setup () {
    server_id    => 1,
    port         => $im_mysqld1_port,
    path_datadir => "$opt_vardir/im_mysqld_1.data",
-   path_sock    => "$opt_vardir/mysqld_1.sock",
-   path_pid     => "$opt_vardir/mysqld_1.pid",
+   path_sock    => "$opt_tmpdir/mysqld_1.sock",
+   path_pid     => "$opt_vardir/run/mysqld_1.pid",
   };
 
   $instance_manager->{'instances'}->[1]=
@@ -849,8 +851,8 @@ sub command_line_setup () {
    server_id    => 2,
    port         => $im_mysqld2_port,
    path_datadir => "$opt_vardir/im_mysqld_2.data",
-   path_sock    => "$opt_vardir/mysqld_2.sock",
-   path_pid     => "$opt_vardir/mysqld_2.pid",
+   path_sock    => "$opt_tmpdir/mysqld_2.sock",
+   path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
   };
 
@@ -1118,7 +1120,7 @@ sub kill_and_cleanup () {
   
   foreach my $instance (@{$instance_manager->{'instances'}})
   {
-    push (@data_dir_lst, $instance->{'path_datadir'});
+    push(@data_dir_lst, $instance->{'path_datadir'});
   }
 
   foreach my $data_dir (@data_dir_lst)
@@ -1364,7 +1366,7 @@ sub mysql_install_db () {
   install_db('slave',  $slave->[1]->{'path_myddir'});
   install_db('slave',  $slave->[2]->{'path_myddir'});
 
-  if ( defined $exe_im)
+  if ( ! $opt_skip_im )
   {
     im_prepare_env($instance_manager);
   }
@@ -1513,12 +1515,7 @@ skip-ndbcluster
 EOF
 ;
 
-    if ( exists $instance->{nonguarded} and
-      defined $instance->{nonguarded} )
-    {
-      print OUT "nonguarded\n";
-    }
-
+    print OUT "nonguarded\n" if $instance->{'nonguarded'};
     print OUT "\n";
   }
 
@@ -1678,7 +1675,7 @@ sub run_testcase ($) {
         $master->[0]->{'running_master_is_special'}= 1;
       }
     }
-    elsif ( $tinfo->{'component_id'} eq 'im')
+    elsif ( ! $opt_skip_im and $tinfo->{'component_id'} eq 'im' )
     {
       # We have to create defaults file every time, in order to ensure that it
       # will be the same for each test. The problem is that test can change the
@@ -1776,7 +1773,8 @@ sub run_testcase ($) {
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
 
-  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
+  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' and
+       $instance_manager->{'pid'} )
   {
     im_stop($instance_manager);
   }
@@ -2195,7 +2193,7 @@ sub stop_masters_slaves () {
 
   print  "Ending Tests\n";
 
-  if (defined $instance_manager->{'pid'})
+  if ( $instance_manager->{'pid'} )
   {
     print  "Shutting-down Instance Manager\n";
     im_stop($instance_manager);
@@ -2269,14 +2267,10 @@ sub im_start($$) {
   my $instance_manager = shift;
   my $opts = shift;
 
-  if ( ! defined $exe_im)
-  {
-    return;
-  }
-
   my $args;
   mtr_init_args(\$args);
-  mtr_add_arg($args, "--defaults-file=" . $instance_manager->{'defaults_file'});
+  mtr_add_arg($args, "--defaults-file=%s",
+              $instance_manager->{'defaults_file'});
 
   foreach my $opt (@{$opts})
   {
@@ -2294,7 +2288,7 @@ sub im_start($$) {
       { append_log_file => 1 }          # append log files
       );
 
-  if ( ! defined $instance_manager->{'pid'} )
+  if ( ! $instance_manager->{'pid'} )
   {
     mtr_report('Could not start Instance Manager');
     return;
@@ -2304,10 +2298,14 @@ sub im_start($$) {
   # several processes and the parent process, created by mtr_spawn(), exits just
   # after start. So, we have to obtain Instance Manager PID from the PID file.
 
-  sleep_until_file_created(
-    $instance_manager->{'path_pid'},
-    $instance_manager->{'start_timeout'},
-    -1); # real PID is still unknown
+  if ( ! sleep_until_file_created(
+                                  $instance_manager->{'path_pid'},
+                                  $instance_manager->{'start_timeout'},
+                                  -1)) # real PID is still unknown
+  {
+    mtr_report("Instance Manager PID file is missing");
+    return;
+  }
 
   $instance_manager->{'pid'} =
     mtr_get_pid_from_file($instance_manager->{'path_pid'});
@@ -2316,16 +2314,12 @@ sub im_start($$) {
 sub im_stop($) {
   my $instance_manager = shift;
 
-  if (! defined $instance_manager->{'pid'})
-  {
-    return;
-  }
-
   # Re-read pid from the file, since during tests Instance Manager could have
   # been restarted, so its pid could have been changed.
 
   $instance_manager->{'pid'} =
-    mtr_get_pid_from_file($instance_manager->{'path_pid'});
+    mtr_get_pid_from_file($instance_manager->{'path_pid'})
+      if -f $instance_manager->{'path_pid'};
 
   # Inspired from mtr_stop_mysqld_servers().
 
@@ -2340,12 +2334,12 @@ sub im_stop($) {
 
   if ( -r $instances->[0]->{'path_pid'} )
   {
-    push @pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'});
+    push(@pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'}));
   }
 
   if ( -r $instances->[1]->{'path_pid'} )
   {
-    push @pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'});
+    push(@pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'}));
   }
 
   # Kill processes.
@@ -2601,6 +2595,7 @@ Options to control what test suites or cases to run
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite=NAME            Run the test suite named NAME. The default is "main"
   skip-rpl              Skip the replication test cases.
+  skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
 
 Options that specify ports
