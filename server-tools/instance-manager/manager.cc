@@ -231,6 +231,10 @@ void manager(const Options &options)
     }
 
 #ifndef __WIN__
+#ifdef IGNORE_SIGHUP_SIGQUIT
+    if ( SIGHUP == signo )
+      continue;
+#endif
     if (THR_SERVER_ALARM == signo)
       process_alarm(signo);
     else
