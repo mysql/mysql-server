@@ -1574,4 +1574,3 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
-template class Vector<BaseString>;
