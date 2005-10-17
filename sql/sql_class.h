@@ -1899,6 +1899,7 @@ typedef struct st_sort_field {
   Field *field;				/* Field to sort */
   Item	*item;				/* Item if not sorting fields */
   uint	 length;			/* Length of sort field */
+  uint   suffix_length;                 /* Length suffix (0-4) */
   Item_result result_type;		/* Type of item */
   bool reverse;				/* if descending sort */
   bool need_strxnfrm;			/* If we have to use strxnfrm() */

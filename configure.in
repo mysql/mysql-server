@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.15-rc)
+AM_INIT_AUTOMAKE(mysql, 5.0.16)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -18,8 +18,8 @@ SHARED_LIB_VERSION=15:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=15
-NDB_VERSION_STATUS="rc"
+NDB_VERSION_BUILD=16
+NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -1021,7 +1021,7 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      FLAGS="-traditional-cpp -DHAVE_DARWIN5_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1031,23 +1031,13 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *darwin[[7-8]]*)
-    # don't forget to escape [] like above
-    if test "$ac_cv_prog_gcc" = "yes"
-    then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
-      CFLAGS="$CFLAGS $FLAGS"
-      CXXFLAGS="$CXXFLAGS $FLAGS"
-      MAX_C_OPTIMIZE="-O"
-    fi
-    ;;
-  *darwin9*)
+  *darwin*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
       FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"

@@ -1195,9 +1195,14 @@ static bool add_line(String &buffer,char *line,char *in_string,
     if (use_mb(charset_info) &&
         (length= my_ismbchar(charset_info, pos, end_of_line)))
     {
-      while (length--)
-        *out++ = *pos++;
-      pos--;
+      if (!*ml_comment)
+      {
+        while (length--)
+          *out++ = *pos++;
+        pos--;
+      }
+      else
+        pos+= length - 1;
       continue;
     }
 #endif

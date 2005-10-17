@@ -907,3 +907,58 @@ DROP PROCEDURE bug9056_proc1;
 DROP PROCEDURE bug9056_proc2;
 drop table t1;
 
+#
+# BUG# 13052 - mysqldump timestamp reloads broken
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (`d` timestamp, unique (`d`));
+set time_zone='+00:00';
+insert into t1 values ('2003-10-25 22:00:00'),('2003-10-25 23:00:00');
+# results should show two different time values
+select * from t1;
+set time_zone='Europe/Moscow';
+# results should show two same time values, despite unique
+select * from t1;
+set global time_zone='Europe/Moscow';
+--exec $MYSQL_DUMP --skip-comments --databases test
+--exec $MYSQL_DUMP --skip-tz-utc --skip-comments --databases test
+drop table t1;
+set global time_zone=default;
+set time_zone=default;
+
+#
+# Test of fix to BUG 13146 - ansi quotes break loading of triggers 
+#
+--disable_warnings
+DROP TABLE IF EXISTS `t1 test`;
+CREATE TABLE `t1 test` (
+  `a1` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DROP TABLE IF EXISTS `t2 test`;
+CREATE TABLE `t2 test` (
+  `a2` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+--enable_warnings
+
+DELIMITER //;
+CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
+INSERT INTO `t2 test` SET a2 = NEW.a1; END  //
+DELIMITER ;//
+
+INSERT INTO `t1 test` VALUES (1);
+INSERT INTO `t1 test` VALUES (2);
+INSERT INTO `t1 test` VALUES (3);
+SELECT * FROM `t2 test`;
+# dump with compatible=ansi. Everything except triggers should be double 
+# quoted
+--exec $MYSQL_DUMP --skip-comments --compatible=ansi --triggers test
+
+--disable_warnings
+DROP TRIGGER `test trig`;
+DROP TABLE `t1 test`;
+DROP TABLE `t2 test`;
+--enable_warnings

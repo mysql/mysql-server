@@ -2656,9 +2656,24 @@ sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
                                 sp->m_definer_host.str,
                                 sp->m_db.str))
     {
+#ifdef NOT_YET_REPLICATION_SAFE
+      /*
+        Until we don't properly replicate information about stored routine
+        definer with stored routine creation statement all stored routines
+        on slave are created under ''@'' definer. Therefore we won't be able
+        to run any routine which was replicated from master on slave server
+        if we emit error here. This will cause big problems for users
+        who use slave for fail-over. So until we fully implement WL#2897
+        "Complete definer support in the stored routines" we run suid
+        stored routines for which we were unable to find definer under
+        invoker security context.
+      */
       my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
                sp->m_definer_host.str);
       return TRUE;
+#else
+      return FALSE;
+#endif
     }
     *backup= thd->security_ctx;
     thd->security_ctx= &sp->m_security_ctx;

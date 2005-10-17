@@ -640,7 +640,7 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 	value_int = *(Uint64*)options[i].value;
 	break;
       case GET_STR:
-	ctx.m_currentSection->put(options[i].name, (char*)options[i].value);
+	ctx.m_currentSection->put(options[i].name, *(char**)options[i].value);
 	continue;
       default:
 	abort();
@@ -762,9 +762,6 @@ InitConfigFileParser::parse_mycnf()
   Vector<struct my_option> options;
   for(i = 0; i<ConfigInfo::m_NoOfParams; i++)
   {
-    if (strcmp(ConfigInfo::m_ParamInfo[i]._section, "DB") == 0 ||
-	strcmp(ConfigInfo::m_ParamInfo[i]._section, "API") == 0 ||
-	strcmp(ConfigInfo::m_ParamInfo[i]._section, "MGM") == 0)
     {
       struct my_option opt;
       bzero(&opt, sizeof(opt));
@@ -854,6 +851,12 @@ InitConfigFileParser::parse_mycnf()
   if(!handle_mycnf_defaults(options, ctx, "API"))
     goto end;
   if(!handle_mycnf_defaults(options, ctx, "MGM"))
+    goto end;
+  if(!handle_mycnf_defaults(options, ctx, "TCP"))
+    goto end;
+  if(!handle_mycnf_defaults(options, ctx, "SHM"))
+    goto end;
+  if(!handle_mycnf_defaults(options, ctx, "SCI"))
     goto end;
 
   {

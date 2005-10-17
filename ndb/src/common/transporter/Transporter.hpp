@@ -161,7 +161,8 @@ protected:
   TransporterRegistry &m_transporter_registry;
   void *get_callback_obj() { return m_transporter_registry.callbackObj; };
   void report_disconnect(int err){m_transporter_registry.report_disconnect(remoteNodeId,err);};
-  void report_error(enum TransporterError err){reportError(get_callback_obj(),remoteNodeId,err);};
+  void report_error(enum TransporterError err, const char *info = 0)
+    { reportError(get_callback_obj(), remoteNodeId, err, info); };
 };
 
 inline

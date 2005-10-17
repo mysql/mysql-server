@@ -386,12 +386,12 @@ protected:
   select_result *result;
   ulong found_rows_for_union;
   bool res;
+public:
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
     cleaned;
 
-public:
   // list of fields which points to temporary table for union
   List<Item> item_list;
   /*
@@ -482,6 +482,7 @@ public:
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
+  bool	              is_item_list_lookup;
   /* 
     Usualy it is pointer to ftfunc_list_alloc, but in union used to create fake
     select_lex for calling mysql_select under results of union
@@ -638,6 +639,11 @@ public:
     SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
   */
   bool cleanup();
+  /*
+    Recursively cleanup the join of this select lex and of all nested
+    select lexes.
+  */
+  void cleanup_all_joins(bool full);
 };
 typedef class st_select_lex SELECT_LEX;
 

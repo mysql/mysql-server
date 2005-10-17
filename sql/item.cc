@@ -3213,6 +3213,22 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                           TRUE)) ==
 	not_found_field)
     {
+
+      /* Look up in current select's item_list to find aliased fields */
+      if (thd->lex->current_select->is_item_list_lookup)
+      {
+        uint counter;
+        bool not_used;
+        Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
+                                      &counter, REPORT_EXCEPT_NOT_FOUND,
+                                      &not_used);
+        if (res != not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        {
+          set_field((*((Item_field**)res))->field);
+          return 0;
+        }
+      }
+
       /*
         If there are outer contexts (outer selects, but current select is
         not derived table or view) try to resolve this reference in the
@@ -4628,7 +4644,7 @@ void Item_ref::cleanup()
 
 void Item_ref::print(String *str)
 {
-  if (ref && *ref)
+  if (ref)
     (*ref)->print(str);
   else
     Item_ident::print(str);
@@ -4814,7 +4830,7 @@ void Item_ref::make_field(Send_field *field)
 void Item_ref_null_helper::print(String *str)
 {
   str->append("<ref_null_helper>(", 18);
-  if (ref && *ref)
+  if (ref)
     (*ref)->print(str);
   else
     str->append('?');
