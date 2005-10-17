@@ -8927,6 +8927,7 @@ subselect_end:
 	  LEX *lex=Lex;
           lex->pop_context();
 	  lex->current_select = lex->current_select->return_after_parsing();
+          lex->nest_level--;
 	};
 
 opt_view_list:
