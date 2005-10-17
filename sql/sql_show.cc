@@ -2333,14 +2333,14 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       table->field[7]->store((longlong) file->records, TRUE);
       table->field[7]->set_notnull();
     }
-    table->field[8]->store((longlong) file->mean_rec_length);
-    table->field[9]->store((longlong) file->data_file_length);
+    table->field[8]->store((longlong) file->mean_rec_length, TRUE);
+    table->field[9]->store((longlong) file->data_file_length, TRUE);
     if (file->max_data_file_length)
     {
-      table->field[10]->store((longlong) file->max_data_file_length);
+      table->field[10]->store((longlong) file->max_data_file_length, TRUE);
     }
-    table->field[11]->store((longlong) file->index_file_length);
-    table->field[12]->store((longlong) file->delete_length);
+    table->field[11]->store((longlong) file->index_file_length, TRUE);
+    table->field[12]->store((longlong) file->delete_length, TRUE);
     if (show_table->found_next_number_field)
     {
       table->field[13]->store((longlong) file->auto_increment_value, TRUE);
