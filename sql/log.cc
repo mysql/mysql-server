@@ -2322,15 +2322,10 @@ void MYSQL_LOG::signal_update()
 void MYSQL_LOG::readers_addref()
 {
   /* 
-    currently readers_addref and readers_release are necessary  
-    only for __WIN__ build to wait untill readers will close
-    opened log files before reset.
-    There is no necessity for this on *nix, since it allows to
+    There is no necessity for reference counting on *nix, since it allows to
     delete opened files, however it is more clean way to wait
     untill all files will be closed on *nix as well.
-    If decided, the following #ifdef section is to be removed.
   */
-#ifdef __WIN__
   DBUG_ENTER("MYSQL_LOG::reader_addref");
   pthread_mutex_lock(&LOCK_log);
   pthread_mutex_lock(&LOCK_readers);
@@ -2338,12 +2333,10 @@ void MYSQL_LOG::readers_addref()
   pthread_mutex_unlock(&LOCK_readers);
   pthread_mutex_unlock(&LOCK_log);
   DBUG_VOID_RETURN;
-#endif
 }
 
 void MYSQL_LOG::readers_release()
 {
-#ifdef __WIN__
   DBUG_ENTER("MYSQL_LOG::reader_release");
   pthread_mutex_lock(&LOCK_log);
   readers_count--;
@@ -2351,7 +2344,6 @@ void MYSQL_LOG::readers_release()
     pthread_cond_broadcast(&reset_cond);
   pthread_mutex_unlock(&LOCK_log);
   DBUG_VOID_RETURN;
-#endif
 }
 
 #ifdef __NT__
