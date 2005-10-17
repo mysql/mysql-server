@@ -81,7 +81,9 @@ reportConnect(void * callbackObj, NodeId nodeId);
 void 
 reportDisconnect(void * callbackObj,
 		 NodeId nodeId, Uint32 errNo); 
- 
+
+#define TE_DO_DISCONNECT 0x8000
+
 enum TransporterError { 
   TE_NO_ERROR = 0,
   /** 
@@ -111,7 +113,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisconnect) 
    */ 
-  TE_INVALID_MESSAGE_LENGTH = 0x8003, 
+  TE_INVALID_MESSAGE_LENGTH = 0x3 | TE_DO_DISCONNECT, 
    
   /** 
    * TE_INVALID_CHECKSUM 
@@ -120,7 +122,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  TE_INVALID_CHECKSUM = 0x8004, 
+  TE_INVALID_CHECKSUM = 0x4 | TE_DO_DISCONNECT, 
  
   /** 
    * TE_COULD_NOT_CREATE_SOCKET 
@@ -129,7 +131,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  TE_COULD_NOT_CREATE_SOCKET = 0x8005, 
+  TE_COULD_NOT_CREATE_SOCKET = 0x5, 
  
   /** 
    * TE_COULD_NOT_BIND_SOCKET 
@@ -138,7 +140,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  TE_COULD_NOT_BIND_SOCKET = 0x8006, 
+  TE_COULD_NOT_BIND_SOCKET = 0x6, 
  
   /** 
    * TE_LISTEN_FAILED 
@@ -147,7 +149,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  TE_LISTEN_FAILED = 0x8007, 
+  TE_LISTEN_FAILED = 0x7, 
  
   /** 
    * TE_ACCEPT_RETURN_ERROR 
@@ -158,7 +160,7 @@ enum TransporterError {
    * Recommended behavior: Ignore  
    *   (or possible do setPerformState(PerformDisconnect) 
    */ 
-  TE_ACCEPT_RETURN_ERROR = 0x8008 
+  TE_ACCEPT_RETURN_ERROR = 0x8 
  
   /** 
    * TE_SHM_DISCONNECT  
@@ -167,7 +169,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SHM_DISCONNECT = 0x800b 
+  ,TE_SHM_DISCONNECT = 0xb | TE_DO_DISCONNECT
  
   /** 
    * TE_SHM_IPC_STAT 
@@ -178,7 +180,12 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SHM_IPC_STAT = 0x800c 
+  ,TE_SHM_IPC_STAT = 0xc | TE_DO_DISCONNECT
+
+  /**
+   * Permanent error
+   */
+  ,TE_SHM_IPC_PERMANENT = 0x21 
  
   /** 
    * TE_SHM_UNABLE_TO_CREATE_SEGMENT 
@@ -188,7 +195,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SHM_UNABLE_TO_CREATE_SEGMENT = 0x800d 
+  ,TE_SHM_UNABLE_TO_CREATE_SEGMENT = 0xd 
  
   /** 
    * TE_SHM_UNABLE_TO_ATTACH_SEGMENT 
@@ -198,7 +205,7 @@ enum TransporterError {
    * 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SHM_UNABLE_TO_ATTACH_SEGMENT = 0x800e 
+  ,TE_SHM_UNABLE_TO_ATTACH_SEGMENT = 0xe 
  
   /** 
    * TE_SHM_UNABLE_TO_REMOVE_SEGMENT 
@@ -208,12 +215,12 @@ enum TransporterError {
    * Recommended behavior: Ignore (not much to do) 
    *                       Print warning to logfile 
    */ 
-  ,TE_SHM_UNABLE_TO_REMOVE_SEGMENT = 0x800f 
+  ,TE_SHM_UNABLE_TO_REMOVE_SEGMENT = 0xf 
  
-  ,TE_TOO_SMALL_SIGID = 0x0010 
-  ,TE_TOO_LARGE_SIGID = 0x0011 
-  ,TE_WAIT_STACK_FULL = 0x8012 
-  ,TE_RECEIVE_BUFFER_FULL = 0x8013 
+  ,TE_TOO_SMALL_SIGID = 0x10 
+  ,TE_TOO_LARGE_SIGID = 0x11 
+  ,TE_WAIT_STACK_FULL = 0x12 | TE_DO_DISCONNECT
+  ,TE_RECEIVE_BUFFER_FULL = 0x13 | TE_DO_DISCONNECT
  
   /** 
    * TE_SIGNAL_LOST_SEND_BUFFER_FULL 
@@ -222,7 +229,7 @@ enum TransporterError {
    *   a signal is dropped!! very bad very bad 
    * 
    */ 
-  ,TE_SIGNAL_LOST_SEND_BUFFER_FULL = 0x8014 
+  ,TE_SIGNAL_LOST_SEND_BUFFER_FULL = 0x14 | TE_DO_DISCONNECT
  
   /** 
    * TE_SIGNAL_LOST 
@@ -231,14 +238,14 @@ enum TransporterError {
    *   a signal is dropped!! very bad very bad 
    * 
    */ 
-  ,TE_SIGNAL_LOST = 0x8015 
+  ,TE_SIGNAL_LOST = 0x15 
  
   /** 
    * TE_SEND_BUFFER_FULL 
    *  
    *   The send buffer was full, but sleeping for a while solved it 
    */ 
-  ,TE_SEND_BUFFER_FULL = 0x0016 
+  ,TE_SEND_BUFFER_FULL = 0x16 
  
   /** 
    * TE_SCI_UNABLE_TO_CLOSE_CHANNEL 
@@ -246,7 +253,7 @@ enum TransporterError {
    *  Unable to close the sci channel and the resources allocated by  
    *  the sisci api. 
    */ 
-  ,TE_SCI_UNABLE_TO_CLOSE_CHANNEL = 0x8016 
+  ,TE_SCI_UNABLE_TO_CLOSE_CHANNEL = 0x22 
  
   /** 
    * TE_SCI_LINK_ERROR 
@@ -255,7 +262,7 @@ enum TransporterError {
    *  No point in continuing. Must check the connections. 
    * Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_LINK_ERROR = 0x8017 
+  ,TE_SCI_LINK_ERROR = 0x0017 
  
   /** 
    * TE_SCI_UNABLE_TO_START_SEQUENCE 
@@ -264,14 +271,14 @@ enum TransporterError {
    *  are exumed or no sequence has been created. 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_UNABLE_TO_START_SEQUENCE = 0x8018 
+  ,TE_SCI_UNABLE_TO_START_SEQUENCE = 0x18 | TE_DO_DISCONNECT
    
   /** 
    * TE_SCI_UNABLE_TO_REMOVE_SEQUENCE 
    *  
    *  Could not remove a sequence 
    */ 
-  ,TE_SCI_UNABLE_TO_REMOVE_SEQUENCE = 0x8019 
+  ,TE_SCI_UNABLE_TO_REMOVE_SEQUENCE = 0x19 | TE_DO_DISCONNECT
  
   /** 
    * TE_SCI_UNABLE_TO_CREATE_SEQUENCE 
@@ -280,7 +287,7 @@ enum TransporterError {
    *  exempted. Must reboot. 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_UNABLE_TO_CREATE_SEQUENCE = 0x801a 
+  ,TE_SCI_UNABLE_TO_CREATE_SEQUENCE = 0x1a | TE_DO_DISCONNECT
  
   /** 
    * TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR 
@@ -288,7 +295,7 @@ enum TransporterError {
    *  Tried to send data on redundant link but failed. 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR = 0x801b 
+  ,TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR = 0x1b | TE_DO_DISCONNECT
  
   /** 
    * TE_SCI_CANNOT_INIT_LOCALSEGMENT 
@@ -297,7 +304,7 @@ enum TransporterError {
    *  gone wrong (no system resources). Must reboot. 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_CANNOT_INIT_LOCALSEGMENT = 0x801c 
+  ,TE_SCI_CANNOT_INIT_LOCALSEGMENT = 0x1c | TE_DO_DISCONNECT
  
   /** 
    * TE_SCI_CANNOT_MAP_REMOTESEGMENT 
@@ -306,7 +313,7 @@ enum TransporterError {
    *  Must reboot system. 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_CANNOT_MAP_REMOTESEGMENT = 0x801d 
+  ,TE_SCI_CANNOT_MAP_REMOTESEGMENT = 0x1d | TE_DO_DISCONNECT
  
    /** 
    * TE_SCI_UNABLE_TO_UNMAP_SEGMENT 
@@ -314,7 +321,7 @@ enum TransporterError {
    *  Cannot free the resources used by this segment (step 1). 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_UNABLE_TO_UNMAP_SEGMENT = 0x801e 
+  ,TE_SCI_UNABLE_TO_UNMAP_SEGMENT = 0x1e | TE_DO_DISCONNECT
  
    /** 
    * TE_SCI_UNABLE_TO_REMOVE_SEGMENT 
@@ -324,7 +331,7 @@ enum TransporterError {
    *  to map more segment 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_UNABLE_TO_REMOVE_SEGMENT = 0x801f 
+  ,TE_SCI_UNABLE_TO_REMOVE_SEGMENT = 0x1f  | TE_DO_DISCONNECT
  
    /** 
    * TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT 
@@ -332,15 +339,18 @@ enum TransporterError {
    *  Cannot disconnect from a remote segment. 
    *  Recommended behavior: setPerformState(PerformDisonnect) 
    */ 
-  ,TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT = 0x8020 
+  ,TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT = 0x20 | TE_DO_DISCONNECT
  
+  /* Used 0x21 */
+  /* Used 0x22 */
 }; 
  
 /** 
  * Report error 
  */ 
 void 
-reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode); 
+reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode,
+	    const char *info = 0);
 
 void
 transporter_recv_from(void* callbackObj, NodeId node);

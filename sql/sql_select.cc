@@ -1377,7 +1377,7 @@ JOIN::exec()
       DBUG_PRINT("info",("Creating group table"));
       
       /* Free first data from old join */
-      curr_join->join_free(0);
+      curr_join->join_free();
       if (make_simple_join(curr_join, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
@@ -1475,7 +1475,7 @@ JOIN::exec()
     if (curr_tmp_table->distinct)
       curr_join->select_distinct=0;		/* Each row is unique */
     
-    curr_join->join_free(0);			/* Free quick selects */
+    curr_join->join_free();			/* Free quick selects */
     if (curr_join->select_distinct && ! curr_join->group_list)
     {
       thd->proc_info="Removing duplicates";
@@ -5719,33 +5719,88 @@ void JOIN_TAB::cleanup()
 }
 
 
-void JOIN::join_free(bool full)
+/*
+  Partially cleanup JOIN after it has executed: close index or rnd read
+  (table cursors), free quick selects.
+
+  DESCRIPTION
+    This function is called in the end of execution of a JOIN, before the used
+    tables are unlocked and closed.
+
+    For a join that is resolved using a temporary table, the first sweep is
+    performed against actual tables and an intermediate result is inserted
+    into the temprorary table.
+    The last sweep is performed against the temporary table. Therefore,
+    the base tables and associated buffers used to fill the temporary table
+    are no longer needed, and this function is called to free them.
+
+    For a join that is performed without a temporary table, this function
+    is called after all rows are sent, but before EOF packet is sent.
+
+    For a simple SELECT with no subqueries this function performs a full
+    cleanup of the JOIN and calls mysql_unlock_read_tables to free used base
+    tables.
+
+    If a JOIN is executed for a subquery or if it has a subquery, we can't
+    do the full cleanup and need to do a partial cleanup only.
+      o If a JOIN is not the top level join, we must not unlock the tables
+        because the outer select may not have been evaluated yet, and we
+        can't unlock only selected tables of a query.
+
+      o Additionally, if this JOIN corresponds to a correlated subquery, we
+        should not free quick selects and join buffers because they will be
+        needed for the next execution of the correlated subquery.
+
+      o However, if this is a JOIN for a [sub]select, which is not
+        a correlated subquery itself, but has subqueries, we can free it
+        fully and also free JOINs of all its subqueries. The exception
+        is a subquery in SELECT list, e.g:
+        SELECT a, (select max(b) from t1) group by c
+        This subquery will not be evaluated at first sweep and its value will
+        not be inserted into the temporary table. Instead, it's evaluated
+        when selecting from the temporary table. Therefore, it can't be freed
+        here even though it's not correlated.
+*/
+
+void JOIN::join_free()
 {
   SELECT_LEX_UNIT *unit;
   SELECT_LEX *sl;
-  DBUG_ENTER("JOIN::join_free");
-
   /*
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  full= full || (!select_lex->uncacheable && !thd->lex->describe);
+  bool full= (!select_lex->uncacheable && !thd->lex->describe);
+  bool can_unlock= full;
+  DBUG_ENTER("JOIN::join_free");
 
   cleanup(full);
 
   for (unit= select_lex->first_inner_unit(); unit; unit= unit->next_unit())
     for (sl= unit->first_select(); sl; sl= sl->next_select())
     {
-      JOIN *join= sl->join;
-      if (join)
-        join->join_free(full);
+      Item_subselect *subselect= sl->master_unit()->item;
+      bool full_local= full && (!subselect || subselect->is_evaluated());
+      /*
+        If this join is evaluated, we can fully clean it up and clean up all
+        its underlying joins even if they are correlated -- they will not be
+        used any more anyway.
+        If this join is not yet evaluated, we still must clean it up to
+        close its table cursors -- it may never get evaluated, as in case of
+        ... HAVING FALSE OR a IN (SELECT ...))
+        but all table cursors must be closed before the unlock.
+      */
+      sl->cleanup_all_joins(full_local);
+      /* Can't unlock if at least one JOIN is still needed */
+      can_unlock= can_unlock && full_local;
     }
 
   /*
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (full && lock && thd->lock && !(select_options & SELECT_NO_UNLOCK) &&
+  if (can_unlock && lock && thd->lock &&
+      !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
       (select_lex == (thd->lex->unit.fake_select_lex ?
                       thd->lex->unit.fake_select_lex : &thd->lex->select_lex)))
@@ -5851,7 +5906,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   tab->cached_eq_ref_table=1;
   if (tab->type == JT_CONST)			// We can skip const tables
     return (tab->eq_ref_table=1);		/* purecov: inspected */
-  if (tab->type != JT_EQ_REF)
+  if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
   Item **ref_item=tab->ref.items;
   Item **end=ref_item+tab->ref.key_parts;
@@ -6059,7 +6114,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
-  join->join_free(0);
+  join->join_free();
 
   if (send_row)
   {
@@ -9019,7 +9074,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	The following will unlock all cursors if the command wasn't an
 	update command
       */
-      join->join_free(0);				// Unlock all cursors
+      join->join_free();			// Unlock all cursors
       if (join->result->send_eof())
 	rc= 1;                                  // Don't send error
     }
@@ -11355,7 +11410,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     ulong total_length= 0;
     for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
     {
-      uint length= (*ptr)->pack_length();
+      uint length= (*ptr)->sort_length();
       (*field_length++)= length;
       total_length+= length;
     }
@@ -11895,11 +11950,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
   */
+  thd->lex->current_select->is_item_list_lookup= 1;
   if (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
+  {
+    thd->lex->current_select->is_item_list_lookup= 0;
     return TRUE; /* Wrong field. */
+  }
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */

@@ -3684,6 +3684,8 @@ end_with_restore_list:
     if (check_access(thd, INSERT_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+    if (end_active_trans(thd))
+      goto error;
     if (!(res= mysql_create_user(thd, lex->users_list)))
     {
       if (mysql_bin_log.is_open())
@@ -3700,6 +3702,8 @@ end_with_restore_list:
     if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+    if (end_active_trans(thd))
+      goto error;
     if (!(res= mysql_drop_user(thd, lex->users_list)))
     {
       if (mysql_bin_log.is_open())
@@ -3716,6 +3720,8 @@ end_with_restore_list:
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+    if (end_active_trans(thd))
+      goto error;
     if (!(res= mysql_rename_user(thd, lex->users_list)))
     {
       if (mysql_bin_log.is_open())
@@ -4510,6 +4516,9 @@ end_with_restore_list:
     }
   case SQLCOM_CREATE_VIEW:
     {
+      if (end_active_trans(thd))
+        goto error;
+
       if (!(res= mysql_create_view(thd, thd->lex->create_view_mode)) &&
           mysql_bin_log.is_open())
       {
@@ -4557,6 +4566,9 @@ end_with_restore_list:
     }
   case SQLCOM_CREATE_TRIGGER:
   {
+    if (end_active_trans(thd))
+      goto error;
+
     res= mysql_create_or_drop_trigger(thd, all_tables, 1);
 
     /* We don't care about trigger body after this point */
@@ -4566,6 +4578,9 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_TRIGGER:
   {
+    if (end_active_trans(thd))
+      goto error;
+
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
     break;
   }

@@ -55,6 +55,23 @@ SELECT
 DROP TABLE t1;
 
 #
+# Bug#13145: A table named "C-cedilla" can't be dropped.
+# Accept extended cp1252 letters as valid identifiers.
+# This test partially checks that "ctype" array is correct
+# for cp1252 extended characters 0x80-0x9F.
+#
+# 0x83 0x0192  #LATIN SMALL LETTER F WITH HOOK
+# 0x8A 0x0160  #LATIN CAPITAL LETTER S WITH CARON
+# 0x8C 0x0152  #LATIN CAPITAL LIGATURE OE
+# 0x8E 0x017D  #LATIN CAPITAL LETTER Z WITH CARON
+# 0x9A 0x0161  #LATIN SMALL LETTER S WITH CARON
+# 0x9C 0x0153  #LATIN SMALL LIGATURE OE
+# 0x9E 0x017E  #LATIN SMALL LETTER Z WITH CARON
+# 0x9F 0x0178  #LATIN CAPITAL LETTER Y WITH DIAERESIS
+#
+SELECT 1 as ƒ, 2 as Š, 3 as Œ, 4 as Ž, 5 as š, 6 as œ, 7 as ž, 8 as Ÿ;
+
+#
 # Bug #6737: REGEXP gives wrong result with case sensitive collation
 #
 select 'a' regexp 'A' collate latin1_general_ci;

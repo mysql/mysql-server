@@ -63,13 +63,16 @@ TransporterFacade* TransporterFacade::theFacadeInstance = NULL;
  *****************************************************************************/
 
 void
-reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode){
+reportError(void * callbackObj, NodeId nodeId,
+	    TransporterError errorCode, const char *info)
+{
 #ifdef REPORT_TRANSPORTER
-  ndbout_c("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d)", 
-	   (int)nodeId, (int)errorCode);
+  ndbout_c("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d) %s", 
+	   (int)nodeId, (int)errorCode, info ? info : "");
 #endif
-  if(errorCode & 0x8000) {
-    ndbout_c("reportError (%d, %d)\n", (int)nodeId, (int)errorCode);
+  if(errorCode & TE_DO_DISCONNECT) {
+    ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
+	     info ? info : "");
     ((TransporterFacade*)(callbackObj))->doDisconnect(nodeId);
   }
 }
