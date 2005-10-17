@@ -2342,6 +2342,8 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
     if (thd->spcont &&
         thd->spcont->find_handler(error, MYSQL_ERROR::WARN_LEVEL_ERROR))
     {
+      if (! thd->spcont->found_handler_here())
+        thd->net.report_error= 1; /* Make "select" abort correctly */ 
       DBUG_RETURN(0);
     }
 
