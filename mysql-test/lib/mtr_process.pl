@@ -360,8 +360,19 @@ sub mtr_kill_leftovers () {
 
   # First, kill all masters and slaves that would conflict with
   # this run. Make sure to remove the PID file, if any.
+  # FIXME kill IM manager first, else it will restart the servers, how?!
 
   my @args;
+
+  for ( my $idx; $idx < 2; $idx++ )
+  {
+    push(@args,{
+                pid      => 0,          # We don't know the PID
+                pidfile  => $::instance_manager->{'instances'}->[$idx]->{'path_pid'},
+                sockfile => $::instance_manager->{'instances'}->[$idx]->{'path_sock'},
+                port     => $::instance_manager->{'instances'}->[$idx]->{'port'},
+               });
+  }
 
   for ( my $idx; $idx < 2; $idx++ )
   {
