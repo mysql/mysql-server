@@ -229,10 +229,13 @@ int runVerifyOne(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int count = 0;
 
-  ndbout << *(const NDBT_Table*)ctx->getTab() << endl;
-
-  UtilTransactions utilTrans(*ctx->getTab());
-  HugoTransactions hugoTrans(*ctx->getTab());
+  const NdbDictionary::Table* tab = 
+    GETNDB(step)->getDictionary()->getTable(ctx->getTab()->getName());
+  if(tab == 0)
+    return NDBT_FAILED;
+  
+  UtilTransactions utilTrans(* tab);
+  HugoTransactions hugoTrans(* tab);
 
   do{
 
