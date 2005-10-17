@@ -965,7 +965,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
     goto err;
   }
 
-  reset_pending = true;
+  reset_pending= true;
   /* 
     send update signal just in case so that all reader threads waiting
     for log update will leave wait condition
@@ -996,7 +996,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   my_free((gptr) save_name, MYF(0));
 
 err:
-  reset_pending = false;
+  reset_pending= false;
 
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   pthread_mutex_unlock(&LOCK_readers);
