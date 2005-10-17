@@ -552,6 +552,10 @@ SOURCE=..\sql\sql_trigger.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql\sql_cursor.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\sql_udf.cpp
 # End Source File
 # Begin Source File
