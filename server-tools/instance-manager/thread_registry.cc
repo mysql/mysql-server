@@ -38,6 +38,14 @@ static void handle_signal(int __attribute__((unused)) sig_no)
 #endif
 
 /*
+  Thread_info initializer methods
+*/
+
+Thread_info::Thread_info() {}
+Thread_info::Thread_info(pthread_t thread_id_arg) :
+  thread_id(thread_id_arg) {}
+
+/*
   TODO: think about moving signal information (now it's shutdown_in_progress)
   to Thread_info. It will reduce contention and allow signal deliverence to
   a particular thread, not to the whole worker crew
