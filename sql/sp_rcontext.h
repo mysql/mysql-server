@@ -149,6 +149,13 @@ class sp_rcontext : public Sql_alloc
     return m_handler[m_hfound].type;
   }
 
+  // Returns true if we found a handler in this context
+  inline bool
+  found_handler_here()
+  {
+    return (m_hfound >= 0);
+  }
+
   // Clears the handler find state
   inline void
   clear_handler()

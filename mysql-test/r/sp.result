@@ -3310,7 +3310,6 @@ select 1|
 1
 call bug12379_1()|
 bug12379()
-NULL
 42
 42
 select 2|
@@ -3318,7 +3317,6 @@ select 2|
 2
 call bug12379_2()|
 bug12379()
-NULL
 select 3|
 3
 3
