@@ -358,7 +358,7 @@ MYSQL_LOG::MYSQL_LOG()
   :bytes_written(0), last_time(0), query_start(0), name(0),
    file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
    need_start_event(1), prepared_xids(0), description_event_for_exec(0),
-   description_event_for_queue(0)
+   description_event_for_queue(0), readers_count(0), reset_pending(false)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -384,7 +384,9 @@ void MYSQL_LOG::cleanup()
     delete description_event_for_exec;
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
+    (void) pthread_mutex_destroy(&LOCK_readers);
     (void) pthread_cond_destroy(&update_cond);
+    (void) pthread_cond_destroy(&reset_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -429,7 +431,9 @@ void MYSQL_LOG::init_pthread_objects()
   inited= 1;
   (void) pthread_mutex_init(&LOCK_log,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_readers, MY_MUTEX_INIT_SLOW);
   (void) pthread_cond_init(&update_cond, 0);
+  (void) pthread_cond_init(&reset_cond, 0);
 }
 
 const char *MYSQL_LOG::generate_name(const char *log_name,
@@ -932,6 +936,13 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   */
   pthread_mutex_lock(&LOCK_log);
   pthread_mutex_lock(&LOCK_index);
+
+  /* 
+    we need one more lock to block attempts to open a log while
+    we are waiting untill all log files will be closed
+  */
+  pthread_mutex_lock(&LOCK_readers);
+
   /*
     The following mutex is needed to ensure that no threads call
     'delete thd' as we would then risk missing a 'rollback' from this
@@ -954,6 +965,19 @@ bool MYSQL_LOG::reset_logs(THD* thd)
     goto err;
   }
 
+  reset_pending = true;
+  /* 
+    send update signal just in case so that all reader threads waiting
+    for log update will leave wait condition
+  */
+  signal_update();
+  /* 
+    if there are active readers wait until all of them will 
+    release opened files 
+  */
+  if (readers_count)
+    pthread_cond_wait(&reset_cond, &LOCK_log);
+
   for (;;)
   {
     my_delete(linfo.log_file_name, MYF(MY_WME));
@@ -972,7 +996,10 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   my_free((gptr) save_name, MYF(0));
 
 err:
+  reset_pending = false;
+
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_readers);
   pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -2045,6 +2072,10 @@ void MYSQL_LOG::wait_for_update(THD* thd, bool is_slave)
 {
   const char *old_msg;
   DBUG_ENTER("wait_for_update");
+  
+  if (reset_pending)
+    DBUG_VOID_RETURN;
+
   old_msg= thd->enter_cond(&update_cond, &LOCK_log,
                            is_slave ?
                            "Has read all relay log; waiting for the slave I/O "
@@ -2295,6 +2326,32 @@ void MYSQL_LOG::signal_update()
   DBUG_VOID_RETURN;
 }
 
+void MYSQL_LOG::readers_addref()
+{
+  /* 
+    There is no necessity for reference counting on *nix, since it allows to
+    delete opened files, however it is more clean way to wait
+    untill all files will be closed on *nix as well.
+  */
+  DBUG_ENTER("MYSQL_LOG::reader_addref");
+  pthread_mutex_lock(&LOCK_log);
+  pthread_mutex_lock(&LOCK_readers);
+  readers_count++;
+  pthread_mutex_unlock(&LOCK_readers);
+  pthread_mutex_unlock(&LOCK_log);
+  DBUG_VOID_RETURN;
+}
+
+void MYSQL_LOG::readers_release()
+{
+  DBUG_ENTER("MYSQL_LOG::reader_release");
+  pthread_mutex_lock(&LOCK_log);
+  readers_count--;
+  if (!readers_count)
+    pthread_cond_broadcast(&reset_cond);
+  pthread_mutex_unlock(&LOCK_log);
+  DBUG_VOID_RETURN;
+}
 
 #ifdef __NT__
 void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
