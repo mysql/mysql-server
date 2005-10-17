@@ -232,6 +232,7 @@ $CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
+    mysql-test/std_data/*.cnf \
     $BASE/mysql-test/std_data
 $CP mysql-test/t/*.test mysql-test/t/*.disabled mysql-test/t/*.opt \
     mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
@@ -270,8 +271,11 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh \
 if [ $BASE_SYSTEM = "netware" ] ; then
   echo "CREATE DATABASE mysql;" > $BASE/bin/init_db.sql
   echo "CREATE DATABASE test;" >> $BASE/bin/init_db.sql
-  sh ./scripts/mysql_create_system_tables.sh real >> $BASE/bin/init_db.sql
-  sh ./scripts/mysql_create_system_tables.sh test > $BASE/bin/test_db.sql
+  sh ./scripts/mysql_create_system_tables.sh real "" "%" 0 \
+      >> $BASE/bin/init_db.sql
+  sh ./scripts/mysql_create_system_tables.sh test "" "%" 0 \
+      > $BASE/bin/test_db.sql
+  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
 fi
 
 #

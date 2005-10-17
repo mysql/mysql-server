@@ -498,7 +498,7 @@ static uint thai2sortable(uchar *tstr, uint len)
 	  l2bias use to control position weight of l2char
 	  example (*=l2char) XX*X must come before X*XX
 	*/
-	memcpy_overlap((char*) p, (char*) (p+1), tlen-1);
+	memmove((char*) p, (char*) (p+1), tlen-1);
 	tstr[len-1]= l2bias + t_ctype0[1]- L2_GARAN +1;
 	p--;
 	continue;
@@ -922,6 +922,7 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     1,			/* mbmaxlen  */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_ci_handler
@@ -953,6 +954,7 @@ CHARSET_INFO my_charset_tis620_bin=
     1,			/* mbmaxlen  */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_8bit_bin_handler

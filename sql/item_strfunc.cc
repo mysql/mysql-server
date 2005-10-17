@@ -1504,7 +1504,13 @@ String *Item_func_encrypt::val_str(String *str)
     salt_ptr= salt_str->c_ptr();
   }
   pthread_mutex_lock(&LOCK_crypt);
-  char *tmp=crypt(res->c_ptr(),salt_ptr);
+  char *tmp= crypt(res->c_ptr(),salt_ptr);
+  if (!tmp)
+  {
+    pthread_mutex_unlock(&LOCK_crypt);
+    null_value= 1;
+    return 0;
+  }
   str->set(tmp,(uint) strlen(tmp),res->charset());
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);

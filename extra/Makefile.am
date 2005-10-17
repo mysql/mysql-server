@@ -26,7 +26,7 @@ CLEANFILES =		$(BUILT_SOURCES)
 DIST_SUBDIRS=           yassl
 
 # This will build mysqld_error.h and sql_state.h
-$(top_builddir)/include/mysqld_error.h: comp_err$(EXEEXT)
+$(top_builddir)/include/mysqld_error.h: comp_err
 	$(top_builddir)/extra/comp_err \
 	--charset=$(top_srcdir)/sql/share/charsets \
 	--out-dir=$(top_builddir)/sql/share/ \

@@ -525,6 +525,9 @@ Ndbcntr::execCNTR_START_REF(Signal * signal){
     cmasterNodeId = ref->masterNodeId;
     sendCntrStartReq(signal);
     return;
+  case CntrStartRef::StopInProgress:
+    jam();
+    progError(__LINE__, NDBD_EXIT_RESTART_DURING_SHUTDOWN);
   }
   ndbrequire(false);
 }
@@ -2022,7 +2025,9 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     return;
   }
 
-  if(c_stopRec.stopReq.senderRef != 0){
+  if(c_stopRec.stopReq.senderRef != 0 ||
+     (cmasterNodeId == getOwnNodeId() && !c_start.m_starting.isclear()))
+  {
     /**
      * Requested a system shutdown
      */
@@ -2036,7 +2041,8 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     /**
      * Requested a node shutdown
      */
-    if(StopReq::getSystemStop(c_stopRec.stopReq.requestInfo))
+    if(c_stopRec.stopReq.senderRef &&
+       StopReq::getSystemStop(c_stopRec.stopReq.requestInfo))
       ref->errorCode = StopRef::SystemShutdownInProgress;
     else
       ref->errorCode = StopRef::NodeShutdownInProgress;
