@@ -1560,7 +1560,6 @@ Statement::Statement(enum enum_state state_arg, ulong id_arg,
   :Query_arena(&main_mem_root, state_arg),
   id(id_arg),
   set_query_id(1),
-  allow_sum_func(0),
   lex(&main_lex),
   query(0),
   query_length(0),
@@ -1581,7 +1580,6 @@ void Statement::set_statement(Statement *stmt)
 {
   id=             stmt->id;
   set_query_id=   stmt->set_query_id;
-  allow_sum_func= stmt->allow_sum_func;
   lex=            stmt->lex;
   query=          stmt->query;
   query_length=   stmt->query_length;
