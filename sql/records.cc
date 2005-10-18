@@ -235,13 +235,16 @@ static int rr_quick(READ_RECORD *info)
 
 
 /*
-  Read next index record. The calling convention of this function is 
-  compatible with READ_RECORD::read_record.
+  A READ_RECORD::read_record implementation that reads index sequentially
 
   SYNOPSIS
     rr_index()
       info  Scan info
-
+  
+  DESCRIPTION
+    Read the next index record (in forward direction) and translate return
+    value.
+    
   RETURN
     0   Ok
     -1  End of records 
@@ -271,13 +274,13 @@ static int rr_index(READ_RECORD *info)
     if (tmp != HA_ERR_RECORD_DELETED)
     {
       if (tmp == HA_ERR_END_OF_FILE)
-	tmp= -1;
+        tmp= -1;
       else
       {
-	if (info->print_error)
-	  info->table->file->print_error(tmp,MYF(0));
-	if (tmp < 0)				// Fix negative BDB errno
-	  tmp=1;
+        if (info->print_error)
+          info->table->file->print_error(tmp,MYF(0));
+        if (tmp < 0)                            // Fix negative BDB errno
+          tmp=1;
       }
       break;
     }

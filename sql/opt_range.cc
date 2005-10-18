@@ -584,8 +584,7 @@ SEL_ARG *SEL_ARG::clone_tree()
 
 
 /*
-  Find an index that allows to retrieve first #limit records in the given
-  order cheaper then one would retrieve them using full table scan.
+  Find the best index to retrieve first N records in given order
 
   SYNOPSIS
     get_index_for_order()
@@ -594,10 +593,13 @@ SEL_ARG *SEL_ARG::clone_tree()
       limit  Number of records that will be retrieved
 
   DESCRIPTION
+    Find the best index that allows to retrieve first #limit records in the 
+    given order cheaper then one would retrieve them using full table scan.
+
+  IMPLEMENTATION
     Run through all table indexes and find the shortest index that allows
-    records to be retrieved in given order. If there is such index and
-    reading first #limit records from it is cheaper then scanning the entire
-    table, return it.
+    records to be retrieved in given order. We look for the shortest index
+    as we will have fewer index pages to read with it.
 
     This function is used only by UPDATE/DELETE, so we take into account how
     the UPDATE/DELETE code will work:
