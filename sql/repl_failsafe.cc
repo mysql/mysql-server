@@ -67,7 +67,6 @@ static int init_failsafe_rpl_thread(THD* thd)
   */
   thd->system_thread = thd->bootstrap = 1;
   thd->security_ctx->skip_grants();
-  thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
