@@ -1053,4 +1053,81 @@ int ha_archive::delete_all_rows()
   DBUG_ENTER("ha_archive::delete_all_rows");
   DBUG_RETURN(0);
 }
+
+/*
+  We just return state if asked.
+*/
+bool ha_archive::is_crashed() const 
+{
+  return share->crashed; 
+}
+
+/*
+  Simple scan of the tables to make sure everything is ok.
+*/
+
+int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  int rc= 0;
+  byte *buf; 
+  const char *old_proc_info=thd->proc_info;
+  ha_rows count= share->rows_recorded;
+  DBUG_ENTER("ha_archive::check");
+
+  thd->proc_info= "Checking table";
+  /* Flush any waiting data */
+  gzflush(share->archive_write, Z_SYNC_FLUSH);
+
+  /* 
+    First we create a buffer that we can use for reading rows, and can pass
+    to get_row().
+  */
+  if (!(buf= (byte*) my_malloc(table->s->reclength, MYF(MY_WME))))
+    rc= HA_ERR_OUT_OF_MEM;
+
+  /*
+    Now we will rewind the archive file so that we are positioned at the 
+    start of the file.
+  */
+  if (!rc)
+    read_data_header(archive);
+
+  if (!rc)
+    while (!(rc= get_row(archive, buf)))
+      count--;
+
+  my_free((char*)buf, MYF(0));
+
+  thd->proc_info= old_proc_info;
+
+  if ((rc && rc != HA_ERR_END_OF_FILE) || count)  
+  {
+    share->crashed= FALSE;
+    DBUG_RETURN(HA_ADMIN_CORRUPT);
+  }
+  else
+  {
+    DBUG_RETURN(HA_ADMIN_OK);
+  }
+}
+
+/*
+  Check and repair the table if needed.
+*/
+bool ha_archive::check_and_repair(THD *thd) 
+{
+  HA_CHECK_OPT check_opt;
+  DBUG_ENTER("ha_archive::check_and_repair");
+
+  check_opt.init();
+
+  if (check(thd, &check_opt) == HA_ADMIN_CORRUPT)
+  {
+    DBUG_RETURN(repair(thd, &check_opt));
+  }
+  else
+  {
+    DBUG_RETURN(HA_ADMIN_OK);
+  }
+}
 #endif /* HAVE_ARCHIVE_DB */
