@@ -766,6 +766,7 @@ void Item_func_abs::fix_length_and_dec()
   hybrid_type= REAL_RESULT;
   if (args[0]->result_type() == INT_RESULT)
     hybrid_type= INT_RESULT;
+  maybe_null= 1;
 }
 
 
