@@ -1169,6 +1169,7 @@ bool ha_federated::create_where_from_key(String *to,
 
       switch(ranges[i]->flag) {
       case(HA_READ_KEY_EXACT):
+        DBUG_PRINT("info", ("federated HA_READ_KEY_EXACT %d", i));
         if (store_length >= length ||
             !needs_quotes ||
             key_part->type == HA_KEYTYPE_BIT ||
@@ -1203,6 +1204,7 @@ bool ha_federated::create_where_from_key(String *to,
         }
         break;
       case(HA_READ_AFTER_KEY):
+        DBUG_PRINT("info", ("federated HA_READ_AFTER_KEY %d", i));
         if (store_length >= length) /* end key */
         {
           if (emit_key_part_name(&tmp, key_part))
@@ -1227,6 +1229,7 @@ bool ha_federated::create_where_from_key(String *to,
           break;
         }
       case(HA_READ_KEY_OR_NEXT):
+        DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
             tmp.append(FEDERATED_GE) ||
             emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
@@ -1234,6 +1237,7 @@ bool ha_federated::create_where_from_key(String *to,
           DBUG_RETURN(1);
         break;
       case(HA_READ_BEFORE_KEY):
+        DBUG_PRINT("info", ("federated HA_READ_BEFORE_KEY %d", i));
         if (store_length >= length)
         {
           if (emit_key_part_name(&tmp, key_part) ||
@@ -1244,6 +1248,7 @@ bool ha_federated::create_where_from_key(String *to,
           break;
         }
       case(HA_READ_KEY_OR_PREV):
+        DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
             tmp.append(FEDERATED_LE) ||
             emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
@@ -2509,11 +2514,12 @@ int ha_federated::delete_all_rows()
   /*
     TRUNCATE won't return anything in mysql_affected_rows
   */
-  deleted+= records;
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
     DBUG_RETURN(stash_remote_error());
   }
+  deleted+= records;
+  records= 0;
   DBUG_RETURN(0);
 }
 
