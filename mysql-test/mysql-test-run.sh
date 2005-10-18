@@ -256,6 +256,7 @@ NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
 
+DO_STRESS=""
 STRESS_SUITE="main"
 STRESS_MODE="random"
 STRESS_THREADS=5
@@ -739,7 +740,7 @@ fi
 
 # If we should run all tests cases, we will use a local server for that
 
-if [ -z "$1" -a $DO_STRESS -eq 0 ]
+if [ -z "$1" -a -z "$DO_STRESS" ]
 then
    USE_RUNNING_SERVER=0
 fi
@@ -1835,13 +1836,16 @@ run_stress_test()
   elif [ -n "$STRESS_TEST_FILE" ] ; then    
     STRESS_TEST_FILE="$STRESS_SUITE_DIR/$STRESS_TEST_FILE"
     if [ ! -f  "$STRESS_TEST_FILE" ] ; then 
-      echo "Specified file $STRESS_TEST_FILE with list of tests does not exist. Please ensure that file exists and has proper permissions"
+      echo "Specified file $STRESS_TEST_FILE with list of tests does not exist"
+      echo "Please ensure that file exists and has proper permissions"
       exit 1
     fi
   else 
     STRESS_TEST_FILE="$STRESS_SUITE_DIR/stress_tests.txt"
     if [ ! -f  "$STRESS_TEST_FILE" ] ; then 
-      echo "Default file $STRESS_TEST_FILE with list of tests does not exist. Please use --stress-test-file option to specify custom one or you can just specify name of test for testing as last argument in command line"
+      echo "Default file $STRESS_TEST_FILE with list of tests does not exist."
+      echo "Please use --stress-test-file option to specify custom one or you can" 
+      echo "just specify name of test for testing as last argument in command line"
       exit 1
     fi
   fi
@@ -1849,7 +1853,8 @@ run_stress_test()
   if [ -n "$STRESS_INIT_FILE" ] ; then 
     STRESS_INIT_FILE="$STRESS_SUITE_DIR/$STRESS_INIT_FILE"
     if [ ! -f  "$STRESS_INIT_FILE" ] ; then 
-      echo "Specified file $STRESS_INIT_FILE with list of tests doesn't exist. Please ensure that file exists and has proper permissions"
+      echo "Specified file $STRESS_INIT_FILE with list of tests doesn't exist."
+      echo "Please ensure that file exists and has proper permissions"
       exit 1
     fi
   else
@@ -1861,7 +1866,8 @@ run_stress_test()
   fi
 
   if [ "$STRESS_MODE" != "random" -a "$STRESS_MODE" != "seq" ] ; then
-    echo "You specified wrong mode '$STRESS_MODE' for stress test. Correct values are 'random' or 'seq'"
+    echo "You specified wrong mode '$STRESS_MODE' for stress test."
+    echo "Correct values are 'random' or 'seq'"
     exit 1
   fi
  
