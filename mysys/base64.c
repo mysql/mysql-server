@@ -102,7 +102,7 @@ pos(unsigned char c)
 
 #define SKIP_SPACE(src, i, size)                                \
 {                                                               \
-  while (i < size && my_isspace(default_charset_info, * src))   \
+  while (i < size && my_isspace(&my_charset_latin1, * src))     \
   {                                                             \
     i++;                                                        \
     src++;                                                      \

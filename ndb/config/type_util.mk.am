@@ -6,6 +6,3 @@ INCLUDES += -I$(srcdir) \
         -I$(top_srcdir)/ndb/include/util \
         -I$(top_srcdir)/ndb/include/portlib \
         -I$(top_srcdir)/ndb/include/logger
-
-LDADD += \
-         $(top_builddir)/mysys/libmysys.a
