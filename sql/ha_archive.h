@@ -103,6 +103,9 @@ public:
   }
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
+  bool is_crashed() const;
+  int check(THD* thd, HA_CHECK_OPT* check_opt);
+  bool check_and_repair(THD *thd);
 };
 
 bool archive_db_init(void);
