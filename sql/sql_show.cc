@@ -2561,9 +2561,9 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     {
       longlong c_octet_len= is_blob ? (longlong) field->max_length() :
         (longlong) field->max_length()/field->charset()->mbmaxlen;
-      table->field[8]->store(c_octet_len, TRUE);
+      table->field[8]->store((longlong) field->max_length(), TRUE);
       table->field[8]->set_notnull();
-      table->field[9]->store((longlong) field->max_length());
+      table->field[9]->store(c_octet_len, TRUE);
       table->field[9]->set_notnull();
     }
 
@@ -2604,7 +2604,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 
     if (field_length >= 0)
     {
-      table->field[10]->store((longlong) field_length);
+      table->field[10]->store((longlong) field_length, TRUE);
       table->field[10]->set_notnull();
     }
     if (decimals >= 0)

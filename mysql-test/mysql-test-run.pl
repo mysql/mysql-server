@@ -171,6 +171,7 @@ our $exe_mysqladmin;
 our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
 our $exe_mysqld;
+our $exe_mysqlcheck;             # Called from test case
 our $exe_mysqldump;              # Called from test case
 our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
@@ -911,6 +912,7 @@ sub executable_setup () {
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
 		       "/usr/bin/false");
     }
+    $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
@@ -926,6 +928,7 @@ sub executable_setup () {
   else
   {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
+    $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
@@ -2354,6 +2357,15 @@ sub im_stop($) {
 sub run_mysqltest ($) {
   my $tinfo=       shift;
 
+  my $cmdline_mysqlcheck= "$exe_mysqlcheck --no-defaults -uroot " .
+                          "--port=$master->[0]->{'path_myport'} " .
+                          "--socket=$master->[0]->{'path_mysock'} --password=";
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlcheck .=
+      " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
+  }
+
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
@@ -2413,6 +2425,7 @@ sub run_mysqltest ($) {
   # $ENV{'PATH'}= "/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$ENV{'PATH'}";
 
   $ENV{'MYSQL'}=                    $cmdline_mysql;
+  $ENV{'MYSQL_CHECK'}=              $cmdline_mysqlcheck;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
   $ENV{'MYSQL_SHOW'}=               $cmdline_mysqlshow;
   $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
