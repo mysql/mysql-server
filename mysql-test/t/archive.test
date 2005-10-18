@@ -1339,8 +1339,12 @@ SELECT * FROM t2;
 TRUNCATE TABLE t2;
 SELECT * FROM t2;
 
+# Adding support for CHECK table
+CHECK TABLE t2;
+SELECT * FROM t2;
 
-# Just test syntax, we will never know if the out put is right or wrong
+
+# Just test syntax, we will never know if the output is right or wrong
 # Must be the last test
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
 # 
