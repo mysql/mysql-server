@@ -22,7 +22,8 @@ MYSQLBASEdir=		$(prefix)
 INCLUDES =		@ZLIB_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
-			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes)
+			-I$(top_srcdir)/regex -I$(srcdir) $(yassl_includes) \
+                        $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
@@ -42,7 +43,8 @@ mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
                         @innodb_system_libs@ \
 			@ndbcluster_libs@ @ndbcluster_system_libs@ \
-			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
+			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
+                        @yassl_libs@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h item_subselect.h item_row.h \
