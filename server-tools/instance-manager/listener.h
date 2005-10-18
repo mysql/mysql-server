@@ -16,12 +16,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <my_global.h>
+#include <my_pthread.h>
+
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
-
-#include <my_global.h>
-#include <my_pthread.h>
 
 
 pthread_handler_t listener(void *arg);
