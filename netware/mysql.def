@@ -6,6 +6,7 @@ SCREENNAME "MySQL Monitor[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Monitor"
 VERSION 4, 0
+STACKSIZE 32768
 MULTIPLE
 XDCDATA ../netware/mysql.xdc
 #DEBUG
