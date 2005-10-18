@@ -497,6 +497,9 @@ static int process_all_tables_in_db(char *database)
 
 static int use_db(char *database)
 {
+  if (mysql_get_server_version(sock) >= 50003 &&
+      !my_strcasecmp(&my_charset_latin1, database, "information_schema"))
+    return 1;
   if (mysql_select_db(sock, database))
   {
     DBerror(sock, "when selecting the database");
