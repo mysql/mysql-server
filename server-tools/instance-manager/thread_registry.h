@@ -50,13 +50,12 @@
   in manner, similar to ``quit'' signals.
 */
 
-#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
-#pragma interface
-#endif
-
 #include <my_global.h>
 #include <my_pthread.h>
 
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
+#pragma interface
+#endif
 
 /*
   Thread_info - repository entry for each worker thread
