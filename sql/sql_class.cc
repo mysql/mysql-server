@@ -218,6 +218,7 @@ THD::THD()
 #ifndef EMBEDDED_LIBRARY
   net.vio=0;
 #endif
+  client_capabilities= 0;                       // minimalistic client
   net.last_error[0]=0;                          // If error on boot
   net.query_cache_query=0;                      // If error on boot
   ull=0;
