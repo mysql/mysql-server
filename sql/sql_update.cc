@@ -122,7 +122,8 @@ int mysql_update(THD *thd,
   bool		used_key_is_modified, transactional_table;
   int           res;
   int		error=0;
-  uint		used_index;
+  uint		used_index= MAX_KEY;
+  bool          need_sort= TRUE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -241,6 +242,11 @@ int mysql_update(THD *thd,
     send_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
+  if (!select && limit != HA_POS_ERROR)
+  {
+    if (MAX_KEY != (used_index= get_index_for_order(table, order, limit)))
+      need_sort= FALSE;
+  }
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -261,6 +267,10 @@ int mysql_update(THD *thd,
     used_key_is_modified= (!select->quick->unique_key_range() &&
                           select->quick->check_if_keys_used(&fields));
   }
+  else if (used_index != MAX_KEY)
+  {
+    used_key_is_modified= check_if_key_used(table, used_index, fields);
+  }
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
@@ -276,10 +286,11 @@ int mysql_update(THD *thd,
     if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
-      table->file->extra(HA_EXTRA_KEYREAD);
+      table->file->extra(HA_EXTRA_KEYREAD); //todo: psergey: check
     }
 
-    if (order)
+    /* note: can actually avoid sorting below.. */
+    if (order && need_sort)
     {
       /*
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
@@ -323,7 +334,10 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
-      init_read_record(&info,thd,table,select,0,1);
+      if (used_index == MAX_KEY)
+        init_read_record(&info,thd,table,select,0,1);
+      else
+        init_read_record_idx(&info, thd, table, 1, used_index);
 
       thd->proc_info="Searching rows for update";
       uint tmp_limit= limit;
@@ -352,6 +366,10 @@ int mysql_update(THD *thd,
 	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
+
+      /* if we got here we must not use index in the main update loop below */
+      used_index= MAX_KEY;
+      
       /* Change select to use tempfile */
       if (select)
       {
