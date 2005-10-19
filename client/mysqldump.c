@@ -386,7 +386,7 @@ static struct my_option my_long_options[] =
      (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
      NO_ARG, 1, 0, 0, 0, 0, 0},
   {"tz-utc", OPT_TZ_UTC,
-    "SET TIME_ZONE='UTC' at top of dump to allow dumping of TIMESTAMP data between servers with different time zones.",
+    "SET TIME_ZONE='+00:00' at top of dump to allow dumping of TIMESTAMP data between servers with different time zones.",
     (gptr*) &opt_tz_utc, (gptr*) &opt_tz_utc, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.",
