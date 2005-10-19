@@ -3674,7 +3674,6 @@ static void bootstrap(FILE *file)
 
   THD *thd= new THD;
   thd->bootstrap=1;
-  thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
   thd->security_ctx->master_access= ~(ulong)0;
