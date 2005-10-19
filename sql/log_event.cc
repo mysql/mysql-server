@@ -875,10 +875,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   Log_event::print_header()
 */
 
-void Log_event::print_header(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   char llbuff[22];
-  my_off_t hexdump_from= last_event_info->hexdump_from;
+  my_off_t hexdump_from= print_event_info->hexdump_from;
 
   fputc('#', file);
   print_timestamp(file);
@@ -886,7 +886,7 @@ void Log_event::print_header(FILE* file, LAST_EVENT_INFO* last_event_info)
 	  llstr(log_pos,llbuff));
 
   /* mysqlbinlog --hexdump */
-  if (last_event_info->hexdump_from)
+  if (print_event_info->hexdump_from)
   {
     fprintf(file, "\n");
     uchar *ptr= (uchar*)temp_buf;
@@ -899,7 +899,7 @@ void Log_event::print_header(FILE* file, LAST_EVENT_INFO* last_event_info)
     char *c, char_string[16+1]= {0};
 
     /* Pretty-print event common header if header is exactly 19 bytes */
-    if (last_event_info->common_header_len == 19)
+    if (print_event_info->common_header_len == LOG_EVENT_MINIMAL_HEADER_LEN)
     {
       fprintf(file, "# Position  Timestamp   Type   Master ID        "
 	      "Size      Master Pos    Flags \n");
@@ -1428,24 +1428,24 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
 #ifdef MYSQL_CLIENT
 void Query_log_event::print_query_header(FILE* file,
-					 LAST_EVENT_INFO* last_event_info)
+					 PRINT_EVENT_INFO* print_event_info)
 {
   // TODO: print the catalog ??
   char buff[40],*end;				// Enough for SET TIMESTAMP
   bool different_db= 1;
   uint32 tmp;
 
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
   {
-    print_header(file, last_event_info);
+    print_header(file, print_event_info);
     fprintf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\n",
 	    get_type_str(), (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
   if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
   {
-    if (different_db= memcmp(last_event_info->db, db, db_len + 1))
-      memcpy(last_event_info->db, db, db_len + 1);
+    if (different_db= memcmp(print_event_info->db, db, db_len + 1))
+      memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
       fprintf(file, "use %s;\n", db);
   }
@@ -1465,12 +1465,12 @@ void Query_log_event::print_query_header(FILE* file,
   if (likely(flags2_inited)) /* likely as this will mainly read 5.0 logs */
   {
     /* tmp is a bitmask of bits which have changed. */
-    if (likely(last_event_info->flags2_inited)) 
+    if (likely(print_event_info->flags2_inited)) 
       /* All bits which have changed */
-      tmp= (last_event_info->flags2) ^ flags2;
+      tmp= (print_event_info->flags2) ^ flags2;
     else /* that's the first Query event we read */
     {
-      last_event_info->flags2_inited= 1;
+      print_event_info->flags2_inited= 1;
       tmp= ~((uint32)0); /* all bits have changed */
     }
 
@@ -1485,7 +1485,7 @@ void Query_log_event::print_query_header(FILE* file,
       print_set_option(file, tmp, OPTION_RELAXED_UNIQUE_CHECKS, ~flags2,
                    "@@session.unique_checks", &need_comma);
       fprintf(file,";\n");
-      last_event_info->flags2= flags2;
+      print_event_info->flags2= flags2;
     }
   }
 
@@ -1504,37 +1504,37 @@ void Query_log_event::print_query_header(FILE* file,
 
   if (likely(sql_mode_inited))
   {
-    if (unlikely(!last_event_info->sql_mode_inited)) /* first Query event */
+    if (unlikely(!print_event_info->sql_mode_inited)) /* first Query event */
     {
-      last_event_info->sql_mode_inited= 1;
+      print_event_info->sql_mode_inited= 1;
       /* force a difference to force write */
-      last_event_info->sql_mode= ~sql_mode;
+      print_event_info->sql_mode= ~sql_mode;
     }
-    if (unlikely(last_event_info->sql_mode != sql_mode))
+    if (unlikely(print_event_info->sql_mode != sql_mode))
     {
       fprintf(file,"SET @@session.sql_mode=%lu;\n",(ulong)sql_mode);
-      last_event_info->sql_mode= sql_mode;
+      print_event_info->sql_mode= sql_mode;
     }
   }
-  if (last_event_info->auto_increment_increment != auto_increment_increment ||
-      last_event_info->auto_increment_offset != auto_increment_offset)
+  if (print_event_info->auto_increment_increment != auto_increment_increment ||
+      print_event_info->auto_increment_offset != auto_increment_offset)
   {
     fprintf(file,"SET @@session.auto_increment_increment=%lu, @@session.auto_increment_offset=%lu;\n",
             auto_increment_increment,auto_increment_offset);
-    last_event_info->auto_increment_increment= auto_increment_increment;
-    last_event_info->auto_increment_offset=    auto_increment_offset;
+    print_event_info->auto_increment_increment= auto_increment_increment;
+    print_event_info->auto_increment_offset=    auto_increment_offset;
   }
 
   /* TODO: print the catalog when we feature SET CATALOG */
 
   if (likely(charset_inited))
   {
-    if (unlikely(!last_event_info->charset_inited)) /* first Query event */
+    if (unlikely(!print_event_info->charset_inited)) /* first Query event */
     {
-      last_event_info->charset_inited= 1;
-      last_event_info->charset[0]= ~charset[0]; // force a difference to force write
+      print_event_info->charset_inited= 1;
+      print_event_info->charset[0]= ~charset[0]; // force a difference to force write
     }
-    if (unlikely(bcmp(last_event_info->charset, charset, 6)))
+    if (unlikely(bcmp(print_event_info->charset, charset, 6)))
     {
       fprintf(file,"SET "
               "@@session.character_set_client=%d,"
@@ -1544,23 +1544,23 @@ void Query_log_event::print_query_header(FILE* file,
               uint2korr(charset),
               uint2korr(charset+2),
               uint2korr(charset+4));
-      memcpy(last_event_info->charset, charset, 6);
+      memcpy(print_event_info->charset, charset, 6);
     }
   }
   if (time_zone_len)
   {
-    if (bcmp(last_event_info->time_zone_str, time_zone_str, time_zone_len+1))
+    if (bcmp(print_event_info->time_zone_str, time_zone_str, time_zone_len+1))
     {
       fprintf(file,"SET @@session.time_zone='%s';\n", time_zone_str);
-      memcpy(last_event_info->time_zone_str, time_zone_str, time_zone_len+1);
+      memcpy(print_event_info->time_zone_str, time_zone_str, time_zone_len+1);
     }
   }
 }
 
 
-void Query_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  print_query_header(file, last_event_info);
+  print_query_header(file, print_event_info);
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fputs(";\n", file);
 }
@@ -1858,11 +1858,11 @@ void Start_log_event_v3::pack_info(Protocol *protocol)
 */
 
 #ifdef MYSQL_CLIENT
-void Start_log_event_v3::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
   {
-    print_header(file, last_event_info);
+    print_header(file, print_event_info);
     fprintf(file, "\tStart: binlog v %d, server v %s created ", binlog_version,
             server_version);
     print_timestamp(file);
@@ -2586,19 +2586,19 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 */
 
 #ifdef MYSQL_CLIENT
-void Load_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Load_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  print(file, last_event_info, 0);
+  print(file, print_event_info, 0);
 }
 
 
-void Load_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info,
+void Load_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info,
 			   bool commented)
 {
   DBUG_ENTER("Load_log_event::print");
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
   {
-    print_header(file, last_event_info);
+    print_header(file, print_event_info);
     fprintf(file, "\tQuery\tthread_id=%ld\texec_time=%ld\n",
 	    thread_id, exec_time);
   }
@@ -2612,9 +2612,9 @@ void Load_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info,
       But if commented, the "use" is going to be commented so we should not
       update the last_db.
     */
-    if ((different_db= memcmp(last_event_info->db, db, db_len + 1)) &&
+    if ((different_db= memcmp(print_event_info->db, db, db_len + 1)) &&
         !commented)
-      memcpy(last_event_info->db, db, db_len + 1);
+      memcpy(print_event_info->db, db, db_len + 1);
   }
   
   if (db && db[0] && different_db)
@@ -3003,13 +3003,13 @@ void Rotate_log_event::pack_info(Protocol *protocol)
 */
 
 #ifdef MYSQL_CLIENT
-void Rotate_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   char buf[22];
 
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
     return;
-  print_header(file, last_event_info);
+  print_header(file, print_event_info);
   fprintf(file, "\tRotate to ");
   if (new_log_ident)
     my_fwrite(file, (byte*) new_log_ident, (uint)ident_len, 
@@ -3205,15 +3205,15 @@ bool Intvar_log_event::write(IO_CACHE* file)
 */
 
 #ifdef MYSQL_CLIENT
-void Intvar_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   char llbuff[22];
   const char *msg;
   LINT_INIT(msg);
 
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
   {
-    print_header(file, last_event_info);
+    print_header(file, print_event_info);
     fprintf(file, "\tIntvar\n");
   }
 
@@ -3294,12 +3294,12 @@ bool Rand_log_event::write(IO_CACHE* file)
 
 
 #ifdef MYSQL_CLIENT
-void Rand_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Rand_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   char llbuff[22],llbuff2[22];
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
   {
-    print_header(file, last_event_info);
+    print_header(file, print_event_info);
     fprintf(file, "\tRand\n");
   }
   fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s;\n",
@@ -3364,14 +3364,14 @@ bool Xid_log_event::write(IO_CACHE* file)
 
 
 #ifdef MYSQL_CLIENT
-void Xid_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
   {
     char buf[64];
     longlong10_to_str(xid, buf, 10);
 
-    print_header(file, last_event_info);
+    print_header(file, print_event_info);
     fprintf(file, "\tXid = %s\n", buf);
     fflush(file);
   }
@@ -3562,11 +3562,11 @@ bool User_var_log_event::write(IO_CACHE* file)
 */
 
 #ifdef MYSQL_CLIENT
-void User_var_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
   {
-    print_header(file, last_event_info);
+    print_header(file, print_event_info);
     fprintf(file, "\tUser_var\n");
   }
 
@@ -3737,11 +3737,11 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 
 #ifdef HAVE_REPLICATION
 #ifdef MYSQL_CLIENT
-void Unknown_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Unknown_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
     return;
-  print_header(file, last_event_info);
+  print_header(file, print_event_info);
   fputc('\n', file);
   fprintf(file, "# %s", "Unknown event\n");
 }
@@ -3808,12 +3808,12 @@ Slave_log_event::~Slave_log_event()
 
 
 #ifdef MYSQL_CLIENT
-void Slave_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Slave_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   char llbuff[22];
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
     return;
-  print_header(file, last_event_info);
+  print_header(file, print_event_info);
   fputc('\n', file);
   fprintf(file, "\
 Slave: master_host: '%s'  master_port: %d  master_log: '%s'  master_pos: %s\n",
@@ -3893,12 +3893,12 @@ int Slave_log_event::exec_event(struct st_relay_log_info* rli)
 */
 
 #ifdef MYSQL_CLIENT
-void Stop_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
     return;
 
-  print_header(file, last_event_info);
+  print_header(file, print_event_info);
   fprintf(file, "\tStop\n");
   fflush(file);
 }
@@ -4072,19 +4072,19 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
 */
 
 #ifdef MYSQL_CLIENT
-void Create_file_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info,
+void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info,
 				  bool enable_local)
 {
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
   {
     if (enable_local && check_fname_outside_temp_buf())
-      Load_log_event::print(file, last_event_info);
+      Load_log_event::print(file, print_event_info);
     return;
   }
 
   if (enable_local)
   {
-    Load_log_event::print(file, last_event_info,
+    Load_log_event::print(file, print_event_info,
 			  !check_fname_outside_temp_buf());
     /* 
        That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
@@ -4097,9 +4097,9 @@ void Create_file_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info,
 }
 
 
-void Create_file_log_event::print(FILE* file, LAST_EVENT_INFO* last_event_info)
+void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
-  print(file, last_event_info, 0);
+  print(file, print_event_info, 0);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -4260,11 +4260,11 @@ bool Append_block_log_event::write(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT  
 void Append_block_log_event::print(FILE* file,
-				   LAST_EVENT_INFO* last_event_info)
+				   PRINT_EVENT_INFO* print_event_info)
 {
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
     return;
-  print_header(file, last_event_info);
+  print_header(file, print_event_info);
   fputc('\n', file);
   fprintf(file, "#%s: file_id: %d  block_len: %d\n",
 	  get_type_str(), file_id, block_len);
@@ -4404,11 +4404,11 @@ bool Delete_file_log_event::write(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT  
 void Delete_file_log_event::print(FILE* file,
-				  LAST_EVENT_INFO* last_event_info)
+				  PRINT_EVENT_INFO* print_event_info)
 {
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
     return;
-  print_header(file, last_event_info);
+  print_header(file, print_event_info);
   fputc('\n', file);
   fprintf(file, "#Delete_file: file_id=%u\n", file_id);
 }
@@ -4500,11 +4500,11 @@ bool Execute_load_log_event::write(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT  
 void Execute_load_log_event::print(FILE* file,
-				   LAST_EVENT_INFO* last_event_info)
+				   PRINT_EVENT_INFO* print_event_info)
 {
-  if (last_event_info->short_form)
+  if (print_event_info->short_form)
     return;
-  print_header(file, last_event_info);
+  print_header(file, print_event_info);
   fputc('\n', file);
   fprintf(file, "#Exec_load: file_id=%d\n",
 	  file_id);
@@ -4712,17 +4712,17 @@ Execute_load_query_log_event::write_post_header_for_derived(IO_CACHE* file)
 
 #ifdef MYSQL_CLIENT
 void Execute_load_query_log_event::print(FILE* file,
-                                         LAST_EVENT_INFO* last_event_info)
+                                         PRINT_EVENT_INFO* print_event_info)
 {
-  print(file, last_event_info, 0);
+  print(file, print_event_info, 0);
 }
 
 
 void Execute_load_query_log_event::print(FILE* file,
-                                         LAST_EVENT_INFO* last_event_info,
+                                         PRINT_EVENT_INFO* print_event_info,
                                          const char *local_fname)
 {
-  print_query_header(file, last_event_info);
+  print_query_header(file, print_event_info);
 
   if (local_fname)
   {
@@ -4743,7 +4743,7 @@ void Execute_load_query_log_event::print(FILE* file,
     fprintf(file, ";\n");
   }
 
-  if (!last_event_info->short_form)
+  if (!print_event_info->short_form)
     fprintf(file, "# file_id: %d \n", file_id);
 }
 #endif
