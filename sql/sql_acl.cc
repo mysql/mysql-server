@@ -194,6 +194,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   my_bool return_val= 1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
+  int password_length;
   DBUG_ENTER("acl_load");
 
   grant_version++; /* Privileges updated */
@@ -250,7 +251,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
   init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
-  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+  password_length= table->field[2]->field_length /
+    table->field[2]->charset()->mbmaxlen;
+  if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
     sql_print_error("Fatal error: mysql.user table is damaged or in "
                     "unsupported 3.20 format.");
@@ -258,10 +261,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   }
 
   DBUG_PRINT("info",("user table fields: %d, password length: %d",
-		     table->s->fields, table->field[2]->field_length));
+		     table->s->fields, password_length));
 
   pthread_mutex_lock(&LOCK_global_system_variables);
-  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
+  if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
     if (opt_secure_auth)
     {
