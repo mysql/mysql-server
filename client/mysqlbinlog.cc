@@ -62,6 +62,7 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 void sql_print_error(const char *format, ...);
 
 static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
+static bool opt_hexdump= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
@@ -489,12 +490,13 @@ static bool check_database(const char *log_dbname)
 
 
 
-int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
+int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
                   my_off_t pos)
 {
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();
   DBUG_ENTER("process_event");
+  print_event_info->short_form= short_form;
 
   /*
     Format events are not concerned by --offset and such, we always need to
@@ -522,12 +524,17 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
     }
     if (!short_form)
       fprintf(result_file, "# at %s\n",llstr(pos,ll_buff));
-    
+
+    if (!opt_hexdump)
+      print_event_info->hexdump_from= 0; /* Disabled */
+    else
+      print_event_info->hexdump_from= pos;
+
     switch (ev_type) {
     case QUERY_EVENT:
       if (check_database(((Query_log_event*)ev)->db))
         goto end;
-      ev->print(result_file, short_form, last_event_info);
+      ev->print(result_file, print_event_info);
       break;
     case CREATE_FILE_EVENT:
     {
@@ -547,7 +554,8 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
-      ce->print(result_file, short_form, last_event_info, TRUE);
+      ce->print(result_file, print_event_info, TRUE);
+
       // If this binlog is not 3.23 ; why this test??
       if (description_event->binlog_version >= 3)
       {
@@ -558,13 +566,13 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
       break;
     }
     case APPEND_BLOCK_EVENT:
-      ev->print(result_file, short_form, last_event_info);
+      ev->print(result_file, print_event_info);
       if (load_processor.process((Append_block_log_event*) ev))
 	break;					// Error
       break;
     case EXEC_LOAD_EVENT:
     {
-      ev->print(result_file, short_form, last_event_info);
+      ev->print(result_file, print_event_info);
       Execute_load_log_event *exv= (Execute_load_log_event*)ev;
       Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
       /*
@@ -574,7 +582,7 @@ int process_event(LAST_EVENT_INFO *last_event_info, Log_event *ev,
       */
       if (ce)
       {
-	ce->print(result_file, short_form, last_event_info, TRUE);
+	ce->print(result_file, print_event_info, TRUE);
 	my_free((char*)ce->fname,MYF(MY_WME));
 	delete ce;
       }
@@ -586,7 +594,8 @@ Create_file event for file_id: %u\n",exv->file_id);
     case FORMAT_DESCRIPTION_EVENT:
       delete description_event;
       description_event= (Format_description_log_event*) ev;
-      ev->print(result_file, short_form, last_event_info);
+      print_event_info->common_header_len= description_event->common_header_len;
+      ev->print(result_file, print_event_info);
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -596,7 +605,7 @@ Create_file event for file_id: %u\n",exv->file_id);
       ev= 0;
       break;
     case BEGIN_LOAD_QUERY_EVENT:
-      ev->print(result_file, short_form, last_event_info);
+      ev->print(result_file, print_event_info);
       load_processor.process((Begin_load_query_log_event*) ev);
       break;
     case EXECUTE_LOAD_QUERY_EVENT:
@@ -613,7 +622,7 @@ Create_file event for file_id: %u\n",exv->file_id);
 
       if (fname)
       {
-	exlq->print(result_file, short_form, last_event_info, fname);
+	exlq->print(result_file, print_event_info, fname);
 	my_free(fname, MYF(MY_WME));
       }
       else
@@ -622,7 +631,7 @@ Begin_load_query event for file_id: %u\n", exlq->file_id);
       break;
     }
     default:
-      ev->print(result_file, short_form, last_event_info);
+      ev->print(result_file, print_event_info);
     }
   }
 
@@ -669,6 +678,9 @@ static struct my_option my_long_options[] =
    0, 0},
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"hexdump", 'H', "Augment output with hexadecimal and ASCII event dump.",
+   (gptr*) &opt_hexdump, (gptr*) &opt_hexdump, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"host", 'h', "Get the binlog from server.", (gptr*) &host, (gptr*) &host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"offset", 'o', "Skip the first N entries.", (gptr*) &offset, (gptr*) &offset,
@@ -1002,7 +1014,7 @@ static int dump_remote_log_entries(const char* logname)
 
 {
   char buf[128];
-  LAST_EVENT_INFO last_event_info;
+  PRINT_EVENT_INFO print_event_info;
   ulong len;
   uint logname_len;
   NET* net;
@@ -1125,7 +1137,7 @@ could be out of memory");
           len= 1; // fake Rotate, so don't increment old_off
         }
       }
-      if ((error= process_event(&last_event_info,ev,old_off)))
+      if ((error= process_event(&print_event_info, ev, old_off)))
       {
 	error= ((error < 0) ? 0 : 1);
         goto err;
@@ -1144,7 +1156,7 @@ could be out of memory");
         goto err;
       }
       
-      if ((error= process_event(&last_event_info,ev,old_off)))
+      if ((error= process_event(&print_event_info, ev, old_off)))
       {
  	my_close(file,MYF(MY_WME));
 	error= ((error < 0) ? 0 : 1);
@@ -1273,7 +1285,7 @@ static int dump_local_log_entries(const char* logname)
 {
   File fd = -1;
   IO_CACHE cache,*file= &cache;
-  LAST_EVENT_INFO last_event_info;
+  PRINT_EVENT_INFO print_event_info;
   byte tmp_buff[BIN_LOG_HEADER_SIZE];
   int error= 0;
 
@@ -1345,7 +1357,7 @@ static int dump_local_log_entries(const char* logname)
       // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }
-    if ((error= process_event(&last_event_info,ev,old_off)))
+    if ((error= process_event(&print_event_info, ev, old_off)))
     {
       if (error < 0)
         error= 0;
