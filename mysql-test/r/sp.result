@@ -3504,4 +3504,32 @@ drop procedure bug7049_5|
 drop procedure bug7049_6|
 drop function bug7049_1|
 drop function bug7049_2|
+drop function if exists bug13941|
+drop procedure if exists bug13941|
+create function bug13941(p_input_str text)
+returns text
+begin
+declare p_output_str text;
+set p_output_str = p_input_str;
+set p_output_str = replace(p_output_str, 'xyzzy', 'plugh');
+set p_output_str = replace(p_output_str, 'test', 'prova');
+set p_output_str = replace(p_output_str, 'this', 'questo');
+set p_output_str = replace(p_output_str, ' a ', 'una ');
+set p_output_str = replace(p_output_str, 'is', '');
+return p_output_str;
+end|
+create procedure bug13941(out sout varchar(128))
+begin
+set sout = 'Local';
+set sout = ifnull(sout, 'DEF');
+end|
+select bug13941('this is a test')|
+bug13941('this is a test')
+questo una prova
+call bug13941(@a)|
+select @a|
+@a
+Local
+drop function bug13941|
+drop procedure bug13941|
 drop table t1,t2;
