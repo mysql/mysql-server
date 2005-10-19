@@ -2869,7 +2869,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
   thd->security_ctx->skip_grants();
-  thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread = 1;
