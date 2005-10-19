@@ -2872,6 +2872,9 @@ ha_innobase::store_key_val_for_row(
 			ulint	lenlen;
 			ulint	len;
 			byte*	data;
+			ulint	key_len;
+			CHARSET_INFO*	cs;
+			int	error=0;
 
 			if (is_null) {
 				buff += key_part->length + 2;
@@ -2890,8 +2893,20 @@ ha_innobase::store_key_val_for_row(
 			/* In a column prefix index, we may need to truncate
 			the stored value: */
 		
-			if (len > key_part->length) {
-			        len = key_part->length;
+			cs = key_part->field->charset();
+
+			if (cs->mbmaxlen > 1 && key_part->length > 0) {
+				key_len = (ulint) cs->cset->well_formed_len(cs, 
+					(const char *) data,
+					(const char *) data + key_part->length,
+					key_part->length / cs->mbmaxlen, 
+					&error);
+			} else {
+				key_len = key_part->length;
+			}
+
+			if (len > key_len) {
+				len = key_len;
 			}
 
 			/* The length in a key value is always stored in 2
@@ -2915,6 +2930,11 @@ ha_innobase::store_key_val_for_row(
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
 
+			CHARSET_INFO*	cs;
+			ulint		key_len;
+			ulint		len;
+			int		error=0;
+
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
 		        if (is_null) {
@@ -2935,8 +2955,21 @@ ha_innobase::store_key_val_for_row(
 			indexes, and we may need to truncate the data to be
 			stored in the key value: */
 
-			if (blob_len > key_part->length) {
-			        blob_len = key_part->length;
+			cs = key_part->field->charset();
+			
+			if (cs->mbmaxlen > 1 && key_part->length > 0) {
+				key_len = (ulint) cs->cset->well_formed_len(cs, 
+					(const char *) blob_data,
+					(const char *) blob_data 
+						+ key_part->length,
+					key_part->length / cs->mbmaxlen,
+					&error);
+			} else {
+				key_len = key_part->length;
+			}
+
+			if (blob_len > key_len) {
+				blob_len = key_len;
 			}
 
 			/* MySQL reserves 2 bytes for the length and the
@@ -2958,15 +2991,40 @@ ha_innobase::store_key_val_for_row(
 			value we store may be also in a column prefix
 			index. */
 
+			CHARSET_INFO*		cs;
+			ulint			len;
+			const mysql_byte*	src_start;
+			int			error=0;
+
 		        if (is_null) {
 				 buff += key_part->length;
 				 
 				 continue;
 			}
 
-			memcpy(buff, record + key_part->offset,
-							key_part->length);
-			buff += key_part->length;
+			cs = key_part->field->charset();
+			src_start = record + key_part->offset;
+
+			if (key_part->length > 0 && cs->mbmaxlen > 1) {
+				len = (ulint) cs->cset->well_formed_len(cs, 
+					src_start,
+					src_start + key_part->length,
+					key_part->length / cs->mbmaxlen, 
+					&error);
+			} else {
+				len = key_part->length;
+			}
+
+			memcpy(buff, src_start, len);
+			buff+=len;
+
+			/* Pad the unused space with spaces */
+
+			if (len < key_part->length) {
+				len = key_part->length - len;
+				memset(buff, ' ', len);
+				buff+=len;
+			}
 		}
   	}
 
