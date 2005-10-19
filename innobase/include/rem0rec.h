@@ -312,6 +312,15 @@ rec_offs_nth_extern(
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n);	/* in: nth field */
 /**********************************************************
+Returns nonzero if the SQL NULL bit is set in nth field of rec. */
+UNIV_INLINE
+ulint
+rec_offs_nth_sql_null(
+/*==================*/
+				/* out: nonzero if SQL NULL */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	ulint		n);	/* in: nth field */
+/**********************************************************
 Gets the physical size of a field. */
 UNIV_INLINE
 ulint
