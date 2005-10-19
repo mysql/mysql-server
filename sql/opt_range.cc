@@ -1401,7 +1401,7 @@ uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
     if (!ord->asc)
       return MAX_KEY;
 
-  for (idx= 0; idx < table->keys; idx++)
+  for (idx= 0; idx < table->s->keys; idx++)
   {
     if (!(table->keys_in_use_for_query.is_set(idx)))
       continue;
