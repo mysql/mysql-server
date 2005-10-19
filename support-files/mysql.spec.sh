@@ -1,8 +1,15 @@
 %define mysql_version		@VERSION@
+
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
 # to enable static linking (off by default)
 %{?_with_static:%define STATIC_BUILD 1}
 %{!?_with_static:%define STATIC_BUILD 0}
+
+# use "rpmbuild --with yassl" or "rpm --define '_with_yassl 1'" (for RPM 3.x)
+# to build with yaSSL support (off by default)
+%{?_with_yassl:%define YASSL_BUILD 1}
+%{!?_with_yassl:%define YASSL_BUILD 0}
+
 %if %{STATIC_BUILD}
 %define release 0
 %else
@@ -239,7 +246,9 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
 	    --with-extra-charsets=complex \
+%if %{YASSL_BUILD}
 	    --with-yassl \
+%endif
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \
@@ -685,6 +694,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Oct 19 2005 Kent Boortz <kent@mysql.com>
+
+- Made yaSSL support an option (off by default)
+
 * Wed Oct 19 2005 Kent Boortz <kent@mysql.com>
 
 - Enabled yaSSL support
