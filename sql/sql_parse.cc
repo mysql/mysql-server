@@ -4068,6 +4068,19 @@ end_with_restore_list:
 
     DBUG_ASSERT(lex->sphead != 0);
 
+    if (!lex->sphead->m_db.str || !lex->sphead->m_db.str[0])
+    {
+      if (! thd->db)
+      {
+        my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+        delete lex->sphead;
+        lex->sphead= 0;
+        goto error;
+      }
+      lex->sphead->m_db.length= strlen(thd->db);
+      lex->sphead->m_db.str= thd->db;
+    }
+
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0,
                      is_schema_db(lex->sphead->m_db.str)))
     {
@@ -4077,13 +4090,10 @@ end_with_restore_list:
     }
 
     if (end_active_trans(thd)) 
-      goto error;
-
-    if (!lex->sphead->m_db.str || !lex->sphead->m_db.str[0])
     {
-      lex->sphead->m_db.length= strlen(thd->db);
-      lex->sphead->m_db.str= strmake_root(thd->mem_root, thd->db,
-                                           lex->sphead->m_db.length);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
     }
 
     name= lex->sphead->name(&namelen);
@@ -4110,11 +4120,23 @@ end_with_restore_list:
       goto error;
     }
 
+    /*
+      We need to copy name and db in order to use them for
+      check_routine_access which is called after lex->sphead has
+      been deleted.
+    */
     name= thd->strdup(name); 
-    db= thd->strmake(lex->sphead->m_db.str, lex->sphead->m_db.length);
+    lex->sphead->m_db.str= db= thd->strmake(lex->sphead->m_db.str,
+                                            lex->sphead->m_db.length);
     res= (result= lex->sphead->create(thd));
     if (result == SP_OK)
     {
+      /*
+        We must cleanup the unit and the lex here because
+        sp_grant_privileges calls (indirectly) db_find_routine,
+        which in turn may call yyparse with THD::lex.
+        TODO: fix db_find_routine to use a temporary lex.
+      */
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;

@@ -872,3 +872,14 @@ names
 foo4
 drop procedure bug13510_3|
 drop procedure bug13510_4|
+create database mysqltest1;
+use mysqltest1;
+drop database mysqltest1;
+create function f1() returns int return 1;
+ERROR 3D000: No database selected
+create procedure p1(out param1 int)
+begin
+select count(*) into param1 from t3;
+end|
+ERROR 3D000: No database selected
+use test;
