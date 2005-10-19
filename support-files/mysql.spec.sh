@@ -239,6 +239,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
 	    --with-extra-charsets=complex \
+	    --with-yassl \
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \
@@ -684,6 +685,9 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Oct 19 2005 Kent Boortz <kent@mysql.com>
+
+- Enabled yaSSL support
 
 * Sat Oct 15 2005 Kent Boortz <kent@mysql.com>
 
