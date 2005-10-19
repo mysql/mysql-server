@@ -37,6 +37,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool          using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, safe_update, const_cond;
   ha_rows	deleted;
+  uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_delete");
 
@@ -140,27 +141,40 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     tables.table = table;
     tables.alias = table_list->alias;
 
-    table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
-                                             MYF(MY_FAE | MY_ZEROFILL));
       if (select_lex->setup_ref_array(thd, order->elements) ||
 	  setup_order(thd, select_lex->ref_pointer_array, &tables,
-		      fields, all_fields, (ORDER*) order->first) ||
-	  !(sortorder=make_unireg_sortorder((ORDER*) order->first, &length)) ||
+                    fields, all_fields, (ORDER*) order->first))
+    {
+      delete select;
+      free_underlaid_joins(thd, &thd->lex->select_lex);
+      DBUG_RETURN(TRUE);
+    }
+    
+    if (!select && limit != HA_POS_ERROR)
+      usable_index= get_index_for_order(table, (ORDER*)(order->first), limit);
+
+    if (usable_index == MAX_KEY)
+    {
+      table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
+                                                   MYF(MY_FAE | MY_ZEROFILL));
+    
+      if ( !(sortorder=make_unireg_sortorder((ORDER*) order->first, &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
 					   select, HA_POS_ERROR,
 					   &examined_rows))
 	  == HA_POS_ERROR)
-    {
+      {
+        delete select;
+        free_underlaid_joins(thd, &thd->lex->select_lex);
+      }
+      /*
+        Filesort has already found and selected the rows we want to delete,
+        so we don't need the where clause
+      */
       delete select;
       free_underlaid_joins(thd, select_lex);
-      DBUG_RETURN(TRUE);
+      select= 0;
     }
-    /*
-      Filesort has already found and selected the rows we want to delete,
-      so we don't need the where clause
-    */
-    delete select;
-    select= 0;
   }
 
   /* If quick select is used, initialize it before retrieving rows. */
@@ -170,7 +184,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(TRUE);
   }
-  init_read_record(&info,thd,table,select,1,1);
+  if (usable_index==MAX_KEY)
+    init_read_record(&info,thd,table,select,1,1);
+  else
+    init_read_record_idx(&info, thd, table, 1, usable_index);
+
   deleted=0L;
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
