@@ -147,7 +147,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     {
       delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
-      DBUG_RETURN(-1);			// This will force out message
+      DBUG_RETURN(TRUE);
     }
     
     if (!select && limit != HA_POS_ERROR)
@@ -166,7 +166,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       {
         delete select;
         free_underlaid_joins(thd, &thd->lex->select_lex);
-        DBUG_RETURN(-1);			// This will force out message
       }
       /*
         Filesort has already found and selected the rows we want to delete,
@@ -175,7 +174,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       delete select;
       free_underlaid_joins(thd, select_lex);
       select= 0;
-      DBUG_RETURN(TRUE);
     }
   }
 
