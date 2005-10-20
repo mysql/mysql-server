@@ -916,3 +916,20 @@ insert into t1 values('a'),('a'),(0xE38182),(0xE38182);
 insert into t1 values('i'),('i'),(0xE38184),(0xE38184);
 select * from t1 union distinct select * from t2;
 drop table t1,t2;
+
+
+#
+# Bug#12371: executing prepared statement fails (illegal mix of collations)
+#
+set names utf8;
+create table t1 (a char(10), b varchar(10));
+insert into t1 values ('bar','kostja');
+insert into t1 values ('kostja','bar');
+prepare my_stmt from "select * from t1 where a=?";
+set @a:='bar';
+execute my_stmt using @a;
+set @a:='kostja';
+execute my_stmt using @a;
+set @a:=null;
+execute my_stmt using @a;
+drop table if exists t1;
