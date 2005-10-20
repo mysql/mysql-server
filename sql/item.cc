@@ -696,6 +696,32 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
+Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  if (const_item())
+  {
+    Item_string *conv;
+    uint cnv_errors;
+    char buf[MAX_FIELD_WIDTH];
+    String tmp(buf, sizeof(buf), &my_charset_bin);
+    String cstr, *ostr= val_str(&tmp);
+    /*
+      As safe_charset_converter is not executed for
+      a parameter bound to NULL, ostr should never be 0.
+    */
+    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &cnv_errors);
+    if (cnv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                              cstr.charset(),
+                                              collation.derivation)))
+      return NULL;
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+    return conv;
+  }
+  return NULL;
+}
+
+
 Item *Item_static_string_func::safe_charset_converter(CHARSET_INFO *tocs)
 {
   Item_string *conv;
@@ -1351,7 +1377,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (arena)
+    if (arena && arena->is_conventional())
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);

@@ -1131,3 +1131,20 @@ a
 i
 い
 drop table t1,t2;
+set names utf8;
+create table t1 (a char(10), b varchar(10));
+insert into t1 values ('bar','kostja');
+insert into t1 values ('kostja','bar');
+prepare my_stmt from "select * from t1 where a=?";
+set @a:='bar';
+execute my_stmt using @a;
+a	b
+bar	kostja
+set @a:='kostja';
+execute my_stmt using @a;
+a	b
+kostja	bar
+set @a:=null;
+execute my_stmt using @a;
+a	b
+drop table if exists t1;
