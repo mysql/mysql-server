@@ -38,6 +38,22 @@ my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
 }
 
 
+static uint
+get_collation_number_internal(const char *name)
+{
+  CHARSET_INFO **cs;
+  for (cs= all_charsets;
+       cs < all_charsets+array_elements(all_charsets)-1 ;
+       cs++)
+  {
+    if ( cs[0] && cs[0]->name && 
+         !my_strcasecmp(&my_charset_latin1, cs[0]->name, name))
+      return cs[0]->number;
+  }  
+  return 0;
+}
+
+
 static my_bool init_state_maps(CHARSET_INFO *cs)
 {
   uint i;
@@ -189,7 +205,8 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 
 static int add_collation(CHARSET_INFO *cs)
 {
-  if (cs->name && (cs->number || (cs->number=get_collation_number(cs->name))))
+  if (cs->name && (cs->number ||
+                   (cs->number=get_collation_number_internal(cs->name))))
   {
     if (!all_charsets[cs->number])
     {
@@ -419,18 +436,8 @@ void free_charsets(void)
 
 uint get_collation_number(const char *name)
 {
-  CHARSET_INFO **cs;
   init_available_charsets(MYF(0));
-  
-  for (cs= all_charsets;
-       cs < all_charsets+array_elements(all_charsets)-1 ;
-       cs++)
-  {
-    if ( cs[0] && cs[0]->name && 
-         !my_strcasecmp(&my_charset_latin1, cs[0]->name, name))
-      return cs[0]->number;
-  }  
-  return 0;   /* this mimics find_type() */
+  return get_collation_number_internal(name);
 }
 
 
