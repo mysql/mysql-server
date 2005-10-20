@@ -194,6 +194,18 @@ inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 #endif
 
 
+static bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    DBUG_ASSERT(table->db && table->table_name);
+    if (table->updating &&
+        !find_temporary_table(thd, table->db, table->table_name))
+      return 1;
+  }
+  return 0;
+}
+
 static HASH hash_user_connections;
 
 static int get_or_create_user_conn(THD *thd, const char *user,
@@ -2363,7 +2375,7 @@ mysql_execute_command(THD *thd)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
-  if (thd->slave_thread)
+  if (unlikely(thd->slave_thread))
   {
     /*
       Check if statment should be skipped because of slave filtering
@@ -2402,16 +2414,20 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
+  else
 #endif /* HAVE_REPLICATION */
 
   /*
-    When option readonly is set deny operations which change tables.
-    Except for the replication thread and the 'super' users.
+    When option readonly is set deny operations which change non-temporary
+    tables. Except for the replication thread and the 'super' users.
   */
   if (opt_readonly &&
-      !(thd->slave_thread ||
-        (thd->security_ctx->master_access & SUPER_ACL)) &&
-      uc_update_queries[lex->sql_command])
+      !(thd->security_ctx->master_access & SUPER_ACL) &&
+      uc_update_queries[lex->sql_command] &&
+      !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
+        (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
+      ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
+       some_non_temp_table_to_be_updated(thd, all_tables)))
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
     DBUG_RETURN(-1);
@@ -3210,13 +3226,24 @@ end_with_restore_list:
 
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
-    if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
+    if (unlikely(thd->slave_thread))
     {
-      /* we warn the slave SQL thread */
-      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      if (all_tables_not_ok(thd, all_tables))
+      {
+        /* we warn the slave SQL thread */
+        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+        break;
+      }
+    }
+    else
+#endif /* HAVE_REPLICATION */
+    if (opt_readonly &&
+        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        some_non_temp_table_to_be_updated(thd, all_tables))
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       break;
     }
-#endif /* HAVE_REPLICATION */
 
     res= mysql_multi_update(thd, all_tables,
                             &select_lex->item_list,

@@ -1,0 +1,103 @@
+# Test of the READ_ONLY global variable:
+# check that it blocks updates unless they are only on temporary tables.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+--enable_warnings
+
+# READ_ONLY does nothing to SUPER users
+# so we use a non-SUPER one:
+
+grant CREATE, SELECT, DROP on *.* to test@localhost;
+
+connect (con1,localhost,test,,test);
+
+connection default;
+
+set global read_only=0;
+
+connection con1;
+
+create table t1 (a int);
+
+insert into t1 values(1);
+
+create table t2 select * from t1;
+
+connection default;
+
+set global read_only=1;
+
+# We check that SUPER can:
+
+create table t3 (a int);
+drop table t3;
+
+connection con1;
+
+select @@global.read_only;
+
+--error 1290
+create table t3 (a int);
+
+--error 1290
+insert into t1 values(1);
+
+# if a statement, after parse stage, looks like it will update a
+# non-temp table, it will be rejected, even if at execution it would
+# have turned out that 0 rows would be updated
+--error 1290
+update t1 set a=1 where 1=0;
+
+# multi-update is special (see sql_parse.cc) so we test it
+--error 1290
+update t1,t2 set t1.a=t2.a+1 where t1.a=t2.a;
+
+# check multi-delete to be sure
+--error 1290
+delete t1,t2 from t1,t2 where t1.a=t2.a;
+
+# With temp tables updates should be accepted:
+
+create temporary table t3 (a int);
+
+create temporary table t4 (a int) select * from t3;
+
+insert into t3 values(1);
+
+insert into t4 select * from t3;
+
+# a non-temp table updated:
+--error 1290
+update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
+
+# no non-temp table updated (just swapped):
+update t1,t3 set t3.a=t1.a+1 where t1.a=t3.a;
+
+update t4,t3 set t4.a=t3.a+1 where t4.a=t3.a;
+
+--error 1290
+delete t1 from t1,t3 where t1.a=t3.a;
+
+delete t3 from t1,t3 where t1.a=t3.a;
+
+delete t4 from t3,t4 where t4.a=t3.a;
+
+# and even homonymous ones
+
+create temporary table t1 (a int);
+
+insert into t1 values(1);
+
+update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
+
+delete t1 from t1,t3 where t1.a=t3.a;
+
+drop table t1;
+
+--error 1290
+insert into t1 values(1);
+
+connection default;
+drop table t1,t2;
+drop user test@localhost;
