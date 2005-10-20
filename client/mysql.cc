@@ -1010,10 +1010,12 @@ static int read_and_execute(bool interactive)
 #elif defined(__WIN__)
       if (!tmpbuf.is_alloced())
         tmpbuf.alloc(65535);
+      tmpbuf.length(0);
       buffer.length(0);
       unsigned long clen;
       do
       {
+	line= my_cgets((char*)tmpbuf.ptr(), tmpbuf.alloced_length()-1, &clen);
         buffer.append(line, clen);
         /* 
            if we got buffer fully filled than there is a chance that
