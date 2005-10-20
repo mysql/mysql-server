@@ -243,7 +243,7 @@ our $opt_sleep_time_after_restart=  1;
 our $opt_sleep_time_for_delete=    10;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
-my  $default_testcase_timeout=     10; # 10 min max
+my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       120; # 2 hours max
 
 our $opt_socket;

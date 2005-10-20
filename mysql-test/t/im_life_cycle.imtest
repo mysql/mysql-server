@@ -46,6 +46,7 @@ SHOW INSTANCE STATUS mysqld2;
 --connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
 --connection mysql_con
 
+--replace_result $IM_MYSQLD1_PORT IM_MYSQLD1_PORT
 SHOW VARIABLES LIKE 'port';
 
 --connection default
