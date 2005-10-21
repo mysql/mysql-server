@@ -98,6 +98,8 @@ public:
     StartTcTimer = 2509,
     StopTcTimer = 2510,
     StartPeriodicTcTimer = 2511,
+    TcStartDumpIndexOpCount = 2512,
+    TcDumpIndexOpCount = 2513,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,
