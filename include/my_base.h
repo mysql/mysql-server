@@ -319,6 +319,8 @@ enum ha_base_keytype {
 #define SEARCH_NULL_ARE_EQUAL 32768	/* NULL in keys are equal */
 #define SEARCH_NULL_ARE_NOT_EQUAL 65536	/* NULL in keys are not equal */
 
+#define SEARCH_RETURN_B_POS (65536*2)   /* see ha_key_cmp for description */
+
 	/* bits in opt_flag */
 #define QUICK_USED	1
 #define READ_CACHE_USED	2
