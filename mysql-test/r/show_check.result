@@ -557,3 +557,10 @@ DROP TABLE tyt2;
 DROP TABLE urkunde;
 SHOW TABLES FROM non_existing_database;
 ERROR 42000: Unknown database 'non_existing_database'
+flush tables;
+SHOW TABLE STATUS like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Incorrect information in file: './test/t1.frm'
+show create table t1;
+ERROR HY000: Incorrect information in file: './test/t1.frm'
+drop table t1;
