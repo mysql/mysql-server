@@ -2965,6 +2965,63 @@ NULL
 SELECT IFNULL(NULL, NULL);
 IFNULL(NULL, NULL)
 NULL
+SET @OLD_SQL_MODE12595=@@SQL_MODE, @@SQL_MODE='';
+SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
+Variable_name	Value
+sql_mode	
+CREATE TABLE BUG_12595(a varchar(100));
+INSERT INTO BUG_12595 VALUES ('hakan%'), ('hakank'), ("ha%an");
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan%' ESCAPE '';
+a
+hakan%
+hakank
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%' ESCAPE '';
+a
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE 0x5c;
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha%%an' ESCAPE '%';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE '\\';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha|%an' ESCAPE '|';
+a
+ha%an
+SET @@SQL_MODE='NO_BACKSLASH_ESCAPES';
+SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
+Variable_name	Value
+sql_mode	NO_BACKSLASH_ESCAPES
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
+a
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%' ESCAPE '\\';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan%' ESCAPE '';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE 0x5c;
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha|%an' ESCAPE '|';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\n%' ESCAPE '\n';
+ERROR HY000: Incorrect arguments to ESCAPE
+SET @@SQL_MODE=@OLD_SQL_MODE12595;
+DROP TABLE BUG_12595;
 create table t1 (a char(1));
 create table t2 (a char(1));
 insert into t1 values ('a'),('b'),('c');
