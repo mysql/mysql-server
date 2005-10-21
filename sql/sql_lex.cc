@@ -175,6 +175,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->spcont= NULL;
   lex->proc_list.first= 0;
   lex->query_tables_own_last= 0;
+  lex->escape_used= FALSE;
 
   if (lex->sroutines.records)
     my_hash_reset(&lex->sroutines);
