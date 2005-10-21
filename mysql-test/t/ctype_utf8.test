@@ -859,6 +859,15 @@ create table t1 (a varchar(255)) default charset=utf8;
 select * from t1 where find_in_set('-1', a);
 drop table t1;
 
+#
+# Bug#13233: select distinct char(column) fails with utf8
+#
+create table t1 (a int);
+insert into t1 values (48),(49),(50);
+set names utf8;
+select distinct char(a) from t1;
+drop table t1;
+
 # End of 4.1 tests
 
 #
