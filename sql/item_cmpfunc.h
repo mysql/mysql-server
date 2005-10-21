@@ -985,13 +985,16 @@ class Item_func_like :public Item_bool_func2
   enum { alphabet_size = 256 };
 
   Item *escape_item;
+  
+  bool escape_used_in_parsing;
 
 public:
   int escape;
 
-  Item_func_like(Item *a,Item *b, Item *escape_arg)
+  Item_func_like(Item *a,Item *b, Item *escape_arg, bool escape_used)
     :Item_bool_func2(a,b), canDoTurboBM(FALSE), pattern(0), pattern_len(0), 
-     bmGs(0), bmBc(0), escape_item(escape_arg) {}
+     bmGs(0), bmBc(0), escape_item(escape_arg),
+     escape_used_in_parsing(escape_used) {}
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
   optimize_type select_optimize() const;
