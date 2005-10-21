@@ -894,6 +894,8 @@ typedef struct st_lex
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
   uchar *fname_start, *fname_end;
+  
+  bool escape_used;
 
   st_lex();
 
