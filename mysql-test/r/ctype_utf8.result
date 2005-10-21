@@ -1061,3 +1061,12 @@ create table t1 (a varchar(255)) default charset=utf8;
 select * from t1 where find_in_set('-1', a);
 a
 drop table t1;
+create table t1 (a int);
+insert into t1 values (48),(49),(50);
+set names utf8;
+select distinct char(a) from t1;
+char(a)
+0
+1
+2
+drop table t1;
