@@ -323,7 +323,7 @@ typedef enum
   MI_STATS_METHOD_NULLS_NOT_EQUAL,
   /* Treat NULLs as equal when collecting statistics (like 4.0 did) */
   MI_STATS_METHOD_NULLS_EQUAL,
-  /* Ignore NULLs - count tuples without NULLs only */
+  /* Ignore NULLs - count only tuples without NULLs in the index components */
   MI_STATS_METHOD_IGNORE_NULLS
 } enum_mi_stats_method;
 

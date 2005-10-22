@@ -603,10 +603,11 @@ void mi_collect_stats_nonulls_first(HA_KEYSEG *keyseg, ulonglong *notnull,
     Process the next index tuple:
     1. Find out which prefix tuples of last_key don't contain NULLs, and
        update the array of notnull counters accordingly.
-    2. Find the first keypart number where the tuples are different(A), or
-       last_key has NULL value (B), and return it, so caller can count
-       number of unique tuples for each key prefix. We don't need (B) to be
-       counted, and that is compensated back in update_key_parts().
+    2. Find the first keypart number where the prev_key and last_key tuples
+       are different(A), or last_key has NULL value(B), and return it, so the 
+       caller can count number of unique tuples for each key prefix. We don't 
+       need (B) to be counted, and that is compensated back in 
+       update_key_parts().
 
   RETURN
     1 + number of first keypart where values differ or last_key tuple has NULL
@@ -619,11 +620,19 @@ int mi_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
   uint diffs[2];
   uint first_null_seg, kp;
 
-  /* Find first keypart where values are different or either of them is NULL */
+  /* 
+     Find the first keypart where values are different or either of them is
+     NULL. We get results in diffs array:
+     diffs[0]= 1 + number of first different keypart
+     diffs[1]=offset: (last_key + diffs[1]) points to first value in
+                      last_key that is NULL or different from corresponding
+                      value in prev_key.
+  */
   ha_key_cmp(keyseg, prev_key, last_key, USE_WHOLE_KEY, 
              SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL | SEARCH_RETURN_B_POS,
              diffs);
   HA_KEYSEG *seg= keyseg + diffs[0] - 1;
+
   /* Find first NULL in last_key */
   first_null_seg= ha_find_null(seg, last_key + diffs[1]) - keyseg;
   for (kp= 0; kp < first_null_seg; kp++)
@@ -4087,7 +4096,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 
 /*
   Update statistics for each part of an index
-  
+
   SYNOPSIS
     update_key_parts()
       keyinfo           IN  Index information (only key->keysegs used)
@@ -4095,25 +4104,26 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       unique            IN  Array of (#distinct tuples)
       notnull_tuples    IN  Array of (#tuples), or NULL
       records               Number of records in the table
-      
-  NOTES
+
+  DESCRIPTION
+    This function is called produce index statistics values from unique and 
+    notnull_tuples arrays after these arrays were produced with sequential
+    index scan (the scan is done in two places: chk_index() and
+    sort_key_write()).
+
     This function handles all 3 index statistics collection methods.
 
     Unique is an array:
-    unique[0]= (#different values of {keypart1}) - 1
-    unique[1]= (#different values of {keypart1,keypart2} tuple) - unique[0] - 1
-    ...
-    
-    For MI_STATS_METHOD_IGNORE_NULLS notnull_tuples is an array too:
-    notnull_tuples[0]= (# of {keypart1} tuples such that keypart1 is not NULL)
-    notnull_tuples[1]= (# of {keypart1,keypart2} tuples such that all 
-                        keypart{i} are not NULL)
-    ...
-    For all other statistics collection methods notnull_tuples=NULL.
-      
-    The 'unique' array is collected in one sequential scan through the entire
-    index. This is done in two places: in chk_index() and in sort_key_write().
-    notnull_tuples, if present, is collected during the same index scan.
+      unique[0]= (#different values of {keypart1}) - 1
+      unique[1]= (#different values of {keypart1,keypart2} tuple)-unique[0]-1
+      ...
+
+    For MI_STATS_METHOD_IGNORE_NULLS method, notnull_tuples is an array too:
+      notnull_tuples[0]= (#of {keypart1} tuples such that keypart1 is not NULL)
+      notnull_tuples[1]= (#of {keypart1,keypart2} tuples such that all 
+                          keypart{i} are not NULL)
+      ...
+    For all other statistics collection methods notnull_tuples==NULL.
 
     Output is an array:
     rec_per_key_part[k] = 
