@@ -63,4 +63,6 @@ extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		      register uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);
 
+extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
+
 #endif /* _my_handler_h */
