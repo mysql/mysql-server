@@ -31,7 +31,6 @@ load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated 
 select * from t1;
 drop table t1;
 
-
 #
 # Bug #12053 LOAD DATA INFILE ignores NO_AUTO_VALUE_ON_ZERO setting
 #
@@ -57,5 +56,14 @@ enable_query_log;
 select * from t1;
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1
 SET @@SQL_MODE=@OLD_SQL_MODE;
+
+#
+# Bug #11203: LOAD DATA does not accept same characters for ESCAPED and
+# ENCLOSED
+#
+create table t1 (a varchar(20), b varchar(20));
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
+select * from t1;
+drop table t1;
 
 # End of 4.1 tests
