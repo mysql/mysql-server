@@ -76,3 +76,11 @@ select * from t1;
 id
 0
 SET @@SQL_MODE=@OLD_SQL_MODE;
+create table t1 (a varchar(20), b varchar(20));
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
+select * from t1;
+a	b
+field1	field2
+a"b	cd"ef
+a"b	c"d"e
+drop table t1;
