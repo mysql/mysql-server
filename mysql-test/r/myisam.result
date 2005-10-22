@@ -670,3 +670,35 @@ show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	10	NULL	NULL	YES	BTREE	
 drop table t1;
+set myisam_stats_method=nulls_ignored;
+show variables like 'myisam_stats_method';
+Variable_name	Value
+myisam_stats_method	nulls_ignored
+create table t1 (
+a char(3), b char(4), c char(5), d char(6),
+key(a,b,c,d)
+);
+insert into t1 values ('bcd','def1', NULL, 'zz');
+insert into t1 values ('bcd','def2', NULL, 'zz');
+insert into t1 values ('bce','def1', 'yuu', NULL);
+insert into t1 values ('bce','def2', NULL, 'quux');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	2	NULL	NULL	YES	BTREE	
+t1	1	a	2	b	A	4	NULL	NULL	YES	BTREE	
+t1	1	a	3	c	A	4	NULL	NULL	YES	BTREE	
+t1	1	a	4	d	A	4	NULL	NULL	YES	BTREE	
+delete from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	a	2	b	A	0	NULL	NULL	YES	BTREE	
+t1	1	a	3	c	A	0	NULL	NULL	YES	BTREE	
+t1	1	a	4	d	A	0	NULL	NULL	YES	BTREE	
+set myisam_stats_method=DEFAULT;
