@@ -86,18 +86,30 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 		position and this should also be compared
     diff_pos    OUT Number of first keypart where values differ, counting 
                 from one.
-                
-  NOTES
-    Number-keys can't be splited
   
   DESCRIPTION
-  
     If SEARCH_RETURN_B_POS flag is set, diff_pos must point to array of 2
-    values, first value has the meaning as described above, second value is:
-  
+    values, first value has the meaning as described in parameter
+    description above, the second value is:
+
     diff_pos[1]  OUT  (b + diff_pos[1]) points to first value in tuple b
                       that is different from corresponding value in tuple a.
-  
+
+  EXAMPLES 
+   Example1: if the function is called for tuples
+     ('aaa','bbb') and ('eee','fff'), then
+     diff_pos[0] = 1 (as 'aaa' != 'eee')
+     diff_pos[1] = 0 (offset from beggining of tuple b to 'eee' keypart).
+
+   Example2: if the index function is called for tuples
+     ('aaa','bbb') and ('aaa','fff'),
+     diff_pos[0] = 2 (as 'aaa' != 'eee')
+     diff_pos[1] = 3 (offset from beggining of tuple b to 'fff' keypart,
+                      here we assume that first key part is CHAR(3) NOT NULL)
+
+  NOTES
+    Number-keys can't be splited
+
   RETURN VALUES
     <0	If a < b
     0	If a == b
