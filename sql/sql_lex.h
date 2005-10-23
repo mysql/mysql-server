@@ -527,6 +527,8 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
+  int nest_level;     /* nesting level of select */
+  Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
   uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
@@ -769,12 +771,23 @@ typedef struct st_lex
 
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   create_field	      *last_field;
+  Item_sum *in_sum_func;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   USER_RESOURCES mqh;
   ulong type;
+  /*
+    This variable is used in post-parse stage to declare that sum-functions,
+    or functions which have sense only if GROUP BY is present, are allowed.
+    For example in a query
+    SELECT ... FROM ...WHERE MIN(i) == 1 GROUP BY ... HAVING MIN(i) > 2
+    MIN(i) in the WHERE clause is not allowed in the opposite to MIN(i)
+    in the HAVING clause. Due to possible nesting of select construct
+    the variable can contain 0 or 1 for each nest level.
+  */
+  nesting_map allow_sum_func;
   enum_sql_command sql_command, orig_sql_command;
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
@@ -793,6 +806,7 @@ typedef struct st_lex
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt, start_transaction_opt;
+  int nest_level;
   /*
     In LEX representing update which were transformed to multi-update
     stores total number of tables. For LEX representing multi-delete
