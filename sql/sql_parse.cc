@@ -5362,6 +5362,8 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->parent_lex= lex; /* Used in init_query. */
   select_lex->init_query();
   select_lex->init_select();
+  lex->nest_level++;
+  select_lex->nest_level= lex->nest_level;
   /*
     Don't evaluate this subquery during statement prepare even if
     it's a constant one. The flag is switched off in the end of
