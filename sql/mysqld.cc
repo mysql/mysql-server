@@ -5212,7 +5212,7 @@ replicating a LOAD DATA INFILE command.",
   {"sql-bin-update-same", OPT_SQL_BIN_UPDATE_SAME,
    "The update log is deprecated since version 5.0, is replaced by the binary \
 log and this option does nothing anymore.",
-   0, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-mode", OPT_SQL_MODE,
    "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
    (gptr*) &sql_mode_str, (gptr*) &sql_mode_str, 0, GET_STR, REQUIRED_ARG, 0,
