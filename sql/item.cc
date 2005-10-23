@@ -1047,6 +1047,7 @@ void Item_name_const::print(String *str)
     ref_pointer_array	Pointer to array of reference fields
     fields		All fields in select
     ref			Pointer to item
+    skip_registered     <=> the function must skipped for registered SUM items
 
   NOTES
    This is from split_sum_func2() for items that should be split
@@ -1059,8 +1060,13 @@ void Item_name_const::print(String *str)
 
 
 void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
-                           List<Item> &fields, Item **ref)
+                           List<Item> &fields, Item **ref, 
+                           bool skip_registered)
 {
+  /* An item of type Item_sum  is registered <=> ref_by != 0 */ 
+  if (type() == SUM_FUNC_ITEM && skip_registered && 
+      ((Item_sum *) this)->ref_by)
+    return;                                                 
   if (type() != SUM_FUNC_ITEM && with_sum_func)
   {
     /* Will split complicated items and ignore simple ones */
@@ -3192,14 +3198,8 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
         {
           for each outer query Q_k beginning from the inner-most one
           {
-            if - Q_k is not a group query AND
-               - Q_k is not inside an aggregate function
-               OR
-               - Q_(k-1) is not in a HAVING or SELECT clause of Q_k
-            {
-              search for a column or derived column named col_ref_i
-              [in table T_j] in the FROM clause of Q_k;
-            }
+            search for a column or derived column named col_ref_i
+            [in table T_j] in the FROM clause of Q_k;
 
             if such a column is not found
               Search for a column or derived column named col_ref_i
@@ -3279,18 +3279,11 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 
         place= prev_subselect_item->parsing_place;
         /*
-          Check table fields only if the subquery is used somewhere out of
-          HAVING, or the outer SELECT does not use grouping (i.e. tables are
-          accessible).
-
           In case of a view, find_field_in_tables() writes the pointer to
           the found view field into '*reference', in other words, it
           substitutes this Item_field with the found expression.
         */
-        if ((place != IN_HAVING ||
-             (!select->with_sum_func &&
-              select->group_list.elements == 0)) &&
-            (from_field= find_field_in_tables(thd, this,
+        if ((from_field= find_field_in_tables(thd, this,
                                               outer_context->
                                                 first_name_resolution_table,
                                               outer_context->
@@ -3308,6 +3301,21 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
             {
               prev_subselect_item->used_tables_cache|= from_field->table->map;
               prev_subselect_item->const_item_cache= 0;
+              if (thd->lex->in_sum_func &&
+                  thd->lex->in_sum_func->nest_level == 
+                  thd->lex->current_select->nest_level)
+              {
+                Item::Type type= (*reference)->type();
+                set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+                              select->nest_level);
+                set_field(from_field);
+                fixed= 1;
+                mark_as_dependent(thd, last_checked_context->select_lex,
+                                  context->select_lex, this,
+                                  ((type == REF_ITEM || type == FIELD_ITEM) ?
+                                   (Item_ident*) (*reference) : 0));
+                return FALSE;
+              }
             }
             else
             {
@@ -3459,6 +3467,11 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       return FALSE;
 
     set_field(from_field);
+    if (thd->lex->in_sum_func &&
+        thd->lex->in_sum_func->nest_level == 
+        thd->lex->current_select->nest_level)
+      set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+                    thd->lex->current_select->nest_level);
   }
   else if (thd->set_query_id && field->query_id != thd->query_id)
   {
@@ -4615,9 +4628,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
     aggregate function.
   */
   if (((*ref)->with_sum_func && name &&
-       (depended_from ||
-	!(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
-          current_sel->having_fix_field))) ||
+       !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
+         current_sel->having_fix_field)) ||
       !(*ref)->fixed)
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0),
