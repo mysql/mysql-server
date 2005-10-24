@@ -1013,3 +1013,15 @@ grant all on information_schema.* to 'user1'@'localhost';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 grant select on information_schema.* to 'user1'@'localhost';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+use test;
+create table t1(id int);
+insert into t1(id) values (1);
+select 1 from (select 1 from test.t1) a;
+1
+1
+use information_schema;
+select 1 from (select 1 from test.t1) a;
+1
+1
+use test;
+drop table t1;

@@ -1194,6 +1194,7 @@ public:
     constant, assert otherwise. This method is called only if
     basic_const_item returned TRUE.
   */
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   Item *new_item();
   /*
     Implement by-value equality evaluation if parameter value

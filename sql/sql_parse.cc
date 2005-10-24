@@ -6197,8 +6197,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  if (!my_strcasecmp(system_charset_info, ptr->db,
-                     information_schema_name.str))
+  if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
+                                      information_schema_name.str))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
