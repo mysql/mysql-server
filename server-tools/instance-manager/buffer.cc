@@ -14,13 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
 #pragma implementation
 #endif
 
 #include "buffer.h"
 #include <m_string.h>
 
+const uint Buffer::BUFFER_INITIAL_SIZE= 4096;
+const uint Buffer::MAX_BUFFER_SIZE= 16777216;
 
 /*
   Puts the given string to the buffer.

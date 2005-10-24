@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
 #pragma implementation
 #endif
 
@@ -33,6 +33,7 @@
 #ifdef __WIN__
 char Options::install_as_service;
 char Options::remove_service;
+char Options::stand_alone;
 char windows_config_file[FN_REFLEN];
 char default_password_file_name[FN_REFLEN];
 char default_log_file_name[FN_REFLEN];
@@ -72,6 +73,7 @@ enum options {
 #else
   OPT_INSTALL_SERVICE,
   OPT_REMOVE_SERVICE,
+  OPT_STAND_ALONE,
 #endif
   OPT_MONITORING_INTERVAL,
   OPT_PORT,
@@ -106,7 +108,7 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::port_number, (gptr *) &Options::port_number,
     0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
 
-  { "password-file", OPT_PASSWORD_FILE, "Look for Instane Manager users"
+  { "password-file", OPT_PASSWORD_FILE, "Look for Instance Manager users"
                                         " and passwords here.",
     (gptr *) &Options::password_file_name,
     (gptr *) &Options::password_file_name,
@@ -130,6 +132,9 @@ static struct my_option my_long_options[] =
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { "remove", OPT_REMOVE_SERVICE, "Remove system service.",
     (gptr *)&Options::remove_service, (gptr*) &Options::remove_service,
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
+  { "standalone", OPT_STAND_ALONE, "Run the application in stand alone mode.",
+    (gptr *)&Options::stand_alone, (gptr*) &Options::stand_alone,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
 #else
   { "run-as-service", OPT_RUN_AS_SERVICE,

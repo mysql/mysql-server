@@ -340,6 +340,164 @@ connection master;
 SELECT '-------- switch to master -------' as "";
 --enable_query_log
 
+# End of 4.1 tests
+
+###############################################################
+# Cases with stored procedures
+###############################################################
+let $my_stmt= CREATE PROCEDURE p1() READS SQL DATA SELECT "this is p1";
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+--vertical_results
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+connection master;
+--horizontal_results
+
+let $my_stmt= ALTER PROCEDURE p1 COMMENT "I have been altered";
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+--vertical_results
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'p1';
+connection master;
+--horizontal_results
+
+let $my_stmt= DROP PROCEDURE p1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+--vertical_results
+SHOW PROCEDURE STATUS LIKE 'p1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SHOW PROCEDURE STATUS LIKE 'p1';
+connection master;
+--horizontal_results
+
+###############################################################
+# Cases with VIEWs
+###############################################################
+let $my_stmt= CREATE OR REPLACE VIEW v1 as select * from t1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW CREATE VIEW v1;
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SHOW CREATE VIEW v1;
+connection master;
+
+let $my_stmt= ALTER VIEW v1 AS select f1 from t1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW CREATE VIEW v1;
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SHOW CREATE VIEW v1;
+connection master;
+
+let $my_stmt= DROP VIEW IF EXISTS v1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+--error 1146
+SHOW CREATE VIEW v1;
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+--error 1146
+SHOW CREATE VIEW v1;
+connection master;
+
+###############################################################
+# Cases with TRIGGERs
+###############################################################
+let $my_stmt= CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW TRIGGERS;
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SHOW TRIGGERS;
+connection master;
+
+let $my_stmt= DROP TRIGGER trg1;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SHOW TRIGGERS;
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SHOW TRIGGERS;
+connection master;
+
+###############################################################
+# Cases with USERs
+###############################################################
+let $my_stmt= CREATE USER user1@localhost;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SELECT user FROM mysql.user WHERE user = 'user1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SELECT user FROM mysql.user WHERE user = 'user1';
+connection master;
+
+let $my_stmt= RENAME USER user1@localhost TO rename1@localhost;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SELECT user FROM mysql.user WHERE user = 'rename1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SELECT user FROM mysql.user WHERE user = 'rename1';
+connection master;
+
+let $my_stmt= DROP USER rename1@localhost;
+let $my_master_commit= true;
+let $my_slave_commit= true;
+--source include/rpl_stmt_seq.inc
+SELECT user FROM mysql.user WHERE user = 'rename1';
+--disable_query_log
+SELECT '-------- switch to slave -------' as "";
+--enable_query_log
+connection slave;
+SELECT user FROM mysql.user WHERE user = 'rename1';
+connection master;
+
 ###############################################################
 # Cleanup
 ###############################################################
@@ -349,4 +507,4 @@ DROP DATABASE IF EXISTS mysqltest2;
 DROP DATABASE IF EXISTS mysqltest3;
 --enable_warnings
 
-# End of 4.1 tests
+

@@ -14,13 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
 #pragma implementation
 #endif
 
-#ifdef __WIN__
-#include <process.h>
-#endif
 #include "instance.h"
 
 #include "mysql_manager_error.h"
@@ -40,13 +37,11 @@
 static void start_and_monitor_instance(Instance_options *old_instance_options,
                                        Instance_map *instance_map);
 
-#ifndef _WIN_
+#ifndef __WIN__
 typedef pid_t My_process_info;
 #else
 typedef PROCESS_INFORMATION My_process_info;
 #endif
-
-C_MODE_START
 
 /*
   Proxy thread is a simple way to avoid all pitfalls of the threads
@@ -55,16 +50,13 @@ C_MODE_START
   to do it in a portable way.
 */
 
-pthread_handler_decl(proxy, arg)
+pthread_handler_t proxy(void *arg)
 {
   Instance *instance= (Instance *) arg;
   start_and_monitor_instance(&instance->options,
                              instance->get_map());
   return 0;
 }
-
-C_MODE_END
-
 
 /*
   Wait for an instance
@@ -146,15 +138,25 @@ static int wait_process(My_process_info *pi)
 static int start_process(Instance_options *instance_options,
                          My_process_info *pi)
 {
+#ifndef __QNX__
   *pi= fork();
+#else
+  /*
+     On QNX one cannot use fork() in multithreaded environment and we
+     should use spawn() or one of it's siblings instead.
+     Here we use spawnv(), which  is a combination of fork() and execv()
+     in one call. It returns the pid of newly created process (>0) or -1
+  */
+  *pi= spawnv(P_NOWAIT, instance_options->mysqld_path, instance_options->argv);
+#endif
 
   switch (*pi) {
-  case 0:
+  case 0:                                       /* never happens on QNX */
     execv(instance_options->mysqld_path, instance_options->argv);
     /* exec never returns */
     exit(1);
-  case 1:
-    log_info("cannot fork() to start instance %s",
+  case -1:
+    log_info("cannot create a new process to start instance %s",
              instance_options->instance_name);
     return 1;
   }
@@ -171,25 +173,24 @@ static int start_process(Instance_options *instance_options,
   ZeroMemory(pi, sizeof(PROCESS_INFORMATION));
 
   int cmdlen= 0;
-  for (int i= 1; instance_options->argv[i] != 0; i++)
-    cmdlen+= strlen(instance_options->argv[i]) + 1;
-  cmdlen++;  /* we have to add a single space for CreateProcess (see docs) */
+  for (int i= 0; instance_options->argv[i] != 0; i++)
+    cmdlen+= strlen(instance_options->argv[i]) + 3;
+  cmdlen++;   /* make room for the null */
 
-  char *cmdline= NULL;
-  if (cmdlen > 0)
+  char *cmdline= new char[cmdlen];
+  if (cmdline == NULL)
+    return 1;
+
+  for (int i= 0; instance_options->argv[i] != 0; i++)
   {
-    cmdline= new char[cmdlen];
-    cmdline[0]= 0;
-    for (int i= 1; instance_options->argv[i] != 0; i++)
-    {
-      strcat(cmdline, " ");
-      strcat(cmdline, instance_options->argv[i]);
-    }
+    strcat(cmdline, "\"");
+    strcat(cmdline, instance_options->argv[i]);
+    strcat(cmdline, "\" ");
   }
 
   /* Start the child process */
   BOOL result=
-    CreateProcess(instance_options->mysqld_path,  /* File to execute */
+    CreateProcess(NULL,          /* Put it all in cmdline */
                   cmdline,       /* Command line */
                   NULL,          /* Process handle not inheritable */
                   NULL,          /* Thread handle not inheritable */
@@ -478,7 +479,7 @@ int Instance::stop()
     status= pthread_cond_timedwait(&COND_instance_stopped,
                                    &LOCK_instance,
                                    &timeout);
-    if (status == ETIMEDOUT)
+    if (status == ETIMEDOUT || status == ETIME)
       break;
   }
 

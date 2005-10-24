@@ -206,8 +206,12 @@ static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
 
-static handlerton innobase_hton = {
+handlerton innobase_hton = {
   "InnoDB",
+  SHOW_OPTION_YES,
+  "Supports transactions, row-level locking, and foreign keys", 
+  DB_TYPE_INNODB,
+  innobase_init,
   0,				/* slot */
   sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
   innobase_close_connection,
@@ -463,13 +467,9 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
-		/* Since we rolled back the whole transaction, we must
-		tell it also to MySQL so that MySQL knows to empty the
-		cached binlog for this transaction */
-
-		if (thd) {
-			ha_rollback(thd);
-		}
+		/* Starting from 5.0.13, we let MySQL just roll back the
+		latest SQL statement in a lock wait timeout. Previously, we
+		rolled back the whole transaction. */
 
    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
@@ -567,25 +567,29 @@ innobase_mysql_print_thd(
 				   use the default max length */
 {
 	const THD*	thd;
+        const Security_context *sctx;
 	const char*	s;
 
         thd = (const THD*) input_thd;
+        /* We probably want to have original user as part of debug output. */
+        sctx = &thd->main_security_ctx;
+
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, (ulong) thd->query_id);
-	if (thd->host) {
+	if (sctx->host) {
 		putc(' ', f);
-		fputs(thd->host, f);
+		fputs(sctx->host, f);
 	}
 
-	if (thd->ip) {
+	if (sctx->ip) {
 		putc(' ', f);
-		fputs(thd->ip, f);
+		fputs(sctx->ip, f);
 	}
 
-  	if (thd->user) {
+        if (sctx->user) {
 		putc(' ', f);
-		fputs(thd->user, f);
+		fputs(sctx->user, f);
   	}
 
 	if ((s = thd->proc_info)) {
@@ -1188,10 +1192,10 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 /*************************************************************************
 Opens an InnoDB database. */
 
-handlerton*
+bool
 innobase_init(void)
 /*===============*/
-			/* out: TRUE if error */
+			/* out: &innobase_hton, or NULL on error */
 {
 	static char	current_dir[3];		/* Set if using current lib */
 	int		err;
@@ -1199,6 +1203,9 @@ innobase_init(void)
 	char 	        *default_path;
 
   	DBUG_ENTER("innobase_init");
+
+         if (have_innodb != SHOW_OPTION_YES)
+           goto error;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -1252,7 +1259,7 @@ innobase_init(void)
 	copy of it: */
 
 	internal_innobase_data_file_path = my_strdup(innobase_data_file_path,
-						   MYF(MY_WME));
+						   MYF(MY_FAE));
 
 	ret = (bool) srv_parse_data_file_paths_and_sizes(
 				internal_innobase_data_file_path,
@@ -1267,7 +1274,7 @@ innobase_init(void)
 			"InnoDB: syntax error in innodb_data_file_path");
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-	  	DBUG_RETURN(0);
+                goto error;
 	}
 
 	/* -------------- Log files ---------------------------*/
@@ -1298,7 +1305,7 @@ innobase_init(void)
 
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		DBUG_RETURN(0);
+                goto error;
 	}
 
 	/* --------------------------------------------------*/
@@ -1386,7 +1393,7 @@ innobase_init(void)
 	if (err != DB_SUCCESS) {
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		DBUG_RETURN(0);
+                goto error;
 	}
 
 	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
@@ -1413,7 +1420,10 @@ innobase_init(void)
 		glob_mi.pos = trx_sys_mysql_master_log_pos;
 	}
 */
-	DBUG_RETURN(&innobase_hton);
+	DBUG_RETURN(FALSE);
+error:
+        have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+        DBUG_RETURN(TRUE);
 }
 
 /***********************************************************************
@@ -2116,7 +2126,7 @@ innobase_rollback_to_savepoint(
 
         /* TODO: use provided savepoint data area to store savepoint data */
 
-        longlong2str((ulonglong)savepoint, name, 36);
+        longlong2str((ulint)savepoint, name, 36);
 
         error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
@@ -2145,7 +2155,7 @@ innobase_release_savepoint(
 
         /* TODO: use provided savepoint data area to store savepoint data */
 
-        longlong2str((ulonglong)savepoint, name, 36);
+        longlong2str((ulint)savepoint, name, 36);
 
 	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
@@ -2186,7 +2196,7 @@ innobase_savepoint(
 
         /* TODO: use provided savepoint data area to store savepoint data */
         char name[64];
-        longlong2str((ulonglong)savepoint,name,36);
+        longlong2str((ulint)savepoint,name,36);
 
         error = (int) trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
@@ -2386,7 +2396,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 	        free_share(share);
-    		my_free((char*) upd_buff, MYF(0));
+    		my_free((gptr) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
     		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -2404,7 +2414,7 @@ ha_innobase::open(
 				"how you can resolve the problem.\n",
 				norm_name);
 	        free_share(share);
-    		my_free((char*) upd_buff, MYF(0));
+    		my_free((gptr) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table);
@@ -2492,13 +2502,13 @@ Closes a handle to an InnoDB table. */
 int
 ha_innobase::close(void)
 /*====================*/
-				/* out: error number */
+				/* out: 0 */
 {
   	DBUG_ENTER("ha_innobase::close");
 
 	row_prebuilt_free((row_prebuilt_t*) innobase_prebuilt);
 
-    	my_free((char*) upd_buff, MYF(0));
+    	my_free((gptr) upd_buff, MYF(0));
         free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -2862,6 +2872,9 @@ ha_innobase::store_key_val_for_row(
 			ulint	lenlen;
 			ulint	len;
 			byte*	data;
+			ulint	key_len;
+			CHARSET_INFO*	cs;
+			int	error=0;
 
 			if (is_null) {
 				buff += key_part->length + 2;
@@ -2880,8 +2893,20 @@ ha_innobase::store_key_val_for_row(
 			/* In a column prefix index, we may need to truncate
 			the stored value: */
 		
-			if (len > key_part->length) {
-			        len = key_part->length;
+			cs = key_part->field->charset();
+
+			if (cs->mbmaxlen > 1 && key_part->length > 0) {
+				key_len = (ulint) cs->cset->well_formed_len(cs, 
+					(const char *) data,
+					(const char *) data + key_part->length,
+					key_part->length / cs->mbmaxlen, 
+					&error);
+			} else {
+				key_len = key_part->length;
+			}
+
+			if (len > key_len) {
+				len = key_len;
 			}
 
 			/* The length in a key value is always stored in 2
@@ -2905,6 +2930,11 @@ ha_innobase::store_key_val_for_row(
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
 
+			CHARSET_INFO*	cs;
+			ulint		key_len;
+			ulint		len;
+			int		error=0;
+
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
 		        if (is_null) {
@@ -2925,8 +2955,21 @@ ha_innobase::store_key_val_for_row(
 			indexes, and we may need to truncate the data to be
 			stored in the key value: */
 
-			if (blob_len > key_part->length) {
-			        blob_len = key_part->length;
+			cs = key_part->field->charset();
+			
+			if (cs->mbmaxlen > 1 && key_part->length > 0) {
+				key_len = (ulint) cs->cset->well_formed_len(cs, 
+					(const char *) blob_data,
+					(const char *) blob_data 
+						+ key_part->length,
+					key_part->length / cs->mbmaxlen,
+					&error);
+			} else {
+				key_len = key_part->length;
+			}
+
+			if (blob_len > key_len) {
+				blob_len = key_len;
 			}
 
 			/* MySQL reserves 2 bytes for the length and the
@@ -2948,15 +2991,40 @@ ha_innobase::store_key_val_for_row(
 			value we store may be also in a column prefix
 			index. */
 
+			CHARSET_INFO*		cs;
+			ulint			len;
+			const mysql_byte*	src_start;
+			int			error=0;
+
 		        if (is_null) {
 				 buff += key_part->length;
 				 
 				 continue;
 			}
 
-			memcpy(buff, record + key_part->offset,
-							key_part->length);
-			buff += key_part->length;
+			cs = key_part->field->charset();
+			src_start = record + key_part->offset;
+
+			if (key_part->length > 0 && cs->mbmaxlen > 1) {
+				len = (ulint) cs->cset->well_formed_len(cs, 
+					src_start,
+					src_start + key_part->length,
+					key_part->length / cs->mbmaxlen, 
+					&error);
+			} else {
+				len = key_part->length;
+			}
+
+			memcpy(buff, src_start, len);
+			buff+=len;
+
+			/* Pad the unused space with spaces */
+
+			if (len < key_part->length) {
+				len = key_part->length - len;
+				memset(buff, ' ', len);
+				buff+=len;
+			}
 		}
   	}
 
@@ -4492,7 +4560,8 @@ create_index(
 	ulint		is_unsigned;
   	ulint		i;
   	ulint		j;
-
+	ulint*		field_lengths;
+	
   	DBUG_ENTER("create_index");
 
 	key = form->key_info + key_num;
@@ -4514,6 +4583,10 @@ create_index(
 
 	index = dict_mem_index_create((char*) table_name, key->name, 0,
 						ind_type, n_fields);
+
+	field_lengths = (ulint*) my_malloc(sizeof(ulint) * n_fields,
+		MYF(MY_FAE));
+	
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
 
@@ -4568,6 +4641,8 @@ create_index(
 		        prefix_len = 0;
 		}
 
+		field_lengths[i] = key_part->length;
+
 		/* We assume all fields should be sorted in ascending
 		order, hence the '0': */
 
@@ -4576,10 +4651,12 @@ create_index(
 				0, prefix_len);
 	}
 
-	error = row_create_index_for_mysql(index, trx);
+	error = row_create_index_for_mysql(index, trx, field_lengths);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
+	my_free((gptr) field_lengths, MYF(0));
+	
 	DBUG_RETURN(error);
 }
 
@@ -4602,7 +4679,7 @@ create_clustered_index_when_no_primary(
 	index = dict_mem_index_create((char*) table_name,
 				      (char*) "GEN_CLUST_INDEX",
 				      0, DICT_CLUSTERED, 0);
-	error = row_create_index_for_mysql(index, trx);
+	error = row_create_index_for_mysql(index, trx, NULL);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
@@ -4691,13 +4768,7 @@ ha_innobase::create(
 		form->s->row_type != ROW_TYPE_REDUNDANT);
 
   	if (error) {
-		innobase_commit_low(trx);
-
-		row_mysql_unlock_data_dictionary(trx);
-
-  		trx_free_for_mysql(trx);
-
- 		DBUG_RETURN(error);
+		goto cleanup;
  	}
 
 	/* Look for a primary key */
@@ -4721,13 +4792,7 @@ ha_innobase::create(
 		error = create_clustered_index_when_no_primary(trx,
 							norm_name);
   		if (error) {
-			innobase_commit_low(trx);
-
-			row_mysql_unlock_data_dictionary(trx);
-
-			trx_free_for_mysql(trx);
-
-			DBUG_RETURN(error);
+			goto cleanup;
       		}
 	}
 
@@ -4736,13 +4801,7 @@ ha_innobase::create(
 		first */
 	    	if ((error = create_index(trx, form, norm_name,
 					  (uint) primary_key_no))) {
-			innobase_commit_low(trx);
-
-			row_mysql_unlock_data_dictionary(trx);
-
-  			trx_free_for_mysql(trx);
-
-			DBUG_RETURN(error);
+			goto cleanup;
       		}
       	}
 
@@ -4751,14 +4810,7 @@ ha_innobase::create(
 		if (i != (uint) primary_key_no) {
 
     			if ((error = create_index(trx, form, norm_name, i))) {
-
-			  	innobase_commit_low(trx);
-
-				row_mysql_unlock_data_dictionary(trx);
-
-  				trx_free_for_mysql(trx);
-
-				DBUG_RETURN(error);
+				goto cleanup;
       			}
       		}
   	}
@@ -4771,21 +4823,18 @@ ha_innobase::create(
 					current_thd->query_length,
 					current_thd->charset())) {
 			error = HA_ERR_OUT_OF_MEM;
-		} else {
-			error = row_table_add_foreign_constraints(trx,
-					q.str, norm_name);
-
-			error = convert_error_code_to_mysql(error, NULL);
+			
+			goto cleanup;
 		}
 
+		error = row_table_add_foreign_constraints(trx,
+			q.str, norm_name,
+			create_info->options & HA_LEX_CREATE_TMP_TABLE);
+
+		error = convert_error_code_to_mysql(error, NULL);
+
 		if (error) {
-			innobase_commit_low(trx);
-
-			row_mysql_unlock_data_dictionary(trx);
-
-  			trx_free_for_mysql(trx);
-
-			DBUG_RETURN(error);
+			goto cleanup;
 		}
 	}
 
@@ -4825,6 +4874,15 @@ ha_innobase::create(
   	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);
+
+cleanup:
+	innobase_commit_low(trx);
+	
+	row_mysql_unlock_data_dictionary(trx);
+	
+	trx_free_for_mysql(trx);
+
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************
@@ -5157,7 +5215,7 @@ ha_innobase::records_in_range(
 	mysql_byte*	key_val_buff2 	= (mysql_byte*) my_malloc(
 						  table->s->reclength
       					+ table->s->max_key_length + 100,
-								MYF(MY_WME));
+								MYF(MY_FAE));
 	ulint		buff2_len = table->s->reclength
       					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
@@ -5216,7 +5274,7 @@ ha_innobase::records_in_range(
 	dtuple_free_for_mysql(heap1);
 	dtuple_free_for_mysql(heap2);
 
-    	my_free((char*) key_val_buff2, MYF(0));
+    	my_free((gptr) key_val_buff2, MYF(0));
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -5537,6 +5595,33 @@ ha_innobase::info(
 				       trx_get_error_info(prebuilt->trx));
   	}
 
+	if (flag & HA_STATUS_AUTO && table->found_next_number_field) {
+		longlong	auto_inc;
+		int		ret;
+
+		/* The following function call can the first time fail in
+		a lock wait timeout error because it reserves the auto-inc
+		lock on the table. If it fails, then someone is already initing
+		the auto-inc counter, and the second call is guaranteed to
+		succeed. */
+
+		ret = innobase_read_and_init_auto_inc(&auto_inc); 
+
+		if (ret != 0) {
+			ret = innobase_read_and_init_auto_inc(&auto_inc);
+
+			if (ret != 0) {
+				ut_print_timestamp(stderr);
+				sql_print_error("Cannot get table %s auto-inc"
+						"counter value in ::info\n",
+						ib_table->name);
+				auto_inc = 0;
+			}
+		}
+		
+		auto_increment_value = auto_inc;
+	}
+
 	prebuilt->trx->op_info = (char*)"";
 
   	DBUG_VOID_RETURN;
@@ -5743,7 +5828,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		fclose(file);
 	} else {
 		/* unable to create temporary file */
-          	str = my_malloc(1, MYF(MY_ZEROFILL));
+          	str = my_strdup(
+"/* Error: cannot display foreign key constraints */", MYF(0));
 	}
 
   	return(str);
@@ -5983,7 +6069,8 @@ int
 ha_innobase::start_stmt(
 /*====================*/
 	              /* out: 0 or error code */
-	THD*    thd)  /* in: handle to the user thread */
+	THD*    thd,  /* in: handle to the user thread */
+        thr_lock_type lock_type)
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
@@ -6024,7 +6111,7 @@ ha_innobase::start_stmt(
 	} else {
 		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
 		    && thd->lex->sql_command == SQLCOM_SELECT
-		    && thd->lex->lock_option == TL_READ) {
+		    && lock_type == TL_READ) {
 	
 			/* For other than temporary tables, we obtain
 			no lock for consistent read (plain SELECT). */
@@ -6056,6 +6143,8 @@ ha_innobase::start_stmt(
 			prebuilt->select_lock_type = LOCK_X;
 		}
 	}
+
+	trx->detailed_error[0] = '\0';
 
 	/* Set the MySQL flag to mark that there is an active transaction */
         if (trx->active_trans == 0) {
@@ -6130,6 +6219,8 @@ ha_innobase::external_lock(
 	if (lock_type != F_UNLCK) {
 		/* MySQL is setting a new table lock */
 
+		trx->detailed_error[0] = '\0';
+		
 		/* Set the MySQL flag to mark that there is an active
 		transaction */
                 if (trx->active_trans == 0) {
@@ -6667,6 +6758,11 @@ ha_innobase::store_lock(
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
+		} else if (thd->lex->sql_command == SQLCOM_CHECKSUM) {
+			/* Use consistent read for checksum table */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
 		} else {
 			prebuilt->select_lock_type = LOCK_S;
 			prebuilt->stored_select_lock_type = LOCK_S;
@@ -6845,8 +6941,13 @@ ha_innobase::innobase_read_and_init_auto_inc(
   			goto func_exit;
   		}
   	} else {
-		/* Initialize to max(col) + 1 */
-    		auto_inc = (longlong) table->next_number_field->
+		/* Initialize to max(col) + 1; we use
+		'found_next_number_field' below because MySQL in SHOW TABLE
+		STATUS does not seem to set 'next_number_field'. The comment
+		in table.h says that 'next_number_field' is set when it is
+		'active'. */
+
+    		auto_inc = (longlong) table->found_next_number_field->
                         	val_int_offset(table->s->rec_buff_length) + 1;
   	}
 
@@ -6861,9 +6962,11 @@ func_exit:
 
 func_exit_early:
 	/* Since MySQL does not seem to call autocommit after SHOW TABLE
-	STATUS (even if we would register the trx here), we must commit our
+	STATUS (even if we would register the trx here), we commit our
 	transaction here if it was started here. This is to eliminate a
-	dangling transaction. */
+	dangling transaction. If the user had AUTOCOMMIT=0, then SHOW
+	TABLE STATUS does leave a dangling transaction if the user does not
+	himself call COMMIT. */
 
 	if (trx_was_not_started) {
 
@@ -6926,6 +7029,18 @@ ha_innobase::reset_auto_increment(ulonglong value)
 	DBUG_RETURN(0);
 }
 
+/* See comment in handler.cc */
+bool
+ha_innobase::get_error_message(int error, String *buf)
+{
+	trx_t*	    trx = check_trx_exists(current_thd);
+
+	buf->copy(trx->detailed_error, strlen(trx->detailed_error),
+		system_charset_info);
+
+	return FALSE;
+}
+
 /***********************************************************************
 Compares two 'refs'. A 'ref' is the (internal) primary key value of the row.
 If there is no explicitly declared non-null unique key or a primary key, then
@@ -6985,8 +7100,7 @@ ha_innobase::cmp_ref(
 						    (const char*)ref1, len1,
 			                            (const char*)ref2, len2);
 		} else {
-			result = field->cmp((const char*)ref1,
-					    (const char*)ref2);
+			result = field->key_cmp(ref1, ref2);
 		}
 
 		if (result) {

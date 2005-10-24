@@ -74,6 +74,18 @@ CAST(DATE "2004-01-22 21:45:33" AS BINARY(4))
 2004
 Warnings:
 Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
+select CAST(0xb3 as signed);
+CAST(0xb3 as signed)
+179
+select CAST(0x8fffffffffffffff as signed);
+CAST(0x8fffffffffffffff as signed)
+-8070450532247928833
+select CAST(0xffffffffffffffff as unsigned);
+CAST(0xffffffffffffffff as unsigned)
+18446744073709551615
+select CAST(0xfffffffffffffffe as signed);
+CAST(0xfffffffffffffffe as signed)
+-2
 select cast('-10a' as signed integer);
 cast('-10a' as signed integer)
 -10
@@ -219,7 +231,7 @@ t1	CREATE TABLE `t1` (
   `c5` varchar(2) character set utf8 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (a binary(10), b char(10) character set koi8r);
+create table t1 (a binary(4), b char(4) character set koi8r);
 insert into t1 values (_binary'тест',_binary'тест');
 select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
 a	b	cast(a as char character set cp1251)	cast(b as binary)
@@ -322,6 +334,9 @@ cast(repeat('1',20) as signed)
 -7335632962598440505
 Warnings:
 Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+select cast(1.0e+300 as signed int);
+cast(1.0e+300 as signed int)
+9223372036854775807
 select cast('1.2' as decimal(3,2));
 cast('1.2' as decimal(3,2))
 1.20

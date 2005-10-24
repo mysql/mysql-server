@@ -1030,16 +1030,17 @@ longlong Item_func_yearweek::val_int()
 }
 
 
-/* weekday() has a automatic to_days() on item */
-
 longlong Item_func_weekday::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  ulong tmp_value=(ulong) args[0]->val_int();
-  if ((null_value=(args[0]->null_value || !tmp_value)))
-    return 0; /* purecov: inspected */
+  TIME ltime;
+  
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+    return 0;
 
-  return (longlong) calc_weekday(tmp_value,odbc_type)+test(odbc_type);
+  return (longlong) calc_weekday(calc_daynr(ltime.year, ltime.month,
+                                            ltime.day),
+                                 odbc_type) + test(odbc_type);
 }
 
 

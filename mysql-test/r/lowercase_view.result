@@ -7,7 +7,7 @@ create table TaB (Field int);
 create view ViE as select * from TAb;
 show create table VIe;
 View	Create View
-vie	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
+vie	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vie` AS select `tab`.`Field` AS `Field` from `tab`
 drop database MySQLTest;
 use test;
 create table t1Aa (col1 int);
@@ -16,110 +16,110 @@ create view v1Aa as select * from t1aA;
 create view v2aA as select * from v1aA;
 create view v3Aa as select v2Aa.col1 from v2aA,t2Aa where v2Aa.col1 = t2aA.col1;
 update v2aA set col1 = (select max(col1) from v1Aa);
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation UPDATE on table 'v2aA'.
 update v2Aa set col1 = (select max(col1) from t1Aa);
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2Aa' prevents operation UPDATE on table 'v2Aa'.
 update v2aA set col1 = (select max(col1) from v2Aa);
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v2aA' for update in FROM clause
 update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from v1aA) where v2aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation UPDATE on table 'v2aA'.
 update t1aA,t2Aa set t1Aa.col1 = (select max(col1) from v1Aa) where t1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation UPDATE on table 't1aA'.
 update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from v1aA) where v1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v1aA' for update in FROM clause
 update t2Aa,v2Aa set v2aA.col1 = (select max(col1) from v1aA) where v2Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation UPDATE on table 't2Aa'.
 update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from v1Aa) where t1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation UPDATE on table 't2Aa'.
 update t2Aa,v1aA set v1Aa.col1 = (select max(col1) from v1aA) where v1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation UPDATE on table 't2Aa'.
 update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from t1aA) where v2aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation UPDATE on table 'v2aA'.
 update t1Aa,t2Aa set t1aA.col1 = (select max(col1) from t1Aa) where t1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: You can't specify target table 't1Aa' for update in FROM clause
 update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from t1Aa) where v1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation UPDATE on table 'v1aA'.
 update t2Aa,v2Aa set v2aA.col1 = (select max(col1) from t1aA) where v2Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 't2Aa' for update in FROM clause
 update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from t1Aa) where t1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 't2Aa' for update in FROM clause
 update t2Aa,v1Aa set v1aA.col1 = (select max(col1) from t1Aa) where v1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 't2Aa' for update in FROM clause
 update v2aA,t2Aa set v2Aa.col1 = (select max(col1) from v2aA) where v2Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v2aA' for update in FROM clause
 update t1aA,t2Aa set t1Aa.col1 = (select max(col1) from v2aA) where t1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation UPDATE on table 't1aA'.
 update v1aA,t2Aa set v1Aa.col1 = (select max(col1) from v2Aa) where v1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2Aa' prevents operation UPDATE on table 'v1aA'.
 update t2Aa,v2aA set v2Aa.col1 = (select max(col1) from v2aA) where v2Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation UPDATE on table 't2Aa'.
 update t2Aa,t1Aa set t1aA.col1 = (select max(col1) from v2aA) where t1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation UPDATE on table 't2Aa'.
 update t2Aa,v1Aa set v1aA.col1 = (select max(col1) from v2Aa) where v1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2Aa' prevents operation UPDATE on table 't2Aa'.
 update v3aA set v3Aa.col1 = (select max(col1) from v1aA);
-ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation UPDATE on table 'v3aA'.
 update v3aA set v3Aa.col1 = (select max(col1) from t1aA);
-ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+ERROR HY000: The definition of table 'v3aA' prevents operation UPDATE on table 'v3aA'.
 update v3aA set v3Aa.col1 = (select max(col1) from v2aA);
-ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation UPDATE on table 'v3aA'.
 update v3aA set v3Aa.col1 = (select max(col1) from v3aA);
-ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v3aA' for update in FROM clause
 delete from v2Aa where col1 = (select max(col1) from v1Aa);
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation DELETE on table 'v2Aa'.
 delete from v2aA where col1 = (select max(col1) from t1Aa);
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation DELETE on table 'v2aA'.
 delete from v2Aa where col1 = (select max(col1) from v2aA);
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v2Aa' for update in FROM clause
 delete v2Aa from v2aA,t2Aa where (select max(col1) from v1aA) > 0 and v2Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation DELETE on table 'v2aA'.
 delete t1aA from t1Aa,t2Aa where (select max(col1) from v1Aa) > 0 and t1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation DELETE on table 't1Aa'.
 delete v1aA from v1Aa,t2Aa where (select max(col1) from v1aA) > 0 and v1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v1Aa' for update in FROM clause
 delete v2aA from v2Aa,t2Aa where (select max(col1) from t1Aa) > 0 and v2aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2Aa' prevents operation DELETE on table 'v2Aa'.
 delete t1aA from t1Aa,t2Aa where (select max(col1) from t1aA) > 0 and t1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: You can't specify target table 't1Aa' for update in FROM clause
 delete v1aA from v1Aa,t2Aa where (select max(col1) from t1aA) > 0 and v1aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation DELETE on table 'v1Aa'.
 delete v2Aa from v2aA,t2Aa where (select max(col1) from v2Aa) > 0 and v2aA.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v2aA' for update in FROM clause
 delete t1Aa from t1aA,t2Aa where (select max(col1) from v2Aa) > 0 and t1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2Aa' prevents operation DELETE on table 't1aA'.
 delete v1Aa from v1aA,t2Aa where (select max(col1) from v2aA) > 0 and v1Aa.col1 = t2aA.col1;
-ERROR HY000: You can't specify target table 'v1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation DELETE on table 'v1aA'.
 insert into v2Aa values ((select max(col1) from v1aA));
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation INSERT on table 'v2Aa'.
 insert into t1aA values ((select max(col1) from v1Aa));
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation INSERT on table 't1aA'.
 insert into v2aA values ((select max(col1) from v1aA));
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1aA' prevents operation INSERT on table 'v2aA'.
 insert into v2Aa values ((select max(col1) from t1Aa));
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2Aa' prevents operation INSERT on table 'v2Aa'.
 insert into t1aA values ((select max(col1) from t1Aa));
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: You can't specify target table 't1aA' for update in FROM clause
 insert into v2aA values ((select max(col1) from t1aA));
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation INSERT on table 'v2aA'.
 insert into v2Aa values ((select max(col1) from v2aA));
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v2Aa' for update in FROM clause
 insert into t1Aa values ((select max(col1) from v2Aa));
-ERROR HY000: You can't specify target table 't1aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2Aa' prevents operation INSERT on table 't1Aa'.
 insert into v2aA values ((select max(col1) from v2Aa));
-ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+ERROR HY000: You can't specify target table 'v2aA' for update in FROM clause
 insert into v3Aa (col1) values ((select max(col1) from v1Aa));
-ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+ERROR HY000: The definition of table 'v1Aa' prevents operation INSERT on table 'v3Aa'.
 insert into v3aA (col1) values ((select max(col1) from t1aA));
-ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+ERROR HY000: The definition of table 'v3aA' prevents operation INSERT on table 'v3aA'.
 insert into v3Aa (col1) values ((select max(col1) from v2aA));
-ERROR HY000: You can't specify target table 'v3aa' for update in FROM clause
+ERROR HY000: The definition of table 'v2aA' prevents operation INSERT on table 'v3Aa'.
 drop view v3aA,v2Aa,v1aA;
 drop table t1Aa,t2Aa;
 create table t1Aa (col1 int);
 create view v1Aa as select col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View
-v1aa	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`
 drop view v1AA;
 select Aaa.col1 from t1Aa as AaA;
 col1
@@ -128,6 +128,6 @@ drop view v1AA;
 create view v1Aa as select AaA.col1 from t1Aa as AaA;
 show create view v1AA;
 View	Create View
-v1aa	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
+v1aa	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1aa` AS select `aaa`.`col1` AS `col1` from `t1aa` `AaA`
 drop view v1AA;
 drop table t1Aa;

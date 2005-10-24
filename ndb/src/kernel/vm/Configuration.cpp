@@ -194,7 +194,7 @@ Configuration::fetch_configuration(){
 
   if (m_config_retriever->hasError())
   {
-    ERROR_SET(fatal, ERR_INVALID_CONFIG,
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
 	      "Could not connect initialize handle to management server",
 	      m_config_retriever->getErrorString());
   }
@@ -206,7 +206,7 @@ Configuration::fetch_configuration(){
     /* Set stop on error to true otherwise NDB will
        go into an restart loop...
     */
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could not connect to ndb_mgmd", s);
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Could not connect to ndb_mgmd", s);
   }
   
   m_mgmd_port= m_config_retriever->get_mgmd_port();
@@ -224,7 +224,7 @@ Configuration::fetch_configuration(){
   globalData.ownId = cr.allocNodeId(2 /*retry*/,3 /*delay*/);
   
   if(globalData.ownId == 0){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, 
 	      "Unable to alloc node id", m_config_retriever->getErrorString());
   }
   
@@ -238,7 +238,7 @@ Configuration::fetch_configuration(){
        go into an restart loop...
     */
     
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could not fetch configuration"
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Could not fetch configuration"
 	      "/invalid configuration", s);
   }
   if(m_clusterConfig)
@@ -248,12 +248,35 @@ Configuration::fetch_configuration(){
   
   ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, globalData.ownId)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
   }
   
   if(iter.get(CFG_DB_STOP_ON_ERROR, &_stopOnError)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "StopOnError missing");
+  }
+
+  m_mgmds.clear();
+  for(ndb_mgm_first(&iter); ndb_mgm_valid(&iter); ndb_mgm_next(&iter))
+  {
+    Uint32 nodeType, port;
+    char const *hostname;
+
+    ndb_mgm_get_int_parameter(&iter,CFG_TYPE_OF_SECTION,&nodeType);
+
+    if (nodeType != NodeInfo::MGM)
+      continue;
+
+    if (ndb_mgm_get_string_parameter(&iter,CFG_NODE_HOST, &hostname) ||
+	ndb_mgm_get_int_parameter(&iter,CFG_MGM_PORT, &port) ||
+	hostname == 0 || hostname[0] == 0)
+    {
+      continue;
+    }
+    BaseString connectstring(hostname);
+    connectstring.appfmt(":%d", port);
+
+    m_mgmds.push_back(connectstring);
   }
 }
 
@@ -262,12 +285,12 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
 { 
   const char* path = NULL;
   if(iter.get(param, &path)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched missing ", 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched missing ", 
 	      param_string);
   } 
   
   if(path == 0 || strlen(path) == 0){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG,
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
 	      "Invalid configuration fetched. Configuration does not contain valid ",
 	      param_string);
   }
@@ -285,7 +308,7 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
        (::access(buf2, W_OK) != 0))
 #endif
   {
-    ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
+    ERROR_SET(fatal, NDBD_EXIT_AFS_INVALIDPATH, path, param_string);
   }
   
   if (strcmp(&buf2[strlen(buf2) - 1], DIR_SEPARATOR))
@@ -309,7 +332,7 @@ Configuration::setupConfiguration(){
 					       * p, 
 					       globalTransporterRegistry);
     if(res <= 0){
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 		"No transporters configured");
     }
   }
@@ -319,27 +342,27 @@ Configuration::setupConfiguration(){
    */
   ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, globalData.ownId)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
   }
 
   unsigned type;
   if(!(iter.get(CFG_TYPE_OF_SECTION, &type) == 0 && type == NODE_TYPE_DB)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched",
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
 	      "I'm wrong type of node");
   }
   
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "MaxNoOfSavedMessages missing");
   }
   
   if(iter.get(CFG_DB_MEMLOCK, &_lockPagesInMainMemory)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "LockPagesInMainMemory missing");
   }
 
   if(iter.get(CFG_DB_WATCHDOG_INTERVAL, &_timeBetweenWatchDogCheck)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "TimeBetweenWatchDogCheck missing");
   }
 
@@ -354,7 +377,7 @@ Configuration::setupConfiguration(){
   _backupPath= get_and_validate_path(iter, CFG_DB_BACKUP_DATADIR, "BackupDataDir");
 
   if(iter.get(CFG_DB_STOP_ON_ERROR_INSERT, &m_restartOnErrorInsert)){
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
   }
 
@@ -496,7 +519,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
         *tmp[i].storage = 0;
       } else {
         BaseString::snprintf(buf, sizeof(buf),"ConfigParam: %d not found", tmp[i].paramId);
-        ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+        ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
       }
     }
   }
@@ -506,12 +529,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
   if(dataMem == 0){
     BaseString::snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_DATA_MEM);
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
   }
 
   if(indexMem == 0){
     BaseString::snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_INDEX_MEM);
-    ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
   }
 
   noOfDataPages = (dataMem / 32768);
@@ -535,23 +558,23 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     Uint32 nodeType;
     
     if(ndb_mgm_get_int_parameter(p, CFG_NODE_ID, &nodeId)){
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "Node data (Id) missing");
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Id) missing");
     }
     
     if(ndb_mgm_get_int_parameter(p, CFG_TYPE_OF_SECTION, &nodeType)){
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, "Node data (Type) missing");
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Type) missing");
     }
     
     if(nodeId > MAX_NODES || nodeId == 0){
       BaseString::snprintf(buf, sizeof(buf),
 	       "Invalid node id: %d", nodeId);
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
     }
     
     if(nodes.get(nodeId)){
       BaseString::snprintf(buf, sizeof(buf), "Two node can not have the same node id: %d",
 	       nodeId);
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
     }
     nodes.set(nodeId);
         
@@ -562,7 +585,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       if(nodeId > MAX_NDB_NODES){
 		  BaseString::snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
 		 MAX_NDB_NODES);
-	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+	ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
       }
       break;
     case NODE_TYPE_API:
@@ -577,7 +600,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       break;
     default:
       BaseString::snprintf(buf, sizeof(buf), "Unknown node type: %d", nodeType);
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
     }
   }
   noOfNodes = nodeNo;

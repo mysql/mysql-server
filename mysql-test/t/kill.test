@@ -25,6 +25,7 @@ select ((@id := kill_id) - kill_id) from t1;
 kill @id;
 
 connection con1;
+--sleep 1
 
 # this statement should fail
 --error 2006,2013
@@ -49,7 +50,7 @@ select get_lock("a", 10);
 connection con2;
 let $ID= `select connection_id()`;
 send select get_lock("a", 10);
---real_sleep 2;
+real_sleep 2;
 connection con1;
 disable_query_log;
 eval kill query $ID;

@@ -103,7 +103,7 @@ show master logs;
 purge binary logs to 'master-bin.000002';
 show binary logs;
 # sleeping 10 seconds or more would make the slave believe connection is down
---real_sleep 1;
+--real_sleep 1
 purge master logs before now();
 show binary logs;
 insert into t2 values (65);

@@ -473,7 +473,8 @@ String *Item_func_des_decrypt::val_str(String *str)
   {
     uint key_number=(uint) (*res)[0] & 127;
     // Check if automatic key and that we have privilege to uncompress using it
-    if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
+    if (!(current_thd->security_ctx->master_access & SUPER_ACL) ||
+        key_number > 9)
       goto error;
 
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
@@ -1503,7 +1504,13 @@ String *Item_func_encrypt::val_str(String *str)
     salt_ptr= salt_str->c_ptr();
   }
   pthread_mutex_lock(&LOCK_crypt);
-  char *tmp=crypt(res->c_ptr(),salt_ptr);
+  char *tmp= crypt(res->c_ptr(),salt_ptr);
+  if (!tmp)
+  {
+    pthread_mutex_unlock(&LOCK_crypt);
+    null_value= 1;
+    return 0;
+  }
   str->set(tmp,(uint) strlen(tmp),res->charset());
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);
@@ -1601,13 +1608,13 @@ String *Item_func_user::val_str(String *str)
 
   if (is_current)
   {
-    user= thd->priv_user;
-    host= thd->priv_host;
+    user= thd->security_ctx->priv_user;
+    host= thd->security_ctx->priv_host;
   }
   else
   {
-    user= thd->user;
-    host= thd->host_or_ip;
+    user= thd->main_security_ctx.user;
+    host= thd->main_security_ctx.host_or_ip;
   }
 
   // For system threads (e.g. replication SQL thread) user may be empty
@@ -1732,6 +1739,8 @@ String *Item_func_format::val_str(String *str)
   {
     my_decimal dec_val, rnd_dec, *res;
     res= args[0]->val_decimal(&dec_val);
+    if ((null_value=args[0]->null_value))
+      return 0; /* purecov: inspected */
     my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, &rnd_dec);
     my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
     str_length= str->length();
@@ -1961,25 +1970,47 @@ String *Item_func_char::val_str(String *str)
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
     {
-#ifdef USE_MB
-      if (use_mb(collation.collation))
-      {
-        if (num&0xFF000000L) {
-           str->append((char)(num>>24));
-           goto b2;
-        } else if (num&0xFF0000L) {
-b2:        str->append((char)(num>>16));
-           goto b1;
-        } else if (num&0xFF00L) {
-b1:        str->append((char)(num>>8));
-        }
+      if (num&0xFF000000L) {
+        str->append((char)(num>>24));
+        goto b2;
+      } else if (num&0xFF0000L) {
+    b2:        str->append((char)(num>>16));
+        goto b1;
+      } else if (num&0xFF00L) {
+    b1:        str->append((char)(num>>8));
       }
-#endif
-      str->append((char)num);
+      str->append((char) num);
     }
   }
   str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
+
+  /* Check whether we got a well-formed string */
+  CHARSET_INFO *cs= collation.collation;
+  int well_formed_error;
+  uint wlen= cs->cset->well_formed_len(cs,
+                                       str->ptr(), str->ptr() + str->length(),
+                                       str->length(), &well_formed_error);
+  if (wlen < str->length())
+  {
+    THD *thd= current_thd;
+    char hexbuf[7];
+    enum MYSQL_ERROR::enum_warning_level level;
+    uint diff= str->length() - wlen;
+    set_if_smaller(diff, 3);
+    octet2hex(hexbuf, str->ptr() + wlen, diff);
+    if (thd->variables.sql_mode &
+        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+      null_value= 1;
+      str= 0;
+    }
+    else
+      level= MYSQL_ERROR::WARN_LEVEL_WARN;
+    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+  }
   return str;
 }
 
@@ -2406,6 +2437,7 @@ String *Item_func_collation::val_str(String *str)
 
 String *Item_func_hex::val_str(String *str)
 {
+  String *res;
   DBUG_ASSERT(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
@@ -2434,24 +2466,16 @@ String *Item_func_hex::val_str(String *str)
   }
 
   /* Convert given string to a hex string, character by character */
-  String *res= args[0]->val_str(str);
-  const char *from, *end;
-  char *to;
-  if (!res || tmp_value.alloc(res->length()*2))
+  res= args[0]->val_str(str);
+  if (!res || tmp_value.alloc(res->length()*2+1))
   {
     null_value=1;
     return 0;
   }
   null_value=0;
   tmp_value.length(res->length()*2);
-  for (from=res->ptr(), end=from+res->length(), to= (char*) tmp_value.ptr();
-       from < end ;
-       from++, to+=2)
-  {
-    uint tmp=(uint) (uchar) *from;
-    to[0]=_dig_vec_upper[tmp >> 4];
-    to[1]=_dig_vec_upper[tmp & 15];
-  }
+
+  octet2hex((char*) tmp_value.ptr(), res->ptr(), res->length());
   return &tmp_value;
 }
 
@@ -2518,7 +2542,7 @@ String *Item_load_file::val_str(String *str)
 
   if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      || !(current_thd->master_access & FILE_ACL)
+      || !(current_thd->security_ctx->master_access & FILE_ACL)
 #endif
       )
     goto err;

@@ -147,7 +147,7 @@ insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
 
---disable_parsing WL #2486 should enable these tests
+--disable_parsing # WL #2486 should enable these tests
 select * from t1 natural left join v1;
 select * from v2 natural left join t1;
 select * from v2 natural left join v1;
@@ -786,6 +786,22 @@ select * from v1;
 drop view v1;
 
 #
+# renaming views
+#
+create table t1 (a int);
+create view v1 as select a from t1;
+create view v3 as select a from t1;
+create database mysqltest;
+-- error 1450
+rename table v1 to mysqltest.v1;
+rename table v1 to v2;
+--error 1050
+rename table v3 to v1, v2 to t1;
+drop table t1;
+drop view v2,v3;
+drop database mysqltest;
+
+#
 # bug handling from VIEWs
 #
 create view v1 as select 'a',1;
@@ -827,29 +843,29 @@ create table t2 (col1 int);
 create view v1 as select * from t1;
 create view v2 as select * from v1;
 create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
--- error 1093
+-- error 1443
 update v2 set col1 = (select max(col1) from v1);
--- error 1093
+-- error 1443
 update v2 set col1 = (select max(col1) from t1);
 -- error 1093
 update v2 set col1 = (select max(col1) from v2);
--- error 1093
+-- error 1443
 update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t1,t2 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
 -- error 1093
 update v1,t2 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t2,v2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t2,t1 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t2,v1 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update v2,t2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
 -- error 1093
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update v1,t2 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
 -- error 1093
 update t2,v2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
@@ -859,74 +875,74 @@ update t2,t1 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
 update t2,v1 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
 -- error 1093
 update v2,t2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t1,t2 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update v1,t2 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t2,v2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t2,t1 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update t2,v1 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
--- error 1093
+-- error 1443
 update v3 set v3.col1 = (select max(col1) from v1);
--- error 1093
+-- error 1443
 update v3 set v3.col1 = (select max(col1) from t1);
--- error 1093
+-- error 1443
 update v3 set v3.col1 = (select max(col1) from v2);
 -- error 1093
 update v3 set v3.col1 = (select max(col1) from v3);
--- error 1093
+-- error 1443
 delete from v2 where col1 = (select max(col1) from v1);
--- error 1093
+-- error 1443
 delete from v2 where col1 = (select max(col1) from t1);
 -- error 1093
 delete from v2 where col1 = (select max(col1) from v2);
--- error 1093
+-- error 1443
 delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
--- error 1093
+-- error 1443
 delete t1 from t1,t2 where (select max(col1) from v1) > 0 and t1.col1 = t2.col1;
 -- error 1093
 delete v1 from v1,t2 where (select max(col1) from v1) > 0 and v1.col1 = t2.col1;
--- error 1093
+-- error 1443
 delete v2 from v2,t2 where (select max(col1) from t1) > 0 and v2.col1 = t2.col1;
 -- error 1093
 delete t1 from t1,t2 where (select max(col1) from t1) > 0 and t1.col1 = t2.col1;
--- error 1093
+-- error 1443
 delete v1 from v1,t2 where (select max(col1) from t1) > 0 and v1.col1 = t2.col1;
 -- error 1093
 delete v2 from v2,t2 where (select max(col1) from v2) > 0 and v2.col1 = t2.col1;
--- error 1093
+-- error 1443
 delete t1 from t1,t2 where (select max(col1) from v2) > 0 and t1.col1 = t2.col1;
--- error 1093
+-- error 1443
 delete v1 from v1,t2 where (select max(col1) from v2) > 0 and v1.col1 = t2.col1;
--- error 1093
+-- error 1443
 insert into v2 values ((select max(col1) from v1));
--- error 1093
+-- error 1443
 insert into t1 values ((select max(col1) from v1));
--- error 1093
+-- error 1443
 insert into v2 values ((select max(col1) from v1));
--- error 1093
+-- error 1443
 insert into v2 values ((select max(col1) from t1));
 -- error 1093
 insert into t1 values ((select max(col1) from t1));
--- error 1093
+-- error 1443
 insert into v2 values ((select max(col1) from t1));
 -- error 1093
 insert into v2 values ((select max(col1) from v2));
--- error 1093
+-- error 1443
 insert into t1 values ((select max(col1) from v2));
 -- error 1093
 insert into v2 values ((select max(col1) from v2));
--- error 1093
+-- error 1443
 insert into v3 (col1) values ((select max(col1) from v1));
--- error 1093
+-- error 1443
 insert into v3 (col1) values ((select max(col1) from t1));
--- error 1093
+-- error 1443
 insert into v3 (col1) values ((select max(col1) from v2));
 #check with TZ tables in list
--- error 1093
+-- error 1443
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
 -- error 1048
@@ -1083,11 +1099,11 @@ create view v1 as select * from t1;
 create view v2 as select * from v1;
 -- error 1146
 alter view v1 as select * from v2;
--- error 1066
+-- error 1146
 alter view v1 as select * from v1;
 -- error 1146
 create or replace view v1 as select * from v2;
--- error 1066
+-- error 1146
 create or replace view v1 as select * from v1;
 drop view v2,v1;
 drop table t1;
@@ -1242,7 +1258,7 @@ create view v3 as select * from t1 where 20 < (select (s1) from v2);
 -- error 1288
 insert into v3 values (30);
 create view v4 as select * from v2 where 20 < (select (s1) from t1);
--- error 1093
+-- error 1288
 insert into v4 values (30);
 drop view v4, v3, v2, v1;
 drop table t1;
@@ -1761,6 +1777,20 @@ SELECT * FROM v1;
 drop view v1;
 
 #
+# hide underlying tables names in case of imposibility to update (BUG#10773)
+#
+create table t1 (f59 int, f60 int, f61 int);
+insert into t1 values (19,41,32);
+create view v1 as select f59, f60 from t1 where f59 in  
+         (select f59 from t1);
+-- error 1288
+update v1 set f60=2345;
+-- error 1443
+update t1 set f60=(select max(f60) from v1);
+drop view v1;
+drop table t1;
+
+#
 # Using var_samp with view (BUG#10651)
 #
 create table t1 (s1 int);
@@ -2004,3 +2034,159 @@ create view v1 as select strcmp(f1,'a') from t1;
 select * from v1;
 drop view v1;
 drop table t1;
+
+#
+# Bug #12922 if(sum(),...) with group from view returns wrong results 
+#
+create table t1 (f1 int, f2 int,f3 int);
+insert into t1 values (1,10,20),(2,0,0);
+create view v1 as select * from t1;
+select if(sum(f1)>1,f2,f3) from v1 group by f1;
+drop view v1;
+drop table t1;
+# BUG#12941
+#
+--disable_warnings
+create table t1 (
+  r_object_id char(16) NOT NULL,
+  group_name varchar(32) NOT NULL
+) engine = InnoDB;
+
+create table t2 (
+  r_object_id char(16) NOT NULL,
+  i_position int(11) NOT NULL, 
+  users_names varchar(32) default NULL
+) Engine = InnoDB;
+--enable_warnings
+
+create view v1 as select r_object_id, group_name from t1;
+create view v2 as select r_object_id, i_position, users_names from t2;
+
+create unique index r_object_id on t1(r_object_id);
+create index group_name on t1(group_name);
+create unique index r_object_id_i_position on t2(r_object_id,i_position);
+create index users_names on t2(users_names);
+
+insert into t1 values('120001a080000542','tstgroup1');
+insert into t2 values('120001a080000542',-1, 'guser01');
+insert into t2 values('120001a080000542',-2, 'guser02');
+
+select v1.r_object_id, v2.users_names from v1, v2
+where (v1.group_name='tstgroup1') and v2.r_object_id=v1.r_object_id 
+order by users_names;
+
+drop view v1, v2;
+drop table t1, t2;
+
+#
+# DEFINER information check
+#
+-- error ER_NO_VIEW_USER
+create definer=some_user@__% sql security invoker view v1 as select 1;
+create definer=some_user@localhost sql security invoker view v1 as select 1;
+show create view v1;
+drop view v1;
+
+#
+# Bug #6808 - Views: CREATE VIEW v ... FROM t AS v fails
+#
+
+create table t1 (s1 int); 
+create view abc as select * from t1 as abc;
+drop table t1;
+drop view abc;
+
+#
+# Bug #12993 View column rename broken in subselect
+#
+create table t1(f1 char(1));
+create view v1 as select * from t1;
+select * from (select f1 as f2 from v1) v where v.f2='a';
+drop view v1;
+drop table t1;
+
+#
+# Bug #11416 Server crash if using a view that uses function convert_tz
+#
+create view v1 as SELECT CONVERT_TZ('2004-01-01 12:00:00','GMT','MET');
+select * from v1;
+drop view v1;
+
+#
+# Bugs #12963, #13000: wrong creation of VIEW with DAYNAME, DAYOFWEEK, and WEEKDAY
+#
+
+CREATE TABLE t1 (date DATE NOT NULL);
+INSERT INTO  t1 VALUES ('2005-09-06');
+
+CREATE VIEW v1 AS SELECT DAYNAME(date) FROM t1;
+SHOW CREATE VIEW v1;
+
+CREATE VIEW v2 AS SELECT DAYOFWEEK(date) FROM t1;
+SHOW CREATE VIEW v2;
+
+CREATE VIEW v3 AS SELECT WEEKDAY(date) FROM t1;
+SHOW CREATE VIEW v3;
+
+SELECT DAYNAME('2005-09-06');
+SELECT DAYNAME(date) FROM t1;
+SELECT * FROM v1;
+
+SELECT DAYOFWEEK('2005-09-06');
+SELECT DAYOFWEEK(date) FROM t1;
+SELECT * FROM v2;
+
+SELECT WEEKDAY('2005-09-06');
+SELECT WEEKDAY(date) FROM t1;
+SELECT * FROM v3;
+
+DROP TABLE t1;
+DROP VIEW  v1, v2, v3;
+
+#
+# Bug #13411: crash when using non-qualified view column in HAVING clause 
+#
+
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING a > 1;
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING a > 1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #13410: failed name resolution for qualified view column in HAVING 
+#
+
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING t1.a > 1;
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING v1.a > 1;
+SELECT t_1.a FROM t1 AS t_1 GROUP BY t_1.a HAVING t_1.a IN (1,2,3);
+SELECT v_1.a FROM v1 AS v_1 GROUP BY v_1.a HAVING v_1.a IN (1,2,3);
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #13327 view wasn't using index for const condition
+#
+
+CREATE TABLE t1 (a INT, b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t3 VALUES (1),(2),(3);
+CREATE VIEW v1 AS SELECT t1.* FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
+CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
+EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
+EXPLAIN SELECT * FROM v1 WHERE a=1;
+EXPLAIN SELECT * FROM v2 WHERE a=1;
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
+
+

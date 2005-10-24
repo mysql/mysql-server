@@ -150,7 +150,7 @@ class ha_innobase: public handler
   	int extra(enum ha_extra_function operation);
   	int external_lock(THD *thd, int lock_type);
 	int transactional_table_lock(THD *thd, int lock_type);
-	int start_stmt(THD *thd);
+        int start_stmt(THD *thd, thr_lock_type lock_type);
 
   	void position(byte *record);
   	ha_rows records_in_range(uint inx, key_range *min_key, key_range
@@ -174,6 +174,8 @@ class ha_innobase: public handler
 	void init_table_handle_for_HANDLER(); 
 	ulonglong get_auto_increment();
 	int reset_auto_increment(ulonglong value);
+
+	virtual bool get_error_message(int error, String *buf);
 	
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
         /*
@@ -239,7 +241,7 @@ extern ulong srv_commit_concurrency;
 
 extern TYPELIB innobase_lock_typelib;
 
-handlerton *innobase_init(void);
+bool innobase_init(void);
 bool innobase_end(void);
 bool innobase_flush_logs(void);
 uint innobase_get_free_space(void);
@@ -344,4 +346,4 @@ restored to a transaction read view. */
 void
 innobase_set_cursor_view(
 /*=====================*/
-	void*	curview);	/* in: Consistent read view to be closed */
+	void*	curview);	/* in: Consistent read view to be set */

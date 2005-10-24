@@ -187,7 +187,7 @@ Dbtup::rfrInitRestartInfoLab(Signal* signal, DiskBufferSegmentInfoPtr dbsiPtr)
   const Uint32 pageCount = riPtr.p->sriNumDataPages - regFragPtr.p->noOfPages;
   if(pageCount > 0){
     Uint32 noAllocPages = allocFragPages(regFragPtr.p, pageCount);
-    ndbrequire(noAllocPages == pageCount);
+    ndbrequireErr(noAllocPages == pageCount, NDBD_EXIT_SR_OUT_OF_DATAMEMORY);
   }//if
   ndbrequire(getNoOfPages(regFragPtr.p) == riPtr.p->sriNumDataPages);
 

@@ -25,7 +25,8 @@
 
 
 
-#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__) && !defined(__ICC)
+#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__) 
+#if !(defined(__ICC) || defined(__INTEL_COMPILER))
 
 #define yaSSL_NEW_HPP
 
@@ -46,5 +47,6 @@ static int __cxa_pure_virtual()
 } // extern "C"
 
 #endif // __GNUC__ > 2
+#endif // ! _ICC
 #endif // yaSSL_NEW_HPP && __GNUC__
 

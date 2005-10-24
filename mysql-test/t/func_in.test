@@ -97,9 +97,16 @@ select 1 in ('1.1',2.0);
 
 # Test case for bug #6365
 
-create table t1 (a char(20) character set binary);
+create table t1 (a char(2) character set binary);
 insert into t1 values ('aa'), ('bb');
 select * from t1 where a in (NULL, 'aa');
+drop table t1;
+
+# BUG#13419
+create table t1 (id int, key(id));
+insert into t1 values (1),(2),(3);
+select count(*) from t1 where id not in (1);
+select count(*) from t1 where id not in (1,2);
 drop table t1;
 
 # End of 4.1 tests

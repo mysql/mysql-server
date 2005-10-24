@@ -83,9 +83,6 @@ public:
   void setClusterLogLevel(Parser_t::Context &ctx, 
 			  const class Properties &args);
   void setLogFilter(Parser_t::Context &ctx, const class Properties &args);
-  void configLock(Parser_t::Context &ctx, const class Properties &args);
-  void configUnlock(Parser_t::Context &ctx, const class Properties &args);
-  void configChange(Parser_t::Context &ctx, const class Properties &args);
 
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
   void setConnectionParameter(Parser_t::Context &ctx,
@@ -101,8 +98,8 @@ public:
   void transporter_connect(Parser_t::Context &ctx, Properties const &args);
 
   void get_mgmd_nodeid(Parser_t::Context &ctx, Properties const &args);
-  
-  void repCommand(Parser_t::Context &ctx, const class Properties &args);
+
+  void report_event(Parser_t::Context &ctx, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {

@@ -89,6 +89,24 @@ select c1 from t1 where c1 like 'abcde111%' order by c1;
 c1
 abcde111
 drop table t1;
+select @@collation_connection;
+@@collation_connection
+big5_chinese_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
 SET collation_connection='big5_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -121,6 +139,24 @@ select c1 from t1 where c1 like 'abcde111%' order by c1;
 c1
 abcde111
 drop table t1;
+select @@collation_connection;
+@@collation_connection
+big5_bin
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
 SET NAMES big5;
 CREATE TABLE t1 (a text) character set big5;
 INSERT INTO t1 VALUES ('ùØ');
@@ -134,3 +170,22 @@ SELECT HEX(a) FROM t1 WHERE MATCH(a) AGAINST (0xA741ADCCA66EB6DC IN BOOLEAN MODE
 HEX(a)
 A741ADCCA66EB6DC20A7DAADCCABDCA66E
 DROP TABLE t1;
+set names big5;
+create table t1 (a char character set big5);
+insert into t1 values (0xF9D6),(0xF9D7),(0xF9D8),(0xF9D9);
+insert into t1 values (0xF9DA),(0xF9DB),(0xF9DC);
+select hex(a) a, hex(@u:=convert(a using utf8)) b,
+hex(convert(@u using big5)) c from t1 order by a;
+a	b	c
+F9D6	E7A281	F9D6
+F9D7	E98AB9	F9D7
+F9D8	E8A38F	F9D8
+F9D9	E5A2BB	F9D9
+F9DA	E68192	F9DA
+F9DB	E7B2A7	F9DB
+F9DC	E5ABBA	F9DC
+alter table t1 convert to character set utf8;
+select hex(a) from t1 where a = _big5 0xF9DC;
+hex(a)
+E5ABBA
+drop table t1;

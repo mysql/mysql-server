@@ -776,6 +776,7 @@ delimiter ;//
 
 #
 # query in QC from normal execution and SP (BUG#6897)
+# improved to also test BUG#3583 and BUG#12990
 #
 flush query cache;
 reset query cache;
@@ -785,6 +786,22 @@ create table t1 (s1 int)//
 create procedure f1 () begin
 select sql_cache * from t1;
 select sql_cache * from t1;
+select sql_cache * from t1;
+end;//
+create procedure f2 () begin
+select sql_cache * from t1 where s1=1;
+select sql_cache * from t1;
+end;//
+create procedure f3 () begin
+select sql_cache * from t1;
+select sql_cache * from t1 where s1=1;
+end;//
+create procedure f4 () begin
+select sql_cache * from t1;
+select sql_cache * from t1 where s1=1;
+select sql_cache * from t1;
+select sql_cache * from t1 where s1=1;
+select sql_cache * from t1 where s1=1;
 end;//
 delimiter ;//
 call f1();
@@ -811,7 +828,32 @@ select sql_cache * from t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
+flush query cache;
+reset query cache;
+flush status;
+select sql_cache * from t1;
+select sql_cache * from t1 where s1=1;
+call f1();
+call f2();
+call f3();
+call f4();
+call f4();
+call f3();
+call f2();
+select sql_cache * from t1 where s1=1;
+insert into t1 values (2);
+call f1();
+select sql_cache * from t1 where s1=1;
+select sql_cache * from t1;
+call f1();
+call f3();
+call f3();
+call f1();
+
 drop procedure f1;
+drop procedure f2;
+drop procedure f3;
+drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
 

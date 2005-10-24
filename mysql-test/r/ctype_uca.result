@@ -1905,6 +1905,116 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_esperanto_ci;
+group_concat(c1 order by c1)
+÷
+×
+A,a,À,Á,Â,Ã,Ä,Å,à,á,â,ã,ä,å,Ā,ā,Ă,ă,Ą,ą,Ǎ,ǎ,Ǟ,ǟ,Ǡ,ǡ,Ǻ,ǻ
+AA,Aa,aA,aa
+Æ,æ,Ǣ,ǣ,Ǽ,ǽ
+B,b
+ƀ
+Ɓ
+Ƃ,ƃ
+C,c,Ç,ç,Ć,ć,Ċ,ċ,Č,č
+CH,Ch,cH,ch
+Ĉ,ĉ
+Ƈ,ƈ
+D,d,Ď,ď
+DZ,Dz,dZ,dz,Ǆ,ǅ,ǆ,Ǳ,ǲ,ǳ
+Đ,đ
+Ɖ
+Ɗ
+Ƌ,ƌ
+Ð,ð
+E,e,È,É,Ê,Ë,è,é,ê,ë,Ē,ē,Ĕ,ĕ,Ė,ė,Ę,ę,Ě,ě
+Ǝ,ǝ
+Ə
+Ɛ
+F,f
+Ƒ,ƒ
+G,g,Ğ,ğ,Ġ,ġ,Ģ,ģ,Ǧ,ǧ,Ǵ,ǵ
+Ĝ,ĝ
+Ǥ,ǥ
+Ɠ
+Ɣ
+Ƣ,ƣ
+H,h
+Ĥ,ĥ
+ƕ,Ƕ
+Ħ,ħ
+I,i,Ì,Í,Î,Ï,ì,í,î,ï,Ĩ,ĩ,Ī,ī,Ĭ,ĭ,Į,į,İ,Ǐ,ǐ
+IJ,Ij,iJ,ij,Ĳ,ĳ
+ı
+Ɨ
+Ɩ
+J,j,ǰ
+Ĵ,ĵ
+K,k,Ķ,ķ,Ǩ,ǩ
+Ƙ,ƙ
+L,l,Ĺ,ĺ,Ļ,ļ,Ľ,ľ
+Ŀ,ŀ
+LJ,Lj,lJ,lj,Ǉ,ǈ,ǉ
+LL,Ll,lL,ll
+Ł,ł
+ƚ
+ƛ
+M,m
+N,n,Ñ,ñ,Ń,ń,Ņ,ņ,Ň,ň,Ǹ,ǹ
+NJ,Nj,nJ,nj,Ǌ,ǋ,ǌ
+Ɲ
+ƞ
+Ŋ,ŋ
+O,o,Ò,Ó,Ô,Õ,Ö,ò,ó,ô,õ,ö,Ō,ō,Ŏ,ŏ,Ő,ő,Ơ,ơ,Ǒ,ǒ,Ǫ,ǫ,Ǭ,ǭ
+OE,Oe,oE,oe,Œ,œ
+Ø,ø,Ǿ,ǿ
+Ɔ
+Ɵ
+P,p
+Ƥ,ƥ
+Q,q
+ĸ
+R,r,Ŕ,ŕ,Ŗ,ŗ,Ř,ř
+RR,Rr,rR,rr
+Ʀ
+S,s,Ś,ś,Ş,ş,Š,š,ſ
+SS,Ss,sS,ss,ß
+Ŝ,ŝ
+Ʃ
+ƪ
+T,t,Ţ,ţ,Ť,ť
+ƾ
+Ŧ,ŧ
+ƫ
+Ƭ,ƭ
+Ʈ
+U,u,Ù,Ú,Û,Ü,ù,ú,û,ü,Ũ,ũ,Ū,ū,Ů,ů,Ű,ű,Ų,ų,Ư,ư,Ǔ,ǔ,Ǖ,ǖ,Ǘ,ǘ,Ǚ,ǚ,Ǜ,ǜ
+Ŭ,ŭ
+Ɯ
+Ʊ
+V,v
+Ʋ
+W,w,Ŵ,ŵ
+X,x
+Y,y,Ý,ý,ÿ,Ŷ,ŷ,Ÿ
+Ƴ,ƴ
+Z,z,Ź,ź,Ż,ż,Ž,ž
+ƍ
+Ƶ,ƶ
+Ʒ,Ǯ,ǯ
+Ƹ,ƹ
+ƺ
+Þ,þ
+ƿ,Ƿ
+ƻ
+Ƨ,ƨ
+Ƽ,ƽ
+Ƅ,ƅ
+ŉ
+ǀ
+ǁ
+ǂ
+ǃ
 drop table t1;
 SET NAMES utf8;
 CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_general_ci, INDEX (c));
@@ -2395,6 +2505,24 @@ collation(a)	hex(a)
 utf8_unicode_ci	6109
 utf8_unicode_ci	61
 utf8_unicode_ci	6120
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+utf8_unicode_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
 drop table t1;
 CREATE TABLE t1 (id int, a varchar(30) character set utf8);
 INSERT INTO t1 VALUES (1, _ucs2 0x01310069), (2, _ucs2 0x01310131);

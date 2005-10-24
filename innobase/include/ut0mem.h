@@ -119,6 +119,31 @@ int
 ut_strcmp(const void* str1, const void* str2);
 
 /**************************************************************************
+Copies up to size - 1 characters from the NUL-terminated string src to
+dst, NUL-terminating the result. Returns strlen(src), so truncation
+occurred if the return value >= size. */
+
+ulint
+ut_strlcpy(
+/*=======*/
+				/* out: strlen(src) */
+	char*		dst,	/* in: destination buffer */
+	const char*	src,	/* in: source buffer */
+	ulint		size);	/* in: size of destination buffer */
+
+/**************************************************************************
+Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
+(size - 1) bytes of src, not the first. */
+
+ulint
+ut_strlcpy_rev(
+/*===========*/
+				/* out: strlen(src) */
+	char*		dst,	/* in: destination buffer */
+	const char*	src,	/* in: source buffer */
+	ulint		size);	/* in: size of destination buffer */
+
+/**************************************************************************
 Compute strlen(ut_strcpyq(str, q)). */
 UNIV_INLINE
 ulint

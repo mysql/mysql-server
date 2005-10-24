@@ -222,6 +222,7 @@ FAILED_CASES=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
+EXTRA_MYSQLCHECK_OPT=""
 EXTRA_MYSQLDUMP_OPT=""
 EXTRA_MYSQLSHOW_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
@@ -235,6 +236,7 @@ DO_GDB=""
 MANUAL_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
+DO_VALGRIND_MYSQL_TEST=""
 SLEEP_TIME_AFTER_RESTART=1
 SLEEP_TIME_FOR_DELETE=10
 SLEEP_TIME_FOR_FIRST_MASTER=400		# Enough time to create innodb tables
@@ -253,6 +255,17 @@ TEST_MODE=""
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
+
+DO_STRESS=""
+STRESS_SUITE="main"
+STRESS_MODE="random"
+STRESS_THREADS=5
+STRESS_TEST_COUNT=20
+STRESS_LOOP_COUNT=""
+STRESS_TEST_DURATION=""
+STRESS_INIT_FILE=""
+STRESS_TEST_FILE=""
+STRESS_TEST=""
 
 while test $# -gt 0; do
   case "$1" in
@@ -341,6 +354,35 @@ while test $# -gt 0; do
     --bench)
       DO_BENCH=1
       NO_SLAVE=1
+      ;;
+    --stress)
+      DO_STRESS=1
+      NO_SLAVE=1
+      SKIP_SLAVE=1
+      ;;
+    --stress-suite=*)
+      STRESS_SUITE=`$ECHO "$1" | $SED -e "s;--stress-suite=;;"`
+      ;;
+    --stress-threads=*)
+      STRESS_THREADS=`$ECHO "$1" | $SED -e "s;--stress-threads=;;"`
+      ;;
+    --stress-test-file=*)
+      STRESS_TEST_FILE=`$ECHO "$1" | $SED -e "s;--stress-test-file=;;"`
+      ;;
+    --stress-init-file=*)
+      STRESS_INIT_FILE=`$ECHO "$1" | $SED -e "s;--stress-init-file=;;"`
+      ;; 
+    --stress-mode=*)
+      STRESS_MODE=`$ECHO "$1" | $SED -e "s;--stress-mode=;;"`
+      ;;
+    --stress-loop-count=*)
+      STRESS_LOOP_COUNT=`$ECHO "$1" | $SED -e "s;--stress-loop-count=;;"`
+      ;;
+    --stress-test-count=*)
+      STRESS_TEST_COUNT=`$ECHO "$1" | $SED -e "s;--stress-test-count=;;"`
+      ;;      
+    --stress-test-duration=*)
+      STRESS_TEST_DURATION=`$ECHO "$1" | $SED -e "s;--stress-test-duration=;;"`
       ;;
     --big*)			# Actually --big-test
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
@@ -432,6 +474,9 @@ while test $# -gt 0; do
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
       VALGRIND="$VALGRIND $TMP"
       ;;
+    --valgrind-mysqltest)
+      DO_VALGRIND_MYSQL_TEST=1
+      ;;
     --skip-ndbcluster | --skip-ndb)
       USE_NDBCLUSTER=""
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-ndbcluster"
@@ -451,6 +496,8 @@ while test $# -gt 0; do
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqltest.trace"
+      EXTRA_MYSQLCHECK_OPT="$EXTRA_MYSQLCHECK_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlcheck.trace"
       EXTRA_MYSQLDUMP_OPT="$EXTRA_MYSQLDUMP_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqldump.trace"
       EXTRA_MYSQLSHOW_OPT="$EXTRA_MYSQLSHOW_OPT \
@@ -553,6 +600,11 @@ if [ x$SOURCE_DIST = x1 ] ; then
    fi
    MYSQL_CLIENT_TEST="$BASEDIR/tests/mysql_client_test"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqlcheck" ] ; then
+   MYSQL_CHECK="$BASEDIR/client/.libs/mysqlcheck"
+ else
+   MYSQL_CHECK="$BASEDIR/client/mysqlcheck"
+ fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
    MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
  else
@@ -575,6 +627,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  CLIENT_BINDIR="$BASEDIR/client"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
+ MYSQL_MY_PRINT_DEFAULTS="$BASEDIR/extra/my_print_defaults"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqltestmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqltestmanager"
  MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqltestmanager-pwgen"
@@ -630,11 +683,13 @@ else
    TESTS_BINDIR="$BASEDIR/bin"
  fi
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
+ MYSQL_CHECK="$CLIENT_BINDIR/mysqlcheck"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
  MYSQL_SHOW="$CLIENT_BINDIR/mysqlshow"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
+ MYSQL_MY_PRINT_DEFAULTS="$CLIENT_BINDIR/my_print_defaults"
  MYSQL_MANAGER="$CLIENT_BINDIR/mysqltestmanager"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqltestmanagerc"
  MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqltestmanager-pwgen"
@@ -664,7 +719,7 @@ else
      MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test_embedded"
    fi
  else
-   MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
+   MYSQL_TEST="$VALGRIND_MYSQLTEST $CLIENT_BINDIR/mysqltest"
    MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test"
  fi
 fi
@@ -679,9 +734,13 @@ then
 SLAVE_MYSQLD=$MYSQLD
 fi
 
+if [ x$DO_VALGRIND_MYSQL_TEST = x1 ] ; then
+  MYSQL_TEST="$VALGRIND $MYSQL_TEST"
+fi
+
 # If we should run all tests cases, we will use a local server for that
 
-if [ -z "$1" ]
+if [ -z "$1" -a -z "$DO_STRESS" ]
 then
    USE_RUNNING_SERVER=0
 fi
@@ -710,13 +769,14 @@ fi
 # Save path and name of mysqldump
 MYSQL_DUMP_DIR="$MYSQL_DUMP"
 export MYSQL_DUMP_DIR
+MYSQL_CHECK="$MYSQL_CHECK --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLCHECK_OPT"
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-export MYSQL MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
-export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
+export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
+export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR MYSQL_MY_PRINT_DEFAULTS
 export NDB_TOOLS_DIR
 export NDB_MGM
 export NDB_BACKUP_DIR
@@ -733,6 +793,7 @@ if [ x$USE_TIMER = x1 ] ; then
 fi
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
+export MYSQL_TEST
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
@@ -746,7 +807,7 @@ if [ -n "$DO_CLIENT_GDB" -o -n "$DO_GDB" ] ; then
   XTERM=`which xterm`
 fi
 
-export MYSQL MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR MASTER_MYSOCK
+export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR MASTER_MYSOCK
 
 #++
 # Function Definitions
@@ -1168,7 +1229,7 @@ start_master()
   then
       CURR_MASTER_MYSQLD_TRACE="$EXTRA_MASTER_MYSQLD_TRACE$1"
   fi
-  if [ -z "$DO_BENCH" ]
+  if [ -z "$DO_BENCH" -a -z "$DO_STRESS"  ]
   then
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
   	    --server-id=$id  \
@@ -1605,7 +1666,7 @@ run_testcase ()
      stop_master 1
      report_current_test $tname
      start_master
-     if [ -n "$USE_NDBCLUSTER" -a -z "$DO_BENCH" ] ; then
+     if [ -n "$USE_NDBCLUSTER" -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
        start_master 1
      fi
      TZ=$MY_TZ; export TZ
@@ -1621,7 +1682,7 @@ run_testcase ()
        stop_master 1
        report_current_test $tname
        start_master
-       if [ -n "$USE_NDBCLUSTER"  -a -z "$DO_BENCH" ] ; then
+       if [ -n "$USE_NDBCLUSTER"  -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
          start_master 1
        fi
      else
@@ -1742,6 +1803,125 @@ run_testcase ()
   fi
 }
 
+run_stress_test()
+{
+
+  STRESS_BASEDIR="$MYSQL_TEST_DIR/var/stress"
+
+  #Clean-up old stress test basedir
+  if [ -d $STRESS_BASEDIR ] ; then 
+    $RM -rf $STRESS_BASEDIR
+  fi
+  #Create stress test basedir 
+  mkdir $STRESS_BASEDIR
+
+  if [ "$STRESS_SUITE" != "main" -a "$STRESS_SUITE" != "default" ] ; then
+    STRESS_SUITE_DIR="$MYSQL_TEST_DIR/suite/$STRESS_SUITE"
+  else
+    STRESS_SUITE_DIR="$MYSQL_TEST_DIR"
+  fi
+
+  if [ -d "$STRESS_SUITE_DIR" ] ; then 
+    STRESS_SUITE_T_DIR="$STRESS_SUITE_DIR/t"
+    STRESS_SUITE_R_DIR="$STRESS_SUITE_DIR/r"
+    #FIXME: check that dirs above are exist
+  else
+    echo "Directory $STRESS_SUITE_DIR with test suite doesn't exists. Abort stress testing"
+    exit 1
+  fi
+  
+  if [ -n "$STRESS_TEST" ] ; then 
+    STRESS_TEST_FILE="$STRESS_BASEDIR/stress_tests.txt"
+    echo $STRESS_TEST > $STRESS_TEST_FILE
+  elif [ -n "$STRESS_TEST_FILE" ] ; then    
+    STRESS_TEST_FILE="$STRESS_SUITE_DIR/$STRESS_TEST_FILE"
+    if [ ! -f  "$STRESS_TEST_FILE" ] ; then 
+      echo "Specified file $STRESS_TEST_FILE with list of tests does not exist"
+      echo "Please ensure that file exists and has proper permissions"
+      exit 1
+    fi
+  else 
+    STRESS_TEST_FILE="$STRESS_SUITE_DIR/stress_tests.txt"
+    if [ ! -f  "$STRESS_TEST_FILE" ] ; then 
+      echo "Default file $STRESS_TEST_FILE with list of tests does not exist."
+      echo "Please use --stress-test-file option to specify custom one or you can" 
+      echo "just specify name of test for testing as last argument in command line"
+      exit 1
+    fi
+  fi
+
+  if [ -n "$STRESS_INIT_FILE" ] ; then 
+    STRESS_INIT_FILE="$STRESS_SUITE_DIR/$STRESS_INIT_FILE"
+    if [ ! -f  "$STRESS_INIT_FILE" ] ; then 
+      echo "Specified file $STRESS_INIT_FILE with list of tests doesn't exist."
+      echo "Please ensure that file exists and has proper permissions"
+      exit 1
+    fi
+  else
+    STRESS_INIT_FILE="$STRESS_SUITE_DIR/stress_init.txt"
+    #Check for default init file
+    if [ ! -f "$STRESS_INIT_FILE" ] ; then 
+      STRESS_INIT_FILE=""
+    fi
+  fi
+
+  if [ "$STRESS_MODE" != "random" -a "$STRESS_MODE" != "seq" ] ; then
+    echo "You specified wrong mode '$STRESS_MODE' for stress test."
+    echo "Correct values are 'random' or 'seq'"
+    exit 1
+  fi
+ 
+  STRESS_TEST_ARGS="--server-socket=$MASTER_MYSOCK \
+                    --server-user=$DBUSER \
+                    --server-database=$DB \
+                    --stress-suite-basedir=$MYSQL_TEST_DIR \
+                    --suite=$STRESS_SUITE \
+                    --stress-tests-file=$STRESS_TEST_FILE \
+                    --stress-basedir=$STRESS_BASEDIR \
+                    --server-logs-dir=$STRESS_BASEDIR \
+                    --stress-mode=$STRESS_MODE \
+                    --mysqltest=$BASEDIR/client/mysqltest \
+                    --threads=$STRESS_THREADS \
+                    --verbose \
+                    --cleanup \
+                    --log-error-details \
+                    --abort-on-error" 
+  
+  if [ -n "$STRESS_INIT_FILE" ] ; then 
+    STRESS_TEST_ARGS="$STRESS_TEST_ARGS --stress-init-file=$STRESS_INIT_FILE"
+  fi
+
+  if [ -n "$STRESS_LOOP_COUNT" ] ; then 
+    STRESS_TEST_ARGS="$STRESS_TEST_ARGS --loop-count=$STRESS_LOOP_COUNT"
+  fi
+
+  if [ -n "$STRESS_TEST_COUNT" ] ; then 
+    STRESS_TEST_ARGS="$STRESS_TEST_ARGS --test-count=$STRESS_TEST_COUNT"
+  fi
+
+  if [ -n "$STRESS_TEST_DURATION" ] ; then 
+    STRESS_TEST_ARGS="$STRESS_TEST_ARGS --test-duration=$STRESS_TEST_DURATION"
+  fi  
+
+  echo "Stress test related variables:"
+  echo "TESTS                - $1"
+  echo "STRESS               - $DO_STRESS"
+  echo "STRESS_SUITE         - $STRESS_SUITE"
+  echo "STRESS_TEST_FILE     - $STRESS_TEST_FILE"
+  echo "STRESS_INIT_FILE     - $STRESS_INIT_FILE"
+  echo "STRESS_THREADS       - $STRESS_THREADS"
+  echo "STRESS_MODE          - $STRESS_MODE"
+  echo "STRESS_TEST_COUNT    - $STRESS_TEST_COUNT"
+  echo "STRESS_LOOP_COUNT    - $STRESS_LOOP_COUNT"  
+  echo "STRESS_TEST_DURATION - $STRESS_TEST_DURATION"
+
+  #echo "$STRESS_TEST_ARGS";
+  #Run stress test 
+  $MYSQL_TEST_DIR/mysql-stress-test.pl $STRESS_TEST_ARGS
+
+
+}
+
 ######################################################################
 # Main script starts here
 ######################################################################
@@ -1855,6 +2035,32 @@ then
   stop_manager
   exit
 fi
+
+#
+# Stress testing
+#
+if [ "$DO_STRESS" = 1 ] 
+then
+
+  if [ -n "$1" ] ; then
+    STRESS_TEST="$1";
+  fi                      
+ 
+  if [ $USE_RUNNING_SERVER -eq 0 ] ; then 
+    start_master
+  fi
+ 
+  run_stress_test
+
+  if [ $USE_RUNNING_SERVER -eq 0 ] ; then
+    mysql_stop
+    stop_manager
+  fi
+  
+  exit
+
+fi
+
 
 $ECHO
 if [ x$USE_TIMER = x1 ] ; then

@@ -164,6 +164,7 @@ struct Hybrid_type_traits
   virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
   static const Hybrid_type_traits *instance();
+  Hybrid_type_traits() {};
 };
 
 
@@ -185,6 +186,7 @@ struct Hybrid_type_traits_decimal: public Hybrid_type_traits
   { return &val->dec_buf[val->used_dec_buf_no]; }
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
   static const Hybrid_type_traits_decimal *instance();
+  Hybrid_type_traits_decimal() {};
 };
 
 
@@ -215,6 +217,7 @@ struct Hybrid_type_traits_integer: public Hybrid_type_traits
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const
   { buf->set(val->integer, &my_charset_bin); return buf;}
   static const Hybrid_type_traits_integer *instance();
+  Hybrid_type_traits_integer() {};
 };
 
 
@@ -715,8 +718,10 @@ public:
 class Item_splocal : public Item
 {
   uint m_offset;
+
 public:
   LEX_STRING m_name;
+  THD	     *thd;
 
   /* 
     Position of this reference to SP variable in the statement (the
@@ -728,10 +733,10 @@ public:
     Value of 0 means that this object doesn't corresponding to reference to
     SP variable in query text.
   */
-  int pos_in_query;
+  uint pos_in_query;
 
-  Item_splocal(LEX_STRING name, uint offset, int pos_in_q=0)
-    : m_offset(offset), m_name(name), pos_in_query(pos_in_q)
+  Item_splocal(LEX_STRING name, uint offset, uint pos_in_q=0)
+    : m_offset(offset), m_name(name), thd(0), pos_in_query(pos_in_q)
   {
     maybe_null= TRUE;
   }
@@ -1189,6 +1194,7 @@ public:
     constant, assert otherwise. This method is called only if
     basic_const_item returned TRUE.
   */
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   Item *new_item();
   /*
     Implement by-value equality evaluation if parameter value
@@ -1326,6 +1332,14 @@ public:
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
+    if (value <= (double) LONGLONG_MIN)
+    {
+       return LONGLONG_MIN;
+    }
+    else if (value >= (double) (ulonglong) LONGLONG_MAX)
+    {
+      return LONGLONG_MAX;
+    }
     return (longlong) (value+(value > 0 ? 0.5 : -0.5));
   }
   String *val_str(String*);
@@ -1494,6 +1508,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
@@ -1537,6 +1552,7 @@ class Item_ref :public Item_ident
 protected:
   void set_properties();
 public:
+  enum Ref_Type { REF, DIRECT_REF, VIEW_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(Name_resolution_context *context_arg,
@@ -1609,7 +1625,7 @@ public:
   }
   Item *real_item()
   {
-    return (*ref)->real_item();
+    return ref ? (*ref)->real_item() : this;
   }
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }
@@ -1617,6 +1633,7 @@ public:
   void cleanup();
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
+  virtual Ref_Type ref_type() { return REF; }
 };
 
 
@@ -1641,6 +1658,7 @@ public:
   bool val_bool();
   bool is_null();
   bool get_date(TIME *ltime,uint fuzzydate);
+  virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
 
 /*
@@ -1660,6 +1678,7 @@ public:
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
+  virtual Ref_Type ref_type() { return VIEW_REF; }
 };
 
 

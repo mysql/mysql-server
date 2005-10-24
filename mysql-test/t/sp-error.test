@@ -875,7 +875,7 @@ create procedure bug8408_p()
   select * from t1|
 
 call bug8408_p()|
---error ER_SP_BADSELECT
+--error ER_SP_NO_RETSET
 select bug8408_f()|
 
 drop procedure bug8408_p|
@@ -956,38 +956,9 @@ end|
 drop procedure bug10969|
 
 
-#
-# BUG#NNNN: New bug synopsis
-#
-#--disable_warnings
-#drop procedure if exists bugNNNN|
-#--enable_warnings
-#create procedure bugNNNN...
-
-
 drop table t1|
 
 delimiter ;|
-
-#
-# Bug#10975, #10605, #7115: Dynamic SQL by means of
-# PREPARE/EXECUTE/DEALLOCATE is not supported yet.
-# Check that an error message is returned.
-#
-prepare stmt from "select 1";
---error ER_SP_BADSTATEMENT
-create procedure p() deallocate prepare stmt; 
---error ER_SP_BADSTATEMENT
-create function f() returns int begin deallocate prepare stmt;
---error ER_SP_BADSTATEMENT
-create procedure p() prepare stmt from "select 1";
---error ER_SP_BADSTATEMENT
-create function f() returns int begin prepare stmt from "select 1";
---error ER_SP_BADSTATEMENT
-create procedure p() execute stmt; 
---error ER_SP_BADSTATEMENT
-create function f() returns int begin execute stmt;
-deallocate prepare stmt;
 
 # BUG#9814: Closing a cursor that is not open 
 create table t1(f1 int);
@@ -1020,6 +991,7 @@ P1: BEGIN
   SELECT 'end of proc';
 END P1|
 delimiter ;|
+--error 1326
 call SP001();
 drop procedure SP001;
 drop table t1, t2;
@@ -1114,3 +1086,207 @@ drop function bug11834_1;
 execute stmt;
 deallocate prepare stmt;
 drop function bug11834_2;
+
+#
+# Bug#12953 "Stored procedures: crash if OPTIMIZE TABLE in function"
+#
+delimiter |;
+--disable_warnings
+DROP FUNCTION IF EXISTS bug12953|
+--enable_warnings
+--error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug12953() RETURNS INT
+BEGIN
+  OPTIMIZE TABLE t1;
+  RETURN 1;
+END|
+delimiter ;|
+
+#
+# Bug##12995 "Inside function "Table 't4' was not locked with LOCK TABLES"
+#
+delimiter |;
+--disable_warnings
+DROP FUNCTION IF EXISTS bug12995|
+--enable_warnings
+--error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug12995() RETURNS INT
+BEGIN
+  HANDLER t1 OPEN;
+  RETURN 1;
+END|
+--error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug12995() RETURNS INT
+BEGIN
+  HANDLER t1 READ FIRST;
+  RETURN 1;
+END|
+--error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug12995() RETURNS INT
+BEGIN
+  HANDLER t1 CLOSE;
+  RETURN 1;
+END|
+--error 1305
+SELECT bug12995()|
+delimiter ;|
+
+
+#
+# BUG#12712: SET AUTOCOMMIT should fail within SP/functions/triggers
+#
+--disable_warnings
+drop procedure if exists bug12712;
+drop function if exists bug12712;
+--enable_warnings
+# Can...
+create procedure bug12712()
+  set session autocommit = 0;
+
+select @@autocommit;
+set @au = @@autocommit;
+call bug12712();
+select @@autocommit;
+set session autocommit = @au;
+
+delimiter |;
+create function bug12712()
+  returns int
+begin
+  call bug12712();
+  return 0;
+end|
+
+# Can't...
+--error ER_SP_CANT_SET_AUTOCOMMIT
+set @x = bug12712()|
+drop procedure bug12712|
+drop function bug12712|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create function bug12712()
+    returns int
+begin
+  set session autocommit = 0;
+  return 0;
+end|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create function bug12712()
+    returns int
+begin
+  set @@autocommit = 0;
+  return 0;
+end|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create function bug12712()
+    returns int
+begin
+  set local autocommit = 0;
+  return 0;
+end|
+delimiter ;|
+--error ER_SP_CANT_SET_AUTOCOMMIT
+create trigger bug12712
+  before insert on t1 for each row set session autocommit = 0;
+
+#
+# BUG#9367: Stored procedures: client hang after "show warnings"
+#
+--disable_parsing
+--disable_warnings
+drop procedure if exists bug9367;
+--enable_warnings
+create table t1 (s1 int);
+select s1 from t1;
+delimiter |;
+create procedure bug9367()
+begin
+  declare v int;
+  declare c cursor for select s1 from t1;
+  open c;
+  show warnings;
+  fetch c into v;
+  select v;
+end|
+delimiter ;|
+call bug9367();
+drop procedure bug9367;
+drop table t1;
+--enable_parsing
+
+#
+# BUG#13510: Setting password local variable changes current password
+#
+delimiter |;
+--disable_warnings
+drop procedure if exists bug13510_1|
+drop procedure if exists bug13510_2|
+drop procedure if exists bug13510_3|
+drop procedure if exists bug13510_4|
+--enable_warnings
+
+--error ER_SP_BAD_VAR_SHADOW
+create procedure bug13510_1()
+begin
+  declare password varchar(10);
+
+  set password = 'foo1';
+  select password;
+end|
+
+--error ER_SP_BAD_VAR_SHADOW
+create procedure bug13510_2()
+begin
+  declare names varchar(10);
+
+  set names = 'foo2';
+  select names;
+end|
+
+create procedure bug13510_3()
+begin
+  declare password varchar(10);
+
+  set `password` = 'foo3';
+  select password;
+end|
+
+create procedure bug13510_4()
+begin
+  declare names varchar(10);
+
+  set `names` = 'foo4';
+  select names;
+end|
+
+call bug13510_3()|
+call bug13510_4()|
+
+drop procedure bug13510_3|
+drop procedure bug13510_4|
+delimiter ;|
+
+#
+# Bug#13514 "server crash when create a stored procedure before choose a
+# database" and
+# Bug#13587 "Server crash when SP is created without database
+# selected"
+#
+create database mysqltest1;
+use mysqltest1;
+drop database mysqltest1;
+--error ER_NO_DB_ERROR 
+create function f1() returns int return 1;
+delimiter |;
+--error ER_NO_DB_ERROR 
+create procedure p1(out param1 int)
+begin
+  select count(*) into param1 from t3;
+end|
+delimiter ;|
+use test;
+# BUG#NNNN: New bug synopsis
+#
+#--disable_warnings
+#drop procedure if exists bugNNNN|
+#--enable_warnings
+#create procedure bugNNNN...

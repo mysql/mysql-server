@@ -138,14 +138,21 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
     else
       vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     if (old_fcntl != vio->fcntl_mode)
-      r = fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
+    {
+      r= fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
+      if (r == -1)
+      {
+        DBUG_PRINT("info", ("fcntl failed, errno %d", errno));
+        vio->fcntl_mode= old_fcntl;
+      }
+    }
   }
 #else
   r= set_blocking_mode ? 0 : 1;
 #endif /* !defined(NO_FCNTL_NONBLOCK) */
 #else /* !defined(__WIN__) && !defined(__EMX__) */
 #ifndef __EMX__
-  if (vio->type != VIO_TYPE_NAMEDPIPE)  
+  if (vio->type != VIO_TYPE_NAMEDPIPE && vio->type != VIO_TYPE_SHARED_MEMORY)
 #endif
   { 
     ulong arg;
@@ -239,6 +246,15 @@ vio_should_retry(Vio * vio __attribute__((unused)))
   int en = socket_errno;
   return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
 	  en == SOCKET_EWOULDBLOCK);
+}
+
+
+my_bool
+vio_was_interrupted(Vio *vio __attribute__((unused)))
+{
+  int en= socket_errno;
+  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
+	  en == SOCKET_EWOULDBLOCK || en == SOCKET_ETIMEDOUT);
 }
 
 

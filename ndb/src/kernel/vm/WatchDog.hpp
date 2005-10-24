@@ -50,7 +50,7 @@ private:
   bool theStop;
   
   void run();
-  void shutdownSystem();
+  void shutdownSystem(const char *last_stuck_action);
 };
 
 #endif // WatchDog_H

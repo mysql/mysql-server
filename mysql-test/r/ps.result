@@ -335,39 +335,37 @@ create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4);
 set @precision=10000000000;
 select rand(), 
-cast(rand(10)*@precision as unsigned integer),
-cast(rand(a)*@precision as unsigned integer) from t1;
-rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)
+cast(rand(10)*@precision as unsigned integer) from t1;
+rand()	cast(rand(10)*@precision as unsigned integer)
+-	6570515219
+-	1282061302
+-	6698761160
+-	9647622201
+prepare stmt from
+"select rand(), 
+        cast(rand(10)*@precision as unsigned integer),
+        cast(rand(?)*@precision as unsigned integer) from t1";
+set @var=1;
+execute stmt using @var;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
 -	6570515219	-
 -	1282061302	-
 -	6698761160	-
 -	9647622201	-
-prepare stmt from
-"select rand(), 
-        cast(rand(10)*@precision as unsigned integer),
-        cast(rand(a)*@precision as unsigned integer),
-        cast(rand(?)*@precision as unsigned integer) from t1";
-set @var=1;
-execute stmt using @var;
-rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	-	4054035371
--	1282061302	-	8716141803
--	6698761160	-	1418603212
--	9647622201	-	944590960
 set @var=2;
 execute stmt using @var;
-rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	1559528654	6555866465
--	1282061302	6238114970	1223466192
--	6698761160	6511989195	6449731873
--	9647622201	3845601374	8578261098
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	6555866465
+-	1282061302	1223466192
+-	6698761160	6449731873
+-	9647622201	8578261098
 set @var=3;
 execute stmt using @var;
-rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	1559528654	9057697559
--	1282061302	6238114970	3730790581
--	6698761160	6511989195	1480860534
--	9647622201	3845601374	6211931236
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	9057697559
+-	1282061302	3730790581
+-	6698761160	1480860534
+-	9647622201	6211931236
 drop table t1;
 deallocate prepare stmt;
 create database mysqltest1;
@@ -775,6 +773,14 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 select ? from t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? from t1' at line 1
 drop table t1;
+CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
+CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
+CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
+PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
+EXECUTE b12651;
+1
+DROP VIEW b12651_V1;
+DROP TABLE b12651_T1, b12651_T2;
 prepare stmt from "select @@time_zone";
 execute stmt;
 @@time_zone

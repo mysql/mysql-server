@@ -73,7 +73,7 @@ Table	Create Table
 user	CREATE TABLE `user` (
   `Host` char(60) collate utf8_bin NOT NULL default '',
   `User` char(16) collate utf8_bin NOT NULL default '',
-  `Password` char(41) collate utf8_bin NOT NULL default '',
+  `Password` char(41) character set latin1 collate latin1_bin NOT NULL default '',
   `Select_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Insert_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Update_priv` enum('N','Y') character set utf8 NOT NULL default 'N',

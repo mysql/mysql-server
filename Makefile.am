@@ -97,12 +97,6 @@ tags:
 	support-files/build-tags
 .PHONY:		init-db bin-dist
 
-# Test installation
-
-test:
-	cd mysql-test; \
-	./mysql-test-run && ./mysql-test-run --ps-protocol
-
 # Test installation. Ports are configurable from the environment.
 
 MYSQL_TEST_MANAGER_PORT =	9305
@@ -113,15 +107,26 @@ MYSQL_TEST_RUN_ARGS =		--manager-port=$(MYSQL_TEST_MANAGER_PORT) \
 				--master_port=$(MYSQL_TEST_MASTER_PORT) \
 				--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
 				--ndbcluster_port=$(MYSQL_TEST_NDB_PORT)
+
 test:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) && \
-	./mysql-test-run.pl --ps-protocol $(MYSQL_TEST_RUN_ARGS)
+	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) && \
+	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) --ps-protocol
 
 test-force:
 	cd mysql-test ; \
-	./mysql-test-run --force $(MYSQL_TEST_RUN_ARGS) ; \
-	./mysql-test-run --ps-protocol --force $(MYSQL_TEST_RUN_ARGS)
+	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) --force ; \
+	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) --ps-protocol --force
+
+test-pl:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) && \
+	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) --ps-protocol
+
+test-force-pl:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) --force ; \
+	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) --ps-protocol --force
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

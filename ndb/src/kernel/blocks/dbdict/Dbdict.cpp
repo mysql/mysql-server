@@ -3214,8 +3214,8 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
   lreq->gci = tablePtr.p->gciTableCreated;
   lreq->requestType = AlterTabReq::AlterTablePrepare;
   
-  sendSignal(rg, GSN_ALTER_TAB_REQ, signal, 
-	     AlterTabReq::SignalLength, JBB);
+  sendFragmentedSignal(rg, GSN_ALTER_TAB_REQ, signal, 
+		       AlterTabReq::SignalLength, JBB);
 }
 
 void Dbdict::alterTableRef(Signal * signal, 
@@ -3699,8 +3699,8 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
 	lreq->gci = gci;
 	lreq->requestType = AlterTabReq::AlterTableCommit;
 	
-	sendSignal(rg, GSN_ALTER_TAB_REQ, signal, 
-		   AlterTabReq::SignalLength, JBB);
+	sendFragmentedSignal(rg, GSN_ALTER_TAB_REQ, signal, 
+			     AlterTabReq::SignalLength, JBB);
       }
     }
     else {
@@ -4346,6 +4346,44 @@ Dbdict::createTab_dih(Signal* signal,
 
   sendSignal(DBDIH_REF, GSN_DIADDTABREQ, signal, 
 	     DiAddTabReq::SignalLength, JBB);
+
+  /**
+   * Create KeyDescriptor
+   */
+  KeyDescriptor* desc= g_key_descriptor_pool.getPtr(tabPtr.i);
+  new (desc) KeyDescriptor();
+
+  Uint32 key = 0;
+  Uint32 tAttr = tabPtr.p->firstAttribute;
+  while (tAttr != RNIL) 
+  {
+    jam();
+    AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);
+    if (aRec->tupleKey) 
+    {
+      desc->noOfKeyAttr ++;
+      desc->keyAttr[key].attributeDescriptor = aRec->attributeDescriptor;
+      
+      Uint32 csNumber = (aRec->extPrecision >> 16);
+      if(csNumber)
+      {
+	desc->keyAttr[key].charsetInfo = all_charsets[csNumber];
+	ndbrequire(all_charsets[csNumber]);
+	desc->hasCharAttr = 1;
+      }
+      else
+      {
+	desc->keyAttr[key].charsetInfo = 0;	  
+      }
+      if(AttributeDescriptor::getDKey(aRec->attributeDescriptor))
+      {
+	desc->noOfDistrKeys ++;
+      }
+      key++;
+    }
+    tAttr = aRec->nextAttrInTable;
+  }
+  ndbrequire(key == tabPtr.p->noOfPrimkey);
 }
 
 static
@@ -4448,44 +4486,6 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal, 
 	       LqhFragReq::SignalLength, JBB);
   }
-
-  /**
-   * Create KeyDescriptor
-   */
-  KeyDescriptor* desc= g_key_descriptor_pool.getPtr(tabPtr.i);
-  new (desc) KeyDescriptor();
-
-  Uint32 key = 0;
-  Uint32 tAttr = tabPtr.p->firstAttribute;
-  while (tAttr != RNIL) 
-  {
-    jam();
-    AttributeRecord* aRec = c_attributeRecordPool.getPtr(tAttr);
-    if (aRec->tupleKey) 
-    {
-      desc->noOfKeyAttr ++;
-      desc->keyAttr[key].attributeDescriptor = aRec->attributeDescriptor;
-      
-      Uint32 csNumber = (aRec->extPrecision >> 16);
-      if(csNumber)
-      {
-	desc->keyAttr[key].charsetInfo = all_charsets[csNumber];
-	ndbrequire(all_charsets[csNumber]);
-	desc->hasCharAttr = 1;
-      }
-      else
-      {
-	desc->keyAttr[key].charsetInfo = 0;	  
-      }
-      if(AttributeDescriptor::getDKey(aRec->attributeDescriptor))
-      {
-	desc->noOfDistrKeys ++;
-      }
-      key++;
-    }
-    tAttr = aRec->nextAttrInTable;
-  }
-  ndbrequire(key == tabPtr.p->noOfPrimkey);
 }
 
 void
@@ -5326,7 +5326,10 @@ void Dbdict::execWAIT_GCP_REF(Signal* signal)
 /* ---------------------------------------------------------------- */
 // Error Handling code needed
 /* ---------------------------------------------------------------- */
-  progError(ref->errorCode, 0);
+  char buf[32];
+  BaseString::snprintf(buf, sizeof(buf), "WAIT_GCP_REF ErrorCode=%d",
+		       ref->errorCode);
+  progError(__LINE__, NDBD_EXIT_NDBREQUIRE, buf);
 }//execWAIT_GCP_REF()
 
 

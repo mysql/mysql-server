@@ -59,10 +59,24 @@ void Dbacc::initData()
 void Dbacc::initRecords() 
 {
   // Records with dynamic sizes
+  page8 = (Page8*)allocRecord("Page8",
+			      sizeof(Page8), 
+			      cpagesize,
+			      false);
+
+  operationrec = (Operationrec*)allocRecord("Operationrec",
+					    sizeof(Operationrec),
+					    coprecsize);
+
   dirRange = (DirRange*)allocRecord("DirRange",
 				    sizeof(DirRange), 
 				    cdirrangesize);
 
+  undopage = (Undopage*)allocRecord("Undopage",
+				    sizeof(Undopage), 
+				    cundopagesize,
+				    false);
+  
   directoryarray = (Directoryarray*)allocRecord("Directoryarray",
 						sizeof(Directoryarray), 
 						cdirarraysize);
@@ -83,18 +97,9 @@ void Dbacc::initRecords()
 					      sizeof(LcpConnectrec),
 					      clcpConnectsize);
 
-  operationrec = (Operationrec*)allocRecord("Operationrec",
-					    sizeof(Operationrec),
-					    coprecsize);
-
   overflowRecord = (OverflowRecord*)allocRecord("OverflowRecord",
 						sizeof(OverflowRecord),
 						coverflowrecsize);
-
-  page8 = (Page8*)allocRecord("Page8",
-			      sizeof(Page8), 
-			      cpagesize,
-			      false);
 
   rootfragmentrec = (Rootfragmentrec*)allocRecord("Rootfragmentrec",
 						  sizeof(Rootfragmentrec), 
@@ -112,11 +117,6 @@ void Dbacc::initRecords()
 				sizeof(Tabrec),
 				ctablesize);
 
-  undopage = (Undopage*)allocRecord("Undopage",
-				    sizeof(Undopage), 
-				    cundopagesize,
-				    false);
-  
   // Initialize BAT for interface to file system
 
   NewVARIABLE* bat = allocateBat(3);
@@ -136,24 +136,7 @@ Dbacc::Dbacc(const class Configuration & conf):
   SimulatedBlock(DBACC, conf),
   c_tup(0)
 {
-  Uint32 log_page_size= 0;
   BLOCK_CONSTRUCTOR(Dbacc);
-
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
-  ndbrequire(p != 0);
-
-  ndb_mgm_get_int_parameter(p, CFG_DB_UNDO_INDEX_BUFFER,  
-			    &log_page_size);
-
-  /**
-   * Always set page size in half MBytes
-   */
-  cundopagesize= (log_page_size / sizeof(Undopage));
-  Uint32 mega_byte_part= cundopagesize & 15;
-  if (mega_byte_part != 0) {
-    jam();
-    cundopagesize+= (16 - mega_byte_part);
-  }
 
   // Transit signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);

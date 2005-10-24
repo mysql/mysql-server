@@ -20,6 +20,18 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
     -L\$(top_builddir)/extra/yassl/taocrypt/src -ltaocrypt"
     openssl_includes="-I\$(top_srcdir)/extra/yassl/include"
     AC_DEFINE([HAVE_OPENSSL], [1], [Defined by configure. Using yaSSL for OpenSSL emulation.])
+    AC_DEFINE([HAVE_YASSL], [1], [Defined by configure. Using yaSSL for OpenSSL emulation.])
+    # System specific checks
+    yassl_integer_extra_cxxflags=""
+    case $host_cpu--$CXX_VERSION in
+        sparc*--*Sun*C++*5.6*)
+	# Disable inlining when compiling taocrypt/src/integer.cpp
+	yassl_integer_extra_cxxflags="+d"
+        AC_MSG_NOTICE([disabling inlining for yassl/taocrypt/src/integer.cpp])
+        ;;
+    esac
+    AC_SUBST([yassl_integer_extra_cxxflags])
+
   else
     yassl_dir=""
     AC_MSG_RESULT(no)

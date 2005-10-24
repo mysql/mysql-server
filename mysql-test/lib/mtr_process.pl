@@ -166,7 +166,7 @@ sub spawn_impl ($$$$$$$$) {
       {
         if ( ! open(STDOUT,$log_file_open_mode,$output) )
         {
-          mtr_error("can't redirect STDOUT to \"$output\": $!");
+          mtr_child_error("can't redirect STDOUT to \"$output\": $!");
         }
       }
 
@@ -176,14 +176,14 @@ sub spawn_impl ($$$$$$$$) {
         {
           if ( ! open(STDERR,">&STDOUT") )
           {
-            mtr_error("can't dup STDOUT: $!");
+            mtr_child_error("can't dup STDOUT: $!");
           }
         }
         else
         {
           if ( ! open(STDERR,$log_file_open_mode,$error) )
           {
-            mtr_error("can't redirect STDERR to \"$output\": $!");
+            mtr_child_error("can't redirect STDERR to \"$error\": $!");
           }
         }
       }
@@ -192,13 +192,13 @@ sub spawn_impl ($$$$$$$$) {
       {
         if ( ! open(STDIN,"<",$input) )
         {
-          mtr_error("can't redirect STDIN to \"$input\": $!");
+          mtr_child_error("can't redirect STDIN to \"$input\": $!");
         }
       }
 
       if ( ! exec($path,@$arg_list_t) )
       {
-        mtr_error("failed to execute \"$path\": $!");
+        mtr_child_error("failed to execute \"$path\": $!");
       }
     }
   }
@@ -360,8 +360,19 @@ sub mtr_kill_leftovers () {
 
   # First, kill all masters and slaves that would conflict with
   # this run. Make sure to remove the PID file, if any.
+  # FIXME kill IM manager first, else it will restart the servers, how?!
 
   my @args;
+
+  for ( my $idx; $idx < 2; $idx++ )
+  {
+    push(@args,{
+                pid      => 0,          # We don't know the PID
+                pidfile  => $::instance_manager->{'instances'}->[$idx]->{'path_pid'},
+                sockfile => $::instance_manager->{'instances'}->[$idx]->{'path_sock'},
+                port     => $::instance_manager->{'instances'}->[$idx]->{'port'},
+               });
+  }
 
   for ( my $idx; $idx < 2; $idx++ )
   {
@@ -560,8 +571,8 @@ sub mtr_stop_mysqld_servers ($) {
 
   start_reap_all();                     # Avoid zombies
 
- SIGNAL:
-  mtr_kill_processes(\keys (%mysqld_pids));
+  my @mysqld_pids= keys %mysqld_pids;
+  mtr_kill_processes(\@mysqld_pids);
 
   stop_reap_all();                      # Get into control again
 
@@ -680,7 +691,8 @@ sub mtr_mysqladmin_shutdown {
     mtr_add_arg($args, "shutdown");
     # We don't wait for termination of mysqladmin
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
-                       "", $::path_manager_log, $::path_manager_log, "");
+                       "", $::path_manager_log, $::path_manager_log, "",
+                       { append_log_file => 1 });
     $mysql_admin_pids{$pid}= 1;
   }
 
@@ -847,14 +859,16 @@ sub sleep_until_file_created ($$$) {
 sub mtr_kill_processes ($) {
   my $pids = shift;
 
-  foreach my $sig (15,9)
+  foreach my $sig (15, 9)
   {
-    my $retries= 20;                    # FIXME 20 seconds, this is silly!
-    kill($sig, @{$pids});
-    while ( $retries-- and  kill(0, @{$pids}) )
+    my $retries= 10;
+    while (1)
     {
-      mtr_debug("Sleep 1 second waiting for processes to die");
-      sleep(1)                      # Wait one second
+      kill($sig, @{$pids});
+      last unless kill (0, @{$pids}) and $retries--;
+
+      mtr_debug("Sleep 2 second waiting for processes to die");
+      sleep(2);
     }
   }
 }

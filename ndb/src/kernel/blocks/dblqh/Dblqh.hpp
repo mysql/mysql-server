@@ -89,6 +89,17 @@
 #define ZCURR_PAGE_INDEX 8
 #define ZLAST_LOG_PREP_REF 10
 #define ZPOS_DIRTY 11
+/* A number of debug items written in the page header of all log files */
+#define ZPOS_LOG_TIMER 12
+#define ZPOS_PAGE_I 13
+#define ZPOS_PLACE_WRITTEN_FROM 14
+#define ZPOS_PAGE_NO 15
+#define ZPOS_PAGE_FILE_NO 16
+#define ZPOS_WORD_WRITTEN 17
+#define ZPOS_IN_WRITING 18
+#define ZPOS_PREV_PAGE_NO 19
+#define ZPOS_IN_FREE_LIST 20
+
 /* ------------------------------------------------------------------------- */
 /*       CONSTANTS FOR THE VARIOUS REPLICA AND NODE TYPES.                   */
 /* ------------------------------------------------------------------------- */
@@ -2281,7 +2292,7 @@ private:
 			  const LogPartRecordPtr &sltLogPartPtr);
   void checkGcpCompleted(Signal* signal, Uint32 pageWritten, Uint32 wordWritten);
   void initFsopenconf(Signal* signal);
-  void initFsrwconf(Signal* signal);
+  void initFsrwconf(Signal* signal, bool write);
   void initLfo(Signal* signal);
   void initLogfile(Signal* signal, Uint32 fileNo);
   void initLogpage(Signal* signal);
@@ -2297,7 +2308,8 @@ private:
   void writeFileDescriptor(Signal* signal);
   void writeFileHeaderOpen(Signal* signal, Uint32 type);
   void writeInitMbyte(Signal* signal);
-  void writeSinglePage(Signal* signal, Uint32 pageNo, Uint32 wordWritten);
+  void writeSinglePage(Signal* signal, Uint32 pageNo,
+                       Uint32 wordWritten, Uint32 place);
   void buildLinkedLogPageList(Signal* signal);
   void changeMbyte(Signal* signal);
   Uint32 checkIfExecLog(Signal* signal);
@@ -2306,7 +2318,7 @@ private:
   void checkScanTcCompleted(Signal* signal);
   void checkSrCompleted(Signal* signal);
   void closeFile(Signal* signal, LogFileRecordPtr logFilePtr);
-  void completedLogPage(Signal* signal, Uint32 clpType);
+  void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
   void deleteFragrec(Uint32 fragId);
   void deleteTransidHash(Signal* signal);
   void findLogfile(Signal* signal,
@@ -2400,11 +2412,13 @@ private:
   void startNextExecSr(Signal* signal);
   void startTimeSupervision(Signal* signal);
   void stepAhead(Signal* signal, Uint32 stepAheadWords);
-  void systemError(Signal* signal);
+  void systemError(Signal* signal, int line);
   void writeAbortLog(Signal* signal);
   void writeCommitLog(Signal* signal, LogPartRecordPtr regLogPartPtr);
   void writeCompletedGciLog(Signal* signal);
-  void writeDirty(Signal* signal);
+  void writeDbgInfoPageHeader(LogPageRecordPtr logPagePtr, Uint32 place,
+                              Uint32 pageNo, Uint32 wordWritten);
+  void writeDirty(Signal* signal, Uint32 place);
   void writeKey(Signal* signal);
   void writeLogHeader(Signal* signal);
   void writeLogWord(Signal* signal, Uint32 data);
@@ -2417,7 +2431,7 @@ private:
   Uint32 calcPageCheckSum(LogPageRecordPtr logP);
 
   // Generated statement blocks
-  void systemErrorLab(Signal* signal);
+  void systemErrorLab(Signal* signal, int line);
   void initFourth(Signal* signal);
   void packLqhkeyreqLab(Signal* signal);
   void sendNdbSttorryLab(Signal* signal);
@@ -2427,7 +2441,6 @@ private:
   void srLogLimits(Signal* signal);
   void srGciLimits(Signal* signal);
   void srPhase3Start(Signal* signal);
-  void warningHandlerLab(Signal* signal);
   void checkStartCompletedLab(Signal* signal);
   void continueAbortLab(Signal* signal);
   void abortContinueAfterBlockedLab(Signal* signal, bool canBlock);

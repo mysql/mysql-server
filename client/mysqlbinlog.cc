@@ -1003,7 +1003,8 @@ static int dump_remote_log_entries(const char* logname)
 {
   char buf[128];
   LAST_EVENT_INFO last_event_info;
-  uint len, logname_len;
+  ulong len;
+  uint logname_len;
   NET* net;
   int error= 0;
   my_off_t old_off= start_position_mot;
@@ -1434,7 +1435,7 @@ int main(int argc, char** argv)
     of transaction.
   */
   fprintf(result_file,
-          "ROLLBACK;\n"
+          "# End of log file\nROLLBACK /* added by mysqlbinlog */;\n"
           "/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;\n");
   if (disable_log_bin)
     fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");

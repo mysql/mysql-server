@@ -18,6 +18,7 @@
 #define ARRAY_POOL_HPP
 
 #include <ndb_global.h>
+#include "ndbd_malloc.hpp"
 
 #include <pc.hpp>
 #include <ErrorReporter.hpp>
@@ -44,7 +45,7 @@ public:
    *
    * Note, can currently only be called once
    */
-  bool setSize(Uint32 noOfElements);
+  bool setSize(Uint32 noOfElements, bool exit_on_error = true);
 
   inline Uint32 getNoOfFree() const {
     return noOfFree;
@@ -201,7 +202,7 @@ template <class T>
 inline
 ArrayPool<T>::~ArrayPool(){
   if(theArray != 0){
-    NdbMem_Free(theArray);
+    ndbd_free(theArray, size * sizeof(T));
     theArray = 0;
 #ifdef ARRAY_GUARD
     delete []theAllocatedBitmask;
@@ -218,13 +219,19 @@ ArrayPool<T>::~ArrayPool(){
 template <class T>
 inline
 bool
-ArrayPool<T>::setSize(Uint32 noOfElements){
+ArrayPool<T>::setSize(Uint32 noOfElements, bool exit_on_error){
   if(size == 0){
     if(noOfElements == 0)
       return true;
-    theArray = (T *)NdbMem_Allocate(noOfElements * sizeof(T));
+    theArray = (T *)ndbd_malloc(noOfElements * sizeof(T));
     if(theArray == 0)
-      return false;
+    {
+      if (!exit_on_error)
+	return false;
+      ErrorReporter::handleAssert("ArrayPool<T>::setSize malloc failed",
+				  __FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
+      return false; // not reached
+    }
     size = noOfElements;
     noOfFree = noOfElements;
 
@@ -247,7 +254,11 @@ ArrayPool<T>::setSize(Uint32 noOfElements){
     
     return true;
   }
-  return false;
+  if (!exit_on_error)
+    return false;
+
+  ErrorReporter::handleAssert("ArrayPool<T>::setSize called twice", __FILE__, __LINE__);
+  return false; // not reached
 }
   
 template <class T>

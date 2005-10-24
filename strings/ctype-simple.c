@@ -904,7 +904,7 @@ int my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   while (long_val != 0)
   {
     long quo= long_val/10;
-    *--p = '0' + (char)(long_val - quo*10);
+    *--p = (char) ('0' + (long_val - quo*10));
     long_val= quo;
   }
   
@@ -1034,17 +1034,12 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
 			     char *min_str,char *max_str,
 			     uint *min_length,uint *max_length)
 {
-  const char *end;
+  const char *end= ptr + ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
-#ifdef USE_MB
-  uint charlen= my_charpos(cs, ptr, ptr+ptr_length, res_length/cs->mbmaxlen);
-  if (charlen < ptr_length)
-    ptr_length= charlen;
-#endif
-  end= ptr + ptr_length;
+  uint charlen= res_length / cs->mbmaxlen;
 
-  for (; ptr != end && min_str != min_end ; ptr++)
+  for (; ptr != end && min_str != min_end && charlen > 0 ; ptr++, charlen--)
   {
     if (*ptr == escape && ptr+1 != end)
     {
@@ -1321,6 +1316,7 @@ static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(uint))
 {
   cs->caseup_multiply= 1;
   cs->casedn_multiply= 1;
+  cs->pad_char= ' ';
   return create_fromuni(cs, alloc);
 }
 

@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
 #pragma implementation
 #endif
 
@@ -46,8 +46,16 @@ static inline int create_mysqld_command(Buffer *buf,
 
   if (buf->get_size()) /* malloc succeeded */
   {
+#ifdef __WIN__
+    buf->append(position, "\"", 1);
+    position++;
+#endif
     buf->append(position, mysqld_path_str, mysqld_path_len);
     position+= mysqld_path_len;
+#ifdef __WIN__
+    buf->append(position, "\"", 1);
+    position++;
+#endif
     /* here the '\0' character is copied from the option string */
     buf->append(position, option, option_len);
 
@@ -461,7 +469,7 @@ int Instance_options::add_option(const char* option)
        case SAVE_WHOLE:
          *(selected_options->value)= tmp;
          return 0;
-       defaut:
+       default:
          break;
        }
    }

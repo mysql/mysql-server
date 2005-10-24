@@ -879,19 +879,22 @@ void field_real::get_opt_type(String *answer,
 
   if (!max_notzero_dec_len)
   {
+    int len= (int) max_length - ((item->decimals == NOT_FIXED_DEC) ?
+				 0 : (item->decimals + 1));
+
     if (min_arg >= -128 && max_arg <= (min_arg >= 0 ? 255 : 127))
-      sprintf(buff, "TINYINT(%d)", (int) max_length - (item->decimals + 1));
+      sprintf(buff, "TINYINT(%d)", len);
     else if (min_arg >= INT_MIN16 && max_arg <= (min_arg >= 0 ?
 						 UINT_MAX16 : INT_MAX16))
-      sprintf(buff, "SMALLINT(%d)", (int) max_length - (item->decimals + 1));
+      sprintf(buff, "SMALLINT(%d)", len);
     else if (min_arg >= INT_MIN24 && max_arg <= (min_arg >= 0 ?
 						 UINT_MAX24 : INT_MAX24))
-      sprintf(buff, "MEDIUMINT(%d)", (int) max_length - (item->decimals + 1));
+      sprintf(buff, "MEDIUMINT(%d)", len);
     else if (min_arg >= INT_MIN32 && max_arg <= (min_arg >= 0 ?
 						 UINT_MAX32 : INT_MAX32))
-      sprintf(buff, "INT(%d)", (int) max_length - (item->decimals + 1));
+      sprintf(buff, "INT(%d)", len);
     else
-      sprintf(buff, "BIGINT(%d)", (int) max_length - (item->decimals + 1));
+      sprintf(buff, "BIGINT(%d)", len);
     answer->append(buff, (uint) strlen(buff));
     if (min_arg >= 0)
       answer->append(" UNSIGNED");

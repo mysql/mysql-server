@@ -101,7 +101,7 @@ enum enum_nested_loop_state
 typedef enum_nested_loop_state
 (*Next_select_func)(JOIN *, struct st_join_table *, bool);
 typedef int (*Read_record_func)(struct st_join_table *tab);
-
+Next_select_func setup_end_select_func(JOIN *join);
 
 typedef struct st_join_table {
   TABLE		*table;
@@ -139,6 +139,11 @@ typedef struct st_join_table {
 
   void cleanup();
 } JOIN_TAB;
+
+enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
+                                        end_of_records);
+enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
+                                  end_of_records);
 
 
 typedef struct st_position			/* Used in find_best */
@@ -230,7 +235,7 @@ class JOIN :public Sql_alloc
   /* Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
 
-  bool need_tmp, hidden_group_fields, buffer_result;
+  bool need_tmp, hidden_group_fields;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value;
   List<Item> all_fields; // to store all fields that used in query
@@ -299,8 +304,6 @@ class JOIN :public Sql_alloc
     skip_sort_order= 0;
     need_tmp= 0;
     hidden_group_fields= 0; /*safety*/
-    buffer_result= test(select_options & OPTION_BUFFER_RESULT) &&
-      !test(select_options & OPTION_FOUND_ROWS);
     error= 0;
     select= 0;
     return_tab= 0;
@@ -355,7 +358,7 @@ class JOIN :public Sql_alloc
     the end of execution in order to increase concurrency and reduce
     memory consumption.
   */
-  void join_free(bool full);
+  void join_free();
   /* Cleanup this JOIN, possibly for reuse */
   void cleanup(bool full);
   void clear();
@@ -371,58 +374,6 @@ class JOIN :public Sql_alloc
     return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
                                         select_lex == unit->fake_select_lex));
   }
-};
-
-
-/*
-  Server-side cursor (now stands only for basic read-only cursor)
-  See class implementation in sql_select.cc
-  A cursor has its own runtime state - list of used items and memory root of
-  used memory - which is different from Prepared statement runtime: it must
-  be different at least for the purpose of reusing the same prepared
-  statement for many cursors.
-*/
-
-class Cursor: public Sql_alloc, public Query_arena
-{
-  MEM_ROOT main_mem_root;
-  JOIN *join;
-  SELECT_LEX_UNIT *unit;
-
-  TABLE *open_tables;
-  MYSQL_LOCK *lock;
-  TABLE *derived_tables;
-  /* List of items created during execution */
-  query_id_t query_id;
-  struct Engine_info
-  {
-    const handlerton *ht;
-    void *read_view;
-  };
-  Engine_info ht_info[MAX_HA];
-public:
-  Protocol_prep protocol;
-  Item_change_list change_list;
-  select_send result;
-  THR_LOCK_OWNER lock_id;
-  my_bool close_at_commit;
-
-  /* Temporary implementation as now we replace THD state by value */
-  /* Save THD state into cursor */
-  void init_from_thd(THD *thd);
-  /* bzero cursor state in THD */
-  void reset_thd(THD *thd);
-
-  int open(JOIN *join);
-  void fetch(ulong num_rows);
-  void reset() { join= 0; }
-  bool is_open() const { return join != 0; }
-
-  void close(bool is_active);
-
-  void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
-  Cursor(THD *thd);
-  ~Cursor() {}
 };
 
 

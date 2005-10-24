@@ -71,7 +71,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
          interval_count,interval_parts,read_length,db_create_options;
   uint	 key_info_length, com_length;
-  ulong  pos;
+  ulong  pos, record_offset;
   char	 index_file[FN_REFLEN], *names, *keynames, *comment_pos;
   uchar  head[288],*disk_buff,new_field_pack_flag;
   my_string record;
@@ -300,6 +300,43 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
 #endif
 
+  record_offset= (ulong) (uint2korr(head+6)+
+                          ((uint2korr(head+14) == 0xffff ?
+                            uint4korr(head+47) : uint2korr(head+14))));
+ 
+  if ((n_length= uint2korr(head+55)))
+  {
+    /* Read extra data segment */
+    char *buff, *next_chunk, *buff_end;
+    if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
+      goto err;
+    buff_end= buff + n_length;
+    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
+                 MYF(MY_NABP)))
+    {
+      my_free(buff, MYF(0));
+      goto err;
+    }
+    share->connect_string.length= uint2korr(buff);
+    if (! (share->connect_string.str= strmake_root(&outparam->mem_root,
+            next_chunk + 2, share->connect_string.length)))
+    {
+      my_free(buff, MYF(0));
+      goto err;
+    }
+    next_chunk+= share->connect_string.length + 2;
+    if (next_chunk + 2 < buff_end)
+    {
+      uint str_db_type_length= uint2korr(next_chunk);
+      share->db_type= ha_resolve_by_name(next_chunk + 2, str_db_type_length);
+      DBUG_PRINT("enter", ("Setting dbtype to: %d - %d - '%.*s'\n",
+                           share->db_type,
+                           str_db_type_length, str_db_type_length,
+                           next_chunk + 2));
+      next_chunk+= str_db_type_length + 2;
+    }
+    my_free(buff, MYF(0));
+  }
   /* Allocate handler */
   if (!(outparam->file= get_new_handler(outparam, share->db_type)))
     goto err;
@@ -321,11 +358,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
                                     rec_buff_length * records)))
     goto err;                                   /* purecov: inspected */
   share->default_values= (byte *) record;
+
   if (my_pread(file,(byte*) record, (uint) share->reclength,
-	       (ulong) (uint2korr(head+6)+
-                        ((uint2korr(head+14) == 0xffff ?
-                            uint4korr(head+47) : uint2korr(head+14)))),
-	       MYF(MY_NABP)))
+               record_offset, MYF(MY_NABP)))
     goto err; /* purecov: inspected */
 
   if (records == 1)
@@ -341,7 +376,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
-
+ 
 #ifdef HAVE_purify
   /*
     We need this because when we read var-length rows, we are not updating
@@ -443,6 +478,11 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   {
     outparam->null_flags=null_pos=(uchar*) record+1;
     null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
+    /*
+      null_bytes below is only correct under the condition that
+      there are no bit fields.  Correct values is set below after the
+      table struct is initialized
+    */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
   else
@@ -854,6 +894,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	(*save++)= i;
     }
   }
+
+  /*
+    the correct null_bytes can now be set, since bitfields have been taken
+    into account
+  */
+  share->null_bytes= (null_pos - (uchar*) outparam->null_flags +
+                      (null_bit_pos + 7) / 8);
+  share->last_null_bit_pos= null_bit_pos;
 
   /* The table struct is now initialized;  Open the table */
   error=2;
@@ -1381,7 +1429,8 @@ File create_frm(THD *thd, my_string name, const char *db,
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
-    length=(ulong) next_io_size((ulong) (IO_SIZE+key_length+reclength));
+    length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
+                                  create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
     int2store(fileinfo+14,tmp_key_length);
@@ -1403,6 +1452,7 @@ File create_frm(THD *thd, my_string name, const char *db,
     int4store(fileinfo+47, key_length);
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
+    int2store(fileinfo+55, create_info->extra_size);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
@@ -1665,6 +1715,63 @@ db_type get_table_type(THD *thd, const char *name)
   DBUG_RETURN(ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0));
 }
 
+/*
+  Create Item_field for each column in the table.
+
+  SYNPOSIS
+    st_table::fill_item_list()
+      item_list          a pointer to an empty list used to store items
+
+  DESCRIPTION
+    Create Item_field object for each column in the table and
+    initialize it with the corresponding Field. New items are
+    created in the current THD memory root.
+
+  RETURN VALUE
+    0                    success
+    1                    out of memory
+*/
+
+bool st_table::fill_item_list(List<Item> *item_list) const
+{
+  /*
+    All Item_field's created using a direct pointer to a field
+    are fixed in Item_field constructor.
+  */
+  for (Field **ptr= field; *ptr; ptr++)
+  {
+    Item_field *item= new Item_field(*ptr);
+    if (!item || item_list->push_back(item))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+/*
+  Reset an existing list of Item_field items to point to the
+  Fields of this table.
+
+  SYNPOSIS
+    st_table::fill_item_list()
+      item_list          a non-empty list with Item_fields
+
+  DESCRIPTION
+    This is a counterpart of fill_item_list used to redirect
+    Item_fields to the fields of a newly created table.
+    The caller must ensure that number of items in the item_list
+    is the same as the number of columns in the table.
+*/
+
+void st_table::reset_item_list(List<Item> *item_list) const
+{
+  List_iterator_fast<Item> it(*item_list);
+  for (Field **ptr= field; *ptr; ptr++)
+  {
+    Item_field *item_field= (Item_field*) it++;
+    DBUG_ASSERT(item_field != 0);
+    item_field->reset_field(*ptr);
+  }
+}
 
 /*
   calculate md5 of query
@@ -1780,7 +1887,7 @@ bool st_table_list::setup_ancestor(THD *thd)
     /* Create view fields translation table */
 
     if (!(transl=
-          (Field_translator*)(thd->current_arena->
+          (Field_translator*)(thd->stmt_arena->
                               alloc(select->item_list.elements *
                                     sizeof(Field_translator)))))
     {
@@ -1856,8 +1963,8 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
     if (!no_where_clause && !where_processed)
     {
       TABLE_LIST *tbl= this;
-      Query_arena *arena= thd->current_arena, backup;
-      arena= thd->change_arena_if_needed(&backup);    // For easier test
+      Query_arena *arena= thd->stmt_arena, backup;
+      arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
 
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
@@ -1877,7 +1984,7 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
       if (tbl == 0)
         *conds= and_conds(*conds, where);
       if (arena)
-        thd->restore_backup_item_arena(arena, &backup);
+        thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
     }
   }
@@ -2056,7 +2163,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 {
   if (check_option && check_option->val_int() == 0)
   {
-    TABLE_LIST *view= (belong_to_view ? belong_to_view : this);
+    TABLE_LIST *view= top_table();
     if (ignore_failure)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -2208,8 +2315,10 @@ TABLE_LIST *st_table_list::first_leaf_for_name_resolution()
     List_iterator_fast<TABLE_LIST> it(cur_nested_join->join_list);
     cur_table_ref= it++;
     /*
-      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
-      order, thus the first operand is already at the front of the list.
+      If the current nested join is a RIGHT JOIN, the operands in
+      'join_list' are in reverse order, thus the first operand is
+      already at the front of the list. Otherwise the first operand
+      is in the end of the list of join operands.
     */
     if (!(cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
     {
@@ -2260,9 +2369,11 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
        cur_nested_join;
        cur_nested_join= cur_table_ref->nested_join)
   {
+    cur_table_ref= cur_nested_join->join_list.head();
     /*
-      If 'this' is a RIGHT JOIN, the operands in 'join_list' are in reverse
-      order, thus the last operand is in the end of the list.
+      If the current nested is a RIGHT JOIN, the operands in
+      'join_list' are in reverse order, thus the last operand is in the
+      end of the list.
     */
     if ((cur_table_ref->outer_join & JOIN_TYPE_RIGHT))
     {
@@ -2272,8 +2383,6 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
       while ((next= it++))
         cur_table_ref= next;
     }
-    else
-      cur_table_ref= cur_nested_join->join_list.head();
     if (cur_table_ref->is_leaf_for_name_resolution())
       break;
   }
@@ -2341,22 +2450,6 @@ Field *Natural_join_column::field()
 const char *Natural_join_column::table_name()
 {
   return table_ref->alias;
-  /*
-    TODO:
-    I think that it is sufficient to return just
-    table->alias, which is correctly set to either
-    the view name, the table name, or the alias to
-    the table reference (view or stored table).
-  */
-#ifdef NOT_YET
-  if (view_field)
-    return table_ref->view_name.str;
-
-  DBUG_ASSERT(!strcmp(table_ref->table_name,
-                      table_ref->table->s->table_name));
-  return table_ref->table_name;
-}
-#endif
 }
 
 
@@ -2492,7 +2585,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     DBUG_RETURN(field);
   }
   Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->view_name.str,
+                                       field_ref, view->alias,
                                        name);
   DBUG_RETURN(item);
 }

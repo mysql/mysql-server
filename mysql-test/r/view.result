@@ -32,10 +32,10 @@ c
 11
 show create table v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -55,7 +55,7 @@ Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=TEMPTABLE VIEW `test`.`v2` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`
 select c from v2;
 c
 3
@@ -550,7 +550,7 @@ create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
 show create view v1;
 View	Create View
-v1	CREATE VIEW "test"."v1" AS select "test"."t1"."a*b" AS "a*b" from "test"."t1"
+v1	CREATE VIEW "v1" AS select "t1"."a*b" AS "a*b" from "t1"
 drop view v1;
 drop table t1;
 set sql_mode=default;
@@ -657,7 +657,7 @@ drop table t1;
 CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
 drop view v1;
 create table t1 (s1 int);
 create table t2 (s2 int);
@@ -691,13 +691,13 @@ create view v1 as select a from t1;
 create view v2 as select a from t2 where a in (select a from v1);
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select `test`.`t2`.`a` AS `a` from `test`.`t2` where `a` in (select `v1`.`a` AS `a` from `test`.`v1`)
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where `a` in (select `v1`.`a` AS `a` from `v1`)
 drop view v2, v1;
 drop table t1, t2;
 CREATE VIEW `v 1` AS select 5 AS `5`;
 show create view `v 1`;
 View	Create View
-v 1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v 1` AS select 5 AS `5`
+v 1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v 1` AS select 5 AS `5`
 drop view `v 1`;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
@@ -765,14 +765,14 @@ a	b
 1	1
 show create view v3;
 View	Create View
-v3	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`test`.`v1` join `test`.`v2`) where (`v1`.`col1` = `v2`.`col1`)
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from (`v1` join `v2`) where (`v1`.`col1` = `v2`.`col1`)
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
 create view v1 as select test.`f``1` ();
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`f``1`() AS `test.``f````1`` ()`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `test`.`f``1`() AS `test.``f````1`` ()`
 select * from v1;
 test.`f``1` ()
 5
@@ -789,10 +789,10 @@ create table t2 (col1 char collate latin1_german2_ci);
 create view v2 as select col1 collate latin1_german1_ci from t2;
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
 show create view v2;
 View	Create View
-v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `t2`
 drop view v2;
 drop table t2;
 create table t1 (a int);
@@ -819,7 +819,7 @@ drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
 drop view v1;
 create table tü (cü char);
 create view vü as select cü from tü;
@@ -840,11 +840,23 @@ drop table t1;
 create view v1 as select cast(1 as char(3));
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
 select * from v1;
 cast(1 as char(3))
 1
 drop view v1;
+create table t1 (a int);
+create view v1 as select a from t1;
+create view v3 as select a from t1;
+create database mysqltest;
+rename table v1 to mysqltest.v1;
+ERROR HY000: Changing schema from 'test' to 'mysqltest' is not allowed.
+rename table v1 to v2;
+rename table v3 to v1, v2 to t1;
+ERROR 42S01: Table 't1' already exists
+drop table t1;
+drop view v2,v3;
+drop database mysqltest;
 create view v1 as select 'a',1;
 create view v2 as select * from v1 union all select * from v1;
 create view v3 as select * from v2 where 1 = (select `1` from v2);
@@ -875,29 +887,29 @@ create view v1 as select * from t1;
 create view v2 as select * from v1;
 create view v3 as select v2.col1 from v2,t2 where v2.col1 = t2.col1;
 update v2 set col1 = (select max(col1) from v1);
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'v2'.
 update v2 set col1 = (select max(col1) from t1);
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 'v2'.
 update v2 set col1 = (select max(col1) from v2);
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
 update v2,t2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'v2'.
 update t1,t2 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 't1'.
 update v1,t2 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
 ERROR HY000: You can't specify target table 'v1' for update in FROM clause
 update t2,v2 set v2.col1 = (select max(col1) from v1) where v2.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 't2'.
 update t2,t1 set t1.col1 = (select max(col1) from v1) where t1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 't2'.
 update t2,v1 set v1.col1 = (select max(col1) from v1) where v1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 't2'.
 update v2,t2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 'v2'.
 update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 update v1,t2 set v1.col1 = (select max(col1) from t1) where v1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'v1'.
 update t2,v2 set v2.col1 = (select max(col1) from t1) where v2.col1 = t2.col1;
 ERROR HY000: You can't specify target table 't2' for update in FROM clause
 update t2,t1 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
@@ -907,73 +919,73 @@ ERROR HY000: You can't specify target table 't2' for update in FROM clause
 update v2,t2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
 update t1,t2 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 't1'.
 update v1,t2 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 'v1'.
 update t2,v2 set v2.col1 = (select max(col1) from v2) where v2.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 't2'.
 update t2,t1 set t1.col1 = (select max(col1) from v2) where t1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 't2'.
 update t2,v1 set v1.col1 = (select max(col1) from v2) where v1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 't2'.
 update v3 set v3.col1 = (select max(col1) from v1);
-ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'v3'.
 update v3 set v3.col1 = (select max(col1) from t1);
-ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+ERROR HY000: The definition of table 'v3' prevents operation UPDATE on table 'v3'.
 update v3 set v3.col1 = (select max(col1) from v2);
-ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation UPDATE on table 'v3'.
 update v3 set v3.col1 = (select max(col1) from v3);
 ERROR HY000: You can't specify target table 'v3' for update in FROM clause
 delete from v2 where col1 = (select max(col1) from v1);
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'v2'.
 delete from v2 where col1 = (select max(col1) from t1);
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation DELETE on table 'v2'.
 delete from v2 where col1 = (select max(col1) from v2);
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
 delete v2 from v2,t2 where (select max(col1) from v1) > 0 and v2.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'v2'.
 delete t1 from t1,t2 where (select max(col1) from v1) > 0 and t1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 't1'.
 delete v1 from v1,t2 where (select max(col1) from v1) > 0 and v1.col1 = t2.col1;
 ERROR HY000: You can't specify target table 'v1' for update in FROM clause
 delete v2 from v2,t2 where (select max(col1) from t1) > 0 and v2.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation DELETE on table 'v2'.
 delete t1 from t1,t2 where (select max(col1) from t1) > 0 and t1.col1 = t2.col1;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 delete v1 from v1,t2 where (select max(col1) from t1) > 0 and v1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'v1'.
 delete v2 from v2,t2 where (select max(col1) from v2) > 0 and v2.col1 = t2.col1;
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
 delete t1 from t1,t2 where (select max(col1) from v2) > 0 and t1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation DELETE on table 't1'.
 delete v1 from v1,t2 where (select max(col1) from v2) > 0 and v1.col1 = t2.col1;
-ERROR HY000: You can't specify target table 'v1' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation DELETE on table 'v1'.
 insert into v2 values ((select max(col1) from v1));
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 'v2'.
 insert into t1 values ((select max(col1) from v1));
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 't1'.
 insert into v2 values ((select max(col1) from v1));
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 'v2'.
 insert into v2 values ((select max(col1) from t1));
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v2'.
 insert into t1 values ((select max(col1) from t1));
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 insert into v2 values ((select max(col1) from t1));
-ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v2'.
 insert into v2 values ((select max(col1) from v2));
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
 insert into t1 values ((select max(col1) from v2));
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 't1'.
 insert into v2 values ((select max(col1) from v2));
 ERROR HY000: You can't specify target table 'v2' for update in FROM clause
 insert into v3 (col1) values ((select max(col1) from v1));
-ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 'v3'.
 insert into v3 (col1) values ((select max(col1) from t1));
-ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+ERROR HY000: The definition of table 'v3' prevents operation INSERT on table 'v3'.
 insert into v3 (col1) values ((select max(col1) from v2));
-ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v3'.
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from v2));
-ERROR HY000: You can't specify target table 'v3' for update in FROM clause
+ERROR HY000: The definition of table 'v2' prevents operation INSERT on table 'v3'.
 insert into v3 (col1) values ((select CONVERT_TZ('20050101000000','UTC','MET') from t2));
 insert into mysql.time_zone values ('', (select CONVERT_TZ('20050101000000','UTC','MET') from t2));
 ERROR 23000: Column 'Use_leap_seconds' cannot be null
@@ -1146,30 +1158,30 @@ create view v2 as select * from v1;
 alter view v1 as select * from v2;
 ERROR 42S02: Table 'test.v1' doesn't exist
 alter view v1 as select * from v1;
-ERROR 42000: Not unique table/alias: 'v1'
+ERROR 42S02: Table 'test.v1' doesn't exist
 create or replace view v1 as select * from v2;
 ERROR 42S02: Table 'test.v1' doesn't exist
 create or replace view v1 as select * from v1;
-ERROR 42000: Not unique table/alias: 'v1'
+ERROR 42S02: Table 'test.v1' doesn't exist
 drop view v2,v1;
 drop table t1;
 create table t1 (a int);
 create view v1 as select * from t1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
 alter algorithm=undefined view v1 as select * from t1 with check option;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH CASCADED CHECK OPTION
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
 alter algorithm=merge view v1 as select * from t1 with cascaded check option;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=MERGE VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH CASCADED CHECK OPTION
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` WITH CASCADED CHECK OPTION
 alter algorithm=temptable view v1 as select * from t1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=TEMPTABLE VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`
 drop view v1;
 drop table t1;
 create table t1 (s1 int);
@@ -1332,7 +1344,7 @@ insert into v3 values (30);
 ERROR HY000: The target table v3 of the INSERT is not updatable
 create view v4 as select * from v2 where 20 < (select (s1) from t1);
 insert into v4 values (30);
-ERROR HY000: You can't specify target table 'v4' for update in FROM clause
+ERROR HY000: The target table v4 of the INSERT is not updatable
 drop view v4, v3, v2, v1;
 drop table t1;
 create table t1 (a int);
@@ -1841,24 +1853,24 @@ create table t2 (b timestamp default now());
 create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,(`test`.`t1`.`a` < now()) AS `t1.a < now()` from (`test`.`t1` join `test`.`t2`) where (`test`.`t1`.`a` < now())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a`,`t2`.`b` AS `b`,(`t1`.`a` < now()) AS `t1.a < now()` from (`t1` join `t2`) where (`t1`.`a` < now())
 drop view v1;
 drop table t1, t2;
 CREATE TABLE t1 ( a varchar(50) );
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = CURRENT_USER();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = current_user())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = current_user())
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = VERSION();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = version())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = version())
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = DATABASE();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = database())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = database())
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (col1 time);
@@ -1935,11 +1947,21 @@ SELECT * FROM v1;
 SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1)
 dkjhgd
 drop view v1;
+create table t1 (f59 int, f60 int, f61 int);
+insert into t1 values (19,41,32);
+create view v1 as select f59, f60 from t1 where f59 in  
+(select f59 from t1);
+update v1 set f60=2345;
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+update t1 set f60=(select max(f60) from v1);
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 't1'.
+drop view v1;
+drop table t1;
 create table t1 (s1 int);
 create view v1 as select var_samp(s1) from t1;
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select var_samp(`test`.`t1`.`s1`) AS `var_samp(s1)` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select var_samp(`t1`.`s1`) AS `var_samp(s1)` from `t1`
 drop view v1;
 drop table t1;
 set sql_mode='strict_all_tables';
@@ -2141,3 +2163,163 @@ select * from v1;
 strcmp(f1,'a')
 drop view v1;
 drop table t1;
+create table t1 (f1 int, f2 int,f3 int);
+insert into t1 values (1,10,20),(2,0,0);
+create view v1 as select * from t1;
+select if(sum(f1)>1,f2,f3) from v1 group by f1;
+if(sum(f1)>1,f2,f3)
+20
+0
+drop view v1;
+drop table t1;
+create table t1 (
+r_object_id char(16) NOT NULL,
+group_name varchar(32) NOT NULL
+) engine = InnoDB;
+create table t2 (
+r_object_id char(16) NOT NULL,
+i_position int(11) NOT NULL, 
+users_names varchar(32) default NULL
+) Engine = InnoDB;
+create view v1 as select r_object_id, group_name from t1;
+create view v2 as select r_object_id, i_position, users_names from t2;
+create unique index r_object_id on t1(r_object_id);
+create index group_name on t1(group_name);
+create unique index r_object_id_i_position on t2(r_object_id,i_position);
+create index users_names on t2(users_names);
+insert into t1 values('120001a080000542','tstgroup1');
+insert into t2 values('120001a080000542',-1, 'guser01');
+insert into t2 values('120001a080000542',-2, 'guser02');
+select v1.r_object_id, v2.users_names from v1, v2
+where (v1.group_name='tstgroup1') and v2.r_object_id=v1.r_object_id 
+order by users_names;
+r_object_id	users_names
+120001a080000542	guser01
+120001a080000542	guser02
+drop view v1, v2;
+drop table t1, t2;
+create definer=some_user@__% sql security invoker view v1 as select 1;
+ERROR HY000: View definer is not fully qualified
+create definer=some_user@localhost sql security invoker view v1 as select 1;
+Warnings:
+Note	1449	There is not some_user@localhost registered
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
+drop view v1;
+create table t1 (s1 int);
+create view abc as select * from t1 as abc;
+drop table t1;
+drop view abc;
+create table t1(f1 char(1));
+create view v1 as select * from t1;
+select * from (select f1 as f2 from v1) v where v.f2='a';
+f2
+drop view v1;
+drop table t1;
+create view v1 as SELECT CONVERT_TZ('2004-01-01 12:00:00','GMT','MET');
+select * from v1;
+CONVERT_TZ('2004-01-01 12:00:00','GMT','MET')
+NULL
+drop view v1;
+CREATE TABLE t1 (date DATE NOT NULL);
+INSERT INTO  t1 VALUES ('2005-09-06');
+CREATE VIEW v1 AS SELECT DAYNAME(date) FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select dayname(`t1`.`date`) AS `DAYNAME(date)` from `t1`
+CREATE VIEW v2 AS SELECT DAYOFWEEK(date) FROM t1;
+SHOW CREATE VIEW v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select dayofweek(`t1`.`date`) AS `DAYOFWEEK(date)` from `t1`
+CREATE VIEW v3 AS SELECT WEEKDAY(date) FROM t1;
+SHOW CREATE VIEW v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select weekday(`t1`.`date`) AS `WEEKDAY(date)` from `t1`
+SELECT DAYNAME('2005-09-06');
+DAYNAME('2005-09-06')
+Tuesday
+SELECT DAYNAME(date) FROM t1;
+DAYNAME(date)
+Tuesday
+SELECT * FROM v1;
+DAYNAME(date)
+Tuesday
+SELECT DAYOFWEEK('2005-09-06');
+DAYOFWEEK('2005-09-06')
+3
+SELECT DAYOFWEEK(date) FROM t1;
+DAYOFWEEK(date)
+3
+SELECT * FROM v2;
+DAYOFWEEK(date)
+3
+SELECT WEEKDAY('2005-09-06');
+WEEKDAY('2005-09-06')
+1
+SELECT WEEKDAY(date) FROM t1;
+WEEKDAY(date)
+1
+SELECT * FROM v3;
+WEEKDAY(date)
+1
+DROP TABLE t1;
+DROP VIEW  v1, v2, v3;
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING a > 1;
+a
+2
+3
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING a > 1;
+a
+2
+3
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+SELECT t1.a FROM t1 GROUP BY t1.a HAVING t1.a > 1;
+a
+2
+3
+SELECT v1.a FROM v1 GROUP BY v1.a HAVING v1.a > 1;
+a
+2
+3
+SELECT t_1.a FROM t1 AS t_1 GROUP BY t_1.a HAVING t_1.a IN (1,2,3);
+a
+1
+2
+3
+SELECT v_1.a FROM v1 AS v_1 GROUP BY v_1.a HAVING v_1.a IN (1,2,3);
+a
+1
+2
+3
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t3 VALUES (1),(2),(3);
+CREATE VIEW v1 AS SELECT t1.* FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
+CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
+EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
+1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	2	Using where; Using index
+EXPLAIN SELECT * FROM v1 WHERE a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+1	PRIMARY	t2	ref	a	a	10	const,test.t1.b	2	Using where; Using index
+EXPLAIN SELECT * FROM v2 WHERE a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;

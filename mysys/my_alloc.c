@@ -221,11 +221,58 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
 #endif
 }
 
-#ifdef SAFEMALLOC
-#define TRASH(X) bfill(((char*)(X) + ((X)->size-(X)->left)), (X)->left, 0xa5)
-#else
-#define TRASH /* no-op */
-#endif
+
+/*
+  Allocate many pointers at the same time.
+
+  DESCRIPTION
+    ptr1, ptr2, etc all point into big allocated memory area.
+
+  SYNOPSIS
+    multi_alloc_root()
+      root               Memory root
+      ptr1, length1      Multiple arguments terminated by a NULL pointer
+      ptr2, length2      ...
+      ...
+      NULL
+
+  RETURN VALUE
+    A pointer to the beginning of the allocated memory block
+    in case of success or NULL if out of memory.
+*/
+
+gptr multi_alloc_root(MEM_ROOT *root, ...)
+{
+  va_list args;
+  char **ptr, *start, *res;
+  uint tot_length, length;
+  DBUG_ENTER("multi_alloc_root");
+
+  va_start(args, root);
+  tot_length= 0;
+  while ((ptr= va_arg(args, char **)))
+  {
+    length= va_arg(args, uint);
+    tot_length+= ALIGN_SIZE(length);
+  }
+  va_end(args);
+
+  if (!(start= (char*) alloc_root(root, tot_length)))
+    DBUG_RETURN(0);                            /* purecov: inspected */
+
+  va_start(args, root);
+  res= start;
+  while ((ptr= va_arg(args, char **)))
+  {
+    *ptr= res;
+    length= va_arg(args, uint);
+    res+= ALIGN_SIZE(length);
+  }
+  va_end(args);
+  DBUG_RETURN((gptr) start);
+}
+
+#define TRASH_MEM(X) TRASH(((char*)(X) + ((X)->size-(X)->left)), (X)->left)
 
 /* Mark all data in blocks free for reusage */
 
@@ -239,7 +286,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   for (next= root->free; next; next= *(last= &next->next))
   {
     next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
-    TRASH(next);
+    TRASH_MEM(next);
   }
 
   /* Combine the free and the used list */
@@ -249,7 +296,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   for (; next; next= next->next)
   {
     next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
-    TRASH(next);
+    TRASH_MEM(next);
   }
 
   /* Now everything is set; Indicate that nothing is used anymore */
@@ -310,7 +357,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   {
     root->free=root->pre_alloc;
     root->free->left=root->pre_alloc->size-ALIGN_SIZE(sizeof(USED_MEM));
-    TRASH(root->pre_alloc);
+    TRASH_MEM(root->pre_alloc);
     root->free->next=0;
   }
   root->block_num= 4;

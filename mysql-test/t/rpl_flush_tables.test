@@ -39,4 +39,15 @@ select * from t3;
 # Note that all this confusion may cause warnings 'table xx is open on rename'
 # in the .err files; these are not fatal and are not reported by mysql-test-run.
 
+stop slave;
+connection master;
+drop table t1;
+connection slave;
+flush tables with read lock;
+start slave;
+sleep 1;
+--error 1192
+stop slave;
+
 # End of 4.1 tests
+# Adding comment for force manual merge 5.0 -> wl1012. Delete me if needed.

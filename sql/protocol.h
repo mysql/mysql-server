@@ -150,30 +150,6 @@ public:
   virtual bool store(Field *field);
 };
 
-class Protocol_cursor :public Protocol_simple
-{
-public:
-  MEM_ROOT *alloc;
-  MYSQL_FIELD *fields;
-  MYSQL_ROWS *data;
-  MYSQL_ROWS **prev_record;
-  ulong row_count;
-
-  Protocol_cursor() :data(NULL) {}
-  Protocol_cursor(THD *thd_arg, MEM_ROOT *ini_alloc) :Protocol_simple(thd_arg), alloc(ini_alloc), data(NULL) {}
-  bool prepare_for_send(List<Item> *item_list) 
-  {
-    row_count= 0;
-    fields= NULL;
-    data= NULL;
-    prev_record= &data;
-    return Protocol_simple::prepare_for_send(item_list);
-  }
-  bool send_fields(List<Item> *list, uint flags);
-  bool write();
-  uint get_field_count() { return field_count; }
-};
-
 void send_warning(THD *thd, uint sql_errno, const char *err=0);
 void net_printf_error(THD *thd, uint sql_errno, ...);
 void net_send_error(THD *thd, uint sql_errno=0, const char *err=0);

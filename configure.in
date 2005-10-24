@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.13-beta)
+AM_INIT_AUTOMAKE(mysql, 5.0.16)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -18,8 +18,8 @@ SHARED_LIB_VERSION=15:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=13
-NDB_VERSION_STATUS="beta"
+NDB_VERSION_BUILD=16
+NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -322,19 +322,19 @@ case "$target_os" in
        ;;
      esac
   ;;
-  sysv5UnixWare*) 
+  sysv5UnixWare* | sysv5OpenUNIX8*) 
     if test "$GCC" != "yes"; then
-      # We are using built-in inline function
+      # Use the built-in alloca()
       CFLAGS="$CFLAGS -Kalloca"
     fi
     CXXFLAGS="$CXXFLAGS -DNO_CPLUSPLUS_ALLOCA"
   ;;
-  sysv5OpenUNIX8*) 
+  sysv5SCO_SV6.0.0*)
     if test "$GCC" != "yes"; then
-      # We are using built-in inline function
+      # Use the built-in alloca()
       CFLAGS="$CFLAGS -Kalloca"
+      CXXFLAGS="$CFLAGS -Kalloca"
     fi
-    CXXFLAGS="$CXXFLAGS -DNO_CPLUSPLUS_ALLOCA"
   ;;
 esac
 AC_SUBST(CC)
@@ -1021,7 +1021,7 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      FLAGS="-traditional-cpp -DHAVE_DARWIN5_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1031,17 +1031,16 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *darwin[[7-8]]*)
-    # don't forget to escape [] like above
+  *darwin*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
+      FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1359,8 +1358,6 @@ then
           if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
           then
             AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1])
-          else
-            AC_DEFINE(HAVE_UNIXWARE7_POSIX, [1])
           fi
           AC_MSG_RESULT("yes")
           # We must have cc
@@ -1386,87 +1383,40 @@ then
     AC_MSG_RESULT("no")
   fi
 fi
-# Hack for SCO UnixWare7
-#
-if test "$with_named_thread" = "no"
-then
-  AC_MSG_CHECKING("SCO UnixWare7 native threads")
-  if expr "$SYSTEM_TYPE" : ".*UnixWare*" > /dev/null
-  then
-    if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
-    then
-      MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
-      if expr "$CC" : ".*gcc.*"
-        then
-          with_named_thread="-pthread -lsocket -lnsl"
-      else
-        with_named_thread="-Kthread -lsocket -lnsl"
-      fi
-      if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
-      then
-        AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1])
-      else
-        AC_DEFINE(HAVE_UNIXWARE7_POSIX, [1])
-      fi
-      # We must have cc
-      AC_MSG_CHECKING("for gcc")
-      if expr "$CC" : ".*gcc.*"
-      then
-	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
-	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
-      else
-	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
-	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
-      fi
-      AC_MSG_RESULT("yes")
-    else
-      AC_MSG_ERROR([configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual.]) 
-    fi
-  else
-    AC_MSG_RESULT("no")
-  fi
-fi
 
-# Hack for Caldera OpenUNIX8
+#
+# Check for SCO threading libraries
 #
 if test "$with_named_thread" = "no"
 then
-  AC_MSG_CHECKING("OpenUNIX8 native threads")
-  if expr "$SYSTEM_TYPE" : ".*OpenUNIX*" > /dev/null
+  AC_MSG_CHECKING([SCO OpenServer 6, UnixWare 7 or OpenUNIX 8 native threads])
+  if expr "$SYSTEM_TYPE" : ".*UnixWare.*" > /dev/null || \
+     expr "$SYSTEM_TYPE" : ".*SCO_SV6.*" > /dev/null || \
+     expr "$SYSTEM_TYPE" : ".*OpenUNIX.*" > /dev/null
   then
     if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
     then
       MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
-      if expr "$CC" : ".*gcc.*"
+      if expr "$CC" : ".*gcc.*" > /dev/null
       then
-          with_named_thread="-pthread -lsocket -lnsl"
+        with_named_thread="-pthread -lsocket -lnsl"
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       else
         with_named_thread="-Kthread -lsocket -lnsl"
+	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       fi
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
-        AC_DEFINE([HAVE_UNIXWARE7_THREADS], [1],
-                  [UNIXWARE7 threads are not posix])
-      else
-        AC_DEFINE([HAVE_UNIXWARE7_POSIX], [1],
-                  [new UNIXWARE7 threads that are not yet posix])
+        AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1], [Have UnixWare 7 (or similar) almost-POSIX threading library])
       fi
-      # We must have cc
-      AC_MSG_CHECKING("for gcc")
-      if expr "$CC" : ".*gcc.*"
-      then
-	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
-	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
-      else
- 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
- 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
-      fi
-      AC_MSG_RESULT("yes")
+      AC_MSG_RESULT(yes)
     else
-      AC_MSG_ERROR([configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual.]) 
+      AC_MSG_ERROR([configure: error: Can't find thread library on SCO/Caldera system. See the Installation chapter in the Reference Manual.]) 
     fi
   else
-    AC_MSG_RESULT("no")
+    AC_MSG_RESULT(no)
   fi
 fi
 
@@ -1860,6 +1810,7 @@ MYSQL_HAVE_TIOCSTAT
 MYSQL_STRUCT_DIRENT_D_INO
 MYSQL_STRUCT_DIRENT_D_NAMLEN
 MYSQL_TYPE_SIGHANDLER
+MYSQL_CHECK_MULTIBYTE
 if test "$with_named_curses" = "no"
 then
   MYSQL_CHECK_LIB_TERMCAP
@@ -1911,7 +1862,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask \
-  snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
+  snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
 
 #
@@ -2508,7 +2459,7 @@ then
       AC_CONFIG_FILES(bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
-      bdb_conf_flags="--disable-shared"
+      bdb_conf_flags="--disable-shared --build=$build_alias"
       if test $with_debug = "yes"
       then
         bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"

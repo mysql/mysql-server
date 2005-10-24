@@ -618,7 +618,7 @@ select * from t1|
 call bug8408_p()|
 val	x
 select bug8408_f()|
-ERROR 0A000: PROCEDURE test.bug8408_p can't return a result set in the given context
+ERROR 0A000: Not allowed to return a result set from a function
 drop procedure bug8408_p|
 drop function bug8408_f|
 create function bug8408() returns int
@@ -665,20 +665,6 @@ select default(t30.s1) from t30;
 end|
 drop procedure bug10969|
 drop table t1|
-prepare stmt from "select 1";
-create procedure p() deallocate prepare stmt;
-ERROR 0A000: DEALLOCATE is not allowed in stored procedures
-create function f() returns int begin deallocate prepare stmt;
-ERROR 0A000: DEALLOCATE is not allowed in stored procedures
-create procedure p() prepare stmt from "select 1";
-ERROR 0A000: PREPARE is not allowed in stored procedures
-create function f() returns int begin prepare stmt from "select 1";
-ERROR 0A000: PREPARE is not allowed in stored procedures
-create procedure p() execute stmt;
-ERROR 0A000: EXECUTE is not allowed in stored procedures
-create function f() returns int begin execute stmt;
-ERROR 0A000: EXECUTE is not allowed in stored procedures
-deallocate prepare stmt;
 create table t1(f1 int);
 create table t2(f1 int);
 CREATE PROCEDURE SP001()
@@ -706,6 +692,7 @@ END P1|
 call SP001();
 TEMP_SUM
 0
+ERROR 24000: Cursor is not open
 drop procedure SP001;
 drop table t1, t2;
 drop function if exists bug11394|
@@ -772,3 +759,127 @@ execute stmt;
 ERROR 42000: FUNCTION test.bug11834_1 does not exist
 deallocate prepare stmt;
 drop function bug11834_2;
+DROP FUNCTION IF EXISTS bug12953|
+CREATE FUNCTION bug12953() RETURNS INT
+BEGIN
+OPTIMIZE TABLE t1;
+RETURN 1;
+END|
+ERROR 0A000: OPTIMIZE TABLE is not allowed in stored procedures
+DROP FUNCTION IF EXISTS bug12995|
+CREATE FUNCTION bug12995() RETURNS INT
+BEGIN
+HANDLER t1 OPEN;
+RETURN 1;
+END|
+ERROR 0A000: HANDLER is not allowed in stored procedures
+CREATE FUNCTION bug12995() RETURNS INT
+BEGIN
+HANDLER t1 READ FIRST;
+RETURN 1;
+END|
+ERROR 0A000: HANDLER is not allowed in stored procedures
+CREATE FUNCTION bug12995() RETURNS INT
+BEGIN
+HANDLER t1 CLOSE;
+RETURN 1;
+END|
+ERROR 0A000: HANDLER is not allowed in stored procedures
+SELECT bug12995()|
+ERROR 42000: FUNCTION test.bug12995 does not exist
+drop procedure if exists bug12712;
+drop function if exists bug12712;
+create procedure bug12712()
+set session autocommit = 0;
+select @@autocommit;
+@@autocommit
+1
+set @au = @@autocommit;
+call bug12712();
+select @@autocommit;
+@@autocommit
+0
+set session autocommit = @au;
+create function bug12712()
+returns int
+begin
+call bug12712();
+return 0;
+end|
+set @x = bug12712()|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+drop procedure bug12712|
+drop function bug12712|
+create function bug12712()
+returns int
+begin
+set session autocommit = 0;
+return 0;
+end|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+create function bug12712()
+returns int
+begin
+set @@autocommit = 0;
+return 0;
+end|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+create function bug12712()
+returns int
+begin
+set local autocommit = 0;
+return 0;
+end|
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+create trigger bug12712
+before insert on t1 for each row set session autocommit = 0;
+ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+drop procedure if exists bug13510_1|
+drop procedure if exists bug13510_2|
+drop procedure if exists bug13510_3|
+drop procedure if exists bug13510_4|
+create procedure bug13510_1()
+begin
+declare password varchar(10);
+set password = 'foo1';
+select password;
+end|
+ERROR 42000: Variable 'password' must be quoted with `...`, or renamed
+create procedure bug13510_2()
+begin
+declare names varchar(10);
+set names = 'foo2';
+select names;
+end|
+ERROR 42000: Variable 'names' must be quoted with `...`, or renamed
+create procedure bug13510_3()
+begin
+declare password varchar(10);
+set `password` = 'foo3';
+select password;
+end|
+create procedure bug13510_4()
+begin
+declare names varchar(10);
+set `names` = 'foo4';
+select names;
+end|
+call bug13510_3()|
+password
+foo3
+call bug13510_4()|
+names
+foo4
+drop procedure bug13510_3|
+drop procedure bug13510_4|
+create database mysqltest1;
+use mysqltest1;
+drop database mysqltest1;
+create function f1() returns int return 1;
+ERROR 3D000: No database selected
+create procedure p1(out param1 int)
+begin
+select count(*) into param1 from t3;
+end|
+ERROR 3D000: No database selected
+use test;

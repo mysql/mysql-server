@@ -1033,7 +1033,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
   {
     ulonglong y=x;
     x=x*DIG_BASE + *buf++;
-    if (unlikely(y > (ULONGLONG_MAX/DIG_BASE) || x < y))
+    if (unlikely(y > ((ulonglong) ULONGLONG_MAX/DIG_BASE) || x < y))
     {
       *to=y;
       return E_DEC_OVERFLOW;
@@ -1933,7 +1933,7 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
       intg0=ROUND_UP(from1->intg+from2->intg),
-      frac0=frac1+frac2, error, i, j;
+      frac0=frac1+frac2, error, i, j, d_to_move;
   dec1 *buf1=from1->buf+intg1, *buf2=from2->buf+intg2, *buf0,
        *start2, *stop2, *stop1, *start0, carry;
 
@@ -2006,6 +2006,20 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
         break;
       }
     }
+  }
+  buf1= to->buf;
+  d_to_move= intg0 + ROUND_UP(to->frac);
+  while (!*buf1 && (to->intg > DIG_PER_DEC1))
+  {
+    buf1++;
+    to->intg-= DIG_PER_DEC1;
+    d_to_move--;
+  }
+  if (to->buf < buf1)
+  {
+    dec1 *cur_d= to->buf;
+    for (; d_to_move--; cur_d++, buf1++)
+      *cur_d= *buf1;
   }
   return error;
 }

@@ -27,6 +27,14 @@
 
 #include <mysql.h>
 
+/* 
+  handler::print_error has a case statement for error numbers.
+  This value is (10000) is far out of range and will envoke the 
+  default: case.  
+  (Current error range is 120-159 from include/my_base.h)
+*/
+#define HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM 10000
+
 #define FEDERATED_QUERY_BUFFER_SIZE STRING_BUFFER_USUAL_SIZE * 5
 #define FEDERATED_RECORDS_IN_RANGE 2
 
@@ -149,6 +157,8 @@ class ha_federated: public handler
   uint ref_length;
   uint fetch_num; // stores the fetch num
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
+  int remote_error_number;
+  char remote_error_buf[FEDERATED_QUERY_BUFFER_SIZE];
 
 private:
   /*
@@ -160,6 +170,7 @@ private:
                              const key_range *start_key,
                              const key_range *end_key,
                              bool records_in_range);
+  int stash_remote_error();
 
 public:
   ha_federated(TABLE *table_arg);
@@ -282,9 +293,11 @@ public:
              HA_CREATE_INFO *create_info);                      //required
   ha_rows records_in_range(uint inx, key_range *start_key,
                                    key_range *end_key);
+  uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     //required
+  virtual bool get_error_message(int error, String *buf);
 };
 
 bool federated_db_init(void);

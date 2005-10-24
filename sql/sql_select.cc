@@ -23,6 +23,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
+#include "sql_cursor.h"
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -107,19 +108,14 @@ static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 				    ulong options);
-static Next_select_func setup_end_select_func(JOIN *join);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
-static enum_nested_loop_state
-sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
                      int error, my_bool *report_error);
 static enum_nested_loop_state
 evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab);
-static enum_nested_loop_state
-sub_select(JOIN *join,JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 flush_cached_records(JOIN *join, JOIN_TAB *join_tab, bool skip_last);
 static enum_nested_loop_state
@@ -584,11 +580,11 @@ JOIN::optimize()
       MEMROOT for prepared statements and stored procedures.
     */
 
-    Query_arena *arena= thd->current_arena, backup;
+    Query_arena *arena= thd->stmt_arena, backup;
     if (arena->is_conventional())
       arena= 0;                                   // For easier test
     else
-      thd->set_n_backup_item_arena(arena, &backup);
+      thd->set_n_backup_active_arena(arena, &backup);
 
     sel->first_cond_optimization= 0;
 
@@ -598,7 +594,7 @@ JOIN::optimize()
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
 
     if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
+      thd->restore_active_arena(arena, &backup);
   }
 
   conds= optimize_cond(this, conds, join_list, &cond_value);   
@@ -758,7 +754,7 @@ JOIN::optimize()
   }
   if (group_list || tmp_table_param.sum_func_count)
   {
-    if (! hidden_group_fields)
+    if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
   else if (select_distinct && tables - const_tables == 1)
@@ -1384,7 +1380,7 @@ JOIN::exec()
       DBUG_PRINT("info",("Creating group table"));
       
       /* Free first data from old join */
-      curr_join->join_free(0);
+      curr_join->join_free();
       if (make_simple_join(curr_join, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
@@ -1482,7 +1478,7 @@ JOIN::exec()
     if (curr_tmp_table->distinct)
       curr_join->select_distinct=0;		/* Each row is unique */
     
-    curr_join->join_free(0);			/* Free quick selects */
+    curr_join->join_free();			/* Free quick selects */
     if (curr_join->select_distinct && ! curr_join->group_list)
     {
       thd->proc_info="Removing duplicates";
@@ -1719,262 +1715,6 @@ JOIN::destroy()
   DBUG_RETURN(error);
 }
 
-
-/************************* Cursor ******************************************/
-
-Cursor::Cursor(THD *thd)
-  :Query_arena(&main_mem_root, INITIALIZED),
-   join(0), unit(0),
-   protocol(thd),
-   close_at_commit(FALSE)
-{
-  /* We will overwrite it at open anyway. */
-  init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-  thr_lock_owner_init(&lock_id, &thd->lock_info);
-  bzero((void*) ht_info, sizeof(ht_info));
-}
-
-
-void
-Cursor::init_from_thd(THD *thd)
-{
-  Engine_info *info;
-  /*
-    We need to save and reset thd->mem_root, otherwise it'll be freed
-    later in mysql_parse.
-
-    We can't just change the thd->mem_root here as we want to keep the
-    things that are already allocated in thd->mem_root for Cursor::fetch()
-  */
-  main_mem_root=  *thd->mem_root;
-  state= thd->current_arena->state;
-  /* Allocate new memory root for thd */
-  init_sql_alloc(thd->mem_root,
-                 thd->variables.query_alloc_block_size,
-                 thd->variables.query_prealloc_size);
-
-  /*
-    The same is true for open tables and lock: save tables and zero THD
-    pointers to prevent table close in close_thread_tables (This is a part
-    of the temporary solution to make cursors work with minimal changes to
-    the current source base).
-  */
-  derived_tables= thd->derived_tables;
-  open_tables=    thd->open_tables;
-  lock=           thd->lock;
-  query_id=       thd->query_id;
-  free_list=	  thd->free_list;
-  change_list=    thd->change_list;
-  reset_thd(thd);
-  /* Now we have an active cursor and can cause a deadlock */
-  thd->lock_info.n_cursors++;
-
-  close_at_commit= FALSE; /* reset in case we're reusing the cursor */
-  info= &ht_info[0];
-  for (handlerton **pht= thd->transaction.stmt.ht; *pht; pht++)
-  {
-    const handlerton *ht= *pht;
-    close_at_commit|= test(ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
-    if (ht->create_cursor_read_view)
-    {
-      info->ht= ht;
-      info->read_view= (ht->create_cursor_read_view)();
-      ++info;
-    }
-  }
-  /*
-    XXX: thd->locked_tables is not changed.
-    What problems can we have with it if cursor is open?
-    TODO: must be fixed because of the prelocked mode.
-  */
-}
-
-
-void
-Cursor::reset_thd(THD *thd)
-{
-  thd->derived_tables= 0;
-  thd->open_tables= 0;
-  thd->lock= 0;
-  thd->free_list= 0;
-  thd->change_list.empty();
-}
-
-
-int
-Cursor::open(JOIN *join_arg)
-{
-  join= join_arg;
-  THD *thd= join->thd;
-  /* First non-constant table */
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
-  DBUG_ENTER("Cursor::open");
-
-  /*
-    Send fields description to the client; server_status is sent
-    in 'EOF' packet, which ends send_fields().
-  */
-  thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
-  join->result->send_fields(*join->fields, Protocol::SEND_NUM_ROWS);
-  ::send_eof(thd);
-  thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-
-  /* Prepare JOIN for reading rows. */
-  join->tmp_table= 0;
-  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
-  join->send_records= 0;
-  join->fetch_limit= join->unit->offset_limit_cnt;
-
-  /* Disable JOIN CACHE as it is not working with cursors yet */
-  for (JOIN_TAB *tab= join_tab;
-       tab != join->join_tab + join->tables - 1;
-       tab++)
-  {
-    if (tab->next_select == sub_select_cache)
-      tab->next_select= sub_select;
-  }
-
-  DBUG_ASSERT(join_tab->table->reginfo.not_exists_optimize == 0);
-  DBUG_ASSERT(join_tab->not_used_in_distinct == 0);
-  /*
-    null_row is set only if row not found and it's outer join: should never
-    happen for the first table in join_tab list
-  */
-  DBUG_ASSERT(join_tab->table->null_row == 0);
-  DBUG_RETURN(0);
-}
-
-
-/*
-  DESCRIPTION
-    Fetch next num_rows rows from the cursor and sent them to the client
-  PRECONDITION:
-    Cursor is open
-  RETURN VALUES:
-    none, this function will send error or OK to network if necessary.
-*/
-
-void
-Cursor::fetch(ulong num_rows)
-{
-  THD *thd= join->thd;
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
-  enum_nested_loop_state error= NESTED_LOOP_OK;
-  Query_arena backup_arena;
-  Engine_info *info;
-  DBUG_ENTER("Cursor::fetch");
-  DBUG_PRINT("enter",("rows: %lu", num_rows));
-
-  DBUG_ASSERT(thd->derived_tables == 0 && thd->open_tables == 0 &&
-              thd->lock == 0);
-
-  thd->derived_tables= derived_tables;
-  thd->open_tables= open_tables;
-  thd->lock= lock;
-  thd->query_id= query_id;
-  thd->change_list= change_list;
-  /* save references to memory, allocated during fetch */
-  thd->set_n_backup_item_arena(this, &backup_arena);
-
-  for (info= ht_info; info->read_view ; info++)
-    (info->ht->set_cursor_read_view)(info->read_view);
-
-  join->fetch_limit+= num_rows;
-
-  error= sub_select(join, join_tab, 0);
-  if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
-    error= sub_select(join,join_tab,1);
-  if (error == NESTED_LOOP_QUERY_LIMIT)
-    error= NESTED_LOOP_OK;                    /* select_limit used */
-  if (error == NESTED_LOOP_CURSOR_LIMIT)
-    join->resume_nested_loop= TRUE;
-
-#ifdef USING_TRANSACTIONS
-    ha_release_temporary_latches(thd);
-#endif
-  /* Grab free_list here to correctly free it in close */
-  thd->restore_backup_item_arena(this, &backup_arena);
-
-  for (info= ht_info; info->read_view; info++)
-    (info->ht->set_cursor_read_view)(0);
-
-  if (error == NESTED_LOOP_CURSOR_LIMIT)
-  {
-    /* Fetch limit worked, possibly more rows are there */
-    thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
-    ::send_eof(thd);
-    thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-    change_list= thd->change_list;
-    reset_thd(thd);
-  }
-  else
-  {
-    close(TRUE);
-    if (error == NESTED_LOOP_OK)
-    {
-      thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
-      ::send_eof(thd);
-      thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
-    }
-    else if (error != NESTED_LOOP_KILLED)
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-void
-Cursor::close(bool is_active)
-{
-  THD *thd= join->thd;
-  DBUG_ENTER("Cursor::close");
-
-  /*
-    In case of UNIONs JOIN is freed inside of unit->cleanup(),
-    otherwise in select_lex->cleanup().
-  */
-  if (unit)
-    (void) unit->cleanup();
-  else
-    (void) join->select_lex->cleanup();
-
-  for (Engine_info *info= ht_info; info->read_view; info++)
-  {
-    (info->ht->close_cursor_read_view)(info->read_view);
-    info->read_view= 0;
-    info->ht= 0;
-  }
-
-  if (is_active)
-    close_thread_tables(thd);
-  else
-  {
-    /* XXX: Another hack: closing tables used in the cursor */
-    DBUG_ASSERT(lock || open_tables || derived_tables);
-
-    TABLE *tmp_derived_tables= thd->derived_tables;
-    MYSQL_LOCK *tmp_lock= thd->lock;
-
-    thd->open_tables= open_tables;
-    thd->derived_tables= derived_tables;
-    thd->lock= lock;
-    close_thread_tables(thd);
-
-    thd->open_tables= tmp_derived_tables;
-    thd->derived_tables= tmp_derived_tables;
-    thd->lock= tmp_lock;
-  }
-  thd->lock_info.n_cursors--; /* Decrease the number of active cursors */
-  join= 0;
-  unit= 0;
-  free_items();
-  change_list.empty();
-  DBUG_VOID_RETURN;
-}
-
-
-/*********************************************************************/
-
 /*
   An entry point to single-unit select (a select without UNION).
 
@@ -2054,9 +1794,9 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
       }
       else
       {
-	if (join->prepare(rref_pointer_array, tables, wild_num,
-			  conds, og_num, order, group, having, proc_param,
-			  select_lex, unit))
+        if (err= join->prepare(rref_pointer_array, tables, wild_num,
+                               conds, og_num, order, group, having, proc_param,
+                               select_lex, unit))
 	{
 	  goto err;
 	}
@@ -2071,9 +1811,9 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	DBUG_RETURN(TRUE);
     thd->proc_info="init";
     thd->used_tables=0;                         // Updated by setup_fields
-    if (join->prepare(rref_pointer_array, tables, wild_num,
-		      conds, og_num, order, group, having, proc_param,
-		      select_lex, unit))
+    if (err= join->prepare(rref_pointer_array, tables, wild_num,
+                           conds, og_num, order, group, having, proc_param,
+                           select_lex, unit))
     {
       goto err;
     }
@@ -2115,7 +1855,7 @@ err:
   if (free_join)
   {
     thd->proc_info="end";
-    err= select_lex->cleanup();
+    err|= select_lex->cleanup();
     DBUG_RETURN(err || thd->net.report_error);
   }
   DBUG_RETURN(join->error);
@@ -2649,7 +2389,6 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     field			Field used in comparision
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
-                                Is NULL for BETWEEN and IN
     usable_tables		Tables which can be used for key optimization
 
   NOTES
@@ -2673,6 +2412,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         !field->table->maybe_null || field->null_ptr)
       return;					// Not a key. Skip it
     exists_optimize= KEY_OPTIMIZE_EXISTS;
+    DBUG_ASSERT(num_values == 1);
   }
   else
   {
@@ -2724,7 +2464,26 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func is NEVER true when num_values > 1
        */
       if (!eq_func)
-        return;
+      {
+        /* 
+          Additional optimization: if we're processing
+          "t.key BETWEEN c1 AND c1" then proceed as if we were processing
+          "t.key = c1".
+          TODO: This is a very limited fix. A more generic fix is possible. 
+          There are 2 options:
+          A) Make equality propagation code be able to handle BETWEEN
+             (including cases like t1.key BETWEEN t2.key AND t3.key)
+          B) Make range optimizer to infer additional "t.key = c" equalities
+             and use them in equality propagation process (see details in
+             OptimizerKBAndTodo)
+        */
+        if ((cond->functype() != Item_func::BETWEEN) ||
+            ((Item_func_between*) cond)->negated ||
+            !value[0]->eq(value[1], field->binary()))
+          return;
+        eq_func= TRUE;
+      }
+
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -2751,7 +2510,6 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
       }
     }
   }
-  DBUG_ASSERT(num_values == 1);
   /*
     For the moment eq_func is always true. This slot is reserved for future
     extensions where we want to remembers other things than just eq comparisons
@@ -2865,19 +2623,6 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
   if (cond->type() != Item::FUNC_ITEM)
     return;
   Item_func *cond_func= (Item_func*) cond;
-  if (cond_func->functype() == Item_func::NOT_FUNC)
-  {
-    Item *item= cond_func->arguments()[0];
-    /*
-      At this moment all NOT before simple comparison predicates
-      are eliminated. NOT IN and NOT BETWEEN are treated similar
-      IN and BETWEEN respectively.
-    */
-    if (item->type() == Item::FUNC_ITEM &&
-        ((Item_func *) item)->select_optimize() == Item_func::OPTIMIZE_KEY)
-      add_key_fields(key_fields,and_level,item,usable_tables);
-    return;
-  }
   switch (cond_func->select_optimize()) {
   case Item_func::OPTIMIZE_NONE:
     break;
@@ -5977,33 +5722,88 @@ void JOIN_TAB::cleanup()
 }
 
 
-void JOIN::join_free(bool full)
+/*
+  Partially cleanup JOIN after it has executed: close index or rnd read
+  (table cursors), free quick selects.
+
+  DESCRIPTION
+    This function is called in the end of execution of a JOIN, before the used
+    tables are unlocked and closed.
+
+    For a join that is resolved using a temporary table, the first sweep is
+    performed against actual tables and an intermediate result is inserted
+    into the temprorary table.
+    The last sweep is performed against the temporary table. Therefore,
+    the base tables and associated buffers used to fill the temporary table
+    are no longer needed, and this function is called to free them.
+
+    For a join that is performed without a temporary table, this function
+    is called after all rows are sent, but before EOF packet is sent.
+
+    For a simple SELECT with no subqueries this function performs a full
+    cleanup of the JOIN and calls mysql_unlock_read_tables to free used base
+    tables.
+
+    If a JOIN is executed for a subquery or if it has a subquery, we can't
+    do the full cleanup and need to do a partial cleanup only.
+      o If a JOIN is not the top level join, we must not unlock the tables
+        because the outer select may not have been evaluated yet, and we
+        can't unlock only selected tables of a query.
+
+      o Additionally, if this JOIN corresponds to a correlated subquery, we
+        should not free quick selects and join buffers because they will be
+        needed for the next execution of the correlated subquery.
+
+      o However, if this is a JOIN for a [sub]select, which is not
+        a correlated subquery itself, but has subqueries, we can free it
+        fully and also free JOINs of all its subqueries. The exception
+        is a subquery in SELECT list, e.g:
+        SELECT a, (select max(b) from t1) group by c
+        This subquery will not be evaluated at first sweep and its value will
+        not be inserted into the temporary table. Instead, it's evaluated
+        when selecting from the temporary table. Therefore, it can't be freed
+        here even though it's not correlated.
+*/
+
+void JOIN::join_free()
 {
   SELECT_LEX_UNIT *unit;
   SELECT_LEX *sl;
-  DBUG_ENTER("JOIN::join_free");
-
   /*
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  full= full || (!select_lex->uncacheable && !thd->lex->describe);
+  bool full= (!select_lex->uncacheable && !thd->lex->describe);
+  bool can_unlock= full;
+  DBUG_ENTER("JOIN::join_free");
 
   cleanup(full);
 
   for (unit= select_lex->first_inner_unit(); unit; unit= unit->next_unit())
-    for (sl= unit->first_select_in_union(); sl; sl= sl->next_select())
+    for (sl= unit->first_select(); sl; sl= sl->next_select())
     {
-      JOIN *join= sl->join;
-      if (join)
-        join->join_free(full);
+      Item_subselect *subselect= sl->master_unit()->item;
+      bool full_local= full && (!subselect || subselect->is_evaluated());
+      /*
+        If this join is evaluated, we can fully clean it up and clean up all
+        its underlying joins even if they are correlated -- they will not be
+        used any more anyway.
+        If this join is not yet evaluated, we still must clean it up to
+        close its table cursors -- it may never get evaluated, as in case of
+        ... HAVING FALSE OR a IN (SELECT ...))
+        but all table cursors must be closed before the unlock.
+      */
+      sl->cleanup_all_joins(full_local);
+      /* Can't unlock if at least one JOIN is still needed */
+      can_unlock= can_unlock && full_local;
     }
 
   /*
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (full && lock && thd->lock && !(select_options & SELECT_NO_UNLOCK) &&
+  if (can_unlock && lock && thd->lock &&
+      !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
       (select_lex == (thd->lex->unit.fake_select_lex ?
                       thd->lex->unit.fake_select_lex : &thd->lex->select_lex)))
@@ -6109,7 +5909,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   tab->cached_eq_ref_table=1;
   if (tab->type == JT_CONST)			// We can skip const tables
     return (tab->eq_ref_table=1);		/* purecov: inspected */
-  if (tab->type != JT_EQ_REF)
+  if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
   Item **ref_item=tab->ref.items;
   Item **end=ref_item+tab->ref.key_parts;
@@ -6317,7 +6117,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
-  join->join_free(0);
+  join->join_free();
 
   if (send_row)
   {
@@ -6512,6 +6312,21 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
   {
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
+
+    if (left_item->type() == Item::REF_ITEM &&
+        ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
+    {
+      if (((Item_ref*)left_item)->depended_from)
+        return FALSE;
+      left_item= left_item->real_item();
+    }
+    if (right_item->type() == Item::REF_ITEM &&
+        ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
+    {
+      if (((Item_ref*)right_item)->depended_from)
+        return FALSE;
+      right_item= right_item->real_item();
+    }
     if (left_item->type() == Item::FIELD_ITEM &&
         right_item->type() == Item::FIELD_ITEM &&
         !((Item_field*)left_item)->depended_from &&
@@ -8057,11 +7872,15 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool table_cant_handle_bit_fields,
                         uint convert_blob_length)
 {
+  Item::Type orig_type= type;
+  Item *orig_item;
+
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM &&
       (item->type() != Item::REF_ITEM ||
        !((Item_ref *) item)->depended_from))
   {
+    orig_item= item;
     item= item->real_item();
     type= Item::FIELD_ITEM;
   }
@@ -8078,29 +7897,40 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
+    bool orig_modify= modify_item;
+    Field *result;
+    if (orig_type == Item::REF_ITEM)
+      modify_item= 0;
     /*
       If item have to be able to store NULLs but underlaid field can't do it,
       create_tmp_field_from_field() can't be used for tmp field creation.
     */
     if (field->maybe_null && !field->field->maybe_null())
     {
-      Field *res= create_tmp_field_from_item(thd, item, table, NULL,
-                                       modify_item, convert_blob_length);
+      result= create_tmp_field_from_item(thd, item, table, NULL,
+                                         modify_item, convert_blob_length);
       *from_field= field->field;
-      if (res && modify_item)
-        ((Item_field*)item)->result_field= res;
-      return res;
-    }
-
-    if (table_cant_handle_bit_fields && 
-        field->field->type() == FIELD_TYPE_BIT)
-      return create_tmp_field_from_item(thd, item, table, copy_func,
+      if (result && modify_item)
+        field->result_field= result;
+    } 
+    else if (table_cant_handle_bit_fields && field->field->type() ==
+             FIELD_TYPE_BIT)
+    {
+      *from_field= field->field;
+      result= create_tmp_field_from_item(thd, item, table, copy_func,
                                         modify_item, convert_blob_length);
-    return create_tmp_field_from_field(thd, (*from_field= field->field),
+      if (result && modify_item)
+        field->result_field= result;
+    }
+    else
+      result= create_tmp_field_from_field(thd, (*from_field= field->field),
                                        item->name, table,
-                                       modify_item ? (Item_field*) item :
+                                       modify_item ? field :
                                        NULL,
                                        convert_blob_length);
+    if (orig_type == Item::REF_ITEM && orig_modify)
+      ((Item_ref*)orig_item)->set_result_field(result);
+    return result;
   }
   /* Fall through */
   case Item::FUNC_ITEM:
@@ -8129,9 +7959,31 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 
 /*
   Create a temp table according to a field list.
-  Set distinct if duplicates could be removed
-  Given fields field pointers are changed to point at tmp_table
-  for send_fields
+
+  SYNOPSIS
+    create_tmp_table()
+    thd                  thread handle
+    param                a description used as input to create the table
+    fields               list of items that will be used to define
+                         column types of the table (also see NOTES)
+    group                TODO document
+    distinct             should table rows be distinct
+    save_sum_fields      see NOTES
+    select_options
+    rows_limit
+    table_alias          possible name of the temporary table that can be used
+                         for name resolving; can be "".
+
+  DESCRIPTION
+    Given field pointers are changed to point at tmp_table for
+    send_fields. The table object is self contained: it's
+    allocated in its own memory root, as well as Field objects
+    created for table columns.
+    This function will replace Item_sum items in 'fields' list with
+    corresponding Item_field items, pointing at the fields in the
+    temporary table, unless this was prohibited by TRUE
+    value of argument save_sum_fields. The Item_field objects
+    are created in THD memory root.
 */
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
@@ -8145,6 +7997,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ulonglong select_options, ha_rows rows_limit,
 		 char *table_alias)
 {
+  MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
   uint	i,field_count,null_count,null_pack_length;
   uint  hidden_null_count, hidden_null_pack_length, hidden_field_count;
@@ -8209,29 +8062,33 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   field_count=param->field_count+param->func_count+param->sum_func_count;
   hidden_field_count=param->hidden_field_count;
-  if (!my_multi_malloc(MYF(MY_WME),
-		       &table,sizeof(*table),
-		       &reg_field,  sizeof(Field*)*(field_count+1),
-		       &blob_field, sizeof(uint)*(field_count+1),
-		       &from_field, sizeof(Field*)*field_count,
-		       &copy_func,sizeof(*copy_func)*(param->func_count+1),
-		       &param->keyinfo,sizeof(*param->keyinfo),
-		       &key_part_info,
-		       sizeof(*key_part_info)*(param->group_parts+1),
-		       &param->start_recinfo,
-		       sizeof(*param->recinfo)*(field_count*2+4),
-		       &tmpname,(uint) strlen(path)+1,
-		       &group_buff,group && ! using_unique_constraint ?
-		       param->group_length : 0,
-		       NullS))
+
+  init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+
+  if (!multi_alloc_root(&own_root,
+                        &table, sizeof(*table),
+                        &reg_field, sizeof(Field*) * (field_count+1),
+                        &blob_field, sizeof(uint)*(field_count+1),
+                        &from_field, sizeof(Field*)*field_count,
+                        &copy_func, sizeof(*copy_func)*(param->func_count+1),
+                        &param->keyinfo, sizeof(*param->keyinfo),
+                        &key_part_info,
+                        sizeof(*key_part_info)*(param->group_parts+1),
+                        &param->start_recinfo,
+                        sizeof(*param->recinfo)*(field_count*2+4),
+                        &tmpname, (uint) strlen(path)+1,
+                        &group_buff, group && ! using_unique_constraint ?
+                        param->group_length : 0,
+                        NullS))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
-  if (!(param->copy_field=copy=new Copy_field[field_count]))
+  /* Copy_field belongs to TMP_TABLE_PARAM, allocate it in THD mem_root */
+  if (!(param->copy_field= copy= new (thd->mem_root) Copy_field[field_count]))
   {
     bitmap_clear_bit(&temp_pool, temp_pool_slot);
-    my_free((gptr) table,MYF(0));		/* purecov: inspected */
+    free_root(&own_root, MYF(0));               /* purecov: inspected */
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->items_to_copy= copy_func;
@@ -8241,6 +8098,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   bzero((char*) table,sizeof(*table));
   bzero((char*) reg_field,sizeof(Field*)*(field_count+1));
   bzero((char*) from_field,sizeof(Field*)*field_count);
+
+  table->mem_root= own_root;
+  mem_root_save= thd->mem_root;
+  thd->mem_root= &table->mem_root;
+
   table->field=reg_field;
   table->alias= table_alias;
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
@@ -8306,7 +8168,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  Field *new_field=
             create_tmp_field(thd, table, arg, arg->type(), &copy_func,
                              tmp_from_field, group != 0,not_all_columns,
-                             group || distinct,
+                             distinct,
                              param->convert_blob_length);
 	  if (!new_field)
 	    goto err;					// Should be OOM
@@ -8317,6 +8179,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= (uint) (reg_field - table->field);
 	    blob_count++;
 	  }
+          if (new_field->type() == FIELD_TYPE_BIT)
+            total_uneven_bit_length+= new_field->field_length & 7;
           new_field->field_index= (uint) (reg_field - table->field);
 	  *(reg_field++)= new_field;
           if (new_field->real_type() == MYSQL_TYPE_STRING ||
@@ -8325,7 +8189,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
             string_count++;
             string_total_length+= new_field->pack_length();
           }
+          thd->mem_root= mem_root_save;
           thd->change_item_tree(argp, new Item_field(new_field));
+          thd->mem_root= &table->mem_root;
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
 	    null_count++;
@@ -8350,12 +8216,16 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	write rows to the temporary table.
 	We here distinguish between UNION and multi-table-updates by the fact
 	that in the later case group is set to the row pointer.
+
+        The test for item->marker == 4 is ensure we don't create a group-by
+        key over a bit field as heap tables can't handle that.
       */
       Field *new_field= (param->schema_table) ?
         create_tmp_field_for_schema(thd, item, table) :
         create_tmp_field(thd, table, item, type, &copy_func,
                          tmp_from_field, group != 0,
-                         not_all_columns || group != 0, 0,
+                         not_all_columns || group != 0,
+                         item->marker == 4,
                          param->convert_blob_length);
 
       if (!new_field)
@@ -8387,7 +8257,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
+    {
+      /*
+        This was the last hidden field; Remember how many hidden fields could
+        have null
+      */
       hidden_null_count=null_count;
+      null_count= 0;
+    }
   }
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
@@ -8422,8 +8299,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count++;
   }
   hidden_null_pack_length=(hidden_null_count+7)/8;
-  null_pack_length= hidden_null_count +
-                    (null_count + total_uneven_bit_length + 7) / 8;
+  null_pack_length= (hidden_null_pack_length +
+                     (null_count + total_uneven_bit_length + 7) / 8);
   reclength+=null_pack_length;
   if (!reclength)
     reclength=1;				// Dummy select
@@ -8439,7 +8316,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
     table->s->rec_buff_length= alloc_length;
-    if (!(table->record[0]= (byte *) my_malloc(alloc_length*3, MYF(MY_WME))))
+    if (!(table->record[0]= (byte*)
+                            alloc_root(&table->mem_root, alloc_length*3)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
     table->s->default_values= table->record[1]+alloc_length;
@@ -8625,8 +8503,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       table->s->uniques= 1;
     }
     if (!(key_part_info= (KEY_PART_INFO*)
-	  sql_calloc((keyinfo->key_parts)*sizeof(KEY_PART_INFO))))
+          alloc_root(&table->mem_root,
+                     keyinfo->key_parts * sizeof(KEY_PART_INFO))))
       goto err;
+    bzero((void*) key_part_info, keyinfo->key_parts * sizeof(KEY_PART_INFO));
     table->key_info=keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
@@ -8674,10 +8554,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
   }
-  if (!open_tmp_table(table))
-    DBUG_RETURN(table);
+  if (open_tmp_table(table))
+    goto err;
 
- err:
+  thd->mem_root= mem_root_save;
+
+  DBUG_RETURN(table);
+
+err:
+  thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
   bitmap_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
@@ -8822,11 +8707,12 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   if (table->s->keys)
   {						// Get keys for ni_create
     bool using_unique_constraint=0;
-    HA_KEYSEG *seg= (HA_KEYSEG*) sql_calloc(sizeof(*seg) *
-					    keyinfo->key_parts);
+    HA_KEYSEG *seg= (HA_KEYSEG*) alloc_root(&table->mem_root,
+                                            sizeof(*seg) * keyinfo->key_parts);
     if (!seg)
       goto err;
 
+    bzero(seg, sizeof(*seg) * keyinfo->key_parts);
     if (keyinfo->key_length >= table->file->max_key_length() ||
 	keyinfo->key_parts > table->file->max_key_parts() ||
 	table->s->uniques)
@@ -8923,13 +8809,14 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 void
 free_tmp_table(THD *thd, TABLE *entry)
 {
+  MEM_ROOT own_root= entry->mem_root;
   const char *save_proc_info;
   DBUG_ENTER("free_tmp_table");
   DBUG_PRINT("enter",("table: %s",entry->alias));
 
   save_proc_info=thd->proc_info;
   thd->proc_info="removing tmp table";
-  free_blobs(entry);
+
   if (entry->file)
   {
     if (entry->db_stat)
@@ -8950,12 +8837,11 @@ free_tmp_table(THD *thd, TABLE *entry)
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
     (*ptr)->free();
-  my_free((gptr) entry->record[0],MYF(0));
   free_io_cache(entry);
 
   bitmap_clear_bit(&temp_pool, entry->temp_pool_slot);
 
-  my_free((gptr) entry,MYF(0));
+  free_root(&own_root, MYF(0)); /* the table is allocated in its own root */
   thd->proc_info=save_proc_info;
 
   DBUG_VOID_RETURN;
@@ -9070,7 +8956,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     end_select function to use. This function can't fail.
 */
 
-static Next_select_func setup_end_select_func(JOIN *join)
+Next_select_func setup_end_select_func(JOIN *join)
 {
   TABLE *table= join->tmp_table;
   Next_select_func end_select;
@@ -9191,7 +9077,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	The following will unlock all cursors if the command wasn't an
 	update command
       */
-      join->join_free(0);				// Unlock all cursors
+      join->join_free();			// Unlock all cursors
       if (join->result->send_eof())
 	rc= 1;                                  // Don't send error
     }
@@ -9225,7 +9111,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 }
 
 
-static enum_nested_loop_state
+enum_nested_loop_state
 sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   enum_nested_loop_state rc;
@@ -9366,7 +9252,7 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
 */
 
-static enum_nested_loop_state
+enum_nested_loop_state
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   join_tab->table->null_row=0;
@@ -11527,7 +11413,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     ulong total_length= 0;
     for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
     {
-      uint length= (*ptr)->pack_length();
+      uint length= (*ptr)->sort_length();
       (*field_length++)= length;
       total_length+= length;
     }
@@ -12067,11 +11953,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
   */
+  thd->lex->current_select->is_item_list_lookup= 1;
   if (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
+  {
+    thd->lex->current_select->is_item_list_lookup= 0;
     return TRUE; /* Wrong field. */
+  }
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
@@ -12385,6 +12276,11 @@ calc_group_buffer(JOIN *join,ORDER *group)
 	key_length+=MAX_BLOB_WIDTH;		// Can't be used as a key
       else if (field->type() == MYSQL_TYPE_VARCHAR)
         key_length+= field->field_length + HA_KEY_BLOB_LENGTH;
+      else if (field->type() == FIELD_TYPE_BIT)
+      {
+        /* Bit is usually stored as a longlong key for group fields */
+        key_length+= 8;                         // Big enough
+      }
       else
 	key_length+= field->pack_length();
     }
@@ -13049,6 +12945,8 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
     The function replaces occurrences of group by fields in expr
     by ref objects for these fields unless they are under aggregate
     functions.
+    The function also corrects value of the the maybe_null attribute
+    for the items of all subexpressions containing group by fields.
 
   IMPLEMENTATION
     The function recursively traverses the tree of the expr expression,
@@ -13058,6 +12956,9 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
   NOTES
     This substitution is needed GROUP BY queries with ROLLUP if
     SELECT list contains expressions over group by attributes.
+
+  TODO: Some functions are not null-preserving. For those functions
+    updating of the maybe_null attribute is an overkill. 
 
   EXAMPLES
     SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
@@ -13075,6 +12976,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
   {
     Name_resolution_context *context= &thd->lex->current_select->context;
     Item **arg,**arg_end;
+    bool arg_changed= FALSE;
     for (arg= expr->arguments(),
          arg_end= expr->arguments()+expr->arg_count;
          arg != arg_end; arg++)
@@ -13092,15 +12994,20 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
                                         item->name)))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);
-            *changed= TRUE;
+            arg_changed= TRUE;
           }
         }
       }
       else if (item->type() == Item::FUNC_ITEM)
       {
-        if (change_group_ref(thd, (Item_func *) item, group_list, changed))
+        if (change_group_ref(thd, (Item_func *) item, group_list, &arg_changed))
           return 1;
       }
+    }
+    if (arg_changed)
+    {
+      expr->maybe_null= 1;
+      *changed= TRUE;
     }
   }
   return 0;
@@ -13163,7 +13070,7 @@ bool JOIN::rollup_init()
     }
     if (item->type() == Item::FUNC_ITEM)
     {
-      bool changed= 0;
+      bool changed= FALSE;
       if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
         return 1;
       /*
@@ -13778,8 +13685,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE,
-                             "")))
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
     res|= unit->cleanup();
   }
@@ -13871,13 +13777,20 @@ void st_table_list::print(THD *thd, String *str)
     const char *cmp_name;                         // Name to compare with alias
     if (view_name.str)
     {
-      append_identifier(thd, str, view_db.str, view_db.length);
-      str->append('.');
+      // A view
+
+      if (!(belong_to_view &&
+            belong_to_view->compact_view_format))
+      {
+        append_identifier(thd, str, view_db.str, view_db.length);
+        str->append('.');
+      }
       append_identifier(thd, str, view_name.str, view_name.length);
       cmp_name= view_name.str;
     }
     else if (derived)
     {
+      // A derived table
       str->append('(');
       derived->print(str);
       str->append(')');
@@ -13885,8 +13798,14 @@ void st_table_list::print(THD *thd, String *str)
     }
     else
     {
-      append_identifier(thd, str, db, db_length);
-      str->append('.');
+      // A normal table
+
+      if (!(belong_to_view &&
+            belong_to_view->compact_view_format))
+      {
+        append_identifier(thd, str, db, db_length);
+        str->append('.');
+      }
       if (schema_table)
       {
         append_identifier(thd, str, schema_table_name,

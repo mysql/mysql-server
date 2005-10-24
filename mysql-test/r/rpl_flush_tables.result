@@ -38,3 +38,9 @@ master-bin.000001	#	Query	1	#	use `test`; rename table t1 to t5, t2 to t1
 master-bin.000001	#	Query	1	#	use `test`; flush tables
 select * from t3;
 a
+stop slave;
+drop table t1;
+flush tables with read lock;
+start slave;
+stop slave;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction

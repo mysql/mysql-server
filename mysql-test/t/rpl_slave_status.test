@@ -1,5 +1,5 @@
 # Test case for BUG #10780
-source include/master-slave.inc
+--source include/master-slave.inc
 connection master;
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
 connection slave;
@@ -23,7 +23,9 @@ connection slave;
 stop slave;
 start slave;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 7 # 8 # 9 # 22 # 23 #
+# Column 1 is replaced, since the output can be either
+# "Connecting to master" or "Waiting for master update"
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 #
 --vertical_results
 show slave status;
 

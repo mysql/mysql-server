@@ -660,6 +660,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  YEAR_SYM
 %token  ZEROFILL
 
+%left   JOIN_SYM
+/* A dummy token to force the priority of table_ref production in a join. */
+%left   TABLE_REF_PRIORITY
 %left   SET_VAR
 %left	OR_OR_SYM OR_SYM OR2_SYM XOR
 %left	AND_SYM AND_AND_SYM
@@ -823,10 +826,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
-        prepare prepare_src execute deallocate 
+        prepare prepare_src execute deallocate
 	statement sp_suid opt_view_list view_list or_replace algorithm
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
+        view_user view_suid
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -921,14 +925,9 @@ deallocate:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          if (lex->stmt_prepare_mode)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
-            YYABORT;
-          }
-          if (lex->sphead)
-          {
-            my_error(ER_SP_BADSTATEMENT, MYF(0), "DEALLOCATE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
@@ -946,14 +945,9 @@ prepare:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          if (lex->stmt_prepare_mode)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
-            YYABORT;
-          }
-          if (lex->sphead)
-          {
-            my_error(ER_SP_BADSTATEMENT, MYF(0), "PREPARE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_PREPARE;
@@ -981,14 +975,9 @@ execute:
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
-          if (thd->command == COM_STMT_PREPARE)
+          if (lex->stmt_prepare_mode)
           {
             yyerror(ER(ER_SYNTAX_ERROR));
-            YYABORT;
-          }
-          if (lex->sphead)
-          {
-            my_error(ER_SP_BADSTATEMENT, MYF(0), "EXECUTE");
             YYABORT;
           }
           lex->sql_command= SQLCOM_EXECUTE;
@@ -1269,16 +1258,16 @@ create:
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
-	| CREATE or_replace algorithm VIEW_SYM table_ident
+	| CREATE or_replace algorithm view_user view_suid VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    /* first table in list is target VIEW name */
-	    if (!lex->select_lex.add_table_to_list(thd, $5, NULL, 0))
+	    if (!lex->select_lex.add_table_to_list(thd, $7, NULL, 0))
               YYABORT;
 	  }
-	  opt_view_list AS select_init check_option
+	  opt_view_list AS select_view_init check_option
 	  {}
         | CREATE TRIGGER_SYM sp_name trg_action_time trg_event 
           ON table_ident FOR_SYM EACH_SYM ROW_SYM
@@ -1324,11 +1313,8 @@ create:
               YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
             sp->restore_thd_mem_root(YYTHD);
 
-	    if (sp->m_multi_results)
-	    {
-	      my_error(ER_SP_NO_RETSET, MYF(0), "trigger");
-	      YYABORT;
-	    }
+            if (sp->is_not_allowed_in_function("trigger"))
+                YYABORT;
 
             /*
               We have to do it after parsing trigger body, because some of
@@ -1481,11 +1467,9 @@ create_function_tail:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
-	    if (sp->m_multi_results)
-	    {
-	      my_error(ER_SP_NO_RETSET, MYF(0), "function");
-	      YYABORT;
-	    }
+            if (sp->is_not_allowed_in_function("function"))
+              YYABORT;
+
 	    if (sp->check_backpatch(YYTHD))
 	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
@@ -1674,42 +1658,41 @@ sp_decls:
 	;
 
 sp_decl:
-	  DECLARE_SYM sp_decl_idents type 
+          DECLARE_SYM sp_decl_idents type 
           { Lex->sphead->reset_lex(YYTHD); }
           sp_opt_default
-	  {
-	    LEX *lex= Lex;
-	    sp_pcontext *ctx= lex->spcont;
-	    uint max= ctx->context_pvars();
-	    enum enum_field_types type= (enum enum_field_types)$3;
-	    Item *it= $5;
+          {
+            LEX *lex= Lex;
+            sp_pcontext *ctx= lex->spcont;
+            uint max= ctx->context_pvars();
+            enum enum_field_types type= (enum enum_field_types)$3;
+            Item *it= $5;
+            bool has_default= (it != NULL);
 
-	    for (uint i = max-$2 ; i < max ; i++)
-	    {
-	      ctx->set_type(i, type);
-	      if (! it)
-	        ctx->set_isset(i, FALSE);
-	      else
-	      {
-	        sp_instr_set *in= new sp_instr_set(lex->sphead->instructions(),
-	                                           ctx,
-						   ctx->pvar_context2index(i),
-                                                   it, type, lex,
-                                                   (i == max - 1));
+            for (uint i = max-$2 ; i < max ; i++)
+            {
+              sp_instr_set *in;
 
-                /*
-                  The last instruction is assigned to be responsible for
-                  freeing LEX.
-                */
-	        lex->sphead->add_instr(in);
-	        ctx->set_isset(i, TRUE);
-		ctx->set_default(i, it);
-	      }
-	    }
+              ctx->set_type(i, type);
+              if (! has_default)
+                it= new Item_null();  /* QQ Set to the type with null_value? */
+              in = new sp_instr_set(lex->sphead->instructions(),
+                                    ctx,
+                                    ctx->pvar_context2index(i),
+                                    it, type, lex,
+                                    (i == max - 1));
+
+              /*
+                The last instruction is assigned to be responsible for
+                freeing LEX.
+              */
+              lex->sphead->add_instr(in);
+              ctx->set_default(i, it);
+            }
             lex->sphead->restore_lex(YYTHD);
-	    $$.vars= $2;
-	    $$.conds= $$.hndlrs= $$.curs= 0;
-	  }
+            $$.vars= $2;
+            $$.conds= $$.hndlrs= $$.curs= 0;
+          }
 	| DECLARE_SYM ident CONDITION_SYM FOR_SYM sp_cond
 	  {
 	    LEX *lex= Lex;
@@ -1735,7 +1718,7 @@ sp_decl:
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
-	    sp->m_in_handler= TRUE;
+	    sp->m_flags|= sp_head::IN_HANDLER;
 	  }
 	  sp_hcond_list sp_proc_stmt
 	  {
@@ -1759,7 +1742,7 @@ sp_decl:
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
-	    sp->m_in_handler= FALSE;
+	    sp->m_flags&= ~sp_head::IN_HANDLER;
 	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
 	    ctx->add_handlers($6);
@@ -1971,12 +1954,7 @@ sp_proc_stmt:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
-	    if ((lex->sql_command == SQLCOM_SELECT && !lex->result) ||
-	        sp_multi_results_command(lex->sql_command))
-	    {
-	      /* We maybe have one or more SELECT without INTO */
-	      sp->m_multi_results= TRUE;
-	    }
+            sp->m_flags|= sp_get_flags_for_command(lex);
 	    if (lex->sql_command == SQLCOM_CHANGE_DB)
 	    { /* "USE db" doesn't work in a procedure */
 	      my_error(ER_SP_BADSTATEMENT, MYF(0), "USE");
@@ -2026,14 +2004,14 @@ sp_proc_stmt:
 	      i= new sp_instr_freturn(sp->instructions(), lex->spcont,
 		                      $3, sp->m_returns, lex);
 	      sp->add_instr(i);
-	      sp->m_has_return= TRUE;
+	      sp->m_flags|= sp_head::HAS_RETURN;
 	    }
 	    sp->restore_lex(YYTHD);
 	  }
 	| IF sp_if END IF {}
 	| CASE_SYM WHEN_SYM
 	  {
-	    Lex->sphead->m_simple_case= FALSE;
+	    Lex->sphead->m_flags&= ~sp_head::IN_SIMPLE_CASE;
 	  }
 	  sp_case END CASE_SYM {}
         | CASE_SYM
@@ -2053,7 +2031,7 @@ sp_proc_stmt:
 
 	    lex->spcont->push_pvar(&dummy, MYSQL_TYPE_STRING, sp_param_in);
 	    lex->sphead->add_instr(i);
-	    lex->sphead->m_simple_case= TRUE;
+	    lex->sphead->m_flags|= sp_head::IN_SIMPLE_CASE;
             lex->sphead->restore_lex(YYTHD);
 	  }
 	  sp_case END CASE_SYM
@@ -2290,7 +2268,6 @@ sp_fetch_list:
 	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
 
 	      i->add_to_varlist(spv);
-	      spv->isset= TRUE;
 	    }
 	  }
 	|
@@ -2312,7 +2289,6 @@ sp_fetch_list:
 	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
 
 	      i->add_to_varlist(spv);
-	      spv->isset= TRUE;
 	    }
 	  }
 	;
@@ -2367,7 +2343,7 @@ sp_case:
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i;
 
-	    if (! sp->m_simple_case)
+	    if (! (sp->m_flags & sp_head::IN_SIMPLE_CASE))
 	      i= new sp_instr_jump_if_not(ip, ctx, $2, lex);
 	    else
 	    { /* Simple case: <caseval> = <whenval> */
@@ -2716,6 +2692,7 @@ create_table_option:
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
+	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
         ;
 
 default_charset:
@@ -3443,16 +3420,16 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-	| ALTER algorithm VIEW_SYM table_ident
+	| ALTER algorithm view_user view_suid VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $4, NULL, 0);
+	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
 	  }
-	  opt_view_list AS select_init check_option
+	  opt_view_list AS select_view_init check_option
 	  {}
 	;
 
@@ -3851,6 +3828,11 @@ optimize:
 	OPTIMIZE opt_no_write_to_binlog table_or_tables
 	{
 	   LEX *lex=Lex;
+	   if (lex->sphead)
+	   {
+	     my_error(ER_SP_BADSTATEMENT, MYF(0), "OPTIMIZE TABLE");
+	     YYABORT;
+	   }
 	   lex->sql_command = SQLCOM_OPTIMIZE;
            lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
@@ -4014,6 +3996,18 @@ select_init:
 	SELECT_SYM select_init2
 	|
 	'(' select_paren ')' union_opt;
+
+select_view_init:
+        SELECT_SYM remember_name select_init2
+          {
+            Lex->create_view_select_start= $2;
+          }
+        |
+        '(' remember_name select_paren ')' union_opt
+          {
+            Lex->create_view_select_start= $2;
+          }
+        ;
 
 select_paren:
 	SELECT_SYM select_part2
@@ -4299,7 +4293,9 @@ predicate:
             else
             {
               $5->push_front($1);
-              $$= negate_expression(YYTHD, new Item_func_in(*$5));
+              Item_func_in *item = new Item_func_in(*$5);
+              item->negate();
+              $$= item;
             }            
           }
         | bit_expr IN_SYM in_subselect
@@ -4309,14 +4305,18 @@ predicate:
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
 	| bit_expr not BETWEEN_SYM bit_expr AND_SYM predicate
-	  { $$= negate_expression(YYTHD, new Item_func_between($1,$4,$6)); }
+    {
+      Item_func_between *item= new Item_func_between($1,$4,$6);
+      item->negate();
+      $$= item;
+    }
 	| bit_expr SOUNDS_SYM LIKE bit_expr
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }
 	| bit_expr LIKE simple_expr opt_escape
-          { $$= new Item_func_like($1,$3,$4); }
+          { $$= new Item_func_like($1,$3,$4,Lex->escape_used); }
 	| bit_expr not LIKE simple_expr opt_escape
-          { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+          { $$= new Item_func_not(new Item_func_like($1,$4,$5, Lex->escape_used)); }
 	| bit_expr REGEXP bit_expr	{ $$= new Item_func_regex($1,$3); }
 	| bit_expr not REGEXP bit_expr
           { $$= negate_expression(YYTHD, new Item_func_regex($1,$4)); }
@@ -4536,6 +4536,8 @@ simple_expr:
 	  { $$= new Item_func_atan($3,$5); }
 	| CHAR_SYM '(' expr_list ')'
 	  { $$= new Item_func_char(*$3); }
+	| CHAR_SYM '(' expr_list USING charset_name ')'
+	  { $$= new Item_func_char(*$3, $5); }
 	| CHARSET '(' expr ')'
 	  { $$= new Item_func_charset($3); }
 	| COALESCE '(' expr_list ')'
@@ -4779,27 +4781,48 @@ simple_expr:
 	      $$= new Item_func_sp(Lex->current_context(), name);
 	    lex->safe_to_cache_query=0;
 	  }
-	| IDENT_sys '(' udf_expr_list ')'
+	| IDENT_sys '(' 
           {
 #ifdef HAVE_DLOPEN
-            udf_func *udf;
+            udf_func *udf= 0;
+            if (using_udf_functions &&
+                (udf= find_udf($1.str, $1.length)) &&
+                udf->type == UDFTYPE_AGGREGATE)
+            {
+              LEX *lex= Lex;
+              if (lex->current_select->inc_in_sum_expr())
+              {
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+              }
+            }
+            $<udf>$= udf;
+#endif
+          }
+          udf_expr_list ')'
+          {
+#ifdef HAVE_DLOPEN
+            udf_func *udf= $<udf>3;
             SELECT_LEX *sel= Select;
 
-            if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
+            if (udf)
             {
+              if (udf->type == UDFTYPE_AGGREGATE)
+                Select->in_sum_expr--;
+
               switch (udf->returns) {
               case STRING_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_str(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_str(udf, *$4);
                   else
                     $$ = new Item_func_udf_str(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_str(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_str(udf, *$4);
                   else
                     $$ = new Item_sum_udf_str(udf);
                 }
@@ -4807,15 +4830,15 @@ simple_expr:
               case REAL_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_float(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_float(udf, *$4);
                   else
                     $$ = new Item_func_udf_float(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_float(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_float(udf, *$4);
                   else
                     $$ = new Item_sum_udf_float(udf);
                 }
@@ -4823,15 +4846,15 @@ simple_expr:
               case INT_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_int(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_int(udf, *$4);
                   else
                     $$ = new Item_func_udf_int(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_int(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_int(udf, *$4);
                   else
                     $$ = new Item_sum_udf_int(udf);
                 }
@@ -4839,15 +4862,15 @@ simple_expr:
               case DECIMAL_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_func_udf_decimal(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_func_udf_decimal(udf, *$4);
                   else
                     $$ = new Item_func_udf_decimal(udf);
                 }
                 else
                 {
-                  if ($3 != NULL)
-                    $$ = new Item_sum_udf_decimal(udf, *$3);
+                  if ($4 != NULL)
+                    $$ = new Item_sum_udf_decimal(udf, *$4);
                   else
                     $$ = new Item_sum_udf_decimal(udf);
                 }
@@ -4863,8 +4886,8 @@ simple_expr:
               sp_name *name= sp_name_current_db_new(YYTHD, $1);
 
               sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
-              if ($3)
-                $$= new Item_func_sp(Lex->current_context(), name, *$3);
+              if ($4)
+                $$= new Item_func_sp(Lex->current_context(), name, *$4);
               else
                 $$= new Item_func_sp(Lex->current_context(), name);
 	      lex->safe_to_cache_query=0;
@@ -5203,7 +5226,13 @@ derived_table_list:
         ;
 
 join_table:
-        table_ref normal_join table_ref { YYERROR_UNLESS($1 && ($$=$3)); }
+        /*
+          Evaluate production 'table_ref' before 'normal_join' so that
+          [INNER | CROSS] JOIN is properly nested as other left-associative
+          joins.
+        */
+        table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
+        { YYERROR_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
 	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref
@@ -5649,10 +5678,14 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM simple_expr { $$= $2; }
+	ESCAPE_SYM simple_expr 
+          {
+            Lex->escape_used= TRUE;
+            $$= $2;
+          }
 	| /* empty */
           {
-
+            Lex->escape_used= FALSE;
             $$= ((YYTHD->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) ?
 		 new Item_string("", 0, &my_charset_latin1) :
                  new Item_string("\\", 1, &my_charset_latin1));
@@ -5899,7 +5932,6 @@ select_var_ident:
 	     else
 	     {
 	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset,t->type));
-	       t->isset= TRUE;
 	     }
 	   }
            ;
@@ -6549,15 +6581,16 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
 	    THD *thd= lex->thd;
+            Security_context *sctx= thd->security_ctx;
 	    LEX_USER *curr_user;
             if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            curr_user->user.str= thd->priv_user;
-            curr_user->user.length= strlen(thd->priv_user);
-            if (*thd->priv_host != 0)
+            curr_user->user.str= sctx->priv_user;
+            curr_user->user.length= strlen(sctx->priv_user);
+            if (*sctx->priv_host != 0)
             {
-              curr_user->host.str= thd->priv_host;
-              curr_user->host.length= strlen(thd->priv_host);
+              curr_user->host.str= sctx->priv_host;
+              curr_user->host.length= strlen(sctx->priv_host);
             }
             else
             {
@@ -6643,6 +6676,9 @@ show_engine_param:
 	STATUS_SYM
 	  {
 	    switch (Lex->create_info.db_type) {
+	    case DB_TYPE_NDBCLUSTER:
+	      Lex->sql_command = SQLCOM_SHOW_NDBCLUSTER_STATUS;
+	      break;
 	    case DB_TYPE_INNODB:
 	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
 	      break;
@@ -7458,14 +7494,15 @@ user:
 	| CURRENT_USER optional_braces
 	{
           THD *thd= YYTHD;
+          Security_context *sctx= thd->security_ctx;
           if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
             YYABORT;
-          $$->user.str= thd->priv_user;
-          $$->user.length= strlen(thd->priv_user);
-          if (*thd->priv_host != 0)
+          $$->user.str= sctx->priv_user;
+          $$->user.length= strlen(sctx->priv_user);
+          if (*sctx->priv_host != 0)
           {
-            $$->host.str= thd->priv_host;
-            $$->host.length= strlen(thd->priv_host);
+            $$->host.str= sctx->priv_host;
+            $$->host.length= strlen(sctx->priv_host);
           }
           else
           {
@@ -7930,7 +7967,6 @@ sys_option_value:
             sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
                                      spv->offset, it, spv->type, lex, TRUE);
             lex->sphead->add_instr(sp_set);
-            spv->isset= TRUE;
           }
         }
         | option_type TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
@@ -7962,6 +7998,18 @@ option_value:
 	  $2= $2 ? $2: global_system_variables.character_set_client;
 	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.collation_database,$2));
 	}
+        | NAMES_SYM equal expr
+	  {
+	    LEX *lex= Lex;
+            sp_pcontext *spc= lex->spcont;
+	    LEX_STRING names;
+
+	    names.str= (char *)"names";
+	    names.length= 5;
+	    if (spc && spc->find_pvar(&names))
+              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
+	    YYABORT;
+	  }
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
 	  LEX *lex= Lex;
@@ -7979,10 +8027,21 @@ option_value:
 	  {
 	    THD *thd=YYTHD;
 	    LEX_USER *user;
+	    LEX *lex= Lex;	    
+            sp_pcontext *spc= lex->spcont;
+	    LEX_STRING pw;
+
+	    pw.str= (char *)"password";
+	    pw.length= 8;
+	    if (spc && spc->find_pvar(&pw))
+	    {
+              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
+	      YYABORT;
+	    }
 	    if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
 	      YYABORT;
 	    user->host=null_lex_str;
-	    user->user.str=thd->priv_user;
+	    user->user.str=thd->security_ctx->priv_user;
 	    thd->lex->var_list.push_back(new set_var_password(user, $3));
 	  }
 	| PASSWORD FOR_SYM user equal text_or_password
@@ -8014,6 +8073,14 @@ internal_variable_name:
             if (tmp == &sys_time_zone &&
                 lex->add_time_zone_tables_to_query_tables(YYTHD))
               YYABORT;
+            else if (spc && tmp == &sys_autocommit)
+            {
+              /*
+                We don't allow setting AUTOCOMMIT from a stored function
+		or trigger.
+              */
+              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+            }
 	  }
 	  else
 	  {
@@ -8177,6 +8244,11 @@ handler:
 	HANDLER_SYM table_ident OPEN_SYM opt_table_alias
 	{
 	  LEX *lex= Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_OPEN;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
@@ -8184,6 +8256,11 @@ handler:
 	| HANDLER_SYM table_ident_nodb CLOSE_SYM
 	{
 	  LEX *lex= Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_CLOSE;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
@@ -8191,6 +8268,11 @@ handler:
 	| HANDLER_SYM table_ident_nodb READ_SYM
 	{
 	  LEX *lex=Lex;
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
+	    YYABORT;
+	  }
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  lex->current_select->select_limit= new Item_int((int32) 1);
@@ -8884,6 +8966,55 @@ algorithm:
 	| ALGORITHM_SYM EQ TEMPTABLE_SYM
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
 	;
+
+view_user:
+        /* empty */
+          {
+            THD *thd= YYTHD;
+            if (!(thd->lex->create_view_definer=
+                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+              YYABORT;
+            if (default_view_definer(thd->security_ctx,
+                                     thd->lex->create_view_definer))
+              YYABORT;
+          }
+        | CURRENT_USER optional_braces
+          {
+            THD *thd= YYTHD;
+            if (!(thd->lex->create_view_definer=
+                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+              YYABORT;
+            if (default_view_definer(thd->security_ctx,
+                                     thd->lex->create_view_definer))
+              YYABORT;
+          }
+	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
+	  {
+	    THD *thd= YYTHD;
+            st_lex_user *view_user;
+	    if (!(thd->lex->create_view_definer= view_user=
+                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+	      YYABORT;
+	    view_user->user = $3; view_user->host=$5;
+            if (strchr(view_user->host.str, wild_many) ||
+                strchr(view_user->host.str, wild_one))
+            {
+              my_error(ER_NO_VIEW_USER, MYF(0));
+              YYABORT;
+            }
+	  }
+        ;
+
+view_suid:
+        /* empty */
+	  { Lex->create_view_suid= TRUE; }
+        |
+	  SQL_SYM SECURITY_SYM DEFINER_SYM
+	  { Lex->create_view_suid= TRUE; }
+	| SQL_SYM SECURITY_SYM INVOKER_SYM
+	  { Lex->create_view_suid= FALSE; }
+	;
+
 check_option:
         /* empty */
           { Lex->create_view_check= VIEW_CHECK_NONE; }

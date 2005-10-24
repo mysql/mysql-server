@@ -33,8 +33,8 @@
 Item_result
 sp_map_result_type(enum enum_field_types type);
 
-bool
-sp_multi_results_command(enum enum_sql_command cmd);
+uint
+sp_get_flags_for_command(LEX *lex);
 
 struct sp_label;
 class sp_instr;
@@ -107,18 +107,25 @@ class sp_head :private Query_arena
 
   MEM_ROOT main_mem_root;
 public:
+  /* Possible values of m_flags */
+  enum {
+    HAS_RETURN= 1,              // For FUNCTIONs only: is set if has RETURN
+    IN_SIMPLE_CASE= 2,          // Is set if parsing a simple CASE
+    IN_HANDLER= 4,              // Is set if the parser is in a handler body
+    MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
+    CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
+    IS_INVOKED= 32,             // Is set if this sp_head is being used
+    HAS_SET_AUTOCOMMIT_STMT = 64 // Is set if a procedure with 'set autocommit'
+  };
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
+  uint m_flags;                 // Boolean attributes of a stored routine
   enum enum_field_types m_returns; // For FUNCTIONs only
   Field::geometry_type m_geom_returns;
   CHARSET_INFO *m_returns_cs;	// For FUNCTIONs only
   TYPELIB *m_returns_typelib;	// For FUNCTIONs only
   uint m_returns_len;		// For FUNCTIONs only
   uint m_returns_pack;		// For FUNCTIONs only
-  my_bool m_has_return;		// For FUNCTIONs only
-  my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
-  my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
-  my_bool m_in_handler;		// TRUE if parser in a handler body
   uchar *m_tmp_query;		// Temporary pointer to sub query string
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
@@ -143,6 +150,12 @@ public:
   HASH m_sroutines;
   // Pointers set during parsing
   uchar *m_param_begin, *m_param_end, *m_body_begin;
+
+  /*
+    Security context for stored routine which should be run under
+    definer privileges.
+  */
+  Security_context m_security_ctx;
 
   static void *
   operator new(size_t size);
@@ -265,6 +278,22 @@ public:
   bool add_used_tables_to_table_list(THD *thd,
                                      TABLE_LIST ***query_tables_last_ptr);
 
+  /*
+    Check if this stored routine contains statements disallowed
+    in a stored function or trigger, and set an appropriate error message
+    if this is the case.
+  */
+  bool is_not_allowed_in_function(const char *where)
+  {
+    if (m_flags & CONTAINS_DYNAMIC_SQL)
+      my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "Dynamic SQL");
+    else if (m_flags & MULTI_RESULTS)
+      my_error(ER_SP_NO_RETSET, MYF(0), where);
+    else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
+      my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
+    return test(m_flags &
+		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
+  }
 private:
 
   MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
@@ -289,9 +318,6 @@ private:
     in prelocked mode and in non-prelocked mode.
   */
   HASH m_sptabs;
-
-  /* Used for tracking of routine invocations and preventing recursion. */
-  bool m_is_invoked;
 
   int
   execute(THD *thd);
@@ -840,6 +866,12 @@ public:
 
   virtual void print(String *str);
 
+  /*
+    This call is used to cleanup the instruction when a sensitive
+    cursor is closed. For now stored procedures always use materialized
+    cursors and the call is not used.
+  */
+  virtual void cleanup_stmt() { /* no op */ }
 private:
 
   sp_lex_keeper m_lex_keeper;
@@ -997,28 +1029,20 @@ private:
 }; // class sp_instr_error : public sp_instr
 
 
-struct st_sp_security_context
-{
-  bool changed;
-  uint master_access;
-  uint db_access;
-  char *priv_user;
-  char priv_host[MAX_HOSTNAME];
-  char *user;
-  char *host;
-  char *ip;
-};
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool
+sp_change_security_context(THD *thd, sp_head *sp,
+                           Security_context **backup);
 void
-sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp);
-void
-sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
+sp_restore_security_context(THD *thd, Security_context *backup);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
 		       thr_lock_type locktype);
+
+Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
+                        Item *reuse, bool use_callers_arena);
 
 #endif /* _SP_HEAD_H_ */

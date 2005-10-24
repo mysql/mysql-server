@@ -180,10 +180,11 @@ THD::THD()
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
    spcont(NULL)
 {
-  current_arena= this;
-  host= user= priv_user= db= ip= 0;
+  stmt_arena= this;
+  db= 0;
   catalog= (char*)"std"; // the only catalog we have for now
-  host_or_ip= "connecting host";
+  main_security_ctx.init();
+  security_ctx= &main_security_ctx;
   locked=some_tables_deleted=no_errors=password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -217,6 +218,7 @@ THD::THD()
 #ifndef EMBEDDED_LIBRARY
   net.vio=0;
 #endif
+  client_capabilities= 0;                       // minimalistic client
   net.last_error[0]=0;                          // If error on boot
   net.query_cache_query=0;                      // If error on boot
   ull=0;
@@ -236,9 +238,6 @@ THD::THD()
   server_id = ::server_id;
   slave_net = 0;
   command=COM_CONNECT;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  db_access=NO_ACCESS;
-#endif
   *scramble= '\0';
 
   init();
@@ -377,14 +376,16 @@ void THD::cleanup(void)
   mysql_ha_flush(this, (TABLE_LIST*) 0,
                  MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
   hash_free(&handler_tables_hash);
+  delete_dynamic(&user_var_events);
+  hash_free(&user_vars);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
-  delete_dynamic(&user_var_events);
-  hash_free(&user_vars);
+  
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
+
   if (global_read_lock)
     unlock_global_read_lock(this);
   if (ull)
@@ -424,15 +425,8 @@ THD::~THD()
 
   ha_close_connection(this);
 
-  sp_cache_clear(&sp_proc_cache);
-  sp_cache_clear(&sp_func_cache);
-
-  DBUG_PRINT("info", ("freeing host"));
-  if (host != my_localhost)			// If not pointer to constant
-    safeFree(host);
-  if (user != delayed_user)
-    safeFree(user);
-  safeFree(ip);
+  DBUG_PRINT("info", ("freeing security context"));
+  main_security_ctx.destroy();
   safeFree(db);
   free_root(&warn_root,MYF(0));
 #ifdef USING_TRANSACTIONS
@@ -551,11 +545,6 @@ void THD::cleanup_after_query()
   }
   /* Free Items that were created during this execution */
   free_items();
-  /*
-    In the rest of code we assume that free_list never points to garbage:
-    Keep this predicate true.
-  */
-  free_list= 0;
 }
 
 /*
@@ -794,7 +783,7 @@ struct Item_change_record: public ilink
 /*
   Register an item tree tree transformation, performed by the query
   optimizer. We need a pointer to runtime_memroot because it may be !=
-  thd->mem_root (due to possible set_n_backup_item_arena called for thd).
+  thd->mem_root (due to possible set_n_backup_active_arena called for thd).
 */
 
 void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
@@ -871,8 +860,33 @@ sql_exchange::sql_exchange(char *name,bool flag)
 
 bool select_send::send_fields(List<Item> &list, uint flags)
 {
-  return thd->protocol->send_fields(&list, flags);
+  bool res;
+  if (!(res= thd->protocol->send_fields(&list, flags)))
+    status= 1;
+  return res;
 }
+
+void select_send::abort()
+{
+  DBUG_ENTER("select_send::abort");
+  if (status && thd->spcont &&
+      thd->spcont->find_handler(thd->net.last_errno,
+                                MYSQL_ERROR::WARN_LEVEL_ERROR))
+  {
+    /*
+      Executing stored procedure without a handler.
+      Here we should actually send an error to the client,
+      but as an error will break a multiple result set, the only thing we
+      can do for now is to nicely end the current data set and remembering
+      the error so that the calling routine will abort
+    */
+    thd->net.report_error= 0;
+    send_eof();
+    thd->net.report_error= 1; // Abort SP
+  }
+  DBUG_VOID_RETURN;
+}
+
 
 /* Send data to client. Returns 0 if ok */
 
@@ -936,6 +950,7 @@ bool select_send::send_eof()
   if (!thd->net.report_error)
   {
     ::send_eof(thd);
+    status= 0;
     return 0;
   }
   else
@@ -1524,6 +1539,19 @@ void Query_arena::free_items()
 }
 
 
+void Query_arena::set_query_arena(Query_arena *set)
+{
+  mem_root=  set->mem_root;
+  free_list= set->free_list;
+  state= set->state;
+}
+
+
+void Query_arena::cleanup_stmt()
+{
+  DBUG_ASSERT("Query_arena::cleanup_stmt()" == "not implemented");
+}
+
 /*
   Statement functions 
 */
@@ -1581,12 +1609,6 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 }
 
 
-void Statement::close_cursor()
-{
-  DBUG_ASSERT("Statement::close_cursor()" == "not implemented");
-}
-
-
 void THD::end_statement()
 {
   /* Cleanup SQL processing state to resuse this statement in next query. */
@@ -1602,13 +1624,13 @@ void THD::end_statement()
 }
 
 
-void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
+void THD::set_n_backup_active_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Query_arena::set_n_backup_item_arena");
+  DBUG_ENTER("THD::set_n_backup_active_arena");
   DBUG_ASSERT(backup->is_backup_arena == FALSE);
 
-  backup->set_item_arena(this);
-  set_item_arena(set);
+  backup->set_query_arena(this);
+  set_query_arena(set);
 #ifndef DBUG_OFF
   backup->is_backup_arena= TRUE;
 #endif
@@ -1616,23 +1638,16 @@ void Query_arena::set_n_backup_item_arena(Query_arena *set, Query_arena *backup)
 }
 
 
-void Query_arena::restore_backup_item_arena(Query_arena *set, Query_arena *backup)
+void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 {
-  DBUG_ENTER("Query_arena::restore_backup_item_arena");
+  DBUG_ENTER("THD::restore_active_arena");
   DBUG_ASSERT(backup->is_backup_arena);
-  set->set_item_arena(this);
-  set_item_arena(backup);
+  set->set_query_arena(this);
+  set_query_arena(backup);
 #ifndef DBUG_OFF
   backup->is_backup_arena= FALSE;
 #endif
   DBUG_VOID_RETURN;
-}
-
-void Query_arena::set_item_arena(Query_arena *set)
-{
-  mem_root=  set->mem_root;
-  free_list= set->free_list;
-  state= set->state;
 }
 
 Statement::~Statement()
@@ -1686,32 +1701,32 @@ Statement_map::Statement_map() :
             NULL,MYF(0));
 }
 
+
 int Statement_map::insert(Statement *statement)
 {
-  int rc= my_hash_insert(&st_hash, (byte *) statement);
-  if (rc == 0)
-    last_found_statement= statement;
+  int res= my_hash_insert(&st_hash, (byte *) statement);
+  if (res)
+    return res;
   if (statement->name.str)
   {
-    /*
-      If there is a statement with the same name, remove it. It is ok to 
-      remove old and fail to insert new one at the same time.
-    */
-    Statement *old_stmt;
-    if ((old_stmt= find_by_name(&statement->name)))
-      erase(old_stmt); 
-    if ((rc= my_hash_insert(&names_hash, (byte*)statement)))
+    if ((res= my_hash_insert(&names_hash, (byte*)statement)))
+    {
       hash_delete(&st_hash, (byte*)statement);
+      return res;
+    }
   }
-  return rc;
+  last_found_statement= statement;
+  return res;
 }
 
 
 void Statement_map::close_transient_cursors()
 {
+#ifdef TO_BE_IMPLEMENTED
   Statement *stmt;
   while ((stmt= transient_cursor_list.head()))
     stmt->close_cursor();                 /* deletes itself from the list */
+#endif
 }
 
 
@@ -1812,6 +1827,38 @@ void THD::set_status_var_init()
 {
   bzero((char*) &status_var, sizeof(status_var));
 }
+
+
+void Security_context::init()
+{
+  host= user= priv_user= ip= 0;
+  host_or_ip= "connecting host";
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  db_access= NO_ACCESS;
+#endif
+}
+
+
+void Security_context::destroy()
+{
+  // If not pointer to constant
+  if (host != my_localhost)
+    safeFree(host);
+  if (user != delayed_user)
+    safeFree(user);
+  safeFree(ip);
+}
+
+
+void Security_context::skip_grants()
+{
+  /* privileges for the user are unknown everything is allowed */
+  host_or_ip= (char *)"";
+  master_access= ~NO_ACCESS;
+  priv_user= (char *)"";
+  *priv_host= '\0';
+}
+
 
 /****************************************************************************
   Handling of open and locked tables states.
@@ -1940,8 +1987,8 @@ HASH xid_cache;
 static byte *xid_get_hash_key(const byte *ptr,uint *length,
                                   my_bool not_used __attribute__((unused)))
 {
-  *length=((XID_STATE*)ptr)->xid.length();
-  return (byte *)&((XID_STATE*)ptr)->xid;
+  *length=((XID_STATE*)ptr)->xid.key_length();
+  return ((XID_STATE*)ptr)->xid.key();
 }
 
 static void xid_free_hash (void *ptr)
@@ -1969,7 +2016,7 @@ void xid_cache_free()
 XID_STATE *xid_cache_search(XID *xid)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, (byte *)xid, xid->length());
+  XID_STATE *res=(XID_STATE *)hash_search(&xid_cache, xid->key(), xid->key_length());
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
@@ -1980,7 +2027,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
   XID_STATE *xs;
   my_bool res;
   pthread_mutex_lock(&LOCK_xid_cache);
-  if (hash_search(&xid_cache, (byte *)xid, xid->length()))
+  if (hash_search(&xid_cache, xid->key(), xid->key_length()))
     res=0;
   else if (!(xs=(XID_STATE *)my_malloc(sizeof(*xs), MYF(MY_WME))))
     res=1;
@@ -1999,8 +2046,8 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   pthread_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(hash_search(&xid_cache, (byte *)&xid_state->xid,
-                          xid_state->xid.length())==0);
+  DBUG_ASSERT(hash_search(&xid_cache, xid_state->xid.key(),
+                          xid_state->xid.key_length())==0);
   my_bool res=my_hash_insert(&xid_cache, (byte*)xid_state);
   pthread_mutex_unlock(&LOCK_xid_cache);
   return res;

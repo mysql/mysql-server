@@ -1199,7 +1199,7 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
   This is used for printing bit_fields as numbers while debugging
 */
 
-String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag)
+String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 {
   CHARSET_INFO *cs= &my_charset_bin;
   uint length= 21;
@@ -1208,7 +1208,7 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag)
     return 0;
   length= (uint) (*cs->cset->longlong10_to_str)(cs, (char*) val_buffer->ptr(),
                                                 length,
-                                                unsigned_flag ? 10 : -10,
+                                                unsigned_val ? 10 : -10,
                                                 value);
   val_buffer->length(length);
   return val_buffer;
@@ -1360,7 +1360,7 @@ int Field_num::store_decimal(const my_decimal *val)
 {
   int err= 0;
   longlong i= convert_decimal2longlong(val, unsigned_flag, &err);
-  return test(err | store(i));
+  return test(err | store(i, unsigned_flag));
 }
 
 
@@ -2122,36 +2122,37 @@ int Field_decimal::store(double nr)
 }
 
 
-int Field_decimal::store(longlong nr)
+int Field_decimal::store(longlong nr, bool unsigned_val)
 {
-  if (unsigned_flag && nr < 0)
+  char buff[22];
+  uint length, int_part;
+  char fyllchar, *to;
+
+  if (nr < 0 && unsigned_flag && !unsigned_val)
   {
     overflow(1);
     return 1;
   }
-  char buff[22];
-  uint length=(uint) (longlong10_to_str(nr,buff,-10)-buff);
-  uint int_part=field_length- (dec  ? dec+1 : 0);
+  length= (uint) (longlong10_to_str(nr,buff,unsigned_val ? 10 : -10) - buff);
+  int_part= field_length- (dec  ? dec+1 : 0);
 
   if (length > int_part)
   {
-    overflow(test(nr < 0L));			/* purecov: inspected */
+    overflow(!unsigned_val && nr < 0L);		/* purecov: inspected */
     return 1;
   }
-  else
+
+  fyllchar = zerofill ? (char) '0' : (char) ' ';
+  to= ptr;
+  for (uint i=int_part-length ; i-- > 0 ;)
+    *to++ = fyllchar;
+  memcpy(to,buff,length);
+  if (dec)
   {
-    char fyllchar = zerofill ? (char) '0' : (char) ' ';
-    char *to=ptr;
-    for (uint i=int_part-length ; i-- > 0 ;)
-      *to++ = fyllchar;
-    memcpy(to,buff,length);
-    if (dec)
-    {
-      to[length]='.';
-      bfill(to+length+1,dec,'0');
-    }
-    return 0;
+    to[length]='.';
+    bfill(to+length+1,dec,'0');
   }
+  return 0;
 }
 
 
@@ -2482,13 +2483,13 @@ int Field_new_decimal::store(double nr)
 }
 
 
-int Field_new_decimal::store(longlong nr)
+int Field_new_decimal::store(longlong nr, bool unsigned_val)
 {
   my_decimal decimal_value;
   int err;
 
   if ((err= int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
-                           nr, FALSE, &decimal_value)))
+                           nr, unsigned_val, &decimal_value)))
   {
     if (check_overflow(err))
       set_value_on_overflow(&decimal_value, decimal_value.sign());
@@ -2663,18 +2664,20 @@ int Field_tiny::store(double nr)
   return error;
 }
 
-int Field_tiny::store(longlong nr)
+
+int Field_tiny::store(longlong nr, bool unsigned_val)
 {
   int error= 0;
+
   if (unsigned_flag)
   {
-    if (nr < 0L)
+    if (nr < 0 && !unsigned_val)
     {
-      *ptr=0;
+      *ptr= 0;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > 255L)
+    else if ((ulonglong) nr > (ulonglong) 255)
     {
       *ptr= (char) 255;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -2685,13 +2688,15 @@ int Field_tiny::store(longlong nr)
   }
   else
   {
-    if (nr < -128L)
+    if (nr < 0 && unsigned_val)
+      nr= 256;                                    // Generate overflow
+    if (nr < -128)
     {
       *ptr= (char) -128;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > 127L)
+    else if (nr > 127)
     {
       *ptr=127;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -2711,12 +2716,14 @@ double Field_tiny::val_real(void)
   return (double) tmp;
 }
 
+
 longlong Field_tiny::val_int(void)
 {
   int tmp= unsigned_flag ? (int) ((uchar*) ptr)[0] :
     (int) ((signed char*) ptr)[0];
   return (longlong) tmp;
 }
+
 
 String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
@@ -2877,19 +2884,21 @@ int Field_short::store(double nr)
   return error;
 }
 
-int Field_short::store(longlong nr)
+
+int Field_short::store(longlong nr, bool unsigned_val)
 {
   int error= 0;
   int16 res;
+
   if (unsigned_flag)
   {
-    if (nr < 0L)
+    if (nr < 0L && !unsigned_val)
     {
       res=0;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > (longlong) UINT_MAX16)
+    else if ((ulonglong) nr > (ulonglong) UINT_MAX16)
     {
       res=(int16) UINT_MAX16;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -2900,13 +2909,16 @@ int Field_short::store(longlong nr)
   }
   else
   {
+    if (nr < 0 && unsigned_val)
+      nr= UINT_MAX16+1;                         // Generate overflow
+
     if (nr < INT_MIN16)
     {
       res=INT_MIN16;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr > INT_MAX16)
+    else if (nr > (longlong) INT_MAX16)
     {
       res=INT_MAX16;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -3134,20 +3146,22 @@ int Field_medium::store(double nr)
   return error;
 }
 
-int Field_medium::store(longlong nr)
+
+int Field_medium::store(longlong nr, bool unsigned_val)
 {
   int error= 0;
+
   if (unsigned_flag)
   {
-    if (nr < 0L)
+    if (nr < 0 && !unsigned_val)
     {
       int3store(ptr,0);
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
-    else if (nr >= (longlong) (long) (1L << 24))
+    else if ((ulonglong) nr >= (ulonglong) (long) (1L << 24))
     {
-      long tmp=(long) (1L << 24)-1L;;
+      long tmp= (long) (1L << 24)-1L;
       int3store(ptr,tmp);
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
@@ -3157,9 +3171,12 @@ int Field_medium::store(longlong nr)
   }
   else
   {
+    if (nr < 0 && unsigned_val)
+      nr= (ulonglong) (long) (1L << 24);        // Generate overflow
+
     if (nr < (longlong) INT_MIN24)
     {
-      long tmp=(long) INT_MIN24;
+      long tmp= (long) INT_MIN24;
       int3store(ptr,tmp);
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
@@ -3397,7 +3414,7 @@ int Field_long::store(double nr)
 }
 
 
-int Field_long::store(longlong nr)
+int Field_long::store(longlong nr, bool unsigned_val)
 {
   int error= 0;
   int32 res;
@@ -3405,12 +3422,12 @@ int Field_long::store(longlong nr)
   
   if (unsigned_flag)
   {
-    if (nr < 0)
+    if (nr < 0 && !unsigned_val)
     {
       res=0;
       error= 1;
     }
-    else if (nr >= (LL(1) << 32))
+    else if ((ulonglong) nr >= (LL(1) << 32))
     {
       res=(int32) (uint32) ~0L;
       error= 1;
@@ -3420,7 +3437,9 @@ int Field_long::store(longlong nr)
   }
   else
   {
-    if (nr < (longlong) INT_MIN32)
+    if (nr < 0 && unsigned_val)
+      nr= ((longlong) INT_MAX32) + 1;           // Generate overflow
+    if (nr < (longlong) INT_MIN32) 
     {
       res=(int32) INT_MIN32;
       error= 1;
@@ -3657,8 +3676,24 @@ int Field_longlong::store(double nr)
 }
 
 
-int Field_longlong::store(longlong nr)
+int Field_longlong::store(longlong nr, bool unsigned_val)
 {
+  int error= 0;
+
+  if (nr < 0)                                   // Only possible error
+  {
+    /*
+      if field is unsigned and value is signed (< 0) or
+      if field is signed and value is unsigned we have an overflow
+    */
+    if (unsigned_flag != unsigned_val)
+    {
+      nr= unsigned_flag ? (ulonglong) 0 : (ulonglong) LONGLONG_MAX;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      error= 1;
+    }
+  }
+
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -3667,7 +3702,7 @@ int Field_longlong::store(longlong nr)
   else
 #endif
     longlongstore(ptr,nr);
-  return 0;
+  return error;
 }
 
 
@@ -3886,10 +3921,11 @@ int Field_float::store(double nr)
 }
 
 
-int Field_float::store(longlong nr)
+int Field_float::store(longlong nr, bool unsigned_val)
 {
-  return store((double)nr);
+  return store(unsigned_val ? ulonglong2double((ulonglong) nr) : (double) nr);
 }
+
 
 double Field_float::val_real(void)
 {
@@ -4166,10 +4202,11 @@ int Field_double::store(double nr)
 }
 
 
-int Field_double::store(longlong nr)
+int Field_double::store(longlong nr, bool unsigned_val)
 {
-  return store((double)nr);
+  return store(unsigned_val ? ulonglong2double((ulonglong) nr) : (double) nr);
 }
+
 
 int Field_real::store_decimal(const my_decimal *dm)
 {
@@ -4529,12 +4566,12 @@ int Field_timestamp::store(double nr)
     nr= 0;					// Avoid overflow on buff
     error= 1;
   }
-  error|= Field_timestamp::store((longlong) rint(nr));
+  error|= Field_timestamp::store((longlong) rint(nr), FALSE);
   return error;
 }
 
 
-int Field_timestamp::store(longlong nr)
+int Field_timestamp::store(longlong nr, bool unsigned_val)
 {
   TIME l_time;
   my_time_t timestamp= 0;
@@ -4829,7 +4866,7 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   
   if (ltime.neg)
     tmp= -tmp;
-  error |= Field_time::store((longlong) tmp);
+  error |= Field_time::store((longlong) tmp, FALSE);
   return error;
 }
 
@@ -4881,21 +4918,21 @@ int Field_time::store(double nr)
 }
 
 
-int Field_time::store(longlong nr)
+int Field_time::store(longlong nr, bool unsigned_val)
 {
   long tmp;
   int error= 0;
-  if (nr > (longlong) 8385959L)
+  if (nr < (longlong) -8385959L && !unsigned_val)
   {
-    tmp=8385959L;
+    tmp= -8385959L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr,
                          MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
   }
-  else if (nr < (longlong) -8385959L)
+  else if (nr > (longlong) 8385959 || nr < 0 && unsigned_val)
   {
-    tmp= -8385959L;
+    tmp=8385959L;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr,
                          MYSQL_TIMESTAMP_TIME, 1);
@@ -5076,18 +5113,18 @@ int Field_year::store(double nr)
 {
   if (nr < 0.0 || nr >= 2155.0)
   {
-    (void) Field_year::store((longlong) -1);
+    (void) Field_year::store((longlong) -1, FALSE);
     return 1;
   }
-  else
-    return Field_year::store((longlong) nr);
+  return Field_year::store((longlong) nr, FALSE);
 }
 
-int Field_year::store(longlong nr)
+
+int Field_year::store(longlong nr, bool unsigned_val)
 {
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
-    *ptr=0;
+    *ptr= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
@@ -5102,16 +5139,19 @@ int Field_year::store(longlong nr)
   return 0;
 }
 
+
 bool Field_year::send_binary(Protocol *protocol)
 {
   ulonglong tmp= Field_year::val_int();
   return protocol->store_short(tmp);
 }
 
+
 double Field_year::val_real(void)
 {
   return (double) Field_year::val_int();
 }
+
 
 longlong Field_year::val_int(void)
 {
@@ -5123,6 +5163,7 @@ longlong Field_year::val_int(void)
   return (longlong) tmp;
 }
 
+
 String *Field_year::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
@@ -5132,6 +5173,7 @@ String *Field_year::val_str(String *val_buffer,
   sprintf(to,field_length == 2 ? "%02d" : "%04d",(int) Field_year::val_int());
   return val_buffer;
 }
+
 
 void Field_year::sql_type(String &res) const
 {
@@ -5203,7 +5245,7 @@ int Field_date::store(double nr)
 }
 
 
-int Field_date::store(longlong nr)
+int Field_date::store(longlong nr, bool unsigned_val)
 {
   TIME not_used;
   int error;
@@ -5262,6 +5304,7 @@ double Field_date::val_real(void)
   return (double) (uint32) j;
 }
 
+
 longlong Field_date::val_int(void)
 {
   int32 j;
@@ -5273,6 +5316,7 @@ longlong Field_date::val_int(void)
     longget(j,ptr);
   return (longlong) (uint32) j;
 }
+
 
 String *Field_date::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
@@ -5382,11 +5426,11 @@ int Field_newdate::store(double nr)
                          WARN_DATA_TRUNCATED, nr, MYSQL_TIMESTAMP_DATE);
     return 1;
   }
-  return Field_newdate::store((longlong) rint(nr));
+  return Field_newdate::store((longlong) rint(nr), FALSE);
 }
 
 
-int Field_newdate::store(longlong nr)
+int Field_newdate::store(longlong nr, bool unsigned_val)
 {
   TIME l_time;
   longlong tmp;
@@ -5576,12 +5620,12 @@ int Field_datetime::store(double nr)
     nr= 0.0;
     error= 1;
   }
-  error|= Field_datetime::store((longlong) rint(nr));
+  error|= Field_datetime::store((longlong) rint(nr), FALSE);
   return error;
 }
 
 
-int Field_datetime::store(longlong nr)
+int Field_datetime::store(longlong nr, bool unsigned_val)
 {
   TIME not_used;
   int error;
@@ -5837,7 +5881,8 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
-			      field_length-copy_length,' ');
+			      field_length-copy_length,
+                              field_charset->pad_char);
   
   if ((copy_length < length) && table->in_use->count_cuted_fields)
   {					// Check if we loosed some info
@@ -5905,12 +5950,13 @@ int Field_str::store(double nr)
 }
 
 
-int Field_string::store(longlong nr)
+int Field_string::store(longlong nr, bool unsigned_val)
 {
   char buff[64];
   int  l;
   CHARSET_INFO *cs=charset();
-  l= (cs->cset->longlong10_to_str)(cs,buff,sizeof(buff),-10,nr);
+  l= (cs->cset->longlong10_to_str)(cs,buff,sizeof(buff),
+                                   unsigned_val ? 10 : -10, nr);
   return Field_string::store(buff,(uint)l,cs);
 }
 
@@ -6234,14 +6280,16 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 }
 
 
-int Field_varstring::store(longlong nr)
+int Field_varstring::store(longlong nr, bool unsigned_val)
 {
   char buff[64];
   uint  length;
   length= (uint) (field_charset->cset->longlong10_to_str)(field_charset,
                                                           buff,
                                                           sizeof(buff),
-                                                          -10,nr);
+                                                          (unsigned_val ? 10:
+                                                           -10),
+                                                           nr);
   return Field_varstring::store(buff, length, field_charset);
 }
 
@@ -6354,6 +6402,17 @@ int Field_varstring::key_cmp(const byte *a,const byte *b)
 void Field_varstring::sort_string(char *to,uint length)
 {
   uint tot_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+
+  if (field_charset == &my_charset_bin)
+  {
+    /* Store length last in high-byte order to sort longer strings first */
+    if (length_bytes == 1)
+      to[length-1]= tot_length;
+    else
+      mi_int2store(to+length-2, tot_length);
+    length-= length_bytes;
+  }
+ 
   tot_length= my_strnxfrm(field_charset,
 			  (uchar*) to, length,
 			  (uchar*) ptr + length_bytes,
@@ -6859,12 +6918,16 @@ int Field_blob::store(double nr)
 }
 
 
-int Field_blob::store(longlong nr)
+int Field_blob::store(longlong nr, bool unsigned_val)
 {
   CHARSET_INFO *cs=charset();
-  value.set(nr, cs);
+  if (unsigned_val)
+    value.set((ulonglong) nr, cs);
+  else
+    value.set(nr, cs);
   return Field_blob::store(value.ptr(), (uint) value.length(), cs);
 }
+
 
 double Field_blob::val_real(void)
 {
@@ -7041,6 +7104,13 @@ int Field_blob::key_cmp(const byte *a,const byte *b)
 }
 
 
+uint32 Field_blob::sort_length() const
+{
+  return (uint32) (current_thd->variables.max_sort_length + 
+                   (field_charset == &my_charset_bin ? 0 : packlength));
+}
+
+
 void Field_blob::sort_string(char *to,uint length)
 {
   char *blob;
@@ -7050,6 +7120,31 @@ void Field_blob::sort_string(char *to,uint length)
     bzero(to,length);
   else
   {
+    if (field_charset == &my_charset_bin)
+    {
+      char *pos;
+
+      /*
+        Store length of blob last in blob to shorter blobs before longer blobs
+      */
+      length-= packlength;
+      pos= to+length;
+
+      switch (packlength) {
+      case 1:
+        *pos= (char) blob_length;
+        break;
+      case 2:
+        mi_int2store(pos, blob_length);
+        break;
+      case 3:
+        mi_int3store(pos, blob_length);
+        break;
+      case 4:
+        mi_int4store(pos, blob_length);
+        break;
+      }
+    }
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
     
     blob_length=my_strnxfrm(field_charset,
@@ -7330,7 +7425,7 @@ int Field_geom::store(double nr)
 }
 
 
-int Field_geom::store(longlong nr)
+int Field_geom::store(longlong nr, bool unsigned_val)
 {
   my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
              ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
@@ -7483,14 +7578,14 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 
 int Field_enum::store(double nr)
 {
-  return Field_enum::store((longlong) nr);
+  return Field_enum::store((longlong) nr, FALSE);
 }
 
 
-int Field_enum::store(longlong nr)
+int Field_enum::store(longlong nr, bool unsigned_val)
 {
   int error= 0;
-  if ((uint) nr > typelib->count || nr == 0)
+  if ((ulonglong) nr > typelib->count || nr == 0)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     nr=0;
@@ -7661,7 +7756,7 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 }
 
 
-int Field_set::store(longlong nr)
+int Field_set::store(longlong nr, bool unsigned_val)
 {
   int error= 0;
   if ((ulonglong) nr > (ulonglong) (((longlong) 1 << typelib->count) -
@@ -7881,11 +7976,11 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 
 int Field_bit::store(double nr)
 {
-  return store((longlong) nr);
+  return store((longlong) nr, FALSE);
 }
 
 
-int Field_bit::store(longlong nr)
+int Field_bit::store(longlong nr, bool unsigned_val)
 {
   char buf[8];
 
@@ -8466,8 +8561,8 @@ create_field::create_field(Field *old_field,Field *orig_field)
   else
     interval=0;
   def=0;
+
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
-      !old_field->is_real_null() &&
       old_field->ptr && orig_field &&
       (sql_type != FIELD_TYPE_TIMESTAMP ||                /* set def only if */
        old_field->table->timestamp_field != old_field ||  /* timestamp field */ 

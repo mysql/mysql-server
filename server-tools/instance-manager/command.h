@@ -16,11 +16,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
+#include <my_global.h>
+
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
-
-#include <my_global.h>
 
 /* Class responsible for allocation of im commands. */
 

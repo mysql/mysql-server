@@ -13,3 +13,49 @@ select @value;
 3
 drop procedure test.longprocedure;
 drop table t1;
+create table t1 (f1 char(100) , f2 mediumint , f3 int , f4 real, f5 numeric);
+insert into t1 (f1, f2, f3, f4, f5) values
+("This is a test case for for Bug#9819", 1, 2, 3.0, 4.598);
+Warnings:
+Note	1265	Data truncated for column 'f5' at row 1
+create table t2 like t1;
+select count(*) from t1;
+count(*)
+256
+select count(*) from t2;
+count(*)
+0
+create procedure p1()
+begin
+declare done integer default 0;
+declare vf1 char(100) ;
+declare vf2 mediumint;
+declare vf3 int ;
+declare vf4 real ;
+declare vf5 numeric ;
+declare cur1 cursor for select f1,f2,f3,f4,f5 from t1;  
+declare continue handler for sqlstate '02000' set done = 1; 
+open cur1;
+while done <> 1 do
+fetch cur1 into vf1, vf2, vf3, vf4, vf5;
+if not done then
+insert into t2 values (vf1, vf2, vf3, vf4, vf5);
+end if;
+end while;
+close cur1;
+end|
+call p1();
+select count(*) from t1;
+count(*)
+256
+select count(*) from t2;
+count(*)
+256
+select f1 from t1 limit 1;
+f1
+This is a test case for for Bug#9819
+select f1 from t2 limit 1;
+f1
+This is a test case for for Bug#9819
+drop procedure p1;
+drop table t1, t2;
