@@ -128,6 +128,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->update_list.empty();
   lex->param_list.empty();
   lex->view_list.empty();
+  lex->prepared_stmt_params.empty();
   lex->unit.next= lex->unit.master=
     lex->unit.link_next= lex->unit.return_to= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
@@ -143,6 +144,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->describe= 0;
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
+  lex->stmt_prepare_mode= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
   lex->found_semicolon= 0;
@@ -173,10 +175,13 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->spcont= NULL;
   lex->proc_list.first= 0;
   lex->query_tables_own_last= 0;
+  lex->escape_used= FALSE;
 
   if (lex->sroutines.records)
     my_hash_reset(&lex->sroutines);
   lex->sroutines_list.empty();
+  lex->sroutines_list_own_last= lex->sroutines_list.next;
+  lex->sroutines_list_own_elements= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -568,8 +573,7 @@ int yylex(void *arg, void *yythd)
         its value in a query for the binlog, the query must stay
         grammatically correct.
       */
-      else if (c == '?' && ((THD*) yythd)->command == COM_STMT_PREPARE &&
-               !ident_map[yyPeek()])
+      else if (c == '?' && lex->stmt_prepare_mode && !ident_map[yyPeek()])
         return(PARAM_MARKER);
       return((int) c);
 
@@ -981,7 +985,7 @@ int yylex(void *arg, void *yythd)
       {
         THD* thd= (THD*)yythd;
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            (thd->command != COM_STMT_PREPARE))
+            !lex->stmt_prepare_mode)
         {
 	  lex->safe_to_cache_query= 0;
           lex->found_semicolon=(char*) lex->ptr;
@@ -1130,6 +1134,7 @@ void st_select_lex::init_query()
   ref_pointer_array= 0;
   select_n_having_items= 0;
   subquery_in_having= explicit_limit= 0;
+  is_item_list_lookup= 0;
   first_execution= 1;
   first_cond_optimization= 1;
   parsing_place= NO_MATTER;
@@ -1162,6 +1167,7 @@ void st_select_lex::init_select()
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
+
 }
 
 /*
@@ -1504,7 +1510,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Query_arena *arena= thd->current_arena;
+  Query_arena *arena= thd->stmt_arena;
   return (ref_pointer_array=
           (Item **)arena->alloc(sizeof(Item*) *
                                 (item_list.elements +
@@ -1612,6 +1618,8 @@ st_lex::st_lex()
 {
   hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
   sroutines_list.empty();
+  sroutines_list_own_last= sroutines_list.next;
+  sroutines_list_own_elements= 0;
 }
 
 
@@ -1826,7 +1834,7 @@ void st_select_lex_unit::set_limit(SELECT_LEX *sl)
 {
   ha_rows select_limit_val;
 
-  DBUG_ASSERT(! thd->current_arena->is_stmt_prepare());
+  DBUG_ASSERT(! thd->stmt_arena->is_stmt_prepare());
   select_limit_val= (ha_rows)(sl->select_limit ? sl->select_limit->val_uint() :
                                                  HA_POS_ERROR);
   offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
@@ -2024,6 +2032,8 @@ void st_lex::cleanup_after_one_table_open()
   if (sroutines.records)
     my_hash_reset(&sroutines);
   sroutines_list.empty();
+  sroutines_list_own_last= sroutines_list.next;
+  sroutines_list_own_elements= 0;
 }
 
 
@@ -2038,7 +2048,7 @@ void st_lex::cleanup_after_one_table_open()
 
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
 {
-  if (!thd->current_arena->is_conventional() && first_execution)
+  if (!thd->stmt_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
     if (*conds)

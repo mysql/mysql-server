@@ -209,6 +209,7 @@ private:
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONNECT_REP(Signal* signal);
   void execNDB_FAILCONF(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCM_INFOCONF(Signal* signal);
   void execCLOSE_COMCONF(Signal* signal);

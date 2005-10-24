@@ -32,6 +32,21 @@
 #include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
 
+template <class T>
+struct Ndb_free_list_t 
+{
+  Ndb_free_list_t();
+  ~Ndb_free_list_t();
+  
+  void fill(Ndb*, Uint32 cnt);
+  T* seize(Ndb*);
+  void release(T*);
+  void clear();
+  Uint32 get_sizeof() const { return sizeof(T); }
+  T * m_free_list;
+  Uint32 m_alloc_cnt, m_free_cnt;
+};
+
 /**
  * Private parts of the Ndb object (corresponding to Ndb.hpp in public API)
  */
@@ -60,7 +75,6 @@ public:
 
   int m_optimized_node_selection;
 
-
   BaseString m_dbname; // Database name
   BaseString m_schemaname; // Schema name
 
@@ -72,6 +86,22 @@ public:
                     m_schemaname.c_str(), table_name_separator);
   }
 
+  /**
+   * NOTE free lists must be _after_ theNdbObjectIdMap take
+   *   assure that destructors are run in correct order
+   */
+  Ndb_free_list_t<NdbTransaction> theConIdleList; 
+  Ndb_free_list_t<NdbOperation>  theOpIdleList;  
+  Ndb_free_list_t<NdbIndexScanOperation> theScanOpIdleList;
+  Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;
+  Ndb_free_list_t<NdbRecAttr> theRecAttrIdleList;  
+  Ndb_free_list_t<NdbApiSignal> theSignalIdleList;
+  Ndb_free_list_t<NdbLabel> theLabelList;
+  Ndb_free_list_t<NdbBranch> theBranchList;
+  Ndb_free_list_t<NdbSubroutine> theSubroutineList;
+  Ndb_free_list_t<NdbCall> theCallList;
+  Ndb_free_list_t<NdbBlob> theNdbBlobIdleList;
+  Ndb_free_list_t<NdbReceiver> theScanList;
 };
 
 #ifdef VM_TRACE
@@ -145,5 +175,92 @@ enum LockMode {
   Insert,
   Delete 
 };
+
+template<class T>
+inline
+Ndb_free_list_t<T>::Ndb_free_list_t()
+{
+  m_free_list= 0; 
+  m_alloc_cnt= m_free_cnt= 0; 
+}
+
+template<class T>
+inline
+Ndb_free_list_t<T>::~Ndb_free_list_t()
+{
+  clear();
+}
+    
+template<class T>
+inline
+void
+Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
+{
+  if (m_free_list == 0)
+  {
+    m_free_cnt++;
+    m_alloc_cnt++;
+    m_free_list = new T(ndb);
+  }
+  while(m_alloc_cnt < cnt)
+  {
+    T* obj= new T(ndb);
+    if(obj == 0)
+      return;
+    
+    obj->next(m_free_list);
+    m_free_cnt++;
+    m_alloc_cnt++;
+    m_free_list = obj;
+  }
+}
+
+template<class T>
+inline
+T*
+Ndb_free_list_t<T>::seize(Ndb* ndb)
+{
+  T* tmp = m_free_list;
+  if (tmp)
+  {
+    m_free_list = (T*)tmp->next();
+    tmp->next(NULL);
+    m_free_cnt--;
+    return tmp;
+  }
+  
+  if((tmp = new T(ndb)))
+  {
+    m_alloc_cnt++;
+  }
+  
+  return tmp;
+}
+
+template<class T>
+inline
+void
+Ndb_free_list_t<T>::release(T* obj)
+{
+  obj->next(m_free_list);
+  m_free_list = obj;
+  m_free_cnt++;
+}
+
+
+template<class T>
+inline
+void
+Ndb_free_list_t<T>::clear()
+{
+  T* obj = m_free_list;
+  while(obj)
+  {
+    T* curr = obj;
+    obj = (T*)obj->next();
+    delete curr;
+    m_alloc_cnt--;
+  }
+}
 
 #endif

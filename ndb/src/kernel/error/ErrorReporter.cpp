@@ -17,9 +17,8 @@
 
 #include <ndb_global.h>
 
-#include "Error.hpp"
+#include <ndbd_exit_codes.h>
 #include "ErrorReporter.hpp"
-#include "ErrorMessages.hpp"
 
 #include <FastScheduler.hpp>
 #include <DebuggerNames.hpp>
@@ -29,17 +28,9 @@
 
 #include <NdbAutoPtr.hpp>
 
-#define MESSAGE_LENGTH 400
+#define MESSAGE_LENGTH 500
 
-const char* errorType[] = { 
-  "warning", 
-  "error", 
-  "fatal", 
-  "assert"
-};
-
-
-static int WriteMessage(ErrorCategory thrdType, int thrdMessageID,
+static int WriteMessage(int thrdMessageID,
 			const char* thrdProblemData, 
 			const char* thrdObjRef,
 			Uint32 thrdTheEmulatedJamIndex,
@@ -116,24 +107,35 @@ ErrorReporter::get_trace_no(){
 
 
 void
-ErrorReporter::formatMessage(ErrorCategory type, 
-			     int faultID,
+ErrorReporter::formatMessage(int faultID,
 			     const char* problemData, 
 			     const char* objRef,
 			     const char* theNameOfTheTraceFile,
 			     char* messptr){
   int processId;
-  
+  ndbd_exit_classification cl;
+  ndbd_exit_status st;
+  const char *exit_msg = ndbd_exit_message(faultID, &cl);
+  const char *exit_cl_msg = ndbd_exit_classification_message(cl, &st);
+  const char *exit_st_msg = ndbd_exit_status_message(st);
+
   processId = NdbHost_GetProcessId();
   
   BaseString::snprintf(messptr, MESSAGE_LENGTH,
-	   "Date/Time: %s\nType of error: %s\n"
-	   "Message: %s\nFault ID: %d\nProblem data: %s"
-	   "\nObject of reference: %s\nProgramName: %s\n"
-	   "ProcessID: %d\nTraceFile: %s\n%s\n***EOM***\n", 
+	   "Time: %s\n"
+           "Status: %s\n"
+	   "Message: %s (%s)\n"
+	   "Error: %d\n"
+           "Error data: %s\n"
+	   "Error object: %s\n"
+           "Program: %s\n"
+	   "Pid: %d\n"
+           "Trace: %s\n"
+           "Version: %s\n"
+           "***EOM***\n", 
 	   formatTimeStampString() , 
-	   errorType[type], 
-	   lookupErrorMessage(faultID),
+           exit_st_msg,
+	   exit_msg, exit_cl_msg,
 	   faultID, 
 	   (problemData == NULL) ? "" : problemData, 
 	   objRef, 
@@ -152,8 +154,18 @@ ErrorReporter::formatMessage(ErrorCategory type,
   return;
 }
 
+NdbShutdownType ErrorReporter::s_errorHandlerShutdownType = NST_ErrorHandler;
+
 void
-ErrorReporter::handleAssert(const char* message, const char* file, int line)
+ErrorReporter::setErrorHandlerShutdownType(NdbShutdownType nst)
+{
+  s_errorHandlerShutdownType = nst;
+}
+
+void childReportError(int error);
+
+void
+ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
 {
   char refMessage[100];
 
@@ -167,46 +179,36 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line)
   BaseString::snprintf(refMessage, 100, "%s line: %d (block: %s)",
 	   file, line, blockName);
 #endif
-  WriteMessage(assert, ERR_ERROR_PRGERR, message, refMessage,
+  WriteMessage(ec, message, refMessage,
 	       theEmulatedJamIndex, theEmulatedJam);
 
-  NdbShutdown(NST_ErrorHandler);
+  childReportError(ec);
+
+  NdbShutdown(s_errorHandlerShutdownType);
 }
 
 void
-ErrorReporter::handleThreadAssert(const char* message,
-                                  const char* file,
-                                  int line)
-{
-  char refMessage[100];
-  BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d - %s",
-	   file, line, message);
-  
-  NdbShutdown(NST_ErrorHandler);
-}//ErrorReporter::handleThreadAssert()
-
-
-void
-ErrorReporter::handleError(ErrorCategory type, int messageID,
+ErrorReporter::handleError(int messageID,
 			   const char* problemData, 
 			   const char* objRef,
 			   NdbShutdownType nst)
 {
-  type = ecError; 
-  // The value for type is not always set correctly in the calling function.
-  // So, to correct this, we set it set it to the value corresponding to
-  // the function that is called.
-  WriteMessage(type, messageID, problemData,
+  WriteMessage(messageID, problemData,
 	       objRef, theEmulatedJamIndex, theEmulatedJam);
-  if(messageID == ERR_ERROR_INSERT){
+
+  childReportError(messageID);
+
+  if(messageID == NDBD_EXIT_ERROR_INSERT){
     NdbShutdown(NST_ErrorInsert);
   } else {
+    if (nst == NST_ErrorHandler)
+      nst = s_errorHandlerShutdownType;
     NdbShutdown(nst);
   }
 }
 
 int 
-WriteMessage(ErrorCategory thrdType, int thrdMessageID,
+WriteMessage(int thrdMessageID,
 	     const char* thrdProblemData, const char* thrdObjRef,
 	     Uint32 thrdTheEmulatedJamIndex,
 	     Uint8 thrdTheEmulatedJam[]){
@@ -247,7 +249,7 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
 	    "                        \n\n\n");   
     
     // ...and write the error-message...
-    ErrorReporter::formatMessage(thrdType, thrdMessageID,
+    ErrorReporter::formatMessage(thrdMessageID,
 				 thrdProblemData, thrdObjRef,
 				 theTraceFileName, theMessage);
     fprintf(stream, "%s", theMessage);
@@ -274,7 +276,7 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
     fseek(stream, offset, SEEK_SET);
     
     // ...and write the error-message there...
-    ErrorReporter::formatMessage(thrdType, thrdMessageID,
+    ErrorReporter::formatMessage(thrdMessageID,
 				 thrdProblemData, thrdObjRef,
 				 theTraceFileName, theMessage);
     fprintf(stream, "%s", theMessage);

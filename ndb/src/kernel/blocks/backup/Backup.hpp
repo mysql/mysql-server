@@ -46,6 +46,7 @@ public:
 protected:
 
   void execSTTOR(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
@@ -412,6 +413,7 @@ public:
     
     Uint32 clientRef;
     Uint32 clientData;
+    Uint32 flags;
     Uint32 backupId;
     Uint32 backupKey[2];
     Uint32 masterRef;
@@ -592,7 +594,7 @@ public:
   
   bool insertFileHeader(BackupFormat::FileType, BackupRecord*, BackupFile*);
   void sendBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errorCode);
-  void sendBackupRef(BlockReference ref, Signal *signal,
+  void sendBackupRef(BlockReference ref, Uint32 flags, Signal *signal,
 		     Uint32 senderData, Uint32 errorCode);
   void dumpUsedResources();
   void cleanup(Signal*, BackupRecordPtr ptr);

@@ -1177,9 +1177,6 @@ class Xid_log_event: public Log_event
   Every time a query uses the value of a user variable, a User_var_log_event is
   written before the Query_log_event, to set the user variable.
 
-  Every time a query uses the value of a user variable, a User_var_log_event is
-  written before the Query_log_event, to set the user variable.
-
  ****************************************************************************/
 
 class User_var_log_event: public Log_event
@@ -1250,18 +1247,17 @@ public:
 class Rotate_log_event: public Log_event
 {
 public:
+  enum {
+    DUP_NAME= 2 // if constructor should dup the string argument
+  };
   const char* new_log_ident;
   ulonglong pos;
   uint ident_len;
-  bool alloced;
+  uint flags;
 #ifndef MYSQL_CLIENT
   Rotate_log_event(THD* thd_arg, const char* new_log_ident_arg,
-		   uint ident_len_arg = 0,
-		   ulonglong pos_arg = LOG_EVENT_OFFSET)
-    :Log_event(), new_log_ident(new_log_ident_arg),
-    pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
-			   (uint) strlen(new_log_ident_arg)), alloced(0)
-  {}
+		   uint ident_len_arg,
+		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
@@ -1274,8 +1270,8 @@ public:
                    const Format_description_log_event* description_event);
   ~Rotate_log_event()
   {
-    if (alloced)
-      my_free((gptr) new_log_ident, MYF(0));
+    if (flags & DUP_NAME)
+      my_free((gptr) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}

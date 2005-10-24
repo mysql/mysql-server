@@ -21,10 +21,18 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
+#if !defined(_XOPEN_SOURCE) && !defined(__FreeBSD__)
+#define _XOPEN_SOURCE 500
+#endif
+
 #include "config_readline.h"
 
 #include <sys/types.h>
+
+/* To get SuSE 9.3 to define wcwidth() (in wchar.h) */
+
 #include <fcntl.h>
+
 #if defined (HAVE_SYS_FILE_H)
 #  include <sys/file.h>
 #endif
@@ -1149,7 +1157,8 @@ compute_lcd_of_matches (match_list, matches, text)
 	      rl_completion_found_quote &&
 	      rl_filename_quoting_desired)
 	    {
-	      dtext = (*rl_filename_dequoting_function) (text, rl_completion_quote_character);
+	      dtext = (*rl_filename_dequoting_function)
+		((char*) text, rl_completion_quote_character);
 	      text = dtext;
 	    }
 

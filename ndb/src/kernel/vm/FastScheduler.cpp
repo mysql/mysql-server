@@ -19,7 +19,6 @@
 
 #include "Emulator.hpp"
 #include "VMSignal.hpp"
-#include <Error.hpp>
 
 #include <SignalLoggerManager.hpp>
 #include <BlockNumbers.h>
@@ -395,7 +394,8 @@ void print_restart(FILE * output, Signal* signal, Uint32 aLevel);
 
 void FastScheduler::dumpSignalMemory(FILE * output)
 {
-  Signal signal;
+  SignalT<25> signalT;
+  Signal &signal= *(Signal*)&signalT;
   Uint32 ReadPtr[5];
   Uint32 tJob;
   Uint32 tLastJob;
@@ -444,21 +444,21 @@ void FastScheduler::dumpSignalMemory(FILE * output)
 void
 FastScheduler::prio_level_error()
 {
-  ERROR_SET(ecError, ERROR_WRONG_PRIO_LEVEL, 
+  ERROR_SET(ecError, NDBD_EXIT_WRONG_PRIO_LEVEL, 
 	    "Wrong Priority Level", "FastScheduler.C");
 }
 
 void 
 jbuf_error()
 {
-  ERROR_SET(ecError, BLOCK_ERROR_JBUFCONGESTION, 
+  ERROR_SET(ecError, NDBD_EXIT_BLOCK_JBUFCONGESTION, 
 	    "Job Buffer Full", "APZJobBuffer.C");
 }
 
 void 
 bnr_error()
 {
-  ERROR_SET(ecError, BLOCK_ERROR_BNR_ZERO, 
+  ERROR_SET(ecError, NDBD_EXIT_BLOCK_BNR_ZERO, 
 	    "Block Number Zero", "FastScheduler.C");
 }
 
@@ -484,16 +484,16 @@ print_restart(FILE * output, Signal* signal, Uint32 aLevel)
  */
 void 
 FastScheduler::reportDoJobStatistics(Uint32 tMeanLoopCount) {
-  Signal signal; 
+  SignalT<2> signalT;
+  Signal &signal= *(Signal*)&signalT;
+
   memset(&signal.header, 0, sizeof(signal.header));
+  signal.header.theLength = 2;
+  signal.header.theSendersSignalId = 0;
+  signal.header.theSendersBlockRef = numberToRef(0, 0);  
 
   signal.theData[0] = NDB_LE_JobStatistic;
   signal.theData[1] = tMeanLoopCount;
-  
-  memset(&signal.header, 0, sizeof(SignalHeader));
-  signal.header.theLength = 2;
-  signal.header.theSendersSignalId = 0;
-  signal.header.theSendersBlockRef = numberToRef(0, 0);
   
   execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 }

@@ -16,14 +16,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
-#pragma interface
-#endif
 
 #include <my_global.h>
 
 #include <my_sys.h>
 #include <hash.h>
+
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
+#pragma interface
+#endif
 
 /*
   User_map -- all users and passwords

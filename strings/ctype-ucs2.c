@@ -1063,7 +1063,7 @@ int my_ll10tostr_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   while (long_val != 0)
   {
     long quo= long_val/10;
-    *--p = '0' + (char)(long_val - quo*10);
+    *--p = (char) ('0' + (long_val - quo*10));
     long_val= quo;
   }
   
@@ -1450,10 +1450,12 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   const char *end=ptr+ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
+  uint charlen= res_length / cs->mbmaxlen;
   
-  for (; ptr + 1 < end && min_str + 1 < min_end ; ptr+=2)
+  for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
+        ; ptr+=2, charlen--)
   {
-    if (ptr[0] == '\0' && ptr[1] == escape && ptr+2 < end)
+    if (ptr[0] == '\0' && ptr[1] == escape && ptr + 1 < end)
     {
       ptr+=2;					/* Skip escape */
       *min_str++= *max_str++ = ptr[0];
@@ -1621,6 +1623,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
@@ -1652,6 +1655,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler

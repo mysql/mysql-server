@@ -39,6 +39,26 @@
  */
 SectionSegmentPool g_sectionSegmentPool;
 
+struct ConnectionError
+{
+  enum TransporterError err;
+  const char *text;
+};
+
+static const ConnectionError connectionError[] =
+{
+  { TE_NO_ERROR, "No error"},
+  { TE_SHM_UNABLE_TO_CREATE_SEGMENT, "Unable to create shared memory segment"},
+  { (enum TransporterError) -1, "No connection error message available (please report a bug)"}
+};
+
+const char *lookupConnectionError(Uint32 err)
+{
+  int i= 0;
+  while ((Uint32)connectionError[i].err != err && (Uint32)connectionError[i].err != -1);
+  return connectionError[i].text;
+}
+
 bool
 import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   /**
@@ -306,38 +326,58 @@ checkJobBuffer() {
 }
 
 void
-reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode){
+reportError(void * callbackObj, NodeId nodeId,
+	    TransporterError errorCode, const char *info)
+{
 #ifdef DEBUG_TRANSPORTER
-  char buf[255];
-  sprintf(buf, "reportError (%d, 0x%x)", nodeId, errorCode);
-  ndbout << buf << endl;
+  ndbout_c("reportError (%d, 0x%x) %s", nodeId, errorCode, info ? info : "")
 #endif
 
-  if(errorCode == TE_SIGNAL_LOST_SEND_BUFFER_FULL){
-    ErrorReporter::handleError(ecError,
-			       ERR_PROGRAMERROR,
-			       "Signal lost, send buffer full",
-			       __FILE__,
-			       NST_ErrorHandler);
-  }
+  DBUG_ENTER("reportError");
+  DBUG_PRINT("info",("nodeId %d  errorCode: 0x%x  info: %s",
+		     nodeId, errorCode, info));
 
-  if(errorCode == TE_SIGNAL_LOST){
-    ErrorReporter::handleError(ecError,
-			       ERR_PROGRAMERROR,
-			       "Signal lost (unknown reason)",
-			       __FILE__,
-			       NST_ErrorHandler);
+  switch (errorCode)
+  {
+  case TE_SIGNAL_LOST_SEND_BUFFER_FULL:
+  {
+    char msg[64];
+    snprintf(msg, sizeof(msg), "Remote note id %d.%s%s", nodeId,
+	     info ? " " : "", info ? info : "");
+    ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL,
+			       msg, __FILE__, NST_ErrorHandler);
   }
-  
-  if(errorCode & 0x8000){
+  case TE_SIGNAL_LOST:
+  {
+    char msg[64];
+    snprintf(msg, sizeof(msg), "Remote node id %d,%s%s", nodeId,
+	     info ? " " : "", info ? info : "");
+    ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST,
+			       msg, __FILE__, NST_ErrorHandler);
+  }
+  case TE_SHM_IPC_PERMANENT:
+  {
+    char msg[128];
+    snprintf(msg, sizeof(msg),
+	     "Remote node id %d.%s%s",
+	     nodeId, info ? " " : "", info ? info : "");
+    ErrorReporter::handleError(NDBD_EXIT_CONNECTION_SETUP_FAILED,
+			       msg, __FILE__, NST_ErrorHandler);
+  }
+  default:
+    break;
+  }
+ 
+  if(errorCode & TE_DO_DISCONNECT){
     reportDisconnect(callbackObj, nodeId, errorCode);
   }
   
-  Signal signal;
+  SignalT<3> signalT;
+  Signal &signal= *(Signal*)&signalT;
   memset(&signal.header, 0, sizeof(signal.header));
 
 
-  if(errorCode & 0x8000)
+  if(errorCode & TE_DO_DISCONNECT)
     signal.theData[0] = NDB_LE_TransporterError;
   else
     signal.theData[0] = NDB_LE_TransporterWarning;
@@ -349,6 +389,8 @@ reportError(void * callbackObj, NodeId nodeId, TransporterError errorCode){
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -358,7 +400,8 @@ void
 reportSendLen(void * callbackObj, 
 	      NodeId nodeId, Uint32 count, Uint64 bytes){
 
-  Signal signal;
+  SignalT<3> signalT;
+  Signal &signal= *(Signal*)&signalT;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;
@@ -377,7 +420,8 @@ void
 reportReceiveLen(void * callbackObj, 
 		 NodeId nodeId, Uint32 count, Uint64 bytes){
 
-  Signal signal;
+  SignalT<3> signalT;
+  Signal &signal= *(Signal*)&signalT;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;  
@@ -396,7 +440,8 @@ reportReceiveLen(void * callbackObj,
 void
 reportConnect(void * callbackObj, NodeId nodeId){
 
-  Signal signal;
+  SignalT<1> signalT;
+  Signal &signal= *(Signal*)&signalT;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 1; 
@@ -413,7 +458,10 @@ reportConnect(void * callbackObj, NodeId nodeId){
 void
 reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 errNo){
 
-  Signal signal;
+  DBUG_ENTER("reportDisconnect");
+
+  SignalT<sizeof(DisconnectRep)/4> signalT;
+  Signal &signal= *(Signal*)&signalT;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = DisconnectRep::SignalLength; 
@@ -426,6 +474,8 @@ reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 errNo){
   rep->err = errNo;
 
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_DISCONNECT_REP);
+
+  DBUG_VOID_RETURN;
 }
 
 void

@@ -330,16 +330,13 @@ static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
 				  uint res_length, char *min_str,char *max_str,
 				  uint *min_length,uint *max_length)
 {
-  const char *end;
+  const char *end= ptr + ptr_length;
   char *min_org=min_str;
   char *min_end=min_str+res_length;
-  uint charlen= my_charpos(cs, ptr, ptr+ptr_length, res_length/cs->mbmaxlen);
+  uint charlen= res_length / cs->mbmaxlen;
 
-  if (charlen < ptr_length)
-    ptr_length= charlen;
-  end= ptr + ptr_length;
-
-  while (ptr < end && min_str < min_end) {
+  for ( ; ptr < end && min_str < min_end && charlen > 0 ; charlen--)
+  {
     if (ismbchar_sjis(cs, ptr, end)) {
       *min_str++ = *max_str++ = *ptr++;
       if (min_str < min_end)
@@ -4696,6 +4693,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_ci_handler
@@ -4727,6 +4725,7 @@ CHARSET_INFO my_charset_sjis_bin=
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_mb_bin_handler

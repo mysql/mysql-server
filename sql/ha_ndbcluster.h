@@ -501,7 +501,7 @@ class ha_ndbcluster: public handler
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);
-  int start_stmt(THD *thd);
+  int start_stmt(THD *thd, thr_lock_type lock_type);
   const char * table_type() const;
   const char ** bas_ext() const;
   ulong table_flags(void) const;
@@ -716,7 +716,7 @@ private:
 
 extern struct show_var_st ndb_status_variables[];
 
-handlerton *ndbcluster_init(void);
+bool ndbcluster_init(void);
 bool ndbcluster_end(void);
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
@@ -728,3 +728,5 @@ int ndbcluster_table_exists_in_engine(THD* thd,
 int ndbcluster_drop_database(const char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
+
+int ndbcluster_show_status(THD*);

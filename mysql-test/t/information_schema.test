@@ -5,7 +5,8 @@
 # show databases
 
 --disable_warnings
-DROP TABLE IF EXISTS t0,t1,t2,t3,t5;
+DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
+DROP VIEW IF EXISTS v1;
 --enable_warnings
 
 
@@ -253,7 +254,7 @@ flush privileges;
 # QQ a LOCK TABLES is in effect when selecting from
 # QQ information_schema.tables.
 
---disable_parsing until bug is fixes
+--disable_parsing # until bug is fixed
 delimiter //;
 create procedure px5 ()
 begin
@@ -338,7 +339,7 @@ from information_schema.tables
 where table_schema='information_schema' limit 2;
 show tables from information_schema like "T%";
 
---error 1007
+--error 1044
 create database information_schema;
 use information_schema;
 show full tables like "T%";
@@ -364,8 +365,8 @@ use test;
 create function sub1(i int) returns int
   return i+1;
 create table t1(f1 int);
-create view t2 (c) as select f1 from t1;
-create view t3 (c) as select sub1(1);
+create view v2 (c) as select f1 from t1;
+create view v3 (c) as select sub1(1);
 create table t4(f1 int, KEY f1_key (f1));
 drop table t1;
 drop function sub1;
@@ -378,8 +379,8 @@ where table_schema='test';
 select index_name from information_schema.statistics where table_schema='test';
 select constraint_name from information_schema.table_constraints
 where table_schema='test';
-drop view t2;
-drop view t3;
+drop view v2;
+drop view v3;
 drop table t4;
 
 #
@@ -665,4 +666,64 @@ SHOW TABLE STATUS FROM test
   WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
                     WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
 
-DROP TABLE t1,t2
+DROP TABLE t1,t2;
+
+#
+# Bug #12905 show fields from view behaving erratically with current database
+#
+create table t1(f1 int);
+create view v1 (c) as select f1 from t1;
+connect (con5,localhost,root,,*NO-ONE*);
+select database();
+show fields from test.v1;
+connection default;
+drop view v1;
+drop table t1;
+
+#
+# Bug #9846 Inappropriate error displayed while dropping table from 'INFORMATION_SCHEMA'
+#
+--error 1044
+alter database information_schema;
+--error 1044
+drop database information_schema;
+--error 1044
+drop table information_schema.tables;
+--error 1044
+alter table information_schema.tables;
+#
+# Bug #9683 INFORMATION_SCH: Creation of temporary table allowed in Information_schema DB
+#
+use information_schema;
+--error 1044
+create temporary table schemata(f1 char(10));
+#
+# Bug #10708 SP's can use INFORMATION_SCHEMA as ROUTINE_SCHEMA
+#
+delimiter |;
+--error 1044
+CREATE PROCEDURE p1 ()
+BEGIN
+  SELECT 'foo' FROM DUAL;
+END |
+delimiter ;|
+select  ROUTINE_NAME from routines;
+#
+# Bug #10734 Grant of privileges other than 'select' and 'create view' should fail on schema
+#
+--error 1044
+grant all on information_schema.* to 'user1'@'localhost';
+--error 1044
+grant select on information_schema.* to 'user1'@'localhost';
+
+#
+# Bug#14089 FROM list subquery always fails when information_schema is current database
+#
+use test;
+create table t1(id int);
+insert into t1(id) values (1);
+select 1 from (select 1 from test.t1) a;
+use information_schema;
+select 1 from (select 1 from test.t1) a;
+use test;
+drop table t1;

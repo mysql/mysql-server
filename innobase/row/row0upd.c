@@ -395,6 +395,18 @@ row_upd_changes_field_size_or_external(
 
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
 
+		if (rec_offs_comp(offsets)
+		    && rec_offs_nth_sql_null(offsets, upd_field->field_no)) {
+			/* Note that in the compact table format, for a
+			variable length field, an SQL NULL will use zero
+			bytes in the offset array at the start of the physical
+			record, but a zero-length value (empty string) will
+			use one byte! Thus, we cannot use update-in-place
+			if we update an SQL NULL varchar to an empty string! */
+
+			old_len = UNIV_SQL_NULL;
+		}
+
 		if (old_len != new_len) {
 
 			return(TRUE);

@@ -53,6 +53,16 @@ ndb_thread_wrapper(void* _ss){
     }
 #endif
     {
+      /**
+       * Block all signals to thread by default
+       *   let them go to main process instead
+       */
+      sigset_t mask;
+      sigfillset(&mask);
+      pthread_sigmask(SIG_BLOCK, &mask, 0);
+    }      
+    
+    {
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
       ret= (* ss->func)(ss->object);

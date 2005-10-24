@@ -28,7 +28,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup, bool ignore,
 			 char *query, uint query_length, bool log_on);
 static void end_delayed_insert(THD *thd);
-extern "C" pthread_handler_decl(handle_delayed_insert,arg);
+pthread_handler_t handle_delayed_insert(void *arg);
 static void unlink_blobs(register TABLE *table);
 #endif
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
@@ -272,7 +272,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
-  bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
+  bool log_on= (thd->options & OPTION_BIN_LOG) ||
+    (!(thd->security_ctx->master_access & SUPER_ACL));
   bool transactional_table;
   uint value_count;
   ulong counter = 1;
@@ -917,9 +918,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   if (!select_insert)
   {
     Item *fake_conds= 0;
-    if (unique_table(table_list, table_list->next_global))
+    TABLE_LIST *duplicate;
+    if ((duplicate= unique_table(table_list, table_list->next_global)))
     {
-      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
+      update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
     }
     select_lex->fix_prepare_information(thd, &fake_conds);
@@ -1194,9 +1196,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       bool view= FALSE;
       if (table_list)
       {
-        table_list= (table_list->belong_to_view ?
-                     table_list->belong_to_view :
-                     table_list);
+        table_list= table_list->top_table();
         view= test(table_list->view);
       }
       if (view)
@@ -1265,8 +1265,8 @@ public:
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
   {
-    thd.user=thd.priv_user=(char*) delayed_user;
-    thd.host=(char*) my_localhost;
+    thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
+    thd.security_ctx->host=(char*) my_localhost;
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
@@ -1276,7 +1276,7 @@ public:
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
     bzero((char*) &table_list, sizeof(table_list));	// Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
-    thd.host_or_ip= "";
+    thd.security_ctx->host_or_ip= "";
     bzero((char*) &info,sizeof(info));
     pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
     pthread_cond_init(&cond,NULL);
@@ -1299,7 +1299,7 @@ public:
     pthread_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
     x_free(thd.query);
-    thd.user=thd.host=0;
+    thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1691,7 +1691,7 @@ void kill_delayed_threads(void)
  * Create a new delayed insert thread
 */
 
-extern "C" pthread_handler_decl(handle_delayed_insert,arg)
+pthread_handler_t handle_delayed_insert(void *arg)
 {
   delayed_insert *di=(delayed_insert*) arg;
   THD *thd= &di->thd;
@@ -1809,7 +1809,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 #endif
 	if (thd->killed || di->status)
 	  break;
-	if (error == ETIMEDOUT)
+	if (error == ETIMEDOUT || error == ETIME)
 	{
 	  thd->killed= THD::KILL_CONNECTION;
 	  break;
@@ -1827,6 +1827,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 
     if (di->tables_in_use && ! thd->lock)
     {
+      bool not_used;
       /*
         Request for new delayed insert.
         Lock the table, but avoid to be blocked by a global read lock.
@@ -1838,7 +1839,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
         inserts are done.
       */
       if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
-                                          MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK)))
+                                          MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK,
+                                          &not_used)))
       {
 	/* Fatal error */
 	di->dead= 1;

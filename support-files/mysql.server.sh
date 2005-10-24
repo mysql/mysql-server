@@ -39,7 +39,8 @@
 # If you want to affect other MySQL variables, you should make your changes
 # in the /etc/my.cnf, ~/.my.cnf or other MySQL configuration files.
 
-# If you change base dir, you must also change datadir
+# If you change base dir, you must also change datadir. These may get
+# overwritten by settings in the MySQL configuration files.
 
 basedir=
 datadir=
@@ -61,8 +62,8 @@ then
 else
   bindir="$basedir/bin"
   datadir="$basedir/data"
-  sbindir="$basedir/bin"
-  libexecdir="$basedir/bin"
+  sbindir="$basedir/sbin"
+  libexecdir="$basedir/libexec"
 fi
 
 #
@@ -99,8 +100,8 @@ parse_server_arguments() {
       --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'`
                     bindir="$basedir/bin"
 		    datadir="$basedir/data"
-		    sbindir="$basedir/bin"
-		    libexecdir="$basedir/bin"
+		    sbindir="$basedir/sbin"
+		    libexecdir="$basedir/libexec"
         ;;
       --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
@@ -240,7 +241,7 @@ case "$mode" in
     if test -x $libexecdir/mysqlmanager
     then
       manager=$libexecdir/mysqlmanager
-    elif test -x $bindir/mysqlmanager
+    elif test -x $sbindir/mysqlmanager
     then
       manager=$sbindir/mysqlmanager
     fi

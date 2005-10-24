@@ -1057,42 +1057,64 @@ create table t1 (s1 int)//
 create procedure f1 () begin
 select sql_cache * from t1;
 select sql_cache * from t1;
+select sql_cache * from t1;
+end;//
+create procedure f2 () begin
+select sql_cache * from t1 where s1=1;
+select sql_cache * from t1;
+end;//
+create procedure f3 () begin
+select sql_cache * from t1;
+select sql_cache * from t1 where s1=1;
+end;//
+create procedure f4 () begin
+select sql_cache * from t1;
+select sql_cache * from t1 where s1=1;
+select sql_cache * from t1;
+select sql_cache * from t1 where s1=1;
+select sql_cache * from t1 where s1=1;
 end;//
 call f1();
 s1
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	1
-show status like "Qcache_inserts";
-Variable_name	Value
-Qcache_inserts	1
-show status like "Qcache_hits";
-Variable_name	Value
-Qcache_hits	1
-call f1();
+s1
 s1
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	1
+Qcache_queries_in_cache	3
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	1
+Qcache_inserts	3
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+call f1();
+s1
+s1
+s1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	3
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	3
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	3
 call f1();
 s1
+s1
+s1
 select sql_cache * from t1;
 s1
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	2
+Qcache_queries_in_cache	4
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	2
+Qcache_inserts	4
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	5
+Qcache_hits	6
 insert into t1 values (1);
 select sql_cache * from t1;
 s1
@@ -1102,14 +1124,22 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	3
+Qcache_inserts	5
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	5
+Qcache_hits	6
 call f1();
 s1
 1
+s1
+1
+s1
+1
 call f1();
+s1
+1
+s1
+1
 s1
 1
 select sql_cache * from t1;
@@ -1117,14 +1147,128 @@ s1
 1
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	2
+Qcache_queries_in_cache	4
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	4
+Qcache_inserts	8
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	9
+Qcache_hits	10
+flush query cache;
+reset query cache;
+flush status;
+select sql_cache * from t1;
+s1
+1
+select sql_cache * from t1 where s1=1;
+s1
+1
+call f1();
+s1
+1
+s1
+1
+s1
+1
+call f2();
+s1
+1
+s1
+1
+call f3();
+s1
+1
+s1
+1
+call f4();
+s1
+1
+s1
+1
+s1
+1
+s1
+1
+s1
+1
+call f4();
+s1
+1
+s1
+1
+s1
+1
+s1
+1
+s1
+1
+call f3();
+s1
+1
+s1
+1
+call f2();
+s1
+1
+s1
+1
+select sql_cache * from t1 where s1=1;
+s1
+1
+insert into t1 values (2);
+call f1();
+s1
+1
+2
+s1
+1
+2
+s1
+1
+2
+select sql_cache * from t1 where s1=1;
+s1
+1
+select sql_cache * from t1;
+s1
+1
+2
+call f1();
+s1
+1
+2
+s1
+1
+2
+s1
+1
+2
+call f3();
+s1
+1
+2
+s1
+1
+call f3();
+s1
+1
+2
+s1
+1
+call f1();
+s1
+1
+2
+s1
+1
+2
+s1
+1
+2
 drop procedure f1;
+drop procedure f2;
+drop procedure f3;
+drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
 SET GLOBAL query_cache_size=102400;

@@ -90,34 +90,6 @@ SumaParticipant::SumaParticipant(const Configuration & conf) :
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
 	       &SumaParticipant::execSUB_GCP_COMPLETE_REP);
   
-  /**
-   * @todo: fix pool sizes
-   */
-  Uint32 noTables;
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
-  ndbrequire(p != 0);
-
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
-			    &noTables);
-
-  c_tablePool_.setSize(noTables);
-  c_tables.setSize(noTables);
-  
-  c_subscriptions.setSize(20); //10
-  c_subscriberPool.setSize(64);
-  
-  c_subscriptionPool.setSize(64); //2
-  c_syncPool.setSize(20); //2
-  c_dataBufferPool.setSize(128);
-  
-  {
-    SLList<SyncRecord> tmp(c_syncPool);
-    Ptr<SyncRecord> ptr;
-    while(tmp.seize(ptr))
-      new (ptr.p) SyncRecord(* this, c_dataBufferPool);
-    tmp.release();
-  }
-
   for( int i = 0; i < NO_OF_BUCKETS; i++) {
     c_buckets[i].active = false;
     c_buckets[i].handover = false;
@@ -142,18 +114,8 @@ Suma::Suma(const Configuration & conf) :
   c_nodes(c_nodePool),
   c_runningSubscriptions(c_subCoordinatorPool)
 {
-  
-  c_nodePool.setSize(MAX_NDB_NODES);
-  c_masterNodeId = getOwnNodeId();
-
-  c_nodeGroup = c_noNodesInGroup = c_idInNodeGroup = 0;
-  for (int i = 0; i < MAX_REPLICAS; i++) {
-    c_nodesInGroup[i]   = 0;
-  }
-
-  c_subCoordinatorPool.setSize(10);
-  
   // Add received signals
+  addRecSignal(GSN_READ_CONFIG_REQ, &Suma::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Suma::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &Suma::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &Suma::execDUMP_STATE_ORD);

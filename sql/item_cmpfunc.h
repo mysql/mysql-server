@@ -401,17 +401,49 @@ public:
 };
 
 
-class Item_func_between :public Item_int_func
+/*
+  The class Item_func_opt_neg is defined to factor out the functionality
+  common for the classes Item_func_between and Item_func_in. The objects
+  of these classes can express predicates or there negations.
+  The alternative approach would be to create pairs Item_func_between,
+  Item_func_notbetween and Item_func_in, Item_func_notin.
+
+*/
+
+class Item_func_opt_neg :public Item_int_func
+{
+public:
+  bool negated;     /* <=> the item represents NOT <func> */
+  bool pred_level;  /* <=> [NOT] <func> is used on a predicate level */
+public:
+  Item_func_opt_neg(Item *a, Item *b, Item *c)
+    :Item_int_func(a, b, c), negated(0), pred_level(0) {}
+  Item_func_opt_neg(List<Item> &list)
+    :Item_int_func(list), negated(0), pred_level(0) {}
+public:
+  inline void negate() { negated= !negated; }
+  inline void top_level_item() { pred_level= 1; }
+  Item *neg_transformer(THD *thd)
+  {
+    negated= !negated;
+    return this;
+  }
+};
+
+
+class Item_func_between :public Item_func_opt_neg
 {
   DTCollation cmp_collation;
 public:
   Item_result cmp_type;
   String value0,value1,value2;
-  Item_func_between(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
+  Item_func_between(Item *a, Item *b, Item *c)
+    :Item_func_opt_neg(a, b, c) {}
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_KEY; }
   enum Functype functype() const   { return BETWEEN; }
   const char *func_name() const { return "between"; }
+  bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
   void print(String *str);
   bool is_bool_func() { return 1; }
@@ -505,16 +537,10 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return cached_result_type; }
-  bool fix_fields(THD *thd, Item **ref)
-  {
-    DBUG_ASSERT(fixed == 0);
-    args[0]->top_level_item();
-    return Item_func::fix_fields(thd, ref);
-  }
+  bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
-  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -819,7 +845,7 @@ public:
   }
 };
 
-class Item_func_in :public Item_int_func
+class Item_func_in :public Item_func_opt_neg
 {
   Item_result cmp_type;
   in_vector *array;
@@ -828,11 +854,12 @@ class Item_func_in :public Item_int_func
   DTCollation cmp_collation;
  public:
   Item_func_in(List<Item> &list)
-    :Item_int_func(list), array(0), in_item(0), have_null(0)
+    :Item_func_opt_neg(list), array(0), in_item(0), have_null(0)
   {
     allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
+  bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
   uint decimal_precision() const { return 1; }
   void cleanup()
@@ -853,12 +880,6 @@ class Item_func_in :public Item_int_func
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
-  /*
-    IN() protect from NULL only first argument, if construction like
-    "expression IN ()" will be allowed, we will need to check number of
-    argument here, because "NOT(NULL IN ())" is TRUE.
-  */
-  table_map not_null_tables() const { return args[0]->not_null_tables(); }
 };
 
 /* Functions used by where clause */
@@ -889,7 +910,7 @@ public:
     else
     {
       args[0]->update_used_tables();
-      if (!(used_tables_cache=args[0]->used_tables()))
+      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables())))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();
@@ -964,13 +985,16 @@ class Item_func_like :public Item_bool_func2
   enum { alphabet_size = 256 };
 
   Item *escape_item;
+  
+  bool escape_used_in_parsing;
 
 public:
-  char escape;
+  int escape;
 
-  Item_func_like(Item *a,Item *b, Item *escape_arg)
+  Item_func_like(Item *a,Item *b, Item *escape_arg, bool escape_used)
     :Item_bool_func2(a,b), canDoTurboBM(FALSE), pattern(0), pattern_len(0), 
-     bmGs(0), bmBc(0), escape_item(escape_arg) {}
+     bmGs(0), bmBc(0), escape_item(escape_arg),
+     escape_used_in_parsing(escape_used) {}
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
   optimize_type select_optimize() const;
@@ -981,11 +1005,11 @@ public:
 
 #ifdef USE_REGEX
 
-#include <regex.h>
+#include "my_regex.h"
 
 class Item_func_regex :public Item_bool_func
 {
-  regex_t preg;
+  my_regex_t preg;
   bool regex_compiled;
   bool regex_is_const;
   String prev_regexp;

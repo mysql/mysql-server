@@ -67,6 +67,13 @@ public:
   static bool getStopAbort(const Uint32 & requestInfo);
 };
 
+struct StopConf
+{
+  STATIC_CONST( SignalLength = 2 );
+  Uint32 senderData;
+  Uint32 nodeState;
+};
+
 class StopRef 
 {
   /**
@@ -86,7 +93,8 @@ public:
     OK = 0,
     NodeShutdownInProgress = 1,
     SystemShutdownInProgress = 2,
-    NodeShutdownWouldCauseSystemCrash = 3
+    NodeShutdownWouldCauseSystemCrash = 3,
+    TransactionAbortFailed = 4
   };
   
 public:

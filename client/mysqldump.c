@@ -30,7 +30,7 @@
 ** master/autocommit code by Brian Aker <brian@tangent.org>
 ** SSL by
 ** Andrei Errapart <andreie@no.spam.ee>
-** Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
+** TÃµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
@@ -70,6 +70,11 @@
 /* Size of buffer for dump's select query */
 #define QUERY_LENGTH 1536
 
+/* ignore table flags */
+#define IGNORE_NONE 0x00 /* no ignore */
+#define IGNORE_DATA 0x01 /* don't dump data for this table */
+#define IGNORE_INSERT_DELAYED 0x02 /* table doesn't support INSERT DELAYED */
+
 static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
 static ulong find_set(TYPELIB *lib, const char *x, uint length,
@@ -87,7 +92,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
                 opt_complete_insert= 0, opt_drop_database= 0,
-                opt_dump_triggers= 0;
+                opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static my_bool insert_pat_inited=0;
@@ -209,9 +214,7 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED; "
-   "currently ignored because of http://bugs.mysql.com/bug.php?id=7815 "
-   "but will be re-enabled later",
+  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED; ",
    (gptr*) &opt_delayed, (gptr*) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
@@ -339,6 +342,9 @@ static struct my_option my_long_options[] =
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"routines", 'R', "Dump routines FUNCTIONS and PROCEDURES.",
+     (gptr*) &opt_routines, (gptr*) &opt_routines, 0, GET_BOOL,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
    (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
@@ -379,6 +385,9 @@ static struct my_option my_long_options[] =
    {"triggers", OPT_TRIGGERS, "Dump triggers for each dumped table",
      (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
      NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"tz-utc", OPT_TZ_UTC,
+    "SET TIME_ZONE='+00:00' at top of dump to allow dumping of TIMESTAMP data between servers with different time zones.",
+    (gptr*) &opt_tz_utc, (gptr*) &opt_tz_utc, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.",
    (gptr*) &current_user, (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG,
@@ -408,7 +417,7 @@ static int init_dumping(char *);
 static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
-static const char *check_if_ignore_table(const char *table_name);
+char check_if_ignore_table(const char *table_name, char *table_type);
 static char *primary_key_fields(const char *table_name);
 static my_bool get_view_structure(char *table, char* db);
 static my_bool dump_all_views_in_db(char *database);
@@ -503,6 +512,13 @@ static void write_header(FILE *sql_file, char *db_name)
 "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
 "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
 "\n/*!40101 SET NAMES %s */;\n",default_charset);
+
+    if (opt_tz_utc)
+    {
+      fprintf(sql_file, "/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;\n");
+      fprintf(sql_file, "/*!40103 SET TIME_ZONE='+00:00' */;\n");
+    }
+
     if (!path)
     {
       fprintf(md_result_file,"\
@@ -529,6 +545,9 @@ static void write_footer(FILE *sql_file)
   }
   else if (!opt_compact)
   {
+    if (opt_tz_utc)
+      fprintf(sql_file,"/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;\n");
+
     fprintf(sql_file,"\n/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n");
     if (!path)
     {
@@ -717,25 +736,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
       break;
     }
-#ifndef REMOVE_THIS_CODE_WHEN_FIX_BUG_7815
-  case (int) OPT_DELAYED:
-    /*
-      Because of http://bugs.mysql.com/bug.php?id=7815, we disable
-      --delayed-insert; when the bug gets fixed by checking the storage engine
-      (using the table definition cache) before printing INSERT DELAYED, we
-      can correct the option's description and re-enable it again (scheduled
-      for later 5.0 or 5.1 versions).
-      It's ok to do the if() below as get_one_option is called after
-      opt_delayed is set.
-    */
-    if (opt_delayed)
-    {
-      fprintf(stderr, "Warning: ignoring --delayed-insert (as explained "
-	      "in the output of 'mysqldump --help').\n");
-      opt_delayed= 0;
-    }
-    break;
-#endif
   }
   return 0;
 }
@@ -915,6 +915,20 @@ static int dbConnect(char *host, char *user,char *passwd)
     safe_exit(EX_MYSQLERR);
     return 1;
   }
+  /*
+    set time_zone to UTC to allow dumping date types between servers with 
+    different time zone settings
+  */
+  if (opt_tz_utc)
+  {
+    my_snprintf(buff, sizeof(buff), "/*!40103 SET TIME_ZONE='+00:00' */");
+    if (mysql_query_with_error_report(sock, 0, buff))
+    {
+      mysql_close(sock);
+      safe_exit(EX_MYSQLERR);
+      return 1;
+    }
+  }
   return 0;
 } /* dbConnect */
 
@@ -961,6 +975,22 @@ static my_bool test_if_special_chars(const char *str)
 
 
 
+/*
+  quote_name(name, buff, force)
+
+  Quotes char string, taking into account compatible mode 
+
+  Args
+
+  name                 Unquoted string containing that which will be quoted
+  buff                 The buffer that contains the quoted value, also returned
+  force                Flag to make it ignore 'test_if_special_chars' 
+
+  Returns
+
+  buff                 quoted string
+
+*/
 static char *quote_name(const char *name, char *buff, my_bool force)
 {
   char *to= buff;
@@ -1157,7 +1187,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   uint i;
   MYSQL_FIELD *field;
   ulong *lengths= mysql_fetch_lengths(tableRes);
-  
+
   fprintf(xml_file, "\t\t<%s", row_name);
   check_io(xml_file);
   mysql_field_seek(tableRes, 0);
@@ -1177,21 +1207,131 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   check_io(xml_file);
 }
 
+/*
+  dump_routines_for_db
+  -- retrievs list of routines for a given db, and prints out
+  the CREATE PROCEDURE definition into the output (the dump).
+
+  This function has logic to print the appropriate syntax depending on whether
+  this is a procedure or functions
+
+  RETURN
+    0  Success
+    1  Error
+*/
+
+static uint dump_routines_for_db(char *db)
+{
+  char       query_buff[512];
+  const char *routine_type[]= {"FUNCTION", "PROCEDURE"};
+  char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3];
+  char       *routine_name;
+  int        i;
+  FILE       *sql_file= md_result_file;
+  MYSQL_RES  *routine_res, *routine_list_res;
+  MYSQL_ROW  row, routine_list_row;
+  DBUG_ENTER("dump_routines_for_db");
+  DBUG_PRINT("enter", ("db: '%s'", db));
+
+  mysql_real_escape_string(sock, db_name_buff, db, strlen(db));
+
+  /* nice comments */
+  if (opt_comments)
+    fprintf(sql_file, "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+
+  /*
+    not using "mysql_query_with_error_report" because we may have not
+    enough privileges to lock mysql.proc.
+  */
+  if (lock_tables)
+    mysql_query(sock, "LOCK TABLES mysql.proc READ");
+
+  fprintf(sql_file, "DELIMITER ;;\n");
+
+  /* 0, retrieve and dump functions, 1, procedures */
+  for (i= 0; i <= 1; i++)
+  {
+    my_snprintf(query_buff, sizeof(query_buff),
+                "SHOW %s STATUS WHERE Db = '%s'",
+                routine_type[i], db_name_buff);
+
+    if (mysql_query_with_error_report(sock, &routine_list_res, query_buff))
+      DBUG_RETURN(1);
+
+    if (mysql_num_rows(routine_list_res))
+    {
+
+      while ((routine_list_row= mysql_fetch_row(routine_list_res)))
+      {
+        DBUG_PRINT("info", ("retrieving CREATE %s for %s", routine_type[i],
+                            name_buff));
+        routine_name= quote_name(routine_list_row[1], name_buff, 0);
+        my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
+                    routine_type[i], routine_name);
+
+        if (mysql_query_with_error_report(sock, &routine_res, query_buff))
+          DBUG_RETURN(1);
+
+        while ((row= mysql_fetch_row(routine_res)))
+        {
+          /*
+            if the user has EXECUTE privilege he see routine names, but NOT the
+            routine body of other routines that are not the creator of!
+          */
+          DBUG_PRINT("info",("length of body for %s row[2] '%s' is %d",
+                             routine_name, row[2], strlen(row[2])));
+          if (strlen(row[2]))
+          {
+            if (opt_drop)
+              fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;;\n",
+                      routine_type[i], routine_name);
+            /*
+              we need to change sql_mode only for the CREATE
+              PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
+            */;
+            fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/;;\n",
+                    row[1] /* sql_mode */);
+            fprintf(sql_file, "/*!50003 %s */;;\n", row[2]);
+            fprintf(sql_file,
+                    "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/"
+                    ";;\n");
+          }
+        } /* end of routine printing */
+      } /* end of list of routines */
+      mysql_free_result(routine_res);
+    }
+    mysql_free_result(routine_list_res);
+  } /* end of for i (0 .. 1)  */
+  /* set the delimiter back to ';' */
+  fprintf(sql_file, "DELIMITER ;\n");
+
+  if (lock_tables)
+    mysql_query_with_error_report(sock, 0, "UNLOCK TABLES");
+  DBUG_RETURN(0);
+}
 
 /*
-  getTableStructure -- retrievs database structure, prints out corresponding
-  CREATE statement and fills out insert_pat.
+  get_table_structure -- retrievs database structure, prints out corresponding
+  CREATE statement and fills out insert_pat if the table is the type we will
+  be dumping.
+
+  ARGS
+    table       - table name
+    db          - db name
+    table_type  - table type ie "InnoDB"
+    ignore_flag - what we must particularly ignore - see IGNORE_ defines above
 
   RETURN
     number of fields in table, 0 if error
 */
 
-static uint get_table_structure(char *table, char *db)
+static uint get_table_structure(char *table, char *db, char *table_type,
+                                char *ignore_flag)
 {
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
-  my_bool    init=0;
-  uint       numFields;
+  my_bool    init=0, delayed, write_data, complete_insert;
+  uint       num_fields;
   char	     *result_table, *opt_quoted_table;
   const char *insert_option;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
@@ -1200,18 +1340,32 @@ static uint get_table_structure(char *table, char *db)
   FILE       *sql_file = md_result_file;
   int        len;
   DBUG_ENTER("get_table_structure");
-  DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
+  DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
-  if (!insert_pat_inited)
+  *ignore_flag= check_if_ignore_table(table, table_type);
+
+  delayed= opt_delayed;
+  if (delayed && (*ignore_flag & IGNORE_INSERT_DELAYED))
   {
-    insert_pat_inited= init_dynamic_string(&insert_pat, "", 1024, 1024);
+    delayed= 0;
+    if (verbose)
+      fprintf(stderr,
+              "-- Warning: Unable to use delayed inserts for table '%s' "
+              "because it's of type %s\n", table, table_type);
   }
-  else
-    dynstr_set(&insert_pat, "");
 
-  insert_option= ((opt_delayed && opt_ignore) ? " DELAYED IGNORE " : 
-                  opt_delayed ? " DELAYED " :
-                  opt_ignore ? " IGNORE " : "");
+  complete_insert= 0;
+  if ((write_data= !(*ignore_flag & IGNORE_DATA)))
+  {
+    complete_insert= opt_complete_insert;
+    if (!insert_pat_inited)
+      insert_pat_inited= init_dynamic_string(&insert_pat, "", 1024, 1024);
+    else
+      dynstr_set(&insert_pat, "");
+  }
+
+  insert_option= ((delayed && opt_ignore) ? " DELAYED IGNORE " :
+                  delayed ? " DELAYED " : opt_ignore ? " IGNORE " : "");
 
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
@@ -1220,7 +1374,8 @@ static uint get_table_structure(char *table, char *db)
                    "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
-    strmov(query_buff+len, "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
+    strmov(query_buff+len,
+           "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
@@ -1330,41 +1485,6 @@ static uint get_table_structure(char *table, char *db)
       fprintf(sql_file, "%s;\n", row[1]);
       check_io(sql_file);
       mysql_free_result(tableRes);
-      if (opt_dump_triggers &&
-          mysql_get_server_version(sock) >= 50009)
-      {
-        my_snprintf(query_buff, sizeof(query_buff),
-                    "SHOW TRIGGERS LIKE %s",
-                    quote_for_like(table, name_buff));
-
-
-        if (mysql_query_with_error_report(sock, &tableRes, query_buff))
-        {
-          if (path)
-            my_fclose(sql_file, MYF(MY_WME));
-          safe_exit(EX_MYSQLERR);
-          DBUG_RETURN(0);
-        }
-        if (mysql_num_rows(tableRes))
-          fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
-DELIMITER //;\n");
-        while ((row=mysql_fetch_row(tableRes)))
-        {
-          fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/ //\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s*/ //\n\n",
-                  row[6], /* sql_mode */
-                  quote_name(row[0], name_buff, 0), /* Trigger */
-                  row[4], /* Timing */
-                  row[1], /* Event */
-                  result_table,
-                  row[3] /* Statement */);
-        }
-        if (mysql_num_rows(tableRes))
-          fprintf(sql_file,
-                  "DELIMITER ;//\n\
-/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;");
-        mysql_free_result(tableRes);
-      }
     }
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
@@ -1376,34 +1496,44 @@ DELIMITER //;\n");
       DBUG_RETURN(0);
     }
 
-    dynstr_append_mem(&insert_pat, "INSERT ", 7);
-    dynstr_append(&insert_pat, insert_option);
-    dynstr_append_mem(&insert_pat, "INTO ", 5);
-    dynstr_append(&insert_pat, opt_quoted_table);
-    if (opt_complete_insert)
+    /*
+      If write_data is true, then we build up insert statements for
+      the table's data. Note: in subsequent lines of code, this test
+      will have to be performed each time we are appending to
+      insert_pat.
+    */
+    if (write_data)
     {
-      dynstr_append_mem(&insert_pat, " (", 2);
-    }
-    else
-    {
-      dynstr_append_mem(&insert_pat, " VALUES ", 8);
-      if (!extended_insert)
-        dynstr_append_mem(&insert_pat, "(", 1);
+      dynstr_append_mem(&insert_pat, "INSERT ", 7);
+      dynstr_append(&insert_pat, insert_option);
+      dynstr_append_mem(&insert_pat, "INTO ", 5);
+      dynstr_append(&insert_pat, opt_quoted_table);
+      if (complete_insert)
+      {
+        dynstr_append_mem(&insert_pat, " (", 2);
+      }
+      else
+      {
+        dynstr_append_mem(&insert_pat, " VALUES ", 8);
+        if (!extended_insert)
+          dynstr_append_mem(&insert_pat, "(", 1);
+      }
     }
 
     while ((row=mysql_fetch_row(tableRes)))
     {
-      if (init)
+      if (complete_insert)
       {
-        if (opt_complete_insert)
+        if (init)
+        {
           dynstr_append_mem(&insert_pat, ", ", 2);
-      }
-      init=1;
-      if (opt_complete_insert)
+        }
+        init=1;
         dynstr_append(&insert_pat,
                       quote_name(row[SHOW_FIELDNAME], name_buff, 0));
+      }
     }
-    numFields = (uint) mysql_num_rows(tableRes);
+    num_fields= (uint) mysql_num_rows(tableRes);
     mysql_free_result(tableRes);
   }
   else
@@ -1449,19 +1579,20 @@ DELIMITER //;\n");
       check_io(sql_file);
     }
 
-    dynstr_append_mem(&insert_pat, "INSERT ", 7);
-    dynstr_append(&insert_pat, insert_option);
-    dynstr_append_mem(&insert_pat, "INTO ", 5);
-    dynstr_append(&insert_pat, result_table);
-    if (opt_complete_insert)
+    if (write_data)
     {
-      dynstr_append_mem(&insert_pat, " (", 2);
-    }
-    else
-    {
-      dynstr_append_mem(&insert_pat, " VALUES ", 8);
-      if (!extended_insert)
-        dynstr_append_mem(&insert_pat, "(", 1);
+      dynstr_append_mem(&insert_pat, "INSERT ", 7);
+      dynstr_append(&insert_pat, insert_option);
+      dynstr_append_mem(&insert_pat, "INTO ", 5);
+      dynstr_append(&insert_pat, result_table);
+      if (opt_complete_insert)
+        dynstr_append_mem(&insert_pat, " (", 2);
+      else
+      {
+        dynstr_append_mem(&insert_pat, " VALUES ", 8);
+        if (!extended_insert)
+          dynstr_append_mem(&insert_pat, "(", 1);
+      }
     }
 
     while ((row=mysql_fetch_row(tableRes)))
@@ -1474,7 +1605,7 @@ DELIMITER //;\n");
 	  fputs(",\n",sql_file);
 	  check_io(sql_file);
 	}
-        if (opt_complete_insert)
+        if (complete_insert)
           dynstr_append_mem(&insert_pat, ", ", 2);
       }
       init=1;
@@ -1509,7 +1640,7 @@ DELIMITER //;\n");
 	check_io(sql_file);
       }
     }
-    numFields = (uint) mysql_num_rows(tableRes);
+    num_fields = (uint) mysql_num_rows(tableRes);
     mysql_free_result(tableRes);
     if (!tFlag)
     {
@@ -1561,7 +1692,7 @@ DELIMITER //;\n");
 	  print_xml_row(sql_file, "key", tableRes, &row);
 	  continue;
 	}
-        
+
         if (atoi(row[3]) == 1)
         {
 	  if (keynr++)
@@ -1618,9 +1749,7 @@ DELIMITER //;\n");
         else
         {
 	  if (opt_xml)
-	  {
 	    print_xml_row(sql_file, "options", tableRes, &row);
-	  }
 	  else
 	  {
 	    fputs("/*!",sql_file);
@@ -1653,9 +1782,74 @@ continue_xml:
     write_footer(sql_file);
     my_fclose(sql_file, MYF(MY_WME));
   }
-  DBUG_RETURN(numFields);
+  DBUG_RETURN(num_fields);
 } /* get_table_structure */
 
+
+/*
+
+  dump_triggers_for_table
+
+  Dumps the triggers given a table/db name. This should be called after
+  the tables have been dumped in case a trigger depends on the existence
+  of a table
+
+*/
+
+static void dump_triggers_for_table (char *table, char *db)
+{
+  char	     *result_table;
+  char	     name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
+  char       query_buff[512];
+  uint old_opt_compatible_mode=opt_compatible_mode;
+  FILE       *sql_file = md_result_file;
+  MYSQL_RES  *result;
+  MYSQL_ROW  row;
+
+  DBUG_ENTER("dump_triggers_for_table");
+  DBUG_PRINT("enter", ("db: %s, table: %s", db, table));
+
+  /* Do not use ANSI_QUOTES on triggers in dump */
+  opt_compatible_mode&= ~MASK_ANSI_QUOTES;
+  result_table=     quote_name(table, table_buff, 1);
+
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SHOW TRIGGERS LIKE %s",
+              quote_for_like(table, name_buff));
+
+  if (mysql_query_with_error_report(sock, &result, query_buff))
+  {
+    if (path)
+      my_fclose(sql_file, MYF(MY_WME));
+    safe_exit(EX_MYSQLERR);
+    DBUG_VOID_RETURN;
+  }
+  if (mysql_num_rows(result))
+    fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
+DELIMITER ;;\n");
+  while ((row=mysql_fetch_row(result)))
+  {
+    fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n\
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */;;\n\n",
+            row[6], /* sql_mode */
+            quote_name(row[0], name_buff, 0), /* Trigger */
+            row[4], /* Timing */
+            row[1], /* Event */
+            result_table,
+            row[3] /* Statement */);
+  }
+  if (mysql_num_rows(result))
+    fprintf(sql_file,
+            "DELIMITER ;\n"
+            "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE */;\n");
+  mysql_free_result(result);
+  /*
+    make sure to set back opt_compatible mode to 
+    original value
+  */
+  opt_compatible_mode=old_opt_compatible_mode;
+  DBUG_VOID_RETURN;
+}
 
 static char *add_load_option(char *ptr,const char *object,
 			     const char *statement)
@@ -1678,10 +1872,10 @@ static char *add_load_option(char *ptr,const char *object,
 
 
 /*
-** Allow the user to specify field terminator strings like:
-** "'", "\", "\\" (escaped backslash), "\t" (tab), "\n" (newline)
-** This is done by doubleing ' and add a end -\ if needed to avoid
-** syntax errors from the SQL parser.
+  Allow the user to specify field terminator strings like:
+  "'", "\", "\\" (escaped backslash), "\t" (tab), "\n" (newline)
+  This is done by doubling ' and add a end -\ if needed to avoid
+  syntax errors from the SQL parser.
 */
 
 static char *field_escape(char *to,const char *from,uint length)
@@ -1722,20 +1916,40 @@ static char *alloc_query_str(ulong size)
 
 
 /*
-** dump_table saves database contents as a series of INSERT statements.
+
+ SYNOPSIS
+  dump_table()
+
+  dump_table saves database contents as a series of INSERT statements.
+
+  ARGS
+   table - table name
+   db    - db name
+
+   RETURNS
+    void
 */
 
-static void dump_table(uint numFields, char *table)
+static void dump_table(char *table, char *db)
 {
+  char ignore_flag;
   char query_buf[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
+  char table_type[NAME_LEN];
   char *result_table, table_buff2[NAME_LEN*2+3], *opt_quoted_table;
   char *query= query_buf;
+  int error= 0;
+  ulong		rownr, row_break, total_length, init_length;
+  uint num_fields;
   MYSQL_RES	*res;
   MYSQL_FIELD	*field;
   MYSQL_ROW	row;
-  ulong		rownr, row_break, total_length, init_length;
-  const char    *table_type;
-  int error= 0;
+  DBUG_ENTER("dump_table");
+
+  /*
+    Make sure you get the create table info before the following check for
+    --no-data flag below. Otherwise, the create table info won't be printed.
+  */
+  num_fields= get_table_structure(table, db, table_type, &ignore_flag);
 
   /* Check --no-data flag */
   if (dFlag)
@@ -1744,31 +1958,36 @@ static void dump_table(uint numFields, char *table)
       fprintf(stderr,
               "-- Skipping dump data for table '%s', --no-data was used\n",
 	      table);
-    return;
+    DBUG_VOID_RETURN;
   }
 
+  DBUG_PRINT("info",
+             ("ignore_flag: %x  num_fields: %d", (int) ignore_flag,
+              num_fields));
+  /*
+    If the table type is a merge table or any type that has to be
+     _completely_ ignored and no data dumped
+  */
+  if (ignore_flag & IGNORE_DATA)
+  {
+    if (verbose)
+      fprintf(stderr,
+	      "-- Warning: Skipping data for table '%s' because it's of type %s\n",
+	      table, table_type);
+    DBUG_VOID_RETURN;
+  }
   /* Check that there are any fields in the table */
-  if (numFields == 0)
+  if (num_fields == 0)
   {
     if (verbose)
       fprintf(stderr,
 	      "-- Skipping dump data for table '%s', it has no fields\n",
 	      table);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   result_table= quote_name(table,table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
-
-  /* Check table type */
-  if ((table_type= check_if_ignore_table(table)))
-  {
-    if (verbose)
-      fprintf(stderr,
-	      "-- Skipping data for table '%s' because it's of type %s\n",
-	      table, table_type);
-    return;
-  }
 
   if (verbose)
     fprintf(stderr, "-- Sending SELECT query...\n");
@@ -1812,7 +2031,7 @@ static void dump_table(uint numFields, char *table)
     if (mysql_real_query(sock, query, (uint) (end - query)))
     {
       DB_error(sock, "when executing 'SELECT INTO OUTFILE'");
-      return;
+      DBUG_VOID_RETURN;
     }
   }
   else
@@ -1867,7 +2086,7 @@ static void dump_table(uint numFields, char *table)
       DB_error(sock, "when retrieving data from server");
     if (verbose)
       fprintf(stderr, "-- Retrieving rows...\n");
-    if (mysql_num_fields(res) != numFields)
+    if (mysql_num_fields(res) != num_fields)
     {
       fprintf(stderr,"%s: Error in field count for table: %s !  Aborting.\n",
 	      my_progname, result_table);
@@ -1930,14 +2149,15 @@ static void dump_table(uint numFields, char *table)
 	  error= EX_CONSCHECK;
 	  goto err;
 	}
-	
+
 	/*
 	   63 is my_charset_bin. If charsetnr is not 63,
 	   we have not a BLOB but a TEXT column. 
 	   we'll dump in hex only BLOB columns.
 	*/
         is_blob= (opt_hex_blob && field->charsetnr == 63 &&
-                  (field->type == MYSQL_TYPE_STRING ||
+                  (field->type == MYSQL_TYPE_BIT ||
+                   field->type == MYSQL_TYPE_STRING ||
                    field->type == MYSQL_TYPE_VAR_STRING ||
                    field->type == MYSQL_TYPE_VARCHAR ||
                    field->type == MYSQL_TYPE_BLOB ||
@@ -2164,14 +2384,14 @@ static void dump_table(uint numFields, char *table)
     mysql_free_result(res);
     if (query != query_buf)
       my_free(query, MYF(MY_ALLOW_ZERO_PTR));
-  } 
-  return;
+  }
+  DBUG_VOID_RETURN;
 
 err:
   if (query != query_buf)
     my_free(query, MYF(MY_ALLOW_ZERO_PTR));
   safe_exit(error);
-  return;
+  DBUG_VOID_RETURN;
 } /* dump_table */
 
 
@@ -2372,11 +2592,19 @@ static int dump_all_tables_in_db(char *database)
     char *end= strmov(afterdot, table);
     if (include_table(hash_key, end - hash_key))
     {
-      numrows = get_table_structure(table, database);
-      dump_table(numrows,table);
+      dump_table(table,database);
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
       order_by= 0;
+      if (opt_dump_triggers && ! opt_xml &&
+          mysql_get_server_version(sock) >= 50009)
+        dump_triggers_for_table(table, database);
     }
+  }
+  if (opt_routines && !opt_xml &&
+      mysql_get_server_version(sock) >= 50009)
+  {
+    DBUG_PRINT("info", ("Dumping routines for database %s", database));
+    dump_routines_for_db(database);
   }
   if (opt_xml)
   {
@@ -2498,7 +2726,7 @@ static int get_actual_table_name(const char *old_table_name,
 
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
-  uint numrows, i;
+  uint i;
   char table_buff[NAME_LEN*+3];
   char new_table_name[NAME_LEN];
   DYNAMIC_STRING lock_tables_query;
@@ -2567,8 +2795,10 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   {
     table_name= hash_element(&dump_tables, i);
     DBUG_PRINT("info",("Dumping table %s", table_name));
-    numrows= get_table_structure(table_name, db);
-    dump_table(numrows, table_name);
+    dump_table(table_name,db);
+    if (opt_dump_triggers &&
+        mysql_get_server_version(sock) >= 50009)
+      dump_triggers_for_table(table_name, db);
   }
 
   /* Dump each selected view */
@@ -2579,6 +2809,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       table_name= hash_element(&dump_tables, i);
       get_view_structure(table_name, db);
     }
+  }
+  /* obtain dump of routines (procs/functions) */
+  if (opt_routines  && !opt_xml &&
+      mysql_get_server_version(sock) >= 50009)
+  {
+    DBUG_PRINT("info", ("Dumping routines for database %s", db));
+    dump_routines_for_db(db);
   }
   hash_free(&dump_tables);
   my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
@@ -2757,28 +2994,37 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 
 
 /*
-  Check if we the table is one of the table types that should be ignored:
-  MRG_ISAM, MRG_MYISAM
 
   SYNOPSIS
+
+  Check if we the table is one of the table types that should be ignored:
+  MRG_ISAM, MRG_MYISAM, if opt_delayed, if that table supports delayed inserts.
+  If the table should be altogether ignored, it returns a TRUE, FALSE if it
+  should not be ignored. If the user has selected to use INSERT DELAYED, it 
+  sets the value of the bool pointer supports_delayed_inserts to 0 if not 
+  supported, 1 if it is supported.
+
+  ARGS
+
     check_if_ignore_table()
     table_name			Table name to check
+    table_type                  Type of table
 
   GLOBAL VARIABLES
     sock			MySQL socket
     verbose			Write warning messages
 
   RETURN
-    0	Table should be backuped
-    #	Type of table (that should be skipped)
+    char (bit value)            See IGNORE_ values at top
 */
 
-static const char *check_if_ignore_table(const char *table_name)
+char check_if_ignore_table(const char *table_name, char *table_type)
 {
+  char result= IGNORE_NONE;
   char buff[FN_REFLEN+80], show_name_buff[FN_REFLEN];
   MYSQL_RES *res;
   MYSQL_ROW row;
-  const char *result= 0;
+  DBUG_ENTER("check_if_ignore_table");
 
   /* Check memory for quote_for_like() */
   DBUG_ASSERT(2*sizeof(table_name) < sizeof(show_name_buff));
@@ -2792,7 +3038,7 @@ static const char *check_if_ignore_table(const char *table_name)
 	fprintf(stderr,
 		"-- Warning: Couldn't get status information for table %s (%s)\n",
 		table_name,mysql_error(sock));
-      return 0;					/* assume table is ok */
+      DBUG_RETURN(result);                       /* assume table is ok */
     }
   }
   if (!(row= mysql_fetch_row(res)))
@@ -2801,18 +3047,38 @@ static const char *check_if_ignore_table(const char *table_name)
 	    "Error: Couldn't read status information for table %s (%s)\n",
 	    table_name, mysql_error(sock));
     mysql_free_result(res);
-    return 0;					/* assume table is ok */
+    DBUG_RETURN(result);                         /* assume table is ok */
   }
   if (!(row[1]))
-      result= "VIEW";
+    strmake(table_type, "VIEW", NAME_LEN-1);
   else
   {
-    if (strcmp(row[1], (result= "MRG_MyISAM")) &&
-        strcmp(row[1], (result= "MRG_ISAM")))
-      result= 0;
+    /*
+      If the table type matches any of these, we do support delayed inserts.
+      Note: we do not want to skip dumping this table if if is not one of
+      these types, but we do want to use delayed inserts in the dump if
+      the table type is _NOT_ one of these types
+    */
+    strmake(table_type, row[1], NAME_LEN-1);
+    if (opt_delayed)
+    {
+      if (strcmp(table_type,"MyISAM") &&
+          strcmp(table_type,"ISAM") &&
+          strcmp(table_type,"ARCHIVE") &&
+          strcmp(table_type,"HEAP") &&
+          strcmp(table_type,"MEMORY"))
+        result= IGNORE_INSERT_DELAYED;
+    }
+
+    /*
+      If these two types, we do want to skip dumping the table
+    */
+    if (!dFlag &&
+        (!strcmp(table_type,"MRG_MyISAM") || !strcmp(table_type,"MRG_ISAM")))
+      result= IGNORE_DATA;
   }
   mysql_free_result(res);
-  return result;
+  DBUG_RETURN(result);
 }
 
 /*

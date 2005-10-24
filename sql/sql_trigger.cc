@@ -103,8 +103,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig);
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 {
   TABLE *table;
-  bool result= 0;
-
+  bool result= TRUE;
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
   /*
@@ -119,9 +118,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /* We should have only one table in table list. */
   DBUG_ASSERT(tables->next_global == 0);
 
-  if (!(table= open_ltable(thd, tables, tables->lock_type)))
-    DBUG_RETURN(TRUE);
-
   /*
     TODO: We should check if user has TRIGGER privilege for table here.
     Now we just require SUPER privilege for creating/dropping because
@@ -131,28 +127,24 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DBUG_RETURN(TRUE);
 
   /*
-    We do not allow creation of triggers on temporary tables. We also don't
-    allow creation of triggers on views but fulfilment of this restriction
-    is guaranteed by open_ltable(). It is better to have this check here
-    than do it in Table_triggers_list::create_trigger() and mess with table
-    cache.
+    There is no DETERMINISTIC clause for triggers, so can't check it.
+    But a trigger can in theory be used to do nasty things (if it supported
+    DROP for example) so we do the check for privileges. For now there is
+    already a stronger test right above; but when this stronger test will
+    be removed, the test below will hold.
   */
-  if (table->s->tmp_table != NO_TMP_TABLE)
+  if (!trust_routine_creators && mysql_bin_log.is_open() &&
+      !(thd->security_ctx->master_access & SUPER_ACL))
   {
-    my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
+    my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
-  if (!table->triggers)
+  /* We do not allow creation of triggers on temporary tables. */
+  if (create && find_temporary_table(thd, tables->db, tables->table_name))
   {
-    if (!create)
-    {
-      my_message(ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST), MYF(0));
-      DBUG_RETURN(TRUE);
-    }
-
-    if (!(table->triggers= new (&table->mem_root) Table_triggers_list(table)))
-      DBUG_RETURN(TRUE);
+    my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
+    DBUG_RETURN(TRUE);
   }
 
   /*
@@ -161,31 +153,41 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     again until we are done. (Acquiring LOCK_open is not enough because
     global read lock is held without helding LOCK_open).
   */
-  if (wait_if_global_read_lock(thd, 0, 0))
+  if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(TRUE);
-
-  /*
-    There is no DETERMINISTIC clause for triggers, so can't check it.
-    But a trigger can in theory be used to do nasty things (if it supported
-    DROP for example) so we do the check for privileges. For now there is
-    already a stronger test above (see start of the function); but when this
-    stronger test will be removed, the test below will hold.
-  */
-  if (!trust_routine_creators && mysql_bin_log.is_open() &&
-      !(thd->master_access & SUPER_ACL))
-  {
-    my_message(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,
-	       ER(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
 
   VOID(pthread_mutex_lock(&LOCK_open));
+
+  if (lock_table_names(thd, tables))
+    goto end;
+
+  /* We also don't allow creation of triggers on views. */
+  tables->required_type= FRMTYPE_TABLE;
+
+  if (reopen_name_locked_table(thd, tables))
+  {
+    unlock_table_name(thd, tables);
+    goto end;
+  }
+  table= tables->table;
+
+  if (!table->triggers)
+  {
+    if (!create)
+    {
+      my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
+      goto end;
+    }
+
+    if (!(table->triggers= new (&table->mem_root) Table_triggers_list(table)))
+      goto end;
+  }
+
   result= (create ?
            table->triggers->create_trigger(thd, tables):
            table->triggers->drop_trigger(thd, tables));
 
-  /* It is sensible to invalidate table in any case */
-  close_cached_table(thd, table);
+end:
   VOID(pthread_mutex_unlock(&LOCK_open));
   start_waiting_global_read_lock(thd);
 
@@ -507,6 +509,25 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
   *old_fld= 0;
 
   return 0;
+}
+
+
+/*
+  Adjust Table_triggers_list with new TABLE pointer.
+
+  SYNOPSIS
+    set_table()
+      new_table - new pointer to TABLE instance
+*/
+
+void Table_triggers_list::set_table(TABLE *new_table)
+{
+  table= new_table;
+  for (Field **field= table->triggers->record1_field ; *field ; field++)
+  {
+    (*field)->table= (*field)->orig_table= new_table;
+    (*field)->table_name= &new_table->alias;
+  }
 }
 
 

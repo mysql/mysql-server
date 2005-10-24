@@ -121,8 +121,9 @@ static char *pretty_print_str(char *packet, char *str, int len)
 static inline char* slave_load_file_stem(char*buf, uint file_id,
 					 int event_server_id)
 {
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", 
-	    MY_UNPACK_FILENAME | MY_UNIX_PATH);
+  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+  to_unix_path(buf);
+
   buf = strend(buf);
   buf = int10_to_str(::server_id, buf, 10);
   *buf++ = '-';
@@ -211,24 +212,18 @@ static inline int read_str(char **buf, char *buf_end, char **str,
 /*
   Transforms a string into "" or its expression in 0x... form.
 */
+
 char *str_to_hex(char *to, const char *from, uint len)
 {
-  char *p= to;
   if (len)
   {
-    p= strmov(p, "0x");
-    for (uint i= 0; i < len; i++, p+= 2)
-    {
-      /* val[i] is char. Casting to uchar helps greatly if val[i] < 0 */
-      uint tmp= (uint) (uchar) from[i];
-      p[0]= _dig_vec_upper[tmp >> 4];
-      p[1]= _dig_vec_upper[tmp & 15];
-    }
-    *p= 0;
+    *to++= '0';
+    *to++= 'x';
+    to= octet2hex(to, from, len);
   }
   else
-    p= strmov(p, "\"\"");
-  return p; // pointer to end 0 of 'to'
+    to= strmov(to, "\"\"");
+  return to;                               // pointer to end 0 of 'to'
 }
 
 /*
@@ -1165,7 +1160,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     But it's likely that we don't want to use 32 bits for 3 bits; in the future
     we will probably want to reclaim the 29 bits. So we need the &.
   */
-  flags2= thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG;
+  flags2= (uint32) (thd_arg->options & OPTIONS_WRITTEN_TO_BIN_LOG);
   DBUG_ASSERT(thd->variables.character_set_client->number < 256*256);
   DBUG_ASSERT(thd->variables.collation_connection->number < 256*256);
   DBUG_ASSERT(thd->variables.collation_server->number < 256*256);
@@ -1554,6 +1549,16 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query
 
   clear_all_errors(thd, rli);
 
+  /*
+    Note:   We do not need to execute reset_one_shot_variables() if this
+            db_ok() test fails.
+    Reason: The db stored in binlog events is the same for SET and for
+            its companion query.  If the SET is ignored because of
+            db_ok(), the companion query will also be ignored, and if
+            the companion query is ignored in the db_ok() test of
+            ::exec_event(), then the companion SET also have so we
+            don't need to reset_one_shot_variables().
+  */
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
@@ -2703,6 +2708,16 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     Create_file_log_event::exec_event() and then discarding Append_block and
     al. Another way is do the filtering in the I/O thread (more efficient: no
     disk writes at all).
+
+
+    Note:   We do not need to execute reset_one_shot_variables() if this
+            db_ok() test fails.
+    Reason: The db stored in binlog events is the same for SET and for
+            its companion query.  If the SET is ignored because of
+            db_ok(), the companion query will also be ignored, and if
+            the companion query is ignored in the db_ok() test of
+            ::exec_event(), then the companion SET also have so we
+            don't need to reset_one_shot_variables().
   */
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
@@ -2947,13 +2962,38 @@ void Rotate_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_
 #endif /* MYSQL_CLIENT */
 
 
+
 /*
-  Rotate_log_event::Rotate_log_event()
+  Rotate_log_event::Rotate_log_event() (2 constructors)
 */
+
+
+#ifndef MYSQL_CLIENT
+Rotate_log_event::Rotate_log_event(THD* thd_arg,
+                                   const char* new_log_ident_arg,
+                                   uint ident_len_arg, ulonglong pos_arg,
+                                   uint flags_arg)
+  :Log_event(), new_log_ident(new_log_ident_arg),
+   pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
+                          (uint) strlen(new_log_ident_arg)), flags(flags_arg)
+{
+#ifndef DBUG_OFF
+  char buff[22];
+  DBUG_ENTER("Rotate_log_event::Rotate_log_event(THD*,...)");
+  DBUG_PRINT("enter",("new_log_ident %s pos %s flags %lu", new_log_ident_arg,
+                      llstr(pos_arg, buff), flags));
+#endif
+  if (flags & DUP_NAME)
+    new_log_ident= my_strdup_with_length((const byte*) new_log_ident_arg,
+                                         ident_len, MYF(MY_WME));
+  DBUG_VOID_RETURN;
+}
+#endif
+
 
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                                    const Format_description_log_event* description_event)
-  :Log_event(buf, description_event) ,new_log_ident(NULL),alloced(0)
+  :Log_event(buf, description_event) ,new_log_ident(0), flags(DUP_NAME)
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
   // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
@@ -2968,12 +3008,9 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                      (header_size+post_header_len)); 
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
-  if (!(new_log_ident= my_strdup_with_length((byte*) buf +
-					     ident_offset,
-					     (uint) ident_len,
-					     MYF(MY_WME))))
-    DBUG_VOID_RETURN;
-  alloced = 1;
+  new_log_ident= my_strdup_with_length((byte*) buf + ident_offset,
+                                       (uint) ident_len,
+                                       MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 

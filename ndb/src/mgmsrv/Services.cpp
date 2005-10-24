@@ -182,12 +182,6 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
 
-  /**
-   *  Global Replication
-   */
-  MGM_CMD("rep", &MgmApiSession::repCommand, ""),
-    MGM_ARG("request", Int, Mandatory, "Command"),
-
   MGM_CMD("stop", &MgmApiSession::stop, ""),
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("abort", Int, Mandatory, "Node"),
@@ -222,21 +216,6 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("level", Int, Mandatory, "Severety level"),
     MGM_ARG("enable", Int, Mandatory, "1=disable, 0=enable, -1=toggle"),
 
-  MGM_CMD("config lock", &MgmApiSession::configLock, ""),
-
-  MGM_CMD("config unlock", &MgmApiSession::configUnlock, ""),
-    MGM_ARG("commit", Int, Mandatory, "Commit changes"),
-
-  MGM_CMD("config change", &MgmApiSession::configChange, ""),
-    MGM_ARG("section", String, Mandatory, "Section"),
-    MGM_ARG("parameter", String, Mandatory, "Parameter"),
-    MGM_ARG("value", String, Mandatory, "Value"),
-
-  MGM_CMD("config lock", &MgmApiSession::configLock, ""),
-
-  MGM_CMD("config unlock", &MgmApiSession::configUnlock, ""),
-    MGM_ARG("commit", Int, Mandatory, "Commit changes"),
-
   MGM_CMD("set parameter", &MgmApiSession::setParameter, ""),
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("parameter", String, Mandatory, "Parameter"),
@@ -267,6 +246,10 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("transporter connect", &MgmApiSession::transporter_connect, ""),
 
   MGM_CMD("get mgmd nodeid", &MgmApiSession::get_mgmd_nodeid, ""),
+
+  MGM_CMD("report event", &MgmApiSession::report_event, ""),
+    MGM_ARG("length", Int, Mandatory, "Length"),
+    MGM_ARG("data", String, Mandatory, "Data"),
 
   MGM_END()
 };
@@ -361,8 +344,6 @@ MgmApiSession::getConfig_old(Parser_t::Context &ctx) {
   getConfig_common(ctx, args, true);
 }
 #endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
-
-inline void require(bool b){ if(!b) abort(); }
 
 void
 MgmApiSession::getConfig(Parser_t::Context &ctx, 
@@ -713,30 +694,6 @@ MgmApiSession::abortBackup(Parser<MgmApiSession>::Context &,
   m_output->println("");
 }
 
-/*****************************************************************************
- * Global Replication
- *****************************************************************************/
-
-void
-MgmApiSession::repCommand(Parser<MgmApiSession>::Context &,
-			  Properties const &args) {
-  
-  Uint32 request = 0;
-  args.get("request", &request);
-  
-  Uint32 repReqId;
-  int result = m_mgmsrv.repCommand(&repReqId, request, true);
-  
-  m_output->println("global replication reply");
-  if(result != 0)
-    m_output->println("result: %s", get_error_text(result));
-  else{
-    m_output->println("result: Ok");
-    m_output->println("id: %d", repReqId);
-  }
-  m_output->println("");
-}
-
 /*****************************************************************************/
 
 void
@@ -942,8 +899,10 @@ printNodeStatus(OutputStream *output,
       nodeGroup = 0,
       connectCount = 0;
     bool system;
-    mgmsrv.status(nodeId, &status, &version, &startPhase, 
-		  &system, &dynamicId, &nodeGroup, &connectCount);
+    const char *address= NULL;
+    mgmsrv.status(nodeId, &status, &version, &startPhase,
+		  &system, &dynamicId, &nodeGroup, &connectCount,
+		  &address);
     output->println("node.%d.type: %s",
 		      nodeId,
 		      ndb_mgm_get_node_type_string(type));
@@ -955,7 +914,7 @@ printNodeStatus(OutputStream *output,
     output->println("node.%d.dynamic_id: %d", nodeId, dynamicId);
     output->println("node.%d.node_group: %d", nodeId, nodeGroup);
     output->println("node.%d.connect_count: %d", nodeId, connectCount);
-    output->println("node.%d.address: %s", nodeId, mgmsrv.get_connect_address(nodeId));
+    output->println("node.%d.address: %s", nodeId, address ? address : "");
   }
 
 }
@@ -1221,42 +1180,6 @@ MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
-  m_output->println("");
-}
-
-void
-MgmApiSession::configLock(Parser_t::Context &,
-			   Properties const &) {
-  int ret = m_mgmsrv.lockConf();
-  m_output->println("config lock reply");
-  m_output->println("result: %d", ret);
-  m_output->println("");
-}
-
-void
-MgmApiSession::configUnlock(Parser_t::Context &,
-			   Properties const &args) {
-  Uint32 commit;
-  args.get("commit", &commit);
-  int ret = m_mgmsrv.unlockConf(commit == 1);
-  m_output->println("config unlock reply");
-  m_output->println("result: %d", ret);
-  m_output->println("");
-}
-
-void
-MgmApiSession::configChange(Parser_t::Context &,
-			    Properties const &args) {
-  BaseString section, param, value;
-  args.get("section", section);
-  args.get("parameter", param);
-  args.get("value", value);
-
-  int ret = m_mgmsrv.changeConfig(section.c_str(),
-				  param.c_str(),
-				  value.c_str());
-  m_output->println("config change reply");
-  m_output->println("result: %d", ret);
   m_output->println("");
 }
 
@@ -1621,6 +1544,31 @@ MgmApiSession::get_mgmd_nodeid(Parser_t::Context &ctx,
 {
   m_output->println("get mgmd nodeid reply");
   m_output->println("nodeid:%u",m_mgmsrv.getOwnNodeId());  
+  m_output->println("");
+}
+
+void
+MgmApiSession::report_event(Parser_t::Context &ctx,
+			    Properties const &args)
+{
+  Uint32 length;
+  const char *data_string;
+  Uint32 data[25];
+
+  args.get("length", &length);
+  args.get("data", &data_string);
+
+  BaseString tmp(data_string);
+  Vector<BaseString> item;
+  tmp.split(item, " ");
+  for (int i = 0; i < length ; i++)
+  {
+    sscanf(item[i].c_str(), "%u", data+i);
+  }
+
+  m_mgmsrv.eventReport(data);
+  m_output->println("report event reply");
+  m_output->println("result: ok");
   m_output->println("");
 }
 

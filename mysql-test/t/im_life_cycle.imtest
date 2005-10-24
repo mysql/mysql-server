@@ -1,0 +1,142 @@
+###########################################################################
+#
+# This file contains test for (1.1) test suite.
+#
+# Consult WL#2789 for more information.
+#
+###########################################################################
+
+--source include/im_check_os.inc
+
+###########################################################################
+#
+# 1.1.1. Check that Instance Manager is able:
+#  - to read definitions of two mysqld-instances;
+#  - to start the first instance;
+#  - to understand 'nonguarded' option and keep the second instance down;
+#
+###########################################################################
+
+SHOW INSTANCES;
+--replace_column 3 VERSION
+SHOW INSTANCE STATUS mysqld1;
+--replace_column 3 VERSION
+SHOW INSTANCE STATUS mysqld2;
+
+###########################################################################
+#
+# 1.1.2. Check 'START INSTANCE' command:
+#  - start the second instance;
+#  - check that it is reported as online;
+#  - execute some SQL-statement on mysqld2 to ensure that it is really up and
+#    running;
+#
+###########################################################################
+
+START INSTANCE mysqld2;
+# FIXME
+--sleep 3
+
+SHOW INSTANCES;
+--replace_column 3 VERSION
+SHOW INSTANCE STATUS mysqld1;
+--replace_column 3 VERSION
+SHOW INSTANCE STATUS mysqld2;
+
+--connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
+--connection mysql_con
+
+--replace_result $IM_MYSQLD1_PORT IM_MYSQLD1_PORT
+SHOW VARIABLES LIKE 'port';
+
+--connection default
+--disconnect mysql_con
+
+###########################################################################
+#
+# 1.1.3. Check 'STOP INSTANCE' command:
+#  - stop the second instance;
+#  - check that it is reported as offline;
+#  - TODO: try to execute some SQL-statement to ensure that it is really down;
+#
+###########################################################################
+
+STOP INSTANCE mysqld2;
+# FIXME
+--sleep 3
+
+SHOW INSTANCES;
+--replace_column 3 VERSION
+SHOW INSTANCE STATUS mysqld1;
+--replace_column 3 VERSION
+SHOW INSTANCE STATUS mysqld2;
+
+###########################################################################
+#
+# 1.1.4. Check that Instance Manager reports correct errors for 'START
+# INSTANCE' command:
+#   - if the client tries to start unregistered instance;
+#   - if the client tries to start already started instance;
+#   - if the client submits invalid arguments;
+#
+###########################################################################
+
+--error 3000
+START INSTANCE mysqld3;
+
+--error 3002
+START INSTANCE mysqld1;
+
+# FIXME TODO
+# BUG#12813: START/STOP INSTANCE commands accept a list as argument
+# START INSTANCE mysqld1, mysqld2;
+
+###########################################################################
+#
+# 1.1.5. Check that Instance Manager reports correct errors for 'STOP INSTANCE'
+# command:
+#   - if the client tries to start unregistered instance;
+#   - if the client tries to start already stopped instance;
+#   - if the client submits invalid arguments;
+#
+###########################################################################
+
+--error 3000
+STOP INSTANCE mysqld3;
+
+# TODO: IM should be fixed.
+# BUG#12673: Instance Manager allows to stop the instance many times
+# --error 3002
+# STOP INSTANCE mysqld2;
+
+# FIXME TODO
+# BUG#12813: START/STOP INSTANCE commands accept a list as argument
+# STOP INSTANCE mysqld1, mysqld2;
+
+###########################################################################
+#
+# 1.1.6. Check that Instance Manager is able to restart guarded instances.
+#
+###########################################################################
+
+SHOW INSTANCES;
+
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD1_PATH_PID restarted
+
+###########################################################################
+#
+# 1.1.7. Check that Instance Manager does not restart non-guarded instance.
+#
+###########################################################################
+
+SHOW INSTANCES;
+
+START INSTANCE mysqld2;
+# FIXME
+--sleep 3
+
+SHOW INSTANCES;
+
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed
+
+SHOW INSTANCES;

@@ -211,6 +211,7 @@ select group_concat(c1 order by c1) from t1 group by c1 collate utf8_lithuanian_
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_slovak_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish2_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_esperanto_ci;
 
 drop table t1;
 
@@ -455,6 +456,7 @@ drop table t1;
 
 SET collation_connection='utf8_unicode_ci';
 -- source include/ctype_filesort.inc
+-- source include/ctype_like_escape.inc
 
 # End of 4.1 tests
 

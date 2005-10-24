@@ -1625,7 +1625,7 @@ dict_index_add_col(
 	variable-length fields, so that the extern flag can be embedded in
 	the length word. */
 
-	if (field->fixed_len > DICT_MAX_COL_PREFIX_LEN) {
+	if (field->fixed_len > DICT_MAX_INDEX_COL_LEN) {
 		field->fixed_len = 0;
 	}
 
@@ -2189,7 +2189,7 @@ dict_foreign_error_report(
 	dict_foreign_error_report_low(file, fk->foreign_table_name);
 	fputs(msg, file);
 	fputs(" Constraint:\n", file);
-	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk);
+	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk, TRUE);
 	if (fk->foreign_index) {
 		fputs("\nThe index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, fk->foreign_index->name);
@@ -2871,8 +2871,12 @@ dict_create_foreign_constraints_low(
 				table2 can be written also with the database
 				name before it: test.table2; the default
 				database is the database of parameter name */
-	const char*	name)	/* in: table full name in the normalized form
+	const char*	name,	/* in: table full name in the normalized form
 				database_name/table_name */
+	ibool		reject_fks)
+				/* in: if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any foreign
+				keys are found. */
 {
 	dict_table_t*	table;
 	dict_table_t*	referenced_table;
@@ -2994,6 +2998,18 @@ loop:
 	}
 
 	if (*ptr == '\0') {
+		/* The proper way to reject foreign keys for temporary
+		   tables would be to split the lexing and syntactical
+		   analysis of foreign key clauses from the actual adding
+		   of them, so that ha_innodb.cc could first parse the SQL
+		   command, determine if there are any foreign keys, and
+		   if so, immediately reject the command if the table is a
+		   temporary one. For now, this kludge will work. */
+		if (reject_fks && (UT_LIST_GET_LEN(table->foreign_list) > 0))
+		{
+			return DB_CANNOT_ADD_CONSTRAINT;
+		}
+		
 		/**********************************************************/
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */
@@ -3417,9 +3433,12 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
-	const char*	name)		/* in: table full name in the
+	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
+	ibool		reject_fks)	/* in: if TRUE, fail with error
+					code DB_CANNOT_ADD_CONSTRAINT if
+					any foreign keys are found. */
 {
 	char*		str;
 	ulint		err;
@@ -3428,7 +3447,8 @@ dict_create_foreign_constraints(
 	str = dict_strip_comments(sql_string);
 	heap = mem_heap_create(10000);
 
-	err = dict_create_foreign_constraints_low(trx, heap, str, name);
+	err = dict_create_foreign_constraints_low(trx, heap, str, name,
+		reject_fks);
 
 	mem_heap_free(heap);
 	mem_free(str);
@@ -4310,9 +4330,10 @@ CREATE TABLE. */
 void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
-	FILE*		file,	/* in: file where to print */
-	trx_t*		trx,	/* in: transaction */
-	dict_foreign_t*	foreign)/* in: foreign key constraint */
+	FILE*		file,		/* in: file where to print */
+	trx_t*		trx,		/* in: transaction */
+	dict_foreign_t*	foreign,	/* in: foreign key constraint */
+	ibool		add_newline)	/* in: whether to add a newline */
 {
 	const char*	stripped_id;
 	ulint	i;
@@ -4325,7 +4346,16 @@ dict_print_info_on_foreign_key_in_create_format(
 		stripped_id = foreign->id;
 	}
 
-	fputs(",\n  CONSTRAINT ", file);
+	putc(',', file);
+	
+	if (add_newline) {
+		/* SHOW CREATE TABLE wants constraints each printed nicely
+		on its own line, while error messages want no newlines
+		inserted. */
+		fputs("\n ", file);
+	}
+	
+	fputs(" CONSTRAINT ", file);
 	ut_print_name(file, trx, stripped_id);
 	fputs(" FOREIGN KEY (", file);
 
@@ -4427,7 +4457,7 @@ dict_print_info_on_foreign_keys(
 	while (foreign != NULL) {
 		if (create_table_format) {
 			dict_print_info_on_foreign_key_in_create_format(
-						file, trx, foreign);
+						file, trx, foreign, TRUE);
 		} else {
 			ulint	i;
 			fputs("; (", file);

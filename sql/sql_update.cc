@@ -122,7 +122,8 @@ int mysql_update(THD *thd,
   bool		used_key_is_modified, transactional_table;
   int           res;
   int		error=0;
-  uint		used_index;
+  uint		used_index= MAX_KEY;
+  bool          need_sort= TRUE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -134,25 +135,33 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
+  bool need_reopen;
   DBUG_ENTER("mysql_update");
 
   LINT_INIT(timestamp_query_id);
 
-  if (open_tables(thd, &table_list, &table_count, 0))
-    DBUG_RETURN(1);
-
-  if (table_list->multitable_view)
+  for ( ; ; )
   {
-    DBUG_ASSERT(table_list->view != 0);
-    DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
-    /* convert to multiupdate */
-    return 2;
+    if (open_tables(thd, &table_list, &table_count, 0))
+      DBUG_RETURN(1);
+
+    if (table_list->multitable_view)
+    {
+      DBUG_ASSERT(table_list->view != 0);
+      DBUG_PRINT("info", ("Switch to multi-update"));
+      /* pass counter value */
+      thd->lex->table_count= table_count;
+      /* convert to multiupdate */
+      DBUG_RETURN(2);
+    }
+    if (!lock_tables(thd, table_list, table_count, &need_reopen))
+      break;
+    if (!need_reopen)
+      DBUG_RETURN(1);
+    close_tables_for_reopen(thd, table_list);
   }
 
-  if (lock_tables(thd, table_list, table_count) ||
-      mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
     DBUG_RETURN(1);
@@ -233,6 +242,11 @@ int mysql_update(THD *thd,
     send_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
+  if (!select && limit != HA_POS_ERROR)
+  {
+    if (MAX_KEY != (used_index= get_index_for_order(table, order, limit)))
+      need_sort= FALSE;
+  }
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -253,6 +267,10 @@ int mysql_update(THD *thd,
     used_key_is_modified= (!select->quick->unique_key_range() &&
                           select->quick->check_if_keys_used(&fields));
   }
+  else if (used_index != MAX_KEY)
+  {
+    used_key_is_modified= check_if_key_used(table, used_index, fields);
+  }
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
@@ -268,10 +286,11 @@ int mysql_update(THD *thd,
     if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
-      table->file->extra(HA_EXTRA_KEYREAD);
+      table->file->extra(HA_EXTRA_KEYREAD); //todo: psergey: check
     }
 
-    if (order)
+    /* note: can actually avoid sorting below.. */
+    if (order && need_sort)
     {
       /*
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
@@ -315,7 +334,10 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
-      init_read_record(&info,thd,table,select,0,1);
+      if (used_index == MAX_KEY)
+        init_read_record(&info,thd,table,select,0,1);
+      else
+        init_read_record_idx(&info, thd, table, 1, used_index);
 
       thd->proc_info="Searching rows for update";
       uint tmp_limit= limit;
@@ -344,6 +366,10 @@ int mysql_update(THD *thd,
 	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
+
+      /* if we got here we must not use index in the main update loop below */
+      used_index= MAX_KEY;
+      
       /* Change select to use tempfile */
       if (select)
       {
@@ -467,11 +493,20 @@ int mysql_update(THD *thd,
     query_cache_invalidate3(thd, table_list, 1);
   }
 
-  if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
+  /*
+    error < 0 means really no error at all: we processed all rows until the
+    last one without error. error > 0 means an error (e.g. unique key
+    violation and no IGNORE or REPLACE). error == 0 is also an error (if
+    preparing the record or invoking before triggers fails). See
+    ha_autocommit_or_rollback(error>=0) and DBUG_RETURN(error>=0) below.
+    Sometimes we want to binlog even if we updated no rows, in case user used
+    it to be sure master and slave are in same state.
+  */
+  if ((error < 0) || (updated && !transactional_table))
   {
     if (mysql_bin_log.is_open())
     {
-      if (error <= 0)
+      if (error < 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_table, FALSE);
@@ -554,6 +589,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
   tables.alias= table_list->alias;
+  thd->allow_sum_func= 0;
 
   if (setup_tables(thd, &select_lex->context, &select_lex->top_join_list,
                    table_list, conds, &select_lex->leaf_tables,
@@ -566,10 +602,14 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (unique_table(table_list, table_list->next_global))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
-    DBUG_RETURN(TRUE);
+    TABLE_LIST *duplicate;
+    if ((duplicate= unique_table(table_list, table_list->next_global)))
+    {
+      update_non_unique_table_error(table_list, "UPDATE", duplicate);
+      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
+      DBUG_RETURN(TRUE);
+    }
   }
   select_lex->fix_prepare_information(thd, conds);
   DBUG_RETURN(FALSE);
@@ -612,7 +652,6 @@ static table_map get_table_map(List<Item> *items)
 bool mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  ulong opened_tables;
   TABLE_LIST *table_list= lex->query_tables;
   TABLE_LIST *tl, *leaves;
   List<Item> *fields= &lex->select_lex.item_list;
@@ -626,13 +665,16 @@ bool mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables != 0;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
+  bool need_reopen= FALSE;
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
+reopen_tables:
+
   /* open tables and create derived ones, but do not lock and fill them */
-  if ((original_multiupdate &&
+  if (((original_multiupdate || need_reopen) &&
        open_tables(thd, &table_list, &table_count, 0)) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
@@ -716,7 +758,8 @@ bool mysql_multi_update_prepare(THD *thd)
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
       if (check_access(thd, want_privilege,
-                        tl->db, &tl->grant.privilege, 0, 0) ||
+                       tl->db, &tl->grant.privilege, 0, 0, 
+                       test(tl->schema_table)) ||
           (grant_option && check_grant(thd, want_privilege, tl, 0, 1, 0)))
         DBUG_RETURN(TRUE);
     }
@@ -737,20 +780,17 @@ bool mysql_multi_update_prepare(THD *thd)
     }
   }
 
-  opened_tables= thd->status_var.opened_tables;
   /* now lock and fill tables */
-  if (lock_tables(thd, table_list, table_count))
-    DBUG_RETURN(TRUE);
-
-  /*
-    we have to re-call fixfields for fixed items, because lock maybe
-    reopened tables
-  */
-  if (opened_tables != thd->status_var.opened_tables)
+  if (lock_tables(thd, table_list, table_count, &need_reopen))
   {
+    if (!need_reopen)
+      DBUG_RETURN(TRUE);
+
     /*
-      Fields items cleanup(). There are only Item_fields in the list, so we
-      do not do Item tree walking
+      We have to reopen tables since some of them were altered or dropped
+      during lock_tables() or something was done with their triggers.
+      Let us do some cleanups to be able do setup_table() and setup_fields()
+      once again.
     */
     List_iterator_fast<Item> it(*fields);
     Item *item;
@@ -761,12 +801,8 @@ bool mysql_multi_update_prepare(THD *thd)
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 
-    if (setup_tables(thd, &lex->select_lex.context,
-                     &lex->select_lex.top_join_list,
-                     table_list, &lex->select_lex.where,
-                     &lex->select_lex.leaf_tables, FALSE) ||
-        setup_fields_with_no_wrap(thd, 0, *fields, 1, 0, 0))
-      DBUG_RETURN(TRUE);
+    close_tables_for_reopen(thd, table_list);
+    goto reopen_tables;
   }
 
   /*
@@ -779,7 +815,7 @@ bool mysql_multi_update_prepare(THD *thd)
   {
     TABLE *table= tl->table;
     TABLE_LIST *tlist;
-    if (!(tlist= tl->belong_to_view ? tl->belong_to_view : tl)->derived)
+    if (!(tlist= tl->top_table())->derived)
     {
       tlist->grant.want_privilege=
         (SELECT_ACL & ~tlist->grant.privilege);
@@ -788,11 +824,14 @@ bool mysql_multi_update_prepare(THD *thd)
     DBUG_PRINT("info", ("table: %s  want_privilege: %u", tl->alias,
                         (uint) table->grant.want_privilege));
     if (tl->lock_type != TL_READ &&
-        tl->lock_type != TL_READ_NO_INSERT &&
-        unique_table(tl, table_list))
+        tl->lock_type != TL_READ_NO_INSERT)
     {
-      my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
-      DBUG_RETURN(TRUE);
+      TABLE_LIST *duplicate;
+      if ((duplicate= unique_table(tl, table_list)))
+      {
+        update_non_unique_table_error(table_list, "UPDATE", duplicate);
+        DBUG_RETURN(TRUE);
+      }
     }
   }
 
@@ -819,9 +858,6 @@ bool mysql_multi_update(THD *thd,
 {
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
-
-  if (mysql_multi_update_prepare(thd))
-    DBUG_RETURN(TRUE);
 
   if (!(result= new multi_update(table_list,
 				 thd->lex->select_lex.leaf_tables,
@@ -1428,16 +1464,14 @@ bool multi_update::send_eof()
   /*
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
-    transacational tables.
-    Note that if we updated nothing we don't write to the binlog (TODO:
-    fix this).
+    transactional tables.
   */
 
-  if (updated && (local_error <= 0 || !trans_safe))
+  if ((local_error == 0) || (updated && !trans_safe))
   {
     if (mysql_bin_log.is_open())
     {
-      if (local_error <= 0)
+      if (local_error == 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    transactional_tables, FALSE);

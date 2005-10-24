@@ -22,7 +22,7 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbTCP.h>
 
-NdbRecAttr::NdbRecAttr()
+NdbRecAttr::NdbRecAttr(Ndb*)
 {
   init();
 }
@@ -98,7 +98,7 @@ NdbRecAttr::copyout()
 
 NdbRecAttr *
 NdbRecAttr::clone() const {
-  NdbRecAttr * ret = new NdbRecAttr();
+  NdbRecAttr * ret = new NdbRecAttr(0);
 
   ret->theAttrId = theAttrId;
   ret->theNULLind = theNULLind;
@@ -230,6 +230,13 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
         {
           unsigned len = *(const unsigned char*)r.aRef();
           ndbrecattr_print_string(out,"Varchar", r.aRef()+1,len);
+          j = length;
+        }
+	break;
+      case NdbDictionary::Column::Varbinary:
+        {
+          unsigned len = *(const unsigned char*)r.aRef();
+          ndbrecattr_print_string(out,"Varbinary", r.aRef()+1,len);
           j = length;
         }
 	break;

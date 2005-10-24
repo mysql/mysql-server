@@ -251,3 +251,74 @@ f1	f2
 1	1
 2	2
 drop table t1,t2;
+create table t1(f1 int);
+select DATABASE();
+DATABASE()
+test
+update t1 set f1=1 where count(*)=1;
+ERROR HY000: Invalid use of group function
+select DATABASE();
+DATABASE()
+test
+delete from t1 where count(*)=1;
+ERROR HY000: Invalid use of group function
+drop table t1;
+create table t1 ( a int, index (a) );
+insert into t1 values (0),(0),(0),(0),(0),(0),(0),(0);
+flush status;
+select a from t1 order by a limit 1;
+a
+0
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+update t1 set a=unix_timestamp() order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	0
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+delete from t1 order by a desc limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	9
+alter table t1 disable keys;
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	9
+select count(*) from t1;
+count(*)
+5
+drop table t1;

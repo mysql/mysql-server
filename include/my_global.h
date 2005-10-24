@@ -107,6 +107,14 @@
 #define _GNU_SOURCE 1
 #endif
 
+/*
+  Temporary solution to solve bug#7156. Include "sys/types.h" before
+  the thread headers, else the function madvise() will not be defined
+*/
+#if defined(HAVE_SYS_TYPES_H) && ( defined(sun) || defined(__sun) )
+#include <sys/types.h>
+#endif
+
 /* The client defines this to avoid all thread code */
 #if defined(UNDEF_THREADS_HACK)
 #undef THREAD
@@ -230,7 +238,7 @@ C_MODE_END
 
 
 /* Fix a bug in gcc 2.8.0 on IRIX 6.2 */
-#if SIZEOF_LONG == 4 && defined(__LONG_MAX__)
+#if SIZEOF_LONG == 4 && defined(__LONG_MAX__) && (__GNUC__ == 2 && __GNUC_MINOR__ == 8)
 #undef __LONG_MAX__             /* Is a longlong value in gcc 2.8.0 ??? */
 #define __LONG_MAX__ 2147483647
 #endif
@@ -344,7 +352,9 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
 #undef  LONGLONG_MAX            /* standard system library 'limits.h' */
 #ifdef __cplusplus
-#define HAVE_RINT               /* rint() and isnan() functions are not */
+#ifndef HAVE_RINT
+#define HAVE_RINT
+#endif                          /* rint() and isnan() functions are not */
 #define rint(a) std::rint(a)    /* visible in C++ scope due to an error */
 #define isnan(a) std::isnan(a)  /* in the usr/include/math.h on QNX     */
 #endif
@@ -834,6 +844,7 @@ typedef off_t os_off_t;
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
+#define SOCKET_ETIMEDOUT WSAETIMEDOUT
 #define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
@@ -841,6 +852,7 @@ typedef off_t os_off_t;
 #define socket_errno	sock_errno()
 #define SOCKET_EINTR	SOCEINTR
 #define SOCKET_EAGAIN	SOCEINPROGRESS
+#define SOCKET_ETIMEDOUT SOCKET_EINTR
 #define SOCKET_EWOULDBLOCK SOCEWOULDBLOCK
 #define SOCKET_ENFILE	SOCENFILE
 #define SOCKET_EMFILE	SOCEMFILE
@@ -850,6 +862,7 @@ typedef off_t os_off_t;
 #define closesocket(A)	close(A)
 #define SOCKET_EINTR	EINTR
 #define SOCKET_EAGAIN	EAGAIN
+#define SOCKET_ETIMEDOUT SOCKET_EINTR
 #define SOCKET_EWOULDBLOCK EWOULDBLOCK
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE

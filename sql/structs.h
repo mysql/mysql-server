@@ -20,7 +20,7 @@
 struct st_table;
 class Field;
 
-#define STRING_WITH_LEN(X)  X, (sizeof(X)-1)
+#define STRING_WITH_LEN(X)  ((char*) X), (sizeof(X)-1)
 
 typedef struct st_lex_string
 {
@@ -135,6 +135,7 @@ typedef struct st_read_record {			/* Parameter to read_record */
   byte	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
   bool print_error, ignore_not_found_rows;
+  bool first; /* used only with rr_index_read */
 } READ_RECORD;
 
 
@@ -186,7 +187,7 @@ enum SHOW_TYPE
   SHOW_SSL_GET_CIPHER_LIST,
 #endif /* HAVE_OPENSSL */
   SHOW_RPL_STATUS, SHOW_SLAVE_RUNNING, SHOW_SLAVE_RETRIED_TRANS,
-  SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_CONST_LONG,
+  SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_CONST_LONG, SHOW_KEY_CACHE_LONGLONG,
   SHOW_LONG_STATUS, SHOW_LONG_CONST_STATUS, SHOW_SLAVE_SKIP_ERRORS
 };
 

@@ -1,0 +1,64 @@
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	offline
+SHOW INSTANCE STATUS mysqld1;
+instance_name	status	version
+mysqld1	online	VERSION
+SHOW INSTANCE STATUS mysqld2;
+instance_name	status	version
+mysqld2	offline	VERSION
+START INSTANCE mysqld2;
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	online
+SHOW INSTANCE STATUS mysqld1;
+instance_name	status	version
+mysqld1	online	VERSION
+SHOW INSTANCE STATUS mysqld2;
+instance_name	status	version
+mysqld2	online	VERSION
+SHOW VARIABLES LIKE 'port';
+Variable_name	Value
+port	IM_MYSQLD1_PORT
+STOP INSTANCE mysqld2;
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	offline
+SHOW INSTANCE STATUS mysqld1;
+instance_name	status	version
+mysqld1	online	VERSION
+SHOW INSTANCE STATUS mysqld2;
+instance_name	status	version
+mysqld2	offline	VERSION
+START INSTANCE mysqld3;
+ERROR HY000: Bad instance name. Check that the instance with such a name exists
+START INSTANCE mysqld1;
+ERROR HY000: The instance is already started
+STOP INSTANCE mysqld3;
+ERROR HY000: Bad instance name. Check that the instance with such a name exists
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	offline
+Killing the process...
+Sleeping...
+Success: the process was restarted.
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	offline
+START INSTANCE mysqld2;
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	online
+Killing the process...
+Sleeping...
+Success: the process was killed.
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	offline

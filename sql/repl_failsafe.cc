@@ -66,13 +66,10 @@ static int init_failsafe_rpl_thread(THD* thd)
     this thread has no other error reporting method).
   */
   thd->system_thread = thd->bootstrap = 1;
-  thd->host_or_ip= "";
-  thd->client_capabilities = 0;
+  thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->max_client_packet_length=thd->net.max_packet;
-  thd->master_access= ~(ulong)0;
-  thd->priv_user = 0;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id = thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -162,7 +159,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   SLAVE_INFO *si;
   uchar *p= packet, *p_end= packet + packet_length;
 
-  if (check_access(thd, REPL_SLAVE_ACL, any_db,0,0,0))
+  if (check_access(thd, REPL_SLAVE_ACL, any_db,0,0,0,0))
     return 1;
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
     goto err2;
@@ -580,7 +577,7 @@ int find_recovery_captain(THD* thd, MYSQL* mysql)
 }
 
 
-pthread_handler_decl(handle_failsafe_rpl,arg)
+pthread_handler_t handle_failsafe_rpl(void *arg)
 {
   DBUG_ENTER("handle_failsafe_rpl");
   THD *thd = new THD;

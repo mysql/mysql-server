@@ -30,7 +30,7 @@ public:
   static void WINAPI    ControlHandler(DWORD CtrlType);
 
 protected:
-  virtual void Run()= 0;
+  virtual void Run(DWORD argc, LPTSTR *argv)= 0;
   virtual void Stop()                 {}
   virtual void Shutdown()             {}
   virtual void Pause()                {}

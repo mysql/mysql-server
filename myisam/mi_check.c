@@ -80,6 +80,7 @@ void myisamchk_init(MI_CHECK *param)
   param->start_check_pos=0;
   param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
+  param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 }
 
 	/* Check the status flags for the table */
@@ -559,10 +560,11 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 		     ha_checksum *key_checksum, uint level)
 {
   int flag;
-  uint used_length,comp_flag,nod_flag,key_length=0,not_used;
+  uint used_length,comp_flag,nod_flag,key_length=0;
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
   my_off_t next_page,record;
   char llbuff[22];
+  uint diff_pos;
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
@@ -620,7 +622,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     }
     if ((*keys)++ &&
 	(flag=ha_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
-			 comp_flag, &not_used)) >=0)
+			 comp_flag, &diff_pos)) >=0)
     {
       DBUG_DUMP("old",(byte*) info->lastkey, info->lastkey_length);
       DBUG_DUMP("new",(byte*) key, key_length);
@@ -636,11 +638,11 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     {
       if (*keys != 1L)				/* not first_key */
       {
-	uint diff;
-	ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
-		   SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
-		   &diff);
-	param->unique_count[diff-1]++;
+        if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
+          ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
+                     SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
+                     &diff_pos);
+	param->unique_count[diff_pos-1]++;
       }
     }
     (*key_checksum)+= mi_byte_checksum((byte*) key,
@@ -1045,9 +1047,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	      /* We don't need to lock the key tree here as we don't allow
 		 concurrent threads when running myisamchk
 	      */
-              int search_result= (keyinfo->flag & HA_SPATIAL) ?
+              int search_result=
+#ifdef HAVE_RTREE_KEYS
+                (keyinfo->flag & HA_SPATIAL) ?
                 rtree_find_first(info, key, info->lastkey, key_length,
                                  SEARCH_SAME) : 
+#endif
                 _mi_search(info,keyinfo,info->lastkey,key_length,
                            SEARCH_SAME, info->s->state.key_root[key]);
               if (search_result)
@@ -1090,7 +1095,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 			 "Keypointers and record positions doesn't match");
     error=1;
   }
-  else if (param->glob_crc != info->s->state.checksum &&
+  else if (param->glob_crc != info->state->checksum &&
 	   (info->s->options &
 	    (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD)))
   {
@@ -1386,7 +1391,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     info->state->data_file_length=sort_param.max_pos;
   }
   if (param->testflag & T_CALC_CHECKSUM)
-    share->state.checksum=param->glob_crc;
+    info->state->checksum=param->glob_crc;
 
   if (!(param->testflag & T_SILENT))
   {
@@ -2014,7 +2019,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_param.sort_info=&sort_info;
   sort_param.fix_datafile= (my_bool) (! rep_quick);
   sort_param.master =1;
-
+  
   del=info->state->del;
   param->glob_crc=0;
   if (param->testflag & T_CALC_CHECKSUM)
@@ -2154,7 +2159,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 			       my_errno);
   }
   if (param->testflag & T_CALC_CHECKSUM)
-    share->state.checksum=param->glob_crc;
+    info->state->checksum=param->glob_crc;
 
   if (my_chsize(share->kfile,info->state->key_file_length,0,MYF(0)))
     mi_check_print_warning(param,
@@ -2575,7 +2580,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			       my_errno);
   }
   if (param->testflag & T_CALC_CHECKSUM)
-    share->state.checksum=param->glob_crc;
+    info->state->checksum=param->glob_crc;
 
   if (my_chsize(share->kfile,info->state->key_file_length,0,MYF(0)))
     mi_check_print_warning(param,
@@ -3194,9 +3199,11 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       break;
     case COMPRESSED_RECORD:
       reclength=info->packed_length;
-      length=save_pack_length(block_buff,reclength);
+      length= save_pack_length((uint) share->pack.version, block_buff,
+                               reclength);
       if (info->s->base.blobs)
-	length+=save_pack_length(block_buff+length,info->blob_length);
+	length+= save_pack_length((uint) share->pack.version,
+	                          block_buff + length, info->blob_length);
       if (my_b_write(&info->rec_cache,block_buff,length) ||
 	  my_b_write(&info->rec_cache,(byte*) sort_param->rec_buff,reclength))
       {
@@ -3248,9 +3255,10 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
     cmp=ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
 		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
 		   &diff_pos);
-    ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
-               (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
-               &diff_pos);
+    if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
+      ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
+                 (uchar*) a, USE_WHOLE_KEY, 
+                 SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, &diff_pos);
     sort_param->unique[diff_pos-1]++;
   }
   else
@@ -3803,7 +3811,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     (*org_info)->s->state.create_time=share.state.create_time;
   (*org_info)->s->state.unique=(*org_info)->this_unique=
     share.state.unique;
-  (*org_info)->s->state.checksum=share.state.checksum;
+  (*org_info)->state->checksum=info.state->checksum;
   (*org_info)->state->del=info.state->del;
   (*org_info)->s->state.dellink=share.state.dellink;
   (*org_info)->state->empty=info.state->empty;
@@ -3987,9 +3995,10 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     unique[0]= (#different values of {keypart1}) - 1
     unique[1]= (#different values of {keypart2,keypart1} tuple) - unique[0] - 1
     ...
-    Here we assume that NULL != NULL (see SEARCH_NULL_ARE_NOT_EQUAL). The
-    'unique' array is collected in one sequential scan through the entire
+    The 'unique' array is collected in one sequential scan through the entire
     index. This is done in two places: in chk_index() and in sort_key_write().
+    Statistics collection may consider NULLs as either equal or unequal (see
+    SEARCH_NULL_ARE_NOT_EQUAL, MI_STATS_METHOD_*).
 
     Output is an array:
     rec_per_key_part[k] = 

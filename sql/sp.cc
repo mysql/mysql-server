@@ -107,7 +107,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 {
   TABLE_LIST tables;
   TABLE *table;
-  bool refresh;
+  bool not_used;
   DBUG_ENTER("open_proc_table");
 
   /*
@@ -122,7 +122,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*)"proc";
-  if (!(table= open_table(thd, &tables, thd->mem_root, &refresh,
+  if (!(table= open_table(thd, &tables, thd->mem_root, &not_used,
                           MYSQL_LOCK_IGNORE_FLUSH)))
   {
     thd->restore_backup_open_tables_state(backup);
@@ -138,7 +138,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
     could lead to a deadlock if we have other tables opened.
   */
   if (!(thd->lock= mysql_lock_tables(thd, &table, 1,
-                                     MYSQL_LOCK_IGNORE_FLUSH)))
+                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
     close_proc_table(thd, backup);
     DBUG_RETURN(0);
@@ -208,7 +208,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 {
   byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   /*
@@ -223,7 +223,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   table->field[0]->store(name->m_db.str, name->m_db.length, &my_charset_bin);
   table->field[1]->store(name->m_name.str, name->m_name.length,
                          &my_charset_bin);
-  table->field[2]->store((longlong) type);
+  table->field[2]->store((longlong) type, TRUE);
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
@@ -275,7 +275,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   ulong sql_mode;
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("db_find_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   *sphp= 0;                                     // In case of errors
@@ -479,7 +479,8 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   char olddb[128];
   bool dbchanged;
   DBUG_ENTER("db_create_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",type,sp->m_name.length,sp->m_name.str));
+  DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
+                       sp->m_name.str));
 
   dbchanged= FALSE;
   if ((ret= sp_use_new_db(thd, sp->m_db.str, olddb, sizeof(olddb),
@@ -494,7 +495,8 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   else
   {
     restore_record(table, s->default_values); // Get default values for fields
-    strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
+    strxmov(definer, thd->security_ctx->priv_user, "@",
+            thd->security_ctx->priv_host, NullS);
 
     if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
     {
@@ -569,7 +571,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 	  goto done;
 	}
       }
-      if (!(thd->master_access & SUPER_ACL))
+      if (!(thd->security_ctx->master_access & SUPER_ACL))
       {
 	my_message(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,
 		   ER(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER), MYF(0));
@@ -605,7 +607,7 @@ db_drop_routine(THD *thd, int type, sp_name *name)
   TABLE *table;
   int ret;
   DBUG_ENTER("db_drop_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -627,7 +629,7 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   int ret;
   bool opened;
   DBUG_ENTER("db_update_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -921,7 +923,7 @@ sp_find_procedure(THD *thd, sp_name *name, bool cache_only)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_procedure");
-  DBUG_PRINT("enter", ("name: %*s.%*s",
+  DBUG_PRINT("enter", ("name: %.*s.%.*s",
 		       name->m_db.length, name->m_db.str,
 		       name->m_name.length, name->m_name.str));
 
@@ -979,7 +981,7 @@ sp_create_procedure(THD *thd, sp_head *sp)
 {
   int ret;
   DBUG_ENTER("sp_create_procedure");
-  DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", sp->m_name.length, sp->m_name.str));
 
   ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, sp);
   DBUG_RETURN(ret);
@@ -991,7 +993,7 @@ sp_drop_procedure(THD *thd, sp_name *name)
 {
   int ret;
   DBUG_ENTER("sp_drop_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name);
   if (!ret)
@@ -1005,7 +1007,7 @@ sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
   DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, chistics);
   if (!ret)
@@ -1019,7 +1021,7 @@ sp_show_create_procedure(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_show_create_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   if ((sp= sp_find_procedure(thd, name)))
   {
@@ -1071,7 +1073,7 @@ sp_find_function(THD *thd, sp_name *name, bool cache_only)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_function");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)) &&
       !cache_only)
@@ -1088,7 +1090,7 @@ sp_create_function(THD *thd, sp_head *sp)
 {
   int ret;
   DBUG_ENTER("sp_create_function");
-  DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", sp->m_name.length, sp->m_name.str));
 
   ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, sp);
   DBUG_RETURN(ret);
@@ -1100,7 +1102,7 @@ sp_drop_function(THD *thd, sp_name *name)
 {
   int ret;
   DBUG_ENTER("sp_drop_function");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name);
   if (!ret)
@@ -1114,7 +1116,7 @@ sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
   DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, chistics);
   if (!ret)
@@ -1128,7 +1130,7 @@ sp_show_create_function(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_show_create_function");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   if ((sp= sp_find_function(thd, name)))
   {
@@ -1265,7 +1267,8 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
 
 
 /*
-  Add routine to the set of stored routines used by statement.
+  Add routine which is explicitly used by statement to the set of stored
+  routines used by this statement.
 
   SYNOPSIS
     sp_add_used_routine()
@@ -1276,7 +1279,8 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
       rt_type - routine type (one of TYPE_ENUM_PROCEDURE/...)
 
   NOTES
-    Will also add element to end of 'LEX::sroutines_list' list.
+    Will also add element to end of 'LEX::sroutines_list' list (and will
+    take into account that this is explicitly used routine).
 
     To be friendly towards prepared statements one should pass
     persistent arena as second argument.
@@ -1287,6 +1291,37 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
 {
   rt->set_routine_type(rt_type);
   (void)add_used_routine(lex, arena, &rt->m_sroutines_key);
+  lex->sroutines_list_own_last= lex->sroutines_list.next;
+  lex->sroutines_list_own_elements= lex->sroutines_list.elements;
+}
+
+
+/*
+  Remove routines which are only indirectly used by statement from
+  the set of routines used by this statement.
+
+  SYNOPSIS
+    sp_remove_not_own_routines()
+      lex  LEX representing statement
+*/
+
+void sp_remove_not_own_routines(LEX *lex)
+{
+  Sroutine_hash_entry *not_own_rt, *next_rt;
+  for (not_own_rt= *(Sroutine_hash_entry **)lex->sroutines_list_own_last;
+       not_own_rt; not_own_rt= next_rt)
+  {
+    /*
+      It is safe to obtain not_own_rt->next after calling hash_delete() now
+      but we want to be more future-proof.
+    */
+    next_rt= not_own_rt->next;
+    hash_delete(&lex->sroutines, (byte *)not_own_rt);
+  }
+
+  *(Sroutine_hash_entry **)lex->sroutines_list_own_last= NULL;
+  lex->sroutines_list.next= lex->sroutines_list_own_last;
+  lex->sroutines_list.elements= lex->sroutines_list_own_elements;
 }
 
 
@@ -1338,8 +1373,30 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
-    (void)add_used_routine(lex, thd->current_arena, &rt->key);
+    (void)add_used_routine(lex, thd->stmt_arena, &rt->key);
   }
+}
+
+
+/*
+  Add contents of list representing set of routines to the set of
+  routines used by statement.
+
+  SYNOPSIS
+    sp_update_stmt_used_routines()
+      thd  Thread context
+      lex  LEX representing statement
+      src  List representing set from which routines will be added
+
+  NOTE
+    It will also add elements to end of 'LEX::sroutines_list' list.
+*/
+
+static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src)
+{
+  for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
+       rt; rt= rt->next)
+    (void)add_used_routine(lex, thd->stmt_arena, &rt->key);
 }
 
 
@@ -1463,7 +1520,7 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
 {
   Sroutine_hash_entry **last_cached_routine_ptr=
                           (Sroutine_hash_entry **)lex->sroutines_list.next;
-  sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines);
+  sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines_list);
   (void)sp_cache_routines_and_add_tables_aux(thd, lex, 
                                              *last_cached_routine_ptr, FALSE);
 }
@@ -1485,7 +1542,7 @@ void
 sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                               Table_triggers_list *triggers)
 {
-  if (add_used_routine(lex, thd->current_arena, &triggers->sroutines_key))
+  if (add_used_routine(lex, thd->stmt_arena, &triggers->sroutines_key))
   {
     Sroutine_hash_entry **last_cached_routine_ptr=
                             (Sroutine_hash_entry **)lex->sroutines_list.next;

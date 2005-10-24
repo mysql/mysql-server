@@ -98,7 +98,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_RETURN_REAL_PATH	32	/* return full path for file */
 #define MY_SAFE_PATH		64	/* Return NULL if too long path */
 #define MY_RELATIVE_PATH	128	/* name is relative to 'dir' */
-#define MY_UNIX_PATH		256	/* convert path to UNIX format */
 
 	/* My seek flags */
 #define MY_SEEK_SET	0
@@ -159,7 +158,8 @@ extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strdup_with_length(const byte *from, uint length,
 				   myf MyFlags);
-#define my_free(PTR,FG) my_no_flags_free(PTR)
+/* we do use FG (as a no-op) in below so that a typo on FG is caught */
+#define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */
@@ -237,9 +237,6 @@ extern CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
-extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
-		my_cache_read;
-extern ulong	my_blocks_used, my_blocks_changed;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern uint	mysys_usage_id;
 extern my_bool	my_init_done;
@@ -265,6 +262,7 @@ extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
 extern const char *defaults_group_suffix;
+extern const char *defaults_file;
 
 extern my_bool timed_mutexes;
 
@@ -283,7 +281,7 @@ enum loglevel {
 
 enum cache_type
 {
-  READ_CACHE,WRITE_CACHE,
+  TYPE_NOT_SET= 0, READ_CACHE, WRITE_CACHE,
   SEQ_READ_APPEND		/* sequential read or append */,
   READ_FIFO, READ_NET,WRITE_NET};
 
@@ -778,6 +776,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 			    uint pre_alloc_size);
 extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
+extern gptr multi_alloc_root(MEM_ROOT *mem_root, ...);
 extern void free_root(MEM_ROOT *root, myf MyFLAGS);
 extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
@@ -889,6 +888,9 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
                             DWORD owner_rights, DWORD everybody_rights);
 
 void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
+
+/* implemented in my_conio.c */
+char* my_cgets(char *string, unsigned long clen, unsigned long* plen);
 
 #endif
 #ifdef __NETWARE__

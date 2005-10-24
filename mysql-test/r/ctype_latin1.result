@@ -296,6 +296,9 @@ FD	C3BD	FD	1
 FE	C3BE	FE	1
 FF	C3BF	FF	1
 DROP TABLE t1;
+SELECT 1 as ƒ, 2 as Š, 3 as Œ, 4 as Ž, 5 as š, 6 as œ, 7 as ž, 8 as Ÿ;
+ƒ	Š	Œ	Ž	š	œ	ž	Ÿ
+1	2	3	4	5	6	7	8
 select 'a' regexp 'A' collate latin1_general_ci;
 'a' regexp 'A' collate latin1_general_ci
 1
@@ -315,6 +318,24 @@ latin1_swedish_ci	6109
 latin1_swedish_ci	61
 latin1_swedish_ci	6120
 drop table t1;
+select @@collation_connection;
+@@collation_connection
+latin1_swedish_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
 SET collation_connection='latin1_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -324,6 +345,24 @@ collation(a)	hex(a)
 latin1_bin	6109
 latin1_bin	61
 latin1_bin	6120
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+latin1_bin
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
 drop table t1;
 CREATE TABLE „a (a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '„a (a int)' at line 1

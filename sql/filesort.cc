@@ -50,7 +50,8 @@ static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 		       IO_CACHE *outfile);
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count, 
                        FILESORT_INFO *table_sort);
-static uint sortlength(SORT_FIELD *sortorder, uint s_length,
+static uint suffix_length(ulong string_length);
+static uint sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
 		       bool *multi_byte_charset);
 static SORT_ADDON_FIELD *get_addon_fields(THD *thd, Field **ptabfield,
                                           uint sortlength, uint *plength);
@@ -123,7 +124,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   sort_keys= (uchar **) NULL;
   error= 1;
   bzero((char*) &param,sizeof(param));
-  param.sort_length= sortlength(sortorder, s_length, &multi_byte_charset);
+  param.sort_length= sortlength(thd, sortorder, s_length, &multi_byte_charset);
   param.ref_length= table->file->ref_length;
   param.addon_field= 0;
   param.addon_length= 0;
@@ -466,7 +467,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
 	  record+= sort_form->s->db_record_offset;
 	}
-	else
+	else if (!error)
 	  file->position(sort_form->record[0]);
       }
       if (error && error != HA_ERR_RECORD_DELETED)
@@ -585,6 +586,28 @@ err:
 } /* write_keys */
 
 
+/*
+  Store length as suffix in high-byte-first order
+*/
+
+static inline void store_length(uchar *to, uint length, uint pack_length)
+{
+  switch (pack_length) {
+  case 1:
+    *to= (uchar) length;
+    break;
+  case 2:
+    mi_int2store(to, length);
+    break;
+  case 3:
+    mi_int3store(to, length);
+  default:
+    mi_int4store(to, length);
+    break;
+  }
+}
+
+
 	/* makes a sort-key from record */
 
 static void make_sortkey(register SORTPARAM *param,
@@ -623,9 +646,11 @@ static void make_sortkey(register SORTPARAM *param,
       maybe_null= item->maybe_null;
       switch (sort_field->result_type) {
       case STRING_RESULT:
-	{
+      {
           CHARSET_INFO *cs=item->collation.collation;
 	  char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
+          int diff;
+          uint sort_field_length;
 
 	  if (maybe_null)
 	    *to++=1;
@@ -644,24 +669,32 @@ static void make_sortkey(register SORTPARAM *param,
 	    }
 	    break;
 	  }
-	  length=res->length();
-	  int diff=(int) (sort_field->length-length);
+	  length= res->length();
+          sort_field_length= sort_field->length - sort_field->suffix_length;
+	  diff=(int) (sort_field_length - length);
 	  if (diff < 0)
 	  {
 	    diff=0;				/* purecov: inspected */
-	    length=sort_field->length;
+	    length= sort_field_length;
 	  }
+          if (sort_field->suffix_length)
+          {
+            /* Store length last in result_string */
+            store_length(to + sort_field_length, length,
+                         sort_field->suffix_length);
+          }
           if (sort_field->need_strxnfrm)
           {
 	    char *from=(char*) res->ptr();
+            uint tmp_length;
 	    if ((unsigned char *)from == to)
 	    {
 	      set_if_smaller(length,sort_field->length);
 	      memcpy(param->tmp_buffer,from,length);
 	      from=param->tmp_buffer;
 	    }
-	    uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
-					(unsigned char *) from, length);
+	    tmp_length= my_strnxfrm(cs,to,sort_field->length,
+                                    (unsigned char *) from, length);
             DBUG_ASSERT(tmp_length == sort_field->length);
           }
           else
@@ -670,7 +703,7 @@ static void make_sortkey(register SORTPARAM *param,
              cs->cset->fill(cs, (char *)to+length,diff,fill_char);
           }
 	  break;
-	}
+      }
       case INT_RESULT:
 	{
           longlong value= item->val_int_result();
@@ -1170,11 +1203,25 @@ static int merge_index(SORTPARAM *param, uchar *sort_buffer,
 } /* merge_index */
 
 
+static uint suffix_length(ulong string_length)
+{
+  if (string_length < 256)
+    return 1;
+  if (string_length < 256L*256L)
+    return 2;
+  if (string_length < 256L*256L*256L)
+    return 3;
+  return 4;                                     // Can't sort longer than 4G
+}
+
+
+
 /*
   Calculate length of sort key
 
   SYNOPSIS
     sortlength()
+    thd			Thread handler
     sortorder		Order of items to sort
     uint s_length	Number of items to sort
     multi_byte_charset  (out)
@@ -1190,10 +1237,10 @@ static int merge_index(SORTPARAM *param, uchar *sort_buffer,
 */
 
 static uint
-sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
+sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
+           bool *multi_byte_charset)
 {
   reg2 uint length;
-  THD *thd= current_thd;
   CHARSET_INFO *cs;
   *multi_byte_charset= 0;
 
@@ -1201,19 +1248,17 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
   for (; s_length-- ; sortorder++)
   {
     sortorder->need_strxnfrm= 0;
+    sortorder->suffix_length= 0;
     if (sortorder->field)
     {
-      if (sortorder->field->type() == FIELD_TYPE_BLOB)
-	sortorder->length= thd->variables.max_sort_length;
-      else
+      cs= sortorder->field->sort_charset();
+      sortorder->length= sortorder->field->sort_length();
+
+      if (use_strnxfrm((cs=sortorder->field->sort_charset())))
       {
-	sortorder->length=sortorder->field->pack_length();
-	if (use_strnxfrm((cs=sortorder->field->sort_charset())))
-	{
-	  sortorder->need_strxnfrm= 1;
-	  *multi_byte_charset= 1;
-          sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
-	}
+        sortorder->need_strxnfrm= 1;
+        *multi_byte_charset= 1;
+        sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
       }
       if (sortorder->field->maybe_null())
 	length++;				// Place for NULL marker
@@ -1229,6 +1274,12 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;
 	}
+        else if (cs == &my_charset_bin)
+        {
+          /* Store length last to be able to sort blob/varbinary */
+          sortorder->suffix_length= suffix_length(sortorder->length);
+          sortorder->length+= sortorder->suffix_length;
+        }
 	break;
       case INT_RESULT:
 #if SIZEOF_LONG_LONG > 4

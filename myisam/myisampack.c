@@ -2008,7 +2008,7 @@ static char *hexdigits(ulonglong value)
 static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
 			my_off_t tot_elements,my_off_t filelength)
 {
-  byte *buff=file_buffer.pos;
+  byte *buff= (byte*) file_buffer.pos;
 
   bzero(buff,HEAD_LENGTH);
   memcpy_fixed(buff,myisam_pack_file_magic,4);
@@ -2024,7 +2024,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   if (test_only)
     return 0;
   VOID(my_seek(file_buffer.file,0L,MY_SEEK_SET,MYF(0)));
-  return my_write(file_buffer.file,file_buffer.pos,HEAD_LENGTH,
+  return my_write(file_buffer.file,(const byte *) file_buffer.pos,HEAD_LENGTH,
 		  MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)) != 0;
 }
 
@@ -2417,6 +2417,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   HUFF_COUNTS *count,*end_count;
   HUFF_TREE *tree;
   MI_INFO *isam_file=mrg->file[0];
+  uint pack_version= (uint) isam_file->s->pack.version;
   DBUG_ENTER("compress_isam_file");
 
   /* Allocate a buffer for the records (excluding blobs). */
@@ -2455,25 +2456,11 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  huff_counts[i].tree->height+huff_counts[i].length_bits;
   }
   max_calc_length= (max_calc_length + 7) / 8;
-  if (max_calc_length < 254)
-    pack_ref_length=1;
-  else if (max_calc_length <= 65535)
-    pack_ref_length=3;
-  else
-    pack_ref_length=4;
-
+  pack_ref_length= calc_pack_length(pack_version, max_calc_length);
   record_count=0;
   /* 'max_blob_length' is the max length of all blobs of a record. */
-  pack_blob_length=0;
-  if (isam_file->s->base.blobs)
-  {
-    if (mrg->max_blob_length < 254)
-      pack_blob_length=1;
-    else if (mrg->max_blob_length <= 65535)
-      pack_blob_length=3;
-    else
-      pack_blob_length=4;
-  }
+  pack_blob_length= isam_file->s->base.blobs ?
+                    calc_pack_length(pack_version, mrg->max_blob_length) : 0;
   max_pack_length=pack_ref_length+pack_blob_length;
 
   DBUG_PRINT("fields", ("==="));
@@ -2485,7 +2472,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
     {
       if (flush_buffer((ulong) max_calc_length + (ulong) max_pack_length))
 	break;
-      record_pos=file_buffer.pos;
+      record_pos= (byte*) file_buffer.pos;
       file_buffer.pos+=max_pack_length;
       for (start_pos=record, count= huff_counts; count < end_count ; count++)
       {
@@ -2746,9 +2733,10 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       }
       flush_bits();
       length=(ulong) ((byte*) file_buffer.pos - record_pos) - max_pack_length;
-      pack_length=save_pack_length(record_pos,length);
+      pack_length= save_pack_length(pack_version, record_pos, length);
       if (pack_blob_length)
-	pack_length+=save_pack_length(record_pos+pack_length,tot_blob_length);
+	pack_length+= save_pack_length(pack_version, record_pos + pack_length,
+	                               tot_blob_length);
       DBUG_PRINT("fields", ("record: %lu  length: %lu  blob-length: %lu  "
                             "length-bytes: %lu", (ulong) record_count, length,
                             tot_blob_length, pack_length));
@@ -2807,7 +2795,8 @@ static char *make_old_name(char *new_name, char *old_name)
 static void init_file_buffer(File file, pbool read_buffer)
 {
   file_buffer.file=file;
-  file_buffer.buffer=my_malloc(ALIGN_SIZE(RECORD_CACHE_SIZE),MYF(MY_WME));
+  file_buffer.buffer= (uchar*) my_malloc(ALIGN_SIZE(RECORD_CACHE_SIZE),
+					 MYF(MY_WME));
   file_buffer.end=file_buffer.buffer+ALIGN_SIZE(RECORD_CACHE_SIZE)-8;
   file_buffer.pos_in_file=0;
   error_on_write=0;
@@ -2849,7 +2838,8 @@ static int flush_buffer(ulong neaded_length)
   file_buffer.pos_in_file+=length;
   if (test_only)
     return 0;
-  if (error_on_write|| my_write(file_buffer.file,file_buffer.buffer,
+  if (error_on_write|| my_write(file_buffer.file,
+				(const byte*) file_buffer.buffer,
 				length,
 				MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
   {
@@ -2862,13 +2852,13 @@ static int flush_buffer(ulong neaded_length)
   {
     char *tmp;
     neaded_length+=256;				/* some margin */
-    tmp=my_realloc(file_buffer.buffer, neaded_length,MYF(MY_WME));
+    tmp= my_realloc((char*) file_buffer.buffer, neaded_length,MYF(MY_WME));
     if (!tmp)
       return 1;
     file_buffer.pos= ((uchar*) tmp +
                       (ulong) (file_buffer.pos - file_buffer.buffer));
-    file_buffer.buffer=tmp;
-    file_buffer.end=tmp+neaded_length-8;
+    file_buffer.buffer= (uchar*) tmp;
+    file_buffer.end= (uchar*) (tmp+neaded_length-8);
   }
   return 0;
 }
@@ -2977,7 +2967,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
     share->state.key_root[key]= HA_OFFSET_ERROR;
   for (key=0 ; key < share->state.header.max_block_size ; key++)
     share->state.key_del[key]= HA_OFFSET_ERROR;
-  share->state.checksum=crc;		/* Save crc here */
+  isam_file->state->checksum=crc;       /* Save crc here */
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;
@@ -3013,7 +3003,7 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   state.dellink= HA_OFFSET_ERROR;
   state.version=(ulong) time((time_t*) 0);
   mi_clear_all_keys_active(state.key_map);
-  state.checksum=crc;
+  state.state.checksum=crc;
   if (isam_file->s->base.keys)
     isamchk_neaded=1;
   state.changed=STATE_CHANGED | STATE_NOT_ANALYZED; /* Force check of table */

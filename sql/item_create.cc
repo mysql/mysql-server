@@ -109,7 +109,7 @@ Item *create_func_dayofmonth(Item* a)
 
 Item *create_func_dayofweek(Item* a)
 {
-  return new Item_func_weekday(new Item_func_to_days(a),1);
+  return new Item_func_weekday(a, 1);
 }
 
 Item *create_func_dayofyear(Item* a)
@@ -119,7 +119,7 @@ Item *create_func_dayofyear(Item* a)
 
 Item *create_func_dayname(Item* a)
 {
-  return new Item_func_dayname(new Item_func_to_days(a));
+  return new Item_func_dayname(a);
 }
 
 Item *create_func_degrees(Item *a)
@@ -443,7 +443,7 @@ Item *create_func_version(void)
 
 Item *create_func_weekday(Item* a)
 {
-  return new Item_func_weekday(new Item_func_to_days(a),0);
+  return new Item_func_weekday(a, 0);
 }
 
 Item *create_func_year(Item* a)
