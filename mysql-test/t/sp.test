@@ -4434,6 +4434,62 @@ drop procedure bug13941|
 
 
 #
+# BUG#13095: Cannot create VIEWs in prepared statements
+#
+
+delimiter ;|
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug13095;
+DROP TABLE IF EXISTS bug13095_t1;
+DROP VIEW IF EXISTS bug13095_v1;
+--enable_warnings
+
+delimiter |;
+
+CREATE PROCEDURE bug13095(tbl_name varchar(32))
+BEGIN
+  SET @str =
+    CONCAT("CREATE TABLE ", tbl_name, "(stuff char(15))");
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+
+  SET @str =
+    CONCAT("INSERT INTO ", tbl_name, " VALUES('row1'),('row2'),('row3')" );
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+
+  SET @str =
+    CONCAT("CREATE VIEW bug13095_v1(c1) AS SELECT stuff FROM ", tbl_name);
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+
+  SELECT * FROM bug13095_v1;
+
+  SET @str =
+    "DROP VIEW bug13095_v1";
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+END|
+
+delimiter ;|
+
+CALL bug13095('bug13095_t1');
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug13095;
+DROP VIEW IF EXISTS bug13095_v1;
+DROP TABLE IF EXISTS bug13095_t1;
+--enable_warnings
+
+delimiter |;
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
