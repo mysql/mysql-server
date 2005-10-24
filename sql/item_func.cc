@@ -4503,7 +4503,6 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component)
 {
   sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
   LEX_STRING *base_name, *component_name;
 
   if (component.str == 0 &&

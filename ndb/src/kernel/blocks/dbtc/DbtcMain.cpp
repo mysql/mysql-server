@@ -4660,6 +4660,7 @@ void Dbtc::copyApi(Signal* signal)
   regTmpApiPtr->commitAckMarker = RNIL;
   regTmpApiPtr->firstTcConnect = RNIL;
   regTmpApiPtr->lastTcConnect = RNIL;
+  releaseAllSeizedIndexOperations(regTmpApiPtr);
 }//Dbtc::copyApi()
 
 void Dbtc::unlinkApiConnect(Signal* signal) 
@@ -10241,7 +10242,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   // apiConnectptr.p->apiConnectstate = CS_CONNECTED;
   apiConnectptr.p->apiConnectstate = CS_ABORTING;
   apiConnectptr.p->abortState = AS_IDLE;
-
+  releaseAllSeizedIndexOperations(apiConnectptr.p);
   if(apiConnectptr.p->m_exec_flag || apiConnectptr.p->apiFailState == ZTRUE){
     jam();
     bool ok = false;
@@ -10813,6 +10814,33 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     c_counters.reset();
     signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::TcStartDumpIndexOpCount)
+  {
+    static int frequency = 1;
+    if (signal->getLength() > 1)
+      frequency = signal->theData[1];
+    else
+      if (refToBlock(signal->getSendersBlockRef()) != DBTC)
+	frequency = 1;
+    
+    if (frequency)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpIndexOpCount;
+      execDUMP_STATE_ORD(signal);
+      dumpState->args[0] = DumpStateOrd::TcStartDumpIndexOpCount;
+      
+      Uint32 delay = 1000 * (frequency > 25 ? 25 : frequency);
+      sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, delay, 1);
+    }
+  }
+  
+  if (dumpState->args[0] == DumpStateOrd::TcDumpIndexOpCount)
+  {
+    infoEvent("IndexOpCount: pool: %d free: %d", 
+	      c_theIndexOperationPool.getSize(),
+	      c_theIndexOperationPool.getNoOfFree());
   }
 }//Dbtc::execDUMP_STATE_ORD()
 
