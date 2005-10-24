@@ -86,15 +86,9 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 		position and this should also be compared
     diff_pos    OUT Number of first keypart where values differ, counting 
                 from one.
-  
-  DESCRIPTION
-    If SEARCH_RETURN_B_POS flag is set, diff_pos must point to array of 2
-    values, first value has the meaning as described in parameter
-    description above, the second value is:
-
-    diff_pos[1]  OUT  (b + diff_pos[1]) points to first value in tuple b
+    diff_pos[1] OUT  (b + diff_pos[1]) points to first value in tuple b
                       that is different from corresponding value in tuple a.
-
+  
   EXAMPLES 
    Example1: if the function is called for tuples
      ('aaa','bbb') and ('eee','fff'), then
@@ -137,9 +131,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
     uchar *end;
     uint piks=! (keyseg->flag & HA_NO_SORT);
     (*diff_pos)++;
-
-    if (nextflag & SEARCH_RETURN_B_POS)
-      diff_pos[1]= (uint)(b - orig_b);
+    diff_pos[1]= (uint)(b - orig_b);
 
     /* Handle NULL part */
     if (keyseg->null_bit)
