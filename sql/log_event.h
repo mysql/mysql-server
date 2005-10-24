@@ -403,20 +403,21 @@ enum Log_event_type
     Every time you update this enum (when you add a type), you have to
     fix Format_description_log_event::Format_description_log_event().
   */
-  UNKNOWN_EVENT= 0, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
-  INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
-  APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
+  UNKNOWN_EVENT= 0, START_EVENT_V3= 1, QUERY_EVENT= 2, STOP_EVENT= 3,
+  ROTATE_EVENT= 4, INTVAR_EVENT= 5, LOAD_EVENT= 6, SLAVE_EVENT= 7,
+  CREATE_FILE_EVENT= 8, APPEND_BLOCK_EVENT= 9, EXEC_LOAD_EVENT= 10,
+  DELETE_FILE_EVENT= 11,
   /*
     NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
     sql_ex, allowing multibyte TERMINATED BY etc; both types share the
     same class (Load_log_event)
   */
-  NEW_LOAD_EVENT,
-  RAND_EVENT, USER_VAR_EVENT,
-  FORMAT_DESCRIPTION_EVENT,
-  XID_EVENT,
-  BEGIN_LOAD_QUERY_EVENT,
-  EXECUTE_LOAD_QUERY_EVENT,
+  NEW_LOAD_EVENT= 12,
+  RAND_EVENT, USER_VAR_EVENT= 13,
+  FORMAT_DESCRIPTION_EVENT= 14,
+  XID_EVENT= 15,
+  BEGIN_LOAD_QUERY_EVENT= 16,
+  EXECUTE_LOAD_QUERY_EVENT= 17,
 
   /*
     add new events here - right above this comment!
