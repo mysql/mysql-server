@@ -181,6 +181,7 @@ private:
 
   // Private attributes
   const NdbIndexImpl* m_theIndex;
+  friend struct Ndb_free_list_t<NdbIndexOperation>;
 };
 
 #endif

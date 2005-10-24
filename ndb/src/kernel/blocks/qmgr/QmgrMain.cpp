@@ -166,6 +166,27 @@ void Qmgr::execPRES_TOREQ(Signal* signal)
   return;
 }//Qmgr::execPRES_TOREQ()
 
+void 
+Qmgr::execREAD_CONFIG_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
+}
+
 /*
 4.2  ADD NODE MODULE*/
 /*##########################################################################*/
@@ -700,11 +721,11 @@ void Qmgr::execCM_REGREF(Signal* signal)
     break;
   case CmRegRef::ZNOT_IN_CFG:
     jam();
-    progError(__LINE__, ERR_NODE_NOT_IN_CONFIG);
+    progError(__LINE__, NDBD_EXIT_NODE_NOT_IN_CONFIG);
     break;
   case CmRegRef::ZNOT_DEAD:
     jam();
-    progError(__LINE__, ERR_NODE_NOT_DEAD);
+    progError(__LINE__, NDBD_EXIT_NODE_NOT_DEAD);
     break;
   case CmRegRef::ZELECTION:
     jam();
@@ -1802,11 +1823,14 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
 /*******************************/
 /* DISCONNECT_REP             */
 /*******************************/
+const char *lookupConnectionError(Uint32 err);
+
 void Qmgr::execDISCONNECT_REP(Signal* signal) 
 {
   jamEntry();
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 nodeId = rep->nodeId;
+  const Uint32 err = rep->err;
   c_connectedNodes.clear(nodeId);
 
   NodeRecPtr nodePtr;
@@ -1817,10 +1841,17 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     jam();
     break;
   case ZINIT:
+    ndbrequire(false);
   case ZSTARTING:
+    progError(__LINE__, NDBD_EXIT_CONNECTION_SETUP_FAILED,
+	      lookupConnectionError(err));
+    ndbrequire(false);
   case ZPREPARE_FAIL:
+    ndbrequire(false);
   case ZFAIL_CLOSING:
+    ndbrequire(false);
   case ZAPI_ACTIVE:
+    ndbrequire(false);
   case ZAPI_INACTIVE:
     ndbrequire(false);
   }
@@ -2013,6 +2044,8 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   else
     conf->version =  0;
   conf->nodeId = nodeId;
+  struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
+  conf->inet_addr= in.s_addr;
 
   sendSignal(senderRef, 
 	     GSN_API_VERSION_CONF,
@@ -2678,7 +2711,7 @@ void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line,
 	   "Node was shutdown during startup because node %d failed",
 	   failedNodeId);
 
-  progError(line, ERR_SR_OTHERNODEFAILED, buf);  
+  progError(line, NDBD_EXIT_SR_OTHERNODEFAILED, buf);  
 }
 
 
@@ -2690,7 +2723,7 @@ void Qmgr::systemErrorLab(Signal* signal, Uint32 line, const char * message)
 
   // If it's known why shutdown occured
   // an error message has been passed to this function
-  progError(line, 0, message);  
+  progError(line, NDBD_EXIT_NDBREQUIRE, message);  
 
   return;
 }//Qmgr::systemErrorLab()
@@ -3784,7 +3817,8 @@ Qmgr::stateArbitCrash(Signal* signal)
   if (! (arbitRec.getTimediff() > getArbitTimeout()))
     return;
 #endif
-  progError(__LINE__, ERR_ARBIT_SHUTDOWN, "Arbitrator decided to shutdown this node");
+  progError(__LINE__, NDBD_EXIT_ARBIT_SHUTDOWN,
+            "Arbitrator decided to shutdown this node");
 }
 
 /**

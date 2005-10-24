@@ -126,6 +126,7 @@ typedef struct st_table_share
   const char *db;                       /* Pointer to db */
   const char *table_name;               /* Table name (for open) */
   const char *path;                     /* Path to .frm file (from datadir) */
+  LEX_STRING connect_string;
   key_map keys_in_use;                  /* Keys in use for table */
   key_map keys_for_keyread;
   ulong   avg_row_length;		/* create information */
@@ -140,7 +141,7 @@ typedef struct st_table_share
   enum tmp_table_type tmp_table;
 
   uint blob_ptr_size;			/* 4 or 8 */
-  uint null_bytes;
+  uint null_bytes, last_null_bit_pos;
   uint key_length;			/* Length of table_cache_key */
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
@@ -266,6 +267,9 @@ struct st_table {
   GRANT_INFO grant;
   FILESORT_INFO sort;
   TABLE_SHARE share_not_to_be_used;     /* To be deleted when true shares */
+
+  bool fill_item_list(List<Item> *item_list) const;
+  void reset_item_list(List<Item> *item_list) const;
 };
 
 
@@ -539,10 +543,12 @@ typedef struct st_table_list
   LEX_STRING	view_db;		/* saved view database */
   LEX_STRING	view_name;		/* saved view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
+  st_lex_user   definer;                /* definer of view */
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
+  ulonglong     view_suid;              /* view is suid (TRUE dy default) */
   ulonglong     with_check;             /* WITH CHECK OPTION */
   /*
     effective value of WITH CHECK OPTION (differ for temporary table
@@ -576,6 +582,7 @@ typedef struct st_table_list
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */
+  bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
@@ -602,6 +609,8 @@ typedef struct st_table_list
   st_table_list *first_leaf_for_name_resolution();
   st_table_list *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution();
+  inline st_table_list *top_table()
+    { return belong_to_view ? belong_to_view : this; }
   inline bool prepare_check_option(THD *thd)
   {
     bool res= FALSE;

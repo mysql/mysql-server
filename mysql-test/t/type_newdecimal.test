@@ -494,7 +494,7 @@ select 0.8 = 0.7 + 0.1;
 #
 #drop procedure p1;
 #
-delimiter //
+delimiter //;
 #
 create procedure p1 () begin 
   declare v1, v2, v3, v4 decimal(16,12); declare v5 int; 
@@ -1015,3 +1015,32 @@ create table t1 (
         f1 decimal (0,0) zerofill not null default 0);
 show create table t1;
 drop table t1;
+
+#
+# Bug 12938 (arithmetic loop's zero)
+#
+--disable-warnings
+drop procedure if exists wg2;
+--enable-warnings
+delimiter //;
+create procedure wg2()
+begin
+  declare v int default 1;
+  declare tdec decimal(5) default 0;
+  while v <= 9 do set tdec =tdec * 10;
+    select v, tdec;
+    set v = v + 1;
+  end while;
+end//
+
+call wg2()//
+
+delimiter ;//
+drop procedure wg2;
+
+#
+# Bug #12979 Stored procedures: crash if inout decimal parameter
+# (not a SP bug in fact)
+#
+
+select cast(@non_existing_user_var/2 as DECIMAL);

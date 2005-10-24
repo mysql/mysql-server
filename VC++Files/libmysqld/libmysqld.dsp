@@ -396,10 +396,6 @@ SOURCE=..\sql\protocol.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\sql\protocol_cursor.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\sql\records.cpp
 # End Source File
 # Begin Source File
@@ -553,6 +549,10 @@ SOURCE=..\sql\sql_test.cpp
 # Begin Source File
 
 SOURCE=..\sql\sql_trigger.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\sql_cursor.cpp
 # End Source File
 # Begin Source File
 

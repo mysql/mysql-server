@@ -390,6 +390,29 @@ SET GLOBAL table_cache=-1;
 SHOW VARIABLES LIKE 'table_cache';
 SET GLOBAL table_cache=DEFAULT;
 
+#
+# Bugs12363: character_set_results is nullable,
+# but value_ptr returns string "NULL"
+#
+set character_set_results=NULL;
+select ifnull(@@character_set_results,"really null");
+set names latin1;
+
+
+#
+# Bug #9613: @@have_innodb
+#
+
+--replace_column 1 #
+select @@have_innodb;
+
+#
+# Bug #13334: query_prealloc_size default less than minimum
+#
+set @test = @@query_prealloc_size;
+set @@query_prealloc_size = @test;
+select @@query_prealloc_size = @test;
+
 # End of 4.1 tests
 
 #
@@ -422,8 +445,12 @@ set @@max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
 
 #
-# Bug #9613: @@have_innodb
+# Bug #11775 Variable character_set_system does not exist (sometimes)
 #
+select @@character_set_system;
+--error 1238
+set global character_set_system = latin1;
+--error 1238
+set @@global.version_compile_os='234';
 
---replace_column 1 #
-select @@have_innodb;
+# End of 5.0 tests

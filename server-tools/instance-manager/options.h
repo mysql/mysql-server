@@ -16,21 +16,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
-#pragma interface
-#endif
-
 /*
   Options - all possible options for the instance manager grouped in one
   struct.
 */
 #include <my_global.h>
 
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
+#pragma interface
+#endif
+
 struct Options
 {
 #ifdef __WIN__
   static char install_as_service;
   static char remove_service;
+  static char stand_alone;
 #else
   static char run_as_service;        /* handle_options doesn't support bool */
   static const char *user;
@@ -52,7 +53,7 @@ struct Options
   int load(int argc, char **argv);
   void cleanup();
 #ifdef __WIN__
-  int setup_windows_defaults(const char *progname);
+  int setup_windows_defaults();
 #endif
 };
 

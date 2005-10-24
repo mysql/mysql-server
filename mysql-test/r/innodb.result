@@ -1378,9 +1378,9 @@ insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
 insert into `t3`values ( 1 ) ;
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
 update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 ERROR 42S22: Unknown column 't1.id' in 'where clause'
 drop table t3,t2,t1;
@@ -1392,7 +1392,7 @@ foreign key(pid) references t1(id) on delete cascade) engine=innodb;
 insert into t1 values(0,0),(1,0),(2,1),(3,2),(4,3),(5,4),(6,5),(7,6),
 (8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14);
 delete from t1 where id=0;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`pid`) REFERENCES `t1` (`id`) ON DELETE CASCADE)
 delete from t1 where id=15;
 delete from t1 where id=0;
 drop table t1;
@@ -1719,6 +1719,26 @@ select * from t1;
 a
 42
 drop table t1;
+create table t1 (a int not null, b int not null, c blob not null, d int not null, e int, primary key (a,b,c(255),d)) engine=innodb;
+insert into t1 values (2,2,"b",2,2),(1,1,"a",1,1),(3,3,"ab",3,3);
+select * from t1 order by a,b,c,d;
+a	b	c	d	e
+1	1	a	1	1
+2	2	b	2	2
+3	3	ab	3	3
+explain select * from t1 order by a,b,c,d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using filesort
+drop table t1;
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+min(a)
+4
+select min(b) from t1 where a='8';
+min(b)
+6
+drop table t1;
 create table t1 (x bigint unsigned not null primary key) engine=innodb;
 insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
 select * from t1;
@@ -1765,7 +1785,7 @@ Variable_name	Value
 Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31722
+Innodb_rows_inserted	31727
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
@@ -1977,10 +1997,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 alter table t1 add unique(v);
 ERROR 23000: Duplicate entry '{ ' for key 1
 alter table t1 add key(v);
@@ -2168,10 +2188,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where
@@ -2248,10 +2268,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	33	NULL	#	Using where
 explain select count(*) from t1 where v between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	33	NULL	#	Using where
+1	SIMPLE	t1	ref	v	v	33	const	#	Using where
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	33	NULL	#	Using where
+1	SIMPLE	t1	ref	v	v	33	const	#	Using where
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	33	const	#	Using where
@@ -2527,3 +2547,228 @@ SELECT * FROM t1;
 id
 1
 DROP TABLE t2, t1;
+CREATE TABLE t1
+(
+id INT PRIMARY KEY
+) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t2
+(
+id INT NOT NULL PRIMARY KEY,
+b INT,
+FOREIGN KEY (b) REFERENCES test.t1(id)
+) ENGINE=InnoDB;
+Got one of the listed errors
+DROP TABLE t1;
+create table t1 (col1 varchar(2000), index (col1(767)))
+character set = latin1 engine = innodb;
+create table t2 (col1 char(255), index (col1))
+character set = latin1 engine = innodb;
+create table t3 (col1 binary(255), index (col1))
+character set = latin1 engine = innodb;
+create table t4 (col1 varchar(767), index (col1))
+character set = latin1 engine = innodb;
+create table t5 (col1 varchar(767) primary key)
+character set = latin1 engine = innodb;
+create table t6 (col1 varbinary(767) primary key)
+character set = latin1 engine = innodb;
+create table t7 (col1 text, index(col1(767)))
+character set = latin1 engine = innodb;
+create table t8 (col1 blob, index(col1(767)))
+character set = latin1 engine = innodb;
+create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
+character set = latin1 engine = innodb;
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+create table t1 (col1 varchar(768), index (col1))
+character set = latin1 engine = innodb;
+ERROR HY000: Can't create table './test/t1.frm' (errno: 139)
+create table t2 (col1 varchar(768) primary key)
+character set = latin1 engine = innodb;
+ERROR HY000: Can't create table './test/t2.frm' (errno: 139)
+create table t3 (col1 varbinary(768) primary key)
+character set = latin1 engine = innodb;
+ERROR HY000: Can't create table './test/t3.frm' (errno: 139)
+create table t4 (col1 text, index(col1(768)))
+character set = latin1 engine = innodb;
+ERROR HY000: Can't create table './test/t4.frm' (errno: 139)
+create table t5 (col1 blob, index(col1(768)))
+character set = latin1 engine = innodb;
+ERROR HY000: Can't create table './test/t5.frm' (errno: 139)
+CREATE TABLE t1
+(
+id INT PRIMARY KEY
+) ENGINE=InnoDB;
+CREATE TABLE t2
+(
+v INT,
+CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+DELETE FROM t1 WHERE id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
+DROP TABLE t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+INSERT INTO t2 VALUES(3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c1` FOREIGN KEY (`v`) REFERENCES `t1` (`id`))
+DROP TABLE t2;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=0;
+checksum table t1;
+Table	Checksum
+test.t1	1531596814
+insert into t1 values(3);
+checksum table t1;
+Table	Checksum
+test.t1	1531596814
+commit;
+checksum table t1;
+Table	Checksum
+test.t1	2050879373
+commit;
+drop table t1;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=1;
+checksum table t1;
+Table	Checksum
+test.t1	1531596814
+set autocommit=1;
+insert into t1 values(3);
+checksum table t1;
+Table	Checksum
+test.t1	2050879373
+drop table t1;
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+start transaction;
+select f1();
+f1()
+100
+ update t1 set col2=0 where col1=1;
+select * from t1;
+col1	col2
+1	100
+rollback;
+rollback;
+drop table t1;
+drop function f1;
+create table t1 (
+a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+create table t1 (
+a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+create table t1 (
+a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+create table t1 (
+a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+commit;

@@ -38,6 +38,7 @@ ulong sync_binlog_counter= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
+static bool binlog_init();
 static int binlog_close_connection(THD *thd);
 static int binlog_savepoint_set(THD *thd, void *sv);
 static int binlog_savepoint_rollback(THD *thd, void *sv);
@@ -45,8 +46,12 @@ static int binlog_commit(THD *thd, bool all);
 static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
-static handlerton binlog_hton = {
+handlerton binlog_hton = {
   "binlog",
+  SHOW_OPTION_YES,
+  "This is a meta storage engine to represent the binlog in a transaction",
+  DB_TYPE_UNKNOWN,              /* IGNORE  for now */
+  binlog_init,
   0,
   sizeof(my_off_t),             /* savepoint size = binlog offset */
   binlog_close_connection,
@@ -61,7 +66,7 @@ static handlerton binlog_hton = {
   NULL,                         /* rollback_by_xid */
   NULL,                         /* create_cursor_read_view */
   NULL,                         /* set_cursor_read_view */
-  NULL,    			/* close_cursor_read_view */
+  NULL,                         /* close_cursor_read_view */
   HTON_NO_FLAGS
 };
 
@@ -71,9 +76,9 @@ static handlerton binlog_hton = {
   should be moved here.
 */
 
-handlerton *binlog_init()
+bool binlog_init()
 {
-  return &binlog_hton;
+  return !opt_bin_log;
 }
 
 static int binlog_close_connection(THD *thd)
@@ -353,7 +358,7 @@ MYSQL_LOG::MYSQL_LOG()
   :bytes_written(0), last_time(0), query_start(0), name(0),
    file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
    need_start_event(1), prepared_xids(0), description_event_for_exec(0),
-   description_event_for_queue(0)
+   description_event_for_queue(0), readers_count(0), reset_pending(false)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -379,7 +384,9 @@ void MYSQL_LOG::cleanup()
     delete description_event_for_exec;
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
+    (void) pthread_mutex_destroy(&LOCK_readers);
     (void) pthread_cond_destroy(&update_cond);
+    (void) pthread_cond_destroy(&reset_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -424,7 +431,9 @@ void MYSQL_LOG::init_pthread_objects()
   inited= 1;
   (void) pthread_mutex_init(&LOCK_log,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_readers, MY_MUTEX_INIT_SLOW);
   (void) pthread_cond_init(&update_cond, 0);
+  (void) pthread_cond_init(&reset_cond, 0);
 }
 
 const char *MYSQL_LOG::generate_name(const char *log_name,
@@ -927,6 +936,13 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   */
   pthread_mutex_lock(&LOCK_log);
   pthread_mutex_lock(&LOCK_index);
+
+  /* 
+    we need one more lock to block attempts to open a log while
+    we are waiting untill all log files will be closed
+  */
+  pthread_mutex_lock(&LOCK_readers);
+
   /*
     The following mutex is needed to ensure that no threads call
     'delete thd' as we would then risk missing a 'rollback' from this
@@ -949,6 +965,19 @@ bool MYSQL_LOG::reset_logs(THD* thd)
     goto err;
   }
 
+  reset_pending= true;
+  /* 
+    send update signal just in case so that all reader threads waiting
+    for log update will leave wait condition
+  */
+  signal_update();
+  /* 
+    if there are active readers wait until all of them will 
+    release opened files 
+  */
+  if (readers_count)
+    pthread_cond_wait(&reset_cond, &LOCK_log);
+
   for (;;)
   {
     my_delete(linfo.log_file_name, MYF(MY_WME));
@@ -967,7 +996,10 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   my_free((gptr) save_name, MYF(0));
 
 err:
+  reset_pending= false;
+
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_readers);
   pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -1348,7 +1380,8 @@ void MYSQL_LOG::new_file(bool need_lock)
         to change base names at some point.
       */
       THD *thd = current_thd; /* may be 0 if we are reacting to SIGHUP */
-      Rotate_log_event r(thd,new_name+dirname_length(new_name));
+      Rotate_log_event r(thd,new_name+dirname_length(new_name),
+                         0, LOG_EVENT_OFFSET, 0);
       r.write(&log_file);
       bytes_written += r.data_written;
     }
@@ -1427,7 +1460,7 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
 
-  pthread_mutex_lock(&LOCK_log);
+  safe_mutex_assert_owner(&LOCK_log);
   do
   {
     if (my_b_append(&log_file,(byte*) buf,len))
@@ -1442,7 +1475,6 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
     new_file(0);
 
 err:
-  pthread_mutex_unlock(&LOCK_log);
   if (!error)
     signal_update();
   DBUG_RETURN(error);
@@ -1476,7 +1508,7 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
       {						// Normal thread
 	if ((thd->options & OPTION_LOG_OFF)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	    && (thd->master_access & SUPER_ACL)
+	    && (thd->security_ctx->master_access & SUPER_ACL)
 #endif
 )
 	{
@@ -1559,12 +1591,19 @@ void MYSQL_LOG::start_union_events(THD *thd)
   thd->binlog_evt_union.do_union= TRUE;
   thd->binlog_evt_union.unioned_events= FALSE;
   thd->binlog_evt_union.unioned_events_trans= FALSE;
+  thd->binlog_evt_union.first_query_id= thd->query_id;
 }
 
 void MYSQL_LOG::stop_union_events(THD *thd)
 {
   DBUG_ASSERT(thd->binlog_evt_union.do_union);
   thd->binlog_evt_union.do_union= FALSE;
+}
+
+bool MYSQL_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
+{
+  return (thd->binlog_evt_union.do_union && 
+          query_id_param >= thd->binlog_evt_union.first_query_id);
 }
 
 /*
@@ -1843,7 +1882,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 
     if (commit_event->write(&log_file))
       goto err;
+#ifndef DBUG_OFF
 DBUG_skip_commit:
+#endif
     if (flush_and_sync())
       goto err;
     DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
@@ -1908,6 +1949,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     }
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT) || query_start_arg)
     {
+      Security_context *sctx= thd->security_ctx;
       current_time=time(NULL);
       if (current_time != last_time)
       {
@@ -1928,10 +1970,12 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
           tmp_errno=errno;
       }
       if (my_b_printf(&log_file, "# User@Host: %s[%s] @ %s [%s]\n",
-                      thd->priv_user ? thd->priv_user : "",
-                      thd->user ? thd->user : "",
-                      thd->host ? thd->host : "",
-                      thd->ip ? thd->ip : "") == (uint) -1)
+                      sctx->priv_user ?
+                      sctx->priv_user : "",
+                      sctx->user ? sctx->user : "",
+                      sctx->host ? sctx->host : "",
+                      sctx->ip ? sctx->ip : "") ==
+          (uint) -1)
         tmp_errno=errno;
     }
     if (query_start_arg)
@@ -2028,6 +2072,10 @@ void MYSQL_LOG::wait_for_update(THD* thd, bool is_slave)
 {
   const char *old_msg;
   DBUG_ENTER("wait_for_update");
+  
+  if (reset_pending)
+    DBUG_VOID_RETURN;
+
   old_msg= thd->enter_cond(&update_cond, &LOCK_log,
                            is_slave ?
                            "Has read all relay log; waiting for the slave I/O "
@@ -2278,6 +2326,32 @@ void MYSQL_LOG::signal_update()
   DBUG_VOID_RETURN;
 }
 
+void MYSQL_LOG::readers_addref()
+{
+  /* 
+    There is no necessity for reference counting on *nix, since it allows to
+    delete opened files, however it is more clean way to wait
+    untill all files will be closed on *nix as well.
+  */
+  DBUG_ENTER("MYSQL_LOG::reader_addref");
+  pthread_mutex_lock(&LOCK_log);
+  pthread_mutex_lock(&LOCK_readers);
+  readers_count++;
+  pthread_mutex_unlock(&LOCK_readers);
+  pthread_mutex_unlock(&LOCK_log);
+  DBUG_VOID_RETURN;
+}
+
+void MYSQL_LOG::readers_release()
+{
+  DBUG_ENTER("MYSQL_LOG::reader_release");
+  pthread_mutex_lock(&LOCK_log);
+  readers_count--;
+  if (!readers_count)
+    pthread_cond_broadcast(&reset_cond);
+  pthread_mutex_unlock(&LOCK_log);
+  DBUG_VOID_RETURN;
+}
 
 #ifdef __NT__
 void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
@@ -2783,7 +2857,7 @@ void TC_LOG_MMAP::close()
   case 3:
     my_free((gptr)pages, MYF(0));
   case 2:
-    my_munmap(data, (size_t)file_length);
+    my_munmap((byte*)data, (size_t)file_length);
   case 1:
     my_close(fd, MYF(0));
   }

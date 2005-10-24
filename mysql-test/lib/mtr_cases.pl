@@ -61,22 +61,6 @@ sub collect_test_cases ($) {
         $elem= $tname;
         $tname =~ s/\.imtest$//;
         $component_id= 'im';
-
-        if ( $::glob_use_embedded_server )
-        {
-          mtr_report(
-            "Instance Manager's tests are not available in embedded mode." .
-            "Test case '$tname' is skipped.");
-          next;
-        }
-
-        unless ( $::exe_im )
-        {
-          mtr_report(
-            "Instance Manager executable is unavailable. " .
-            "Test case '$tname' is skipped.");
-          next;
-        }
       }
 
       # If target component is known, check that the specified test case
@@ -84,7 +68,7 @@ sub collect_test_cases ($) {
       # 
       # Otherwise, try to guess the target component.
 
-      if ( defined $component_id )
+      if ( $component_id )
       {
         if ( ! -f "$testdir/$elem")
         {
@@ -96,11 +80,11 @@ sub collect_test_cases ($) {
         my $mysqld_test_exists = -f "$testdir/$tname.test";
         my $im_test_exists = -f "$testdir/$tname.imtest";
 
-        if ( $mysqld_test_exists && $im_test_exists )
+        if ( $mysqld_test_exists and $im_test_exists )
         {
           mtr_error("Ambiguos test case name ($tname)");
         }
-        elsif ( ! $mysqld_test_exists && !$im_test_exists )
+        elsif ( ! $mysqld_test_exists and ! $im_test_exists )
         {
           mtr_error("Test case $tname is not found");
         }
@@ -115,7 +99,7 @@ sub collect_test_cases ($) {
           $component_id= 'im';
         }
       }
-      
+
       collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,{},
         $component_id);
     }
@@ -401,6 +385,34 @@ sub collect_one_test_case($$$$$$$) {
     $tinfo->{'skip'}= 1;
     $tinfo->{'disable'}= 1;   # Sub type of 'skip'
     $tinfo->{'comment'}= mtr_fromfile($disabled_file);
+  }
+
+  if ( $component_id eq 'im' )
+  {
+    if ( $::glob_use_embedded_server )
+    {
+      $tinfo->{'skip'}= 1;
+      
+      mtr_report(
+        "Instance Manager tests are not available in embedded mode. " .
+        "Test case '$tname' is skipped.");
+    }
+    elsif ( $::opt_ps_protocol )
+    {
+      $tinfo->{'skip'}= 1;
+      
+      mtr_report(
+        "Instance Manager tests are not run with --ps-protocol. " .
+        "Test case '$tname' is skipped.");
+    }
+    elsif ( $::opt_skip_im )
+    {
+      $tinfo->{'skip'}= 1;
+
+      mtr_report(
+        "Instance Manager executable is unavailable." .
+        "Test case '$tname' is skipped.");
+    }
   }
 
   # We can't restart a running server that may be in use

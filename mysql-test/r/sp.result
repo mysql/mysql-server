@@ -1916,7 +1916,7 @@ select bug3788()|
 bug3788()
 2005-03-04
 drop function bug3788|
-create function bug3788() returns binary(5) return 5|
+create function bug3788() returns binary(1) return 5|
 select bug3788()|
 bug3788()
 5
@@ -3085,6 +3085,19 @@ column_name	bug10055(t.column_name)
 id	id
 data	data
 drop function bug10055|
+drop procedure if exists bug12297|
+create procedure bug12297(lim int)
+begin
+set @x = 0;
+repeat
+insert into t1(id,data)
+values('aa', @x);
+set @x = @x + 1;
+until @x >= lim
+end repeat;
+end|
+call bug12297(10)|
+drop procedure bug12297|
 drop function if exists f_bug11247|
 drop procedure if exists p_bug11247|
 create function f_bug11247(param int)
@@ -3193,4 +3206,330 @@ set f1= concat( 'hello', f1 );
 return f1;
 end|
 drop function bug9048|
+drop procedure if exists bug12849_1|
+create procedure bug12849_1(inout x char) select x into x|
+set @var='a'|
+call bug12849_1(@var)|
+select @var|
+@var
+a
+drop procedure bug12849_1|
+drop procedure if exists bug12849_2|
+create procedure bug12849_2(inout foo varchar(15))
+begin
+select concat(foo, foo) INTO foo;
+end|
+set @var='abcd'|
+call bug12849_2(@var)|
+select @var|
+@var
+abcdabcd
+drop procedure bug12849_2|
+drop procedure if exists bug131333|
+drop function if exists bug131333|
+create procedure bug131333()
+begin
+begin
+declare a int;
+select a;
+set a = 1;
+select a;
+end;
+begin
+declare b int;
+select b;
+end;
+end|
+create function bug131333()
+returns int
+begin
+begin
+declare a int;
+set a = 1;
+end;
+begin
+declare b int;
+return b;
+end;
+end|
+call bug131333()|
+a
+NULL
+a
+1
+b
+NULL
+select bug131333()|
+bug131333()
+NULL
+drop procedure bug131333|
+drop function bug131333|
+drop function if exists bug12379|
+drop procedure if exists bug12379_1|
+drop procedure if exists bug12379_2|
+drop procedure if exists bug12379_3|
+drop table if exists t3|
+create table t3 (c1 char(1) primary key not null)|
+create function bug12379()
+returns integer
+begin
+insert into t3 values('X');
+insert into t3 values('X');
+return 0;
+end|
+create procedure bug12379_1()
+begin
+declare exit handler for sqlexception select 42;
+select bug12379();
+END|
+create procedure bug12379_2()
+begin
+declare exit handler for sqlexception begin end;
+select bug12379();
+end|
+create procedure bug12379_3()
+begin
+select bug12379();
+end|
+select bug12379()|
+ERROR 23000: Duplicate entry 'X' for key 1
+select 1|
+1
+1
+call bug12379_1()|
+bug12379()
+42
+42
+select 2|
+2
+2
+call bug12379_2()|
+bug12379()
+select 3|
+3
+3
+call bug12379_3()|
+ERROR 23000: Duplicate entry 'X' for key 1
+select 4|
+4
+4
+drop function bug12379|
+drop procedure bug12379_1|
+drop procedure bug12379_2|
+drop procedure bug12379_3|
+drop table t3|
+drop procedure if exists bug13124|
+create procedure bug13124()
+begin
+declare y integer;
+set @x=y;
+end|
+call bug13124()|
+drop procedure  bug13124|
+drop procedure if exists bug12979_1|
+create procedure bug12979_1(inout d decimal(5)) set d = d / 2|
+set @bug12979_user_var = NULL|
+call bug12979_1(@bug12979_user_var)|
+drop procedure bug12979_1|
+drop procedure if exists bug12979_2|
+create procedure bug12979_2()
+begin
+declare internal_var decimal(5);
+set internal_var= internal_var / 2;
+select internal_var;
+end|
+call bug12979_2()|
+internal_var
+NULL
+drop procedure bug12979_2|
+drop table if exists t3|
+drop procedure if exists bug6127|
+create table t3 (s1 int unique)|
+set @sm=@@sql_mode|
+set sql_mode='traditional'|
+create procedure bug6127()
+begin
+declare continue handler for sqlstate '23000'
+    begin
+declare continue handler for sqlstate '22003'
+        insert into t3 values (0);
+insert into t3 values (1000000000000000);
+end;
+insert into t3 values (1);
+insert into t3 values (1);
+end|
+call bug6127()|
+select * from t3|
+s1
+0
+1
+call bug6127()|
+ERROR 23000: Duplicate entry '0' for key 1
+select * from t3|
+s1
+0
+1
+set sql_mode=@sm|
+drop table t3|
+drop procedure bug6127|
+drop procedure if exists bug12589_1|
+drop procedure if exists bug12589_2|
+drop procedure if exists bug12589_3|
+create procedure bug12589_1()
+begin
+declare spv1 decimal(3,3);
+set spv1= 123.456;
+set spv1 = 'test';
+create temporary table tm1 as select spv1;
+show create table tm1;
+drop temporary table tm1;
+end|
+create procedure bug12589_2()
+begin
+declare spv1 decimal(6,3);
+set spv1= 123.456;
+create temporary table tm1 as select spv1;
+show create table tm1;
+drop temporary table tm1;
+end|
+create procedure bug12589_3()
+begin
+declare spv1 decimal(6,3);
+set spv1= -123.456;
+create temporary table tm1 as select spv1;
+show create table tm1;
+drop temporary table tm1;
+end|
+call bug12589_1()|
+Table	Create Table
+tm1	CREATE TEMPORARY TABLE `tm1` (
+  `spv1` decimal(1,0) unsigned default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'test'
+call bug12589_2()|
+Table	Create Table
+tm1	CREATE TEMPORARY TABLE `tm1` (
+  `spv1` decimal(6,3) unsigned default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+call bug12589_3()|
+Table	Create Table
+tm1	CREATE TEMPORARY TABLE `tm1` (
+  `spv1` decimal(6,3) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table if exists t3|
+drop procedure if exists bug7049_1|
+drop procedure if exists bug7049_2|
+drop procedure if exists bug7049_3|
+drop procedure if exists bug7049_4|
+drop procedure if exists bug7049_5|
+drop procedure if exists bug7049_6|
+drop function if exists bug7049_1|
+drop function if exists bug7049_2|
+create table t3 ( x int unique )|
+create procedure bug7049_1()
+begin
+insert into t3 values (42);
+insert into t3 values (42);
+end|
+create procedure bug7049_2()
+begin
+declare exit handler for sqlexception
+select 'Caught it' as 'Result';
+call bug7049_1();
+select 'Missed it' as 'Result';
+end|
+create procedure bug7049_3()
+call bug7049_1()|
+create procedure bug7049_4()
+begin
+declare exit handler for sqlexception
+select 'Caught it' as 'Result';
+call bug7049_3();
+select 'Missed it' as 'Result';
+end|
+create procedure bug7049_5()
+begin
+declare x decimal(2,1);
+set x = 'zap';
+end|
+create procedure bug7049_6()
+begin
+declare exit handler for sqlwarning
+select 'Caught it' as 'Result';
+call bug7049_5();
+select 'Missed it' as 'Result';
+end|
+create function bug7049_1()
+returns int
+begin
+insert into t3 values (42);
+insert into t3 values (42);
+return 42;
+end|
+create function bug7049_2()
+returns int
+begin
+declare x int default 0;
+declare continue handler for sqlexception
+set x = 1;
+set x = bug7049_1();
+return x;
+end|
+call bug7049_2()|
+Result
+Caught it
+select * from t3|
+x
+42
+delete from t3|
+call bug7049_4()|
+Result
+Caught it
+select * from t3|
+x
+42
+call bug7049_6()|
+Result
+Caught it
+select bug7049_2()|
+bug7049_2()
+1
+drop table t3|
+drop procedure bug7049_1|
+drop procedure bug7049_2|
+drop procedure bug7049_3|
+drop procedure bug7049_4|
+drop procedure bug7049_5|
+drop procedure bug7049_6|
+drop function bug7049_1|
+drop function bug7049_2|
+drop function if exists bug13941|
+drop procedure if exists bug13941|
+create function bug13941(p_input_str text)
+returns text
+begin
+declare p_output_str text;
+set p_output_str = p_input_str;
+set p_output_str = replace(p_output_str, 'xyzzy', 'plugh');
+set p_output_str = replace(p_output_str, 'test', 'prova');
+set p_output_str = replace(p_output_str, 'this', 'questo');
+set p_output_str = replace(p_output_str, ' a ', 'una ');
+set p_output_str = replace(p_output_str, 'is', '');
+return p_output_str;
+end|
+create procedure bug13941(out sout varchar(128))
+begin
+set sout = 'Local';
+set sout = ifnull(sout, 'DEF');
+end|
+select bug13941('this is a test')|
+bug13941('this is a test')
+questo una prova
+call bug13941(@a)|
+select @a|
+@a
+Local
+drop function bug13941|
+drop procedure bug13941|
 drop table t1,t2;

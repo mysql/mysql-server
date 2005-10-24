@@ -312,6 +312,7 @@ emacs.h
 extra/charset2html
 extra/comp_err
 extra/created_include_files
+extra/innochecksum
 extra/my_print_defaults
 extra/mysql_install
 extra/mysql_tzinfo_to_sql
@@ -477,6 +478,8 @@ libmysqld/sql_cache.cc
 libmysqld/sql_class.cc
 libmysqld/sql_command
 libmysqld/sql_crypt.cc
+libmysqld/sql_cursor.cc
+libmysqld/sql_cursor.h
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
 libmysqld/sql_derived.cc
@@ -858,6 +861,7 @@ ndb/test/ndbapi/testNodeRestart
 ndb/test/ndbapi/testOIBasic
 ndb/test/ndbapi/testOperations
 ndb/test/ndbapi/testRestartGci
+ndb/test/ndbapi/testSRBank
 ndb/test/ndbapi/testScan
 ndb/test/ndbapi/testScan.dsp
 ndb/test/ndbapi/testScanInterpreter

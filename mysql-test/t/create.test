@@ -249,7 +249,7 @@ drop table t1;
 create table `t1 `(a int);
 --error 1102
 create database `db1 `;
---error 1166;
+--error 1166
 create table t1(`a ` int);
 
 #
@@ -533,4 +533,16 @@ create view v1 as select 'foo' from dual;
 create table t1 like v1;
 drop view v1;
 drop database mysqltest;
+# Bug #6008 MySQL does not create warnings when
+# creating database and using IF NOT EXISTS
+#
+create database mysqltest;
+create database if not exists mysqltest character set latin2;
+show create database mysqltest;
+drop database mysqltest;
+use test;
+create table t1 (a int);
+create table if not exists t1 (a int);
+drop table t1;
+
 # End of 4.1 tests

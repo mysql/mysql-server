@@ -68,10 +68,10 @@ NULL	1.1	NULL	NULL	NULL	1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `nullif(1.1, 1.1)` decimal(2,1) default NULL,
-  `nullif(1.1, 1.2)` decimal(2,1) default NULL,
-  `nullif(1.1, 0.11e1)` decimal(2,1) default NULL,
-  `nullif(1.0, 1)` decimal(2,1) default NULL,
+  `nullif(1.1, 1.1)` decimal(2,1) unsigned default NULL,
+  `nullif(1.1, 1.2)` decimal(2,1) unsigned default NULL,
+  `nullif(1.1, 0.11e1)` decimal(2,1) unsigned default NULL,
+  `nullif(1.0, 1)` decimal(2,1) unsigned default NULL,
   `nullif(1, 1.0)` int(1) default NULL,
   `nullif(1, 1.1)` int(1) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -174,9 +174,9 @@ create table t1 select round(15.4,-1), truncate(-5678.123451,-3), abs(-1.1), -(-
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `round(15.4,-1)` decimal(3,0) NOT NULL default '0',
+  `round(15.4,-1)` decimal(3,0) unsigned NOT NULL default '0',
   `truncate(-5678.123451,-3)` decimal(4,0) NOT NULL default '0',
-  `abs(-1.1)` decimal(3,1) NOT NULL default '0.0',
+  `abs(-1.1)` decimal(2,1) NOT NULL default '0.0',
   `-(-1.1)` decimal(2,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
@@ -684,9 +684,7 @@ set v1 = 1; set v2 = 2; set v3 = 1000000000000; set v4 = 2000000000000; set v5 =
 while v5 < 100000 do
 set v1 = v1 + 0.000000000001; set v2 = v2 - 0.000000000001; set v3 = v3 + 1; set v4 = v4 - 1; set v5 = v5 + 1; 
 end while; select v1, v2, v3 * 0.000000000001, v4 * 0.000000000001; end;//
-#
 call p1()//
-#
 v1	v2	v3 * 0.000000000001	v4 * 0.000000000001
 1.000000100000	1.999999900000	1.000000100000	1.999999900000
 drop procedure p1;
@@ -783,7 +781,7 @@ create table t1 as select 0.5;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `0.5` decimal(2,1) NOT NULL default '0.0'
+  `0.5` decimal(2,1) unsigned NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select round(1.5),round(2.5);
@@ -938,7 +936,7 @@ ERROR 42000: Too big scale 31 specified for column 'sl'. Maximum is 30.
 create table t1 (sl decimal(0,38));
 ERROR 42000: Too big scale 38 specified for column 'sl'. Maximum is 30.
 create table t1 (sl decimal(0,30));
-ERROR 42000: Scale may not be larger than the precision (column 'sl').
+ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'sl').
 create table t1 (sl decimal(5, 5));
 show create table t1;
 Table	Create Table
@@ -986,3 +984,38 @@ t1	CREATE TABLE `t1` (
   `f1` decimal(10,0) unsigned zerofill NOT NULL default '0000000000'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+drop procedure if exists wg2;
+Warnings:
+Note	1305	PROCEDURE wg2 does not exist
+create procedure wg2()
+begin
+declare v int default 1;
+declare tdec decimal(5) default 0;
+while v <= 9 do set tdec =tdec * 10;
+select v, tdec;
+set v = v + 1;
+end while;
+end//
+call wg2()//
+v	tdec
+1	0
+v	tdec
+2	0
+v	tdec
+3	0
+v	tdec
+4	0
+v	tdec
+5	0
+v	tdec
+6	0
+v	tdec
+7	0
+v	tdec
+8	0
+v	tdec
+9	0
+drop procedure wg2;
+select cast(@non_existing_user_var/2 as DECIMAL);
+cast(@non_existing_user_var/2 as DECIMAL)
+NULL

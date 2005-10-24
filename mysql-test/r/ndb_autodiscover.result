@@ -99,6 +99,8 @@ id int not null primary key,
 id2 int not null,
 name char(20)
 ) engine=ndb;
+Warnings:
+Note	1050	Table 't3' already exists
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	0

@@ -1,0 +1,24 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+# Note that we can't use ccache with icc as the generated .deps file will
+# then contain wrong information
+CC=icc
+CXX=icpc
+CXXLD="$CXX -static-libcxa"
+export CC CXX CXXLD
+
+c_warnings=""
+cxx_warnings=""
+extra_flags="$fast_cflags -unroll2 -ip -mp -restrict"
+
+# Use -no-ipo if you get this error
+# IPO link: can not find "-lstdc++_shared"
+# icpc: error: problem during multi-file optimization compilation (code 1)
+extra_flags="$extra_flags -no-ipo"
+base_cxxflags="-fno-exceptions -fno-rtti"
+extra_configs="$pentium_configs $static_link --with-yassl"
+
+. "$path/FINISH.sh"

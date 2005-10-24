@@ -32,6 +32,11 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+#define sp_restore_security_context(A,B) while (0) {}
+#endif
+
+
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -765,7 +770,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
   }
   case REAL_RESULT:
   {
-    double result= (double)int_op();
+    double result= (double)real_op();
     double2my_decimal(E_DEC_FATAL_ERROR, result, decimal_value);
     break;
   }
@@ -1874,8 +1879,13 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
+    if (!args[0]->const_during_execution())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "RAND");
+      return TRUE;
+    }
     /*
-      Allocate rand structure once: we must use thd->current_arena
+      Allocate rand structure once: we must use thd->stmt_arena
       to create rand in proper mem_root if it's a prepared statement or
       stored procedure.
 
@@ -1883,7 +1893,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
       as it will be replicated in the query as such.
     */
     if (!rand && !(rand= (struct rand_struct*)
-                   thd->current_arena->alloc(sizeof(*rand))))
+                   thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
     /*
       PARAM_ITEM is returned if we're in statement prepare and consequently
@@ -2010,7 +2020,6 @@ String *Item_func_min_max::val_str(String *str)
   {
     String *res;
     LINT_INIT(res);
-    null_value= 0;
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -2025,14 +2034,11 @@ String *Item_func_min_max::val_str(String *str)
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
-        else
-          res= 0;
       }
       if ((null_value= args[i]->null_value))
-        break;
+        return 0;
     }
-    if (res)					// If !NULL
-      res->set_charset(collation.collation);
+    res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -2049,7 +2055,6 @@ double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2071,7 +2076,6 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2092,21 +2096,21 @@ longlong Item_func_min_max::val_int()
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *res= NULL;
-  null_value= 0;
+  my_decimal tmp_buf, *tmp, *res;
+  LINT_INIT(res);
+
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
       res= args[i]->val_decimal(dec);
     else
     {
-      tmp= args[i]->val_decimal(&tmp_buf);
-      if (args[i]->null_value)
-        res= 0;
-      else if ((my_decimal_cmp(tmp, res) * cmp_sign) < 0)
+      tmp= args[i]->val_decimal(&tmp_buf);      // Zero if NULL
+      if (tmp && (my_decimal_cmp(tmp, res) * cmp_sign) < 0)
       {
         if (tmp == &tmp_buf)
         {
+          /* Move value out of tmp_buf as this will be reused on next loop */
           my_decimal2decimal(tmp, dec);
           res= dec;
         }
@@ -2115,7 +2119,10 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
       }
     }
     if ((null_value= args[i]->null_value))
+    {
+      res= 0;
       break;
+    }
   }
   return res;
 }
@@ -2344,7 +2351,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  agg_arg_collations_for_comparison(cmp_collation, args, 2);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
 }
 
 static const char separator=',';
@@ -3026,9 +3033,13 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   thd->mysys_var->current_cond=  &ull->cond;
 
   set_timespec(abstime,lock_timeout);
-  while (!thd->killed &&
-         pthread_cond_timedwait(&ull->cond, &LOCK_user_locks,
-                                &abstime) != ETIMEDOUT && ull->locked) ;
+  while (ull->locked && !thd->killed)
+  {
+    int error= pthread_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+  }
+
   if (ull->locked)
   {
     if (!--ull->count)
@@ -3072,7 +3083,7 @@ longlong Item_func_get_lock::val_int()
   struct timespec abstime;
   THD *thd=current_thd;
   User_level_lock *ull;
-  int error=0;
+  int error;
 
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
@@ -3128,22 +3139,29 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_cond=  &ull->cond;
 
   set_timespec(abstime,timeout);
-  while (!thd->killed &&
-	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-         != ETIMEDOUT && error != EINVAL && ull->locked) ;
-  if (thd->killed)
-    error=EINTR;				// Return NULL
+  error= 0;
+  while (ull->locked && !thd->killed)
+  {
+    error= pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+    error= 0;
+  }
+
   if (ull->locked)
   {
     if (!--ull->count)
+    {
+      DBUG_ASSERT(0);
       delete ull;				// Should never happen
-    if (error != ETIMEDOUT)
+    }
+    if (!error)                                 // Killed (thd->killed != 0)
     {
       error=1;
       null_value=1;				// Return NULL
     }
   }
-  else
+  else                                          // We got the lock
   {
     ull->locked=1;
     ull->thread=thd->real_id;
@@ -3265,6 +3283,7 @@ void Item_func_benchmark::print(String *str)
   str->append(')');
 }
 
+
 /* This function is just used to create tests with time gaps */
 
 longlong Item_func_sleep::val_int()
@@ -3285,10 +3304,14 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
-  while (!thd->killed &&
-         (error= pthread_cond_timedwait(&cond, &LOCK_user_locks,
-                                        &abstime)) != ETIMEDOUT &&
-         error != EINVAL) ;
+  error= 0;
+  while (!thd->killed)
+  {
+    error= pthread_cond_timedwait(&cond, &LOCK_user_locks, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+    error= 0;
+  }
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -3298,7 +3321,7 @@ longlong Item_func_sleep::val_int()
   pthread_mutex_unlock(&LOCK_user_locks);
   pthread_cond_destroy(&cond);
 
-  return (error == ETIMEDOUT) ? 0 : 1;
+  return test(!error); 		// Return 1 killed
 }
 
 
@@ -3834,21 +3857,21 @@ longlong Item_func_get_user_var::val_int()
   stores this variable and its value in thd->user_var_events, so that it can be
   written to the binlog (will be written just before the query is written, see
   log.cc).
-  
+
   RETURN
-    0  OK 
+    0  OK
     1  Failed to put appropriate record into binary log
-    
+
 */
 
-int get_var_with_binlog(THD *thd, LEX_STRING &name, 
-                        user_var_entry **out_entry)
+int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
+                        LEX_STRING &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
   var_entry= get_variable(&thd->user_vars, name, 0);
-  
-  if (!(opt_bin_log && is_update_query(thd->lex->sql_command)))
+
+  if (!(opt_bin_log && is_update_query(sql_command)))
   {
     *out_entry= var_entry;
     return 0;
@@ -3879,7 +3902,8 @@ int get_var_with_binlog(THD *thd, LEX_STRING &name,
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;
   }
-  else if (var_entry->used_query_id == thd->query_id)
+  else if (var_entry->used_query_id == thd->query_id ||
+           mysql_bin_log.is_query_in_union(thd, var_entry->used_query_id))
   {
     /* 
        If this variable was already stored in user_var_events by this query
@@ -3896,10 +3920,16 @@ int get_var_with_binlog(THD *thd, LEX_STRING &name,
     appears:
     > set @a:=1;
     > insert into t1 values (@a), (@a:=@a+1), (@a:=@a+1);
-    We have to write to binlog value @a= 1;
+    We have to write to binlog value @a= 1.
+    
+    We allocate the user_var_event on user_var_events_alloc pool, not on
+    the this-statement-execution pool because in SPs user_var_event objects 
+    may need to be valid after current [SP] statement execution pool is
+    destroyed.
   */
-  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;      
-  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *) thd->alloc(size)))
+  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length;
+  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *)
+        alloc_root(thd->user_var_events_alloc, size)))
     goto err;
   
   user_var_event->value= (char*) user_var_event +
@@ -3941,7 +3971,7 @@ void Item_func_get_user_var::fix_length_and_dec()
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
-  error= get_var_with_binlog(thd, name, &var_entry);
+  error= get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry);
 
   if (var_entry)
   {
@@ -4473,7 +4503,6 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component)
 {
   sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
   LEX_STRING *base_name, *component_name;
 
   if (component.str == 0 &&
@@ -4699,27 +4728,11 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   int res= -1;
   Sub_statement_state statement_state;
+  Security_context *save_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  st_sp_security_context save_ctx;
-#endif
-
-  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
-  {
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx))
     goto error;
-  }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_routine_access(thd, EXECUTE_ACL, 
-			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error;
-  sp_change_security_context(thd, m_sp, &save_ctx);
-  if (save_ctx.changed && 
-      check_routine_access(thd, EXECUTE_ACL, 
-			   m_sp->m_db.str, m_sp->m_name.str, 0, 0))
-    goto error_check_ctx;
-#endif
   /*
     Disable the binlogging if this is not a SELECT statement. If this is a
     SELECT, leave binlogging on, so execute_function() code writes the
@@ -4728,7 +4741,7 @@ Item_func_sp::execute(Item **itp)
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
   res= m_sp->execute_function(thd, args, arg_count, itp);
   thd->restore_sub_statement_state(&statement_state);
- 
+
   if (res && mysql_bin_log.is_open() &&
       (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
        m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -4736,11 +4749,7 @@ Item_func_sp::execute(Item **itp)
                  ER_FAILED_ROUTINE_BREAK_BINLOG,
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-error_check_ctx:
-  sp_restore_security_context(thd, m_sp, &save_ctx);
-#endif
-
+  sp_restore_security_context(thd, save_ctx);
 error:
   DBUG_RETURN(res);
 }
@@ -4844,4 +4853,89 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
     res= Item_func::tmp_table_field(t_arg);
 
   DBUG_RETURN(res);
+}
+
+
+/*
+  Find the function and chack access rigths to the function
+
+  SYNOPSIS
+    find_and_check_access()
+    thd           thread handler
+    want_access   requested access
+    save          backup of security context
+
+  RETURN
+    FALSE    Access granted
+    TRUE     Requested access can't be granted or function doesn't exists
+	     In this case security context is not changed and *save = 0
+
+  NOTES
+    Checks if requested access to function can be granted to user.
+    If function isn't found yet, it searches function first.
+    If function can't be found or user don't have requested access
+    error is raised.
+    If security context sp_ctx is provided and access can be granted then
+    switch back to previous context isn't performed.
+    In case of access error or if context is not provided then
+    find_and_check_access() switches back to previous security context.
+*/
+
+bool
+Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
+                                    Security_context **save)
+{
+  bool res= TRUE;
+
+  *save= 0;                                     // Safety if error
+  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
+  {
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
+    goto error;
+  }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (check_routine_access(thd, want_access,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
+    goto error;
+
+  sp_change_security_context(thd, m_sp, save);
+  /*
+    If we changed context to run as another user, we need to check the
+    access right for the new context again as someone may have deleted
+    this person the right to use the procedure
+
+    TODO:
+      Cache if the definer has the right to use the object on the first
+      usage and only reset the cache if someone does a GRANT statement
+      that 'may' affect this.
+  */
+  if (*save &&
+      check_routine_access(thd, want_access,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
+  {
+    sp_restore_security_context(thd, *save);
+    *save= 0;                                   // Safety
+    goto error;
+  }
+#endif
+  res= FALSE;                                   // no error
+
+error:
+  return res;
+}
+
+bool
+Item_func_sp::fix_fields(THD *thd, Item **ref)
+{
+  bool res;
+  DBUG_ASSERT(fixed == 0);
+  res= Item_func::fix_fields(thd, ref);
+  if (!res)
+  {
+    Security_context *save_ctx;
+    if (!(res= find_and_check_access(thd, EXECUTE_ACL, &save_ctx)))
+      sp_restore_security_context(thd, save_ctx);
+  }
+  return res;
 }

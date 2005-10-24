@@ -1562,25 +1562,24 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
       create_info->table_existed= 1;		// Mark that table existed
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                          alias);
       DBUG_RETURN(FALSE);
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(TRUE);
   }
   if (wait_if_global_read_lock(thd, 0, 1))
-    DBUG_RETURN(error);
+    DBUG_RETURN(TRUE);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-      {
-	create_info->table_existed= 1;		// Mark that table existed
-	error= FALSE;
-      }
-      else
-	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+        goto warn;
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto end;
     }
   }
@@ -1603,12 +1602,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_PRINT("info", ("Table with same name already existed in handler"));
 
       if (create_if_not_exists)
-      {
-        create_info->table_existed= 1;   // Mark that table existed
-        error= FALSE;
-      }
-      else
-       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+        goto warn;
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto end;
     }
   }
@@ -1647,6 +1642,14 @@ end:
   start_waiting_global_read_lock(thd);
   thd->proc_info="After create";
   DBUG_RETURN(error);
+
+warn:
+  error= FALSE;
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                      ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                      alias);
+  create_info->table_existed= 1;		// Mark that table existed
+  goto end;
 }
 
 /*
@@ -1706,9 +1709,11 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   List_iterator_fast<Item> it(*items);
   Item *item;
   Field *tmp_field;
+  bool not_used;
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
+  tmp_table.timestamp_field= 0;
   tmp_table.s= &tmp_table.share_not_to_be_used;
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
@@ -1753,7 +1758,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                             create_info, *extra_fields, *keys, 0,
                             select_field_count))
     {
-      if (!(table= open_table(thd, create_table, thd->mem_root, (bool*)0, 0)))
+      if (! (table= open_table(thd, create_table, thd->mem_root, (bool*) 0,
+                               MYSQL_LOCK_IGNORE_FLUSH)))
         quick_rm_table(create_info->db_type, create_table->db,
                        table_case_name(create_info, create_table->table_name));
     }
@@ -1762,8 +1768,15 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(0);
   }
 
+  /*
+    FIXME: What happens if trigger manages to be created while we are
+           obtaining this lock ? May be it is sensible just to disable
+           trigger execution in this case ? Or will MYSQL_LOCK_IGNORE_FLUSH
+           save us from that ?
+  */
   table->reginfo.lock_type=TL_WRITE;
-  if (! ((*lock)= mysql_lock_tables(thd, &table, 1, MYSQL_LOCK_IGNORE_FLUSH)))
+  if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
+                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
     VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
@@ -1937,8 +1950,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   {
     char* backup_dir= thd->lex->backup_dir;
     char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-    char* table_name = table->table_name;
-    char* db = thd->db ? thd->db : table->db;
+    char* table_name= table->table_name;
+    char* db= table->db;
 
     if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
 					reg_ext))
@@ -1974,12 +1987,15 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     Now we should be able to open the partially restored table
     to finish the restore in the handler later on
   */
-  if (!(table->table = reopen_name_locked_table(thd, table)))
+  pthread_mutex_lock(&LOCK_open);
+  if (reopen_name_locked_table(thd, table))
   {
-    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table);
     pthread_mutex_unlock(&LOCK_open);
+    DBUG_RETURN(send_check_errmsg(thd, table, "restore",
+                                  "Failed to open partially restored table"));
   }
+  pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 
@@ -2076,12 +2092,16 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (!(table_list->table = reopen_name_locked_table(thd, table_list)))
+  pthread_mutex_lock(&LOCK_open);
+  if (reopen_name_locked_table(thd, table_list))
   {
-    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+                             "Failed to open partially repaired table");
+    goto end;
   }
+  pthread_mutex_unlock(&LOCK_open);
 
 end:
   if (table == &tmp_table)
@@ -3143,6 +3163,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type= table->s->row_type;
 
+  DBUG_PRINT("info", ("old type: %d  new type: %d", old_db_type, new_db_type));
+  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
+      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
+  {
+    DBUG_PRINT("info", ("doesn't support alter"));
+    my_error(ER_ILLEGAL_HA, MYF(0), table_name);
+    DBUG_RETURN(TRUE);
+  }
+  
   thd->proc_info="setup";
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
       !table->s->tmp_table) // no need to touch frm
@@ -3576,7 +3605,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
-      new_table= open_table(thd, &tbl, thd->mem_root, 0, 0);
+      new_table= open_table(thd, &tbl, thd->mem_root, (bool*) 0,
+                            MYSQL_LOCK_IGNORE_FLUSH);
     }
     else
     {
@@ -4060,7 +4090,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);
 
-    t= table->table= open_ltable(thd, table, TL_READ_NO_INSERT);
+    t= table->table= open_ltable(thd, table, TL_READ);
     thd->clear_error();			// these errors shouldn't get client
 
     protocol->prepare_for_resend();
@@ -4086,6 +4116,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
       {
 	/* calculating table's checksum */
 	ha_checksum crc= 0;
+        uchar null_mask=256 -  (1 << t->s->last_null_bit_pos);
 
 	/* InnoDB must be told explicitly to retrieve all columns, because
 	this function does not set field->query_id in the columns to the
@@ -4106,9 +4137,15 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
                 continue;
               break;
             }
-	    if (t->record[0] != (byte*) t->field[0]->ptr)
-	      row_crc= my_checksum(row_crc, t->record[0],
-				   ((byte*) t->field[0]->ptr) - t->record[0]);
+	    if (t->s->null_bytes)
+            {
+              /* fix undefined null bits */
+              t->record[0][t->s->null_bytes-1] |= null_mask;
+              if (!(t->s->db_create_options & HA_OPTION_PACK_RECORD))
+                t->record[0][0] |= 1;
+
+	      row_crc= my_checksum(row_crc, t->record[0], t->s->null_bytes);
+            }
 
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
@@ -4152,9 +4189,9 @@ static bool check_engine(THD *thd, const char *table_name,
                          enum db_type *new_engine)
 {
   enum db_type req_engine= *new_engine;
-  bool no_substitution= 
+  bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
-  if ((*new_engine= 
+  if ((*new_engine=
        ha_checktype(thd, req_engine, no_substitution, 1)) == DB_TYPE_UNKNOWN)
     return TRUE;
 

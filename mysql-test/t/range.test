@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2;
+drop table if exists t1, t2, t3;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -406,8 +406,8 @@ select count(*) from t1 where x = 18446744073709551601;
 
 
 create table t2 (x bigint not null);
-insert into t2(x) values (0xfffffffffffffff0);
-insert into t2(x) values (0xfffffffffffffff1);
+insert into t2(x) values (cast(0xfffffffffffffff0+0 as signed));
+insert into t2(x) values (cast(0xfffffffffffffff1+0 as signed));
 select * from t2;
 select count(*) from t2 where x>0;
 select count(*) from t2 where x=0;
@@ -578,3 +578,56 @@ DELETE FROM t1 WHERE NOT(a <=> 2);
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+#
+# BUG#13317: range optimization doesn't work for IN over VIEW.
+#
+create table t1 (a int, b int, primary key(a,b));
+create view v1 as select a, b from t1;
+
+INSERT INTO `t1` VALUES
+(0,0),(1,0),(2,0),(3,0),(4,0),(5,1),(6,1),(7,1),(8,1),(9,1),(10,2),(11,2),(12,2)
+,(13,2),(14,2),(15,3),(16,3),(17,3),(18,3),(19,3);
+
+--replace_column 9 #
+explain select * from t1 where a in (3,4)  and b in (1,2,3);
+--replace_column 9 #
+explain select * from v1 where a in (3,4)  and b in (1,2,3);
+--replace_column 9 #
+explain select * from t1 where a between 3 and 4 and b between 1 and 2;
+--replace_column 9 #
+explain select * from v1 where a between 3 and 4 and b between 1 and 2;
+ 
+drop view v1;
+drop table t1;
+
+# BUG#13455: 
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (a varchar(10), filler char(200), key(a)) charset=binary;
+insert into t1 values ('a','');
+insert into t1 values ('a ','');
+insert into t1 values ('a  ', '');
+insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
+  from t3 A, t3 B, t3 C;
+
+create table t2 (a varchar(10), filler char(200), key(a));
+insert into t2 select * from t1;
+
+--replace_column 9 #
+explain select * from t1 where a between 'a' and 'a '; 
+--replace_column 9 #
+explain select * from t1 where a = 'a' or a='a ';
+
+--replace_column 9 #
+explain select * from t2 where a between 'a' and 'a '; 
+--replace_column 9 #
+explain select * from t2 where a = 'a' or a='a ';
+
+update t1 set a='b' where a<>'a';
+--replace_column 9 #
+explain select * from t1 where a not between 'b' and 'b'; 
+select a, hex(filler) from t1 where a not between 'b' and 'b'; 
+
+drop table t1,t2,t3;

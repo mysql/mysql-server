@@ -121,7 +121,7 @@ call foo4();
 Got one of the listed errors
 show warnings;
 Level	Code	Message
-Error	1142	INSERT command denied to user 'zedjzlcsjhd'@'localhost' for table 't1'
+Error	1142	INSERT command denied to user 'zedjzlcsjhd'@'127.0.0.1' for table 't1'
 Warning	1417	A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes
 alter procedure foo4 sql security invoker;
 call foo4();
@@ -264,6 +264,14 @@ master-bin.000002	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
 select * from t1;
 a
 1
+create procedure foo()
+not deterministic
+reads sql data
+select * from t1;
+call foo();
+a
+1
+drop procedure foo;
 drop function fn1;
 drop database mysqltest1;
 drop user "zedjzlcsjhd"@127.0.0.1;

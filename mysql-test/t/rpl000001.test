@@ -92,7 +92,7 @@ kill @id;
 # We don't drop t3 as this is a temporary table
 drop table t2;
 connection master;
---error 1053;
+--error 1053
 reap;
 connection slave;
 # The SQL slave thread should now have stopped because the query was killed on

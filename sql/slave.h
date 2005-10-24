@@ -302,6 +302,17 @@ typedef struct st_relay_log_info
   */
   ulong trans_retries, retried_trans;
 
+  /*
+    If the end of the hot relay log is made of master's events ignored by the
+    slave I/O thread, these two keep track of the coords (in the master's
+    binlog) of the last of these events seen by the slave I/O thread. If not,
+    ign_master_log_name_end[0] == 0.
+    As they are like a Rotate event read/written from/to the relay log, they
+    are both protected by rli->relay_log.LOCK_log.
+  */
+  char ign_master_log_name_end[FN_REFLEN];
+  ulonglong ign_master_log_pos_end;
+
   st_relay_log_info();
   ~st_relay_log_info();
 
@@ -572,8 +583,8 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli);
 void rotate_relay_log(MASTER_INFO* mi);
 
-extern "C" pthread_handler_decl(handle_slave_io,arg);
-extern "C" pthread_handler_decl(handle_slave_sql,arg);
+pthread_handler_t handle_slave_io(void *arg);
+pthread_handler_t handle_slave_sql(void *arg);
 extern bool volatile abort_loop;
 extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
 extern LIST master_list;
@@ -581,7 +592,8 @@ extern HASH replicate_do_table, replicate_ignore_table;
 extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;
 extern bool do_table_inited, ignore_table_inited,
 	    wild_do_table_inited, wild_ignore_table_inited;
-extern bool table_rules_on, replicate_same_server_id;
+extern bool table_rules_on;
+extern my_bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 

@@ -187,11 +187,20 @@ select 1 in ('1.1',2);
 select 1 in ('1.1',2.0);
 1 in ('1.1',2.0)
 0
-create table t1 (a char(20) character set binary);
+create table t1 (a char(2) character set binary);
 insert into t1 values ('aa'), ('bb');
 select * from t1 where a in (NULL, 'aa');
 a
 aa
+drop table t1;
+create table t1 (id int, key(id));
+insert into t1 values (1),(2),(3);
+select count(*) from t1 where id not in (1);
+count(*)
+2
+select count(*) from t1 where id not in (1,2);
+count(*)
+1
 drop table t1;
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 VALUES (44), (45), (46);
@@ -209,7 +218,7 @@ a
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a NOT IN (45);
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <> 45)
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` <> 45)
 SELECT * FROM v1;
 a
 44

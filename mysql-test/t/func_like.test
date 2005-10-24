@@ -96,4 +96,21 @@ DROP TABLE t1;
 #
 select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
 
+#
+# Check 8bit escape character
+#
+set names koi8r;
+select 'andre%' like 'andre %' escape ' ';
+
+# Check 8bit escape character with charset conversion:
+# For "a LIKE b ESCAPE c" expressions,
+# escape character is converted into the operation character set,
+# which is result of aggregation  of character sets of "a" and "b".
+# "c" itself doesn't take part in aggregation, because its collation
+# doesn't matter, escape character is always compared binary.
+# In the example below, escape character is converted from koi8r into cp1251:
+#
+select _cp1251'andre%' like convert('andre %' using cp1251)  escape ' ';
+
+#
 # End of 4.1 tests

@@ -178,9 +178,9 @@ insert into t1 values ('','empt',2,2),
 ('dddd','d--d',2,2);
 select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 pk1	pk2	key1	key2
+	empt	2	2
 a	a--a	2	2
 bb	b--b	2	2
 ccc	c--c	2	2
 dddd	d--d	2	2
-	empt	2	2
 drop table t1;

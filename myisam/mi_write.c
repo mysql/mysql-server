@@ -142,7 +142,7 @@ int mi_write(MI_INFO *info, byte *record)
   {
     if ((*share->write_record)(info,record))
       goto err;
-    share->state.checksum+=info->checksum;
+    info->state->checksum+=info->checksum;
   }
   if (share->base.auto_key)
     update_auto_increment(info,record);

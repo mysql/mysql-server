@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef __GNUC__
-#pragma interface
+#if defined(__GNUC__) && defined(USE_PRAGMA_IMPLEMENTATION)
+#pragma implementation
 #endif
 
 #include "user_map.h"
@@ -66,7 +66,8 @@ int User::init(const char *line)
   */
   if (password[strlen(password)-2] == '\r')
     line_ending_len= 2;
-  if (strlen(password) != SCRAMBLED_PASSWORD_CHAR_LENGTH + line_ending_len)
+  if (strlen(password) != (uint) (SCRAMBLED_PASSWORD_CHAR_LENGTH +
+                                  line_ending_len))
     goto err;
 
   memcpy(user, name_begin, user_length);

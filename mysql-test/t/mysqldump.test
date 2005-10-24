@@ -4,6 +4,8 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
 drop database if exists mysqldump_test_db;
+drop database if exists db1;
+drop database if exists db2;
 drop view if exists v1, v2, v3;
 --enable_warnings
 
@@ -140,7 +142,7 @@ drop table t1;
 --exec $MYSQL_DUMP --skip-comments --databases test
 
 create database mysqldump_test_db character set latin2 collate latin2_bin;
---exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db;
+--exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db
 drop database mysqldump_test_db;
 
 #
@@ -545,6 +547,64 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
+
+
+#
+# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#
+
+create database db1;
+use db1;
+
+CREATE TABLE t2 (
+  a varchar(30) default NULL,
+  KEY a (a(5))
+);
+
+INSERT INTO t2 VALUES ('alfred');
+INSERT INTO t2 VALUES ('angie');
+INSERT INTO t2 VALUES ('bingo');
+INSERT INTO t2 VALUES ('waffle');
+INSERT INTO t2 VALUES ('lemon');
+create view v2 as select * from t2 where a like 'a%' with check option;
+--exec $MYSQL_DUMP  --skip-comments db1
+drop table t2;
+drop view v2;
+drop database db1;
+
+#
+# Bug 10713 mysqldump includes database in create view and referenced tables
+#
+
+# create table and views in db2
+create database db2;
+use db2;
+create table t1 (a int);
+create table t2 (a int, b varchar(10), primary key(a));
+insert into t2 values (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
+insert into t1 values (289), (298), (234), (456), (789);
+create view v1 as select * from t2;
+create view v2 as select * from t1;
+
+# dump tables and view from db2
+--exec $MYSQL_DUMP db2 > var/tmp/bug10713.sql
+
+# drop the db, tables and views
+drop table t1, t2;
+drop view v1, v2;
+drop database db2;
+
+# create db1 and reload dump
+create database db1;
+use db1;
+--exec $MYSQL db1 < var/tmp/bug10713.sql
+
+# check that all tables and views could be created
+show tables;
+select * from t2 order by a;
+
+drop table t1, t2;
+drop database db1;
 #
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
@@ -698,17 +758,7 @@ select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
 create  view v2 as
 select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
 
---exec $MYSQL_DUMP test > var/tmp/bug10927.sql
-drop view v1, v2, v3;
-drop table t1;
---exec $MYSQL test < var/tmp/bug10927.sql
-
-# Without dropping the original tables in between
---exec $MYSQL_DUMP test > var/tmp/bug10927.sql
---exec $MYSQL test < var/tmp/bug10927.sql
-show full tables;
-show create view v1;
-select * from v1;
+--exec $MYSQL_DUMP --skip-comments test
 
 drop view v1, v2, v3;
 drop table t1;
@@ -761,3 +811,154 @@ show tables;
 --replace_column 6 #
 show triggers;
 DROP TABLE t1, t2;
+
+#
+# Bugs #9136, #12917: problems with --defaults-extra-file option
+#
+
+--exec echo "[mysqltest1]" > $MYSQL_TEST_DIR/var/tmp/tmp.cnf
+--exec echo "port=1234" >> $MYSQL_TEST_DIR/var/tmp/tmp.cnf
+--exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1
+--exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1 mysqltest1
+--exec rm $MYSQL_TEST_DIR/var/tmp/tmp.cnf
+
+#
+# Test of fix to BUG 12597
+#
+
+DROP TABLE IF EXISTS `test1`;
+CREATE TABLE `test1` (
+  `a1` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DROP TABLE IF EXISTS `test2`;
+CREATE TABLE `test2` (
+  `a2` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DELIMITER //;
+CREATE TRIGGER `testref` BEFORE INSERT ON `test1` FOR EACH ROW BEGIN
+INSERT INTO test2 SET a2 = NEW.a1; END  //
+DELIMITER ;//
+
+INSERT INTO `test1` VALUES (1);
+SELECT * FROM `test2`;
+
+# dump
+--exec $MYSQL_DUMP --skip-comments --databases test > var/tmp/mysqldump.sql
+
+#DROP TRIGGER testref;
+#DROP TABLE test1;
+#DROP TABLE test2;
+# restore
+--exec $MYSQL test < var/tmp/mysqldump.sql
+SHOW TRIGGERS;
+SELECT * FROM `test1`;
+SELECT * FROM `test2`;
+
+DROP TRIGGER testref;
+DROP TABLE test1;
+DROP TABLE test2;
+
+#
+# BUG#9056 - mysqldump does not dump routines
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS bug9056_func1;
+DROP FUNCTION IF EXISTS bug9056_func2;
+DROP PROCEDURE IF EXISTS bug9056_proc1;
+DROP PROCEDURE IF EXISTS bug9056_proc2;
+--enable_warnings
+
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES(1), (2), (3), (4), (5);
+
+DELIMITER //;
+CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11) RETURN a+b //
+CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
+BEGIN SELECT a+b INTO c; end  //
+
+create function bug9056_func2(f1 char binary) returns char binary
+begin
+  set f1= concat( 'hello', f1 );
+  return f1;
+end //
+
+CREATE PROCEDURE bug9056_proc2(OUT a INT) 
+BEGIN 
+  select sum(id) from t1 into a; 
+END //
+
+DELIMITER ;//
+
+set sql_mode='ansi';
+create procedure `a'b` () select 1; # to fix syntax highlighting :')
+set sql_mode='';
+
+# Dump the DB and ROUTINES 
+--exec $MYSQL_DUMP --skip-comments --routines --databases test
+
+# ok, now blow it all away
+DROP FUNCTION bug9056_func1;
+DROP FUNCTION bug9056_func2;
+DROP PROCEDURE bug9056_proc1;
+DROP PROCEDURE bug9056_proc2;
+drop table t1;
+
+#
+# BUG# 13052 - mysqldump timestamp reloads broken
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (`d` timestamp, unique (`d`));
+set time_zone='+00:00';
+insert into t1 values ('2003-10-25 22:00:00'),('2003-10-25 23:00:00');
+# results should show two different time values
+select * from t1;
+set time_zone='Europe/Moscow';
+# results should show two same time values, despite unique
+select * from t1;
+set global time_zone='Europe/Moscow';
+--exec $MYSQL_DUMP --skip-comments --databases test
+--exec $MYSQL_DUMP --skip-tz-utc --skip-comments --databases test
+drop table t1;
+set global time_zone=default;
+set time_zone=default;
+
+#
+# Test of fix to BUG 13146 - ansi quotes break loading of triggers 
+#
+--disable_warnings
+DROP TABLE IF EXISTS `t1 test`;
+CREATE TABLE `t1 test` (
+  `a1` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DROP TABLE IF EXISTS `t2 test`;
+CREATE TABLE `t2 test` (
+  `a2` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+--enable_warnings
+
+DELIMITER //;
+CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
+INSERT INTO `t2 test` SET a2 = NEW.a1; END  //
+DELIMITER ;//
+
+INSERT INTO `t1 test` VALUES (1);
+INSERT INTO `t1 test` VALUES (2);
+INSERT INTO `t1 test` VALUES (3);
+SELECT * FROM `t2 test`;
+# dump with compatible=ansi. Everything except triggers should be double 
+# quoted
+--exec $MYSQL_DUMP --skip-comments --compatible=ansi --triggers test
+
+--disable_warnings
+DROP TRIGGER `test trig`;
+DROP TABLE `t1 test`;
+DROP TABLE `t2 test`;
+--enable_warnings

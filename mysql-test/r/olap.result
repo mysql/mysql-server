@@ -555,6 +555,43 @@ IFNULL(a, 'TEST')	COALESCE(b, 'TEST')
 4	TEST
 TEST	TEST
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (1, 2);
+SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
+a	b	c	count
+1	1	1	1
+1	1	NULL	1
+1	2	1	1
+1	2	NULL	1
+1	NULL	NULL	2
+NULL	NULL	NULL	2
+DROP TABLE t1;
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM (SELECT a, a + 1, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
+a	a + 1	COUNT(*)
+1	2	1
+2	3	1
+NULL	NULL	2
+SELECT * FROM (SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP) t;
+a	LENGTH(a)	COUNT(*)
+1	1	1
+2	1	1
+NULL	NULL	2
+DROP TABLE t1;
+create table t1 ( a varchar(9), b int );
+insert into t1 values('a',1),(null,2);
+select a, max(b) from t1 group by a with rollup;
+a	max(b)
+NULL	2
+a	1
+NULL	2
+select distinct a, max(b) from t1 group by a with rollup;
+a	max(b)
+NULL	2
+a	1
+drop table t1;
 CREATE TABLE t1(id int, type char(1));
 INSERT INTO t1 VALUES
 (1,"A"),(2,"C"),(3,"A"),(4,"A"),(5,"B"),
@@ -577,15 +614,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
 DROP VIEW v1;
 DROP TABLE t1;
-CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
-INSERT INTO t1 VALUES (1, 1);
-INSERT INTO t1 VALUES (1, 2);
-SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
-a	b	c	count
-1	1	1	1
-1	1	NULL	1
-1	2	1	1
-1	2	NULL	1
-1	NULL	NULL	2
-NULL	NULL	NULL	2
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+CREATE VIEW v1 AS
+SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+DESC v1;
+Field	Type	Null	Key	Default	Extra
+a	bigint(11)	YES		NULL	
+LENGTH(a)	bigint(10)	YES		NULL	
+COUNT(*)	bigint(21)	NO		0	
+SELECT * FROM v1;
+a	LENGTH(a)	COUNT(*)
+1	1	1
+2	1	1
+NULL	NULL	2
+DROP VIEW v1;
 DROP TABLE t1;

@@ -10,6 +10,11 @@ prefix_configs="--prefix=/usr/local/mysql"
 just_print=
 just_configure=
 full_debug=
+if test -n "$MYSQL_BUILD_PREFIX"
+then
+  prefix_configs="--prefix=$MYSQL_BUILD_PREFIX"
+fi
+
 while test $# -gt 0
 do
   case "$1" in
@@ -47,10 +52,11 @@ global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wch
 #debug_extra_warnings="-Wuninitialized"
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
-
-base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-openssl --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine"
-max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-federated-storage-engine --with-blackhole-storage-engine --with-openssl --with-embedded-server --with-big-tables"
+base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-openssl --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine"
+base_max_no_ndb_configs="--with-innodb --with-berkeley-db --without-ndbcluster --with-archive-storage-engine --with-openssl --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine"
+max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-federated-storage-engine --with-blackhole-storage-engine --with-csv-storage-engine --with-openssl --with-embedded-server --with-big-tables"
 max_configs="$base_max_configs --with-embedded-server"
+max_no_ndb_configs="$base_max_no_ndb_configs --with-embedded-server"
 
 path=`dirname $0`
 . "$path/check-cpu"
@@ -96,6 +102,10 @@ then
   make=gmake
 else
   make=make
+fi
+
+if test -z "$CC" ; then
+  CC=gcc
 fi
 
 if test -z "$CXX" ; then

@@ -545,6 +545,7 @@ struct Hybrid_type_traits_fast_decimal: public
     val->traits->div(val, u);
   }
   static const Hybrid_type_traits_fast_decimal *instance();
+  Hybrid_type_traits_fast_decimal() {};
 };
 
 static const Hybrid_type_traits_fast_decimal fast_decimal_traits_instance;
@@ -1367,8 +1368,8 @@ void Item_sum_hybrid::cleanup()
 
 void Item_sum_hybrid::no_rows_in_result()
 {
-  Item_sum::no_rows_in_result();
   was_values= FALSE;
+  clear();
 }
 
 
@@ -1614,7 +1615,7 @@ void Item_sum_hybrid::reset_field()
       else
 	result_field->set_notnull();
     }
-    result_field->store(nr);
+    result_field->store(nr, unsigned_flag);
     break;
   }
   case REAL_RESULT:
@@ -1930,7 +1931,7 @@ Item_sum_hybrid::min_max_update_int_field()
   }
   else if (result_field->is_null(0))
     result_field->set_null();
-  result_field->store(old_nr);
+  result_field->store(old_nr, unsigned_flag);
 }
 
 
@@ -2740,7 +2741,9 @@ int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
 
-  if (result->length())
+  if (item->no_appended)
+    item->no_appended= FALSE;
+  else
     result->append(*item->separator);
 
   tmp.length(0);
@@ -2925,6 +2928,7 @@ void Item_func_group_concat::clear()
   result.copy();
   null_value= TRUE;
   warning_for_row= FALSE;
+  no_appended= TRUE;
   if (tree)
     reset_tree(tree);
   /* No need to reset the table as we never call write_row */
@@ -3001,6 +3005,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
                         args, arg_count, MY_COLL_ALLOW_CONV))
     return 1;
 
+  result.set_charset(collation.collation);
   result_field= 0;
   null_value= 1;
   thd->allow_sum_func= 1;

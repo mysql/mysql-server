@@ -1072,6 +1072,622 @@ Database (mysqltest3)
 mysqltest3
 
 -------- switch to master -------
+
+######## CREATE PROCEDURE p1() READS SQL DATA SELECT "this is p1"  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 15 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+15
+
+-------- switch to master -------
+CREATE PROCEDURE p1() READS SQL DATA SELECT "this is p1";
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	root@localhost
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	
+	-------- switch to slave -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	@
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	
+
+######## ALTER PROCEDURE p1 COMMENT "I have been altered"  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 16 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+16
+
+-------- switch to master -------
+ALTER PROCEDURE p1 COMMENT "I have been altered";
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	root@localhost
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	I have been altered
+	-------- switch to slave -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+Db	mysqltest1
+Name	p1
+Type	PROCEDURE
+Definer	@
+Modified	#
+Created	#
+Security_type	DEFINER
+Comment	I have been altered
+
+######## DROP PROCEDURE p1  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 17 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+17
+
+-------- switch to master -------
+DROP PROCEDURE p1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+	-------- switch to slave -------
+SHOW PROCEDURE STATUS LIKE 'p1';
+
+######## CREATE OR REPLACE VIEW v1 as select * from t1  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 18 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+19
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+18
+
+-------- switch to master -------
+CREATE OR REPLACE VIEW v1 as select * from t1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+19
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+19
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+19
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+19
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+
+-------- switch to slave -------
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+
+######## ALTER VIEW v1 AS select f1 from t1  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 19 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+20
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+19
+
+-------- switch to master -------
+ALTER VIEW v1 AS select f1 from t1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+20
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+20
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+20
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+20
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+
+-------- switch to slave -------
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1`
+
+######## DROP VIEW IF EXISTS v1  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 20 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+21
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+20
+
+-------- switch to master -------
+DROP VIEW IF EXISTS v1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+21
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+21
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+21
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+21
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW CREATE VIEW v1;
+ERROR 42S02: Table 'mysqltest1.v1' doesn't exist
+
+-------- switch to slave -------
+SHOW CREATE VIEW v1;
+ERROR 42S02: Table 'mysqltest1.v1' doesn't exist
+
+######## CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 21 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+22
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+21
+
+-------- switch to master -------
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+22
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+22
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+22
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+22
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
+trg1	INSERT	t1	 SET @a:=1	BEFORE	NULL	
+
+-------- switch to slave -------
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
+trg1	INSERT	t1	 SET @a:=1	BEFORE	NULL	
+
+######## DROP TRIGGER trg1  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 22 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+23
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+22
+
+-------- switch to master -------
+DROP TRIGGER trg1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+23
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+23
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+23
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+23
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
+
+-------- switch to slave -------
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode
+
+######## CREATE USER user1@localhost  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 23 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+24
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+23
+
+-------- switch to master -------
+CREATE USER user1@localhost;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+24
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+24
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+24
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+24
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SELECT user FROM mysql.user WHERE user = 'user1';
+user
+user1
+
+-------- switch to slave -------
+SELECT user FROM mysql.user WHERE user = 'user1';
+user
+user1
+
+######## RENAME USER user1@localhost TO rename1@localhost  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 24 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+25
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+24
+
+-------- switch to master -------
+RENAME USER user1@localhost TO rename1@localhost;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+25
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+25
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+25
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+25
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SELECT user FROM mysql.user WHERE user = 'rename1';
+user
+rename1
+
+-------- switch to slave -------
+SELECT user FROM mysql.user WHERE user = 'rename1';
+user
+rename1
+
+######## DROP USER rename1@localhost  ########
+
+-------- switch to master -------
+INSERT INTO t1 SET f1= 25 + 1;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+26
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+25
+
+-------- switch to master -------
+DROP USER rename1@localhost;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+26
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+26
+
+-------- switch to master -------
+ROLLBACK;
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+26
+
+TEST-INFO: MASTER: The INSERT is committed (Succeeded)
+
+-------- switch to slave --------
+SELECT MAX(f1) FROM t1;
+MAX(f1)
+26
+
+TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
+
+-------- switch to master -------
+flush logs;
+
+-------- switch to slave --------
+flush logs;
+
+-------- switch to master -------
+SELECT user FROM mysql.user WHERE user = 'rename1';
+user
+
+-------- switch to slave -------
+SELECT user FROM mysql.user WHERE user = 'rename1';
+user
 DROP DATABASE IF EXISTS mysqltest1;
 DROP DATABASE IF EXISTS mysqltest2;
 DROP DATABASE IF EXISTS mysqltest3;

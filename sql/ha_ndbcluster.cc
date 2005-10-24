@@ -49,8 +49,12 @@ static int ndbcluster_close_connection(THD *thd);
 static int ndbcluster_commit(THD *thd, bool all);
 static int ndbcluster_rollback(THD *thd, bool all);
 
-static handlerton ndbcluster_hton = {
+handlerton ndbcluster_hton = {
   "ndbcluster",
+  SHOW_OPTION_YES,
+  "Clustered, fault-tolerant, memory-based tables", 
+  DB_TYPE_NDBCLUSTER,
+  ndbcluster_init,
   0, /* slot */
   0, /* savepoint size */
   ndbcluster_close_connection,
@@ -117,7 +121,7 @@ static int ndb_get_table_statistics(Ndb*, const char *,
 static pthread_t ndb_util_thread;
 pthread_mutex_t LOCK_ndb_util_thread;
 pthread_cond_t COND_ndb_util_thread;
-extern "C" pthread_handler_decl(ndb_util_thread_func, arg);
+pthread_handler_t ndb_util_thread_func(void *arg);
 ulong ndb_cache_check_time;
 
 /*
@@ -1209,12 +1213,13 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
   DBUG_ENTER("ha_ndbcluster::index_flags");
   DBUG_PRINT("info", ("idx_no: %d", idx_no));
   DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
-  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)]);
+  DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)] | 
+              HA_KEY_SCAN_NOT_ROR);
 }
 
 static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
 {
-  if (field->type() == MYSQL_TYPE_VARCHAR) {
+  if (field->type() == MYSQL_TYPE_VARCHAR && ptr != NULL) {
     Field_varstring* f= (Field_varstring*)field;
     if (f->length_bytes == 1) {
       uint pack_len= field->pack_length();
@@ -2332,7 +2337,8 @@ void ha_ndbcluster::unpack_record(byte* buf)
             DBUG_PRINT("info", ("bit field H'%.8X", 
                                 (*value).rec->u_32_value()));
             ((Field_bit *) *field)->store((longlong) 
-                                          (*value).rec->u_32_value());
+                                          (*value).rec->u_32_value(),
+                                          FALSE);
           }
           else
           {
@@ -2340,7 +2346,8 @@ void ha_ndbcluster::unpack_record(byte* buf)
                                 *(Uint32 *)(*value).rec->aRef(),
                                 *((Uint32 *)(*value).rec->aRef()+1)));
             ((Field_bit *) *field)->store((longlong)
-                                          (*value).rec->u_64_value());          }
+                                          (*value).rec->u_64_value(), TRUE);
+          }
         }
       }
       else
@@ -3217,7 +3224,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     if (!thd_ndb->lock_count++)
     {
       PRINT_OPTION_FLAGS(thd);
-      if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK))) 
+      if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
       {
         // Autocommit transaction
         DBUG_ASSERT(!thd_ndb->stmt);
@@ -3391,31 +3398,24 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 }
 
 /*
-  When using LOCK TABLE's external_lock is only called when the actual
-  TABLE LOCK is done.
-  Under LOCK TABLES, each used tables will force a call to start_stmt.
-  Ndb doesn't currently support table locks, and will do ordinary
-  startTransaction for each transaction/statement.
+  Start a transaction for running a statement if one is not
+  already running in a transaction. This will be the case in
+  a BEGIN; COMMIT; block
+  When using LOCK TABLE's external_lock will start a transaction
+  since ndb does not currently does not support table locking
 */
 
-int ha_ndbcluster::start_stmt(THD *thd)
+int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 {
   int error=0;
   DBUG_ENTER("start_stmt");
   PRINT_OPTION_FLAGS(thd);
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  NdbTransaction *trans= thd_ndb->stmt;
+  NdbTransaction *trans= (thd_ndb->stmt)?thd_ndb->stmt:thd_ndb->all;
   if (!trans){
     Ndb *ndb= thd_ndb->ndb;
     DBUG_PRINT("trans",("Starting transaction stmt"));  
-
-#if 0    
-    NdbTransaction *tablock_trans= thd_ndb->all;
-    DBUG_PRINT("info", ("tablock_trans: %x", (UintPtr)tablock_trans));
-    DBUG_ASSERT(tablock_trans);
-//    trans= ndb->hupp(tablock_trans);
-#endif
     trans= ndb->startTransaction();
     if (trans == NULL)
       ERR_RETURN(ndb->getNdbError());
@@ -4180,7 +4180,12 @@ ulonglong ha_ndbcluster::get_auto_increment()
            --retries &&
            ndb->getNdbError().status == NdbError::TemporaryError);
   if (auto_value == NDB_FAILED_AUTO_INCREMENT)
-    ERR_RETURN(ndb->getNdbError());
+  {
+    const NdbError err= ndb->getNdbError();
+    sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                    (ulong) err.code, err.message);
+    DBUG_RETURN(~(ulonglong) 0);
+  }
   DBUG_RETURN((longlong)auto_value);
 }
 
@@ -4732,11 +4737,14 @@ static int connect_callback()
   return 0;
 }
 
-handlerton *
-ndbcluster_init()
+bool ndbcluster_init()
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
+
+  if (have_ndbcluster != SHOW_OPTION_YES)
+    goto ndbcluster_init_error;
+
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
     DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
@@ -4817,16 +4825,17 @@ ndbcluster_init()
   }
   
   ndbcluster_inited= 1;
-  DBUG_RETURN(&ndbcluster_hton);
+  DBUG_RETURN(FALSE);
 
- ndbcluster_init_error:
+ndbcluster_init_error:
   if (g_ndb)
     delete g_ndb;
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
-  DBUG_RETURN(NULL);
+  have_ndbcluster= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -5915,12 +5924,10 @@ ha_ndbcluster::update_table_comment(
 
 
 // Utility thread main loop
-extern "C" pthread_handler_decl(ndb_util_thread_func,
-                                arg __attribute__((unused)))
+pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   Ndb* ndb;
-  int error= 0;
   struct timespec abstime;
 
   my_thread_init();
@@ -5949,9 +5956,9 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
   {
 
     pthread_mutex_lock(&LOCK_ndb_util_thread);
-    error= pthread_cond_timedwait(&COND_ndb_util_thread,
-                                  &LOCK_ndb_util_thread,
-                                  &abstime);
+    pthread_cond_timedwait(&COND_ndb_util_thread,
+                           &LOCK_ndb_util_thread,
+                           &abstime);
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
     DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %d",
@@ -6618,13 +6625,24 @@ void ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::BETWEEN:
           {
             DBUG_PRINT("info", ("BETWEEN, rewriting using AND"));
+            Item_func_between *between_func= (Item_func_between *) func_item;
             Ndb_rewrite_context *rewrite_context= 
               new Ndb_rewrite_context(func_item);
             rewrite_context->next= context->rewrite_stack;
             context->rewrite_stack= rewrite_context;
+            if (between_func->negated)
+            {
+              DBUG_PRINT("info", ("NOT_FUNC"));
+              curr_cond->ndb_item= new Ndb_item(Item_func::NOT_FUNC, 1);
+              prev_cond= curr_cond;
+              curr_cond= context->cond_ptr= new Ndb_cond();
+              curr_cond->prev= prev_cond;
+              prev_cond->next= curr_cond;
+            }
             DBUG_PRINT("info", ("COND_AND_FUNC"));
-            curr_cond->ndb_item= new Ndb_item(Item_func::COND_AND_FUNC, 
-                                              func_item->argument_count() - 1);
+            curr_cond->ndb_item= 
+              new Ndb_item(Item_func::COND_AND_FUNC, 
+                           func_item->argument_count() - 1);
             context->expect_only(Item::FIELD_ITEM);
             context->expect(Item::INT_ITEM);
             context->expect(Item::STRING_ITEM);
@@ -6635,10 +6653,20 @@ void ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::IN_FUNC:
           {
             DBUG_PRINT("info", ("IN_FUNC, rewriting using OR"));
+            Item_func_in *in_func= (Item_func_in *) func_item;
             Ndb_rewrite_context *rewrite_context= 
               new Ndb_rewrite_context(func_item);
             rewrite_context->next= context->rewrite_stack;
             context->rewrite_stack= rewrite_context;
+            if (in_func->negated)
+            {
+              DBUG_PRINT("info", ("NOT_FUNC"));
+              curr_cond->ndb_item= new Ndb_item(Item_func::NOT_FUNC, 1);
+              prev_cond= curr_cond;
+              curr_cond= context->cond_ptr= new Ndb_cond();
+              curr_cond->prev= prev_cond;
+              prev_cond->next= curr_cond;
+            }
             DBUG_PRINT("info", ("COND_OR_FUNC"));
             curr_cond->ndb_item= new Ndb_item(Item_func::COND_OR_FUNC, 
                                               func_item->argument_count() - 1);
@@ -6960,6 +6988,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("End of condition group"));
           prev_cond= curr_cond;
           curr_cond= context->cond_ptr= new Ndb_cond();
+          curr_cond->prev= prev_cond;
           prev_cond->next= curr_cond;
           curr_cond->ndb_item= new Ndb_item(NDB_END_COND);
           // Pop rewrite stack
@@ -7366,6 +7395,51 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   }
 
   DBUG_RETURN(0);
+}
+
+int
+ndbcluster_show_status(THD* thd)
+{
+  Protocol *protocol= thd->protocol;
+  
+  DBUG_ENTER("ndbcluster_show_status");
+  
+  if (have_ndbcluster != SHOW_OPTION_YES) 
+  {
+    my_message(ER_NOT_SUPPORTED_YET,
+	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is defined",
+	       MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("free_list", 255));
+  field_list.push_back(new Item_return_int("created", 10,MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("free", 10,MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("sizeof", 10,MYSQL_TYPE_LONG));
+
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+  
+  if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
+  {
+    Ndb* ndb= (get_thd_ndb(thd))->ndb;
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (ndb->get_free_list_usage(&tmp))
+    {
+      protocol->prepare_for_resend();
+      
+      protocol->store(tmp.m_name, &my_charset_bin);
+      protocol->store((uint)tmp.m_created);
+      protocol->store((uint)tmp.m_free);
+      protocol->store((uint)tmp.m_sizeof);
+      if (protocol->write())
+	DBUG_RETURN(TRUE);
+    }
+  }
+  send_eof(thd);
+  
+  DBUG_RETURN(FALSE);
 }
 
 #endif /* HAVE_NDBCLUSTER_DB */

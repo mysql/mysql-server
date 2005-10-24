@@ -25,17 +25,18 @@
 
 #include "mysql.h"
 #include "sp_head.h"
+#include "sql_cursor.h"
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
 
-sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
+sp_rcontext::sp_rcontext(sp_rcontext *prev, uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
-    m_hfound(-1), m_ccount(0)
+    m_ihsp(0), m_hfound(-1), m_ccount(0), m_prev_ctx(prev)
 {
-  in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
   m_hstack= (uint *)sql_alloc(hmax * sizeof(uint));
+  m_in_handler= (uint *)sql_alloc(hmax * sizeof(uint));
   m_cstack= (sp_cursor **)sql_alloc(cmax * sizeof(sp_cursor *));
   m_saved.empty();
 }
@@ -45,31 +46,18 @@ int
 sp_rcontext::set_item_eval(THD *thd, uint idx, Item **item_addr,
 			   enum_field_types type)
 {
-  extern Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
-				 Item *reuse, bool use_callers_arena);
   Item *it;
   Item *reuse_it;
-  Item *old_item_next;
   /* sp_eval_func_item will use callers_arena */
-  Item *old_free_list= thd->spcont->callers_arena->free_list;
   int res;
-  LINT_INIT(old_item_next);
 
-  if ((reuse_it= get_item(idx)))
-    old_item_next= reuse_it->next;
+  reuse_it= get_item(idx);
   it= sp_eval_func_item(thd, item_addr, type, reuse_it, TRUE);
   if (! it)
     res= -1;
   else
   {
     res= 0;
-    if (reuse_it && it == reuse_it)
-    {
-      // A reused item slot, where the constructor put it in the free_list,
-      // so we have to restore the list.
-      thd->spcont->callers_arena->free_list= old_free_list;
-      it->next= old_item_next;
-    }
     set_item(idx, it);
   }
 
@@ -80,8 +68,6 @@ bool
 sp_rcontext::find_handler(uint sql_errno,
                           MYSQL_ERROR::enum_warning_level level)
 {
-  if (in_handler)
-    return 0;			// Already executing a handler
   if (m_hfound >= 0)
     return 1;			// Already got one
 
@@ -91,6 +77,13 @@ sp_rcontext::find_handler(uint sql_errno,
   while (i--)
   {
     sp_cond_type_t *cond= m_handler[i].cond;
+    int j= m_ihsp;
+
+    while (j--)
+      if (m_in_handler[j] == m_handler[i].handler)
+	break;
+    if (j >= 0)
+      continue;                 // Already executing this handler
 
     switch (cond->type)
     {
@@ -123,7 +116,11 @@ sp_rcontext::find_handler(uint sql_errno,
     }
   }
   if (found < 0)
+  {
+    if (m_prev_ctx)
+      return m_prev_ctx->find_handler(sql_errno, level);
     return FALSE;
+  }
   m_hfound= found;
   return TRUE;
 }
@@ -170,7 +167,8 @@ sp_rcontext::pop_cursors(uint count)
  */
 
 sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
-  :m_lex_keeper(lex_keeper), m_prot(NULL), m_isopen(0), m_current_row(NULL),
+  :m_lex_keeper(lex_keeper),
+   server_side_cursor(NULL),
    m_i(i)
 {
   /*
@@ -182,59 +180,37 @@ sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
 
 
 /*
-  pre_open cursor
+  Open an SP cursor
 
   SYNOPSIS
-    pre_open()
-    THD		Thread handler
+    open()
+    THD		         Thread handler
 
-  NOTES
-    We have to open cursor in two steps to make it easy for sp_instr_copen
-    to reuse the sp_instr::exec_stmt() code.
-    If this function returns 0, post_open should not be called
 
   RETURN
-   0  ERROR
+   0 in case of success, -1 otherwise
 */
 
-sp_lex_keeper*
-sp_cursor::pre_open(THD *thd)
+int
+sp_cursor::open(THD *thd)
 {
-  if (m_isopen)
+  if (server_side_cursor)
   {
     my_message(ER_SP_CURSOR_ALREADY_OPEN, ER(ER_SP_CURSOR_ALREADY_OPEN),
                MYF(0));
-    return NULL;
+    return -1;
   }
-  init_alloc_root(&m_mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
-  if ((m_prot= new Protocol_cursor(thd, &m_mem_root)) == NULL)
-    return NULL;
-
-  /* Save for execution. Will be restored in post_open */
-  m_oprot= thd->protocol;
-  m_nseof= thd->net.no_send_eof;
-
-  /* Change protocol for execution */
-  thd->protocol= m_prot;
-  thd->net.no_send_eof= TRUE;
-  return m_lex_keeper;
-}
-
-
-void
-sp_cursor::post_open(THD *thd, my_bool was_opened)
-{
-  thd->net.no_send_eof= m_nseof; // Restore the originals
-  thd->protocol= m_oprot;
-  if ((m_isopen= was_opened))
-    m_current_row= m_prot->data;
+  if (mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR, &result,
+                        &server_side_cursor))
+    return -1;
+  return 0;
 }
 
 
 int
 sp_cursor::close(THD *thd)
 {
-  if (! m_isopen)
+  if (! server_side_cursor)
   {
     my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
     return -1;
@@ -247,106 +223,82 @@ sp_cursor::close(THD *thd)
 void
 sp_cursor::destroy()
 {
-  if (m_prot)
-  {
-    delete m_prot;
-    m_prot= NULL;
-    free_root(&m_mem_root, MYF(0));
-  }
-  m_isopen= FALSE;
+  delete server_side_cursor;
+  server_side_cursor= 0;
 }
+
 
 int
 sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
 {
-  List_iterator_fast<struct sp_pvar> li(*vars);
-  sp_pvar_t *pv;
-  MYSQL_ROW row;
-  uint fldcount;
-
-  if (! m_isopen)
+  if (! server_side_cursor)
   {
     my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
     return -1;
   }
-  if (m_current_row == NULL)
-  {
-    my_message(ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA), MYF(0));
-    return -1;
-  }
-
-  row= m_current_row->data;
-  for (fldcount= 0 ; (pv= li++) ; fldcount++)
-  {
-    Item *it;
-    Item *reuse;
-    uint rsize;
-    Item *old_item_next;
-    Item *old_free_list= thd->free_list;
-    const char *s;
-    LINT_INIT(old_item_next);
-
-    if (fldcount >= m_prot->get_field_count())
-    {
-      my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
-                 ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
-      return -1;
-    }
-
-    if ((reuse= thd->spcont->get_item(pv->offset)))
-      old_item_next= reuse->next;
-
-    s= row[fldcount];
-    if (!s)
-      it= new(reuse, &rsize) Item_null();
-    else
-    {
-      /*
-        Length of data can be calculated as:
-        pointer_to_next_not_null_object - s -1
-        where the last -1 is to remove the end \0
-      */
-      uint len;
-      MYSQL_ROW next= row+fldcount+1;
-      while (!*next)                             // Skip nulls
-        next++;
-      len= (*next -s)-1;
-      switch (sp_map_result_type(pv->type)) {
-      case INT_RESULT:
-	it= new(reuse, &rsize) Item_int(s);
-	break;
-      case REAL_RESULT:
-        it= new(reuse, &rsize) Item_float(s, len);
-	break;
-      case DECIMAL_RESULT:
-        it= new(reuse, &rsize) Item_decimal(s, len, thd->db_charset);
-        break;
-      case STRING_RESULT:
-        /* TODO: Document why we do an extra copy of the string 's' here */
-        it= new(reuse, &rsize) Item_string(thd->strmake(s, len), len,
-					   thd->db_charset);
-        break;
-      case ROW_RESULT:
-      default:
-        DBUG_ASSERT(0);
-      }
-    }
-    it->rsize= rsize;
-    if (reuse && it == reuse)
-    {
-      // A reused item slot, where the constructor put it in the free_list,
-      // so we have to restore the list.
-      thd->free_list= old_free_list;
-      it->next= old_item_next;
-    }
-    thd->spcont->set_item(pv->offset, it);
-  }
-  if (fldcount < m_prot->get_field_count())
+  if (vars->elements != result.get_field_count())
   {
     my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
                ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
     return -1;
   }
-  m_current_row= m_current_row->next;
+
+  result.set_spvar_list(vars);
+
+  /* Attempt to fetch one row */
+  if (server_side_cursor->is_open())
+    server_side_cursor->fetch(1);
+
+  /*
+    If the cursor was pointing after the last row, the fetch will
+    close it instead of sending any rows.
+  */
+  if (! server_side_cursor->is_open())
+  {
+    my_message(ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA), MYF(0));
+    return -1;
+  }
+
   return 0;
+}
+
+
+/***************************************************************************
+ Select_fetch_into_spvars
+****************************************************************************/
+
+int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
+{
+  /*
+    Cache the number of columns in the result set in order to easily
+    return an error if column count does not match value count.
+  */
+  field_count= fields.elements;
+  return select_result_interceptor::prepare(fields, u);
+}
+
+
+bool Select_fetch_into_spvars::send_data(List<Item> &items)
+{
+  List_iterator_fast<struct sp_pvar> pv_iter(*spvar_list);
+  List_iterator_fast<Item> item_iter(items);
+  sp_pvar_t *pv;
+  Item *item;
+
+  /* Must be ensured by the caller */
+  DBUG_ASSERT(spvar_list->elements == items.elements);
+
+  /*
+    Assign the row fetched from a server side cursor to stored
+    procedure variables.
+  */
+  for (; pv= pv_iter++, item= item_iter++; )
+  {
+    Item *reuse= thd->spcont->get_item(pv->offset);
+    /* Evaluate a new item on the arena of the calling instruction */
+    Item *it= sp_eval_func_item(thd, &item, pv->type, reuse, TRUE);
+
+    thd->spcont->set_item(pv->offset, it);
+  }
+  return FALSE;
 }

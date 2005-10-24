@@ -53,7 +53,7 @@ enum enum_sql_command {
 
   SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
   SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_LOGS, SQLCOM_SHOW_STATUS,
-  SQLCOM_SHOW_INNODB_STATUS, SQLCOM_SHOW_MUTEX_STATUS,
+  SQLCOM_SHOW_INNODB_STATUS, SQLCOM_SHOW_NDBCLUSTER_STATUS, SQLCOM_SHOW_MUTEX_STATUS,
   SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
   SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
   SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB, SQLCOM_SHOW_TABLE_STATUS,
@@ -386,12 +386,12 @@ protected:
   select_result *result;
   ulong found_rows_for_union;
   bool res;
+public:
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
     cleaned;
 
-public:
   // list of fields which points to temporary table for union
   List<Item> item_list;
   /*
@@ -432,10 +432,6 @@ public:
   {
     return my_reinterpret_cast(st_select_lex*)(slave);
   }
-  st_select_lex* first_select_in_union() 
-  { 
-    return my_reinterpret_cast(st_select_lex*)(slave);
-  }
   st_select_lex_unit* next_unit()
   {
     return my_reinterpret_cast(st_select_lex_unit*)(next);
@@ -445,8 +441,7 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  bool prepare(THD *thd, select_result *result, ulong additional_options,
-               const char *tmp_table_alias);
+  bool prepare(THD *thd, select_result *result, ulong additional_options);
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
@@ -462,7 +457,10 @@ public:
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
+
+  List<Item> *get_unit_column_types();
 };
+
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /*
@@ -484,6 +482,7 @@ public:
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
+  bool	              is_item_list_lookup;
   /* 
     Usualy it is pointer to ftfunc_list_alloc, but in union used to create fake
     select_lex for calling mysql_select under results of union
@@ -640,6 +639,11 @@ public:
     SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
   */
   bool cleanup();
+  /*
+    Recursively cleanup the join of this select lex and of all nested
+    select lexes.
+  */
+  void cleanup_all_joins(bool full);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -733,6 +737,8 @@ typedef struct st_lex
   TABLE_LIST **query_tables_last;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
+  st_lex_user *create_view_definer;
+  char *create_view_select_start;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -808,6 +814,11 @@ typedef struct st_lex
     to an .frm file. We need this definition to stay untouched.
   */
   bool view_prepare_mode;
+  /*
+    TRUE if we're parsing a prepared statement: in this mode
+    we should allow placeholders and disallow multistatements.
+  */
+  bool stmt_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   bool variables_used;
@@ -838,8 +849,15 @@ typedef struct st_lex
   /*
     List linking elements of 'sroutines' set. Allows you to add new elements
     to this set as you iterate through the list of existing elements.
+    'sroutines_list_own_last' is pointer to ::next member of last element of
+    this list which represents routine which is explicitly used by query.
+    'sroutines_list_own_elements' number of explicitly used routines.
+    We use these two members for restoring of 'sroutines_list' to the state
+    in which it was right after query parsing.
   */
   SQL_LIST sroutines_list;
+  byte     **sroutines_list_own_last;
+  uint     sroutines_list_own_elements;
 
   st_sp_chistics sp_chistics;
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
@@ -848,6 +866,10 @@ typedef struct st_lex
     rexecuton
   */
   bool empty_field_list_on_rset;
+  /*
+    view created to be run from definer (standard behaviour)
+  */
+  bool create_view_suid;
   /* Characterstics of trigger being created */
   st_trg_chistics trg_chistics;
   /*
@@ -872,6 +894,8 @@ typedef struct st_lex
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
   uchar *fname_start, *fname_end;
+  
+  bool escape_used;
 
   st_lex();
 
@@ -950,6 +974,15 @@ typedef struct st_lex
   TABLE_LIST* first_not_own_table()
   {
     return ( query_tables_own_last ? *query_tables_own_last : 0);
+  }
+  void chop_off_not_own_tables()
+  {
+    if (query_tables_own_last)
+    {
+      *query_tables_own_last= 0;
+      query_tables_last= query_tables_own_last;
+      query_tables_own_last= 0;
+    }
   }
   void cleanup_after_one_table_open();
 

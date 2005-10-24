@@ -68,6 +68,8 @@ public:
      4) Add SentHeartbeat in EventLogger::getText()
 
    */
+  void setNodeId(Uint32 nodeId);
+  Uint32 getNodeId() const;
   void setEventType(Ndb_logevent_type type);
   Ndb_logevent_type getEventType() const;
   UintR eventType;    // DATA 0
@@ -75,14 +77,26 @@ public:
 
 inline
 void
+EventReport::setNodeId(Uint32 nodeId){
+  eventType = (nodeId << 16) | (eventType & 0xFFFF);
+}
+
+inline
+Uint32
+EventReport::getNodeId() const {
+  return eventType >> 16;
+}
+
+inline
+void
 EventReport::setEventType(Ndb_logevent_type type){
-  eventType = (UintR) type;
+  eventType = (eventType & 0xFFFF0000) | (((UintR) type) & 0xFFFF);
 }
 
 inline
 Ndb_logevent_type
 EventReport::getEventType() const {
-  return (Ndb_logevent_type)eventType;
+  return (Ndb_logevent_type)(eventType & 0xFFFF);
 }
 
 #endif

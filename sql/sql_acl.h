@@ -174,14 +174,15 @@ public:
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
-my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
-void acl_reload(THD *thd);
+my_bool  acl_init(bool dont_read_acl_tables);
+my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
 int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
                 uint passwd_len);
-int acl_getroot_no_password(THD *thd);
+bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
+                             char *ip, char *db);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user,
                            char *password, uint password_len);
@@ -196,9 +197,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
 			 List <LEX_USER> &user_list, ulong rights,
 			 bool revoke, bool no_error);
 ACL_USER *check_acl_user(LEX_USER *user_name, uint *acl_acl_userdx);
-my_bool grant_init(THD *thd);
+my_bool grant_init();
 void grant_free(void);
-void grant_reload(THD *thd);
+my_bool grant_reload(THD *thd);
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 		 uint show_command, uint number, bool dont_print_error);
 bool check_grant_column (THD *thd, GRANT_INFO *grant,
@@ -229,7 +230,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc);
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
-
+bool is_acl_user(const char *host, const char *user);
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0

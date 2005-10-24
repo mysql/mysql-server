@@ -343,6 +343,54 @@ ut_free_all_mem(void)
 }
 
 /**************************************************************************
+Copies up to size - 1 characters from the NUL-terminated string src to
+dst, NUL-terminating the result. Returns strlen(src), so truncation
+occurred if the return value >= size. */
+
+ulint
+ut_strlcpy(
+/*=======*/
+				/* out: strlen(src) */
+	char*		dst,	/* in: destination buffer */
+	const char*	src,	/* in: source buffer */
+	ulint		size)	/* in: size of destination buffer */
+{
+	ulint	src_size = strlen(src);
+
+	if (size != 0) {
+		ulint	n = ut_min(src_size, size - 1);
+		
+		memcpy(dst, src, n);
+		dst[n] = '\0';
+	}
+
+	return(src_size);
+}
+
+/**************************************************************************
+Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
+(size - 1) bytes of src, not the first. */
+
+ulint
+ut_strlcpy_rev(
+/*===========*/
+				/* out: strlen(src) */
+	char*		dst,	/* in: destination buffer */
+	const char*	src,	/* in: source buffer */
+	ulint		size)	/* in: size of destination buffer */
+{
+	ulint	src_size = strlen(src);
+
+	if (size != 0) {
+		ulint	n = ut_min(src_size, size - 1);
+
+		memcpy(dst, src + src_size - n, n + 1);
+	}
+
+	return(src_size);
+}
+
+/**************************************************************************
 Make a quoted copy of a NUL-terminated string.  Leading and trailing
 quotes will not be included; only embedded quotes will be escaped.
 See also ut_strlenq() and ut_memcpyq(). */

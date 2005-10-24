@@ -1,8 +1,15 @@
 %define mysql_version		@VERSION@
+
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
 # to enable static linking (off by default)
 %{?_with_static:%define STATIC_BUILD 1}
 %{!?_with_static:%define STATIC_BUILD 0}
+
+# use "rpmbuild --with yassl" or "rpm --define '_with_yassl 1'" (for RPM 3.x)
+# to build with yaSSL support (off by default)
+%{?_with_yassl:%define YASSL_BUILD 1}
+%{!?_with_yassl:%define YASSL_BUILD 0}
+
 %if %{STATIC_BUILD}
 %define release 0
 %else
@@ -10,6 +17,7 @@
 %endif
 %define license GPL
 %define mysqld_user		mysql
+%define mysqld_group	mysql
 %define server_suffix -standard
 %define mysqldatadir /var/lib/mysql
 
@@ -238,6 +246,9 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
 	    --with-extra-charsets=complex \
+%if %{YASSL_BUILD}
+	    --with-yassl \
+%endif
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \
@@ -248,11 +259,9 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-readline ;
+	    --with-readline ; \
 	    # Add this for more debugging support
 	    # --with-debug
-	    # Add this for MyISAM RAID support:
-	    # --with-raid
 	    "
 
  # benchdir does not fit in above model. Maybe a separate bench distribution
@@ -295,7 +304,6 @@ then
 fi
 
 BuildMySQL "--enable-shared \
-		--without-openssl \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
@@ -304,24 +312,29 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
-		--with-embedded-server \
-		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
-		--with-server-suffix='-Max'"
+	        --with-big-tables \
+		--with-comment=\"MySQL Community Edition - Experimental (GPL)\" \
+		--with-server-suffix='-max'"
+
+# We might want to save the config log file
+if test -n "$MYSQL_MAXCONFLOG_DEST"
+then
+  cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
+fi
 
 make test-force || true
 
 # Save mysqld-max
 mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+# Save the perror binary so it supports the NDB error codes (BUG#13740)
+mv extra/perror extra/perror.ndb
 
 # Install the ndb binaries
 (cd ndb; make install DESTDIR=$RBR)
 
-# Install embedded server library in the build root
-install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
-
 # Include libgcc.a in the devel subpackage (BUG 4921)
-if [ "$CC" = gcc ]
+if expr "$CC" : ".*gcc.*" > /dev/null ;
 then
   libgcc=`$CC --print-libgcc-file`
   if [ -f $libgcc ]
@@ -353,12 +366,16 @@ BuildMySQL "--disable-shared \
 %endif
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
-		--without-embedded-server \
-		--without-berkeley-db \
+		--with-archive-storage-engine \
 		--with-innodb \
-		--without-vio \
-		--without-openssl"
+		--with-big-tables"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
+
+# We might want to save the config log file
+if test -n "$MYSQL_CONFLOG_DEST"
+then
+  cp -fp config.log "$MYSQL_CONFLOG_DEST"
+fi
 
 make test-force || true
 
@@ -383,15 +400,22 @@ make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 (cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
 
 # install saved mysqld-max
-install -s -m755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
+install -s -m 755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
+
+# install saved perror binary with NDB support (BUG#13740)
+install -s -m 755 $MBD/extra/perror.ndb $RBR%{_bindir}/perror
 
 # install symbol files ( for stack trace resolution)
-install -m644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
-install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
+install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
+install -m 644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
 
 # Install logrotate and autostart
-install -m644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+
+# Install embedded server library in the build root
+# FIXME No libmysqld on 5.0 yet
+#install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -425,7 +449,7 @@ fi
 mysql_datadir=%{mysqldatadir}
 
 # Create data directory if needed
-if test ! -d $mysql_datadir; then mkdir -m755 $mysql_datadir; fi
+if test ! -d $mysql_datadir; then mkdir -m 755 $mysql_datadir; fi
 if test ! -d $mysql_datadir/mysql; then mkdir $mysql_datadir/mysql; fi
 if test ! -d $mysql_datadir/test; then mkdir $mysql_datadir/test; fi
 
@@ -442,18 +466,20 @@ fi
 
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
-groupadd -r %{mysqld_user} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_user} %{mysqld_user} 2> /dev/null || true 
+groupadd -r %{mysqld_group} 2> /dev/null || true
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true 
+# The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
+usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
 # Change permissions so that the user that will run the MySQL daemon
 # owns all database files.
-chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # Initiate databases
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
-chown -R %{mysqld_user}:%{mysqld_user} $mysql_datadir
+chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # Fix permissions for the permission database so that only the user
 # can read them.
@@ -470,7 +496,7 @@ sleep 2
 mysql_clusterdir=/var/lib/mysql-cluster
 
 # Create cluster directory if needed
-if test ! -d $mysql_clusterdir; then mkdir -m755 $mysql_clusterdir; fi
+if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
 
 
 %post Max
@@ -504,7 +530,7 @@ fi
 
 # Clean up the BuildRoot
 %clean
-[ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
+[ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
 
 %files server
 %defattr(-,root,root,0755)
@@ -650,7 +676,7 @@ fi
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/sql-bench
 %attr(-, root, root) %{_datadir}/mysql-test
-%attr(755, rott, root) %{_bindir}/mysql_client_test
+%attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysqltestmanager
 %attr(755, root, root) %{_bindir}/mysqltestmanager-pwgen
 %attr(755, root, root) %{_bindir}/mysqltestmanagerc
@@ -662,12 +688,54 @@ fi
 
 %files embedded
 %defattr(-, root, root, 0755)
-%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
+# %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Oct 19 2005 Kent Boortz <kent@mysql.com>
+
+- Made yaSSL support an option (off by default)
+
+* Wed Oct 19 2005 Kent Boortz <kent@mysql.com>
+
+- Enabled yaSSL support
+
+* Sat Oct 15 2005 Kent Boortz <kent@mysql.com>
+
+- Give mode arguments the same way in all places
+- Moved copy of mysqld.a to "standard" build, but
+  disabled it as we don't do embedded yet in 5.0
+
+* Fri Oct 14 2005 Kent Boortz <kent@mysql.com>
+
+- For 5.x, always compile with --with-big-tables
+- Copy the config.log file to location outside
+  the build tree
+
+* Fri Oct 14 2005 Kent Boortz <kent@mysql.com>
+
+- Removed unneeded/obsolte configure options
+- Added archive engine to standard server
+- Removed the embedded server from experimental server
+- Changed suffix "-Max" => "-max"
+- Changed comment string "Max" => "Experimental"
+
+* Thu Oct 13 2005 Lenz Grimmer <lenz@mysql.com>
+
+- added a usermod call to assign a potential existing mysql user to the
+  correct user group (BUG#12823)
+- Save the perror binary built during Max build so it supports the NDB
+  error codes (BUG#13740)
+- added a separate macro "mysqld_group" to be able to define the
+  user group of the mysql user seperately, if desired.
+
+* Thu Sep 29 2005 Lenz Grimmer <lenz@mysql.com>
+
+- fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
+  $RBR variable did not get expanded, thus leaving old build roots behind)
+
 * Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>
 
 - Fixed the creation of the mysql user group account in the postinstall

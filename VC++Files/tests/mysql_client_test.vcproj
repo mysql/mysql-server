@@ -25,7 +25,7 @@
 				AdditionalIncludeDirectories="../include,../"
 				PreprocessorDefinitions="DBUG_OFF;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;__WIN__;_WIN32"
 				StringPooling="TRUE"
-				RuntimeLibrary="1"
+				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
 				PrecompiledHeaderFile=".\Release/mysql_client_test.pch"
 				AssemblerListingLocation=".\Release/"
@@ -38,7 +38,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib Ws2_32.lib mysqlclient.lib mysys.lib regex.lib ..\extra\yassl\Release\yassl.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib Ws2_32.lib"
 				OutputFile="..\client_release\mysql_client_test.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -98,7 +98,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib ..\extra\yassl\Debug\yassl.lib"
+				AdditionalDependencies="odbc32.lib odbccp32.lib wsock32.lib"
 				OutputFile="..\client_debug\mysql_client_test.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"

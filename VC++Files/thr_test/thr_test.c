@@ -44,7 +44,7 @@ typedef CRITICAL_SECTION pthread_mutex_t;
 #define pthread_mutex_lock(A)    (EnterCriticalSection(A),0)
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
-#define pthread_handler_decl(A,B) unsigned __cdecl A(void *B)
+#define pthread_handler_t unsigned __cdecl
 typedef unsigned (__cdecl *pthread_handler)(void *);
 #define pthread_self() GetCurrentThread()
 
@@ -174,7 +174,7 @@ int _my_errno(void)
 ** The test program
 *****************************************************************************/
 
-pthread_handler_decl(test_thread,arg)
+pthread_handler_t test_thread(void *arg)
 {
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;

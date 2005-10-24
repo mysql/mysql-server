@@ -1283,10 +1283,6 @@ SOURCE=.\protocol.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\protocol_cursor.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\records.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -1860,6 +1856,10 @@ SOURCE=.\sql_test.cpp
 # Begin Source File
 
 SOURCE=.\sql_trigger.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_cursor.cpp
 # End Source File
 # Begin Source File
 

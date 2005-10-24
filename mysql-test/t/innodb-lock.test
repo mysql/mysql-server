@@ -39,7 +39,7 @@ set autocommit=0;
 # The following statement should hang because con1 is locking the page
 --send
 lock table t1 write;
---sleep 2;
+--sleep 2
 
 connection con1;
 update t1 set x=1 where id = 0;

@@ -19,7 +19,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
 
@@ -33,9 +33,9 @@
 class Buffer
 {
 private:
-  enum { BUFFER_INITIAL_SIZE= 4096 };
+  static const uint BUFFER_INITIAL_SIZE;
   /* maximum buffer size is 16Mb */
-  enum { MAX_BUFFER_SIZE= 16777216 };
+  static const uint MAX_BUFFER_SIZE;
   size_t buffer_size;
   /* Error flag. Triggered if we get an error of some kind */
   int error;

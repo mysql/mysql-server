@@ -228,9 +228,12 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
-	const char*	name);		/* in: table full name in the
+	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
+	ibool		reject_fks);	/* in: if TRUE, fail with error
+					code DB_CANNOT_ADD_CONSTRAINT if
+					any foreign keys are found. */
 /**************************************************************************
 Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement. */
 
@@ -372,9 +375,10 @@ CREATE TABLE. */
 void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
-	FILE*		file,	/* in: file where to print */
-	trx_t*		trx,	/* in: transaction */
-	dict_foreign_t*	foreign);/* in: foreign key constraint */
+	FILE*		file,		/* in: file where to print */
+	trx_t*		trx,		/* in: transaction */
+	dict_foreign_t*	foreign,	/* in: foreign key constraint */
+	ibool		add_newline);	/* in: whether to add a newline */
 /************************************************************************
 Displays the names of the index and the table. */
 void

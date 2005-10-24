@@ -25,7 +25,10 @@
 #endif
 
 #ifdef  __cplusplus
+#define EXTERN_C extern "C"
 extern "C" {
+#else
+#define EXTERN_C
 #endif /* __cplusplus */ 
 
 #if defined(__WIN__) || defined(OS2)
@@ -77,10 +80,10 @@ struct timespec {		/* For pthread_cond_timedwait() */
 typedef int pthread_mutexattr_t;
 #define win_pthread_self my_thread_var->pthread_self
 #ifdef OS2
-#define pthread_handler_decl(A,B) void * _Optlink A(void *B)
+#define pthread_handler_t EXTERN_C void * _Optlink
 typedef void * (_Optlink *pthread_handler)(void *);
 #else
-#define pthread_handler_decl(A,B) void * __cdecl A(void *B)
+#define pthread_handler_t EXTERN_C void * __cdecl
 typedef void * (__cdecl *pthread_handler)(void *);
 #endif
 
@@ -144,7 +147,7 @@ extern int pthread_mutex_destroy (pthread_mutex_t *);
 #define pthread_kill(A,B) raise(B)
 #define pthread_exit(A) pthread_dummy()
 #else
-#define pthread_mutex_init(A,B)  InitializeCriticalSection(A)
+#define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
 #define pthread_mutex_trylock(A) (WaitForSingleObject((A), 0) == WAIT_TIMEOUT)
 #define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
@@ -184,7 +187,7 @@ typedef int pthread_attr_t;			/* Needed by Unixware 7.0.0 */
 #define pthread_key_create(A,B) thr_keycreate((A),(B))
 #define pthread_key_delete(A) thr_keydelete(A)
 
-#define pthread_handler_decl(A,B) void *A(void *B)
+#define pthread_handler_t EXTERN_C void *
 #define pthread_key(T,V) pthread_key_t V
 
 void *	my_pthread_getspecific_imp(pthread_key_t key);
@@ -262,7 +265,7 @@ extern int my_pthread_getprio(pthread_t thread_id);
 #define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))
 #define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,(void*) (V))
 #define pthread_detach_this_thread()
-#define pthread_handler_decl(A,B) void *A(void *B)
+#define pthread_handler_t EXTERN_C void *
 typedef void *(* pthread_handler)(void *);
 
 /* Test first for RTS or FSU threads */
@@ -289,18 +292,11 @@ extern int my_pthread_create_detached;
 #undef HAVE_PTHREAD_RWLOCK_RDLOCK
 #undef HAVE_SNPRINTF
 
-#define sigset(A,B) pthread_signal((A),(void (*)(int)) (B))
-#define signal(A,B) pthread_signal((A),(void (*)(int)) (B))
 #define my_pthread_attr_setprio(A,B)
 #endif /* defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM) */
 
 #if defined(_BSDI_VERSION) && _BSDI_VERSION < 199910
 int sigwait(sigset_t *set, int *sig);
-#endif
-
-#if defined(HAVE_UNIXWARE7_POSIX)
-#undef HAVE_NONPOSIX_SIGWAIT
-#define HAVE_NONPOSIX_SIGWAIT	/* sigwait takes only 1 argument */
 #endif
 
 #ifndef HAVE_NONPOSIX_SIGWAIT
@@ -327,14 +323,26 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #if !defined(HAVE_SIGWAIT) && !defined(HAVE_mit_thread) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
 int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
-#if !defined(HAVE_SIGSET) && !defined(HAVE_mit_thread) && !defined(sigset)
-#define sigset(A,B) do { struct sigaction s; sigset_t set;              \
-                         sigemptyset(&set);                             \
-                         s.sa_handler = (B);                            \
-                         s.sa_mask    = set;                            \
-                         s.sa_flags   = 0;                              \
-                         sigaction((A), &s, (struct sigaction *) NULL); \
-                       } while (0)
+
+
+/*
+  We define my_sigset() and use that instead of the system sigset() so that
+  we can favor an implementation based on sigaction(). On some systems, such
+  as Mac OS X, sigset() results in flags such as SA_RESTART being set, and
+  we want to make sure that no such flags are set.
+*/
+#if defined(HAVE_SIGACTION) && !defined(my_sigset)
+#define my_sigset(A,B) do { struct sigaction s; sigset_t set;              \
+                            sigemptyset(&set);                             \
+                            s.sa_handler = (B);                            \
+                            s.sa_mask    = set;                            \
+                            s.sa_flags   = 0;                              \
+                            sigaction((A), &s, (struct sigaction *) NULL); \
+                          } while (0)
+#elif defined(HAVE_SIGSET) && !defined(my_sigset)
+#define my_sigset(A,B) sigset((A),(B))
+#elif !defined(my_sigset)
+#define my_sigset(A,B) signal((A),(B))
 #endif
 
 #ifndef my_pthread_setprio
@@ -414,16 +422,13 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #endif
 
-#ifdef HAVE_DARWIN_THREADS
+#ifdef HAVE_DARWIN5_THREADS
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
 #define pthread_kill(A,B) pthread_dummy(0)
 #define pthread_condattr_init(A) pthread_dummy(0)
 #define pthread_condattr_destroy(A) pthread_dummy(0)
-#define pthread_signal(A,B) pthread_dummy(0)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(tmp); }
-#undef sigset
-#define sigset(A,B) pthread_signal((A),(void (*)(int)) (B))
 #endif
 
 #if ((defined(HAVE_PTHREAD_ATTR_CREATE) && !defined(HAVE_SIGWAIT)) || defined(HAVE_DEC_3_2_THREADS)) && !defined(HAVE_CTHREADS_WRAPPER)

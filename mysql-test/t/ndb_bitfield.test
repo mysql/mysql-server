@@ -47,6 +47,58 @@ select a+0 from t1 order by a;
 select b+0 from t1 order by b;
 drop table t1;
 
+create table t1 (
+                dummyKey INTEGER NOT NULL,
+                a001 TINYINT,
+                a010 TINYINT,
+                a012 TINYINT,
+                a015 TINYINT,
+                a016 TINYINT,
+                a017 TINYINT,
+                a019 TINYINT,
+                a029 TINYINT,
+                a030 TINYINT,
+                a031 TINYINT,
+                a032 TINYINT,
+                a042 TINYINT,
+                a043 TINYINT,
+                a044 TINYINT,
+                a3001 TINYINT,
+                a3002 TINYINT,
+                a3003 TINYINT,
+                a3004 TINYINT,
+                a3005 TINYINT,
+                a3021 TINYINT,
+                a3022 TINYINT,
+                a BIT(6),
+                b BIT(6),
+                c BIT(6),
+                d TINYINT,
+                e TINYINT,
+                f TINYINT,
+                g TINYINT,
+                h TINYINT,
+                i TINYINT,
+                j TINYINT,
+                k TINYINT,
+                l TINYINT,
+                m TINYINT,
+                n TINYINT,
+                o TINYINT,
+                a034 TINYINT,
+PRIMARY KEY USING HASH (dummyKey) ) engine=ndb;
+INSERT INTO `t1` VALUES
+(1,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000001',b'111111',b'111110',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(2,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000010',b'000000',b'111101',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(3,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000100',b'001111',b'111011',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(4,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'001000',b'110000',b'110111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(5,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'010000',b'100001',b'101111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(6,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'100000',b'010010',b'011111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(7,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000000',b'001100',b'111111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(8,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'111111',b'000000',b'000000',4,5,5,5,5,5,5,5,5,5,3,2,1);
+--exec $MYSQL_DUMP --hex-blob --compact --order-by-primary --skip-extended-insert --no-create-info test t1
+drop table t1;
+
 --error 1005
 create table t1 (
   pk1 bit(9) not null primary key,

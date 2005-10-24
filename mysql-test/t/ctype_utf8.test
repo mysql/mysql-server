@@ -685,8 +685,10 @@ drop table t1;
 
 SET collation_connection='utf8_general_ci';
 -- source include/ctype_filesort.inc
+-- source include/ctype_like_escape.inc
 SET collation_connection='utf8_bin';
 -- source include/ctype_filesort.inc
+-- source include/ctype_like_escape.inc
 
 #
 # Bug #7874 CONCAT() gives wrong results mixing
@@ -810,6 +812,12 @@ alter table t1 modify a char(2) character set utf8;
 select char_length(a), length(a), a from t1 order by a;
 drop table t1;
 
+#
+# Bugs#12611
+# ESCAPE + LIKE do not work when the escape char is a multibyte one
+#
+set names utf8;
+select 'andre%' like 'andreñ%' escape 'ñ';
 
 #
 # Bugs#11754: SET NAMES utf8 followed by SELECT "A\\" LIKE "A\\" returns 0
@@ -843,6 +851,23 @@ insert into t1 values (_utf8 0x5b);
 select hex(a) from t1;
 drop table t1;
 
+#
+# Bug#13751 find_in_set: Illegal mix of collations
+#
+set names 'latin1';
+create table t1 (a varchar(255)) default charset=utf8;
+select * from t1 where find_in_set('-1', a);
+drop table t1;
+
+#
+# Bug#13233: select distinct char(column) fails with utf8
+#
+create table t1 (a int);
+insert into t1 values (48),(49),(50);
+set names utf8;
+select distinct char(a) from t1;
+drop table t1;
+
 # End of 4.1 tests
 
 #
@@ -857,3 +882,63 @@ SELECT DISTINCT id FROM t1;
 SELECT DISTINCT id FROM t1 ORDER BY id;
 
 DROP TABLE t1;
+
+#
+#  Bugs#10504: Character set does not support traditional mode
+#
+set names utf8;
+# correct value
+select hex(char(1 using utf8));
+select char(0xd1,0x8f using utf8);
+select char(0xd18f using utf8);
+select char(53647 using utf8);
+# incorrect value: return with warning
+select char(0xff,0x8f using utf8);
+# incorrect value in strict mode: return NULL with "Error" level warning
+set sql_mode=traditional;
+select char(0xff,0x8f using utf8);
+select char(195 using utf8);
+select char(196 using utf8);
+select char(2557 using utf8);
+
+#
+# Check convert + char + using
+#
+select hex(convert(char(2557 using latin1) using utf8));
+
+#
+# char() without USING returns "binary" by default, any argument is ok
+#
+select hex(char(195));
+select hex(char(196));
+select hex(char(2557));
+
+
+
+#
+# Bug#12891: UNION doesn't return DISTINCT result for multi-byte characters
+#
+set names utf8;
+create table t1 (a char(1)) default character set utf8;
+create table t2 (a char(1)) default character set utf8;
+insert into t1 values('a'),('a'),(0xE38182),(0xE38182);
+insert into t1 values('i'),('i'),(0xE38184),(0xE38184);
+select * from t1 union distinct select * from t2;
+drop table t1,t2;
+
+
+#
+# Bug#12371: executing prepared statement fails (illegal mix of collations)
+#
+set names utf8;
+create table t1 (a char(10), b varchar(10));
+insert into t1 values ('bar','kostja');
+insert into t1 values ('kostja','bar');
+prepare my_stmt from "select * from t1 where a=?";
+set @a:='bar';
+execute my_stmt using @a;
+set @a:='kostja';
+execute my_stmt using @a;
+set @a:=null;
+execute my_stmt using @a;
+drop table if exists t1;

@@ -335,8 +335,14 @@ int
 row_create_index_for_mysql(
 /*=======================*/
 					/* out: error number or DB_SUCCESS */
-	dict_index_t*	index,		/* in: index defintion */
-	trx_t*		trx);		/* in: transaction handle */
+	dict_index_t*	index,		/* in: index definition */
+	trx_t*		trx,		/* in: transaction handle */
+	const ulint*	field_lengths); /* in: if not NULL, must contain
+					dict_index_get_n_fields(index)
+					actual field lengths for the
+					index columns, which are
+					then checked for not being too
+					large. */
 /*************************************************************************
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
@@ -355,9 +361,13 @@ row_table_add_foreign_constraints(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 					table2 can be written also with the
 					database name before it: test.table2 */
-	const char*	name);		/* in: table full name in the
+	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
+	ibool		reject_fks);	/* in: if TRUE, fail with error
+					code DB_CANNOT_ADD_CONSTRAINT if
+					any foreign keys are found. */
+
 /*************************************************************************
 The master thread in srv0srv.c calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy

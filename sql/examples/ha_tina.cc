@@ -54,8 +54,12 @@ pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
 
-static handlerton tina_hton= {
+handlerton tina_hton= {
   "CSV",
+  SHOW_OPTION_YES,
+  "CSV storage engine", 
+  DB_TYPE_CSV_DB,
+  NULL,    /* One needs to be written! */
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -71,7 +75,7 @@ static handlerton tina_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 /*****************************************************************************
@@ -234,6 +238,16 @@ static int free_share(TINA_SHARE *share)
   DBUG_RETURN(result_code);
 }
 
+bool tina_end()
+{
+  if (tina_init)
+  {
+    hash_free(&tina_open_tables);
+    VOID(pthread_mutex_destroy(&tina_mutex));
+  }
+  tina_init= 0;
+  return FALSE;
+}
 
 /* 
   Finds the end of a line.
@@ -651,7 +665,8 @@ int ha_tina::rnd_init(bool scan)
   records= 0;
   chain_ptr= chain;
 #ifdef HAVE_MADVISE
-  (void)madvise(share->mapped_file,share->file_stat.st_size,MADV_SEQUENTIAL);
+  if (scan)
+    (void)madvise(share->mapped_file,share->file_stat.st_size,MADV_SEQUENTIAL);
 #endif
 
   DBUG_RETURN(0);
@@ -845,21 +860,6 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
   *to++= &lock;
   return to;
 }
-
-/* 
-  Range optimizer calls this.
-  I need to update the information on this.
-*/
-ha_rows ha_tina::records_in_range(int inx,
-                                  const byte *start_key,uint start_key_len,
-                                  enum ha_rkey_function start_search_flag,
-                                  const byte *end_key,uint end_key_len,
-                                  enum ha_rkey_function end_search_flag)
-{
-  DBUG_ENTER("ha_tina::records_in_range ");
-  DBUG_RETURN(records); // Good guess
-}
-
 
 /* 
   Create a table. You do not want to leave the table open after a call to

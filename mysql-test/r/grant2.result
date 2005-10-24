@@ -312,3 +312,12 @@ flush privileges;
 drop database mysqltest_1;
 set password = password("changed");
 ERROR 42000: Access denied for user ''@'localhost' to database 'mysql'
+lock table mysql.user write;
+ flush privileges;
+ grant all on *.* to 'mysqltest_1'@'localhost';
+unlock tables;
+lock table mysql.user write;
+ set password for 'mysqltest_1'@'localhost' = password('');
+ revoke all on *.* from 'mysqltest_1'@'localhost';
+unlock tables;
+drop user 'mysqltest_1'@'localhost';

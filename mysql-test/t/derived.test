@@ -258,4 +258,17 @@ create table t2 (a int);
 select * from (select * from t1,t2) foo;
 drop table t1,t2;
 
+#
+# Bug#10586 - query works with 4.1.8, but not with 4.1.11
+#
+create table t1 (ID int unsigned not null auto_increment,
+                 DATA varchar(5) not null, primary key (ID));
+create table t2 (ID int unsigned not null auto_increment,
+                 DATA varchar(5) not null, FID int unsigned not null,
+                 primary key (ID));
+select A.* from (t1 inner join (select * from t2) as A on t1.ID = A.FID);
+select t2.* from ((select * from t1) as A inner join t2 on A.ID = t2.FID);
+select t2.* from (select * from t1) as A inner join t2 on A.ID = t2.FID;
+drop table t1, t2;
+
 # End of 4.1 tests

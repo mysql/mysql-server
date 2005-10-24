@@ -513,14 +513,15 @@ handle_new_error:
 
 		return(TRUE);
 
-	} else if (err == DB_DEADLOCK || err == DB_LOCK_WAIT_TIMEOUT
+	} else if (err == DB_DEADLOCK
 		   || err == DB_LOCK_TABLE_FULL) {
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 				
-	} else if (err == DB_OUT_OF_FILE_SPACE) {
+	} else if (err == DB_OUT_OF_FILE_SPACE
+		   || err == DB_LOCK_WAIT_TIMEOUT) {
            	if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
@@ -1972,13 +1973,20 @@ row_create_index_for_mysql(
 /*=======================*/
 					/* out: error number or DB_SUCCESS */
 	dict_index_t*	index,		/* in: index definition */
-	trx_t*		trx)		/* in: transaction handle */
+	trx_t*		trx,		/* in: transaction handle */
+	const ulint*	field_lengths)	/* in: if not NULL, must contain
+					dict_index_get_n_fields(index)
+					actual field lengths for the
+					index columns, which are
+					then checked for not being too
+					large. */
 {
 	ind_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
 	ulint		err;
 	ulint		i, j;
+	ulint		len;
 	
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -2017,10 +2025,16 @@ row_create_index_for_mysql(
 			}
 		}
 		
-		/* Check also that prefix_len < DICT_MAX_COL_PREFIX_LEN */
+		/* Check also that prefix_len and actual length
+		< DICT_MAX_INDEX_COL_LEN */
 
-		if (dict_index_get_nth_field(index, i)->prefix_len
-						>= DICT_MAX_COL_PREFIX_LEN) {
+		len = dict_index_get_nth_field(index, i)->prefix_len;
+
+		if (field_lengths) {
+			len = ut_max(len, field_lengths[i]);
+		}
+		
+		if (len >= DICT_MAX_INDEX_COL_LEN) {
 			err = DB_TOO_BIG_RECORD;
 
 			goto error_handling;
@@ -2087,9 +2101,12 @@ row_table_add_foreign_constraints(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 					table2 can be written also with the
 					database name before it: test.table2 */
-	const char*	name)		/* in: table full name in the
+	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
+	ibool		reject_fks)	/* in: if TRUE, fail with error
+					code DB_CANNOT_ADD_CONSTRAINT if
+					any foreign keys are found. */
 {
 	ulint	err;
 
@@ -2110,7 +2127,8 @@ row_table_add_foreign_constraints(
 
 	trx->dict_operation = TRUE;
 
-	err = dict_create_foreign_constraints(trx, sql_string, name);
+	err = dict_create_foreign_constraints(trx, sql_string, name,
+		reject_fks);
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */

@@ -26,7 +26,6 @@ class JOIN;
 class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
-class Item_arena;
 
 /* base class for subselects */
 
@@ -110,6 +109,12 @@ public:
     engine_changed= 1;
     return eng == 0;
   }
+  /*
+    True if this subquery has been already evaluated. Implemented only for
+    single select and union subqueries only.
+  */
+  bool is_evaluated() const;
+
   /*
     Used by max/min subquery to initialize value presence registration
     mechanism. Engine call this method before rexecution query.
@@ -318,6 +323,7 @@ public:
   virtual void print(String *str)= 0;
   virtual bool change_result(Item_subselect *si, select_subselect *result)= 0;
   virtual bool no_tables()= 0;
+  virtual bool is_executed() const { return FALSE; }
 };
 
 
@@ -343,6 +349,7 @@ public:
   void print (String *str);
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
+  bool is_executed() const { return executed; }
 };
 
 
@@ -364,6 +371,7 @@ public:
   void print (String *str);
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
+  bool is_executed() const;
 };
 
 
@@ -412,3 +420,10 @@ public:
   int exec();
   void print (String *str);
 };
+
+
+inline bool Item_subselect::is_evaluated() const
+{
+  return engine->is_executed();
+}
+

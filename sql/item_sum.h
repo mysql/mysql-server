@@ -23,8 +23,6 @@
 
 #include <my_tree.h>
 
-class Item_arena;
-
 class Item_sum :public Item_result_field
 {
 public:
@@ -883,6 +881,7 @@ class Item_func_group_concat : public Item_sum
   bool distinct;
   bool warning_for_row;
   bool always_null;
+  bool no_appended;
   /*
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)
@@ -914,8 +913,8 @@ public:
   virtual Item_result result_type () const { return STRING_RESULT; }
   void clear();
   bool add();
-  void reset_field() {}                         // not used
-  void update_field() {}                        // not used
+  void reset_field() { DBUG_ASSERT(0); }        // not used
+  void update_field() { DBUG_ASSERT(0); }       // not used
   bool fix_fields(THD *,Item **);
   bool setup(THD *thd);
   void make_unique();

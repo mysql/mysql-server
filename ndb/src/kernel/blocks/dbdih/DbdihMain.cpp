@@ -1051,17 +1051,25 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   const ndb_mgm_configuration_iterator * p = 
     theConfiguration.getOwnConfigIterator();
-  ndbrequire(p != 0);
+  ndbrequireErr(p != 0, NDBD_EXIT_INVALID_CONFIG);
 
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
-				       &capiConnectFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_CONNECT,&cconnectFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
-					&cfragstoreFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_REPLICAS, 
-					&creplicaFileSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize))
-    cfileFileSize = (2 * ctabFileSize) + 2;
+  initData();
+
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
+					   &capiConnectFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_CONNECT,
+					   &cconnectFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
+					   &cfragstoreFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_REPLICAS, 
+					   &creplicaFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize),
+		NDBD_EXIT_INVALID_CONFIG);
+  cfileFileSize = (2 * ctabFileSize) + 2;
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
   return;
@@ -1465,9 +1473,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 	       "Illegal configuration change."
 	       " Initial start needs to be performed "
 	       " when changing no of storage nodes (node %d)", i);
-      progError(__LINE__, 
-		ERR_INVALID_CONFIG,
-		buf);
+      progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
     }
   }
   
@@ -3528,9 +3534,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
 	       " Initial start needs to be performed "
 	       " when changing no of replicas (%d != %d)", 
 	       node_groups[nodePtr.i], cnoReplicas);
-      progError(__LINE__, 
-		ERR_INVALID_CONFIG,
-		buf);
+      progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
     }
   }
 }//Dbdih::selectMasterCandidate()
@@ -3811,9 +3815,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
 
     if(getNodeState().getNodeRestartInProgress()){
       jam();
-      progError(__LINE__, 
-		ERR_SYSTEM_ERROR,
-		"Unhandle master failure during node restart");
+      progError(__LINE__, NDBD_EXIT_MASTER_FAILURE_DURING_NR);
     }
   }
 
@@ -8220,7 +8222,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	  /* --------------------------------------------------------------- */
 	  /* THE NODE IS ALIVE AND KICKING AND ACTIVE, LET'S USE IT.         */
 	  /* --------------------------------------------------------------- */
-	  arrGuard(noCrashedReplicas, 8);
+	  arrGuardErr(noCrashedReplicas, 8, NDBD_EXIT_MAX_CRASHED_REPLICAS);
 	  Uint32 lastGci = replicaPtr.p->replicaLastGci[noCrashedReplicas];
 	  if(lastGci >= newestRestorableGCI){
 	    jam();
@@ -8694,14 +8696,10 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     /*   THIS WILL DECREASE THE GCI TO RESTORE WHICH HOPEFULLY WILL MAKE IT  */
     /*   POSSIBLE TO RESTORE THE SYSTEM.                                     */
     /* --------------------------------------------------------------------- */
-    char buf[100];
-    BaseString::snprintf(buf, sizeof(buf), 
-	     "Unable to find restorable replica for "
-	     "table: %d fragment: %d gci: %d",
-	     tableId, fragId, SYSFILE->newestRestorableGCI);
-    progError(__LINE__, 
-	      ERR_SYSTEM_ERROR,
-	      buf);
+    char buf[64];
+    BaseString::snprintf(buf, sizeof(buf), "table: %d fragment: %d gci: %d",
+			 tableId, fragId, SYSFILE->newestRestorableGCI);
+    progError(__LINE__, NDBD_EXIT_NO_RESTORABLE_REPLICA, buf);
     ndbrequire(false);
     return;
   }//if
@@ -9673,6 +9671,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   }
 
   bool tableDone = reportLcpCompletion(lcpReport);
+  
+  Uint32 started = lcpReport->maxGciStarted;
+  Uint32 completed = lcpReport->maxGciCompleted;
 
   if(tableDone){
     jam();
@@ -9706,7 +9707,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   signal->theData[1] = nodeId;
   signal->theData[2] = tableId;
   signal->theData[3] = fragId;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+  signal->theData[4] = started;
+  signal->theData[5] = completed;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 #endif
   
   bool ok = false;
@@ -10544,7 +10547,7 @@ void Dbdih::calculateHotSpare()
     break;
   default:
     jam();
-    progError(0, 0);
+    ndbrequire(false);
     break;
   }//switch
 }//Dbdih::calculateHotSpare()
@@ -10577,7 +10580,7 @@ void Dbdih::checkEscalation()
     jam();
     if (TnodeGroup[i] == ZFALSE) {
       jam();
-      progError(__LINE__, ERR_SYSTEM_ERROR, "Lost node group");
+      progError(__LINE__, NDBD_EXIT_LOST_NODE_GROUP, "Lost node group");
     }//if
   }//for
 }//Dbdih::checkEscalation()
@@ -10903,7 +10906,9 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   lcpNo = fmgReplicaPtr.p->nextLcp;
   do {
     ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID) {
+    if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID &&
+	fmgReplicaPtr.p->maxGciStarted[lcpNo] <= coldgcp)
+    {
       jam();
       keepGci = fmgReplicaPtr.p->maxGciCompleted[lcpNo];
       oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lcpNo];
@@ -10911,7 +10916,6 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
       return;
     } else {
       jam();
-      ndbrequire(fmgReplicaPtr.p->lcpStatus[lcpNo] == ZINVALID);
       if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) {
         jam();
 	/*-------------------------------------------------------------------

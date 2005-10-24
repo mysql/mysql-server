@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <regex.h>
+#include "my_regex.h"
 
 #include "utils.h"
 #include "regex2.h"
@@ -12,8 +12,8 @@
  = extern void regfree(regex_t *);
  */
 void
-regfree(preg)
-regex_t *preg;
+my_regfree(preg)
+my_regex_t *preg;
 {
 	register struct re_guts *g;
 
