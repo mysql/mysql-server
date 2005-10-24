@@ -715,3 +715,15 @@ select  ROUTINE_NAME from routines;
 grant all on information_schema.* to 'user1'@'localhost';
 --error 1044
 grant select on information_schema.* to 'user1'@'localhost';
+
+#
+# Bug#14089 FROM list subquery always fails when information_schema is current database
+#
+use test;
+create table t1(id int);
+insert into t1(id) values (1);
+select 1 from (select 1 from test.t1) a;
+use information_schema;
+select 1 from (select 1 from test.t1) a;
+use test;
+drop table t1;

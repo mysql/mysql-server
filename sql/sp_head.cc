@@ -293,6 +293,22 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     if (it == reuse)
       DBUG_RETURN(it);
 
+    /*
+      For some functions, 's' is now pointing to an argument of the
+      function, which might be a local variable that is to be reused.
+      In this case, new(reuse, &rsize) below will call the destructor
+      and 's' ends up pointing to freed memory.
+      A somewhat ugly fix is to simply copy the string to our local one
+      (which is unused by most functions anyway), but only if 's' is
+      pointing somewhere else than to 'tmp' or 'it->str_value'.
+     */
+    if (reuse && s != &tmp && s != &it->str_value)
+    {
+      if (tmp.copy((const String)(*s)))
+        DBUG_RETURN(NULL);
+      s= &tmp;
+    }
+
     CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
                             Item_string(it->collation.collation),
                             use_callers_arena, &backup_arena);
@@ -323,7 +339,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
 
 return_null_item:
   CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_null(),
-                    use_callers_arena, &backup_arena);
+                          use_callers_arena, &backup_arena);
 end:
   it->rsize= rsize;
 

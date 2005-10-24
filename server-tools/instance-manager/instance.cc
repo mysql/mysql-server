@@ -138,15 +138,25 @@ static int wait_process(My_process_info *pi)
 static int start_process(Instance_options *instance_options,
                          My_process_info *pi)
 {
+#ifndef __QNX__
   *pi= fork();
+#else
+  /*
+     On QNX one cannot use fork() in multithreaded environment and we
+     should use spawn() or one of it's siblings instead.
+     Here we use spawnv(), which  is a combination of fork() and execv()
+     in one call. It returns the pid of newly created process (>0) or -1
+  */
+  *pi= spawnv(P_NOWAIT, instance_options->mysqld_path, instance_options->argv);
+#endif
 
   switch (*pi) {
-  case 0:
+  case 0:                                       /* never happens on QNX */
     execv(instance_options->mysqld_path, instance_options->argv);
     /* exec never returns */
     exit(1);
-  case 1:
-    log_info("cannot fork() to start instance %s",
+  case -1:
+    log_info("cannot create a new process to start instance %s",
              instance_options->instance_name);
     return 1;
   }

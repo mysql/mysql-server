@@ -4314,9 +4314,9 @@ predicate:
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }
 	| bit_expr LIKE simple_expr opt_escape
-          { $$= new Item_func_like($1,$3,$4); }
+          { $$= new Item_func_like($1,$3,$4,Lex->escape_used); }
 	| bit_expr not LIKE simple_expr opt_escape
-          { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+          { $$= new Item_func_not(new Item_func_like($1,$4,$5, Lex->escape_used)); }
 	| bit_expr REGEXP bit_expr	{ $$= new Item_func_regex($1,$3); }
 	| bit_expr not REGEXP bit_expr
           { $$= negate_expression(YYTHD, new Item_func_regex($1,$4)); }
@@ -5678,10 +5678,14 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM simple_expr { $$= $2; }
+	ESCAPE_SYM simple_expr 
+          {
+            Lex->escape_used= TRUE;
+            $$= $2;
+          }
 	| /* empty */
           {
-
+            Lex->escape_used= FALSE;
             $$= ((YYTHD->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) ?
 		 new Item_string("", 0, &my_charset_latin1) :
                  new Item_string("\\", 1, &my_charset_latin1));
