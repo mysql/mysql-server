@@ -1263,6 +1263,7 @@ create:
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
+            lex->create_view_start= thd->query;
 	    /* first table in list is target VIEW name */
 	    if (!lex->select_lex.add_table_to_list(thd, $7, NULL, 0))
               YYABORT;
@@ -3425,6 +3426,7 @@ alter:
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
+            lex->create_view_start= thd->query;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
 	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
