@@ -619,6 +619,7 @@ int mi_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
 {
   uint diffs[2];
   uint first_null_seg, kp;
+  HA_KEYSEG *seg;
 
   /* 
      Find the first keypart where values are different or either of them is
@@ -629,9 +630,8 @@ int mi_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
                       value in prev_key.
   */
   ha_key_cmp(keyseg, prev_key, last_key, USE_WHOLE_KEY, 
-             SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL | SEARCH_RETURN_B_POS,
-             diffs);
-  HA_KEYSEG *seg= keyseg + diffs[0] - 1;
+             SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, diffs);
+  seg= keyseg + diffs[0] - 1;
 
   /* Find first NULL in last_key */
   first_null_seg= ha_find_null(seg, last_key + diffs[1]) - keyseg;
@@ -658,7 +658,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
   my_off_t next_page,record;
   char llbuff[22];
-  uint diff_pos;
+  uint diff_pos[2];
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
@@ -716,7 +716,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     }
     if ((*keys)++ &&
 	(flag=ha_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
-			 comp_flag, &diff_pos)) >=0)
+			 comp_flag, diff_pos)) >=0)
     {
       DBUG_DUMP("old",(byte*) info->lastkey, info->lastkey_length);
       DBUG_DUMP("new",(byte*) key, key_length);
@@ -735,14 +735,14 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
         if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
           ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
                      SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
-                     &diff_pos);
+                     diff_pos);
         else if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
         {
-          diff_pos= mi_collect_stats_nonulls_next(keyinfo->seg, 
+          diff_pos[0]= mi_collect_stats_nonulls_next(keyinfo->seg, 
                                                   param->notnull_count,
                                                   info->lastkey, key);
         }
-	param->unique_count[diff_pos-1]++;
+	param->unique_count[diff_pos[0]-1]++;
       }
       else
       {  
@@ -3340,15 +3340,15 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 static int sort_key_cmp(MI_SORT_PARAM *sort_param, const void *a,
 			const void *b)
 {
-  uint not_used;
+  uint not_used[2];
   return (ha_key_cmp(sort_param->seg, *((uchar**) a), *((uchar**) b),
-		     USE_WHOLE_KEY, SEARCH_SAME,&not_used));
+		     USE_WHOLE_KEY, SEARCH_SAME, not_used));
 } /* sort_key_cmp */
 
 
 static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
 {
-  uint diff_pos;
+  uint diff_pos[2];
   char llbuff[22],llbuff2[22];
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param= sort_info->param;
@@ -3358,19 +3358,19 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
   {
     cmp=ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
 		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
-		   &diff_pos);
+		   diff_pos);
     if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
       ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
                  (uchar*) a, USE_WHOLE_KEY, 
-                 SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, &diff_pos);
+                 SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, diff_pos);
     else if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
     {
-      diff_pos= mi_collect_stats_nonulls_next(sort_param->seg,
-                                              sort_param->notnull,
-                                              sort_info->key_block->lastkey,
-                                              (uchar*)a);
+      diff_pos[0]= mi_collect_stats_nonulls_next(sort_param->seg,
+                                                 sort_param->notnull,
+                                                 sort_info->key_block->lastkey,
+                                                 (uchar*)a);
     }
-    sort_param->unique[diff_pos-1]++;
+    sort_param->unique[diff_pos[0]-1]++;
   }
   else
   {

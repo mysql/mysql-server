@@ -28,9 +28,8 @@ static int rr_from_pointers(READ_RECORD *info);
 static int rr_from_cache(READ_RECORD *info);
 static int init_rr_cache(READ_RECORD *info);
 static int rr_cmp(uchar *a,uchar *b);
-
+static int rr_index_first(READ_RECORD *info);
 static int rr_index(READ_RECORD *info);
-
 
 
 /*
@@ -58,26 +57,19 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx)
 {
   bzero((char*) info,sizeof(*info));
-  info->thd=thd;
-  info->table=table;
-  info->file= table->file;
-  info->forms= &info->table;		/* Only one table */
-    
+  info->table= table;
+  info->file=  table->file;
   info->record= table->record[0];
-  info->ref_length= table->file->ref_length;
+  info->print_error= print_error;
 
-  info->select=NULL;
-  info->print_error=print_error;
-  info->ignore_not_found_rows= 0;
   table->status=0;			/* And it's always found */
-
   if (!table->file->inited)
   {
     table->file->ha_index_init(idx);
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
   }
-  info->read_record= rr_index;
-  info->first= TRUE;
+  /* read_record will be changed to rr_index in rr_index_first */
+  info->read_record= rr_index_first;
 }
 
 
@@ -204,6 +196,21 @@ void end_read_record(READ_RECORD *info)
   }
 }
 
+static int rr_handle_error(READ_RECORD *info, int error)
+{
+  if (error == HA_ERR_END_OF_FILE)
+    error= -1;
+  else
+  {
+    if (info->print_error)
+      info->table->file->print_error(error, MYF(0));
+    if (error < 0)                            // Fix negative BDB errno
+      error= 1;
+  }
+  return error;
+}
+
+
 	/* Read a record from head-database */
 
 static int rr_quick(READ_RECORD *info)
@@ -218,15 +225,7 @@ static int rr_quick(READ_RECORD *info)
     }
     if (tmp != HA_ERR_RECORD_DELETED)
     {
-      if (tmp == HA_ERR_END_OF_FILE)
-        tmp= -1;
-      else
-      {
-        if (info->print_error)
-          info->file->print_error(tmp,MYF(0));
-        if (tmp < 0)				// Fix negative BDB errno
-          tmp=1;
-      }
+      tmp= rr_handle_error(info, tmp);
       break;
     }
   }
@@ -235,7 +234,31 @@ static int rr_quick(READ_RECORD *info)
 
 
 /*
-  A READ_RECORD::read_record implementation that reads index sequentially
+  Reads first row in an index scan
+
+  SYNOPSIS
+    rr_index_first()
+    info  	Scan info
+  
+  RETURN
+    0   Ok
+    -1  End of records 
+    1   Error   
+*/
+
+
+static int rr_index_first(READ_RECORD *info)
+{
+  int tmp= info->file->index_first(info->record);
+  info->read_record= rr_index;
+  if (tmp)
+    tmp= rr_handle_error(info, tmp);
+  return tmp;
+}
+
+
+/*
+  Reads index sequentially after first row
 
   SYNOPSIS
     rr_index()
@@ -251,42 +274,15 @@ static int rr_quick(READ_RECORD *info)
     1   Error   
 */
 
+
 static int rr_index(READ_RECORD *info)
 {
-  int tmp;
-  while (1)
-  {
-    if (info->first)
-    {
-      info->first= FALSE;
-      tmp= info->file->index_first(info->record);
-    }
-    else
-      tmp= info->file->index_next(info->record);
-    
-    if (!tmp)
-      break;
-    if (info->thd->killed)
-    {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
-      return 1;
-    }
-    if (tmp != HA_ERR_RECORD_DELETED)
-    {
-      if (tmp == HA_ERR_END_OF_FILE)
-        tmp= -1;
-      else
-      {
-        if (info->print_error)
-          info->table->file->print_error(tmp,MYF(0));
-        if (tmp < 0)                            // Fix negative BDB errno
-          tmp=1;
-      }
-      break;
-    }
-  }
+  int tmp= info->file->index_next(info->record);
+  if (tmp)
+    tmp= rr_handle_error(info, tmp);
   return tmp;
 }
+
 
 static int rr_sequential(READ_RECORD *info)
 {
@@ -298,17 +294,13 @@ static int rr_sequential(READ_RECORD *info)
       my_error(ER_SERVER_SHUTDOWN,MYF(0));
       return 1;
     }
+    /*
+      rnd_next can return RECORD_DELETED for MyISAM when one thread is
+      reading and another deleting without locks.
+    */
     if (tmp != HA_ERR_RECORD_DELETED)
     {
-      if (tmp == HA_ERR_END_OF_FILE)
-	tmp= -1;
-      else
-      {
-	if (info->print_error)
-	  info->table->file->print_error(tmp,MYF(0));
-	if (tmp < 0)				// Fix negative BDB errno
-	  tmp=1;
-      }
+      tmp= rr_handle_error(info, tmp);
       break;
     }
   }
@@ -319,23 +311,18 @@ static int rr_sequential(READ_RECORD *info)
 static int rr_from_tempfile(READ_RECORD *info)
 {
   int tmp;
-tryNext:
-  if (my_b_read(info->io_cache,info->ref_pos,info->ref_length))
-    return -1;					/* End of file */
-  if ((tmp=info->file->rnd_pos(info->record,info->ref_pos)))
+  for (;;)
   {
-    if (tmp == HA_ERR_END_OF_FILE)
-      tmp= -1;
-    else if (tmp == HA_ERR_RECORD_DELETED ||
-	     (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
-      goto tryNext;
-    else
-    {
-      if (info->print_error)
-	info->file->print_error(tmp,MYF(0));
-      if (tmp < 0)				// Fix negative BDB errno
-	tmp=1;
-    }
+    if (my_b_read(info->io_cache,info->ref_pos,info->ref_length))
+      return -1;					/* End of file */
+    if (!(tmp=info->file->rnd_pos(info->record,info->ref_pos)))
+      break;
+    /* The following is extremely unlikely to happen */
+    if (tmp == HA_ERR_RECORD_DELETED ||
+        (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
+      continue;
+    tmp= rr_handle_error(info, tmp);
+    break;
   }
   return tmp;
 } /* rr_from_tempfile */
@@ -373,26 +360,23 @@ static int rr_from_pointers(READ_RECORD *info)
 {
   int tmp;
   byte *cache_pos;
-tryNext:
-  if (info->cache_pos == info->cache_end)
-    return -1;					/* End of file */
-  cache_pos=info->cache_pos;
-  info->cache_pos+=info->ref_length;
 
-  if ((tmp=info->file->rnd_pos(info->record,cache_pos)))
+  for (;;)
   {
-    if (tmp == HA_ERR_END_OF_FILE)
-      tmp= -1;
-    else if (tmp == HA_ERR_RECORD_DELETED ||
-	     (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
-      goto tryNext;
-    else
-    {
-      if (info->print_error)
-	info->file->print_error(tmp,MYF(0));
-      if (tmp < 0)				// Fix negative BDB errno
-	tmp=1;
-    }
+    if (info->cache_pos == info->cache_end)
+      return -1;					/* End of file */
+    cache_pos= info->cache_pos;
+    info->cache_pos+= info->ref_length;
+
+    if (!(tmp=info->file->rnd_pos(info->record,cache_pos)))
+      break;
+
+    /* The following is extremely unlikely to happen */
+    if (tmp == HA_ERR_RECORD_DELETED ||
+        (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
+      continue;
+    tmp= rr_handle_error(info, tmp);
+    break;
   }
   return tmp;
 }
