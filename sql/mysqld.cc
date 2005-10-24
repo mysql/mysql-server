@@ -7155,6 +7155,7 @@ static void fix_paths(void)
 	     CHARSET_DIR, NullS);
   }
   (void) my_load_path(mysql_charsets_dir, mysql_charsets_dir, buff);
+  convert_dirname(mysql_charsets_dir,mysql_charsets_dir,NullS);
   charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
