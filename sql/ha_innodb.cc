@@ -6811,6 +6811,7 @@ ha_innobase::store_lock(
 		        || thd->lex->sql_command == SQLCOM_CALL)
 		    && !thd->tablespace_op
 		    && thd->lex->sql_command != SQLCOM_TRUNCATE
+                    && thd->lex->sql_command != SQLCOM_OPTIMIZE
                     && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
       			lock_type = TL_WRITE_ALLOW_WRITE;
