@@ -456,3 +456,11 @@ f1	f2
 Warnings:
 Warning	1292	Truncated incorrect date value: '2003-04-05  g'
 Warning	1292	Truncated incorrect datetime value: '2003-04-05 10:11:12.101010234567'
+create table t1 (f1 datetime);
+insert into t1 (f1) values ("2005-01-01");
+insert into t1 (f1) values ("2005-02-01");
+select date_format(f1, "%m") as d1, date_format(f1, "%M") as d2 from t1 order by date_format(f1, "%M");
+d1	d2
+02	February
+01	January
+drop table t1;
