@@ -201,6 +201,23 @@ MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
+
+#
+# To make it easier for different devs to work on the same host,
+# an environment variable can be used to control all ports. A small
+# number is to be used, 0 - 16 or similar.
+#
+if [ -n "$MTR_BUILD_THREAD" ] ; then
+  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 40 + 8120`
+  SLAVE_MYPORT=`expr $MASTER_MYPORT + 16`
+  MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
+
+  echo "Using MTR_BUILD_THREAD   = $MTR_BUILD_THREAD"
+  echo "Using MASTER_MYPORT      = $MASTER_MYPORT"
+  echo "Using MYSQL_MANAGER_PORT = $MYSQL_MANAGER_PORT"
+  echo "Using SLAVE_MYPORT       = $SLAVE_MYPORT"
+fi
+
 NO_SLAVE=0
 USER_TEST=
 FAILED_CASES=
