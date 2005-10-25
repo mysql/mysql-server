@@ -403,27 +403,38 @@ enum Log_event_type
     Every time you update this enum (when you add a type), you have to
     fix Format_description_log_event::Format_description_log_event().
   */
-  UNKNOWN_EVENT= 0, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
-  INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
-  APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
+  UNKNOWN_EVENT= 0,
+  START_EVENT_V3= 1,
+  QUERY_EVENT= 2,
+  STOP_EVENT= 3,
+  ROTATE_EVENT= 4,
+  INTVAR_EVENT= 5,
+  LOAD_EVENT= 6,
+  SLAVE_EVENT= 7,
+  CREATE_FILE_EVENT= 8,
+  APPEND_BLOCK_EVENT= 9,
+  EXEC_LOAD_EVENT= 10,
+  DELETE_FILE_EVENT= 11,
   /*
     NEW_LOAD_EVENT is like LOAD_EVENT except that it has a longer
     sql_ex, allowing multibyte TERMINATED BY etc; both types share the
     same class (Load_log_event)
   */
-  NEW_LOAD_EVENT,
-  RAND_EVENT, USER_VAR_EVENT,
-  FORMAT_DESCRIPTION_EVENT,
-  XID_EVENT,
-  BEGIN_LOAD_QUERY_EVENT,
-  EXECUTE_LOAD_QUERY_EVENT,
+  NEW_LOAD_EVENT= 12,
+  RAND_EVENT= 13,
+  USER_VAR_EVENT= 14,
+  FORMAT_DESCRIPTION_EVENT= 15,
+  XID_EVENT= 16,
+  BEGIN_LOAD_QUERY_EVENT= 17,
+  EXECUTE_LOAD_QUERY_EVENT= 18,
 
   /*
-    add new events here - right above this comment!
-    existing events should never change their numbers
+    Add new events here - right above this comment!
+    And change the ENUM_END_EVENT_MARKER below.
+    Existing events should never change their numbers
   */
 
-  ENUM_END_EVENT /* end marker */
+  ENUM_END_EVENT= 19 /* end marker */
 };
 
 /*
@@ -451,12 +462,23 @@ struct st_relay_log_info;
 
 #ifdef MYSQL_CLIENT
 /*
-  A structure for mysqlbinlog to remember the last db, flags2, sql_mode etc; it
-  is passed to events' print() methods, so that they print only the necessary
-  USE and SET commands.
+  A structure for mysqlbinlog to know how to print events
+
+  This structure is passed to the event's print() methods,
+
+  There are two types of settings stored here:
+  1. Last db, flags2, sql_mode etc comes from the last printed event.
+     They are stored so that only the necessary USE and SET commands
+     are printed.
+  2. Other information on how to print the events, e.g. short_form,
+     hexdump_from.  These are not dependent on the last event.
 */
-typedef struct st_last_event_info
+typedef struct st_print_event_info
 {
+  /*
+    Settings for database, sql_mode etc that comes from the last event
+    that was printed.
+   */
   // TODO: have the last catalog here ??
   char db[FN_REFLEN+1]; // TODO: make this a LEX_STRING when thd->db is
   bool flags2_inited;
@@ -467,12 +489,12 @@ typedef struct st_last_event_info
   bool charset_inited;
   char charset[6]; // 3 variables, each of them storable in 2 bytes
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
-  st_last_event_info()
+  st_print_event_info()
     :flags2_inited(0), sql_mode_inited(0),
      auto_increment_increment(1),auto_increment_offset(1), charset_inited(0)
     {
       /*
-        Currently we only use static LAST_EVENT_INFO objects, so zeroed at
+        Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
         program's startup, but these explicit bzero() is for the day someone
         creates dynamic instances.
       */
@@ -480,7 +502,13 @@ typedef struct st_last_event_info
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
     }
-} LAST_EVENT_INFO;
+
+  /* Settings on how to print the events */
+  bool short_form;
+  my_off_t hexdump_from;
+  uint8 common_header_len;
+
+} PRINT_EVENT_INFO;
 #endif
 
 
@@ -589,9 +617,9 @@ public:
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event *description_event);
   /* print*() functions are used by mysqlbinlog */
-  virtual void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0) = 0;
+  virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0) = 0;
   void print_timestamp(FILE* file, time_t *ts = 0);
-  void print_header(FILE* file);
+  void print_header(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   static void *operator new(size_t size)
@@ -751,8 +779,8 @@ public:
                  uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
 #else
-  void print_query_header(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print_query_header(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Query_log_event(const char* buf, uint event_len,
@@ -806,7 +834,7 @@ public:
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Slave_log_event(const char* buf, uint event_len);
@@ -894,8 +922,8 @@ public:
 		 bool use_rli_only_for_errors);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info = 0);
-  void print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info, bool commented);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info = 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool commented);
 #endif
 
   /*
@@ -984,7 +1012,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Start_log_event_v3(const char* buf,
@@ -1079,7 +1107,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Intvar_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1120,7 +1148,7 @@ class Rand_log_event: public Log_event
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Rand_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1157,7 +1185,7 @@ class Xid_log_event: public Log_event
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Xid_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1199,7 +1227,7 @@ public:
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   User_var_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1225,7 +1253,7 @@ public:
   {}
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Stop_log_event(const char* buf, const Format_description_log_event* description_event):
@@ -1263,7 +1291,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Rotate_log_event(const char* buf, uint event_len,
@@ -1316,8 +1344,8 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
-  void print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info, bool enable_local);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool enable_local);
 #endif
 
   Create_file_log_event(const char* buf, uint event_len,
@@ -1384,7 +1412,7 @@ public:
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Append_block_log_event(const char* buf, uint event_len,
@@ -1419,8 +1447,8 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
-  void print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info, bool enable_local);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool enable_local);
 #endif
 
   Delete_file_log_event(const char* buf, uint event_len,
@@ -1455,7 +1483,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
   Execute_load_log_event(const char* buf, uint event_len,
@@ -1540,11 +1568,10 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, bool short_form = 0,
-             LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
   /* Prints the query as LOAD DATA LOCAL and with rewritten filename */
-  void print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info,
-             const char *local_fname);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info,
+	     const char *local_fname);
 #endif
   Execute_load_query_log_event(const char* buf, uint event_len,
                                const Format_description_log_event *description_event);
@@ -1573,7 +1600,7 @@ public:
     Log_event(buf, description_event)
   {}
   ~Unknown_log_event() {}
-  void print(FILE* file, bool short_form= 0, LAST_EVENT_INFO* last_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
   Log_event_type get_type_code() { return UNKNOWN_EVENT;}
   bool is_valid() const { return 1; }
 };
