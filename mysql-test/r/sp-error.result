@@ -444,9 +444,9 @@ set b = a;
 end if;
 end|
 call bug2653_1(1, @b)|
-ERROR 42S22: Unknown column 'aa' in 'order clause'
+ERROR 42S22: Unknown column 'aa' in 'field list'
 call bug2653_2(2, @b)|
-ERROR 42S22: Unknown column 'aa' in 'order clause'
+ERROR 42S22: Unknown column 'aa' in 'field list'
 drop procedure bug2653_1|
 drop procedure bug2653_2|
 create procedure bug4344() drop procedure bug4344|
@@ -883,3 +883,36 @@ select count(*) into param1 from t3;
 end|
 ERROR 3D000: No database selected
 use test;
+DROP PROCEDURE IF EXISTS bug13037_p1;
+DROP PROCEDURE IF EXISTS bug13037_p2;
+DROP PROCEDURE IF EXISTS bug13037_p3;
+CREATE PROCEDURE bug13037_p1()
+BEGIN
+IF bug13037_foo THEN
+SELECT 1;
+END IF;
+END|
+CREATE PROCEDURE bug13037_p2()
+BEGIN
+SET @bug13037_foo = bug13037_bar;
+END|
+CREATE PROCEDURE bug13037_p3()
+BEGIN
+SELECT bug13037_foo;
+END|
+
+CALL bug13037_p1();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+CALL bug13037_p2();
+ERROR 42S22: Unknown column 'bug13037_bar' in 'field list'
+CALL bug13037_p3();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+CALL bug13037_p1();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+CALL bug13037_p2();
+ERROR 42S22: Unknown column 'bug13037_bar' in 'field list'
+CALL bug13037_p3();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+DROP PROCEDURE bug13037_p1;
+DROP PROCEDURE bug13037_p2;
+DROP PROCEDURE bug13037_p3;
