@@ -44,6 +44,11 @@
 typedef ulonglong table_map;          /* Used for table bits in join */
 typedef Bitmap<64> key_map;           /* Used for finding keys */
 typedef ulong key_part_map;           /* Used for finding key parts */
+/*
+  Used for nested join bits within a scope of a join (applicable to non-unary
+  nested joins that have not been simplified away)
+*/
+typedef ulonglong nested_join_map;
 
 /* query_id */
 typedef ulonglong query_id_t;

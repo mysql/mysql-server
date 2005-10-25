@@ -136,7 +136,9 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
-
+  /* Bitmap of nested joins this table is part of */
+  nested_join_map embedding_map;
+  
   void cleanup();
 } JOIN_TAB;
 
@@ -193,6 +195,13 @@ class JOIN :public Sql_alloc
   */
   ha_rows  fetch_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
+  
+  /* 
+    Bitmap of nested joins embedding the position at the end of the current 
+    partial join (valid only during join optimizer run).
+  */
+  nested_join_map cur_embedding_map;
+
   double   best_read;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;

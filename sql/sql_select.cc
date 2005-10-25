@@ -98,6 +98,12 @@ static COND* substitute_for_best_equal_field(COND *cond,
                                              void *table_join_idx);
 static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
+static bool check_interleaving_with_nj(JOIN_TAB *last, JOIN_TAB *next);
+static void restore_prev_nj_state(JOIN_TAB *last);
+static void reset_nj_counters(List<TABLE_LIST> *join_list);
+static uint build_nj_bitmap_for_tables(JOIN *join, List<TABLE_LIST> *join_list,
+                                       uint first_unused);
+
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
@@ -522,12 +528,14 @@ bool JOIN::test_in_subselect(Item **where)
   return 0;
 }
 
+
 /*
   global select optimisation.
   return 0 - success
          1 - error
   error code saved in field 'error'
 */
+
 int
 JOIN::optimize()
 {
@@ -587,6 +595,7 @@ JOIN::optimize()
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(this, join_list, conds, TRUE);
+    build_nj_bitmap_for_tables(this, join_list, 0);
 
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
 
@@ -699,7 +708,8 @@ JOIN::optimize()
     DBUG_PRINT("error",("Error: make_select() failed"));
     DBUG_RETURN(1);
   }
-
+  
+  reset_nj_counters(join_list);
   make_outerjoin_info(this);
 
   /*
@@ -1961,14 +1971,19 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	continue;
       }
       outer_join|= table->map;
+      s->embedding_map= 0;
+      for (;embedding; embedding= embedding->embedding)
+        s->embedding_map|= embedding->nested_join->nj_map;
       continue;
     }
     if (embedding)
     {
       /* s belongs to a nested join, maybe to several embedded joins */
+      s->embedding_map= 0;
       do
       {
         NESTED_JOIN *nested_join= embedding->nested_join;
+        s->embedding_map|=nested_join->nj_map;
         s->dependent|= embedding->dep_tables;
         embedding= embedding->embedding;
         outer_join|= nested_join->used_tables;
@@ -3542,6 +3557,8 @@ choose_plan(JOIN *join, table_map join_tables)
   bool straight_join= join->select_options & SELECT_STRAIGHT_JOIN;
   DBUG_ENTER("choose_plan");
 
+  join->cur_embedding_map= 0;
+  reset_nj_counters(join->join_list);
   /*
     if (SELECT_STRAIGHT_JOIN option is set)
       reorder tables so dependent tables come after tables they depend 
@@ -4022,7 +4039,9 @@ best_extension_by_limited_search(JOIN      *join,
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     table_map real_table_bit= s->table->map;
-    if ((remaining_tables & real_table_bit) && !(remaining_tables & s->dependent))
+    if ((remaining_tables & real_table_bit) && 
+        !(remaining_tables & s->dependent) && 
+        (!idx || !check_interleaving_with_nj(join->positions[idx-1].table, s)))
     {
       double current_record_count, current_read_time;
 
@@ -4038,6 +4057,7 @@ best_extension_by_limited_search(JOIN      *join,
       {
         DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
                                        "prune_by_cost"););
+        restore_prev_nj_state(s);
         continue;
       }
 
@@ -4066,6 +4086,7 @@ best_extension_by_limited_search(JOIN      *join,
         {
           DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
                                          "pruned_by_heuristic"););
+          restore_prev_nj_state(s);
           continue;
         }
       }
@@ -4100,9 +4121,11 @@ best_extension_by_limited_search(JOIN      *join,
                  sizeof(POSITION) * (idx + 1));
           join->best_read= current_read_time - 0.001;
         }
-        DBUG_EXECUTE("opt",
-                     print_plan(join, current_read_time, current_record_count, idx, "full_plan"););
+        DBUG_EXECUTE("opt", print_plan(join, current_read_time, 
+                                       current_record_count, idx, 
+                                       "full_plan"););
       }
+      restore_prev_nj_state(s);
     }
   }
   DBUG_VOID_RETURN;
@@ -4147,7 +4170,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   for (JOIN_TAB **pos=join->best_ref+idx ; (s=*pos) ; pos++)
   {
     table_map real_table_bit=s->table->map;
-    if ((rest_tables & real_table_bit) && !(rest_tables & s->dependent))
+    if ((rest_tables & real_table_bit) && !(rest_tables & s->dependent) &&
+        (!idx|| !check_interleaving_with_nj(join->positions[idx-1].table, s)))
     {
       double best,best_time,records;
       best=best_time=records=DBL_MAX;
@@ -4485,10 +4509,10 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  join->unit->select_limit_cnt >= records)
 	join->sort_by_table= (TABLE*) 1;	// Must use temporary table
 
-     /*
+      /*
 	Go to the next level only if there hasn't been a better key on
 	this level! This will cut down the search for a lot simple cases!
-       */
+      */
       double current_record_count=record_count*records;
       double current_read_time=read_time+best;
       if (best_record_count > current_record_count ||
@@ -4509,6 +4533,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           return;
 	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
+      restore_prev_nj_state(s);
       if (join->select_options & SELECT_STRAIGHT_JOIN)
 	break;				// Don't test all combinations
     }
@@ -5094,7 +5119,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     This function can be called only after the execution plan
     has been chosen.
 */
- 
+
 static void
 make_outerjoin_info(JOIN *join)
 {
@@ -7255,11 +7280,11 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     ascent all attributes are calculated, all outer joins that can be
     converted are replaced and then all unnecessary braces are removed.
     As join list contains join tables in the reverse order sequential
-    elimination of outer joins does not requite extra recursive calls.
+    elimination of outer joins does not require extra recursive calls.
 
   EXAMPLES
     Here is an example of a join query with invalid cross references:
-      SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t3.a LEFT JOIN ON  t3.b=t1.b 
+      SELECT * FROM t1 LEFT JOIN t2 ON t2.a=t3.a LEFT JOIN t3 ON t3.b=t1.b 
      
   RETURN VALUE
     The new condition, if success
@@ -7416,7 +7441,210 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   }
   DBUG_RETURN(conds); 
 }
-        
+
+
+/*
+  Assign each nested join structure a bit in nested_join_map
+
+  SYNOPSIS
+    build_nj_bitmap_for_tables()
+      join          Join being processed
+      join_list     List of tables
+      first_unused  Number of first unused bit in nested_join_map before the
+                    call
+
+  DESCRIPTION
+    Assign each nested join structure (except for unary nested joins, see
+    below) a bit in nested_join_map.
+
+  NOTE
+    This function is called after simplify_joins(), when there are no
+    redundant nested joins, #non_unary_nested_joins <= #tables_in_join so we
+    will not run out of bits in nested_join_map.
+
+  RETURN
+    First unused bit in nested_join_map after the call.
+*/
+
+static uint build_nj_bitmap_for_tables(JOIN *join, List<TABLE_LIST> *join_list,
+                                       uint first_unused)
+{
+  List_iterator<TABLE_LIST> li(*join_list);
+  TABLE_LIST *table;
+  DBUG_ENTER("build_nj_bitmap_for_tables");
+  while ((table= li++))
+  {
+    NESTED_JOIN *nested_join;
+    if ((nested_join= table->nested_join))
+    {
+      /*
+        It is guaranteed by simplify_joins() function that a nested join
+        that has only one child represents a single table VIEW (and a child
+        is an underlying table). We don't assign a bit to the nested join
+        because 
+        1. it is redundant (a "sequence" of one table cannot be interleaved 
+            with anything)
+        2. we could run out bits in nested_join_map otherwise.
+      */
+      if (nested_join->join_list.elements != 1)
+      {
+        nested_join->nj_map= 1 << first_unused++;
+        first_unused= build_nj_bitmap_for_tables(join, &nested_join->join_list,
+                                                 first_unused);
+      }
+    }
+  }
+  DBUG_RETURN(first_unused);
+}
+
+
+/*
+  Set NESTED_JOIN::counter=0 in all nested joins in passed list
+
+  SYNOPSIS
+    reset_nj_counters()
+      join_list  List of nested joins to process. It may also contain base
+                 tables which will be ignored.
+
+  DESCRIPTION
+    Recursively set NESTED_JOIN::counter=0 for all nested joins contained in
+    the passed join_list.
+*/
+
+static void reset_nj_counters(List<TABLE_LIST> *join_list)
+{
+  List_iterator<TABLE_LIST> li(*join_list);
+  TABLE_LIST *table;
+  DBUG_ENTER("reset_nj_counters");
+  while ((table= li++))
+  {
+    NESTED_JOIN *nested_join;
+    if ((nested_join= table->nested_join))
+    {
+      nested_join->counter= 0;
+      reset_nj_counters(&nested_join->join_list);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Check interleaving with an inner tables of an outer join for extension table 
+
+  SYNOPSIS
+    check_interleaving_with_nj()
+      join       Join being processed
+      last_tab   Last table in current partial join order (this function is
+                 not called for empty partial join orders)
+      next_tab   Table we're going to extend the current partial join with
+
+  DESCRIPTION
+    Check if table next_tab can be added to current partial join order, and 
+    if yes, record that it has been added.
+
+    The function assumes that both current partial join order and its
+    extension with next_tab are valid wrt table dependencies.
+
+  NOTE
+    The nested joins aspect of information about current partial join order is 
+    stored in join->cur_embedding_map and
+    {each_join_table}->pos_in_table_list (->embedding)+ ->nested_join->counter
+    Joins optimizer calls check_interleaving_with_nj() and 
+    restore_prev_nj_state() to update this info and avoid constructing invalid 
+    join orders. There is no need for any initialization of 
+    {each_join_table}->...->counter  before the join optimizer run.
+
+  IMPLEMENTATION
+    The nested [outer] joins executioner algorithm imposes these limitations 
+    on join order:
+    1. "Outer tables first" -  any "outer" table must be before any 
+        corresponding "inner" table.
+    2. "No interleaving" - tables inside a nested join must form a continuous
+       sequence in join order (i.e. the sequence must not be interrupted by 
+       tables that are outside of this nested join).
+
+    #1 is checked elsewhere, this function checks #2 provided that #1 has been
+    already checked.
+
+    WHY NEED NON-INTERLEAVING
+    Consider an example: 
+     
+     select * from t0 join t1 left join (t2 join t3) on cond1
+    
+    The join order "t1 t2 t0 t3" is invalid:
+
+    table t0 is outside of the nested join, so WHERE condition for t0 is
+    attached directly to t0 (without triggers, and it may be used to access
+    t0). Applying WHERE(t0) to (t2,t0,t3) record is invalid as we may miss
+    combinations of (t1, t2, t3) that satisfy condition cond1, and produce a
+    null-complemented (t1, t2.NULLs, t3.NULLs) row, which should not have
+    been produced.
+    
+    If table t0 is not between t2 and t3, the problem doesn't exist:
+    * If t0 is located after (t2,t3), WHERE(t0) is applied after nested join
+      processing has finished.
+    * If t0 is located before (t2,t3), predicates like WHERE_cond(t0, t2) are
+      wrapped into condition triggers, which takes care of correct nested
+      join processing.
+    
+  RETURN
+    FALSE  Join order extended, nested joins info about current join order
+           (see NOTE section) updated.
+    TRUE   Requested join order extension not allowed.
+*/
+
+static bool check_interleaving_with_nj(JOIN_TAB *last, JOIN_TAB *next)
+{
+  TABLE_LIST *next_emb= next->table->pos_in_table_list->embedding;
+  JOIN *join= last->join;
+
+  if (join->cur_embedding_map & ~next->embedding_map)
+    return TRUE;
+   
+  for (;next_emb; next_emb= next_emb->embedding)
+  {
+    next_emb->nested_join->counter++;
+    if (next_emb->nested_join->counter == 1)
+    {
+      /* next_emb is a first table inside a nested join */
+      join->cur_embedding_map |= next_emb->nested_join->nj_map;
+    }
+    if (next_emb->nested_join->join_list.elements !=
+        next_emb->nested_join->counter)
+      break;
+    join->cur_embedding_map &= ~next_emb->nested_join->nj_map;
+  }
+  return FALSE;
+}
+
+
+/*
+  Nested joins perspective: Remove the last table from the join order
+
+  SYNOPSIS
+    restore_prev_nj_state()
+      last  join table to remove, it is assumed to be the last in current 
+            partial join order.
+     
+  DESCRIPTION
+    Remove the last table from the partial join order and update the nested
+    joins counters and join->cur_embedding_map. It is ok to call this 
+    function for the first table in join order (for which 
+    check_interleaving_with_nj has not been called)
+*/
+
+static void restore_prev_nj_state(JOIN_TAB *last)
+{
+  TABLE_LIST *last_emb= last->table->pos_in_table_list->embedding;
+  JOIN *join= last->join;
+  while (last_emb && !(--last_emb->nested_join->counter))
+  {
+    join->cur_embedding_map &= last_emb->nested_join->nj_map;
+    last_emb= last_emb->embedding;
+  }
+}
+
 
 static COND *
 optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
