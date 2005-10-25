@@ -1044,3 +1044,9 @@ drop procedure wg2;
 #
 
 select cast(@non_existing_user_var/2 as DECIMAL);
+
+#
+# Bug #13667 (Inconsistency for decimal(m,d) specification
+#
+--error 1427
+create table t (d decimal(0,10));
