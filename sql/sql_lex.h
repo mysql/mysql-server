@@ -738,6 +738,7 @@ typedef struct st_lex
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
   st_lex_user *create_view_definer;
+  char *create_view_start;
   char *create_view_select_start;
 
   List<key_part_spec> col_list;
