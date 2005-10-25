@@ -51,6 +51,8 @@ static unsigned int iter_count= 0;
 
 static const char *opt_basedir= "./";
 
+static longlong opt_getopt_ll_test= 0;
+
 static int embedded_server_arg_count= 0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
 
@@ -11738,6 +11740,19 @@ static void test_bug11718()
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
+
+
+/*
+  Bug #12925: Bad handling of maximum values in getopt
+*/
+static void test_bug12925()
+{
+  myheader("test_bug12925");
+  if (opt_getopt_ll_test)
+    DIE_UNLESS(opt_getopt_ll_test == LL(25600*1024*1024));
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -11780,6 +11795,9 @@ static struct my_option client_test_long_options[] =
   {"user", 'u', "User for login if not current user", (char **) &opt_user,
    (char **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
+   (char **) &opt_getopt_ll_test, (char **) &opt_getopt_ll_test, 0,
+   GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -11955,6 +11973,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11183", test_bug11183 },
   { "test_bug12001", test_bug12001 },
   { "test_bug11718", test_bug11718 },
+  { "test_bug12925", test_bug12925 },
   { 0, 0 }
 };
 
