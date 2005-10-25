@@ -44,6 +44,8 @@
 */
 char internal_table_name[2]= "*";
 
+const char * const THD::DEFAULT_WHERE= "field list";
+
 
 /*****************************************************************************
 ** Instansiate templates
@@ -234,7 +236,7 @@ THD::THD()
 
   /* Variables with default values */
   proc_info="login";
-  where="field list";
+  where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   slave_net = 0;
   command=COM_CONNECT;
@@ -545,6 +547,8 @@ void THD::cleanup_after_query()
   }
   /* Free Items that were created during this execution */
   free_items();
+  /* Reset where. */
+  where= THD::DEFAULT_WHERE;
 }
 
 /*

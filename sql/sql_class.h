@@ -1109,6 +1109,14 @@ class THD :public Statement,
            public Open_tables_state
 {
 public:
+  /*
+    Constant for THD::where initialization in the beginning of every query.
+
+    It's needed because we do not save/restore THD::where normally during
+    primary (non subselect) query execution.
+  */
+  static const char * const DEFAULT_WHERE;
+
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;
   struct st_mysql_data *data;

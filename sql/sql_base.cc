@@ -4272,7 +4272,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
 
   thd->set_query_id=set_query_id;
   thd->allow_sum_func= allow_sum_func;
-  thd->where="field list";
+  thd->where= THD::DEFAULT_WHERE;
 
   /*
     To prevent fail on forward lookup we fill it with zerows,
