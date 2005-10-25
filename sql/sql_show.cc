@@ -2559,8 +2559,9 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     is_blob= (field->type() == FIELD_TYPE_BLOB);
     if (field->has_charset() || is_blob)
     {
-      longlong char_max_len= is_blob ? (longlong) field->max_length() :
-        (longlong) field->max_length()/field->charset()->mbmaxlen;
+      longlong char_max_len= is_blob ? 
+        (longlong) field->max_length() / field->charset()->mbminlen :
+        (longlong) field->max_length() / field->charset()->mbmaxlen;
       table->field[8]->store(char_max_len, TRUE);
       table->field[8]->set_notnull();
       table->field[9]->store((longlong) field->max_length(), TRUE);
