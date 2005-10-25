@@ -56,13 +56,14 @@ base64_encode(const void *src, size_t src_len, char *dst)
 
   for (; i < src_len; len += 4)
   {
+    unsigned c;
+
     if (len == 76)
     {
       len= 0;
       *dst++= '\n';
     }
 
-    unsigned c;
     c= s[i++];
     c <<= 8;
 
@@ -216,6 +217,8 @@ main(void)
 
     char * src= (char *) malloc(src_len);
     char * s= src;
+    char * str;
+    char * dst;
 
     for (j= 0; j<src_len; j++)
     {
@@ -224,11 +227,11 @@ main(void)
     }
 
     /* Encode */
-    char * str= (char *) malloc(base64_needed_encoded_length(src_len));
+    str= (char *) malloc(base64_needed_encoded_length(src_len));
     require(base64_encode(src, src_len, str) == 0);
 
     /* Decode */
-    char * dst= (char *) malloc(base64_needed_decoded_length(strlen(str)));
+    dst= (char *) malloc(base64_needed_decoded_length(strlen(str)));
     dst_len= base64_decode(str, strlen(str), dst);
     require(dst_len == src_len);
 
