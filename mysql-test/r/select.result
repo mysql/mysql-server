@@ -3124,3 +3124,15 @@ from t1 inner join (t2 right join t3 on t2.id = t3.b_id) on t1.id = t3.a_id;
 count(*)
 6
 drop table t1,t2,t3;
+create table t1 (a int);
+create table t2 (b int);
+create table t3 (c int);
+select * from t1 join t2 join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 left join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 right join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 straight_join t3 on (t1.a=t3.c);
+a	b	c
+drop table t1, t2 ,t3;
