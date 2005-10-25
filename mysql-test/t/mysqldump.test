@@ -635,4 +635,16 @@ insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thir
 --exec $MYSQL_DUMP  --skip-comments --xml --no-create-info test
 drop table t1, t2;
 
+#
+# BUG #12123
+#
+create table t1 (a text character set utf8, b text character set latin1);
+insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
+select * from t1;
+--exec $MYSQL_DUMP --tab=$MYSQL_TEST_DIR/var/tmp/ test
+--exec $MYSQL test < $MYSQL_TEST_DIR/var/tmp/t1.sql
+--exec $MYSQL_IMPORT test $MYSQL_TEST_DIR/var/tmp/t1.txt
+select * from t1;
+
+drop table t1;
 # End of 4.1 tests

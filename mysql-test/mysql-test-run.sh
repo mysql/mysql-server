@@ -546,6 +546,11 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_DUMP="$BASEDIR/client/mysqldump"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqlimport" ] ; then
+   MYSQL_IMPORT="$BASEDIR/client/.libs/mysqlimport"
+ else
+   MYSQL_IMPORT="$BASEDIR/client/mysqlimport"
+ fi
  if [ -f "$BASEDIR/client/.libs/mysqlbinlog" ] ; then
    MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog"
  else
@@ -614,6 +619,7 @@ else
  fi
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
+ MYSQL_IMPORT="$CLIENT_BINDIR/mysqlimport"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
@@ -693,10 +699,11 @@ fi
 MYSQL_DUMP_DIR="$MYSQL_DUMP"
 export MYSQL_DUMP_DIR
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_IMPORT="$MYSQL_IMPORT -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
+export MYSQL MYSQL_DUMP MYSQL_IMPORT MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
 export NDB_TOOLS_DIR
 export NDB_MGM

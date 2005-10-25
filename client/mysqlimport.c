@@ -517,6 +517,13 @@ int main(int argc, char **argv)
     free_defaults(argv_to_free);
     return(1); /* purecov: deadcode */
   }
+
+  if (mysql_query(sock, "set @@character_set_database=binary;"))
+  {
+    db_error(sock); /* We shall countinue here, if --force was given */
+    return(1);
+  }
+
   if (lock_tables)
     lock_table(sock, argc, argv);
   for (; *argv != NULL; argv++)
