@@ -1,5 +1,4 @@
-SET storage_engine=ndbcluster;
-set engine_condition_pushdown = on;
+SET storage_engine=innodb;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER, g POINT);
 CREATE TABLE gis_line  (fid INTEGER, g LINESTRING);
@@ -14,7 +13,7 @@ Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
   `fid` int(11) default NULL,
   `g` point default NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	YES		NULL	
@@ -84,154 +83,154 @@ INSERT into gis_geometry SELECT * FROM gis_multi_polygon;
 INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
 SELECT fid, AsText(g) FROM gis_point;
 fid	AsText(g)
+101	POINT(10 10)
 102	POINT(20 10)
 103	POINT(20 20)
-101	POINT(10 10)
 104	POINT(10 20)
 SELECT fid, AsText(g) FROM gis_line;
 fid	AsText(g)
+105	LINESTRING(0 0,0 10,10 0)
 106	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 107	LINESTRING(10 10,40 10)
-105	LINESTRING(0 0,0 10,10 0)
 SELECT fid, AsText(g) FROM gis_polygon;
 fid	AsText(g)
+108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
 110	POLYGON((0 0,30 0,30 30,0 0))
-108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 SELECT fid, AsText(g) FROM gis_multi_point;
 fid	AsText(g)
+111	MULTIPOINT(0 0,10 10,10 20,20 20)
 112	MULTIPOINT(1 1,11 11,11 21,21 21)
 113	MULTIPOINT(3 6,4 10)
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
 SELECT fid, AsText(g) FROM gis_multi_line;
 fid	AsText(g)
+114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
 115	MULTILINESTRING((10 48,10 21,10 0))
 116	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
-114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
 SELECT fid, AsText(g) FROM gis_multi_polygon;
 fid	AsText(g)
+117	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
 118	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
 119	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
-117	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
 SELECT fid, AsText(g) FROM gis_geometrycollection;
 fid	AsText(g)
-121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
 120	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))
+121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
 SELECT fid, AsText(g) FROM gis_geometry;
 fid	AsText(g)
-108	POLYGON((10 10,20 10,20 20,10 20,10 10))
-118	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
-104	POINT(10 20)
-106	LINESTRING(10 10,20 10,20 20,10 20,10 10)
-102	POINT(20 10)
-105	LINESTRING(0 0,0 10,10 0)
-120	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))
-115	MULTILINESTRING((10 48,10 21,10 0))
-121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
-117	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
-110	POLYGON((0 0,30 0,30 30,0 0))
-119	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
-114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
 101	POINT(10 10)
-112	MULTIPOINT(1 1,11 11,11 21,21 21)
-109	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
+102	POINT(20 10)
 103	POINT(20 20)
-116	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
+104	POINT(10 20)
+105	LINESTRING(0 0,0 10,10 0)
+106	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 107	LINESTRING(10 10,40 10)
+108	POLYGON((10 10,20 10,20 20,10 20,10 10))
+109	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
+110	POLYGON((0 0,30 0,30 30,0 0))
+111	MULTIPOINT(0 0,10 10,10 20,20 20)
+112	MULTIPOINT(1 1,11 11,11 21,21 21)
 113	MULTIPOINT(3 6,4 10)
+114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
+115	MULTILINESTRING((10 48,10 21,10 0))
+116	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
+117	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+118	MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))
+119	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
+120	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))
+121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
 SELECT fid, Dimension(g) FROM gis_geometry;
 fid	Dimension(g)
-108	2
-118	2
-104	0
-106	1
-102	0
-105	1
-120	1
-115	1
-121	1
-117	2
-110	2
-119	2
-114	1
 101	0
-112	0
-109	2
-111	0
+102	0
 103	0
-116	1
+104	0
+105	1
+106	1
 107	1
+108	2
+109	2
+110	2
+111	0
+112	0
 113	0
+114	1
+115	1
+116	1
+117	2
+118	2
+119	2
+120	1
+121	1
 SELECT fid, GeometryType(g) FROM gis_geometry;
 fid	GeometryType(g)
-108	POLYGON
-118	MULTIPOLYGON
-104	POINT
-106	LINESTRING
-102	POINT
-105	LINESTRING
-120	GEOMETRYCOLLECTION
-115	MULTILINESTRING
-121	GEOMETRYCOLLECTION
-117	MULTIPOLYGON
-110	POLYGON
-119	MULTIPOLYGON
-114	MULTILINESTRING
 101	POINT
-112	MULTIPOINT
-109	POLYGON
-111	MULTIPOINT
+102	POINT
 103	POINT
-116	MULTILINESTRING
+104	POINT
+105	LINESTRING
+106	LINESTRING
 107	LINESTRING
+108	POLYGON
+109	POLYGON
+110	POLYGON
+111	MULTIPOINT
+112	MULTIPOINT
 113	MULTIPOINT
+114	MULTILINESTRING
+115	MULTILINESTRING
+116	MULTILINESTRING
+117	MULTIPOLYGON
+118	MULTIPOLYGON
+119	MULTIPOLYGON
+120	GEOMETRYCOLLECTION
+121	GEOMETRYCOLLECTION
 SELECT fid, IsEmpty(g) FROM gis_geometry;
 fid	IsEmpty(g)
-108	0
-118	0
-104	0
-106	0
-102	0
-105	0
-120	0
-115	0
-121	0
-117	0
-110	0
-119	0
-114	0
 101	0
-112	0
-109	0
-111	0
+102	0
 103	0
-116	0
+104	0
+105	0
+106	0
 107	0
+108	0
+109	0
+110	0
+111	0
+112	0
 113	0
+114	0
+115	0
+116	0
+117	0
+118	0
+119	0
+120	0
+121	0
 SELECT fid, AsText(Envelope(g)) FROM gis_geometry;
 fid	AsText(Envelope(g))
-108	POLYGON((10 10,20 10,20 20,10 20,10 10))
-118	POLYGON((28 0,84 0,84 42,28 42,28 0))
-104	POLYGON((10 20,10 20,10 20,10 20,10 20))
-106	POLYGON((10 10,20 10,20 20,10 20,10 10))
-102	POLYGON((20 10,20 10,20 10,20 10,20 10))
-105	POLYGON((0 0,10 0,10 10,0 10,0 0))
-120	POLYGON((0 0,10 0,10 10,0 10,0 0))
-115	POLYGON((10 0,10 0,10 48,10 48,10 0))
-121	POLYGON((3 6,44 6,44 9,3 9,3 6))
-117	POLYGON((28 0,84 0,84 42,28 42,28 0))
-110	POLYGON((0 0,30 0,30 30,0 30,0 0))
-119	POLYGON((0 0,3 0,3 3,0 3,0 0))
-114	POLYGON((10 0,16 0,16 48,10 48,10 0))
 101	POLYGON((10 10,10 10,10 10,10 10,10 10))
-112	POLYGON((1 1,21 1,21 21,1 21,1 1))
-109	POLYGON((0 0,50 0,50 50,0 50,0 0))
-111	POLYGON((0 0,20 0,20 20,0 20,0 0))
+102	POLYGON((20 10,20 10,20 10,20 10,20 10))
 103	POLYGON((20 20,20 20,20 20,20 20,20 20))
-116	POLYGON((1 2,21 2,21 8,1 8,1 2))
+104	POLYGON((10 20,10 20,10 20,10 20,10 20))
+105	POLYGON((0 0,10 0,10 10,0 10,0 0))
+106	POLYGON((10 10,20 10,20 20,10 20,10 10))
 107	POLYGON((10 10,40 10,40 10,10 10,10 10))
+108	POLYGON((10 10,20 10,20 20,10 20,10 10))
+109	POLYGON((0 0,50 0,50 50,0 50,0 0))
+110	POLYGON((0 0,30 0,30 30,0 30,0 0))
+111	POLYGON((0 0,20 0,20 20,0 20,0 0))
+112	POLYGON((1 1,21 1,21 21,1 21,1 1))
 113	POLYGON((3 6,4 6,4 10,3 10,3 6))
+114	POLYGON((10 0,16 0,16 48,10 48,10 0))
+115	POLYGON((10 0,10 0,10 48,10 48,10 0))
+116	POLYGON((1 2,21 2,21 8,1 8,1 2))
+117	POLYGON((28 0,84 0,84 42,28 42,28 0))
+118	POLYGON((28 0,84 0,84 42,28 42,28 0))
+119	POLYGON((0 0,3 0,3 3,0 3,0 0))
+120	POLYGON((0 0,10 0,10 10,0 10,0 0))
+121	POLYGON((3 6,44 6,44 9,3 9,3 6))
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	21	
@@ -239,15 +238,15 @@ Warnings:
 Note	1003	select dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,astext(envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, X(g) FROM gis_point;
 fid	X(g)
+101	10
 102	20
 103	20
-101	10
 104	10
 SELECT fid, Y(g) FROM gis_point;
 fid	Y(g)
+101	10
 102	10
 103	20
-101	10
 104	20
 explain extended select X(g),Y(g) FROM gis_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -256,34 +255,34 @@ Warnings:
 Note	1003	select x(`test`.`gis_point`.`g`) AS `X(g)`,y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
 SELECT fid, AsText(StartPoint(g)) FROM gis_line;
 fid	AsText(StartPoint(g))
+105	POINT(0 0)
 106	POINT(10 10)
 107	POINT(10 10)
-105	POINT(0 0)
 SELECT fid, AsText(EndPoint(g)) FROM gis_line;
 fid	AsText(EndPoint(g))
+105	POINT(10 0)
 106	POINT(10 10)
 107	POINT(40 10)
-105	POINT(10 0)
 SELECT fid, GLength(g) FROM gis_line;
 fid	GLength(g)
+105	24.142135623731
 106	40
 107	30
-105	24.142135623731
 SELECT fid, NumPoints(g) FROM gis_line;
 fid	NumPoints(g)
+105	3
 106	5
 107	2
-105	3
 SELECT fid, AsText(PointN(g, 2)) FROM gis_line;
 fid	AsText(PointN(g, 2))
+105	POINT(0 10)
 106	POINT(20 10)
 107	POINT(40 10)
-105	POINT(0 10)
 SELECT fid, IsClosed(g) FROM gis_line;
 fid	IsClosed(g)
+105	0
 106	1
 107	0
-105	0
 explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	gis_line	ALL	NULL	NULL	NULL	NULL	3	
@@ -291,29 +290,29 @@ Warnings:
 Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint(g))`,astext(endpoint(`test`.`gis_line`.`g`)) AS `AsText(EndPoint(g))`,glength(`test`.`gis_line`.`g`) AS `GLength(g)`,numpoints(`test`.`gis_line`.`g`) AS `NumPoints(g)`,astext(pointn(`test`.`gis_line`.`g`,2)) AS `AsText(PointN(g, 2))`,isclosed(`test`.`gis_line`.`g`) AS `IsClosed(g)` from `test`.`gis_line`
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon;
 fid	AsText(Centroid(g))
+108	POINT(15 15)
 109	POINT(25.416666666667 25.416666666667)
 110	POINT(20 10)
-108	POINT(15 15)
 SELECT fid, Area(g) FROM gis_polygon;
 fid	Area(g)
+108	100
 109	2400
 110	450
-108	100
 SELECT fid, AsText(ExteriorRing(g)) FROM gis_polygon;
 fid	AsText(ExteriorRing(g))
+108	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 109	LINESTRING(0 0,50 0,50 50,0 50,0 0)
 110	LINESTRING(0 0,30 0,30 30,0 0)
-108	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 SELECT fid, NumInteriorRings(g) FROM gis_polygon;
 fid	NumInteriorRings(g)
+108	0
 109	1
 110	0
-108	0
 SELECT fid, AsText(InteriorRingN(g, 1)) FROM gis_polygon;
 fid	AsText(InteriorRingN(g, 1))
+108	NULL
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
-108	NULL
 explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	gis_polygon	ALL	NULL	NULL	NULL	NULL	3	
@@ -321,38 +320,38 @@ Warnings:
 Note	1003	select astext(centroid(`test`.`gis_polygon`.`g`)) AS `AsText(Centroid(g))`,area(`test`.`gis_polygon`.`g`) AS `Area(g)`,astext(exteriorring(`test`.`gis_polygon`.`g`)) AS `AsText(ExteriorRing(g))`,numinteriorrings(`test`.`gis_polygon`.`g`) AS `NumInteriorRings(g)`,astext(interiorringn(`test`.`gis_polygon`.`g`,1)) AS `AsText(InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, IsClosed(g) FROM gis_multi_line;
 fid	IsClosed(g)
+114	0
 115	0
 116	0
-114	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon;
 fid	AsText(Centroid(g))
+117	POINT(55.588527753042 17.426536064114)
 118	POINT(55.588527753042 17.426536064114)
 119	POINT(2 2)
-117	POINT(55.588527753042 17.426536064114)
 SELECT fid, Area(g) FROM gis_multi_polygon;
 fid	Area(g)
+117	1684.5
 118	1684.5
 119	4.5
-117	1684.5
 SELECT fid, NumGeometries(g) from gis_multi_point;
 fid	NumGeometries(g)
+111	4
 112	4
 113	2
-111	4
 SELECT fid, NumGeometries(g) from gis_multi_line;
 fid	NumGeometries(g)
+114	2
 115	1
 116	2
-114	2
 SELECT fid, NumGeometries(g) from gis_multi_polygon;
 fid	NumGeometries(g)
+117	2
 118	2
 119	1
-117	2
 SELECT fid, NumGeometries(g) from gis_geometrycollection;
 fid	NumGeometries(g)
-121	2
 120	2
+121	2
 explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	
@@ -360,27 +359,27 @@ Warnings:
 Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,numgeometries(`test`.`gis_multi_point`.`g`) AS `NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 fid	AsText(GeometryN(g, 2))
+111	POINT(10 10)
 112	POINT(11 11)
 113	POINT(4 10)
-111	POINT(10 10)
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_line;
 fid	AsText(GeometryN(g, 2))
+114	LINESTRING(16 0,16 23,16 48)
 115	NULL
 116	LINESTRING(2 5,5 8,21 7)
-114	LINESTRING(16 0,16 23,16 48)
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_polygon;
 fid	AsText(GeometryN(g, 2))
+117	POLYGON((59 18,67 18,67 13,59 13,59 18))
 118	POLYGON((59 18,67 18,67 13,59 13,59 18))
 119	NULL
-117	POLYGON((59 18,67 18,67 13,59 13,59 18))
 SELECT fid, AsText(GeometryN(g, 2)) from gis_geometrycollection;
 fid	AsText(GeometryN(g, 2))
-121	LINESTRING(3 6,7 9)
 120	LINESTRING(0 0,10 10)
+121	LINESTRING(3 6,7 9)
 SELECT fid, AsText(GeometryN(g, 1)) from gis_geometrycollection;
 fid	AsText(GeometryN(g, 1))
-121	POINT(44 6)
 120	POINT(0 0)
+121	POINT(44 6)
 explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	
@@ -586,7 +585,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `POINT(1,3)` longblob NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
 geometry NOT NULL default '');
