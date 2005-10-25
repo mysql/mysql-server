@@ -2796,8 +2796,14 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
+  st_table_list *orig_next_table= table_list->next;
+  table_list->next= 0;
   if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
+  {
+    table_list->next= orig_next_table;
     return 1;
+  }
+  table_list->next= orig_next_table;
 
   if (arg->type() == REF_ITEM)
   {
@@ -2809,6 +2815,7 @@ bool Item_insert_value::fix_fields(THD *thd,
     arg= ref->ref[0];
   }
   Item_field *field_arg= (Item_field *)arg;
+
   if (field_arg->field->table->insert_values)
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
