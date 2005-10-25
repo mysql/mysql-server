@@ -173,7 +173,7 @@ void report_stats()
     mtr_log("\nFailed %u/%u test(s), %.02f%% successful.\n",
       total_fail, total_test, percent);
 		mtr_log("\nThe .out and .err files in %s may give you some\n", result_dir);
-		mtr_log("hint of what when wrong.\n");
+		mtr_log("hint of what went wrong.\n");
 		mtr_log("\nIf you want to report this error, please first read the documentation\n");
 		mtr_log("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
   }
