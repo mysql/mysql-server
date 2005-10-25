@@ -757,7 +757,15 @@ typedef struct st_nested_join
   table_map         used_tables;     /* bitmap of tables in the nested join */
   table_map         not_null_tables; /* tables that rejects nulls           */
   struct st_join_table *first_nested;/* the first nested table in the plan  */
-  uint              counter;         /* to count tables in the nested join  */
+  /* 
+    Used to count tables in the nested join in 2 isolated places:
+    1. In make_outerjoin_info(). 
+    2. check_interleaving_with_nj/restore_prev_nj_state (these are called
+       by the join optimizer. 
+    Before each use the counters are zeroed by reset_nj_counters.
+  */
+  uint              counter;
+  nested_join_map   nj_map;          /* Bit used to identify this nested join*/
 } NESTED_JOIN;
 
 
