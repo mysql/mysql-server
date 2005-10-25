@@ -2649,3 +2649,17 @@ select count(*)
 from t1 inner join (t2 right join t3 on t2.id = t3.b_id) on t1.id = t3.a_id;
 
 drop table t1,t2,t3;
+
+#
+# Bug #13832 Incorrect parse order of join productions due to unspecified
+# operator priorities results in incorrect join tree.
+#
+
+create table t1 (a int);
+create table t2 (b int);
+create table t3 (c int);
+select * from t1 join t2 join t3 on (t1.a=t3.c);
+select * from t1 join t2 left join t3 on (t1.a=t3.c);
+select * from t1 join t2 right join t3 on (t1.a=t3.c);
+select * from t1 join t2 straight_join t3 on (t1.a=t3.c);
+drop table t1, t2 ,t3;
