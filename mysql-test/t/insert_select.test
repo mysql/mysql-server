@@ -214,4 +214,16 @@ insert into t1(f1) select if(max(f1) is null, '2000',max(f1)+1) from t1;
 select * from t1;
 drop table t1;
 
+#
+# Bug #13392 values() fails with 'ambiguous' or returns NULL 
+#            with ON DUPLICATE and SELECT
+create table t1(x int, y int);
+create table t2(x int, z int);
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(x);
+--error 1054
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(z);
+--error 1109
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(t2.x);
+drop table t1,t2; 
+
 # End of 4.1 tests
