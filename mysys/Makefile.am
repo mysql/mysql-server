@@ -55,7 +55,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			charset.c charset-def.c my_bitmap.c my_bit.c md5.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
-			my_windac.c my_access.c
+			my_windac.c my_access.c base64.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
@@ -115,6 +115,11 @@ test_gethwaddr$(EXEEXT): my_gethwaddr.c $(LIBRARIES)
 	$(CP) $(srcdir)/my_gethwaddr.c ./test_gethwaddr.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_gethwaddr.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_gethwaddr.c
+
+test_base64$(EXEEXT): base64.c $(LIBRARIES)
+	$(CP) $(srcdir)/base64.c ./test_base64.c
+	$(LINK) $(FLAGS) -DMAIN  ./test_base64.c $(LDADD) $(LIBS)
+	$(RM) -f ./test_base64.c
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

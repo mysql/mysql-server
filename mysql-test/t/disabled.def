@@ -15,3 +15,4 @@ rpl_relayrotate : Unstable test case, bug#12429
 rpl_until       : Unstable test case, bug#12429
 rpl_deadlock    : Unstable test case, bug#12429
 kill            : Unstable test case, bug#9712
+federated       : Broken test case, bug#14272
