@@ -286,7 +286,7 @@ int mysql_update(THD *thd,
     if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
-      table->file->extra(HA_EXTRA_KEYREAD); //todo: psergey: check
+      table->file->extra(HA_EXTRA_KEYREAD);
     }
 
     /* note: can actually avoid sorting below.. */
@@ -334,7 +334,7 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
-      if (used_index == MAX_KEY)
+      if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info,thd,table,select,0,1);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
