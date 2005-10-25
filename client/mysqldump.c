@@ -342,7 +342,7 @@ static struct my_option my_long_options[] =
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"routines", 'R', "Dump routines FUNCTIONS and PROCEDURES.",
+  {"routines", 'R', "Dump stored routines (functions and procedures).",
      (gptr*) &opt_routines, (gptr*) &opt_routines, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
