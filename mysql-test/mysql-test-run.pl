@@ -462,6 +462,13 @@ sub command_line_setup () {
   my $opt_slave_myport=  9308;
   $opt_ndbcluster_port=  9350;
 
+  if ( $ENV{'MTR_BUILD_THREAD'} )
+  {
+    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
+    $opt_slave_myport=    $opt_master_myport + 16;
+    $opt_ndbcluster_port= $opt_master_myport + 24;
+  }
+
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
@@ -833,7 +840,9 @@ sub executable_setup () {
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
                                            "$glob_basedir/bin");
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt");
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
+                                           "$path_client_bindir/mysqld",
+                                           "$path_client_bindir/mysqld-debug",);
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
     }
@@ -886,8 +895,18 @@ sub executable_setup () {
                                          "$glob_basedir/share/english/");
     $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/mysql/charsets",
                                          "$glob_basedir/share/charsets");
-    $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
-                                         "$glob_basedir/bin/mysqld");
+
+    if ( $glob_win32 )
+    {
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/bin/mysqld-nt",
+                                           "$glob_basedir/bin/mysqld",
+                                           "$glob_basedir/bin/mysqld-debug",);
+    }
+    else
+    {
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
+                                           "$glob_basedir/bin/mysqld");
+    }
 
     if ( $glob_use_embedded_server )
     {
@@ -971,6 +990,13 @@ sub environment_setup () {
       chomp($ENV{$key});
     }
   }
+
+  # We are nice and report a bit about our settings
+  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
+  print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
+  print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
+  print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
+  print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
 }
 
 
