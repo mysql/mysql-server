@@ -588,9 +588,9 @@ static bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:         
   case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_GEOMETRY:
     return TRUE;
   case MYSQL_TYPE_NULL:   
-  case MYSQL_TYPE_GEOMETRY:
     break;
   }
   return FALSE;
@@ -3714,6 +3714,7 @@ static int create_ndb_column(NDBCOL &col,
     col.setStripeSize(0);
     break;
   //mysql_type_blob:
+  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_BLOB:    
     if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
       col.setType(NDBCOL::Blob);
@@ -3779,7 +3780,6 @@ static int create_ndb_column(NDBCOL &col,
     break;
   }
   case MYSQL_TYPE_NULL:        
-  case MYSQL_TYPE_GEOMETRY:
     goto mysql_type_unsupported;
   mysql_type_unsupported:
   default:
@@ -3931,6 +3931,7 @@ int ha_ndbcluster::create(const char *name,
      * 5 - from extra words added by tup/dict??
      */
     switch (form->field[i]->real_type()) {
+    case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:    
     case MYSQL_TYPE_MEDIUM_BLOB:   
     case MYSQL_TYPE_LONG_BLOB: 
@@ -4206,6 +4207,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_AUTO_PART_KEY |
                 HA_NO_PREFIX_CHAR_KEYS |
                 HA_NEED_READ_RANGE_BUFFER |
+                HA_CAN_GEOMETRY |
                 HA_CAN_BIT_FIELD),
   m_share(0),
   m_use_write(FALSE),
