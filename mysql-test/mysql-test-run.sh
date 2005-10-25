@@ -209,6 +209,25 @@ NDBCLUSTER_PORT=9350
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
+
+#
+# To make it easier for different devs to work on the same host,
+# an environment variable can be used to control all ports. A small
+# number is to be used, 0 - 16 or similar.
+#
+if [ -n "$MTR_BUILD_THREAD" ] ; then
+  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 40 + 8120`
+  MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
+  SLAVE_MYPORT=`expr $MASTER_MYPORT + 16`
+  NDBCLUSTER_PORT=`expr $MASTER_MYPORT + 24`
+
+  echo "Using MTR_BUILD_THREAD   = $MTR_BUILD_THREAD"
+  echo "Using MASTER_MYPORT      = $MASTER_MYPORT"
+  echo "Using MYSQL_MANAGER_PORT = $MYSQL_MANAGER_PORT"
+  echo "Using SLAVE_MYPORT       = $SLAVE_MYPORT"
+  echo "Using NDBCLUSTER_PORT    = $NDBCLUSTER_PORT"
+fi
+
 NO_SLAVE=0
 USER_TEST=
 FAILED_CASES=
