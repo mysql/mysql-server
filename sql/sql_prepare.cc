@@ -2105,8 +2105,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       were closed in the end of previous prepare or execute call.
     */
     tables->table= 0;
-    if (tables->nested_join)
-      tables->nested_join->counter= 0;
 
     if (tables->prep_on_expr)
     {
