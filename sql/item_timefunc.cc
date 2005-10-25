@@ -2327,22 +2327,36 @@ String *Item_char_typecast::val_str(String *str)
     and the result is longer than cast length, e.g.
     CAST('string' AS CHAR(1))
   */
-  if (cast_length >= 0 &&
-      (res->length() > (length= (uint32) res->charpos(cast_length))))
-  {						// Safe even if const arg
-    char char_type[40];
-    my_snprintf(char_type, sizeof(char_type), "CHAR(%lu)", length);
+  if (cast_length >= 0)
+  {
+    if (res->length() > (length= (uint32) res->charpos(cast_length)))
+    {                                           // Safe even if const arg
+      char char_type[40];
+      my_snprintf(char_type, sizeof(char_type), "CHAR(%lu)", length);
 
-    if (!res->alloced_length())
-    {						// Don't change const str
-      str_value= *res;				// Not malloced string
-      res= &str_value;
+      if (!res->alloced_length())
+      {                                         // Don't change const str
+        str_value= *res;                        // Not malloced string
+        res= &str_value;
+      }
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER(ER_TRUNCATED_WRONG_VALUE), char_type,
+                          res->c_ptr_safe());
+      res->length((uint) length);
     }
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), char_type,
-                        res->c_ptr_safe());
-    res->length((uint) length);
+    else if (cast_cs == &my_charset_bin && res->length() < (uint) cast_length)
+    {
+      if (res->alloced_length() < (uint) cast_length)
+      {
+        str->alloc(cast_length);
+        str->copy(*res);
+        res= str;
+      }
+      bzero((char*) res->ptr() + res->length(),
+            (uint) cast_length - res->length());
+      res->length(cast_length);
+    }
   }
   null_value= 0;
   return res;
