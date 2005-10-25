@@ -1528,6 +1528,16 @@ void Item_func_date_format::fix_length_and_dec()
   if (args[1]->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
+
+    /*
+      Force case sensitive collation on format string.
+      This needed because format modifiers with different case,
+      for example %m and %M, have different meaning. Thus eq()
+      will distinguish them.
+    */
+    args[1]->collation.set(
+        get_charset_by_csname(args[1]->collation.collation->csname,
+                              MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
     /*
       The result is a binary string (no reason to use collation->mbmaxlen
       This is becasue make_date_time() only returns binary strings
