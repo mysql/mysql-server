@@ -180,7 +180,8 @@ static int start_process(Instance_options *instance_options,
   char *cmdline= new char[cmdlen];
   if (cmdline == NULL)
     return 1;
-
+    
+  cmdline[0]= 0;
   for (int i= 0; instance_options->argv[i] != 0; i++)
   {
     strcat(cmdline, "\"");
