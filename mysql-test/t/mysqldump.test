@@ -962,3 +962,26 @@ DROP TRIGGER `test trig`;
 DROP TABLE `t1 test`;
 DROP TABLE `t2 test`;
 --enable_warnings
+#
+# BUG# 12838 mysqldump -x with views exits with error 
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, b varchar(32), c varchar(32));
+insert into t1 values (1, 'first value', 'xxxx');
+insert into t1 values (2, 'second value', 'tttt');
+insert into t1 values (3, 'third value', 'vvv vvv');
+
+create view v1 as select * from t1;
+create view v0 as select * from v1;
+create view v2 as select * from v0;
+
+select * from v2;
+--exec $MYSQL_DUMP -x --skip-comments --databases test
+
+drop view v2;
+drop view v0;
+drop view v1;
+drop table t1;
