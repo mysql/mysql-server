@@ -45,6 +45,7 @@ extern "C" {
 #undef HAVE_SCHED_H
 #undef HAVE_SYS_MMAN_H
 #undef HAVE_SYNCH_H
+#undef HAVE_RINT
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
 #define HAVE_PTHREAD_SIGMASK 1
 #define HAVE_PTHREAD_YIELD_ZERO_ARG 1
@@ -90,6 +91,9 @@ extern "C" {
 
 /* On NetWare, stack grows towards lower address*/
 #define STACK_DIRECTION -1
+
+/* On NetWare, to fix the problem with the deletion of open files */
+#define CANT_DELETE_OPEN_FILES 1
 
 /* default directory information */
 #define	DEFAULT_MYSQL_HOME    "sys:/mysql"
