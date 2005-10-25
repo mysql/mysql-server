@@ -727,3 +727,12 @@ use information_schema;
 select 1 from (select 1 from test.t1) a;
 use test;
 drop table t1;
+
+#
+# Bug #14290: character_maximum_length for text fields
+#
+
+create table t1(a blob, b text charset utf8, c text charset ucs2);
+select data_type, character_octet_length, character_maximum_length 
+  from information_schema.columns where table_name='t1';
+drop table t1;
