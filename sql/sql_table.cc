@@ -1149,13 +1149,17 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-	if (f_is_blob(sql_field->pack_flag))
+	if (f_is_blob(sql_field->pack_flag) ||
+            (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
 	{
 	  if (!(file->table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
 	    my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
 	  }
+          if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
+              Field::GEOM_POINT)
+            column->length= 21;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name);
