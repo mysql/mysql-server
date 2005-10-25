@@ -660,7 +660,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  YEAR_SYM
 %token  ZEROFILL
 
-%left   JOIN_SYM
+%left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
 /* A dummy token to force the priority of table_ref production in a join. */
 %left   TABLE_REF_PRIORITY
 %left   SET_VAR
@@ -5227,14 +5227,22 @@ derived_table_list:
           }
         ;
 
+/*
+  Notice that JOIN is a left-associative operation, and it must be parsed
+  as such, that is, the parser must process first the left join operand
+  then the right one. Such order of processing ensures that the parser
+  produces correct join trees which is essential for semantic analysis
+  and subsequent optimization phases.
+*/
 join_table:
+/* INNER JOIN variants */
         /*
-          Evaluate production 'table_ref' before 'normal_join' so that
-          [INNER | CROSS] JOIN is properly nested as other left-associative
-          joins.
+          Use %prec to evaluate production 'table_ref' before 'normal_join'
+          so that [INNER | CROSS] JOIN is properly nested as other
+          left-associative joins.
         */
         table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
-        { YYERROR_UNLESS($1 && ($$=$3)); }
+          { YYERROR_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
 	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref
@@ -5276,6 +5284,13 @@ join_table:
 	  }
 	  '(' using_list ')'
           { add_join_natural($1,$3,$7); $$=$3; }
+	| table_ref NATURAL JOIN_SYM table_factor
+	  {
+            YYERROR_UNLESS($1 && ($$=$4));
+            add_join_natural($1,$4,NULL);
+          }
+
+/* LEFT JOIN variants */
 	| table_ref LEFT opt_outer JOIN_SYM table_ref
           ON
           {
@@ -5307,6 +5322,8 @@ join_table:
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
+
+/* RIGHT JOIN variants */
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref
           ON
           {
@@ -5344,10 +5361,7 @@ join_table:
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
-	  }
-	| table_ref NATURAL JOIN_SYM table_factor
-	  { YYERROR_UNLESS($1 && ($$=$4)); add_join_natural($1,$4,NULL); };
-
+	  };
 
 normal_join:
 	JOIN_SYM		{}
