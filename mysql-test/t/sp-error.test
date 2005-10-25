@@ -1284,6 +1284,60 @@ begin
 end|
 delimiter ;|
 use test;
+
+
+#
+# BUG#13037: undefined variable in IF cause erroneous error-message
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug13037_p1;
+DROP PROCEDURE IF EXISTS bug13037_p2;
+DROP PROCEDURE IF EXISTS bug13037_p3;
+--enable_warnings
+
+delimiter |;
+
+CREATE PROCEDURE bug13037_p1()
+BEGIN
+  IF bug13037_foo THEN
+    SELECT 1;
+  END IF;
+END|
+
+CREATE PROCEDURE bug13037_p2()
+BEGIN
+  SET @bug13037_foo = bug13037_bar;
+END|
+
+CREATE PROCEDURE bug13037_p3()
+BEGIN
+  SELECT bug13037_foo;
+END|
+
+delimiter ;|
+
+--echo
+
+--error 1054
+CALL bug13037_p1();
+--error 1054
+CALL bug13037_p2();
+--error 1054
+CALL bug13037_p3();
+
+--error 1054
+CALL bug13037_p1();
+--error 1054
+CALL bug13037_p2();
+--error 1054
+CALL bug13037_p3();
+
+DROP PROCEDURE bug13037_p1;
+DROP PROCEDURE bug13037_p2;
+DROP PROCEDURE bug13037_p3;
+
+
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
