@@ -1769,8 +1769,9 @@ static void reset_stmt_params(Prepared_statement *stmt)
       packet_length  Query string length, including terminator character.
 */
 
-void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
+void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
+  uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
   ulong stmt_id= uint4korr(packet);
   /*
     Query text for binary log, or empty string if the query is not put into
