@@ -11,11 +11,10 @@
 --source include/not_windows.inc
 
 # Backup proc table
-use mysql;
---disable_warnings
-drop table if exists proc_backup;
---enable_warnings
-create table proc_backup as select * from proc;
+--system rm -rf var/master-data/mysql/backup
+--system mkdir var/master-data/mysql/backup
+--system cp var/master-data/mysql/proc.* var/master-data/mysql/backup/
+
 use test;
 
 --disable_warnings
@@ -67,10 +66,8 @@ create view v1 as select bug14233_f();
 insert into t1 values (0);
 
 # Restore mysql.proc
-use mysql;
-create table proc as select * from proc_backup;
-alter table proc add primary key (db,name,type);
-use test;
+--system mv var/master-data/mysql/backup/* var/master-data/mysql/
+--system rmdir var/master-data/mysql/backup
 
 flush table mysql.proc;
 flush privileges;
@@ -124,7 +121,6 @@ insert into t1 values (0);
 
 # Clean-up
 delete from mysql.proc where name like 'bug14233%';
-drop table mysql.proc_backup;
 drop trigger t1_ai;
 drop table t1;
 drop view v1;
