@@ -1,6 +1,3 @@
-use mysql;
-drop table if exists proc_backup;
-create table proc_backup as select * from proc;
 use test;
 drop procedure if exists bug14233;
 drop function if exists bug14233;
@@ -33,10 +30,6 @@ create view v1 as select bug14233_f();
 ERROR 42S02: Table 'mysql.proc' doesn't exist
 insert into t1 values (0);
 ERROR 42S02: Table 'mysql.proc' doesn't exist
-use mysql;
-create table proc as select * from proc_backup;
-alter table proc add primary key (db,name,type);
-use test;
 flush table mysql.proc;
 flush privileges;
 delete from mysql.proc where name like 'bug14233%';
@@ -81,7 +74,6 @@ create trigger t1_ai after insert on t1 for each row call bug14233_3();
 insert into t1 values (0);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'wpsj sa ^#!@ ' at line 3
 delete from mysql.proc where name like 'bug14233%';
-drop table mysql.proc_backup;
 drop trigger t1_ai;
 drop table t1;
 drop view v1;
