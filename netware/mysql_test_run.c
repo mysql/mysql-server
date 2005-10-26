@@ -941,7 +941,7 @@ void run_test(char *test)
       // increment total
       ++total_test;
     }
-    else if (err == 2)
+    else if (err == 62)  // To reflect the changes made in client/mysqltest.c 
     {
       // skip
       rstr = TEST_SKIP;
