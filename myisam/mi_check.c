@@ -1294,25 +1294,30 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     param->calc_checksum=1;
 
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+
+  /*
+    Clear all keys. Note that all key blocks allocated until now remain
+    "dead" parts of the key file. (Bug #4692)
+  */
   for (i=0 ; i < info->s->base.keys ; i++)
     share->state.key_root[i]= HA_OFFSET_ERROR;
+
+  /* Drop the delete chain. */
   for (i=0 ; i < share->state.header.max_block_size ; i++)
     share->state.key_del[i]=  HA_OFFSET_ERROR;
 
   /*
-    I think mi_repair and mi_repair_by_sort should do the same
-    (according, e.g. to ha_myisam::repair), but as mi_repair doesn't
-    touch key_map it cannot be used to T_CREATE_MISSING_KEYS.
-    That is what the next line is for
+    If requested, activate (enable) all keys in key_map. In this case,
+    all indexes will be (re-)built.
   */
-
   if (param->testflag & T_CREATE_MISSING_KEYS)
-    mi_copy_keys_active(share->state.key_map, share->base.keys,
-                        param->keys_in_use);
+    mi_set_all_keys_active(share->state.key_map, share->base.keys);
 
   info->state->key_file_length=share->base.keystart;
 
   lock_memory(param);			/* Everything is alloced */
+
+  /* Re-create all keys, which are set in key_map. */
   while (!(error=sort_get_next_record(&sort_param)))
   {
     if (writekeys(param,info,(byte*)sort_param.record,sort_param.filepos))
