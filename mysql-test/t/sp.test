@@ -13,6 +13,8 @@
 # Tests that require multiple connections, except security/privilege tests,
 #   go to sp-thread.
 # Tests that uses 'goto' to into sp-goto.test (currently disabled)
+# Tests that destroys system tables (e.g. mysql.proc) for error testing
+#   go to sp-destruct.
 
 use test;
 

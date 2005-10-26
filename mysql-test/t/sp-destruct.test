@@ -1,0 +1,130 @@
+#
+# Destructive stored procedure tests
+#
+# We do horrible things to the mysql.proc table here, so any unexpected
+# failures here might leave it in an undetermined state.
+#
+# In the case of trouble you might want to skip this.
+#
+
+# We're using --system things that probably doesn't work on Windows.
+--source include/not_windows.inc
+
+# Backup proc table
+use mysql;
+--disable_warnings
+drop table if exists proc_backup;
+--enable_warnings
+create table proc_backup as select * from proc;
+use test;
+
+--disable_warnings
+drop procedure if exists bug14233;
+drop function if exists bug14233;
+drop table if exists t1;
+drop view if exists v1;
+--enable_warnings
+
+create procedure bug14233()
+  set @x = 42;
+
+create function bug14233_f() returns int
+  return 42;
+
+create table t1 (id int);
+create trigger t1_ai after insert on t1 for each row call bug14233();
+
+# Unsupported tampering with the mysql.proc definition
+alter table mysql.proc drop type;
+--error ER_SP_PROC_TABLE_CORRUPT
+call bug14233();
+--error ER_SP_PROC_TABLE_CORRUPT
+create view v1 as select bug14233_f();
+--error ER_SP_PROC_TABLE_CORRUPT
+insert into t1 values (0);
+
+flush table mysql.proc;
+
+# Thrashing the .frm file
+--system echo 'saljdlfa' > var/master-data/mysql/proc.frm
+--error ER_NOT_FORM_FILE
+call bug14233();
+--error ER_NOT_FORM_FILE
+create view v1 as select bug14233_f();
+--error ER_NOT_FORM_FILE
+insert into t1 values (0);
+
+
+flush table mysql.proc;
+
+# Drop the mysql.proc table
+--system rm var/master-data/mysql/proc.*
+--error ER_NO_SUCH_TABLE
+call bug14233();
+--error ER_NO_SUCH_TABLE
+create view v1 as select bug14233_f();
+--error ER_NO_SUCH_TABLE
+insert into t1 values (0);
+
+# Restore mysql.proc
+use mysql;
+create table proc as select * from proc_backup;
+alter table proc add primary key (db,name,type);
+use test;
+
+flush table mysql.proc;
+flush privileges;
+
+delete from mysql.proc where name like 'bug14233%';
+
+# Unsupported editing of mysql.proc, circumventing checks in "create ..."
+insert into mysql.proc
+(
+  db, name, type, specific_name, language, sql_data_access, is_deterministic,
+  security_type, param_list, returns, body, definer, created, modified,
+  sql_mode, comment
+)
+values
+(
+  'test', 'bug14233_1', 'FUNCTION', 'bug14233_1', 'SQL', 'READS_SQL_DATA', 'NO',
+  'DEFINER', '', 'int(10)',
+  'select count(*) from mysql.user',
+  'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
+),
+(
+  'test', 'bug14233_2', 'FUNCTION', 'bug14233_2', 'SQL', 'READS_SQL_DATA', 'NO',
+  'DEFINER', '', 'int(10)',
+  'begin declare x int; select count(*) into x from mysql.user; end',
+  'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
+),
+(
+  'test', 'bug14233_3', 'PROCEDURE', 'bug14233_3', 'SQL', 'READS_SQL_DATA','NO',
+  'DEFINER', '', '',
+  'alksj wpsj sa ^#!@ ',
+  'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
+);
+
+--error ER_SP_NO_RETSET
+select bug14233_1();
+--error ER_SP_NO_RETSET
+create view v1 as select bug14233_1();
+
+--error ER_SP_NORETURNEND
+select bug14233_2();
+create view v1 as select bug14233_2();
+--error ER_SP_NORETURNEND
+select * from v1;
+
+--error ER_PARSE_ERROR
+call bug14233_3();
+drop trigger t1_ai;
+create trigger t1_ai after insert on t1 for each row call bug14233_3();
+--error ER_PARSE_ERROR
+insert into t1 values (0);
+
+# Clean-up
+delete from mysql.proc where name like 'bug14233%';
+drop table mysql.proc_backup;
+drop trigger t1_ai;
+drop table t1;
+drop view v1;
