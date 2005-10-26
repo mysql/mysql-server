@@ -3248,7 +3248,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
         Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &not_used);
-        if (res != not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        if (res != (Item **)not_found_item && (*res)->type() == Item::FIELD_ITEM)
         {
           set_field((*((Item_field**)res))->field);
           return 0;
