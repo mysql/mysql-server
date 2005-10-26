@@ -97,36 +97,35 @@ tags:
 	support-files/build-tags
 .PHONY:		init-db bin-dist
 
-# Test installation. Ports are configurable from the environment.
-
-MYSQL_TEST_MANAGER_PORT =	9305
-MYSQL_TEST_MASTER_PORT =	9306
-MYSQL_TEST_SLAVE_PORT =		9308
-MYSQL_TEST_NDB_PORT =		9350
-MYSQL_TEST_RUN_ARGS =		--manager-port=$(MYSQL_TEST_MANAGER_PORT) \
-				--master_port=$(MYSQL_TEST_MASTER_PORT) \
-				--slave_port=$(MYSQL_TEST_SLAVE_PORT) \
-				--ndbcluster_port=$(MYSQL_TEST_NDB_PORT)
+# Target 'test' will run the regression test suite using the built server.
+#
+# If you are running in a shared environment, users can avoid clashing
+# port numbers by setting individual small numbers 1-100 to the
+# environment variable MTR_BUILD_THREAD. The script "mysql-test-run"
+# will then calculate the various port numbers it needs from this,
+# making sure each user use different ports.
 
 test:
 	cd mysql-test ; \
-	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) && \
-	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) --ps-protocol
+	./mysql-test-run && \
+	./mysql-test-run --ps-protocol
 
 test-force:
-	cd mysql-test ; \
-	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) --force ; \
-	./mysql-test-run $(MYSQL_TEST_RUN_ARGS) --ps-protocol --force
+	cd mysql-test; \
+	./mysql-test-run --force ; \
+	./mysql-test-run --ps-protocol --force
 
+# We are testing a new Perl version of the test script
 test-pl:
-	cd mysql-test ; \
-	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) && \
-	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) --ps-protocol
+	cd mysql-test; \
+	./mysql-test-run.pl && \
+	./mysql-test-run.pl --ps-protocol
 
 test-force-pl:
-	cd mysql-test ; \
-	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) --force ; \
-	./mysql-test-run.pl $(MYSQL_TEST_RUN_ARGS) --ps-protocol --force
+	cd mysql-test; \
+	./mysql-test-run.pl --force ; \
+	./mysql-test-run.pl --ps-protocol --force
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
