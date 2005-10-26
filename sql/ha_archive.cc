@@ -453,7 +453,6 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
 */
 static const char *ha_archive_exts[] = {
   ARZ,
-  ARN,
   ARM,
   NullS
 };
