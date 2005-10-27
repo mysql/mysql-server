@@ -522,28 +522,39 @@ fi
 
 %doc %attr(644, root, man) %{_mandir}/man1/isamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/isamlog.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
+%doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
+%doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
+%doc %attr(644, root, man) %{_mandir}/man1/myisampack.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
+%doc %attr(644, root, man) %{_mandir}/man1/pack_isam.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
+%doc %attr(644, root, man) %{_mandir}/man1/safe_mysqld.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
 %attr(755, root, root) %{_bindir}/isamchk
 %attr(755, root, root) %{_bindir}/isamlog
-%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
+%attr(755, root, root) %{_bindir}/my_print_defaults
+%attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
+%attr(755, root, root) %{_bindir}/mysqld_multi
+%attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysql_create_system_tables
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
+%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
@@ -554,11 +565,12 @@ fi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysqltest
+%attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/pack_isam
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
-%attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
+%attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -586,10 +598,14 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 
+%doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlcheck.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqldump.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlimport.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
 
 %post shared
@@ -627,6 +643,7 @@ fi
 %files devel
 %defattr(-, root, root, 0755)
 %doc EXCEPTIONS-CLIENT
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -676,6 +693,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Oct 27 2005 Lenz Grimmer <lenz@grimmer.com>
+
+- added more man pages
+
 * Thu Oct 13 2005 Lenz Grimmer <lenz@mysql.com>
 
 - added a usermod call to assign a potential existing mysql user to the

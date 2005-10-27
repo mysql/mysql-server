@@ -2347,10 +2347,14 @@ AC_ARG_WITH(man,
 if test "$with_man" = "yes"
 then
   man_dirs="man"
+  man1_files=`ls -1 $srcdir/man/*.1 | sed -e 's;^.*man/;;'`
+  man1_files=`echo $man1_files`
 else
   man_dirs=""
+  man1_files=""
 fi
 AC_SUBST(man_dirs)
+AC_SUBST(man1_files)
 
 # Shall we build the bench code?
 AC_ARG_WITH(bench,
