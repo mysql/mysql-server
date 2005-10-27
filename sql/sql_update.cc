@@ -61,7 +61,8 @@ int mysql_update(THD *thd,
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
-  uint		used_index;
+  uint		used_index= MAX_KEY;
+  bool          need_sort= TRUE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -145,6 +146,11 @@ int mysql_update(THD *thd,
     send_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
+  if (!select && limit != HA_POS_ERROR)
+  {
+    if ((used_index= get_index_for_order(table, order, limit)) != MAX_KEY)
+      need_sort= FALSE;
+  }
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -157,6 +163,7 @@ int mysql_update(THD *thd,
     }
   }
   init_ftfuncs(thd, &thd->lex->select_lex, 1);
+  
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
   {
@@ -164,13 +171,15 @@ int mysql_update(THD *thd,
     used_key_is_modified= (!select->quick->unique_key_range() &&
 			   check_if_key_used(table, used_index, fields));
   }
-  else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
-    used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
   {
-    used_key_is_modified=0;
-    used_index= MAX_KEY;
+    used_key_is_modified= 0;
+    if (used_index == MAX_KEY)                  // no index for sort order
+      used_index= table->file->key_used_on_scan;
+    if (used_index != MAX_KEY)
+      used_key_is_modified= check_if_key_used(table, used_index, fields);
   }
+
   if (used_key_is_modified || order)
   {
     /*
@@ -184,7 +193,8 @@ int mysql_update(THD *thd,
       table->file->extra(HA_EXTRA_KEYREAD);
     }
 
-    if (order)
+    /* note: can actually avoid sorting below.. */
+    if (order && (need_sort || used_key_is_modified))
     {
       /*
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
@@ -194,6 +204,7 @@ int mysql_update(THD *thd,
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
 
+      used_index= MAX_KEY;                   // For call to init_read_record()
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
       if (!(sortorder=make_unireg_sortorder(order, &length)) ||
@@ -225,7 +236,11 @@ int mysql_update(THD *thd,
 			   DISK_BUFFER_SIZE, MYF(MY_WME)))
 	goto err;
 
-      init_read_record(&info,thd,table,select,0,1);
+      if (used_index == MAX_KEY)
+        init_read_record(&info,thd,table,select,0,1);
+      else
+        init_read_record_idx(&info, thd, table, 1, used_index);
+
       thd->proc_info="Searching rows for update";
       uint tmp_limit= limit;
 
@@ -251,6 +266,7 @@ int mysql_update(THD *thd,
 	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
+     
       /* Change select to use tempfile */
       if (select)
       {

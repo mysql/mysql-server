@@ -339,7 +339,8 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"stats_method", OPT_STATS_METHOD,
    "Specifies how index statistics collection code should threat NULLs. "
-   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
+   "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
    (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -451,6 +452,10 @@ static void usage(void)
   -a, --analyze	      Analyze distribution of keys. Will make some joins in\n\
 		      MySQL faster.  You can check the calculated distribution\n\
 		      by using '--description --verbose table_name'.\n\
+  --stats_method=name Specifies how index statistics collection code should\n\
+                      threat NULLs. Possible values of name are \"nulls_unequal\"\n\
+                      (default for 4.1/5.0), \"nulls_equal\" (emulate 4.0), and \n\
+                      \"nulls_ignored\".\n\
   -d, --description   Prints some information about table.\n\
   -A, --set-auto-increment[=value]\n\
 		      Force auto_increment to start at this or higher value\n\
@@ -472,7 +477,7 @@ static void usage(void)
 #include <help_end.h>
 
 const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
-                                           NullS};
+                                           "nulls_ignored", NullS};
 TYPELIB myisam_stats_method_typelib= {
   array_elements(myisam_stats_method_names) - 1, "",
   myisam_stats_method_names, NULL};
@@ -699,14 +704,25 @@ get_one_option(int optid,
   case OPT_STATS_METHOD:
   {
     int method;
+    enum_mi_stats_method method_conv;
     myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
       exit(1);
     }
-    check_param.stats_method= test(method-1)? MI_STATS_METHOD_NULLS_EQUAL :
-                                              MI_STATS_METHOD_NULLS_NOT_EQUAL;
+    switch (method-1) {
+    case 0: 
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+      break;
+    case 1:
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+      break;
+    case 2:
+      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
+      break;
+    }
+    check_param.stats_method= method_conv;
     break;
   }
 #ifdef DEBUG					/* Only useful if debugging */

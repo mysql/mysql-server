@@ -263,3 +263,77 @@ test
 delete from t1 where count(*)=1;
 ERROR HY000: Invalid use of group function
 drop table t1;
+create table t1 ( a int, b int default 0, index (a) );
+insert into t1 (a) values (0),(0),(0),(0),(0),(0),(0),(0);
+flush status;
+select a from t1 order by a limit 1;
+a
+0
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+update t1 set a=9999 order by a limit 1;
+update t1 set b=9999 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_next	9
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+delete from t1 order by a desc limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	9
+alter table t1 disable keys;
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	9
+select * from t1;
+a	b
+0	0
+0	0
+0	0
+0	0
+0	0
+update t1 set a=a+10,b=1 order by a limit 3;
+update t1 set a=a+11,b=2 order by a limit 3;
+update t1 set a=a+12,b=3 order by a limit 3;
+select * from t1 order by a;
+a	b
+11	2
+21	2
+22	3
+22	3
+23	3
+drop table t1;

@@ -19,3 +19,26 @@ SELECT * FROM t1 WHERE popisek LIKE '2005-01-1';
 popisek
 2005-01-1
 drop table t1;
+set names cp1250;
+CREATE TABLE t1
+(
+id  INT AUTO_INCREMENT PRIMARY KEY,
+str VARCHAR(32)  CHARACTER SET cp1250 COLLATE cp1250_czech_cs NOT NULL default '',
+UNIQUE KEY (str)
+);
+INSERT INTO t1 VALUES (NULL, 'a');
+INSERT INTO t1 VALUES (NULL, 'aa');
+INSERT INTO t1 VALUES (NULL, 'aaa');
+INSERT INTO t1 VALUES (NULL, 'aaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaaaa');
+select * from t1 where str like 'aa%';
+id	str
+2	aa
+3	aaa
+4	aaaa
+5	aaaaa
+6	aaaaaa
+7	aaaaaaa
+drop table t1;
