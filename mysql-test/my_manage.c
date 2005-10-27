@@ -231,9 +231,6 @@ int wait_for_server_start(char *bin_dir __attribute__((unused)),
 {
   arg_list_t al;
   int err= 0;
-#ifndef __WIN__
-  int i;
-#endif
   char trash[FN_REFLEN];
 
   /* mysqladmin file */
@@ -247,16 +244,11 @@ int wait_for_server_start(char *bin_dir __attribute__((unused)),
   add_arg(&al, "--user=%s", user);
   add_arg(&al, "--password=%s", password);
   add_arg(&al, "--silent");
-
-/* #ifdef NOT_USED */
-#ifndef __NETWARE__
-  add_arg(&al, "-O");
-  add_arg(&al, "connect_timeout=10");
-  add_arg(&al, "-w");
-#endif
-
   add_arg(&al, "--host=localhost");
+
 #ifndef __NETWARE__
+  add_arg(&al, "--connect_timeout=10");
+  add_arg(&al, "-w");
   add_arg(&al, "--protocol=tcp");
 #endif
   add_arg(&al, "ping");
@@ -266,9 +258,14 @@ int wait_for_server_start(char *bin_dir __attribute__((unused)),
     -- we will try the ping multiple times
   */
 #ifndef __WIN__
-  for (i= 0; (i < TRY_MAX)
-         && (err= spawn(mysqladmin_file, &al, TRUE, NULL,
-                        trash, NULL, NULL)); i++) sleep(1);
+  {
+    int i;
+    for (i= 0;
+         (i < TRY_MAX) && (err= spawn(mysqladmin_file, &al, TRUE, NULL,
+                                      trash, NULL, NULL));
+         i++)
+      sleep(1);
+  }
 #else
   err= spawn(mysqladmin_file, &al, TRUE, NULL,trash, NULL, NULL);
 #endif

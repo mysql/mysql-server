@@ -358,7 +358,7 @@ MYSQL_LOG::MYSQL_LOG()
   :bytes_written(0), last_time(0), query_start(0), name(0),
    file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
    need_start_event(1), prepared_xids(0), description_event_for_exec(0),
-   description_event_for_queue(0), readers_count(0), reset_pending(false)
+   description_event_for_queue(0), readers_count(0), reset_pending(FALSE)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -965,7 +965,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
     goto err;
   }
 
-  reset_pending= true;
+  reset_pending= TRUE;
   /* 
     send update signal just in case so that all reader threads waiting
     for log update will leave wait condition
@@ -975,7 +975,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
     if there are active readers wait until all of them will 
     release opened files 
   */
-  if (readers_count)
+  while (readers_count)
     pthread_cond_wait(&reset_cond, &LOCK_log);
 
   for (;;)
@@ -996,7 +996,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   my_free((gptr) save_name, MYF(0));
 
 err:
-  reset_pending= false;
+  reset_pending= FALSE;
 
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   pthread_mutex_unlock(&LOCK_readers);
