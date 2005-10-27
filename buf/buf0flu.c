@@ -264,9 +264,11 @@ buf_flush_buffered_writes(void)
 "InnoDB: before posting to the doublewrite buffer.\n");
                 }
 
-		if (block->check_index_page_at_flush
-				&& !page_simple_validate(block->frame)) {
-
+		if (!block->check_index_page_at_flush) {
+		} else if (page_is_comp(block->frame)
+				&& UNIV_UNLIKELY(!page_simple_validate_new(
+						block->frame))) {
+corrupted_page:
 			buf_page_print(block->frame);
 
 			ut_print_timestamp(stderr);
@@ -278,6 +280,10 @@ buf_flush_buffered_writes(void)
 			(ulong) block->offset, (ulong) block->space);
 
 			ut_error;
+		} else if (UNIV_UNLIKELY(!page_simple_validate_old(
+						block->frame))) {
+
+			goto corrupted_page;
 		}
 	}
 

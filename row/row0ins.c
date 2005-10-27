@@ -2409,7 +2409,7 @@ row_ins_step(
 			goto same_trx;
 		}	
 
-		trx_write_trx_id(node->trx_id_buf, trx->id);
+		trx_write_trx_id(node->trx_id_buf, NULL, trx->id);
 
 		err = lock_table(0, node->table, LOCK_IX, thr);
 

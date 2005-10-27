@@ -7,6 +7,7 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include "data0type.h"
+#include "page0zip.h"
 
 /***************************************************************************
 Builds a roll pointer dulint. */
@@ -87,12 +88,18 @@ UNIV_INLINE
 void
 trx_write_roll_ptr(
 /*===============*/
-	byte*	ptr,		/* in: pointer to memory where written */
-	dulint	roll_ptr)	/* in: roll ptr */
+	byte*		ptr,	/* in: pointer to memory where written */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 11 bytes available, or NULL */
+	dulint		roll_ptr)/* in: roll ptr */
 {
 	ut_ad(DATA_ROLL_PTR_LEN == 7);
 	
 	mach_write_to_7(ptr, roll_ptr);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		ut_ad(page_zip_available(page_zip, 4 + DATA_ROLL_PTR_LEN));
+		page_zip_write(page_zip, ptr, DATA_ROLL_PTR_LEN);
+	}
 }
 
 /*********************************************************************

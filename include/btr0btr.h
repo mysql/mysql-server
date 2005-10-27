@@ -265,9 +265,10 @@ Sets a record as the predefined minimum record. */
 void
 btr_set_min_rec_mark(
 /*=================*/
-	rec_t*	rec,	/* in: record */
-	ulint	comp,	/* in: nonzero=compact page format */
-	mtr_t*	mtr);	/* in: mtr */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Deletes on the upper level the node pointer to a page. */
 
@@ -295,11 +296,12 @@ conditions, looks at the right brother. If the page is the only one on that
 level lifts the records of the page to the father page, thus reducing the
 tree height. It is assumed that mtr holds an x-latch on the tree and on the
 page. If cursor is on the leaf level, mtr must also hold x-latches to
-the brothers, if they exist. NOTE: it is assumed that the caller has reserved
-enough free extents so that the compression will always succeed if done! */
-void
+the brothers, if they exist. */
+
+ibool
 btr_compress(
 /*=========*/
+				/* out: TRUE on success */
 	btr_cur_t*	cursor,	/* in: cursor on the page to merge or lift;
 				the page must not be empty: in record delete
 				use btr_discard_page if the page would become

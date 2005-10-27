@@ -148,19 +148,18 @@ rec_set_nth_field_sql_null(
 	ulint	n);	/* in: index of the field */
 
 /***************************************************************
-Sets the value of the ith field extern storage bit of an old-style record. */
+Sets the ith field extern storage bit of an old-style record. */
 
 void
 rec_set_nth_field_extern_bit_old(
 /*=============================*/
 	rec_t*	rec,	/* in: old-style record */
 	ulint	i,	/* in: ith field */
-	ibool	val,	/* in: value to set */
 	mtr_t*	mtr);	/* in: mtr holding an X-latch to the page where
 			rec is, or NULL; in the NULL case we do not
 			write to log about the change */
 /***************************************************************
-Sets the value of the ith field extern storage bit of a new-style record. */
+Sets the ith field extern storage bit of a new-style record. */
 
 void
 rec_set_nth_field_extern_bit_new(
@@ -168,7 +167,6 @@ rec_set_nth_field_extern_bit_new(
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		ith,	/* in: ith field */
-	ibool		val,	/* in: value to set */
 	mtr_t*		mtr);	/* in: mtr holding an X-latch to the page
 				where rec is, or NULL; in the NULL case
 				we do not write to log about the change */
@@ -256,6 +254,55 @@ rec_set_bit_field_2(
 }
 
 /**********************************************************
+The following function is used to get the pointer of the next chained record
+on the same page. */
+UNIV_INLINE
+rec_t*
+rec_get_next_ptr(
+/*=============*/
+			/* out: pointer to the next chained record, or
+			NULL if none */
+	rec_t*	rec,	/* in: physical record */
+	ulint	comp)	/* in: nonzero=compact page format */
+{
+	ulint	field_value;
+
+	ut_ad(REC_NEXT_MASK == 0xFFFFUL);
+	ut_ad(REC_NEXT_SHIFT == 0);
+
+	field_value = mach_read_from_2(rec - REC_NEXT);
+
+	if (UNIV_UNLIKELY(field_value == 0)) {
+
+		return(NULL);
+	}
+
+	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
+#if UNIV_PAGE_SIZE <= 32768
+		/* Note that for 64 KiB pages, field_value can 'wrap around'
+		and the debug assertion is not valid */
+
+		/* In the following assertion, field_value is interpreted
+		as signed 16-bit integer in 2's complement arithmetics.
+		If all platforms defined int16_t in the standard headers,
+		the expression could be written simpler as
+		(int16_t) field_value + ut_align_offset(...) < UNIV_PAGE_SIZE
+		*/
+		ut_ad((field_value >= 32768
+			? field_value - 65536
+			: field_value)
+		       + ut_align_offset(rec, UNIV_PAGE_SIZE)
+		      < UNIV_PAGE_SIZE);
+#endif
+		return(rec + field_value);
+	} else {
+		ut_ad(field_value < UNIV_PAGE_SIZE);
+
+		return(ut_align_down(rec, UNIV_PAGE_SIZE) + field_value);
+	}
+}
+
+/**********************************************************
 The following function is used to get the offset of the next chained record
 on the same page. */
 UNIV_INLINE
@@ -274,7 +321,7 @@ rec_get_next_offs(
 
 	field_value = mach_read_from_2(rec - REC_NEXT);
 
-	if (comp) {
+	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
 #if UNIV_PAGE_SIZE <= 32768
 		/* Note that for 64 KiB pages, field_value can 'wrap around'
 		and the debug assertion is not valid */
@@ -291,7 +338,7 @@ rec_get_next_offs(
 		       + ut_align_offset(rec, UNIV_PAGE_SIZE)
 		      < UNIV_PAGE_SIZE);
 #endif
-		if (field_value == 0) {
+		if (UNIV_UNLIKELY(field_value == 0)) {
 
 			return(0);
 		}
@@ -305,39 +352,59 @@ rec_get_next_offs(
 }
 
 /**********************************************************
-The following function is used to set the next record offset field of the
-record. */
+The following function is used to set the next record offset field
+of an old-style record. */
 UNIV_INLINE
 void
-rec_set_next_offs(
-/*==============*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
-	ulint	next)	/* in: offset of the next record, or 0 if none */
+rec_set_next_offs_old(
+/*==================*/
+	rec_t*	rec,	/* in: old-style physical record */
+	ulint	next)	/* in: offset of the next record */
 {
 	ut_ad(rec);
 	ut_ad(UNIV_PAGE_SIZE > next);
-	ut_ad(REC_NEXT_MASK == 0xFFFFUL);
-	ut_ad(REC_NEXT_SHIFT == 0);
+#if REC_NEXT_MASK != 0xFFFFUL
+# error "REC_NEXT_MASK != 0xFFFFUL"
+#endif
+#if REC_NEXT_SHIFT
+# error "REC_NEXT_SHIFT != 0"
+#endif
 
-	if (comp) {
-		ulint field_value;
+	mach_write_to_2(rec - REC_NEXT, next);
+}
 
-		if (next) {
-			/* The following two statements calculate
-			next - offset_of_rec mod 64Ki, where mod is the modulo
-			as a non-negative number */
-		
-			field_value = (ulint)((lint)next 
-				- (lint)ut_align_offset(rec, UNIV_PAGE_SIZE));
-			field_value &= REC_NEXT_MASK;
-		} else {
-			field_value = 0;
-		}
+/**********************************************************
+The following function is used to set the next record offset field
+of a new-style record. */
+UNIV_INLINE
+void
+rec_set_next_offs_new(
+/*==================*/
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				6 bytes available, or NULL */
+	ulint		next)	/* in: offset of the next record */
+{
+	ut_ad(rec);
+	ut_ad(UNIV_PAGE_SIZE > next);
 
-		mach_write_to_2(rec - REC_NEXT, field_value);
+	ulint field_value;
+
+	if (UNIV_UNLIKELY(!next)) {
+		field_value = 0;
 	} else {
-		mach_write_to_2(rec - REC_NEXT, next);
+		/* The following two statements calculate
+		next - offset_of_rec mod 64Ki, where mod is the modulo
+		as a non-negative number */
+		
+		field_value = (ulint)((lint)next 
+			- (lint)ut_align_offset(rec, UNIV_PAGE_SIZE));
+		field_value &= REC_NEXT_MASK;
+	}
+
+	mach_write_to_2(rec - REC_NEXT, field_value);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, rec - REC_NEXT, 2);
 	}
 }
 
@@ -436,40 +503,60 @@ The following function is used to get the number of records owned by the
 previous directory record. */
 UNIV_INLINE
 ulint
-rec_get_n_owned(
-/*============*/
+rec_get_n_owned_old(
+/*================*/
 			/* out: number of owned records */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp)	/* in: nonzero=compact page format */
+	rec_t*	rec)	/* in: old-style physical record */
 {
-	ulint	ret;
-
-	ut_ad(rec);
-
-	ret = rec_get_bit_field_1(rec,
-				comp ? REC_NEW_N_OWNED : REC_OLD_N_OWNED,
-				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
-	ut_ad(ret <= REC_MAX_N_OWNED); 
-
-	return(ret);
+	return(rec_get_bit_field_1(rec, REC_OLD_N_OWNED,
+				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT));
 }	
 
 /**********************************************************
 The following function is used to set the number of owned records. */
 UNIV_INLINE
 void
-rec_set_n_owned(
-/*============*/
-	rec_t*	rec,		/* in: physical record */
-	ulint	comp,		/* in: nonzero=compact page format */
+rec_set_n_owned_old(
+/*================*/
+				/* out: TRUE on success */
+	rec_t*	rec,		/* in: old-style physical record */
 	ulint	n_owned)	/* in: the number of owned */
 {
-	ut_ad(rec);
-	ut_ad(n_owned <= REC_MAX_N_OWNED);
-
-	rec_set_bit_field_1(rec, n_owned,
-				comp ? REC_NEW_N_OWNED : REC_OLD_N_OWNED,
+	rec_set_bit_field_1(rec, n_owned, REC_OLD_N_OWNED,
 				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
+}
+
+/**********************************************************
+The following function is used to get the number of records owned by the
+previous directory record. */
+UNIV_INLINE
+ulint
+rec_get_n_owned_new(
+/*================*/
+			/* out: number of owned records */
+	rec_t*	rec)	/* in: new-style physical record */
+{
+	return(rec_get_bit_field_1(rec, REC_NEW_N_OWNED,
+				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT));
+}	
+
+/**********************************************************
+The following function is used to set the number of owned records. */
+UNIV_INLINE
+void
+rec_set_n_owned_new(
+/*================*/
+				/* out: TRUE on success */
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		n_owned)/* in: the number of owned */
+{
+	rec_set_bit_field_1(rec, n_owned, REC_NEW_N_OWNED,
+				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, rec - REC_NEW_N_OWNED, 1);
+	}
 }
 
 /**********************************************************
@@ -482,34 +569,39 @@ rec_get_info_bits(
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp)	/* in: nonzero=compact page format */
 {
-	ulint	ret;
-
-	ut_ad(rec);
-
-	ret = rec_get_bit_field_1(rec,
+	return(rec_get_bit_field_1(rec,
 				comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
-				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
-	ut_ad((ret & ~REC_INFO_BITS_MASK) == 0);
-
-	return(ret);
+				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT));
 }	
 
 /**********************************************************
 The following function is used to set the info bits of a record. */
 UNIV_INLINE
 void
-rec_set_info_bits(
-/*==============*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
+rec_set_info_bits_old(
+/*==================*/
+	rec_t*	rec,	/* in: old-style physical record */
 	ulint	bits)	/* in: info bits */
 {
-	ut_ad(rec);
-	ut_ad((bits & ~REC_INFO_BITS_MASK) == 0);
-
-	rec_set_bit_field_1(rec, bits,
-				comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
+	rec_set_bit_field_1(rec, bits, REC_OLD_INFO_BITS,
 				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+}
+/**********************************************************
+The following function is used to set the info bits of a record. */
+UNIV_INLINE
+void
+rec_set_info_bits_new(
+/*==================*/
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		bits)	/* in: info bits */
+{
+	rec_set_bit_field_1(rec, bits, REC_NEW_INFO_BITS,
+				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, rec - REC_NEW_INFO_BITS, 1);
+	}
 }
 
 /**********************************************************
@@ -518,14 +610,16 @@ UNIV_INLINE
 void
 rec_set_status(
 /*===========*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	bits)	/* in: info bits */
+	rec_t*		rec,	/* in/out: physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		bits)	/* in: info bits */
 {
-	ut_ad(rec);
-	ut_ad((bits & ~REC_NEW_STATUS_MASK) == 0);
-
 	rec_set_bit_field_1(rec, bits, REC_NEW_STATUS,
 				REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, rec - REC_NEW_STATUS, 1);
+	}
 }
 
 /**********************************************************
@@ -559,20 +653,17 @@ UNIV_INLINE
 void
 rec_set_info_and_status_bits(
 /*=========================*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
-	ulint	bits)	/* in: info bits */
+	rec_t*		rec,	/* in/out: physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		bits)	/* in: info bits */
 {
 #if (REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) \
 & (REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)
 # error "REC_NEW_STATUS_MASK and REC_INFO_BITS_MASK overlap"
 #endif
-	if (comp) {
-		rec_set_status(rec, bits & REC_NEW_STATUS_MASK);
-	} else {
-		ut_ad(!(bits & ~(REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)));
-	}
-	rec_set_info_bits(rec, comp, bits & ~REC_NEW_STATUS_MASK);
+	rec_set_status(rec, page_zip, bits & REC_NEW_STATUS_MASK);
+	rec_set_info_bits_new(rec, page_zip, bits & ~REC_NEW_STATUS_MASK);
 }
 
 /**********************************************************
@@ -600,15 +691,14 @@ rec_get_deleted_flag(
 The following function is used to set the deleted bit. */
 UNIV_INLINE
 void
-rec_set_deleted_flag(
-/*=================*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
+rec_set_deleted_flag_old(
+/*=====================*/
+	rec_t*	rec,	/* in: old-style physical record */
 	ulint	flag)	/* in: nonzero if delete marked */
 {
 	ulint	val;
 
-	val = rec_get_info_bits(rec, comp);
+	val = rec_get_info_bits(rec, FALSE);
 	
 	if (flag) {
 		val |= REC_INFO_DELETED_FLAG;
@@ -616,7 +706,31 @@ rec_set_deleted_flag(
 		val &= ~REC_INFO_DELETED_FLAG;
 	}
 
-	rec_set_info_bits(rec, comp, val);
+	rec_set_info_bits_old(rec, val);
+}
+
+/**********************************************************
+The following function is used to set the deleted bit. */
+UNIV_INLINE
+void
+rec_set_deleted_flag_new(
+/*=====================*/
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		flag)	/* in: nonzero if delete marked */
+{
+	ulint	val;
+
+	val = rec_get_info_bits(rec, TRUE);
+	
+	if (flag) {
+		val |= REC_INFO_DELETED_FLAG;
+	} else {
+		val &= ~REC_INFO_DELETED_FLAG;
+	}
+
+	rec_set_info_bits_new(rec, page_zip, val);
 }
 
 /**********************************************************
@@ -624,7 +738,7 @@ The following function tells if a new-style record is a node pointer. */
 UNIV_INLINE
 ibool
 rec_get_node_ptr_flag(
-/*=================*/
+/*==================*/
 			/* out: TRUE if node pointer */
 	rec_t*	rec)	/* in: physical record */
 {
@@ -632,43 +746,64 @@ rec_get_node_ptr_flag(
 }
 
 /**********************************************************
-The following function is used to get the order number of the record in the
-heap of the index page. */
+The following function is used to get the order number
+of an old-style record in the heap of the index page. */
 UNIV_INLINE
 ulint
-rec_get_heap_no(
-/*=============*/
+rec_get_heap_no_old(
+/*================*/
 			/* out: heap order number */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp)	/* in: nonzero=compact page format */
+	rec_t*	rec)	/* in: physical record */
 {
-	ulint	ret;
-
-	ut_ad(rec);
-
-	ret = rec_get_bit_field_2(rec,
-				comp ? REC_NEW_HEAP_NO : REC_OLD_HEAP_NO,
-				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
-	ut_ad(ret <= REC_MAX_HEAP_NO);
-
-	return(ret);
-}	
+	return(rec_get_bit_field_2(rec, REC_OLD_HEAP_NO,
+				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT));
+}
 
 /**********************************************************
-The following function is used to set the heap number field in the record. */
+The following function is used to set the heap number
+field in an old-style record. */
 UNIV_INLINE
 void
-rec_set_heap_no(
-/*=============*/
+rec_set_heap_no_old(
+/*================*/
 	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	heap_no)/* in: the heap number */
 {
-	ut_ad(heap_no <= REC_MAX_HEAP_NO);
-
-	rec_set_bit_field_2(rec, heap_no,
-				comp ? REC_NEW_HEAP_NO : REC_OLD_HEAP_NO,
+	rec_set_bit_field_2(rec, heap_no, REC_OLD_HEAP_NO,
 				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
+}
+
+/**********************************************************
+The following function is used to get the order number
+of a new-style record in the heap of the index page. */
+UNIV_INLINE
+ulint
+rec_get_heap_no_new(
+/*================*/
+			/* out: heap order number */
+	rec_t*	rec)	/* in: physical record */
+{
+	return(rec_get_bit_field_2(rec, REC_NEW_HEAP_NO,
+				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT));
+}
+
+/**********************************************************
+The following function is used to set the heap number
+field in a new-style record. */
+UNIV_INLINE
+void
+rec_set_heap_no_new(
+/*================*/
+	rec_t*		rec,	/* in/out: physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 6 bytes available, or NULL */
+	ulint		heap_no)/* in: the heap number */
+{
+	rec_set_bit_field_2(rec, heap_no, REC_NEW_HEAP_NO,
+				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, rec - REC_NEW_HEAP_NO, 2);
+	}
 }
 
 /**********************************************************
@@ -1006,7 +1141,7 @@ rec_offs_any_extern(
 }
 
 /***************************************************************
-Sets the value of the ith field extern storage bit. */
+Sets the ith field extern storage bit. */
 UNIV_INLINE
 void
 rec_set_nth_field_extern_bit(
@@ -1014,15 +1149,14 @@ rec_set_nth_field_extern_bit(
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		i,	/* in: ith field */
-	ibool		val,	/* in: value to set */
 	mtr_t*		mtr)	/* in: mtr holding an X-latch to the page
 				where rec is, or NULL; in the NULL case
 				we do not write to log about the change */
 {
 	if (UNIV_LIKELY(index->table->comp)) {
-		rec_set_nth_field_extern_bit_new(rec, index, i, val, mtr);
+		rec_set_nth_field_extern_bit_new(rec, index, i, mtr);
 	} else {
-		rec_set_nth_field_extern_bit_old(rec, i, val, mtr);
+		rec_set_nth_field_extern_bit_old(rec, i, mtr);
 	}
 }
 

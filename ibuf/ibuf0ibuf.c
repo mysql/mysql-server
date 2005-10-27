@@ -2761,6 +2761,7 @@ ibuf_insert(
 	ut_ad(dtuple_check_typed(entry));
 
 	ut_a(!(index->type & DICT_CLUSTERED));
+	ut_a(!index->table->zip);
 	
 	if (rec_get_converted_size(index, entry)
 		>= page_get_free_space_of_empty(index->table->comp) / 2) {
@@ -2846,9 +2847,10 @@ ibuf_insert_to_index_page(
 		
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
-		rec = page_cur_tuple_insert(&page_cur, entry, index, mtr);
+		rec = page_cur_tuple_insert(&page_cur, NULL,
+					entry, index, mtr);
 		
-		if (rec == NULL) {
+		if (UNIV_UNLIKELY(rec == NULL)) {
 			/* If the record did not fit, reorganize */
 
 			btr_page_reorganize(page, index, mtr);
@@ -2858,7 +2860,8 @@ ibuf_insert_to_index_page(
 
 			/* This time the record must fit */
 			if (UNIV_UNLIKELY(!page_cur_tuple_insert(
-					&page_cur, entry, index, mtr))) {
+						&page_cur, NULL,
+						entry, index, mtr))) {
 
 				ut_print_timestamp(stderr);
 

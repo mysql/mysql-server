@@ -35,7 +35,7 @@ UNIV_INLINE
 void
 page_update_max_trx_id(
 /*===================*/
-	page_t*	page,	/* in: page */
+	page_t*	page,	/* in/out: page */
 	dulint	trx_id)	/* in: transaction id */
 {
 	ut_ad(page);
@@ -67,9 +67,10 @@ UNIV_INLINE
 void
 page_header_set_field(
 /*==================*/
-	page_t*	page,	/* in: page */
-	ulint	field,	/* in: PAGE_LEVEL, ... */
-	ulint	val)	/* in: value */
+	page_t*		page,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	ulint		field,	/* in: PAGE_N_DIR_SLOTS, ... */
+	ulint		val)	/* in: value */
 {
 	ut_ad(page);
 	ut_ad(field <= PAGE_N_RECS);
@@ -77,6 +78,9 @@ page_header_set_field(
 	ut_ad(field != PAGE_N_HEAP || (val & 0x7fff) < UNIV_PAGE_SIZE);
 
 	mach_write_to_2(page + PAGE_HEADER + field, val);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_header(page_zip, page + PAGE_HEADER + field, 2);
+	}
 }
 
 /*****************************************************************
@@ -114,9 +118,10 @@ UNIV_INLINE
 void
 page_header_set_ptr(
 /*================*/
-	page_t*	page,	/* in: page */
-	ulint	field,	/* in: PAGE_FREE, ... */
-	byte*	ptr)	/* in: pointer or NULL*/
+	page_t*		page,	/* in: page */
+	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	ulint		field,	/* in: PAGE_FREE, ... */
+	const byte*	ptr)	/* in: pointer or NULL*/
 {
 	ulint	offs;
 
@@ -133,7 +138,7 @@ page_header_set_ptr(
 
 	ut_ad((field != PAGE_HEAP_TOP) || offs);
 
-	page_header_set_field(page, field, offs);
+	page_header_set_field(page, page_zip, field, offs);
 }
 
 /*****************************************************************
@@ -413,11 +418,11 @@ UNIV_INLINE
 void
 page_dir_set_n_slots(
 /*=================*/
-			/* out: number of slots */
-	page_t*	page,	/* in: index page */
-	ulint	n_slots)/* in: number of slots */
+	page_t*		page,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	ulint		n_slots)/* in: number of slots */
 {
-	page_header_set_field(page, PAGE_N_DIR_SLOTS, n_slots);
+	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots);
 }
 
 /*****************************************************************
@@ -438,12 +443,13 @@ UNIV_INLINE
 void
 page_dir_set_n_heap(
 /*================*/
-	page_t*	page,	/* in: index page */
-	ulint	n_heap)	/* in: number of records */
+	page_t*		page,	/* in/out: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	ulint		n_heap)	/* in: number of records */
 {
 	ut_ad(n_heap < 0x8000);
 
-	page_header_set_field(page, PAGE_N_HEAP, n_heap | (0x8000 &
+	page_header_set_field(page, page_zip, PAGE_N_HEAP, n_heap | (0x8000 &
 		page_header_get_field(page, PAGE_N_HEAP)));
 }
 
@@ -520,7 +526,11 @@ page_dir_slot_get_n_owned(
 	page_dir_slot_t* 	slot)	/* in: page directory slot */
 {
 	rec_t*	rec	= page_dir_slot_get_rec(slot);
-	return(rec_get_n_owned(rec, page_rec_is_comp(rec)));
+	if (page_rec_is_comp(slot)) {
+		return(rec_get_n_owned_new(rec));
+	} else {
+		return(rec_get_n_owned_old(rec));
+	}
 }
 
 /*******************************************************************
@@ -529,12 +539,18 @@ UNIV_INLINE
 void
 page_dir_slot_set_n_owned(
 /*======================*/
-	page_dir_slot_t*	slot,	/* in: directory slot */
-	ulint			n)	/* in: number of records owned 
-					by the slot */
+	page_dir_slot_t*slot,	/* in/out: directory slot */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		n)	/* in: number of records owned by the slot */
 {
 	rec_t*	rec	= page_dir_slot_get_rec(slot);
-	rec_set_n_owned(rec, page_rec_is_comp(rec), n);
+	if (page_rec_is_comp(slot)) {
+		rec_set_n_owned_new(rec, page_zip, n);
+	} else {
+		ut_ad(!page_zip);
+		rec_set_n_owned_old(rec, n);
+	}
 }
 
 /****************************************************************
@@ -597,26 +613,29 @@ UNIV_INLINE
 void
 page_rec_set_next(
 /*==============*/
-	rec_t*	rec,	/* in: pointer to record, must not be page supremum */
-	rec_t*	next)	/* in: pointer to next record, must not be page
-			infimum */
+	rec_t*		rec,		/* in: pointer to record,
+					must not be page supremum */
+	rec_t*		next,		/* in: pointer to next record,
+					must not be page infimum */
+	page_zip_des_t*	page_zip)	/* in/out: compressed page with
+					at least 6 bytes available, or NULL */
 {
-	page_t*	page;
 	ulint	offs;
 
 	ut_ad(page_rec_check(rec));	
 	ut_ad(!page_rec_is_supremum(rec));
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
-	if (next) {
-		ut_ad(!page_rec_is_infimum(next));
-		ut_ad(page == ut_align_down(next, UNIV_PAGE_SIZE));
-		offs = (ulint) (next - page);
+	ut_ad(!next || !page_rec_is_infimum(next));
+	ut_ad(!next || ut_align_down(rec, UNIV_PAGE_SIZE)
+			== ut_align_down(next, UNIV_PAGE_SIZE));
+
+	offs = ut_align_offset(next, UNIV_PAGE_SIZE);
+	if (page_rec_is_comp(rec)) {
+		rec_set_next_offs_new(rec, page_zip, offs);
 	} else {
-		offs = 0;
+		rec_set_next_offs_old(rec, offs);
+		ut_ad(!page_zip);
 	}
-
-	rec_set_next_offs(rec, page_is_comp(page), offs);
 }
 
 /****************************************************************
@@ -671,16 +690,33 @@ page_rec_find_owner_rec(
 	ut_ad(page_rec_check(rec));
 
 	if (page_rec_is_comp(rec)) {
-		while (rec_get_n_owned(rec, TRUE) == 0) {
+		while (rec_get_n_owned_new(rec) == 0) {
 			rec = page_rec_get_next(rec);
 		}
 	} else {
-		while (rec_get_n_owned(rec, FALSE) == 0) {
+		while (rec_get_n_owned_old(rec) == 0) {
 			rec = page_rec_get_next(rec);
 		}
 	}
 
 	return(rec);
+}
+
+/**************************************************************
+Returns the base extra size of a physical record.  This is the
+size of the fixed header, independent of the record size. */
+UNIV_INLINE
+ulint
+page_rec_get_base_extra_size(
+/*=========================*/
+				/* out: REC_N_NEW_EXTRA_BYTES
+				or REC_N_OLD_EXTRA_BYTES */
+	const rec_t*	rec)	/* in: physical record */
+{
+#if REC_N_NEW_EXTRA_BYTES + 1 != REC_N_OLD_EXTRA_BYTES
+# error "REC_N_NEW_EXTRA_BYTES + 1 != REC_N_OLD_EXTRA_BYTES"
+#endif
+	return(REC_N_NEW_EXTRA_BYTES + (ulint) !page_rec_is_comp(rec));
 }
 
 /****************************************************************
@@ -805,7 +841,9 @@ UNIV_INLINE
 void
 page_mem_free(
 /*==========*/
-	page_t*		page,	/* in: index page */
+	page_t*		page,	/* in/out: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
@@ -816,8 +854,8 @@ page_mem_free(
 	ut_ad(!rec_offs_comp(offsets) == !page_rec_is_comp(rec));
 	free = page_header_get_ptr(page, PAGE_FREE);
 
-	page_rec_set_next(rec, free);
-	page_header_set_ptr(page, PAGE_FREE, rec);
+	page_rec_set_next(rec, free, page_zip);
+	page_header_set_ptr(page, page_zip, PAGE_FREE, rec);
 
 #if 0	/* It's better not to destroy the user's data. */
 
@@ -827,11 +865,18 @@ page_mem_free(
 	cannot be cleared, because page_mem_alloc() needs them in order
 	to determine the size of the deleted record. */
 	memset(rec, 0, rec_offs_data_size(offsets));
+
+	/* If you enable this code, make sure that the callers of
+	page_mem_free() account for the increased usage of space. */
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, page, rec, rec - page,
+				rec_offs_data_size(offsets));
+	}
 #endif
 
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
 
-	page_header_set_field(page, PAGE_GARBAGE,
+	page_header_set_field(page, page_zip, PAGE_GARBAGE,
 				garbage + rec_offs_size(offsets));
 }
 

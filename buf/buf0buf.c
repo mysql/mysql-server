@@ -37,6 +37,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0log.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "page0zip.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -481,6 +482,8 @@ buf_block_init(
 	block->in_LRU_list = FALSE;
 
 	block->n_pointers = 0;
+
+	page_zip_des_init(&block->page_zip);
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));

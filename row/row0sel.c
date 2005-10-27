@@ -2059,7 +2059,7 @@ row_sel_convert_mysql_key_to_innobase(
 	dfield = dtuple_get_nth_field(tuple, 0);
 	field = dict_index_get_nth_field(index, 0);
 
-	if (dfield_get_type(dfield)->mtype == DATA_SYS) {
+	if (UNIV_UNLIKELY(dfield_get_type(dfield)->mtype == DATA_SYS)) {
 		/* A special case: we are looking for a position in the
 		generated clustered index which InnoDB automatically added
 		to a table with no primary key: the first and the only
@@ -2077,8 +2077,9 @@ row_sel_convert_mysql_key_to_innobase(
 
 	while (key_ptr < key_end) {
 
-		ut_a(dict_col_get_type(field->col)->mtype
-		     == dfield_get_type(dfield)->mtype);
+		type = dfield_get_type(dfield)->mtype;
+
+		ut_a(dict_col_get_type(field->col)->mtype == type);
 
 		data_offset = 0;
 		is_null = FALSE;
@@ -2095,8 +2096,6 @@ row_sel_convert_mysql_key_to_innobase(
 				is_null = TRUE;
       			}
       		}
-
-		type = dfield_get_type(dfield)->mtype;
 
 		/* Calculate data length and data field total length */
 		
@@ -2143,9 +2142,9 @@ row_sel_convert_mysql_key_to_innobase(
 			data_field_len = data_offset + data_len;
 		}
 
- 		if (dtype_get_mysql_type(dfield_get_type(dfield))
-					== DATA_MYSQL_TRUE_VARCHAR
-		    && dfield_get_type(dfield)->mtype != DATA_INT) {
+ 		if (UNIV_UNLIKELY(dtype_get_mysql_type(dfield_get_type(dfield))
+					== DATA_MYSQL_TRUE_VARCHAR)
+		    && UNIV_LIKELY(type != DATA_INT)) {
 			/* In a MySQL key value format, a true VARCHAR is
 			always preceded by 2 bytes of a length field.
 			dfield_get_type(dfield)->len returns the maximum
@@ -2161,7 +2160,7 @@ row_sel_convert_mysql_key_to_innobase(
 
 		/* Storing may use at most data_len bytes of buf */
 		
-		if (!is_null) {
+		if (UNIV_LIKELY(!is_null)) {
 		        row_mysql_store_col_in_innobase_format(
 					dfield,
 					buf,
@@ -2174,7 +2173,7 @@ row_sel_convert_mysql_key_to_innobase(
 
     		key_ptr += data_field_len;
 
-		if (key_ptr > key_end) {
+		if (UNIV_UNLIKELY(key_ptr > key_end)) {
 			/* The last field in key was not a complete key field
 			but a prefix of it.
 

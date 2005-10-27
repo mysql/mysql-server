@@ -55,6 +55,8 @@ void
 trx_write_roll_ptr(
 /*===============*/
 	byte*	ptr,		/* in: pointer to memory where written */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 11 bytes available, or NULL */
 	dulint	roll_ptr);	/* in: roll ptr */
 /*********************************************************************
 Reads a roll ptr from an index page. In case that the roll ptr size

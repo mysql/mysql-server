@@ -13,11 +13,10 @@ Created 5/30/1994 Heikki Tuuri
 #include "data0data.h"
 #include "rem0types.h"
 #include "mtr0types.h"
+#include "page0types.h"
 
 /* Maximum values for various fields (for non-blob tuples) */
 #define REC_MAX_N_FIELDS	(1024 - 1)
-#define REC_MAX_HEAP_NO		(2 * 8192 - 1)
-#define REC_MAX_N_OWNED		(16 - 1)
 
 /* Flag denoting the predefined minimum record: this bit is ORed in the 4
 info bits of a record */
@@ -42,6 +41,17 @@ offsets[] array, first passed to rec_get_offsets() */
 #define REC_OFFS_SMALL_SIZE	10
 
 /**********************************************************
+The following function is used to get the pointer of the next chained record
+on the same page. */
+UNIV_INLINE
+rec_t*
+rec_get_next_ptr(
+/*=============*/
+			/* out: pointer to the next chained record, or
+			NULL if none */
+	rec_t*	rec,	/* in: physical record */
+	ulint	comp);	/* in: nonzero=compact page format */
+/**********************************************************
 The following function is used to get the offset of the
 next chained record on the same page. */
 UNIV_INLINE
@@ -54,14 +64,24 @@ rec_get_next_offs(
 	ulint	comp);	/* in: nonzero=compact page format */
 /**********************************************************
 The following function is used to set the next record offset field
-of the record. */
+of an old-style record. */
 UNIV_INLINE
 void
-rec_set_next_offs(
-/*==============*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
+rec_set_next_offs_old(
+/*==================*/
+	rec_t*	rec,	/* in: old-style physical record */
 	ulint	next);	/* in: offset of the next record */
+/**********************************************************
+The following function is used to set the next record offset field
+of a new-style record. */
+UNIV_INLINE
+void
+rec_set_next_offs_new(
+/*==================*/
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				6 bytes available, or NULL */
+	ulint		next);	/* in: offset of the next record */
 /**********************************************************
 The following function is used to get the number of fields
 in an old-style record. */
@@ -82,25 +102,43 @@ rec_get_n_fields(
 	rec_t*		rec,	/* in: physical record */
 	dict_index_t*	index);	/* in: record descriptor */
 /**********************************************************
-The following function is used to get the number of records
-owned by the previous directory record. */
+The following function is used to get the number of records owned by the
+previous directory record. */
 UNIV_INLINE
 ulint
-rec_get_n_owned(
-/*============*/
+rec_get_n_owned_old(
+/*================*/
 			/* out: number of owned records */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp);	/* in: nonzero=compact page format */
+	rec_t*	rec);	/* in: old-style physical record */
 /**********************************************************
-The following function is used to set the number of owned
-records. */
+The following function is used to set the number of owned records. */
 UNIV_INLINE
 void
-rec_set_n_owned(
-/*============*/
-	rec_t*	rec,		/* in: physical record */
-	ulint	comp,		/* in: nonzero=compact page format */
+rec_set_n_owned_old(
+/*================*/
+				/* out: TRUE on success */
+	rec_t*	rec,		/* in: old-style physical record */
 	ulint	n_owned);	/* in: the number of owned */
+/**********************************************************
+The following function is used to get the number of records owned by the
+previous directory record. */
+UNIV_INLINE
+ulint
+rec_get_n_owned_new(
+/*================*/
+			/* out: number of owned records */
+	rec_t*	rec);	/* in: new-style physical record */
+/**********************************************************
+The following function is used to set the number of owned records. */
+UNIV_INLINE
+void
+rec_set_n_owned_new(
+/*================*/
+				/* out: TRUE on success */
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				5 bytes available, or NULL */
+	ulint		n_owned);/* in: the number of owned */
 /**********************************************************
 The following function is used to retrieve the info bits of
 a record. */
@@ -115,11 +153,20 @@ rec_get_info_bits(
 The following function is used to set the info bits of a record. */
 UNIV_INLINE
 void
-rec_set_info_bits(
-/*==============*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
+rec_set_info_bits_old(
+/*==================*/
+	rec_t*	rec,	/* in: old-style physical record */
 	ulint	bits);	/* in: info bits */
+/**********************************************************
+The following function is used to set the info bits of a record. */
+UNIV_INLINE
+void
+rec_set_info_bits_new(
+/*==================*/
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		bits);	/* in: info bits */
 /**********************************************************
 The following function retrieves the status bits of a new-style record. */
 UNIV_INLINE
@@ -135,8 +182,10 @@ UNIV_INLINE
 void
 rec_set_status(
 /*===========*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	bits);	/* in: info bits */
+	rec_t*		rec,	/* in/out: physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		bits);	/* in: info bits */
 
 /**********************************************************
 The following function is used to retrieve the info and status
@@ -155,9 +204,10 @@ UNIV_INLINE
 void
 rec_set_info_and_status_bits(
 /*=========================*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
-	ulint	bits);	/* in: info bits */
+	rec_t*		rec,	/* in/out: compact physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		bits);	/* in: info bits */
 
 /**********************************************************
 The following function tells if record is delete marked. */
@@ -172,39 +222,66 @@ rec_get_deleted_flag(
 The following function is used to set the deleted bit. */
 UNIV_INLINE
 void
-rec_set_deleted_flag(
-/*=================*/
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
+rec_set_deleted_flag_old(
+/*=====================*/
+	rec_t*	rec,	/* in: old-style physical record */
 	ulint	flag);	/* in: nonzero if delete marked */
+/**********************************************************
+The following function is used to set the deleted bit. */
+UNIV_INLINE
+void
+rec_set_deleted_flag_new(
+/*=====================*/
+	rec_t*		rec,	/* in/out: new-style physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		flag);	/* in: nonzero if delete marked */
 /**********************************************************
 The following function tells if a new-style record is a node pointer. */
 UNIV_INLINE
 ibool
 rec_get_node_ptr_flag(
-/*=================*/
+/*==================*/
 			/* out: TRUE if node pointer */
 	rec_t*	rec);	/* in: physical record */
 /**********************************************************
 The following function is used to get the order number
-of the record in the heap of the index page. */
+of an old-style record in the heap of the index page. */
 UNIV_INLINE
 ulint
-rec_get_heap_no(
-/*=============*/
+rec_get_heap_no_old(
+/*================*/
 			/* out: heap order number */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp);	/* in: nonzero=compact page format */
+	rec_t*	rec);	/* in: physical record */
 /**********************************************************
 The following function is used to set the heap number
-field in the record. */
+field in an old-style record. */
 UNIV_INLINE
 void
-rec_set_heap_no(
-/*=============*/
+rec_set_heap_no_old(
+/*================*/
 	rec_t*	rec,	/* in: physical record */
-	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	heap_no);/* in: the heap number */
+/**********************************************************
+The following function is used to get the order number
+of a new-style record in the heap of the index page. */
+UNIV_INLINE
+ulint
+rec_get_heap_no_new(
+/*================*/
+			/* out: heap order number */
+	rec_t*	rec);	/* in: physical record */
+/**********************************************************
+The following function is used to set the heap number
+field in a new-style record. */
+UNIV_INLINE
+void
+rec_set_heap_no_new(
+/*================*/
+	rec_t*		rec,	/* in/out: physical record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 6 bytes available, or NULL */
+	ulint		heap_no);/* in: the heap number */
 /**********************************************************
 The following function is used to test whether the data offsets
 in the record are stored in one-byte or two-byte format. */
@@ -340,7 +417,7 @@ rec_offs_any_extern(
 				/* out: TRUE if a field is stored externally */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /***************************************************************
-Sets the value of the ith field extern storage bit. */
+Sets the ith field extern storage bit. */
 UNIV_INLINE
 void
 rec_set_nth_field_extern_bit(
@@ -348,7 +425,6 @@ rec_set_nth_field_extern_bit(
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		i,	/* in: ith field */
-	ibool		val,	/* in: value to set */
 	mtr_t*		mtr);	/* in: mtr holding an X-latch to the page
 				where rec is, or NULL; in the NULL case
 				we do not write to log about the change */
@@ -489,8 +565,8 @@ rec_fold(
 					in an incomplete last field */
 	dulint		tree_id);	/* in: index tree id */
 /*************************************************************
-Builds a physical record out of a data tuple and stores it beginning from
-address destination. */
+Builds a physical record out of a data tuple and
+stores it into the given buffer. */
 
 rec_t* 	
 rec_convert_dtuple_to_rec(

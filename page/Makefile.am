@@ -19,6 +19,6 @@ include ../include/Makefile.i
 
 noinst_LIBRARIES =	libpage.a
 
-libpage_a_SOURCES =	page0page.c page0cur.c
+libpage_a_SOURCES =	page0page.c page0cur.c page0zip.c
 
 EXTRA_PROGRAMS =	

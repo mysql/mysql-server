@@ -31,6 +31,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "hash0hash.h"
 #include "ut0byte.h"
 #include "os0proc.h"
+#include "page0types.h"
 
 /* Flags for flush types */
 #define BUF_FLUSH_LRU		1
@@ -612,6 +613,14 @@ buf_block_get_page_no(
 /*==================*/
 				/* out: page number */
 	buf_block_t*	block);	/* in: pointer to the control block */
+/*************************************************************************
+Gets the compressed page descriptor of a block if applicable. */
+UNIV_INLINE
+page_zip_des_t*
+buf_block_get_page_zip(
+/*===================*/
+				/* out: compressed page descriptor, or NULL */
+	buf_block_t*	block);	/* in: pointer to the control block */
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INLINE
@@ -850,6 +859,7 @@ struct buf_block_struct{
 	ulint		curr_side;	/* BTR_SEARCH_LEFT_SIDE or
 					BTR_SEARCH_RIGHT_SIDE in hash
 					indexing */
+	page_zip_des_t	page_zip;	/* compressed page info */
 	/* 6. Debug fields */
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/* in the debug version, each thread
