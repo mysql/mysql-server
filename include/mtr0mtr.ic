@@ -1,0 +1,249 @@
+/******************************************************
+Mini-transaction buffer
+
+(c) 1995 Innobase Oy
+
+Created 11/26/1995 Heikki Tuuri
+*******************************************************/
+
+#include "sync0sync.h"
+#include "sync0rw.h"
+#include "mach0data.h"
+
+/*******************************************************************
+Starts a mini-transaction and creates a mini-transaction handle 
+and a buffer in the memory buffer given by the caller. */
+UNIV_INLINE
+mtr_t*
+mtr_start(
+/*======*/
+			/* out: mtr buffer which also acts as
+			the mtr handle */
+	mtr_t*	mtr)	/* in: memory buffer for the mtr buffer */
+{
+	dyn_array_create(&(mtr->memo));
+	dyn_array_create(&(mtr->log));
+
+	mtr->log_mode = MTR_LOG_ALL;
+	mtr->modifications = FALSE;
+	mtr->n_log_recs = 0;
+
+#ifdef UNIV_DEBUG
+	mtr->state = MTR_ACTIVE;
+	mtr->magic_n = MTR_MAGIC_N;
+#endif
+	return(mtr);
+}		
+
+/*******************************************************
+Pushes an object to an mtr memo stack. */
+UNIV_INLINE
+void
+mtr_memo_push(
+/*==========*/
+	mtr_t*	mtr,	/* in: mtr */
+	void*	object,	/* in: object */
+	ulint	type)	/* in: object type: MTR_MEMO_S_LOCK, ... */
+{
+	dyn_array_t*		memo;
+	mtr_memo_slot_t*	slot;
+
+	ut_ad(object);
+	ut_ad(type >= MTR_MEMO_PAGE_S_FIX);	
+	ut_ad(type <= MTR_MEMO_X_LOCK);
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+
+	memo = &(mtr->memo);	
+
+	slot = dyn_array_push(memo, sizeof(mtr_memo_slot_t));
+
+	slot->object = object;
+	slot->type = type;
+}
+
+/**************************************************************
+Sets and returns a savepoint in mtr. */
+UNIV_INLINE
+ulint
+mtr_set_savepoint(
+/*==============*/
+			/* out: savepoint */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	dyn_array_t*	memo;
+ 
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+
+	memo = &(mtr->memo);	
+
+	return(dyn_array_get_data_size(memo));
+}
+
+/**************************************************************
+Releases the (index tree) s-latch stored in an mtr memo after a
+savepoint. */
+UNIV_INLINE
+void
+mtr_release_s_latch_at_savepoint(
+/*=============================*/
+	mtr_t*		mtr,		/* in: mtr */
+	ulint		savepoint,	/* in: savepoint */
+	rw_lock_t* 	lock)		/* in: latch to release */
+{
+	mtr_memo_slot_t* slot;
+	dyn_array_t*	memo;
+	
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_ACTIVE);
+
+	memo = &(mtr->memo);
+
+	ut_ad(dyn_array_get_data_size(memo) > savepoint);
+	
+	slot = dyn_array_get_element(memo, savepoint);
+
+	ut_ad(slot->object == lock);
+	ut_ad(slot->type == MTR_MEMO_S_LOCK);
+
+	rw_lock_s_unlock(lock);
+
+	slot->object = NULL;
+}
+
+/**************************************************************
+Checks if memo contains the given item. */
+UNIV_INLINE
+ibool
+mtr_memo_contains(
+/*==============*/
+			/* out: TRUE if contains */
+	mtr_t*	mtr,	/* in: mtr */
+	void*	object,	/* in: object to search */
+	ulint	type)	/* in: type of object */
+{
+	mtr_memo_slot_t* slot;
+	dyn_array_t*	memo;
+	ulint		offset;
+
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+
+	memo = &(mtr->memo);
+
+	offset = dyn_array_get_data_size(memo);
+
+	while (offset > 0) {
+		offset -= sizeof(mtr_memo_slot_t);
+
+		slot = dyn_array_get_element(memo, offset);
+
+		if ((object == slot->object) && (type == slot->type)) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/*******************************************************************
+Returns the log object of a mini-transaction buffer. */
+UNIV_INLINE
+dyn_array_t*
+mtr_get_log(
+/*========*/
+			/* out: log */
+	mtr_t*	mtr)	/* in: mini-transaction */
+{
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+
+	return(&(mtr->log));
+}
+
+/*******************************************************************
+Gets the logging mode of a mini-transaction. */
+UNIV_INLINE
+ulint
+mtr_get_log_mode(
+/*=============*/
+			/* out: logging mode: MTR_LOG_NONE, ... */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	ut_ad(mtr);
+	ut_ad(mtr->log_mode >= MTR_LOG_ALL);
+	ut_ad(mtr->log_mode <= MTR_LOG_SHORT_INSERTS);
+
+	return(mtr->log_mode);
+}
+
+/*******************************************************************
+Changes the logging mode of a mini-transaction. */
+UNIV_INLINE
+ulint
+mtr_set_log_mode(
+/*=============*/
+			/* out: old mode */
+	mtr_t*	mtr,	/* in: mtr */
+	ulint	mode)	/* in: logging mode: MTR_LOG_NONE, ... */
+{
+	ulint	old_mode;
+
+	ut_ad(mtr);
+	ut_ad(mode >= MTR_LOG_ALL);
+	ut_ad(mode <= MTR_LOG_SHORT_INSERTS);
+
+	old_mode = mtr->log_mode;
+
+	if ((mode == MTR_LOG_SHORT_INSERTS) && (old_mode == MTR_LOG_NONE)) {
+		/* Do nothing */
+	} else {
+		mtr->log_mode = mode;
+	}
+
+	ut_ad(old_mode >= MTR_LOG_ALL);
+	ut_ad(old_mode <= MTR_LOG_SHORT_INSERTS);
+
+	return(old_mode);
+}
+
+/*************************************************************************
+Locks a lock in s-mode. */
+UNIV_INLINE
+void
+mtr_s_lock_func(
+/*============*/
+	rw_lock_t*	lock,	/* in: rw-lock */
+	const char*	file,	/* in: file name */
+	ulint		line,	/* in: line number */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	ut_ad(mtr);
+	ut_ad(lock);
+
+	rw_lock_s_lock_func(lock, 0, file, line);
+
+	mtr_memo_push(mtr, lock, MTR_MEMO_S_LOCK);
+}
+
+/*************************************************************************
+Locks a lock in x-mode. */
+UNIV_INLINE
+void
+mtr_x_lock_func(
+/*============*/
+	rw_lock_t*	lock,	/* in: rw-lock */
+	const char*	file,	/* in: file name */
+	ulint		line,	/* in: line number */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	ut_ad(mtr);
+	ut_ad(lock);
+
+	rw_lock_x_lock_func(lock, 0, file, line);
+
+	mtr_memo_push(mtr, lock, MTR_MEMO_X_LOCK);
+}

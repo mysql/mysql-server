@@ -1,0 +1,512 @@
+/******************************************************
+Data types
+
+(c) 1996 Innobase Oy
+
+Created 1/16/1996 Heikki Tuuri
+*******************************************************/
+
+#include "mach0data.h"
+
+/**********************************************************************
+Get the variable length bounds of the given character set.
+
+NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
+this function, you MUST change also the prototype here! */
+extern
+void
+innobase_get_cset_width(
+/*====================*/
+	ulint	cset,		/* in: MySQL charset-collation code */
+	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
+	ulint*	mbmaxlen);	/* out: maximum length of a char (in bytes) */
+
+/*************************************************************************
+Gets the MySQL charset-collation code for MySQL string types. */
+UNIV_INLINE
+ulint
+dtype_get_charset_coll(
+/*===================*/
+	ulint	prtype)	/* in: precise data type */
+{
+	return((prtype >> 16) & 0xFFUL);
+}
+
+/*************************************************************************
+Gets the MySQL type code from a dtype. */
+UNIV_INLINE
+ulint
+dtype_get_mysql_type(
+/*=================*/
+				/* out: MySQL type code; this is NOT an InnoDB
+				type code! */
+	dtype_t*	type)	/* in: type struct */
+{
+	return(type->prtype & 0xFFUL);
+}
+
+/*************************************************************************
+Sets the mbminlen and mbmaxlen members of a data type structure. */
+UNIV_INLINE
+void
+dtype_set_mblen(
+/*============*/
+	dtype_t*	type)	/* in/out: type struct */
+{
+	ut_ad(type);
+	if (dtype_is_string_type(type->mtype)) {
+		innobase_get_cset_width(dtype_get_charset_coll(type->prtype),
+				&type->mbminlen, &type->mbmaxlen);
+		ut_ad(type->mbminlen <= type->mbmaxlen);
+	} else {
+		type->mbminlen = type->mbmaxlen = 0;
+	}
+}
+
+/*************************************************************************
+Sets a data type structure. */
+UNIV_INLINE
+void
+dtype_set(
+/*======*/
+	dtype_t*	type,	/* in: type struct to init */
+	ulint		mtype,	/* in: main data type */
+	ulint		prtype,	/* in: precise type */
+	ulint		len,	/* in: length of type */
+	ulint		prec)	/* in: precision of type */
+{
+	ut_ad(type);
+	ut_ad(mtype <= DATA_MTYPE_MAX);
+	
+	type->mtype = mtype;
+	type->prtype = prtype;
+	type->len = len;
+	type->prec = prec;
+
+	dtype_set_mblen(type);
+	ut_ad(dtype_validate(type));
+}
+
+/*************************************************************************
+Copies a data type structure. */
+UNIV_INLINE
+void
+dtype_copy(
+/*=======*/
+	dtype_t*	type1,	/* in: type struct to copy to */
+	dtype_t*	type2)	/* in: type struct to copy from */
+{
+	*type1 = *type2;
+
+	ut_ad(dtype_validate(type1));
+}
+
+/*************************************************************************
+Gets the SQL main data type. */
+UNIV_INLINE
+ulint
+dtype_get_mtype(
+/*============*/
+	dtype_t*	type)
+{
+	ut_ad(type);
+
+	return(type->mtype);
+}
+
+/*************************************************************************
+Gets the precise data type. */
+UNIV_INLINE
+ulint
+dtype_get_prtype(
+/*=============*/
+	dtype_t*	type)
+{
+	ut_ad(type);
+
+	return(type->prtype);
+}
+
+/*************************************************************************
+Gets the type length. */
+UNIV_INLINE
+ulint
+dtype_get_len(
+/*==========*/
+	dtype_t*	type)
+{
+	ut_ad(type);
+
+	return(type->len);
+}
+
+/*************************************************************************
+Gets the type precision. */
+UNIV_INLINE
+ulint
+dtype_get_prec(
+/*===========*/
+	dtype_t*	type)
+{
+	ut_ad(type);
+
+	return(type->prec);
+}
+
+/*************************************************************************
+Gets the minimum length of a character, in bytes. */
+UNIV_INLINE
+ulint
+dtype_get_mbminlen(
+/*===============*/
+				/* out: minimum length of a char, in bytes,
+				or 0 if this is not a character type */
+	const dtype_t*	type)	/* in: type */
+{
+	ut_ad(type);
+	return(type->mbminlen);
+}
+/*************************************************************************
+Gets the maximum length of a character, in bytes. */
+UNIV_INLINE
+ulint
+dtype_get_mbmaxlen(
+/*===============*/
+				/* out: maximum length of a char, in bytes,
+				or 0 if this is not a character type */
+	const dtype_t*	type)	/* in: type */
+{
+	ut_ad(type);
+	return(type->mbmaxlen);
+}
+
+/*************************************************************************
+Gets the padding character code for the type. */
+UNIV_INLINE
+ulint
+dtype_get_pad_char(
+/*===============*/
+				/* out: padding character code, or
+				ULINT_UNDEFINED if no padding specified */
+	dtype_t*	type)	/* in: type */
+{
+	if (type->mtype == DATA_CHAR
+	    || type->mtype == DATA_VARCHAR
+	    || type->mtype == DATA_BINARY
+	    || type->mtype == DATA_FIXBINARY
+	    || type->mtype == DATA_MYSQL
+	    || type->mtype == DATA_VARMYSQL
+	    || (type->mtype == DATA_BLOB
+		&& (type->prtype & DATA_BINARY_TYPE) == 0)) {
+
+		/* Space is the padding character for all char and binary
+	        strings, and starting from 5.0.3, also for TEXT strings. */
+
+		return((ulint)' ');
+	}
+
+	/* No padding specified */
+
+	return(ULINT_UNDEFINED);
+}
+
+/**************************************************************************
+Stores for a type the information which determines its alphabetical ordering
+and the storage size of an SQL NULL value. This is the >= 4.1.x storage
+format. */
+UNIV_INLINE
+void
+dtype_new_store_for_order_and_null_size(
+/*====================================*/
+	byte*		buf,	/* in: buffer for
+				DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+				bytes where we store the info */
+	dtype_t*	type)	/* in: type struct */
+{
+#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
+#endif
+
+	buf[0] = (byte)(type->mtype & 0xFFUL);
+
+	if (type->prtype & DATA_BINARY_TYPE) {
+		buf[0] = buf[0] | 128;
+	}
+
+	/* In versions < 4.1.2 we had: 	if (type->prtype & DATA_NONLATIN1) {
+						buf[0] = buf[0] | 64;
+					}
+	*/
+
+	buf[1] = (byte)(type->prtype & 0xFFUL);
+
+	mach_write_to_2(buf + 2, type->len & 0xFFFFUL);
+
+	ut_ad(dtype_get_charset_coll(type->prtype) < 256);
+	mach_write_to_2(buf + 4, dtype_get_charset_coll(type->prtype));
+
+	if (type->prtype & DATA_NOT_NULL) {
+		buf[4] |= 128;
+	}
+}
+
+/**************************************************************************
+Reads to a type the stored information which determines its alphabetical
+ordering and the storage size of an SQL NULL value. This is the < 4.1.x
+storage format. */
+UNIV_INLINE
+void
+dtype_read_for_order_and_null_size(
+/*===============================*/
+	dtype_t*	type,	/* in: type struct */
+	byte*		buf)	/* in: buffer for stored type order info */
+{
+	ut_ad(4 == DATA_ORDER_NULL_TYPE_BUF_SIZE);
+	
+	type->mtype = buf[0] & 63;
+	type->prtype = buf[1];
+
+	if (buf[0] & 128) {
+	        type->prtype = type->prtype | DATA_BINARY_TYPE;
+	}
+
+	type->len = mach_read_from_2(buf + 2);
+		
+	type->prtype = dtype_form_prtype(type->prtype,
+					data_mysql_default_charset_coll);
+	dtype_set_mblen(type);
+}	
+
+/**************************************************************************
+Reads to a type the stored information which determines its alphabetical
+ordering and the storage size of an SQL NULL value. This is the >= 4.1.x
+storage format. */
+UNIV_INLINE
+void
+dtype_new_read_for_order_and_null_size(
+/*===================================*/
+	dtype_t*	type,	/* in: type struct */
+	byte*		buf)	/* in: buffer for stored type order info */
+{
+	ulint	charset_coll;
+
+#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
+#endif
+	
+	type->mtype = buf[0] & 63;
+	type->prtype = buf[1];
+
+	if (buf[0] & 128) {
+		type->prtype |= DATA_BINARY_TYPE;
+	}
+
+	if (buf[4] & 128) {
+		type->prtype |= DATA_NOT_NULL;
+	}
+
+	type->len = mach_read_from_2(buf + 2);
+
+	mach_read_from_2(buf + 4);
+
+	charset_coll = mach_read_from_2(buf + 4) & 0x7fff;
+
+	if (dtype_is_string_type(type->mtype)) {
+		ut_a(charset_coll < 256);
+
+		if (charset_coll == 0) {
+			/* This insert buffer record was inserted with MySQL
+			version < 4.1.2, and the charset-collation code was not
+			explicitly stored to dtype->prtype at that time. It
+			must be the default charset-collation of this MySQL
+			installation. */
+
+			charset_coll = data_mysql_default_charset_coll;
+		}
+		
+		type->prtype = dtype_form_prtype(type->prtype, charset_coll);
+	}						
+	dtype_set_mblen(type);
+}
+
+#ifndef UNIV_HOTBACKUP
+/***************************************************************************
+Returns the size of a fixed size data type, 0 if not a fixed size type. */
+UNIV_INLINE
+ulint
+dtype_get_fixed_size(
+/*=================*/
+				/* out: fixed size, or 0 */
+	dtype_t*	type)	/* in: type */
+{
+	ulint	mtype;
+
+	mtype = dtype_get_mtype(type);
+
+	switch (mtype) {
+	case DATA_SYS:
+#ifdef UNIV_DEBUG
+			switch (type->prtype & DATA_MYSQL_TYPE_MASK) {
+			default:
+				ut_ad(0);
+				return(0);
+			case DATA_ROW_ID:
+				ut_ad(type->len == DATA_ROW_ID_LEN);
+				break;
+			case DATA_TRX_ID:
+				ut_ad(type->len == DATA_TRX_ID_LEN);
+				break;
+			case DATA_ROLL_PTR:
+				ut_ad(type->len == DATA_ROLL_PTR_LEN);
+				break;
+			case DATA_MIX_ID:
+				ut_ad(type->len == DATA_MIX_ID_LEN);
+				break;
+			}
+#endif /* UNIV_DEBUG */
+	case DATA_CHAR:
+	case DATA_FIXBINARY:
+	case DATA_INT:
+	case DATA_FLOAT:
+	case DATA_DOUBLE:
+			return(dtype_get_len(type));
+	case DATA_MYSQL:
+			if (type->prtype & DATA_BINARY_TYPE) {
+				return(dtype_get_len(type));
+			} else {
+				/* We play it safe here and ask MySQL for
+				mbminlen and mbmaxlen.  Although
+				type->mbminlen and type->mbmaxlen are
+				initialized if and only if type->prtype
+				is (in one of the 3 functions in this file),
+				it could be that none of these functions
+				has been called. */
+
+				ulint	mbminlen, mbmaxlen;
+
+				innobase_get_cset_width(
+					dtype_get_charset_coll(type->prtype),
+					&mbminlen, &mbmaxlen);
+
+				if (UNIV_UNLIKELY(type->mbminlen != mbminlen)
+				|| UNIV_UNLIKELY(type->mbmaxlen != mbmaxlen)) {
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr, "  InnoDB: "
+						"mbminlen=%lu, "
+						"mbmaxlen=%lu, "
+						"type->mbminlen=%lu, "
+						"type->mbmaxlen=%lu\n",
+						(ulong) mbminlen,
+						(ulong) mbmaxlen,
+						(ulong) type->mbminlen,
+						(ulong) type->mbmaxlen);
+				}
+				if (mbminlen == mbmaxlen) {
+					return(dtype_get_len(type));
+				}
+			}
+			/* fall through for variable-length charsets */
+	case DATA_VARCHAR:
+	case DATA_BINARY:
+	case DATA_DECIMAL:
+	case DATA_VARMYSQL:
+	case DATA_BLOB:
+			return(0); 
+	default:	ut_error;
+	}
+
+	return(0);
+}
+
+/***************************************************************************
+Returns the minimum size of a data type. */
+UNIV_INLINE
+ulint
+dtype_get_min_size(
+/*===============*/
+				/* out: minimum size */
+	const dtype_t*	type)	/* in: type */
+{
+	switch (type->mtype) {
+	case DATA_SYS:
+#ifdef UNIV_DEBUG
+			switch (type->prtype & DATA_MYSQL_TYPE_MASK) {
+			default:
+				ut_ad(0);
+				return(0);
+			case DATA_ROW_ID:
+				ut_ad(type->len == DATA_ROW_ID_LEN);
+				break;
+			case DATA_TRX_ID:
+				ut_ad(type->len == DATA_TRX_ID_LEN);
+				break;
+			case DATA_ROLL_PTR:
+				ut_ad(type->len == DATA_ROLL_PTR_LEN);
+				break;
+			case DATA_MIX_ID:
+				ut_ad(type->len == DATA_MIX_ID_LEN);
+				break;
+			}
+#endif /* UNIV_DEBUG */
+	case DATA_CHAR:
+	case DATA_FIXBINARY:
+	case DATA_INT:
+	case DATA_FLOAT:
+	case DATA_DOUBLE:
+			return(type->len);
+	case DATA_MYSQL:
+			if ((type->prtype & DATA_BINARY_TYPE)
+					|| type->mbminlen == type->mbmaxlen) {
+				return(type->len);
+			}
+			/* this is a variable-length character set */
+			ut_a(type->mbminlen > 0);
+			ut_a(type->mbmaxlen > type->mbminlen);
+			ut_a(type->len % type->mbmaxlen == 0);
+			return(type->len * type->mbminlen / type->mbmaxlen);
+	case DATA_VARCHAR:
+	case DATA_BINARY:
+	case DATA_DECIMAL:
+	case DATA_VARMYSQL:
+	case DATA_BLOB:
+			return(0); 
+	default:	ut_error;
+	}
+
+	return(0);
+}
+#endif /* !UNIV_HOTBACKUP */
+
+/***************************************************************************
+Returns a stored SQL NULL size for a type. For fixed length types it is
+the fixed length of the type, otherwise 0. */
+UNIV_INLINE
+ulint
+dtype_get_sql_null_size(
+/*====================*/
+				/* out: SQL null storage size */
+	dtype_t*	type)	/* in: type */
+{
+	return(dtype_get_fixed_size(type));
+}
+
+/***************************************************************************
+Returns TRUE if a type is of a fixed size. */
+UNIV_INLINE
+ibool
+dtype_is_fixed_size(
+/*================*/
+				/* out: TRUE if fixed size */
+	dtype_t*	type)	/* in: type */
+{
+	ulint	size;
+
+	size = dtype_get_fixed_size(type);
+
+	if (size) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+}

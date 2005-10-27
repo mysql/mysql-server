@@ -1,0 +1,72 @@
+/******************************************************
+Data dictionary creation and booting
+
+(c) 1996 Innobase Oy
+
+Created 4/18/1996 Heikki Tuuri
+*******************************************************/
+
+/**************************************************************************
+Writes the current value of the row id counter to the dictionary header file
+page. */
+
+void
+dict_hdr_flush_row_id(void);
+/*=======================*/
+
+
+/**************************************************************************
+Returns a new row id. */
+UNIV_INLINE
+dulint
+dict_sys_get_new_row_id(void)
+/*=========================*/
+			/* out: the new id */
+{
+	dulint	id;
+
+	mutex_enter(&(dict_sys->mutex));
+
+	id = dict_sys->row_id;
+	
+	if (0 == (ut_dulint_get_low(id) % DICT_HDR_ROW_ID_WRITE_MARGIN)) {
+
+		dict_hdr_flush_row_id();
+	}
+
+	UT_DULINT_INC(dict_sys->row_id);
+
+	mutex_exit(&(dict_sys->mutex));
+
+	return(id);
+}			
+
+/**************************************************************************
+Reads a row id from a record or other 6-byte stored form. */
+UNIV_INLINE
+dulint
+dict_sys_read_row_id(
+/*=================*/
+			/* out: row id */
+	byte*	field)	/* in: record field */
+{
+	ut_ad(DATA_ROW_ID_LEN == 6);
+
+	return(mach_read_from_6(field));
+}				
+
+/**************************************************************************
+Writes a row id to a record or other 6-byte stored form. */
+UNIV_INLINE
+void
+dict_sys_write_row_id(
+/*==================*/
+	byte*	field,	/* in: record field */
+	dulint	row_id)	/* in: row id */
+{
+	ut_ad(DATA_ROW_ID_LEN == 6);
+
+	mach_write_to_6(field, row_id);
+}				
+
+

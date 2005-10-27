@@ -1,0 +1,232 @@
+/******************************************************
+Insert buffer
+
+(c) 1997 Innobase Oy
+
+Created 7/19/1997 Heikki Tuuri
+*******************************************************/
+
+#include "buf0lru.h"
+#include "page0page.h"
+
+extern ulint	ibuf_flush_count;
+
+/* If this number is n, an index page must contain at least the page size
+per n bytes of free space for ibuf to try to buffer inserts to this page.
+If there is this much of free space, the corresponding bits are set in the
+ibuf bitmap. */
+#define IBUF_PAGE_SIZE_PER_FREE_SPACE	32
+
+/* Insert buffer data struct for a single tablespace */
+struct ibuf_data_struct{
+	ulint		space;	/* space id */
+	ulint		seg_size;/* allocated pages if the file segment
+				containing ibuf header and tree */
+	ulint		size;	/* size of the insert buffer tree in pages */
+	ibool		empty;	/* after an insert to the ibuf tree is
+				performed, this is set to FALSE, and if a
+				contract operation finds the tree empty, this
+				is set to TRUE */
+	ulint		free_list_len;
+				/* length of the free list */
+	ulint		height;	/* tree height */
+	dict_index_t*	index;	/* insert buffer index */
+	UT_LIST_NODE_T(ibuf_data_t) data_list;
+				/* list of ibuf data structs */
+	ulint		n_inserts;/* number of inserts made to the insert
+				buffer */
+	ulint		n_merges;/* number of pages merged */
+	ulint		n_merged_recs;/* number of records merged */
+};
+
+/* If the ibuf meter exceeds this value, then the suitable inserts are made to
+the insert buffer instead of directly to the disk page */
+#define IBUF_THRESHOLD	50	
+
+struct ibuf_struct{
+	ulint		size;		/* current size of the ibuf index
+					trees in pages */
+	ulint		max_size;	/* recommended maximum size in pages
+					for the ibuf index tree */
+	ulint		meter;		/* heuristic meter which measures
+					desirability of doing inserts to the
+					insert buffer instead of directly to
+					the disk page */
+	UT_LIST_BASE_NODE_T(ibuf_data_t) data_list;
+					/* list of ibuf data structs for
+					each tablespace */
+};
+
+/****************************************************************************
+Sets the free bit of the page in the ibuf bitmap. This is done in a separate
+mini-transaction, hence this operation does not restrict further work to only
+ibuf bitmap operations, which would result if the latch to the bitmap page
+were kept. */
+
+void
+ibuf_set_free_bits(
+/*===============*/
+	ulint	type,	/* in: index type */
+	page_t*	page,	/* in: index page; free bit is reset if the index is
+			a non-clustered non-unique, and page level is 0 */
+	ulint	val,	/* in: value to set: < 4 */
+	ulint	max_val);/* in: ULINT_UNDEFINED or a maximum value which
+			the bits must have before setting; this is for
+			debugging */
+
+/**************************************************************************
+A basic partial test if an insert to the insert buffer could be possible and
+recommended. */
+UNIV_INLINE
+ibool
+ibuf_should_try(
+/*============*/
+	dict_index_t*	index,			/* in: index where to insert */
+	ulint		ignore_sec_unique)	/* in: if != 0, we should
+						ignore UNIQUE constraint on
+						a secondary index when we
+						decide */
+{
+	if (!(index->type & DICT_CLUSTERED)
+	    && (ignore_sec_unique || !(index->type & DICT_UNIQUE))
+	    && ibuf->meter > IBUF_THRESHOLD) {
+
+		ibuf_flush_count++;
+
+		if (ibuf_flush_count % 8 == 0) {
+	    
+			buf_LRU_try_free_flushed_blocks();
+		}
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/***************************************************************************
+Checks if a page address is an ibuf bitmap page address. */
+UNIV_INLINE
+ibool
+ibuf_bitmap_page(
+/*=============*/
+			/* out: TRUE if a bitmap page */
+	ulint	page_no)/* in: page number */
+{
+	if (page_no % XDES_DESCRIBED_PER_PAGE == FSP_IBUF_BITMAP_OFFSET) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
+Translates the free space on a page to a value in the ibuf bitmap.*/
+UNIV_INLINE
+ulint
+ibuf_index_page_calc_free_bits(
+/*===========================*/
+				/* out: value for ibuf bitmap bits */
+	ulint	max_ins_size)	/* in: maximum insert size after reorganize
+				for the page */
+{
+	ulint	n;
+	
+	n = max_ins_size / (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+
+	if (n == 3) {
+		n = 2;
+	}
+	
+	if (n > 3) {
+		n = 3;
+	}
+
+	return(n);
+}
+
+/*************************************************************************
+Translates the ibuf free bits to the free space on a page in bytes. */
+UNIV_INLINE
+ulint
+ibuf_index_page_calc_free_from_bits(
+/*================================*/
+			/* out: maximum insert size after reorganize for the
+			page */
+	ulint	bits)	/* in: value for ibuf bitmap bits */
+{
+	ut_ad(bits < 4);
+
+	if (bits == 3) {
+		return(4 * UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+	}
+
+	return(bits * UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+}
+
+/*************************************************************************
+Translates the free space on a page to a value in the ibuf bitmap.*/
+UNIV_INLINE
+ulint
+ibuf_index_page_calc_free(
+/*======================*/
+			/* out: value for ibuf bitmap bits */
+	page_t*	page)	/* in: non-unique secondary index page */
+{
+	return(ibuf_index_page_calc_free_bits(
+		page_get_max_insert_size_after_reorganize(page, 1)));
+}
+
+/****************************************************************************
+Updates the free bits of the page in the ibuf bitmap if there is not enough
+free on the page any more. This is done in a separate mini-transaction, hence
+this operation does not restrict further work to only ibuf bitmap operations,
+which would result if the latch to the bitmap page were kept. */
+UNIV_INLINE
+void
+ibuf_update_free_bits_if_full(
+/*==========================*/
+	dict_index_t*	index,	/* in: index */
+	page_t*		page,	/* in: index page to which we have added new
+				records; the free bits are updated if the
+				index is non-clustered and non-unique and
+				the page level is 0, and the page becomes
+				fuller */
+	ulint		max_ins_size,/* in: value of maximum insert size with
+				reorganize before the latest operation
+				performed to the page */
+	ulint		increase)/* in: upper limit for the additional space
+				used in the latest operation, if known, or
+				ULINT_UNDEFINED */
+{
+	ulint	before;
+	ulint	after;
+
+	before = ibuf_index_page_calc_free_bits(max_ins_size);
+
+	if (max_ins_size >= increase) {
+		ut_ad(ULINT_UNDEFINED > UNIV_PAGE_SIZE);
+		
+		after = ibuf_index_page_calc_free_bits(max_ins_size
+								- increase);
+#ifdef UNIV_IBUF_DEBUG
+		ut_a(after <= ibuf_index_page_calc_free(page));
+#endif
+	} else {
+		after = ibuf_index_page_calc_free(page);
+	}
+
+	if (after == 0) {
+		/* We move the page to the front of the buffer pool LRU list:
+		the purpose of this is to prevent those pages to which we
+		cannot make inserts using the insert buffer from slipping
+		out of the buffer pool */
+
+		buf_page_make_young(page);
+	}
+
+	if (before > after) {
+		ibuf_set_free_bits(index->type, page, after, before);
+	}
+}
