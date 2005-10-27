@@ -301,7 +301,8 @@ recovery. */
 void
 row_upd_rec_sys_fields_in_recovery(
 /*===============================*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		pos,	/* in: TRX_ID position in rec */
 	dulint		trx_id,	/* in: transaction id */
@@ -312,11 +313,11 @@ row_upd_rec_sys_fields_in_recovery(
 
 	field = rec_get_nth_field(rec, offsets, pos, &len);
 	ut_ad(len == DATA_TRX_ID_LEN);
-	trx_write_trx_id(field, trx_id);
+	trx_write_trx_id(field, page_zip, trx_id);
 
 	field = rec_get_nth_field(rec, offsets, pos + 1, &len);
 	ut_ad(len == DATA_ROLL_PTR_LEN);
-	trx_write_roll_ptr(field, roll_ptr);
+	trx_write_roll_ptr(field, page_zip, roll_ptr);
 }
 
 /*************************************************************************
@@ -345,10 +346,10 @@ row_upd_index_entry_sys_field(
 	field = dfield_get_data(dfield);
 
 	if (type == DATA_TRX_ID) {
-		trx_write_trx_id(field, val);
+		trx_write_trx_id(field, NULL, val);
 	} else {
 		ut_ad(type == DATA_ROLL_PTR);
-		trx_write_roll_ptr(field, val);
+		trx_write_roll_ptr(field, NULL, val);
 	}
 }
 
@@ -445,7 +446,11 @@ row_upd_rec_in_place(
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	rec_set_info_bits(rec, rec_offs_comp(offsets), update->info_bits);
+	if (rec_offs_comp(offsets)) {
+		rec_set_info_bits_new(rec, NULL, update->info_bits);
+	} else {
+		rec_set_info_bits_old(rec, update->info_bits);
+	}
 
 	n_fields = upd_get_n_fields(update);
 
@@ -480,7 +485,7 @@ row_upd_write_sys_vals_to_log(
 	log_ptr += mach_write_compressed(log_ptr,
 			dict_index_get_sys_col_pos(index, DATA_TRX_ID));
 
-	trx_write_roll_ptr(log_ptr, roll_ptr);
+	trx_write_roll_ptr(log_ptr, NULL, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;	
 
 	log_ptr += mach_dulint_write_compressed(log_ptr, trx->id);
@@ -2040,5 +2045,11 @@ row_upd_in_place_in_select(
 	err = btr_cur_update_in_place(BTR_NO_LOCKING_FLAG, btr_cur,
 						node->update, node->cmpl_info,
 						thr, mtr);
+	/* TODO: the above can fail if page_zip != NULL.
+	However, this function row_upd_in_place_in_select() is only invoked
+	when executing UPDATE statements of the built-in InnoDB SQL parser.
+	The built-in SQL is only used for InnoDB system tables, which
+	always are in the old, uncompressed format (ROW_FORMAT=REDUNDANT,
+	comp == FALSE, page_zip == NULL). */
 	ut_ad(err == DB_SUCCESS);
 }

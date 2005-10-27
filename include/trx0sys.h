@@ -23,6 +23,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "fut0lst.h"
 #include "fsp0fsp.h"
 #include "read0types.h"
+#include "page0types.h"
 
 /* In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. We have successfully got the updates to InnoDB
@@ -210,8 +211,10 @@ UNIV_INLINE
 void
 trx_write_trx_id(
 /*=============*/
-	byte*	ptr,	/* in: pointer to memory where written */
-	dulint	id);	/* in: id */
+	byte*		ptr,	/* in: pointer to memory where written */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 10 bytes available, or NULL */
+	dulint		id);	/* in: id */
 /*********************************************************************
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of

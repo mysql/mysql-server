@@ -537,14 +537,13 @@ rec_set_nth_field_null_bit(
 }
 
 /***************************************************************
-Sets the value of the ith field extern storage bit of an old-style record. */
+Sets the ith field extern storage bit of an old-style record. */
 
 void
 rec_set_nth_field_extern_bit_old(
 /*=============================*/
 	rec_t*	rec,	/* in: old-style record */
 	ulint	i,	/* in: ith field */
-	ibool	val,	/* in: value to set */
 	mtr_t*	mtr)	/* in: mtr holding an X-latch to the page where
 			rec is, or NULL; in the NULL case we do not
 			write to log about the change */
@@ -556,11 +555,7 @@ rec_set_nth_field_extern_bit_old(
 	
 	info = rec_2_get_field_end_info(rec, i);
 
-	if (val) {
-		info = info | REC_2BYTE_EXTERN_MASK;
-	} else {
-		info = info & ~REC_2BYTE_EXTERN_MASK;
-	}
+	info |= REC_2BYTE_EXTERN_MASK;
 
 	if (mtr) {
 		mlog_write_ulint(rec - REC_N_OLD_EXTRA_BYTES - 2 * (i + 1),
@@ -571,7 +566,7 @@ rec_set_nth_field_extern_bit_old(
 }
 
 /***************************************************************
-Sets the value of the ith field extern storage bit of a new-style record. */
+Sets the ith field extern storage bit of a new-style record. */
 
 void
 rec_set_nth_field_extern_bit_new(
@@ -579,7 +574,6 @@ rec_set_nth_field_extern_bit_new(
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		ith,	/* in: ith field */
-	ibool		val,	/* in: value to set */
 	mtr_t*		mtr)	/* in: mtr holding an X-latch to the page
 				where rec is, or NULL; in the NULL case
 				we do not write to log about the change */
@@ -632,11 +626,11 @@ rec_set_nth_field_extern_bit_new(
 			ulint	len = lens[1];
 			if (len & 0x80) { /* 1exxxxxx: 2-byte length */
 				if (i == ith) {
-					if (!val == !(len & 0x40)) {
+					if (len & 0x40) {
 						return; /* no change */
 					}
 					/* toggle the extern bit */
-					len ^= 0x40;
+					len |= 0x40;
 					if (mtr) {
 						mlog_write_ulint(lens + 1, len,
 							MLOG_1BYTE, mtr);
@@ -677,12 +671,11 @@ rec_set_field_extern_bits(
 	if (UNIV_LIKELY(index->table->comp)) {
 		for (i = 0; i < n_fields; i++) {
 			rec_set_nth_field_extern_bit_new(rec, index, vec[i],
-								TRUE, mtr);
+									mtr);
 		}
 	} else {
 		for (i = 0; i < n_fields; i++) {
-			rec_set_nth_field_extern_bit_old(rec, vec[i],
-								TRUE, mtr);
+			rec_set_nth_field_extern_bit_old(rec, vec[i], mtr);
 		}
 	}
 }
@@ -745,7 +738,7 @@ rec_convert_dtuple_to_rec_old(
 	rec_set_n_fields_old(rec, n_fields);
 
 	/* Set the info bits of the record */
-	rec_set_info_bits(rec, FALSE,
+	rec_set_info_bits_old(rec,
 			dtuple_get_info_bits(dtuple) & REC_INFO_BITS_MASK);
 
 	/* Store the data and the offsets */
@@ -835,8 +828,6 @@ rec_convert_dtuple_to_rec_new(
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
 	const ulint	n_fields	= dtuple_get_n_fields(dtuple);
-	const ulint	status		= dtuple_get_info_bits(dtuple)
-					& REC_NEW_STATUS_MASK;
 	ut_ad(index->table->comp);
 
 	ut_ad(n_fields > 0);
@@ -847,7 +838,8 @@ rec_convert_dtuple_to_rec_new(
 	UNIV_PREFETCH_RW(rec - REC_N_NEW_EXTRA_BYTES - n_fields);
 	UNIV_PREFETCH_RW(rec);
 
-	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
+	switch (UNIV_EXPECT(dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK,
+			REC_STATUS_ORDINARY)) {
 	case REC_STATUS_ORDINARY:
 		ut_ad(n_fields <= dict_index_get_n_fields(index));
 		n_node_ptr_field = ULINT_UNDEFINED;
@@ -862,7 +854,7 @@ rec_convert_dtuple_to_rec_new(
 		n_node_ptr_field = ULINT_UNDEFINED;
 		goto init;
 	default:
-		ut_a(0);
+		ut_error;
 		return(0);
 	}
 
@@ -912,10 +904,8 @@ init:
 	memset (lens + 1, 0, nulls - lens);
 
 	/* Set the info bits of the record */
-	rec_set_status(rec, status);
-
-	rec_set_info_bits(rec, TRUE,
-			dtuple_get_info_bits(dtuple) & REC_INFO_BITS_MASK);
+	rec_set_info_and_status_bits(rec, NULL,
+				dtuple_get_info_bits(dtuple));
 
 	/* Store the data and the offsets */
 
@@ -928,6 +918,7 @@ init:
 			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
 			ut_ad(len == 4);
 			memcpy(end, dfield_get_data(field), len);
+			end += 4;
 			break;
 		}
 		fixed_len = dict_index_get_nth_field(index, i)->fixed_len;

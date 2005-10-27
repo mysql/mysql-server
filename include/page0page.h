@@ -145,7 +145,7 @@ Sets the max trx id field value. */
 void
 page_set_max_trx_id(
 /*================*/
-	page_t*	page,	/* in: page */
+	page_t*	page,	/* in/out: page */
 	dulint	trx_id);/* in: transaction id */
 /*****************************************************************
 Sets the max trx id field value if trx_id is bigger than the previous
@@ -154,8 +154,8 @@ UNIV_INLINE
 void
 page_update_max_trx_id(
 /*===================*/
-	page_t*	page,	/* in: page */
-	dulint	trx_id);	/* in: transaction id */
+	page_t*	page,	/* in/out: page */
+	dulint	trx_id);/* in: transaction id */
 /*****************************************************************
 Reads the given header field. */
 UNIV_INLINE
@@ -170,9 +170,10 @@ UNIV_INLINE
 void
 page_header_set_field(
 /*==================*/
-	page_t*	page,	/* in: page */
-	ulint	field,	/* in: PAGE_N_DIR_SLOTS, ... */
-	ulint	val);	/* in: value */
+	page_t*		page,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	ulint		field,	/* in: PAGE_N_DIR_SLOTS, ... */
+	ulint		val);	/* in: value */
 /*****************************************************************
 Returns the pointer stored in the given header field. */
 UNIV_INLINE
@@ -188,9 +189,10 @@ UNIV_INLINE
 void
 page_header_set_ptr(
 /*================*/
-	page_t*	page,	/* in: page */
-	ulint	field,	/* in: PAGE_FREE, ... */
-	byte*	ptr);	/* in: pointer or NULL*/
+	page_t*		page,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	ulint		field,	/* in/out: PAGE_FREE, ... */
+	const byte*	ptr);	/* in: pointer or NULL*/
 /*****************************************************************
 Resets the last insert info field in the page header. Writes to mlog
 about this operation. */
@@ -283,8 +285,9 @@ UNIV_INLINE
 void
 page_dir_set_n_heap(
 /*================*/
-	page_t*	page,	/* in: index page */
-	ulint	n_heap);/* in: number of records */
+	page_t*		page,	/* in/out: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	ulint		n_heap);/* in: number of records */
 /*****************************************************************
 Gets the number of dir slots in directory. */
 UNIV_INLINE
@@ -299,9 +302,9 @@ UNIV_INLINE
 void
 page_dir_set_n_slots(
 /*=================*/
-			/* out: number of slots */
-	page_t*	page,	/* in: index page */
-	ulint	n_slots);/* in: number of slots */
+	page_t*		page,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	ulint		n_slots);/* in: number of slots */
 /*****************************************************************
 Gets pointer to nth directory slot. */
 UNIV_INLINE
@@ -349,9 +352,10 @@ UNIV_INLINE
 void
 page_dir_slot_set_n_owned(
 /*======================*/
-	page_dir_slot_t*	slot,	/* in: directory slot */
-	ulint			n);	/* in: number of records owned 
-					by the slot */
+	page_dir_slot_t*slot,	/* in/out: directory slot */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
+	ulint		n);	/* in: number of records owned by the slot */
 /****************************************************************
 Calculates the space reserved for directory slots of a given
 number of records. The exact value is a fraction number
@@ -402,10 +406,12 @@ UNIV_INLINE
 void
 page_rec_set_next(
 /*==============*/
-	rec_t*	rec,	/* in: pointer to record, must not be
-			page supremum */
-	rec_t*	next);	/* in: pointer to next record, must not
-			be page infimum */
+	rec_t*		rec,	/* in: pointer to record,
+				must not be page supremum */
+	rec_t*		next,	/* in: pointer to next record,
+				must not be page infimum */
+	page_zip_des_t*	page_zip);/* in/out: compressed page with at least
+				6 bytes available, or NULL */
 /****************************************************************
 Gets the pointer to the previous record. */
 UNIV_INLINE
@@ -513,6 +519,16 @@ page_get_free_space_of_empty(
 			/* out: free space */
 	ulint	comp)	/* in: nonzero=compact page format */
 		__attribute__((const));
+/**************************************************************
+Returns the base extra size of a physical record.  This is the
+size of the fixed header, independent of the record size. */
+UNIV_INLINE
+ulint
+page_rec_get_base_extra_size(
+/*=========================*/
+				/* out: REC_N_NEW_EXTRA_BYTES
+				or REC_N_OLD_EXTRA_BYTES */
+	const rec_t*	rec);	/* in: physical record */
 /****************************************************************
 Returns the sum of the sizes of the records in the record list
 excluding the infimum and supremum records. */
@@ -530,7 +546,8 @@ page_mem_alloc(
 /*===========*/
 				/* out: pointer to start of allocated
 				buffer, or NULL if allocation fails */
-	page_t*		page,	/* in: index page */
+	page_t*		page,	/* in/out: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		need,	/* in: number of bytes needed */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		heap_no);/* out: this contains the heap number
@@ -542,7 +559,9 @@ UNIV_INLINE
 void
 page_mem_free(
 /*==========*/
-	page_t*		page,	/* in: index page */
+	page_t*		page,	/* in/out: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
@@ -554,17 +573,17 @@ page_create(
 					/* out: pointer to the page */
 	buf_frame_t*	frame,		/* in: a buffer frame where the page is
 					created */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
 	mtr_t*		mtr,		/* in: mini-transaction handle */
 	ulint		comp);		/* in: nonzero=compact page format */
 /*****************************************************************
 Differs from page_copy_rec_list_end, because this function does not
-touch the lock table and max trx id on page. */
+touch the lock table and max trx id on page or compress the page. */
 
 void
 page_copy_rec_list_end_no_locks(
 /*============================*/
 	page_t*		new_page,	/* in: index page to copy to */
-	page_t*		page,		/* in: index page */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr);		/* in: mtr */
@@ -573,27 +592,31 @@ Copies records from page to new_page, from the given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page. */
 
-void
+ibool
 page_copy_rec_list_end(
 /*===================*/
-	page_t*		new_page,	/* in: index page to copy to */
-	page_t*		page,		/* in: index page */
+					/* out: TRUE on success */
+	page_t*		new_page,	/* in/out: index page to copy to */
+	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
-	mtr_t*		mtr);		/* in: mtr */
+	mtr_t*		mtr)		/* in: mtr */
+	__attribute__((warn_unused_result, nonnull(1, 3, 4, 5)));
 /*****************************************************************
 Copies records from page to new_page, up to the given record, NOT
 including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page. */
 
-void
+ibool
 page_copy_rec_list_start(
 /*=====================*/
-	page_t*		new_page,	/* in: index page to copy to */
-	page_t*		page,		/* in: index page */
+					/* out: TRUE on success */
+	page_t*		new_page,	/* in/out: index page to copy to */
+	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
-	mtr_t*		mtr);		/* in: mtr */
+	mtr_t*		mtr)		/* in: mtr */
+	__attribute__((warn_unused_result, nonnull(1, 3, 4, 5)));
 /*****************************************************************
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
@@ -601,26 +624,16 @@ The infimum and supremum records are not deleted. */
 void
 page_delete_rec_list_end(
 /*=====================*/
-	page_t*		page,	/* in: index page */
-	rec_t*		rec,	/* in: record on page */
+	rec_t*		rec,	/* in: pointer to record on page */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		n_recs,	/* in: number of records to delete,
 				or ULINT_UNDEFINED if not known */
 	ulint		size,	/* in: the sum of the sizes of the
 				records in the end of the chain to
 				delete, or ULINT_UNDEFINED if not known */
-	mtr_t*		mtr);	/* in: mtr */
-/*****************************************************************
-Deletes records from page, up to the given record, NOT including
-that record. Infimum and supremum records are not deleted. */
-
-void
-page_delete_rec_list_start(
-/*=======================*/
-	page_t*		page,	/* in: index page */
-	rec_t*		rec,	/* in: record on page */
-	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr);	/* in: mtr */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	mtr_t*		mtr)	/* in: mtr */
+	__attribute__((nonnull(1, 2, 6)));
 /*****************************************************************
 Moves record list end to another page. Moved records include
 split_rec. */
@@ -629,30 +642,25 @@ void
 page_move_rec_list_end(
 /*===================*/
 	page_t*		new_page,	/* in: index page where to move */
-	page_t*		page,		/* in: index page */
+	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
+					new_page, or NULL */
 	rec_t*		split_rec,	/* in: first record to move */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page of
+					split_rec, or NULL */
 	dict_index_t*	index,		/* in: record descriptor */
-	mtr_t*		mtr);		/* in: mtr */
-/*****************************************************************
-Moves record list start to another page. Moved records do not include
-split_rec. */
-
-void
-page_move_rec_list_start(
-/*=====================*/
-	page_t*		new_page,	/* in: index page where to move */
-	page_t*		page,		/* in: index page */
-	rec_t*		split_rec,	/* in: first record not to move */
-	dict_index_t*	index,		/* in: record descriptor */
-	mtr_t*		mtr);		/* in: mtr */
+	mtr_t*		mtr)		/* in: mtr */
+	__attribute__((nonnull(1, 3, 5, 6)));
 /********************************************************************
 Splits a directory slot which owns too many records. */
 
 void
 page_dir_split_slot(
 /*================*/
-	page_t*	page, 		/* in: the index page in question */
-	ulint	slot_no); 	/* in: the directory slot */
+	page_t*		page,	/* in: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 10 bytes available, or NULL */
+	ulint		slot_no)/* in: the directory slot */
+	__attribute__((nonnull(1)));
 /*****************************************************************
 Tries to balance the given directory slot with too few records
 with the upper neighbor, so that there are at least the minimum number 
@@ -662,8 +670,11 @@ two slots. */
 void
 page_dir_balance_slot(
 /*==================*/
-	page_t*	page,		/* in: index page */
-	ulint	slot_no); 	/* in: the directory slot */
+	page_t*		page,	/* in/out: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 15 bytes available, or NULL */
+	ulint		slot_no)/* in: the directory slot */
+	__attribute__((nonnull(1)));
 /**************************************************************
 Parses a log record of a record list end or start deletion. */
 
@@ -766,10 +777,20 @@ know the index. This is also resilient so that this should never crash
 even if the page is total garbage. */
 
 ibool
-page_simple_validate(
-/*=================*/
+page_simple_validate_old(
+/*=====================*/
 			/* out: TRUE if ok */
-	page_t*	page);	/* in: index page */
+	page_t*	page);	/* in: old-style index page */
+/*******************************************************************
+This function checks the consistency of an index page when we do not
+know the index. This is also resilient so that this should never crash
+even if the page is total garbage. */
+
+ibool
+page_simple_validate_new(
+/*=====================*/
+			/* out: TRUE if ok */
+	page_t*	page);	/* in: new-style index page */
 /*******************************************************************
 This function checks the consistency of an index page. */
 

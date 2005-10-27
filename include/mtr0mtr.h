@@ -129,8 +129,11 @@ flag value must give the length also! */
 						/* copy compact record list end
 						to a new created index page */
 #define MLOG_COMP_PAGE_REORGANIZE ((byte)46)	/* reorganize an index page */
+#define MLOG_COMP_DECOMPRESS ((byte)47)		/* decompress a page
+						to undo a compressed page
+						overflow */
 
-#define MLOG_BIGGEST_TYPE	((byte)46)	/* biggest value (used in
+#define MLOG_BIGGEST_TYPE	((byte)47)	/* biggest value (used in
 						asserts) */
 					
 /*******************************************************************

@@ -78,7 +78,9 @@ UNIV_INLINE
 void
 row_upd_rec_sys_fields(
 /*===================*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 21 bytes available, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	trx_t*		trx,	/* in: transaction */
@@ -276,7 +278,8 @@ recovery. */
 void
 row_upd_rec_sys_fields_in_recovery(
 /*===============================*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		pos,	/* in: TRX_ID position in rec */
 	dulint		trx_id,	/* in: transaction id */

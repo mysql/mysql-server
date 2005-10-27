@@ -130,6 +130,8 @@ page_cur_tuple_insert(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				25 + rec_size bytes available, or NULL */
 	dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
@@ -144,6 +146,8 @@ page_cur_rec_insert(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				25 + rec_size bytes available, or NULL */
 	rec_t*		rec,	/* in: record to insert */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
@@ -160,6 +164,8 @@ page_cur_insert_rec_low(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				25 + rec_size bytes available, or NULL */
 	dtuple_t*	tuple,	/* in: pointer to a data tuple or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record or NULL */
@@ -173,7 +179,6 @@ void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
 	page_t*		new_page,	/* in: index page to copy to */
-	page_t*		page,		/* in: index page */
 	rec_t*		rec,		/* in: first record to copy */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr);		/* in: mtr */
@@ -184,9 +189,11 @@ next record after the deleted one. */
 void
 page_cur_delete_rec(
 /*================*/
-	page_cur_t*  	cursor,	/* in: a page cursor */
+	page_cur_t*  	cursor,	/* in/out: a page cursor */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				32 bytes available, or NULL */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
 /********************************************************************
 Searches the right position for a page cursor. */
@@ -245,7 +252,9 @@ page_cur_parse_insert_rec(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in: page or NULL */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				25 + rec_size bytes available, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /**************************************************************
 Parses a log record of copying a record list end to a new created page. */
@@ -257,7 +266,8 @@ page_parse_copy_rec_list_to_created_page(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in: page or NULL */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /***************************************************************
 Parses log record of a record delete on a page. */
@@ -269,7 +279,9 @@ page_cur_parse_delete_rec(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in: page or NULL */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				32 bytes available, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 
 /* Index page cursor */

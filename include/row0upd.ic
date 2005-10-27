@@ -11,6 +11,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "trx0undo.h"
 #include "row0row.h"
 #include "btr0sea.h"
+#include "page0zip.h"
 
 /*************************************************************************
 Creates an update vector object. */
@@ -104,7 +105,9 @@ UNIV_INLINE
 void
 row_upd_rec_sys_fields(
 /*===================*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 21 bytes available, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	trx_t*		trx,	/* in: transaction */
@@ -116,7 +119,8 @@ row_upd_rec_sys_fields(
 	ut_ad(!buf_block_align(rec)->is_hashed
 			|| rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!page_zip || page_zip_available(page_zip, 21));
 
-	row_set_rec_trx_id(rec, index, offsets, trx->id);
-	row_set_rec_roll_ptr(rec, index, offsets, roll_ptr);
+	row_set_rec_trx_id(rec, page_zip, index, offsets, trx->id);
+	row_set_rec_roll_ptr(rec, page_zip, index, offsets, roll_ptr);
 }

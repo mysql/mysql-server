@@ -191,6 +191,24 @@ buf_block_get_page_no(
 	return(block->offset);
 }	
 
+/*************************************************************************
+Gets the compressed page descriptor of a block if applicable. */
+UNIV_INLINE
+page_zip_des_t*
+buf_block_get_page_zip(
+/*===================*/
+				/* out: compressed page descriptor, or NULL */
+	buf_block_t*	block)	/* in: pointer to the control block */
+{
+	ut_ad(block);
+
+	if (UNIV_LIKELY_NULL(block->page_zip.data)) {
+		return(&block->page_zip);
+	}
+
+	return(NULL);
+}
+
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INLINE
@@ -614,8 +632,6 @@ buf_page_release(
 					RW_NO_LATCH */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint	buf_fix_count;
-	
 	ut_ad(block);
 
 	mutex_enter_fast(&(buf_pool->mutex));
@@ -631,8 +647,7 @@ buf_page_release(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_s_unlock(&(block->debug_latch));
 #endif
-	buf_fix_count = block->buf_fix_count;
-	block->buf_fix_count = buf_fix_count - 1;
+	block->buf_fix_count--;
 
 	mutex_exit(&(buf_pool->mutex));
 

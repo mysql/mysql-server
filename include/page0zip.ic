@@ -1,0 +1,224 @@
+/******************************************************
+Compressed page interface
+
+(c) 2005 Innobase Oy
+
+Created June 2005 by Marko Makela
+*******************************************************/
+
+#ifdef UNIV_MATERIALIZE
+# undef UNIV_INLINE
+# define UNIV_INLINE
+#endif
+
+#include "page0zip.h"
+#include "page0page.h"
+
+/* The format of compressed pages is as follows.
+
+The header and trailer of the uncompressed pages, including the page
+directory in the trailer, are copied as is to the header and trailer
+of the compressed page.  Immediately preceding the page trailer,
+we store a 32-bit checksum of the compressed data.
+
+The data between PAGE_DATA and the last page directory entry
+will be written in compressed format, starting at offset PAGE_DATA.
+
+The compressed data stream may be followed by a modification log
+covering the compressed portion of the page, as follows.
+
+MODIFICATION LOG ENTRY FORMAT
+- length (1..2 bytes), not zero
+- offset - PAGE_DATA (1..2 bytes)
+- data bytes
+
+The length and the offset are stored in a variable-length format:
+- 0xxxxxxxx : 0..127
+- 10xxxxxxx xxxxxxxx: 0..16383
+- 11xxxxxxx xxxxxxxx: reserved
+
+The end of the modification log is marked by length=0. */
+
+/**************************************************************************
+Initialize a compressed page descriptor. */
+UNIV_INLINE
+void
+page_zip_des_init(
+/*==============*/
+	page_zip_des_t*	page_zip)	/* in/out: compressed page
+					descriptor */
+{
+	memset(page_zip, 0, sizeof *page_zip);
+}
+
+/**************************************************************************
+Determine the encoded length of an integer in the modification log. */
+UNIV_INLINE
+ulint
+page_zip_ulint_size(
+/*================*/
+			/* out: length of the integer, in bytes */
+	ulint	num)	/* in: the integer */
+{
+	if (num < 128) {	/* 0xxxxxxx: 0..127 */
+		return(1);
+	}
+	if (num < 16384) {	/* 10xxxxxx xxxxxxxx: 0..16383 */
+		return(2);
+	}
+	ut_error;
+	return(0);
+}
+
+/**************************************************************************
+Determine the size of a modification log entry. */
+UNIV_INLINE
+ulint
+page_zip_entry_size(
+/*================*/
+			/* out: length of the log entry, in bytes */
+	ulint	pos,	/* in: offset of the uncompressed page */
+	ulint	length)	/* in: length of the data */
+{
+	ut_ad(pos >= PAGE_DATA);
+	ut_ad(pos + length <= UNIV_PAGE_SIZE - PAGE_DATA /* - trailer_len */);
+	return(page_zip_ulint_size(pos - PAGE_DATA)
+		+ page_zip_ulint_size(length)
+		+ length);
+}
+
+#ifdef UNIV_DEBUG
+/**************************************************************************
+Validate a compressed page descriptor. */
+UNIV_INLINE
+ibool
+page_zip_simple_validate(
+/*=====================*/
+					/* out: TRUE if ok */
+	const page_zip_des_t*	page_zip)/* in: compressed page descriptor */
+{
+	ut_ad(page_zip);
+	ut_ad(page_zip->data);
+	ut_ad(!(page_zip->size & (page_zip->size - 1)));
+	ut_ad(page_zip->size < UNIV_PAGE_SIZE);
+	ut_ad(page_zip->size > PAGE_DATA + PAGE_EMPTY_DIR_START);
+	ut_ad(page_zip->m_start <= page_zip->m_end);
+	ut_ad(page_zip->m_end < page_zip->size);
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
+/**************************************************************************
+Ensure that enough space is available in the modification log.
+If not, try to compress the page. */
+UNIV_INLINE
+ibool
+page_zip_alloc(
+/*===========*/
+				/* out: TRUE if enough space is available */
+	page_zip_des_t*	page_zip,/* in/out: compressed page;
+				will only be modified if compression is needed
+				and successful */
+	const page_t*	page,	/* in: uncompressed page */
+	ulint		size)	/* in: size of modification log entries */
+{
+	ulint	trailer_len = PAGE_DIR + PAGE_DIR_SLOT_SIZE
+			* page_dir_get_n_slots((page_t*) page_zip->data);
+
+	ut_ad(page_zip_simple_validate(page_zip));
+	ut_ad(page_zip->m_end + trailer_len < page_zip->size);
+	ut_ad(size >= 3); /* modification log entries are >= 1+1+1 bytes */
+	ut_ad(size < page_zip->size);
+
+	if (size < page_zip->size - page_zip->m_end - trailer_len) {
+		return(TRUE);
+	}
+
+	if (page_zip->m_start == page_zip->m_end) {
+		/* The page has been freshly compressed, so
+		recompressing it will not help. */
+		return(FALSE);
+	}
+
+	return(page_zip_compress(page_zip, page));
+}
+
+/**************************************************************************
+Determine if enough space is available in the modification log. */
+UNIV_INLINE
+ibool
+page_zip_available(
+/*===============*/
+					/* out: TRUE if enough space
+					is available */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	ulint			size)	/* in: requested size of
+					modification log entries */
+{
+	ulint	trailer_len = PAGE_DIR + PAGE_DIR_SLOT_SIZE
+			* page_dir_get_n_slots((page_t*) page_zip->data);
+
+	ut_ad(page_zip_simple_validate(page_zip));
+	ut_ad(page_zip->m_end + trailer_len < page_zip->size);
+	ut_ad(size >= 3); /* modification log entries are >= 1+1+1 bytes */
+	ut_ad(size < page_zip->size);
+
+	return(UNIV_LIKELY(
+		size < page_zip->size - page_zip->m_end - trailer_len));
+}
+
+/**************************************************************************
+Write data to the uncompressed header portion of a page.  The data must
+already have been written to the uncompressed page. */
+UNIV_INLINE
+void
+page_zip_write_header(
+/*==================*/
+	page_zip_des_t*	page_zip,/* in/out: compressed page */
+	const byte*	str,	/* in: address on the uncompressed page */
+	ulint		length)	/* in: length of the data */
+{
+	ulint	pos;
+
+	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)str)) == page_zip);
+	ut_ad(page_zip_simple_validate(page_zip));
+
+	pos = ut_align_offset(str, UNIV_PAGE_SIZE);
+
+	ut_ad(pos < PAGE_DATA);
+
+	memcpy(page_zip + pos, str, length);
+
+	ut_ad(page_zip_validate(page_zip, str - pos));
+}
+
+
+/**************************************************************************
+Write data to the uncompressed trailer portion of a page.  The data must
+already have been written to the uncompressed page. */
+UNIV_INLINE
+void
+page_zip_write_trailer(
+/*===================*/
+	page_zip_des_t*	page_zip,/* in/out: compressed page */
+	const byte*	str,	/* in: address on the uncompressed page */
+	ulint		length)	/* in: length of the data */
+{
+	ulint	pos;
+
+	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)str)) == page_zip);
+	ut_ad(page_zip_simple_validate(page_zip));
+
+	pos = ut_align_offset(str, UNIV_PAGE_SIZE);
+
+	ut_ad(pos < PAGE_DATA);/* TODO */
+
+	memcpy(page_zip + pos/* TODO */, str, length);
+
+	ut_ad(page_zip_validate(page_zip, str - pos));
+}
+
+#ifdef UNIV_MATERIALIZE
+# undef UNIV_INLINE
+# define UNIV_INLINE	UNIV_INLINE_ORIGINAL
+#endif

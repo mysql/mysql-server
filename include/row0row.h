@@ -45,7 +45,9 @@ UNIV_INLINE
 void
 row_set_rec_trx_id(
 /*===============*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 10 bytes available,, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		trx_id);/* in: value of the field */
@@ -55,7 +57,9 @@ UNIV_INLINE
 void
 row_set_rec_roll_ptr(
 /*=================*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 11 bytes available, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		roll_ptr);/* in: value of the field */

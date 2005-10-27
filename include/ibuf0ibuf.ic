@@ -88,6 +88,7 @@ ibuf_should_try(
 						decide */
 {
 	if (!(index->type & DICT_CLUSTERED)
+	    && !index->table->zip
 	    && (ignore_sec_unique || !(index->type & DICT_UNIQUE))
 	    && ibuf->meter > IBUF_THRESHOLD) {
 

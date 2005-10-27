@@ -329,6 +329,7 @@ struct dict_table_struct{
 				user calls DISCARD TABLESPACE on this table,
 				and reset to FALSE in IMPORT TABLESPACE */
 	ibool		comp;	/* flag: TRUE=compact page format */
+	ibool		zip;	/* flag: TRUE=compressed page format */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	ulint		n_def;	/* number of columns defined so far */
