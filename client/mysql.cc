@@ -1133,10 +1133,11 @@ static COMMANDS *find_command(char *name,char cmd_char)
       parsing the row and calling find_command()
     */
     if (strstr(name, "\\g") || (strstr(name, delimiter) &&
-                                strlen(name) >= 9 &&
-                                my_strnncoll(charset_info,(uchar*) name,
-                                             9,
-                                             (const uchar*) "delimiter", 9)))
+                                !(strlen(name) >= 9 &&
+                                  !my_strnncoll(charset_info,
+                                                (uchar*) name, 9,
+                                                (const uchar*) "delimiter",
+                                                9))))
       DBUG_RETURN((COMMANDS *) 0);
     if ((end=strcont(name," \t")))
     {
