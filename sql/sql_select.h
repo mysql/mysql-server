@@ -456,3 +456,4 @@ bool cp_buffer_from_ref(THD *thd, TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
+COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
