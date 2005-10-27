@@ -1,0 +1,210 @@
+/************************************************************************
+The page cursor
+
+(c) 1994-1996 Innobase Oy
+
+Created 10/4/1994 Heikki Tuuri
+*************************************************************************/
+
+#include "page0page.h"
+
+
+/*************************************************************
+Gets pointer to the page frame where the cursor is positioned. */
+UNIV_INLINE
+page_t*
+page_cur_get_page(
+/*==============*/
+				/* out: page */
+	page_cur_t*	cur)	/* in: page cursor */
+{
+	ut_ad(cur);
+
+	return(buf_frame_align(cur->rec));
+}
+
+/*************************************************************
+Gets the record where the cursor is positioned. */
+UNIV_INLINE
+rec_t*
+page_cur_get_rec(
+/*=============*/
+				/* out: record */
+	page_cur_t*	cur)	/* in: page cursor */
+{
+	ut_ad(cur);
+
+	return(cur->rec);
+}
+
+/*************************************************************
+Sets the cursor object to point before the first user record 
+on the page. */
+UNIV_INLINE
+void
+page_cur_set_before_first(
+/*======================*/
+	page_t*		page,	/* in: index page */
+	page_cur_t*	cur)	/* in: cursor */
+{
+	cur->rec = page_get_infimum_rec(page);
+}
+
+/*************************************************************
+Sets the cursor object to point after the last user record on 
+the page. */
+UNIV_INLINE
+void
+page_cur_set_after_last(
+/*====================*/
+	page_t*		page,	/* in: index page */
+	page_cur_t*	cur)	/* in: cursor */
+{
+	cur->rec = page_get_supremum_rec(page);
+}
+
+/*************************************************************
+Returns TRUE if the cursor is before first user record on page. */
+UNIV_INLINE
+ibool
+page_cur_is_before_first(
+/*=====================*/
+					/* out: TRUE if at start */
+	const page_cur_t*	cur)	/* in: cursor */
+{
+	return(page_rec_is_infimum(cur->rec));
+}
+
+/*************************************************************
+Returns TRUE if the cursor is after last user record. */
+UNIV_INLINE
+ibool
+page_cur_is_after_last(
+/*===================*/
+					/* out: TRUE if at end */
+	const page_cur_t*	cur)	/* in: cursor */
+{
+	return(page_rec_is_supremum(cur->rec));
+}
+
+/**************************************************************
+Positions the cursor on the given record. */
+UNIV_INLINE
+void
+page_cur_position(
+/*==============*/
+	rec_t*		rec,	/* in: record on a page */
+	page_cur_t*	cur)	/* in: page cursor */
+{
+	ut_ad(rec && cur);
+
+	cur->rec = rec;
+}
+
+/**************************************************************
+Invalidates a page cursor by setting the record pointer NULL. */
+UNIV_INLINE
+void
+page_cur_invalidate(
+/*================*/
+	page_cur_t*	cur)	/* in: page cursor */
+{
+	ut_ad(cur);
+
+	cur->rec = NULL;
+}
+
+/**************************************************************
+Moves the cursor to the next record on page. */
+UNIV_INLINE
+void
+page_cur_move_to_next(
+/*==================*/
+	page_cur_t*	cur)	/* in: cursor; must not be after last */
+{
+	ut_ad(!page_cur_is_after_last(cur));
+
+	cur->rec = page_rec_get_next(cur->rec);
+}
+
+/**************************************************************
+Moves the cursor to the previous record on page. */
+UNIV_INLINE
+void
+page_cur_move_to_prev(
+/*==================*/
+	page_cur_t*	cur)	/* in: page cursor, not before first */
+{
+	ut_ad(!page_cur_is_before_first(cur));
+
+	cur->rec = page_rec_get_prev(cur->rec);
+}
+
+/********************************************************************
+Searches the right position for a page cursor. */
+UNIV_INLINE
+ulint
+page_cur_search(
+/*============*/
+				/* out: number of matched fields on the left */
+	page_t*		page,	/* in: index page */
+	dict_index_t*	index,	/* in: record descriptor */
+	dtuple_t*	tuple,	/* in: data tuple */
+	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
+				or PAGE_CUR_GE */
+	page_cur_t*	cursor)	/* out: page cursor */
+{
+	ulint		low_matched_fields = 0;
+	ulint		low_matched_bytes = 0;
+	ulint		up_matched_fields = 0;
+	ulint		up_matched_bytes = 0;
+
+	ut_ad(dtuple_check_typed(tuple));
+
+	page_cur_search_with_match(page, index, tuple, mode,
+					&up_matched_fields,
+					&up_matched_bytes,
+					&low_matched_fields,
+					&low_matched_bytes,
+					cursor);
+	return(low_matched_fields);
+}
+
+/***************************************************************
+Inserts a record next to page cursor. Returns pointer to inserted record if
+succeed, i.e., enough space available, NULL otherwise. The cursor stays at
+the same position. */
+UNIV_INLINE
+rec_t*
+page_cur_tuple_insert(
+/*==================*/
+				/* out: pointer to record if succeed, NULL
+				otherwise */
+	page_cur_t*	cursor,	/* in: a page cursor */
+	dtuple_t*	tuple,  /* in: pointer to a data tuple */
+	dict_index_t*	index,	/* in: record descriptor */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
+{
+	return(page_cur_insert_rec_low(cursor, tuple, index, NULL, NULL, mtr));
+}
+
+/***************************************************************
+Inserts a record next to page cursor. Returns pointer to inserted record if
+succeed, i.e., enough space available, NULL otherwise. The cursor stays at
+the same position. */
+UNIV_INLINE
+rec_t*
+page_cur_rec_insert(
+/*================*/
+				/* out: pointer to record if succeed, NULL
+				otherwise */
+	page_cur_t*	cursor,	/* in: a page cursor */
+	rec_t*		rec,	/* in: record to insert */
+	dict_index_t*	index,	/* in: record descriptor */
+	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
+{
+	return(page_cur_insert_rec_low(cursor, NULL, index, rec,
+				offsets, mtr));
+}
+

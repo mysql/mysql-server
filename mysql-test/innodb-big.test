@@ -1,0 +1,46 @@
+#
+# Test some things that takes a long time
+
+-- source include/big_test.inc
+-- source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3, t4;
+--enable_warnings
+
+#
+# Test test how filesort and buffered-record-reads works with innodb
+#
+
+CREATE TABLE t1 (id INTEGER) ENGINE=MYISAM;
+CREATE TABLE t2 (id INTEGER primary key) ENGINE=INNODB;
+CREATE TABLE t3 (a char(32) primary key,id INTEGER) ENGINE=INNODB;
+CREATE TABLE t4 (a char(32) primary key,id INTEGER) ENGINE=MYISAM;
+
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t1 SELECT id+1 FROM t1;
+INSERT INTO t1 SELECT id+2 FROM t1;
+INSERT INTO t1 SELECT id+4 FROM t1;
+INSERT INTO t1 SELECT id+8 FROM t1;
+INSERT INTO t1 SELECT id+16 FROM t1;
+INSERT INTO t1 SELECT id+32 FROM t1;
+INSERT INTO t1 SELECT id+64 FROM t1;
+INSERT INTO t1 SELECT id+128 FROM t1;
+INSERT INTO t1 SELECT id+256 FROM t1;
+INSERT INTO t1 SELECT id+512 FROM t1;
+INSERT INTO t1 SELECT id+1024 FROM t1;
+INSERT INTO t1 SELECT id+2048 FROM t1;
+INSERT INTO t1 SELECT id+4096 FROM t1;
+INSERT INTO t1 SELECT id+8192 FROM t1;
+INSERT INTO t1 SELECT id+16384 FROM t1;
+INSERT INTO t1 SELECT id+32768 FROM t1;
+INSERT INTO t1 SELECT id+65536 FROM t1;
+INSERT INTO t1 SELECT id+131072 FROM t1;
+INSERT INTO t1 SELECT id+262144 FROM t1;
+INSERT INTO t1 SELECT id+524288 FROM t1;
+INSERT INTO t1 SELECT id+1048576 FROM t1;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT concat(id),id from t2 ORDER BY -id;
+INSERT INTO t4 SELECT * from t3 ORDER BY concat(a);
+select sum(id) from t3;
+drop table t1,t2,t3,t4;

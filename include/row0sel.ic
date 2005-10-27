@@ -1,0 +1,88 @@
+/******************************************************
+Select
+
+(c) 1997 Innobase Oy
+
+Created 12/19/1997 Heikki Tuuri
+*******************************************************/
+
+#include "que0que.h"
+
+/*************************************************************************
+Gets the plan node for the nth table in a join. */
+UNIV_INLINE
+plan_t*
+sel_node_get_nth_plan(
+/*==================*/
+				/* out: plan node */
+	sel_node_t*	node,	/* in: select node */
+	ulint		i)	/* in: get ith plan node */
+{
+	ut_ad(i < node->n_tables);
+
+	return(node->plans + i);
+}
+
+/*************************************************************************
+Resets the cursor defined by sel_node to the SEL_NODE_OPEN state, which means
+that it will start fetching from the start of the result set again, regardless
+of where it was before, and it will set intention locks on the tables. */
+UNIV_INLINE
+void
+sel_node_reset_cursor(
+/*==================*/
+	sel_node_t*	node)	/* in: select node */
+{
+	node->state = SEL_NODE_OPEN;
+}
+
+/**************************************************************************
+Performs an execution step of an open or close cursor statement node. */
+UNIV_INLINE
+que_thr_t*
+open_step(
+/*======*/
+				/* out: query thread to run next or NULL */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	sel_node_t*	sel_node;
+	open_node_t*	node;
+	ulint		err;
+
+	ut_ad(thr);
+	
+	node = thr->run_node;
+	ut_ad(que_node_get_type(node) == QUE_NODE_OPEN);
+
+	sel_node = node->cursor_def;
+
+	err = DB_SUCCESS;
+
+	if (node->op_type == ROW_SEL_OPEN_CURSOR) {
+
+/*		if (sel_node->state == SEL_NODE_CLOSED) { */
+
+			sel_node_reset_cursor(sel_node);
+/*		} else {
+			err = DB_ERROR;
+		} */
+	} else {
+		if (sel_node->state != SEL_NODE_CLOSED) {
+
+			sel_node->state = SEL_NODE_CLOSED;
+		} else {
+			err = DB_ERROR;
+		}
+	}
+			
+	if (UNIV_EXPECT(err, DB_SUCCESS) != DB_SUCCESS) {
+		/* SQL error detected */
+		fprintf(stderr, "SQL error %lu\n", (ulong) err);
+
+		ut_error;
+	}
+		
+	thr->run_node = que_node_get_parent(node);
+	
+	return(thr);
+}

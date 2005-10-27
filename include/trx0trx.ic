@@ -1,0 +1,98 @@
+/******************************************************
+The transaction
+
+(c) 1996 Innobase Oy
+
+Created 3/26/1996 Heikki Tuuri
+*******************************************************/
+
+/*****************************************************************
+Starts the transaction if it is not yet started. */
+UNIV_INLINE
+void
+trx_start_if_not_started(
+/*=====================*/
+	trx_t*	trx)	/* in: transaction */
+{	
+	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
+
+	if (trx->conc_state == TRX_NOT_STARTED) {
+
+		trx_start(trx, ULINT_UNDEFINED);
+	}
+}
+
+/*****************************************************************
+Starts the transaction if it is not yet started. Assumes we have reserved
+the kernel mutex! */
+UNIV_INLINE
+void
+trx_start_if_not_started_low(
+/*=========================*/
+	trx_t*	trx)	/* in: transaction */
+{	
+	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
+
+	if (trx->conc_state == TRX_NOT_STARTED) {
+
+		trx_start_low(trx, ULINT_UNDEFINED);
+	}
+}
+
+/*****************************************************************
+Resets the new record lock info in a transaction struct. */
+UNIV_INLINE
+void
+trx_reset_new_rec_lock_info(
+/*========================*/
+	trx_t*	trx)	/* in: transaction struct */
+{
+	trx->new_rec_locks[0] = NULL;
+	trx->new_rec_locks[1] = NULL;
+}
+
+/*****************************************************************
+Registers that we have set a new record lock on an index. We only have space
+to store 2 indexes! If this is called to store more than 2 indexes after
+trx_reset_new_rec_lock_info(), then this function does nothing. */
+UNIV_INLINE
+void
+trx_register_new_rec_lock(
+/*======================*/
+	trx_t*		trx,	/* in: transaction struct */
+	dict_index_t*	index)	/* in: trx sets a new record lock on this
+				index */
+{
+	if (trx->new_rec_locks[0] == NULL) {
+		trx->new_rec_locks[0] = index;
+
+		return;
+	}
+
+	if (trx->new_rec_locks[0] == index) {
+
+		return;
+	}
+
+	if (trx->new_rec_locks[1] != NULL) {
+
+		return;
+	}
+
+	trx->new_rec_locks[1] = index;
+}
+
+/*****************************************************************
+Checks if trx has set a new record lock on an index. */
+UNIV_INLINE
+ibool
+trx_new_rec_locks_contain(
+/*======================*/
+				/* out: TRUE if trx has set a new record lock
+				on index */
+	trx_t*		trx,	/* in: transaction struct */
+	dict_index_t*	index)	/* in: index */
+{
+	return(trx->new_rec_locks[0] == index
+	       || trx->new_rec_locks[1] == index);
+}

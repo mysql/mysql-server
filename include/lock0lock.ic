@@ -1,0 +1,83 @@
+/******************************************************
+The transaction lock system
+
+(c) 1996 Innobase Oy
+
+Created 5/7/1996 Heikki Tuuri
+*******************************************************/
+
+#include "sync0sync.h"
+#include "srv0srv.h"
+#include "dict0dict.h"
+#include "row0row.h"
+#include "trx0sys.h"
+#include "trx0trx.h"
+#include "buf0buf.h"
+#include "page0page.h"
+#include "page0cur.h"
+#include "row0vers.h"
+#include "que0que.h"
+#include "btr0cur.h"
+#include "read0read.h"
+#include "log0recv.h"
+
+/*************************************************************************
+Calculates the fold value of a page file address: used in inserting or
+searching for a lock in the hash table. */
+UNIV_INLINE
+ulint
+lock_rec_fold(
+/*==========*/
+			/* out: folded value */
+	ulint	space,	/* in: space */
+	ulint	page_no)/* in: page number */
+{
+	return(ut_fold_ulint_pair(space, page_no));
+}
+
+/*************************************************************************
+Calculates the hash value of a page file address: used in inserting or
+searching for a lock in the hash table. */
+UNIV_INLINE
+ulint
+lock_rec_hash(
+/*==========*/
+			/* out: hashed value */
+	ulint	space,	/* in: space */
+	ulint	page_no)/* in: page number */
+{
+	return(hash_calc_hash(lock_rec_fold(space, page_no),
+							lock_sys->rec_hash));
+}
+
+/*************************************************************************
+Checks if some transaction has an implicit x-lock on a record in a clustered
+index. */
+UNIV_INLINE
+trx_t*
+lock_clust_rec_some_has_impl(
+/*=========================*/
+				/* out: transaction which has the x-lock, or
+				NULL */
+	rec_t*		rec,	/* in: user record */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
+{
+	dulint	trx_id;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(page_rec_is_user_rec(rec));
+
+	trx_id = row_get_rec_trx_id(rec, index, offsets);
+
+	if (trx_is_active(trx_id)) {
+		/* The modifying or inserting transaction is active */
+
+		return(trx_get_on_id(trx_id));
+	}
+
+	return(NULL);
+}

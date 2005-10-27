@@ -1,0 +1,402 @@
+/******************************************************
+Database log
+
+(c) 1995 Innobase Oy
+
+Created 12/9/1995 Heikki Tuuri
+*******************************************************/
+
+#include "os0file.h"
+#include "mach0data.h"
+#include "mtr0mtr.h"
+
+/**********************************************************
+Checks by parsing that the catenated log segment for a single mtr is
+consistent. */
+
+ibool
+log_check_log_recs(
+/*===============*/
+	byte*	buf,		/* in: pointer to the start of the log segment
+				in the log_sys->buf log buffer */
+	ulint	len,		/* in: segment length in bytes */
+	dulint	buf_start_lsn);	/* in: buffer start lsn */
+
+/****************************************************************
+Gets a log block flush bit. */
+UNIV_INLINE
+ibool
+log_block_get_flush_bit(
+/*====================*/
+				/* out: TRUE if this block was the first
+				to be written in a log flush */
+	byte*	log_block)	/* in: log block */
+{
+	if (LOG_BLOCK_FLUSH_BIT_MASK
+		& mach_read_from_4(log_block + LOG_BLOCK_HDR_NO)) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/****************************************************************
+Sets the log block flush bit. */
+UNIV_INLINE
+void
+log_block_set_flush_bit(
+/*====================*/
+	byte*	log_block,	/* in: log block */
+	ibool	val)		/* in: value to set */
+{
+	ulint	field;
+
+	field = mach_read_from_4(log_block + LOG_BLOCK_HDR_NO);
+
+	if (val) {
+		field = field | LOG_BLOCK_FLUSH_BIT_MASK;
+	} else {
+		field = field & ~LOG_BLOCK_FLUSH_BIT_MASK;
+	}
+
+	mach_write_to_4(log_block + LOG_BLOCK_HDR_NO, field);
+}	
+
+/****************************************************************
+Gets a log block number stored in the header. */
+UNIV_INLINE
+ulint
+log_block_get_hdr_no(
+/*=================*/
+				/* out: log block number stored in the block
+				header */
+	byte*	log_block)	/* in: log block */
+{
+	return(~LOG_BLOCK_FLUSH_BIT_MASK 
+		& mach_read_from_4(log_block + LOG_BLOCK_HDR_NO));
+}
+
+/****************************************************************
+Sets the log block number stored in the header; NOTE that this must be set
+before the flush bit! */
+UNIV_INLINE
+void
+log_block_set_hdr_no(
+/*=================*/
+	byte*	log_block,	/* in: log block */
+	ulint	n)		/* in: log block number: must be > 0 and
+				< LOG_BLOCK_FLUSH_BIT_MASK */
+{
+	ut_ad(n > 0);
+	ut_ad(n < LOG_BLOCK_FLUSH_BIT_MASK);
+	
+	mach_write_to_4(log_block + LOG_BLOCK_HDR_NO, n);
+}
+
+/****************************************************************
+Gets a log block data length. */
+UNIV_INLINE
+ulint
+log_block_get_data_len(
+/*===================*/
+				/* out: log block data length measured as a
+				byte offset from the block start */
+	byte*	log_block)	/* in: log block */
+{
+	return(mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN));
+}
+
+/****************************************************************
+Sets the log block data length. */
+UNIV_INLINE
+void
+log_block_set_data_len(
+/*===================*/
+	byte*	log_block,	/* in: log block */
+	ulint	len)		/* in: data length */
+{
+	mach_write_to_2(log_block + LOG_BLOCK_HDR_DATA_LEN, len);
+}
+
+/****************************************************************
+Gets a log block first mtr log record group offset. */
+UNIV_INLINE
+ulint
+log_block_get_first_rec_group(
+/*==========================*/
+				/* out: first mtr log record group byte offset
+				from the block start, 0 if none */
+	byte*	log_block)	/* in: log block */
+{
+	return(mach_read_from_2(log_block + LOG_BLOCK_FIRST_REC_GROUP));
+}
+
+/****************************************************************
+Sets the log block first mtr log record group offset. */
+UNIV_INLINE
+void
+log_block_set_first_rec_group(
+/*==========================*/
+	byte*	log_block,	/* in: log block */
+	ulint	offset)		/* in: offset, 0 if none */
+{
+	mach_write_to_2(log_block + LOG_BLOCK_FIRST_REC_GROUP, offset);
+}
+
+/****************************************************************
+Gets a log block checkpoint number field (4 lowest bytes). */
+UNIV_INLINE
+ulint
+log_block_get_checkpoint_no(
+/*========================*/
+				/* out: checkpoint no (4 lowest bytes) */
+	byte*	log_block)	/* in: log block */
+{
+	return(mach_read_from_4(log_block + LOG_BLOCK_CHECKPOINT_NO));
+}
+
+/****************************************************************
+Sets a log block checkpoint number field (4 lowest bytes). */
+UNIV_INLINE
+void
+log_block_set_checkpoint_no(
+/*========================*/
+	byte*	log_block,	/* in: log block */
+	dulint	no)		/* in: checkpoint no */
+{
+	mach_write_to_4(log_block + LOG_BLOCK_CHECKPOINT_NO,
+						ut_dulint_get_low(no));
+}
+
+/****************************************************************
+Converts a lsn to a log block number. */
+UNIV_INLINE
+ulint
+log_block_convert_lsn_to_no(
+/*========================*/
+			/* out: log block number, it is > 0 and <= 1G */
+	dulint	lsn)	/* in: lsn of a byte within the block */
+{
+	ulint	no;
+
+	no = ut_dulint_get_low(lsn) / OS_FILE_LOG_BLOCK_SIZE;
+	no += (ut_dulint_get_high(lsn) % OS_FILE_LOG_BLOCK_SIZE)
+		* 2 * (0x80000000UL / OS_FILE_LOG_BLOCK_SIZE);
+	
+	no = no & 0x3FFFFFFFUL;
+
+	return(no + 1);
+}
+
+/****************************************************************
+Calculates the checksum for a log block. */
+UNIV_INLINE
+ulint
+log_block_calc_checksum(
+/*====================*/
+			/* out: checksum */
+	byte*	block)	/* in: log block */
+{
+	ulint	sum;
+	ulint	sh;
+	ulint	i;
+	
+	sum = 1;
+	sh = 0;
+	
+	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
+		sum = sum & 0x7FFFFFFFUL;
+		sum += (((ulint)(*(block + i))) << sh) + (ulint)(*(block + i));
+		sh++;
+		if (sh > 24) {
+			sh = 0;
+		}
+	}
+
+	return(sum);
+}
+
+/****************************************************************
+Gets a log block checksum field value. */
+UNIV_INLINE
+ulint
+log_block_get_checksum(
+/*===================*/
+				/* out: checksum */
+	byte*	log_block)	/* in: log block */
+{
+	return(mach_read_from_4(log_block + OS_FILE_LOG_BLOCK_SIZE
+					- LOG_BLOCK_CHECKSUM));
+}
+
+/****************************************************************
+Sets a log block checksum field value. */
+UNIV_INLINE
+void
+log_block_set_checksum(
+/*===================*/
+	byte*	log_block,	/* in: log block */
+	ulint	checksum)	/* in: checksum */
+{
+	mach_write_to_4(log_block + OS_FILE_LOG_BLOCK_SIZE
+					- LOG_BLOCK_CHECKSUM,
+					checksum);
+}
+
+/****************************************************************
+Initializes a log block in the log buffer. */
+UNIV_INLINE
+void
+log_block_init(
+/*===========*/
+	byte*	log_block,	/* in: pointer to the log buffer */
+	dulint	lsn)		/* in: lsn within the log block */
+{
+	ulint	no;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	no = log_block_convert_lsn_to_no(lsn);
+	
+	log_block_set_hdr_no(log_block, no);
+
+	log_block_set_data_len(log_block, LOG_BLOCK_HDR_SIZE);
+	log_block_set_first_rec_group(log_block, 0);
+}
+
+/****************************************************************
+Initializes a log block in the log buffer in the old format, where there
+was no checksum yet. */
+UNIV_INLINE
+void
+log_block_init_in_old_format(
+/*=========================*/
+	byte*	log_block,	/* in: pointer to the log buffer */
+	dulint	lsn)		/* in: lsn within the log block */
+{
+	ulint	no;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	no = log_block_convert_lsn_to_no(lsn);
+	
+	log_block_set_hdr_no(log_block, no);
+	mach_write_to_4(log_block + OS_FILE_LOG_BLOCK_SIZE
+					- LOG_BLOCK_CHECKSUM, no);
+	log_block_set_data_len(log_block, LOG_BLOCK_HDR_SIZE);
+	log_block_set_first_rec_group(log_block, 0);
+}
+	
+/****************************************************************
+Writes to the log the string given. The log must be released with
+log_release. */
+UNIV_INLINE
+dulint
+log_reserve_and_write_fast(
+/*=======================*/
+			/* out: end lsn of the log record, ut_dulint_zero if
+			did not succeed */
+	byte*	str,	/* in: string */
+	ulint	len,	/* in: string length */
+	dulint*	start_lsn,/* out: start lsn of the log record */
+	ibool*	success)/* out: TRUE if success */
+{
+	log_t*	log	= log_sys;
+	ulint	data_len;
+	dulint	lsn;
+
+	*success = TRUE;
+
+	mutex_enter(&(log->mutex));
+
+	data_len = len + log->buf_free % OS_FILE_LOG_BLOCK_SIZE;
+
+	if (data_len >= OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
+
+	    	/* The string does not fit within the current log block
+	    	or the log block would become full */
+
+	    	*success = FALSE;
+
+		mutex_exit(&(log->mutex));
+
+	    	return(ut_dulint_zero);
+	}
+
+	*start_lsn = log->lsn;
+	
+	ut_memcpy(log->buf + log->buf_free, str, len);
+
+	log_block_set_data_len(ut_align_down(log->buf + log->buf_free,
+				 		OS_FILE_LOG_BLOCK_SIZE),
+				data_len);
+#ifdef UNIV_LOG_DEBUG
+	log->old_buf_free = log->buf_free;
+	log->old_lsn = log->lsn;
+#endif
+	log->buf_free += len;
+	
+	ut_ad(log->buf_free <= log->buf_size);
+
+	lsn = ut_dulint_add(log->lsn, len);
+
+	log->lsn = lsn;
+
+#ifdef UNIV_LOG_DEBUG
+	log_check_log_recs(log->buf + log->old_buf_free,
+			log->buf_free - log->old_buf_free, log->old_lsn);
+#endif
+	return(lsn);
+}
+
+/***************************************************************************
+Releases the log mutex. */
+UNIV_INLINE
+void
+log_release(void)
+/*=============*/
+{
+	mutex_exit(&(log_sys->mutex));
+}
+
+/****************************************************************
+Gets the current lsn. */
+UNIV_INLINE
+dulint
+log_get_lsn(void)
+/*=============*/
+			/* out: current lsn */
+{
+	dulint	lsn;
+
+	mutex_enter(&(log_sys->mutex));
+
+	lsn = log_sys->lsn;
+
+	mutex_exit(&(log_sys->mutex));
+
+	return(lsn);
+}
+
+/***************************************************************************
+Checks if there is need for a log buffer flush or a new checkpoint, and does
+this if yes. Any database operation should call this when it has modified
+more than about 4 pages. NOTE that this function may only be called when the
+OS thread owns no synchronization objects except the dictionary mutex. */
+UNIV_INLINE
+void
+log_free_check(void)
+/*================*/
+{
+	/* ut_ad(sync_thread_levels_empty()); */
+
+	if (log_sys->check_flush_or_checkpoint) {
+
+		log_check_margins();
+	}
+}

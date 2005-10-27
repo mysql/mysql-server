@@ -1,0 +1,70 @@
+/***********************************************************************
+Memory primitives
+
+(c) 1994, 1995 Innobase Oy
+
+Created 5/30/1994 Heikki Tuuri
+************************************************************************/
+
+UNIV_INLINE
+void*
+ut_memcpy(void* dest, const void* sour, ulint n)
+{
+	return(memcpy(dest, sour, n)); 
+}
+
+UNIV_INLINE
+void*
+ut_memmove(void* dest, const void* sour, ulint n)
+{
+	return(memmove(dest, sour, n));
+}
+
+UNIV_INLINE
+int
+ut_memcmp(const void* str1, const void* str2, ulint n)
+{
+	return(memcmp(str1, str2, n));
+}
+
+UNIV_INLINE
+char*
+ut_strcpy(char* dest, const char* sour)
+{
+	return(strcpy(dest, sour));
+}
+
+UNIV_INLINE
+ulint
+ut_strlen(const char* str)
+{
+	return(strlen(str));
+}
+
+UNIV_INLINE
+int
+ut_strcmp(const void* str1, const void* str2)
+{
+	return(strcmp((const char*)str1, (const char*)str2));
+}
+
+/**************************************************************************
+Compute strlen(ut_strcpyq(str, q)). */
+UNIV_INLINE
+ulint
+ut_strlenq(
+/*=======*/
+				/* out: length of the string when quoted */
+	const char*	str,	/* in: null-terminated string */
+	char		q)	/* in: the quote character */
+{
+	ulint len;
+
+	for (len = 0; *str; len++, str++) {
+		if (*str == q) {
+			len++;
+		}
+	}
+
+	return(len);
+}
