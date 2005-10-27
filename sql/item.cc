@@ -1768,7 +1768,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
         Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &not_used);
-        if (res != not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        if (res != (Item **)not_found_item && (*res)->type() == Item::FIELD_ITEM)
         {
           set_field((*((Item_field**)res))->field);
           return 0;
@@ -2796,8 +2796,14 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
+  st_table_list *orig_next_table= table_list->next;
+  table_list->next= 0;
   if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
+  {
+    table_list->next= orig_next_table;
     return 1;
+  }
+  table_list->next= orig_next_table;
 
   if (arg->type() == REF_ITEM)
   {
@@ -2809,6 +2815,7 @@ bool Item_insert_value::fix_fields(THD *thd,
     arg= ref->ref[0];
   }
   Item_field *field_arg= (Item_field *)arg;
+
   if (field_arg->field->table->insert_values)
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());

@@ -806,8 +806,20 @@ int READ_INFO::read_field()
 	  *to++= (byte) escape_char;
 	  goto found_eof;
 	}
-	*to++ = (byte) unescape((char) chr);
-	continue;
+        /*
+          When escape_char == enclosed_char, we treat it like we do for
+          handling quotes in SQL parsing -- you can double-up the
+          escape_char to include it literally, but it doesn't do escapes
+          like \n. This allows: LOAD DATA ... ENCLOSED BY '"' ESCAPED BY '"'
+          with data like: "fie""ld1", "field2"
+         */
+        if (escape_char != enclosed_char || chr == escape_char)
+        {
+          *to++ = (byte) unescape((char) chr);
+          continue;
+        }
+        PUSH(chr);
+        chr= escape_char;
       }
 #ifdef ALLOW_LINESEPARATOR_IN_STRINGS
       if (chr == line_term_char)

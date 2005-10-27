@@ -5281,7 +5281,8 @@ The minimum value for this variable is 4096.",
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
-   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
+   "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
    (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
@@ -5349,7 +5350,8 @@ The minimum value for this variable is 4096.",
    "Persistent buffer for query parsing and execution",
    (gptr*) &global_system_variables.query_prealloc_size,
    (gptr*) &max_system_variables.query_prealloc_size, 0, GET_ULONG,
-   REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, 16384, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, QUERY_ALLOC_PREALLOC_SIZE,
+   ~0L, 0, 1024, 0},
   {"range_alloc_block_size", OPT_RANGE_ALLOC_BLOCK_SIZE,
    "Allocation block size for storing ranges during optimization",
    (gptr*) &global_system_variables.range_alloc_block_size,
@@ -6474,16 +6476,26 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   case OPT_MYISAM_STATS_METHOD:
   {
-    myisam_stats_method_str= argument;
     int method;
+    ulong method_conv;
+    myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
       exit(1);
     }
-    global_system_variables.myisam_stats_method= 
-      test(method-1)? MI_STATS_METHOD_NULLS_EQUAL : 
-                      MI_STATS_METHOD_NULLS_NOT_EQUAL;
+    switch (method-1) {
+    case 0: 
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+      break;
+    case 1:
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+      break;
+    case 2:
+      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
+      break;
+    }
+    global_system_variables.myisam_stats_method= method_conv;
     break;
   }
   case OPT_SQL_MODE:
