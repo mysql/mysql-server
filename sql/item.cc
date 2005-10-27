@@ -5084,8 +5084,15 @@ bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 bool Item_insert_value::fix_fields(THD *thd, Item **items)
 {
   DBUG_ASSERT(fixed == 0);
+  /* We should only check that arg is in first table */
+  st_table_list *orig_next_table= context->last_name_resolution_table;
+  context->last_name_resolution_table= context->first_name_resolution_table;
   if (!arg->fixed && arg->fix_fields(thd, &arg))
+  {
+    context->last_name_resolution_table= orig_next_table;
     return TRUE;
+  }
+  context->last_name_resolution_table= orig_next_table;
 
   if (arg->type() == REF_ITEM)
   {
@@ -5097,6 +5104,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
     arg= ref->ref[0];
   }
   Item_field *field_arg= (Item_field *)arg;
+
   if (field_arg->field->table->insert_values)
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
