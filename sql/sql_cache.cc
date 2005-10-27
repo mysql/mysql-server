@@ -2208,15 +2208,10 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                         tables_used->view_db.length + 1,
                         HA_CACHE_TBL_NONTRANSACT, 0, 0))
         DBUG_RETURN(0);
-      {
-        TABLE_COUNTER_TYPE inc= register_tables_from_list(tables_used->ancestor,
-                                                          n + 1,
-                                                          block_table + 1);
-        if (!inc)
-          DBUG_RETURN(0);
-        n+= inc;
-        block_table+= inc;
-      }
+      /*
+        We do not need to register view tables here because they are already
+        present in the global list.
+      */
     }
     else
     {
@@ -2832,13 +2827,6 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
                             tables_used->view_name.str,
                             tables_used->view_db.str));
       *tables_type|= HA_CACHE_TBL_NONTRANSACT;
-      {
-        TABLE_COUNTER_TYPE subcount;
-        if (!(subcount= process_and_count_tables(tables_used->ancestor,
-                                                 tables_type)))
-          DBUG_RETURN(0);
-        table_count+= subcount;
-      }
     }
     else
     {

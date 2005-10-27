@@ -5210,8 +5210,7 @@ ER_WARN_VIEW_WITHOUT_KEY
 	rus "Обновляемый view не содержит ключа использованных(ой) в нем таблиц(ы)"
 	ukr "View, що оновлюеться, не м╕стить повного ключа таблиц╕(ь), що викор╕стана в ньюому"
 ER_VIEW_INVALID  
-	eng "View '%-.64s.%-.64s' references invalid table(s) or column(s) or function(s)"
-	rus "View '%-.64s.%-.64s' ссылается на несуществующие таблицы или столбцы или функции"
+	eng "View '%-.64s.%-.64s' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them"
 ER_SP_NO_DROP_SP  
 	eng "Can't drop or alter a %s from within another stored routine"
 ER_SP_GOTO_IN_HNDLR  

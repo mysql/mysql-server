@@ -801,6 +801,11 @@ typedef struct st_lex
   */
   uint table_count;
   uint8 describe;
+  /*
+    A flag that indicates what kinds of derived tables are present in the
+    query (0 if no derived tables, otherwise a combination of flags
+    DERIVED_SUBQUERY and DERIVED_VIEW.
+  */
   uint8 derived_tables;
   uint8 create_view_algorithm;
   uint8 create_view_check;

@@ -4732,6 +4732,7 @@ Item_func_sp::execute(Field **flp)
   if (execute(&it))
   {
     null_value= 1;
+    context->process_error(current_thd);
     return 1;
   }
   if (!(f= *flp))
@@ -4754,9 +4755,17 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   int res= -1;
   Sub_statement_state statement_state;
-  Security_context *save_ctx;
+  Security_context *save_security_ctx= 0, *save_ctx_func;
 
-  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (context->security_ctx)
+  {
+    /* Set view definer security context */
+    save_security_ctx= thd->security_ctx;
+    thd->security_ctx= context->security_ctx;
+  }
+#endif
+  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx_func))
     goto error;
 
   /*
@@ -4774,9 +4783,14 @@ Item_func_sp::execute(Item **itp)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_FAILED_ROUTINE_BREAK_BINLOG,
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
-
-  sp_restore_security_context(thd, save_ctx);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  sp_restore_security_context(thd, save_ctx_func);
 error:
+  if (save_security_ctx)
+    thd->security_ctx= save_security_ctx;
+#else
+error:
+#endif
   DBUG_RETURN(res);
 }
 
@@ -4957,8 +4971,20 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   bool res;
   DBUG_ASSERT(fixed == 0);
   res= Item_func::fix_fields(thd, ref);
-  if (!res)
+  if (!res && thd->lex->view_prepare_mode)
   {
+    /*
+      Here we check privileges of the stored routine only during view
+      creation, in order to validate the view. A runtime check is perfomed
+      in Item_func_sp::execute(), and this method is not called during
+      context analysis. We do not need to restore the security context
+      changed in find_and_check_access because all view structures created
+      in CREATE VIEW are not used for execution.  Notice, that during view
+      creation we do not infer into stored routine bodies and do not check
+      privileges of its statements, which would probably be a good idea
+      especially if the view has SQL SECURITY DEFINER and the used stored
+      procedure has SQL
+    */
     Security_context *save_ctx;
     if (!(res= find_and_check_access(thd, EXECUTE_ACL, &save_ctx)))
       sp_restore_security_context(thd, save_ctx);
