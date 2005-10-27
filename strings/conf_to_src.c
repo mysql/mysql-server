@@ -169,13 +169,22 @@ static int my_read_charset_file(const char *filename)
   return FALSE;
 }
 
+static int
+is_case_sensitive(CHARSET_INFO *cs)
+{
+ return (cs->sort_order &&
+         cs->sort_order['A'] < cs->sort_order['a'] &&
+         cs->sort_order['a'] < cs->sort_order['B']) ? 1 : 0;
+}
+
 void dispcset(FILE *f,CHARSET_INFO *cs)
 {
   fprintf(f,"{\n");
   fprintf(f,"  %d,%d,%d,\n",cs->number,0,0);
-  fprintf(f,"  MY_CS_COMPILED%s%s,\n",
+  fprintf(f,"  MY_CS_COMPILED%s%s%s,\n",
           cs->state & MY_CS_BINSORT ? "|MY_CS_BINSORT" : "",
-          cs->state & MY_CS_PRIMARY ? "|MY_CS_PRIMARY" : "");
+          cs->state & MY_CS_PRIMARY ? "|MY_CS_PRIMARY" : "",
+          is_case_sensitive(cs)     ? "|MY_CS_CSSORT"  : "");
   
   if (cs->name)
   {
