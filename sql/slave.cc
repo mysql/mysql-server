@@ -582,6 +582,20 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 
   rli->slave_skip_counter=0;
   pthread_mutex_lock(&rli->data_lock);
+
+  /* 
+    we close the relay log fd possibly left open by the slave SQL thread, 
+    to be able to delete it; the relay log fd possibly left open by the slave
+    I/O thread will be closed naturally in reset_logs() by the 
+    close(LOG_CLOSE_TO_BE_OPENED) call
+  */
+  if (rli->cur_log_fd >= 0)
+  {
+    end_io_cache(&rli->cache_buf);
+    my_close(rli->cur_log_fd, MYF(MY_WME));
+    rli->cur_log_fd= -1;
+  }
+
   if (rli->relay_log.reset_logs(thd))
   {
     *errmsg = "Failed during log reset";
@@ -3692,14 +3706,6 @@ err:
   mi->slave_running = 0;
   mi->io_thd = 0;
 
-  /* Close log file and free buffers */
-  if (mi->rli.cur_log_fd >= 0)
-  {
-    end_io_cache(&mi->rli.cache_buf);
-    my_close(mi->rli.cur_log_fd, MYF(MY_WME));
-    mi->rli.cur_log_fd= -1;
-  }
-
   /* Forget the relay log's format */
   delete mi->rli.relay_log.description_event_for_queue;
   mi->rli.relay_log.description_event_for_queue= 0;
@@ -3915,14 +3921,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   /* we die so won't remember charset - re-update them on next thread start */
   rli->cached_charset_invalidate();
   rli->save_temporary_tables = thd->temporary_tables;
-
-  /* Close log file and free buffers if it's already open */
-  if (rli->cur_log_fd >= 0)
-  {
-    end_io_cache(&rli->cache_buf);
-    my_close(rli->cur_log_fd, MYF(MY_WME));
-    rli->cur_log_fd = -1;
-  }
 
   /*
     TODO: see if we can do this conditionally in next_event() instead
