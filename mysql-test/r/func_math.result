@@ -170,3 +170,30 @@ insert into t1 values (1);
 select rand(i) from t1;
 ERROR HY000: Incorrect arguments to RAND
 drop table t1;
+set sql_mode='traditional';
+select ln(-1);
+ln(-1)
+NULL
+Warnings:
+Error	1365	Division by 0
+select log10(-1);
+log10(-1)
+NULL
+Warnings:
+Error	1365	Division by 0
+select log2(-1);
+log2(-1)
+NULL
+Warnings:
+Error	1365	Division by 0
+select log(2,-1);
+log(2,-1)
+NULL
+Warnings:
+Error	1365	Division by 0
+select log(-2,1);
+log(-2,1)
+NULL
+Warnings:
+Error	1365	Division by 0
+set sql_mode='';

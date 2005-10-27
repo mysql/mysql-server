@@ -5791,7 +5791,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_NULL:
     break;
   case FIELD_TYPE_NEWDECIMAL:
-    if (!length)
+    if (!length && !new_field->decimals)
       new_field->length= 10;
     if (new_field->length > DECIMAL_MAX_PRECISION)
     {

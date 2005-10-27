@@ -68,7 +68,7 @@ public:
   ulong table_flags() const
   {
     return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_AUTO_INCREMENT |
-            HA_FILE_BASED | HA_CAN_INSERT_DELAYED);
+            HA_FILE_BASED | HA_CAN_INSERT_DELAYED | HA_CAN_GEOMETRY);
   }
   ulong index_flags(uint idx, uint part, bool all_parts) const
   {

@@ -386,7 +386,7 @@ static struct my_option my_long_options[] =
      (gptr*) &opt_dump_triggers, (gptr*) &opt_dump_triggers, 0, GET_BOOL,
      NO_ARG, 1, 0, 0, 0, 0, 0},
   {"tz-utc", OPT_TZ_UTC,
-    "SET TIME_ZONE='+00:00' at top of dump to allow dumping of TIMESTAMP data between servers with different time zones.",
+    "SET TIME_ZONE='+00:00' at top of dump to allow dumping of TIMESTAMP data when a server has data in different time zones or data is being moved between servers with different time zones.",
     (gptr*) &opt_tz_utc, (gptr*) &opt_tz_utc, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.",
@@ -1328,17 +1328,17 @@ static uint dump_routines_for_db(char *db)
 static uint get_table_structure(char *table, char *db, char *table_type,
                                 char *ignore_flag)
 {
-  MYSQL_RES  *tableRes;
-  MYSQL_ROW  row;
   my_bool    init=0, delayed, write_data, complete_insert;
-  uint       num_fields;
+  my_ulonglong num_fields;
   char	     *result_table, *opt_quoted_table;
   const char *insert_option;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
-  char	     table_buff2[NAME_LEN*2+3];
-  char       query_buff[512];
+  char	     table_buff2[NAME_LEN*2+3], query_buff[512];
   FILE       *sql_file = md_result_file;
   int        len;
+  MYSQL_RES  *result;
+  MYSQL_ROW  row;
+
   DBUG_ENTER("get_table_structure");
   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
@@ -1424,71 +1424,79 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 	check_io(sql_file);
       }
 
-      tableRes= mysql_store_result(sock);
-      field= mysql_fetch_field_direct(tableRes, 0);
+      result= mysql_store_result(sock);
+      field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
       {
         if (verbose)
           fprintf(stderr, "-- It's a view, create dummy table for view\n");
 
-        mysql_free_result(tableRes);
+        mysql_free_result(result);
 
-        /* Create a dummy table for the view. ie. a table  which has the
-           same columns as the view should have. This table is dropped
-           just before the view is created. The table is used to handle the
-           case where a view references another view, which hasn't yet been
-           created(during the load of the dump). BUG#10927 */
+        /*
+          Create a table with the same name as the view and with columns of 
+          the same name in order to satisfy views that depend on this view.
+          The table will be removed when the actual view is created.
 
-        /* Create temp table by selecting from the view */
+          The properties of each column, aside from the data type, are not
+          preserved in this temporary table, because they are not necessary.
+
+          This will not be necessary once we can determine dependencies
+          between views and can simply dump them in the appropriate order.
+        */
         my_snprintf(query_buff, sizeof(query_buff),
-                    "CREATE TEMPORARY TABLE %s SELECT * FROM %s WHERE 0",
-                    result_table, result_table);
+                    "SHOW FIELDS FROM %s", result_table);
         if (mysql_query_with_error_report(sock, 0, query_buff))
         {
           safe_exit(EX_MYSQLERR);
           DBUG_RETURN(0);
         }
 
-        /* Get CREATE statement for the temp table */
-        my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE TABLE %s",
-                    result_table);
-        if (mysql_query_with_error_report(sock, 0, query_buff))
+        if ((result= mysql_store_result(sock)))
         {
-          safe_exit(EX_MYSQLERR);
-          DBUG_RETURN(0);
+          if (mysql_num_rows(result))
+          {
+            if (opt_drop)
+            {
+              fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
+                      opt_quoted_table);
+              check_io(sql_file);
+            }
+
+            fprintf(sql_file, "/*!50001 CREATE TABLE %s (\n", result_table);
+            /*
+               Get first row, following loop will prepend comma - keeps
+               from having to know if the row being printed is last to
+               determine if there should be a _trailing_ comma.
+            */
+            row= mysql_fetch_row(result);
+
+            fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0), row[1]);
+
+            while((row= mysql_fetch_row(result)))
+            {
+              /* col name, col type */
+              fprintf(sql_file, ",\n  %s %s",
+                      quote_name(row[0], name_buff, 0), row[1]);
+            }
+            fprintf(sql_file, "\n) */;\n");
+            check_io(sql_file);
+          }
         }
-        tableRes= mysql_store_result(sock);
-        row= mysql_fetch_row(tableRes);
+        mysql_free_result(result);
 
-        if (opt_drop)
-          fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
-                  opt_quoted_table);
-
-        /* Print CREATE statement but remove TEMPORARY */
-        fprintf(sql_file, "/*!50001 CREATE %s*/;\n", row[1]+17);
-        check_io(sql_file);
-
-        mysql_free_result(tableRes);
-
-        /* Drop the temp table */
-        my_snprintf(buff, sizeof(buff),
-                    "DROP TEMPORARY TABLE %s", result_table);
-        if (mysql_query_with_error_report(sock, 0, buff))
-        {
-          safe_exit(EX_MYSQLERR);
-          DBUG_RETURN(0);
-        }
         was_views= 1;
         DBUG_RETURN(0);
       }
-      row= mysql_fetch_row(tableRes);
+
+      row= mysql_fetch_row(result);
       fprintf(sql_file, "%s;\n", row[1]);
       check_io(sql_file);
-      mysql_free_result(tableRes);
+      mysql_free_result(result);
     }
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
-    if (mysql_query_with_error_report(sock, &tableRes, query_buff))
+    if (mysql_query_with_error_report(sock, &result, query_buff))
     {
       if (path)
 	my_fclose(sql_file, MYF(MY_WME));
@@ -1520,7 +1528,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       }
     }
 
-    while ((row=mysql_fetch_row(tableRes)))
+    while ((row= mysql_fetch_row(result)))
     {
       if (complete_insert)
       {
@@ -1533,8 +1541,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                       quote_name(row[SHOW_FIELDNAME], name_buff, 0));
       }
     }
-    num_fields= (uint) mysql_num_rows(tableRes);
-    mysql_free_result(tableRes);
+    num_fields= mysql_num_rows(result);
+    mysql_free_result(result);
   }
   else
   {
@@ -1545,7 +1553,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
 		result_table);
-    if (mysql_query_with_error_report(sock, &tableRes, query_buff))
+    if (mysql_query_with_error_report(sock, &result, query_buff))
     {
       safe_exit(EX_MYSQLERR);
       DBUG_RETURN(0);
@@ -1595,9 +1603,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       }
     }
 
-    while ((row=mysql_fetch_row(tableRes)))
+    while ((row= mysql_fetch_row(result)))
     {
-      ulong *lengths=mysql_fetch_lengths(tableRes);
+      ulong *lengths= mysql_fetch_lengths(result);
       if (init)
       {
         if (!opt_xml && !tFlag)
@@ -1616,7 +1624,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       {
 	if (opt_xml)
 	{
-	  print_xml_row(sql_file, "field", tableRes, &row);
+	  print_xml_row(sql_file, "field", result, &row);
 	  continue;
 	}
 
@@ -1640,15 +1648,15 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 	check_io(sql_file);
       }
     }
-    num_fields = (uint) mysql_num_rows(tableRes);
-    mysql_free_result(tableRes);
+    num_fields= mysql_num_rows(result);
+    mysql_free_result(result);
     if (!tFlag)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       uint keynr,primary_key;
       my_snprintf(buff, sizeof(buff), "show keys from %s", result_table);
-      if (mysql_query_with_error_report(sock, &tableRes, buff))
+      if (mysql_query_with_error_report(sock, &result, buff))
       {
         if (mysql_errno(sock) == ER_WRONG_OBJECT)
         {
@@ -1667,7 +1675,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       /* Find first which key is primary key */
       keynr=0;
       primary_key=INT_MAX;
-      while ((row=mysql_fetch_row(tableRes)))
+      while ((row= mysql_fetch_row(result)))
       {
         if (atoi(row[3]) == 1)
         {
@@ -1683,13 +1691,13 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 	  }
         }
       }
-      mysql_data_seek(tableRes,0);
+      mysql_data_seek(result,0);
       keynr=0;
-      while ((row=mysql_fetch_row(tableRes)))
+      while ((row= mysql_fetch_row(result)))
       {
 	if (opt_xml)
 	{
-	  print_xml_row(sql_file, "key", tableRes, &row);
+	  print_xml_row(sql_file, "key", result, &row);
 	  continue;
 	}
 
@@ -1730,7 +1738,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         my_snprintf(buff, sizeof(buff), "show table status like %s",
 		    quote_for_like(table, show_name_buff));
 
-        if (mysql_query_with_error_report(sock, &tableRes, buff))
+        if (mysql_query_with_error_report(sock, &result, buff))
         {
 	  if (mysql_errno(sock) != ER_PARSE_ERROR)
 	  {					/* If old MySQL version */
@@ -1740,7 +1748,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 		      result_table,mysql_error(sock));
 	  }
         }
-        else if (!(row=mysql_fetch_row(tableRes)))
+        else if (!(row= mysql_fetch_row(result)))
         {
 	  fprintf(stderr,
 		  "Error: Couldn't read status information for table %s (%s)\n",
@@ -1749,18 +1757,18 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         else
         {
 	  if (opt_xml)
-	    print_xml_row(sql_file, "options", tableRes, &row);
+	    print_xml_row(sql_file, "options", result, &row);
 	  else
 	  {
 	    fputs("/*!",sql_file);
-	    print_value(sql_file,tableRes,row,"engine=","Engine",0);
-	    print_value(sql_file,tableRes,row,"","Create_options",0);
-	    print_value(sql_file,tableRes,row,"comment=","Comment",1);
+	    print_value(sql_file,result,row,"engine=","Engine",0);
+	    print_value(sql_file,result,row,"","Create_options",0);
+	    print_value(sql_file,result,row,"comment=","Comment",1);
 	    fputs(" */",sql_file);
 	    check_io(sql_file);
 	  }
         }
-        mysql_free_result(tableRes);		/* Is always safe to free */
+        mysql_free_result(result);		/* Is always safe to free */
       }
 continue_xml:
       if (!opt_xml)
@@ -1827,7 +1835,7 @@ static void dump_triggers_for_table (char *table, char *db)
   if (mysql_num_rows(result))
     fprintf(sql_file, "\n/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n\
 DELIMITER ;;\n");
-  while ((row=mysql_fetch_row(result)))
+  while ((row= mysql_fetch_row(result)))
   {
     fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n\
 /*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */;;\n\n",
@@ -2119,10 +2127,10 @@ static void dump_table(char *table, char *db)
       check_io(md_result_file);
     }
 
-    while ((row=mysql_fetch_row(res)))
+    while ((row= mysql_fetch_row(res)))
     {
       uint i;
-      ulong *lengths=mysql_fetch_lengths(res);
+      ulong *lengths= mysql_fetch_lengths(res);
       rownr++;
       if (!extended_insert && !opt_xml)
       {
