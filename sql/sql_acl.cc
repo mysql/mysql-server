@@ -3522,8 +3522,14 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   DBUG_ASSERT(number > 0);
 
   /*
-    Iterate tables until first prelocking placeholder (if this query do not
-    have placeholders first_not_own_table is 0)
+    Walk through the list of tables that belong to the query and save the
+    requested access (orig_want_privilege) to be able to use it when
+    checking access rights to the underlying tables of a view. Our grant
+    system gradually eliminates checked bits from want_privilege and thus
+    after all checks are done we can no longer use it.
+    The check that first_not_own_table is not reached is for the case when
+    the given table list refers to the list for prelocking (contains tables
+    of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
        table && table != first_not_own_table && i < number;

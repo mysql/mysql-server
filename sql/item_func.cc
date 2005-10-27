@@ -4983,7 +4983,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       creation we do not infer into stored routine bodies and do not check
       privileges of its statements, which would probably be a good idea
       especially if the view has SQL SECURITY DEFINER and the used stored
-      procedure has SQL
+      procedure has SQL SECURITY DEFINER
     */
     Security_context *save_ctx;
     if (!(res= find_and_check_access(thd, EXECUTE_ACL, &save_ctx)))

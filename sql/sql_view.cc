@@ -1139,9 +1139,7 @@ ok2:
     old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
   thd->lex= old_lex;
   if (!table->prelocking_placeholder && table->prepare_security(thd))
-  {
     DBUG_RETURN(1);
-  }
 
   DBUG_RETURN(0);
 
