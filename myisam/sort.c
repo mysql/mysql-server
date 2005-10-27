@@ -481,8 +481,12 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
     {
       share->state.key_map|=(ulonglong) 1 << sinfo->key;
       if (param->testflag & T_STATISTICS)
-        update_key_parts(sinfo->keyinfo, rec_per_key_part,
-                         sinfo->unique, (ulonglong) info->state->records);
+        update_key_parts(sinfo->keyinfo, rec_per_key_part, sinfo->unique,
+                         param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
+                         sinfo->notnull: NULL,
+                         (ulonglong) info->state->records);
+
+
       if (!sinfo->buffpek.elements)
       {
         if (param->testflag & T_VERBOSE)

@@ -1043,7 +1043,7 @@ int my_ll10tostr_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   while (long_val != 0)
   {
     long quo= long_val/10;
-    *--p = '0' + (long_val - quo*10);
+    *--p = (char) ('0' + (long_val - quo*10));
     long_val= quo;
   }
   
