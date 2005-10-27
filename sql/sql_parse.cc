@@ -5026,8 +5026,13 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 {
   uint found=0;
   ulong found_access=0;
-  TABLE_LIST *org_tables=tables;
-  for (; tables; tables= tables->next_global)
+  TABLE_LIST *org_tables= tables;
+  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
+  /*
+    Iterate tables until first prelocking placeholder (if this query do not
+    have placeholders first_not_own_table is 0)
+  */
+  for (; tables && tables != first_not_own_table; tables= tables->next_global)
   {
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
@@ -5038,6 +5043,11 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
                  information_schema_name.str);
       return TRUE;
     }
+    /*
+       Register access for view underlying table.
+       Remove SHOW_VIEW_ACL, because it will be checked during making view
+     */
+    tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
     if (tables->derived || tables->schema_table || tables->belong_to_view ||
         (tables->table && (int)tables->table->s->tmp_table) ||
         my_tz_check_n_skip_implicit_tables(&tables,
