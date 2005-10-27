@@ -69,8 +69,6 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    SELECT_LEX_UNIT *unit);
 static COND *optimize_cond(THD *thd, COND *conds,
 			   Item::cond_result *cond_value);
-static COND *remove_eq_conds(THD *thd, COND *cond, 
-			     Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -4611,7 +4609,7 @@ optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
   COND_FALSE always false	( 1 = 2 )
 */
 
-static COND *
+COND *
 remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
