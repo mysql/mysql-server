@@ -430,11 +430,10 @@ enum Log_event_type
 
   /*
     Add new events here - right above this comment!
-    And change the ENUM_END_EVENT_MARKER below.
-    Existing events should never change their numbers
+    Existing events (except ENUM_END_EVENT) should never change their numbers
   */
 
-  ENUM_END_EVENT= 19 /* end marker */
+  ENUM_END_EVENT /* end marker */
 };
 
 /*

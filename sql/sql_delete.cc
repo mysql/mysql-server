@@ -158,14 +158,16 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                    MYF(MY_FAE | MY_ZEROFILL));
     
-      if ( !(sortorder=make_unireg_sortorder((ORDER*) order->first, &length)) ||
+      if (!(sortorder= make_unireg_sortorder((ORDER*) order->first,
+                                             &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
-					   select, HA_POS_ERROR,
-					   &examined_rows))
+                                                select, HA_POS_ERROR,
+                                                &examined_rows))
 	  == HA_POS_ERROR)
       {
         delete select;
         free_underlaid_joins(thd, &thd->lex->select_lex);
+        DBUG_RETURN(TRUE);
       }
       /*
         Filesort has already found and selected the rows we want to delete,
