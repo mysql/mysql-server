@@ -2419,7 +2419,7 @@ void st_table_list::register_want_access(ulong want_access)
 
 
 /*
-  Load security context infoemation for this view
+  Load security context information for this view
 
   SYNOPSIS
     st_table_list::prepare_view_securety_context()
@@ -2517,9 +2517,7 @@ bool st_table_list::prepare_security(THD *thd)
 
   DBUG_ASSERT(!prelocking_placeholder);
   if (prepare_view_securety_context(thd))
-  {
     DBUG_RETURN(TRUE);
-  }
   thd->security_ctx= find_view_security_context(thd);
   while ((tbl= tb++))
   {

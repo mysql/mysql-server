@@ -5029,8 +5029,9 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables= tables;
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
   /*
-    Iterate tables until first prelocking placeholder (if this query do not
-    have placeholders first_not_own_table is 0)
+    The check that first_not_own_table is not reached is for the case when
+    the given table list refers to the list for prelocking (contains tables
+    of other queries). For simple queries first_not_own_table is 0.
   */
   for (; tables && tables != first_not_own_table; tables= tables->next_global)
   {
