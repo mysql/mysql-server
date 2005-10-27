@@ -1,5 +1,6 @@
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2,v1,v2;
+drop view if exists t1,t2,v1,v2;
 --enable_warnings
 
 CREATE TABLE `t1` (

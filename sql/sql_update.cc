@@ -195,6 +195,7 @@ int mysql_update(THD *thd,
   /* Check the fields we are going to modify */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
+  table_list->register_want_access(want_privilege);
 #endif
   if (setup_fields_with_no_wrap(thd, 0, fields, 1, 0, 0))
     DBUG_RETURN(1);                     /* purecov: inspected */
@@ -584,6 +585,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= 
     (SELECT_ACL & ~table->grant.privilege);
+  table_list->register_want_access(SELECT_ACL);
 #endif
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY

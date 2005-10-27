@@ -401,8 +401,221 @@ grant all privileges on mysqltest.* to mysqltest_1@localhost;
 connection user1;
 use mysqltest;
 create view v1 as select * from t1;
+use test;
 
 connection root;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 drop database mysqltest;
 
+#
+# view definer grants revoking
+#
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+
+create table mysqltest.t1 (a int, b int);
+
+grant select on mysqltest.t1 to mysqltest_1@localhost;
+grant create view,select on test.* to mysqltest_1@localhost;
+
+connection user1;
+
+create view v1 as select * from mysqltest.t1;
+
+connection root;
+# check view definer information
+show create view v1;
+revoke select on mysqltest.t1 from mysqltest_1@localhost;
+-- error ER_VIEW_INVALID
+select * from v1;
+grant select on mysqltest.t1 to mysqltest_1@localhost;
+select * from v1;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop view v1;
+drop database mysqltest;
+
+#
+# rights on execution of view underlying functiond (BUG#9505)
+#
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+
+use mysqltest;
+create table t1 (a int);
+insert into t1 values (1);
+create table t2 (s1 int);
+--disable_warnings
+drop function if exists f2;
+--enable_warnings
+delimiter //;
+create function f2 () returns int begin declare v int; select s1 from t2
+into v; return v; end//
+delimiter ;//
+create algorithm=TEMPTABLE view v1 as select f2() from t1;
+create algorithm=MERGE view v2 as select f2() from t1;
+create algorithm=TEMPTABLE SQL SECURITY INVOKER view v3 as select f2() from t1;
+create algorithm=MERGE SQL SECURITY INVOKER view v4 as select f2() from t1;
+create SQL SECURITY INVOKER view v5 as select * from v4;
+grant select on v1 to mysqltest_1@localhost;
+grant select on v2 to mysqltest_1@localhost;
+grant select on v3 to mysqltest_1@localhost;
+grant select on v4 to mysqltest_1@localhost;
+grant select on v5 to mysqltest_1@localhost;
+
+connection user1;
+use mysqltest;
+select * from v1;
+select * from v2;
+-- error ER_VIEW_INVALID
+select * from v3;
+-- error ER_VIEW_INVALID
+select * from v4;
+-- error ER_VIEW_INVALID
+select * from v5;
+use test;
+
+connection root;
+drop view v1, v2, v3, v4, v5;
+drop function f2;
+drop table t1, t2;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;
+
+#
+# revertion of previous test, definer of view lost his/her rights to execute
+# function
+#
+
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+
+use mysqltest;
+create table t1 (a int);
+insert into t1 values (1);
+create table t2 (s1 int);
+--disable_warnings
+drop function if exists f2;
+--enable_warnings
+delimiter //;
+create function f2 () returns int begin declare v int; select s1 from t2
+into v; return v; end//
+delimiter ;//
+grant select on t1 to mysqltest_1@localhost;
+grant execute on function f2 to mysqltest_1@localhost;
+grant create view on mysqltest.* to mysqltest_1@localhost;
+
+connection user1;
+use mysqltest;
+create algorithm=TEMPTABLE view v1 as select f2() from t1;
+create algorithm=MERGE view v2 as select f2() from t1;
+create algorithm=TEMPTABLE SQL SECURITY INVOKER view v3 as select f2() from t1;
+create algorithm=MERGE SQL SECURITY INVOKER view v4 as select f2() from t1;
+use test;
+
+connection root;
+create view v5 as select * from v1;
+revoke execute on function f2 from mysqltest_1@localhost;
+-- error ER_VIEW_INVALID
+select * from v1;
+-- error ER_VIEW_INVALID
+select * from v2;
+select * from v3;
+select * from v4;
+-- error ER_VIEW_INVALID
+select * from v5;
+
+drop view v1, v2, v3, v4, v5;
+drop function f2;
+drop table t1, t2;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;
+
+#
+# definer/invoker rights for columns
+#
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+
+use mysqltest;
+create table t1 (a int);
+create table v1 (a int);
+insert into t1 values (1);
+grant select on t1 to mysqltest_1@localhost;
+grant select on v1 to mysqltest_1@localhost;
+grant create view on mysqltest.* to mysqltest_1@localhost;
+drop table v1;
+
+connection user1;
+use mysqltest;
+create algorithm=TEMPTABLE view v1 as select *, a as b from t1;
+create algorithm=MERGE view v2 as select *, a as b from t1;
+create algorithm=TEMPTABLE SQL SECURITY INVOKER view v3 as select *, a as b from t1;
+create algorithm=MERGE SQL SECURITY INVOKER view v4 as select *, a as b from t1;
+create view v5 as select * from v1;
+use test;
+
+connection root;
+revoke select on t1 from mysqltest_1@localhost;
+-- error ER_VIEW_INVALID
+select * from v1;
+-- error ER_VIEW_INVALID
+select * from v2;
+select * from v3;
+select * from v4;
+-- error ER_VIEW_INVALID
+select * from v5;
+
+#drop view v1, v2, v3, v4, v5;
+drop table t1;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;
+
+
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+
+use mysqltest;
+create table t1 (a int);
+insert into t1 values (1);
+create algorithm=TEMPTABLE view v1 as select *, a as b from t1;
+create algorithm=MERGE view v2 as select *, a as b from t1;
+create algorithm=TEMPTABLE SQL SECURITY INVOKER view v3 as select *, a as b from t1;
+create algorithm=MERGE SQL SECURITY INVOKER view v4 as select *, a as b from t1;
+create SQL SECURITY INVOKER view v5 as select * from v4;
+grant select on v1 to mysqltest_1@localhost;
+grant select on v2 to mysqltest_1@localhost;
+grant select on v3 to mysqltest_1@localhost;
+grant select on v4 to mysqltest_1@localhost;
+grant select on v5 to mysqltest_1@localhost;
+
+connection user1;
+use mysqltest;
+select * from v1;
+select * from v2;
+-- error ER_VIEW_INVALID
+select * from v3;
+-- error ER_VIEW_INVALID
+select * from v4;
+-- error ER_VIEW_INVALID
+select * from v5;
+use test;
+
+connection root;
+drop view v1, v2, v3, v4, v5;
+drop table t1;
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;

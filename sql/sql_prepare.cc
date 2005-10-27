@@ -1158,6 +1158,7 @@ static int mysql_test_update(Prepared_statement *stmt,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= want_privilege;
   table_list->table->grant.want_privilege= want_privilege;
+  table_list->register_want_access(want_privilege);
 #endif
   thd->lex->select_lex.no_wrap_view_item= TRUE;
   res= setup_fields(thd, 0, select->item_list, 1, 0, 0);
@@ -1169,6 +1170,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->grant.want_privilege=
   table_list->table->grant.want_privilege=
     (SELECT_ACL & ~table_list->table->grant.privilege);
+  table_list->register_want_access(SELECT_ACL);
 #endif
   if (setup_fields(thd, 0, stmt->lex->value_list, 0, 0, 0))
     goto error;
