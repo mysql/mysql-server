@@ -231,6 +231,12 @@ void manager(const Options &options)
     }
 
 #ifndef __WIN__
+/*
+  On some Darwin kernels SIGHUP is delivered along with most
+  signals. This is why we skip it's processing on these
+  platforms. For more details and test program see
+  Bug #14164 IM tests fail on MacOS X (powermacg5)
+*/
 #ifdef IGNORE_SIGHUP_SIGQUIT
     if ( SIGHUP == signo )
       continue;
