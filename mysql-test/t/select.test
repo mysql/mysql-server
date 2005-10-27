@@ -2228,4 +2228,13 @@ SELECT t2.a, t2.b, IF(t1.b IS NULL,'',c) AS c, COUNT(*) AS d FROM t2,t1
 WHERE t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 DROP TABLE IF EXISTS t1, t2;
 
+#
+# Bug #13855 select distinct with group by caused server crash
+#
+create table t1 (f1 int primary key, f2 int);
+create table t2 (f3 int, f4 int, primary key(f3,f4));
+insert into t1 values (1,1);
+insert into t2 values (1,1),(1,2);
+select distinct count(f2) >0 from t1 left join t2 on f1=f3 group by f1;
+drop table t1,t2;
 # End of 4.1 tests
