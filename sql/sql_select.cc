@@ -689,6 +689,7 @@ JOIN::optimize()
   {
     order=0;					// The output has only one row
     simple_order=1;
+    select_distinct= 0;                       // No need in distinct for 1 row
   }
 
   calc_group_buffer(this, group_list);
