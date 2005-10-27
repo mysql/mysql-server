@@ -124,7 +124,7 @@ class ha_innobase: public handler
   	int delete_row(const byte * buf);
 	void unlock_row();
 
-  	int index_init(uint index);
+  	int index_init(uint index, bool sorted);
   	int index_end();
   	int index_read(byte * buf, const byte * key,
 		       uint key_len, enum ha_rkey_function find_flag);
@@ -152,6 +152,16 @@ class ha_innobase: public handler
 	int transactional_table_lock(THD *thd, int lock_type);
         int start_stmt(THD *thd, thr_lock_type lock_type);
 
+        int ha_retrieve_all_cols()
+        {
+          ha_set_all_bits_in_read_set();
+          return extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+        }
+        int ha_retrieve_all_pk()
+        {
+          ha_set_primary_key_in_read_set();
+          return extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+        }
   	void position(byte *record);
   	ha_rows records_in_range(uint inx, key_range *min_key, key_range
 								*max_key);
@@ -196,6 +206,8 @@ class ha_innobase: public handler
         static ulonglong get_mysql_bin_log_pos();
         bool primary_key_is_clustered() { return true; }
         int cmp_ref(const byte *ref1, const byte *ref2);
+	bool check_if_incompatible_data(HA_CREATE_INFO *info,
+					uint table_changes);
 };
 
 extern struct show_var_st innodb_status_variables[];
@@ -242,7 +254,7 @@ extern ulong srv_commit_concurrency;
 extern TYPELIB innobase_lock_typelib;
 
 bool innobase_init(void);
-bool innobase_end(void);
+int innobase_end(ha_panic_function type);
 bool innobase_flush_logs(void);
 uint innobase_get_free_space(void);
 
@@ -260,12 +272,11 @@ int innobase_commit_complete(void* trx_handle);
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 #endif
 
-int innobase_drop_database(char *path);
-bool innodb_show_status(THD* thd);
-bool innodb_mutex_show_status(THD* thd);
-void innodb_export_status(void);
+void innobase_drop_database(char *path);
+bool innobase_show_status(THD* thd, stat_print_fn*, enum ha_stat_type);
+int innodb_export_status(void);
 
-void innobase_release_temporary_latches(THD *thd);
+int innobase_release_temporary_latches(THD *thd);
 
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 
