@@ -122,11 +122,15 @@ void Listener_thread::run()
   n++;
 
   timeval tv;
-  tv.tv_sec= 0;
-  tv.tv_usec= 100000;
   while (!thread_registry.is_shutdown())
   {
     fd_set read_fds_arg= read_fds;
+    /*
+      We should reintialize timer as on linux it is modified
+      to reflect amout of time not slept.
+    */
+    tv.tv_sec= 0;
+    tv.tv_usec= 100000;
 
     /*
       When using valgrind 2.0 this syscall doesn't get kicked off by a
