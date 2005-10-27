@@ -3234,8 +3234,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                           context->last_name_resolution_table,
                                           reference,
                                           IGNORE_EXCEPT_NON_UNIQUE,
-                                          !any_privileges &&
-                                          context->check_privileges,
+                                          !any_privileges,
                                           TRUE)) ==
 	not_found_field)
     {
@@ -3297,9 +3296,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                                 last_name_resolution_table,
                                               reference,
                                               IGNORE_EXCEPT_NON_UNIQUE,
-                                              outer_context->
-                                              check_privileges,
-                                              TRUE)) !=
+                                              TRUE, TRUE)) !=
             not_found_field)
         {
           if (from_field)
@@ -3374,7 +3371,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                context->last_name_resolution_table,
                                reference, REPORT_ALL_ERRORS,
                                !any_privileges &&
-                               context->check_privileges, TRUE);
+                               TRUE, TRUE);
 	}
 	goto error;
       }
@@ -3449,7 +3446,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       We can leave expression substituted from view for next PS/SP rexecution
       (i.e. do not register this substitution for reverting on cleupup()
       (register_item_tree_changing())), because this subtree will be
-      fix_field'ed during setup_tables()->setup_ancestor() (i.e. before
+      fix_field'ed during setup_tables()->setup_underlying() (i.e. before
       all other expressions of query, and references on tables which do
       not present in query will not make problems.
 
@@ -4544,8 +4541,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
                                              last_name_resolution_table,
                                            reference,
                                            IGNORE_EXCEPT_NON_UNIQUE,
-                                           outer_context->check_privileges,
-                                           TRUE);
+                                           TRUE, TRUE);
           if (! from_field)
             goto error;
           if (from_field == view_ref_found)
@@ -5157,7 +5153,7 @@ void Item_trigger_field::setup_field(THD *thd, TABLE *table)
     set field_idx properly.
   */
   (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
-                            0, 0, &field_idx);
+                            0, 0, &field_idx, 0);
   thd->set_query_id= save_set_query_id;
   triggers= table->triggers;
 }

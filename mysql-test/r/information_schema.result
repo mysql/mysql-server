@@ -648,21 +648,21 @@ select table_name from information_schema.views
 where table_schema='test';
 table_name
 Warnings:
-Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s)
-Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select table_name from information_schema.views
 where table_schema='test';
 table_name
 Warnings:
-Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s)
-Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select column_name from information_schema.columns
 where table_schema='test';
 column_name
 f1
 Warnings:
-Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s)
-Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select index_name from information_schema.statistics where table_schema='test';
 index_name
 f1_key
