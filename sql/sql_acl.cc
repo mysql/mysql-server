@@ -931,6 +931,9 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
   ACL_USER *acl_user= 0;
   DBUG_ENTER("acl_getroot_no_password");
 
+  DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', db: '%s'",
+                       (host ? host : "(NULL)"), (ip ? ip : "(NULL)"),
+                       (user ? user : "(NULL)"), (db ? db : "(NULL)")));
   sctx->user= user;
   sctx->host= host;
   sctx->ip= ip;
@@ -3509,17 +3512,32 @@ end:
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 		 uint show_table, uint number, bool no_errors)
 {
-  TABLE_LIST *table;
+  TABLE_LIST *table, *first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_ctx;
+  uint i;
   DBUG_ENTER("check_grant");
   DBUG_ASSERT(number > 0);
+
+  /*
+    Iterate tables until first prelocking placeholder (if this query do not
+    have placeholders first_not_own_table is 0)
+  */
+  for (i= 0, table= tables;
+       table && table != first_not_own_table && i < number;
+       table= table->next_global, i++)
+  {
+    /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
+    table->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
+  }
 
   want_access&= ~sctx->master_access;
   if (!want_access)
     DBUG_RETURN(0);                             // ok
 
   rw_rdlock(&LOCK_grant);
-  for (table= tables; table && number--; table= table->next_global)
+  for (table= tables;
+       table && number-- && table != first_not_own_table;
+       table= table->next_global)
   {
     GRANT_TABLE *grant_table;
     if (!(~table->grant.privilege & want_access) || 
@@ -3529,8 +3547,16 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         It is subquery in the FROM clause. VIEW set table->derived after
         table opening, but this function always called before table opening.
       */
-      table->grant.want_privilege= 0;
-      continue;					// Already checked
+      if (!table->referencing_view)
+      {
+        /*
+          If it's a temporary table created for a subquery in the FROM
+          clause, or an INFORMATION_SCHEMA table, drop the request for
+          a privilege.
+        */
+        table->grant.want_privilege= 0;
+      }
+      continue;
     }
     if (!(grant_table= table_hash_search(sctx->host, sctx->ip,
                                          table->db, sctx->priv_user,
@@ -5839,24 +5865,37 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table)
 {
   Security_context *sctx= thd->security_ctx;
+  DBUG_ENTER("fill_effective_table_privileges");
+  DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', table: `%s`.`%s`",
+                       sctx->priv_host, (sctx->ip ? sctx->ip : "(NULL)"),
+                       (sctx->priv_user ? sctx->priv_user : "(NULL)"),
+                       db, table));
   /* --skip-grants */
   if (!initialized)
   {
+    DBUG_PRINT("info", ("skip grants"));
     grant->privilege= ~NO_ACCESS;             // everything is allowed
-    return;
+    DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
+    DBUG_VOID_RETURN;
   }
 
   /* global privileges */
   grant->privilege= sctx->master_access;
 
   if (!sctx->priv_user)
-    return;                                   // it is slave
+  {
+    DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
+    DBUG_VOID_RETURN;                         // it is slave
+  }
 
   /* db privileges */
   grant->privilege|= acl_get(sctx->host, sctx->ip, sctx->priv_user, db, 0);
 
   if (!grant_option)
-    return;
+  {
+    DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
+    DBUG_VOID_RETURN;
+  }
 
   /* table privileges */
   if (grant->version != grant_version)
@@ -5873,6 +5912,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   {
     grant->privilege|= grant->grant_table->privs;
   }
+  DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
+  DBUG_VOID_RETURN;
 }
 
 #else /* NO_EMBEDDED_ACCESS_CHECKS */
