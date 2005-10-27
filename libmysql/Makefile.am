@@ -22,7 +22,7 @@
 
 target =	libmysqlclient.la
 target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
-LIBS =		@CLIENT_LIBS@
+LIBS =		@CLIENT_LIBS@ @yassl_libs@
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 		$(openssl_includes) $(yassl_includes) @ZLIB_INCLUDES@
 
