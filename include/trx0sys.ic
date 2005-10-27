@@ -9,6 +9,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0trx.h"
 #include "data0type.h"
+#include "page0zip.h"
 
 /* The typedef for rseg slot in the file copy */
 typedef byte 	trx_sysf_rseg_t;
@@ -213,12 +214,18 @@ UNIV_INLINE
 void
 trx_write_trx_id(
 /*=============*/
-	byte*	ptr,	/* in: pointer to memory where written */
-	dulint	id)	/* in: id */
+	byte*		ptr,	/* in: pointer to memory where written */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 10 bytes available, or NULL */
+	dulint		id)	/* in: id */
 {
 	ut_ad(DATA_TRX_ID_LEN == 6);
 	
 	mach_write_to_6(ptr, id);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		ut_ad(page_zip_available(page_zip, 4 + DATA_TRX_ID_LEN));
+		page_zip_write(page_zip, ptr, DATA_TRX_ID_LEN);
+	}
 }
 
 /*********************************************************************

@@ -67,9 +67,10 @@ is slower than the specialized inline functions. */
 void
 row_set_rec_sys_field(
 /*==================*/
-				/* out: value of the field */
 	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				10 or 11 bytes available, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		val)	/* in: value to set */
@@ -87,11 +88,11 @@ row_set_rec_sys_field(
 
 	if (type == DATA_TRX_ID) {
 
-		trx_write_trx_id(field, val);
+		trx_write_trx_id(field, page_zip/* 10 bytes */, val);
 	} else {
 		ut_ad(type == DATA_ROLL_PTR);
 
-		trx_write_roll_ptr(field, val);
+		trx_write_roll_ptr(field, page_zip/* 11 bytes */, val);
 	}
 }
 

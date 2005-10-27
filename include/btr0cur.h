@@ -286,19 +286,6 @@ btr_cur_del_unmark_for_ibuf(
 	rec_t*		rec,	/* in: record to delete unmark */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
-Tries to compress a page of the tree on the leaf level. It is assumed
-that mtr holds an x-latch on the tree and on the cursor page. To avoid
-deadlocks, mtr must also own x-latches to brothers of page, if those
-brothers exist. NOTE: it is assumed that the caller has reserved enough
-free extents so that the compression will always succeed if done! */
-
-void
-btr_cur_compress(
-/*=============*/
-	btr_cur_t*	cursor,	/* in: cursor on the page to compress;
-				cursor does not stay valid */
-	mtr_t*		mtr);	/* in: mtr */
-/*****************************************************************
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
 deadlocks, mtr must also own x-latches to brothers of page, if those
@@ -364,7 +351,8 @@ btr_cur_parse_update_in_place(
 				/* out: end of log record or NULL */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
-	page_t*		page,	/* in: page or NULL */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index);	/* in: index corresponding to page */
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a clustered
@@ -376,8 +364,9 @@ btr_cur_parse_del_mark_set_clust_rec(
 				/* out: end of log record or NULL */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
-	dict_index_t*	index,	/* in: index corresponding to page */
-	page_t*		page);	/* in: page or NULL */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	dict_index_t*	index);	/* in: index corresponding to page */
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a secondary
 index record. */
@@ -388,7 +377,8 @@ btr_cur_parse_del_mark_set_sec_rec(
 				/* out: end of log record or NULL */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
-	page_t*		page);	/* in: page or NULL */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip);/* in/out: compressed page, or NULL */
 /***********************************************************************
 Estimates the number of rows in a given index range. */
 

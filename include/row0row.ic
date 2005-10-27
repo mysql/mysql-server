@@ -29,9 +29,10 @@ is slower than the specialized inline functions. */
 void
 row_set_rec_sys_field(
 /*==================*/
-				/* out: value of the field */
 	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				10 or 11 bytes available, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		val);	/* in: value to set */
@@ -94,7 +95,9 @@ UNIV_INLINE
 void
 row_set_rec_trx_id(
 /*===============*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 10 bytes available, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		trx_id)	/* in: value of the field */
@@ -107,10 +110,10 @@ row_set_rec_trx_id(
 	offset = index->trx_id_offset;
 	
 	if (offset) {
-		trx_write_trx_id(rec + offset, trx_id);
+		trx_write_trx_id(rec + offset, page_zip, trx_id);
 	} else {
 		row_set_rec_sys_field(DATA_TRX_ID,
-				rec, index, offsets, trx_id);
+				rec, page_zip, index, offsets, trx_id);
 	}
 }
 
@@ -120,7 +123,9 @@ UNIV_INLINE
 void
 row_set_rec_roll_ptr(
 /*=================*/
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 11 bytes available, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		roll_ptr)/* in: value of the field */
@@ -133,10 +138,11 @@ row_set_rec_roll_ptr(
 	offset = index->trx_id_offset;
 	
 	if (offset) {
-		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
+		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN,
+						page_zip, roll_ptr);
 	} else {
 	 	row_set_rec_sys_field(DATA_ROLL_PTR,
-				rec, index, offsets, roll_ptr);
+				rec, page_zip, index, offsets, roll_ptr);
 	}
 }
 

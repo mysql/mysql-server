@@ -22,6 +22,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "mtr0log.h"
 #include "page0page.h"
 #include "page0cur.h"
+#include "page0zip.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "ibuf0ibuf.h"
@@ -753,9 +754,10 @@ recv_parse_or_apply_log_rec_body(
 	byte	type,	/* in: type */
 	byte*	ptr,	/* in: pointer to a buffer */
 	byte*	end_ptr,/* in: pointer to the buffer end */
-	page_t*	page,	/* in: buffer page or NULL; if not NULL, then the log
-			record is applied to the page, and the log record
+	page_t*	page,	/* in/out: buffer page or NULL; if not NULL, then the
+			log record is applied to the page, and the log record
 			should be complete then */
+	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
 	mtr_t*	mtr)	/* in: mtr or NULL; should be non-NULL if and only if
 			page is non-NULL */
 {
@@ -771,7 +773,7 @@ recv_parse_or_apply_log_rec_body(
 			ut_a(!page
 			  || (ibool)!!page_is_comp(page)==index->table->comp);
 			ptr = page_cur_parse_insert_rec(FALSE, ptr, end_ptr,
-							index, page, mtr);
+						index, page, page_zip, mtr);
 		}
 		break;
 	case MLOG_REC_CLUST_DELETE_MARK: case MLOG_COMP_REC_CLUST_DELETE_MARK:
@@ -780,7 +782,7 @@ recv_parse_or_apply_log_rec_body(
 			ut_a(!page
 			  || (ibool)!!page_is_comp(page)==index->table->comp);
 			ptr = btr_cur_parse_del_mark_set_clust_rec(ptr,
-						end_ptr, index, page);
+					end_ptr, page, page_zip, index);
 		}
 		break;
 	case MLOG_COMP_REC_SEC_DELETE_MARK:
@@ -793,7 +795,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		/* Fall through */
 	case MLOG_REC_SEC_DELETE_MARK:
-		ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr, page);
+		ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr,
+							page, page_zip);
 		break;
 	case MLOG_REC_UPDATE_IN_PLACE: case MLOG_COMP_REC_UPDATE_IN_PLACE:
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
@@ -801,7 +804,7 @@ recv_parse_or_apply_log_rec_body(
 			ut_a(!page
 			  || (ibool)!!page_is_comp(page)==index->table->comp);
 			ptr = btr_cur_parse_update_in_place(ptr, end_ptr,
-							page, index);
+							page, page_zip, index);
 		}
 		break;
 	case MLOG_LIST_END_DELETE: case MLOG_COMP_LIST_END_DELETE:
@@ -821,7 +824,7 @@ recv_parse_or_apply_log_rec_body(
 			ut_a(!page
 			  || (ibool)!!page_is_comp(page)==index->table->comp);
 			ptr = page_parse_copy_rec_list_to_created_page(ptr,
-						end_ptr, index, page, mtr);
+					end_ptr, index, page, page_zip, mtr);
 		}
 		break;
 	case MLOG_PAGE_REORGANIZE: case MLOG_COMP_PAGE_REORGANIZE:
@@ -864,7 +867,7 @@ recv_parse_or_apply_log_rec_body(
 			ut_a(!page
 			  || (ibool)!!page_is_comp(page)==index->table->comp);
 			ptr = page_cur_parse_delete_rec(ptr, end_ptr,
-							index, page, mtr);
+						index, page, page_zip, mtr);
 		}
 		break;
 	case MLOG_IBUF_BITMAP_INIT:
@@ -881,6 +884,16 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_FILE_DELETE:
 		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, FALSE,
 							ULINT_UNDEFINED);
+		break;
+	case MLOG_COMP_DECOMPRESS:
+		if (page) {
+			ut_a(page_is_comp(page));
+			ut_a(page_zip);
+			if (UNIV_UNLIKELY(!page_zip_decompress(
+						page_zip, page, NULL))) {
+				ut_error;
+			}
+		}
 		break;
 	default:
 		ptr = NULL;
@@ -1089,6 +1102,7 @@ recv_recover_page(
 	ulint	page_no)	/* in: page number */
 {
 	buf_block_t*	block		= NULL;
+	page_zip_des_t*	page_zip	= NULL;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1133,6 +1147,7 @@ recv_recover_page(
 
 	if (!recover_backup) {	
 		block = buf_block_align(page);
+		page_zip = buf_block_get_page_zip(block);
 
 		if (just_read_in) {
 		  /* Move the ownership of the x-latch on the page to this OS
@@ -1220,7 +1235,8 @@ recv_recover_page(
 #endif /* UNIV_DEBUG */
 
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
-						buf + recv->len, page, &mtr);
+						buf + recv->len,
+						page, page_zip, &mtr);
 			mach_write_to_8(page + UNIV_PAGE_SIZE
 					- FIL_PAGE_END_LSN_OLD_CHKSUM,
 					ut_dulint_add(recv->start_lsn,
@@ -1613,8 +1629,8 @@ recv_update_replicate(
 	buf_page_dbg_add_level(replica, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 							
-	ptr = recv_parse_or_apply_log_rec_body(type, body, end_ptr, replica,
-									&mtr);
+	ptr = recv_parse_or_apply_log_rec_body(type, body, end_ptr,
+					replica, NULL, &mtr);
 	ut_a(ptr == end_ptr);
 
 	/* Notify the buffer manager that the page has been updated */
@@ -1845,7 +1861,7 @@ recv_parse_log_rec(
 	}
 
 	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
-								NULL, NULL);
+							NULL, NULL, NULL);
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);
