@@ -514,8 +514,8 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
       else
         a= end;
       break;
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
+    case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARBINARY1:
       {
         int a_length;
         get_key_length(a_length, a);

@@ -1612,15 +1612,6 @@ void Item_func_date_format::fix_length_and_dec()
     fixed_length=1;
 
     /*
-      Force case sensitive collation on format string.
-      This needed because format modifiers with different case,
-      for example %m and %M, have different meaning. Thus eq()
-      will distinguish them.
-    */
-    args[1]->collation.set(
-        get_charset_by_csname(args[1]->collation.collation->csname,
-                              MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
-    /*
       The result is a binary string (no reason to use collation->mbmaxlen
       This is becasue make_date_time() only returns binary strings
     */
@@ -1635,6 +1626,30 @@ void Item_func_date_format::fix_length_and_dec()
   }
   maybe_null=1;					// If wrong date
 }
+
+
+bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const
+{
+  Item_func_date_format *item_func;
+  if (item->type() != FUNC_ITEM)
+    return 0;
+  if (func_name() != ((Item_func*) item)->func_name())
+    return 0;
+  if (this == item)
+    return 1;
+  item_func= (Item_func_date_format*) item;
+  if (!args[0]->eq(item_func->args[0], binary_cmp))
+    return 0;
+  /*
+    We must compare format string case sensitive.
+    This needed because format modifiers with different case,
+    for example %m and %M, have different meaning.
+  */
+  if (!args[1]->eq(item_func->args[1], 1))
+    return 0;
+  return 1;
+}
+
 
 
 uint Item_func_date_format::format_length(const String *format)
