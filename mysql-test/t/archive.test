@@ -1347,6 +1347,11 @@ SELECT * FROM t2;
 # Just test syntax, we will never know if the output is right or wrong
 # Must be the last test
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
+
+# Adding test for alter table
+ALTER TABLE t2 DROP COLUMN fld6; 
+SHOW CREATE TABLE t2;
+SELECT * from t2;
 # 
 # Cleanup, test is over
 #

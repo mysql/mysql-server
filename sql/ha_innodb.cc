@@ -812,6 +812,7 @@ ha_innobase::ha_innobase(TABLE *table_arg)
                   HA_CAN_SQL_HANDLER |
                   HA_NOT_EXACT_COUNT |
                   HA_PRIMARY_KEY_IN_READ_INDEX |
+                  HA_CAN_GEOMETRY |
                   HA_TABLE_SCAN_ON_INDEX),
   last_dup_key((uint) -1),
   start_of_scan(0),
@@ -2757,6 +2758,7 @@ get_innobase_type_from_mysql_type(
 					return(DATA_DOUBLE);
 		case FIELD_TYPE_DECIMAL:
 					return(DATA_DECIMAL);
+		case FIELD_TYPE_GEOMETRY:
 		case FIELD_TYPE_TINY_BLOB:
 		case FIELD_TYPE_MEDIUM_BLOB:
 		case FIELD_TYPE_BLOB:
