@@ -1,9 +1,0 @@
-include ..\include\makefile.i
-
-mach.lib: mach0data.obj
-	lib -out:..\libs\mach.lib mach0data.obj
-
-mach0data.obj: mach0data.c
-	$(CCOM) $(CFLN) -c mach0data.c
-
-
