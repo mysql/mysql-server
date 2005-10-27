@@ -23,4 +23,25 @@ SELECT * FROM t1 WHERE popisek = '2005-01-1';
 SELECT * FROM t1 WHERE popisek LIKE '2005-01-1';
 drop table t1;
 
+#
+# Bug#13347: empty result from query with like and cp1250 charset
+#
+set names cp1250;
+CREATE TABLE t1
+(
+ id  INT AUTO_INCREMENT PRIMARY KEY,
+ str VARCHAR(32)  CHARACTER SET cp1250 COLLATE cp1250_czech_cs NOT NULL default '',
+ UNIQUE KEY (str)
+);
+			
+INSERT INTO t1 VALUES (NULL, 'a');
+INSERT INTO t1 VALUES (NULL, 'aa');
+INSERT INTO t1 VALUES (NULL, 'aaa');
+INSERT INTO t1 VALUES (NULL, 'aaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaaa');
+INSERT INTO t1 VALUES (NULL, 'aaaaaaa');
+select * from t1 where str like 'aa%';
+drop table t1;
+
 # End of 4.1 tests
