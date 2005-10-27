@@ -1,0 +1,46 @@
+/******************************************************
+The interface to the operating system synchronization primitives.
+
+(c) 1995 Innobase Oy
+
+Created 9/6/1995 Heikki Tuuri
+*******************************************************/
+
+#ifdef __WIN__
+#include <winbase.h>
+#endif
+
+/**************************************************************
+Acquires ownership of a fast mutex. Currently in Windows this is the same
+as os_fast_mutex_lock! */
+UNIV_INLINE
+ulint
+os_fast_mutex_trylock(
+/*==================*/
+						/* out: 0 if success, != 0 if
+						was reserved by another
+						thread */
+	os_fast_mutex_t*	fast_mutex)	/* in: mutex to acquire */
+{
+#ifdef __WIN__	
+	EnterCriticalSection(fast_mutex);
+
+	return(0);
+#else
+#if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
+	/* Since the hot backup version is standalone, MySQL does not redefine
+	pthread_mutex_trylock for HP-UX-10.20, and consequently we must invert
+	the return value here */
+
+	return((ulint) (1 - pthread_mutex_trylock(fast_mutex)));
+#else
+	/* NOTE that the MySQL my_pthread.h redefines pthread_mutex_trylock
+	so that it returns 0 on success. In the operating system
+	libraries, HP-UX-10.20 follows the old Posix 1003.4a Draft 4 and
+	returns 1 on success (but MySQL remaps that to 0), while Linux,
+	FreeBSD, Solaris, AIX, Tru64 Unix, HP-UX-11.0 return 0 on success. */
+
+	return((ulint) pthread_mutex_trylock(fast_mutex));
+#endif
+#endif
+}

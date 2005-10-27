@@ -1,0 +1,620 @@
+/**********************************************************************
+Data dictionary system
+
+(c) 1996 Innobase Oy
+
+Created 1/8/1996 Heikki Tuuri
+***********************************************************************/
+
+#include "dict0load.h"
+#include "trx0undo.h"
+#include "trx0sys.h"
+
+/*************************************************************************
+Gets the column data type. */
+UNIV_INLINE
+dtype_t*
+dict_col_get_type(
+/*==============*/
+	dict_col_t*	col)
+{
+	ut_ad(col);
+
+	return(&col->type);
+}
+
+/*************************************************************************
+Gets the column number. */
+UNIV_INLINE
+ulint
+dict_col_get_no(
+/*============*/
+	dict_col_t*	col)
+{
+	ut_ad(col);
+
+	return(col->ind);
+}
+
+/*************************************************************************
+Gets the column position in the clustered index. */
+UNIV_INLINE
+ulint
+dict_col_get_clust_pos(
+/*===================*/
+	dict_col_t*	col)
+{
+	ut_ad(col);
+
+	return(col->clust_pos);
+}
+
+/************************************************************************
+Gets the first index on the table (the clustered index). */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_first_index(
+/*=======================*/
+				/* out: index, NULL if none exists */
+	dict_table_t*	table)	/* in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(UT_LIST_GET_FIRST(table->indexes));
+}
+
+/************************************************************************
+Gets the next index on the table. */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_next_index(
+/*======================*/
+				/* out: index, NULL if none left */
+	dict_index_t*	index)	/* in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UT_LIST_GET_NEXT(indexes, index));
+}
+
+/************************************************************************
+Gets the number of user-defined columns in a table in the dictionary
+cache. */
+UNIV_INLINE
+ulint
+dict_table_get_n_user_cols(
+/*=======================*/
+				/* out: number of user-defined (e.g., not
+				ROW_ID) columns of a table */
+	dict_table_t*	table)	/* in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_ad(table->cached);
+	
+	return(table->n_cols - DATA_N_SYS_COLS);
+}
+
+/************************************************************************
+Gets the number of system columns in a table in the dictionary cache. */
+UNIV_INLINE
+ulint
+dict_table_get_n_sys_cols(
+/*======================*/
+				/* out: number of system (e.g.,
+				ROW_ID) columns of a table */
+	dict_table_t*	table __attribute__((unused)))	/* in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_ad(table->cached);
+
+	return(DATA_N_SYS_COLS);
+}
+
+/************************************************************************
+Gets the number of all columns (also system) in a table in the dictionary
+cache. */
+UNIV_INLINE
+ulint
+dict_table_get_n_cols(
+/*==================*/
+				/* out: number of columns of a table */
+	dict_table_t*	table)	/* in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_ad(table->cached);
+	
+	return(table->n_cols);
+}
+
+/************************************************************************
+Gets the nth column of a table. */
+UNIV_INLINE
+dict_col_t*
+dict_table_get_nth_col(
+/*===================*/
+				/* out: pointer to column object */
+	dict_table_t*	table,	/* in: table */
+	ulint		pos)	/* in: position of column */
+{
+	ut_ad(table);
+	ut_ad(pos < table->n_def);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return((table->cols) + pos);
+}
+
+/************************************************************************
+Gets the given system column of a table. */
+UNIV_INLINE
+dict_col_t*
+dict_table_get_sys_col(
+/*===================*/
+				/* out: pointer to column object */
+	dict_table_t*	table,	/* in: table */
+	ulint		sys)	/* in: DATA_ROW_ID, ... */
+{
+	dict_col_t*	col;
+
+	ut_ad(table);
+	ut_ad(sys < DATA_N_SYS_COLS);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	col = dict_table_get_nth_col(table, table->n_cols 
+					   - DATA_N_SYS_COLS + sys);
+	ut_ad(col->type.mtype == DATA_SYS);
+	ut_ad(col->type.prtype == (sys | DATA_NOT_NULL));
+
+	return(col);
+}
+
+/************************************************************************
+Gets the given system column number of a table. */
+UNIV_INLINE
+ulint
+dict_table_get_sys_col_no(
+/*======================*/
+				/* out: column number */
+	dict_table_t*	table,	/* in: table */
+	ulint		sys)	/* in: DATA_ROW_ID, ... */
+{
+	ut_ad(table);
+	ut_ad(sys < DATA_N_SYS_COLS);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(table->n_cols - DATA_N_SYS_COLS + sys);
+}
+
+/************************************************************************
+Gets the number of fields in the internal representation of an index,
+including fields added by the dictionary system. */
+UNIV_INLINE
+ulint
+dict_index_get_n_fields(
+/*====================*/
+				/* out: number of fields */
+	dict_index_t*	index)	/* in: an internal representation of index
+				(in the dictionary cache) */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	
+	return(index->n_fields);
+}
+
+/************************************************************************
+Gets the number of fields in the internal representation of an index
+that uniquely determine the position of an index entry in the index, if
+we do not take multiversioning into account: in the B-tree use the value
+returned by dict_index_get_n_unique_in_tree. */
+UNIV_INLINE
+ulint
+dict_index_get_n_unique(
+/*====================*/
+				/* out: number of fields */
+	dict_index_t*	index)	/* in: an internal representation of index
+				(in the dictionary cache) */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(index->cached);
+	
+	return(index->n_uniq);
+}
+
+/************************************************************************
+Gets the number of fields in the internal representation of an index
+which uniquely determine the position of an index entry in the index, if
+we also take multiversioning into account. */
+UNIV_INLINE
+ulint
+dict_index_get_n_unique_in_tree(
+/*============================*/
+				/* out: number of fields */
+	dict_index_t*	index)	/* in: an internal representation of index
+				(in the dictionary cache) */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(index->cached);
+	
+	if (index->type & DICT_CLUSTERED) {
+
+		return(dict_index_get_n_unique(index));
+	}
+
+	return(dict_index_get_n_fields(index));
+}
+
+/************************************************************************
+Gets the number of user-defined ordering fields in the index. In the internal
+representation of clustered indexes we add the row id to the ordering fields
+to make a clustered index unique, but this function returns the number of
+fields the user defined in the index as ordering fields. */
+UNIV_INLINE
+ulint
+dict_index_get_n_ordering_defined_by_user(
+/*======================================*/
+				/* out: number of fields */
+	dict_index_t*	index)	/* in: an internal representation of index
+				(in the dictionary cache) */
+{
+	return(index->n_user_defined_cols);
+}
+
+/************************************************************************
+Gets the nth field of an index. */
+UNIV_INLINE
+dict_field_t*
+dict_index_get_nth_field(
+/*=====================*/
+				/* out: pointer to field object */
+	dict_index_t*	index,	/* in: index */
+	ulint		pos)	/* in: position of field */
+{
+	ut_ad(index);
+	ut_ad(pos < index->n_def);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return((index->fields) + pos);
+}
+
+/************************************************************************
+Returns the position of a system column in an index. */
+UNIV_INLINE
+ulint
+dict_index_get_sys_col_pos(
+/*=======================*/
+				/* out: position, ULINT_UNDEFINED if not
+				contained */
+	dict_index_t*	index,	/* in: index */
+	ulint		type)	/* in: DATA_ROW_ID, ... */
+{
+	dict_col_t*	col;
+
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(!(index->type & DICT_UNIVERSAL));
+
+	col = dict_table_get_sys_col(index->table, type);
+
+	if (index->type & DICT_CLUSTERED) {
+
+		return(col->clust_pos);
+	}
+
+	return(dict_index_get_nth_col_pos(index,
+		dict_table_get_sys_col_no(index->table, type)));
+}
+
+/*************************************************************************
+Gets the index tree where the index is stored. */
+UNIV_INLINE
+dict_tree_t*
+dict_index_get_tree(
+/*================*/
+				/* out: index tree */
+	dict_index_t*	index)	/* in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(index->tree);
+}	
+
+/*************************************************************************
+Gets the field order criterion. */
+UNIV_INLINE
+ulint
+dict_field_get_order(
+/*=================*/
+	dict_field_t*	field)
+{
+	ut_ad(field);
+
+	return(field->order);
+}
+
+/*************************************************************************
+Gets the field column. */
+UNIV_INLINE
+dict_col_t*
+dict_field_get_col(
+/*===============*/
+	dict_field_t*	field)
+{
+	ut_ad(field);
+
+	return(field->col);
+}
+
+/************************************************************************
+Gets pointer to the nth field data type in an index. */
+UNIV_INLINE
+dtype_t*
+dict_index_get_nth_type(
+/*====================*/
+				/* out: data type */
+	dict_index_t*	index,	/* in: index */
+	ulint		pos)	/* in: position of the field */
+{
+	return(dict_col_get_type(dict_field_get_col(
+			dict_index_get_nth_field(index, pos))));
+}
+
+/************************************************************************
+Gets the column number the nth field in an index. */
+UNIV_INLINE
+ulint
+dict_index_get_nth_col_no(
+/*======================*/
+				/* out: column number */
+	dict_index_t*	index,	/* in: index */
+	ulint		pos)	/* in: position of the field */
+{
+	return(dict_col_get_no(dict_field_get_col(
+			dict_index_get_nth_field(index, pos))));
+}
+
+/*************************************************************************
+Gets the space id of the root of the index tree. */
+UNIV_INLINE
+ulint
+dict_tree_get_space(
+/*================*/
+				/* out: space id */
+	dict_tree_t*	tree)	/* in: tree */
+{
+	ut_ad(tree);
+	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+
+	return(tree->space);
+}
+
+/*************************************************************************
+Sets the space id of the root of the index tree. */
+UNIV_INLINE
+void
+dict_tree_set_space(
+/*================*/
+	dict_tree_t*	tree,	/* in: tree */
+	ulint		space)	/* in: space id */
+{
+	ut_ad(tree);
+	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+
+	tree->space = space;
+}
+
+/*************************************************************************
+Gets the page number of the root of the index tree. */
+UNIV_INLINE
+ulint
+dict_tree_get_page(
+/*===============*/
+				/* out: page number */
+	dict_tree_t*	tree)	/* in: tree */
+{
+	ut_ad(tree);
+	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+
+	return(tree->page);
+}
+
+/*************************************************************************
+Sets the page number of the root of index tree. */
+UNIV_INLINE
+void
+dict_tree_set_page(
+/*===============*/
+	dict_tree_t*	tree,	/* in: tree */
+	ulint		page)	/* in: page number */
+{
+	ut_ad(tree);
+	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+
+	tree->page = page;
+}
+
+/*************************************************************************
+Gets the type of the index tree. */
+UNIV_INLINE
+ulint
+dict_tree_get_type(
+/*===============*/
+				/* out: type */
+	dict_tree_t*	tree)	/* in: tree */
+{
+	ut_ad(tree);
+	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+
+	return(tree->type);
+}
+
+/*************************************************************************
+Gets the read-write lock of the index tree. */
+UNIV_INLINE
+rw_lock_t*
+dict_tree_get_lock(
+/*===============*/
+				/* out: read-write lock */
+	dict_tree_t*	tree)	/* in: tree */
+{
+	ut_ad(tree);
+	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+
+	return(&(tree->lock));
+}
+
+/************************************************************************
+Returns free space reserved for future updates of records. This is
+relevant only in the case of many consecutive inserts, as updates
+which make the records bigger might fragment the index. */
+UNIV_INLINE
+ulint
+dict_tree_get_space_reserve(
+/*========================*/
+				/* out: number of free bytes on page,
+				reserved for updates */
+	dict_tree_t*	tree)	/* in: a tree */
+{
+	ut_ad(tree);
+
+	UT_NOT_USED(tree);
+
+	return(UNIV_PAGE_SIZE / 16);
+}
+
+/**************************************************************************
+Checks if a table is in the dictionary cache. */
+UNIV_INLINE
+dict_table_t*
+dict_table_check_if_in_cache_low(
+/*==============================*/
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
+{
+	dict_table_t*	table;
+	ulint		table_fold;
+	
+	ut_ad(table_name);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	/* Look for the table name in the hash table */
+	table_fold = ut_fold_string(table_name);
+
+	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold, table,
+				ut_strcmp(table->name, table_name) == 0);
+	return(table);
+}
+
+/**************************************************************************
+Gets a table; loads it to the dictionary cache if necessary. A low-level
+function. */
+UNIV_INLINE
+dict_table_t*
+dict_table_get_low(
+/*===============*/
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
+{
+	dict_table_t*	table;
+	
+	ut_ad(table_name);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	table = dict_table_check_if_in_cache_low(table_name);
+	
+	if (table == NULL) {
+		table = dict_load_table(table_name);
+	}
+
+	return(table);
+}
+
+/**************************************************************************
+Returns a table object, based on table id, and memoryfixes it. */
+UNIV_INLINE
+dict_table_t*
+dict_table_get_on_id_low(
+/*=====================*/
+				/* out: table, NULL if does not exist */
+	dulint	table_id,	/* in: table id */
+	trx_t*	trx)		/* in: transaction handle */
+{
+	dict_table_t*	table;
+	ulint		fold;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+	UT_NOT_USED(trx);
+	
+	/* Look for the table name in the hash table */
+	fold = ut_fold_dulint(table_id);
+
+	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, table,
+				ut_dulint_cmp(table->id, table_id) == 0);
+	if (table == NULL) {
+		table = dict_load_table_on_id(table_id);
+	}
+
+	if (table != NULL) {
+		table->mem_fix++;
+
+		/* lock_push(trx, table, LOCK_DICT_MEM_FIX) */
+	}
+	
+	/* TODO: should get the type information from MySQL */
+	
+	return(table);
+}
+
+/**************************************************************************
+Releases a table from being memoryfixed. Currently this has no relevance. */
+UNIV_INLINE
+void
+dict_table_release(
+/*===============*/
+	dict_table_t*	table)	/* in: table to be released */
+{
+	mutex_enter(&(dict_sys->mutex));
+	
+	table->mem_fix--;	
+	
+	mutex_exit(&(dict_sys->mutex));
+}
+
+/**************************************************************************
+Returns an index object. */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_index(
+/*=================*/
+				/* out: index, NULL if does not exist */
+	dict_table_t*	table,	/* in: table */
+	const char*	name)	/* in: index name */
+{
+	dict_index_t*	index	= NULL;
+	
+	index = dict_table_get_first_index(table);
+
+	while (index != NULL) {
+		if (ut_strcmp(name, index->name) == 0) {
+
+			break;
+		}
+
+		index = dict_table_get_next_index(index);
+	}	
+	
+	return(index);
+}

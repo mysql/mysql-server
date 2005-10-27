@@ -1,0 +1,172 @@
+/******************************************************
+The index tree cursor
+
+(c) 1994-1996 Innobase Oy
+
+Created 10/16/1994 Heikki Tuuri
+*******************************************************/
+
+#include "btr0btr.h"
+
+/*************************************************************
+Returns the page cursor component of a tree cursor. */
+UNIV_INLINE
+page_cur_t*
+btr_cur_get_page_cur(
+/*=================*/
+				/* out: pointer to page cursor component */
+	btr_cur_t*	cursor)	/* in: tree cursor */
+{
+	return(&(cursor->page_cur));
+}
+
+/*************************************************************
+Returns the record pointer of a tree cursor. */
+UNIV_INLINE
+rec_t*
+btr_cur_get_rec(
+/*============*/
+				/* out: pointer to record */
+	btr_cur_t*	cursor)	/* in: tree cursor */
+{
+	return(page_cur_get_rec(&(cursor->page_cur)));
+}
+
+/*************************************************************
+Invalidates a tree cursor by setting record pointer to NULL. */
+UNIV_INLINE
+void
+btr_cur_invalidate(
+/*===============*/
+	btr_cur_t*	cursor)	/* in: tree cursor */
+{
+	page_cur_invalidate(&(cursor->page_cur));
+}
+
+/*************************************************************
+Returns the page of a tree cursor. */
+UNIV_INLINE
+page_t*
+btr_cur_get_page(
+/*=============*/
+				/* out: pointer to page */
+	btr_cur_t*	cursor)	/* in: tree cursor */
+{
+	page_t*	page = buf_frame_align(page_cur_get_rec(&(cursor->page_cur)));
+	ut_ad(!!page_is_comp(page) == cursor->index->table->comp);
+	return(page);
+}
+
+/*************************************************************
+Returns the tree of a cursor. */
+UNIV_INLINE
+dict_tree_t*
+btr_cur_get_tree(
+/*=============*/
+				/* out: tree */
+	btr_cur_t*	cursor)	/* in: tree cursor */
+{
+	return((cursor->index)->tree);
+}
+
+/*************************************************************
+Positions a tree cursor at a given record. */
+UNIV_INLINE
+void
+btr_cur_position(
+/*=============*/
+	dict_index_t*	index, 	/* in: index */
+	rec_t*		rec,	/* in: record in tree */
+	btr_cur_t*	cursor)	/* in: cursor */
+{
+	page_cur_position(rec, btr_cur_get_page_cur(cursor));
+
+	cursor->index = index;
+}
+
+/*************************************************************************
+Checks if compressing an index page where a btr cursor is placed makes
+sense. */
+UNIV_INLINE
+ibool
+btr_cur_compress_recommendation(
+/*============================*/
+				/* out: TRUE if compression is recommended */
+	btr_cur_t*	cursor,	/* in: btr cursor */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	page_t*		page;
+	
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(
+					btr_cur_get_page(cursor)),
+				MTR_MEMO_PAGE_X_FIX));
+
+	page = btr_cur_get_page(cursor);
+
+	if ((page_get_data_size(page) < BTR_CUR_PAGE_COMPRESS_LIMIT)
+ 	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
+		&& (btr_page_get_prev(page, mtr) == FIL_NULL))) {
+
+		/* The page fillfactor has dropped below a predefined
+		minimum value OR the level in the B-tree contains just
+		one page: we recommend compression if this is not the
+		root page. */
+		
+		if (dict_tree_get_page((cursor->index)->tree)
+		    == buf_frame_get_page_no(page)) {
+
+		    	/* It is the root page */
+
+		    	return(FALSE);
+		}
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}	
+
+/*************************************************************************
+Checks if the record on which the cursor is placed can be deleted without
+making tree compression necessary (or, recommended). */
+UNIV_INLINE
+ibool
+btr_cur_can_delete_without_compress(
+/*================================*/
+				/* out: TRUE if can be deleted without
+				recommended compression */
+	btr_cur_t*	cursor,	/* in: btr cursor */
+	ulint		rec_size,/* in: rec_get_size(btr_cur_get_rec(cursor))*/
+	mtr_t*		mtr)	/* in: mtr */
+{
+	page_t*		page;
+	
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(
+					btr_cur_get_page(cursor)),
+				MTR_MEMO_PAGE_X_FIX));
+
+	page = btr_cur_get_page(cursor);
+
+	if ((page_get_data_size(page) - rec_size < BTR_CUR_PAGE_COMPRESS_LIMIT)
+ 	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
+		&& (btr_page_get_prev(page, mtr) == FIL_NULL))
+	    || (page_get_n_recs(page) < 2)) { 
+
+		/* The page fillfactor will drop below a predefined
+		minimum value, OR the level in the B-tree contains just
+		one page, OR the page will become empty: we recommend
+		compression if this is not the root page. */
+		
+		if (dict_tree_get_page((cursor->index)->tree)
+		    == buf_frame_get_page_no(page)) {
+
+		    	/* It is the root page */
+
+		    	return(TRUE);
+		}
+
+		return(FALSE);
+	}
+
+	return(TRUE);
+}

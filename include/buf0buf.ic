@@ -1,0 +1,663 @@
+/******************************************************
+The database buffer buf_pool
+
+(c) 1995 Innobase Oy
+
+Created 11/5/1995 Heikki Tuuri
+*******************************************************/
+
+#include "buf0flu.h"
+#include "buf0lru.h"
+#include "buf0rea.h"
+#include "mtr0mtr.h"
+
+#ifdef UNIV_DEBUG
+extern ulint		buf_dbg_counter; /* This is used to insert validation
+					operations in execution in the
+					debug version */
+#endif /* UNIV_DEBUG */
+/************************************************************************
+Recommends a move of a block to the start of the LRU list if there is danger
+of dropping from the buffer pool. NOTE: does not reserve the buffer pool
+mutex. */
+UNIV_INLINE
+ibool
+buf_block_peek_if_too_old(
+/*======================*/
+				/* out: TRUE if should be made younger */
+	buf_block_t*	block)	/* in: block to make younger */
+{
+	return(buf_pool->freed_page_clock >= block->freed_page_clock
+				+ 1 + (buf_pool->curr_size / 1024));
+}
+
+/*************************************************************************
+Gets the current size of buffer buf_pool in bytes. In the case of AWE, the
+size of AWE window (= the frames). */
+UNIV_INLINE
+ulint
+buf_pool_get_curr_size(void)
+/*========================*/
+			/* out: size in bytes */
+{
+	return((buf_pool->n_frames) * UNIV_PAGE_SIZE);
+}	
+
+/*************************************************************************
+Gets the maximum size of buffer buf_pool in bytes. In the case of AWE, the
+size of AWE window (= the frames). */
+UNIV_INLINE
+ulint
+buf_pool_get_max_size(void)
+/*=======================*/
+			/* out: size in bytes */
+{
+	return((buf_pool->n_frames) * UNIV_PAGE_SIZE);
+}	
+
+/***********************************************************************
+Accessor function for block array. */
+UNIV_INLINE
+buf_block_t*
+buf_pool_get_nth_block(
+/*===================*/
+				/* out: pointer to block */
+	buf_pool_t*	buf_pool,/* in: buf_pool */
+	ulint		i)	/* in: index of the block */
+{
+	ut_ad(buf_pool);
+	ut_ad(i < buf_pool->max_size);
+
+	return(i + buf_pool->blocks);
+}	
+
+/***********************************************************************
+Checks if a pointer points to the block array of the buffer pool (blocks, not
+the frames). */
+UNIV_INLINE
+ibool
+buf_pool_is_block(
+/*==============*/
+			/* out: TRUE if pointer to block */
+	void*	ptr)	/* in: pointer to memory */
+{
+	if ((buf_pool->blocks <= (buf_block_t*)ptr)
+	    && ((buf_block_t*)ptr < buf_pool->blocks + buf_pool->max_size)) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}	
+
+/************************************************************************
+Gets the smallest oldest_modification lsn for any page in the pool. Returns
+ut_dulint_zero if all modified pages have been flushed to disk. */
+UNIV_INLINE
+dulint
+buf_pool_get_oldest_modification(void)
+/*==================================*/
+				/* out: oldest modification in pool,
+				ut_dulint_zero if none */
+{
+	buf_block_t*	block;
+	dulint		lsn;
+	
+	mutex_enter(&(buf_pool->mutex));
+
+	block = UT_LIST_GET_LAST(buf_pool->flush_list);
+
+	if (block == NULL) {
+		lsn = ut_dulint_zero;
+	} else {
+		lsn = block->oldest_modification;
+	}
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(lsn);
+}
+
+/***********************************************************************
+Increments the buf_pool clock by one and returns its new value. Remember
+that in the 32 bit version the clock wraps around at 4 billion! */
+UNIV_INLINE
+ulint
+buf_pool_clock_tic(void)
+/*====================*/
+			/* out: new clock value */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+	
+	buf_pool->ulint_clock++;
+
+	return(buf_pool->ulint_clock);
+}
+
+/*************************************************************************
+Gets a pointer to the memory frame of a block. */
+UNIV_INLINE
+buf_frame_t*
+buf_block_get_frame(
+/*================*/
+				/* out: pointer to the frame */
+	buf_block_t*	block)	/* in: pointer to the control block */
+{
+	ut_ad(block);
+	ut_ad(block >= buf_pool->blocks);
+	ut_ad(block < buf_pool->blocks + buf_pool->max_size);
+	ut_ad(block->state != BUF_BLOCK_NOT_USED); 
+	ut_ad((block->state != BUF_BLOCK_FILE_PAGE) 
+	      || (block->buf_fix_count > 0));
+	
+	return(block->frame);
+}	
+
+/*************************************************************************
+Gets the space id of a block. */
+UNIV_INLINE
+ulint
+buf_block_get_space(
+/*================*/
+				/* out: space id */
+	buf_block_t*	block)	/* in: pointer to the control block */
+{
+	ut_ad(block);
+	ut_ad(block >= buf_pool->blocks);
+	ut_ad(block < buf_pool->blocks + buf_pool->max_size);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_ad(block->buf_fix_count > 0);
+	
+	return(block->space);
+}	
+
+/*************************************************************************
+Gets the page number of a block. */
+UNIV_INLINE
+ulint
+buf_block_get_page_no(
+/*==================*/
+				/* out: page number */
+	buf_block_t*	block)	/* in: pointer to the control block */
+{
+	ut_ad(block);
+	ut_ad(block >= buf_pool->blocks);
+	ut_ad(block < buf_pool->blocks + buf_pool->max_size);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_ad(block->buf_fix_count > 0);
+	
+	return(block->offset);
+}	
+
+/***********************************************************************
+Gets the block to whose frame the pointer is pointing to. */
+UNIV_INLINE
+buf_block_t*
+buf_block_align(
+/*============*/
+			/* out: pointer to block */
+	byte*	ptr)	/* in: pointer to a frame */
+{
+	buf_block_t*	block;
+	buf_frame_t*	frame_zero;
+
+	ut_ad(ptr);
+
+	frame_zero = buf_pool->frame_zero;
+
+	if (UNIV_UNLIKELY((ulint)ptr < (ulint)frame_zero)
+	    || UNIV_UNLIKELY((ulint)ptr > (ulint)(buf_pool->high_end))) {
+
+		ut_print_timestamp(stderr);	
+		fprintf(stderr,
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, end at %p\n"
+"InnoDB: Probable reason is database corruption or memory\n"
+"InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
+"InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
+"InnoDB: how to force recovery.\n",
+ 			ptr, frame_zero,
+			buf_pool->high_end);
+		ut_error;
+	}
+	
+	block = *(buf_pool->blocks_of_frames + (((ulint)(ptr - frame_zero))
+						>> UNIV_PAGE_SIZE_SHIFT));
+	return(block);
+}	
+
+/***********************************************************************
+Gets the frame the pointer is pointing to. */
+UNIV_INLINE
+buf_frame_t*
+buf_frame_align(
+/*============*/
+			/* out: pointer to frame */
+	byte*	ptr)	/* in: pointer to a frame */
+{
+	buf_frame_t*	frame;
+
+	ut_ad(ptr);
+
+	frame = ut_align_down(ptr, UNIV_PAGE_SIZE);
+
+	if (UNIV_UNLIKELY((ulint)frame < (ulint)(buf_pool->frame_zero))
+	    || UNIV_UNLIKELY((ulint)frame >= (ulint)(buf_pool->high_end))) {
+
+		ut_print_timestamp(stderr);	
+		fprintf(stderr,
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, end at %p\n"
+"InnoDB: Probable reason is database corruption or memory\n"
+"InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
+"InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
+"InnoDB: how to force recovery.\n",
+ 			ptr, buf_pool->frame_zero,
+			buf_pool->high_end);
+		ut_error;
+	}
+
+	return(frame);
+}
+
+/**************************************************************************
+Gets the page number of a pointer pointing within a buffer frame containing
+a file page. */
+UNIV_INLINE
+ulint
+buf_frame_get_page_no(
+/*==================*/
+			/* out: page number */
+	byte*	ptr)	/* in: pointer to within a buffer frame */
+{
+	return(buf_block_get_page_no(buf_block_align(ptr)));
+}
+
+/**************************************************************************
+Gets the space id of a pointer pointing within a buffer frame containing a
+file page. */
+UNIV_INLINE
+ulint
+buf_frame_get_space_id(
+/*===================*/
+			/* out: space id */
+	byte*	ptr)	/* in: pointer to within a buffer frame */
+{
+	return(buf_block_get_space(buf_block_align(ptr)));
+}
+
+/**************************************************************************
+Gets the space id, page offset, and byte offset within page of a
+pointer pointing to a buffer frame containing a file page. */
+UNIV_INLINE
+void
+buf_ptr_get_fsp_addr(
+/*=================*/
+	byte*		ptr,	/* in: pointer to a buffer frame */
+	ulint*		space,	/* out: space id */
+	fil_addr_t*	addr)	/* out: page offset and byte offset */
+{
+	buf_block_t*	block;
+
+	block = buf_block_align(ptr);
+
+	*space = buf_block_get_space(block);
+	addr->page = buf_block_get_page_no(block);
+	addr->boffset = ptr - buf_frame_align(ptr);
+}
+
+/**************************************************************************
+Gets the hash value of the page the pointer is pointing to. This can be used
+in searches in the lock hash table. */
+UNIV_INLINE
+ulint
+buf_frame_get_lock_hash_val(
+/*========================*/
+			/* out: lock hash value */
+	byte*	ptr)	/* in: pointer to within a buffer frame */
+{
+	buf_block_t*	block;
+
+	block = buf_block_align(ptr);
+
+	return(block->lock_hash_val);
+}
+
+/**************************************************************************
+Gets the mutex number protecting the page record lock hash chain in the lock
+table. */
+UNIV_INLINE
+mutex_t*
+buf_frame_get_lock_mutex(
+/*=====================*/
+			/* out: mutex */
+	byte*	ptr)	/* in: pointer to within a buffer frame */
+{
+	buf_block_t*	block;
+
+	block = buf_block_align(ptr);
+
+	return(block->lock_mutex);
+}
+
+/*************************************************************************
+Copies contents of a buffer frame to a given buffer. */
+UNIV_INLINE
+byte*
+buf_frame_copy(
+/*===========*/
+				/* out: buf */
+	byte*		buf,	/* in: buffer to copy to */
+	buf_frame_t*	frame)	/* in: buffer frame */
+{
+	ut_ad(buf && frame);
+
+	ut_memcpy(buf, frame, UNIV_PAGE_SIZE);
+
+	return(buf);
+}
+
+/************************************************************************
+Calculates a folded value of a file page address to use in the page hash
+table. */
+UNIV_INLINE
+ulint
+buf_page_address_fold(
+/*==================*/
+			/* out: the folded value */
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: offset of the page within space */
+{
+	return((space << 20) + space + offset);
+}	
+
+/************************************************************************
+This function is used to get info if there is an io operation
+going on on a buffer page. */
+UNIV_INLINE
+ibool
+buf_page_io_query(
+/*==============*/
+				/* out: TRUE if io going on */
+	buf_block_t*	block)	/* in: buf_pool block, must be bufferfixed */
+{
+	mutex_enter(&(buf_pool->mutex));
+
+	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_ad(block->buf_fix_count > 0);
+
+	if (block->io_fix != 0) {
+		mutex_exit(&(buf_pool->mutex));
+
+		return(TRUE);
+	}
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(FALSE);
+}
+
+/************************************************************************
+Gets the youngest modification log sequence number for a frame. Returns zero
+if not a file page or no modification occurred yet. */
+UNIV_INLINE
+dulint
+buf_frame_get_newest_modification(
+/*==============================*/
+				/* out: newest modification to the page */
+	buf_frame_t*	frame)	/* in: pointer to a frame */
+{
+	buf_block_t*	block;
+	dulint		lsn;
+	
+	ut_ad(frame);
+
+	block = buf_block_align(frame);
+
+	mutex_enter(&(buf_pool->mutex));
+
+	if (block->state == BUF_BLOCK_FILE_PAGE) {
+		lsn = block->newest_modification;
+	} else {
+		lsn = ut_dulint_zero;
+	}
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(lsn);
+}
+
+/************************************************************************
+Increments the modify clock of a frame by 1. The caller must (1) own the
+buf_pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
+on the block. */
+UNIV_INLINE
+dulint
+buf_frame_modify_clock_inc(
+/*=======================*/
+				/* out: new value */
+	buf_frame_t*	frame)	/* in: pointer to a frame */
+{
+	buf_block_t*	block;
+
+	ut_ad(frame);
+
+	block = buf_block_align(frame);
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
+	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /*UNIV_SYNC_DEBUG */
+
+	UT_DULINT_INC(block->modify_clock);
+
+	return(block->modify_clock);
+}
+
+/************************************************************************
+Increments the modify clock of a frame by 1. The caller must (1) own the
+buf_pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
+on the block. */
+UNIV_INLINE
+dulint
+buf_block_modify_clock_inc(
+/*=======================*/
+				/* out: new value */
+	buf_block_t*	block)	/* in: block */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
+	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /* UNIV_SYNC_DEBUG */
+
+	UT_DULINT_INC(block->modify_clock);
+
+	return(block->modify_clock);
+}
+
+/************************************************************************
+Returns the value of the modify clock. The caller must have an s-lock 
+or x-lock on the block. */
+UNIV_INLINE
+dulint
+buf_block_get_modify_clock(
+/*=======================*/
+				/* out: value */
+	buf_block_t*	block)	/* in: block */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
+	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /* UNIV_SYNC_DEBUG */
+
+	return(block->modify_clock);
+}
+
+#ifdef UNIV_SYNC_DEBUG
+/***********************************************************************
+Increments the bufferfix count. */
+UNIV_INLINE
+void
+buf_block_buf_fix_inc_debug(
+/*========================*/
+	buf_block_t*	block,	/* in: block to bufferfix */
+	const char*	file __attribute__ ((unused)),	/* in: file name */
+	ulint		line __attribute__ ((unused)))	/* in: line */
+{
+#ifdef UNIV_SYNC_DEBUG	
+	ibool	ret;
+
+	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
+
+	ut_ad(ret == TRUE);
+#endif
+	block->buf_fix_count++;
+}
+#else /* UNIV_SYNC_DEBUG */
+/***********************************************************************
+Increments the bufferfix count. */
+UNIV_INLINE
+void
+buf_block_buf_fix_inc(
+/*==================*/
+	buf_block_t*	block)	/* in: block to bufferfix */
+{
+	block->buf_fix_count++;
+}
+#endif /* UNIV_SYNC_DEBUG */
+/**********************************************************************
+Returns the control block of a file page, NULL if not found. */
+UNIV_INLINE
+buf_block_t*
+buf_page_hash_get(
+/*==============*/
+			/* out: block, NULL if not found */
+	ulint	space,	/* in: space id */
+	ulint	offset)	/* in: offset of the page within space */
+{
+	buf_block_t*	block;
+	ulint		fold;
+	
+	ut_ad(buf_pool);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	/* Look for the page in the hash table */
+
+	fold = buf_page_address_fold(space, offset);
+
+	HASH_SEARCH(hash, buf_pool->page_hash, fold, block,
+			(block->space == space) && (block->offset == offset));
+	ut_a(block == NULL || block->state == BUF_BLOCK_FILE_PAGE);
+	
+	return(block);
+}
+
+/************************************************************************
+Tries to get the page, but if file io is required, releases all latches
+in mtr down to the given savepoint. If io is required, this function
+retrieves the page to buffer buf_pool, but does not bufferfix it or latch
+it. */
+UNIV_INLINE
+buf_frame_t*
+buf_page_get_release_on_io(
+/*=======================*/
+				/* out: pointer to the frame, or NULL
+				if not in buffer buf_pool */
+	ulint	space,		/* in: space id */
+	ulint	offset,		/* in: offset of the page within space
+				in units of a page */
+	buf_frame_t* guess,	/* in: guessed frame or NULL */
+	ulint	rw_latch,	/* in: RW_X_LATCH, RW_S_LATCH,
+				or RW_NO_LATCH */
+	ulint	savepoint,	/* in: mtr savepoint */
+	mtr_t*	mtr)		/* in: mtr */
+{
+	buf_frame_t*	frame;
+
+	frame = buf_page_get_gen(space, offset, rw_latch, guess,
+				BUF_GET_IF_IN_POOL,
+				__FILE__, __LINE__,
+				mtr);
+	if (frame != NULL) {
+
+		return(frame);
+	}
+
+	/* The page was not in the buffer buf_pool: release the latches
+	down to the savepoint */
+		
+	mtr_rollback_to_savepoint(mtr, savepoint);
+		
+	buf_page_get(space, offset, RW_S_LATCH, mtr);
+		
+	/* When we get here, the page is in buffer, but we release
+	the latches again down to the savepoint, before returning */
+
+	mtr_rollback_to_savepoint(mtr, savepoint);
+		
+	return(NULL);
+}
+
+/************************************************************************
+Decrements the bufferfix count of a buffer control block and releases
+a latch, if specified. */
+UNIV_INLINE
+void
+buf_page_release(
+/*=============*/
+	buf_block_t*	block,		/* in: buffer block */
+	ulint		rw_latch,	/* in: RW_S_LATCH, RW_X_LATCH,
+					RW_NO_LATCH */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	ulint	buf_fix_count;
+	
+	ut_ad(block);
+
+	mutex_enter_fast(&(buf_pool->mutex));
+
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->buf_fix_count > 0);
+
+	if (rw_latch == RW_X_LATCH && mtr->modifications) {
+
+		buf_flush_note_modification(block, mtr);
+	}
+
+#ifdef UNIV_SYNC_DEBUG
+	rw_lock_s_unlock(&(block->debug_latch));
+#endif
+	buf_fix_count = block->buf_fix_count;
+	block->buf_fix_count = buf_fix_count - 1;
+
+	mutex_exit(&(buf_pool->mutex));
+
+	if (rw_latch == RW_S_LATCH) {
+		rw_lock_s_unlock(&(block->lock));
+	} else if (rw_latch == RW_X_LATCH) {
+		rw_lock_x_unlock(&(block->lock));
+	}
+}
+
+#ifdef UNIV_SYNC_DEBUG
+/*************************************************************************
+Adds latch level info for the rw-lock protecting the buffer frame. This
+should be called in the debug version after a successful latching of a
+page if we know the latching order level of the acquired latch. If
+UNIV_SYNC_DEBUG is not defined, compiles to an empty function. */
+UNIV_INLINE
+void
+buf_page_dbg_add_level(
+/*===================*/
+	buf_frame_t*	frame __attribute__((unused)), /* in: buffer page
+                                where we have acquired latch */
+	ulint		level __attribute__((unused))) /* in: latching order
+                                level */
+{
+	sync_thread_add_level(&(buf_block_align(frame)->lock), level);
+}
+#endif /* UNIV_SYNC_DEBUG */

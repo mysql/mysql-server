@@ -1,0 +1,130 @@
+/******************************************************
+The simple hash table utility
+
+(c) 1997 Innobase Oy
+
+Created 5/20/1997 Heikki Tuuri
+*******************************************************/
+
+#include "ut0rnd.h"
+
+/****************************************************************
+Gets the nth cell in a hash table. */
+UNIV_INLINE
+hash_cell_t*
+hash_get_nth_cell(
+/*==============*/
+				/* out: pointer to cell */
+	hash_table_t* 	table,	/* in: hash table */
+	ulint 		n)	/* in: cell index */
+{
+	ut_ad(n < table->n_cells);
+
+	return(table->array + n);
+}
+
+/*****************************************************************
+Returns the number of cells in a hash table. */
+UNIV_INLINE
+ulint
+hash_get_n_cells(
+/*=============*/
+				/* out: number of cells */
+	hash_table_t*	table)	/* in: table */
+{
+	return(table->n_cells);
+}
+
+/******************************************************************
+Calculates the hash value from a folded value. */
+UNIV_INLINE
+ulint
+hash_calc_hash(
+/*===========*/
+				/* out: hashed value */
+	ulint		fold,	/* in: folded value */
+	hash_table_t*	table)	/* in: hash table */
+{
+	return(ut_hash_ulint(fold, table->n_cells));
+}
+
+/****************************************************************
+Gets the mutex index for a fold value in a hash table. */
+UNIV_INLINE
+ulint
+hash_get_mutex_no(
+/*==============*/
+				/* out: mutex number */
+	hash_table_t* 	table,	/* in: hash table */
+	ulint 		fold)	/* in: fold */
+{
+	return(ut_2pow_remainder(fold, table->n_mutexes));
+}
+
+/****************************************************************
+Gets the nth heap in a hash table. */
+UNIV_INLINE
+mem_heap_t*
+hash_get_nth_heap(
+/*==============*/
+				/* out: mem heap */
+	hash_table_t* 	table,	/* in: hash table */
+	ulint 		i)	/* in: index of the heap */
+{
+	ut_ad(i < table->n_mutexes);
+
+	return(table->heaps[i]);
+}
+
+/****************************************************************
+Gets the heap for a fold value in a hash table. */
+UNIV_INLINE
+mem_heap_t*
+hash_get_heap(
+/*==========*/
+				/* out: mem heap */
+	hash_table_t* 	table,	/* in: hash table */
+	ulint 		fold)	/* in: fold */
+{
+	ulint	i;
+
+	if (table->heap) {
+		return(table->heap);
+	}
+
+	i = hash_get_mutex_no(table, fold);
+
+	return(hash_get_nth_heap(table, i));
+}
+
+/****************************************************************
+Gets the nth mutex in a hash table. */
+UNIV_INLINE
+mutex_t*
+hash_get_nth_mutex(
+/*===============*/
+				/* out: mutex */
+	hash_table_t* 	table,	/* in: hash table */
+	ulint 		i)	/* in: index of the mutex */
+{
+	ut_ad(i < table->n_mutexes);
+	
+	return(table->mutexes + i);
+}
+
+/****************************************************************
+Gets the mutex for a fold value in a hash table. */
+UNIV_INLINE
+mutex_t*
+hash_get_mutex(
+/*===========*/
+				/* out: mutex */
+	hash_table_t* 	table,	/* in: hash table */
+	ulint 		fold)	/* in: fold */
+{
+	ulint	i;
+
+	i = hash_get_mutex_no(table, fold);
+
+	return(hash_get_nth_mutex(table, i));
+}

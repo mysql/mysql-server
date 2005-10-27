@@ -1,0 +1,13 @@
+drop table if exists t1;
+create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) engine=innodb;
+select * from t1;
+c1	c2	stamp
+replace delayed into t1 (c1, c2)  values ( "text1","11"),( "text2","12");
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+select * from t1;
+c1	c2	stamp
+replace delayed into t1 (c1, c2)  values ( "text1","12"),( "text2","13"),( "text3","14", "a" ),( "text4","15", "b" );
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+select * from t1;
+c1	c2	stamp
+drop table t1;

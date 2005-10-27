@@ -1,0 +1,35 @@
+/******************************************************
+Recovery
+
+(c) 1997 Innobase Oy
+
+Created 9/20/1997 Heikki Tuuri
+*******************************************************/
+
+#include "sync0sync.h"
+#include "mem0mem.h"
+#include "log0log.h"
+#include "os0file.h"
+
+extern ibool	recv_recovery_from_backup_on;
+
+/***********************************************************************
+Returns TRUE if recovery is currently running. */
+UNIV_INLINE
+ibool
+recv_recovery_is_on(void)
+/*=====================*/
+{
+	return(recv_recovery_on);
+}
+
+/***********************************************************************
+Returns TRUE if recovery from backup is currently running. */
+UNIV_INLINE
+ibool
+recv_recovery_from_backup_is_on(void)
+/*=================================*/
+{
+	return(recv_recovery_from_backup_on);
+}
+

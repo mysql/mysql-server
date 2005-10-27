@@ -1,0 +1,1753 @@
+-- source include/have_innodb.inc
+
+#
+# Small basic test with ignore
+#
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+drop database if exists mysqltest;
+--enable_warnings
+
+create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) engine=innodb;
+
+insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
+select id, code, name from t1 order by id;
+
+update ignore t1 set id = 8, name = 'Sinisa' where id < 3;
+select id, code, name from t1 order by id;
+update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
+select id, code, name from t1 order by id;
+
+drop table t1;
+
+#
+# A bit bigger test
+# The 'replace_column' statements are needed because the cardinality calculated
+# by innodb is not always the same between runs
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  parent_id int(11) DEFAULT '0' NOT NULL,
+  level tinyint(4) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (id),
+  KEY parent_id (parent_id),
+  KEY level (level)
+) engine=innodb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1),(179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
+update t1 set id=id+1000;
+-- error 1062,1022
+update t1 set id=1024 where id=1009; 
+select * from t1;
+update ignore t1 set id=id+1; # This will change all rows
+select * from t1;
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
+--replace_column 9 #
+explain select level from t1 where level=1;
+--replace_column 9 #
+explain select level,id from t1 where level=1;
+--replace_column 9 #
+explain select level,id,parent_id from t1 where level=1;
+select level,id from t1 where level=1;
+select level,id,parent_id from t1 where level=1;
+optimize table t1;
+--replace_column 7 #
+show keys from t1;
+drop table t1;
+
+#
+# Test replace
+#
+
+CREATE TABLE t1 (
+  gesuchnr int(11) DEFAULT '0' NOT NULL,
+  benutzer_id int(11) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (gesuchnr,benutzer_id)
+) engine=innodb;
+
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+select * from t1;
+drop table t1;
+
+#
+# test delete using hidden_primary_key
+#
+
+create table t1 (a int) engine=innodb;
+insert into t1 values (1), (2);
+optimize table t1;
+delete from t1 where a = 1;
+select * from t1;
+check table t1;
+drop table t1;
+
+create table t1 (a int,b varchar(20)) engine=innodb;
+insert into t1 values (1,""), (2,"testing");
+delete from t1 where a = 1;
+select * from t1;
+create index skr on t1 (a);
+insert into t1 values (3,""), (4,"testing");
+analyze table t1;
+--replace_column 7 #
+show keys from t1;
+drop table t1;
+
+
+# Test of reading on secondary key with may be null
+
+create table t1 (a int,b varchar(20),key(a)) engine=innodb;
+insert into t1 values (1,""), (2,"testing");
+select * from t1 where a = 1;
+drop table t1;
+
+#
+# Test rollback
+#
+
+create table t1 (n int not null primary key) engine=innodb;
+set autocommit=0;
+insert into t1 values (4);
+rollback;
+select n, "after rollback" from t1;
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
+commit;
+insert into t1 values (5);
+-- error 1062
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
+set autocommit=1;
+insert into t1 values (6);
+-- error 1062
+insert into t1 values (4);
+select n from t1;
+set autocommit=0;
+#
+# savepoints
+#
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+savepoint savept3;
+rollback to savepoint savept2;
+--error 1305
+rollback to savepoint savept3;
+rollback to savepoint savept2;
+release savepoint `my_savepoint`;
+select n from t1;
+-- error 1305
+rollback to savepoint `my_savepoint`;
+--error 1305
+rollback to savepoint savept2;
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
+set autocommit=1;
+# nop
+rollback;
+drop table t1;
+
+#
+# Test for commit and FLUSH TABLES WITH READ LOCK
+#
+
+create table t1 (n int not null primary key) engine=innodb;
+start transaction;
+insert into t1 values (4);
+flush tables with read lock;
+#
+# Current code can't handle a read lock in middle of transaction
+#--error 1223;
+commit;
+unlock tables;
+commit;
+select * from t1;
+drop table t1;
+
+#
+# Testing transactions
+#
+
+create table t1 ( id int NOT NULL PRIMARY KEY, nom varchar(64)) engine=innodb;
+begin;
+insert into t1 values(1,'hamdouni');
+select id as afterbegin_id,nom as afterbegin_nom from t1;
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
+set autocommit=0;
+insert into t1 values(2,'mysql');
+select id as afterautocommit0_id,nom as afterautocommit0_nom from t1;
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
+set autocommit=1;
+drop table t1;
+
+#
+# Simple not autocommit test
+# 
+
+CREATE TABLE t1 (id char(8) not null primary key, val int not null) engine=innodb;
+insert into t1 values ('pippo', 12);
+-- error 1062
+insert into t1 values ('pippo', 12); # Gives error
+delete from t1;
+delete from t1 where id = 'pippo';
+select * from t1;
+
+insert into t1 values ('pippo', 12);
+set autocommit=0;
+delete from t1;
+rollback;
+select * from t1;
+delete from t1;
+commit;
+select * from t1;
+drop table t1;
+
+#
+# Test of active transactions
+#
+
+create table t1 (a integer) engine=innodb;
+start transaction;
+rename table t1 to t2;
+create table t1 (b integer) engine=innodb;
+insert into t1 values (1);
+rollback;
+drop table t1;
+rename table t2 to t1;
+drop table t1;
+set autocommit=1;
+
+#
+# The following simple tests failed at some point
+#
+
+CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, NAME VARCHAR(64)) ENGINE=innodb;
+INSERT INTO t1 VALUES (1, 'Jochen');
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 ( _userid VARCHAR(60) NOT NULL PRIMARY KEY) ENGINE=innodb;
+set autocommit=0;
+INSERT INTO t1  SET _userid='marc@anyware.co.uk';
+COMMIT;
+SELECT * FROM t1;
+SELECT _userid FROM t1 WHERE _userid='marc@anyware.co.uk';
+drop table t1;
+set autocommit=1;
+
+#
+# Test when reading on part of unique key
+#
+CREATE TABLE t1 (
+  user_id int(10) DEFAULT '0' NOT NULL,
+  name varchar(100),
+  phone varchar(100),
+  ref_email varchar(100) DEFAULT '' NOT NULL,
+  detail varchar(200),
+  PRIMARY KEY (user_id,ref_email)
+)engine=innodb;
+
+INSERT INTO t1 VALUES (10292,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10292,'shirish','2333604','shirish@yahoo.com','ddsds'),(10292,'sonali','323232','sonali@bolly.com','filmstar');
+select * from t1 where user_id=10292;
+INSERT INTO t1 VALUES (10291,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10293,'shirish','2333604','shirish@yahoo.com','ddsds');
+select * from t1 where user_id=10292;
+select * from t1 where user_id>=10292;
+select * from t1 where user_id>10292;
+select * from t1 where user_id<10292;
+drop table t1;
+
+#
+# Test that keys are created in right order
+#
+
+CREATE TABLE t1 (a int not null, b int not null,c int not null,
+key(a),primary key(a,b), unique(c),key(a),unique(b));
+--replace_column 7 #
+show index from t1;
+drop table t1;
+
+#
+# Test of ALTER TABLE and innodb tables
+#
+
+create table t1 (col1 int not null, col2 char(4) not null, primary key(col1));
+alter table t1 engine=innodb;
+insert into t1 values ('1','1'),('5','2'),('2','3'),('3','4'),('4','4');
+select * from t1;
+update t1 set col2='7' where col1='4';
+select * from t1;
+alter table t1 add co3 int not null;
+select * from t1;
+update t1 set col2='9' where col1='2';
+select * from t1;
+drop table t1;
+
+#
+# INSERT INTO innodb tables
+#
+
+create table t1 (a int not null , b int, primary key (a)) engine = innodb;
+create table t2 (a int not null , b int, primary key (a)) engine = myisam;
+insert into t1 VALUES (1,3) , (2,3), (3,3);
+select * from t1;
+insert into t2 select * from t1;
+select * from t2;
+delete from t1 where b = 3;
+select * from t1;
+insert into t1 select * from t2;
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+#
+# Search on unique key
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  ggid varchar(32) binary DEFAULT '' NOT NULL,
+  email varchar(64) DEFAULT '' NOT NULL,
+  passwd varchar(32) binary DEFAULT '' NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE ggid (ggid)
+) ENGINE=innodb;
+
+insert into t1 (ggid,passwd) values ('test1','xxx');
+insert into t1 (ggid,passwd) values ('test2','yyy');
+-- error 1062
+insert into t1 (ggid,passwd) values ('test2','this will fail');
+-- error 1062
+insert into t1 (ggid,id) values ('this will fail',1);
+
+select * from t1 where ggid='test1';
+select * from t1 where passwd='xxx';
+select * from t1 where id=2;
+
+replace into t1 (ggid,id) values ('this will work',1);
+replace into t1 (ggid,passwd) values ('test2','this will work');
+-- error 1062
+update t1 set id=100,ggid='test2' where id=1;
+select * from t1;
+select * from t1 where id=1;
+select * from t1 where id=999;
+drop table t1;
+
+#
+# ORDER BY on not primary key
+#
+
+CREATE TABLE t1 (
+  user_name varchar(12),
+  password text,
+  subscribed char(1),
+  user_id int(11) DEFAULT '0' NOT NULL,
+  quota bigint(20),
+  weight double,
+  access_date date,
+  access_time time,
+  approved datetime,
+  dummy_primary_key int(11) NOT NULL auto_increment,
+  PRIMARY KEY (dummy_primary_key)
+) ENGINE=innodb;
+INSERT INTO t1 VALUES ('user_0','somepassword','N',0,0,0,'2000-09-07','23:06:59','2000-09-07 23:06:59',1);
+INSERT INTO t1 VALUES ('user_1','somepassword','Y',1,1,1,'2000-09-07','23:06:59','2000-09-07 23:06:59',2);
+INSERT INTO t1 VALUES ('user_2','somepassword','N',2,2,1.4142135623731,'2000-09-07','23:06:59','2000-09-07 23:06:59',3);
+INSERT INTO t1 VALUES ('user_3','somepassword','Y',3,3,1.7320508075689,'2000-09-07','23:06:59','2000-09-07 23:06:59',4);
+INSERT INTO t1 VALUES ('user_4','somepassword','N',4,4,2,'2000-09-07','23:06:59','2000-09-07 23:06:59',5);
+select  user_name, password , subscribed, user_id, quota, weight, access_date, access_time, approved, dummy_primary_key from t1 order by user_name;
+drop table t1;
+
+#
+# Testing of tables without primary keys
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  parent_id int(11) DEFAULT '0' NOT NULL,
+  level tinyint(4) DEFAULT '0' NOT NULL,
+  KEY (id),
+  KEY parent_id (parent_id),
+  KEY level (level)
+) engine=innodb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1);
+INSERT INTO t1 values (179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
+update t1 set id=id+1000;
+update t1 set id=1024 where id=1009; 
+select * from t1;
+update ignore t1 set id=id+1; # This will change all rows
+select * from t1;
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
+--replace_column 9 #
+explain select level from t1 where level=1;
+select level,id from t1 where level=1;
+select level,id,parent_id from t1 where level=1;
+select level,id from t1 where level=1 order by id;
+delete from t1 where level=1;
+select * from t1;
+drop table t1;
+
+#
+# Test of index only reads
+#
+CREATE TABLE t1 (
+   sca_code char(6) NOT NULL,
+   cat_code char(6) NOT NULL,
+   sca_desc varchar(50),
+   lan_code char(2) NOT NULL,
+   sca_pic varchar(100),
+   sca_sdesc varchar(50),
+   sca_sch_desc varchar(16),
+   PRIMARY KEY (sca_code, cat_code, lan_code),
+   INDEX sca_pic (sca_pic)
+) engine = innodb ;
+
+INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING'),( 'QQ', 'N', 'RING', 'EN', 'not null', NULL, 'RING');
+select count(*) from t1 where sca_code = 'PD';
+select count(*) from t1 where sca_code <= 'PD';
+select count(*) from t1 where sca_pic is null;
+alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
+select count(*) from t1 where cat_code='E';
+
+alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
+select count(*) from t1 where sca_pic >= 'n';
+select sca_pic from t1 where sca_pic is null;
+update t1 set sca_pic="test" where sca_pic is null;
+delete from t1 where sca_code='pd';
+drop table t1;
+
+#
+# Test of opening table twice and timestamps
+#
+set @a:=now();
+CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) engine=innodb;
+insert into t1 (a) values(1),(2),(3);
+select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
+select a from t1 natural join t1 as t2 where b >= @a order by a;
+update t1 set a=5 where a=1;
+select a from t1;
+drop table t1;
+
+#
+# Test with variable length primary key
+#
+create table t1 (a varchar(100) not null, primary key(a), b int not null) engine=innodb;
+insert into t1 values("hello",1),("world",2);
+select * from t1 order by b desc;
+optimize table t1;
+--replace_column 7 #
+show keys from t1;
+drop table t1;
+
+#
+# Test of create index with NULL columns
+#
+create table t1 (i int, j int ) ENGINE=innodb;
+insert into t1 values (1,2);
+select * from t1 where i=1 and j=2;
+create index ax1 on t1 (i,j);
+select * from t1 where i=1 and j=2;
+drop table t1;
+
+#
+# Test min-max optimization
+#
+
+CREATE TABLE t1 (
+  a int3 unsigned NOT NULL,
+  b int1 unsigned NOT NULL,
+  UNIQUE (a, b)
+) ENGINE = innodb;
+ 
+INSERT INTO t1 VALUES (1, 1);
+SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
+drop table t1;
+
+#
+# Test INSERT DELAYED
+#
+
+CREATE TABLE t1 (a int unsigned NOT NULL) engine=innodb;
+# Can't test this in 3.23
+# INSERT DELAYED INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+#
+# Crash when using many tables (Test case by Jeremy D Zawodny)
+#
+
+create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) engine = innodb;
+insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
+--replace_column 9 #
+explain select * from t1 where a > 0 and a < 50;
+drop table t1;
+
+#
+# Test lock tables
+#
+
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=innodb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
+LOCK TABLES t1 WRITE;
+--error 1062
+insert into t1 values (99,1,2,'D'),(1,1,2,'D');
+select id from t1;
+select id from t1;
+UNLOCK TABLES;
+DROP TABLE t1;
+
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=innodb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
+LOCK TABLES t1 WRITE;
+begin;
+--error 1062
+insert into t1 values (99,1,2,'D'),(1,1,2,'D');
+select id from t1;
+insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
+commit;
+select id,id3 from t1;
+UNLOCK TABLES;
+DROP TABLE t1;
+
+#
+# Test prefix key
+#
+create table t1 (a char(20), unique (a(5))) engine=innodb;
+drop table t1;
+create table t1 (a char(20), index (a(5))) engine=innodb;
+show create table t1;
+drop table t1;
+
+#
+# Test using temporary table and auto_increment
+#
+
+create temporary table t1 (a int not null auto_increment, primary key(a)) engine=innodb;
+insert into t1 values (NULL),(NULL),(NULL);
+delete from t1 where a=3;
+insert into t1 values (NULL);
+select * from t1;
+alter table t1 add b int;
+select * from t1;
+drop table t1;
+
+#Slashdot bug
+create table t1
+ (
+  id int auto_increment primary key,
+  name varchar(32) not null,
+  value text not null,
+  uid int not null,
+  unique key(name,uid)
+ ) engine=innodb;
+insert into t1 values (1,'one','one value',101),
+ (2,'two','two value',102),(3,'three','three value',103);
+set insert_id=5;
+replace into t1 (value,name,uid) values ('other value','two',102);
+delete from t1 where uid=102;
+set insert_id=5;
+replace into t1 (value,name,uid) values ('other value','two',102);
+set insert_id=6;
+replace into t1 (value,name,uid) values ('other value','two',102);
+select * from t1;
+drop table t1;
+
+#
+# Test DROP DATABASE
+#
+
+create database mysqltest;
+create table mysqltest.t1 (a int not null) engine= innodb;
+insert into mysqltest.t1 values(1);
+create table mysqltest.t2 (a int not null) engine= myisam;
+insert into mysqltest.t2 values(1);
+create table mysqltest.t3 (a int not null) engine= heap;
+insert into mysqltest.t3 values(1);
+commit;
+drop database mysqltest;
+# Don't check error message
+--error 1049
+show tables from mysqltest;
+
+#
+# Test truncate table with and without auto_commit
+#
+
+set autocommit=0;
+create table t1 (a int not null) engine= innodb;
+insert into t1 values(1),(2);
+truncate table t1;
+commit;
+truncate table t1;
+truncate table t1;
+select * from t1;
+insert into t1 values(1),(2);
+delete from t1;
+select * from t1;
+commit;
+drop table t1;
+set autocommit=1;
+
+create table t1 (a int not null) engine= innodb;
+insert into t1 values(1),(2);
+truncate table t1;
+insert into t1 values(1),(2);
+select * from t1;
+truncate table t1;
+insert into t1 values(1),(2);
+delete from t1;
+select * from t1;
+drop table t1;
+
+#
+# Test of how ORDER BY works when doing it on the whole table
+#
+
+create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) engine=innodb;
+insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
+--replace_column 9 #
+explain select * from t1 order by a;
+--replace_column 9 #
+explain select * from t1 order by b;
+--replace_column 9 #
+explain select * from t1 order by c;
+--replace_column 9 #
+explain select a from t1 order by a;
+--replace_column 9 #
+explain select b from t1 order by b;
+--replace_column 9 #
+explain select a,b from t1 order by b;
+--replace_column 9 #
+explain select a,b from t1;
+--replace_column 9 #
+explain select a,b,c from t1;
+drop table t1;
+
+#
+# Check describe
+#
+
+create table t1 (t int not null default 1, key (t)) engine=innodb;
+desc t1;
+drop table t1;
+
+#
+# Test of multi-table-delete
+#
+
+CREATE TABLE t1 (
+  number bigint(20) NOT NULL default '0',
+  cname char(15) NOT NULL default '',
+  carrier_id smallint(6) NOT NULL default '0',
+  privacy tinyint(4) NOT NULL default '0',
+  last_mod_date timestamp NOT NULL,
+  last_mod_id smallint(6) NOT NULL default '0',
+  last_app_date timestamp NOT NULL,
+  last_app_id smallint(6) default '-1',
+  version smallint(6) NOT NULL default '0',
+  assigned_scps int(11) default '0',
+  status tinyint(4) default '0'
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (4077711111,'SeanWheeler',90,2,20020111112846,500,00000000000000,-1,2,3,1);
+INSERT INTO t1 VALUES (9197722223,'berry',90,3,20020111112809,500,20020102114532,501,4,10,0);
+INSERT INTO t1 VALUES (650,'San Francisco',0,0,20011227111336,342,00000000000000,-1,1,24,1);
+INSERT INTO t1 VALUES (302467,'Sue\'s Subshop',90,3,20020109113241,500,20020102115111,501,7,24,0);
+INSERT INTO t1 VALUES (6014911113,'SudzCarwash',520,1,20020102115234,500,20020102115259,501,33,32768,0);
+INSERT INTO t1 VALUES (333,'tubs',99,2,20020109113440,501,20020109113440,500,3,10,0);
+CREATE TABLE t2 (
+  number bigint(20) NOT NULL default '0',
+  cname char(15) NOT NULL default '',
+  carrier_id smallint(6) NOT NULL default '0',
+  privacy tinyint(4) NOT NULL default '0',
+  last_mod_date timestamp NOT NULL,
+  last_mod_id smallint(6) NOT NULL default '0',
+  last_app_date timestamp NOT NULL,
+  last_app_id smallint(6) default '-1',
+  version smallint(6) NOT NULL default '0',
+  assigned_scps int(11) default '0',
+  status tinyint(4) default '0'
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (4077711111,'SeanWheeler',0,2,20020111112853,500,00000000000000,-1,2,3,1);
+INSERT INTO t2 VALUES (9197722223,'berry',90,3,20020111112818,500,20020102114532,501,4,10,0);
+INSERT INTO t2 VALUES (650,'San Francisco',90,0,20020109113158,342,00000000000000,-1,1,24,1);
+INSERT INTO t2 VALUES (333,'tubs',99,2,20020109113453,501,20020109113453,500,3,10,0);
+select * from t1;
+select * from t2;
+delete t1, t2 from t1 left join t2 on t1.number=t2.number where (t1.carrier_id=90 and t1.number=t2.number) or (t2.carrier_id=90 and t1.number=t2.number) or  (t1.carrier_id=90 and t2.number is null);
+select * from t1;
+select * from t2; 
+select * from t2;
+drop table t1,t2;
+
+#
+# A simple test with some isolation levels
+# TODO: Make this into a test using replication to really test how
+# this works.
+#
+
+create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) engine=innodb;
+
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SELECT @@tx_isolation,@@global.tx_isolation;
+insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David');
+select id, code, name from t1 order by id;
+COMMIT;
+
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+insert into t1 (code, name) values (2, 'Erik'), (3, 'Sasha');
+select id, code, name from t1 order by id;
+COMMIT;
+
+BEGIN;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+insert into t1 (code, name) values (3, 'Jeremy'), (4, 'Matt');
+select id, code, name from t1 order by id;
+COMMIT;
+DROP TABLE t1;
+
+#
+# Test of multi-table-update
+#
+create table t1 (n int(10), d int(10)) engine=innodb;
+create table t2 (n int(10), d int(10)) engine=innodb;
+insert into t1 values(1,1),(1,2);
+insert into t2 values(1,10),(2,20);
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+#
+# Testing of IFNULL
+#
+create table t1 (a int, b int) engine=innodb;
+insert into t1 values(20,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a;
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+insert into t1 values(10,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+drop table t1;
+
+#
+# Test of read_through not existing const_table
+#
+
+create table t1 (a varchar(10) not null) engine=myisam;
+create table t2 (b varchar(10) not null unique) engine=innodb;
+select t1.a from t1,t2 where t1.a=t2.b;
+drop table t1,t2;
+create table t1 (a int not null, b int, primary key (a)) engine = innodb;
+create table t2 (a int not null, b int, primary key (a)) engine = innodb;
+insert into t1 values (10, 20);
+insert into t2 values (10, 20);
+update t1, t2 set t1.b = 150, t2.b = t1.b where t2.a = t1.a and t1.a = 10;
+drop table t1,t2;
+
+#
+# Test of multi-table-delete with foreign key constraints
+#
+
+CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE ) ENGINE=INNODB;
+insert into t1 set id=1;
+insert into t2 set id=1, t1_id=1;
+delete t1,t2 from t1,t2 where t1.id=t2.t1_id;
+select * from t1;
+select * from t2;
+drop table t2,t1;
+CREATE TABLE t1(id INT NOT NULL,  PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE t2(id  INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id)  ) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, 1);
+SELECT * from t1;
+UPDATE t1,t2 SET t1.id=t1.id+1, t2.t1_id=t1.id+1;
+SELECT * from t1;
+UPDATE t1,t2 SET t1.id=t1.id+1 where t1.id!=t2.id;
+SELECT * from t1;
+DROP TABLE t1,t2;
+
+#
+# Test of range_optimizer
+#
+
+set autocommit=0;
+
+CREATE TABLE t1 (id CHAR(15) NOT NULL, value CHAR(40) NOT NULL, PRIMARY KEY(id)) ENGINE=InnoDB;
+
+CREATE TABLE t2 (id CHAR(15) NOT NULL, value CHAR(40) NOT NULL, PRIMARY KEY(id)) ENGINE=InnoDB;
+
+CREATE TABLE t3 (id1 CHAR(15) NOT NULL, id2 CHAR(15) NOT NULL, PRIMARY KEY(id1, id2)) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES("my-test-1", "my-test-2");
+COMMIT;
+
+INSERT INTO t1 VALUES("this-key", "will disappear");
+INSERT INTO t2 VALUES("this-key", "will also disappear");
+DELETE FROM t3 WHERE id1="my-test-1";
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+ROLLBACK;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+SELECT * FROM t3 WHERE id1="my-test-1" LOCK IN SHARE MODE;
+COMMIT;
+set autocommit=1;
+DROP TABLE t1,t2,t3;
+
+#
+# Check update with conflicting key
+#
+
+CREATE TABLE t1 (a int not null primary key, b int not null, unique (b)) engine=innodb;
+INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+# We need the a < 1000 test here to quard against the halloween problems
+UPDATE t1 set a=a+100 where b between 2 and 3 and a < 1000;
+SELECT * from t1;
+drop table t1;
+
+#
+# Test multi update with different join methods
+#
+
+CREATE TABLE t1 (a int not null primary key, b int not null, key (b)) engine=innodb;
+CREATE TABLE t2 (a int not null primary key, b int not null, key (b)) engine=innodb;
+INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10),(11,11),(12,12);
+INSERT INTO t2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+
+# Full join, without key
+update t1,t2 set t1.a=t1.a+100;
+select * from t1;
+
+# unique key
+update t1,t2 set t1.a=t1.a+100 where t1.a=101;
+select * from t1;
+
+# ref key
+update t1,t2 set t1.b=t1.b+10 where t1.b=2;
+select * from t1;
+
+# Range key (in t1)
+update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t1.a=t2.a+100;
+select * from t1;
+select * from t2;
+
+drop table t1,t2;
+CREATE TABLE t2 (   NEXT_T         BIGINT NOT NULL PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t1 (  B_ID           INTEGER NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET AUTOCOMMIT=0;
+INSERT INTO t1 ( B_ID ) VALUES ( 1 );
+INSERT INTO t2 ( NEXT_T ) VALUES ( 1 );
+ROLLBACK;
+SELECT * FROM t1;
+drop table  t1,t2;
+create table t1  ( pk         int primary key,    parent     int not null,    child      int not null,       index (parent)  ) engine = innodb;
+insert into t1 values   (1,0,4),  (2,1,3),  (3,2,1),  (4,1,2);
+select distinct  parent,child   from t1   order by parent;
+drop table t1;
+
+#
+# Test that MySQL priorities clustered indexes
+#
+create table t1 (a int not null auto_increment primary key, b int, c int, key(c)) engine=innodb;
+create table t2 (a int not null auto_increment primary key, b int);
+insert into t1 (b) values (null),(null),(null),(null),(null),(null),(null);
+insert into t2 (a) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+select count(*) from t1;
+--replace_column 9 #
+explain select * from t1 where c between 1 and 10000;
+update t1 set c=a;
+--replace_column 9 #
+explain select * from t1 where c between 1 and 10000;
+drop table t1,t2;
+
+#
+# Test of UPDATE ... ORDER BY
+#
+
+create table t1 (id int primary key auto_increment, fk int, index index_fk (fk)) engine=innodb;
+
+insert into t1 (id) values (null),(null),(null),(null),(null);
+update t1 set fk=69 where fk is null order by id limit 1;
+SELECT * from t1;
+drop table t1;
+
+create table t1 (a int not null, b int not null, key (a));
+insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
+SET @tmp=0;
+update t1 set b=(@tmp:=@tmp+1) order by a;
+update t1 set b=99 where a=1 order by b asc limit 1;
+update t1 set b=100 where a=1 order by b desc limit 2;
+update t1 set a=a+10+b where a=1 order by b;
+select * from t1 order by a,b;
+drop table t1;
+
+#
+# Test of multi-table-updates (bug #1980).
+#
+
+create table t1 ( c char(8) not null ) engine=innodb;
+insert into t1 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9');
+insert into t1 values ('A'),('B'),('C'),('D'),('E'),('F');
+
+alter table t1 add b char(8) not null;
+alter table t1 add a char(8) not null;
+alter table t1 add primary key (a,b,c);
+update t1 set a=c, b=c;
+
+create table t2 (c char(8) not null, b char(8) not null, a char(8) not null, primary key(a,b,c)) engine=innodb;
+insert into t2 select * from t1;
+
+delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
+drop table t1,t2;
+
+#
+# test autoincrement with TRUNCATE
+#
+
+SET AUTOCOMMIT=1;
+create table t1 (a integer auto_increment primary key) engine=innodb;
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+drop table t1;
+
+#
+# Test dictionary handling with spaceand quoting
+#
+
+CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) ENGINE=INNODB;
+#show create table t2;
+drop table t2,t1;
+
+#
+# Test of multi updated and foreign keys
+#
+
+create table `t1` (`id` int( 11 ) not null  ,primary key ( `id` )) engine = innodb;
+insert into `t1`values ( 1 ) ;
+create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) ,constraint `t1_id_fk` foreign key ( `id` ) references `t1` (`id` )) engine = innodb;
+insert into `t2`values ( 1 ) ;
+create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
+insert into `t3`values ( 1 ) ;
+--error 1451
+delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+--error 1451
+update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+--error 1054
+update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+drop table t3,t2,t1;
+
+#
+# test for recursion depth limit
+#
+create table t1(
+	id int primary key,
+	pid int,
+	index(pid),
+	foreign key(pid) references t1(id) on delete cascade) engine=innodb;
+insert into t1 values(0,0),(1,0),(2,1),(3,2),(4,3),(5,4),(6,5),(7,6),
+	(8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14);
+-- error 1451
+delete from t1 where id=0;
+delete from t1 where id=15;
+delete from t1 where id=0;
+
+drop table t1;
+
+#
+# Test timestamps
+#
+
+CREATE TABLE t1 (col1 int(1))ENGINE=InnoDB;
+CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
+(stamp))ENGINE=InnoDB;
+insert into t1 values (1),(2),(3);
+# Note that timestamp 3 is wrong
+insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 ),(5,20020204230000);
+SELECT col1 FROM t1 UNION SELECT col1 FROM t2 WHERE stamp <
+'20020204120000' GROUP BY col1;
+drop table t1,t2;
+
+#
+# Test by Francois MASUREL
+#
+
+CREATE TABLE t1 (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `id_object` int(10) unsigned default '0',
+  `id_version` int(10) unsigned NOT NULL default '1',
+  `label` varchar(100) NOT NULL default '',
+  `description` text,
+  PRIMARY KEY  (`id`),
+  KEY `id_object` (`id_object`),
+  KEY `id_version` (`id_version`)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES("6", "3382", "9", "Test", NULL), ("7", "102", "5", "Le Pekin (Test)", NULL),("584", "1794", "4", "Test de resto", NULL),("837", "1822", "6", "Test 3", NULL),("1119", "3524", "1", "Societe Test", NULL),("1122", "3525", "1", "Fournisseur Test", NULL);
+
+CREATE TABLE t2 (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `id_version` int(10) unsigned NOT NULL default '1',
+  PRIMARY KEY  (`id`),
+  KEY `id_version` (`id_version`)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
+
+SELECT t2.id, t1.`label` FROM t2 INNER JOIN
+(SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl 
+ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
+drop table t1,t2;
+
+create table t1 (a int, b varchar(200), c text not null) checksum=1 engine=myisam;
+create table t2 (a int, b varchar(200), c text not null) checksum=0 engine=innodb;
+create table t3 (a int, b varchar(200), c text not null) checksum=1 engine=innodb;
+insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
+insert t2 select * from t1;
+insert t3 select * from t1;
+checksum table t1, t2, t3, t4 quick;
+checksum table t1, t2, t3, t4;
+checksum table t1, t2, t3, t4 extended;
+#show table status;
+drop table t1,t2,t3;
+
+#
+# Test problem with refering to different fields in same table in UNION
+# (Bug #2552)
+#
+create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
+insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
+select name2 from t1  union all  select name from t1 union all select id from t1;
+drop table t1;
+
+#
+# Bug2160
+#
+create table t1 (a int) engine=innodb;
+create table t2 like t1;
+drop table t1,t2;
+
+#
+# Test of automaticly created foreign keys
+#
+
+create table t1 (id int(11) not null, id2 int(11) not null, unique (id,id2)) engine=innodb;
+create table t2 (id int(11) not null, constraint t1_id_fk foreign key ( id ) references t1 (id)) engine = innodb;
+show create table t1;
+show create table t2;
+create index id on t2 (id);
+show create table t2;
+create index id2 on t2 (id);
+show create table t2;
+drop index id2 on t2;
+--error 1025,1025
+drop index id on t2;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id,id2) references t1 (id,id2)) engine = innodb;
+show create table t2;
+create unique index id on t2 (id,id2);
+show create table t2;
+drop table t2;
+
+# Check foreign key columns created in different order than key columns
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2), constraint t1_id_fk foreign key (id) references t1 (id)) engine = innodb;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null auto_increment, id2 int(11) not null, constraint t1_id_fk foreign key (id) references t1 (id), primary key (id), index (id,id2)) engine = innodb;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null auto_increment, id2 int(11) not null, constraint t1_id_fk foreign key (id) references t1 (id)) engine= innodb;
+show create table t2;
+alter table t2 add index id_test (id), add index id_test2 (id,id2);
+show create table t2;
+drop table t2;
+
+# Test error handling
+
+# Clean up filename -- embedded server reports whole path without .frm,
+# regular server reports relative path with .frm (argh!)
+--replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t2.frm t2
+--error 1005
+create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
+
+# bug#3749
+
+create table t2 (a int auto_increment primary key, b int, index(b), foreign key (b) references t1(id), unique(b)) engine=innodb;
+show create table t2;
+drop table t2;
+create table t2 (a int auto_increment primary key, b int, foreign key (b) references t1(id), foreign key (b) references t1(id), unique(b)) engine=innodb;
+show create table t2;
+drop table t2, t1;
+
+
+#
+# Let us test binlog_cache_use and binlog_cache_disk_use status vars.
+# Actually this test has nothing to do with innodb per se, it just requires
+# transactional table. 
+#
+show status like "binlog_cache_use";
+show status like "binlog_cache_disk_use";
+
+create table t1 (a int) engine=innodb;
+
+# Now we are going to create transaction which is long enough so its 
+# transaction binlog will be flushed to disk...
+let $1=2000;
+disable_query_log;
+begin;
+while ($1)
+{
+ eval insert into t1 values( $1 );
+ dec $1;
+}
+commit;
+enable_query_log;
+show status like "binlog_cache_use";
+show status like "binlog_cache_disk_use";
+
+# Transaction which should not be flushed to disk and so should not
+# increase binlog_cache_disk_use.
+begin;
+delete from t1;
+commit;
+show status like "binlog_cache_use";
+show status like "binlog_cache_disk_use";
+drop table t1;
+
+#
+# Bug #6126: Duplicate columns in keys gives misleading error message
+#
+--error 1060
+create table t1 (c char(10), index (c,c)) engine=innodb;
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c1,c1,c2)) engine=innodb;
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c2,c1,c1)) engine=innodb;
+create table t1 (c1 char(10), c2 char(10)) engine=innodb;
+--error 1060
+alter table t1 add key (c1,c1);
+--error 1060
+alter table t1 add key (c2,c1,c1);
+--error 1060
+alter table t1 add key (c1,c2,c1);
+--error 1060
+alter table t1 add key (c1,c1,c2);
+drop table t1;
+
+#
+# Bug #4082: integer truncation
+#
+
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+drop table t1;
+
+#
+# BUG#7709 test case - Boolean fulltext query against unsupported 
+#                      engines does not fail
+#
+
+CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
+--error 1214
+SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+#
+# check null values #1
+#
+
+--disable_warnings
+CREATE TABLE t1 (a_id tinyint(4) NOT NULL default '0', PRIMARY KEY  (a_id)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (b_id tinyint(4) NOT NULL default '0',b_a tinyint(4) NOT NULL default '0', PRIMARY KEY  (b_id), KEY  (b_a), 
+                CONSTRAINT fk_b_a FOREIGN KEY (b_a) REFERENCES t1 (a_id) ON DELETE CASCADE ON UPDATE NO ACTION) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
+INSERT INTO t2 VALUES (1,1),(2,1),(3,1),(4,2),(5,2);
+SELECT * FROM (SELECT t1.*,GROUP_CONCAT(t2.b_id SEPARATOR ',') as b_list FROM (t1 LEFT JOIN (t2) on t1.a_id = t2.b_a) GROUP BY t1.a_id ) AS xyz;
+DROP TABLE t2;
+DROP TABLE t1;
+
+#
+# Bug#11816 - Truncate table doesn't work with temporary innodb tables
+# This is not an innodb bug, but we test it using innodb.
+#
+create temporary table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+drop table t1;
+# Show that it works with permanent tables too.
+create table t1 (a int) engine=innodb;
+insert into t1 values (4711);
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+drop table t1;
+
+#
+# Bug #13025  Server crash during filesort	
+#
+
+create table t1 (a int not null, b int not null, c blob not null, d int not null, e int, primary key (a,b,c(255),d)) engine=innodb;
+insert into t1 values (2,2,"b",2,2),(1,1,"a",1,1),(3,3,"ab",3,3);
+select * from t1 order by a,b,c,d;
+explain select * from t1 order by a,b,c,d;
+drop table t1;
+
+#
+# BUG#11039,#13218 Wrong key length in min()
+#
+
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+select min(b) from t1 where a='8';
+drop table t1;
+
+# End of 4.1 tests
+
+#
+# range optimizer problem
+#
+
+create table t1 (x bigint unsigned not null primary key) engine=innodb;
+insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
+select * from t1;
+select count(*) from t1 where x>0;
+select count(*) from t1 where x=0;
+select count(*) from t1 where x<0;
+select count(*) from t1 where x < -16;
+select count(*) from t1 where x = -16;
+explain select count(*) from t1 where x > -16;
+select count(*) from t1 where x > -16;
+select * from t1 where x > -16;
+select count(*) from t1 where x = 18446744073709551601;
+drop table t1;
+
+
+# Test for testable InnoDB status variables. This test
+# uses previous ones(pages_created, rows_deleted, ...).
+show status like "Innodb_buffer_pool_pages_total";
+show status like "Innodb_page_size";
+show status like "Innodb_rows_deleted";
+show status like "Innodb_rows_inserted";
+show status like "Innodb_rows_updated";
+
+# Test for row locks InnoDB status variables.
+show status like "Innodb_row_lock_waits";
+show status like "Innodb_row_lock_current_waits";
+show status like "Innodb_row_lock_time";
+show status like "Innodb_row_lock_time_max";
+show status like "Innodb_row_lock_time_avg";
+
+# Test for innodb_sync_spin_loops variable
+show variables like "innodb_sync_spin_loops";
+set global innodb_sync_spin_loops=1000;
+show variables like "innodb_sync_spin_loops";
+set global innodb_sync_spin_loops=0;
+show variables like "innodb_sync_spin_loops";
+set global innodb_sync_spin_loops=20;
+show variables like "innodb_sync_spin_loops";
+
+# Test for innodb_thread_concurrency variable
+show variables like "innodb_thread_concurrency";
+set global innodb_thread_concurrency=1000;
+show variables like "innodb_thread_concurrency";
+set global innodb_thread_concurrency=0;
+show variables like "innodb_thread_concurrency";
+set global innodb_thread_concurrency=16;
+show variables like "innodb_thread_concurrency";
+
+# Test for innodb_concurrency_tickets variable
+show variables like "innodb_concurrency_tickets";
+set global innodb_concurrency_tickets=1000;
+show variables like "innodb_concurrency_tickets";
+set global innodb_concurrency_tickets=0;
+show variables like "innodb_concurrency_tickets";
+set global innodb_concurrency_tickets=500;
+show variables like "innodb_concurrency_tickets";
+
+# Test for innodb_thread_sleep_delay variable
+show variables like "innodb_thread_sleep_delay";
+set global innodb_thread_sleep_delay=100000;
+show variables like "innodb_thread_sleep_delay";
+set global innodb_thread_sleep_delay=0;
+show variables like "innodb_thread_sleep_delay";
+set global innodb_thread_sleep_delay=10000;
+show variables like "innodb_thread_sleep_delay";
+
+#
+# Test varchar
+#
+
+let $default=`select @@storage_engine`;
+set storage_engine=INNODB;
+source include/varchar.inc;
+
+#
+# Some errors/warnings on create
+#
+
+# Clean up filename -- embedded server reports whole path without .frm,
+# regular server reports relative path with .frm (argh!)
+--replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
+--error 1005
+create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65536));
+show create table t1;
+drop table t1;
+create table t1 (v varchar(65530) character set utf8);
+show create table t1;
+drop table t1;
+
+eval set storage_engine=$default;
+
+# InnoDB specific varchar tests
+create table t1 (v varchar(16384)) engine=innodb;
+drop table t1;
+
+#
+# BUG#11039 Wrong key length in min()
+#
+
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+select min(b) from t1 where a='8';
+drop table t1;
+
+#
+# Bug #11080 & #11005  Multi-row REPLACE fails on a duplicate key error
+#
+
+CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
+insert into t1 (b) values (1);
+replace into t1 (b) values (2), (1), (3);
+select * from t1;
+truncate table t1;
+insert into t1 (b) values (1);
+replace into t1 (b) values (2);
+replace into t1 (b) values (1);
+replace into t1 (b) values (3);
+select * from t1;
+drop table t1;
+
+create table t1 (rowid int not null auto_increment, val int not null,primary
+key (rowid), unique(val)) engine=innodb;
+replace into t1 (val) values ('1'),('2');
+replace into t1 (val) values ('1'),('2');
+--error 1062
+insert into t1 (val) values ('1'),('2');
+select * from t1;
+drop table t1;
+
+#
+# Test that update does not change internal auto-increment value
+#
+
+create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
+insert into t1 (val) values (1);
+update t1 set a=2 where a=1;
+# We should get the following error because InnoDB does not update the counter
+--error 1062
+insert into t1 (val) values (1);
+select * from t1;
+drop table t1;
+#
+# Bug #10465
+#
+
+--disable_warnings
+CREATE TABLE t1 (GRADE DECIMAL(4) NOT NULL, PRIMARY KEY (GRADE)) ENGINE=INNODB;
+--enable_warnings
+INSERT INTO t1 (GRADE) VALUES (151),(252),(343);
+SELECT GRADE  FROM t1 WHERE GRADE > 160 AND GRADE < 300;
+SELECT GRADE  FROM t1 WHERE GRADE= 151;
+DROP TABLE t1;
+
+#
+# Bug #12340 multitable delete deletes only one record
+#
+create table t1 (f1 varchar(10), f2 varchar(10), primary key (f1,f2)) engine=innodb;
+create table t2 (f3 varchar(10), f4 varchar(10), key (f4)) engine=innodb;
+insert into t2 values ('aa','cc');
+insert into t1 values ('aa','bb'),('aa','cc');
+delete t1 from t1,t2 where f1=f3 and f4='cc';
+select * from t1;
+drop table t1,t2;
+
+#
+# Test that the slow TRUNCATE implementation resets autoincrement columns
+# (bug #11946)
+#
+
+CREATE TABLE t1 (
+id INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+id INTEGER NOT NULL,
+FOREIGN KEY (id) REFERENCES t1 (id)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+
+# continued from above; test that doing a slow TRUNCATE on a table with 0
+# rows resets autoincrement columns
+DELETE FROM t1;
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t2, t1;
+
+-- Test that foreign keys in temporary tables are not accepted (bug #12084)
+CREATE TABLE t1
+(
+ id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+--error 1005,1005
+CREATE TEMPORARY TABLE t2
+(
+ id INT NOT NULL PRIMARY KEY,
+ b INT,
+ FOREIGN KEY (b) REFERENCES test.t1(id)
+) ENGINE=InnoDB;
+DROP TABLE t1;
+
+#
+# Test that index column max sizes are checked (bug #13315)
+#
+
+# prefix index
+create table t1 (col1 varchar(2000), index (col1(767)))
+ character set = latin1 engine = innodb;
+
+# normal indexes
+create table t2 (col1 char(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t3 (col1 binary(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t4 (col1 varchar(767), index (col1))
+ character set = latin1 engine = innodb;
+create table t5 (col1 varchar(767) primary key)
+ character set = latin1 engine = innodb;
+create table t6 (col1 varbinary(767) primary key)
+ character set = latin1 engine = innodb;
+create table t7 (col1 text, index(col1(767)))
+ character set = latin1 engine = innodb;
+create table t8 (col1 blob, index(col1(767)))
+ character set = latin1 engine = innodb;
+
+# multi-column indexes are allowed to be longer
+create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
+ character set = latin1 engine = innodb;
+
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+
+--error 1005
+create table t1 (col1 varchar(768), index (col1))
+ character set = latin1 engine = innodb;
+--error 1005
+create table t2 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1005
+create table t3 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1005
+create table t4 (col1 text, index(col1(768)))
+ character set = latin1 engine = innodb;
+--error 1005
+create table t5 (col1 blob, index(col1(768)))
+ character set = latin1 engine = innodb;
+
+#
+# Test improved foreign key error messages (bug #3443)
+#
+
+CREATE TABLE t1
+(
+ id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+CREATE TABLE t2
+(
+ v INT,
+ CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=InnoDB;
+
+--error 1452
+INSERT INTO t2 VALUES(2);
+
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--error 1451
+DELETE FROM t1 WHERE id = 1;
+
+--error 1217
+DROP TABLE t1;
+
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+
+--error 1452
+INSERT INTO t2 VALUES(3);
+
+DROP TABLE t2;
+#
+# Test that checksum table uses a consistent read Bug #12669
+#
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=0;
+checksum table t1;
+connection b;
+insert into t1 values(3);
+connection a;
+#
+# Here checksum should not see insert
+#
+checksum table t1;
+connection a;
+commit;
+checksum table t1;
+commit;
+drop table t1;
+#
+# autocommit = 1
+#
+connection a;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=1;
+checksum table t1;
+connection b;
+set autocommit=1;
+insert into t1 values(3);
+connection a;
+#
+# Here checksum sees insert
+#
+checksum table t1;
+drop table t1;
+
+#
+# BUG#11238 - in prelocking mode SELECT .. FOR UPDATE is changed to
+# non-blocking SELECT
+#
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+delimiter |;
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+delimiter ;|
+start transaction;
+select f1();
+connection b;
+send update t1 set col2=0 where col1=1;
+connection default;
+select * from t1;
+connection a;
+rollback;
+connection b;
+reap;
+rollback;
+connection default;
+drop table t1;
+drop function f1;
+disconnect a;
+disconnect b;
+
+#
+# BUG 14056 Column prefix index on UTF-8 primary key column causes: Can't find record..
+#
+
+create table t1 (
+  a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+  a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+
+create table t1 (
+  a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+  a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+
+create table t1 (
+  a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+  a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
+insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+
+create table t1 (
+  a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
+) character set utf8 engine = innodb;
+create table t2 (
+  a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
+) character set ucs2 engine = innodb;
+insert into t1 values (1,'abcdefg','abcdefg','one');
+insert into t1 values (2,'ijkilmn','ijkilmn','two');
+insert into t1 values (3,'qrstuvw','qrstuvw','three');
+insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
+insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
+insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t2 values (1,'abcdefg','abcdefg','one');
+insert into t2 values (2,'ijkilmn','ijkilmn','two');
+insert into t2 values (3,'qrstuvw','qrstuvw','three');
+insert into t2 values (4,_ucs2 0x00e400,_ucs2 0x00e400,'four');
+insert into t2 values (4,_ucs2 0x00640065,_ucs2 0x00640065,'five');
+insert into t2 values (4,_ucs2 0x00e400e50068,_ucs2 0x00e400e50068,'six');
+insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
+insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
+insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
+insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+drop table t1;
+drop table t2;
+commit;

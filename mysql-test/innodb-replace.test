@@ -1,0 +1,22 @@
+-- source include/have_innodb.inc
+# embedded server ignores 'delayed', so skip this
+-- source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Bug #1078
+#
+create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) engine=innodb;
+select * from t1;
+--error 1031
+replace delayed into t1 (c1, c2)  values ( "text1","11"),( "text2","12");
+select * from t1;
+--error 1031
+replace delayed into t1 (c1, c2)  values ( "text1","12"),( "text2","13"),( "text3","14", "a" ),( "text4","15", "b" );
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests
