@@ -721,6 +721,7 @@ loop_out:
 }
 
 
+
 /*
   read VIEW .frm and create structures
 
@@ -737,11 +738,26 @@ loop_out:
 my_bool
 mysql_make_view(File_parser *parser, TABLE_LIST *table)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table=%p (%s)", table, table->table_name));
 
   if (table->view)
   {
+    /*
+      It's an execution of a PS/SP and the view has already been unfolded
+      into a list of used tables. Now we only need to update the information
+      about granted privileges in the view tables with the actual data
+      stored in MySQL privilege system.  We don't need to restore the
+      required privileges (by calling register_want_access) because they has
+      not changed since PREPARE or the previous execution: the only case
+      when this information is changed is execution of UPDATE on a view, but
+      the original want_access is restored in its end.
+    */
+    if (!table->prelocking_placeholder && table->prepare_security(thd))
+    {
+      DBUG_RETURN(1);
+    }
     DBUG_PRINT("info",
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
@@ -749,7 +765,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   }
 
   SELECT_LEX *end;
-  THD *thd= current_thd;
   LEX *old_lex= thd->lex, *lex;
   SELECT_LEX *view_select;
   int res= 0;
@@ -768,7 +783,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   if (!table->timestamp.str)
     table->timestamp.str= table->timestamp_buffer;
   /* prepare default values for old format */
-  table->view_suid= 1;
+  table->view_suid= TRUE;
   table->definer.user.str= table->definer.host.str= 0;
   table->definer.user.length= table->definer.host.length= 0;
 
@@ -879,6 +894,10 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         goto err;
     }
 
+
+    if (!(table->view_tables=
+          (List<TABLE_LIST>*) new(thd->mem_root) List<TABLE_LIST>))
+      goto err;
     /*
       mark to avoid temporary table using and put view reference and find
       last view table
@@ -889,6 +908,22 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     {
       tbl->skip_temporary= 1;
       tbl->belong_to_view= top_view;
+      tbl->referencing_view= table;
+      /*
+        First we fill want_privilege with SELECT_ACL (this is needed for the
+        tables which belongs to view subqueries and temporary table views,
+        then for the merged view underlying tables we will set wanted
+        privileges of top_view
+      */
+      tbl->grant.want_privilege= SELECT_ACL;
+      /*
+        After unfolding the view we lose the list of tables referenced in it
+        (we will have only a list of underlying tables in case of MERGE
+        algorithm, which does not include the tables referenced from
+        subqueries used in view definition).
+        Let's build a list of all tables referenced in the view.
+      */
+      table->view_tables->push_back(tbl);
     }
 
     /*
@@ -914,16 +949,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     }
 
     /*
-      Let us set proper lock type for tables of the view's main select
-      since we may want to perform update or insert on view. This won't
-      work for view containing union. But this is ok since we don't
-      allow insert and update on such views anyway.
-    */
-    if (!lex->select_lex.next_select())
-      for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
-        tbl->lock_type= table->lock_type;
-
-    /*
       If we are opening this view as part of implicit LOCK TABLES, then
       this view serves as simple placeholder and we should not continue
       further processing.
@@ -931,7 +956,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if (table->prelocking_placeholder)
       goto ok2;
 
-    old_lex->derived_tables|= DERIVED_VIEW;
+    old_lex->derived_tables|= (DERIVED_VIEW | lex->derived_tables);
 
     /* move SQL_NO_CACHE & Co to whole query */
     old_lex->safe_to_cache_query= (old_lex->safe_to_cache_query &&
@@ -939,6 +964,37 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     /* move SQL_CACHE to whole query */
     if (view_select->options & OPTION_TO_QUERY_CACHE)
       old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+
+    if (table->view_suid)
+    {
+      /*
+        Prepare a security context to check underlying objects of the view
+      */
+      Security_context *save_security_ctx= thd->security_ctx;
+      if (!(table->view_sctx= (Security_context *)
+            thd->stmt_arena->alloc(sizeof(Security_context))))
+        goto err;
+      /* Assign the context to the tables referenced in the view */
+      for (tbl= view_tables; tbl; tbl= tbl->next_global)
+        tbl->security_ctx= table->view_sctx;
+      /* assign security context to SELECT name resolution contexts of view */
+      for(SELECT_LEX *sl= lex->all_selects_list;
+          sl;
+          sl= sl->next_select_in_list())
+        sl->context.security_ctx= table->view_sctx;
+    }
+
+    /*
+      Setup an error processor to hide error messages issued by stored
+      routines referenced in the view
+    */
+    for (SELECT_LEX *sl= lex->all_selects_list;
+         sl;
+         sl= sl->next_select_in_list())
+    {
+      sl->context.error_processor= &view_error_processor;
+      sl->context.error_processor_data= (void *)table;
+    }
 
     /*
       check MERGE algorithm ability
@@ -961,24 +1017,28 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
+      table->merge_underlying_list= view_tables;
+      /*
+        Let us set proper lock type for tables of the view's main select
+        since we may want to perform update or insert on view. This won't
+        work for view containing union. But this is ok since we don't
+        allow insert and update on such views anyway.
+
+        Also we fill correct wanted privileges.
+      */
+      for (tbl= table->merge_underlying_list; tbl; tbl= tbl->next_local)
+      {
+        tbl->lock_type= table->lock_type;
+        tbl->grant.want_privilege= top_view->grant.orig_want_privilege;
+      }
 
       /* prepare view context */
-      lex->select_lex.context.resolve_in_table_list_only(table->ancestor=
-                                                         view_tables);
+      lex->select_lex.context.resolve_in_table_list_only(view_tables);
       lex->select_lex.context.outer_context= 0;
       lex->select_lex.context.select_lex= table->select_lex;
       lex->select_lex.select_n_having_items+=
         table->select_lex->select_n_having_items;
 
-      /* do not check privileges & hide errors for view underlyings */
-      for (SELECT_LEX *sl= lex->all_selects_list;
-           sl;
-           sl= sl->next_select_in_list())
-      {
-        sl->context.check_privileges= FALSE;
-        sl->context.error_processor= &view_error_processor;
-        sl->context.error_processor_data= (void *)table;
-      }
       /*
         Tables of the main select of the view should be marked as belonging
         to the same select as original view (again we can use LEX::select_lex
@@ -1011,7 +1071,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         }
       }
 
-      /* Store WHERE clause for post-processing in setup_ancestor */
+      /* Store WHERE clause for post-processing in setup_underlying */
       table->where= view_select->where;
       /*
         Add subqueries units to SELECT into which we merging current view.
@@ -1077,6 +1137,11 @@ ok2:
   if (!old_lex->time_zone_tables_used && thd->lex->time_zone_tables_used)
     old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
   thd->lex= old_lex;
+  if (!table->prelocking_placeholder && table->prepare_security(thd))
+  {
+    DBUG_RETURN(1);
+  }
+
   DBUG_RETURN(0);
 
 err:

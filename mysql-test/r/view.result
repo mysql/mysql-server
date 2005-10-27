@@ -574,10 +574,10 @@ create view v1 as select * from t1;
 drop table t1;
 create table t1 (col1 char(5),newcol2 char(5));
 insert into v1 values('a','aa');
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop table t1;
 select * from v1;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
@@ -809,11 +809,11 @@ create table t1 (s1 int);
 create view v1 as select x1() from t1;
 drop function x1;
 select * from v1;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s)
+v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or define
 drop view v1;
 drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
@@ -1360,7 +1360,7 @@ test.t1	check	status	OK
 drop table t1;
 check table v1;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 create table t1 (a int);
 create table t2 (a int);
@@ -1884,11 +1884,11 @@ CREATE VIEW v6 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
 DROP TABLE t1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v2	check	status	OK
-test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s)
+test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v4	check	status	OK
-test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s)
+test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v6	check	status	OK
 drop view v1, v2, v3, v4, v5, v6;
 drop table t2;
@@ -1908,11 +1908,11 @@ CREATE VIEW v6 AS SELECT f2() FROM t3;
 drop function f1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v2	check	status	OK
-test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s)
+test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v4	check	status	OK
-test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s)
+test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v6	check	status	OK
 create function f1 () returns int return (select max(col1) from t1);
 DROP TABLE t1;
@@ -2154,7 +2154,7 @@ Field	Type	Null	Key	Default	Extra
 f4	char(5)	YES		NULL	
 ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
 DESCRIBE v1;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DROP TABLE t1;
 DROP VIEW v1;
 create table t1 (f1 char);

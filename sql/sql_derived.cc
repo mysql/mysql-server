@@ -35,14 +35,14 @@
     processor           procedure of derived table processing
 
   RETURN
-    0	ok
-    1	Error and error message given
+    FALSE  OK
+    TRUE   Error
 */
 
-int
-mysql_handle_derived(LEX *lex, int (*processor)(THD*, LEX*, TABLE_LIST*))
+bool
+mysql_handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*))
 {
-  int res= 0;
+  bool res= FALSE;
   if (lex->derived_tables)
   {
     lex->thd->derived_tables_processing= TRUE;
@@ -95,16 +95,16 @@ out:
     close_thread_tables()
 
   RETURN
-    0	ok
-    1	Error and an error message was given
+    FALSE  OK
+    TRUE   Error
 */
 
-int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
+bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 {
   SELECT_LEX_UNIT *unit= orig_table_list->derived;
-  int res= 0;
   ulonglong create_options;
   DBUG_ENTER("mysql_derived_prepare");
+  bool res= FALSE;
   if (unit)
   {
     SELECT_LEX *first_select= unit->first_select();
@@ -118,7 +118,7 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       sl->context.outer_context= 0;
 
     if (!(derived_result= new select_union))
-      DBUG_RETURN(1); // out of memory
+      DBUG_RETURN(TRUE); // out of memory
 
     // st_select_lex_unit::prepare correctly work for single select
     if ((res= unit->prepare(thd, derived_result, 0)))
@@ -184,7 +184,10 @@ exit:
       table->derived_select_number= first_select->select_number;
       table->s->tmp_table= TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      table->grant.privilege= SELECT_ACL;
+      if (orig_table_list->referencing_view)
+        table->grant= orig_table_list->grant;
+      else
+        table->grant.privilege= SELECT_ACL;
 #endif
       orig_table_list->db= (char *)"";
       orig_table_list->db_length= 0;
@@ -195,8 +198,8 @@ exit:
       thd->derived_tables= table;
     }
   }
-  else if (orig_table_list->ancestor)
-    orig_table_list->set_ancestor();
+  else if (orig_table_list->merge_underlying_list)
+    orig_table_list->set_underlying_merge();
   DBUG_RETURN(res);
 }
 
@@ -220,15 +223,15 @@ exit:
     Due to evaluation of LIMIT clause it can not be used at prepared stage.
 
   RETURN
-    0	ok
-    1   Error and an error message was given
+    FALSE  OK
+    TRUE   Error
 */
 
-int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
+bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 {
   TABLE *table= orig_table_list->table;
   SELECT_LEX_UNIT *unit= orig_table_list->derived;
-  int res= 0;
+  bool res= FALSE;
 
   /*check that table creation pass without problem and it is derived table */
   if (table && unit)
@@ -271,7 +274,7 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
         there were no derived tables
       */
       if (derived_result->flush())
-        res= 1;
+        res= TRUE;
 
       if (!lex->describe)
         unit->cleanup();

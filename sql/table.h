@@ -22,6 +22,7 @@ class GRANT_TABLE;
 class st_select_lex_unit;
 class st_select_lex;
 class COND_EQUAL;
+class Security_context;
 
 /* Order clause list element */
 
@@ -47,6 +48,11 @@ typedef struct st_grant_info
   uint version;
   ulong privilege;
   ulong want_privilege;
+  /*
+    Stores the requested access acl of top level tables list. Is used to
+    check access rights to the underlying tables of a view.
+  */
+  ulong orig_want_privilege;
 } GRANT_INFO;
 
 enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
@@ -359,7 +365,6 @@ typedef struct st_schema_table
 #define VIEW_CHECK_SKIP       2
 
 struct st_lex;
-struct st_table_list;
 class select_union;
 class TMP_TABLE_PARAM;
 
@@ -525,10 +530,35 @@ typedef struct st_table_list
   Field_translator *field_translation;	/* array of VIEW fields */
   /* pointer to element after last one in translation table above */
   Field_translator *field_translation_end;
-  /* list of ancestor(s) of this table (underlying table(s)/view(s) */
-  st_table_list	*ancestor;
+  /*
+    List (based on next_local) of underlying tables of this view. I.e. it
+    does not include the tables of subqueries used in the view. Is set only
+    for merged views.
+  */
+  st_table_list	*merge_underlying_list;
+  /*
+    - 0 for base tables
+    - in case of the view it is the list of all (not only underlying
+    tables but also used in subquery ones) tables of the view.
+  */
+  List<st_table_list> *view_tables;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
+  /*
+    The view directly referencing this table
+    (non-zero only for merged underlying tables of a view).
+  */
+  st_table_list	*referencing_view;
+  /*
+    security  context (non-zero only for tables which belong
+    to view with SQL SEURITY DEFINER)
+  */
+  Security_context *security_ctx;
+  /*
+    this view security context (non-zero only for views with
+    SQL SEURITY DEFINER)
+  */
+  Security_context *view_sctx;
   /*
     List of all base tables local to a subquery including all view
     tables. Unlike 'next_local', this in this list views are *not*
@@ -595,9 +625,9 @@ typedef struct st_table_list
   bool          prelocking_placeholder;
 
   void calc_md5(char *buffer);
-  void set_ancestor();
+  void set_underlying_merge();
   int view_check_option(THD *thd, bool ignore_failure);
-  bool setup_ancestor(THD *thd);
+  bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
@@ -625,6 +655,14 @@ typedef struct st_table_list
       return prep_where(thd, conds, no_where_clause);
     return FALSE;
   }
+
+  void register_want_access(ulong want_access);
+  bool prepare_security(THD *thd);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *find_view_security_context(THD *thd);
+  bool prepare_view_securety_context(THD *thd);
+#endif
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
