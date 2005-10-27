@@ -17,7 +17,6 @@
 #include <ndb_global.h>
 #include "HugoCalculator.hpp"
 #include <NDBT.hpp>
-#include <Base64.hpp>
 
 static
 Uint32
