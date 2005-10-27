@@ -78,11 +78,9 @@ public:
   /**
    * NOTE free lists must be _after_ theNdbObjectIdMap take
    *   assure that destructors are run in correct order
+   * NOTE these has to be in this specific order to make destructor run in
+   *      correct order
    */
-  Ndb_free_list_t<NdbConnection> theConIdleList; 
-  Ndb_free_list_t<NdbOperation>  theOpIdleList;  
-  Ndb_free_list_t<NdbIndexScanOperation> theScanOpIdleList;
-  Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;
   Ndb_free_list_t<NdbRecAttr> theRecAttrIdleList;  
   Ndb_free_list_t<NdbApiSignal> theSignalIdleList;
   Ndb_free_list_t<NdbLabel> theLabelList;
@@ -91,6 +89,10 @@ public:
   Ndb_free_list_t<NdbCall> theCallList;
   Ndb_free_list_t<NdbBlob> theNdbBlobIdleList;
   Ndb_free_list_t<NdbReceiver> theScanList;
+  Ndb_free_list_t<NdbIndexScanOperation> theScanOpIdleList;
+  Ndb_free_list_t<NdbOperation>  theOpIdleList;  
+  Ndb_free_list_t<NdbIndexOperation> theIndexOpIdleList;
+  Ndb_free_list_t<NdbConnection> theConIdleList; 
 };
 
 #ifdef VM_TRACE
