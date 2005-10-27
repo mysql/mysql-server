@@ -680,3 +680,11 @@ select astext(fn3());
 astext(fn3())
 POINT(1 1)
 drop function fn3;
+create table t1(pt POINT);
+alter table t1 add primary key pti(pt);
+drop table t1;
+create table t1(pt GEOMETRY);
+alter table t1 add primary key pti(pt);
+ERROR 42000: BLOB/TEXT column 'pt' used in key specification without a key length
+alter table t1 add primary key pti(pt(20));
+drop table t1;
