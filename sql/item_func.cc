@@ -1386,9 +1386,9 @@ double Item_func_ln::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if ((null_value=args[0]->null_value))
+  if ((null_value= args[0]->null_value))
     return 0.0;
-  if ((null_value= value <=0.0))
+  if (value <= 0.0)
   {
     signal_divide_by_null();
     return 0.0;
@@ -1405,9 +1405,9 @@ double Item_func_log::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if ((null_value=args[0]->null_value))
+  if ((null_value= args[0]->null_value))
     return 0.0;
-  if ((null_value= value <=0.0))
+  if (value <= 0.0)
   {
     signal_divide_by_null();
     return 0.0;
@@ -1415,9 +1415,9 @@ double Item_func_log::val_real()
   if (arg_count == 2)
   {
     double value2= args[1]->val_real();
-    if ((null_value=args[1]->null_value))
+    if ((null_value= args[1]->null_value))
       return 0.0;
-    if ((null_value= value2 <=0.0) || (value == 1.0))
+    if (value2 <= 0.0 || value == 1.0)
     {
       signal_divide_by_null();
       return 0.0;
@@ -1434,7 +1434,7 @@ double Item_func_log2::val_real()
 
   if ((null_value=args[0]->null_value))
     return 0.0;
-  if ((null_value= value <=0.0))
+  if (value <= 0.0)
   {
     signal_divide_by_null();
     return 0.0;
@@ -1446,9 +1446,9 @@ double Item_func_log10::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if ((null_value=args[0]->null_value))
+  if ((null_value= args[0]->null_value))
     return 0.0;
-  if ((null_value= value <=0.0))
+  if (value <= 0.0)
   {
     signal_divide_by_null();
     return 0.0;
