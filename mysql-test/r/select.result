@@ -2400,14 +2400,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
 1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
 DROP TABLE t1, t2;
-create table t1 (f1 int primary key, f2 int);
-create table t2 (f3 int, f4 int, primary key(f3,f4));
-insert into t1 values (1,1);
-insert into t2 values (1,1),(1,2);
-select distinct count(f2) >0 from t1 left join t2 on f1=f3 group by f1;
-count(f2) >0
-1
-drop table t1,t2;
 CREATE TABLE t1 ( city char(30) );
 INSERT INTO t1 VALUES ('London');
 INSERT INTO t1 VALUES ('Paris');
@@ -2706,3 +2698,11 @@ a	b	c	d
 1	2	2	1
 1	2	3	1
 DROP TABLE IF EXISTS t1, t2;
+create table t1 (f1 int primary key, f2 int);
+create table t2 (f3 int, f4 int, primary key(f3,f4));
+insert into t1 values (1,1);
+insert into t2 values (1,1),(1,2);
+select distinct count(f2) >0 from t1 left join t2 on f1=f3 group by f1;
+count(f2) >0
+1
+drop table t1,t2;
