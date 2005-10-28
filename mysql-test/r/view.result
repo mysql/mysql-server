@@ -2198,7 +2198,7 @@ r_object_id	users_names
 120001a080000542	guser02
 drop view v1, v2;
 drop table t1, t2;
-create definer=some_user@__% sql security invoker view v1 as select 1;
+create definer=some_user@`` sql security invoker view v1 as select 1;
 ERROR HY000: View definer is not fully qualified
 create definer=some_user@localhost sql security invoker view v1 as select 1;
 Warnings:
