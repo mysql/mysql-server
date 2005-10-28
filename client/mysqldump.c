@@ -1460,6 +1460,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
             {
               fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
                       opt_quoted_table);
+              fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n",
+                      opt_quoted_table);
               check_io(sql_file);
             }
 
@@ -1471,7 +1473,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
             */
             row= mysql_fetch_row(result);
 
-            fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0), row[1]);
+            fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0),
+                    row[1]);
 
             while((row= mysql_fetch_row(result)))
             {
