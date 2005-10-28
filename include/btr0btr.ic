@@ -42,10 +42,16 @@ void
 btr_page_set_index_id(
 /*==================*/
 	page_t*		page,	/* in: page to be created */
+	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
 	dulint		id,	/* in: index id */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	mlog_write_dulint(page + PAGE_HEADER + PAGE_INDEX_ID, id, mtr);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_header(page_zip,
+				page + PAGE_HEADER + PAGE_INDEX_ID, 8);
+	}
 }
 
 /******************************************************************
@@ -101,15 +107,21 @@ UNIV_INLINE
 void
 btr_page_set_level(
 /*===============*/
-	page_t*	page,	/* in: index page */
-	ulint	level,	/* in: level, leaf level == 0 */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	page_t*		page,	/* in: index page */
+	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	ulint		level,	/* in: level, leaf level == 0 */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
 	ut_ad(level <= BTR_MAX_NODE_LEVEL);
 
 	mlog_write_ulint(page + PAGE_HEADER + PAGE_LEVEL, level,
 							 MLOG_2BYTES, mtr);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_header(page_zip,
+				page + PAGE_HEADER + PAGE_LEVEL, 2);
+	}
 }
 
 /************************************************************
@@ -137,13 +149,18 @@ UNIV_INLINE
 void
 btr_page_set_next(
 /*==============*/
-	page_t*	page,	/* in: index page */
-	ulint	next,	/* in: next page number */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	page_t*		page,	/* in: index page */
+	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	ulint		next,	/* in: next page number */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
 
 	mlog_write_ulint(page + FIL_PAGE_NEXT, next, MLOG_4BYTES, mtr);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_header(page_zip, page + FIL_PAGE_NEXT, 4);
+	}
 }
 
 /************************************************************
@@ -167,13 +184,18 @@ UNIV_INLINE
 void
 btr_page_set_prev(
 /*==============*/
-	page_t*	page,	/* in: index page */
-	ulint	prev,	/* in: previous page number */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	page_t*		page,	/* in: index page */
+	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	ulint		prev,	/* in: previous page number */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
 
 	mlog_write_ulint(page + FIL_PAGE_PREV, prev, MLOG_4BYTES, mtr);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_header(page_zip, page + FIL_PAGE_PREV, 4);
+	}
 }
 
 /******************************************************************

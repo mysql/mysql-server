@@ -604,12 +604,12 @@ page_copy_rec_list_end(
 {
 	page_t*	page;
 
-	ut_ad(!new_page_zip || page_zip_validate(new_page_zip, new_page));
-
 	if (page_dir_get_n_heap(new_page) == 2) {
 		page_copy_rec_list_end_to_created_page(
 						new_page, rec, index, mtr);
 	} else {
+		ut_ad(!new_page_zip
+			|| page_zip_validate(new_page_zip, new_page));
 		page_copy_rec_list_end_no_locks(new_page, rec, index, mtr);
 	}
 
