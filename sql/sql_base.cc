@@ -4267,11 +4267,13 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
 {
   reg2 Item *item;
   bool save_set_query_id= thd->set_query_id;
+  nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
   DBUG_ENTER("setup_fields");
 
   thd->set_query_id=set_query_id;
-  thd->allow_sum_func= allow_sum_func;
+  if (allow_sum_func)
+    thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   thd->where= THD::DEFAULT_WHERE;
 
   /*
@@ -4294,6 +4296,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     if (!item->fixed && item->fix_fields(thd, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
     {
+      thd->lex->allow_sum_func= save_allow_sum_func;
       thd->set_query_id= save_set_query_id;
       DBUG_RETURN(TRUE); /* purecov: inspected */
     }
@@ -4304,6 +4307,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->used_tables|= item->used_tables();
   }
+  thd->lex->allow_sum_func= save_allow_sum_func;
   thd->set_query_id= save_set_query_id;
   DBUG_RETURN(test(thd->net.report_error));
 }

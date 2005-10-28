@@ -24,6 +24,234 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
+/* 
+  Prepare an aggregate function item for checking context conditions
+
+  SYNOPSIS
+    init_sum_func_check()
+    thd      reference to the thread context info
+
+  DESCRIPTION
+    The function initializes the members of the Item_sum object created
+    for a set function that are used to check validity of the set function
+    occurrence.
+    If the set function is not allowed in any subquery where it occurs
+    an error is reported immediately.
+
+  NOTES
+    This function is to be called for any item created for a set function
+    object when the traversal of trees built for expressions used in the query
+    is performed at the phase of context analysis. This function is to
+    be invoked at the descent of this traversal.
+  
+  RETURN
+    TRUE   if an error is reported     
+    FALSE  otherwise
+*/
+ 
+bool Item_sum::init_sum_func_check(THD *thd)
+{
+  if (!thd->lex->allow_sum_func)
+  {
+    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
+               MYF(0));
+    return TRUE;
+  }
+  /* Set a reference to the nesting set function if there is  any */
+  in_sum_func= thd->lex->in_sum_func;
+  /* Save a pointer to object to be used in items for nested set functions */
+  thd->lex->in_sum_func= this;
+  nest_level= thd->lex->current_select->nest_level;
+  ref_by= 0;
+  aggr_level= -1;
+  max_arg_level= -1;
+  max_sum_func_level= -1;
+  return FALSE;
+}
+
+/* 
+  Check constraints imposed on a usage of a set function
+
+  SYNOPSIS
+    check_sum_func()
+    thd      reference to the thread context info
+    ref      location of the pointer to this item in the embedding expression 
+
+  DESCRIPTION
+    The method verifies whether context conditions imposed on a usage
+    of any set function are met for this occurrence.
+    It checks whether the set function occurs in the position where it
+    can be aggregated and, when it happens to occur in argument of another
+    set function, the method checks that these two functions are aggregated in
+    different subqueries.
+    If the context conditions are not met the method reports an error.
+    If the set function is aggregated in some outer subquery the method
+    adds it to the chain of items for such set functions that is attached
+    to the the st_select_lex structure for this subquery.
+
+  NOTES
+    This function is to be called for any item created for a set function
+    object when the traversal of trees built for expressions used in the query
+    is performed at the phase of context analysis. This function is to
+    be invoked at the ascent of this traversal.
+
+  IMPLEMENTATION
+    A number of designated members of the object are used to check the
+    conditions. They are specified in the comment before the Item_sum
+    class declaration.
+    Additionally a bitmap variable called allow_sum_func is employed.
+    It is included into the thd->lex structure.
+    The bitmap contains 1 at n-th position if the set function happens
+    to occur under a construct of the n-th level subquery where usage
+    of set functions are allowed (i.e either in the SELECT list or
+    in the HAVING clause of the corresponding subquery)
+    Consider the query:
+      SELECT SUM(t1.b) FROM t1 GROUP BY t1.a
+        HAVING t1.a IN (SELECT t2.c FROM t2 WHERE AVG(t1.b) > 20) AND
+               t1.a > (SELECT MIN(t2.d) FROM t2);
+    allow_sum_func will contain: 
+    for SUM(t1.b) - 1 at the first position 
+    for AVG(t1.b) - 1 at the first position, 0 at the second position
+    for MIN(t2.d) - 1 at the first position, 1 at the second position.
+
+  RETURN
+    TRUE   if an error is reported     
+    FALSE  otherwise
+*/
+ 
+bool Item_sum::check_sum_func(THD *thd, Item **ref)
+{
+  bool invalid= FALSE;
+  nesting_map allow_sum_func= thd->lex->allow_sum_func;
+  /*  
+    The value of max_arg_level is updated if an argument of the set function
+    contains a column reference resolved  against a subquery whose level is
+    greater than the current value of max_arg_level.
+    max_arg_level cannot be greater than nest level.
+    nest level is always >= 0  
+  */ 
+  if (nest_level == max_arg_level)
+  {
+    /*
+      The function must be aggregated in the current subquery, 
+      If it is there under a construct where it is not allowed 
+      we report an error. 
+    */ 
+    invalid= !(allow_sum_func & (1 << max_arg_level));
+  }
+  else if (max_arg_level >= 0 || !(allow_sum_func & (1 << nest_level)))
+  {
+    /*
+      The set function can be aggregated only in outer subqueries.
+      Try to find a subquery where it can be aggregated;
+      If we fail to find such a subquery report an error.
+    */
+    if (register_sum_func(thd, ref))
+      return TRUE;
+    invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+  }
+  if (!invalid && aggr_level < 0)
+    aggr_level= nest_level;
+  /*
+    By this moment we either found a subquery where the set function is
+    to be aggregated  and assigned a value that is  >= 0 to aggr_level,
+    or set the value of 'invalid' to TRUE to report later an error. 
+  */
+  /* 
+    Additionally we have to check whether possible nested set functions
+    are acceptable here: they are not, if the level of aggregation of
+    some of them is less than aggr_level.
+  */ 
+  invalid= aggr_level <= max_sum_func_level;
+  if (invalid)  
+  {
+    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
+               MYF(0));
+    return TRUE;
+  }
+  if (in_sum_func && in_sum_func->nest_level == nest_level)
+  {
+    /*
+      If the set function is nested adjust the value of
+      max_sum_func_level for the nesting set function.
+    */
+    set_if_bigger(in_sum_func->max_sum_func_level, aggr_level);
+  }
+  thd->lex->in_sum_func= in_sum_func;
+  return FALSE;
+}
+
+/* 
+  Attach a set function to the subquery where it must be aggregated
+
+  SYNOPSIS
+    register_sum_func()
+    thd      reference to the thread context info
+    ref      location of the pointer to this item in the embedding expression
+ 
+  DESCRIPTION
+    The function looks for an outer subquery where the set function must be
+    aggregated. If it finds such a subquery then aggr_level is set to
+    the nest level of this subquery and the item for the set function
+    is added to the list of set functions used in nested subqueries
+    inner_sum_func_list defined for each subquery. When the item is placed 
+    there the field 'ref_by' is set to ref.
+
+  NOTES.
+    Now we 'register' only set functions that are aggregated in outer
+    subqueries. Actually it makes sense to link all set function for
+    a subquery in one chain. It would simplify the process of 'splitting'
+    for set functions.
+
+  RETURN
+    FALSE  if the executes without failures (currently always)
+    TRUE   otherwise
+*/  
+
+bool Item_sum::register_sum_func(THD *thd, Item **ref)
+{
+  SELECT_LEX *sl;
+  SELECT_LEX *aggr_sl= NULL;
+  nesting_map allow_sum_func= thd->lex->allow_sum_func;
+  for (sl= thd->lex->current_select->master_unit()->outer_select() ;
+       sl && sl->nest_level > max_arg_level;
+       sl= sl->master_unit()->outer_select() )
+  {
+    if (aggr_level < 0 && (allow_sum_func & (1 << sl->nest_level)))
+    {
+      /* Found the most nested subquery where the function can be aggregated */
+      aggr_level= sl->nest_level;
+      aggr_sl= sl;
+    }
+  }
+  if (sl && (allow_sum_func & (1 << sl->nest_level)))
+  {
+    /* 
+      We reached the subquery of level max_arg_level and checked
+      that the function can be aggregated here. 
+      The set function will be aggregated in this subquery.
+    */   
+    aggr_level= sl->nest_level;
+    aggr_sl= sl;
+  }
+  if (aggr_level >= 0)
+  {
+    ref_by= ref;
+    /* Add the object to the list of registered objects assigned to aggr_sl */
+    if (!aggr_sl->inner_sum_func_list)
+      next= this;
+    else
+    {
+      next= aggr_sl->inner_sum_func_list->next;
+      aggr_sl->inner_sum_func_list->next= this;
+    }
+    aggr_sl->inner_sum_func_list= this;
+      
+  }
+  return FALSE;
+}
+
+
 Item_sum::Item_sum(List<Item> &list)
   :arg_count(list.elements)
 {
@@ -197,13 +425,9 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (!thd->allow_sum_func)
-  {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+  if (init_sum_func_check(thd))
     return TRUE;
-  }
-  thd->allow_sum_func=0;			// No included group funcs
+
   decimals=0;
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
@@ -217,7 +441,10 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   max_length=float_length(decimals);
   null_value=1;
   fix_length_and_dec();
-  thd->allow_sum_func=1;			// Allow group functions
+
+  if (check_sum_func(thd, ref))
+    return TRUE;
+
   fixed= 1;
   return FALSE;
 }
@@ -258,13 +485,9 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
 
   Item *item= args[0];
-  if (!thd->allow_sum_func)
-  {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+
+  if (init_sum_func_check(thd))
     return TRUE;
-  }
-  thd->allow_sum_func=0;			// No included group funcs
 
   // 'item' can be changed during fix_fields
   if (!item->fixed &&
@@ -300,11 +523,14 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   result_field=0;
   null_value=1;
   fix_length_and_dec();
-  thd->allow_sum_func=1;			// Allow group functions
   if (item->type() == Item::FIELD_ITEM)
     hybrid_field_type= ((Item_field*) item)->field->type();
   else
     hybrid_field_type= Item::field_type();
+
+  if (check_sum_func(thd, ref))
+    return TRUE;
+
   fixed= 1;
   return FALSE;
 }
@@ -2979,14 +3205,9 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   uint i;                       /* for loop variable */
   DBUG_ASSERT(fixed == 0);
 
-  if (!thd->allow_sum_func)
-  {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+  if (init_sum_func_check(thd))
     return TRUE;
-  }
 
-  thd->allow_sum_func= 0;
   maybe_null= 1;
 
   /*
@@ -3008,8 +3229,11 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   result.set_charset(collation.collation);
   result_field= 0;
   null_value= 1;
-  thd->allow_sum_func= 1;
   max_length= thd->variables.group_concat_max_len;
+
+  if (check_sum_func(thd, ref))
+    return TRUE;
+
   fixed= 1;
   return FALSE;
 }
