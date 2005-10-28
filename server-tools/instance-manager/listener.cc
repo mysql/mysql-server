@@ -127,7 +127,7 @@ void Listener_thread::run()
     fd_set read_fds_arg= read_fds;
     /*
       We should reintialize timer as on linux it is modified
-      to reflect amout of time not slept.
+      to reflect amount of time not slept.
     */
     tv.tv_sec= 0;
     tv.tv_usec= 100000;
