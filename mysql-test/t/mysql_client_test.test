@@ -6,7 +6,7 @@
 # var/log/mysql_client_test.trace
 
 --disable_result_log
---exec echo $MYSQL_CLIENT_TEST
---exec $MYSQL_CLIENT_TEST
+--exec echo $MYSQL_CLIENT_TEST --getopt-ll-test=25600M
+--exec $MYSQL_CLIENT_TEST --getopt-ll-test=25600M
 
 # End of 4.1 tests
