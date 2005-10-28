@@ -1,7 +1,0 @@
-include ..\include\makefile.i
-
-que.lib: que0que.obj
-	lib -out:..\libs\que.lib que0que.obj
-
-que0que.obj: que0que.c
-	$(CCOM) $(CFL) -c que0que.c

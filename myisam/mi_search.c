@@ -128,13 +128,13 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
   if ((nextflag & (SEARCH_SMALLER | SEARCH_LAST)) && flag != 0)
   {
-    uint not_used;
+    uint not_used[2];
     if (_mi_get_prev_key(info,keyinfo, buff, info->lastkey, keypos,
                          &info->lastkey_length))
       goto err;
     if (!(nextflag & SEARCH_SMALLER) &&
         ha_key_cmp(keyinfo->seg, info->lastkey, key, key_len, SEARCH_FIND,
-                    &not_used))
+                   not_used))
     {
       my_errno=HA_ERR_KEY_NOT_FOUND;                    /* Didn't find key */
       goto err;
@@ -179,7 +179,7 @@ int _mi_bin_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 {
   reg4 int start,mid,end,save_end;
   int flag;
-  uint totlength,nod_flag,not_used;
+  uint totlength,nod_flag,not_used[2];
   DBUG_ENTER("_mi_bin_search");
 
   LINT_INIT(flag);
@@ -193,7 +193,7 @@ int _mi_bin_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   {
     mid= (start+end)/2;
     if ((flag=ha_key_cmp(keyinfo->seg,page+(uint) mid*totlength,key,key_len,
-                          comp_flag,&not_used))
+                         comp_flag, not_used))
         >= 0)
       end=mid;
     else
@@ -201,7 +201,7 @@ int _mi_bin_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   }
   if (mid != start)
     flag=ha_key_cmp(keyinfo->seg,page+(uint) start*totlength,key,key_len,
-                     comp_flag,&not_used);
+                     comp_flag, not_used);
   if (flag < 0)
     start++;                    /* point at next, bigger key */
   *ret_pos=page+(uint) start*totlength;
@@ -242,7 +242,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                    uchar *buff, my_bool *last_key)
 {
   int flag;
-  uint nod_flag,length,not_used;
+  uint nod_flag,length,not_used[2];
   uchar t_buff[MI_MAX_KEY_BUFF],*end;
   DBUG_ENTER("_mi_seq_search");
 
@@ -264,7 +264,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
       DBUG_RETURN(MI_FOUND_WRONG_KEY);
     }
     if ((flag=ha_key_cmp(keyinfo->seg,t_buff,key,key_len,comp_flag,
-                          &not_used)) >= 0)
+                         not_used)) >= 0)
       break;
 #ifdef EXTRA_DEBUG
     DBUG_PRINT("loop",("page: %lx  key: '%s'  flag: %d", (long) page, t_buff,
@@ -507,9 +507,9 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
       cmp_rest:
 	  if (key_len_left>0)
 	  {
-	    uint not_used;
+	    uint not_used[2];
 	    if ((flag = ha_key_cmp(keyinfo->seg+1,vseg,
-				   k,key_len_left,nextflag,&not_used)) >= 0)
+				   k, key_len_left, nextflag, not_used)) >= 0)
 	      break;
 	  }
 	  else
