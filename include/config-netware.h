@@ -116,15 +116,12 @@ extern "C" {
 /* do not use the extended time in LibC sys\stat.h */
 #define _POSIX_SOURCE
 
-/* Kernel call on NetWare that will only yield if our time slice is up */
-void kYieldIfTimeSliceUp(void);
-
 /* Some macros for portability */
 
 #define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=time(NULL)+(SEC); (ABSTIME).tv_nsec=0; }
 
 /* extra protection against CPU Hogs on NetWare */
-#define NETWARE_YIELD kYieldIfTimeSliceUp()
+#define NETWARE_YIELD pthread_yield()
 /* Screen mode for help texts */
 #define NETWARE_SET_SCREEN_MODE(A) setscreenmode(A)
 
