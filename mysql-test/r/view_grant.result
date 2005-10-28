@@ -307,3 +307,30 @@ use mysqltest;
 create view v1 as select * from t1;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 drop database mysqltest;
+drop view if exists v1;
+create table t1 as select * from mysql.user where user='';
+delete from mysql.user where user='';
+flush privileges;
+grant all on test.* to 'test14256'@'%';
+use test;
+create view v1 as select 42;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`test14256`@`%` SQL SECURITY DEFINER VIEW `v1` AS select 42 AS `42`
+select definer into @v1def1 from information_schema.views
+where table_schema = 'test' and table_name='v1';
+drop view v1;
+create definer=`test14256`@`%` view v1 as select 42;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`test14256`@`%` SQL SECURITY DEFINER VIEW `v1` AS select 42 AS `42`
+select definer into @v1def2 from information_schema.views
+where table_schema = 'test' and table_name='v1';
+drop view v1;
+select @v1def1, @v1def2, @v1def1=@v1def2;
+@v1def1	@v1def2	@v1def1=@v1def2
+test14256@%	test14256@%	1
+drop user test14256;
+insert into mysql.user select * from t1;
+flush privileges;
+drop table t1;
