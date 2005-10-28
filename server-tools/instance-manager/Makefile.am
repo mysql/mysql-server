@@ -15,7 +15,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 INCLUDES= @ZLIB_INCLUDES@ -I$(top_srcdir)/include \
-	$(openssl_includes) -I$(top_builddir)/include
+	@openssl_includes@ @yassl_includes@ -I$(top_builddir)/include
 
 DEFS= -DMYSQL_INSTANCE_MANAGER -DMYSQL_SERVER
 
@@ -85,7 +85,7 @@ mysqlmanager_LDADD=	liboptions.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/strings/libmystrings.a \
 			$(top_builddir)/dbug/libdbug.a \
-			@openssl_libs@ @ZLIB_LIBS@
+			@openssl_libs@ @yassl_libs@ @ZLIB_LIBS@
 
 
 tags:
