@@ -552,7 +552,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlmanager.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
-%doc %attr(644, root, man) %{_mandir}/man1/pack_isam.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/safe_mysqld.1*
@@ -580,7 +579,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_zap
-%attr(755, root, root) %{_bindir}/pack_isam
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolveip
