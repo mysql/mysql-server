@@ -587,7 +587,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
   tables.alias= table_list->alias;
-  thd->allow_sum_func= 0;
+  thd->lex->allow_sum_func= 0;
 
   if (setup_tables(thd, &select_lex->context, &select_lex->top_join_list,
                    table_list, conds, &select_lex->leaf_tables,

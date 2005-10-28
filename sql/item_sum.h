@@ -23,6 +23,200 @@
 
 #include <my_tree.h>
 
+/*
+  Class Item_sum is the base class used for special expressions that SQL calls
+  'set functions'. These expressions are formed with the help of aggregate
+  functions such as SUM, MAX, GROUP_CONCAT etc.
+
+ GENERAL NOTES
+
+  A set function can be used not in any position where an expression is
+  accepted. There are some quite explicable restrictions for the usage of 
+  set functions.
+
+  In the query:
+    SELECT AVG(b) FROM t1 WHERE SUM(b) > 20 GROUP by a
+  the usage of the set function AVG(b) is legal, while the usage of SUM(b)
+  is illegal. A WHERE condition must contain expressions that can be 
+  evaluated for each row of the table. Yet the expression SUM(b) can be
+  evaluated only for each group of rows with the same value of column a.
+  In the query:
+    SELECT AVG(b) FROM t1 WHERE c > 30 GROUP BY a HAVING SUM(b) > 20
+  both set function expressions AVG(b) and SUM(b) are legal.
+
+  We can say that in a query without nested selects an occurrence of a
+  set function in an expression of the SELECT list or/and in the HAVING
+  clause is legal, while in the WHERE clause it's illegal.
+
+  The general rule to detect whether a set function is legal in a query with
+  nested subqueries is much more complicated.
+
+  Consider the the following query:
+    SELECT t1.a FROM t1 GROUP BY t1.a
+      HAVING t1.a > ALL (SELECT t2.c FROM t2 WHERE SUM(t1.b) < t2.c).
+  The set function SUM(b) is used here in the WHERE clause of the subquery.
+  Nevertheless it is legal since it is under the HAVING clause of the query
+  to which this function relates. The expression SUM(t1.b) is evaluated
+  for each group defined in the main query, not for groups of the subquery.
+
+  The problem of finding the query where to aggregate a particular
+  set function is not so simple is it seems to be.
+
+  In the query: 
+    SELECT t1.a FROM t1 GROUP BY t1.a
+     HAVING t1.a > ALL(SELECT t2.c FROM t2 GROUP BY t2.c
+                         HAVING SUM(t1.a) < t2.c)
+  the set function can be evaluated for both outer and inner selects.
+  If we evaluate SUM(t.a) for the outer query then we get the value of t.a
+  multiplied by the cardinality of a group in table t1. In this case 
+  in each correlated subquery SUM(t1.a) is used as a constant. But we also
+  can evaluate SUM(t.a) for the inner query. In this case t.a will be a
+  constant for each correlated subquery and summation is performed
+  for each group of table t2.
+  (Here it makes sense to remind that the query
+    SELECT c FROM t GROUP BY a HAVING SUM(1) < a 
+  is quite legal in our SQL).
+
+  So depending on to what query we assign the set function we
+  can get different result sets.
+
+  The general rule to detect the query where a set function is to be
+  evaluated can be formulated as follows.
+  Consider a set function S(E) where E is an expression with occurrences
+  of column references C1, ..., CN. Resolve these references against
+  subqueries whose subexpression the set function S(E) is. Let Q be the
+  most inner subquery of those subqueries. (It should be noted here that S(E)
+  in no way can be evaluated in the subquery embedding the subquery Q.)
+  If S(E) is used in a construct of Q where set function are allowed then
+  we evaluate S(E) in Q.
+  Otherwise we look for a most inner subquery containing S(E) of those where
+  usage of S(E) is allowed.
+
+  Let's demonstrate how this rule is applied to the following queries.
+
+  1. SELECT t1.a FROM t1 GROUP BY t1.a
+       HAVING t1.a > ALL(SELECT t2.b FROM t2 GROUP BY t2.b
+                           HAVING t2.b > ALL(SELECT t3.c FROM t3 GROUP BY t3.c
+                                                HAVING SUM(t1.a+t2.b) < t3.c))
+  For this query the set function SUM(t1.a+t2.b) depends on t1.a and t2.b
+  with t1.a defined in the most outer query, and t2.b defined for its
+  subquery. The set function is in the HAVING clause of the subquery and can
+  be evaluated in this subquery.
+
+  2. SELECT t1.a FROM t1 GROUP BY t1.a
+       HAVING t1.a > ALL(SELECT t2.b FROM t2
+                           WHERE t2.b > ALL (SELECT t3.c FROM t3 GROUP BY t3.c
+                                               HAVING SUM(t1.a+t2.b) < t3.c))
+  Here the set function SUM(t1.a+t2.b)is in the WHERE clause of the second
+  subquery - the most upper subquery where t1.a and t2.b are defined.
+  If we evaluate the function in this subquery we violate the context rules.
+  So we evaluate the function in the third subquery where it is used under
+  the HAVING clause.
+
+  3. SELECT t1.a FROM t1 GROUP BY t1.a
+       HAVING t1.a > ALL(SELECT t2.b FROM t2
+                           WHERE t2.b > ALL (SELECT t3.c FROM t3 
+                                               WHERE SUM(t1.a+t2.b) < t3.c))
+  In this query evaluation of SUM(t1.a+t2.b) is not legal neither in the second
+  nor in the third subqueries. So this query is invalid.
+
+  Mostly set functions cannot be nested. In the query
+    SELECT t1.a from t1 GROUP BY t1.a HAVING AVG(SUM(t1.b)) > 20
+  the expression SUM(b) is not acceptable, though it is under a HAVING clause.
+  It is acceptable in the query:
+    SELECT t.1 FROM t1 GROUP BY t1.a HAVING SUM(t1.b) > 20.
+
+  An argument of a set function does not have to be a reference to a table
+  column as we saw it in examples above. This can be a more complex expression
+    SELECT t1.a FROM t1 GROUP BY t1.a HAVING SUM(t1.b+1) > 20.
+  The expression SUM(t1.b+1) has a very clear semantics in this context:
+  we sum up the values of t1.b+1 where t1.b varies for all values within a
+  group of rows that contain the same t1.a value.
+
+  A set function for an outer query yields a constant within a subquery. So
+  the semantics of the query
+    SELECT t1.a FROM t1 GROUP BY t1.a
+      HAVING t1.a IN (SELECT t2.c FROM t2 GROUP BY t2.c
+                        HAVING AVG(t2.c+SUM(t1.b)) > 20)
+  is still clear too. For a group of the rows with the same t1.a values we
+  calculate the value of SUM(t1.b). This value 's' is substituted in the
+  the subquery:
+    SELECT t2.c FROM t2 GROUP BY t2.c HAVING AVG(t2.c+s)
+  than returns some result set.
+
+  By the same reason the following query with a subquery 
+    SELECT t1.a FROM t1 GROUP BY t1.a
+      HAVING t1.a IN (SELECT t2.c FROM t2 GROUP BY t2.c
+                        HAVING AVG(SUM(t1.b)) > 20)
+  is also acceptable.
+
+ IMPLEMENTATION NOTES
+
+  Three methods were added to the class to check the constraints specified
+  in the previous section. This methods utilize several new members.
+
+  The field 'nest_level' contains the number of the level for the subquery
+  containing the set function. The main SELECT is of level 0, its subqueries
+  are of levels 1, the subqueries of the latters are of level 2 and so on.
+
+  The field 'aggr_level' is to contain the nest level of the subquery
+  where the set function is aggregated.
+
+  The field 'max_arg_level' is for the maximun of the nest levels of the
+  unbound column references occurred in the set function. A column reference
+  is unbound  within a set function if it is not bound by any subquery
+  used as a subexpression in this function. A column reference is bound by
+  a subquery if it is a reference to the column by which the aggregation
+  of some set function that is used in the subquery is calculated.
+  For the set function used in the query
+    SELECT t1.a FROM t1 GROUP BY t1.a
+      HAVING t1.a > ALL(SELECT t2.b FROM t2 GROUP BY t2.b
+                          HAVING t2.b > ALL(SELECT t3.c FROM t3 GROUP BY t3.c
+                                              HAVING SUM(t1.a+t2.b) < t3.c))
+  the value of max_arg_level is equal to 1 since t1.a is bound in the main
+  query, and t2.b is bound by the first subquery whose nest level 1.
+  Obviously a set function cannot be aggregated in the subquery whose
+  nest level is less than max_arg_level. (Yet it can be aggregated in the
+  subqueries whose nest level is greater than max_arg_level.)
+  In the query
+    SELECT t.a FROM t1 HAVING AVG(t1.a+(SELECT MIN(t2.c) FROM t2))
+  the value of the max_arg_level for the AVG set function is 0 since
+  the reference t2.c is bound in the subquery.
+
+  The field 'max_sum_func_level' is to contain the maximum of the
+  nest levels of the set functions that are used as subexpressions of
+  the arguments of the given set function, but not aggregated in any
+  subquery within this set function. A nested set function s1 can be
+  used within set function s0 only if s1.max_sum_func_level <
+  s0.max_sum_func_level. Set function s1 is considered as nested
+  for set function s0 if s1 is not calculated in any subquery
+  within s0.
+
+  A set function that as a subexpression in an argument of another set
+  function refers to the latter via the field 'in_sum_func'.
+
+  The condition imposed on the usage of set functions are checked when
+  we traverse query subexpressions with the help of recursive method
+  fix_fields. When we apply this method to an object of the class
+  Item_sum, first, on the descent, we call the method init_sum_func_check
+  that initialize members used at checking. Then, on the ascent, we
+  call the method check_sum_func that validates the set function usage
+  and reports an error if it is illegal.
+  The method register_sum_func serves to link the items for the set functions
+  that are aggregated in the embedding (sub)queries. Circular chains of such
+  functions are attached to the corresponding st_select_lex structures
+  through the field inner_sum_func_list.
+
+  Exploiting the fact that the members mentioned above are used in one
+  recursive function we could have allocated them on the thread stack.
+  Yet we don't do it now.
+  
+  We assume that the nesting level of subquries does not exceed 127.
+  TODO: to catch queries where the limit is exceeded to make the
+  code clean here.  
+    
+*/        
+
 class Item_sum :public Item_result_field
 {
 public:
@@ -33,7 +227,14 @@ public:
   };
 
   Item **args, *tmp_args[2];
+  Item **ref_by; /* pointer to a ref to the object used to register it */
+  Item_sum *next; /* next in the circular chain of registered objects  */
   uint arg_count;
+  Item_sum *in_sum_func;  /* embedding set function if any */ 
+  int8 nest_level;        /* number of the nesting level of the set function */
+  int8 aggr_level;        /* nesting level of the aggregating subquery       */
+  int8 max_arg_level;     /* max level of unbound column references          */
+  int8 max_sum_func_level;/* max level of aggregation for embedded functions */
   bool quick_group;			/* If incremental update of fields */
 
   void mark_as_sum_func();
@@ -111,6 +312,9 @@ public:
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
   bool walk (Item_processor processor, byte *argument);
+  bool init_sum_func_check(THD *thd);
+  bool check_sum_func(THD *thd, Item **ref);
+  bool register_sum_func(THD *thd, Item **ref);
 };
 
 

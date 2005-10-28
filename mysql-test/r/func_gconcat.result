@@ -163,7 +163,7 @@ show warnings;
 Level	Code	Message
 Warning	1260	1 line(s) were cut by GROUP_CONCAT()
 set group_concat_max_len = 1024;
-select group_concat(sum(a)) from t1 group by grp;
+select group_concat(sum(c)) from t1 group by grp;
 ERROR HY000: Invalid use of group function
 select grp,group_concat(c order by 2) from t1 group by grp;
 ERROR 42S22: Unknown column '2' in 'order clause'
