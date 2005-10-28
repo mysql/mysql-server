@@ -1852,7 +1852,6 @@ struct connection * find_connection_by_name(const char *name)
 
 int select_connection_name(const char *name)
 {
-  struct connection *con;
   DBUG_ENTER("select_connection2");
   DBUG_PRINT("enter",("name: '%s'", name));
 
@@ -1932,14 +1931,25 @@ int close_connection(struct st_query *q)
    future to handle quotes. For now we assume that anything that is not
    a comma, a space or ) belongs to the argument. space is a chopper, comma or
    ) are delimiters/terminators
+
+  SYNOPSIS
+  safe_get_param
+  str - string to get param from
+  arg - pointer to string where result will be stored 
+  msg - Message to display if param is not found
+       if msg is 0 this param is not required and param may be empty
+  
+  RETURNS
+  pointer to str after param
+  
 */
 
-char* safe_get_param(char *str, char** arg, const char *msg, bool required)
+char* safe_get_param(char *str, char** arg, const char *msg)
 {
   DBUG_ENTER("safe_get_param");
   if(!*str)
   {
-    if (required)
+    if (msg) 
       die(msg);
     *arg= str;
     DBUG_RETURN(str);
@@ -1949,7 +1959,7 @@ char* safe_get_param(char *str, char** arg, const char *msg, bool required)
   *arg= str;
   while (*str && *str != ',' && *str != ')')
     str++;
-  if (required && !*arg)
+  if (msg && !*arg)
     die(msg);
 
   *str++= 0;
@@ -2182,15 +2192,15 @@ int do_connect(struct st_query *q)
   if (*p != '(')
     die("Syntax error in connect - expected '(' found '%c'", *p);
   p++;
-  p= safe_get_param(p, &con_name, "Missing connection name", 1);
-  p= safe_get_param(p, &con_host, "Missing connection host", 1);
-  p= safe_get_param(p, &con_user, "Missing connection user", 1);
-  p= safe_get_param(p, &con_pass, "Missing connection password", 1);
-  p= safe_get_param(p, &con_db, "Missing connection db", 1);
+  p= safe_get_param(p, &con_name, "Missing connection name");
+  p= safe_get_param(p, &con_host, "Missing connection host");
+  p= safe_get_param(p, &con_user, "Missing connection user");
+  p= safe_get_param(p, &con_pass, "Missing connection password");
+  p= safe_get_param(p, &con_db, "Missing connection db");
 
   /* Port */
   VAR* var_port;
-  p= safe_get_param(p, &con_port_str, "Missing connection port", 0);
+  p= safe_get_param(p, &con_port_str, 0);
   if (*con_port_str)
   {
     if (*con_port_str == '$')
@@ -2213,7 +2223,7 @@ int do_connect(struct st_query *q)
 
   /* Sock */
   VAR *var_sock;
-  p= safe_get_param(p, &con_sock, "Missing connection socket", 0);
+  p= safe_get_param(p, &con_sock, 0);
   if (*con_sock)
   {
     if (*con_sock == '$')
@@ -2233,7 +2243,7 @@ int do_connect(struct st_query *q)
   }
 
   /* Options */
-  p= safe_get_param(p, &con_options, "Missing options", 0);
+  p= safe_get_param(p, &con_options, 0);
   while (*con_options)
   {
     char* str= con_options;
