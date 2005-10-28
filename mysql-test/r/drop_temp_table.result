@@ -1,3 +1,4 @@
+drop database if exists `drop-temp+table-test`;
 reset master;
 create database `drop-temp+table-test`;
 use `drop-temp+table-test`;

@@ -407,7 +407,8 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
   MYISAM_SHARE *share=info->s;
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("del");
-  DBUG_PRINT("enter",("leaf_page: %ld   keypos: %lx",leaf_page,keypos));
+  DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", leaf_page,
+		      (ulong) keypos));
   DBUG_DUMP("leaf_buff",(byte*) leaf_buff,mi_getint(leaf_buff));
 
   endpos=leaf_buff+mi_getint(leaf_buff);
@@ -512,7 +513,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   MI_KEY_PARAM s_temp;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("underflow");
-  DBUG_PRINT("enter",("leaf_page: %ld   keypos: %lx",(long) leaf_page,keypos));
+  DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx",(long) leaf_page,
+		      (ulong) keypos));
   DBUG_DUMP("anc_buff",(byte*) anc_buff,mi_getint(anc_buff));
   DBUG_DUMP("leaf_buff",(byte*) leaf_buff,mi_getint(leaf_buff));
 

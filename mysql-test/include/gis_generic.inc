@@ -1,5 +1,4 @@
-source include/have_geometry.inc;
---source include/have_ndb.inc
+--source include/have_geometry.inc
 
 #
 # Spatial objects

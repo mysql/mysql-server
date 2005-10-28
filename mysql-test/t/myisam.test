@@ -629,6 +629,25 @@ show index from t1;
 
 drop table t1;
 
+# WL#2609, CSC#XXXX: MyISAM 
+set myisam_stats_method=nulls_ignored;
+show variables like 'myisam_stats_method';
+
+create table t1 (
+  a char(3), b char(4), c char(5), d char(6),
+  key(a,b,c,d)
+);
+insert into t1 values ('bcd','def1', NULL, 'zz');
+insert into t1 values ('bcd','def2', NULL, 'zz');
+insert into t1 values ('bce','def1', 'yuu', NULL);
+insert into t1 values ('bce','def2', NULL, 'quux');
+analyze table t1;
+show index from t1;
+delete from t1;
+analyze table t1;
+show index from t1;
+
+set myisam_stats_method=DEFAULT;
 # End of 4.1 tests
 
 #

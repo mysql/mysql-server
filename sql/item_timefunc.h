@@ -537,6 +537,7 @@ public:
     { return is_time_format ? "time_format" : "date_format"; }
   void fix_length_and_dec();
   uint format_length(const String *format);
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 

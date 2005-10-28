@@ -135,7 +135,6 @@ typedef struct st_read_record {			/* Parameter to read_record */
   byte	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
   bool print_error, ignore_not_found_rows;
-  bool first; /* used only with rr_index_read */
 } READ_RECORD;
 
 

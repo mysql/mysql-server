@@ -1,9 +1,0 @@
-include ..\include\makefile.i
-
-dyn.lib: dyn0dyn.obj makefile
-	lib -out:..\libs\dyn.lib dyn0dyn.obj
-
-dyn0dyn.obj: dyn0dyn.c
-	$(CCOM) $(CFL) -c dyn0dyn.c
-
-
