@@ -264,7 +264,7 @@ btr_page_create(
 			UT_LIST_GET_FIRST(tree->tree_indexes)->table->comp);
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 	
-	btr_page_set_index_id(page, tree->id, mtr);
+	btr_page_set_index_id(page, NULL, tree->id, mtr);
 }
 
 /******************************************************************
@@ -730,14 +730,14 @@ btr_create(
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 	/* Set the index id of the page */
-	btr_page_set_index_id(page, index_id, mtr);
+	btr_page_set_index_id(page, NULL, index_id, mtr);
 
 	/* Set the level of the new index page */
-	btr_page_set_level(page, 0, mtr);
+	btr_page_set_level(page, NULL, 0, mtr);
 	
 	/* Set the next node and previous node fields */
-	btr_page_set_next(page, FIL_NULL, mtr);
-	btr_page_set_prev(page, FIL_NULL, mtr);
+	btr_page_set_next(page, NULL, FIL_NULL, mtr);
+	btr_page_set_prev(page, NULL, FIL_NULL, mtr);
 
 	/* We reset the free bits for the page to allow creation of several
 	trees in the same mtr, otherwise the latch on a bitmap page would
@@ -1046,12 +1046,12 @@ btr_root_raise_and_insert(
 	level = btr_page_get_level(root, mtr);
 	
 	/* Set the levels of the new index page and root page */
-	btr_page_set_level(new_page, level, mtr);
-	btr_page_set_level(root, level + 1, mtr);
+	btr_page_set_level(new_page, NULL, level, mtr);
+	btr_page_set_level(root, NULL/* TODO */, level + 1, mtr);
 	
 	/* Set the next node and previous node fields of new page */
-	btr_page_set_next(new_page, FIL_NULL, mtr);
-	btr_page_set_prev(new_page, FIL_NULL, mtr);
+	btr_page_set_next(new_page, NULL, FIL_NULL, mtr);
+	btr_page_set_prev(new_page, NULL, FIL_NULL, mtr);
 
 	/* Move the records from root to the new page */
 
@@ -1480,6 +1480,7 @@ btr_attach_half_pages(
 /*==================*/
 	dict_tree_t*	tree,		/* in: the index tree */
 	page_t*		page,		/* in: page to be split */
+	/* TODO page_zip? */
 	rec_t*		split_rec,	/* in: first record on upper
 					half page */
 	page_t*		new_page,	/* in: the new half page */
@@ -1497,6 +1498,8 @@ btr_attach_half_pages(
 	page_t*		upper_page;
 	ulint		lower_page_no;
 	ulint		upper_page_no;
+	page_zip_des_t*	lower_page_zip;
+	page_zip_des_t*	upper_page_zip;
 	dtuple_t*	node_ptr_upper;
 	mem_heap_t* 	heap;
 
@@ -1523,7 +1526,7 @@ btr_attach_half_pages(
 		/* Replace the address of the old child node (= page) with the 
 		address of the new lower half */
 
-		btr_node_ptr_set_child_page_no(node_ptr,
+		btr_node_ptr_set_child_page_no(node_ptr/* TODO zip */,
 			rec_get_offsets(node_ptr,
 					UT_LIST_GET_FIRST(tree->tree_indexes),
 					NULL, ULINT_UNDEFINED, &heap),
@@ -1536,6 +1539,9 @@ btr_attach_half_pages(
 		upper_page = new_page;
 	}
 				   
+	lower_page_zip = buf_block_get_page_zip(buf_block_align(lower_page));
+	upper_page_zip = buf_block_get_page_zip(buf_block_align(upper_page));
+
 	/* Get the level of the split pages */
 	level = btr_page_get_level(page, mtr);
 
@@ -1566,7 +1572,9 @@ btr_attach_half_pages(
 		prev_page = btr_page_get(space, prev_page_no, RW_X_LATCH, mtr);
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 
-		btr_page_set_next(prev_page, lower_page_no, mtr);
+		btr_page_set_next(prev_page, buf_block_get_page_zip(
+					buf_block_align(prev_page)),
+					lower_page_no, mtr);
 	}
 
 	if (next_page_no != FIL_NULL) {
@@ -1574,16 +1582,18 @@ btr_attach_half_pages(
 		next_page = btr_page_get(space, next_page_no, RW_X_LATCH, mtr);
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
 
-		btr_page_set_prev(next_page, upper_page_no, mtr);
+		btr_page_set_prev(next_page, buf_block_get_page_zip(
+					buf_block_align(next_page)),
+					upper_page_no, mtr);
 	}
 	
-	btr_page_set_prev(lower_page, prev_page_no, mtr);
-	btr_page_set_next(lower_page, upper_page_no, mtr);
-	btr_page_set_level(lower_page, level, mtr);
+	btr_page_set_prev(lower_page, lower_page_zip, prev_page_no, mtr);
+	btr_page_set_next(lower_page, lower_page_zip, upper_page_no, mtr);
+	btr_page_set_level(lower_page, lower_page_zip, level, mtr);
 
-	btr_page_set_prev(upper_page, lower_page_no, mtr);
-	btr_page_set_next(upper_page, next_page_no, mtr);
-	btr_page_set_level(upper_page, level, mtr);
+	btr_page_set_prev(upper_page, upper_page_zip, lower_page_no, mtr);
+	btr_page_set_next(upper_page, upper_page_zip, next_page_no, mtr);
+	btr_page_set_level(upper_page, upper_page_zip, level, mtr);
 }
 
 /*****************************************************************
@@ -1852,7 +1862,9 @@ btr_level_list_remove(
 		prev_page = btr_page_get(space, prev_page_no, RW_X_LATCH, mtr);
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 
-		btr_page_set_next(prev_page, next_page_no, mtr);
+		btr_page_set_next(prev_page, buf_block_get_page_zip(
+				buf_block_align(prev_page)),
+				next_page_no, mtr);
 	}
 
 	if (next_page_no != FIL_NULL) {
@@ -1860,7 +1872,9 @@ btr_level_list_remove(
 		next_page = btr_page_get(space, next_page_no, RW_X_LATCH, mtr);
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
 
-		btr_page_set_prev(next_page, prev_page_no, mtr);
+		btr_page_set_prev(next_page, buf_block_get_page_zip(
+				buf_block_align(next_page)),
+				prev_page_no, mtr);
 	}
 }
 	
@@ -2022,7 +2036,7 @@ btr_lift_page_up(
 		ut_error;
 	}
 
-	btr_page_set_level(father_page, page_level, mtr);
+	btr_page_set_level(father_page, NULL, page_level, mtr);
 
 	if (UNIV_LIKELY_NULL(father_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(
@@ -2075,7 +2089,6 @@ btr_compress(
 	ulint		left_page_no;
 	ulint		right_page_no;
 	page_t*		merge_page;
-	page_t*		father_page;
 	ibool		is_left;
 	page_t*		page;
 	rec_t*		node_ptr;
@@ -2105,8 +2118,7 @@ btr_compress(
 	node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
 	ut_ad(!page_is_comp(page)
 		|| rec_get_status(node_ptr) == REC_STATUS_NODE_PTR);
-	father_page = buf_frame_align(node_ptr);
-	ut_a(page_is_comp(page) == page_is_comp(father_page));
+	ut_a(page_is_comp(page) == page_rec_is_comp(node_ptr));
 
 	/* Decide the page to which we try to merge and which will inherit
 	the locks */
@@ -2188,7 +2200,9 @@ btr_compress(
 		}
 		btr_node_ptr_delete(tree, merge_page, mtr);
 	}
-	
+
+	/* TODO: update page_zip of node_ptr */
+
 	/* Move records to the merge page */
 	if (is_left) {
 		rec_t*	orig_pred = page_rec_get_prev(
@@ -2255,12 +2269,14 @@ btr_discard_only_page_on_level(
 
 	lock_update_discard(page_get_supremum_rec(father_page), page);
 
-	btr_page_set_level(father_page, page_level, mtr);
+	btr_page_set_level(father_page, buf_block_get_page_zip(
+				buf_block_align(father_page)),
+				page_level, mtr);
 
 	/* Free the file page */
 	btr_page_free(tree, page, mtr);		
 
-	if (UNIV_UNLIKELY(buf_frame_get_page_no(father_page)
+	if (UNIV_LIKELY(buf_frame_get_page_no(father_page)
 				== dict_tree_get_page(tree))) {
 		/* The father is the root page */
 
