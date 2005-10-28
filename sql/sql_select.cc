@@ -1175,18 +1175,21 @@ JOIN::save_join_tab()
 void
 JOIN::exec()
 {
+  List<Item> *columns_list= &fields_list;
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
 
   error= 0;
   if (procedure)
   {
-    if (procedure->change_columns(fields_list) ||
-	result->prepare(fields_list, unit))
+    procedure_fields_list= fields_list;
+    if (procedure->change_columns(procedure_fields_list) ||
+	result->prepare(procedure_fields_list, unit))
     {
       thd->limit_found_rows= thd->examined_row_count= 0;
       DBUG_VOID_RETURN;
     }
+    columns_list= &procedure_fields_list;
   }
   (void) result->prepare2(); // Currently, this cannot fail.
 
@@ -1197,7 +1200,7 @@ JOIN::exec()
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
-      result->send_fields(fields_list,
+      result->send_fields(*columns_list,
                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
       /*
         We have to test for 'conds' here as the WHERE may not be constant
@@ -1208,9 +1211,9 @@ JOIN::exec()
           (!conds || conds->val_int()) &&
           (!having || having->val_int()))
       {
-	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
-                                          procedure->end_of_records())
-                                       : result->send_data(fields_list)))
+	if (do_send_rows &&
+            (procedure ? (procedure->send_row(procedure_fields_list) ||
+             procedure->end_of_records()) : result->send_data(fields_list)))
 	  error= 1;
 	else
 	{
@@ -1234,7 +1237,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, select_lex->leaf_tables, fields_list,
+    (void) return_zero_rows(this, result, select_lex->leaf_tables, *columns_list,
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
@@ -1668,7 +1671,7 @@ JOIN::exec()
   {
     thd->proc_info="Sending data";
     DBUG_PRINT("info", ("%s", thd->proc_info));
-    result->send_fields(*curr_fields_list,
+    result->send_fields(*columns_list,
                         Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
@@ -9020,6 +9023,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab;
+  List<Item> *columns_list= procedure? &join->procedure_fields_list : fields;
   DBUG_ENTER("do_select");
 
   join->procedure=procedure;
@@ -9053,7 +9057,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	error= (*end_select)(join,join_tab,1);
     }
     else if (join->send_row_on_empty_set())
-      rc= join->result->send_data(*join->fields);
+      rc= join->result->send_data(*columns_list);
   }
   else
   {
@@ -10082,7 +10086,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->procedure)
-      error=join->procedure->send_row(*join->fields);
+      error=join->procedure->send_row(join->procedure_fields_list);
     else if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
