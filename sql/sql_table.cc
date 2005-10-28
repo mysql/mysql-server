@@ -643,8 +643,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
 					 create_info->default_table_charset);
-	  sql_field->length=		dup_field->length;
-	  sql_field->pack_length=	dup_field->pack_length;
+	  sql_field->length=		dup_field->chars_length;
+          sql_field->pack_length=	dup_field->pack_length;
 	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
 	  sql_field->flags=		dup_field->flags;
