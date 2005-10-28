@@ -116,6 +116,16 @@ insert into t1 values (1);
 select rand(i) from t1;
 drop table t1;
 
+#
+# Bug #14009: use of abs() on null value causes problems with filesort
+#
+# InnoDB is required to reproduce the fault, but it is okay if we default to
+# MyISAM when testing.
+create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8;
+insert into t1 values ('http://www.foo.com/', now());
+select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
+drop table t1;
+
 # End of 4.1 tests
 
 #
