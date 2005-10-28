@@ -621,3 +621,14 @@ create table if not exists t1 (a int);
 Warnings:
 Note	1050	Table 't1' already exists
 drop table t1;
+create table t1 (
+a varchar(112) charset utf8 collate utf8_bin not null,
+primary key (a)
+) select 'test' as a ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(112) character set utf8 collate utf8_bin NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
