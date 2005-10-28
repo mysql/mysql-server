@@ -86,11 +86,11 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
                          sp_name *rt, char rt_type);
 void sp_remove_not_own_routines(LEX *lex);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
-bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex, 
-                                      bool first_no_prelock);
-void sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
-                                               LEX *aux_lex);
-void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
+int sp_cache_routines_and_add_tables(THD *thd, LEX *lex, 
+                                     bool first_no_prelock, bool *tabs_changed);
+int sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
+                                              LEX *aux_lex);
+int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                          Table_triggers_list *triggers);
 
 extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
