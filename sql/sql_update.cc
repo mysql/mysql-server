@@ -336,7 +336,7 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
-      if (used_index == MAX_KEY)
+      if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info,thd,table,select,0,1);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
