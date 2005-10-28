@@ -171,50 +171,68 @@ static int my_read_charset_file(const char *filename)
   return FALSE;
 }
 
+static int
+is_case_sensitive(CHARSET_INFO *cs)
+{
+ return (cs->sort_order &&
+         cs->sort_order['A'] < cs->sort_order['a'] &&
+         cs->sort_order['a'] < cs->sort_order['B']) ? 1 : 0;
+}
+
 void dispcset(FILE *f,CHARSET_INFO *cs)
 {
   fprintf(f,"{\n");
   fprintf(f,"  %d,%d,%d,\n",cs->number,0,0);
-  fprintf(f,"  MY_CS_COMPILED%s%s,\n",
+  fprintf(f,"  MY_CS_COMPILED%s%s%s,\n",
           cs->state & MY_CS_BINSORT ? "|MY_CS_BINSORT" : "",
-          cs->state & MY_CS_PRIMARY ? "|MY_CS_PRIMARY" : "");
+          cs->state & MY_CS_PRIMARY ? "|MY_CS_PRIMARY" : "",
+          is_case_sensitive(cs)     ? "|MY_CS_CSSORT"  : "");
   
   if (cs->name)
   {
-    fprintf(f,"  \"%s\",\n",cs->csname);
-    fprintf(f,"  \"%s\",\n",cs->name);
-    fprintf(f,"  \"\",\n");
-    fprintf(f,"  ctype_%s,\n",cs->name);
-    fprintf(f,"  to_lower_%s,\n",cs->name);
-    fprintf(f,"  to_upper_%s,\n",cs->name);
+    fprintf(f,"  \"%s\",                     /* cset name     */\n",cs->csname);
+    fprintf(f,"  \"%s\",                     /* coll name     */\n",cs->name);
+    fprintf(f,"  \"\",                       /* comment       */\n");
+    fprintf(f,"  NULL,                       /* tailoring     */\n");
+    fprintf(f,"  ctype_%s,                   /* ctype         */\n",cs->name);
+    fprintf(f,"  to_lower_%s,                /* lower         */\n",cs->name);
+    fprintf(f,"  to_upper_%s,                /* upper         */\n",cs->name);
     if (cs->sort_order)
-      fprintf(f,"  sort_order_%s,\n",cs->name);
+      fprintf(f,"  sort_order_%s,            /* sort_order    */\n",cs->name);
     else
-      fprintf(f,"  NULL,\n");
-    fprintf(f,"  to_uni_%s,\n",cs->name);
-    fprintf(f,"  from_uni_%s,\n",cs->name);
+      fprintf(f,"  NULL,                     /* sort_order    */\n");
+    fprintf(f,"  NULL,                       /* contractions  */\n");
+    fprintf(f,"  NULL,                       /* sort_order_big*/\n");
+    fprintf(f,"  to_uni_%s,                  /* to_uni        */\n",cs->name);
   }
   else
   {
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
-    fprintf(f,"  NULL,\n");
+    fprintf(f,"  NULL,                       /* cset name     */\n");
+    fprintf(f,"  NULL,                       /* coll name     */\n");
+    fprintf(f,"  NULL,                       /* comment       */\n");
+    fprintf(f,"  NULL,                       /* tailoging     */\n");
+    fprintf(f,"  NULL,                       /* ctype         */\n");
+    fprintf(f,"  NULL,                       /* lower         */\n");
+    fprintf(f,"  NULL,                       /* upper         */\n");
+    fprintf(f,"  NULL,                       /* sort order    */\n");
+    fprintf(f,"  NULL,                       /* contractions  */\n");
+    fprintf(f,"  NULL,                       /* sort_order_big*/\n");
+    fprintf(f,"  NULL,                       /* to_uni        */\n");
   }
-  
-  fprintf(f,"  \"\",\n");
-  fprintf(f,"  \"\",\n");
-  fprintf(f,"  0,\n");
-  fprintf(f,"  0,\n");
-  fprintf(f,"  0,\n");
+
+  fprintf(f,"  NULL,                       /* from_uni      */\n");
+  fprintf(f,"  NULL,                       /* state map     */\n");
+  fprintf(f,"  NULL,                       /* ident map     */\n");
+  fprintf(f,"  1,                          /* strxfrm_multiply*/\n");
+  fprintf(f,"  1,                          /* mbminlen      */\n");
+  fprintf(f,"  1,                          /* mbmaxlen      */\n");
+  fprintf(f,"  0,                          /* min_sort_char */\n");
+  fprintf(f,"  255,                        /* max_sort_char */\n");
+  fprintf(f,"  0,                          /* escape_with_backslash_is_dangerous */\n");
+            
   fprintf(f,"  &my_charset_8bit_handler,\n");
   if (cs->state & MY_CS_BINSORT)
-    fprintf(f,"  &my_collation_bin_handler,\n");
+    fprintf(f,"  &my_collation_8bit_bin_handler,\n");
   else
     fprintf(f,"  &my_collation_8bit_simple_ci_handler,\n");
   fprintf(f,"}\n");
@@ -252,6 +270,11 @@ main(int argc, char **argv  __attribute__((unused)))
       }
     }
   }
+  
+  
+  fprintf(f,"#include <my_global.h>\n");
+  fprintf(f,"#include <m_ctype.h>\n\n");
+  
   
   for (cs=all_charsets; cs < all_charsets+256; cs++)
   {

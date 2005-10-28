@@ -1026,11 +1026,8 @@ int READ_INFO::read_field()
           *to++ = (byte) unescape((char) chr);
           continue;
         }
-        else
-        {
-          PUSH(chr);
-          chr= escape_char;
-        }
+        PUSH(chr);
+        chr= escape_char;
       }
 #ifdef ALLOW_LINESEPARATOR_IN_STRINGS
       if (chr == line_term_char)
