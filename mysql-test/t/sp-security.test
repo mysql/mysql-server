@@ -336,6 +336,7 @@ connection user1;
 do 1;
 use test;
 
+disconnect user1;
 connection root;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
 drop function bug_9503;
