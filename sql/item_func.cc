@@ -280,7 +280,7 @@ void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
 {
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
-    (*arg)->split_sum_func2(thd, ref_pointer_array, fields, arg);
+    (*arg)->split_sum_func2(thd, ref_pointer_array, fields, arg, TRUE);
 }
 
 

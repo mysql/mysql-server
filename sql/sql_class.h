@@ -785,19 +785,6 @@ public:
     field list can not contain duplicates.
   */
   bool set_query_id;
-  /*
-    This variable is used in post-parse stage to declare that sum-functions,
-    or functions which have sense only if GROUP BY is present, are allowed.
-    For example in queries
-    SELECT MIN(i) FROM foo
-    SELECT GROUP_CONCAT(a, b, MIN(i)) FROM ... GROUP BY ...
-    MIN(i) have no sense.
-    Though it's grammar-related issue, it's hard to catch it out during the
-    parse stage because GROUP BY clause goes in the end of query. This
-    variable is mainly used in setup_fields/fix_fields.
-    See item_sum.cc for details.
-  */
-  bool allow_sum_func;
 
   LEX_STRING name; /* name for named prepared statements */
   LEX *lex;                                     // parse tree descriptor

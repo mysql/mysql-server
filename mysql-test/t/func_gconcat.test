@@ -69,7 +69,7 @@ set group_concat_max_len = 1024;
 # Test errors
 
 --error 1111
-select group_concat(sum(a)) from t1 group by grp;
+select group_concat(sum(c)) from t1 group by grp;
 --error 1054
 select grp,group_concat(c order by 2) from t1 group by grp;
 
