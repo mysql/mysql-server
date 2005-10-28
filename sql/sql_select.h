@@ -244,6 +244,7 @@ class JOIN :public Sql_alloc
   //Part, shared with list above, emulate following list
   List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
   List<Item> &fields_list; // hold field list passed to mysql_select
+  List<Item> procedure_fields_list;
   int error;
 
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
