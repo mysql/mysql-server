@@ -1642,6 +1642,9 @@ static bool show_status_array(THD *thd, const char *wild,
 	  value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
 	  end= longlong10_to_str(*(longlong*) value, buff, 10);
 	  break;
+        case SHOW_NET_COMPRESSION:
+          end= strmov(buff, thd->net.compress ? "ON" : "OFF");
+          break;
         case SHOW_UNDEF:				// Show never happen
         case SHOW_SYS:
           break;					// Return empty string
