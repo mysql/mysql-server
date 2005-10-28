@@ -28,7 +28,7 @@
 int mi_rnext_same(MI_INFO *info, byte *buf)
 {
   int error;
-  uint inx,not_used;
+  uint inx,not_used[2];
   MI_KEYDEF *keyinfo;
   DBUG_ENTER("mi_rnext_same");
 
@@ -69,7 +69,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
 			       info->s->state.key_root[inx])))
           break;
         if (ha_key_cmp(keyinfo->seg, info->lastkey, info->lastkey2,
-                       info->last_rkey_length, SEARCH_FIND, &not_used))
+                       info->last_rkey_length, SEARCH_FIND, not_used))
         {
           error=1;
           my_errno=HA_ERR_END_OF_FILE;
