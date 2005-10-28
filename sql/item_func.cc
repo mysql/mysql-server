@@ -636,6 +636,7 @@ void Item_func_num1::fix_num_length_and_dec()
 {
   decimals= args[0]->decimals;
   max_length= args[0]->max_length;
+  maybe_null= 1;
 }
 
 
