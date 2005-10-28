@@ -8025,7 +8025,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   statistic_increment(thd->status_var.created_tmp_tables, &LOCK_status);
 
-  if (use_temp_pool)
+  if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
