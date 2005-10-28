@@ -6,21 +6,33 @@ grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA
 grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com";
 grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/Email=abstract.mysql.developer@mysql.com";
 flush privileges;
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
 select * from t1;
 f1
 5
 delete from t1;
 ERROR 42000: DELETE command denied to user 'ssl_user1'@'localhost' for table 't1'
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
 select * from t1;
 f1
 5
 delete from t1;
 ERROR 42000: DELETE command denied to user 'ssl_user2'@'localhost' for table 't1'
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
 select * from t1;
 f1
 5
 delete from t1;
 ERROR 42000: DELETE command denied to user 'ssl_user3'@'localhost' for table 't1'
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
 select * from t1;
 f1
 5
