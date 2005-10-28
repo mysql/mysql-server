@@ -1671,7 +1671,7 @@ JOIN::exec()
   {
     thd->proc_info="Sending data";
     DBUG_PRINT("info", ("%s", thd->proc_info));
-    result->send_fields(*curr_fields_list,
+    result->send_fields(*columns_list,
                         Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
@@ -9023,6 +9023,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab;
+  List<Item> *columns_list= procedure? &join->procedure_fields_list : fields;
   DBUG_ENTER("do_select");
 
   join->procedure=procedure;
