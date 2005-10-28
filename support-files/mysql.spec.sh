@@ -548,9 +548,9 @@ fi
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
+%attr(755, root, root) %{_bindir}/mysql_create_system_tables
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
-%attr(755, root, root) %{_bindir}/mysql_create_system_tables
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
@@ -558,13 +558,8 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
-%attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
-%attr(755, root, root) %{_bindir}/mysql_zap
-%attr(755, root, root) %{_bindir}/mysqlbug
-%attr(755, root, root) %{_bindir}/mysqld_multi
-%attr(755, root, root) %{_bindir}/mysqld_safe
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysqltest
+%attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/pack_isam
 %attr(755, root, root) %{_bindir}/perror
