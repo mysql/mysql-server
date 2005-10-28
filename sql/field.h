@@ -1368,6 +1368,11 @@ public:
   LEX_STRING comment;			// Comment for field
   Item	*def;				// Default value
   enum	enum_field_types sql_type;
+  /*
+    At various stages in execution this can be length of field in bytes or
+    max number of characters. 
+  */
+  ulong length;
   ulong length;
   uint  decimals, flags, pack_length, key_length;
   Field::utype unireg_check;
