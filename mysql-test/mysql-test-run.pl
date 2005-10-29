@@ -172,6 +172,7 @@ our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
 our $exe_mysqld;
 our $exe_mysqldump;              # Called from test case
+our $exe_mysqlimport;              # Called from test case
 our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
@@ -870,6 +871,7 @@ sub executable_setup () {
 		       "/usr/bin/false");
     }
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=      mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -2102,6 +2104,14 @@ sub run_mysqltest ($) {
     $cmdline_mysqldump .=
       " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
   }
+  my $cmdline_mysqlimport= "$exe_mysqlimport -uroot " .
+                         "--port=$master->[0]->{'path_myport'} " .
+                         "--socket=$master->[0]->{'path_mysock'} --password=";
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlimport .=
+      " --debug=d:t:A,$opt_vardir/log/mysqlimport.trace";
+  }
 
   my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
@@ -2152,6 +2162,7 @@ sub run_mysqltest ($) {
 
   $ENV{'MYSQL'}=                    $cmdline_mysql;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
+  $ENV{'MYSQL_IMPORT'}=             $cmdline_mysqlimport;
   $ENV{'MYSQL_SHOW'}=               $cmdline_mysqlshow;
   $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
