@@ -1493,3 +1493,13 @@ insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thir
 </database>
 </mysqldump>
 drop table t1, t2;
+create table t1 (a text character set utf8, b text character set latin1);
+insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
+select * from t1;
+a	b
+Osnabrück	Köln
+test.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
+select * from t1;
+a	b
+Osnabrück	Köln
+drop table t1;
