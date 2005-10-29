@@ -599,7 +599,7 @@ public:
                               List<Item> &fields) {}
   /* Called for items that really have to be split */
   void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
-                       Item **ref);
+                       Item **ref, bool skip_registered);
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
