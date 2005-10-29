@@ -2666,7 +2666,7 @@ void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))
-    item->split_sum_func2(thd, ref_pointer_array, fields, li.ref());
+    item->split_sum_func2(thd, ref_pointer_array, fields, li.ref(), TRUE);
 }
 
 
