@@ -1373,7 +1373,10 @@ public:
     max number of characters. 
   */
   ulong length;
-  ulong length;
+  /*
+    The value of 'length' before a call to create_length_to_internal_length
+  */
+  uint32 chars_length;
   uint  decimals, flags, pack_length, key_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
