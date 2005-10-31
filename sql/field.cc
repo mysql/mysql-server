@@ -7041,8 +7041,7 @@ void Field_blob::get_key_image(char *buff, uint length, imagetype type)
       return;
     }
     get_ptr(&blob);
-    gobj= Geometry::create_from_wkb(&buffer,
-				    blob + SRID_SIZE, blob_length - SRID_SIZE);
+    gobj= Geometry::construct(&buffer, blob, blob_length);
     if (gobj->get_mbr(&mbr, &dummy))
       bzero(buff, SIZEOF_STORED_DOUBLE*4);
     else
@@ -7371,8 +7370,7 @@ void Field_geom::get_key_image(char *buff, uint length, imagetype type)
     return;
   }
   get_ptr(&blob);
-  gobj= Geometry::create_from_wkb(&buffer,
-				  blob + SRID_SIZE, blob_length - SRID_SIZE);
+  gobj= Geometry::construct(&buffer, blob, blob_length);
   if (gobj->get_mbr(&mbr, &dummy))
     bzero(buff, SIZEOF_STORED_DOUBLE*4);
   else
@@ -7453,7 +7451,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     uint32 wkb_type;
     if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
       goto err;
-    wkb_type= uint4korr(from + WKB_HEADER_SIZE);
+    wkb_type= uint4korr(from + SRID_SIZE + 1);
     if (wkb_type < (uint32) Geometry::wkb_point ||
 	wkb_type > (uint32) Geometry::wkb_end)
       goto err;
