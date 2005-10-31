@@ -1971,11 +1971,11 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     derived/information schema tables and views possible. Thus "counter"
     may be still zero for prelocked statement...
 
-    NOTE: The above notes may be out of date. Please wait for psergey to 
+    NOTE: The above notes may be out of date. Please wait for psergey to
           document new prelocked behavior.
   */
-  
-  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() && 
+
+  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
       thd->lex->sroutines_list.elements)
   {
     bool first_no_prelocking, need_prelocking;
@@ -2025,7 +2025,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         /* VIEW placeholder */
 	(*counter)--;
 
-        /* 
+        /*
           tables->next_global list consists of two parts:
           1) Query tables and underlying tables of views.
           2) Tables used by all stored routines that this statement invokes on
@@ -2677,6 +2677,49 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
 }
 
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/*
+  Check column rights in given security context
+
+  SYNOPSIS
+    check_grant_column_in_sctx()
+    thd                  thread handler
+    grant                grant information structure
+    db                   db name
+    table                table  name
+    name                 column name
+    length               column name length
+    check_grants         need to check grants
+    sctx                 0 or security context
+
+  RETURN
+    FALSE OK
+    TRUE  access denied
+*/
+
+static bool check_grant_column_in_sctx(THD *thd, GRANT_INFO *grant,
+                                       const char *db, const char *table,
+                                       const char *name, uint length,
+                                       bool check_grants,
+                                       Security_context *sctx)
+{
+  if (!check_grants)
+    return FALSE;
+  Security_context *save_security_ctx= 0;
+  bool res;
+  if (sctx)
+  {
+    save_security_ctx= thd->security_ctx;
+    thd->security_ctx= sctx;
+  }
+  res= check_grant_column(thd, grant, db, table, name, length);
+  if (save_security_ctx)
+    thd->security_ctx= save_security_ctx;
+  return res;
+}
+#endif
+
+
 /*
   Find a field by name in a view that uses merge algorithm.
 
@@ -2727,11 +2770,11 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
         */
         DBUG_RETURN(((Item_field*) (field_it.item()))->field);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      if (check_grants &&
-          check_grant_column(thd, &table_list->grant,
-                             table_list->view_db.str,
-                             table_list->view_name.str,
-                             name, length))
+      if (check_grant_column_in_sctx(thd, &table_list->grant,
+                                     table_list->view_db.str,
+                                     table_list->view_name.str, name, length,
+                                     check_grants,
+                                     table_list->security_ctx))
         DBUG_RETURN(WRONG_GRANT);
 #endif
       // in PS use own arena or data will be freed after prepare
@@ -2900,7 +2943,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 Field *
 find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
                     bool check_grants, bool allow_rowid,
-                    uint *cached_field_index_ptr)
+                    uint *cached_field_index_ptr,
+                    Security_context *sctx)
 {
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
@@ -2909,7 +2953,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 
   /* We assume here that table->field < NO_CACHED_FIELD_INDEX = UINT_MAX */
   if (cached_field_index < table->s->fields &&
-      !my_strcasecmp(system_charset_info, 
+      !my_strcasecmp(system_charset_info,
                      table->field[cached_field_index]->field_name, name))
     field_ptr= table->field + cached_field_index;
   else if (table->s->name_hash.records)
@@ -2940,9 +2984,10 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
   update_field_dependencies(thd, field, table);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_grants && check_grant_column(thd, &table->grant,
-					 table->s->db,
-					 table->s->table_name, name, length))
+  if (check_grant_column_in_sctx(thd, &table->grant,
+                                 table->s->db, table->s->table_name,
+                                 name, length,
+                                 check_grants, sctx))
     field= WRONG_GRANT;
 #endif
   DBUG_RETURN(field);
@@ -3054,7 +3099,8 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     DBUG_ASSERT(table_list->table);
     if ((fld= find_field_in_table(thd, table_list->table, name, length,
                                   check_grants_table, allow_rowid,
-                                  cached_field_index_ptr)))
+                                  cached_field_index_ptr,
+                                  table_list->security_ctx)))
       *actual_table= table_list;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* check for views with temporary table algorithm */
@@ -3188,7 +3234,8 @@ find_field_in_tables(THD *thd, Item_ident *item,
                                  test(table_ref->table->
                                       grant.want_privilege) &&
                                  check_privileges,
-                                 1, &(item->cached_field_index));
+                                 1, &(item->cached_field_index),
+                                 table_ref->security_ctx);
     else
       found= find_field_in_table_ref(thd, table_ref, name, item->name,
                                      NULL, NULL, length, ref,
@@ -4324,8 +4371,12 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 {
   for (TABLE_LIST *table= tables; table; table= table->next_local)
   {
-    if (table->view && table->effective_algorithm == VIEW_ALGORITHM_MERGE)
-      list= make_leaves_list(list, table->ancestor);
+    if (table->merge_underlying_list)
+    {
+      DBUG_ASSERT(table->view &&
+                  table->effective_algorithm == VIEW_ALGORITHM_MERGE);
+      list= make_leaves_list(list, table->merge_underlying_list);
+    }
     else
     {
       *list= table;
@@ -4425,16 +4476,17 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
        table_list;
        table_list= table_list->next_local)
   {
-    if (table_list->ancestor)
+    if (table_list->merge_underlying_list)
     {
-      DBUG_ASSERT(table_list->view);
+      DBUG_ASSERT(table_list->view &&
+                  table_list->effective_algorithm == VIEW_ALGORITHM_MERGE);
       Query_arena *arena= thd->stmt_arena, backup;
       bool res;
       if (arena->is_conventional())
         arena= 0;                                   // For easier test
       else
         thd->set_n_backup_active_arena(arena, &backup);
-      res= table_list->setup_ancestor(thd);
+      res= table_list->setup_underlying(thd);
       if (arena)
         thd->restore_active_arena(arena, &backup);
       if (res)
