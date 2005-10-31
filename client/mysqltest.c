@@ -3272,18 +3272,23 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
         /* Read result from each column */
         for (col_idx= 0; col_idx < num_fields; col_idx++)
         {
-          /* FIXME is string terminated? */
-          const char *val= (const char *)bind[col_idx].buffer;
-          ulonglong len= *bind[col_idx].length;
+          const char *val;
+          ulonglong len;
           if (col_idx < max_replace_column && replace_column[col_idx])
           {
             val= replace_column[col_idx];
             len= strlen(val);
           }
-          if (*bind[col_idx].is_null)
+          else if (*bind[col_idx].is_null)
           {
             val= "NULL";
             len= 4;
+          }
+          else
+          {
+            /* FIXME is string terminated? */
+            val= (const char *) bind[col_idx].buffer;
+            len= *bind[col_idx].length;
           }
           if (!display_result_vertically)
           {
