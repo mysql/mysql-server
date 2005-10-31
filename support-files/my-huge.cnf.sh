@@ -33,7 +33,7 @@ sort_buffer_size = 2M
 read_buffer_size = 2M
 read_rnd_buffer_size = 8M
 myisam_sort_buffer_size = 64M
-thread_cache = 8
+thread_cache_size = 8
 query_cache_size = 32M
 # Try number of CPU's*2 for thread_concurrency
 thread_concurrency = 8
