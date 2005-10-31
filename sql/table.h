@@ -550,13 +550,13 @@ typedef struct st_table_list
   */
   st_table_list	*referencing_view;
   /*
-    security  context (non-zero only for tables which belong
-    to view with SQL SEQURITY DEFINER)
+    Security  context (non-zero only for tables which belong
+    to view with SQL SECURITY DEFINER)
   */
   Security_context *security_ctx;
   /*
-    this view security context (non-zero only for views with
-    SQL SEQURITY DEFINER)
+    This view security context (non-zero only for views with
+    SQL SECURITY DEFINER)
   */
   Security_context *view_sctx;
   /*
