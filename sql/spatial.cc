@@ -224,10 +224,10 @@ int Geometry::create_from_wkb(Geometry_buffer *buffer,
       res->reserve(WKB_HEADER_SIZE, 512))
     return 1;
 
-  res->q_append((char)wkb_ndr);
+  res->q_append((char) wkb_ndr);
   res->q_append(geom_type);
   return geom->init_from_wkb(wkb+WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
-                             (wkbByteOrder)wkb[0], res);
+                             (wkbByteOrder) wkb[0], res);
 }
 
 
@@ -689,7 +689,7 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
 	trs->check_next_symbol(')'))
       return 1;
 
-    ls.set_data_ptr(wkb->ptr()+ls_pos, wkb->length()-ls_pos);
+    ls.set_data_ptr(wkb->ptr() + ls_pos, wkb->length() - ls_pos);
     if (ls.is_closed(&closed) || !closed)
     {
       trs->set_error_msg("POLYGON's linear ring isn't closed");
@@ -730,7 +730,7 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
     if (!(ls_len= ls.init_from_wkb(wkb, len, bo, res)))
       return 0;
 
-    ls.set_data_ptr(res->ptr()+ls_pos, res->length()-ls_pos);
+    ls.set_data_ptr(res->ptr() + ls_pos, res->length() - ls_pos);
 
     if (ls.is_closed(&closed) || !closed)
       return 0;
@@ -1052,7 +1052,7 @@ uint Gis_multi_point::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
     res->q_append((char)wkb_ndr);
     res->q_append((uint32)wkb_point);
     if (!p.init_from_wkb(wkb + WKB_HEADER_SIZE,
-                         POINT_DATA_SIZE, (wkbByteOrder)wkb[0], res))
+                         POINT_DATA_SIZE, (wkbByteOrder) wkb[0], res))
       return 0;
   }
   return proper_size;
@@ -1195,7 +1195,7 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
     res->q_append((uint32) wkb_linestring);
 
     if (!(ls_len= ls.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
-                                   (wkbByteOrder)wkb[0], res)))
+                                   (wkbByteOrder) wkb[0], res)))
       return 0;
     wkb+= (ls_len + WKB_HEADER_SIZE);
     len-= (ls_len + WKB_HEADER_SIZE);
@@ -1446,7 +1446,7 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
     res->q_append((uint32) wkb_polygon);
 
     if (!(p_len= p.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
-                                 (wkbByteOrder)wkb[0], res)))
+                                 (wkbByteOrder) wkb[0], res)))
       return 0;
     wkb+= (p_len + WKB_HEADER_SIZE);
     len-= (p_len + WKB_HEADER_SIZE);
@@ -1743,12 +1743,12 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
       return 0;
 
     res->q_append((char) wkb_ndr);
-    wkb_type= wkb_get_uint(wkb+1, (wkbByteOrder)wkb[0]);
+    wkb_type= wkb_get_uint(wkb+1, (wkbByteOrder) wkb[0]);
     res->q_append(wkb_type);
 
     if (!(geom= create_by_typeid(&buffer, wkb_type)) ||
         !(g_len= geom->init_from_wkb(wkb + WKB_HEADER_SIZE, len,
-                                     (wkbByteOrder)wkb[0], res)))
+                                     (wkbByteOrder)  wkb[0], res)))
       return 0;
     wkb+= (g_len + WKB_HEADER_SIZE);
     len-= (g_len + WKB_HEADER_SIZE);
