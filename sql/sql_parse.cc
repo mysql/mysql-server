@@ -5033,7 +5033,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; tables && tables != first_not_own_table; tables= tables->next_global)
+  for (; tables != first_not_own_table; tables= tables->next_global)
   {
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))

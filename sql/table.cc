@@ -2654,7 +2654,7 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
-  Security_context *save_security_ctx= 0;
+  Security_context *save_security_ctx= thd->security_ctx;
   Security_context *new_sctx= table_ref->security_ctx;
   bool res;
 
@@ -2675,12 +2675,10 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
 
   if (new_sctx)
   {
-    save_security_ctx= thd->security_ctx;
     thd->security_ctx= new_sctx;
   }
   res= check_grant_column(thd, grant, db_name, table_name, name, length);
-  if (save_security_ctx)
-    thd->security_ctx= save_security_ctx;
+  thd->security_ctx= save_security_ctx;
   return res;
 }
 #endif
