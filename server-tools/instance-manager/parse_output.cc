@@ -24,6 +24,20 @@
 #include "portability.h"
 
 
+void trim_space(const char **text, uint *word_len)
+{
+	const char* start = *text;
+	while (*start != 0 && *start == ' ')
+		start++;
+	*text = start;
+
+	int len= strlen(start);
+	const char* end= start + len - 1;
+	while (end > start && (*end == ' ' || *end == '\r' || *end == '\n'))
+		end--;
+	*word_len= (end - start)+1;
+}
+
 /*
   Parse output of the given command
 
@@ -85,14 +99,13 @@ int parse_output_and_get_value(const char *command, const char *word,
       Get the word, which might contain non-alphanumeric characters. (Usually
       these are '/', '-' and '.' in the path expressions and filenames)
     */
-    get_word((const char **) &linep, &found_word_len, NONSPACE);
     if (!strncmp(word, linep, wordlen))
     {
       /*
         If we have found the word, return the next one (this is usually
         an option value) or the whole line (if flag)
       */
-      linep+= found_word_len;                     /* swallow the previous one */
+      linep+= wordlen;                      /* swallow the previous one */
       if (flag & GET_VALUE)
       {
         get_word((const char **) &linep, &found_word_len, NONSPACE);

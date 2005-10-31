@@ -47,14 +47,12 @@ static inline int create_mysqld_command(Buffer *buf,
   if (buf->get_size()) /* malloc succeeded */
   {
 #ifdef __WIN__
-    buf->append(position, "\"", 1);
-    position++;
+    buf->append(position++, "\"", 1);
 #endif
     buf->append(position, mysqld_path_str, mysqld_path_len);
     position+= mysqld_path_len;
 #ifdef __WIN__
-    buf->append(position, "\"", 1);
-    position++;
+    buf->append(position++, "\"", 1);
 #endif
     /* here the '\0' character is copied from the option string */
     buf->append(position, option, option_len);
@@ -339,6 +337,10 @@ int Instance_options::complete_initialization(const char *default_path,
 
   if (!mysqld_path && !(mysqld_path= strdup_root(&alloc, default_path)))
     goto err;
+
+  // it's safe to cast this to char* since this is a buffer we are allocating
+  char* end= convert_dirname((char*)mysqld_path, mysqld_path, NullS);
+  end[-1] = 0;
 
   mysqld_path_len= strlen(mysqld_path);
 
