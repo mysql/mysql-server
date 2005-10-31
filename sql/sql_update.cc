@@ -195,6 +195,7 @@ int mysql_update(THD *thd,
   /* Check the fields we are going to modify */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
+  table_list->register_want_access(want_privilege);
 #endif
   if (setup_fields_with_no_wrap(thd, 0, fields, 1, 0, 0))
     DBUG_RETURN(1);                     /* purecov: inspected */
@@ -335,7 +336,7 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
-      if (used_index == MAX_KEY)
+      if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info,thd,table,select,0,1);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
@@ -582,6 +583,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= 
     (SELECT_ACL & ~table->grant.privilege);
+  table_list->register_want_access(SELECT_ACL);
 #endif
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
