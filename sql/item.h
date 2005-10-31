@@ -526,6 +526,7 @@ public:
   double val_real_from_decimal();
 
   virtual Field *get_tmp_table_field() { return 0; }
+  /* This is also used to create fields in CREATE ... SELECT: */
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
 
