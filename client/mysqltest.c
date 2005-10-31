@@ -2180,6 +2180,7 @@ int do_connect(struct st_query *q)
   int free_con_sock= 0;
   int error= 0;
   int create_conn= 1;
+  VAR *var_port, *var_sock;
 
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
@@ -2199,7 +2200,6 @@ int do_connect(struct st_query *q)
   p= safe_get_param(p, &con_db, "Missing connection db");
 
   /* Port */
-  VAR* var_port;
   p= safe_get_param(p, &con_port_str, 0);
   if (*con_port_str)
   {
@@ -2222,7 +2222,6 @@ int do_connect(struct st_query *q)
   }
 
   /* Sock */
-  VAR *var_sock;
   p= safe_get_param(p, &con_sock, 0);
   if (*con_sock)
   {
