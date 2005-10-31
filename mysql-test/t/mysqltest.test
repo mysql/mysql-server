@@ -365,6 +365,15 @@ select 3 from t1 ;
 --exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
 
 #
+# Missing delimiter until eof
+# The comment will be "sucked into" the sleep command since
+# delimiter is missing 
+--system echo "sleep 7" > var/log/mysqltest.sql
+--system echo "# Another comment" >> var/log/mysqltest.sql
+--error 1
+--exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+
+#
 # Extra delimiter
 #
 --error 1
