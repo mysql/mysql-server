@@ -5745,8 +5745,7 @@ void Field_blob::get_key_image(char *buff,uint length,
       return;
     }
     get_ptr(&blob);
-    gobj= Geometry::construct(&buffer,
-                              blob + SRID_SIZE, blob_length - SRID_SIZE);
+    gobj= Geometry::construct(&buffer, blob, blob_length);
     if (gobj->get_mbr(&mbr, &dummy))
       bzero(buff, SIZEOF_STORED_DOUBLE*4);
     else
