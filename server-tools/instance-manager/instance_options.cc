@@ -340,7 +340,7 @@ int Instance_options::complete_initialization(const char *default_path,
 
   // it's safe to cast this to char* since this is a buffer we are allocating
   char* end= convert_dirname((char*)mysqld_path, mysqld_path, NullS);
-  end[-1] = 0;
+  end[-1]= 0;
 
   mysqld_path_len= strlen(mysqld_path);
 
