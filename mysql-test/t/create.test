@@ -550,6 +550,7 @@ create table t1 (
   a varchar(112) charset utf8 collate utf8_bin not null,
   primary key (a)
 ) select 'test' as a ;
+--warning 1364
 show create table t1;
 drop table t1;
 
