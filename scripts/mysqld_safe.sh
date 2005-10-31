@@ -11,6 +11,7 @@
 # executing mysqld_safe
 
 KILL_MYSQLD=1;
+MYSQLD=
 
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 
@@ -130,14 +131,6 @@ fi
 user=@MYSQLD_USER@
 niceness=0
 
-# Use the mysqld-max binary by default if the user doesn't specify a binary
-if test -x $ledir/mysqld-max
-then
-  MYSQLD=mysqld-max
-else
-  MYSQLD=mysqld
-fi
-
 # these rely on $DATADIR by default, so we'll set them later on
 pid_file=
 err_log=
@@ -176,6 +169,16 @@ then
   chown $user $mysql_unix_port_dir
 fi
 
+# Use the mysqld-max binary by default if the user doesn't specify a binary
+if test -z "$MYSQLD"
+then
+  if test -x $ledir/mysqld-max
+  then
+    MYSQLD=mysqld-max
+  else
+    MYSQLD=mysqld
+  fi
+fi
 
 if test ! -x $ledir/$MYSQLD
 then
