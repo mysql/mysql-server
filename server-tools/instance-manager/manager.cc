@@ -162,12 +162,12 @@ void manager(const Options &options)
 
     pthread_attr_init(&listener_thd_attr);
     pthread_attr_setdetachstate(&listener_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= pthread_create(&listener_thd_id, &listener_thd_attr, listener,
-                       &listener_args);
+    rc= set_stacksize_n_create_thread(&listener_thd_id, &listener_thd_attr,
+                                      listener, &listener_args);
     pthread_attr_destroy(&listener_thd_attr);
     if (rc)
     {
-      log_error("manager(): pthread_create(listener) failed");
+      log_error("manager(): set_stacksize_n_create_thread(listener) failed");
       goto err;
     }
 
@@ -187,12 +187,12 @@ void manager(const Options &options)
 
     pthread_attr_init(&guardian_thd_attr);
     pthread_attr_setdetachstate(&guardian_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= pthread_create(&guardian_thd_id, &guardian_thd_attr, guardian,
-                       &guardian_thread);
+    rc= set_stacksize_n_create_thread(&guardian_thd_id, &guardian_thd_attr,
+                                      guardian, &guardian_thread);
     pthread_attr_destroy(&guardian_thd_attr);
     if (rc)
     {
-      log_error("manager(): pthread_create(guardian) failed");
+      log_error("manager(): set_stacksize_n_create_thread(guardian) failed");
       goto err;
     }
 

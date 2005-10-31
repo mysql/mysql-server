@@ -9026,8 +9026,7 @@ view_user:
                   (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    view_user->user = $3; view_user->host=$5;
-            if (strchr(view_user->host.str, wild_many) ||
-                strchr(view_user->host.str, wild_one))
+            if (view_user->host.length == 0)
             {
               my_error(ER_NO_VIEW_USER, MYF(0));
               YYABORT;

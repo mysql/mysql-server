@@ -1032,7 +1032,7 @@ a	f8()
 3	1
 drop function f1|
 select * from v1|
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 create function f1() returns int
 return (select sum(data) from t1) + (select sum(data) from v1)|
 drop function f1|

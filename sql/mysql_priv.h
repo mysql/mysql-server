@@ -679,11 +679,11 @@ int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option);
-int mysql_handle_derived(LEX *lex, int (*processor)(THD *thd,
-                                                    LEX *lex,
-                                                    TABLE_LIST *table));
-int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
-int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
+                                                      LEX *lex,
+                                                      TABLE_LIST *table));
+bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
@@ -793,7 +793,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 Field *
 find_field_in_table(THD *thd, TABLE *table, const char *name,
                     uint length, bool check_grants, bool allow_rowid,
-                    uint *cached_field_index_ptr);
+                    uint *cached_field_index_ptr,
+                    Security_context *sctx);
+
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock

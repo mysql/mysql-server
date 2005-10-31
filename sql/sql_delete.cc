@@ -416,8 +416,9 @@ bool mysql_multi_delete_prepare(THD *thd)
     if (!(target_tbl->table= target_tbl->correspondent_table->table))
     {
       DBUG_ASSERT(target_tbl->correspondent_table->view &&
-                  target_tbl->correspondent_table->ancestor &&
-                  target_tbl->correspondent_table->ancestor->next_local);
+                  target_tbl->correspondent_table->merge_underlying_list &&
+                  target_tbl->correspondent_table->merge_underlying_list->
+                  next_local);
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                target_tbl->correspondent_table->view_db.str,
                target_tbl->correspondent_table->view_name.str);

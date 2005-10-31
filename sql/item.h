@@ -294,15 +294,15 @@ struct Name_resolution_context: Sql_alloc
   bool resolve_in_select_list;
 
   /*
-    When FALSE we do not check columns right of resolving items, used to
-    prevent rights check on underlying tables of view
+    Security context of this name resolution context. It's used for views
+    and is non-zero only if the view is defined with SQL SECURITY DEFINER.
   */
-  bool check_privileges;
+  Security_context *security_ctx;
 
   Name_resolution_context()
     :outer_context(0), table_list(0), select_lex(0),
     error_processor_data(0),
-    check_privileges(TRUE)
+    security_ctx(0)
     {}
 
   void init()
@@ -526,6 +526,7 @@ public:
   double val_real_from_decimal();
 
   virtual Field *get_tmp_table_field() { return 0; }
+  /* This is also used to create fields in CREATE ... SELECT: */
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
 
