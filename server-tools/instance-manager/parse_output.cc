@@ -26,16 +26,16 @@
 
 void trim_space(const char **text, uint *word_len)
 {
-	const char* start = *text;
-	while (*start != 0 && *start == ' ')
-		start++;
-	*text = start;
+  const char* start = *text;
+  while (*start != 0 && *start == ' ')
+    start++;
+  *text= start;
 
-	int len= strlen(start);
-	const char* end= start + len - 1;
-	while (end > start && (*end == ' ' || *end == '\r' || *end == '\n'))
-		end--;
-	*word_len= (end - start)+1;
+  int len= strlen(start);
+  const char* end= start + len - 1;
+  while (end > start && (*end == ' ' || *end == '\r' || *end == '\n'))
+    end--;
+  *word_len= (end - start)+1;
 }
 
 /*
@@ -108,7 +108,7 @@ int parse_output_and_get_value(const char *command, const char *word,
       linep+= wordlen;                      /* swallow the previous one */
       if (flag & GET_VALUE)
       {
-        get_word((const char **) &linep, &found_word_len, NONSPACE);
+	trim_space((const char**) &linep, &found_word_len);
         if (input_buffer_len <= found_word_len)
           goto err;
         strmake(result, linep, found_word_len);
