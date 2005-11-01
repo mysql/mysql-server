@@ -1514,32 +1514,6 @@ bitty
 
 
 
-select * FROM federated.t1;
-bitty
-
-
-
-
-
-
-
-delete from federated.t1;
-INSERT INTO federated.t1 VALUES (b'001');
-INSERT INTO federated.t1 VALUES (b'010');
-INSERT INTO federated.t1 VALUES (b'011');
-INSERT INTO federated.t1 VALUES (b'100');
-INSERT INTO federated.t1 VALUES (b'101');
-INSERT INTO federated.t1 VALUES (b'110');
-INSERT INTO federated.t1 VALUES (b'111');
-select * FROM federated.t1;
-bitty
-
-
-
-
-
-
-
 drop table federated.t1;
 drop table federated.t1;
 DROP TABLE IF EXISTS federated.t1;
