@@ -1628,6 +1628,7 @@ bool Field::needs_quotes(void)
   case FIELD_TYPE_MEDIUM_BLOB :
   case FIELD_TYPE_LONG_BLOB :
   case FIELD_TYPE_GEOMETRY :
+  case FIELD_TYPE_BIT:
     DBUG_RETURN(1);
 
   case FIELD_TYPE_DECIMAL : 
