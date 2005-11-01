@@ -1660,7 +1660,12 @@ sp_decls:
 
 sp_decl:
           DECLARE_SYM sp_decl_idents type 
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+	    LEX *lex= Lex;
+
+	    lex->sphead->reset_lex(YYTHD);
+	    lex->spcont->declare_var_boundary($2);
+	  }
           sp_opt_default
           {
             LEX *lex= Lex;
@@ -1690,6 +1695,7 @@ sp_decl:
               lex->sphead->add_instr(in);
               ctx->set_default(i, it);
             }
+	    ctx->declare_var_boundary(0);
             lex->sphead->restore_lex(YYTHD);
             $$.vars= $2;
             $$.conds= $$.hndlrs= $$.curs= 0;
