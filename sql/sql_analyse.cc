@@ -466,7 +466,9 @@ void field_real::add()
 
 void field_decimal::add()
 {
+  /*TODO - remove rounding stuff after decimal_div returns proper frac */
   my_decimal dec_buf, *dec= item->val_decimal(&dec_buf);
+  my_decimal rounded;
   uint length;
   TREE_ELEMENT *element;
 
@@ -475,6 +477,9 @@ void field_decimal::add()
     nulls++;
     return;
   }
+
+  my_decimal_round(E_DEC_FATAL_ERROR, dec, item->decimals, FALSE,&rounded);
+  dec= &rounded;
 
   length= my_decimal_string_length(dec);
 
@@ -1021,10 +1026,16 @@ String *field_decimal::avg(String *s, ha_rows rows)
     s->set((double) 0.0, 1,my_thd_charset);
     return s;
   }
-  my_decimal num, avg_val;
+  my_decimal num, avg_val, rounded_avg;
+  int prec_increment= current_thd->variables.div_precincrement;
+
   int2my_decimal(E_DEC_FATAL_ERROR, rows - nulls, FALSE, &num);
-  my_decimal_div(E_DEC_FATAL_ERROR, &avg_val, sum+cur_sum, &num, 0);
-  my_decimal2string(E_DEC_FATAL_ERROR, &avg_val, 0, 0, '0', s);
+  my_decimal_div(E_DEC_FATAL_ERROR, &avg_val, sum+cur_sum, &num, prec_increment);
+  /* TODO remove this after decimal_div returns proper frac */
+  my_decimal_round(E_DEC_FATAL_ERROR, &avg_val,
+                   min(sum[cur_sum].frac + prec_increment, DECIMAL_MAX_SCALE),
+                   FALSE,&rounded_avg);
+  my_decimal2string(E_DEC_FATAL_ERROR, &rounded_avg, 0, 0, '0', s);
   return s;
 }
 
