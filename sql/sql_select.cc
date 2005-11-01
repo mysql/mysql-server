@@ -101,8 +101,8 @@ static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
 static bool check_interleaving_with_nj(JOIN_TAB *last, JOIN_TAB *next);
 static void restore_prev_nj_state(JOIN_TAB *last);
 static void reset_nj_counters(List<TABLE_LIST> *join_list);
-static uint build_nj_bitmap_for_tables(JOIN *join, List<TABLE_LIST> *join_list,
-                                       uint first_unused);
+static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
+                                          uint first_unused);
 
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
@@ -595,7 +595,7 @@ JOIN::optimize()
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(this, join_list, conds, TRUE);
-    build_nj_bitmap_for_tables(this, join_list, 0);
+    build_bitmap_for_nested_joins(join_list, 0);
 
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
 
@@ -7447,31 +7447,31 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   Assign each nested join structure a bit in nested_join_map
 
   SYNOPSIS
-    build_nj_bitmap_for_tables()
+    build_bitmap_for_nested_joins()
       join          Join being processed
       join_list     List of tables
       first_unused  Number of first unused bit in nested_join_map before the
                     call
 
   DESCRIPTION
-    Assign each nested join structure (except for unary nested joins, see
-    below) a bit in nested_join_map.
+    Assign each nested join structure (except "confluent" ones - those that
+    embed only one element) a bit in nested_join_map.
 
   NOTE
     This function is called after simplify_joins(), when there are no
-    redundant nested joins, #non_unary_nested_joins <= #tables_in_join so we
-    will not run out of bits in nested_join_map.
+    redundant nested joins, #non_confluent_nested_joins <= #tables_in_join so
+    we will not run out of bits in nested_join_map.
 
   RETURN
     First unused bit in nested_join_map after the call.
 */
 
-static uint build_nj_bitmap_for_tables(JOIN *join, List<TABLE_LIST> *join_list,
-                                       uint first_unused)
+static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list, 
+                                          uint first_unused)
 {
   List_iterator<TABLE_LIST> li(*join_list);
   TABLE_LIST *table;
-  DBUG_ENTER("build_nj_bitmap_for_tables");
+  DBUG_ENTER("build_bitmap_for_nested_joins");
   while ((table= li++))
   {
     NESTED_JOIN *nested_join;
@@ -7479,9 +7479,9 @@ static uint build_nj_bitmap_for_tables(JOIN *join, List<TABLE_LIST> *join_list,
     {
       /*
         It is guaranteed by simplify_joins() function that a nested join
-        that has only one child represents a single table VIEW (and a child
-        is an underlying table). We don't assign a bit to the nested join
-        because 
+        that has only one child represents a single table VIEW (and the child
+        is an underlying table). We don't assign bits to such nested join
+        structures because 
         1. it is redundant (a "sequence" of one table cannot be interleaved 
             with anything)
         2. we could run out bits in nested_join_map otherwise.
@@ -7489,8 +7489,8 @@ static uint build_nj_bitmap_for_tables(JOIN *join, List<TABLE_LIST> *join_list,
       if (nested_join->join_list.elements != 1)
       {
         nested_join->nj_map= 1 << first_unused++;
-        first_unused= build_nj_bitmap_for_tables(join, &nested_join->join_list,
-                                                 first_unused);
+        first_unused= build_bitmap_for_nested_joins(&nested_join->join_list,
+                                                    first_unused);
       }
     }
   }
@@ -7546,73 +7546,120 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list)
     The function assumes that both current partial join order and its
     extension with next_tab are valid wrt table dependencies.
 
-  NOTE
-    The nested joins aspect of information about current partial join order is 
-    stored in join->cur_embedding_map and
-    {each_join_table}->pos_in_table_list (->embedding)+ ->nested_join->counter
-    Joins optimizer calls check_interleaving_with_nj() and 
-    restore_prev_nj_state() to update this info and avoid constructing invalid 
-    join orders. There is no need for any initialization of 
-    {each_join_table}->...->counter  before the join optimizer run.
-
   IMPLEMENTATION
-    The nested [outer] joins executioner algorithm imposes these limitations 
-    on join order:
-    1. "Outer tables first" -  any "outer" table must be before any 
-        corresponding "inner" table.
-    2. "No interleaving" - tables inside a nested join must form a continuous
-       sequence in join order (i.e. the sequence must not be interrupted by 
-       tables that are outside of this nested join).
+    LIMITATIONS ON JOIN ORDER
+      The nested [outer] joins executioner algorithm imposes these limitations
+      on join order:
+      1. "Outer tables first" -  any "outer" table must be before any 
+          corresponding "inner" table.
+      2. "No interleaving" - tables inside a nested join must form a continuous
+         sequence in join order (i.e. the sequence must not be interrupted by 
+         tables that are outside of this nested join).
 
-    #1 is checked elsewhere, this function checks #2 provided that #1 has been
-    already checked.
+      #1 is checked elsewhere, this function checks #2 provided that #1 has
+      been already checked.
 
     WHY NEED NON-INTERLEAVING
-    Consider an example: 
-     
-     select * from t0 join t1 left join (t2 join t3) on cond1
-    
-    The join order "t1 t2 t0 t3" is invalid:
+      Consider an example: 
+       
+        select * from t0 join t1 left join (t2 join t3) on cond1
+      
+      The join order "t1 t2 t0 t3" is invalid:
 
-    table t0 is outside of the nested join, so WHERE condition for t0 is
-    attached directly to t0 (without triggers, and it may be used to access
-    t0). Applying WHERE(t0) to (t2,t0,t3) record is invalid as we may miss
-    combinations of (t1, t2, t3) that satisfy condition cond1, and produce a
-    null-complemented (t1, t2.NULLs, t3.NULLs) row, which should not have
-    been produced.
-    
-    If table t0 is not between t2 and t3, the problem doesn't exist:
-    * If t0 is located after (t2,t3), WHERE(t0) is applied after nested join
-      processing has finished.
-    * If t0 is located before (t2,t3), predicates like WHERE_cond(t0, t2) are
-      wrapped into condition triggers, which takes care of correct nested
-      join processing.
-    
+      table t0 is outside of the nested join, so WHERE condition for t0 is
+      attached directly to t0 (without triggers, and it may be used to access
+      t0). Applying WHERE(t0) to (t2,t0,t3) record is invalid as we may miss
+      combinations of (t1, t2, t3) that satisfy condition cond1, and produce a
+      null-complemented (t1, t2.NULLs, t3.NULLs) row, which should not have
+      been produced.
+      
+      If table t0 is not between t2 and t3, the problem doesn't exist:
+      * If t0 is located after (t2,t3), WHERE(t0) is applied after nested join
+        processing has finished.
+      * If t0 is located before (t2,t3), predicates like WHERE_cond(t0, t2) are
+        wrapped into condition triggers, which takes care of correct nested
+        join processing.
+      
+    HOW IT IS IMPLEMENTED
+      The limitations on join order can be rephrased as follows: for valid
+      join order one must be able to:
+        1. write down the used tables in the join order on one line.
+        2. for each nested join, put one '(' and one ')' on the said line        
+        3. write "LEFT JOIN" and "ON (...)" where appropriate
+        4. get a query equivalent to the query we're trying to execute.
+      
+      Calls to check_interleaving_with_nj() are equivalent to writing the
+      above described line from left to right. 
+      A single check_interleaving_with_nj(A,B) call is equivalent to writing 
+      table B and appropriate brackets on condition that table A and
+      appropriate brackets is the last what was written. Graphically the
+      transition is as follows:
+
+                           +---- current position
+                           |
+          ... last_tab ))) | ( next_tab )  )..) | ...
+                             X          Y   Z   |
+                                                +- need to move to this
+                                                   position.
+
+      Notes about the position:
+        The caller guarantees that there is no more then one X-bracket by 
+        checking "!(remaining_tables & s->dependent)" before calling this 
+        function. X-bracket may have a pair in Y-bracket.
+       
+      When "writing" we store/update this auxilary info about the current
+      position:
+       1. join->cur_embedding_map - bitmap of pairs of brackets (aka nested
+          joins) we've opened but didn't close.
+       2. {each NESTED_JOIN structure not simplified away}->counter - number
+          of this nested join's children that have already been added to to
+          the partial join order.
+      
   RETURN
     FALSE  Join order extended, nested joins info about current join order
            (see NOTE section) updated.
     TRUE   Requested join order extension not allowed.
 */
 
-static bool check_interleaving_with_nj(JOIN_TAB *last, JOIN_TAB *next)
+static bool check_interleaving_with_nj(JOIN_TAB *last_tab, JOIN_TAB *next_tab)
 {
-  TABLE_LIST *next_emb= next->table->pos_in_table_list->embedding;
-  JOIN *join= last->join;
+  TABLE_LIST *next_emb= next_tab->table->pos_in_table_list->embedding;
+  JOIN *join= last_tab->join;
 
-  if (join->cur_embedding_map & ~next->embedding_map)
+  if (join->cur_embedding_map & ~next_tab->embedding_map)
+  {
+    /* 
+      next_tab is outside of the "pair of brackets" we're currently in.
+      Cannot add it.
+    */
     return TRUE;
+  }
    
+  /*
+    Do update counters for "pairs of brackets" that we've left (marked as
+    X,Y,Z in the above picture)
+  */
   for (;next_emb; next_emb= next_emb->embedding)
   {
     next_emb->nested_join->counter++;
     if (next_emb->nested_join->counter == 1)
     {
-      /* next_emb is a first table inside a nested join */
+      /* 
+        next_emb is the first table inside a nested join we've "entered". In
+        the picture above, we're looking at the 'X' bracket. Don't exit yet as
+        X bracket might have Y pair bracket.
+      */
       join->cur_embedding_map |= next_emb->nested_join->nj_map;
     }
+    
     if (next_emb->nested_join->join_list.elements !=
         next_emb->nested_join->counter)
       break;
+
+    /*
+      We're currently at Y or Z-bracket as depicted in the above picture.
+      Mark that we've left it and continue walking up the brackets hierarchy.
+    */
     join->cur_embedding_map &= ~next_emb->nested_join->nj_map;
   }
   return FALSE;
