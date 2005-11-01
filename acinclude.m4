@@ -310,8 +310,9 @@ case $SYSTEM_TYPE in
         fi
         ;;
       *)
-        if test -f "$mysql_zlib_dir/lib/libz.a" -a \ 
-                -f "$mysql_zlib_dir/include/zlib.h"; then
+        if test \( -f "$mysql_zlib_dir/lib/libz.a"  -o -f "$mysql_zlib_dir/lib/libz.so" -o \
+                   -f "$mysql_zlib_dir/lib/libz.sl" -o -f "$mysql_zlib_dir/lib/libz.dylib" \) \
+                -a -f "$mysql_zlib_dir/include/zlib.h"; then
           ZLIB_INCLUDES="-I$mysql_zlib_dir/include"
           ZLIB_LIBS="-L$mysql_zlib_dir/lib -lz"
           MYSQL_CHECK_ZLIB_DIR
