@@ -102,8 +102,6 @@ static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
 static bool resolve_nested_join (TABLE_LIST *table);
-static COND *remove_eq_conds(THD *thd, COND *cond, 
-			     Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -7474,7 +7472,7 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   COND_FALSE always false	( 1 = 2 )
 */
 
-static COND *
+COND *
 remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
