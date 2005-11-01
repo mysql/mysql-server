@@ -3575,4 +3575,33 @@ DROP VIEW bug13095_v1
 DROP PROCEDURE IF EXISTS bug13095;
 DROP VIEW IF EXISTS bug13095_v1;
 DROP TABLE IF EXISTS bug13095_t1;
+drop procedure if exists bug14376|
+create procedure bug14376()
+begin
+declare x int default x;
+end|
+call bug14376()|
+ERROR 42S22: Unknown column 'x' in 'field list'
+drop procedure bug14376|
+create procedure bug14376()
+begin
+declare x int default 42;
+begin
+declare x int default x;
+select x;
+end;
+end|
+call bug14376()|
+x
+42
+drop procedure bug14376|
+create procedure bug14376(x int)
+begin
+declare x int default x;
+select x;
+end|
+call bug14376(4711)|
+x
+4711
+drop procedure bug14376|
 drop table t1,t2;
