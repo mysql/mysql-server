@@ -1237,7 +1237,8 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, select_lex->leaf_tables, *columns_list,
+    (void) return_zero_rows(this, result, select_lex->leaf_tables,
+                            *columns_list,
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
@@ -1671,7 +1672,8 @@ JOIN::exec()
   {
     thd->proc_info="Sending data";
     DBUG_PRINT("info", ("%s", thd->proc_info));
-    result->send_fields(*columns_list,
+    result->send_fields((procedure ? curr_join->procedure_fields_list :
+                         *curr_fields_list),
                         Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
@@ -9023,7 +9025,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab;
-  List<Item> *columns_list= procedure? &join->procedure_fields_list : fields;
   DBUG_ENTER("do_select");
 
   join->procedure=procedure;
@@ -9057,7 +9058,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	error= (*end_select)(join,join_tab,1);
     }
     else if (join->send_row_on_empty_set())
+    {
+      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                 fields);
       rc= join->result->send_data(*columns_list);
+    }
   }
   else
   {

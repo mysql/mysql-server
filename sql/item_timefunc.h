@@ -845,6 +845,7 @@ public:
   {
     decimals=0;
     max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    maybe_null= 1;
   }
   Field *tmp_table_field(TABLE *t_arg)
   {

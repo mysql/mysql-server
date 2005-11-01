@@ -19,7 +19,7 @@
 bool mysql_create_view(THD *thd,
                        enum_view_create_mode mode);
 
-my_bool mysql_make_view(File_parser *parser, TABLE_LIST *table);
+bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table);
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 
