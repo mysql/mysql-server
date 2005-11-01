@@ -1490,6 +1490,59 @@ id	name
 DROP TABLE federated.alter_me;
 DROP TABLE federated.normal_table;
 DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`bitty` bit(3)
+) DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`bitty` bit(3)
+) ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 VALUES (b'001');
+INSERT INTO federated.t1 VALUES (b'010');
+INSERT INTO federated.t1 VALUES (b'011');
+INSERT INTO federated.t1 VALUES (b'100');
+INSERT INTO federated.t1 VALUES (b'101');
+INSERT INTO federated.t1 VALUES (b'110');
+INSERT INTO federated.t1 VALUES (b'111');
+select * FROM federated.t1;
+bitty
+
+
+
+
+
+
+
+select * FROM federated.t1;
+bitty
+
+
+
+
+
+
+
+delete from federated.t1;
+INSERT INTO federated.t1 VALUES (b'001');
+INSERT INTO federated.t1 VALUES (b'010');
+INSERT INTO federated.t1 VALUES (b'011');
+INSERT INTO federated.t1 VALUES (b'100');
+INSERT INTO federated.t1 VALUES (b'101');
+INSERT INTO federated.t1 VALUES (b'110');
+INSERT INTO federated.t1 VALUES (b'111');
+select * FROM federated.t1;
+bitty
+
+
+
+
+
+
+
+drop table federated.t1;
+drop table federated.t1;
+DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
