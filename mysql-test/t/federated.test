@@ -1189,7 +1189,8 @@ DROP TABLE federated.normal_table;
 # END ALTER TEST
 
 #
-# Test BUG #14532
+# Test BUG #14532 - bit columns broken in federated
+# storage engine
 #
 --disable_warnings
 DROP TABLE IF EXISTS federated.t1;
