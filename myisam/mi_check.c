@@ -1848,7 +1848,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	if (sort_one_index(param,info,keyinfo,next_page,new_file))
 	{
 	  DBUG_PRINT("error",
-		     ("From page: %ld, keyoffset: 0x%lx  used_length: %d",
+		     ("From page: %ld, keyoffset: %lu  used_length: %d",
 		      (ulong) pagepos, (ulong) (keypos - buff),
 		      (int) used_length));
 	  DBUG_DUMP("buff",(byte*) buff,used_length);
