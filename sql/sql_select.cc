@@ -1044,18 +1044,21 @@ JOIN::save_join_tab()
 void
 JOIN::exec()
 {
+  List<Item> *columns_list= &fields_list;
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
   
   error= 0;
   if (procedure)
   {
-    if (procedure->change_columns(fields_list) ||
-	result->prepare(fields_list, unit))
+    procedure_fields_list= fields_list;
+    if (procedure->change_columns(procedure_fields_list) ||
+	result->prepare(procedure_fields_list, unit))
     {
       thd->limit_found_rows= thd->examined_row_count= 0;
       DBUG_VOID_RETURN;
     }
+    columns_list= &procedure_fields_list;
   }
   else if (test(select_options & OPTION_BUFFER_RESULT) &&
            result && result->prepare(fields_list, unit))
@@ -1072,7 +1075,7 @@ JOIN::exec()
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
-      result->send_fields(fields_list,1);
+      result->send_fields(*columns_list, 1);
       /*
         We have to test for 'conds' here as the WHERE may not be constant
         even if we don't have any tables for prepared statements or if
@@ -1082,9 +1085,9 @@ JOIN::exec()
           (!conds || conds->val_int()) &&
           (!having || having->val_int()))
       {
-	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
-                                          procedure->end_of_records())
-                                       : result->send_data(fields_list)))
+	if (do_send_rows &&
+            (procedure ? (procedure->send_row(procedure_fields_list) ||
+             procedure->end_of_records()) : result->send_data(fields_list)))
 	  error= 1;
 	else
 	{
@@ -1108,7 +1111,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, tables_list, fields_list,
+    (void) return_zero_rows(this, result, tables_list, *columns_list,
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
@@ -5845,13 +5848,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   JOIN_TAB *join_tab;
   int (*end_select)(JOIN *, struct st_join_table *,bool);
   DBUG_ENTER("do_select");
-
+  List<Item> *columns_list= procedure ? &join->procedure_fields_list : fields;
   join->procedure=procedure;
   /*
     Tell the client how many fields there are in a row
   */
   if (!table)
-    join->result->send_fields(*fields,1);
+    join->result->send_fields(*columns_list, 1);
   else
   {
     VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
@@ -5913,7 +5916,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	error=(*end_select)(join,join_tab,1);
     }
     else if (join->send_row_on_empty_set())
-      error= join->result->send_data(*join->fields);
+      error= join->result->send_data(*columns_list);
   }
   else
   {
@@ -6612,7 +6615,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       DBUG_RETURN(0);				// Didn't match having
     error=0;
     if (join->procedure)
-      error=join->procedure->send_row(*join->fields);
+      error=join->procedure->send_row(join->procedure_fields_list);
     else if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)

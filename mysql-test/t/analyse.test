@@ -57,4 +57,29 @@ insert into t1 values (100000);
 select * from t1 procedure analyse (1,1);
 drop table t1;
 
+#
+# Bug #14138 ROLLUP and PROCEDURE ANALYSE() hang server
+#
+create table t1 (product varchar(32), country_id int not null, year int,
+                 profit int);
+insert into t1  values ( 'Computer', 2,2000, 1200),
+    ( 'TV', 1, 1999, 150),
+    ( 'Calculator', 1, 1999,50),
+    ( 'Computer', 1, 1999,1500),
+    ( 'Computer', 1, 2000,1500),
+    ( 'TV', 1, 2000, 150),
+    ( 'TV', 2, 2000, 100),
+    ( 'TV', 2, 2000, 100),
+    ( 'Calculator', 1, 2000,75),
+    ( 'Calculator', 2, 2000,75),
+    ( 'TV', 1, 1999, 100),
+    ( 'Computer', 1, 1999,1200),
+    ( 'Computer', 2, 2000,1500),
+    ( 'Calculator', 2, 2000,75),
+    ( 'Phone', 3, 2003,10)
+    ;
+create table t2 (country_id int primary key, country char(20) not null); 
+insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
+select product, sum(profit),avg(profit) from t1 group by product with rollup procedure analyse();
+drop table t1,t2;
 # End of 4.1 tests
