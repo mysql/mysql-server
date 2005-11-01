@@ -164,6 +164,7 @@ class sp_pcontext : public Sql_alloc
   {
     while (num--)
       pop_dynamic(&m_pvar);
+    m_pboundary= m_pvar.elements;
   }
 
   // Find by name
@@ -181,6 +182,14 @@ class sp_pcontext : public Sql_alloc
     else
       p= NULL;
     return p;
+  }
+
+  // Set the current scope boundary (for default values)
+  // The argument is the number of variables to skip.
+  inline void
+  declare_var_boundary(uint n)
+  {
+    m_pboundary= m_pvar.elements-n;
   }
 
   //
@@ -287,6 +296,13 @@ private:
 
   uint m_poffset;		// Variable offset for this context
   uint m_coffset;		// Cursor offset for this context
+  /*
+    Boundary for finding variables in this in this context.
+    This is normally the same as m_pvar.elements, but differs during
+    parsing of DECLARE ... DEFAULT, to get the scope right for DEFAULT
+    values.
+  */
+  uint m_pboundary;
 
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions
