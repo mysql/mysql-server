@@ -2511,9 +2511,9 @@ bool st_table_list::prepare_security(THD *thd)
 {
   List_iterator_fast<TABLE_LIST> tb(*view_tables);
   TABLE_LIST *tbl;
+  DBUG_ENTER("st_table_list::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
-  DBUG_ENTER("st_table_list::prepare_security");
 
   DBUG_ASSERT(!prelocking_placeholder);
   if (prepare_view_securety_context(thd))
