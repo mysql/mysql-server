@@ -107,7 +107,7 @@ insert into t1 values(1.1);
 insert into t1 values(2.2);
 select * from t1 procedure analyse();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
-test.t1.df	1.1	2.2	8	8	0	0	1.650000000	0.302500000	ENUM('1.1','2.2') NOT NULL
+test.t1.df	1.1	2.2	8	8	0	0	1.650000000	0.55000	ENUM('1.1','2.2') NOT NULL
 drop table t1;
 create table t1 (d double);
 insert into t1 values (100000);
@@ -138,6 +138,6 @@ insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
 select product, sum(profit),avg(profit) from t1 group by product with rollup procedure analyse();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 test.t1.product	Computer	TV	2	8	0	0	4.2500	NULL	ENUM('Computer','Phone','TV') NOT NULL
-sum(profit)	10	6900	2	4	0	0	1946	2868	ENUM('10','275','600','6900') NOT NULL
-avg(profit)	10.0000	1380.0000	7	9	0	0	394.6875	570.2003	ENUM('10.0000','68.7500','120.0000','1380.0000') NOT NULL
+sum(profit)	10	6900	11	11	0	0	1946	2867.6719	ENUM('10','275','600','6900') NOT NULL
+avg(profit)	10.000000000	1380.000000000	21	21	0	0	394.687500000	570.20033144	ENUM('10.0000','68.7500','120.0000','1380.0000') NOT NULL
 drop table t1,t2;
