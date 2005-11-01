@@ -2180,9 +2180,10 @@ int do_connect(struct st_query *q)
   int free_con_sock= 0;
   int error= 0;
   int create_conn= 1;
+  VAR *var_port, *var_sock;
 
   DBUG_ENTER("do_connect");
-  DBUG_PRINT("enter",("connect: %s",p));
+  DBUG_PRINT("enter",("connect: %s", q->first_argument));
 
   /* Make a copy of query before parsing, safe_get_param will modify */
   if (!(con_buf= my_strdup(q->first_argument, MYF(MY_WME))))
@@ -2199,7 +2200,6 @@ int do_connect(struct st_query *q)
   p= safe_get_param(p, &con_db, "Missing connection db");
 
   /* Port */
-  VAR* var_port;
   p= safe_get_param(p, &con_port_str, 0);
   if (*con_port_str)
   {
@@ -2222,7 +2222,6 @@ int do_connect(struct st_query *q)
   }
 
   /* Sock */
-  VAR *var_sock;
   p= safe_get_param(p, &con_sock, 0);
   if (*con_sock)
   {
@@ -2258,7 +2257,8 @@ int do_connect(struct st_query *q)
       die("Illegal option to connect: %s", con_options);
     con_options= str;
   }
-  q->last_argument= p;
+  /* Note: 'p' is pointing into the copy 'con_buf' */
+  q->last_argument= q->first_argument + (p - con_buf);
 
   if (next_con == cons_end)
     die("Connection limit exhausted - increase MAX_CONS in mysqltest.c");
