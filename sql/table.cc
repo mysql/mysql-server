@@ -2674,9 +2674,7 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
   }
 
   if (new_sctx)
-  {
     thd->security_ctx= new_sctx;
-  }
   res= check_grant_column(thd, grant, db_name, table_name, name, length);
   thd->security_ctx= save_security_ctx;
   return res;

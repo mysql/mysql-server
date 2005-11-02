@@ -129,15 +129,14 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
   Geometry *result;
   char byte_order;
 
-  if (data_len < SRID_SIZE + 1 + 4)
+  if (data_len < SRID_SIZE + WKB_HEADER_SIZE)   // < 4 + (1 + 4)
     return NULL;
   byte_order= data[SRID_SIZE];
   geom_type= uint4korr(data + SRID_SIZE + 1);
-  data+= SRID_SIZE + WKB_HEADER_SIZE;
   if (!(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
-  result->m_data= data;
-  result->m_data_end= data + (data_len - (SRID_SIZE + WKB_HEADER_SIZE));
+  result->m_data= data+ SRID_SIZE + WKB_HEADER_SIZE;
+  result->m_data_end= data + data_len;
   return result;
 }
 
@@ -739,7 +738,7 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
     wkb+= ls_len;
   }
 
-  return wkb - wkb_orig;
+  return (uint) (wkb - wkb_orig);
 }
 
 
@@ -1184,7 +1183,8 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
     return 0;
   res->q_append(n_line_strings);
   
-  for (wkb+=4; n_line_strings; n_line_strings--)
+  wkb+= 4;
+  while (n_line_strings--)
   {
     Gis_line_string ls;
     int ls_len;
@@ -1199,10 +1199,11 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
     if (!(ls_len= ls.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
                                    (wkbByteOrder) wkb[0], res)))
       return 0;
-    wkb+= (ls_len + WKB_HEADER_SIZE);
-    len-= (ls_len + WKB_HEADER_SIZE);
+    ls_len+= WKB_HEADER_SIZE;;
+    wkb+= ls_len;
+    len-= ls_len;
   }
-  return wkb-wkb_orig;
+  return (uint) (wkb - wkb_orig);
 }
 
 
@@ -1436,7 +1437,8 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
     return 0;
   res->q_append(n_poly);
   
-  for (wkb+=4; n_poly; n_poly--)
+  wkb+=4;
+  while (n_poly--)
   {
     Gis_polygon p;
     int p_len;
@@ -1450,10 +1452,11 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
     if (!(p_len= p.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
                                  (wkbByteOrder) wkb[0], res)))
       return 0;
-    wkb+= (p_len + WKB_HEADER_SIZE);
-    len-= (p_len + WKB_HEADER_SIZE);
+    p_len+= WKB_HEADER_SIZE;
+    wkb+= p_len;
+    len-= p_len;
   }
-  return wkb-wkb_orig;
+  return (uint) (wkb - wkb_orig);
 }
 
 
@@ -1733,7 +1736,8 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
     return 0;
   res->q_append(n_geom);
   
-  for (wkb+=4; n_geom; n_geom--)
+  wkb+= 4;
+  while (n_geom--)
   {
     Geometry_buffer buffer;
     Geometry *geom;
@@ -1752,10 +1756,11 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
         !(g_len= geom->init_from_wkb(wkb + WKB_HEADER_SIZE, len,
                                      (wkbByteOrder)  wkb[0], res)))
       return 0;
-    wkb+= (g_len + WKB_HEADER_SIZE);
-    len-= (g_len + WKB_HEADER_SIZE);
+    g_len+= WKB_HEADER_SIZE;
+    wkb+= g_len;
+    len-= g_len;
   }
-  return wkb-wkb_orig;
+  return (uint) (wkb - wkb_orig);
 }
 
 
