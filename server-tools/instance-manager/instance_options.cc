@@ -334,12 +334,13 @@ int Instance_options::complete_initialization(const char *default_path,
                                               uint instance_type)
 {
   const char *tmp;
+  char* end;
 
   if (!mysqld_path && !(mysqld_path= strdup_root(&alloc, default_path)))
     goto err;
 
   // it's safe to cast this to char* since this is a buffer we are allocating
-  char* end= convert_dirname((char*)mysqld_path, mysqld_path, NullS);
+  end= convert_dirname((char*)mysqld_path, mysqld_path, NullS);
   end[-1]= 0;
 
   mysqld_path_len= strlen(mysqld_path);
