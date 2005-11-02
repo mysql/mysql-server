@@ -2323,3 +2323,22 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
+CREATE TABLE t1(id INT) ENGINE=MyISAM;
+CREATE VIEW v1 AS SELECT id FROM t1;
+OPTIMIZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	optimize	note	You cannot apply optimize to a view
+ANALYZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	analyze	note	You cannot apply analyze to a view
+REPAIR TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	repair	note	You cannot apply repair to a view
+DROP TABLE t1;
+OPTIMIZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	optimize	note	You cannot apply optimize to a view
+Warnings:
+Error	1146	Table 'test.t1' doesn't exist
+Error	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP VIEW v1;

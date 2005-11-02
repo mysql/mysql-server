@@ -45,6 +45,7 @@
 #define HA_ADMIN_REJECT          -6
 #define HA_ADMIN_TRY_ALTER       -7
 #define HA_ADMIN_WRONG_CHECKSUM  -8
+#define HA_ADMIN_NOT_BASE_TABLE  -9
 
 /* Bits in table_flags() to show what database can do */
 
