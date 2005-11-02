@@ -481,6 +481,9 @@ sub command_line_setup () {
     $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
     $opt_slave_myport=    $opt_master_myport + 16;
     $opt_ndbcluster_port= $opt_master_myport + 24;
+    $im_port=             $opt_master_myport + 10;
+    $im_mysqld1_port=     $opt_master_myport + 12;
+    $im_mysqld2_port=     $opt_master_myport + 14;
   }
 
   # Read the command line
@@ -1070,6 +1073,8 @@ sub environment_setup () {
   print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
   print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
+  print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
+  print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
 }
 
 
