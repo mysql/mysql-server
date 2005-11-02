@@ -1378,6 +1378,7 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value)
 void Item_func_abs::fix_length_and_dec()
 {
   Item_func_num1::fix_length_and_dec();
+  maybe_null= 1;
 }
 
 
