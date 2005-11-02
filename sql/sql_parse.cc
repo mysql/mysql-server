@@ -1767,6 +1767,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Saved variable value */
     my_bool old_innodb_table_locks= 
               IF_INNOBASE_DB(thd->variables.innodb_table_locks, FALSE);
+    /* used as fields initializator */
+    lex_start(thd, 0, 0);
 
 
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
