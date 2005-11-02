@@ -26,14 +26,14 @@
 
 void trim_space(const char **text, uint *word_len)
 {
-  const char* start = *text;
+  const char* start= *text;
   while (*start != 0 && *start == ' ')
     start++;
   *text= start;
 
   int len= strlen(start);
   const char* end= start + len - 1;
-  while (end > start && (*end == ' ' || *end == '\r' || *end == '\n'))
+  while (end > start && my_isspace(&my_charset_latin1, *end))
     end--;
   *word_len= (end - start)+1;
 }
@@ -96,19 +96,17 @@ int parse_output_and_get_value(const char *command, const char *word,
     linebuf[sizeof(linebuf) - 1]= '\0';        /* safety */
 
     /*
-      Get the word, which might contain non-alphanumeric characters. (Usually
-      these are '/', '-' and '.' in the path expressions and filenames)
+      Compare the start of our line with the word(s) we are looking for.
     */
     if (!strncmp(word, linep, wordlen))
     {
       /*
-        If we have found the word, return the next one (this is usually
-        an option value) or the whole line (if flag)
+        If we have found our word(s), then move linep past the word(s)
       */
-      linep+= wordlen;                      /* swallow the previous one */
+      linep+= wordlen;                      
       if (flag & GET_VALUE)
       {
-	trim_space((const char**) &linep, &found_word_len);
+        trim_space((const char**) &linep, &found_word_len);
         if (input_buffer_len <= found_word_len)
           goto err;
         strmake(result, linep, found_word_len);
