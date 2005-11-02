@@ -4756,13 +4756,12 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   int res= -1;
   Sub_statement_state statement_state;
-  Security_context *save_security_ctx= 0, *save_ctx_func;
+  Security_context *save_security_ctx= thd->security_ctx, *save_ctx_func;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (context->security_ctx)
   {
     /* Set view definer security context */
-    save_security_ctx= thd->security_ctx;
     thd->security_ctx= context->security_ctx;
   }
 #endif
@@ -4787,8 +4786,7 @@ Item_func_sp::execute(Item **itp)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, save_ctx_func);
 error:
-  if (save_security_ctx)
-    thd->security_ctx= save_security_ctx;
+  thd->security_ctx= save_security_ctx;
 #else
 error:
 #endif
