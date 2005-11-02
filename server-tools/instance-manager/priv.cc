@@ -73,8 +73,9 @@ unsigned long open_files_limit;
 int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
                                   void *(*start_routine)(void *), void *arg)
 {
-  int rc;
+  int rc= 0;
 
+#ifndef __WIN__
   /*
     Set stack size to be safe on the platforms with too small
     default thread stack.
@@ -82,7 +83,7 @@ int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
   rc= pthread_attr_setstacksize(attr,
                                 (size_t) (PTHREAD_STACK_MIN +
                                           IM_THREAD_STACK_SIZE));
-
+#endif
   if (!rc)
     rc= pthread_create(thread, attr, start_routine, arg);
   return rc;
