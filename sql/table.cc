@@ -2538,11 +2538,11 @@ bool st_table_list::prepare_security(THD *thd)
       tbl->table->grant= grant;
   }
   thd->security_ctx= save_security_ctx;
-  DBUG_RETURN(FALSE);
 #else
   while ((tbl= tb++))
     tbl->grant.privilege= ~NO_ACCESS;
 #endif
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -2654,7 +2654,7 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
-  Security_context *save_security_ctx;
+  Security_context *save_security_ctx= thd->security_ctx;
   Security_context *new_sctx= table_ref->security_ctx;
   bool res;
 
@@ -2673,7 +2673,6 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
     table_name= table_ref->table->s->table_name;
   }
 
-  save_security_ctx= thd->security_ctx;
   if (new_sctx)
     thd->security_ctx= new_sctx;
   res= check_grant_column(thd, grant, db_name, table_name, name, length);

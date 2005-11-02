@@ -2705,16 +2705,14 @@ static bool check_grant_column_in_sctx(THD *thd, GRANT_INFO *grant,
 {
   if (!check_grants)
     return FALSE;
-  Security_context *save_security_ctx= 0;
+  Security_context *save_security_ctx= thd->security_ctx;
   bool res;
   if (sctx)
   {
-    save_security_ctx= thd->security_ctx;
     thd->security_ctx= sctx;
   }
   res= check_grant_column(thd, grant, db, table, name, length);
-  if (save_security_ctx)
-    thd->security_ctx= save_security_ctx;
+  thd->security_ctx= save_security_ctx;
   return res;
 }
 #endif
