@@ -2538,11 +2538,11 @@ bool st_table_list::prepare_security(THD *thd)
       tbl->table->grant= grant;
   }
   thd->security_ctx= save_security_ctx;
-  DBUG_RETURN(FALSE);
 #else
   while ((tbl= tb++))
     tbl->grant.privilege= ~NO_ACCESS;
 #endif
+  DBUG_RETURN(FALSE);
 }
 
 
