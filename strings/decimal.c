@@ -1986,7 +1986,11 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
       carry+=hi;
     }
     for (; carry; buf0--)
+    {
+      if (buf0 < to->buf)
+        return E_DEC_OVERFLOW;
       ADD(*buf0, *buf0, 0, carry);
+    }
   }
 
   /* Now we have to check for -0.000 case */
