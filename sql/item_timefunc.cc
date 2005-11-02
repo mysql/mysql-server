@@ -2504,6 +2504,7 @@ void Item_func_add_time::fix_length_and_dec()
   enum_field_types arg0_field_type;
   decimals=0;
   max_length=MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
 
   /*
     The field type for the result of an Item_func_add_time function is defined
