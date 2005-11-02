@@ -70,7 +70,7 @@ int mysql_update(THD *thd,
   ha_rows	updated, found;
   key_map	old_used_keys;
   TABLE		*table;
-  SQL_SELECT	*select;
+  SQL_SELECT	*select= 0;
   READ_RECORD	info;
   TABLE_LIST    *update_table_list= ((TABLE_LIST*)
 				     thd->lex->select_lex.table_list.first);
@@ -131,11 +131,19 @@ int mysql_update(THD *thd,
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
 
+  if (conds)
+  {
+    Item::cond_result cond_value;
+    conds= remove_eq_conds(thd, conds, &cond_value);
+    if (cond_value == Item::COND_FALSE)
+      limit= 0;                                   // Impossible WHERE
+  }
   // Don't count on usage of 'only index' when calculating which key to use
   table->used_keys.clear_all();
-  select=make_select(table,0,0,conds,&error);
-  if (error ||
-      (select && select->check_quick(thd, safe_update, limit)) || !limit)
+  if (limit)
+    select=make_select(table,0,0,conds,&error);
+  if (error || !limit ||
+      (select && select->check_quick(thd, safe_update, limit)))
   {
     delete select;
     free_underlaid_joins(thd, &thd->lex->select_lex);
