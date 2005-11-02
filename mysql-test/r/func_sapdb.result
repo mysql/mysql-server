@@ -180,8 +180,8 @@ Field	Type	Null	Key	Default	Extra
 f1	date	NO		0000-00-00	
 f2	datetime	YES		NULL	
 f3	time	YES		NULL	
-f4	time	NO		00:00:00	
-f5	time	NO		00:00:00	
+f4	time	YES		NULL	
+f5	time	YES		NULL	
 f6	time	NO		00:00:00	
 f7	datetime	YES		NULL	
 f8	date	YES		NULL	

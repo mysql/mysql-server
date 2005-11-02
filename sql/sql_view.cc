@@ -728,20 +728,24 @@ loop_out:
 
   SYNOPSIS
     mysql_make_view()
-    parser		- parser object;
-    table		- TABLE_LIST structure for filling
+    thd			Thread handler
+    parser		parser object
+    table		TABLE_LIST structure for filling
 
   RETURN
     0 ok
     1 error
 */
 
-my_bool
-mysql_make_view(File_parser *parser, TABLE_LIST *table)
+bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
 {
-  THD *thd= current_thd;
+  SELECT_LEX *end, *view_select;
+  LEX *old_lex, *lex;
+  Query_arena *arena, backup;
+  int res;
+  bool result;
   DBUG_ENTER("mysql_make_view");
-  DBUG_PRINT("info", ("table=%p (%s)", table, table->table_name));
+  DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
 
   if (table->view)
   {
@@ -765,16 +769,12 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     DBUG_RETURN(0);
   }
 
-  SELECT_LEX *end;
-  LEX *old_lex= thd->lex, *lex;
-  SELECT_LEX *view_select;
-  int res= 0;
-
   /*
     For now we assume that tables will not be changed during PS life (it
     will be TRUE as far as we make new table cache).
   */
-  Query_arena *arena= thd->stmt_arena, backup;
+  old_lex= thd->lex;
+  arena= thd->stmt_arena;
   if (arena->is_conventional())
     arena= 0;
   else
@@ -1133,23 +1133,21 @@ ok:
     (st_select_lex_node**)&old_lex->all_selects_list;
 
 ok2:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
   if (!old_lex->time_zone_tables_used && thd->lex->time_zone_tables_used)
     old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
-  thd->lex= old_lex;
-  if (!table->prelocking_placeholder && table->prepare_security(thd))
-    DBUG_RETURN(1);
+  result= !table->prelocking_placeholder && table->prepare_security(thd);
 
-  DBUG_RETURN(0);
-
-err:
+end:
   if (arena)
     thd->restore_active_arena(arena, &backup);
+  thd->lex= old_lex;
+  DBUG_RETURN(result);
+
+err:
   delete table->view;
   table->view= 0;	// now it is not VIEW placeholder
-  thd->lex= old_lex;
-  DBUG_RETURN(1);
+  result= 1;
+  goto end;
 }
 
 

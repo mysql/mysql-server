@@ -1188,5 +1188,40 @@ connection slave;
 DROP TABLE federated.normal_table;
 # END ALTER TEST
 
+#
+# Test BUG #14532 - bit columns broken in federated
+# storage engine
+#
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+CREATE TABLE federated.t1 (
+  `bitty` bit(3)
+) DEFAULT CHARSET=latin1;
+
+connection master;
+
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+ `bitty` bit(3)
+) ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t1 VALUES (b'001');
+INSERT INTO federated.t1 VALUES (b'010');
+INSERT INTO federated.t1 VALUES (b'011');
+INSERT INTO federated.t1 VALUES (b'100');
+INSERT INTO federated.t1 VALUES (b'101');
+INSERT INTO federated.t1 VALUES (b'110');
+INSERT INTO federated.t1 VALUES (b'111');
+select * FROM federated.t1;
+drop table federated.t1;
+
+connection slave;
+drop table federated.t1;
 
 source include/federated_cleanup.inc;
