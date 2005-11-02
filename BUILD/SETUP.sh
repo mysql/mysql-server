@@ -44,17 +44,21 @@ set -e
 export AM_MAKEFLAGS
 AM_MAKEFLAGS="-j 4"
 
+# SSL library to use. Should be changed to --with-yassl
+SSL_LIBRARY=--with-openssl
+
 # If you are not using codefusion add "-Wpointer-arith" to WARNINGS
 # The following warning flag will give too many warnings:
 # -Wshadow -Wunused  -Winline (The later isn't usable in C++ as
 # __attribute()__ doesn't work with gnu C++)
+
 global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings"
 #debug_extra_warnings="-Wuninitialized"
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
-base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-openssl --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine"
-base_max_no_ndb_configs="--with-innodb --with-berkeley-db --without-ndbcluster --with-archive-storage-engine --with-openssl --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine"
-max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-federated-storage-engine --with-blackhole-storage-engine --with-csv-storage-engine --with-openssl --with-embedded-server --with-big-tables"
+base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine $SSL_LIBRARY"
+base_max_no_ndb_configs="--with-innodb --with-berkeley-db --without-ndbcluster --with-archive-storage-engine --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine $SSL_LIBRARY"
+max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-federated-storage-engine --with-blackhole-storage-engine --with-csv-storage-engine $SSL_LIBRARY --with-embedded-server --with-big-tables"
 max_configs="$base_max_configs --with-embedded-server"
 max_no_ndb_configs="$base_max_no_ndb_configs --with-embedded-server"
 
