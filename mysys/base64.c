@@ -134,7 +134,7 @@ base64_decode(const char *src, size_t size, void *dst)
 {
   char b[3];
   size_t i= 0;
-  void *d= dst;
+  unsigned char *d= (unsigned char*)dst;
   size_t j;
 
   while (i < size)
@@ -186,14 +186,14 @@ base64_decode(const char *src, size_t size, void *dst)
     b[2]= (c >>  0) & 0xff;
 
     for (j=0; j<3-mark; j++)
-      *(char *)d++= b[j];
+      *d++= b[j];
   }
 
   if (i != size)
   {
     return -1;
   }
-  return d - dst;
+  return d - (unsigned char*)dst;
 }
 
 
