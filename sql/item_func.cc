@@ -636,7 +636,6 @@ void Item_func_num1::fix_num_length_and_dec()
 {
   decimals= args[0]->decimals;
   max_length= args[0]->max_length;
-  maybe_null= 1;
 }
 
 
@@ -1379,6 +1378,7 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value)
 void Item_func_abs::fix_length_and_dec()
 {
   Item_func_num1::fix_length_and_dec();
+  maybe_null= 1;
 }
 
 
