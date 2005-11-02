@@ -2303,12 +2303,15 @@ btr_cur_del_mark_set_clust_rec(
 		rw_lock_x_lock(&btr_search_latch);
 	}
 
-	btr_rec_set_deleted_flag(rec, page_zip, val);
+	if (!btr_rec_set_deleted_flag(rec, page_zip/* 5 bytes */, val)) {
+		/* page_zip_alloc() said there is enough space */
+		ut_error;
+	}
 
 	trx = thr_get_trx(thr);
 	
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
-		row_upd_rec_sys_fields(rec, page_zip,
+		row_upd_rec_sys_fields(rec, page_zip/* 21 bytes */,
 				index, offsets, trx, roll_ptr);
 	}
 	
@@ -2399,6 +2402,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 		if (!btr_rec_set_deleted_flag(rec, page_zip, val)) {
 			/* page_zip overflow should have been detected
 			before writing MLOG_COMP_REC_SEC_DELETE_MARK */
+			ut_error;
 		}
 	}
 	
@@ -2451,7 +2455,14 @@ btr_cur_del_mark_set_sec_rec(
 	}
 
 	if (!btr_rec_set_deleted_flag(rec, page_zip, val)) {
-		ut_error; /* TODO */
+		/* Reorganize to try to get more modification log space. */
+		btr_page_reorganize(buf_block_get_frame(block),
+						cursor->index, mtr);
+
+		if (!btr_rec_set_deleted_flag(rec, page_zip, val)) {
+			/* TODO: could we do anything else than crash? */
+			ut_error;
+		}
 	}
 
 	if (block->is_hashed) {
@@ -2474,8 +2485,10 @@ btr_cur_del_unmark_for_ibuf(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	/* We do not need to reserve btr_search_latch, as the page has just
-
 	been read to the buffer pool and there cannot be a hash index to it. */
+
+	/* The insert buffer is not used on compressed pages. */
+	ut_ad(!buf_block_get_page_zip(buf_block_align(rec)));
 
 	btr_rec_set_deleted_flag(rec, NULL, FALSE);
 
