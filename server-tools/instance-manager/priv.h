@@ -22,7 +22,7 @@
 #else
 #include <unistd.h>
 #endif
-
+#include "my_pthread.h"
 
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 extern pid_t manager_pid;

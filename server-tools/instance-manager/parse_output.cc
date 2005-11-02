@@ -26,13 +26,13 @@
 
 void trim_space(const char **text, uint *word_len)
 {
-  const char* start= *text;
+  const char *start= *text;
   while (*start != 0 && *start == ' ')
     start++;
   *text= start;
 
   int len= strlen(start);
-  const char* end= start + len - 1;
+  const char *end= start + len - 1;
   while (end > start && my_isspace(&my_charset_latin1, *end))
     end--;
   *word_len= (end - start)+1;

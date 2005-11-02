@@ -334,7 +334,7 @@ int Instance_options::complete_initialization(const char *default_path,
                                               uint instance_type)
 {
   const char *tmp;
-  char* end;
+  char *end;
 
   if (!mysqld_path && !(mysqld_path= strdup_root(&alloc, default_path)))
     goto err;
