@@ -1895,3 +1895,21 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=latin1
 drop table t1;
 set storage_engine=MyISAM;
+create table t1 (a int) engine=bdb;
+set session transaction isolation level repeatable read;
+set transaction isolation level serializable;
+begin;
+select @@tx_isolation;
+@@tx_isolation
+SERIALIZABLE
+insert into t1 values (1);
+set transaction isolation level read committed;
+ERROR 25001: Transaction isolation level can't be changed while a transaction is in progress
+rollback;
+begin;
+select @@tx_isolation;
+@@tx_isolation
+REPEATABLE-READ
+insert into t1 values (1);
+rollback;
+drop table t1;
