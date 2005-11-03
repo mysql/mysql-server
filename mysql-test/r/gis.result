@@ -665,6 +665,12 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (pointfromtext('point(1,1)'));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
+select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
+(asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))))
+POINT(10 10)
+select (asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))));
+(asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))))
+POINT(10 10)
 create table t1 (s1 geometry not null,s2 char(100));
 create trigger t1_bu before update on t1 for each row set new.s1 = null;
 insert into t1 values (null,null);
@@ -688,9 +694,3 @@ alter table t1 add primary key pti(pt);
 ERROR 42000: BLOB/TEXT column 'pt' used in key specification without a key length
 alter table t1 add primary key pti(pt(20));
 drop table t1;
-select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
-(asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))))
-POINT(10 10)
-select (asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))));
-(asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))))
-POINT(10 10)

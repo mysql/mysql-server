@@ -261,4 +261,13 @@ update t1 set a=a+12,b=3 order by a limit 3;
 select * from t1 order by a;
 
 drop table t1;
+
+#
+# Bug#14186 select datefield is null not updated
+#
+create table t1 (f1 date not null);
+insert into t1 values('2000-01-01'),('0000-00-00');
+update t1 set f1='2002-02-02' where f1 is null;
+select * from t1;
+drop table t1;
 # End of 4.1 tests

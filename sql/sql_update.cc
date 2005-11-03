@@ -121,7 +121,7 @@ int mysql_update(THD *thd,
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table;
   int           res;
-  int		error=0;
+  int		error;
   uint		used_index= MAX_KEY;
   bool          need_sort= TRUE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -228,11 +228,18 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);				/* purecov: inspected */
   }
 
+  if (conds)
+  {
+    Item::cond_result cond_value;
+    conds= remove_eq_conds(thd, conds, &cond_value);
+    if (cond_value == Item::COND_FALSE)
+      limit= 0;                                   // Impossible WHERE
+  }
   // Don't count on usage of 'only index' when calculating which key to use
   table->used_keys.clear_all();
   select= make_select(table, 0, 0, conds, 0, &error);
-  if (error ||
-      (select && select->check_quick(thd, safe_update, limit)) || !limit)
+  if (error || !limit ||
+      (select && select->check_quick(thd, safe_update, limit)))
   {
     delete select;
     free_underlaid_joins(thd, select_lex);
