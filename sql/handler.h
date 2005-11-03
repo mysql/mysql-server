@@ -874,7 +874,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
-handler *get_new_handler(TABLE *table, enum db_type db_type);
+handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type);
 enum db_type ha_checktype(THD *thd, enum db_type database_type,
                           bool no_substitute, bool report_error);
 bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag);

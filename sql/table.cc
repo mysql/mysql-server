@@ -338,7 +338,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     my_free(buff, MYF(0));
   }
   /* Allocate handler */
-  if (!(outparam->file= get_new_handler(outparam, share->db_type)))
+  if (!(outparam->file= get_new_handler(outparam, &outparam->mem_root,
+                                        share->db_type)))
     goto err;
 
   error=4;
