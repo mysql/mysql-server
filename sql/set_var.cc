@@ -99,6 +99,7 @@ static bool set_log_update(THD *thd, set_var *var);
 static int  check_pseudo_thread_id(THD *thd, set_var *var);
 static bool set_log_bin(THD *thd, set_var *var);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
+static int check_tx_isolation(THD *thd, set_var *var);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
 static int check_completion_type(THD *thd, set_var *var);
 static void fix_completion_type(THD *thd, enum_var_type type);
@@ -386,7 +387,8 @@ sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
 sys_var_thd_enum	sys_tx_isolation("tx_isolation",
 					 &SV::tx_isolation,
 					 &tx_isolation_typelib,
-					 fix_tx_isolation);
+					 fix_tx_isolation,
+					 check_tx_isolation);
 sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
@@ -1164,10 +1166,23 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
 
 
 /*
+  Can't change the 'next' tx_isolation while we are already in
+  a transaction
+*/
+static int check_tx_isolation(THD *thd, set_var *var)
+{
+  if (var->type == OPT_DEFAULT && (thd->server_status & SERVER_STATUS_IN_TRANS))
+  {
+    my_error(ER_CANT_CHANGE_TX_ISOLATION, MYF(0));
+    return 1;
+  }
+  return 0;
+}
+
+/*
   If one doesn't use the SESSION modifier, the isolation level
   is only active for the next command
 */
-
 static void fix_tx_isolation(THD *thd, enum_var_type type)
 {
   if (type == OPT_SESSION)

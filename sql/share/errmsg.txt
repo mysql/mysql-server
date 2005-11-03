@@ -5421,3 +5421,5 @@ ER_NO_REFERENCED_ROW_2 23000
 	eng "Cannot add or update a child row: a foreign key constraint fails (%.192s)"
 ER_SP_BAD_VAR_SHADOW 42000
 	eng "Variable '%-.64s' must be quoted with `...`, or renamed"
+ER_CANT_CHANGE_TX_ISOLATION 25001
+	eng "Transaction isolation level can't be changed while a transaction is in progress"
