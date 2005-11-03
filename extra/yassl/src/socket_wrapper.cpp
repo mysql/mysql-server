@@ -39,7 +39,7 @@
     #include <string.h>
 #endif // _WIN32
 
-#ifdef __sun
+#if defined(__sun) || defined(__SCO_VERSION__)
     #include <sys/filio.h>
 #endif
 
