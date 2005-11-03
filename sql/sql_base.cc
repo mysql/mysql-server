@@ -2634,7 +2634,7 @@ bool rm_temporary_table(enum db_type base, char *path)
   if (my_delete(path,MYF(0)))
     error=1; /* purecov: inspected */
   *fn_ext(path)='\0';				// remove extension
-  handler *file=get_new_handler((TABLE*) 0, base);
+  handler *file= get_new_handler((TABLE*) 0, current_thd->mem_root, base);
   if (file && file->delete_table(path))
   {
     error=1;
