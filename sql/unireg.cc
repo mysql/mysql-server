@@ -90,7 +90,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
     DBUG_RETURN(1);
   if (db_file == NULL)
-    db_file= get_new_handler((TABLE*) 0, create_info->db_type);
+    db_file= get_new_handler((TABLE*) 0, thd->mem_root, create_info->db_type);
 
  /* If fixed row records, we need one bit to check for deleted rows */
   if (!(create_info->table_options & HA_OPTION_PACK_RECORD))
@@ -699,7 +699,7 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
   /* We need a table to generate columns for default values */
   bzero((char*) &table,sizeof(table));
   table.s= &table.share_not_to_be_used;
-  handler= get_new_handler((TABLE*) 0, table_type);
+  handler= get_new_handler((TABLE*) 0, thd->mem_root, table_type);
 
   if (!handler ||
       !(buff=(uchar*) my_malloc((uint) reclength,MYF(MY_WME | MY_ZEROFILL))))
