@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <base64.h>
-#include <m_string.h>  // strchr()
+#include <m_string.h>  /* strchr() */
 
 #ifndef MAIN
 
@@ -134,7 +134,8 @@ base64_decode(const char *src, size_t size, void *dst)
 {
   char b[3];
   size_t i= 0;
-  void *d= dst;
+  char *dst_base= (char *)dst;
+  char *d= dst_base;
   size_t j;
 
   while (i < size)
@@ -193,7 +194,7 @@ base64_decode(const char *src, size_t size, void *dst)
   {
     return -1;
   }
-  return d - dst;
+  return d - dst_base;
 }
 
 
