@@ -27,9 +27,13 @@ static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 int
 base64_needed_encoded_length(int length_of_data)
 {
-  return ceil(length_of_data * 4 / 3) /* base64 chars */ +
-    ceil(length_of_data / (76 * 3 / 4)) /* Newlines */ +
-    3 /* Padding */;
+  int nb_base64_chars;
+  nb_base64_chars= (length_of_data + 2) / 3 * 4;
+
+  return
+    nb_base64_chars +            /* base64 char incl padding */
+    (nb_base64_chars - 1)/ 76 +  /* newlines */
+    1;                           /* NUL termination of string */
 }
 
 
@@ -89,6 +93,7 @@ base64_encode(const void *src, size_t src_len, char *dst)
     else
       *dst++= base64_table[(c >> 0) & 0x3f];
   }
+  *dst= '\0';
 
   return 0;
 }
@@ -129,7 +134,7 @@ base64_decode(const char *src, size_t size, void *dst)
 {
   char b[3];
   size_t i= 0;
-  void *d= dst;
+  unsigned char *d= (unsigned char*)dst;
   size_t j;
 
   while (i < size)
@@ -181,14 +186,14 @@ base64_decode(const char *src, size_t size, void *dst)
     b[2]= (c >>  0) & 0xff;
 
     for (j=0; j<3-mark; j++)
-      *(char *)d++= b[j];
+      *d++= b[j];
   }
 
   if (i != size)
   {
     return -1;
   }
-  return d - dst;
+  return d - (unsigned char*)dst;
 }
 
 
@@ -209,6 +214,7 @@ main(void)
   size_t j;
   size_t k, l;
   size_t dst_len;
+  size_t needed_length;
 
   for (i= 0; i < 500; i++)
   {
@@ -227,8 +233,12 @@ main(void)
     }
 
     /* Encode */
-    str= (char *) malloc(base64_needed_encoded_length(src_len));
+    needed_length= base64_needed_encoded_length(src_len);
+    str= (char *) malloc(needed_length);
+    for (k= 0; k < needed_length; k++)
+      str[k]= 0xff; /* Fill memory to check correct NUL termination */
     require(base64_encode(src, src_len, str) == 0);
+    require(needed_length == strlen(str) + 1);
 
     /* Decode */
     dst= (char *) malloc(base64_needed_decoded_length(strlen(str)));

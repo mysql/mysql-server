@@ -2074,7 +2074,10 @@ void MYSQL_LOG::wait_for_update(THD* thd, bool is_slave)
   DBUG_ENTER("wait_for_update");
   
   if (reset_pending)
+  {
+    pthread_mutex_unlock(&LOCK_log);
     DBUG_VOID_RETURN;
+  }
 
   old_msg= thd->enter_cond(&update_cond, &LOCK_log,
                            is_slave ?

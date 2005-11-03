@@ -931,7 +931,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   THD *thd= current_thd;
-  if (!(file= get_new_handler(head, head->s->db_type)))
+  if (!(file= get_new_handler(head, thd->mem_root, head->s->db_type)))
     goto failure;
   DBUG_PRINT("info", ("Allocated new handler %p", file));
   if (file->ha_open(head->s->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
@@ -3776,6 +3776,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   char *str;
+  ulong orig_sql_mode;
   DBUG_ENTER("get_mm_leaf");
 
   /*
@@ -3921,13 +3922,20 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
     goto end;
-
+  /* For comparison purposes allow invalid dates like 2000-01-32 */
+  orig_sql_mode= field->table->in_use->variables.sql_mode;
+  if (value->real_item()->type() == Item::STRING_ITEM &&
+      (field->type() == FIELD_TYPE_DATE ||
+       field->type() == FIELD_TYPE_DATETIME))
+    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   if (value->save_in_field_no_warnings(field, 1) < 0)
   {
+    field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
     tree= &null_element;                        // cmp with NULL is never TRUE
     goto end;
   }
+  field->table->in_use->variables.sql_mode= orig_sql_mode;
   str= (char*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
