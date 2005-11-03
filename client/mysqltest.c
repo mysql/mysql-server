@@ -3043,8 +3043,6 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
   my_bool *is_null;
   ulong *length;
   ulonglong num_rows;
-
-  /* FIXME we don't handle vertical display ..... */
   uint col_idx, row_idx;
   
   /* Allocate array with bind structs, lengths and NULL flags */
@@ -3088,18 +3086,22 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
     /* Read result from each column */
     for (col_idx= 0; col_idx < num_fields; col_idx++)
     {
-      /* FIXME is string terminated? */
-      const char *val= (const char *)bind[col_idx].buffer;
-      ulonglong len= *bind[col_idx].length;
+      const char *val;
+      ulonglong len;
       if (col_idx < max_replace_column && replace_column[col_idx])
       {
 	val= replace_column[col_idx];
 	len= strlen(val);
       }
-      if (*bind[col_idx].is_null)
+      else if (*bind[col_idx].is_null)
       {
 	val= "NULL";
 	len= 4;
+      }
+      else
+      {
+	val= (const char *) bind[col_idx].buffer;
+	len= *bind[col_idx].length;
       }
       if (!display_result_vertically)
       {
