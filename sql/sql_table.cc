@@ -218,6 +218,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   int error;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
+
   DBUG_ENTER("mysql_rm_table_part2");
 
   if (lock_table_names(thd, tables))
@@ -229,6 +230,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
+    db_type table_type= DB_TYPE_UNKNOWN;
+
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->table_name))
     {
@@ -256,7 +259,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (drop_temporary ||
        (access(path,F_OK) &&
          ha_create_table_from_engine(thd,db,alias)) ||
-        (!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
+        (!drop_view &&
+	 mysql_frm_type(thd, path, &table_type) != FRMTYPE_TABLE))
     {
       // Table was not found on disk and table can't be created from engine
       if (if_exists)
@@ -269,7 +273,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      db_type table_type= get_table_type(thd, path);
+      if (table_type == DB_TYPE_UNKNOWN)
+	mysql_frm_type(thd, path, &table_type);
       *(end=fn_ext(path))=0;			// Remove extension for delete
       error= ha_delete_table(thd, table_type, path, table->table_name,
                              !dont_log_query);
@@ -2611,6 +2616,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
+  db_type not_used;
+
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
   src_db= table_ident->db.str ? table_ident->db.str : thd->db;
@@ -2658,7 +2665,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /* 
      create like should be not allowed for Views, Triggers, ... 
   */
-  if (mysql_frm_type(src_path) != FRMTYPE_TABLE)
+  if (mysql_frm_type(thd, src_path, &not_used) != FRMTYPE_TABLE)
   {
     my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
     goto err;
