@@ -112,7 +112,7 @@ test:
 
 test-force:
 	cd mysql-test; \
-	./mysql-test-run --force ; \
+	./mysql-test-run --force && \
 	./mysql-test-run --ps-protocol --force
 
 # We are testing a new Perl version of the test script
@@ -123,5 +123,5 @@ test-pl:
 
 test-force-pl:
 	cd mysql-test; \
-	./mysql-test-run.pl --force ; \
+	./mysql-test-run.pl --force && \
 	./mysql-test-run.pl --ps-protocol --force
