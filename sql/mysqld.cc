@@ -1194,6 +1194,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
+  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_thread_cache);
