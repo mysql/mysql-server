@@ -447,3 +447,21 @@ drop table t2;
 drop table t3;
 drop table t4;
 drop table t5;
+create table t1 (c1 int);
+insert into t1 values (1);
+handler t1 open;
+handler t1 read first;
+c1
+1
+send the below to another connection, do not wait for the result
+ optimize table t1;
+proceed with the normal connection
+handler t1 read next;
+c1
+1
+handler t1 close;
+read the result from the other connection
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+proceed with the normal connection
+drop table t1;

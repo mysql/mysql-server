@@ -339,3 +339,32 @@ drop table t2;
 drop table t3;
 drop table t4;
 drop table t5;
+
+#
+# Bug#14397 - OPTIMIZE TABLE with an open HANDLER causes a crash
+#
+create table t1 (c1 int);
+insert into t1 values (1);
+# client 1
+handler t1 open;
+handler t1 read first;
+# client 2
+connect (con2,localhost,root,,);
+connection con2;
+--exec echo send the below to another connection, do not wait for the result
+send optimize table t1;
+--sleep 1
+# client 1
+--exec echo proceed with the normal connection
+connection default;
+handler t1 read next;
+handler t1 close;
+# client 2
+--exec echo read the result from the other connection
+connection con2;
+reap;
+# client 1
+--exec echo proceed with the normal connection
+connection default;
+drop table t1;
+
