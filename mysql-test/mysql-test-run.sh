@@ -208,9 +208,9 @@ MYSQL_MANAGER_USER=root
 # number is to be used, 0 - 16 or similar.
 #
 if [ -n "$MTR_BUILD_THREAD" ] ; then
-  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 40 + 8120`
-  SLAVE_MYPORT=`expr $MASTER_MYPORT + 16`
+  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 5 + 10000`
   MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
+  SLAVE_MYPORT=`expr $MASTER_MYPORT + 3`
 
   echo "Using MTR_BUILD_THREAD   = $MTR_BUILD_THREAD"
   echo "Using MASTER_MYPORT      = $MASTER_MYPORT"
