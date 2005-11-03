@@ -338,7 +338,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     my_free(buff, MYF(0));
   }
   /* Allocate handler */
-  if (!(outparam->file= get_new_handler(outparam, share->db_type)))
+  if (!(outparam->file= get_new_handler(outparam, &outparam->mem_root,
+                                        share->db_type)))
     goto err;
 
   error=4;
@@ -2511,9 +2512,9 @@ bool st_table_list::prepare_security(THD *thd)
 {
   List_iterator_fast<TABLE_LIST> tb(*view_tables);
   TABLE_LIST *tbl;
+  DBUG_ENTER("st_table_list::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
-  DBUG_ENTER("st_table_list::prepare_security");
 
   DBUG_ASSERT(!prelocking_placeholder);
   if (prepare_view_securety_context(thd))
@@ -2538,11 +2539,11 @@ bool st_table_list::prepare_security(THD *thd)
       tbl->table->grant= grant;
   }
   thd->security_ctx= save_security_ctx;
-  DBUG_RETURN(FALSE);
 #else
   while ((tbl= tb++))
     tbl->grant.privilege= ~NO_ACCESS;
 #endif
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -2654,7 +2655,7 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
-  Security_context *save_security_ctx= 0;
+  Security_context *save_security_ctx= thd->security_ctx;
   Security_context *new_sctx= table_ref->security_ctx;
   bool res;
 
@@ -2674,13 +2675,9 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
   }
 
   if (new_sctx)
-  {
-    save_security_ctx= thd->security_ctx;
     thd->security_ctx= new_sctx;
-  }
   res= check_grant_column(thd, grant, db_name, table_name, name, length);
-  if (save_security_ctx)
-    thd->security_ctx= save_security_ctx;
+  thd->security_ctx= save_security_ctx;
   return res;
 }
 #endif

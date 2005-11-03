@@ -615,3 +615,12 @@ create table atablewithareallylongandirritatingname (a int);
 insert into atablewithareallylongandirritatingname values (2);
 select * from atablewithareallylongandirritatingname;
 drop table atablewithareallylongandirritatingname;
+
+
+#
+# BUG#14514
+#
+
+CREATE TABLE t1 ( b INT ) PACK_KEYS = 0 ENGINE = ndb;
+select * from t1;
+drop table t1;

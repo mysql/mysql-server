@@ -1508,7 +1508,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
-  file=get_new_handler((TABLE*) 0, create_info->db_type);
+  file= get_new_handler((TABLE*) 0, thd->mem_root, create_info->db_type);
 
 #ifdef NOT_USED
   /*
@@ -1806,10 +1806,12 @@ mysql_rename_table(enum db_type base,
 		   const char *new_db,
 		   const char *new_name)
 {
+  THD *thd= current_thd;
   char from[FN_REFLEN], to[FN_REFLEN], lc_from[FN_REFLEN], lc_to[FN_REFLEN];
   char *from_base= from, *to_base= to;
   char tmp_name[NAME_LEN+1];
-  handler *file=(base == DB_TYPE_UNKNOWN ? 0 : get_new_handler((TABLE*) 0, base));
+  handler *file= (base == DB_TYPE_UNKNOWN ? 0 :
+                  get_new_handler((TABLE*) 0, thd->mem_root, base));
   int error=0;
   DBUG_ENTER("mysql_rename_table");
 

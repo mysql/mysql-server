@@ -636,7 +636,6 @@ void Item_func_num1::fix_num_length_and_dec()
 {
   decimals= args[0]->decimals;
   max_length= args[0]->max_length;
-  maybe_null= 1;
 }
 
 
@@ -973,8 +972,8 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                    val2) > 1)))
+                     (my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                     val2) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1046,8 +1045,8 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                    val2) > 1)))
+                     (my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                     val2) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1084,8 +1083,8 @@ my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                    val2) > 1)))
+                     (my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1125,6 +1124,7 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 {
   my_decimal value1, *val1;
   my_decimal value2, *val2;
+  int err;
 
   val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
@@ -1132,17 +1132,15 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
   val2= args[1]->val_decimal(&value2);
   if ((null_value= args[1]->null_value))
     return 0;
-  switch (my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
-                         val1, val2, prec_increment)) {
-  case E_DEC_TRUNCATED:
-  case E_DEC_OK:
-    return decimal_value;
-  case E_DEC_DIV_ZERO:
-    signal_divide_by_null();
-  default:
-    null_value= 1;                              // Safety
+  if ((err= my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
+                           val1, val2, prec_increment)) > 3)
+  {
+    if (err == E_DEC_DIV_ZERO)
+      signal_divide_by_null();
+    null_value= 1;
     return 0;
   }
+  return decimal_value;
 }
 
 
@@ -4756,13 +4754,12 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   int res= -1;
   Sub_statement_state statement_state;
-  Security_context *save_security_ctx= 0, *save_ctx_func;
+  Security_context *save_security_ctx= thd->security_ctx, *save_ctx_func;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (context->security_ctx)
   {
     /* Set view definer security context */
-    save_security_ctx= thd->security_ctx;
     thd->security_ctx= context->security_ctx;
   }
 #endif
@@ -4787,8 +4784,7 @@ Item_func_sp::execute(Item **itp)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, save_ctx_func);
 error:
-  if (save_security_ctx)
-    thd->security_ctx= save_security_ctx;
+  thd->security_ctx= save_security_ctx;
 #else
 error:
 #endif

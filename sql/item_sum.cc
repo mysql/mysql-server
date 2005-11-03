@@ -3173,6 +3173,10 @@ void Item_func_group_concat::print(String *str)
       if (i)
         str->append(',');
       (*order[i]->item)->print(str);
+      if (order[i]->asc)
+        str->append(" ASC");
+      else
+        str->append(" DESC");
     }
   }
   str->append(" separator \'", 12);

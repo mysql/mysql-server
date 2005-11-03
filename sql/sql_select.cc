@@ -102,8 +102,6 @@ static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
 static bool resolve_nested_join (TABLE_LIST *table);
-static COND *remove_eq_conds(THD *thd, COND *cond, 
-			     Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -1237,7 +1235,8 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, select_lex->leaf_tables, *columns_list,
+    (void) return_zero_rows(this, result, select_lex->leaf_tables,
+                            *columns_list,
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
@@ -1671,7 +1670,8 @@ JOIN::exec()
   {
     thd->proc_info="Sending data";
     DBUG_PRINT("info", ("%s", thd->proc_info));
-    result->send_fields(*columns_list,
+    result->send_fields((procedure ? curr_join->procedure_fields_list :
+                         *curr_fields_list),
                         Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
@@ -7472,7 +7472,7 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   COND_FALSE always false	( 1 = 2 )
 */
 
-static COND *
+COND *
 remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
@@ -8029,7 +8029,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   statistic_increment(thd->status_var.created_tmp_tables, &LOCK_status);
 
-  if (use_temp_pool)
+  if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
@@ -8279,7 +8279,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
-    table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
+    table->file= get_new_handler(table, &table->mem_root,
+                                 table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
@@ -8287,7 +8288,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   else
   {
-    table->file=get_new_handler(table,table->s->db_type= DB_TYPE_HEAP);
+    table->file= get_new_handler(table, &table->mem_root,
+                                 table->s->db_type= DB_TYPE_HEAP);
   }
 
   if (!using_unique_constraint)
@@ -8871,7 +8873,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table= *table;
   new_table.s= &new_table.share_not_to_be_used;
   new_table.s->db_type= DB_TYPE_MYISAM;
-  if (!(new_table.file= get_new_handler(&new_table,DB_TYPE_MYISAM)))
+  if (!(new_table.file= get_new_handler(&new_table, &new_table.mem_root,
+                                        DB_TYPE_MYISAM)))
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
@@ -9023,7 +9026,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab;
-  List<Item> *columns_list= procedure? &join->procedure_fields_list : fields;
   DBUG_ENTER("do_select");
 
   join->procedure=procedure;
@@ -9057,7 +9059,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	error= (*end_select)(join,join_tab,1);
     }
     else if (join->send_row_on_empty_set())
+    {
+      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                 fields);
       rc= join->result->send_data(*columns_list);
+    }
   }
   else
   {

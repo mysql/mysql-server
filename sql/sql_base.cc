@@ -37,11 +37,11 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 			     TABLE_LIST *table_list, MEM_ROOT *mem_root);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
-static my_bool open_new_frm(const char *path, const char *alias,
-                            const char *db, const char *table_name,
-			    uint db_stat, uint prgflag,
-			    uint ha_open_flags, TABLE *outparam,
-			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
+static bool open_new_frm(THD *thd, const char *path, const char *alias,
+                         const char *db, const char *table_name,
+                         uint db_stat, uint prgflag,
+                         uint ha_open_flags, TABLE *outparam,
+                         TABLE_LIST *table_desc, MEM_ROOT *mem_root);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -1755,7 +1755,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 		      thd->open_options, entry)) &&
       (error != 5 ||
        (fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
-        open_new_frm(path, alias, db, name,
+        open_new_frm(thd, path, alias, db, name,
                      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                              HA_GET_INDEX | HA_TRY_READ_ONLY),
                      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
@@ -2634,7 +2634,7 @@ bool rm_temporary_table(enum db_type base, char *path)
   if (my_delete(path,MYF(0)))
     error=1; /* purecov: inspected */
   *fn_ext(path)='\0';				// remove extension
-  handler *file=get_new_handler((TABLE*) 0, base);
+  handler *file= get_new_handler((TABLE*) 0, current_thd->mem_root, base);
   if (file && file->delete_table(path))
   {
     error=1;
@@ -2705,16 +2705,14 @@ static bool check_grant_column_in_sctx(THD *thd, GRANT_INFO *grant,
 {
   if (!check_grants)
     return FALSE;
-  Security_context *save_security_ctx= 0;
+  Security_context *save_security_ctx= thd->security_ctx;
   bool res;
   if (sctx)
   {
-    save_security_ctx= thd->security_ctx;
     thd->security_ctx= sctx;
   }
   res= check_grant_column(thd, grant, db, table, name, length);
-  if (save_security_ctx)
-    thd->security_ctx= save_security_ctx;
+  thd->security_ctx= save_security_ctx;
   return res;
 }
 #endif
@@ -5260,6 +5258,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
 
   SYNOPSIS
     open_new_frm()
+    THD		  thread handler
     path	  path to .frm
     alias	  alias for table
     db            database
@@ -5273,8 +5272,8 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     mem_root	  temporary MEM_ROOT for parsing
 */
 
-static my_bool
-open_new_frm(const char *path, const char *alias,
+static bool
+open_new_frm(THD *thd, const char *path, const char *alias,
              const char *db, const char *table_name,
              uint db_stat, uint prgflag,
 	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
@@ -5296,7 +5295,7 @@ open_new_frm(const char *path, const char *alias,
         my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
         goto err;
       }
-      if (mysql_make_view(parser, table_desc))
+      if (mysql_make_view(thd, parser, table_desc))
         goto err;
     }
     else
