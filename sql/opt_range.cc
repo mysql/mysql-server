@@ -3921,13 +3921,20 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
     goto end;
-
+  /* For comparison purposes allow invalid dates like 2000-01-32 */
+  ulong orig_sql_mode= field->table->in_use->variables.sql_mode;
+  if (value->real_item()->type() == Item::STRING_ITEM &&
+      (field->type() == FIELD_TYPE_DATE ||
+       field->type() == FIELD_TYPE_DATETIME))
+    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   if (value->save_in_field_no_warnings(field, 1) < 0)
   {
+    field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
     tree= &null_element;                        // cmp with NULL is never TRUE
     goto end;
   }
+  field->table->in_use->variables.sql_mode= orig_sql_mode;
   str= (char*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
