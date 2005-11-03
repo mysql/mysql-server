@@ -96,3 +96,7 @@ tags:
 test:
 	cd mysql-test ; \
 	./mysql-test-run
+
+test-force:
+	cd mysql-test ; \
+	./mysql-test-run --force
