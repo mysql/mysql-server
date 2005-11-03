@@ -2702,3 +2702,21 @@ select * from t1 join t2 left join t3 on (t1.a=t3.c);
 select * from t1 join t2 right join t3 on (t1.a=t3.c);
 select * from t1 join t2 straight_join t3 on (t1.a=t3.c);
 drop table t1, t2 ,t3;
+
+#
+# Bug #14093 Query takes a lot of time when date format is not valid
+# fix optimizes execution. so here we just check that returned set is
+# correct.
+create table t1(f1 int, f2 date);
+insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
+  (4,'2005-10-01'),(5,'2005-12-30');
+# should return all records
+select * from t1 where f2 >= 0;
+select * from t1 where f2 >= '0000-00-00';
+# should return 4,5
+select * from t1 where f2 >= '2005-09-31';
+select * from t1 where f2 >= '2005-09-3a';
+# should return 1,2,3
+select * from t1 where f2 <= '2005-09-31';
+select * from t1 where f2 <= '2005-09-3a';
+drop table t1;
