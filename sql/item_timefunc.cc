@@ -2381,6 +2381,7 @@ void Item_func_add_time::fix_length_and_dec()
   enum_field_types arg0_field_type;
   decimals=0;
   max_length=MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
 
   /*
     The field type for the result of an Item_func_add_time function is defined
@@ -2742,7 +2743,8 @@ Field *Item_func_str_to_date::tmp_table_field(TABLE *t_arg)
 void Item_func_str_to_date::fix_length_and_dec()
 {
   char format_buff[64];
-  String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
+  String format_str(format_buff, sizeof(format_buff), &my_charset_bin);
+  String *format;
   maybe_null= 1;
   decimals=0;
   cached_field_type= MYSQL_TYPE_STRING;
