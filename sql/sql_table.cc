@@ -2326,11 +2326,11 @@ send_result_message:
 
     case HA_ADMIN_NOT_BASE_TABLE:
       {
-	char buf[ERRMSGSIZE+20];
-	uint length=my_snprintf(buf, ERRMSGSIZE,
-				ER(ER_CHECK_NOT_BASE_TABLE), operator_name);
-	protocol->store("note", 4, system_charset_info);
-	protocol->store(buf, length, system_charset_info);
+        char buf[ERRMSGSIZE+20];
+        uint length= my_snprintf(buf, ERRMSGSIZE,
+				 ER(ER_CHECK_NOT_BASE_TABLE), operator_name);
+        protocol->store("note", 4, system_charset_info);
+        protocol->store(buf, length, system_charset_info);
       }
       break;
 
@@ -2442,7 +2442,7 @@ send_result_message:
       {
         pthread_mutex_lock(&LOCK_open);
         remove_table_from_cache(thd, table->table->s->db,
-			        table->table->s->table_name, RTFC_NO_FLAG);
+                                table->table->s->table_name, RTFC_NO_FLAG);
         pthread_mutex_unlock(&LOCK_open);
         /* Something may be modified, that's why we have to invalidate cache */
         query_cache_invalidate3(thd, table->table, 0);
