@@ -1295,7 +1295,6 @@ int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int closefrm(TABLE *table);
-db_type get_table_type(THD *thd, const char *name);
 int read_string(File file, gptr *to, uint length);
 void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
