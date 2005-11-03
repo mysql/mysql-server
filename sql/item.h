@@ -1749,6 +1749,7 @@ public:
     return ref->save_in_field(field, no_conversions);
   }
   Item *new_item();
+  virtual Item *real_item() { return ref; }
 };
 
 
