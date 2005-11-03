@@ -2003,6 +2003,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   Security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
+  db_type not_used;
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("get_all_tables");
 
@@ -2114,7 +2115,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               else
               {
                 my_snprintf(end, len, "/%s%s", file_name, reg_ext);
-                switch (mysql_frm_type(path)) {
+                switch (mysql_frm_type(thd, path, &not_used)) {
                 case FRMTYPE_ERROR:
                   table->field[3]->store("ERROR", 5, system_charset_info);
                   break;

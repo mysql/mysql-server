@@ -1693,29 +1693,6 @@ bool check_column_name(const char *name)
 }
 
 /*
-** Get type of table from .frm file
-*/
-
-db_type get_table_type(THD *thd, const char *name)
-{
-  File	 file;
-  uchar head[4];
-  int error;
-  DBUG_ENTER("get_table_type");
-  DBUG_PRINT("enter",("name: '%s'",name));
-
-  if ((file=my_open(name,O_RDONLY, MYF(0))) < 0)
-    DBUG_RETURN(DB_TYPE_UNKNOWN);
-  error=my_read(file,(byte*) head,4,MYF(MY_NABP));
-  my_close(file,MYF(0));
-  if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
-       (head[2] < FRM_VER+3 || head[2] > FRM_VER+4)))
-    DBUG_RETURN(DB_TYPE_UNKNOWN);
-  DBUG_RETURN(ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0));
-}
-
-/*
   Create Item_field for each column in the table.
 
   SYNPOSIS
