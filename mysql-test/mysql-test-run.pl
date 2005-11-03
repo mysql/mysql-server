@@ -191,6 +191,9 @@ our $opt_ssl;
 our $opt_skip_ssl;
 our $opt_ssl_supported;
 our $opt_ps_protocol;
+our $opt_sp_protocol;
+our $opt_cursor_protocol;
+our $opt_view_protocol;
 
 our $opt_current_test;
 our $opt_ddd;
@@ -490,6 +493,9 @@ sub command_line_setup () {
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
+             'sp-protocol'              => \$opt_sp_protocol,
+             'view-protocol'            => \$opt_view_protocol,
+             'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
@@ -2554,6 +2560,21 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--ps-protocol");
   }
 
+  if ( $opt_sp_protocol )
+  {
+    mtr_add_arg($args, "--sp-protocol");
+  }
+
+  if ( $opt_view_protocol )
+  {
+    mtr_add_arg($args, "--view-protocol");
+  }
+
+  if ( $opt_cursor_protocol )
+  {
+    mtr_add_arg($args, "--cursor-protocol");
+  }
+
   if ( $opt_strace_client )
   {
     $exe=  "strace";            # FIXME there are ktrace, ....
@@ -2685,6 +2706,10 @@ Options to control what engine/variation to run
 
   embedded-server       Use the embedded server, i.e. no mysqld daemons
   ps-protocol           Use the binary protocol between client and server
+  cursor-protocol       Use the cursor protocol between client and server
+                        (implies --ps-protocol)
+  view-protocol         Create a view to execute all non updating queries
+  sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
   skip-ssl              Dont start sterver with support for ssl connections
