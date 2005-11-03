@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "2.5"
+#define MTEST_VERSION "2.6"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -108,7 +108,8 @@
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
-      OPT_SSL_CIPHER,OPT_PS_PROTOCOL};
+      OPT_SSL_CIPHER,OPT_PS_PROTOCOL,OPT_SP_PROTOCOL,OPT_CURSOR_PROTOCOL,
+      OPT_VIEW_PROTOCOL};
 
 /* ************************************************************************ */
 /*
@@ -158,7 +159,11 @@ static char *db = 0, *pass=0;
 const char *user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 static int port = 0;
 static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
-static my_bool tty_password= 0, ps_protocol= 0, ps_protocol_enabled= 0;
+static my_bool tty_password= 0;
+static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
+static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
+static my_bool view_protocol= 0, view_protocol_enabled= 0;
+static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static int parsing_disabled= 0;
 static uint start_lineno, *lineno;
 const char *manager_user="root",*manager_host=0;
@@ -212,11 +217,14 @@ static int got_end_timer= FALSE;
 static void timer_output(void);
 static ulonglong timer_now(void);
 
-static my_regex_t ps_re; /* Holds precompiled re for valid PS statements */
-static void ps_init_re(void);
-static int ps_match_re(char *);
-static char *ps_eprint(int);
-static void ps_free_reg(void);
+/* Precompiled re's */
+static my_regex_t ps_re;     /* the query can be run using PS protocol */
+static my_regex_t sp_re;     /* the query can be run as a SP */
+static my_regex_t view_re;   /* the query can be run as a view*/
+
+static void init_re(void);
+static int match_re(my_regex_t *, char *);
+static void free_re(void);
 
 static const char *embedded_server_groups[]=
 {
@@ -240,6 +248,7 @@ struct connection
 {
   MYSQL mysql;
   char *name;
+  MYSQL_STMT* stmt;
 };
 
 typedef struct
@@ -433,7 +442,6 @@ static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 
 static void var_free(void* v);
 
-int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname);
 void dump_result_to_reject_file(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query*);
@@ -539,6 +547,9 @@ static void close_cons()
   DBUG_ENTER("close_cons");
   for (--next_con; next_con >= cons; --next_con)
   {
+    if (next_con->stmt)
+      mysql_stmt_close(next_con->stmt);
+    next_con->stmt= 0;
     mysql_close(&next_con->mysql);
     my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
   }
@@ -593,8 +604,7 @@ static void free_used_memory()
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
   mysql_server_end();
-  if (ps_protocol)
-    ps_free_reg();
+  free_re();
   DBUG_VOID_RETURN;
 }
 
@@ -660,7 +670,7 @@ void init_parser()
 }
 
 
-int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
+static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 {
   MY_STAT stat_info;
   char *tmp, *res_ptr;
@@ -2153,7 +2163,7 @@ int do_connect(struct st_query *q)
   p= safe_get_param(p, &con_db, "Missing connection db");
 
   /* Port */
-  VAR* var_port;
+  VAR *var_port;
   p= safe_get_param(p, &con_port_str, 0);
   if (*con_port_str)
   {
@@ -2223,7 +2233,7 @@ int do_connect(struct st_query *q)
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
   if (opt_compress || con_compress)
-    mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
+    mysql_options(&next_con->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
   mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
@@ -2715,6 +2725,15 @@ static struct my_option my_long_options[] =
   {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
    (gptr*) &ps_protocol, (gptr*) &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select",
+   (gptr*) &sp_protocol, (gptr*) &sp_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statment",
+   (gptr*) &cursor_protocol, (gptr*) &cursor_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select",
+   (gptr*) &view_protocol, (gptr*) &view_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
    (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
@@ -2773,8 +2792,6 @@ void usage()
   printf("  --no-defaults       Don't read default options from any options file.\n");
   my_print_variables(my_long_options);
 }
-
-#include <help_end.h>
 
 #include <help_end.h>
 
@@ -3222,6 +3239,7 @@ static void append_table_headings(DYNAMIC_STRING* ds,
 static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 {
   uint count;
+  MYSQL_RES *warn_res;
   DBUG_ENTER("append_warnings");
 
   if (!(count= mysql_warning_count(mysql)))
@@ -3237,11 +3255,9 @@ static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
     die("Error running query \"SHOW WARNINGS\": %s", mysql_error(mysql));
  
-  MYSQL_RES *warn_res= mysql_store_result(mysql);
-  if (!warn_res)
+  if (!(warn_res= mysql_store_result(mysql)))
     die("Warning count is %u but didn't get any warnings",
 	count);
-
   
   dynstr_append_mem(ds, "Warnings:\n", 10);
   append_result(ds, warn_res);
@@ -3258,6 +3274,7 @@ static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   run_query_normal
   mysql - mysql handle
   command - currrent command pointer
+  flags -flags indicating wheter to SEND and/or REAP
   query - query string to execute
   query_len - length query string to execute
   ds - output buffer wherte to store result form query
@@ -3279,7 +3296,7 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
   if (flags & QUERY_SEND)
   {
     /* 
-       Send the query, using the undocumented function mysql_send_query
+       Send the query
      */
     if (mysql_send_query(mysql, query, query_len))
     {
@@ -3295,7 +3312,7 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
   do
   {
     /*
-      When  on first result set, call mysql_read_query_result to retrrieve 
+      When  on first result set, call mysql_read_query_result to retrieve 
       answer to the query sent earlier
      */
     if ((counter==0) && mysql_read_query_result(mysql))
@@ -3526,18 +3543,20 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 {
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
+  DYNAMIC_STRING ds_prepare_warnings;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
-
+	         
   /*
-    We must allocate a new stmt for each query in this program because this
-    may be a new connection.
-
-    Well, it could be stored togeter with mysql pointer in cur_con struct
+    Init a new stmt if it's not alreday one created for this connectoon
   */
-  if (!(stmt= mysql_stmt_init(mysql)))
-    die("unable to init stmt structure");
-
+  if(!(stmt= cur_con->stmt))
+  {
+    if (!(stmt= mysql_stmt_init(mysql)))
+      die("unable to init stmt structure");
+    cur_con->stmt= stmt;
+  }
+  
   /*
     Prepare the query
   */
@@ -3549,9 +3568,34 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   }
 
   /*
+    Get the warnings from mysql_stmt_prepare and keep them in a 
+    separate string 
+  */
+  
+  if (!disable_warnings)
+  {
+    init_dynamic_string(&ds_prepare_warnings, "", 1024, 1024);
+    append_warnings(&ds_prepare_warnings, mysql);
+  }
+
+
+  /*
     No need to call mysql_stmt_bind_param() because we have no
     parameter markers.
   */
+
+#ifdef BUG14013_FIXED
+  /*
+    Use cursor when retrieving result
+  */
+  if (cursor_protocol_enabled)
+  {
+    unsigned long type= CURSOR_TYPE_READ_ONLY;
+    if (mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type))
+      die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s", 
+	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
+  }
+#endif
 
   /*
     Execute the query
@@ -3571,7 +3615,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   {
     my_bool one= 1;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one))
-      die("mysql_stmt_attr_set failed': %d %s", 
+      die("mysql_stmt_attr_set(STMT_ATTR_UPDATE_MAX_LENGTH) failed': %d %s", 
 	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
@@ -3589,14 +3633,14 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   /* If we got here the statement was both executed and read succeesfully */
   handle_no_error(command);
 
-  /*
-    Not all statements creates a result set. If there is one we can
-    now create another normal result set that contains the meta
-    data. This set can be handled almost like any other non prepared
-    statement result set.
-  */
   if (!disable_result_log)
   {
+    /*
+      Not all statements creates a result set. If there is one we can
+      now create another normal result set that contains the meta
+      data. This set can be handled almost like any other non prepared
+      statement result set.
+    */
     if ((res= mysql_stmt_result_metadata(stmt)) != NULL)
     {
       /* Take the column count from meta info */
@@ -3612,7 +3656,19 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
       append_stmt_result(ds, stmt, fields, num_fields); 
       
       mysql_free_result(res);     /* Free normal result set with meta data */
+
+    } 
+    else 
+    {
+      /*
+	This is a query without resultset
+      */
       
+      /*
+	Add warnings from prepare to output
+       */
+      if (!disable_warnings)
+	dynstr_append(ds, ds_prepare_warnings.str);
     }
 
     if (!disable_warnings)
@@ -3620,23 +3676,26 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     
     if (!disable_info)
       append_info(ds, (ulong)mysql_affected_rows(mysql), mysql_info(mysql));
+    
   }
 
 end:
   free_replace();
+  
+  if (!disable_warnings)
+    dynstr_free(&ds_prepare_warnings);
+
   /*
     We save the return code (mysql_stmt_errno(stmt)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
     variable then can be used from the test case itself.
   */
   var_set_errno(mysql_stmt_errno(stmt));
-  mysql_stmt_close(stmt);
   DBUG_VOID_RETURN;
 }
 
 
 /*
-
   Run query
 
   flags control the phased/stages of query execution to be performed
@@ -3653,10 +3712,12 @@ end:
 static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 {
   DYNAMIC_STRING *ds;
-  DYNAMIC_STRING ds_tmp;
+  DYNAMIC_STRING ds_result;
   DYNAMIC_STRING eval_query;
   char *query;
   int query_len;
+  my_bool view_created= 0, sp_created= 0;
+  my_bool complete_query= ((flags & QUERY_SEND) && (flags & QUERY_REAP));
 
   /*
     Evaluate query if this is an eval command
@@ -3682,35 +3743,122 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
    */
   if (command->record_file[0])
   {
-    init_dynamic_string(&ds_tmp, "", 16384, 65536);
-    ds= &ds_tmp;
+    init_dynamic_string(&ds_result, "", 16384, 65536);
+    ds= &ds_result;
   }
   else
     ds= &ds_res;
 
-  /* Store the query into the output buffer */
+  /* 
+     Log the query into the output buffer 
+  */
   if (!disable_query_log && (flags & QUERY_SEND))
   {
-    replace_dynstr_append_mem(ds,query, query_len);
+    replace_dynstr_append_mem(ds, query, query_len);
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
+  }
+
+  if (view_protocol_enabled &&
+      complete_query &&
+      match_re(&view_re, query))
+  {
+    /* 
+       Create the query as a view.
+       Use replace since view can exist from a failed mysqltest run 
+    */      
+    DYNAMIC_STRING query_str;     
+    init_dynamic_string(&query_str, 
+			"CREATE OR REPLACE VIEW mysqltest_tmp_v AS ", 
+			query_len+64, 256);
+    dynstr_append_mem(&query_str, query, query_len);
+    if (mysql_query(mysql, query_str.str))
+    {
+      /*
+	Failed to create the view, this is not fatal
+	just run the query the normal way
+       */
+      DBUG_PRINT("view_create_error", 
+		 ("Failed to create view '%s': %d: %s", query_str.str,
+		  mysql_errno(mysql), mysql_error(mysql)));
+    }
+    else
+    {
+      /*
+	Yes, it was possible to create this query as a view
+       */
+      view_created= 1;
+      query= (char*)"SELECT * FROM mysqltest_tmp_v";    
+      query_len = strlen(query);
+    }
+
+    dynstr_free(&query_str);
+    
+  }
+
+  if (sp_protocol_enabled &&
+      complete_query &&
+      match_re(&sp_re, query))
+  {
+    /*
+      Create the query as a stored procedure
+      Drop first since sp can exist from a failed mysqltest run 
+    */      
+    DYNAMIC_STRING query_str;
+    init_dynamic_string(&query_str, 
+			"DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;\n",
+			query_len+64, 256);
+    mysql_query(mysql, query_str.str);      
+    dynstr_set(&query_str, "CREATE PROCEDURE mysqltest_tmp_sp()\n");
+    dynstr_append_mem(&query_str, query, query_len);
+    if (mysql_query(mysql, query_str.str))
+    {
+      /*
+	Failed to create the stored procedure for this query, 
+	this is not fatal just run the query the normal way
+      */
+      DBUG_PRINT("sp_create_error",
+		 ("Failed to create sp '%s': %d: %s", query_str.str,
+		  mysql_errno(mysql), mysql_error(mysql)));
+    }
+    else
+    {
+      sp_created= 1;
+      
+      query= (char*)"CALL mysqltest_tmp_sp()";    
+      query_len = strlen(query);
+    }
+    dynstr_free(&query_str);
   }
 
   /*
     Find out how to run this query
 
-    We don't have a mysql_stmt_send_execute() so it must be a
-    complete SEND+REAP to use prepared statement
+    Always run with normal C API if it's not a complete 
+    SEND + REAP
 
     If it is a '?' in the query it may be a SQL level prepared
-     statement already and we can't do it twice
+    statement already and we can't do it twice
   */
   if (ps_protocol_enabled &&
-      (flags & QUERY_SEND) && (flags & QUERY_REAP) && 
-      ps_match_re(query))
+      complete_query &&
+      match_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds);
   else
     run_query_normal(mysql, command, flags, query, query_len, ds);
+  
+  if (sp_created)
+  {
+    if (mysql_query(mysql, "DROP PROCEDURE mysqltest_tmp_sp "))
+      die("Failed to drop sp: %d: %s", mysql_errno(mysql), mysql_error(mysql));
+  }
+  
+  if (view_created)
+  {
+    if (mysql_query(mysql, "DROP VIEW mysqltest_tmp_v "))
+      die("Failed to drop view: %d: %s", 
+	  mysql_errno(mysql), mysql_error(mysql));
+  }
 
   if (record)
   {
@@ -3730,19 +3878,45 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
     check_result(ds, command->record_file, command->require_file);
   }
 
-  if (ds == &ds_tmp)
-    dynstr_free(&ds_tmp);
+  if (ds == &ds_result)
+    dynstr_free(&ds_result);
   if (command->type == Q_EVAL)
     dynstr_free(&eval_query);
 }
 
 
 /****************************************************************************\
- *  Functions to match SQL statements that can be prepared
+ *  Functions to detect different SQL statements
 \****************************************************************************/
 
-static void ps_init_re(void)
+static char *re_eprint(int err)
 {
+  static char epbuf[100];
+  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL, 
+			  epbuf, sizeof(epbuf));
+  assert(len <= sizeof(epbuf));
+  return(epbuf);
+}
+
+static void init_re_comp(my_regex_t *re, const char* str)
+{
+  int err= my_regcomp(re, str, (REG_EXTENDED | REG_ICASE | REG_NOSUB),
+                      &my_charset_latin1);
+  if (err)
+  {
+    char erbuf[100];
+    int len= my_regerror(err, re, erbuf, sizeof(erbuf));
+    die("error %s, %d/%d `%s'\n", 
+	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
+  }
+}
+
+static void init_re(void)
+{
+  /* 
+     Filter for queries that can be run using the 
+     MySQL Prepared Statements C API
+  */
   const char *ps_re_str =
     "^("
     "[[:space:]]*REPLACE[[:space:]]|"
@@ -3757,50 +3931,48 @@ static void ps_init_re(void)
     "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
     "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
 
-  int err= my_regcomp(&ps_re, ps_re_str,
-                      (REG_EXTENDED | REG_ICASE | REG_NOSUB),
-                      &my_charset_latin1);
-  if (err)
-  {
-    char erbuf[100];
-    int len= my_regerror(err, &ps_re, erbuf, sizeof(erbuf));
-    fprintf(stderr, "error %s, %d/%d `%s'\n",
-            ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
-    exit(1);
-  }
+  /* 
+     Filter for queries that can be run using the 
+     Stored procedures
+  */
+  const char *sp_re_str =ps_re_str;
+
+  /* 
+     Filter for queries that can be run as views
+  */
+  const char *view_re_str =
+    "^("
+    "[[:space:]]*SELECT[[:space:]])";
+
+  init_re_comp(&ps_re, ps_re_str);
+  init_re_comp(&sp_re, sp_re_str);
+  init_re_comp(&view_re, view_re_str);
 }
 
 
-static int ps_match_re(char *stmt_str)
+static int match_re(my_regex_t *re, char *str)
 {
-  int err= my_regexec(&ps_re, stmt_str, (size_t)0, NULL, 0);
+  int err= my_regexec(re, str, (size_t)0, NULL, 0);
 
   if (err == 0)
     return 1;
   else if (err == REG_NOMATCH)
     return 0;
-  else
-  {
+
+  {  
     char erbuf[100];
-    int len= my_regerror(err, &ps_re, erbuf, sizeof(erbuf));
-    fprintf(stderr, "error %s, %d/%d `%s'\n",
-            ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
-    exit(1);
+    int len= my_regerror(err, re, erbuf, sizeof(erbuf));
+    die("error %s, %d/%d `%s'\n",
+	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
   }
+  return 0;
 }
 
-static char *ps_eprint(int err)
-{
-  static char epbuf[100];
-  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL, epbuf, sizeof(epbuf));
-  assert(len <= sizeof(epbuf));
-  return(epbuf);
-}
-
-
-static void ps_free_reg(void)
+static void free_re(void)
 {
   my_regfree(&ps_re);
+  my_regfree(&sp_re);
+  my_regfree(&view_re);
 }
 
 /****************************************************************************/
@@ -3930,8 +4102,7 @@ static void init_var_hash(MYSQL *mysql)
   v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
   my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
-  my_hash_insert(&var_hash, (byte*) v);
-  v= var_init(0,"DB", 2, db, 0);
+  my_hash_insert(&var_hash, (byte*) v);  v= var_init(0,"DB", 2, db, 0);
   my_hash_insert(&var_hash, (byte*) v);
   DBUG_VOID_RETURN;
 }
@@ -3969,7 +4140,7 @@ int main(int argc, char **argv)
   cur_block= block_stack;
   cur_block->ok= TRUE; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
-
+  
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
 
@@ -3988,11 +4159,15 @@ int main(int argc, char **argv)
   if (manager_host)
     init_manager();
 #endif
-  if (ps_protocol)
-  {
+  init_re();
+  ps_protocol_enabled= ps_protocol;
+  sp_protocol_enabled= sp_protocol;
+  view_protocol_enabled= view_protocol;
+  cursor_protocol_enabled= cursor_protocol;
+  /* Cursor protcol implies ps protocol */
+  if (cursor_protocol_enabled)
     ps_protocol_enabled= 1;
-    ps_init_re();
-  }
+
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
   if (opt_compress)
@@ -5282,3 +5457,5 @@ FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
 }
 
 #endif /* __NETWARE__ or  __WIN__*/
+
+
