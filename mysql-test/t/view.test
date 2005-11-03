@@ -1,5 +1,5 @@
 --disable_warnings
-drop table if exists t1,t2,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 --enable_warnings
@@ -2190,6 +2190,13 @@ DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 
 #
+prepare stmt1 from "select count(*) from v1 where x = ?";
+set @parm1=1;
+
+execute stmt1 using @parm1;
+execute stmt1 using @parm1;
+drop view v1;
+drop table t1,t2,t3,t4;
 # Bug #14466 lost sort order in GROUP_CONCAT() in a view
 #
 create table t1 (f1 int, f2 int);
