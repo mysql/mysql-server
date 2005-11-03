@@ -14319,6 +14319,7 @@ static void test_bug12243()
   mysql_autocommit(mysql, TRUE);                /* restore default */
 }
 
+
 /*
   Bug#11718: query with function, join and order by returns wrong type
 */
@@ -14365,6 +14366,58 @@ static void test_bug12925()
     DIE_UNLESS(opt_getopt_ll_test == LL(25600*1024*1024));
 }
 
+
+/*
+  Bug#14210 "Simple query with > operator on large table gives server
+  crash"
+*/
+
+static void test_bug14210()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *stmt_text;
+  ulong type;
+
+  myheader("test_bug14210");
+
+  mysql_query(mysql, "drop table if exists t1");
+  /*
+    To trigger the problem the table must be InnoDB, although the problem
+    itself is not InnoDB related. In case the table is MyISAM this test
+    is harmless.
+  */
+  mysql_query(mysql, "create table t1 (a varchar(255)) type=InnoDB");
+  rc= mysql_query(mysql, "insert into t1 (a) values (repeat('a', 256))");
+  myquery(rc);
+  rc= mysql_query(mysql, "set @@session.max_heap_table_size=16384");
+  /* Create a big enough table (more than max_heap_table_size) */
+  for (i= 0; i < 8; i++)
+  {
+    rc= mysql_query(mysql, "insert into t1 (a) select a from t1");
+    myquery(rc);
+  }
+  /* create statement */
+  stmt= mysql_stmt_init(mysql);
+  type= (ulong) CURSOR_TYPE_READ_ONLY;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+
+  stmt_text= "select a from t1";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  while ((rc= mysql_stmt_fetch(stmt)) == 0)
+    ;
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  rc= mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "set @@session.max_heap_table_size=default");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -14621,6 +14674,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11901", test_bug11901 },
   { "test_bug11904", test_bug11904 },
   { "test_bug12243", test_bug12243 },
+  { "test_bug14210", test_bug14210 },
   { 0, 0 }
 };
 

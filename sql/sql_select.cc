@@ -8279,7 +8279,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
-    table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
+    table->file= get_new_handler(table, &table->mem_root,
+                                 table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
@@ -8287,7 +8288,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   else
   {
-    table->file=get_new_handler(table,table->s->db_type= DB_TYPE_HEAP);
+    table->file= get_new_handler(table, &table->mem_root,
+                                 table->s->db_type= DB_TYPE_HEAP);
   }
 
   if (!using_unique_constraint)
@@ -8871,7 +8873,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table= *table;
   new_table.s= &new_table.share_not_to_be_used;
   new_table.s->db_type= DB_TYPE_MYISAM;
-  if (!(new_table.file= get_new_handler(&new_table,DB_TYPE_MYISAM)))
+  if (!(new_table.file= get_new_handler(&new_table, &new_table.mem_root,
+                                        DB_TYPE_MYISAM)))
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
