@@ -1171,6 +1171,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   char path[FN_REFLEN];
   TABLE_LIST *view;
   bool type= 0;
+  db_type not_used;
 
   for (view= views; view; view= view->next_local)
   {
@@ -1178,7 +1179,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
              view->table_name, reg_ext, NullS);
     (void) unpack_filename(path, path);
     VOID(pthread_mutex_lock(&LOCK_open));
-    if (access(path, F_OK) || (type= (mysql_frm_type(path) != FRMTYPE_VIEW)))
+    if (access(path, F_OK) ||
+	(type= (mysql_frm_type(thd, path, &not_used) != FRMTYPE_VIEW)))
     {
       char name[FN_REFLEN];
       my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
@@ -1225,24 +1227,36 @@ err:
     FRMTYPE_VIEW	view
 */
 
-frm_type_enum mysql_frm_type(char *path)
+frm_type_enum mysql_frm_type(THD *thd, char *path, db_type *dbt)
 {
   File file;
-  char header[10];	//"TYPE=VIEW\n" it is 10 characters
-  int length;
+  uchar header[10];	//"TYPE=VIEW\n" it is 10 characters
+  int error;
   DBUG_ENTER("mysql_frm_type");
 
+  *dbt= DB_TYPE_UNKNOWN;
+
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
-  {
     DBUG_RETURN(FRMTYPE_ERROR);
-  }
-  length= my_read(file, (byte*) header, sizeof(header), MYF(MY_WME));
+  error= my_read(file, (byte*) header, sizeof(header), MYF(MY_WME | MY_NABP));
   my_close(file, MYF(MY_WME));
-  if (length == (int) MY_FILE_ERROR)
+
+  if (error)
     DBUG_RETURN(FRMTYPE_ERROR);
-  if (length < (int) sizeof(header) ||
-      !strncmp(header, "TYPE=VIEW\n", sizeof(header)))
+  if (!strncmp((char*) header, "TYPE=VIEW\n", sizeof(header)))
     DBUG_RETURN(FRMTYPE_VIEW);
+
+  /*
+    This is just a check for DB_TYPE. We'll return default unknown type
+    if the following test is true (arg #3). This should not have effect
+    on return value from this function (default FRMTYPE_TABLE)
+  */
+  if (header[0] != (uchar) 254 || header[1] != 1 ||
+      (header[2] != FRM_VER && header[2] != FRM_VER+1 &&
+       (header[2] < FRM_VER+3 || header[2] > FRM_VER+4)))
+    DBUG_RETURN(FRMTYPE_TABLE);
+
+  *dbt= ha_checktype(thd, (enum db_type) (uint) *(header + 3), 0, 0);
   DBUG_RETURN(FRMTYPE_TABLE);                   // Is probably a .frm table
 }
 
