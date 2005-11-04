@@ -2200,3 +2200,17 @@ select * from v1;
 select * from v2;
 drop view v1,v2;
 drop table t1;
+# Bug #14540: OPTIMIZE, ANALYZE, REPAIR applied to not a view
+#
+
+CREATE TABLE t1(id INT);
+CREATE VIEW v1 AS SELECT id FROM t1;
+
+OPTIMIZE TABLE v1;
+ANALYZE TABLE v1;
+REPAIR TABLE v1;
+
+DROP TABLE t1;
+OPTIMIZE TABLE v1;
+
+DROP VIEW v1;

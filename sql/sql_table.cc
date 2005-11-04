@@ -2196,7 +2196,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     /* if view are unsupported */
     if (table->view && view_operator_func == NULL)
     {
-      result_code= HA_ADMIN_NOT_IMPLEMENTED;
+      result_code= HA_ADMIN_NOT_BASE_TABLE;
       goto send_result;
     }
     thd->open_options&= ~extra_open_options;
@@ -2331,6 +2331,16 @@ send_result_message:
       }
       break;
 
+    case HA_ADMIN_NOT_BASE_TABLE:
+      {
+        char buf[ERRMSGSIZE+20];
+        uint length= my_snprintf(buf, ERRMSGSIZE,
+				 ER(ER_CHECK_NOT_BASE_TABLE), operator_name);
+        protocol->store("note", 4, system_charset_info);
+        protocol->store(buf, length, system_charset_info);
+      }
+      break;
+
     case HA_ADMIN_OK:
       protocol->store("status", 6, system_charset_info);
       protocol->store("OK",2, system_charset_info);
@@ -2431,16 +2441,19 @@ send_result_message:
         break;
       }
     }
-    if (fatal_error)
-      table->table->s->version=0;               // Force close of table
-    else if (open_for_modify)
+    if (table->table)
     {
-      pthread_mutex_lock(&LOCK_open);
-      remove_table_from_cache(thd, table->table->s->db,
-			      table->table->s->table_name, RTFC_NO_FLAG);
-      pthread_mutex_unlock(&LOCK_open);
-      /* May be something modified consequently we have to invalidate cache */
-      query_cache_invalidate3(thd, table->table, 0);
+      if (fatal_error)
+        table->table->s->version=0;               // Force close of table
+      else if (open_for_modify)
+      {
+        pthread_mutex_lock(&LOCK_open);
+        remove_table_from_cache(thd, table->table->s->db,
+                                table->table->s->table_name, RTFC_NO_FLAG);
+        pthread_mutex_unlock(&LOCK_open);
+        /* Something may be modified, that's why we have to invalidate cache */
+        query_cache_invalidate3(thd, table->table, 0);
+      }
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
