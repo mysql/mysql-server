@@ -171,7 +171,8 @@ void
 page_header_set_field(
 /*==================*/
 	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		field,	/* in: PAGE_N_DIR_SLOTS, ... */
 	ulint		val);	/* in: value */
 /*****************************************************************
@@ -190,7 +191,8 @@ void
 page_header_set_ptr(
 /*================*/
 	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		field,	/* in/out: PAGE_FREE, ... */
 	const byte*	ptr);	/* in: pointer or NULL*/
 /*****************************************************************
@@ -272,6 +274,14 @@ page_rec_get_n_recs_before(
 			/* out: number of records */
 	rec_t*	rec);	/* in: the physical record */
 /*****************************************************************
+Gets the size of the page trailer. */
+UNIV_INLINE
+ulint
+page_trailer_get_len(
+/*=================*/
+				/* out: length of page trailer, in bytes */
+	const page_t*	page);	/* in: index page */
+/*****************************************************************
 Gets the number of records in the heap. */
 UNIV_INLINE
 ulint
@@ -286,7 +296,8 @@ void
 page_dir_set_n_heap(
 /*================*/
 	page_t*		page,	/* in/out: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		n_heap);/* in: number of records */
 /*****************************************************************
 Gets the number of dir slots in directory. */
@@ -303,7 +314,8 @@ void
 page_dir_set_n_slots(
 /*=================*/
 	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		n_slots);/* in: number of slots */
 /*****************************************************************
 Gets pointer to nth directory slot. */
@@ -337,6 +349,8 @@ void
 page_dir_slot_set_rec(
 /*==================*/
 	page_dir_slot_t* slot,	/* in: directory slot */
+	page_zip_des_t*	 page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	rec_t*		 rec);	/* in: record on the page */
 /*******************************************************************
 Gets the number of records owned by a directory slot. */
