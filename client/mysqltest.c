@@ -2912,15 +2912,6 @@ int parse_args(int argc, char **argv)
   return 0;
 }
 
-char* safe_str_append(char *buf, const char *str, int size)
-{
-  int i,c ;
-  for (i = 0; (c = *str++) &&  i < size - 1; i++)
-    *buf++ = c;
-  *buf = 0;
-  return buf;
-}
-
 
 /*
    Write the content of str into file
@@ -2931,6 +2922,7 @@ char* safe_str_append(char *buf, const char *str, int size)
    str - content to write to file
    size - size of content witten to file
 */
+
 static void str_to_file(const char *fname, char *str, int size)
 {
   int fd;
@@ -2938,17 +2930,18 @@ static void str_to_file(const char *fname, char *str, int size)
   if (!test_if_hard_path(fname))
   {
     strxmov(buff, opt_basedir, fname, NullS);
-    fname=buff;
+    fname= buff;
   }
   fn_format(buff,fname,"","",4);
 
-  if ((fd = my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
+  if ((fd= my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", buff, errno);
   if (my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
     die("write failed");
   my_close(fd, MYF(0));
 }
+
 
 void dump_result_to_reject_file(const char *record_file, char *buf, int size)
 {
@@ -2971,6 +2964,7 @@ static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   }
   dynstr_append_mem(ds, val, len);
 }
+
 
 /* Append zero-terminated string to ds, with optional replace */
 
@@ -3036,8 +3030,8 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
   with '\t'. Values may be converted with 'replace_column'
 */
 
-static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
-			       MYSQL_FIELD* field, uint num_fields)
+static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
+			       MYSQL_FIELD *field, uint num_fields)
 {
   MYSQL_BIND *bind;
   my_bool *is_null;
@@ -3198,12 +3192,13 @@ static void append_metadata(DYNAMIC_STRING *ds,
   }
 }
 
+
 /*
   Append affected row count and other info to output
 */
 
-static void append_info(DYNAMIC_STRING* ds, ulong affected_rows,
-			const char* info)
+static void append_info(DYNAMIC_STRING *ds, ulong affected_rows,
+			const char *info)
 {
   char buf[40];
   sprintf(buf,"affected rows: %lu\n", affected_rows);
@@ -3220,8 +3215,9 @@ static void append_info(DYNAMIC_STRING* ds, ulong affected_rows,
 /*
    Display the table headings with the names tab separated
 */
-static void append_table_headings(DYNAMIC_STRING* ds,
-				  MYSQL_FIELD* field,
+
+static void append_table_headings(DYNAMIC_STRING *ds,
+				  MYSQL_FIELD *field,
 				  uint num_fields)
 {
   uint col_idx;
