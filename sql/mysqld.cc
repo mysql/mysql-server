@@ -585,6 +585,20 @@ HANDLE smem_event_connect_request= 0;
 
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
+#include <openssl/crypto.h>
+#ifndef HAVE_YASSL
+typedef struct CRYPTO_dynlock_value
+{
+  rw_lock_t lock;
+} openssl_lock_t;
+
+static openssl_lock_t *openssl_stdlocks;
+static openssl_lock_t *openssl_dynlock_create(const char *, int);
+static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
+static void openssl_lock_function(int, int, const char *, int);
+static void openssl_lock(int, openssl_lock_t *, const char *, int);
+static unsigned long openssl_id_function();
+#endif
 char *des_key_file;
 struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
@@ -920,7 +934,7 @@ static void __cdecl kill_server(int sig_ptr)
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
-  signal(sig,SIG_IGN);
+  my_sigset(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
   else
@@ -969,11 +983,6 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 }
 #endif
 
-#if defined(__amiga__)
-#undef sigset
-#define sigset signal
-#endif
-
 extern "C" sig_handler print_signal_warning(int sig)
 {
   if (!DBUG_IN_USE)
@@ -983,7 +992,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 		      sig,my_thread_id());
   }
 #ifdef DONT_REMEMBER_SIGNAL
-  sigset(sig,print_signal_warning);		/* int. thread system calls */
+  my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   if (sig == SIGALRM)
@@ -1173,6 +1182,11 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_user_conn);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
+#ifndef HAVE_YASSL
+  for (int i= 0; i < CRYPTO_num_locks(); ++i)
+    (void) rwlock_destroy(&openssl_stdlocks[i].lock);
+  OPENSSL_free(openssl_stdlocks);
+#endif
 #endif
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
@@ -1183,6 +1197,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
+  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_thread_cache);
@@ -2058,8 +2073,8 @@ static void init_signals(void)
   DBUG_ENTER("init_signals");
 
   if (test_flags & TEST_SIGINT)
-    sigset(THR_KILL_SIGNAL,end_thread_signal);
-  sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
+    my_sigset(THR_KILL_SIGNAL,end_thread_signal);
+  my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2093,13 +2108,8 @@ static void init_signals(void)
   }
 #endif
   (void) sigemptyset(&set);
-#ifdef THREAD_SPECIFIC_SIGPIPE
-  sigset(SIGPIPE,abort_thread);
+  my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-#else
-  (void) signal(SIGPIPE,SIG_IGN);		// Can't know which thread
-  sigaddset(&set,SIGPIPE);
-#endif
   sigaddset(&set,SIGINT);
 #ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
@@ -2326,6 +2336,8 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
     if (thd->spcont &&
         thd->spcont->find_handler(error, MYSQL_ERROR::WARN_LEVEL_ERROR))
     {
+      if (! thd->spcont->found_handler_here())
+        thd->net.report_error= 1; /* Make "select" abort correctly */ 
       DBUG_RETURN(0);
     }
 
@@ -2729,6 +2741,17 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
+#ifndef HAVE_YASSL
+  openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
+                                                     sizeof(openssl_lock_t));
+  for (int i= 0; i < CRYPTO_num_locks(); ++i)
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
+  CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
+  CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
+  CRYPTO_set_dynlock_lock_callback(openssl_lock);
+  CRYPTO_set_locking_callback(openssl_lock_function);
+  CRYPTO_set_id_callback(openssl_id_function);
+#endif
 #endif
   (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
   (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
@@ -2761,6 +2784,75 @@ static int init_thread_environment()
 }
 
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+static unsigned long openssl_id_function()
+{ 
+  return (unsigned long) pthread_self();
+} 
+
+
+static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+{ 
+  openssl_lock_t *lock= new openssl_lock_t;
+  my_rwlock_init(&lock->lock, NULL);
+  return lock;
+}
+
+
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
+				    int line)
+{
+  rwlock_destroy(&lock->lock);
+  delete lock;
+}
+
+
+static void openssl_lock_function(int mode, int n, const char *file, int line)
+{
+  if (n < 0 || n > CRYPTO_num_locks())
+  {
+    /* Lock number out of bounds. */
+    sql_print_error("Fatal: OpenSSL interface problem (n = %d)", n);
+    abort();
+  }
+  openssl_lock(mode, &openssl_stdlocks[n], file, line);
+}
+
+
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
+			 int line)
+{
+  int err;
+  char const *what;
+
+  switch (mode) {
+  case CRYPTO_LOCK|CRYPTO_READ:
+    what = "read lock";
+    err = rw_rdlock(&lock->lock);
+    break;
+  case CRYPTO_LOCK|CRYPTO_WRITE:
+    what = "write lock";
+    err = rw_wrlock(&lock->lock);
+    break;
+  case CRYPTO_UNLOCK|CRYPTO_READ:
+  case CRYPTO_UNLOCK|CRYPTO_WRITE:
+    what = "unlock";
+    err = rw_unlock(&lock->lock);
+    break;
+  default:
+    /* Unknown locking mode. */
+    sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
+    abort();
+  }
+  if (err) 
+  {
+    sql_print_error("Fatal: can't %s OpenSSL %s lock", what);
+    abort();
+  }
+}
+#endif /* HAVE_OPENSSL */
+
+
 static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
@@ -2772,7 +2864,14 @@ static void init_ssl()
 					  opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
+    {
       opt_use_ssl = 0;
+      have_openssl= SHOW_OPTION_DISABLED;
+    }
+  }
+  else
+  {
+    have_openssl= SHOW_OPTION_DISABLED;
   }
   if (des_key_file)
     load_des_key_file(des_key_file);
@@ -2938,6 +3037,23 @@ server.");
     sql_print_error("Can't init databases");
     unireg_abort(1);
   }
+
+  /*
+    Check that the default storage engine is actually available.
+  */
+  if (!ha_storage_engine_is_enabled((enum db_type)
+                                    global_system_variables.table_type))
+  {
+    if (!opt_bootstrap)
+    {
+      sql_print_error("Default storage engine (%s) is not available",
+                      ha_get_storage_engine((enum db_type)
+                                            global_system_variables.table_type));
+      unireg_abort(1);
+    }
+    global_system_variables.table_type= DB_TYPE_MYISAM;
+  }
+
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
                                (TC_LOG *) &mysql_bin_log :
                                (TC_LOG *) &tc_log_mmap) :
@@ -3594,7 +3710,6 @@ static void bootstrap(FILE *file)
 
   THD *thd= new THD;
   thd->bootstrap=1;
-  thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
   thd->max_client_packet_length= thd->net.max_packet;
   thd->security_ctx->master_access= ~(ulong)0;
@@ -5164,7 +5279,7 @@ replicating a LOAD DATA INFILE command.",
   {"sql-bin-update-same", OPT_SQL_BIN_UPDATE_SAME,
    "The update log is deprecated since version 5.0, is replaced by the binary \
 log and this option does nothing anymore.",
-   0, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-mode", OPT_SQL_MODE,
    "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
    (gptr*) &sql_mode_str, (gptr*) &sql_mode_str, 0, GET_STR, REQUIRED_ARG, 0,
@@ -5560,7 +5675,8 @@ The minimum value for this variable is 4096.",
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
-   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), and \"nulls_equal\" (emulate 4.0 behavior).",
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
+   "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
    (gptr*) &myisam_stats_method_str, (gptr*) &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
@@ -5638,7 +5754,8 @@ The minimum value for this variable is 4096.",
    "Persistent buffer for query parsing and execution",
    (gptr*) &global_system_variables.query_prealloc_size,
    (gptr*) &max_system_variables.query_prealloc_size, 0, GET_ULONG,
-   REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, 16384, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, QUERY_ALLOC_PREALLOC_SIZE,
+   ~0L, 0, 1024, 0},
   {"range_alloc_block_size", OPT_RANGE_ALLOC_BLOCK_SIZE,
    "Allocation block size for storing ranges during optimization",
    (gptr*) &global_system_variables.range_alloc_block_size,
@@ -5902,6 +6019,7 @@ struct show_var_st status_vars[]= {
   {"Com_xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
   {"Com_xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
   {"Com_xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
+  {"Compression",              (char*) 0,                        SHOW_NET_COMPRESSION},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
@@ -6814,6 +6932,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   case OPT_MYISAM_STATS_METHOD:
   {
+    ulong method_conv;
     myisam_stats_method_str= argument;
     int method;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
@@ -6821,7 +6940,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
       exit(1);
     }
-    global_system_variables.myisam_stats_method= method-1;
+    switch (method-1) {
+    case 0: 
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+      break;
+    case 1:
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+      break;
+    case 2:
+      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
+      break;
+    }
+    global_system_variables.myisam_stats_method= method_conv;
     break;
   }
   case OPT_SQL_MODE:
@@ -6928,22 +7058,6 @@ static void get_options(int argc,char **argv)
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements and --log-queries-not-using-indexes have no effect if --log-slow-queries is not set");
-
-  /*
-    Check that the default storage engine is actually available.
-  */
-  if (!ha_storage_engine_is_enabled((enum db_type)
-                                    global_system_variables.table_type))
-  {
-    if (!opt_bootstrap)
-    {
-      sql_print_error("Default storage engine (%s) is not available",
-                      ha_get_storage_engine((enum db_type)
-                                            global_system_variables.table_type));
-      exit(1);
-    }
-    global_system_variables.table_type= DB_TYPE_MYISAM;
-  }
 
   if (argc > 0)
   {
@@ -7106,6 +7220,7 @@ static void fix_paths(void)
 	     CHARSET_DIR, NullS);
   }
   (void) my_load_path(mysql_charsets_dir, mysql_charsets_dir, buff);
+  convert_dirname(mysql_charsets_dir, mysql_charsets_dir, NullS);
   charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))

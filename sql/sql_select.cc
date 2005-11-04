@@ -102,8 +102,6 @@ static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
 static bool resolve_nested_join (TABLE_LIST *table);
-static COND *remove_eq_conds(THD *thd, COND *cond, 
-			     Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -537,6 +535,9 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
+  if (thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
+    thd->status_var.last_query_cost= 0.0;
+
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
   /* select_limit is used to decide if we are likely to scan the whole table */
@@ -822,6 +823,7 @@ JOIN::optimize()
   {
     order=0;					// The output has only one row
     simple_order=1;
+    select_distinct= 0;                       // No need in distinct for 1 row
   }
 
   calc_group_buffer(this, group_list);
@@ -1167,18 +1169,21 @@ JOIN::save_join_tab()
 void
 JOIN::exec()
 {
+  List<Item> *columns_list= &fields_list;
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
 
   error= 0;
   if (procedure)
   {
-    if (procedure->change_columns(fields_list) ||
-	result->prepare(fields_list, unit))
+    procedure_fields_list= fields_list;
+    if (procedure->change_columns(procedure_fields_list) ||
+	result->prepare(procedure_fields_list, unit))
     {
       thd->limit_found_rows= thd->examined_row_count= 0;
       DBUG_VOID_RETURN;
     }
+    columns_list= &procedure_fields_list;
   }
   (void) result->prepare2(); // Currently, this cannot fail.
 
@@ -1189,7 +1194,7 @@ JOIN::exec()
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
-      result->send_fields(fields_list,
+      result->send_fields(*columns_list,
                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
       /*
         We have to test for 'conds' here as the WHERE may not be constant
@@ -1200,9 +1205,9 @@ JOIN::exec()
           (!conds || conds->val_int()) &&
           (!having || having->val_int()))
       {
-	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
-                                          procedure->end_of_records())
-                                       : result->send_data(fields_list)))
+	if (do_send_rows &&
+            (procedure ? (procedure->send_row(procedure_fields_list) ||
+             procedure->end_of_records()) : result->send_data(fields_list)))
 	  error= 1;
 	else
 	{
@@ -1226,7 +1231,8 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, select_lex->leaf_tables, fields_list,
+    (void) return_zero_rows(this, result, select_lex->leaf_tables,
+                            *columns_list,
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
@@ -1376,7 +1382,7 @@ JOIN::exec()
       DBUG_PRINT("info",("Creating group table"));
       
       /* Free first data from old join */
-      curr_join->join_free(0);
+      curr_join->join_free();
       if (make_simple_join(curr_join, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
@@ -1477,7 +1483,7 @@ JOIN::exec()
     if (curr_tmp_table->distinct)
       curr_join->select_distinct=0;		/* Each row is unique */
     
-    curr_join->join_free(0);			/* Free quick selects */
+    curr_join->join_free();			/* Free quick selects */
     if (curr_join->select_distinct && ! curr_join->group_list)
     {
       thd->proc_info="Removing duplicates";
@@ -1676,7 +1682,8 @@ JOIN::exec()
   {
     thd->proc_info="Sending data";
     DBUG_PRINT("info", ("%s", thd->proc_info));
-    result->send_fields(*curr_fields_list,
+    result->send_fields((procedure ? curr_join->procedure_fields_list :
+                         *curr_fields_list),
                         Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
@@ -2486,11 +2493,11 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
              and use them in equality propagation process (see details in
              OptimizerKBAndTodo)
         */
-        if ((cond->functype() == Item_func::BETWEEN) && 
-             value[0]->eq(value[1], field->binary()))
-          eq_func= TRUE;
-        else
+        if ((cond->functype() != Item_func::BETWEEN) ||
+            ((Item_func_between*) cond)->negated ||
+            !value[0]->eq(value[1], field->binary()))
           return;
+        eq_func= TRUE;
       }
 
       if (field->result_type() == STRING_RESULT)
@@ -5734,33 +5741,88 @@ void JOIN_TAB::cleanup()
 }
 
 
-void JOIN::join_free(bool full)
+/*
+  Partially cleanup JOIN after it has executed: close index or rnd read
+  (table cursors), free quick selects.
+
+  DESCRIPTION
+    This function is called in the end of execution of a JOIN, before the used
+    tables are unlocked and closed.
+
+    For a join that is resolved using a temporary table, the first sweep is
+    performed against actual tables and an intermediate result is inserted
+    into the temprorary table.
+    The last sweep is performed against the temporary table. Therefore,
+    the base tables and associated buffers used to fill the temporary table
+    are no longer needed, and this function is called to free them.
+
+    For a join that is performed without a temporary table, this function
+    is called after all rows are sent, but before EOF packet is sent.
+
+    For a simple SELECT with no subqueries this function performs a full
+    cleanup of the JOIN and calls mysql_unlock_read_tables to free used base
+    tables.
+
+    If a JOIN is executed for a subquery or if it has a subquery, we can't
+    do the full cleanup and need to do a partial cleanup only.
+      o If a JOIN is not the top level join, we must not unlock the tables
+        because the outer select may not have been evaluated yet, and we
+        can't unlock only selected tables of a query.
+
+      o Additionally, if this JOIN corresponds to a correlated subquery, we
+        should not free quick selects and join buffers because they will be
+        needed for the next execution of the correlated subquery.
+
+      o However, if this is a JOIN for a [sub]select, which is not
+        a correlated subquery itself, but has subqueries, we can free it
+        fully and also free JOINs of all its subqueries. The exception
+        is a subquery in SELECT list, e.g:
+        SELECT a, (select max(b) from t1) group by c
+        This subquery will not be evaluated at first sweep and its value will
+        not be inserted into the temporary table. Instead, it's evaluated
+        when selecting from the temporary table. Therefore, it can't be freed
+        here even though it's not correlated.
+*/
+
+void JOIN::join_free()
 {
   SELECT_LEX_UNIT *unit;
   SELECT_LEX *sl;
-  DBUG_ENTER("JOIN::join_free");
-
   /*
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  full= full || (!select_lex->uncacheable && !thd->lex->describe);
+  bool full= (!select_lex->uncacheable && !thd->lex->describe);
+  bool can_unlock= full;
+  DBUG_ENTER("JOIN::join_free");
 
   cleanup(full);
 
   for (unit= select_lex->first_inner_unit(); unit; unit= unit->next_unit())
     for (sl= unit->first_select(); sl; sl= sl->next_select())
     {
-      JOIN *join= sl->join;
-      if (join)
-        join->join_free(full);
+      Item_subselect *subselect= sl->master_unit()->item;
+      bool full_local= full && (!subselect || subselect->is_evaluated());
+      /*
+        If this join is evaluated, we can fully clean it up and clean up all
+        its underlying joins even if they are correlated -- they will not be
+        used any more anyway.
+        If this join is not yet evaluated, we still must clean it up to
+        close its table cursors -- it may never get evaluated, as in case of
+        ... HAVING FALSE OR a IN (SELECT ...))
+        but all table cursors must be closed before the unlock.
+      */
+      sl->cleanup_all_joins(full_local);
+      /* Can't unlock if at least one JOIN is still needed */
+      can_unlock= can_unlock && full_local;
     }
 
   /*
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (full && lock && thd->lock && !(select_options & SELECT_NO_UNLOCK) &&
+  if (can_unlock && lock && thd->lock &&
+      !(select_options & SELECT_NO_UNLOCK) &&
       !select_lex->subquery_in_having &&
       (select_lex == (thd->lex->unit.fake_select_lex ?
                       thd->lex->unit.fake_select_lex : &thd->lex->select_lex)))
@@ -5866,7 +5928,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   tab->cached_eq_ref_table=1;
   if (tab->type == JT_CONST)			// We can skip const tables
     return (tab->eq_ref_table=1);		/* purecov: inspected */
-  if (tab->type != JT_EQ_REF)
+  if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
   Item **ref_item=tab->ref.items;
   Item **end=ref_item+tab->ref.key_parts;
@@ -6074,7 +6136,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
-  join->join_free(0);
+  join->join_free();
 
   if (send_row)
   {
@@ -6269,6 +6331,21 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
   {
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
+
+    if (left_item->type() == Item::REF_ITEM &&
+        ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
+    {
+      if (((Item_ref*)left_item)->depended_from)
+        return FALSE;
+      left_item= left_item->real_item();
+    }
+    if (right_item->type() == Item::REF_ITEM &&
+        ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
+    {
+      if (((Item_ref*)right_item)->depended_from)
+        return FALSE;
+      right_item= right_item->real_item();
+    }
     if (left_item->type() == Item::FIELD_ITEM &&
         right_item->type() == Item::FIELD_ITEM &&
         !((Item_field*)left_item)->depended_from &&
@@ -7410,7 +7487,7 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   COND_FALSE always false	( 1 = 2 )
 */
 
-static COND *
+COND *
 remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
@@ -7967,7 +8044,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   statistic_increment(thd->status_var.created_tmp_tables, &LOCK_status);
 
-  if (use_temp_pool)
+  if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
@@ -8221,7 +8298,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
-    table->file=get_new_handler(table,table->s->db_type= DB_TYPE_MYISAM);
+    table->file= get_new_handler(table, &table->mem_root,
+                                 table->s->db_type= DB_TYPE_MYISAM);
     if (group &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
@@ -8229,7 +8307,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   else
   {
-    table->file=get_new_handler(table,table->s->db_type= DB_TYPE_HEAP);
+    table->file= get_new_handler(table, &table->mem_root,
+                                 table->s->db_type= DB_TYPE_HEAP);
   }
   if (table->s->fields)
   {
@@ -8816,7 +8895,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table= *table;
   new_table.s= &new_table.share_not_to_be_used;
   new_table.s->db_type= DB_TYPE_MYISAM;
-  if (!(new_table.file= get_new_handler(&new_table,DB_TYPE_MYISAM)))
+  if (!(new_table.file= get_new_handler(&new_table, &new_table.mem_root,
+                                        DB_TYPE_MYISAM)))
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
@@ -9006,7 +9086,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	error= (*end_select)(join,join_tab,1);
     }
     else if (join->send_row_on_empty_set())
-      rc= join->result->send_data(*join->fields);
+    {
+      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
+                                 fields);
+      rc= join->result->send_data(*columns_list);
+    }
   }
   else
   {
@@ -9031,7 +9115,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	The following will unlock all cursors if the command wasn't an
 	update command
       */
-      join->join_free(0);				// Unlock all cursors
+      join->join_free();			// Unlock all cursors
       if (join->result->send_eof())
 	rc= 1;                                  // Don't send error
     }
@@ -10039,7 +10123,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->procedure)
-      error=join->procedure->send_row(*join->fields);
+      error=join->procedure->send_row(join->procedure_fields_list);
     else if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
@@ -11371,7 +11455,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     ulong total_length= 0;
     for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
     {
-      uint length= (*ptr)->pack_length();
+      uint length= (*ptr)->sort_length();
       (*field_length++)= length;
       total_length+= length;
     }
@@ -11911,11 +11995,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
   */
+  thd->lex->current_select->is_item_list_lookup= 1;
   if (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
+  {
+    thd->lex->current_select->is_item_list_lookup= 0;
     return TRUE; /* Wrong field. */
+  }
+  thd->lex->current_select->is_item_list_lookup= 0;
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */

@@ -258,6 +258,23 @@ sync_slave_with_master;
 select * from t1;
 
 
+#
+# Test for bug #13969 "Routines which are replicated from master can't be
+# executed on slave".
+# 
+connection master;
+create procedure foo()
+  not deterministic
+  reads sql data
+  select * from t1;
+sync_slave_with_master;
+# This should not fail
+call foo();
+connection master;
+drop procedure foo;
+sync_slave_with_master;
+
+
 # Clean up
 connection master;
 drop function fn1;

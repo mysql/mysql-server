@@ -18,6 +18,17 @@
 #include "priv.h"
 #include "portability.h"
 
+#if defined(__ia64__) || defined(__ia64)
+/*
+  We can live with 32K, but reserve 64K. Just to be safe.
+  On ia64 we need to reserve double of the size.
+*/
+#define IM_THREAD_STACK_SIZE    (128*1024L)
+#else
+#define IM_THREAD_STACK_SIZE    (64*1024)
+#endif
+
+
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 pid_t manager_pid;
 
@@ -52,3 +63,28 @@ unsigned int test_flags= 0;
 unsigned long bytes_sent = 0L, bytes_received = 0L;
 unsigned long mysqld_net_retry_count = 10L;
 unsigned long open_files_limit;
+
+/*
+  Change the stack size and start a thread. Return an error if either
+  pthread_attr_setstacksize or pthread_create fails.
+  Arguments are the same as for pthread_create().
+*/
+
+int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
+                                  void *(*start_routine)(void *), void *arg)
+{
+  int rc= 0;
+
+#ifndef __WIN__
+  /*
+    Set stack size to be safe on the platforms with too small
+    default thread stack.
+  */
+  rc= pthread_attr_setstacksize(attr,
+                                (size_t) (PTHREAD_STACK_MIN +
+                                          IM_THREAD_STACK_SIZE));
+#endif
+  if (!rc)
+    rc= pthread_create(thread, attr, start_routine, arg);
+  return rc;
+}

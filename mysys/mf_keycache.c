@@ -2750,9 +2750,12 @@ static int keycache_pthread_cond_wait(pthread_cond_t *cond,
   gettimeofday(&now, &tz);
   /* Prepare timeout value */
   timeout.tv_sec= now.tv_sec + KEYCACHE_TIMEOUT;
-  timeout.tv_nsec= now.tv_usec * 1000; /* timeval uses microseconds.         */
-                                        /* timespec uses nanoseconds.         */
-                                        /* 1 nanosecond = 1000 micro seconds. */
+ /*
+   timeval uses microseconds.
+   timespec uses nanoseconds.
+   1 nanosecond = 1000 micro seconds
+ */
+  timeout.tv_nsec= now.tv_usec * 1000;
   KEYCACHE_THREAD_TRACE_END("started waiting");
 #if defined(KEYCACHE_DEBUG)
   cnt++;
@@ -2762,17 +2765,15 @@ static int keycache_pthread_cond_wait(pthread_cond_t *cond,
 #endif
   rc= pthread_cond_timedwait(cond, mutex, &timeout);
   KEYCACHE_THREAD_TRACE_BEGIN("finished waiting");
-#if defined(KEYCACHE_DEBUG)
-  if (rc == ETIMEDOUT)
+  if (rc == ETIMEDOUT || rc == ETIME)
   {
+#if defined(KEYCACHE_DEBUG)
     fprintf(keycache_debug_log,"aborted by keycache timeout\n");
     fclose(keycache_debug_log);
     abort();
-  }
 #endif
-
-  if (rc == ETIMEDOUT)
     keycache_dump();
+  }
 
 #if defined(KEYCACHE_DEBUG)
   KEYCACHE_DBUG_ASSERT(rc != ETIMEDOUT);

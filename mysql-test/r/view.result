@@ -574,10 +574,10 @@ create view v1 as select * from t1;
 drop table t1;
 create table t1 (col1 char(5),newcol2 char(5));
 insert into v1 values('a','aa');
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop table t1;
 select * from v1;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
@@ -809,11 +809,11 @@ create table t1 (s1 int);
 create view v1 as select x1() from t1;
 drop function x1;
 select * from v1;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s)
+v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or define
 drop view v1;
 drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
@@ -847,13 +847,16 @@ cast(1 as char(3))
 drop view v1;
 create table t1 (a int);
 create view v1 as select a from t1;
-create database seconddb;
-rename table v1 to seconddb.v1;
-ERROR HY000: Changing schema from 'test' to 'seconddb' is not allowed.
+create view v3 as select a from t1;
+create database mysqltest;
+rename table v1 to mysqltest.v1;
+ERROR HY000: Changing schema from 'test' to 'mysqltest' is not allowed.
 rename table v1 to v2;
+rename table v3 to v1, v2 to t1;
+ERROR 42S01: Table 't1' already exists
 drop table t1;
-drop view v2;
-drop database seconddb;
+drop view v2,v3;
+drop database mysqltest;
 create view v1 as select 'a',1;
 create view v2 as select * from v1 union all select * from v1;
 create view v3 as select * from v2 where 1 = (select `1` from v2);
@@ -1357,7 +1360,7 @@ test.t1	check	status	OK
 drop table t1;
 check table v1;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 create table t1 (a int);
 create table t2 (a int);
@@ -1881,11 +1884,11 @@ CREATE VIEW v6 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
 DROP TABLE t1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v2	check	status	OK
-test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s)
+test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v4	check	status	OK
-test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s)
+test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v6	check	status	OK
 drop view v1, v2, v3, v4, v5, v6;
 drop table t2;
@@ -1905,11 +1908,11 @@ CREATE VIEW v6 AS SELECT f2() FROM t3;
 drop function f1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v2	check	status	OK
-test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s)
+test.v3	check	error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v4	check	status	OK
-test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s)
+test.v5	check	error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v6	check	status	OK
 create function f1 () returns int return (select max(col1) from t1);
 DROP TABLE t1;
@@ -2151,7 +2154,7 @@ Field	Type	Null	Key	Default	Extra
 f4	char(5)	YES		NULL	
 ALTER TABLE t1 CHANGE COLUMN f4 f4x CHAR(5);
 DESCRIBE v1;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DROP TABLE t1;
 DROP VIEW v1;
 create table t1 (f1 char);
@@ -2195,7 +2198,7 @@ r_object_id	users_names
 120001a080000542	guser02
 drop view v1, v2;
 drop table t1, t2;
-create definer=some_user@__% sql security invoker view v1 as select 1;
+create definer=some_user@`` sql security invoker view v1 as select 1;
 ERROR HY000: View definer is not fully qualified
 create definer=some_user@localhost sql security invoker view v1 as select 1;
 Warnings:
@@ -2298,3 +2301,37 @@ a
 3
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t2 VALUES (1,1),(2,2),(3,3);
+INSERT INTO t3 VALUES (1),(2),(3);
+CREATE VIEW v1 AS SELECT t1.* FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
+CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
+EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
+1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	2	Using where; Using index
+EXPLAIN SELECT * FROM v1 WHERE a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+1	PRIMARY	t2	ref	a	a	10	const,test.t1.b	2	Using where; Using index
+EXPLAIN SELECT * FROM v2 WHERE a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	a	a	5	const	1	Using where; Using index
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
+create table t1 (f1 int, f2 int);
+insert into t1 values(1,1),(1,2),(1,3);
+create view v1 as select f1 ,group_concat(f2 order by f2 asc) from t1 group by f1;
+create view v2 as select f1 ,group_concat(f2 order by f2 desc) from t1 group by f1;
+select * from v1;
+f1	group_concat(f2 order by f2 asc)
+1	1,2,3
+select * from v2;
+f1	group_concat(f2 order by f2 desc)
+1	3,2,1
+drop view v1,v2;
+drop table t1;

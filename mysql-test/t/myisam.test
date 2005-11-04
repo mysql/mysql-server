@@ -629,6 +629,25 @@ show index from t1;
 
 drop table t1;
 
+# WL#2609, CSC#XXXX: MyISAM 
+set myisam_stats_method=nulls_ignored;
+show variables like 'myisam_stats_method';
+
+create table t1 (
+  a char(3), b char(4), c char(5), d char(6),
+  key(a,b,c,d)
+);
+insert into t1 values ('bcd','def1', NULL, 'zz');
+insert into t1 values ('bcd','def2', NULL, 'zz');
+insert into t1 values ('bce','def1', 'yuu', NULL);
+insert into t1 values ('bce','def2', NULL, 'quux');
+analyze table t1;
+show index from t1;
+delete from t1;
+analyze table t1;
+show index from t1;
+
+set myisam_stats_method=DEFAULT;
 # End of 4.1 tests
 
 #
@@ -703,6 +722,7 @@ insert into t1 values (10),(11),(12);
 select * from t1;
 check table t1;
 drop table t1;
+disconnect con1;
 
 # Same test with dynamic record length
 create table t1 (a int, b varchar(30) default "hello");
@@ -727,7 +747,9 @@ insert into t1 (a) values (10),(11),(12);
 select a from t1;
 check table t1;
 drop table t1;
+disconnect con1;
 set global concurrent_insert=@save_concurrent_insert;
+
 
 # BUG#9622 - ANALYZE TABLE and ALTER TABLE .. ENABLE INDEX produce
 # different statistics on the same table with NULL values.

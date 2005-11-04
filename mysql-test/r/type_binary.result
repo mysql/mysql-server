@@ -1,0 +1,113 @@
+create table t1 (s1 binary(3));
+insert into t1 values (0x61), (0x6120), (0x612020);
+select hex(s1) from t1;
+hex(s1)
+610000
+612000
+612020
+drop table t1;
+create table t1 (s1 binary(2), s2 varbinary(2));
+insert into t1 values (0x4100,0x4100);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+length(concat('*',s1,'*',s2,'*'))
+7
+delete from t1;
+insert into t1 values (0x4120,0x4120);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+length(concat('*',s1,'*',s2,'*'))
+7
+drop table t1;
+create table t1 (s1 varbinary(20), s2 varbinary(20));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varbinary(20) default NULL,
+  `s2` varbinary(20) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
+select hex(s1), hex(s2) from t1;
+hex(s1)	hex(s2)
+41	4100
+41	4120
+4100	4120
+select count(*) from t1 where s1 < s2;
+count(*)
+3
+drop table t1;
+create table t1 (s1 varbinary(2), s2 varchar(1));
+insert into t1 values (0x41,'a'), (0x4100,'b'), (0x41,'c'), (0x4100,'d');
+select hex(s1),s2 from t1 order by s1,s2;
+hex(s1)	s2
+41	a
+41	c
+4100	b
+4100	d
+drop table t1;
+create table t1 (s1 binary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+insert into t1 values (0x0100);
+ERROR 23000: Duplicate entry '' for key 1
+select hex(s1) from t1 order by s1;
+hex(s1)
+0100
+0120
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+2
+alter table t1 drop primary key;
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+2
+drop table t1;
+create table t1 (s1 varbinary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+insert into t1 values (0x0100);
+select hex(s1) from t1 order by s1;
+hex(s1)
+01
+0100
+0120
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+01
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+3
+alter table t1 drop primary key;
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+01
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+3
+drop table t1;

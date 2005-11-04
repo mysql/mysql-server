@@ -76,6 +76,8 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   if (thd->spcont && thd->spcont->find_handler(sql_errno,
                                                MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
+    if (! thd->spcont->found_handler_here())
+      thd->net.report_error= 1; /* Make "select" abort correctly */ 
     DBUG_VOID_RETURN;
   }
   thd->query_error=  1; // needed to catch query errors during replication
@@ -181,6 +183,8 @@ net_printf_error(THD *thd, uint errcode, ...)
   if (thd->spcont && thd->spcont->find_handler(errcode,
                                                MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
+    if (! thd->spcont->found_handler_here())
+      thd->net.report_error= 1; /* Make "select" abort correctly */ 
     DBUG_VOID_RETURN;
   }
   thd->query_error=  1; // needed to catch query errors during replication

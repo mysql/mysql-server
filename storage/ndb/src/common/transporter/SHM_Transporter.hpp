@@ -170,6 +170,8 @@ private:
   bool hasDataToRead() const {
     return reader->empty() == false;
   }
+
+  void make_error_info(char info[], int sz);
 };
 
 #endif

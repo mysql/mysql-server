@@ -760,3 +760,54 @@ call t_sysdate();
 @a != @b
 1
 drop procedure t_sysdate;
+select timestampdiff(month,'2004-09-11','2004-09-11');
+timestampdiff(month,'2004-09-11','2004-09-11')
+0
+select timestampdiff(month,'2004-09-11','2005-09-11');
+timestampdiff(month,'2004-09-11','2005-09-11')
+12
+select timestampdiff(month,'2004-09-11','2006-09-11');
+timestampdiff(month,'2004-09-11','2006-09-11')
+24
+select timestampdiff(month,'2004-09-11','2007-09-11');
+timestampdiff(month,'2004-09-11','2007-09-11')
+36
+select timestampdiff(month,'2005-09-11','2004-09-11');
+timestampdiff(month,'2005-09-11','2004-09-11')
+-12
+select timestampdiff(month,'2005-09-11','2003-09-11');
+timestampdiff(month,'2005-09-11','2003-09-11')
+-24
+select timestampdiff(month,'2004-02-28','2005-02-28');
+timestampdiff(month,'2004-02-28','2005-02-28')
+12
+select timestampdiff(month,'2004-02-29','2005-02-28');
+timestampdiff(month,'2004-02-29','2005-02-28')
+11
+select timestampdiff(month,'2004-02-28','2005-02-28');
+timestampdiff(month,'2004-02-28','2005-02-28')
+12
+select timestampdiff(month,'2004-03-29','2005-03-28');
+timestampdiff(month,'2004-03-29','2005-03-28')
+11
+select timestampdiff(month,'2003-02-28','2004-02-29');
+timestampdiff(month,'2003-02-28','2004-02-29')
+12
+select timestampdiff(month,'2003-02-28','2005-02-28');
+timestampdiff(month,'2003-02-28','2005-02-28')
+24
+select timestampdiff(month,'1999-09-11','2001-10-10');
+timestampdiff(month,'1999-09-11','2001-10-10')
+24
+select timestampdiff(month,'1999-09-11','2001-9-11');
+timestampdiff(month,'1999-09-11','2001-9-11')
+24
+select timestampdiff(year,'1999-09-11','2001-9-11');
+timestampdiff(year,'1999-09-11','2001-9-11')
+2
+select timestampdiff(year,'2004-02-28','2005-02-28');
+timestampdiff(year,'2004-02-28','2005-02-28')
+1
+select timestampdiff(year,'2004-02-29','2005-02-28');
+timestampdiff(year,'2004-02-29','2005-02-28')
+0

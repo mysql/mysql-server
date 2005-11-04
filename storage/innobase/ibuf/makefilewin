@@ -1,7 +1,0 @@
-include ..\include\makefile.i
-
-ibuf.lib: ibuf0ibuf.obj
-	lib -out:..\libs\ibuf.lib ibuf0ibuf.obj
-
-ibuf0ibuf.obj: ibuf0ibuf.c
-	$(CCOM) $(CFL) -c ibuf0ibuf.c

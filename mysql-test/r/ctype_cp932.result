@@ -11349,3 +11349,20 @@ cp932_bin	6109
 cp932_bin	61
 cp932_bin	6120
 drop table t1;
+create table t1 (col1 varchar(1)) character set cp932;
+insert into t1 values ('a');
+insert into t1 values ('ab');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+select * from t1;
+col1
+a
+a
+insert into t1 values ('abc');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+select * from t1;
+col1
+a
+a
+a

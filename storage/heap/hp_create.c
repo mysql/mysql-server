@@ -203,9 +203,9 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 
 static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
 {
-  uint not_used;
+  uint not_used[2];
   return ha_key_cmp(param->keyseg, key1, key2, param->key_length, 
-		    param->search_flag, &not_used);
+		    param->search_flag, not_used);
 }
 
 static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,

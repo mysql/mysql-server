@@ -176,6 +176,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->spcont= NULL;
   lex->proc_list.first= 0;
   lex->query_tables_own_last= 0;
+  lex->escape_used= FALSE;
 
   if (lex->sroutines.records)
     my_hash_reset(&lex->sroutines);
@@ -1134,6 +1135,7 @@ void st_select_lex::init_query()
   ref_pointer_array= 0;
   select_n_having_items= 0;
   subquery_in_having= explicit_limit= 0;
+  is_item_list_lookup= 0;
   first_execution= 1;
   first_cond_optimization= 1;
   parsing_place= NO_MATTER;
@@ -1166,6 +1168,7 @@ void st_select_lex::init_select()
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
+
 }
 
 /*

@@ -75,7 +75,7 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 
   SYNOPSIS
     ha_key_cmp()
-    keyseg	Key segments of key to compare
+    keyseg	Array of key segments of key to compare
     a		First key to compare, in format from _mi_pack_key()
 		This is normally key specified by user
     b		Second key to compare.  This is always from a row
@@ -84,10 +84,26 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
     next_flag	How keys should be compared
 		If bit SEARCH_FIND is not set the keys includes the row
 		position and this should also be compared
+    diff_pos    OUT Number of first keypart where values differ, counting 
+                from one.
+    diff_pos[1] OUT  (b + diff_pos[1]) points to first value in tuple b
+                      that is different from corresponding value in tuple a.
+  
+  EXAMPLES 
+   Example1: if the function is called for tuples
+     ('aaa','bbb') and ('eee','fff'), then
+     diff_pos[0] = 1 (as 'aaa' != 'eee')
+     diff_pos[1] = 0 (offset from beggining of tuple b to 'eee' keypart).
+
+   Example2: if the index function is called for tuples
+     ('aaa','bbb') and ('aaa','fff'),
+     diff_pos[0] = 2 (as 'aaa' != 'eee')
+     diff_pos[1] = 3 (offset from beggining of tuple b to 'fff' keypart,
+                      here we assume that first key part is CHAR(3) NOT NULL)
 
   NOTES
     Number-keys can't be splited
-  
+
   RETURN VALUES
     <0	If a < b
     0	If a == b
@@ -107,6 +123,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
   float f_1,f_2;
   double d_1,d_2;
   uint next_key_length;
+  uchar *orig_b= b;
 
   *diff_pos=0;
   for ( ; (int) key_length >0 ; key_length=next_key_length, keyseg++)
@@ -114,6 +131,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
     uchar *end;
     uint piks=! (keyseg->flag & HA_NO_SORT);
     (*diff_pos)++;
+    diff_pos[1]= (uint)(b - orig_b);
 
     /* Handle NULL part */
     if (keyseg->null_bit)
@@ -451,3 +469,84 @@ end:
   }
   return 0;
 } /* ha_key_cmp */
+
+
+/*
+  Find the first NULL value in index-suffix values tuple
+
+  SYNOPSIS
+    ha_find_null()
+      keyseg     Array of keyparts for key suffix
+      a          Key suffix value tuple
+
+  DESCRIPTION
+    Find the first NULL value in index-suffix values tuple.
+    TODO Consider optimizing this fuction or its use so we don't search for
+         NULL values in completely NOT NULL index suffixes.
+
+  RETURN
+    First key part that has NULL as value in values tuple, or the last key part 
+    (with keyseg->type==HA_TYPE_END) if values tuple doesn't contain NULLs.
+*/
+
+HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
+{
+  for (; (enum ha_base_keytype) keyseg->type != HA_KEYTYPE_END; keyseg++)
+  {
+    uchar *end;
+    if (keyseg->null_bit)
+    {
+      if (!*a++)
+        return keyseg;
+    }
+    end= a+ keyseg->length;
+
+    switch ((enum ha_base_keytype) keyseg->type) {
+    case HA_KEYTYPE_TEXT:
+    case HA_KEYTYPE_BINARY:
+      if (keyseg->flag & HA_SPACE_PACK)
+      {
+        int a_length;
+        get_key_length(a_length, a);
+        a += a_length;
+        break;
+      }
+      else
+        a= end;
+      break;
+    case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARBINARY1:
+      {
+        int a_length;
+        get_key_length(a_length, a);
+        a+= a_length;
+        break;
+      }
+    case HA_KEYTYPE_NUM:
+      if (keyseg->flag & HA_SPACE_PACK)
+      {
+        int alength= *a++;
+        end= a+alength;
+      }
+      a= end;
+      break;
+    case HA_KEYTYPE_INT8:
+    case HA_KEYTYPE_SHORT_INT:
+    case HA_KEYTYPE_USHORT_INT:
+    case HA_KEYTYPE_LONG_INT:
+    case HA_KEYTYPE_ULONG_INT:
+    case HA_KEYTYPE_INT24:
+    case HA_KEYTYPE_UINT24:
+#ifdef HAVE_LONG_LONG
+    case HA_KEYTYPE_LONGLONG:
+    case HA_KEYTYPE_ULONGLONG:
+#endif
+    case HA_KEYTYPE_FLOAT:
+    case HA_KEYTYPE_DOUBLE:
+      a= end;
+      break;
+    }
+  }
+  return keyseg;
+}
+

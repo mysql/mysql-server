@@ -32,6 +32,11 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+#define sp_restore_security_context(A,B) while (0) {}
+#endif
+
+
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -967,8 +972,8 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                    val2) > 1)))
+                     (my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                     val2) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1040,8 +1045,8 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                    val2) > 1)))
+                     (my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                     val2) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1078,8 +1083,8 @@ my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                    val2) > 1)))
+                     (my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                    val2) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1119,6 +1124,7 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 {
   my_decimal value1, *val1;
   my_decimal value2, *val2;
+  int err;
 
   val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
@@ -1126,17 +1132,15 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
   val2= args[1]->val_decimal(&value2);
   if ((null_value= args[1]->null_value))
     return 0;
-  switch (my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
-                         val1, val2, prec_increment)) {
-  case E_DEC_TRUNCATED:
-  case E_DEC_OK:
-    return decimal_value;
-  case E_DEC_DIV_ZERO:
-    signal_divide_by_null();
-  default:
-    null_value= 1;                              // Safety
+  if ((err= my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
+                           val1, val2, prec_increment)) > 3)
+  {
+    if (err == E_DEC_DIV_ZERO)
+      signal_divide_by_null();
+    null_value= 1;
     return 0;
   }
+  return decimal_value;
 }
 
 
@@ -1381,8 +1385,13 @@ double Item_func_ln::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if ((null_value=(args[0]->null_value || value <= 0.0)))
+  if ((null_value= args[0]->null_value))
     return 0.0;
+  if (value <= 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   return log(value);
 }
 
@@ -1395,13 +1404,23 @@ double Item_func_log::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if ((null_value=(args[0]->null_value || value <= 0.0)))
+  if ((null_value= args[0]->null_value))
     return 0.0;
+  if (value <= 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   if (arg_count == 2)
   {
     double value2= args[1]->val_real();
-    if ((null_value=(args[1]->null_value || value2 <= 0.0 || value == 1.0)))
+    if ((null_value= args[1]->null_value))
       return 0.0;
+    if (value2 <= 0.0 || value == 1.0)
+    {
+      signal_divide_by_null();
+      return 0.0;
+    }
     return log(value2) / log(value);
   }
   return log(value);
@@ -1411,8 +1430,14 @@ double Item_func_log2::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if ((null_value=(args[0]->null_value || value <= 0.0)))
+
+  if ((null_value=args[0]->null_value))
     return 0.0;
+  if (value <= 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   return log(value) / M_LN2;
 }
 
@@ -1420,8 +1445,13 @@ double Item_func_log10::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
-  if ((null_value=(args[0]->null_value || value <= 0.0)))
-    return 0.0; /* purecov: inspected */
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  if (value <= 0.0)
+  {
+    signal_divide_by_null();
+    return 0.0;
+  }
   return log10(value);
 }
 
@@ -2015,7 +2045,6 @@ String *Item_func_min_max::val_str(String *str)
   {
     String *res;
     LINT_INIT(res);
-    null_value= 0;
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -2030,14 +2059,11 @@ String *Item_func_min_max::val_str(String *str)
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}
-        else
-          res= 0;
       }
       if ((null_value= args[i]->null_value))
-        break;
+        return 0;
     }
-    if (res)					// If !NULL
-      res->set_charset(collation.collation);
+    res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -2054,7 +2080,6 @@ double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2076,7 +2101,6 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
-  null_value= 0;
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
@@ -2097,21 +2121,21 @@ longlong Item_func_min_max::val_int()
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *res= NULL;
-  null_value= 0;
+  my_decimal tmp_buf, *tmp, *res;
+  LINT_INIT(res);
+
   for (uint i=0; i < arg_count ; i++)
   {
     if (i == 0)
       res= args[i]->val_decimal(dec);
     else
     {
-      tmp= args[i]->val_decimal(&tmp_buf);
-      if (args[i]->null_value)
-        res= 0;
-      else if ((my_decimal_cmp(tmp, res) * cmp_sign) < 0)
+      tmp= args[i]->val_decimal(&tmp_buf);      // Zero if NULL
+      if (tmp && (my_decimal_cmp(tmp, res) * cmp_sign) < 0)
       {
         if (tmp == &tmp_buf)
         {
+          /* Move value out of tmp_buf as this will be reused on next loop */
           my_decimal2decimal(tmp, dec);
           res= dec;
         }
@@ -2120,7 +2144,10 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
       }
     }
     if ((null_value= args[i]->null_value))
+    {
+      res= 0;
       break;
+    }
   }
   return res;
 }
@@ -2349,7 +2376,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  agg_arg_collations_for_comparison(cmp_collation, args, 2);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
 }
 
 static const char separator=',';
@@ -3031,9 +3058,13 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   thd->mysys_var->current_cond=  &ull->cond;
 
   set_timespec(abstime,lock_timeout);
-  while (!thd->killed &&
-         pthread_cond_timedwait(&ull->cond, &LOCK_user_locks,
-                                &abstime) != ETIMEDOUT && ull->locked) ;
+  while (ull->locked && !thd->killed)
+  {
+    int error= pthread_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+  }
+
   if (ull->locked)
   {
     if (!--ull->count)
@@ -3077,7 +3108,7 @@ longlong Item_func_get_lock::val_int()
   struct timespec abstime;
   THD *thd=current_thd;
   User_level_lock *ull;
-  int error=0;
+  int error;
 
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
@@ -3133,22 +3164,29 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_cond=  &ull->cond;
 
   set_timespec(abstime,timeout);
-  while (!thd->killed &&
-	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-         != ETIMEDOUT && error != EINVAL && ull->locked) ;
-  if (thd->killed)
-    error=EINTR;				// Return NULL
+  error= 0;
+  while (ull->locked && !thd->killed)
+  {
+    error= pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+    error= 0;
+  }
+
   if (ull->locked)
   {
     if (!--ull->count)
+    {
+      DBUG_ASSERT(0);
       delete ull;				// Should never happen
-    if (error != ETIMEDOUT)
+    }
+    if (!error)                                 // Killed (thd->killed != 0)
     {
       error=1;
       null_value=1;				// Return NULL
     }
   }
-  else
+  else                                          // We got the lock
   {
     ull->locked=1;
     ull->thread=thd->real_id;
@@ -3270,6 +3308,7 @@ void Item_func_benchmark::print(String *str)
   str->append(')');
 }
 
+
 /* This function is just used to create tests with time gaps */
 
 longlong Item_func_sleep::val_int()
@@ -3290,10 +3329,14 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
-  while (!thd->killed &&
-         (error= pthread_cond_timedwait(&cond, &LOCK_user_locks,
-                                        &abstime)) != ETIMEDOUT &&
-         error != EINVAL) ;
+  error= 0;
+  while (!thd->killed)
+  {
+    error= pthread_cond_timedwait(&cond, &LOCK_user_locks, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
+    error= 0;
+  }
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -3303,7 +3346,7 @@ longlong Item_func_sleep::val_int()
   pthread_mutex_unlock(&LOCK_user_locks);
   pthread_cond_destroy(&cond);
 
-  return (error == ETIMEDOUT) ? 0 : 1;
+  return test(!error); 		// Return 1 killed
 }
 
 
@@ -4485,7 +4528,6 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component)
 {
   sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
   LEX_STRING *base_name, *component_name;
 
   if (component.str == 0 &&
@@ -4689,6 +4731,7 @@ Item_func_sp::execute(Field **flp)
   if (execute(&it))
   {
     null_value= 1;
+    context->process_error(current_thd);
     return 1;
   }
   if (!(f= *flp))
@@ -4711,9 +4754,16 @@ Item_func_sp::execute(Item **itp)
   THD *thd= current_thd;
   int res= -1;
   Sub_statement_state statement_state;
-  Security_context *save_ctx;
+  Security_context *save_security_ctx= thd->security_ctx, *save_ctx_func;
 
-  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx))
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (context->security_ctx)
+  {
+    /* Set view definer security context */
+    thd->security_ctx= context->security_ctx;
+  }
+#endif
+  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx_func))
     goto error;
 
   /*
@@ -4731,12 +4781,13 @@ Item_func_sp::execute(Item **itp)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_FAILED_ROUTINE_BREAK_BINLOG,
 		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, save_ctx);
-#endif
-
+  sp_restore_security_context(thd, save_ctx_func);
 error:
+  thd->security_ctx= save_security_ctx;
+#else
+error:
+#endif
   DBUG_RETURN(res);
 }
 
@@ -4849,11 +4900,12 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
     find_and_check_access()
     thd           thread handler
     want_access   requested access
-    backup        backup of security context or 0
+    save          backup of security context
 
   RETURN
     FALSE    Access granted
     TRUE     Requested access can't be granted or function doesn't exists
+	     In this case security context is not changed and *save = 0
 
   NOTES
     Checks if requested access to function can be granted to user.
@@ -4868,12 +4920,11 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
 
 bool
 Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
-                                    Security_context **backup)
+                                    Security_context **save)
 {
-  bool res;
-  Security_context *local_save,
-                   **save= (backup ? backup : &local_save);
-  res= TRUE;
+  bool res= TRUE;
+
+  *save= 0;                                     // Safety if error
   if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
@@ -4883,26 +4934,31 @@ Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_routine_access(thd, want_access,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-  {
     goto error;
-  }
 
   sp_change_security_context(thd, m_sp, save);
+  /*
+    If we changed context to run as another user, we need to check the
+    access right for the new context again as someone may have deleted
+    this person the right to use the procedure
+
+    TODO:
+      Cache if the definer has the right to use the object on the first
+      usage and only reset the cache if someone does a GRANT statement
+      that 'may' affect this.
+  */
   if (*save &&
       check_routine_access(thd, want_access,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
   {
-    goto error_check_ctx;
+    sp_restore_security_context(thd, *save);
+    *save= 0;                                   // Safety
+    goto error;
   }
-  res= FALSE;
-error_check_ctx:
-  if (*save && (res || !backup))
-    sp_restore_security_context(thd, local_save);
-error:
-#else
-  res= 0;
-error:
 #endif
+  res= FALSE;                                   // no error
+
+error:
   return res;
 }
 
@@ -4912,7 +4968,23 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   bool res;
   DBUG_ASSERT(fixed == 0);
   res= Item_func::fix_fields(thd, ref);
-  if (!res && find_and_check_access(thd, EXECUTE_ACL, NULL))
-    res= 1;
+  if (!res && thd->lex->view_prepare_mode)
+  {
+    /*
+      Here we check privileges of the stored routine only during view
+      creation, in order to validate the view. A runtime check is perfomed
+      in Item_func_sp::execute(), and this method is not called during
+      context analysis. We do not need to restore the security context
+      changed in find_and_check_access because all view structures created
+      in CREATE VIEW are not used for execution.  Notice, that during view
+      creation we do not infer into stored routine bodies and do not check
+      privileges of its statements, which would probably be a good idea
+      especially if the view has SQL SECURITY DEFINER and the used stored
+      procedure has SQL SECURITY DEFINER
+    */
+    Security_context *save_ctx;
+    if (!(res= find_and_check_access(thd, EXECUTE_ACL, &save_ctx)))
+      sp_restore_security_context(thd, save_ctx);
+  }
   return res;
 }

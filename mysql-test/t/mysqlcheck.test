@@ -1,0 +1,11 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
+#
+# Bug #13783  mysqlcheck tries to optimize and analyze information_schema
+#
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --all-databases --analyze --optimize
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --analyze --optimize  --databases test information_schema mysql
+--exec $MYSQL_CHECK --analyze --optimize information_schema schemata

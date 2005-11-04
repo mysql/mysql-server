@@ -20,9 +20,9 @@ static int queue_key_cmp(void *keyseg, byte *a, byte *b)
 {
   MI_INFO *aa=((MYRG_TABLE *)a)->table;
   MI_INFO *bb=((MYRG_TABLE *)b)->table;
-  uint not_used;
+  uint not_used[2];
   int ret= ha_key_cmp((HA_KEYSEG *)keyseg, aa->lastkey, bb->lastkey,
-		       USE_WHOLE_KEY, SEARCH_FIND, &not_used);
+		       USE_WHOLE_KEY, SEARCH_FIND, not_used);
   return ret < 0 ? -1 : ret > 0 ? 1 : 0;
 } /* queue_key_cmp */
 

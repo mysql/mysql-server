@@ -264,6 +264,14 @@ master-bin.000002	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
 select * from t1;
 a
 1
+create procedure foo()
+not deterministic
+reads sql data
+select * from t1;
+call foo();
+a
+1
+drop procedure foo;
 drop function fn1;
 drop database mysqltest1;
 drop user "zedjzlcsjhd"@127.0.0.1;

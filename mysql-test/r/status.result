@@ -17,3 +17,9 @@ Variable_name	Value
 Table_locks_immediate	3
 Table_locks_waited	1
 drop table t1;
+select 1;
+1
+1
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	0.000000

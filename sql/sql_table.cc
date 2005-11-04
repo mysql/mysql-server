@@ -277,6 +277,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   int error;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
+
   DBUG_ENTER("mysql_rm_table_part2");
 
   if (lock_table_names(thd, tables))
@@ -288,6 +289,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
+    db_type table_type= DB_TYPE_UNKNOWN;
+
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->table_name))
     {
@@ -315,7 +318,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (drop_temporary ||
        (access(path,F_OK) &&
          ha_create_table_from_engine(thd,db,alias)) ||
-        (!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
+        (!drop_view &&
+	 mysql_frm_type(thd, path, &table_type) != FRMTYPE_TABLE))
     {
       // Table was not found on disk and table can't be created from engine
       if (if_exists)
@@ -328,11 +332,13 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      db_type table_type= get_table_type(thd, path);
+      if (table_type == DB_TYPE_UNKNOWN)
+	mysql_frm_type(thd, path, &table_type);
       *(end=fn_ext(path))=0;			// Remove extension for delete
       error= ha_delete_table(thd, table_type, path, table->table_name,
                              !dont_log_query);
-      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && if_exists)
+      if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
+	  (if_exists || table_type == DB_TYPE_UNKNOWN))
 	error= 0;
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
@@ -897,8 +903,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
 					 create_info->default_table_charset);
-	  sql_field->length=		dup_field->length;
-	  sql_field->pack_length=	dup_field->pack_length;
+	  sql_field->length=		dup_field->chars_length;
+          sql_field->pack_length=	dup_field->pack_length;
           sql_field->key_length=	dup_field->key_length;
 	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
@@ -1207,13 +1213,17 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-	if (f_is_blob(sql_field->pack_flag))
+	if (f_is_blob(sql_field->pack_flag) ||
+            (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
 	{
 	  if (!(file->table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
 	    my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
 	  }
+          if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
+              Field::GEOM_POINT)
+            column->length= 21;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name);
@@ -1590,7 +1600,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
-  if (!(file=get_new_handler((TABLE*) 0, create_info->db_type)))
+  if (!(file=get_new_handler((TABLE*) 0, thd->mem_root, create_info->db_type)))
   {
     my_error(ER_OUTOFMEMORY, MYF(0), 128);//128 bytes invented
     DBUG_RETURN(TRUE);
@@ -1626,7 +1636,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (check_partition_info(part_info, part_engine_type,
                              file, create_info->max_rows))
-      DBUG_RETURN(TRUE);
+      goto err;
+
     /*
       We reverse the partitioning parser and generate a standard format
       for syntax stored in frm file.
@@ -1634,7 +1645,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                      &syntax_len,
                                                      TRUE,TRUE)))
-      DBUG_RETURN(TRUE);
+      goto err;
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
     if ((!(file->partition_flags() & HA_CAN_PARTITION)) ||
@@ -1644,7 +1655,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
         The handler assigned to the table cannot handle partitioning.
         Assign the partition handler as the handler of the table.
       */
-      DBUG_PRINT("info", ("db_type= %d, part_flag= %d", create_info->db_type,file->partition_flags()));
+      DBUG_PRINT("info", ("db_type: %d  part_flag: %d",
+                          create_info->db_type,file->partition_flags()));
       delete file;
       create_info->db_type= DB_TYPE_PARTITION_DB;
       if (!(file= get_ha_partition(part_info)))
@@ -1702,7 +1714,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
-      goto no_err;
+      error= 0;
+      goto err;
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     goto err;
@@ -1717,7 +1730,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      goto end;
+      goto unlock_and_end;
     }
   }
 
@@ -1741,7 +1754,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (create_if_not_exists)
         goto warn;
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      goto end;
+      goto unlock_and_end;
     }
   }
 
@@ -1755,14 +1768,14 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (rea_create_table(thd, path, db, table_name,
                        create_info, fields, key_count,
 		       key_info_buffer, file))
-    goto end;
+    goto unlock_and_end;
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     /* Open table and put in temporary table list */
     if (!(open_temporary_table(thd, path, db, table_name, 1)))
     {
       (void) rm_temporary_table(create_info->db_type, path);
-      goto end;
+      goto unlock_and_end;
     }
     thd->tmp_table_used= 1;
   }
@@ -1772,29 +1785,24 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
     mysql_bin_log.write(&qinfo);
   }
+
   error= FALSE;
-  goto end; 
+unlock_and_end:
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  start_waiting_global_read_lock(thd);
+
+err:
+  thd->proc_info="After create";
+  delete file;
+  DBUG_RETURN(error);
 
 warn:
-  error= 0;
+  error= FALSE;
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   create_info->table_existed= 1;		// Mark that table existed
-
-end:
-  VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
-  delete file;
-  thd->proc_info="After create";
-  DBUG_RETURN(error);
-
-err:
-  delete file;
-  DBUG_RETURN(TRUE);
-no_err:
-  delete file;
-  DBUG_RETURN(FALSE);
+  goto unlock_and_end;
 }
 
 /*
@@ -1946,10 +1954,12 @@ mysql_rename_table(enum db_type base,
 		   const char *new_db,
 		   const char *new_name)
 {
+  THD *thd= current_thd;
   char from[FN_REFLEN], to[FN_REFLEN], lc_from[FN_REFLEN], lc_to[FN_REFLEN];
   char *from_base= from, *to_base= to;
   char tmp_name[NAME_LEN+1];
-  handler *file=(base == DB_TYPE_UNKNOWN ? 0 : get_new_handler((TABLE*) 0, base));
+  handler *file= (base == DB_TYPE_UNKNOWN ? 0 :
+                  get_new_handler((TABLE*) 0, thd->mem_root, base));
   int error=0;
   DBUG_ENTER("mysql_rename_table");
 
@@ -2095,8 +2105,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   {
     char* backup_dir= thd->lex->backup_dir;
     char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-    char* table_name = table->table_name;
-    char* db = thd->db ? thd->db : table->db;
+    char* table_name= table->table_name;
+    char* db= table->db;
 
     if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
 					reg_ext))
@@ -2132,12 +2142,15 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     Now we should be able to open the partially restored table
     to finish the restore in the handler later on
   */
-  if (!(table->table = reopen_name_locked_table(thd, table)))
+  pthread_mutex_lock(&LOCK_open);
+  if (reopen_name_locked_table(thd, table))
   {
-    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table);
     pthread_mutex_unlock(&LOCK_open);
+    DBUG_RETURN(send_check_errmsg(thd, table, "restore",
+                                  "Failed to open partially restored table"));
   }
+  pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 
@@ -2234,12 +2247,16 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (!(table_list->table = reopen_name_locked_table(thd, table_list)))
+  pthread_mutex_lock(&LOCK_open);
+  if (reopen_name_locked_table(thd, table_list))
   {
-    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+                             "Failed to open partially repaired table");
+    goto end;
   }
+  pthread_mutex_unlock(&LOCK_open);
 
 end:
   if (table == &tmp_table)
@@ -2748,6 +2765,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
+  db_type not_used;
+
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
   src_db= table_ident->db.str ? table_ident->db.str : thd->db;
@@ -2795,7 +2814,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /* 
      create like should be not allowed for Views, Triggers, ... 
   */
-  if (mysql_frm_type(src_path) != FRMTYPE_TABLE)
+  if (mysql_frm_type(thd, src_path, &not_used) != FRMTYPE_TABLE)
   {
     my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
     goto err;
@@ -3867,15 +3886,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type= table->s->row_type;
 
-  DBUG_PRINT("info", ("old type: %d new type: %d", old_db_type, new_db_type));
-  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED)
-      || ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
+  DBUG_PRINT("info", ("old type: %d  new type: %d", old_db_type, new_db_type));
+  if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
+      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
   {
     DBUG_PRINT("info", ("doesn't support alter"));
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
     DBUG_RETURN(TRUE);
   }
-  DBUG_PRINT("info", ("supports alter"));
   
   thd->proc_info="setup";
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&

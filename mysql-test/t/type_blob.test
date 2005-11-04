@@ -67,9 +67,9 @@ select * from t1;
 drop table t1;
 
 #
-# test of blob, text, char and char binary
+# test of blob, text, char and varbinary
 #
-create table t1 (t text,c char(10),b blob, d binary(10));
+create table t1 (t text,c char(10),b blob, d varbinary(10));
 insert into t1 values (NULL,NULL,NULL,NULL);
 insert into t1 values ("","","","");
 insert into t1 values ("hello","hello","hello","hello");
@@ -403,4 +403,23 @@ create table t1 (a int, b int, c tinyblob, d int, e int);
 alter table t1 add primary key (a,b,c(255),d);
 alter table t1 add key (a,b,d,e);
 show create table t1;
+drop table t1;
+
+#
+# Test that blob's and varbinary are sorted according to length
+#
+
+CREATE table t1 (a blob);
+insert into t1 values ('b'),('a\0'),('a'),('a '),('aa'),(NULL);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
+alter table t1 modify a varbinary(5);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
+alter table t1 modify a char(5);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
+alter table t1 modify a binary(5);
+select hex(a) from t1 order by a;
+select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
 drop table t1;

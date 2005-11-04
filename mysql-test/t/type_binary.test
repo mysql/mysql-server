@@ -1,0 +1,67 @@
+# check 0x00 padding
+create table t1 (s1 binary(3));
+insert into t1 values (0x61), (0x6120), (0x612020);
+select hex(s1) from t1;
+drop table t1;
+
+# check that 0x00 is not stripped in val_str
+create table t1 (s1 binary(2), s2 varbinary(2));
+insert into t1 values (0x4100,0x4100);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+delete from t1;
+insert into t1 values (0x4120,0x4120);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+drop table t1;
+
+# check that trailing 0x00 and 0x20 do matter on comparison
+create table t1 (s1 varbinary(20), s2 varbinary(20));
+show create table t1;
+insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
+select hex(s1), hex(s2) from t1;
+select count(*) from t1 where s1 < s2;
+drop table t1;
+
+# check that trailing 0x00 do matter on filesort
+create table t1 (s1 varbinary(2), s2 varchar(1));
+insert into t1 values (0x41,'a'), (0x4100,'b'), (0x41,'c'), (0x4100,'d');
+select hex(s1),s2 from t1 order by s1,s2;
+drop table t1;
+
+# check that 0x01 is padded to 0x0100 and thus we get a duplicate value
+create table t1 (s1 binary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+--error 1062
+insert into t1 values (0x0100);
+select hex(s1) from t1 order by s1;
+# check index search
+select hex(s1) from t1 where s1=0x01;
+select hex(s1) from t1 where s1=0x0120;
+select hex(s1) from t1 where s1=0x0100;
+select count(distinct s1) from t1;
+alter table t1 drop primary key;
+# check non-indexed search
+select hex(s1) from t1 where s1=0x01;
+select hex(s1) from t1 where s1=0x0120;
+select hex(s1) from t1 where s1=0x0100;
+select count(distinct s1) from t1;
+drop table t1;
+
+# check that 0x01 is not padded, and all three values are unique
+create table t1 (s1 varbinary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+insert into t1 values (0x0100);
+select hex(s1) from t1 order by s1;
+# check index search
+select hex(s1) from t1 where s1=0x01;
+select hex(s1) from t1 where s1=0x0120;
+select hex(s1) from t1 where s1=0x0100;
+select count(distinct s1) from t1;
+alter table t1 drop primary key;
+# check non-indexed search
+select hex(s1) from t1 where s1=0x01;
+select hex(s1) from t1 where s1=0x0120;
+select hex(s1) from t1 where s1=0x0100;
+select count(distinct s1) from t1;
+drop table t1;

@@ -518,6 +518,14 @@ select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")
 really null
 set names latin1;
+select @@have_innodb;
+@@have_innodb
+#
+set @test = @@query_prealloc_size;
+set @@query_prealloc_size = @test;
+select @@query_prealloc_size = @test;
+@@query_prealloc_size = @test
+1
 create table t1 (a int);
 select a into @x from t1;
 Warnings:
@@ -542,9 +550,6 @@ set @@max_heap_table_size= 4294967296;
 select @@max_heap_table_size > 0;
 @@max_heap_table_size > 0
 1
-select @@have_innodb;
-@@have_innodb
-#
 select @@character_set_system;
 @@character_set_system
 utf8

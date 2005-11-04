@@ -98,7 +98,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_RETURN_REAL_PATH	32	/* return full path for file */
 #define MY_SAFE_PATH		64	/* Return NULL if too long path */
 #define MY_RELATIVE_PATH	128	/* name is relative to 'dir' */
-#define MY_UNIX_PATH		256	/* convert path to UNIX format */
 
 	/* My seek flags */
 #define MY_SEEK_SET	0
@@ -159,7 +158,8 @@ extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strdup_with_length(const byte *from, uint length,
 				   myf MyFlags);
-#define my_free(PTR,FG) my_no_flags_free(PTR)
+/* we do use FG (as a no-op) in below so that a typo on FG is caught */
+#define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */

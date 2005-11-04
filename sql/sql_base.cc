@@ -37,11 +37,11 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 			     TABLE_LIST *table_list, MEM_ROOT *mem_root);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
-static my_bool open_new_frm(const char *path, const char *alias,
-                            const char *db, const char *table_name,
-			    uint db_stat, uint prgflag,
-			    uint ha_open_flags, TABLE *outparam,
-			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
+static bool open_new_frm(THD *thd, const char *path, const char *alias,
+                         const char *db, const char *table_name,
+                         uint db_stat, uint prgflag,
+                         uint ha_open_flags, TABLE *outparam,
+                         TABLE_LIST *table_desc, MEM_ROOT *mem_root);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -976,32 +976,57 @@ void wait_for_refresh(THD *thd)
 }
 
 
-TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
-{
-  DBUG_ENTER("reopen_name_locked_table");
-  if (thd->killed)
-    DBUG_RETURN(0);
-  TABLE *table;
-  TABLE_SHARE *share;
-  if (!(table = table_list->table))
-    DBUG_RETURN(0);
+/*
+  Open table which is already name-locked by this thread.
 
-  char* db = thd->db ? thd->db : table_list->db;
-  char* table_name = table_list->table_name;
-  char	key[MAX_DBKEY_LENGTH];
-  uint	key_length;
+  SYNOPSIS
+    reopen_name_locked_table()
+      thd         Thread handle
+      table_list  TABLE_LIST object for table to be open, TABLE_LIST::table
+                  member should point to TABLE object which was used for
+                  name-locking.
+
+  NOTE
+    This function assumes that its caller already acquired LOCK_open mutex.
+
+  RETURN VALUE
+    FALSE - Success
+    TRUE  - Error
+*/
+
+bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
+{
+  TABLE *table= table_list->table;
+  TABLE_SHARE *share;
+  char *db= table_list->db;
+  char *table_name= table_list->table_name;
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length;
+  TABLE orig_table;
+  DBUG_ENTER("reopen_name_locked_table");
+
+  safe_mutex_assert_owner(&LOCK_open);
+
+  if (thd->killed || !table)
+    DBUG_RETURN(TRUE);
+
+  orig_table= *table;
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
-  pthread_mutex_lock(&LOCK_open);
   if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
                         thd->mem_root) ||
       !(table->s->table_cache_key= memdup_root(&table->mem_root, (char*) key,
                                                key_length)))
   {
-    delete table->triggers;
-    closefrm(table);
-    pthread_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(0);
+    intern_close_table(table);
+    /*
+      If there was an error during opening of table (for example if it
+      does not exist) '*table' object can be wiped out. To be able
+      properly release name-lock in this case we should restore this
+      object to its original state.
+    */
+    *table= orig_table;
+    DBUG_RETURN(TRUE);
   }
 
   share= table->s;
@@ -1011,7 +1036,6 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   share->flush_version=0;
   table->in_use = thd;
   check_unused();
-  pthread_mutex_unlock(&LOCK_open);
   table->next = thd->open_tables;
   thd->open_tables = table;
   table->tablenr=thd->current_tablenr++;
@@ -1021,7 +1045,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= share->keys_in_use;
   table->used_keys= share->keys_for_keyread;
-  DBUG_RETURN(table);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -1169,10 +1193,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     {
       char path[FN_REFLEN];
+      db_type not_used;
       strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
                table_list->table_name, reg_ext, NullS);
       (void) unpack_filename(path, path);
-      if (mysql_frm_type(path) == FRMTYPE_VIEW)
+      if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         TABLE tab;// will not be used (because it's VIEW) but have to be passed
         table= &tab;
@@ -1731,7 +1756,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 		      thd->open_options, entry)) &&
       (error != 5 ||
        (fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
-        open_new_frm(path, alias, db, name,
+        open_new_frm(thd, path, alias, db, name,
                      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                              HA_GET_INDEX | HA_TRY_READ_ONLY),
                      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
@@ -1947,11 +1972,11 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     derived/information schema tables and views possible. Thus "counter"
     may be still zero for prelocked statement...
 
-    NOTE: The above notes may be out of date. Please wait for psergey to 
+    NOTE: The above notes may be out of date. Please wait for psergey to
           document new prelocked behavior.
   */
-  
-  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() && 
+
+  if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
       thd->lex->sroutines_list.elements)
   {
     bool first_no_prelocking, need_prelocking;
@@ -2001,7 +2026,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         /* VIEW placeholder */
 	(*counter)--;
 
-        /* 
+        /*
           tables->next_global list consists of two parts:
           1) Query tables and underlying tables of views.
           2) Tables used by all stored routines that this statement invokes on
@@ -2610,7 +2635,7 @@ bool rm_temporary_table(enum db_type base, char *path)
   if (my_delete(path,MYF(0)))
     error=1; /* purecov: inspected */
   *fn_ext(path)='\0';				// remove extension
-  handler *file=get_new_handler((TABLE*) 0, base);
+  handler *file= get_new_handler((TABLE*) 0, current_thd->mem_root, base);
   if (file && file->delete_table(path))
   {
     error=1;
@@ -2656,6 +2681,47 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
   } else if (table->get_fields_in_item_tree)
     field->flags|= GET_FIXED_FIELDS_FLAG;
 }
+
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/*
+  Check column rights in given security context
+
+  SYNOPSIS
+    check_grant_column_in_sctx()
+    thd                  thread handler
+    grant                grant information structure
+    db                   db name
+    table                table  name
+    name                 column name
+    length               column name length
+    check_grants         need to check grants
+    sctx                 0 or security context
+
+  RETURN
+    FALSE OK
+    TRUE  access denied
+*/
+
+static bool check_grant_column_in_sctx(THD *thd, GRANT_INFO *grant,
+                                       const char *db, const char *table,
+                                       const char *name, uint length,
+                                       bool check_grants,
+                                       Security_context *sctx)
+{
+  if (!check_grants)
+    return FALSE;
+  Security_context *save_security_ctx= thd->security_ctx;
+  bool res;
+  if (sctx)
+  {
+    thd->security_ctx= sctx;
+  }
+  res= check_grant_column(thd, grant, db, table, name, length);
+  thd->security_ctx= save_security_ctx;
+  return res;
+}
+#endif
 
 
 /*
@@ -2708,11 +2774,11 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
         */
         DBUG_RETURN(((Item_field*) (field_it.item()))->field);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      if (check_grants &&
-          check_grant_column(thd, &table_list->grant,
-                             table_list->view_db.str,
-                             table_list->view_name.str,
-                             name, length))
+      if (check_grant_column_in_sctx(thd, &table_list->grant,
+                                     table_list->view_db.str,
+                                     table_list->view_name.str, name, length,
+                                     check_grants,
+                                     table_list->security_ctx))
         DBUG_RETURN(WRONG_GRANT);
 #endif
       // in PS use own arena or data will be freed after prepare
@@ -2789,7 +2855,6 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   Natural_join_column *nj_col;
   Field *found_field;
   Query_arena *arena, backup;
-
   DBUG_ENTER("find_field_in_natural_join");
   DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
 		       name, (ulong) ref));
@@ -2814,6 +2879,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 
   if (nj_col->view_field)
   {
+    Item *item;
     /*
       The found field is a view field, we do as in find_field_in_view()
       and return a pointer to pointer to the Item of that field.
@@ -2821,7 +2887,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
     if (register_tree_change)
       arena= thd->activate_stmt_arena_if_needed(&backup);
 
-    Item *item= nj_col->create_item(thd);
+    item= nj_col->create_item(thd);
 
     if (register_tree_change && arena)
       thd->restore_active_arena(arena, &backup);
@@ -2881,7 +2947,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 Field *
 find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
                     bool check_grants, bool allow_rowid,
-                    uint *cached_field_index_ptr)
+                    uint *cached_field_index_ptr,
+                    Security_context *sctx)
 {
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
@@ -2890,7 +2957,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 
   /* We assume here that table->field < NO_CACHED_FIELD_INDEX = UINT_MAX */
   if (cached_field_index < table->s->fields &&
-      !my_strcasecmp(system_charset_info, 
+      !my_strcasecmp(system_charset_info,
                      table->field[cached_field_index]->field_name, name))
     field_ptr= table->field + cached_field_index;
   else if (table->s->name_hash.records)
@@ -2921,9 +2988,10 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
   update_field_dependencies(thd, field, table);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_grants && check_grant_column(thd, &table->grant,
-					 table->s->db,
-					 table->s->table_name, name, length))
+  if (check_grant_column_in_sctx(thd, &table->grant,
+                                 table->s->db, table->s->table_name,
+                                 name, length,
+                                 check_grants, sctx))
     field= WRONG_GRANT;
 #endif
   DBUG_RETURN(field);
@@ -3035,7 +3103,8 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     DBUG_ASSERT(table_list->table);
     if ((fld= find_field_in_table(thd, table_list->table, name, length,
                                   check_grants_table, allow_rowid,
-                                  cached_field_index_ptr)))
+                                  cached_field_index_ptr,
+                                  table_list->security_ctx)))
       *actual_table= table_list;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* check for views with temporary table algorithm */
@@ -3205,7 +3274,8 @@ find_field_in_tables(THD *thd, Item_ident *item,
                                  test(table_ref->table->
                                       grant.want_privilege) &&
                                  check_privileges,
-                                 1, &(item->cached_field_index));
+                                 1, &(item->cached_field_index),
+                                 table_ref->security_ctx);
     else
       found= find_field_in_table_ref(thd, table_ref, name, item->name,
                                      NULL, NULL, length, ref,
@@ -4293,7 +4363,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
 
   thd->set_query_id=set_query_id;
   thd->allow_sum_func= allow_sum_func;
-  thd->where="field list";
+  thd->where= THD::DEFAULT_WHERE;
 
   /*
     To prevent fail on forward lookup we fill it with zerows,
@@ -4345,8 +4415,12 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 {
   for (TABLE_LIST *table= tables; table; table= table->next_local)
   {
-    if (table->view && table->effective_algorithm == VIEW_ALGORITHM_MERGE)
-      list= make_leaves_list(list, table->ancestor);
+    if (table->merge_underlying_list)
+    {
+      DBUG_ASSERT(table->view &&
+                  table->effective_algorithm == VIEW_ALGORITHM_MERGE);
+      list= make_leaves_list(list, table->merge_underlying_list);
+    }
     else
     {
       *list= table;
@@ -4446,16 +4520,17 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
        table_list;
        table_list= table_list->next_local)
   {
-    if (table_list->ancestor)
+    if (table_list->merge_underlying_list)
     {
-      DBUG_ASSERT(table_list->view);
+      DBUG_ASSERT(table_list->view &&
+                  table_list->effective_algorithm == VIEW_ALGORITHM_MERGE);
       Query_arena *arena= thd->stmt_arena, backup;
       bool res;
       if (arena->is_conventional())
         arena= 0;                                   // For easier test
       else
         thd->set_n_backup_active_arena(arena, &backup);
-      res= table_list->setup_ancestor(thd);
+      res= table_list->setup_underlying(thd);
       if (arena)
         thd->restore_active_arena(arena, &backup);
       if (res)
@@ -5233,6 +5308,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
 
   SYNOPSIS
     open_new_frm()
+    THD		  thread handler
     path	  path to .frm
     alias	  alias for table
     db            database
@@ -5246,8 +5322,8 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     mem_root	  temporary MEM_ROOT for parsing
 */
 
-static my_bool
-open_new_frm(const char *path, const char *alias,
+static bool
+open_new_frm(THD *thd, const char *path, const char *alias,
              const char *db, const char *table_name,
              uint db_stat, uint prgflag,
 	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
@@ -5269,7 +5345,7 @@ open_new_frm(const char *path, const char *alias,
         my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
         goto err;
       }
-      if (mysql_make_view(parser, table_desc))
+      if (mysql_make_view(thd, parser, table_desc))
         goto err;
     }
     else

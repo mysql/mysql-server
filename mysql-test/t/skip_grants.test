@@ -19,3 +19,11 @@ drop table t1;
 #
 create procedure f1() select 1;
 drop procedure f1;
+
+#
+# BUG#13504: creation view with DEFINER clause if --skip-grant-tables
+#
+create table t1 (a int);
+create definer='user'@'host' sql security definer view v1 as select * from t1;
+drop view v1;
+drop table t1;

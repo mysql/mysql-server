@@ -670,7 +670,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  YEAR_SYM
 %token  ZEROFILL
 
-%left   JOIN_SYM
+%left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
 /* A dummy token to force the priority of table_ref production in a join. */
 %left   TABLE_REF_PRIORITY
 %left   SET_VAR
@@ -1279,6 +1279,7 @@ create:
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
+            lex->create_view_start= thd->query;
 	    /* first table in list is target VIEW name */
 	    if (!lex->select_lex.add_table_to_list(thd, $7, NULL, 0))
               YYABORT;
@@ -3169,9 +3170,21 @@ create_table_option:
 	| CHECKSUM_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM opt_equal ulong_num { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
 	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
-	| RAID_TYPE opt_equal raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKS opt_equal ulong_num	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKSIZE opt_equal ulong_num	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_TYPE opt_equal raid_types
+	  {
+	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_TYPE", "PARTITION");
+	    YYABORT;
+	  }
+	| RAID_CHUNKS opt_equal ulong_num
+	  {
+	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKS", "PARTITION");
+	    YYABORT;
+	  }
+	| RAID_CHUNKSIZE opt_equal ulong_num
+	  {
+	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKSIZE", "PARTITION");
+	    YYABORT;
+	  }
 	| UNION_SYM opt_equal '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
@@ -3469,7 +3482,9 @@ type:
 spatial_type:
 	GEOMETRY_SYM	      { $$= Field::GEOM_GEOMETRY; }
 	| GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
-	| POINT_SYM           { $$= Field::GEOM_POINT; }
+	| POINT_SYM           { Lex->length= (char*)"21";
+                                $$= Field::GEOM_POINT;
+                              }
 	| MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
 	| LINESTRING          { $$= Field::GEOM_LINESTRING; }
 	| MULTILINESTRING     { $$= Field::GEOM_MULTILINESTRING; }
@@ -3925,6 +3940,7 @@ alter:
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
+            lex->create_view_start= thd->query;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
 	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
@@ -4905,9 +4921,9 @@ predicate:
 	  { $$= new Item_func_eq(new Item_func_soundex($1),
 				 new Item_func_soundex($4)); }
 	| bit_expr LIKE simple_expr opt_escape
-          { $$= new Item_func_like($1,$3,$4); }
+          { $$= new Item_func_like($1,$3,$4,Lex->escape_used); }
 	| bit_expr not LIKE simple_expr opt_escape
-          { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+          { $$= new Item_func_not(new Item_func_like($1,$4,$5, Lex->escape_used)); }
 	| bit_expr REGEXP bit_expr	{ $$= new Item_func_regex($1,$3); }
 	| bit_expr not REGEXP bit_expr
           { $$= negate_expression(YYTHD, new Item_func_regex($1,$4)); }
@@ -5127,6 +5143,8 @@ simple_expr:
 	  { $$= new Item_func_atan($3,$5); }
 	| CHAR_SYM '(' expr_list ')'
 	  { $$= new Item_func_char(*$3); }
+	| CHAR_SYM '(' expr_list USING charset_name ')'
+	  { $$= new Item_func_char(*$3, $5); }
 	| CHARSET '(' expr ')'
 	  { $$= new Item_func_charset($3); }
 	| COALESCE '(' expr_list ')'
@@ -5814,14 +5832,22 @@ derived_table_list:
           }
         ;
 
+/*
+  Notice that JOIN is a left-associative operation, and it must be parsed
+  as such, that is, the parser must process first the left join operand
+  then the right one. Such order of processing ensures that the parser
+  produces correct join trees which is essential for semantic analysis
+  and subsequent optimization phases.
+*/
 join_table:
+/* INNER JOIN variants */
         /*
-          Evaluate production 'table_ref' before 'normal_join' so that
-          [INNER | CROSS] JOIN is properly nested as other left-associative
-          joins.
+          Use %prec to evaluate production 'table_ref' before 'normal_join'
+          so that [INNER | CROSS] JOIN is properly nested as other
+          left-associative joins.
         */
         table_ref %prec TABLE_REF_PRIORITY normal_join table_ref
-        { YYERROR_UNLESS($1 && ($$=$3)); }
+          { YYERROR_UNLESS($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
 	  { YYERROR_UNLESS($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref
@@ -5863,6 +5889,13 @@ join_table:
 	  }
 	  '(' using_list ')'
           { add_join_natural($1,$3,$7); $$=$3; }
+	| table_ref NATURAL JOIN_SYM table_factor
+	  {
+            YYERROR_UNLESS($1 && ($$=$4));
+            add_join_natural($1,$4,NULL);
+          }
+
+/* LEFT JOIN variants */
 	| table_ref LEFT opt_outer JOIN_SYM table_ref
           ON
           {
@@ -5894,6 +5927,8 @@ join_table:
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
+
+/* RIGHT JOIN variants */
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref
           ON
           {
@@ -5931,10 +5966,7 @@ join_table:
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
-	  }
-	| table_ref NATURAL JOIN_SYM table_factor
-	  { YYERROR_UNLESS($1 && ($$=$4)); add_join_natural($1,$4,NULL); };
-
+	  };
 
 normal_join:
 	JOIN_SYM		{}
@@ -6267,10 +6299,14 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM simple_expr { $$= $2; }
+	ESCAPE_SYM simple_expr 
+          {
+            Lex->escape_used= TRUE;
+            $$= $2;
+          }
 	| /* empty */
           {
-
+            Lex->escape_used= FALSE;
             $$= ((YYTHD->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) ?
 		 new Item_string("", 0, &my_charset_latin1) :
                  new Item_string("\\", 1, &my_charset_latin1));
@@ -8594,6 +8630,18 @@ option_value:
 	  $2= $2 ? $2: global_system_variables.character_set_client;
 	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.collation_database,$2));
 	}
+        | NAMES_SYM equal expr
+	  {
+	    LEX *lex= Lex;
+            sp_pcontext *spc= lex->spcont;
+	    LEX_STRING names;
+
+	    names.str= (char *)"names";
+	    names.length= 5;
+	    if (spc && spc->find_pvar(&names))
+              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
+	    YYABORT;
+	  }
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
 	  LEX *lex= Lex;
@@ -8611,6 +8659,17 @@ option_value:
 	  {
 	    THD *thd=YYTHD;
 	    LEX_USER *user;
+	    LEX *lex= Lex;	    
+            sp_pcontext *spc= lex->spcont;
+	    LEX_STRING pw;
+
+	    pw.str= (char *)"password";
+	    pw.length= 8;
+	    if (spc && spc->find_pvar(&pw))
+	    {
+              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
+	      YYABORT;
+	    }
 	    if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
 	      YYABORT;
 	    user->host=null_lex_str;
@@ -9569,8 +9628,7 @@ view_user:
                   (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    view_user->user = $3; view_user->host=$5;
-            if (strchr(view_user->host.str, wild_many) ||
-                strchr(view_user->host.str, wild_one))
+            if (view_user->host.length == 0)
             {
               my_error(ER_NO_VIEW_USER, MYF(0));
               YYABORT;

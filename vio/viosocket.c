@@ -138,7 +138,14 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
     else
       vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     if (old_fcntl != vio->fcntl_mode)
-      r = fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
+    {
+      r= fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
+      if (r == -1)
+      {
+        DBUG_PRINT("info", ("fcntl failed, errno %d", errno));
+        vio->fcntl_mode= old_fcntl;
+      }
+    }
   }
 #else
   r= set_blocking_mode ? 0 : 1;

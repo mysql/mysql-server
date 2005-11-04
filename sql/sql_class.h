@@ -189,8 +189,11 @@ class MYSQL_LOG: public TC_LOG
 {
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_log, LOCK_index;
+  pthread_mutex_t LOCK_log, LOCK_index, LOCK_readers;
+  pthread_mutex_t LOCK_prep_xids;
+  pthread_cond_t  COND_prep_xids;
   pthread_cond_t update_cond;
+  pthread_cond_t reset_cond;
   ulonglong bytes_written;
   time_t last_time,query_start;
   IO_CACHE log_file;
@@ -198,21 +201,6 @@ class MYSQL_LOG: public TC_LOG
   char *name;
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
-  // current file sequence number for load data infile binary logging
-  uint file_id;
-  uint open_count;				// For replication
-  volatile enum_log_type log_type;
-  enum cache_type io_cache_type;
-  bool write_error, inited;
-  bool need_start_event;
-  /*
-    no_auto_events means we don't want any of these automatic events :
-    Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't want
-    a Rotate_log event to be written to the relay log. When we start a relay log
-    etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
-    In 5.0 it's 0 for relay logs too!
-  */
-  bool no_auto_events;
   /*
      The max size before rotation (usable only if log_type == LOG_BIN: binary
      logs and relay logs).
@@ -224,13 +212,38 @@ class MYSQL_LOG: public TC_LOG
      fix_max_relay_log_size).
   */
   ulong max_size;
-
   ulong prepared_xids; /* for tc log - number of xids to remember */
-  pthread_mutex_t LOCK_prep_xids;
-  pthread_cond_t  COND_prep_xids;
+  volatile enum_log_type log_type;
+  enum cache_type io_cache_type;
+  // current file sequence number for load data infile binary logging
+  uint file_id;
+  uint open_count;				// For replication
+  int readers_count;
+  bool reset_pending;
+  bool write_error, inited;
+  bool need_start_event;
+  /*
+    no_auto_events means we don't want any of these automatic events :
+    Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't
+    want a Rotate_log event to be written to the relay log. When we start a
+    relay log etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
+    In 5.0 it's 0 for relay logs too!
+  */
+  bool no_auto_events;
   friend class Log_event;
 
 public:
+  /*
+    These describe the log's format. This is used only for relay logs.
+    _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
+    necessary to have 2 distinct objects, because the I/O thread may be reading
+    events in a different format from what the SQL thread is reading (consider
+    the case of a master which has been upgraded from 5.0 to 5.1 without doing
+    RESET MASTER, or from 4.x to 5.0).
+  */
+  Format_description_log_event *description_event_for_exec,
+    *description_event_for_queue;
+
   MYSQL_LOG();
   /*
     note that there's no destructor ~MYSQL_LOG() !
@@ -243,18 +256,6 @@ public:
   int log(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
-
-  /*
-     These describe the log's format. This is used only for relay logs.
-     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
-     necessary to have 2 distinct objects, because the I/O thread may be reading
-     events in a different format from what the SQL thread is reading (consider
-     the case of a master which has been upgraded from 5.0 to 5.1 without doing
-     RESET MASTER, or from 4.x to 5.0).
-  */
-  Format_description_log_event *description_event_for_exec,
-    *description_event_for_queue;
-
   void reset_bytes_written()
   {
     bytes_written = 0;
@@ -334,6 +335,9 @@ public:
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(struct st_relay_log_info* rli, bool included);
   bool reset_logs(THD* thd);
+  inline bool is_reset_pending() { return reset_pending; }
+  void readers_addref();
+  void readers_release();
   void close(uint exiting);
 
   // iterating through the log index file
@@ -1115,6 +1119,14 @@ class THD :public Statement,
            public Open_tables_state
 {
 public:
+  /*
+    Constant for THD::where initialization in the beginning of every query.
+
+    It's needed because we do not save/restore THD::where normally during
+    primary (non subselect) query execution.
+  */
+  static const char * const DEFAULT_WHERE;
+
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;
   struct st_mysql_data *data;
@@ -1911,6 +1923,7 @@ typedef struct st_sort_field {
   Field *field;				/* Field to sort */
   Item	*item;				/* Item if not sorting fields */
   uint	 length;			/* Length of sort field */
+  uint   suffix_length;                 /* Length suffix (0-4) */
   Item_result result_type;		/* Type of item */
   bool reverse;				/* if descending sort */
   bool need_strxnfrm;			/* If we have to use strxnfrm() */

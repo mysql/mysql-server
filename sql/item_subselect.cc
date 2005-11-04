@@ -1413,6 +1413,12 @@ void subselect_union_engine::cleanup()
 }
 
 
+bool subselect_union_engine::is_executed() const
+{
+  return unit->executed;
+}
+
+
 void subselect_uniquesubquery_engine::cleanup()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
