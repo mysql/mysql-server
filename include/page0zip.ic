@@ -213,7 +213,7 @@ page_zip_write_trailer(
 
 	ut_ad(pos > PAGE_DATA);
 	ut_ad(pos < UNIV_PAGE_SIZE
-			- page_trailer_get_len(buf_block_align((byte*) str)));
+			- page_trailer_get_len(buf_frame_align((byte*) str)));
 
 	memcpy(page_zip->data + page_zip->size - (UNIV_PAGE_SIZE - pos),
 			str, length);
