@@ -119,7 +119,7 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
   set to type ERR_EMPTY. When an SQL statement return an error we use
   this list to check if this  is an expected error.
 */
- 
+
 enum match_err_type
 {
   ERR_EMPTY= 0,
@@ -300,7 +300,7 @@ struct connection* cur_con, *next_con, *cons_end;
 
 enum enum_commands {
 Q_CONNECTION=1,     Q_QUERY,
-Q_CONNECT,	    Q_SLEEP, Q_REAL_SLEEP, 
+Q_CONNECT,	    Q_SLEEP, Q_REAL_SLEEP,
 Q_INC,		    Q_DEC,
 Q_SOURCE,	    Q_DISCONNECT,
 Q_LET,		    Q_ECHO,
@@ -740,14 +740,14 @@ err:
 
 /*
   Check the content of ds against content of file fname
-  
+
   SYNOPSIS
   check_result
   ds - content to be checked
   fname - name of file to check against
-  require_option - if set and check fails, the test will be aborted with the special 
+  require_option - if set and check fails, the test will be aborted with the special
                    exit code "not supported test"
-		   
+
   RETURN VALUES
    error - the function will not return
 
@@ -1645,7 +1645,7 @@ static uint get_errcodes(match_err *to,struct st_query *q)
       /* SQL error as string */
       st_error *e= global_error;
       char *start= p++;
-      
+
       for (; *p == '_' || my_isalnum(charset_info, *p); p++)
 	;
       for (; e->name; e++)
@@ -1919,13 +1919,13 @@ int close_connection(struct st_query *q)
   SYNOPSIS
   safe_get_param
   str - string to get param from
-  arg - pointer to string where result will be stored 
+  arg - pointer to string where result will be stored
   msg - Message to display if param is not found
        if msg is 0 this param is not required and param may be empty
-  
+
   RETURNS
   pointer to str after param
-  
+
 */
 
 char* safe_get_param(char *str, char** arg, const char *msg)
@@ -1933,7 +1933,7 @@ char* safe_get_param(char *str, char** arg, const char *msg)
   DBUG_ENTER("safe_get_param");
   if(!*str)
   {
-    if (msg) 
+    if (msg)
       die(msg);
     *arg= str;
     DBUG_RETURN(str);
@@ -2082,7 +2082,7 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
     *create_conn= 0;
     goto err;
   }
-  else 
+  else
   {
     handle_no_error(q);
 
@@ -2528,7 +2528,7 @@ int read_line(char *buf, int size)
 	state= R_Q;
       }
       else
-state= R_NORMAL;
+	state= R_NORMAL;
       break;
 
     case R_Q:
@@ -2922,9 +2922,9 @@ char* safe_str_append(char *buf, const char *str, int size)
 }
 
 
-/* 
+/*
    Write the content of str into file
-   
+
    SYNOPSIS
    str_to_file
    fname - name of file to truncate/create and write to
@@ -2941,7 +2941,7 @@ static void str_to_file(const char *fname, char *str, int size)
     fname=buff;
   }
   fn_format(buff,fname,"","",4);
-  
+
   if ((fd = my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", buff, errno);
@@ -3032,7 +3032,7 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 
 
 /*
-  Append all results from ps execution to the dynamic string separated 
+  Append all results from ps execution to the dynamic string separated
   with '\t'. Values may be converted with 'replace_column'
 */
 
@@ -3044,7 +3044,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
   ulong *length;
   ulonglong num_rows;
   uint col_idx, row_idx;
-  
+
   /* Allocate array with bind structs, lengths and NULL flags */
   bind= (MYSQL_BIND*) my_malloc(num_fields * sizeof(MYSQL_BIND),
 				MYF(MY_WME | MY_FAE | MY_ZEROFILL));
@@ -3052,7 +3052,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
 			     MYF(MY_WME | MY_FAE));
   is_null= (my_bool*) my_malloc(num_fields * sizeof(my_bool),
 				MYF(MY_WME | MY_FAE));
-  
+
   for (col_idx= 0; col_idx < num_fields; col_idx++)
   {
     /* Allocate data for output */
@@ -3062,19 +3062,19 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
     */
     uint max_length= max(field[col_idx].max_length + 1, 1024);
     char *str_data= (char *) my_malloc(max_length, MYF(MY_WME | MY_FAE));
-    
+
     bind[col_idx].buffer_type= MYSQL_TYPE_STRING;
     bind[col_idx].buffer= (char *)str_data;
     bind[col_idx].buffer_length= max_length;
     bind[col_idx].is_null= &is_null[col_idx];
     bind[col_idx].length= &length[col_idx];
   }
-  
+
   /* Fill in the data into the structures created above */
   if (mysql_stmt_bind_result(stmt, bind))
-    die("mysql_stmt_bind_result failed: %d: %s", 
+    die("mysql_stmt_bind_result failed: %d: %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
-  
+
   /* Read result from each row */
   num_rows= mysql_stmt_num_rows(stmt);
   for (row_idx= 0; row_idx < num_rows; row_idx++)
@@ -3082,7 +3082,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
     if (mysql_stmt_fetch(stmt))
       die("mysql_stmt_fetch failed: %d %s",
 	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
-    
+
     /* Read result from each column */
     for (col_idx= 0; col_idx < num_fields; col_idx++)
     {
@@ -3120,13 +3120,13 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
   }
-  
+
   if (mysql_stmt_fetch(stmt) != MYSQL_NO_DATA)
     die("fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
 	mysql_stmt_error(stmt), mysql_stmt_errno(stmt));
-  
+
   free_replace_column();
-  
+
   for (col_idx= 0; col_idx < num_fields; col_idx++)
   {
     /* Free data for output */
@@ -3144,7 +3144,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT* stmt,
 */
 
 static void append_metadata(DYNAMIC_STRING *ds,
-			    MYSQL_FIELD *field, 
+			    MYSQL_FIELD *field,
 			    uint num_fields)
 {
   MYSQL_FIELD *field_end;
@@ -3217,10 +3217,10 @@ static void append_info(DYNAMIC_STRING* ds, ulong affected_rows,
 }
 
 
-/* 
-   Display the table headings with the names tab separated 
+/*
+   Display the table headings with the names tab separated
 */
-static void append_table_headings(DYNAMIC_STRING* ds, 
+static void append_table_headings(DYNAMIC_STRING* ds,
 				  MYSQL_FIELD* field,
 				  uint num_fields)
 {
@@ -3253,14 +3253,14 @@ static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
     we have not read all results...
   */
   DBUG_ASSERT(!mysql_more_results(mysql));
-  
+
   if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
     die("Error running query \"SHOW WARNINGS\": %s", mysql_error(mysql));
- 
+
   if (!(warn_res= mysql_store_result(mysql)))
     die("Warning count is %u but didn't get any warnings",
 	count);
-  
+
   dynstr_append_mem(ds, "Warnings:\n", 10);
   append_result(ds, warn_res);
   mysql_free_result(warn_res);
@@ -3271,7 +3271,7 @@ static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 
 /*
   Run query using MySQL C API
-  
+
   SYNPOSIS
   run_query_normal
   mysql - mysql handle
@@ -3285,8 +3285,8 @@ static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   error - function will not return
 */
 
-static void run_query_normal(MYSQL *mysql, struct st_query *command, 
-			     int flags, char *query, int query_len, 
+static void run_query_normal(MYSQL *mysql, struct st_query *command,
+			     int flags, char *query, int query_len,
 			     DYNAMIC_STRING *ds)
 {
   MYSQL_RES *res= 0;
@@ -3297,7 +3297,7 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
 
   if (flags & QUERY_SEND)
   {
-    /* 
+    /*
        Send the query
      */
     if (mysql_send_query(mysql, query, query_len))
@@ -3310,11 +3310,11 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
 
   if (!(flags & QUERY_REAP))
     DBUG_VOID_RETURN;
- 
+
   do
   {
     /*
-      When  on first result set, call mysql_read_query_result to retrieve 
+      When  on first result set, call mysql_read_query_result to retrieve
       answer to the query sent earlier
      */
     if ((counter==0) && mysql_read_query_result(mysql))
@@ -3325,8 +3325,8 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
 
     }
 
-    /* 
-       Store the result. If res is NULL, use mysql_field_count to 
+    /*
+       Store the result. If res is NULL, use mysql_field_count to
        determine if that was expected
      */
     if (!(res= mysql_store_result(mysql)) && mysql_field_count(mysql))
@@ -3386,7 +3386,7 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
     goto end;
   }
   DBUG_ASSERT(err == -1); /* Successful and there are no more results */
- 
+
   /* If we come here the query is both executed and read successfully */
   handle_no_error(command);
 
@@ -3428,12 +3428,12 @@ static void handle_error(const char *query, struct st_query *q,
 			 const char *err_sqlstate, DYNAMIC_STRING *ds)
 {
   uint i;
- 
+
   DBUG_ENTER("handle_error");
 
   if (q->require_file)
     abort_not_supported_test();
- 
+
   if (q->abort_on_error)
     die("query '%s' failed: %d: %s", query, err_errno, err_error);
 
@@ -3527,7 +3527,7 @@ static void handle_no_error(struct st_query *q)
 
 /*
   Run query using prepared statement C API
-  
+
   SYNPOSIS
   run_query_stmt
   mysql - mysql handle
@@ -3540,7 +3540,7 @@ static void handle_no_error(struct st_query *q)
   error - function will not return
 */
 
-static void run_query_stmt(MYSQL *mysql, struct st_query *command, 
+static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 			   char *query, int query_len, DYNAMIC_STRING *ds)
 {
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
@@ -3548,7 +3548,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   DYNAMIC_STRING ds_prepare_warnings;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
-	         
+
   /*
     Init a new stmt if it's not alreday one created for this connectoon
   */
@@ -3558,7 +3558,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
       die("unable to init stmt structure");
     cur_con->stmt= stmt;
   }
-  
+
   /*
     Prepare the query
   */
@@ -3570,10 +3570,10 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   }
 
   /*
-    Get the warnings from mysql_stmt_prepare and keep them in a 
-    separate string 
+    Get the warnings from mysql_stmt_prepare and keep them in a
+    separate string
   */
-  
+
   if (!disable_warnings)
   {
     init_dynamic_string(&ds_prepare_warnings, "", 1024, 1024);
@@ -3594,7 +3594,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   {
     unsigned long type= CURSOR_TYPE_READ_ONLY;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type))
-      die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s", 
+      die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s",
 	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 #endif
@@ -3602,7 +3602,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   /*
     Execute the query
    */
-  if (mysql_stmt_execute(stmt)) 
+  if (mysql_stmt_execute(stmt))
   {
     handle_error(query, command, mysql_stmt_errno(stmt),
 		 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
@@ -3617,7 +3617,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   {
     my_bool one= 1;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one))
-      die("mysql_stmt_attr_set(STMT_ATTR_UPDATE_MAX_LENGTH) failed': %d %s", 
+      die("mysql_stmt_attr_set(STMT_ATTR_UPDATE_MAX_LENGTH) failed': %d %s",
 	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
@@ -3635,6 +3635,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   /* If we got here the statement was both executed and read succeesfully */
   handle_no_error(command);
   if (!disable_result_log)
+  {
     /*
       Not all statements creates a result set. If there is one we can
       now create another normal result set that contains the meta
@@ -3642,27 +3643,28 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
       statement result set.
     */
     if ((res= mysql_stmt_result_metadata(stmt)) != NULL)
+    {
       /* Take the column count from meta info */
       MYSQL_FIELD *fields= mysql_fetch_fields(res);
       uint num_fields= mysql_num_fields(res);
-      
+
       if (display_metadata)
 	append_metadata(ds, fields, num_fields);
-      
+
       if (!display_result_vertically)
 	append_table_headings(ds, fields, num_fields);
-      
-      append_stmt_result(ds, stmt, fields, num_fields); 
-      
+
+      append_stmt_result(ds, stmt, fields, num_fields);
+
       mysql_free_result(res);     /* Free normal result set with meta data */
 
-    } 
-    else 
+    }
+    else
     {
       /*
 	This is a query without resultset
       */
-      
+
       /*
 	Add warnings from prepare to output
        */
@@ -3672,15 +3674,15 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 
     if (!disable_warnings)
       append_warnings(ds, mysql);
-    
+
     if (!disable_info)
       append_info(ds, (ulong)mysql_affected_rows(mysql), mysql_info(mysql));
-    
+
   }
 
 end:
   free_replace();
-  
+
   if (!disable_warnings)
     dynstr_free(&ds_prepare_warnings);
 
@@ -3705,7 +3707,7 @@ end:
   run_query
   mysql - mysql handle
   command - currrent command pointer
-  
+
 */
 
 static void run_query(MYSQL *mysql, struct st_query *command, int flags)
@@ -3735,7 +3737,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   }
 
   /*
-    When command->record_file is set the output of _this_ query 
+    When command->record_file is set the output of _this_ query
     should be compared with an already existing file
     Create a temporary dynamic string to contain the output from
     this query.
@@ -3748,8 +3750,8 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   else
     ds= &ds_res;
 
-  /* 
-     Log the query into the output buffer 
+  /*
+     Log the query into the output buffer
   */
   if (!disable_query_log && (flags & QUERY_SEND))
   {
@@ -3762,13 +3764,13 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
       complete_query &&
       match_re(&view_re, query))
   {
-    /* 
+    /*
        Create the query as a view.
-       Use replace since view can exist from a failed mysqltest run 
-    */      
-    DYNAMIC_STRING query_str;     
-    init_dynamic_string(&query_str, 
-			"CREATE OR REPLACE VIEW mysqltest_tmp_v AS ", 
+       Use replace since view can exist from a failed mysqltest run
+    */
+    DYNAMIC_STRING query_str;
+    init_dynamic_string(&query_str,
+			"CREATE OR REPLACE VIEW mysqltest_tmp_v AS ",
 			query_len+64, 256);
     dynstr_append_mem(&query_str, query, query_len);
     if (mysql_query(mysql, query_str.str))
@@ -3777,7 +3779,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 	Failed to create the view, this is not fatal
 	just run the query the normal way
        */
-      DBUG_PRINT("view_create_error", 
+      DBUG_PRINT("view_create_error",
 		 ("Failed to create view '%s': %d: %s", query_str.str,
 		  mysql_errno(mysql), mysql_error(mysql)));
     }
@@ -3787,12 +3789,12 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 	Yes, it was possible to create this query as a view
        */
       view_created= 1;
-      query= (char*)"SELECT * FROM mysqltest_tmp_v";    
+      query= (char*)"SELECT * FROM mysqltest_tmp_v";
       query_len = strlen(query);
     }
 
     dynstr_free(&query_str);
-    
+
   }
 
   if (sp_protocol_enabled &&
@@ -3801,19 +3803,19 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   {
     /*
       Create the query as a stored procedure
-      Drop first since sp can exist from a failed mysqltest run 
-    */      
+      Drop first since sp can exist from a failed mysqltest run
+    */
     DYNAMIC_STRING query_str;
-    init_dynamic_string(&query_str, 
+    init_dynamic_string(&query_str,
 			"DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;\n",
 			query_len+64, 256);
-    mysql_query(mysql, query_str.str);      
+    mysql_query(mysql, query_str.str);
     dynstr_set(&query_str, "CREATE PROCEDURE mysqltest_tmp_sp()\n");
     dynstr_append_mem(&query_str, query, query_len);
     if (mysql_query(mysql, query_str.str))
     {
       /*
-	Failed to create the stored procedure for this query, 
+	Failed to create the stored procedure for this query,
 	this is not fatal just run the query the normal way
       */
       DBUG_PRINT("sp_create_error",
@@ -3823,8 +3825,8 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
     else
     {
       sp_created= 1;
-      
-      query= (char*)"CALL mysqltest_tmp_sp()";    
+
+      query= (char*)"CALL mysqltest_tmp_sp()";
       query_len = strlen(query);
     }
     dynstr_free(&query_str);
@@ -3833,7 +3835,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   /*
     Find out how to run this query
 
-    Always run with normal C API if it's not a complete 
+    Always run with normal C API if it's not a complete
     SEND + REAP
 
     If it is a '?' in the query it may be a SQL level prepared
@@ -3845,17 +3847,17 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
     run_query_stmt(mysql, command, query, query_len, ds);
   else
     run_query_normal(mysql, command, flags, query, query_len, ds);
-  
+
   if (sp_created)
   {
     if (mysql_query(mysql, "DROP PROCEDURE mysqltest_tmp_sp "))
       die("Failed to drop sp: %d: %s", mysql_errno(mysql), mysql_error(mysql));
   }
-  
+
   if (view_created)
   {
     if (mysql_query(mysql, "DROP VIEW mysqltest_tmp_v "))
-      die("Failed to drop view: %d: %s", 
+      die("Failed to drop view: %d: %s",
 	  mysql_errno(mysql), mysql_error(mysql));
   }
 
@@ -3871,7 +3873,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   else if (command->record_file[0])
   {
     /*
-      The output from _this_ query should be checked against an already 
+      The output from _this_ query should be checked against an already
       existing file which has been specified using --require or --result
      */
     check_result(ds, command->record_file, command->require_file);
@@ -3891,7 +3893,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 static char *re_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL, 
+  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL,
 			  epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
@@ -3905,15 +3907,15 @@ static void init_re_comp(my_regex_t *re, const char* str)
   {
     char erbuf[100];
     int len= my_regerror(err, re, erbuf, sizeof(erbuf));
-    die("error %s, %d/%d `%s'\n", 
+    die("error %s, %d/%d `%s'\n",
 	re_eprint(err), len, (int)sizeof(erbuf), erbuf);
   }
 }
 
 static void init_re(void)
 {
-  /* 
-     Filter for queries that can be run using the 
+  /*
+     Filter for queries that can be run using the
      MySQL Prepared Statements C API
   */
   const char *ps_re_str =
@@ -3930,13 +3932,13 @@ static void init_re(void)
     "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
     "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
 
-  /* 
-     Filter for queries that can be run using the 
+  /*
+     Filter for queries that can be run using the
      Stored procedures
   */
   const char *sp_re_str =ps_re_str;
 
-  /* 
+  /*
      Filter for queries that can be run as views
   */
   const char *view_re_str =
@@ -3958,7 +3960,7 @@ static int match_re(my_regex_t *re, char *str)
   else if (err == REG_NOMATCH)
     return 0;
 
-  {  
+  {
     char erbuf[100];
     int len= my_regerror(err, re, erbuf, sizeof(erbuf));
     die("error %s, %d/%d `%s'\n",
@@ -4093,7 +4095,7 @@ static void init_var_hash(MYSQL *mysql)
 {
   VAR *v;
   DBUG_ENTER("init_var_hash");
-  if (hash_init(&var_hash, charset_info, 
+  if (hash_init(&var_hash, charset_info,
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
   my_hash_insert(&var_hash, (byte*) var_init(0,"BIG_TEST", 0,
@@ -4139,7 +4141,7 @@ int main(int argc, char **argv)
   cur_block= block_stack;
   cur_block->ok= TRUE; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
-  
+
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
 
@@ -4486,8 +4488,8 @@ int main(int argc, char **argv)
       /* No result_file to compare with, print the result to stdout */
       printf("%s", ds_res.str);
     }
-  } 
-  else 
+  }
+  else
   {
     /* The test didn't produce any output */
   }
@@ -5440,7 +5442,7 @@ static char *subst_env_var(const char *str)
 */
 
 #undef popen                                    /* Remove wrapper */
-#ifdef __WIN__ 
+#ifdef __WIN__
 #define popen _popen                           /* redefine for windows */
 #endif
 
