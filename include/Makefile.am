@@ -38,23 +38,15 @@ SUPERCLEANFILES =	mysql_version.h my_config.h
 # Some include files that may be moved and patched by configure
 DISTCLEANFILES =	sched.h $(SUPERCLEANFILES)
 
-clean:
+clean-local:
 	$(RM) -fr readline
-distclean:
+distclean-local:
 	$(RM) -fr readline
-
-all-local:		my_config.h
-
-# Since we include my_config.h it better exist from the beginning
-link_sources:
-	$(CP) ../config.h my_config.h
-	-$(RM) -fr readline
-	@readline_h_ln_cmd@
-
-# Keep automake happy 
 
 my_config.h: ../config.h
 	$(CP) ../config.h my_config.h
+
+link_sources:
 	-$(RM) -fr readline
 	@readline_h_ln_cmd@
 
