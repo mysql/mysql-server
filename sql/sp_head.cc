@@ -437,13 +437,14 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_flags(0), m_returns_cs(NULL)
+   m_flags(0), m_returns_cs(NULL), m_cont_level(0)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
   m_backpatch.empty();
+  m_cont_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
@@ -1569,6 +1570,39 @@ sp_head::check_backpatch(THD *thd)
 }
 
 void
+sp_head::new_cont_backpatch(sp_instr_jump_if_not *i)
+{
+  m_cont_level+= 1;
+  if (i)
+  {
+    /* Use the cont. destination slot to store the level */
+    i->m_cont_dest= m_cont_level;
+    (void)m_cont_backpatch.push_front(i);
+  }
+}
+
+void
+sp_head::add_cont_backpatch(sp_instr_jump_if_not *i)
+{
+  i->m_cont_dest= m_cont_level;
+  (void)m_cont_backpatch.push_front(i);
+}
+
+void
+sp_head::do_cont_backpatch()
+{
+  uint dest= instructions();
+  uint lev= m_cont_level--;
+  sp_instr_jump_if_not *i;
+
+  while ((i= m_cont_backpatch.head()) && i->m_cont_dest == lev)
+  {
+    i->m_cont_dest= dest;
+    (void)m_cont_backpatch.pop();
+  }
+}
+
+void
 sp_head::set_info(char *definer, uint definerlen,
 		  longlong created, longlong modified,
 		  st_sp_chistics *chistics, ulong sql_mode)
@@ -1782,7 +1816,10 @@ sp_head::show_create_function(THD *thd)
 
 
 /*
-  TODO: what does this do??
+  Do some minimal optimization of the code:
+    1) Mark used instructions
+       1.1) While doing this, shortcut jumps to jump instructions
+    2) Compact the code, removing unused instructions
 */
 
 void sp_head::optimize()
@@ -1805,7 +1842,7 @@ void sp_head::optimize()
     else
     {
       if (src != dst)
-      {
+      {                         // Move the instruction and update prev. jumps
 	sp_instr *ibp;
 	List_iterator_fast<sp_instr> li(bp);
 
@@ -1813,8 +1850,7 @@ void sp_head::optimize()
 	while ((ibp= li++))
 	{
 	  sp_instr_jump *ji= static_cast<sp_instr_jump *>(ibp);
-	  if (ji->m_dest == src)
-	    ji->m_dest= dst;
+          ji->set_destination(src, dst);
 	}
       }
       i->opt_move(dst, &bp);
@@ -2145,65 +2181,6 @@ sp_instr_jump::opt_move(uint dst, List<sp_instr> *bp)
 
 
 /*
-  sp_instr_jump_if class functions
-*/
-
-int
-sp_instr_jump_if::execute(THD *thd, uint *nextp)
-{
-  DBUG_ENTER("sp_instr_jump_if::execute");
-  DBUG_PRINT("info", ("destination: %u", m_dest));
-  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
-}
-
-int
-sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
-{
-  Item *it;
-  int res;
-
-  it= sp_prepare_func_item(thd, &m_expr);
-  if (!it)
-    res= -1;
-  else
-  {
-    res= 0;
-    if (it->val_bool())
-      *nextp = m_dest;
-    else
-      *nextp = m_ip+1;
-  }
-
-  return res;
-}
-
-void
-sp_instr_jump_if::print(String *str)
-{
-  str->reserve(12);
-  str->append("jump_if ");
-  str->qs_append(m_dest);
-  str->append(' ');
-  m_expr->print(str);
-}
-
-uint
-sp_instr_jump_if::opt_mark(sp_head *sp)
-{
-  sp_instr *i;
-
-  marked= 1;
-  if ((i= sp->get_instr(m_dest)))
-  {
-    m_dest= i->opt_shortcut_jump(sp, this);
-    m_optdest= sp->get_instr(m_dest);
-  }
-  sp->opt_mark(m_dest);
-  return m_ip+1;
-}
-
-
-/*
   sp_instr_jump_if_not class functions
 */
 
@@ -2224,7 +2201,10 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 
   it= sp_prepare_func_item(thd, &m_expr);
   if (! it)
+  {
     res= -1;
+    *nextp = m_cont_dest;
+  }
   else
   {
     res= 0;
@@ -2241,10 +2221,12 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if_not::print(String *str)
 {
-  str->reserve(16);
+  str->reserve(24);
   str->append("jump_if_not ");
   str->qs_append(m_dest);
-  str->append(' ');
+  str->append('(');
+  str->qs_append(m_cont_dest);
+  str->append(") ");
   m_expr->print(str);
 }
 
@@ -2261,7 +2243,33 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
+  if ((i= sp->get_instr(m_cont_dest)))
+  {
+    m_cont_dest= i->opt_shortcut_jump(sp, this);
+    m_cont_optdest= sp->get_instr(m_cont_dest);
+  }
+  sp->opt_mark(m_cont_dest);
   return m_ip+1;
+}
+
+void
+sp_instr_jump_if_not::opt_move(uint dst, List<sp_instr> *bp)
+{
+  /*
+    cont. destinations may point backwards after shortcutting jumps
+    during the mark phase. If it's still pointing forwards, only
+    push this for backpatching if sp_instr_jump::opt_move() will not
+    do it (i.e. if the m_dest points backwards).
+   */
+  if (m_cont_dest > m_ip)
+  {                             // Forward
+    if (m_dest < m_ip)
+      bp->push_back(this);
+  }
+  else if (m_cont_optdest)
+    m_cont_dest= m_cont_optdest->m_ip; // Backward
+  /* This will take care of m_dest and m_ip */
+  sp_instr_jump::opt_move(dst, bp);
 }
 
 
