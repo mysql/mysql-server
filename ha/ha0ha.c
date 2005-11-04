@@ -40,9 +40,13 @@ ha_create(
 		table->adaptive = FALSE;
 	}
 
+	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
+	but in practise it never should in this case, hence the asserts. */
+	
 	if (n_mutexes == 0) {
 		if (in_btr_search) {
 			table->heap = mem_heap_create_in_btr_search(4096);
+			ut_a(table->heap);
 		} else {
 			table->heap = mem_heap_create_in_buffer(4096);
 		}
@@ -57,6 +61,7 @@ ha_create(
 	for (i = 0; i < n_mutexes; i++) {
 		if (in_btr_search) {
 			table->heaps[i] = mem_heap_create_in_btr_search(4096);
+			ut_a(table->heaps[i]);
 		} else {
 			table->heaps[i] = mem_heap_create_in_buffer(4096);
 		}
