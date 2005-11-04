@@ -68,7 +68,8 @@ void
 page_header_set_field(
 /*==================*/
 	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		field,	/* in: PAGE_N_DIR_SLOTS, ... */
 	ulint		val)	/* in: value */
 {
@@ -119,7 +120,8 @@ void
 page_header_set_ptr(
 /*================*/
 	page_t*		page,	/* in: page */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		field,	/* in: PAGE_FREE, ... */
 	const byte*	ptr)	/* in: pointer or NULL*/
 {
@@ -419,10 +421,25 @@ void
 page_dir_set_n_slots(
 /*=================*/
 	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		n_slots)/* in: number of slots */
 {
 	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots);
+}
+
+/*****************************************************************
+Gets the size of the page trailer. */
+UNIV_INLINE
+ulint
+page_trailer_get_len(
+/*=================*/
+				/* out: length of page trailer, in bytes */
+	const page_t*	page)	/* in: index page */
+{
+	return(page + UNIV_PAGE_SIZE
+			- page_dir_get_nth_slot((page_t*) page,
+				page_dir_get_n_slots((page_t*) page) - 1));
 }
 
 /*****************************************************************
@@ -444,7 +461,8 @@ void
 page_dir_set_n_heap(
 /*================*/
 	page_t*		page,	/* in/out: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	ulint		n_heap)	/* in: number of records */
 {
 	ut_ad(n_heap < 0x8000);
@@ -509,11 +527,17 @@ void
 page_dir_slot_set_rec(
 /*==================*/
 	page_dir_slot_t* slot,	/* in: directory slot */
+	page_zip_des_t*	 page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	rec_t*		 rec)	/* in: record on the page */
 {
 	ut_ad(page_rec_check(rec));
 
 	mach_write_to_2(slot, ut_align_offset(rec, UNIV_PAGE_SIZE));
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_trailer(page_zip, slot, 2);
+	}
 }
 
 /*******************************************************************
